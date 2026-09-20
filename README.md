@@ -47,7 +47,7 @@ See the [Usage Guide](docs/USAGE.md) for the complete public API.
 
 ## Getting help
 
-Use [GitHub Issues](https://github.com/Photivra/photivra/issues) for reproducible bugs, documentation problems, and feature discussions. For security vulnerabilities, follow [SECURITY.md](SECURITY.md).
+Use [GitHub Issues](https://github.com/photivra/photivra/issues) for reproducible bugs, documentation problems, and feature discussions. For security vulnerabilities, follow [SECURITY.md](SECURITY.md).
 
 ## What is implemented
 

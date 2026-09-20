@@ -37,12 +37,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Photivra/photivra.git"
+    "url": "git+https://github.com/photivra/photivra.git"
   },
   "bugs": {
-    "url": "https://github.com/Photivra/photivra/issues"
+    "url": "https://github.com/photivra/photivra/issues"
   },
-  "homepage": "https://github.com/Photivra/photivra#readme",
+  "homepage": "https://github.com/photivra/photivra#readme",
   "publishConfig": {
     "access": "public"
   },

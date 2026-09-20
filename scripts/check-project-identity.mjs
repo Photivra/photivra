@@ -5,6 +5,8 @@ import path from "node:path";
 import { stdout } from "node:process";
 
 const ROOT_FILES = [
+  "AGENTS.md",
+  "CITATION.cff",
   "README.md",
   "SECURITY.md",
   "CONTRIBUTING.md",
