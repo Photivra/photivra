@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use Photivra in research or technical work, please cite it using the metadata below."
+title: "Photivra"
+type: software
+authors:
+  - family-names: "Shackelford"
+    given-names: "William"
+abstract: "An open TypeScript engine for the science and mathematics of photography and digital imaging."
+repository-code: "https://github.com/Photivra/photivra"
+url: "https://photivra.com"
+license: "Apache-2.0"
+version: "0.1.0"
+keywords:
+  - photography
+  - camera optics
+  - digital imaging
+  - imaging science
+  - depth of field
+  - exposure
+  - motion blur
+  - diffraction
+  - sensor sampling
+  - signal-to-noise

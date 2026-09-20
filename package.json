@@ -1,0 +1,91 @@
+{
+  "name": "@photivra/engine",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Scientific TypeScript engine for camera optics, exposure, focus, motion, sensor sampling, diffraction, and digital imaging calculations.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/index.js",
+    "dist/index.js.map",
+    "dist/index.d.ts",
+    "dist/index.d.ts.map",
+    "dist/camera",
+    "dist/core",
+    "dist/exposure",
+    "dist/motion",
+    "dist/optics",
+    "dist/output",
+    "dist/schema",
+    "dist/sensor",
+    "dist/simulation",
+    "dist/stabilization",
+    "README.md",
+    "CITATION.cff",
+    "LICENSE",
+    "NOTICE",
+    "docs"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Photivra/photivra.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Photivra/photivra/issues"
+  },
+  "homepage": "https://github.com/Photivra/photivra#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
+    "check": "eslint . && tsc --noEmit && vitest run && npm run check:licenses && npm run check:license-headers && npm run check:identity && npm run check:browser-surface",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "pack:check": "node scripts/check-package-surface.mjs",
+    "coverage": "vitest run --coverage",
+    "check:browser-surface": "node scripts/check-browser-surface.mjs",
+    "check:licenses": "node scripts/check-license-policy.mjs",
+    "check:license-headers": "node scripts/check-license-headers.mjs",
+    "check:identity": "node scripts/check-project-identity.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.10.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.0",
+    "vitest": "5.0.1",
+    "@types/node": "24.13.6",
+    "@vitest/coverage-v8": "5.0.1"
+  },
+  "keywords": [
+    "photography",
+    "camera",
+    "optics",
+    "digital-imaging",
+    "imaging-science",
+    "depth-of-field",
+    "exposure",
+    "motion-blur",
+    "diffraction",
+    "image-sensor",
+    "signal-to-noise",
+    "scientific-computing",
+    "typescript"
+  ]
+}
