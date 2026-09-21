@@ -37,6 +37,7 @@ See the [Usage Guide](docs/USAGE.md) for the complete public API.
 ## Documentation
 
 - [Usage Guide](docs/USAGE.md)
+- [Changelog](CHANGELOG.md)
 - [Public API Style](docs/API_STYLE.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Physics Foundation](docs/PHYSICS_FOUNDATION.md)
@@ -63,7 +64,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 
 ### Exposure and motion
 
-- [EV100, relative optical exposure, and equivalent ISO compensation](docs/USAGE.md#exposure-and-equivalent-iso);
+- [EV100, relative optical exposure, relative rendered exposure, and equivalent ISO compensation](docs/USAGE.md#exposure-and-iso-relations);
 - [constant-velocity projected point motion](docs/USAGE.md#projected-subject-motion);
 - [a controlled yaw/pitch camera-shake and stabilization-equivalent approximation](docs/USAGE.md#camera-shake-and-stabilization-equivalent-approximation).
 
@@ -139,13 +140,13 @@ The calling application can then use those results while keeping the underlying 
 
 ## Status
 
-- Package version: `0.1.0`
+- Package version: `0.2.0`
 - Engine API contract: `0.17.0`
 - Stability: pre-1.0 / proof of concept
 
 Package version and engine API version are intentionally separate. Public APIs may evolve before 1.0 while the scientific models and composition contracts are validated.
 
-Making this GitHub repository public and publishing `@photivra/engine` to a package registry are separate release actions.
+Creating a GitHub release/tag and publishing `@photivra/engine` are separate release actions. The tag-triggered publish workflow verifies that the `vX.Y.Z` tag matches the package version before publishing.
 
 ## Important scientific limits
 

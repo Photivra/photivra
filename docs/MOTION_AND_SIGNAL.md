@@ -33,6 +33,8 @@ Camera motion is not folded into subject motion. Camera shake is modeled separat
 
 These calculations do not imply a photon count because they do not include scene radiance, lens transmission/T-stop, vignetting, spectral response, or sensor calibration.
 
+`calculateRelativeRenderedExposure()` combines the relative optical exposure with the nominal ISO gain ratio (`iso / referenceIso`) and reports both the linear factor and stop difference. It is intended for deterministic relative rendering against a declared reference, not for radiometric calibration; it does not model photon creation, sensor noise, clipping, tone mapping, or lens transmission.
+
 `calculateEquivalentIso()` treats ISO as nominal gain/brightness compensation needed to preserve rendered exposure after an aperture/shutter change. It is not used as a shortcut for noise or photon creation.
 
 ## Signal/noise primitives
