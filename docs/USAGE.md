@@ -259,7 +259,7 @@ The model assumes constant world-space linear velocity. It tracks a representati
 
 See [Motion and Signal Foundation](MOTION_AND_SIGNAL.md#projected-subject-motion).
 
-## Exposure and equivalent ISO
+## Exposure and ISO relations
 
 Use `calculateExposureValue100()` for EV100:
 
