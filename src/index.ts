@@ -113,7 +113,6 @@ export type {
   Vector3
 } from "./schema/scene.js";
 
-
 export {
   calculateProjectedMotionBlur,
   type CalculateProjectedMotionBlurInput,
@@ -124,10 +123,13 @@ export {
   calculateEquivalentIso,
   calculateExposureValue100,
   calculateRelativeOpticalExposure,
+  calculateRelativeRenderedExposure,
   type CalculateEquivalentIsoInput,
   type CalculateExposureValue100Input,
   type CalculateRelativeOpticalExposureInput,
-  type RelativeOpticalExposure
+  type CalculateRelativeRenderedExposureInput,
+  type RelativeOpticalExposure,
+  type RelativeRenderedExposure
 } from "./exposure/exposure.js";
 
 export {
@@ -144,7 +146,6 @@ export {
   type CalculateSignalToNoiseInput,
   type SignalToNoise
 } from "./sensor/signal-noise.js";
-
 
 export {
   simulatePocCamera,

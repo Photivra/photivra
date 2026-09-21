@@ -5,6 +5,7 @@ import {
   calculateExposureValue100,
   calculatePhotoelectrons,
   calculateRelativeOpticalExposure,
+  calculateRelativeRenderedExposure,
   calculateSignalToNoise
 } from "../src/index.js";
 
@@ -28,6 +29,65 @@ describe("exposure relations", () => {
 
     expect(result.value.factor).toBeCloseTo(0.5, 12);
     expect(result.value.stops).toBeCloseTo(-1, 12);
+  });
+
+  it("combines optical exposure and nominal ISO gain for relative rendering", () => {
+    const reference = {
+      referenceAperture: 5.6,
+      referenceShutterSeconds: 1 / 1000,
+      referenceIso: 800
+    };
+
+    const same = calculateRelativeRenderedExposure({
+      aperture: 5.6,
+      shutterSeconds: 1 / 1000,
+      iso: 800,
+      ...reference
+    });
+    expect(same.value.factor).toBeCloseTo(1, 12);
+    expect(same.value.stops).toBeCloseTo(0, 12);
+
+    const isoUpOneStop = calculateRelativeRenderedExposure({
+      aperture: 5.6,
+      shutterSeconds: 1 / 1000,
+      iso: 1600,
+      ...reference
+    });
+    expect(isoUpOneStop.value.opticalFactor).toBeCloseTo(1, 12);
+    expect(isoUpOneStop.value.isoGainFactor).toBeCloseTo(2, 12);
+    expect(isoUpOneStop.value.factor).toBeCloseTo(2, 12);
+    expect(isoUpOneStop.value.stops).toBeCloseTo(1, 12);
+  });
+
+  it("preserves nominal rendered exposure across equivalent-stop settings", () => {
+    const result = calculateRelativeRenderedExposure({
+      aperture: 5.6,
+      shutterSeconds: 1 / 2000,
+      iso: 1600,
+      referenceAperture: 5.6,
+      referenceShutterSeconds: 1 / 1000,
+      referenceIso: 800
+    });
+
+    expect(result.value.opticalFactor).toBeCloseTo(0.5, 12);
+    expect(result.value.isoGainFactor).toBeCloseTo(2, 12);
+    expect(result.value.factor).toBeCloseTo(1, 12);
+    expect(result.value.stops).toBeCloseTo(0, 12);
+  });
+
+  it("does not describe nominal ISO gain as photon creation", () => {
+    const result = calculateRelativeRenderedExposure({
+      aperture: 4,
+      shutterSeconds: 1 / 1000,
+      iso: 800,
+      referenceAperture: 4,
+      referenceShutterSeconds: 1 / 1000,
+      referenceIso: 800
+    });
+
+    expect(result.provenance.assumptions).toContain(
+      "ISO is treated as nominal rendering gain, not photon creation"
+    );
   });
 
   it("rejects non-finite computed exposure results", () => {
