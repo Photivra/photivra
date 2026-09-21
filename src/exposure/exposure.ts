@@ -87,6 +87,71 @@ export function calculateRelativeOpticalExposure(
   );
 }
 
+export interface CalculateRelativeRenderedExposureInput {
+  aperture: number;
+  shutterSeconds: number;
+  iso: number;
+  referenceAperture: number;
+  referenceShutterSeconds: number;
+  referenceIso: number;
+}
+
+export interface RelativeRenderedExposure {
+  /** Nominal linear rendering multiplier; 1 equals the reference settings. */
+  factor: number;
+  /** Difference from the reference in stops. Positive means a brighter rendering. */
+  stops: number;
+  /** Image-plane optical exposure ratio before nominal ISO gain. */
+  opticalFactor: number;
+  /** Nominal ISO gain ratio relative to the reference ISO. */
+  isoGainFactor: number;
+}
+
+/**
+ * Calculates a relative linear rendering exposure from aperture, shutter, and
+ * nominal ISO gain.
+ *
+ * This relation is intended for deterministic educational rendering relative to
+ * a declared reference exposure. ISO is treated as a brightness/gain control;
+ * it does not create photons and this function does not model sensor noise,
+ * clipping, tone mapping, lens transmission, or absolute scene luminance.
+ *
+ * @param input Current and reference aperture/shutter/ISO settings.
+ * @returns Relative rendering factor and stop difference.
+ */
+export function calculateRelativeRenderedExposure(
+  input: CalculateRelativeRenderedExposureInput
+): CalculationResult<RelativeRenderedExposure> {
+  requirePositiveFinite("iso", input.iso);
+  requirePositiveFinite("referenceIso", input.referenceIso);
+
+  const optical = calculateRelativeOpticalExposure({
+    aperture: input.aperture,
+    shutterSeconds: input.shutterSeconds,
+    referenceAperture: input.referenceAperture,
+    referenceShutterSeconds: input.referenceShutterSeconds
+  });
+  const isoGainFactor = input.iso / input.referenceIso;
+  const factor = optical.value.factor * isoGainFactor;
+
+  return calculatedResult(
+    {
+      factor,
+      stops: Math.log2(factor),
+      opticalFactor: optical.value.factor,
+      isoGainFactor
+    },
+    "relative-rendered-exposure",
+    "1.0.0",
+    [
+      "Constant scene illumination",
+      "ISO is treated as nominal rendering gain, not photon creation",
+      "Lens transmission and sensor-specific gain behavior are not modeled",
+      "Clipping and display tone mapping are not modeled"
+    ]
+  );
+}
+
 export interface CalculateEquivalentIsoInput {
   baseIso: number;
   baseAperture: number;
