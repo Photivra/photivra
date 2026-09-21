@@ -290,6 +290,28 @@ console.log(exposure.value.factor);
 console.log(exposure.value.stops);
 ```
 
+Use `calculateRelativeRenderedExposure()` when a renderer needs a nominal linear brightness multiplier that combines the aperture/shutter optical-exposure change with ISO gain relative to declared reference settings:
+
+```ts
+import { calculateRelativeRenderedExposure } from "@photivra/engine";
+
+const rendered = calculateRelativeRenderedExposure({
+  aperture: 5.6,
+  shutterSeconds: 1 / 2000,
+  iso: 1600,
+  referenceAperture: 5.6,
+  referenceShutterSeconds: 1 / 1000,
+  referenceIso: 800
+});
+
+console.log(rendered.value.factor); // 1
+console.log(rendered.value.stops); // 0
+console.log(rendered.value.opticalFactor); // 0.5
+console.log(rendered.value.isoGainFactor); // 2
+```
+
+This is a relative rendering relation, not a radiometric sensor model. ISO is treated as nominal rendering gain; it does not create photons, and the function does not model clipping, tone mapping, lens transmission, or sensor-specific noise behavior.
+
 Use `calculateEquivalentIso()` to calculate the nominal ISO/gain compensation needed to preserve rendered exposure:
 
 ```ts

@@ -139,7 +139,7 @@ The calling application can then use those results while keeping the underlying 
 
 ## Status
 
-- Package version: `0.1.0`
+- Package version: `0.2.0`
 - Engine API contract: `0.17.0`
 - Stability: pre-1.0 / proof of concept
 
