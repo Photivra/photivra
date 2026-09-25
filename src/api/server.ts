@@ -8,7 +8,10 @@ import {
 } from "node:http";
 
 import { parsePocSimulationRequest } from "./poc-request.js";
-import { simulatePocCamera } from "../simulation/poc-simulation.js";
+import {
+  POC_SIMULATION_API_VERSION,
+  simulatePocCamera
+} from "../simulation/poc-simulation.js";
 
 const DEFAULT_HOST = "localhost";
 const DEFAULT_PORT = 8787;
@@ -76,7 +79,7 @@ export function createPocApiServer(
         {
           ok: true,
           service: "photivra-engine",
-          apiVersion: "0.17.0"
+          apiVersion: POC_SIMULATION_API_VERSION
         },
         allowedOrigin
       );
