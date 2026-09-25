@@ -2,11 +2,24 @@ import { describe, expect, it } from "vitest";
 
 import {
   calculateActiveCaptureFieldOfView,
-  resolveCaptureGeometry
+  resolveCaptureGeometry,
+  transformNativeRasterPointToOriented,
+  transformNativeRasterRectToOriented,
+  transformNativeRasterVectorToOriented,
+  transformOrientedRasterPointToNative,
+  transformOrientedRasterRectToNative,
+  transformOrientedRasterVectorToNative,
+  type CaptureOrientation
 } from "../src/index.js";
 
 const FULL_FRAME = { widthMm: 36, heightMm: 24 };
 const RASTER_24MP = { pixelWidth: 6000, pixelHeight: 4000 };
+const ORIENTATIONS: readonly CaptureOrientation[] = [
+  "landscape",
+  "portrait-clockwise",
+  "landscape-inverted",
+  "portrait-counter-clockwise"
+];
 
 describe("capture geometry", () => {
   it("keeps native coordinates stable while portrait orientation swaps presentation axes", () => {
@@ -34,52 +47,106 @@ describe("capture geometry", () => {
     });
   });
 
-  it("keeps clockwise and counter-clockwise portrait orientations distinct", () => {
-    const clockwise = resolveCaptureGeometry({
-      imagingArea: FULL_FRAME,
-      nativeRaster: RASTER_24MP,
-      orientation: "portrait-clockwise"
-    }).value;
-    const counterClockwise = resolveCaptureGeometry({
-      imagingArea: FULL_FRAME,
-      nativeRaster: RASTER_24MP,
-      orientation: "portrait-counter-clockwise"
-    }).value;
+  it("round-trips points, vectors, and half-open rectangles for all four orientations", () => {
+    for (const orientation of ORIENTATIONS) {
+      const point = { x: 1234.25, y: 987.75 };
+      const orientedPoint = transformNativeRasterPointToOriented({
+        point,
+        nativeRaster: RASTER_24MP,
+        orientation
+      });
+      expect(
+        transformOrientedRasterPointToNative({
+          point: orientedPoint,
+          nativeRaster: RASTER_24MP,
+          orientation
+        })
+      ).toEqual(point);
 
-    expect(clockwise.orientedCapture.raster).toEqual(
-      counterClockwise.orientedCapture.raster
-    );
-    expect(clockwise.orientedCapture.orientation).not.toBe(
-      counterClockwise.orientedCapture.orientation
-    );
+      const vector = { x: 17.5, y: -9.25 };
+      const orientedVector = transformNativeRasterVectorToOriented({
+        vector,
+        orientation
+      });
+      expect(
+        transformOrientedRasterVectorToNative({
+          vector: orientedVector,
+          orientation
+        })
+      ).toEqual(vector);
+
+      const rect = { x: 101, y: 203, width: 1400, height: 700 };
+      const orientedRect = transformNativeRasterRectToOriented({
+        rect,
+        nativeRaster: RASTER_24MP,
+        orientation
+      });
+      expect(
+        transformOrientedRasterRectToNative({
+          rect: orientedRect,
+          nativeRaster: RASTER_24MP,
+          orientation
+        })
+      ).toEqual(rect);
+    }
   });
 
-  it("derives active physical area from a native sensor crop without mutating sensor identity", () => {
+  it("uses distinct clockwise and counter-clockwise transforms", () => {
+    const point = { x: 1000, y: 500 };
+    expect(
+      transformNativeRasterPointToOriented({
+        point,
+        nativeRaster: RASTER_24MP,
+        orientation: "portrait-clockwise"
+      })
+    ).toEqual({ x: 3500, y: 1000 });
+    expect(
+      transformNativeRasterPointToOriented({
+        point,
+        nativeRaster: RASTER_24MP,
+        orientation: "portrait-counter-clockwise"
+      })
+    ).toEqual({ x: 500, y: 5000 });
+  });
+
+  it("rejects invalid runtime orientation values instead of treating them as landscape", () => {
+    expect(() =>
+      resolveCaptureGeometry({
+        imagingArea: FULL_FRAME,
+        nativeRaster: RASTER_24MP,
+        orientation: "sideways" as CaptureOrientation
+      })
+    ).toThrow("orientation is invalid");
+  });
+
+  it("derives active physical area and optical-axis offset from a native crop", () => {
     const result = resolveCaptureGeometry({
       imagingArea: FULL_FRAME,
       nativeRaster: RASTER_24MP,
       orientation: "landscape",
       activeCaptureRect: {
-        x: 1000,
+        x: 0,
         y: 800,
-        width: 4000,
+        width: 3000,
         height: 2400
       }
     }).value;
 
     expect(result.native.imagingArea).toEqual(FULL_FRAME);
-    expect(result.native.raster).toEqual(RASTER_24MP);
-    expect(result.activeCapture.imagingArea.widthMm).toBeCloseTo(24, 12);
+    expect(result.activeCapture.imagingArea.widthMm).toBeCloseTo(18, 12);
     expect(result.activeCapture.imagingArea.heightMm).toBeCloseTo(14.4, 12);
-    expect(result.activeCapture.physicalOffsetMm.x).toBeCloseTo(6, 12);
+    expect(result.activeCapture.physicalOffsetMm.x).toBeCloseTo(0, 12);
     expect(result.activeCapture.physicalOffsetMm.y).toBeCloseTo(4.8, 12);
-    expect(result.activeCapture.raster).toEqual({
-      pixelWidth: 4000,
-      pixelHeight: 2400
-    });
+    expect(result.activeCapture.centerOffsetFromOpticalAxisMm.x).toBeCloseTo(
+      -9,
+      12
+    );
+    expect(result.activeCapture.imagingAreaDerivation).toBe(
+      "uniform-native-raster"
+    );
   });
 
-  it("keeps final output crop and raster separate from active capture geometry", () => {
+  it("keeps final output crop/raster separate and rejects implicit stretching", () => {
     const result = resolveCaptureGeometry({
       imagingArea: FULL_FRAME,
       nativeRaster: RASTER_24MP,
@@ -97,24 +164,32 @@ describe("capture geometry", () => {
     }).value;
 
     expect(result.activeCapture.imagingArea).toEqual(FULL_FRAME);
-    expect(result.orientedCapture.raster).toEqual({
-      pixelWidth: 4000,
-      pixelHeight: 6000
-    });
-    expect(result.output.cropRect).toEqual({
-      x: 0,
-      y: 1875,
-      width: 4000,
-      height: 2250
-    });
     expect(result.output.raster).toEqual({
       pixelWidth: 3840,
       pixelHeight: 2160
     });
     expect(result.output.sourceRetainedAreaFraction).toBeCloseTo(0.375, 12);
+
+    expect(() =>
+      resolveCaptureGeometry({
+        imagingArea: FULL_FRAME,
+        nativeRaster: RASTER_24MP,
+        orientation: "landscape",
+        outputCropRect: {
+          x: 0,
+          y: 0,
+          width: 4000,
+          height: 2250
+        },
+        outputRaster: {
+          pixelWidth: 2000,
+          pixelHeight: 2000
+        }
+      })
+    ).toThrow("implicit geometric stretching");
   });
 
-  it("rejects active and output crop rectangles outside their declared coordinate spaces", () => {
+  it("rejects active and output crop rectangles outside their coordinate spaces", () => {
     expect(() =>
       resolveCaptureGeometry({
         imagingArea: FULL_FRAME,
@@ -144,7 +219,7 @@ describe("capture geometry", () => {
     ).toThrow("outputCropRect must fit entirely");
   });
 
-  it("swaps horizontal and vertical FOV at 90 degrees while preserving diagonal FOV", () => {
+  it("swaps horizontal/vertical FOV at 90 degrees and preserves diagonal spans", () => {
     const landscape = calculateActiveCaptureFieldOfView({
       imagingArea: FULL_FRAME,
       nativeRaster: RASTER_24MP,
@@ -172,45 +247,58 @@ describe("capture geometry", () => {
     );
   });
 
-  it("uses active physical capture area for FOV rather than pretending the sensor changed", () => {
-    const full = calculateActiveCaptureFieldOfView({
-      imagingArea: FULL_FRAME,
-      nativeRaster: RASTER_24MP,
-      orientation: "landscape",
-      focalLengthMm: 50
-    }).value;
-    const cropped = calculateActiveCaptureFieldOfView({
+  it("models off-center active-crop angular bounds instead of recentering them", () => {
+    const centered = calculateActiveCaptureFieldOfView({
       imagingArea: FULL_FRAME,
       nativeRaster: RASTER_24MP,
       orientation: "landscape",
       activeCaptureRect: {
-        x: 1000,
-        y: 666,
-        width: 4000,
-        height: 2668
+        x: 1500,
+        y: 0,
+        width: 3000,
+        height: 4000
+      },
+      focalLengthMm: 50
+    }).value;
+    const leftHalf = calculateActiveCaptureFieldOfView({
+      imagingArea: FULL_FRAME,
+      nativeRaster: RASTER_24MP,
+      orientation: "landscape",
+      activeCaptureRect: {
+        x: 0,
+        y: 0,
+        width: 3000,
+        height: 4000
       },
       focalLengthMm: 50
     }).value;
 
-    expect(cropped.horizontalDegrees).toBeLessThan(full.horizontalDegrees);
-    expect(cropped.verticalDegrees).toBeLessThan(full.verticalDegrees);
-    expect(cropped.activeImagingArea.widthMm).toBeCloseTo(24, 12);
-    expect(full.activeImagingArea).toEqual(FULL_FRAME);
+    expect(leftHalf.centerOffsetFromOpticalAxisMm.x).toBeCloseTo(-9, 12);
+    expect(leftHalf.horizontalBoundsDegrees.maximum).toBeCloseTo(0, 12);
+    expect(leftHalf.horizontalBoundsDegrees.minimum).toBeLessThan(0);
+    expect(leftHalf.horizontalDegrees).toBeLessThan(
+      centered.horizontalDegrees
+    );
+    expect(
+      leftHalf.diagonalDegreesByCornerPair.topLeftToBottomRight
+    ).not.toBeCloseTo(
+      leftHalf.diagonalDegreesByCornerPair.topRightToBottomLeft,
+      8
+    );
   });
 
-  it("records coordinate and digital-output separation in provenance", () => {
-    const result = resolveCaptureGeometry({
+  it("preserves the underlying projection provenance", () => {
+    const result = calculateActiveCaptureFieldOfView({
       imagingArea: FULL_FRAME,
       nativeRaster: RASTER_24MP,
-      orientation: "landscape-inverted"
-    });
+      orientation: "landscape",
+      focalLengthMm: 50,
+      focusDistanceM: 2
+    }).value;
 
-    expect(result.provenance.assumptions).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("top-left origin"),
-        expect.stringContaining("half-open"),
-        expect.stringContaining("does not mutate physical sensor")
-      ])
+    expect(result.projection.provenance.model).toBe(
+      "focus-aware-asymmetric-rectilinear-field-of-view"
     );
+    expect(result.projection.projectionDistanceMm).toBeGreaterThan(50);
   });
 });
