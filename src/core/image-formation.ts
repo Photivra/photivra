@@ -290,10 +290,10 @@ const STAGES = [
     domain: "sensor-output-display",
     status: "existing-foundation",
     coordinateSpaces: ["native-raster", "oriented-capture-raster"],
-    requiredUpstreamStages: ["photosite-cfa-sampling"],
+    requiredUpstreamStages: ["reconstruction"],
     coupledStages: ["temporal-exposure-readout"],
     purpose:
-      "Transform native raster coordinates into oriented capture coordinates without redefining native sensor/readout coordinates."
+      "Transform reconstructed native-raster coordinates into oriented capture coordinates without redefining native sensor/readout coordinates. The coordinate transform primitive already exists independently; this dependency reserves its full-pipeline placement."
   },
   {
     id: "output-crop-resample",
