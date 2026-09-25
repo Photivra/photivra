@@ -769,11 +769,13 @@ The root engine and composed POC are versioned independently. `ENGINE_API_VERSIO
 
 The current composed POC reports X/Y geometric sample pitch but still uses one backwards-compatible representative horizontal pitch internally for blur/sampling calculations. It therefore rejects sensor geometry whose X/Y pitch differs by more than 1%. Axis-aware lower-level geometry remains available for more general sensor layouts.
 
-POC API 0.19 composes the capture-geometry foundation additively. Existing requests remain valid. New callers may supply an optional `capture` object with physical orientation, an optional native active-capture rectangle, an optional oriented output crop, and an optional final output raster.
+POC API 0.20 composes the capture-geometry foundation through final output/viewing semantics. Existing requests remain valid. New callers may supply an optional `capture` object with physical orientation, an optional native active-capture rectangle, an optional oriented output crop, and an optional final output raster.
 
-Capture mode deliberately fails closed where old and new semantics would be ambiguous: legacy `crop.factor` must remain `1`, `subjectCrop` is not yet combined with staged output geometry, and equivalent-viewing CoC input is not yet combined with retained-area/output-viewing semantics. Use explicit `circleOfConfusionMm` in capture mode.
+Capture mode deliberately keeps legacy `crop.factor` separate: it must remain `1` when `capture` is present. Staged capture can use the existing `subjectCrop` request, but the result appears under `capture.subjectFraming` because it is a post-output framing stage rather than a legacy total-crop factor.
 
-The optional response `capture` block exposes resolved geometry, active-capture FOV, active-capture diagonal-based 35 mm-equivalent focal length, and explicit native-raster/oriented/output motion diagnostics. Legacy motion Y is image-plane +Y-up; capture raster Y is +Y-down, so the conversion is reported rather than hidden. Physical focal length remains authoritative. Sensor-architecture metadata and radiometry-readiness profiles are still standalone.
+Equivalent-viewing CoC in capture mode uses the final retained physical image region, including subject framing when present; changing only output pixel resolution does not change the criterion. Explicit `circleOfConfusionMm` remains unchanged.
+
+The optional response `capture` block exposes resolved geometry, active/output FOV, active-capture diagonal-based 35 mm-equivalent focal length, output sampling scale, optional subject framing, and explicit native-raster/oriented/output motion diagnostics. Legacy motion Y is image-plane +Y-up; capture raster Y is +Y-down, so the conversion is reported rather than hidden. Physical focal length remains authoritative. Sensor-architecture metadata and radiometry-readiness profiles are still standalone.
 
 
 ```ts
