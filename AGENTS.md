@@ -115,14 +115,19 @@ Backward compatibility matters.
 
 Do not assume every public root-engine foundation is already part of the composed POC.
 
-As of the current post-0.2 mainline:
+As of POC simulation API 0.19:
 
-- `simulatePocCamera()` does not accept `CaptureOrientation`, arbitrary active-capture rectangles, sensor-architecture metadata, or radiometry-readiness profiles.
-- Equivalent focal length is a derived informational result, not a replacement for physical focal length inside POC physics.
+- `simulatePocCamera()` preserves the legacy sensor + centered `crop.factor` request and adds an opt-in staged `capture` request for physical orientation, native active-capture rectangle, oriented output crop, and final output raster.
+- Capture mode must not silently stack legacy crop semantics: `crop.factor` must remain `1` when `capture` is present.
+- Capture mode currently fails closed on `subjectCrop` and equivalent-viewing CoC input until those retained-area/output-viewing semantics are explicitly migrated.
+- The response exposes shared sensor-geometry metrics plus an optional capture block with active-capture FOV, active-capture 35 mm-equivalent focal length, and oriented/output motion diagnostics.
+- Equivalent focal length remains informational and never replaces physical focal length inside POC physics; final digital/output crop does not redefine it.
+- Existing motion/camera-shake X/Y fields retain their legacy native-coordinate meaning; additive capture diagnostics provide oriented/output vectors.
+- Sensor-architecture metadata and radiometry-readiness profiles remain standalone and are not composed.
 - The POC reports X/Y pitch diagnostics but still uses one representative horizontal pitch internally and fails closed above a 1% axis difference.
 - Radiometry readiness never enables photon/noise output by itself.
 
-Composing any of these newer foundations into `simulatePocCamera()` requires an explicit `POC_SIMULATION_API_VERSION` review/change, migration analysis, regression tests, and documentation. Do not silently reinterpret existing POC fields to “adopt” the newer model.
+Any further foundation composition still requires an explicit `POC_SIMULATION_API_VERSION` review/change, migration analysis, regression tests, and documentation. Do not silently reinterpret existing POC fields.
 
 ## Runtime and package boundary
 
