@@ -232,16 +232,16 @@ describe("spatial camera-rotation image mapping", () => {
       }
     });
 
-    expect(result.value.deltaSamples).toBeDefined();
-    expect(result.value.deltaSamples?.x).toBeCloseTo(
+    expect(result.value.deltaImagePlaneSamples).toBeDefined();
+    expect(result.value.deltaImagePlaneSamples?.x).toBeCloseTo(
       result.value.deltaMm.x / 0.005,
       12
     );
-    expect(result.value.deltaSamples?.y).toBeCloseTo(
+    expect(result.value.deltaImagePlaneSamples?.y).toBeCloseTo(
       result.value.deltaMm.y / 0.01,
       12
     );
-    expect(result.value.deltaSamples?.distance).toBeCloseTo(
+    expect(result.value.deltaImagePlaneSamples?.distance).toBeCloseTo(
       Math.hypot(
         result.value.deltaMm.x / 0.005,
         result.value.deltaMm.y / 0.01
