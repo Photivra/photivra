@@ -4,6 +4,8 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ## Unreleased
 
+## 0.4.0 - 2026-09-25
+
 ### Added
 
 - `getImageFormationContract()` and `IMAGE_FORMATION_CONTRACT_VERSION` defining public scientific ownership domains, coordinate spaces, hard stage dependencies, cross-stage couplings, temporal semantics, renderer warp/alpha/occlusion rules, and reserved sensor/reconstruction ordering.
