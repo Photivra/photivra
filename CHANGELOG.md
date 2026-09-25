@@ -28,6 +28,10 @@ Notable public changes to `@photivra/engine` are documented here.
 - `InvalidConfigurationError` now lives in the core dependency layer and remains re-exported from the existing public surface.
 - Radiometry readiness distinguishes `not-ready`, `approximate-only`, and `calibrated-ready`; assessment never enables composed photon output by itself.
 
+### Documentation
+
+- Synchronized human and agent guidance with the post-0.2 sensor/capture foundations, evidence/reuse-rights model, radiometry readiness gate, independent API-version surfaces, composed-POC integration boundary, and coordinate/sampling invariants.
+
 ## 0.2.0 - 2026-09-21
 
 ### Added
