@@ -565,6 +565,74 @@ The `2^-stops` attenuation is an educational approximation, not a real IBIS/OIS 
 
 See [Camera Shake and Stabilization](STABILIZATION.md).
 
+## Radiometry readiness
+
+Use `parseRadiometryReadinessProfile()` and `assessRadiometryReadiness()` to validate whether a declared radiometric calibration package contains the prerequisites needed for a future photon estimate.
+
+The gate covers six independently declared requirements:
+
+1. scene spectral radiance or a documented spectral approximation;
+2. optical transmission, either spectral data or an explicit T-stop approximation;
+3. pupil/vignetting behavior;
+4. photosite collection-area semantics;
+5. exposure integration;
+6. sensor spectral response / quantum efficiency.
+
+Example:
+
+```ts
+import {
+  assessRadiometryReadiness,
+  parseRadiometryReadinessProfile
+} from "@photivra/engine";
+
+const profile = parseRadiometryReadinessProfile({
+  schemaVersion: "0.1.0",
+  components: [
+    {
+      requirement: "photosite-collection-area",
+      scientificStatus: "approximation",
+      modelId: "example-collection-area",
+      modelVersion: "1.0.0",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "photivra:example",
+          reuseStatus: "photivra-owned"
+        }
+      ],
+      uncertainty: {
+        kind: "not-quantified",
+        limitation: "Example only."
+      },
+      areaModel: "geometric-area-times-fill-factor",
+      geometricCellAreaSquareMicrometers: 36,
+      fillFactor: 0.8
+    }
+  ]
+});
+
+const readiness = assessRadiometryReadiness(profile);
+
+console.log(readiness.status); // "not-ready"
+console.log(readiness.missingRequirements);
+console.log(readiness.composedPhotonOutputEnabled); // always false
+```
+
+Readiness states are:
+
+- `not-ready`: one or more required prerequisite categories are missing;
+- `approximate-only`: every category is present, but at least one component is approximate or has unquantified uncertainty;
+- `calibrated-ready`: every category is declared calibrated and carries quantified uncertainty.
+
+A readiness assessment validates the declared structure and provenance metadata. It does not verify that a source or calibration is scientifically correct.
+
+Geometric sample pitch is **not** accepted as photon-collection area by itself. The profile must declare either an effective collection area or a geometric cell area plus explicit fill factor.
+
+Data-bearing spectral/spatial calibration inputs are represented by an artifact ID plus SHA-256 checksum. Photivra does not infer reuse rights from public availability; reusable calibration data requires explicit licensing or Photivra ownership.
+
+The readiness API does not calculate photons, does not change the existing `calculatePhotoelectrons()` primitive, and does not add photon/noise output to `simulatePocCamera()`. Enabling any composed photon model remains a separate future scientific/integration step.
+
 ## Photoelectron and SNR primitives
 
 Use `calculatePhotoelectrons()` only when you already have a defensible mean incident photon count and quantum efficiency:
