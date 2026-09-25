@@ -254,13 +254,13 @@ describe("capture geometry", () => {
       orientation: "landscape",
       activeCaptureRect: {
         x: 1500,
-        y: 0,
+        y: 1000,
         width: 3000,
-        height: 4000
+        height: 2000
       },
       focalLengthMm: 50
     }).value;
-    const leftHalf = calculateActiveCaptureFieldOfView({
+    const offCenter = calculateActiveCaptureFieldOfView({
       imagingArea: FULL_FRAME,
       nativeRaster: RASTER_24MP,
       orientation: "landscape",
@@ -268,21 +268,27 @@ describe("capture geometry", () => {
         x: 0,
         y: 0,
         width: 3000,
-        height: 4000
+        height: 2000
       },
       focalLengthMm: 50
     }).value;
 
-    expect(leftHalf.centerOffsetFromOpticalAxisMm.x).toBeCloseTo(-9, 12);
-    expect(leftHalf.horizontalBoundsDegrees.maximum).toBeCloseTo(0, 12);
-    expect(leftHalf.horizontalBoundsDegrees.minimum).toBeLessThan(0);
-    expect(leftHalf.horizontalDegrees).toBeLessThan(
+    expect(offCenter.centerOffsetFromOpticalAxisMm.x).toBeCloseTo(-9, 12);
+    expect(offCenter.centerOffsetFromOpticalAxisMm.y).toBeCloseTo(-6, 12);
+    expect(offCenter.horizontalBoundsDegrees.maximum).toBeCloseTo(0, 12);
+    expect(offCenter.verticalBoundsDegrees.maximum).toBeCloseTo(0, 12);
+    expect(offCenter.horizontalBoundsDegrees.minimum).toBeLessThan(0);
+    expect(offCenter.verticalBoundsDegrees.minimum).toBeLessThan(0);
+    expect(offCenter.horizontalDegrees).toBeLessThan(
       centered.horizontalDegrees
     );
+    expect(offCenter.verticalDegrees).toBeLessThan(
+      centered.verticalDegrees
+    );
     expect(
-      leftHalf.diagonalDegreesByCornerPair.topLeftToBottomRight
+      offCenter.diagonalDegreesByCornerPair.topLeftToBottomRight
     ).not.toBeCloseTo(
-      leftHalf.diagonalDegreesByCornerPair.topRightToBottomLeft,
+      offCenter.diagonalDegreesByCornerPair.topRightToBottomLeft,
       8
     );
   });
