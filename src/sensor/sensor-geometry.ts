@@ -42,13 +42,7 @@ export interface NativeImageRaster {
   pixelHeight: number;
 }
 
-export interface CalculateSensorGeometryMetricsInput {
-  imagingArea: SensorImagingArea;
-  nativeRaster: NativeImageRaster;
-}
-
-export interface SensorGeometryMetrics {
-  imagingArea: {
+export interface ImagingAreaMetrics {
     /** Physical imaging-area diagonal in millimetres. */
     diagonalMm: number;
     /** Physical width divided by physical height. */
@@ -60,7 +54,15 @@ export interface SensorGeometryMetrics {
      * digital/output cropping.
      */
     cropFactor35Mm: number;
-  };
+}
+
+export interface CalculateSensorGeometryMetricsInput {
+  imagingArea: SensorImagingArea;
+  nativeRaster: NativeImageRaster;
+}
+
+export interface SensorGeometryMetrics {
+  imagingArea: ImagingAreaMetrics;
   nativeRaster: {
     /** Exact product of native raster width and height. */
     totalImageSamples: number;
@@ -85,6 +87,39 @@ export interface SensorGeometryMetrics {
     /** Horizontal sampling pitch divided by vertical sampling pitch. */
     pitchAspectRatio: number;
   };
+}
+
+/**
+ * Calculates physical imaging-area metrics independently from native raster
+ * density.
+ *
+ * Crop factor uses the diagonal ratio to a 36 × 24 mm reference frame.
+ * Digital/output crops are not part of this physical imaging-area quantity.
+ *
+ * @param imagingArea Physical photosensitive imaging area.
+ * @returns Physical diagonal, aspect ratio, and diagonal 35 mm crop factor.
+ */
+export function calculateImagingAreaMetrics(
+  imagingArea: SensorImagingArea
+): CalculationResult<ImagingAreaMetrics> {
+  requirePositiveFinite("imagingArea.widthMm", imagingArea.widthMm);
+  requirePositiveFinite("imagingArea.heightMm", imagingArea.heightMm);
+
+  const diagonalMm = Math.hypot(imagingArea.widthMm, imagingArea.heightMm);
+
+  return calculatedResult(
+    {
+      diagonalMm,
+      aspectRatio: imagingArea.widthMm / imagingArea.heightMm,
+      cropFactor35Mm: REFERENCE_35MM_DIAGONAL_MM / diagonalMm
+    },
+    "sensor-imaging-area",
+    "1.0.0",
+    [
+      "35 mm reference frame is 36 × 24 mm and crop factor is diagonal-based.",
+      "Digital/output cropping is excluded from physical imaging-area crop factor."
+    ]
+  );
 }
 
 /**
@@ -120,10 +155,7 @@ export function calculateSensorGeometryMetrics(
     );
   }
 
-  const diagonalMm = Math.hypot(
-    input.imagingArea.widthMm,
-    input.imagingArea.heightMm
-  );
+  const imagingAreaMetrics = calculateImagingAreaMetrics(input.imagingArea).value;
   const pitchXMicrometers =
     (input.imagingArea.widthMm / input.nativeRaster.pixelWidth) * 1000;
   const pitchYMicrometers =
@@ -131,11 +163,7 @@ export function calculateSensorGeometryMetrics(
 
   return calculatedResult(
     {
-      imagingArea: {
-        diagonalMm,
-        aspectRatio: input.imagingArea.widthMm / input.imagingArea.heightMm,
-        cropFactor35Mm: REFERENCE_35MM_DIAGONAL_MM / diagonalMm
-      },
+      imagingArea: imagingAreaMetrics,
       nativeRaster: {
         totalImageSamples,
         megapixels: totalImageSamples / 1_000_000,
