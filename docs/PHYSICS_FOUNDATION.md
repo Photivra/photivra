@@ -94,6 +94,27 @@ The focus-aware model improves internal consistency with thin-lens DOF/defocus c
 
 Projected subject motion is a representative-point displacement model with constant linear world velocity. It does not yet describe scale blur of an extended object whose magnification changes materially during the exposure.
 
+### Generic illumination vignetting
+
+The engine exposes a generic rotationally symmetric **relative linear illumination** model:
+
+```text
+T(rho) = 1 + r2*rho² + r4*rho⁴ + r6*rho⁶
+```
+
+where `rho` is ideal image-plane field radius divided by the caller-declared physical normalization radius.
+
+The optical axis is normalized to `T(0) = 1`.
+
+The declared `maximumNormalizedRadius` is a scientific operating envelope. Photivra evaluates the polynomial endpoints and all real internal extrema over the full interval and rejects profiles that:
+
+- produce zero/negative throughput; or
+- exceed the center-normalized throughput of 1.
+
+The result is a linear-light multiplicative attenuation plus equivalent positive stop loss.
+
+This slice is **not mechanical/pupil vignetting**. It does not clip the pupil or change bokeh/PSF shape. It also does not claim calibrated radiometry or named-lens behavior.
+
 ### Generic lateral chromatic aberration
 
 The standalone lateral-CA foundation uses the green channel as the reference field mapping.
