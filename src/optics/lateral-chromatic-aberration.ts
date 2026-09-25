@@ -227,7 +227,7 @@ function assumptions(): readonly string[] {
     "All channel mappings share one physical normalization radius and declared operating envelope",
     "Each combined channel radial profile must remain one-to-one over the declared operating envelope",
     "The RGB channel labels are representative rendering channels, not calibrated wavelengths, sensor spectral responses, or CFA primaries",
-    "This model changes channel field coordinates only; it does not blur, alter longitudinal focus, change PSF shape, or modify channel intensity",
+    "This model changes channel field coordinates only; it does not blur, change PSF shape, modify channel intensity, or model longitudinal chromatic aberration",
     "Profiles are generic caller inputs and do not represent a named lens unless separately calibrated with defensible provenance"
   ];
 }
