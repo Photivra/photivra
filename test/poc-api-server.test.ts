@@ -61,7 +61,7 @@ describe("POC HTTP API", () => {
     expect(await response.json()).toEqual({
       ok: true,
       service: "photivra-engine",
-      apiVersion: "0.19.0"
+      apiVersion: "0.20.0"
     });
   });
 
@@ -137,7 +137,7 @@ describe("POC HTTP API", () => {
       apiVersion: string;
       provenance: { kind: string };
     };
-    expect(body.apiVersion).toBe("0.19.0");
+    expect(body.apiVersion).toBe("0.20.0");
     expect(body.provenance.kind).toBe("calculated");
   });
 

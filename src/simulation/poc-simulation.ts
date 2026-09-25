@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { calculateEquivalentFocalLength35Mm } from "../camera/equivalent-focal-length.js";
-import { calculateFieldOfView } from "../camera/field-of-view.js";
+import {
+  calculateFieldOfView,
+  calculateFieldOfViewBounds
+} from "../camera/field-of-view.js";
 import { calculateProjectedObjectSize } from "../camera/projected-object-size.js";
 import type { CalculationProvenance } from "../core/calculation-result.js";
 import {
@@ -20,10 +23,13 @@ import {
 } from "../optics/depth-of-field.js";
 import {
   calculateActiveCaptureFieldOfView,
+  calculateOutputFieldOfView,
   resolveCaptureGeometry,
   transformNativeRasterVectorToOriented,
   type ActiveCaptureFieldOfView,
   type CaptureOrientation,
+  type OutputFieldOfView,
+  type PhysicalBoundsFromOpticalAxisMm,
   type RasterRect,
   type RasterVector,
   type ResolvedCaptureGeometry
@@ -34,12 +40,13 @@ import { calculatePixelPitch } from "../sensor/pixel-pitch.js";
 import {
   calculateSensorGeometryMetrics,
   type RasterDimensions,
-  type SensorGeometryMetrics
+  type SensorGeometryMetrics,
+  type SensorImagingArea
 } from "../sensor/sensor-geometry.js";
 import type { Vector3 } from "../schema/scene.js";
 import { estimateCameraShakeBlur } from "../stabilization/camera-shake.js";
 
-export const POC_SIMULATION_API_VERSION = "0.19.0" as const;
+export const POC_SIMULATION_API_VERSION = "0.20.0" as const;
 
 const POC_MAX_PITCH_AXIS_RELATIVE_DIFFERENCE = 0.01;
 
@@ -190,6 +197,106 @@ interface FieldOfViewSummary {
   diagonalDegrees: number;
 }
 
+interface CaptureSubjectFraming {
+  additionalCropFactor: number;
+  raster: RasterDimensions;
+  megapixels: number;
+  subjectHeightFraction: number;
+  subjectClipped: boolean;
+  additionalCropApplied: boolean;
+  retainedImagingArea: SensorImagingArea;
+  physicalBoundsFromOpticalAxisMm: PhysicalBoundsFromOpticalAxisMm;
+  effectiveFieldOfView: FieldOfViewSummary;
+  basis: "centered-output-framing";
+}
+
+function centeredPhysicalCropBounds(
+  bounds: PhysicalBoundsFromOpticalAxisMm,
+  retainedFractionX: number,
+  retainedFractionY: number
+): PhysicalBoundsFromOpticalAxisMm {
+  const centerX = (bounds.left + bounds.right) / 2;
+  const centerY = (bounds.top + bounds.bottom) / 2;
+  const halfWidth =
+    ((bounds.right - bounds.left) * retainedFractionX) / 2;
+  const halfHeight =
+    ((bounds.bottom - bounds.top) * retainedFractionY) / 2;
+
+  return {
+    left: centerX - halfWidth,
+    right: centerX + halfWidth,
+    top: centerY - halfHeight,
+    bottom: centerY + halfHeight
+  };
+}
+
+function calculateFieldOfViewForPhysicalBounds(
+  bounds: PhysicalBoundsFromOpticalAxisMm,
+  focalLengthMm: number,
+  focusDistanceM: number
+): FieldOfViewSummary {
+  const horizontal = calculateFieldOfViewBounds({
+    focalLengthMm,
+    minimumSensorCoordinateMm: bounds.left,
+    maximumSensorCoordinateMm: bounds.right,
+    focusDistanceM
+  }).value;
+  const vertical = calculateFieldOfViewBounds({
+    focalLengthMm,
+    minimumSensorCoordinateMm: bounds.top,
+    maximumSensorCoordinateMm: bounds.bottom,
+    focusDistanceM
+  }).value;
+
+  const projectionDistanceMm = horizontal.projectionDistanceMm;
+  const corners = {
+    topLeft: { x: bounds.left, y: bounds.top },
+    topRight: { x: bounds.right, y: bounds.top },
+    bottomRight: { x: bounds.right, y: bounds.bottom },
+    bottomLeft: { x: bounds.left, y: bounds.bottom }
+  };
+  const angleBetween = (
+    first: RasterVector,
+    second: RasterVector
+  ): number => {
+    const firstLength = Math.hypot(
+      first.x,
+      first.y,
+      projectionDistanceMm
+    );
+    const secondLength = Math.hypot(
+      second.x,
+      second.y,
+      projectionDistanceMm
+    );
+    const dot =
+      first.x * second.x +
+      first.y * second.y +
+      projectionDistanceMm * projectionDistanceMm;
+    const cosine = Math.max(
+      -1,
+      Math.min(1, dot / (firstLength * secondLength))
+    );
+    return (Math.acos(cosine) * 180) / Math.PI;
+  };
+
+  return {
+    horizontalDegrees: horizontal.degrees,
+    verticalDegrees: vertical.degrees,
+    diagonalDegrees: Math.max(
+      angleBetween(corners.topLeft, corners.bottomRight),
+      angleBetween(corners.topRight, corners.bottomLeft)
+    )
+  };
+}
+
+function isPortraitOrientation(orientation: CaptureOrientation): boolean {
+  return (
+    orientation === "portrait-clockwise" ||
+    orientation === "portrait-counter-clockwise"
+  );
+}
+
 export interface PocSimulationResponse {
   apiVersion: typeof POC_SIMULATION_API_VERSION;
   projection: {
@@ -222,6 +329,7 @@ export interface PocSimulationResponse {
   capture?: {
     geometry: ResolvedCaptureGeometry;
     activeFieldOfView: ActiveCaptureFieldOfView;
+    outputFieldOfView: OutputFieldOfView;
     focalLength: {
       actualFocalLengthMm: number;
       equivalentFocalLength35Mm: number;
@@ -229,6 +337,21 @@ export interface PocSimulationResponse {
       activeImagingAreaDiagonalMm: number;
       basis: "diagonal";
     };
+    /**
+     * Axis-aware pixel-domain mapping from oriented active-capture samples to
+     * the declared output raster. Subject framing is a later crop, not another
+     * resampling step.
+     */
+    outputSamplingScale: {
+      x: number;
+      y: number;
+      axisRelativeDifference: number;
+    };
+    /**
+     * Additional post-output subject framing. This does not mutate physical
+     * sensor identity, active capture, or active-capture focal equivalence.
+     */
+    subjectFraming?: CaptureSubjectFraming;
     motion: {
       nativeRasterDeltaPixels: RasterVector;
       orientedCaptureDeltaPixels: RasterVector;
@@ -270,6 +393,8 @@ export interface PocSimulationResponse {
         source: "equivalent-viewing-approximation";
         circleOfConfusionMm: number;
         scaleFactor: number;
+        targetBasis: "full-sensor" | "final-retained-output";
+        targetImagingArea: SensorImagingArea;
         provenance: {
           kind: "approximation";
           model: string;
@@ -432,10 +557,8 @@ function resolveCaptureVector(
       vector: nativeRasterDeltaPixels,
       orientation
     });
-  const scaleX =
-    geometry.output.raster.pixelWidth / geometry.output.cropRect.width;
-  const scaleY =
-    geometry.output.raster.pixelHeight / geometry.output.cropRect.height;
+  const scaleX = geometry.output.orientedCaptureToOutputScale.x;
+  const scaleY = geometry.output.orientedCaptureToOutputScale.y;
 
   return {
     nativeRasterDeltaPixels,
@@ -484,8 +607,11 @@ export function simulatePocCamera(
       "The composed POC currently requires approximately square geometric sampling; X/Y pitch differ by more than 1%. Use lower-level axis-aware engine primitives until the POC contract supports separate X/Y sampling."
     );
   }
+  const capture = request.capture;
+  const subjectCropRequest = request.subjectCrop;
+
   const captureGeometry =
-    request.capture === undefined
+    capture === undefined
       ? undefined
       : resolveCaptureGeometry({
           imagingArea: {
@@ -496,16 +622,16 @@ export function simulatePocCamera(
             pixelWidth: request.sensor.pixelWidth,
             pixelHeight: request.sensor.pixelHeight
           },
-          orientation: request.capture.orientation,
-          ...(request.capture.activeCaptureRect === undefined
+          orientation: capture.orientation,
+          ...(capture.activeCaptureRect === undefined
             ? {}
-            : { activeCaptureRect: request.capture.activeCaptureRect }),
-          ...(request.capture.outputCropRect === undefined
+            : { activeCaptureRect: capture.activeCaptureRect }),
+          ...(capture.outputCropRect === undefined
             ? {}
-            : { outputCropRect: request.capture.outputCropRect }),
-          ...(request.capture.outputRaster === undefined
+            : { outputCropRect: capture.outputCropRect }),
+          ...(capture.outputRaster === undefined
             ? {}
-            : { outputRaster: request.capture.outputRaster })
+            : { outputRaster: capture.outputRaster })
         }).value;
 
   requirePositiveFinite("lens.focalLengthMm", request.lens.focalLengthMm);
@@ -528,46 +654,13 @@ export function simulatePocCamera(
     );
   }
 
-  const equivalentViewingCircleOfConfusion =
-    request.focus.equivalentViewingCircleOfConfusion === undefined
-      ? undefined
-      : estimateEquivalentViewingCircleOfConfusion({
-          sensorWidthMm: request.sensor.widthMm,
-          sensorHeightMm: request.sensor.heightMm,
-          ...request.focus.equivalentViewingCircleOfConfusion
-        });
-
-  const circleOfConfusionMm =
-    equivalentViewingCircleOfConfusion?.value.circleOfConfusionMm ??
-    request.focus.circleOfConfusionMm;
-
-  if (circleOfConfusionMm === undefined) {
-    throw new InvalidScientificInputError(
-      "A focus circle-of-confusion criterion is required."
-    );
-  }
-  requirePositiveFinite("focus.circleOfConfusionMm", circleOfConfusionMm);
   requirePositiveFinite("crop.factor", request.crop.factor);
 
-  if (request.capture !== undefined && request.crop.factor !== 1) {
+  if (capture !== undefined && request.crop.factor !== 1) {
     throw new InvalidScientificInputError(
       "capture geometry cannot be combined with legacy crop.factor other than 1."
     );
   }
-  if (
-    request.capture !== undefined &&
-    request.focus.equivalentViewingCircleOfConfusion !== undefined
-  ) {
-    throw new InvalidScientificInputError(
-      "capture geometry currently requires explicit focus.circleOfConfusionMm; equivalent-viewing CoC semantics for retained capture/output area are not yet composed."
-    );
-  }
-  if (request.capture !== undefined && request.subjectCrop !== undefined) {
-    throw new InvalidScientificInputError(
-      "capture geometry cannot yet be combined with subjectCrop; subject-framing crop semantics must be migrated to the staged output geometry explicitly."
-    );
-  }
-
   requirePositiveFinite(
     "diffraction.wavelengthNm",
     request.diffraction.wavelengthNm
@@ -603,7 +696,7 @@ export function simulatePocCamera(
   });
 
   const activeCaptureFieldOfView =
-    captureGeometry === undefined || request.capture === undefined
+    captureGeometry === undefined || capture === undefined
       ? undefined
       : calculateActiveCaptureFieldOfView({
           imagingArea: {
@@ -614,10 +707,10 @@ export function simulatePocCamera(
             pixelWidth: request.sensor.pixelWidth,
             pixelHeight: request.sensor.pixelHeight
           },
-          orientation: request.capture.orientation,
-          ...(request.capture.activeCaptureRect === undefined
+          orientation: capture.orientation,
+          ...(capture.activeCaptureRect === undefined
             ? {}
-            : { activeCaptureRect: request.capture.activeCaptureRect }),
+            : { activeCaptureRect: capture.activeCaptureRect }),
           focalLengthMm: request.lens.focalLengthMm,
           focusDistanceM: request.focus.focusDistanceM
         }).value;
@@ -627,6 +720,29 @@ export function simulatePocCamera(
       : calculateEquivalentFocalLength35Mm({
           focalLengthMm: request.lens.focalLengthMm,
           activeImagingArea: captureGeometry.activeCapture.imagingArea
+        }).value;
+
+  const outputFieldOfView =
+    captureGeometry === undefined || capture === undefined
+      ? undefined
+      : calculateOutputFieldOfView({
+          imagingArea: {
+            widthMm: request.sensor.widthMm,
+            heightMm: request.sensor.heightMm
+          },
+          nativeRaster: {
+            pixelWidth: request.sensor.pixelWidth,
+            pixelHeight: request.sensor.pixelHeight
+          },
+          orientation: capture.orientation,
+          ...(capture.activeCaptureRect === undefined
+            ? {}
+            : { activeCaptureRect: capture.activeCaptureRect }),
+          ...(capture.outputCropRect === undefined
+            ? {}
+            : { outputCropRect: capture.outputCropRect }),
+          focalLengthMm: request.lens.focalLengthMm,
+          focusDistanceM: request.focus.focusDistanceM
         }).value;
 
   const pixelPitch = calculatePixelPitch({
@@ -646,13 +762,6 @@ export function simulatePocCamera(
     request.focus.focusDistanceM,
     request.crop.factor
   );
-
-  const depthOfField = calculateDepthOfField({
-    focalLengthMm: request.lens.focalLengthMm,
-    aperture: request.lens.aperture,
-    focusDistanceM: request.focus.focusDistanceM,
-    circleOfConfusionMm
-  });
 
   const diffraction = calculateAiryDisk({
     aperture: request.lens.aperture,
@@ -684,6 +793,95 @@ export function simulatePocCamera(
           focusDistanceM: request.focus.focusDistanceM,
           pixelPitchMicrometers: pixelPitch.value.micrometers
         }).value;
+
+  const captureSubjectFraming =
+    captureGeometry === undefined ||
+    capture === undefined ||
+    subjectCropRequest === undefined ||
+    subjectSampling === undefined
+      ? undefined
+      : ((): CaptureSubjectFraming => {
+          const orientedSubjectHeightPixels = isPortraitOrientation(
+            capture.orientation
+          )
+            ? (subjectSampling.widthPixels ?? 0)
+            : (subjectSampling.heightPixels ?? 0);
+          const outputSubjectHeightPixels =
+            orientedSubjectHeightPixels *
+            captureGeometry.output.orientedCaptureToOutputScale.y;
+          const framing = calculateSubjectFramingCrop({
+            pixelWidth: captureGeometry.output.raster.pixelWidth,
+            pixelHeight: captureGeometry.output.raster.pixelHeight,
+            subjectHeightPixels: outputSubjectHeightPixels,
+            targetSubjectHeightFraction:
+              subjectCropRequest.targetSubjectHeightFraction
+          }).value;
+          const retainedBounds = centeredPhysicalCropBounds(
+            captureGeometry.output.physicalBoundsFromOpticalAxisMm,
+            framing.pixelWidth / captureGeometry.output.raster.pixelWidth,
+            framing.pixelHeight / captureGeometry.output.raster.pixelHeight
+          );
+          const retainedImagingArea: SensorImagingArea = {
+            widthMm: retainedBounds.right - retainedBounds.left,
+            heightMm: retainedBounds.bottom - retainedBounds.top
+          };
+
+          return {
+            additionalCropFactor: framing.cropFactor,
+            raster: {
+              pixelWidth: framing.pixelWidth,
+              pixelHeight: framing.pixelHeight
+            },
+            megapixels: framing.megapixels,
+            subjectHeightFraction: framing.subjectHeightFraction,
+            subjectClipped: framing.subjectClipped,
+            additionalCropApplied: framing.cropped,
+            retainedImagingArea,
+            physicalBoundsFromOpticalAxisMm: retainedBounds,
+            effectiveFieldOfView: calculateFieldOfViewForPhysicalBounds(
+              retainedBounds,
+              request.lens.focalLengthMm,
+              request.focus.focusDistanceM
+            ),
+            basis: "centered-output-framing" as const
+          };
+        })();
+
+  const equivalentViewingTargetArea: SensorImagingArea =
+    captureGeometry === undefined
+      ? {
+          widthMm: request.sensor.widthMm,
+          heightMm: request.sensor.heightMm
+        }
+      : (captureSubjectFraming?.retainedImagingArea ??
+        captureGeometry.output.imagingArea);
+
+  const equivalentViewingCircleOfConfusion =
+    request.focus.equivalentViewingCircleOfConfusion === undefined
+      ? undefined
+      : estimateEquivalentViewingCircleOfConfusion({
+          sensorWidthMm: equivalentViewingTargetArea.widthMm,
+          sensorHeightMm: equivalentViewingTargetArea.heightMm,
+          ...request.focus.equivalentViewingCircleOfConfusion
+        });
+
+  const circleOfConfusionMm =
+    equivalentViewingCircleOfConfusion?.value.circleOfConfusionMm ??
+    request.focus.circleOfConfusionMm;
+
+  if (circleOfConfusionMm === undefined) {
+    throw new InvalidScientificInputError(
+      "A focus circle-of-confusion criterion is required."
+    );
+  }
+  requirePositiveFinite("focus.circleOfConfusionMm", circleOfConfusionMm);
+
+  const depthOfField = calculateDepthOfField({
+    focalLengthMm: request.lens.focalLengthMm,
+    aperture: request.lens.aperture,
+    focusDistanceM: request.focus.focusDistanceM,
+    circleOfConfusionMm
+  });
 
   const samplingSamples =
     request.samplingSamples === undefined
@@ -736,14 +934,16 @@ export function simulatePocCamera(
         });
 
   const subjectCrop =
-    request.subjectCrop === undefined || subjectSampling === undefined
+    capture !== undefined ||
+    subjectCropRequest === undefined ||
+    subjectSampling === undefined
       ? undefined
       : calculateSubjectFramingCrop({
           pixelWidth: crop.value.pixelWidth,
           pixelHeight: crop.value.pixelHeight,
           subjectHeightPixels: subjectSampling.heightPixels ?? 0,
           targetSubjectHeightFraction:
-            request.subjectCrop.targetSubjectHeightFraction
+            subjectCropRequest.targetSubjectHeightFraction
         }).value;
 
   const totalSubjectCropFactor =
@@ -869,7 +1069,6 @@ export function simulatePocCamera(
           };
         });
 
-  const capture = request.capture;
   const captureMotion =
     captureGeometry === undefined || capture === undefined
       ? undefined
@@ -944,6 +1143,7 @@ export function simulatePocCamera(
     },
     ...(captureGeometry === undefined ||
     activeCaptureFieldOfView === undefined ||
+    outputFieldOfView === undefined ||
     equivalentFocalLength === undefined ||
     captureMotion === undefined
       ? {}
@@ -951,7 +1151,14 @@ export function simulatePocCamera(
           capture: {
             geometry: captureGeometry,
             activeFieldOfView: activeCaptureFieldOfView,
+            outputFieldOfView,
             focalLength: equivalentFocalLength,
+            outputSamplingScale: {
+              ...captureGeometry.output.orientedCaptureToOutputScale
+            },
+            ...(captureSubjectFraming === undefined
+              ? {}
+              : { subjectFraming: captureSubjectFraming }),
             motion: captureMotion,
             ...(captureMotionSamples === undefined
               ? {}
@@ -977,6 +1184,13 @@ export function simulatePocCamera(
             circleOfConfusionMm,
             scaleFactor:
               equivalentViewingCircleOfConfusion.value.scaleFactor,
+            targetBasis:
+              captureGeometry === undefined
+                ? "full-sensor"
+                : "final-retained-output",
+            targetImagingArea: {
+              ...equivalentViewingTargetArea
+            },
             provenance: {
               kind: "approximation",
               model: equivalentViewingCircleOfConfusion.provenance.model,

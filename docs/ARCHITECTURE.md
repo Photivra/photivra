@@ -62,7 +62,7 @@ Geometric sample pitch is explicitly insufficient as a photosite photon-collecti
 
 ## Composition boundary after 0.2.0
 
-The sensor/capture/architecture/radiometry modules are public root-engine foundations. POC simulation API 0.19 composes the geometry foundation additively while keeping older callers valid.
+The sensor/capture/architecture/radiometry modules are public root-engine foundations. POC simulation API 0.20 composes the geometry foundation through final output/viewing semantics while keeping older callers valid.
 
 The POC now composes:
 
@@ -70,17 +70,20 @@ The POC now composes:
 - shared sensor-geometry metrics, including physical crop factor, raster-derived megapixels, and X/Y geometric sampling pitch;
 - the legacy same-aspect centered `crop.factor` path for compatibility;
 - an opt-in staged `capture` path for physical orientation, native active-capture rectangle, oriented digital/output crop, and final output raster;
-- active-capture FOV, including asymmetric bounds for off-center physical capture;
+- active-capture and final-output FOV, including asymmetric bounds for off-center physical or digital crop;
 - diagonal-based 35 mm-equivalent focal length derived from active physical capture while physical focal length remains authoritative;
+- capture-mode equivalent-viewing CoC based on the final retained physical viewing area rather than output pixel count;
+- orientation-aware post-output subject framing with explicit retained physical bounds/FOV;
 - additive image-plane→native-raster conversion plus oriented-capture and final-output motion/camera-shake vector diagnostics;
+- explicit oriented-capture→output pixel scale for renderer sampling/blur conversion;
 - one representative horizontal-pitch path for existing blur/sampling calculations, with a fail-closed guard for materially non-square sampling;
 - the established projection, DOF/defocus, diffraction, motion, exposure, aperture-shape, and camera-shake models.
 
 Compatibility boundaries remain explicit:
 
 - staged capture geometry cannot be combined with legacy `crop.factor` other than `1`;
-- `subjectCrop` is not yet composed with staged output geometry;
-- equivalent-viewing CoC input is not yet composed with retained capture/output viewing semantics, so capture mode currently requires explicit `circleOfConfusionMm`;
+- legacy `subjectCrop` response remains for legacy mode, while staged capture reports post-output framing under `capture.subjectFraming`;
+- explicit physical CoC remains caller-owned; equivalent-viewing CoC is a separately labeled approximation based on final retained physical viewing area;
 - existing legacy motion/camera-shake fields retain their image-plane (+X right, +Y up) meaning rather than being reinterpreted; capture diagnostics explicitly convert to native raster (+Y down) before orientation.
 
 The POC still does **not** consume:

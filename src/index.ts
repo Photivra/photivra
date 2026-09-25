@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.24.0" as const;
+export const ENGINE_API_VERSION = "0.25.0" as const;
 
 export {
   approximationResult,
@@ -95,6 +95,7 @@ export {
 
 export {
   calculateActiveCaptureFieldOfView,
+  calculateOutputFieldOfView,
   resolveCaptureGeometry,
   transformNativeRasterPointToOriented,
   transformNativeRasterRectToOriented,
@@ -104,7 +105,9 @@ export {
   transformOrientedRasterVectorToNative,
   type ActiveCaptureFieldOfView,
   type CalculateActiveCaptureFieldOfViewInput,
+  type CalculateOutputFieldOfViewInput,
   type CaptureOrientation,
+  type OutputFieldOfView,
   type PhysicalBoundsFromOpticalAxisMm,
   type RasterPoint,
   type RasterRect,

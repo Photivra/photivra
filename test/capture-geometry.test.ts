@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   calculateActiveCaptureFieldOfView,
+  calculateOutputFieldOfView,
   resolveCaptureGeometry,
   transformNativeRasterPointToOriented,
   transformNativeRasterRectToOriented,
@@ -187,6 +188,108 @@ describe("capture geometry", () => {
         }
       })
     ).toThrow("implicit geometric stretching");
+  });
+
+  it("tracks the physical region and scale retained by final output crop", () => {
+    const result = resolveCaptureGeometry({
+      imagingArea: FULL_FRAME,
+      nativeRaster: RASTER_24MP,
+      orientation: "portrait-clockwise",
+      outputCropRect: {
+        x: 0,
+        y: 1500,
+        width: 4000,
+        height: 3000
+      },
+      outputRaster: {
+        pixelWidth: 2000,
+        pixelHeight: 1500
+      }
+    }).value;
+
+    expect(result.output.imagingArea.widthMm).toBeCloseTo(24, 12);
+    expect(result.output.imagingArea.heightMm).toBeCloseTo(18, 12);
+    expect(result.output.physicalBoundsFromOpticalAxisMm.left).toBeCloseTo(
+      -12,
+      12
+    );
+    expect(result.output.physicalBoundsFromOpticalAxisMm.right).toBeCloseTo(
+      12,
+      12
+    );
+    expect(result.output.centerOffsetFromOpticalAxisMm.x).toBeCloseTo(0, 12);
+    expect(result.output.centerOffsetFromOpticalAxisMm.y).toBeCloseTo(0, 12);
+    expect(result.output.orientedCaptureToOutputScale.x).toBeCloseTo(0.5, 12);
+    expect(result.output.orientedCaptureToOutputScale.y).toBeCloseTo(0.5, 12);
+    expect(
+      result.output.orientedCaptureToOutputScale.axisRelativeDifference
+    ).toBeCloseTo(0, 12);
+  });
+
+  it("narrows final output FOV without changing it when only output resolution changes", () => {
+    const active = calculateActiveCaptureFieldOfView({
+      imagingArea: FULL_FRAME,
+      nativeRaster: RASTER_24MP,
+      orientation: "landscape",
+      focalLengthMm: 50
+    }).value;
+    const output = calculateOutputFieldOfView({
+      imagingArea: FULL_FRAME,
+      nativeRaster: RASTER_24MP,
+      orientation: "landscape",
+      outputCropRect: {
+        x: 1500,
+        y: 1000,
+        width: 3000,
+        height: 2000
+      },
+      focalLengthMm: 50
+    }).value;
+    const outputWithDifferentRaster = resolveCaptureGeometry({
+      imagingArea: FULL_FRAME,
+      nativeRaster: RASTER_24MP,
+      orientation: "landscape",
+      outputCropRect: {
+        x: 1500,
+        y: 1000,
+        width: 3000,
+        height: 2000
+      },
+      outputRaster: {
+        pixelWidth: 1500,
+        pixelHeight: 1000
+      }
+    }).value;
+
+    expect(output.horizontalDegrees).toBeLessThan(active.horizontalDegrees);
+    expect(output.verticalDegrees).toBeLessThan(active.verticalDegrees);
+    expect(output.outputImagingArea).toEqual({
+      widthMm: 18,
+      heightMm: 12
+    });
+    expect(outputWithDifferentRaster.output.imagingArea).toEqual(
+      output.outputImagingArea
+    );
+  });
+
+  it("preserves asymmetric final output bounds for off-center digital crop", () => {
+    const output = calculateOutputFieldOfView({
+      imagingArea: FULL_FRAME,
+      nativeRaster: RASTER_24MP,
+      orientation: "landscape",
+      outputCropRect: {
+        x: 0,
+        y: 0,
+        width: 3000,
+        height: 2000
+      },
+      focalLengthMm: 50
+    }).value;
+
+    expect(output.centerOffsetFromOpticalAxisMm.x).toBeCloseTo(-9, 12);
+    expect(output.centerOffsetFromOpticalAxisMm.y).toBeCloseTo(-6, 12);
+    expect(output.horizontalBoundsDegrees.maximum).toBeCloseTo(0, 12);
+    expect(output.verticalBoundsDegrees.maximum).toBeCloseTo(0, 12);
   });
 
   it("rejects active and output crop rectangles outside their coordinate spaces", () => {

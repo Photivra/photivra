@@ -115,12 +115,12 @@ Backward compatibility matters.
 
 Do not assume every public root-engine foundation is already part of the composed POC.
 
-As of POC simulation API 0.19:
+As of POC simulation API 0.20:
 
 - `simulatePocCamera()` preserves the legacy sensor + centered `crop.factor` request and adds an opt-in staged `capture` request for physical orientation, native active-capture rectangle, oriented output crop, and final output raster.
 - Capture mode must not silently stack legacy crop semantics: `crop.factor` must remain `1` when `capture` is present.
-- Capture mode currently fails closed on `subjectCrop` and equivalent-viewing CoC input until those retained-area/output-viewing semantics are explicitly migrated.
-- The response exposes shared sensor-geometry metrics plus an optional capture block with active-capture FOV, active-capture 35 mm-equivalent focal length, and oriented/output motion diagnostics.
+- Capture mode owns final output/viewing semantics: output physical bounds/FOV, post-output subject framing, and equivalent-viewing CoC against the final retained physical image region.
+- The response exposes shared sensor-geometry metrics plus an optional capture block with active/output FOV, active-capture 35 mm-equivalent focal length, output sampling scale, subject framing, and oriented/output motion diagnostics.
 - Equivalent focal length remains informational and never replaces physical focal length inside POC physics; final digital/output crop does not redefine it.
 - Existing motion/camera-shake X/Y fields retain their legacy image-plane meaning (+X right, +Y up). Capture raster coordinates are +X right, +Y down; additive diagnostics must expose the explicit basis conversion before orientation/output scaling.
 - Sensor-architecture metadata and radiometry-readiness profiles remain standalone and are not composed.
