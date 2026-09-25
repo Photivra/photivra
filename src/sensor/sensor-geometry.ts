@@ -43,17 +43,17 @@ export interface NativeImageRaster {
 }
 
 export interface ImagingAreaMetrics {
-    /** Physical imaging-area diagonal in millimetres. */
-    diagonalMm: number;
-    /** Physical width divided by physical height. */
-    aspectRatio: number;
-    /**
-     * Diagonal crop factor relative to a 36 × 24 mm reference frame.
-     *
-     * This is a physical imaging-area quantity and does not include later
-     * digital/output cropping.
-     */
-    cropFactor35Mm: number;
+  /** Physical imaging-area diagonal in millimetres. */
+  diagonalMm: number;
+  /** Physical width divided by physical height. */
+  aspectRatio: number;
+  /**
+   * Diagonal crop factor relative to a 36 × 24 mm reference frame.
+   *
+   * This is a physical imaging-area quantity and does not include later
+   * digital/output cropping.
+   */
+  cropFactor35Mm: number;
 }
 
 export interface CalculateSensorGeometryMetricsInput {
@@ -155,7 +155,9 @@ export function calculateSensorGeometryMetrics(
     );
   }
 
-  const imagingAreaMetrics = calculateImagingAreaMetrics(input.imagingArea).value;
+  const imagingAreaMetrics = calculateImagingAreaMetrics(
+    input.imagingArea
+  ).value;
   const pitchXMicrometers =
     (input.imagingArea.widthMm / input.nativeRaster.pixelWidth) * 1000;
   const pitchYMicrometers =
