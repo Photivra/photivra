@@ -232,19 +232,45 @@ function calculateFieldOfViewForPhysicalBounds(
     focusDistanceM
   }).value;
 
-  const diagonalMm = Math.hypot(
-    bounds.right - bounds.left,
-    bounds.bottom - bounds.top
-  );
+  const projectionDistanceMm = horizontal.projectionDistanceMm;
+  const corners = {
+    topLeft: { x: bounds.left, y: bounds.top },
+    topRight: { x: bounds.right, y: bounds.top },
+    bottomRight: { x: bounds.right, y: bounds.bottom },
+    bottomLeft: { x: bounds.left, y: bounds.bottom }
+  };
+  const angleBetween = (
+    first: RasterVector,
+    second: RasterVector
+  ): number => {
+    const firstLength = Math.hypot(
+      first.x,
+      first.y,
+      projectionDistanceMm
+    );
+    const secondLength = Math.hypot(
+      second.x,
+      second.y,
+      projectionDistanceMm
+    );
+    const dot =
+      first.x * second.x +
+      first.y * second.y +
+      projectionDistanceMm * projectionDistanceMm;
+    const cosine = Math.max(
+      -1,
+      Math.min(1, dot / (firstLength * secondLength))
+    );
+    return (Math.acos(cosine) * 180) / Math.PI;
+  };
 
   return {
     horizontalDegrees: horizontal.degrees,
     verticalDegrees: vertical.degrees,
-    diagonalDegrees: calculateFieldOfView({
-      focalLengthMm,
-      sensorDimensionMm: diagonalMm,
-      focusDistanceM
-    }).value.degrees
+    diagonalDegrees: Math.max(
+      angleBetween(corners.topLeft, corners.bottomRight),
+      angleBetween(corners.topRight, corners.bottomLeft)
+    )
   };
 }
 
