@@ -325,6 +325,16 @@ export interface PocSimulationResponse {
       basis: "diagonal";
     };
     /**
+     * Axis-aware pixel-domain mapping from oriented active-capture samples to
+     * the declared output raster. Subject framing is a later crop, not another
+     * resampling step.
+     */
+    outputSamplingScale: {
+      x: number;
+      y: number;
+      axisRelativeDifference: number;
+    };
+    /**
      * Additional post-output subject framing. This does not mutate physical
      * sensor identity, active capture, or active-capture focal equivalence.
      */
@@ -543,10 +553,8 @@ function resolveCaptureVector(
       vector: nativeRasterDeltaPixels,
       orientation
     });
-  const scaleX =
-    geometry.output.raster.pixelWidth / geometry.output.cropRect.width;
-  const scaleY =
-    geometry.output.raster.pixelHeight / geometry.output.cropRect.height;
+  const scaleX = geometry.output.orientedCaptureToOutputScale.x;
+  const scaleY = geometry.output.orientedCaptureToOutputScale.y;
 
   return {
     nativeRasterDeltaPixels,
@@ -1139,6 +1147,9 @@ export function simulatePocCamera(
             activeFieldOfView: activeCaptureFieldOfView,
             outputFieldOfView,
             focalLength: equivalentFocalLength,
+            outputSamplingScale: {
+              ...captureGeometry.output.orientedCaptureToOutputScale
+            },
             ...(captureSubjectFraming === undefined
               ? {}
               : { subjectFraming: captureSubjectFraming }),
