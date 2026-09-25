@@ -204,6 +204,14 @@ describe("POC composed simulation", () => {
       "equivalent-viewing-approximation"
     );
     expect(result.focusCriterion.circleOfConfusionMm).toBeCloseTo(0.03, 12);
+    if (result.focusCriterion.source !== "equivalent-viewing-approximation") {
+      throw new Error("Expected equivalent-viewing focus criterion.");
+    }
+    expect(result.focusCriterion.targetBasis).toBe("full-sensor");
+    expect(result.focusCriterion.targetImagingArea).toEqual({
+      widthMm: 36,
+      heightMm: 24
+    });
     expect(result.subjectSampling?.heightPixels).toBeCloseTo(2828.74617737, 8);
     expect(result.subjectCrop?.subjectHeightFraction).toBeGreaterThanOrEqual(0.9);
     expect(result.subjectCrop?.subjectClipped).toBe(false);
@@ -599,6 +607,13 @@ describe("POC composed simulation", () => {
       first.capture?.motion.orientedCaptureDeltaPixels.x ?? 0,
       12
     );
+    expect(first.capture?.outputSamplingScale).toEqual(
+      first.capture?.geometry.output.orientedCaptureToOutputScale
+    );
+    expect(first.capture?.outputSamplingScale.x).toBeCloseTo(2, 12);
+    expect(first.capture?.outputSamplingScale.y).toBeCloseTo(2, 12);
+    expect(second.capture?.outputSamplingScale.x).toBeCloseTo(1, 12);
+    expect(second.capture?.outputSamplingScale.y).toBeCloseTo(1, 12);
   });
 
   it("fails closed instead of combining staged capture geometry with legacy crop", () => {
@@ -637,6 +652,63 @@ describe("POC composed simulation", () => {
         }
       })
     ).toThrow("cannot be combined with legacy crop.factor");
+  });
+
+  it("keeps an explicit physical CoC unchanged across capture and output crops", () => {
+    const result = simulatePocCamera({
+      sensor: {
+        widthMm: 36,
+        heightMm: 24,
+        pixelWidth: 6000,
+        pixelHeight: 4000
+      },
+      lens: {
+        focalLengthMm: 50,
+        aperture: 4
+      },
+      exposure: {
+        shutterSeconds: 1 / 125,
+        iso: 100
+      },
+      focus: {
+        focusDistanceM: 5,
+        circleOfConfusionMm: 0.03
+      },
+      crop: {
+        factor: 1
+      },
+      capture: {
+        orientation: "portrait-clockwise",
+        activeCaptureRect: {
+          x: 1500,
+          y: 1000,
+          width: 3000,
+          height: 2000
+        },
+        outputCropRect: {
+          x: 250,
+          y: 750,
+          width: 1500,
+          height: 2250
+        },
+        outputRaster: {
+          pixelWidth: 1000,
+          pixelHeight: 1500
+        }
+      },
+      diffraction: {
+        wavelengthNm: 550
+      },
+      motion: {
+        positionM: { x: 0, y: 0, z: 5 },
+        velocityMps: { x: 0, y: 0, z: 0 }
+      }
+    });
+
+    expect(result.focusCriterion).toEqual({
+      source: "explicit",
+      circleOfConfusionMm: 0.03
+    });
   });
 
   it("bases capture-mode equivalent-viewing CoC on retained physical output area, not output pixel count", () => {
@@ -719,6 +791,63 @@ describe("POC composed simulation", () => {
       first.focusCriterion.scaleFactor,
       12
     );
+  });
+
+  it("uses the subject-framed retained area for capture-mode equivalent-viewing CoC", () => {
+    const result = simulatePocCamera({
+      sensor: {
+        widthMm: 36,
+        heightMm: 24,
+        pixelWidth: 6000,
+        pixelHeight: 4000
+      },
+      lens: {
+        focalLengthMm: 50,
+        aperture: 4
+      },
+      exposure: {
+        shutterSeconds: 1 / 125,
+        iso: 100
+      },
+      focus: {
+        focusDistanceM: 5,
+        equivalentViewingCircleOfConfusion: {
+          referenceSensorWidthMm: 36,
+          referenceSensorHeightMm: 24,
+          referenceCircleOfConfusionMm: 0.03
+        }
+      },
+      crop: {
+        factor: 1
+      },
+      capture: {
+        orientation: "portrait-clockwise"
+      },
+      diffraction: {
+        wavelengthNm: 550
+      },
+      motion: {
+        positionM: { x: 0, y: 0, z: 5 },
+        velocityMps: { x: 0, y: 0, z: 0 }
+      },
+      subject: {
+        widthM: 1,
+        heightM: 2,
+        distanceM: 5
+      },
+      subjectCrop: {
+        targetSubjectHeightFraction: 0.5
+      }
+    });
+
+    if (result.focusCriterion.source !== "equivalent-viewing-approximation") {
+      throw new Error("Expected equivalent-viewing focus criterion.");
+    }
+    const retained = result.capture?.subjectFraming?.retainedImagingArea;
+    expect(retained).toBeDefined();
+    expect(result.focusCriterion.targetBasis).toBe("final-retained-output");
+    expect(result.focusCriterion.targetImagingArea).toEqual(retained);
+    expect(result.focusCriterion.circleOfConfusionMm).toBeLessThan(0.03);
   });
 
   it("composes orientation-aware subject framing without reusing legacy total-crop semantics", () => {
