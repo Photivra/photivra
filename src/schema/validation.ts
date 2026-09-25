@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { InvalidConfigurationError } from "../core/configuration-error.js";
+export { InvalidConfigurationError } from "../core/configuration-error.js";
+
 import type {
   CameraConfiguration,
   CameraSupport
@@ -28,19 +31,6 @@ const SCENE_CAPABILITIES = new Set<SceneCapability>([
   "multi-resolution-layers",
   "absolute-radiometry"
 ]);
-
-/**
- * Error thrown when external configuration data does not match a public
- * runtime schema.
- */
-export class InvalidConfigurationError extends TypeError {
-  readonly code = "INVALID_CONFIGURATION";
-
-  constructor(message: string) {
-    super(message);
-    this.name = "InvalidConfigurationError";
-  }
-}
 
 function requireRecord(value: unknown, path: string): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
