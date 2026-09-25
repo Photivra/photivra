@@ -1125,6 +1125,7 @@ export function simulatePocCamera(
     },
     ...(captureGeometry === undefined ||
     activeCaptureFieldOfView === undefined ||
+    outputFieldOfView === undefined ||
     equivalentFocalLength === undefined ||
     captureMotion === undefined
       ? {}
@@ -1132,7 +1133,11 @@ export function simulatePocCamera(
           capture: {
             geometry: captureGeometry,
             activeFieldOfView: activeCaptureFieldOfView,
+            outputFieldOfView,
             focalLength: equivalentFocalLength,
+            ...(captureSubjectFraming === undefined
+              ? {}
+              : { subjectFraming: captureSubjectFraming }),
             motion: captureMotion,
             ...(captureMotionSamples === undefined
               ? {}
@@ -1158,6 +1163,13 @@ export function simulatePocCamera(
             circleOfConfusionMm,
             scaleFactor:
               equivalentViewingCircleOfConfusion.value.scaleFactor,
+            targetBasis:
+              captureGeometry === undefined
+                ? "full-sensor"
+                : "final-retained-output",
+            targetImagingArea: {
+              ...equivalentViewingTargetArea
+            },
             provenance: {
               kind: "approximation",
               model: equivalentViewingCircleOfConfusion.provenance.model,
