@@ -393,6 +393,8 @@ export interface PocSimulationResponse {
         source: "equivalent-viewing-approximation";
         circleOfConfusionMm: number;
         scaleFactor: number;
+        targetBasis: "full-sensor" | "final-retained-output";
+        targetImagingArea: SensorImagingArea;
         provenance: {
           kind: "approximation";
           model: string;
