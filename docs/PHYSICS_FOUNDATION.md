@@ -96,13 +96,23 @@ Projected subject motion is a representative-point displacement model with const
 
 ### Generic lateral chromatic aberration
 
-The standalone lateral-CA foundation treats red, green, and blue as independent generic field mappings that share one physical normalization radius and operating envelope.
+The standalone lateral-CA foundation uses the green channel as the reference field mapping.
 
-It deliberately does **not** model chromatic aberration as a finished-image RGB blur. Instead, each channel has its own ideal-to-distorted radial mapping and inverse distorted-destination-to-ideal-source mapping.
+A shared base radial-distortion profile defines the common geometric lens mapping. Red and blue coefficient offsets are added to that base before each channel is mapped:
 
-Pairwise image-plane separation is reported in millimetres for deterministic comparison.
+```text
+green coefficients = base
+red coefficients   = base + red offset
+blue coefficients  = base + blue offset
+```
 
-These RGB labels are abstract renderer channels only. The model does not define wavelengths, sensor CFA responses, longitudinal chromatic aberration, wavelength-dependent PSFs, or calibrated real-lens color behavior.
+This keeps ordinary geometric distortion and lateral chromatic separation distinct while allowing one renderer pass to consume the combined per-channel mapping.
+
+The model deliberately does **not** represent CA as finished-image RGB blur. Forward mapping reports per-channel field coordinates and vector separation; inverse mapping reports the per-channel ideal source coordinate required for one distorted destination.
+
+All combined channel profiles share one physical normalization radius and operating envelope and must remain individually invertible.
+
+The RGB labels are representative renderer channels only. The model does not define wavelengths, sensor CFA responses, longitudinal chromatic aberration, wavelength-dependent PSFs, or calibrated real-lens color behavior.
 
 ### Generic radial distortion
 
