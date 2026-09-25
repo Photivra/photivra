@@ -122,6 +122,14 @@ The POC still does **not** consume:
 
 That separation is deliberate. Further foundation APIs should remain independently testable and only enter the POC through explicit contract/version changes and migration review.
 
+## Standalone lateral-CA field-mapping foundation
+
+The lens-field domain also exposes generic red/green/blue channel-dependent radial mapping.
+
+The engine owns both forward per-channel coordinates and inverse per-channel destination-to-source sampling. Backends should not implement lateral CA as arbitrary finished-image channel offsets.
+
+This is deliberately not a spectral/CFA/colorimetric model. Wavelength-dependent optics, longitudinal CA, wavelength-dependent PSFs, and calibrated lens profiles remain separate future work.
+
 ## Standalone radial field-mapping foundation
 
 The lens-field/pupil domain now also exposes generic radial distortion through paired forward and inverse mappings.
