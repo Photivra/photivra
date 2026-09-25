@@ -197,6 +197,19 @@ interface FieldOfViewSummary {
   diagonalDegrees: number;
 }
 
+interface CaptureSubjectFraming {
+  additionalCropFactor: number;
+  raster: RasterDimensions;
+  megapixels: number;
+  subjectHeightFraction: number;
+  subjectClipped: boolean;
+  additionalCropApplied: boolean;
+  retainedImagingArea: SensorImagingArea;
+  physicalBoundsFromOpticalAxisMm: PhysicalBoundsFromOpticalAxisMm;
+  effectiveFieldOfView: FieldOfViewSummary;
+  basis: "centered-output-framing";
+}
+
 function centeredPhysicalCropBounds(
   bounds: PhysicalBoundsFromOpticalAxisMm,
   retainedFractionX: number,
@@ -338,18 +351,7 @@ export interface PocSimulationResponse {
      * Additional post-output subject framing. This does not mutate physical
      * sensor identity, active capture, or active-capture focal equivalence.
      */
-    subjectFraming?: {
-      additionalCropFactor: number;
-      raster: RasterDimensions;
-      megapixels: number;
-      subjectHeightFraction: number;
-      subjectClipped: boolean;
-      additionalCropApplied: boolean;
-      retainedImagingArea: SensorImagingArea;
-      physicalBoundsFromOpticalAxisMm: PhysicalBoundsFromOpticalAxisMm;
-      effectiveFieldOfView: FieldOfViewSummary;
-      basis: "centered-output-framing";
-    };
+    subjectFraming?: CaptureSubjectFraming;
     motion: {
       nativeRasterDeltaPixels: RasterVector;
       orientedCaptureDeltaPixels: RasterVector;
@@ -796,7 +798,7 @@ export function simulatePocCamera(
     subjectCropRequest === undefined ||
     subjectSampling === undefined
       ? undefined
-      : (() => {
+      : ((): CaptureSubjectFraming => {
           const orientedSubjectHeightPixels = isPortraitOrientation(
             capture.orientation
           )
