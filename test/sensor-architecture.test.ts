@@ -137,6 +137,23 @@ describe("sensor architecture metadata", () => {
     expect(profile.illumination?.provenance.license).toBe("CC0-1.0");
   });
 
+  it("rejects contradictory source/reuse provenance", () => {
+    expect(() =>
+      parseSensorArchitectureProfile({
+        schemaVersion: "0.1.0",
+        illumination: {
+          value: "bsi",
+          provenance: {
+            sourceKind: "manufacturer-published",
+            sourceReference: "manufacturer-spec:example",
+            reuseStatus: "reusable-data",
+            license: "CC0-1.0"
+          }
+        }
+      })
+    ).toThrow("inconsistent with sourceKind");
+  });
+
   it("rejects unsupported architecture vocabulary and duplicate capabilities", () => {
     expect(() =>
       parseSensorArchitectureProfile({
