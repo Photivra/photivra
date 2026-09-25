@@ -160,6 +160,22 @@ Approximate inputs remain approximate even when every prerequisite category is p
 
 The composed POC continues to emit no photon/photoelectron/SNR output from scene settings. Low-level `calculatePhotoelectrons()` remains a separate primitive for callers that already possess a defensible incident-photon count and QE.
 
+## Image-formation domain boundary
+
+Future optical and sensor models must follow `getImageFormationContract()`.
+
+The contract intentionally avoids describing all image formation as independent serial post-processing. Some quantities are coupled:
+
+- focus-dependent projection and lens mapping;
+- wavelength-dependent field mapping and PSF basis;
+- pupil clipping, throughput, and bokeh/PSF shape;
+- time-varying scene/camera mapping and sensor readout schedule;
+- native sensor sampling and reconstruction.
+
+Current analytical primitives remain valid and separately named. Adding a broader stage must not silently reinterpret existing focal length, defocus, diffraction, motion, crop, or sensor-sampling outputs.
+
+Reserved sensor stages in the contract are ordering placeholders only; they do not establish OLPF, CFA, photon, ADC, or reconstruction capabilities.
+
 ## Source provenance
 
 These implementations were written independently from established mathematical/physical relations. No third-party source code, calibration dataset, table, or model weight is incorporated by these scientific modules.
