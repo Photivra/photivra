@@ -131,7 +131,17 @@ export interface ResolvedCaptureGeometry {
      */
     cropRect: RasterRect;
     raster: RasterDimensions;
+    /** Physical region retained by the digital/output crop. */
+    imagingArea: SensorImagingArea;
+    physicalBoundsFromOpticalAxisMm: PhysicalBoundsFromOpticalAxisMm;
+    centerOffsetFromOpticalAxisMm: RasterVector;
     sourceRetainedAreaFraction: number;
+    /** Pixel-domain resampling from oriented active capture into output. */
+    orientedCaptureToOutputScale: {
+      x: number;
+      y: number;
+      axisRelativeDifference: number;
+    };
   };
 }
 
@@ -161,6 +171,16 @@ export interface CalculateActiveCaptureFieldOfViewInput {
   focusDistanceM?: number;
 }
 
+export interface CalculateOutputFieldOfViewInput {
+  imagingArea: SensorImagingArea;
+  nativeRaster: NativeImageRaster;
+  orientation: CaptureOrientation;
+  activeCaptureRect?: RasterRect;
+  outputCropRect?: RasterRect;
+  focalLengthMm: number;
+  focusDistanceM?: number;
+}
+
 export interface ActiveCaptureFieldOfView {
   orientation: CaptureOrientation;
   horizontalDegrees: number;
@@ -183,6 +203,31 @@ export interface ActiveCaptureFieldOfView {
     topRightToBottomLeft: number;
   };
   activeImagingArea: SensorImagingArea;
+  centerOffsetFromOpticalAxisMm: RasterVector;
+  projection: {
+    projectionDistanceMm: number;
+    provenance: CalculationProvenance;
+  };
+}
+
+export interface OutputFieldOfView {
+  orientation: CaptureOrientation;
+  horizontalDegrees: number;
+  verticalDegrees: number;
+  diagonalDegrees: number;
+  horizontalBoundsDegrees: {
+    minimum: number;
+    maximum: number;
+  };
+  verticalBoundsDegrees: {
+    minimum: number;
+    maximum: number;
+  };
+  diagonalDegreesByCornerPair: {
+    topLeftToBottomRight: number;
+    topRightToBottomLeft: number;
+  };
+  outputImagingArea: SensorImagingArea;
   centerOffsetFromOpticalAxisMm: RasterVector;
   projection: {
     projectionDistanceMm: number;
@@ -500,6 +545,24 @@ function orientPhysicalBounds(
   };
 }
 
+function physicalBoundsFromRectWithinBounds(
+  sourceBounds: PhysicalBoundsFromOpticalAxisMm,
+  sourceRaster: RasterDimensions,
+  rect: RasterRect
+): PhysicalBoundsFromOpticalAxisMm {
+  const pitchX =
+    (sourceBounds.right - sourceBounds.left) / sourceRaster.pixelWidth;
+  const pitchY =
+    (sourceBounds.bottom - sourceBounds.top) / sourceRaster.pixelHeight;
+
+  return {
+    left: sourceBounds.left + rect.x * pitchX,
+    right: sourceBounds.left + (rect.x + rect.width) * pitchX,
+    top: sourceBounds.top + rect.y * pitchY,
+    bottom: sourceBounds.top + (rect.y + rect.height) * pitchY
+  };
+}
+
 function validateOutputAspectRatio(
   cropRect: RasterRect,
   outputRaster: RasterDimensions
@@ -541,6 +604,81 @@ function angleBetweenSensorRaysDegrees(
     Math.min(1, dot / (firstLength * secondLength))
   );
   return (Math.acos(cosine) * 180) / Math.PI;
+}
+
+function calculateBoundsFieldOfView(
+  bounds: PhysicalBoundsFromOpticalAxisMm,
+  focalLengthMm: number,
+  focusDistanceM: number | undefined
+): {
+  horizontalDegrees: number;
+  verticalDegrees: number;
+  diagonalDegrees: number;
+  horizontalBoundsDegrees: { minimum: number; maximum: number };
+  verticalBoundsDegrees: { minimum: number; maximum: number };
+  diagonalDegreesByCornerPair: {
+    topLeftToBottomRight: number;
+    topRightToBottomLeft: number;
+  };
+  projection: {
+    projectionDistanceMm: number;
+    provenance: CalculationProvenance;
+  };
+} {
+  const fovInput = {
+    focalLengthMm,
+    ...(focusDistanceM === undefined ? {} : { focusDistanceM })
+  };
+  const horizontal = calculateFieldOfViewBounds({
+    ...fovInput,
+    minimumSensorCoordinateMm: bounds.left,
+    maximumSensorCoordinateMm: bounds.right
+  });
+  const vertical = calculateFieldOfViewBounds({
+    ...fovInput,
+    minimumSensorCoordinateMm: bounds.top,
+    maximumSensorCoordinateMm: bounds.bottom
+  });
+  const projectionDistanceMm = horizontal.value.projectionDistanceMm;
+  const topLeft = { x: bounds.left, y: bounds.top };
+  const topRight = { x: bounds.right, y: bounds.top };
+  const bottomRight = { x: bounds.right, y: bounds.bottom };
+  const bottomLeft = { x: bounds.left, y: bounds.bottom };
+  const topLeftToBottomRight = angleBetweenSensorRaysDegrees(
+    topLeft,
+    bottomRight,
+    projectionDistanceMm
+  );
+  const topRightToBottomLeft = angleBetweenSensorRaysDegrees(
+    topRight,
+    bottomLeft,
+    projectionDistanceMm
+  );
+
+  return {
+    horizontalDegrees: horizontal.value.degrees,
+    verticalDegrees: vertical.value.degrees,
+    diagonalDegrees: Math.max(
+      topLeftToBottomRight,
+      topRightToBottomLeft
+    ),
+    horizontalBoundsDegrees: {
+      minimum: horizontal.value.minimumDegrees,
+      maximum: horizontal.value.maximumDegrees
+    },
+    verticalBoundsDegrees: {
+      minimum: vertical.value.minimumDegrees,
+      maximum: vertical.value.maximumDegrees
+    },
+    diagonalDegreesByCornerPair: {
+      topLeftToBottomRight,
+      topRightToBottomLeft
+    },
+    projection: {
+      projectionDistanceMm,
+      provenance: horizontal.provenance
+    }
+  };
 }
 
 /**
@@ -601,6 +739,21 @@ export function resolveCaptureGeometry(
   requireRasterDimensions("outputRaster", outputRaster);
   validateOutputAspectRatio(outputCropRect, outputRaster);
 
+  const outputBounds = physicalBoundsFromRectWithinBounds(
+    orientedBounds,
+    orientedRaster,
+    outputCropRect
+  );
+  const outputImagingArea: SensorImagingArea = {
+    widthMm: outputBounds.right - outputBounds.left,
+    heightMm: outputBounds.bottom - outputBounds.top
+  };
+  const outputScaleX = outputRaster.pixelWidth / outputCropRect.width;
+  const outputScaleY = outputRaster.pixelHeight / outputCropRect.height;
+  const outputScaleAxisRelativeDifference =
+    Math.abs(outputScaleX - outputScaleY) /
+    ((outputScaleX + outputScaleY) / 2);
+
   return calculatedResult(
     {
       native: {
@@ -631,19 +784,31 @@ export function resolveCaptureGeometry(
       output: {
         cropRect: { ...outputCropRect },
         raster: { ...outputRaster },
+        imagingArea: outputImagingArea,
+        physicalBoundsFromOpticalAxisMm: outputBounds,
+        centerOffsetFromOpticalAxisMm: {
+          x: (outputBounds.left + outputBounds.right) / 2,
+          y: (outputBounds.top + outputBounds.bottom) / 2
+        },
         sourceRetainedAreaFraction:
           (outputCropRect.width * outputCropRect.height) /
-          (orientedRaster.pixelWidth * orientedRaster.pixelHeight)
+          (orientedRaster.pixelWidth * orientedRaster.pixelHeight),
+        orientedCaptureToOutputScale: {
+          x: outputScaleX,
+          y: outputScaleY,
+          axisRelativeDifference: outputScaleAxisRelativeDifference
+        }
       }
     },
     "capture-geometry-pipeline",
-    "1.1.0",
+    "1.2.0",
     [
       "Native sensor raster coordinates use a top-left origin with +X right and +Y down.",
       "Raster rectangles are integer half-open extents.",
       "Physical camera orientation does not rotate or redefine the native sensor coordinate system.",
       "The generic active physical area is derived by assuming native image samples uniformly span the declared physical imaging area.",
       "Output crop/resampling is digital geometry and does not mutate physical sensor or active-capture identity.",
+      "The physical image region retained by output crop is tracked explicitly for final framing and equivalent-viewing calculations.",
       "Output raster aspect ratio must remain consistent with the output crop; implicit geometric stretching is rejected."
     ]
   );
@@ -671,72 +836,23 @@ export function calculateActiveCaptureFieldOfView(
 
   const bounds =
     geometry.orientedCapture.physicalBoundsFromOpticalAxisMm;
-  const fovInput = {
-    focalLengthMm: input.focalLengthMm,
-    ...(input.focusDistanceM === undefined
-      ? {}
-      : { focusDistanceM: input.focusDistanceM })
-  };
-  const horizontal = calculateFieldOfViewBounds({
-    ...fovInput,
-    minimumSensorCoordinateMm: bounds.left,
-    maximumSensorCoordinateMm: bounds.right
-  });
-  const vertical = calculateFieldOfViewBounds({
-    ...fovInput,
-    minimumSensorCoordinateMm: bounds.top,
-    maximumSensorCoordinateMm: bounds.bottom
-  });
-
-  const projectionDistanceMm =
-    horizontal.value.projectionDistanceMm;
-  const topLeft = { x: bounds.left, y: bounds.top };
-  const topRight = { x: bounds.right, y: bounds.top };
-  const bottomRight = { x: bounds.right, y: bounds.bottom };
-  const bottomLeft = { x: bounds.left, y: bounds.bottom };
-  const topLeftToBottomRight = angleBetweenSensorRaysDegrees(
-    topLeft,
-    bottomRight,
-    projectionDistanceMm
-  );
-  const topRightToBottomLeft = angleBetweenSensorRaysDegrees(
-    topRight,
-    bottomLeft,
-    projectionDistanceMm
+  const fieldOfView = calculateBoundsFieldOfView(
+    bounds,
+    input.focalLengthMm,
+    input.focusDistanceM
   );
 
   return calculatedResult(
     {
       orientation: input.orientation,
-      horizontalDegrees: horizontal.value.degrees,
-      verticalDegrees: vertical.value.degrees,
-      diagonalDegrees: Math.max(
-        topLeftToBottomRight,
-        topRightToBottomLeft
-      ),
-      horizontalBoundsDegrees: {
-        minimum: horizontal.value.minimumDegrees,
-        maximum: horizontal.value.maximumDegrees
-      },
-      verticalBoundsDegrees: {
-        minimum: vertical.value.minimumDegrees,
-        maximum: vertical.value.maximumDegrees
-      },
-      diagonalDegreesByCornerPair: {
-        topLeftToBottomRight,
-        topRightToBottomLeft
-      },
+      ...fieldOfView,
       activeImagingArea: {
         ...geometry.orientedCapture.imagingArea
       },
       centerOffsetFromOpticalAxisMm: rotateVector(
         geometry.activeCapture.centerOffsetFromOpticalAxisMm,
         input.orientation
-      ),
-      projection: {
-        projectionDistanceMm,
-        provenance: horizontal.provenance
-      }
+      )
     },
     "oriented-active-capture-field-of-view",
     "1.1.0",
@@ -749,3 +865,51 @@ export function calculateActiveCaptureFieldOfView(
     ]
   );
 }
+
+/**
+ * Calculates final visible field of view after physical active capture,
+ * orientation, and digital/output crop. Output raster resolution does not
+ * affect this optical/framing result.
+ */
+export function calculateOutputFieldOfView(
+  input: CalculateOutputFieldOfViewInput
+): CalculationResult<OutputFieldOfView> {
+  requirePositiveFinite("focalLengthMm", input.focalLengthMm);
+
+  const geometry = resolveCaptureGeometry({
+    imagingArea: input.imagingArea,
+    nativeRaster: input.nativeRaster,
+    orientation: input.orientation,
+    ...(input.activeCaptureRect === undefined
+      ? {}
+      : { activeCaptureRect: input.activeCaptureRect }),
+    ...(input.outputCropRect === undefined
+      ? {}
+      : { outputCropRect: input.outputCropRect })
+  }).value;
+  const fieldOfView = calculateBoundsFieldOfView(
+    geometry.output.physicalBoundsFromOpticalAxisMm,
+    input.focalLengthMm,
+    input.focusDistanceM
+  );
+
+  return calculatedResult(
+    {
+      orientation: input.orientation,
+      ...fieldOfView,
+      outputImagingArea: { ...geometry.output.imagingArea },
+      centerOffsetFromOpticalAxisMm: {
+        ...geometry.output.centerOffsetFromOpticalAxisMm
+      }
+    },
+    "oriented-output-field-of-view",
+    "1.0.0",
+    [
+      "Final visible FOV is derived from the physical image region retained by active capture and digital/output crop.",
+      "Output raster resolution does not change field of view.",
+      "Off-center output crops preserve asymmetric angular bounds.",
+      "Physical sensor identity and active-capture 35 mm-equivalent focal length are unchanged by final digital crop."
+    ]
+  );
+}
+
