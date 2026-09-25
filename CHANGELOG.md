@@ -11,10 +11,11 @@ Notable public changes to `@photivra/engine` are documented here.
 - `calculateCameraRotationImageMapping()` for field-position-dependent, time-parameterized pure camera rotation using exact axis-angle integration of constant pitch/yaw/roll angular velocity.
 - `calculateFocusBreathingProjection()` and `calculateFocusBreathingFieldOfView()` for an explicit caller-declared projection scale at the selected focus state, without mutating physical focal length or inventing a lens-specific breathing curve.
 - `calculateRadialDistortionMapping()` plus `calculateInverseRadialDistortionMapping()` for generic optical-axis-centered radial field mapping with explicit normalization radius, declared operating envelope, and fail-closed monotonicity/invertibility validation.
+- `calculateLateralChromaticAberrationMapping()` plus its inverse for green-reference channel field mapping: one common base distortion plus red/blue coefficient offsets, deterministic per-channel source sampling, and physical separation diagnostics.
 
 ### Changed
 
-- Engine API contract advances to `0.29.0`. The image-formation contract remains `0.2.0`; radial distortion fills another standalone lens-field mapping capability without changing stage placement semantics. The composed POC remains `0.20.0`.
+- Engine API contract advances to `0.30.0`. The image-formation contract remains `0.2.0`; lateral CA fills another standalone lens-field mapping capability without changing stage placement semantics. The composed POC remains `0.20.0`.
 
 ### Documentation
 
@@ -22,6 +23,7 @@ Notable public changes to `@photivra/engine` are documented here.
 - Documented the physical camera-rotation sign/axis conventions, field-dependent mapping, and compatibility boundary with the legacy stabilization-equivalent approximation.
 - Documented the declared-scale focus-breathing model, its zero-breathing compatibility case, and the prohibition on inferring real-lens behavior from focal/focus metadata.
 - Documented radial distortion normalization, forward/inverse mapping, operating-envelope monotonicity, and the boundary excluding tangential/decentered and named-lens behavior.
+- Documented lateral CA as channel-dependent field mapping rather than RGB blur, including the non-spectral/non-CFA calibration boundary.
 
 ## 0.3.0 - 2026-09-25
 
