@@ -324,6 +324,18 @@ function parseBase(
   };
 }
 
+function requireApproximationStatus(
+  base: Omit<RadiometryRequirementBase, "requirement">,
+  path: string,
+  representation: string
+): void {
+  if (base.scientificStatus !== "approximation") {
+    throw new InvalidConfigurationError(
+      `${path} uses inherently approximate representation "${representation}" and must declare scientificStatus "approximation".`
+    );
+  }
+}
+
 function parseRequirement(
   value: unknown,
   path: string
@@ -351,6 +363,9 @@ function parseRequirement(
       throw new InvalidConfigurationError(
         `${path}.representation is invalid.`
       );
+    }
+    if (representation === "documented-spectral-approximation") {
+      requireApproximationStatus(base, path, representation);
     }
     return {
       requirement,
@@ -381,6 +396,7 @@ function parseRequirement(
       };
     }
     if (representation === "t-stop-approximation") {
+      requireApproximationStatus(base, path, representation);
       return {
         requirement,
         ...base,
@@ -411,6 +427,7 @@ function parseRequirement(
       };
     }
     if (representation === "documented-approximation") {
+      requireApproximationStatus(base, path, representation);
       return { requirement, ...base, representation };
     }
     throw new InvalidConfigurationError(
@@ -499,6 +516,7 @@ function parseRequirement(
     };
   }
   if (responseRepresentation === "effective-qe-approximation") {
+    requireApproximationStatus(base, path, responseRepresentation);
     return {
       requirement: "sensor-response",
       ...base,
@@ -565,8 +583,9 @@ export function parseRadiometryReadinessProfile(
 export function assessRadiometryReadiness(
   profile: RadiometryReadinessProfile
 ): RadiometryReadinessAssessment {
+  const validatedProfile = parseRadiometryReadinessProfile(profile);
   const byId = new Map(
-    profile.components.map((component) => [
+    validatedProfile.components.map((component) => [
       component.requirement,
       component
     ])
@@ -574,13 +593,13 @@ export function assessRadiometryReadiness(
   const missingRequirements = REQUIRED_REQUIREMENTS.filter(
     (requirement) => !byId.has(requirement)
   );
-  const approximateRequirements = profile.components
+  const approximateRequirements = validatedProfile.components
     .filter(
       (component) =>
         component.scientificStatus === "approximation"
     )
     .map((component) => component.requirement);
-  const unquantifiedUncertaintyRequirements = profile.components
+  const unquantifiedUncertaintyRequirements = validatedProfile.components
     .filter(
       (component) =>
         component.uncertainty.kind === "not-quantified"
