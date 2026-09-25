@@ -35,12 +35,20 @@ export interface SensorImagingArea {
  * The raster describes effective image samples. It does not imply that each
  * sample corresponds one-to-one with a physical photodiode/photosite.
  */
-export interface NativeImageRaster {
-  /** Native horizontal image-sample count. */
+export interface RasterDimensions {
+  /** Horizontal image-sample/pixel count. */
   pixelWidth: number;
-  /** Native vertical image-sample count. */
+  /** Vertical image-sample/pixel count. */
   pixelHeight: number;
 }
+
+/**
+ * Native effective image-sampling raster associated with an imaging area.
+ *
+ * This alias identifies semantic role; generic active/output rasters should
+ * use RasterDimensions instead.
+ */
+export type NativeImageRaster = RasterDimensions;
 
 export interface ImagingAreaMetrics {
   /** Physical imaging-area diagonal in millimetres. */
