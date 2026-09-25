@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.21.0" as const;
+export const ENGINE_API_VERSION = "0.22.0" as const;
 
 export {
   approximationResult,
@@ -32,8 +32,11 @@ export {
 
 export {
   calculateFieldOfView,
+  calculateFieldOfViewBounds,
+  type CalculateFieldOfViewBoundsInput,
   type CalculateFieldOfViewInput,
-  type FieldOfView
+  type FieldOfView,
+  type FieldOfViewBounds
 } from "./camera/field-of-view.js";
 
 export {
@@ -60,6 +63,7 @@ export {
   type CalculateSensorGeometryMetricsInput,
   type ImagingAreaMetrics,
   type NativeImageRaster,
+  type RasterDimensions,
   type SensorGeometryMetrics,
   type SensorImagingArea
 } from "./sensor/sensor-geometry.js";
@@ -92,12 +96,24 @@ export {
 export {
   calculateActiveCaptureFieldOfView,
   resolveCaptureGeometry,
+  transformNativeRasterPointToOriented,
+  transformNativeRasterRectToOriented,
+  transformNativeRasterVectorToOriented,
+  transformOrientedRasterPointToNative,
+  transformOrientedRasterRectToNative,
+  transformOrientedRasterVectorToNative,
   type ActiveCaptureFieldOfView,
   type CalculateActiveCaptureFieldOfViewInput,
   type CaptureOrientation,
+  type PhysicalBoundsFromOpticalAxisMm,
+  type RasterPoint,
   type RasterRect,
+  type RasterVector,
   type ResolveCaptureGeometryInput,
-  type ResolvedCaptureGeometry
+  type ResolvedCaptureGeometry,
+  type TransformRasterPointInput,
+  type TransformRasterRectInput,
+  type TransformRasterVectorInput
 } from "./output/capture-geometry.js";
 
 export {
@@ -188,6 +204,7 @@ export {
 } from "./sensor/signal-noise.js";
 
 export {
+  POC_SIMULATION_API_VERSION,
   simulatePocCamera,
   type PocSimulationRequest,
   type PocSimulationResponse
