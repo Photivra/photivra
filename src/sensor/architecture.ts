@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { InvalidConfigurationError } from "../schema/validation.js";
+import {
+  parseEvidenceList,
+  type EvidenceBackedFact,
+  type EvidenceProvenance,
+  type EvidenceReuseStatus,
+  type EvidenceSourceOrigin
+} from "../core/evidence-provenance.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -20,34 +27,10 @@ export type SensorColorSamplingFamily =
   | "custom-rgb-mosaic"
   | "layered-color";
 
-export type SensorArchitectureSourceKind =
-  | "manufacturer-published"
-  | "openly-reusable"
-  | "photivra-generated";
-
-export type SensorArchitectureReuseStatus =
-  | "factual-reference-only"
-  | "reusable-data"
-  | "photivra-owned";
-
-export interface SensorArchitectureFactProvenance {
-  sourceKind: SensorArchitectureSourceKind;
-  /**
-   * Public/stable source reference or Photivra evidence identifier.
-   *
-   * The engine does not fetch this reference at runtime.
-   */
-  sourceReference: string;
-  reuseStatus: SensorArchitectureReuseStatus;
-  /** Required when reuseStatus is reusable-data. */
-  license?: string;
-  note?: string;
-}
-
-export interface SourcedSensorArchitectureFact<T> {
-  value: T;
-  provenance: SensorArchitectureFactProvenance;
-}
+export type SensorArchitectureSourceKind = EvidenceSourceOrigin;
+export type SensorArchitectureReuseStatus = EvidenceReuseStatus;
+export type SensorArchitectureFactProvenance = EvidenceProvenance;
+export type SourcedSensorArchitectureFact<T> = EvidenceBackedFact<T>;
 
 /**
  * Descriptive sensor hardware/capability metadata.
@@ -57,16 +40,15 @@ export interface SourcedSensorArchitectureFact<T> {
  * crop factor, exposure, or sampling without a separate downstream model.
  */
 export interface SensorArchitectureProfile {
-  schemaVersion: "0.1.0";
+  schemaVersion: "0.2.0";
   illumination?: SourcedSensorArchitectureFact<SensorIlluminationArchitecture>;
   integration?: SourcedSensorArchitectureFact<SensorIntegrationArchitecture>;
   /**
    * Hardware readout capabilities, not the readout mode selected for one
-   * capture. Capture-mode selection belongs to later readout/mode modeling.
+   * capture. Each capability carries its own evidence because different
+   * readout modes may be documented by different sources.
    */
-  readoutCapabilities?: SourcedSensorArchitectureFact<
-    readonly SensorReadoutArchitecture[]
-  >;
+  readoutCapabilities?: readonly SourcedSensorArchitectureFact<SensorReadoutArchitecture>[];
   colorSamplingFamily?: SourcedSensorArchitectureFact<SensorColorSamplingFamily>;
 }
 
@@ -94,18 +76,6 @@ const COLOR_SAMPLING_VALUES = new Set<SensorColorSamplingFamily>([
   "layered-color"
 ]);
 
-const SOURCE_KIND_VALUES = new Set<SensorArchitectureSourceKind>([
-  "manufacturer-published",
-  "openly-reusable",
-  "photivra-generated"
-]);
-
-const REUSE_STATUS_VALUES = new Set<SensorArchitectureReuseStatus>([
-  "factual-reference-only",
-  "reusable-data",
-  "photivra-owned"
-]);
-
 function requireRecord(value: unknown, path: string): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new InvalidConfigurationError(`${path} must be an object.`);
@@ -127,81 +97,6 @@ function requireNonEmptyString(
   return value;
 }
 
-function parseProvenance(
-  value: unknown,
-  path: string
-): SensorArchitectureFactProvenance {
-  const record = requireRecord(value, path);
-  const sourceKind = requireNonEmptyString(record, "sourceKind", path);
-  const sourceReference = requireNonEmptyString(
-    record,
-    "sourceReference",
-    path
-  );
-  const reuseStatus = requireNonEmptyString(record, "reuseStatus", path);
-
-  if (!SOURCE_KIND_VALUES.has(sourceKind as SensorArchitectureSourceKind)) {
-    throw new InvalidConfigurationError(
-      `${path}.sourceKind is invalid.`
-    );
-  }
-  if (!REUSE_STATUS_VALUES.has(reuseStatus as SensorArchitectureReuseStatus)) {
-    throw new InvalidConfigurationError(
-      `${path}.reuseStatus is invalid.`
-    );
-  }
-
-  const expectedReuseStatus: Record<
-    SensorArchitectureSourceKind,
-    SensorArchitectureReuseStatus
-  > = {
-    "manufacturer-published": "factual-reference-only",
-    "openly-reusable": "reusable-data",
-    "photivra-generated": "photivra-owned"
-  };
-  if (
-    reuseStatus !==
-    expectedReuseStatus[sourceKind as SensorArchitectureSourceKind]
-  ) {
-    throw new InvalidConfigurationError(
-      `${path}.reuseStatus is inconsistent with sourceKind.`
-    );
-  }
-
-  const license = record.license;
-  if (
-    license !== undefined &&
-    (typeof license !== "string" || license.trim().length === 0)
-  ) {
-    throw new InvalidConfigurationError(
-      `${path}.license must be a non-empty string when supplied.`
-    );
-  }
-  if (reuseStatus === "reusable-data" && license === undefined) {
-    throw new InvalidConfigurationError(
-      `${path}.license is required for reusable-data provenance.`
-    );
-  }
-
-  const note = record.note;
-  if (
-    note !== undefined &&
-    (typeof note !== "string" || note.trim().length === 0)
-  ) {
-    throw new InvalidConfigurationError(
-      `${path}.note must be a non-empty string when supplied.`
-    );
-  }
-
-  return {
-    sourceKind: sourceKind as SensorArchitectureSourceKind,
-    sourceReference,
-    reuseStatus: reuseStatus as SensorArchitectureReuseStatus,
-    ...(license === undefined ? {} : { license }),
-    ...(note === undefined ? {} : { note })
-  };
-}
-
 function parseScalarFact<T extends string>(
   value: unknown,
   path: string,
@@ -215,52 +110,44 @@ function parseScalarFact<T extends string>(
 
   return {
     value: factValue as T,
-    provenance: parseProvenance(record.provenance, `${path}.provenance`)
+    evidence: parseEvidenceList(record.evidence, `${path}.evidence`)
   };
 }
 
-function parseReadoutFact(
+function parseReadoutCapabilities(
   value: unknown,
   path: string
-): SourcedSensorArchitectureFact<readonly SensorReadoutArchitecture[]> {
-  const record = requireRecord(value, path);
-  const values = record.value;
-  if (!Array.isArray(values) || values.length === 0) {
+): readonly SourcedSensorArchitectureFact<SensorReadoutArchitecture>[] {
+  if (!Array.isArray(value) || value.length === 0) {
     throw new InvalidConfigurationError(
-      `${path}.value must be a non-empty array.`
+      `${path} must be a non-empty array.`
     );
   }
 
-  const parsed = values.map((entry, index) => {
-    if (
-      typeof entry !== "string" ||
-      !READOUT_VALUES.has(entry as SensorReadoutArchitecture)
-    ) {
-      throw new InvalidConfigurationError(
-        `${path}.value[${index}] is invalid.`
-      );
-    }
-    return entry as SensorReadoutArchitecture;
-  });
+  const parsed = value.map((entry, index) =>
+    parseScalarFact(
+      entry,
+      `${path}[${index}]`,
+      READOUT_VALUES
+    )
+  );
 
-  if (new Set(parsed).size !== parsed.length) {
+  const values = parsed.map((fact) => fact.value);
+  if (new Set(values).size !== values.length) {
     throw new InvalidConfigurationError(
-      `${path}.value must not contain duplicates.`
+      `${path} must not contain duplicate capability values.`
     );
   }
 
-  return {
-    value: parsed,
-    provenance: parseProvenance(record.provenance, `${path}.provenance`)
-  };
+  return parsed;
 }
 
 /**
  * Parses untrusted descriptive sensor-architecture metadata.
  *
  * Unknown facts should be omitted instead of inferred. The parser validates
- * structure, supported vocabulary, and field-level provenance only; it does
- * not verify that a cited real-world claim is factually true.
+ * structure, supported vocabulary, and field-level evidence only; it does not
+ * verify that a cited real-world claim is factually true.
  *
  * @param value Unknown external data.
  * @returns Validated sensor architecture profile.
@@ -270,14 +157,14 @@ export function parseSensorArchitectureProfile(
 ): SensorArchitectureProfile {
   const profile = requireRecord(value, "sensorArchitecture");
 
-  if (profile.schemaVersion !== "0.1.0") {
+  if (profile.schemaVersion !== "0.2.0") {
     throw new InvalidConfigurationError(
-      'sensorArchitecture.schemaVersion must be "0.1.0".'
+      'sensorArchitecture.schemaVersion must be "0.2.0".'
     );
   }
 
   return {
-    schemaVersion: "0.1.0",
+    schemaVersion: "0.2.0",
     ...(profile.illumination === undefined
       ? {}
       : {
@@ -299,7 +186,7 @@ export function parseSensorArchitectureProfile(
     ...(profile.readoutCapabilities === undefined
       ? {}
       : {
-          readoutCapabilities: parseReadoutFact(
+          readoutCapabilities: parseReadoutCapabilities(
             profile.readoutCapabilities,
             "sensorArchitecture.readoutCapabilities"
           )
