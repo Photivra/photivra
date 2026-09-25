@@ -47,8 +47,8 @@ export interface CalculateCameraRotationImageMappingInput {
   /**
    * Constant camera angular-velocity vector in radians per second.
    *
-   * Components follow the right-hand rule around the initial camera axes:
-   * pitch about +X, yaw about +Y, roll about +Z.
+   * Components are resolved in the camera axes at exposure start and follow
+   * the right-hand rule: pitch about +X, yaw about +Y, roll about +Z.
    */
   angularVelocityRadPerSec: CameraAngularVelocityRadPerSec;
   /** Optional focus distance in metres for thin-lens projection distance. */
@@ -77,7 +77,11 @@ export interface CameraRotationImageMapping {
     y: number;
     distance: number;
   };
-  deltaSamples?: {
+  /**
+   * Optional geometric sample displacement in the image-plane basis
+   * (+X right, +Y up). This is not a native-raster vector.
+   */
+  deltaImagePlaneSamples?: {
     x: number;
     y: number;
     distance: number;
@@ -275,7 +279,7 @@ export function calculateCameraRotationImageMapping(
     )
   };
 
-  let deltaSamples:
+  let deltaImagePlaneSamples:
     | {
         x: number;
         y: number;
@@ -287,7 +291,7 @@ export function calculateCameraRotationImageMapping(
     const pitchYmm = input.samplingPitchMicrometers.y / 1000;
     const sampleX = deltaMm.x / pitchXmm;
     const sampleY = deltaMm.y / pitchYmm;
-    deltaSamples = {
+    deltaImagePlaneSamples = {
       x: sampleX,
       y: sampleY,
       distance: Math.hypot(sampleX, sampleY)
@@ -306,7 +310,9 @@ export function calculateCameraRotationImageMapping(
       startImagePointMm: { ...input.imagePointMm },
       mappedImagePointMm,
       deltaMm,
-      ...(deltaSamples === undefined ? {} : { deltaSamples })
+      ...(deltaImagePlaneSamples === undefined
+        ? {}
+        : { deltaImagePlaneSamples })
     },
     focusAware
       ? "focus-aware-spatial-camera-rotation-mapping"
@@ -318,7 +324,7 @@ export function calculateCameraRotationImageMapping(
         ? "Thin-lens image distance for the selected focus plane is used as the projection distance"
         : "Nominal focal length is used as the infinity-focus projection distance",
       "Camera angular velocity is constant during the evaluated interval",
-      "Angular velocity is integrated as one axis-angle vector about the initial camera axes",
+      "Angular velocity components are resolved in the camera axes at exposure start and integrated as one axis-angle vector",
       "Positive pitch/yaw/roll follow the right-hand rule about camera +X/+Y/+Z",
       "The world ray is stationary; subject motion is not included",
       "Camera translation and depth-dependent parallax are not modeled",
