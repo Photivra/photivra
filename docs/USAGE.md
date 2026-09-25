@@ -253,6 +253,64 @@ The returned X/Y sampling pitches are geometric image-sample spacing. They are n
 
 The existing `calculatePixelPitch()` API remains available for callers that only need horizontal pitch from sensor width and horizontal pixel count.
 
+## Sensor architecture metadata
+
+Use `parseSensorArchitectureProfile()` for descriptive hardware/capability metadata that crosses an untrusted JSON boundary:
+
+```ts
+import { parseSensorArchitectureProfile } from "@photivra/engine";
+
+const architecture = parseSensorArchitectureProfile({
+  schemaVersion: "0.1.0",
+  illumination: {
+    value: "bsi",
+    provenance: {
+      sourceKind: "manufacturer-published",
+      sourceReference: "manufacturer-spec:example",
+      reuseStatus: "factual-reference-only"
+    }
+  },
+  integration: {
+    value: "stacked",
+    provenance: {
+      sourceKind: "manufacturer-published",
+      sourceReference: "manufacturer-spec:example",
+      reuseStatus: "factual-reference-only"
+    }
+  },
+  readoutCapabilities: {
+    value: ["rolling"],
+    provenance: {
+      sourceKind: "manufacturer-published",
+      sourceReference: "manufacturer-spec:example",
+      reuseStatus: "factual-reference-only"
+    }
+  },
+  colorSamplingFamily: {
+    value: "bayer",
+    provenance: {
+      sourceKind: "manufacturer-published",
+      sourceReference: "manufacturer-spec:example",
+      reuseStatus: "factual-reference-only"
+    }
+  }
+});
+```
+
+The axes are independent. For example, BSI may be stacked or monolithic; stacking does not imply global shutter; and global readout capability does not imply a particular stacking architecture.
+
+`readoutCapabilities` describes hardware capabilities, not the mode selected for one exposure. Capture-specific readout selection and timing belong to later readout/capture-mode models.
+
+Unknown facts should be omitted instead of inferred. Each asserted field carries its own provenance so one well-sourced fact does not imply that unrelated sensor internals are known.
+
+Supported provenance classes intentionally separate:
+
+- manufacturer-published factual reference;
+- openly reusable data with an explicit license;
+- Photivra-generated evidence owned by Photivra.
+
+The parser fails closed on contradictory source/reuse claims. Architecture metadata is descriptive only: BSI, stacking, readout family, and CFA family do not directly change FOV, crop factor, pixel pitch, exposure, noise, or dynamic range. A separate documented downstream physical/calibration model is required before any such effect can be claimed.
+
 ## Capture orientation, active area, and output geometry
 
 Use `resolveCaptureGeometry()` to keep physical sensor identity, active capture, physical camera orientation, and final digital output geometry separate:
