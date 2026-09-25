@@ -122,6 +122,20 @@ The POC still does **not** consume:
 
 That separation is deliberate. Further foundation APIs should remain independently testable and only enter the POC through explicit contract/version changes and migration review.
 
+## Standalone radial field-mapping foundation
+
+The lens-field/pupil domain now also exposes generic radial distortion through paired forward and inverse mappings.
+
+The engine, rather than a renderer backend, owns:
+- coefficient normalization against a declared physical image-plane radius;
+- the valid maximum normalized field radius;
+- strict monotonicity/invertibility checks;
+- deterministic inverse destination-to-source mapping.
+
+This prevents WebGPU/WebGL2 implementations from inventing separate distortion equations.
+
+The first slice is radial and optical-axis-centered only. Tangential/decentered distortion, lateral chromatic aberration, illumination vignetting, and calibrated lens profiles remain separate work.
+
 ## Standalone focus-breathing foundation
 
 The lens-field/pupil domain now has a partial standalone foundation through `calculateFocusBreathingProjection()` and `calculateFocusBreathingFieldOfView()`.
