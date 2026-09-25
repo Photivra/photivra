@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.25.0" as const;
+export const ENGINE_API_VERSION = "0.26.0" as const;
 
 export {
   approximationResult,
@@ -29,6 +29,22 @@ export {
   InvalidScientificInputError,
   InvalidScientificResultError
 } from "./core/validation.js";
+
+export {
+  IMAGE_FORMATION_CONTRACT_VERSION,
+  getImageFormationContract,
+  type ImageFormationContract,
+  type ImageFormationCoordinateSpaceContract,
+  type ImageFormationCoordinateSpaceId,
+  type ImageFormationDomainId,
+  type ImageFormationEffectId,
+  type ImageFormationEffectPlacement,
+  type ImageFormationImplementationStatus,
+  type ImageFormationRendererContract,
+  type ImageFormationStageContract,
+  type ImageFormationStageId,
+  type ImageFormationTemporalContract
+} from "./core/image-formation.js";
 
 export {
   calculateFieldOfView,
