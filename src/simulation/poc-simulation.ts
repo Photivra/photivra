@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { calculateEquivalentFocalLength35Mm } from "../camera/equivalent-focal-length.js";
-import { calculateFieldOfView } from "../camera/field-of-view.js";
+import {
+  calculateFieldOfView,
+  calculateFieldOfViewBounds
+} from "../camera/field-of-view.js";
 import { calculateProjectedObjectSize } from "../camera/projected-object-size.js";
 import type { CalculationProvenance } from "../core/calculation-result.js";
 import {
@@ -20,10 +23,13 @@ import {
 } from "../optics/depth-of-field.js";
 import {
   calculateActiveCaptureFieldOfView,
+  calculateOutputFieldOfView,
   resolveCaptureGeometry,
   transformNativeRasterVectorToOriented,
   type ActiveCaptureFieldOfView,
   type CaptureOrientation,
+  type OutputFieldOfView,
+  type PhysicalBoundsFromOpticalAxisMm,
   type RasterRect,
   type RasterVector,
   type ResolvedCaptureGeometry
@@ -34,12 +40,13 @@ import { calculatePixelPitch } from "../sensor/pixel-pitch.js";
 import {
   calculateSensorGeometryMetrics,
   type RasterDimensions,
-  type SensorGeometryMetrics
+  type SensorGeometryMetrics,
+  type SensorImagingArea
 } from "../sensor/sensor-geometry.js";
 import type { Vector3 } from "../schema/scene.js";
 import { estimateCameraShakeBlur } from "../stabilization/camera-shake.js";
 
-export const POC_SIMULATION_API_VERSION = "0.19.0" as const;
+export const POC_SIMULATION_API_VERSION = "0.20.0" as const;
 
 const POC_MAX_PITCH_AXIS_RELATIVE_DIFFERENCE = 0.01;
 
@@ -190,6 +197,64 @@ interface FieldOfViewSummary {
   diagonalDegrees: number;
 }
 
+function centeredPhysicalCropBounds(
+  bounds: PhysicalBoundsFromOpticalAxisMm,
+  cropFactor: number
+): PhysicalBoundsFromOpticalAxisMm {
+  const centerX = (bounds.left + bounds.right) / 2;
+  const centerY = (bounds.top + bounds.bottom) / 2;
+  const halfWidth = (bounds.right - bounds.left) / (2 * cropFactor);
+  const halfHeight = (bounds.bottom - bounds.top) / (2 * cropFactor);
+
+  return {
+    left: centerX - halfWidth,
+    right: centerX + halfWidth,
+    top: centerY - halfHeight,
+    bottom: centerY + halfHeight
+  };
+}
+
+function calculateFieldOfViewForPhysicalBounds(
+  bounds: PhysicalBoundsFromOpticalAxisMm,
+  focalLengthMm: number,
+  focusDistanceM: number
+): FieldOfViewSummary {
+  const horizontal = calculateFieldOfViewBounds({
+    focalLengthMm,
+    minimumSensorCoordinateMm: bounds.left,
+    maximumSensorCoordinateMm: bounds.right,
+    focusDistanceM
+  }).value;
+  const vertical = calculateFieldOfViewBounds({
+    focalLengthMm,
+    minimumSensorCoordinateMm: bounds.top,
+    maximumSensorCoordinateMm: bounds.bottom,
+    focusDistanceM
+  }).value;
+
+  const diagonalMm = Math.hypot(
+    bounds.right - bounds.left,
+    bounds.bottom - bounds.top
+  );
+
+  return {
+    horizontalDegrees: horizontal.degrees,
+    verticalDegrees: vertical.degrees,
+    diagonalDegrees: calculateFieldOfView({
+      focalLengthMm,
+      sensorDimensionMm: diagonalMm,
+      focusDistanceM
+    }).value.degrees
+  };
+}
+
+function isPortraitOrientation(orientation: CaptureOrientation): boolean {
+  return (
+    orientation === "portrait-clockwise" ||
+    orientation === "portrait-counter-clockwise"
+  );
+}
+
 export interface PocSimulationResponse {
   apiVersion: typeof POC_SIMULATION_API_VERSION;
   projection: {
@@ -222,12 +287,29 @@ export interface PocSimulationResponse {
   capture?: {
     geometry: ResolvedCaptureGeometry;
     activeFieldOfView: ActiveCaptureFieldOfView;
+    outputFieldOfView: OutputFieldOfView;
     focalLength: {
       actualFocalLengthMm: number;
       equivalentFocalLength35Mm: number;
       cropFactor35Mm: number;
       activeImagingAreaDiagonalMm: number;
       basis: "diagonal";
+    };
+    /**
+     * Additional post-output subject framing. This does not mutate physical
+     * sensor identity, active capture, or active-capture focal equivalence.
+     */
+    subjectFraming?: {
+      additionalCropFactor: number;
+      raster: RasterDimensions;
+      megapixels: number;
+      subjectHeightFraction: number;
+      subjectClipped: boolean;
+      additionalCropApplied: boolean;
+      retainedImagingArea: SensorImagingArea;
+      physicalBoundsFromOpticalAxisMm: PhysicalBoundsFromOpticalAxisMm;
+      effectiveFieldOfView: FieldOfViewSummary;
+      basis: "centered-output-framing";
     };
     motion: {
       nativeRasterDeltaPixels: RasterVector;
