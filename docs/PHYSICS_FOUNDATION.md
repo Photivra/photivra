@@ -14,13 +14,68 @@ where `d` is the relevant sensor dimension and `v` is the projection/image-plane
 
 When no focus distance is supplied, `v = f` is the infinity-focus/pinhole compatibility approximation. When focus distance is supplied, `v` is the ideal Gaussian thin-lens image distance.
 
-### Pixel pitch and crop
+For a centered sensor interval, the usual symmetric form is sufficient. For an off-center sensor interval, Photivra uses signed sensor-plane bounds relative to the optical axis:
 
-Pixel pitch is derived directly from active sensor width and horizontal active pixel count.
+`FOV = atan(x_max / v) - atan(x_min / v)`
 
-Centered crop dimensions are derived from a linear crop factor while preserving the source aspect ratio, subject to integer pixel flooring.
+This preserves asymmetric left/right or top/bottom angular limits instead of pretending every active crop is centered.
+
+### Sensor geometry, sampling, capture, and crop
+
+Photivra separates physical image-formation geometry from digital sampling.
+
+`SensorImagingArea` represents the physical photosensitive area used for image formation. It is not a sensor package/die dimension.
+
+`NativeImageRaster` represents the effective native image-sampling grid. It does not imply that one output/image sample corresponds one-to-one with one physical photodiode. Generic active/output rasters use `RasterDimensions`.
+
+Geometric sample pitch is derived independently on each axis:
+
+- `pitchX = imagingWidth / nativePixelWidth`;
+- `pitchY = imagingHeight / nativePixelHeight`.
+
+These pitches are geometric sample spacing only. They are not fill factor, effective collection area, or photon-collection area.
+
+The capture pipeline is staged:
+
+```text
+physical imaging area + native raster
+              ↓
+native active-capture rectangle
+              ↓
+physical camera orientation
+              ↓
+oriented active capture
+              ↓
+digital/output crop
+              ↓
+output raster
+```
+
+Native raster coordinates use a top-left origin with +X right and +Y down. Integer rectangles are half-open. Physical camera rotation does not redefine the native coordinate system; Photivra transforms points, vectors, and rectangles explicitly between native and oriented coordinates.
+
+For the generic sensor model, active physical dimensions and optical-axis offset are derived by assuming the native sampling grid uniformly spans the declared physical imaging area. This assumption is recorded because a future calibrated camera profile may need explicit physical active-area data instead.
+
+An off-center active rectangle changes both retained physical extent and angular position relative to the optical axis. It must therefore use asymmetric angular bounds rather than a centered FOV formula.
+
+Output crop/resampling is digital geometry. It does not mutate physical sensor identity or active-capture geometry. Output raster aspect ratio must remain consistent with the selected output crop; implicit geometric stretching is rejected.
+
+Centered crop dimensions are derived from a linear crop factor while preserving source aspect ratio, subject to integer pixel flooring.
 
 Subject-height framing crop computes the additional same-aspect crop needed to target a requested subject-height fraction. It assumes the crop can be positioned around the subject and does not check subject position against image edges.
+
+### Crop factor and 35 mm-equivalent focal length
+
+Physical crop factor is diagonal-based relative to a 36 × 24 mm reference frame:
+
+`cropFactor = diagonal_35mm / activeCaptureDiagonal`
+
+Conventional 35 mm-equivalent focal length is:
+
+`equivalentFocalLength = actualFocalLength × cropFactor`
+
+The actual focal length remains the optical focal length. Equivalent focal length is a derived framing convention; it does not replace physical focal length in projection or depth-of-field calculations.
+
+Photivra bases equivalence on the active physical capture area, not later digital/output crop. Physical orientation leaves the active diagonal unchanged and therefore does not change diagonal-based equivalent focal length. Different aspect ratios can still produce different horizontal/vertical FOV even when the single diagonal-equivalent number is the same.
 
 ### Projection, focus extension, object size, and motion
 
@@ -78,6 +133,28 @@ Yaw and pitch angular velocity are integrated over shutter duration. Their angul
 The current model returns one global image-plane vector. It does not compute the spatially varying optical flow that a real camera rotation produces away from the optical axis.
 
 Equivalent stabilization stops attenuate angular displacement by `2^-stops`; that attenuation is explicitly an educational approximation rather than a real IBIS/OIS or CIPA performance model.
+
+### Radiometry readiness boundary
+
+Absolute scene luminance or relative exposure alone is not enough to derive a defensible photon count.
+
+Before any future composed photon simulation, Photivra requires an explicit prerequisite package covering:
+
+- scene spectral radiance or a documented spectral approximation;
+- optical transmission;
+- pupil/vignetting behavior;
+- photosite collection-area semantics;
+- exposure integration;
+- sensor spectral response / quantum efficiency;
+- evidence and uncertainty/limitation metadata for each component.
+
+`assessRadiometryReadiness()` can classify a declared package as `not-ready`, `approximate-only`, or `calibrated-ready`. This classification validates the declared model/evidence structure; it does not prove that the calibration is scientifically correct and does not itself calculate photons.
+
+Geometric sample pitch is intentionally insufficient as a collection-area model. A profile must provide either an effective collection area or geometric cell area plus explicit fill factor.
+
+Approximate inputs remain approximate even when every prerequisite category is present. A calibrated-ready declaration requires calibrated components with quantified uncertainty.
+
+The composed POC continues to emit no photon/photoelectron/SNR output from scene settings. Low-level `calculatePhotoelectrons()` remains a separate primitive for callers that already possess a defensible incident-photon count and QE.
 
 ## Source provenance
 
