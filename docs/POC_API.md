@@ -66,6 +66,22 @@ The POC transport reports the composed simulation contract version, not the root
 
 POC simulation API 0.18 composes projection using the selected focus plane. The response includes a `projection` block with ideal thin-lens image distance, scale relative to the infinity-focus approximation, and model provenance. Full-sensor field of view, crop field of view, object sampling, subject motion, and camera-shake projection use that same selected projection plane.
 
+### Post-0.2 standalone foundations
+
+The root engine contains newer standalone sensor/capture APIs that are deliberately **not** part of this POC request contract yet.
+
+POC simulation API 0.18 does not accept:
+
+- physical `CaptureOrientation`;
+- arbitrary native `activeCaptureRect`;
+- native↔oriented coordinate transforms as request state;
+- sensor-architecture metadata;
+- radiometry-readiness profiles.
+
+It also does not use 35 mm-equivalent focal length as an optical input; physical focal length remains authoritative.
+
+The POC continues to use its compatibility same-aspect crop-factor model. Integrating the newer capture geometry or radiometry foundations requires an explicit POC simulation contract/version change rather than silently changing the meaning of existing fields.
+
 ### Required request groups
 
 The request includes:
