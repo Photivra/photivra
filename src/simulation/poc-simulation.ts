@@ -549,6 +549,11 @@ export function simulatePocCamera(
       "capture geometry currently requires explicit focus.circleOfConfusionMm; equivalent-viewing CoC semantics for retained capture/output area are not yet composed."
     );
   }
+  if (request.capture !== undefined && request.subjectCrop !== undefined) {
+    throw new InvalidScientificInputError(
+      "capture geometry cannot yet be combined with subjectCrop; subject-framing crop semantics must be migrated to the staged output geometry explicitly."
+    );
+  }
 
   requirePositiveFinite(
     "diffraction.wavelengthNm",
