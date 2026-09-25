@@ -72,7 +72,7 @@ The POC now composes:
 - an opt-in staged `capture` path for physical orientation, native active-capture rectangle, oriented digital/output crop, and final output raster;
 - active-capture FOV, including asymmetric bounds for off-center physical capture;
 - diagonal-based 35 mm-equivalent focal length derived from active physical capture while physical focal length remains authoritative;
-- additive oriented-capture and final-output motion/camera-shake vector diagnostics;
+- additive image-plane→native-raster conversion plus oriented-capture and final-output motion/camera-shake vector diagnostics;
 - one representative horizontal-pitch path for existing blur/sampling calculations, with a fail-closed guard for materially non-square sampling;
 - the established projection, DOF/defocus, diffraction, motion, exposure, aperture-shape, and camera-shake models.
 
@@ -81,7 +81,7 @@ Compatibility boundaries remain explicit:
 - staged capture geometry cannot be combined with legacy `crop.factor` other than `1`;
 - `subjectCrop` is not yet composed with staged output geometry;
 - equivalent-viewing CoC input is not yet composed with retained capture/output viewing semantics, so capture mode currently requires explicit `circleOfConfusionMm`;
-- existing native motion/camera-shake fields retain their meaning rather than being reinterpreted by orientation.
+- existing legacy motion/camera-shake fields retain their image-plane (+X right, +Y up) meaning rather than being reinterpreted; capture diagnostics explicitly convert to native raster (+Y down) before orientation.
 
 The POC still does **not** consume:
 
