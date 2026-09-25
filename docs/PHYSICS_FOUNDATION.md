@@ -94,6 +94,20 @@ The focus-aware model improves internal consistency with thin-lens DOF/defocus c
 
 Projected subject motion is a representative-point displacement model with constant linear world velocity. It does not yet describe scale blur of an extended object whose magnification changes materially during the exposure.
 
+### Generic radial distortion
+
+The engine includes a standalone rotationally symmetric radial field-mapping approximation:
+
+```text
+p_distorted = p_ideal × (1 + k1 r² + k2 r⁴ + k3 r⁶)
+```
+
+where `r` is image-plane radius divided by a caller-declared physical normalization radius.
+
+The declared `maximumNormalizedRadius` is part of the scientific contract. Photivra checks the derivative of the radial mapping over that interval and rejects profiles that are not strictly one-to-one. This makes deterministic inverse destination-to-source sampling well-defined.
+
+The model is centered on the optical axis and does not yet include tangential/decentering terms. Coefficients are generic inputs, not real-lens calibration data.
+
 ### Declared-scale focus breathing
 
 The root engine exposes a generic focus-breathing projection approximation.
