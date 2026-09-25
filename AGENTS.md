@@ -149,9 +149,10 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 
 `calculateLateralChromaticAberrationMapping()` and its inverse are engine-owned channel field mappings.
 
-- Treat red/green/blue as abstract renderer channels, not wavelengths or CFA calibration.
-- Every channel shares one physical normalization radius/operating envelope but uses its own coefficients.
-- Every channel must satisfy the radial invertibility contract.
+- Treat red/green/blue as representative renderer channels, not wavelengths or CFA calibration.
+- Green is the reference/common base distortion. Red and blue use coefficient offsets added to that base.
+- Do not apply the same base distortion again as a separate renderer pass.
+- All combined channel profiles share one physical normalization radius/operating envelope and must satisfy the radial invertibility contract.
 - Renderers should inverse-map each destination channel to the engine-derived source coordinate; do not substitute an RGB blur or arbitrary post-output pixel offset.
 - Longitudinal CA, spectral PSFs, sensor color response, and named-lens calibration are outside this model.
 - Test Fixture RGB edges can verify renderer behavior but are not spectral calibration evidence.
