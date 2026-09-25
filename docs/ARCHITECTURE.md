@@ -126,7 +126,9 @@ That separation is deliberate. Further foundation APIs should remain independent
 
 The lens-field domain also exposes generic red/green/blue channel-dependent radial mapping.
 
-The engine owns both forward per-channel coordinates and inverse per-channel destination-to-source sampling. Backends should not implement lateral CA as arbitrary finished-image channel offsets.
+The green channel is the reference/common geometric field map. A shared base distortion is combined with explicit red/blue coefficient offsets, so ordinary distortion and chromatic separation remain semantically distinct without requiring two renderer warps.
+
+The engine owns both forward per-channel coordinates and inverse per-channel destination-to-source sampling. Backends should not implement lateral CA as arbitrary finished-image channel offsets or apply the same base distortion twice.
 
 This is deliberately not a spectral/CFA/colorimetric model. Wavelength-dependent optics, longitudinal CA, wavelength-dependent PSFs, and calibrated lens profiles remain separate future work.
 
