@@ -122,6 +122,14 @@ The POC still does **not** consume:
 
 That separation is deliberate. Further foundation APIs should remain independently testable and only enter the POC through explicit contract/version changes and migration review.
 
+## Standalone spatial camera-rotation foundation
+
+The root engine exposes `calculateCameraRotationImageMapping()` as a low-level implementation of the image-formation contract's time-parameterized camera-rotation placement.
+
+It is intentionally **not** composed into `simulatePocCamera()` yet. The existing POC and `estimateCameraShakeBlur()` retain their backwards-compatible global shake approximation.
+
+The new primitive provides deterministic yaw/pitch/roll rotation geometry only. It does not model camera translation, stabilization control laws, rolling-readout scheduling, or scene-depth-dependent parallax.
+
 ## Repository-local Node POC transport
 
 The repository contains a minimal Node-only HTTP transport under `src/api` for contributor integration testing.
@@ -134,7 +142,7 @@ This transport is intentionally **not** part of the public `@photivra/engine` pa
 
 Future capabilities should compose onto the scientific core rather than silently widening unrelated models. Examples include:
 
-- more complete camera-rotation and translation models;
+- composed use of the standalone spatial camera-rotation model plus future depth-aware camera translation;
 - panning and rolling/global shutter;
 - flash;
 - spectral/color modeling;
