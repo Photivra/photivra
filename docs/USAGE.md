@@ -769,7 +769,11 @@ The root engine and composed POC are versioned independently. `ENGINE_API_VERSIO
 
 The current composed POC reports X/Y geometric sample pitch but still uses one backwards-compatible representative horizontal pitch internally for blur/sampling calculations. It therefore rejects sensor geometry whose X/Y pitch differs by more than 1%. Axis-aware lower-level geometry remains available for more general sensor layouts.
 
-The post-0.2 capture/sensor foundations are not silently injected into the POC. `simulatePocCamera()` does not currently accept physical capture orientation, arbitrary active-capture rectangles, sensor-architecture metadata, or radiometry-readiness profiles. Use those standalone APIs directly when needed; integrating them into the composed request/response contract is a separate future versioned change.
+POC API 0.19 composes the capture-geometry foundation additively. Existing requests remain valid. New callers may supply an optional `capture` object with physical orientation, an optional native active-capture rectangle, an optional oriented output crop, and an optional final output raster.
+
+Capture mode deliberately fails closed where old and new semantics would be ambiguous: legacy `crop.factor` must remain `1`, `subjectCrop` is not yet combined with staged output geometry, and equivalent-viewing CoC input is not yet combined with retained-area/output-viewing semantics. Use explicit `circleOfConfusionMm` in capture mode.
+
+The optional response `capture` block exposes resolved geometry, active-capture FOV, active-capture diagonal-based 35 mm-equivalent focal length, and oriented/output motion diagnostics. Physical focal length remains authoritative. Sensor-architecture metadata and radiometry-readiness profiles are still standalone.
 
 
 ```ts
@@ -832,7 +836,66 @@ console.log(simulation.motion);
 console.log(simulation.provenance);
 ```
 
-The focus request must supply exactly one circle-of-confusion criterion: either `circleOfConfusionMm` or `equivalentViewingCircleOfConfusion`.
+To opt into staged capture geometry:
+
+```ts
+const portraitCrop = simulatePocCamera({
+  sensor: {
+    widthMm: 36,
+    heightMm: 24,
+    pixelWidth: 6000,
+    pixelHeight: 4000
+  },
+  lens: {
+    focalLengthMm: 50,
+    aperture: 4
+  },
+  exposure: {
+    shutterSeconds: 1 / 250,
+    iso: 100
+  },
+  focus: {
+    focusDistanceM: 10,
+    circleOfConfusionMm: 0.03
+  },
+  crop: {
+    factor: 1
+  },
+  capture: {
+    orientation: "portrait-clockwise",
+    activeCaptureRect: {
+      x: 1500,
+      y: 1000,
+      width: 3000,
+      height: 2000
+    },
+    outputCropRect: {
+      x: 500,
+      y: 750,
+      width: 1000,
+      height: 1500
+    },
+    outputRaster: {
+      pixelWidth: 2000,
+      pixelHeight: 3000
+    }
+  },
+  diffraction: {
+    wavelengthNm: 550
+  },
+  motion: {
+    positionM: { x: 0, y: 0, z: 10 },
+    velocityMps: { x: 1, y: 0, z: 0 }
+  }
+});
+
+console.log(portraitCrop.capture?.geometry);
+console.log(portraitCrop.capture?.activeFieldOfView);
+console.log(portraitCrop.capture?.focalLength);
+console.log(portraitCrop.capture?.motion.outputDeltaPixels);
+```
+
+The legacy focus request must supply exactly one circle-of-confusion criterion: either `circleOfConfusionMm` or `equivalentViewingCircleOfConfusion`. Capture mode currently requires explicit `circleOfConfusionMm` until equivalent-viewing semantics for retained capture/output area are defined.
 
 Additional named defocus, sampling, and motion samples can be supplied when a renderer or analysis client needs per-object outputs.
 
