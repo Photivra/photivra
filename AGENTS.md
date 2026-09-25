@@ -145,6 +145,18 @@ As of POC simulation API 0.20:
 
 Any further foundation composition still requires an explicit `POC_SIMULATION_API_VERSION` review/change, migration analysis, regression tests, and documentation. Do not silently reinterpret existing POC fields.
 
+## Radial-distortion boundary
+
+`calculateRadialDistortionMapping()` and `calculateInverseRadialDistortionMapping()` are the engine-owned generic radial field-mapping primitives.
+
+- Coefficients are meaningful only with the declared `normalizationRadiusMm`; never copy coefficients into a different normalization silently.
+- Respect `maximumNormalizedRadius` as the profile operating envelope.
+- Profiles must remain strictly monotonic over the declared envelope so inverse mapping stays single-valued.
+- Renderers should consume the inverse mapping semantics for destination-to-source sampling; do not define backend-specific distortion equations.
+- This slice is optical-axis-centered and radial-only. Do not pretend it includes tangential/decentering, anamorphic, CA, or calibrated named-lens behavior.
+- Test Fixture visual grids are regression evidence, not calibration data.
+- Do not compose distortion into the POC or app camera science without an explicit contract/version review.
+
 ## Focus-breathing boundary
 
 `calculateFocusBreathingProjection()` and `calculateFocusBreathingFieldOfView()` are generic declared-scale approximations.
