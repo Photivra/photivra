@@ -225,6 +225,79 @@ The returned X/Y sampling pitches are geometric image-sample spacing. They are n
 
 The existing `calculatePixelPitch()` API remains available for callers that only need horizontal pitch from sensor width and horizontal pixel count.
 
+## Capture orientation, active area, and output geometry
+
+Use `resolveCaptureGeometry()` to keep physical sensor identity, active capture, physical camera orientation, and final digital output geometry separate:
+
+```ts
+import { resolveCaptureGeometry } from "@photivra/engine";
+
+const geometry = resolveCaptureGeometry({
+  imagingArea: {
+    widthMm: 36,
+    heightMm: 24
+  },
+  nativeRaster: {
+    pixelWidth: 6000,
+    pixelHeight: 4000
+  },
+  orientation: "portrait-clockwise",
+  activeCaptureRect: {
+    x: 1000,
+    y: 800,
+    width: 4000,
+    height: 2400
+  },
+  outputCropRect: {
+    x: 0,
+    y: 875,
+    width: 2400,
+    height: 2250
+  },
+  outputRaster: {
+    pixelWidth: 2160,
+    pixelHeight: 2025
+  }
+});
+
+console.log(geometry.value.native.raster);
+console.log(geometry.value.activeCapture.imagingArea);
+console.log(geometry.value.orientedCapture.raster);
+console.log(geometry.value.output.raster);
+```
+
+Native sensor raster coordinates are invariant under physical camera rotation:
+
+- origin: top-left;
+- +X: right;
+- +Y: down;
+- rectangles: integer, half-open extents `[x, x + width) × [y, y + height)`.
+
+`activeCaptureRect` is expressed in that native coordinate system. Portrait orientation changes the oriented capture axes but does not redefine native sensor coordinates, physical sensor size, or native sampling pitch. Clockwise and counter-clockwise portrait orientations remain distinct even though they have the same oriented dimensions.
+
+`outputCropRect` is expressed in oriented active-capture coordinates. It is a digital/output operation and does not mutate the physical sensor or active capture area. `outputRaster` describes the final raster after optional crop/resampling.
+
+Display/file orientation transforms such as EXIF mirroring are intentionally not represented by `CaptureOrientation`; they belong to a separate output-metadata/transform layer.
+
+Use `calculateActiveCaptureFieldOfView()` for active physical capture FOV:
+
+```ts
+import { calculateActiveCaptureFieldOfView } from "@photivra/engine";
+
+const fov = calculateActiveCaptureFieldOfView({
+  imagingArea: { widthMm: 36, heightMm: 24 },
+  nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 },
+  orientation: "portrait-clockwise",
+  focalLengthMm: 50
+});
+
+console.log(fov.value.horizontalDegrees);
+console.log(fov.value.verticalDegrees);
+console.log(fov.value.diagonalDegrees);
+```
+
+The function reuses the canonical Photivra field-of-view model. A 90° physical rotation swaps horizontal/vertical FOV while preserving diagonal FOV. Final digital/output crop is deliberately excluded from this active-capture FOV quantity.
+
 ## Centered crop and subject framing crop
 
 Use `calculateCenteredCrop()` for a same-aspect centered digital crop:

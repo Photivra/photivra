@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.18.0" as const;
+export const ENGINE_API_VERSION = "0.19.0" as const;
 
 export {
   approximationResult,
@@ -67,6 +67,17 @@ export {
   type CalculateSubjectFramingCropInput,
   type SubjectFramingCrop
 } from "./output/subject-framing-crop.js";
+
+export {
+  calculateActiveCaptureFieldOfView,
+  resolveCaptureGeometry,
+  type ActiveCaptureFieldOfView,
+  type CalculateActiveCaptureFieldOfViewInput,
+  type CaptureOrientation,
+  type RasterRect,
+  type ResolveCaptureGeometryInput,
+  type ResolvedCaptureGeometry
+} from "./output/capture-geometry.js";
 
 export {
   calculateIdealApertureGeometry,

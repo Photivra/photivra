@@ -8,6 +8,8 @@ Notable public changes to `@photivra/engine` are documented here.
 
 - `calculateSensorGeometryMetrics()` plus `SensorImagingArea` and `NativeImageRaster`, separating physical imaging geometry from native effective image resolution while deriving diagonal 35 mm crop factor, megapixels, and independent X/Y sampling pitch.
 - Explicit provenance assumptions that prevent geometric sample spacing from being treated as photosite active area or photon-collection area.
+- `resolveCaptureGeometry()` with invariant native sensor coordinates, active capture rectangles, physical camera orientation, digital output crop, and final output raster separation.
+- `calculateActiveCaptureFieldOfView()`, which reuses the canonical field-of-view model and preserves diagonal FOV across 90° orientation changes.
 
 ### Compatibility
 
