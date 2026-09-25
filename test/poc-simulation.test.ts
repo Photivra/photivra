@@ -380,7 +380,8 @@ describe("POC composed simulation", () => {
     expect(result.subjectCrop?.additionalCropApplied).toBe(false);
     expect(result.subjectCrop?.subjectClipped).toBe(true);
     expect(result.subjectCrop?.subjectHeightFraction).toBeGreaterThan(1);
-  }); 
+  });
+
   it("composes portrait capture geometry without redefining legacy native vectors", () => {
     const result = simulatePocCamera({
       sensor: {
