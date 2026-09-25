@@ -169,7 +169,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Package version: `0.2.0`
-- Engine API contract: `0.23.0`
+- Engine API contract: `0.24.0`
 - Composed POC simulation API contract: `0.19.0`
 - Stability: pre-1.0 / proof of concept
 
