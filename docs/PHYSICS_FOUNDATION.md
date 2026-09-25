@@ -94,6 +94,16 @@ The focus-aware model improves internal consistency with thin-lens DOF/defocus c
 
 Projected subject motion is a representative-point displacement model with constant linear world velocity. It does not yet describe scale blur of an extended object whose magnification changes materially during the exposure.
 
+### Generic lateral chromatic aberration
+
+The standalone lateral-CA foundation treats red, green, and blue as independent generic field mappings that share one physical normalization radius and operating envelope.
+
+It deliberately does **not** model chromatic aberration as a finished-image RGB blur. Instead, each channel has its own ideal-to-distorted radial mapping and inverse distorted-destination-to-ideal-source mapping.
+
+Pairwise image-plane separation is reported in millimetres for deterministic comparison.
+
+These RGB labels are abstract renderer channels only. The model does not define wavelengths, sensor CFA responses, longitudinal chromatic aberration, wavelength-dependent PSFs, or calibrated real-lens color behavior.
+
 ### Generic radial distortion
 
 The engine includes a standalone rotationally symmetric radial field-mapping approximation:
