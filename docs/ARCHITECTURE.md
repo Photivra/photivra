@@ -122,6 +122,22 @@ The POC still does **not** consume:
 
 That separation is deliberate. Further foundation APIs should remain independently testable and only enter the POC through explicit contract/version changes and migration review.
 
+## PSF/pupil foundation
+
+The field/wavelength PSF domain now has an explicit public foundation through `getPsfFoundationContract()` and `calculatePsfFoundationComponents()`.
+
+The foundation provides:
+- stable contribution IDs and implementation/reservation status;
+- field/depth/spectral/pupil context;
+- existing geometric-defocus and circular-Airy diagnostics with their original provenance;
+- an explicit `not-composed` policy.
+
+It does not invent a combined PSF, MTF, or lens-sharpness score.
+
+Future non-circular diffraction, mechanical pupil clipping, field curvature, field-dependent aberration, and bokeh models should extend this contribution/context model rather than replacing existing defocus/diffraction APIs.
+
+Preview and reference render paths may use different computational fidelity, but must preserve contribution identities and engine-owned semantics.
+
 ## Standalone illumination-throughput foundation
 
 The lens-field/pupil domain now includes generic illumination vignetting as field-dependent linear throughput.
