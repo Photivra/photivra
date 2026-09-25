@@ -56,7 +56,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 
 ### Optics and geometry
 
-- [rectilinear field of view, with optional focus-aware thin-lens projection](docs/USAGE.md#field-of-view);
+- [centered and asymmetric rectilinear field of view, with optional focus-aware thin-lens projection](docs/USAGE.md#field-of-view);
 - [physical vs diagonal-based 35 mm-equivalent focal length](docs/USAGE.md#actual-and-35-mm-equivalent-focal-length);
 - [Gaussian thin-lens image distance and magnification](docs/USAGE.md#thin-lens-image-distance-and-magnification);
 - [geometric depth of field and defocus-circle diameter](docs/USAGE.md#depth-of-field-and-defocus);
@@ -145,7 +145,8 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Package version: `0.2.0`
-- Engine API contract: `0.21.0`
+- Engine API contract: `0.22.0`
+- Composed POC simulation API contract: `0.18.0`
 - Stability: pre-1.0 / proof of concept
 
 Package version and engine API version are intentionally separate. Public APIs may evolve before 1.0 while the scientific models and composition contracts are validated.
@@ -161,6 +162,7 @@ Photivra deliberately avoids claiming more than the current models support.
 - Camera shake is represented by one global yaw/pitch image-plane vector. Spatially varying rotational optical flow, roll, translation, and real IBIS/OIS behavior are not yet modeled.
 - The Airy diagnostic assumes an ideal circular pupil. Polygon aperture geometry does not produce a polygon diffraction PSF.
 - Signal/noise primitives require caller-supplied photon/electron quantities. The composed POC does not derive calibrated photon counts from scene imagery.
+- The composed POC still uses one representative pixel-pitch path internally and therefore rejects sensor geometry whose X/Y sample pitch differs by more than 1%; lower-level geometry APIs already preserve independent X/Y pitch.
 - No named commercial camera or lens performance is claimed.
 
 See [Physics Foundation](docs/PHYSICS_FOUNDATION.md), [Motion and Signal Foundation](docs/MOTION_AND_SIGNAL.md), and [Camera Shake and Stabilization](docs/STABILIZATION.md) for details.
@@ -224,7 +226,7 @@ Yarn and pnpm may be used for development, but the repository's release/CI depen
 
 TypeScript types are not treated as validation for untrusted data.
 
-- Use `parseCameraConfiguration()` and `parseSceneDefinition()` for external camera/scene JSON.
+- Use `parseCameraConfiguration()`, `parseSceneDefinition()`, and `parseSensorArchitectureProfile()` for their respective external JSON/configuration boundaries.
 - The repository-local Node POC HTTP layer has its own structural request parser before invoking `simulatePocCamera()`.
 - Scientific range/domain validation remains in the calculation modules.
 - Public `CalculationResult<T>` envelopes reject non-finite numeric output.

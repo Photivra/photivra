@@ -5,9 +5,17 @@ import {
   calculateCenteredCrop,
   calculateDefocusCircle,
   calculateDepthOfField,
+  calculateEquivalentFocalLength35Mm,
   calculateEquivalentIso,
   calculateExposureValue100,
   calculateFieldOfView,
+  resolveCaptureGeometry,
+  transformNativeRasterPointToOriented,
+  transformNativeRasterRectToOriented,
+  transformNativeRasterVectorToOriented,
+  transformOrientedRasterPointToNative,
+  transformOrientedRasterRectToNative,
+  transformOrientedRasterVectorToNative,
   calculatePhotoelectrons,
   calculatePixelPitch,
   calculateProjectedMotionBlur,
@@ -206,6 +214,114 @@ describe("deterministic scientific fuzz corpus", () => {
       ];
 
       results.forEach(expectFiniteTree);
+    }
+  });
+
+  it("preserves capture-geometry invariants across a seeded corpus", () => {
+    const random = createSeededRandom(0xc4a7e123);
+    const orientations = [
+      "landscape",
+      "portrait-clockwise",
+      "landscape-inverted",
+      "portrait-counter-clockwise"
+    ] as const;
+
+    for (let index = 0; index < 200; index += 1) {
+      const pixelWidth = random.integer(1000, 12000);
+      const pixelHeight = random.integer(800, 9000);
+      const widthMm = random.between(4, 70);
+      const heightMm = random.between(3, 50);
+      const rectWidth = random.integer(1, pixelWidth);
+      const rectHeight = random.integer(1, pixelHeight);
+      const rect = {
+        x: random.integer(0, pixelWidth - rectWidth),
+        y: random.integer(0, pixelHeight - rectHeight),
+        width: rectWidth,
+        height: rectHeight
+      };
+      const nativeRaster = { pixelWidth, pixelHeight };
+      const point = {
+        x: random.between(0, pixelWidth),
+        y: random.between(0, pixelHeight)
+      };
+      const vector = {
+        x: random.between(-500, 500),
+        y: random.between(-500, 500)
+      };
+
+      for (const orientation of orientations) {
+        const orientedPoint = transformNativeRasterPointToOriented({
+          point,
+          nativeRaster,
+          orientation
+        });
+        const roundTripPoint = transformOrientedRasterPointToNative({
+          point: orientedPoint,
+          nativeRaster,
+          orientation
+        });
+        expect(roundTripPoint.x).toBeCloseTo(point.x, 10);
+        expect(roundTripPoint.y).toBeCloseTo(point.y, 10);
+
+        const orientedVector = transformNativeRasterVectorToOriented({
+          vector,
+          orientation
+        });
+        expect(
+          transformOrientedRasterVectorToNative({
+            vector: orientedVector,
+            orientation
+          })
+        ).toEqual(vector);
+
+        const orientedRect = transformNativeRasterRectToOriented({
+          rect,
+          nativeRaster,
+          orientation
+        });
+        expect(
+          transformOrientedRasterRectToNative({
+            rect: orientedRect,
+            nativeRaster,
+            orientation
+          })
+        ).toEqual(rect);
+
+        const geometry = resolveCaptureGeometry({
+          imagingArea: { widthMm, heightMm },
+          nativeRaster,
+          orientation,
+          activeCaptureRect: rect
+        }).value;
+        expect(geometry.activeCapture.nativeRect).toEqual(rect);
+        expect(geometry.output.sourceRetainedAreaFraction).toBeCloseTo(1, 12);
+      }
+
+      const baseGeometry = resolveCaptureGeometry({
+        imagingArea: { widthMm, heightMm },
+        nativeRaster,
+        orientation: "landscape"
+      }).value;
+      const resizedOutput = resolveCaptureGeometry({
+        imagingArea: { widthMm, heightMm },
+        nativeRaster,
+        orientation: "landscape",
+        outputRaster: {
+          pixelWidth: Math.max(1, Math.round(pixelWidth / 2)),
+          pixelHeight: Math.max(1, Math.round(pixelHeight / 2))
+        }
+      }).value;
+
+      const focalLengthMm = random.between(4, 600);
+      const baseEquivalent = calculateEquivalentFocalLength35Mm({
+        focalLengthMm,
+        activeImagingArea: baseGeometry.activeCapture.imagingArea
+      }).value.equivalentFocalLength35Mm;
+      const resizedEquivalent = calculateEquivalentFocalLength35Mm({
+        focalLengthMm,
+        activeImagingArea: resizedOutput.activeCapture.imagingArea
+      }).value.equivalentFocalLength35Mm;
+      expect(resizedEquivalent).toBeCloseTo(baseEquivalent, 12);
     }
   });
 

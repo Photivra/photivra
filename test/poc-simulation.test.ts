@@ -3,6 +3,41 @@ import { describe, expect, it } from "vitest";
 import { simulatePocCamera } from "../src/index.js";
 
 describe("POC composed simulation", () => {
+  it("rejects meaningfully non-square geometric sampling in the composed POC", () => {
+    expect(() =>
+      simulatePocCamera({
+        sensor: {
+          widthMm: 10,
+          heightMm: 8,
+          pixelWidth: 1000,
+          pixelHeight: 400
+        },
+        lens: {
+          focalLengthMm: 50,
+          aperture: 5.6
+        },
+        exposure: {
+          shutterSeconds: 1 / 125,
+          iso: 100
+        },
+        focus: {
+          focusDistanceM: 5,
+          circleOfConfusionMm: 0.03
+        },
+        crop: {
+          factor: 1
+        },
+        diffraction: {
+          wavelengthNm: 550
+        },
+        motion: {
+          positionM: { x: 0, y: 0, z: 5 },
+          velocityMps: { x: 0, y: 0, z: 0 }
+        }
+      })
+    ).toThrow("requires approximately square geometric sampling");
+  });
+
   it("rejects duplicate named samples that would make client lookup ambiguous", () => {
     expect(() =>
       simulatePocCamera({
@@ -132,7 +167,7 @@ describe("POC composed simulation", () => {
       ]
     });
 
-    expect(result.apiVersion).toBe("0.17.0");
+    expect(result.apiVersion).toBe("0.18.0");
     expect(result.projection.kind).toBe("focus-aware-thin-lens");
     expect(result.projection.imageDistanceMm).toBeCloseTo(201.834862385, 9);
     expect(result.projection.infinityProjectionScale).toBeCloseTo(
@@ -144,6 +179,9 @@ describe("POC composed simulation", () => {
     );
     expect(result.fieldOfView.horizontalDegrees).toBeCloseTo(10.1925, 3);
     expect(result.sensor.pixelPitchMicrometers).toBeCloseTo(6, 12);
+    expect(result.sensor.pitchXMicrometers).toBeCloseTo(6, 12);
+    expect(result.sensor.pitchYMicrometers).toBeCloseTo(6, 12);
+    expect(result.sensor.pitchAxisRelativeDifference).toBeCloseTo(0, 12);
     expect(result.crop.cropFactor).toBe(1);
     expect(result.crop.megapixels).toBeCloseTo(24, 12);
     expect(result.crop.effectiveFieldOfView).toEqual(result.fieldOfView);

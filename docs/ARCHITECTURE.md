@@ -37,11 +37,13 @@ digital/output crop
 output raster
 ```
 
-Native coordinates use a top-left origin with +X right and +Y down and remain invariant under physical camera rotation. This keeps later CFA phase, rolling-readout direction, motion-vector transforms, and camera-shake transforms anchored to one stable sensor coordinate system. Display/file transforms remain separate from physical capture orientation.
+Native coordinates use a top-left origin with +X right and +Y down and remain invariant under physical camera rotation. Exact point, vector, and half-open rectangle transforms map between native and oriented capture coordinates for 0°/90°/180°/270° rotations. This keeps later CFA phase, rolling-readout direction, motion-vector transforms, and camera-shake transforms anchored to one stable sensor coordinate system. Display/file transforms remain separate from physical capture orientation.
+
+Active capture retains its physical bounds and center offset relative to the optical axis. Off-center crops therefore use asymmetric angular bounds instead of being silently recentered. Output raster resampling must preserve the output-crop aspect ratio; implicit geometric stretching is rejected.
 
 Equivalent focal length is also layered on top of physical capture geometry rather than stored as lens identity. The engine keeps physical `focalLengthMm` authoritative and derives diagonal-based 35 mm equivalence from the active physical capture area. Focus distance and final digital/output crop do not redefine this conventional capture-equivalent quantity.
 
-Sensor architecture is a separate descriptive layer. Illumination (FSI/BSI), integration/stacking, readout capabilities, and color-sampling family are independent sourced facts. Their presence alone has no image-quality effect in the engine. Each known fact carries field-level provenance; omitted facts remain unknown rather than being inferred. Capture-mode semantics, readout timing, reconstruction, and calibrated radiometry consume these facts only through later explicit models.
+Sensor architecture is a separate descriptive layer. Illumination (FSI/BSI), integration/stacking, readout capabilities, and color-sampling family are independent evidence-backed facts. Their presence alone has no image-quality effect in the engine. Evidence origin is modeled independently from reuse rights, scalar facts may cite multiple evidence records, and multi-valued capabilities carry evidence per value. Omitted facts remain unknown rather than being inferred. Capture-mode semantics, readout timing, reconstruction, and calibrated radiometry consume these facts only through later explicit models.
 
 
 ## Repository-local Node POC transport
@@ -75,3 +77,7 @@ Capabilities should remain discoverable and explicitly versioned rather than bei
 This repository contains the Apache-2.0 scientific/business-logic package together with its tests, documentation, schemas, validation, and contributor tooling.
 
 The published npm package intentionally exposes only the browser-safe scientific root surface; repository-local development tooling such as the Node POC transport remains outside the published package.
+
+## Version surfaces
+
+The root library contract and the composed POC simulation contract are versioned independently. `ENGINE_API_VERSION` describes the root browser-safe engine surface. `POC_SIMULATION_API_VERSION` describes the request/response behavior of `simulatePocCamera()` and the repository-local POC HTTP transport. Package versioning remains separate from both.

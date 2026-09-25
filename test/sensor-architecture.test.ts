@@ -5,200 +5,186 @@ import {
   parseSensorArchitectureProfile
 } from "../src/index.js";
 
-const manufacturerProvenance = {
-  sourceKind: "manufacturer-published",
-  sourceReference: "manufacturer-spec:example",
-  reuseStatus: "factual-reference-only"
-} as const;
+const manufacturerEvidence = [
+  {
+    sourceOrigin: "manufacturer",
+    sourceReference: "manufacturer-spec:example",
+    reuseStatus: "factual-reference-only"
+  }
+] as const;
 
 describe("sensor architecture metadata", () => {
-  it("represents BSI + stacked + rolling + Bayer independently", () => {
+  it("represents independent BSI + stacked + rolling + Bayer facts", () => {
     const profile = parseSensorArchitectureProfile({
-      schemaVersion: "0.1.0",
+      schemaVersion: "0.2.0",
       illumination: {
         value: "bsi",
-        provenance: manufacturerProvenance
+        evidence: manufacturerEvidence
       },
       integration: {
         value: "stacked",
-        provenance: manufacturerProvenance
+        evidence: manufacturerEvidence
       },
-      readoutCapabilities: {
-        value: ["rolling"],
-        provenance: manufacturerProvenance
-      },
+      readoutCapabilities: [
+        {
+          value: "rolling",
+          evidence: manufacturerEvidence
+        }
+      ],
       colorSamplingFamily: {
         value: "bayer",
-        provenance: manufacturerProvenance
+        evidence: manufacturerEvidence
       }
     });
 
     expect(profile.illumination?.value).toBe("bsi");
     expect(profile.integration?.value).toBe("stacked");
-    expect(profile.readoutCapabilities?.value).toEqual(["rolling"]);
+    expect(profile.readoutCapabilities?.map((fact) => fact.value)).toEqual([
+      "rolling"
+    ]);
     expect(profile.colorSamplingFamily?.value).toBe("bayer");
   });
 
-  it("represents BSI + monolithic + rolling independently", () => {
+  it("allows manufacturer-origin reusable data when an explicit license exists", () => {
     const profile = parseSensorArchitectureProfile({
-      schemaVersion: "0.1.0",
+      schemaVersion: "0.2.0",
       illumination: {
         value: "bsi",
-        provenance: manufacturerProvenance
-      },
-      integration: {
-        value: "monolithic",
-        provenance: manufacturerProvenance
-      },
-      readoutCapabilities: {
-        value: ["rolling"],
-        provenance: manufacturerProvenance
-      },
-      colorSamplingFamily: {
-        value: "bayer",
-        provenance: manufacturerProvenance
+        evidence: [
+          {
+            sourceOrigin: "manufacturer",
+            sourceReference: "manufacturer-open-data:example",
+            reuseStatus: "reusable-data",
+            license: "CC-BY-4.0"
+          }
+        ]
       }
     });
 
-    expect(profile.integration?.value).toBe("monolithic");
-    expect(profile.readoutCapabilities?.value).toEqual(["rolling"]);
+    expect(profile.illumination?.evidence[0]?.reuseStatus).toBe(
+      "reusable-data"
+    );
   });
 
-  it("does not couple global readout capability to stacking", () => {
+  it("keeps evidence independent for multi-valued readout capabilities", () => {
     const profile = parseSensorArchitectureProfile({
-      schemaVersion: "0.1.0",
-      integration: {
-        value: "monolithic",
-        provenance: manufacturerProvenance
-      },
-      readoutCapabilities: {
-        value: ["rolling", "global"],
-        provenance: manufacturerProvenance
-      }
+      schemaVersion: "0.2.0",
+      readoutCapabilities: [
+        {
+          value: "rolling",
+          evidence: manufacturerEvidence
+        },
+        {
+          value: "global",
+          evidence: [
+            {
+              sourceOrigin: "third-party",
+              sourceReference: "open-dataset:global-readout",
+              reuseStatus: "reusable-data",
+              license: "CC0-1.0"
+            }
+          ]
+        }
+      ]
     });
 
-    expect(profile.integration?.value).toBe("monolithic");
-    expect(profile.readoutCapabilities?.value).toEqual([
-      "rolling",
-      "global"
-    ]);
+    expect(profile.readoutCapabilities?.[0]?.evidence[0]?.sourceOrigin).toBe(
+      "manufacturer"
+    );
+    expect(profile.readoutCapabilities?.[1]?.evidence[0]?.sourceOrigin).toBe(
+      "third-party"
+    );
   });
 
   it("leaves unknown architecture facts omitted rather than inferred", () => {
     const profile = parseSensorArchitectureProfile({
-      schemaVersion: "0.1.0",
+      schemaVersion: "0.2.0",
       illumination: {
         value: "bsi",
-        provenance: manufacturerProvenance
+        evidence: manufacturerEvidence
       }
     });
 
-    expect(profile.illumination?.value).toBe("bsi");
     expect(profile.integration).toBeUndefined();
     expect(profile.readoutCapabilities).toBeUndefined();
     expect(profile.colorSamplingFamily).toBeUndefined();
   });
 
-  it("requires field-level provenance and a license for reusable data", () => {
+  it("requires evidence and licenses reusable data", () => {
     expect(() =>
       parseSensorArchitectureProfile({
-        schemaVersion: "0.1.0",
-        illumination: { value: "bsi" }
+        schemaVersion: "0.2.0",
+        illumination: { value: "bsi", evidence: [] }
       })
-    ).toThrow("provenance");
+    ).toThrow("must be a non-empty array");
 
     expect(() =>
       parseSensorArchitectureProfile({
-        schemaVersion: "0.1.0",
+        schemaVersion: "0.2.0",
         illumination: {
           value: "bsi",
-          provenance: {
-            sourceKind: "openly-reusable",
-            sourceReference: "dataset:example",
-            reuseStatus: "reusable-data"
-          }
+          evidence: [
+            {
+              sourceOrigin: "third-party",
+              sourceReference: "dataset:example",
+              reuseStatus: "reusable-data"
+            }
+          ]
         }
       })
     ).toThrow("license is required");
-
-    const profile = parseSensorArchitectureProfile({
-      schemaVersion: "0.1.0",
-      illumination: {
-        value: "bsi",
-        provenance: {
-          sourceKind: "openly-reusable",
-          sourceReference: "dataset:example",
-          reuseStatus: "reusable-data",
-          license: "CC0-1.0"
-        }
-      }
-    });
-
-    expect(profile.illumination?.provenance.license).toBe("CC0-1.0");
   });
 
-  it("rejects contradictory source/reuse provenance", () => {
+  it("rejects impossible ownership claims and duplicate capabilities", () => {
     expect(() =>
       parseSensorArchitectureProfile({
-        schemaVersion: "0.1.0",
+        schemaVersion: "0.2.0",
         illumination: {
           value: "bsi",
-          provenance: {
-            sourceKind: "manufacturer-published",
-            sourceReference: "manufacturer-spec:example",
-            reuseStatus: "reusable-data",
-            license: "CC0-1.0"
-          }
+          evidence: [
+            {
+              sourceOrigin: "manufacturer",
+              sourceReference: "manufacturer:example",
+              reuseStatus: "photivra-owned"
+            }
+          ]
         }
       })
-    ).toThrow("inconsistent with sourceKind");
-  });
-
-  it("rejects unsupported architecture vocabulary and duplicate capabilities", () => {
-    expect(() =>
-      parseSensorArchitectureProfile({
-        schemaVersion: "0.1.0",
-        integration: {
-          value: "super-stacked",
-          provenance: manufacturerProvenance
-        }
-      })
-    ).toThrow("integration.value is invalid");
+    ).toThrow("photivra-owned");
 
     expect(() =>
       parseSensorArchitectureProfile({
-        schemaVersion: "0.1.0",
-        readoutCapabilities: {
-          value: ["rolling", "rolling"],
-          provenance: manufacturerProvenance
-        }
+        schemaVersion: "0.2.0",
+        readoutCapabilities: [
+          { value: "rolling", evidence: manufacturerEvidence },
+          { value: "rolling", evidence: manufacturerEvidence }
+        ]
       })
-    ).toThrow("must not contain duplicates");
+    ).toThrow("duplicate capability values");
   });
 
-  it("keeps architecture metadata scientifically inert until a downstream model consumes it", () => {
+  it("keeps architecture metadata scientifically inert", () => {
     const before = calculateSensorGeometryMetrics({
       imagingArea: { widthMm: 36, heightMm: 24 },
       nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 }
     }).value;
 
     parseSensorArchitectureProfile({
-      schemaVersion: "0.1.0",
+      schemaVersion: "0.2.0",
       illumination: {
         value: "bsi",
-        provenance: manufacturerProvenance
+        evidence: manufacturerEvidence
       },
       integration: {
         value: "stacked",
-        provenance: manufacturerProvenance
+        evidence: manufacturerEvidence
       },
-      readoutCapabilities: {
-        value: ["global"],
-        provenance: manufacturerProvenance
-      },
+      readoutCapabilities: [
+        { value: "global", evidence: manufacturerEvidence }
+      ],
       colorSamplingFamily: {
         value: "quad-bayer",
-        provenance: manufacturerProvenance
+        evidence: manufacturerEvidence
       }
     });
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateCenteredCrop,
   calculateFieldOfView,
+  calculateFieldOfViewBounds,
   calculatePixelPitch
 } from "../src/index.js";
 
@@ -15,6 +16,25 @@ describe("camera geometry and sensor sampling", () => {
 
     expect(result.value.degrees).toBeCloseTo(39.597752709, 9);
     expect(result.provenance.kind).toBe("calculated");
+  });
+
+  it("calculates asymmetric field-of-view bounds relative to the optical axis", () => {
+    const centered = calculateFieldOfView({
+      focalLengthMm: 50,
+      sensorDimensionMm: 18
+    });
+    const bounds = calculateFieldOfViewBounds({
+      focalLengthMm: 50,
+      minimumSensorCoordinateMm: -18,
+      maximumSensorCoordinateMm: 0
+    });
+
+    expect(bounds.value.minimumDegrees).toBeLessThan(0);
+    expect(bounds.value.maximumDegrees).toBeCloseTo(0, 12);
+    expect(bounds.value.degrees).toBeLessThan(centered.value.degrees);
+    expect(bounds.provenance.model).toBe(
+      "asymmetric-rectilinear-field-of-view"
+    );
   });
 
   it("uses thin-lens image distance when focus distance is supplied", () => {

@@ -15,6 +15,20 @@ An implementation may be based on:
 
 A paper, standard, or patent publication may explain a method without granting copyright permission to copy its expression and without granting a patent license. Independent implementation addresses source-code/prose provenance; it does not by itself resolve active third-party patent claims.
 
+## Source evidence and reuse rights
+
+Factual/source evidence keeps **origin** separate from **reuse rights**.
+
+- `sourceOrigin` identifies who originated the referenced fact or data: manufacturer, third party, or Photivra.
+- `reuseStatus` identifies how Photivra may use it: factual-reference-only, reusable-data, or Photivra-owned.
+- Reusable data requires an explicit license.
+- Photivra-owned material must originate from Photivra.
+- Manufacturer or third-party sources may be either factual-reference-only or explicitly reusable when licensing supports that use.
+
+One evidence record must not silently support unrelated facts. Scalar metadata may cite multiple evidence records, and multi-valued capabilities should carry evidence per value.
+
+Evidence provenance is not a confidence score and does not establish scientific effect by itself. Descriptive hardware facts only affect calculations when a separate documented model explicitly consumes them.
+
 ## Independent implementation
 
 When a reference explains a method but does not license its implementation or text for reuse:
