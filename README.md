@@ -74,6 +74,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [projected fronto-parallel object size and sensor-pixel sampling](docs/USAGE.md#projected-object-size-and-sensor-sampling);
 - [pixel pitch](docs/USAGE.md#pixel-pitch);
 - [sensor imaging-area, native-raster, crop-factor, megapixel, and 2D sampling metrics](docs/USAGE.md#sensor-imaging-area-and-native-raster);
+- [provenance-aware sensor architecture/capability metadata](docs/USAGE.md#sensor-architecture-metadata);
 - [capture orientation, active sensor area, and output geometry](docs/USAGE.md#capture-orientation-active-area-and-output-geometry);
 - [centered crop and subject-height framing crop](docs/USAGE.md#centered-crop-and-subject-framing-crop);
 - [mean photoelectron conversion and basic shot-noise/read-noise SNR primitives](docs/USAGE.md#photoelectron-and-snr-primitives).
@@ -144,7 +145,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Package version: `0.2.0`
-- Engine API contract: `0.20.0`
+- Engine API contract: `0.21.0`
 - Stability: pre-1.0 / proof of concept
 
 Package version and engine API version are intentionally separate. Public APIs may evolve before 1.0 while the scientific models and composition contracts are validated.

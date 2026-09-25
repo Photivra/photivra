@@ -41,7 +41,8 @@ Native coordinates use a top-left origin with +X right and +Y down and remain in
 
 Equivalent focal length is also layered on top of physical capture geometry rather than stored as lens identity. The engine keeps physical `focalLengthMm` authoritative and derives diagonal-based 35 mm equivalence from the active physical capture area. Focus distance and final digital/output crop do not redefine this conventional capture-equivalent quantity.
 
-Sensor architecture, capture-mode semantics, reconstruction, and calibrated radiometry remain separate follow-on layers.
+Sensor architecture is a separate descriptive layer. Illumination (FSI/BSI), integration/stacking, readout capabilities, and color-sampling family are independent sourced facts. Their presence alone has no image-quality effect in the engine. Each known fact carries field-level provenance; omitted facts remain unknown rather than being inferred. Capture-mode semantics, readout timing, reconstruction, and calibrated radiometry consume these facts only through later explicit models.
+
 
 ## Repository-local Node POC transport
 
