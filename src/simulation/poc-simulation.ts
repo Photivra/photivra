@@ -603,8 +603,11 @@ export function simulatePocCamera(
       "The composed POC currently requires approximately square geometric sampling; X/Y pitch differ by more than 1%. Use lower-level axis-aware engine primitives until the POC contract supports separate X/Y sampling."
     );
   }
+  const capture = request.capture;
+  const subjectCropRequest = request.subjectCrop;
+
   const captureGeometry =
-    request.capture === undefined
+    capture === undefined
       ? undefined
       : resolveCaptureGeometry({
           imagingArea: {
@@ -615,16 +618,16 @@ export function simulatePocCamera(
             pixelWidth: request.sensor.pixelWidth,
             pixelHeight: request.sensor.pixelHeight
           },
-          orientation: request.capture.orientation,
-          ...(request.capture.activeCaptureRect === undefined
+          orientation: capture.orientation,
+          ...(capture.activeCaptureRect === undefined
             ? {}
-            : { activeCaptureRect: request.capture.activeCaptureRect }),
-          ...(request.capture.outputCropRect === undefined
+            : { activeCaptureRect: capture.activeCaptureRect }),
+          ...(capture.outputCropRect === undefined
             ? {}
-            : { outputCropRect: request.capture.outputCropRect }),
-          ...(request.capture.outputRaster === undefined
+            : { outputCropRect: capture.outputCropRect }),
+          ...(capture.outputRaster === undefined
             ? {}
-            : { outputRaster: request.capture.outputRaster })
+            : { outputRaster: capture.outputRaster })
         }).value;
 
   requirePositiveFinite("lens.focalLengthMm", request.lens.focalLengthMm);
@@ -649,7 +652,7 @@ export function simulatePocCamera(
 
   requirePositiveFinite("crop.factor", request.crop.factor);
 
-  if (request.capture !== undefined && request.crop.factor !== 1) {
+  if (capture !== undefined && request.crop.factor !== 1) {
     throw new InvalidScientificInputError(
       "capture geometry cannot be combined with legacy crop.factor other than 1."
     );
@@ -689,7 +692,7 @@ export function simulatePocCamera(
   });
 
   const activeCaptureFieldOfView =
-    captureGeometry === undefined || request.capture === undefined
+    captureGeometry === undefined || capture === undefined
       ? undefined
       : calculateActiveCaptureFieldOfView({
           imagingArea: {
@@ -700,10 +703,10 @@ export function simulatePocCamera(
             pixelWidth: request.sensor.pixelWidth,
             pixelHeight: request.sensor.pixelHeight
           },
-          orientation: request.capture.orientation,
-          ...(request.capture.activeCaptureRect === undefined
+          orientation: capture.orientation,
+          ...(capture.activeCaptureRect === undefined
             ? {}
-            : { activeCaptureRect: request.capture.activeCaptureRect }),
+            : { activeCaptureRect: capture.activeCaptureRect }),
           focalLengthMm: request.lens.focalLengthMm,
           focusDistanceM: request.focus.focusDistanceM
         }).value;
@@ -716,7 +719,7 @@ export function simulatePocCamera(
         }).value;
 
   const outputFieldOfView =
-    captureGeometry === undefined || request.capture === undefined
+    captureGeometry === undefined || capture === undefined
       ? undefined
       : calculateOutputFieldOfView({
           imagingArea: {
@@ -727,13 +730,13 @@ export function simulatePocCamera(
             pixelWidth: request.sensor.pixelWidth,
             pixelHeight: request.sensor.pixelHeight
           },
-          orientation: request.capture.orientation,
-          ...(request.capture.activeCaptureRect === undefined
+          orientation: capture.orientation,
+          ...(capture.activeCaptureRect === undefined
             ? {}
-            : { activeCaptureRect: request.capture.activeCaptureRect }),
-          ...(request.capture.outputCropRect === undefined
+            : { activeCaptureRect: capture.activeCaptureRect }),
+          ...(capture.outputCropRect === undefined
             ? {}
-            : { outputCropRect: request.capture.outputCropRect }),
+            : { outputCropRect: capture.outputCropRect }),
           focalLengthMm: request.lens.focalLengthMm,
           focusDistanceM: request.focus.focusDistanceM
         }).value;
@@ -789,13 +792,13 @@ export function simulatePocCamera(
 
   const captureSubjectFraming =
     captureGeometry === undefined ||
-    request.capture === undefined ||
-    request.subjectCrop === undefined ||
+    capture === undefined ||
+    subjectCropRequest === undefined ||
     subjectSampling === undefined
       ? undefined
       : (() => {
           const orientedSubjectHeightPixels = isPortraitOrientation(
-            request.capture.orientation
+            capture.orientation
           )
             ? (subjectSampling.widthPixels ?? 0)
             : (subjectSampling.heightPixels ?? 0);
@@ -807,7 +810,7 @@ export function simulatePocCamera(
             pixelHeight: captureGeometry.output.raster.pixelHeight,
             subjectHeightPixels: outputSubjectHeightPixels,
             targetSubjectHeightFraction:
-              request.subjectCrop.targetSubjectHeightFraction
+              subjectCropRequest.targetSubjectHeightFraction
           }).value;
           const retainedBounds = centeredPhysicalCropBounds(
             captureGeometry.output.physicalBoundsFromOpticalAxisMm,
@@ -927,8 +930,8 @@ export function simulatePocCamera(
         });
 
   const subjectCrop =
-    request.capture !== undefined ||
-    request.subjectCrop === undefined ||
+    capture !== undefined ||
+    subjectCropRequest === undefined ||
     subjectSampling === undefined
       ? undefined
       : calculateSubjectFramingCrop({
@@ -936,7 +939,7 @@ export function simulatePocCamera(
           pixelHeight: crop.value.pixelHeight,
           subjectHeightPixels: subjectSampling.heightPixels ?? 0,
           targetSubjectHeightFraction:
-            request.subjectCrop.targetSubjectHeightFraction
+            subjectCropRequest.targetSubjectHeightFraction
         }).value;
 
   const totalSubjectCropFactor =
@@ -1062,7 +1065,6 @@ export function simulatePocCamera(
           };
         });
 
-  const capture = request.capture;
   const captureMotion =
     captureGeometry === undefined || capture === undefined
       ? undefined
