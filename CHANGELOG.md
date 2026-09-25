@@ -12,6 +12,7 @@ Notable public changes to `@photivra/engine` are documented here.
 - `calculateActiveCaptureFieldOfView()`, which reuses the canonical field-of-view model and preserves diagonal FOV across 90° orientation changes.
 - `calculateImagingAreaMetrics()` as the shared diagonal crop-factor primitive for physical imaging areas.
 - `calculateEquivalentFocalLength35Mm()`, keeping physical focal length authoritative while deriving conventional diagonal-based 35 mm equivalence from the active physical capture area.
+- `parseSensorArchitectureProfile()` plus provenance-aware independent metadata axes for illumination, stacking/integration, readout capabilities, and color-sampling family.
 
 ### Compatibility
 
