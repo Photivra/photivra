@@ -22,7 +22,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Changed
 
-- Engine API contract advances to `0.23.0`.
+- Engine API contract advances to `0.24.0`.
 - Composed POC simulation API advances to `0.19.0`, preserving legacy requests while adding opt-in staged capture orientation/active/output geometry, active-capture FOV, active-capture 35 mm-equivalent focal length, and oriented/output motion diagnostics.
 - The composed POC exposes shared sensor-geometry metrics while retaining backwards-compatible representative pitch fields.
 - Capture-geometry mode fails closed on ambiguous legacy double-crop, subject-framing crop, and equivalent-viewing CoC combinations until those staged semantics are explicitly defined.
