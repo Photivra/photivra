@@ -185,6 +185,47 @@ describe("radiometry readiness", () => {
     ).toThrow("Geometric sample pitch alone");
   });
 
+  it("rejects inherently approximate representations mislabeled as calibrated", () => {
+    const badTransmission = completeProfile();
+    badTransmission.components[1] = {
+      ...badTransmission.components[1],
+      scientificStatus: "calibrated",
+      representation: "t-stop-approximation",
+      tStop: 2.8
+    };
+    expect(() =>
+      parseRadiometryReadinessProfile(badTransmission)
+    ).toThrow('must declare scientificStatus "approximation"');
+
+    const badQeStatus = completeProfile();
+    badQeStatus.components[5] = {
+      ...badQeStatus.components[5],
+      scientificStatus: "calibrated",
+      responseRepresentation: "effective-qe-approximation",
+      effectiveQuantumEfficiency: 0.6
+    };
+    expect(() =>
+      parseRadiometryReadinessProfile(badQeStatus)
+    ).toThrow('must declare scientificStatus "approximation"');
+  });
+
+  it("revalidates profiles passed directly to the assessor", () => {
+    const profile = parseRadiometryReadinessProfile(completeProfile());
+    const invalid = {
+      ...profile,
+      components: [
+        ...profile.components,
+        profile.components[0]
+      ]
+    };
+
+    expect(() =>
+      assessRadiometryReadiness(
+        invalid as typeof profile
+      )
+    ).toThrow("duplicate requirement IDs");
+  });
+
   it("validates fill factor, quantum efficiency, artifacts, and uniqueness", () => {
     const badFill = completeProfile();
     badFill.components[3] = {
