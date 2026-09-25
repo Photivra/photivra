@@ -64,29 +64,43 @@ All physical quantities use explicit units in their property names.
 
 The POC transport reports the composed simulation contract version, not the root library `ENGINE_API_VERSION`. The current composed contract is exposed as `POC_SIMULATION_API_VERSION`.
 
-POC simulation API 0.18 composes projection using the selected focus plane. The response includes a `projection` block with ideal thin-lens image distance, scale relative to the infinity-focus approximation, and model provenance. Full-sensor field of view, crop field of view, object sampling, subject motion, and camera-shake projection use that same selected projection plane.
+POC simulation API 0.19 composes projection using the selected focus plane. The response includes a `projection` block with ideal thin-lens image distance, scale relative to the infinity-focus approximation, and model provenance. Full-sensor field of view, crop field of view, object sampling, subject motion, and camera-shake projection use that same selected projection plane.
 
-### Post-0.2 standalone foundations
+### Post-0.2 sensor/capture composition
 
-The root engine contains newer standalone sensor/capture APIs that are deliberately **not** part of this POC request contract yet.
+POC simulation API 0.19 begins composing the standalone sensor/capture foundation **additively**.
 
-POC simulation API 0.18 does not accept:
+The existing request remains valid. New callers may opt into staged capture geometry with a `capture` object containing:
 
-- physical `CaptureOrientation`;
-- arbitrary native `activeCaptureRect`;
-- native↔oriented coordinate transforms as request state;
-- sensor-architecture metadata;
-- radiometry-readiness profiles.
+- physical `orientation`;
+- optional native `activeCaptureRect`;
+- optional oriented `outputCropRect`;
+- optional final `outputRaster`.
 
-It also does not use 35 mm-equivalent focal length as an optical input; physical focal length remains authoritative.
+Compatibility rules are intentionally strict:
 
-The POC continues to use its compatibility same-aspect crop-factor model. Integrating the newer capture geometry or radiometry foundations requires an explicit POC simulation contract/version change rather than silently changing the meaning of existing fields.
+- legacy `crop.factor` remains available for existing callers;
+- when `capture` is supplied, legacy `crop.factor` must be `1` so two crop models are not silently stacked;
+- `subjectCrop` is temporarily rejected in capture mode until subject-framing semantics are explicitly migrated to staged output geometry;
+- equivalent-viewing circle-of-confusion input is temporarily rejected in capture mode; use explicit `circleOfConfusionMm` until the retained-capture/output viewing convention is defined.
+
+The response keeps existing full-sensor/native-vector fields intact and adds an optional `capture` block with:
+
+- resolved native/active/oriented/output geometry;
+- active-capture FOV, including asymmetric bounds for off-center capture;
+- physical actual focal length plus active-capture diagonal-based 35 mm equivalence;
+- oriented-capture and final-output motion-vector diagnostics;
+- corresponding oriented/output camera-shake vectors when camera shake is requested.
+
+Final digital/output crop does not redefine physical focal length or active-capture 35 mm equivalence. Physical `lens.focalLengthMm` remains the optical input.
+
+Sensor architecture metadata and radiometry-readiness profiles remain standalone foundations and are not yet composed into the POC.
 
 ### Required request groups
 
 The request includes:
 
-- sensor dimensions and resolution;
+- sensor physical imaging dimensions and native effective raster;
 - focal length and aperture;
 - shutter duration and ISO;
 - focus distance;
@@ -127,9 +141,31 @@ The top-level `fieldOfView` always describes the full sensor before digital crop
 
 This remains ideal paraxial geometry, not a real-lens focus-breathing calibration.
 
-### Crop
+### Sensor and staged capture geometry
 
-`crop` reports the requested fixed crop factor, retained pixel dimensions/area, megapixels, and its effective field of view.
+The `sensor` response now includes the shared `SensorGeometryMetrics` result in addition to the backwards-compatible representative pitch fields. This exposes physical imaging-area crop factor, exact native-raster megapixels, and independent X/Y geometric sample pitch without treating sample pitch as photosite collection area.
+
+When the opt-in `capture` request is present, the response additionally exposes the staged geometry pipeline:
+
+```text
+native physical imaging area + native raster
+                ↓
+native active-capture rectangle
+                ↓
+physical camera orientation
+                ↓
+oriented active capture
+                ↓
+digital/output crop
+                ↓
+final output raster
+```
+
+Native sensor coordinates remain invariant under orientation. Active-capture FOV is calculated from the physical retained area, including off-center asymmetric angular bounds. Motion and camera-shake vectors retain their legacy native-coordinate fields and receive additive oriented-capture/output diagnostics.
+
+### Legacy crop
+
+`crop` reports the requested legacy centered crop factor, retained pixel dimensions/area, megapixels, and its effective field of view.
 
 If `subjectCrop` is requested, subject framing is composed **after** the fixed crop. The response distinguishes:
 
