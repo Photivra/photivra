@@ -46,6 +46,34 @@ Without `focusDistanceM`, nominal focal length is used as the infinity-focus/pin
 
 See [Physics Foundation](PHYSICS_FOUNDATION.md#rectilinear-field-of-view).
 
+## Actual and 35 mm-equivalent focal length
+
+Use `calculateEquivalentFocalLength35Mm()` when you need the conventional diagonal-based 35 mm-equivalent value while preserving the physical optical focal length:
+
+```ts
+import { calculateEquivalentFocalLength35Mm } from "@photivra/engine";
+
+const equivalent = calculateEquivalentFocalLength35Mm({
+  focalLengthMm: 4.5,
+  activeImagingArea: {
+    widthMm: 6.17,
+    heightMm: 4.55
+  }
+});
+
+console.log(equivalent.value.actualFocalLengthMm); // 4.5
+console.log(equivalent.value.equivalentFocalLength35Mm);
+console.log(equivalent.value.basis); // "diagonal"
+```
+
+The actual focal length remains the physical optical quantity used by projection and depth-of-field calculations. The equivalent value is derived from the active physical capture diagonal relative to a 36 × 24 mm reference frame.
+
+If an active sensor crop is in use, pass the physical active area resolved by `resolveCaptureGeometry()`. Physical camera orientation does not change the equivalent value because the active diagonal is unchanged.
+
+Focus distance is not part of conventional 35 mm-equivalent focal length. Later digital/output crop and output resolution are also excluded. If a product wants to describe final digital framing, it should label that as output framing rather than silently replacing the optical focal length or capture-equivalent focal length.
+
+`calculateImagingAreaMetrics()` exposes the same canonical diagonal crop-factor calculation independently of raster density so other engine modules do not need to duplicate that formula.
+
 ## Thin-lens image distance and magnification
 
 Use `calculateThinLensImageDistance()` to calculate ideal Gaussian thin-lens image distance for an object/focus plane.

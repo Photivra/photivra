@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.19.0" as const;
+export const ENGINE_API_VERSION = "0.20.0" as const;
 
 export {
   approximationResult,
@@ -43,14 +43,22 @@ export {
 } from "./camera/projected-object-size.js";
 
 export {
+  calculateEquivalentFocalLength35Mm,
+  type CalculateEquivalentFocalLength35MmInput,
+  type EquivalentFocalLength35Mm
+} from "./camera/equivalent-focal-length.js";
+
+export {
   calculatePixelPitch,
   type CalculatePixelPitchInput,
   type PixelPitch
 } from "./sensor/pixel-pitch.js";
 
 export {
+  calculateImagingAreaMetrics,
   calculateSensorGeometryMetrics,
   type CalculateSensorGeometryMetricsInput,
+  type ImagingAreaMetrics,
   type NativeImageRaster,
   type SensorGeometryMetrics,
   type SensorImagingArea

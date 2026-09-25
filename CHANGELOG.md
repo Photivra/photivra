@@ -10,6 +10,8 @@ Notable public changes to `@photivra/engine` are documented here.
 - Explicit provenance assumptions that prevent geometric sample spacing from being treated as photosite active area or photon-collection area.
 - `resolveCaptureGeometry()` with invariant native sensor coordinates, active capture rectangles, physical camera orientation, digital output crop, and final output raster separation.
 - `calculateActiveCaptureFieldOfView()`, which reuses the canonical field-of-view model and preserves diagonal FOV across 90° orientation changes.
+- `calculateImagingAreaMetrics()` as the shared diagonal crop-factor primitive for physical imaging areas.
+- `calculateEquivalentFocalLength35Mm()`, keeping physical focal length authoritative while deriving conventional diagonal-based 35 mm equivalence from the active physical capture area.
 
 ### Compatibility
 
