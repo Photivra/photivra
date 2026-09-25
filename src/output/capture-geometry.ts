@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { calculateFieldOfView } from "../camera/field-of-view.js";
 import {
   calculatedResult,
   type CalculationResult
@@ -278,32 +279,6 @@ export function resolveCaptureGeometry(
   );
 }
 
-function calculateRectilinearFieldOfViewDegrees(
-  sensorDimensionMm: number,
-  focalLengthMm: number,
-  focusDistanceM?: number
-): number {
-  let projectionDistanceMm = focalLengthMm;
-
-  if (focusDistanceM !== undefined) {
-    requirePositiveFinite("focusDistanceM", focusDistanceM);
-    const objectDistanceMm = focusDistanceM * 1000;
-    if (objectDistanceMm <= focalLengthMm) {
-      throw new InvalidScientificInputError(
-        "focusDistanceM must place the focus plane beyond the focal length."
-      );
-    }
-    projectionDistanceMm =
-      (focalLengthMm * objectDistanceMm) /
-      (objectDistanceMm - focalLengthMm);
-  }
-
-  return (
-    (2 * Math.atan(sensorDimensionMm / (2 * projectionDistanceMm)) * 180) /
-    Math.PI
-  );
-}
-
 /**
  * Calculates horizontal, vertical, and diagonal FOV for the active physical
  * capture area after applying physical camera orientation.
@@ -327,24 +302,32 @@ export function calculateActiveCaptureFieldOfView(
   const { widthMm, heightMm } = geometry.orientedCapture.imagingArea;
   const diagonalMm = Math.hypot(widthMm, heightMm);
 
+  const fieldOfViewInput = {
+    focalLengthMm: input.focalLengthMm,
+    ...(input.focusDistanceM === undefined
+      ? {}
+      : { focusDistanceM: input.focusDistanceM })
+  };
+
+  const horizontal = calculateFieldOfView({
+    ...fieldOfViewInput,
+    sensorDimensionMm: widthMm
+  });
+  const vertical = calculateFieldOfView({
+    ...fieldOfViewInput,
+    sensorDimensionMm: heightMm
+  });
+  const diagonal = calculateFieldOfView({
+    ...fieldOfViewInput,
+    sensorDimensionMm: diagonalMm
+  });
+
   return calculatedResult(
     {
       orientation: input.orientation,
-      horizontalDegrees: calculateRectilinearFieldOfViewDegrees(
-        widthMm,
-        input.focalLengthMm,
-        input.focusDistanceM
-      ),
-      verticalDegrees: calculateRectilinearFieldOfViewDegrees(
-        heightMm,
-        input.focalLengthMm,
-        input.focusDistanceM
-      ),
-      diagonalDegrees: calculateRectilinearFieldOfViewDegrees(
-        diagonalMm,
-        input.focalLengthMm,
-        input.focusDistanceM
-      ),
+      horizontalDegrees: horizontal.value.degrees,
+      verticalDegrees: vertical.value.degrees,
+      diagonalDegrees: diagonal.value.degrees,
       activeImagingArea: {
         widthMm,
         heightMm
