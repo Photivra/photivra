@@ -27,7 +27,9 @@ The model can represent a representative point moving laterally and/or along the
 
 Camera motion is not folded into subject motion. Camera shake is modeled separately by `estimateCameraShakeBlur()`; panning detection/intent is not currently modeled.
 
-The returned `deltaXmm`/`deltaYmm` components are sensor/image-plane components from the projection primitive. The function does not accept `CaptureOrientation` and does not automatically rotate those components into portrait/oriented output coordinates. When a caller combines projected motion with the newer capture-orientation APIs, vector orientation must be transformed explicitly with the native↔oriented vector helpers.
+The returned `deltaXmm`/`deltaYmm` components are legacy camera/image-plane components: +X right and +Y up. They are preserved for compatibility.
+
+Capture raster coordinates use +X right and +Y down. POC API 0.19 therefore converts a legacy image-plane vector to native raster axes as `{ x, y: -y }` before applying the native↔oriented rotation helper. The additive capture diagnostics expose `nativeRasterDeltaPixels`, `orientedCaptureDeltaPixels`, and `outputDeltaPixels`; the legacy motion fields are not reinterpreted.
 
 ## Exposure relations
 
