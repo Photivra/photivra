@@ -57,6 +57,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 ### Optics and geometry
 
 - [rectilinear field of view, with optional focus-aware thin-lens projection](docs/USAGE.md#field-of-view);
+- [physical vs diagonal-based 35 mm-equivalent focal length](docs/USAGE.md#actual-and-35-mm-equivalent-focal-length);
 - [Gaussian thin-lens image distance and magnification](docs/USAGE.md#thin-lens-image-distance-and-magnification);
 - [geometric depth of field and defocus-circle diameter](docs/USAGE.md#depth-of-field-and-defocus);
 - [ideal circular-aperture first-zero Airy diameter](docs/USAGE.md#circular-aperture-diffraction);
@@ -143,7 +144,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Package version: `0.2.0`
-- Engine API contract: `0.19.0`
+- Engine API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
 Package version and engine API version are intentionally separate. Public APIs may evolve before 1.0 while the scientific models and composition contracts are validated.
