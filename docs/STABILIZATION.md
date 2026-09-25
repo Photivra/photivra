@@ -26,6 +26,8 @@ Projection has two modes:
 
 When pixel pitch is supplied, the same displacement is also reported in sensor pixels.
 
+The returned X/Y shake components are expressed in the primitive's sensor/image-plane axes. `estimateCameraShakeBlur()` does not accept `CaptureOrientation` and does not rotate its vector into portrait/oriented output coordinates. A caller combining this primitive with the post-0.2 capture-orientation layer must explicitly transform the vector with the orientation helpers.
+
 The supplied shake profile is synthetic input. The model is not an empirical statement about how much a particular photographer shakes.
 
 ### Spatial limitation
