@@ -145,6 +145,19 @@ As of POC simulation API 0.20:
 
 Any further foundation composition still requires an explicit `POC_SIMULATION_API_VERSION` review/change, migration analysis, regression tests, and documentation. Do not silently reinterpret existing POC fields.
 
+## Illumination-vignetting boundary
+
+`calculateIlluminationVignetting()` is the engine-owned generic field-throughput model.
+
+- Apply `linearThroughputFactor` only in scene-linear/channel-linear space, before display/gamma encoding.
+- Optical-axis throughput is normalized to 1; generic illumination vignetting may attenuate but must not amplify above that reference.
+- Respect `maximumNormalizedRadius` and the full-envelope validity gate.
+- Do not use this model to warp coordinates, change focus, clip the pupil, alter PSF shape, or synthesize cat's-eye bokeh.
+- Mechanical/pupil vignetting belongs to the separate pupil/PSF foundation.
+- Test Fixture neutral patches provide regression evidence only; they are not calibrated radiometry.
+- Do not infer named-lens coefficients or calibrated transmission from public images/specs.
+- Do not compose this standalone model into the POC/app without an explicit contract/version review.
+
 ## Lateral-CA boundary
 
 `calculateLateralChromaticAberrationMapping()` and its inverse are engine-owned channel field mappings.
