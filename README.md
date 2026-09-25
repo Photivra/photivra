@@ -61,6 +61,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 
 - [centered and asymmetric rectilinear field of view, with optional focus-aware thin-lens projection](docs/USAGE.md#field-of-view);
 - [physical vs diagonal-based 35 mm-equivalent focal length](docs/USAGE.md#actual-and-35-mm-equivalent-focal-length);
+- [caller-declared focus-breathing projection/FOV approximation](docs/USAGE.md#focus-breathing-projection);
 - [Gaussian thin-lens image distance and magnification](docs/USAGE.md#thin-lens-image-distance-and-magnification);
 - [geometric depth of field and defocus-circle diameter](docs/USAGE.md#depth-of-field-and-defocus);
 - [ideal circular-aperture first-zero Airy diameter](docs/USAGE.md#circular-aperture-diffraction);
@@ -172,7 +173,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Package version: `0.3.0`
-- Engine API contract: `0.27.0`
+- Engine API contract: `0.28.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
@@ -190,7 +191,7 @@ The contract does **not** claim that every listed stage is implemented. Reserved
 
 Photivra deliberately avoids claiming more than the current models support.
 
-- Focus-aware projection is ideal paraxial thin-lens geometry, not a real-lens focus-breathing or macro calibration model.
+- Focus-aware projection is ideal paraxial thin-lens geometry by default. A separate declared-scale focus-breathing approximation can alter projection/framing for one focus state, but Photivra does not infer a breathing curve or claim named-lens calibration.
 - Projected subject motion follows a representative point under constant linear velocity. It does not yet model scale blur of an extended object moving substantially along the optical axis.
 - The legacy stabilization-equivalent camera-shake API remains one global yaw/pitch image-plane vector. A separate low-level rotation-only mapping now models field-position-dependent yaw/pitch/roll image motion; camera translation/parallax, real IBIS/OIS behavior, and composed rolling-readout integration remain unmodeled.
 - The Airy diagnostic assumes an ideal circular pupil. Polygon aperture geometry does not produce a polygon diffraction PSF.
