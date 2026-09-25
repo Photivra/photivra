@@ -50,7 +50,7 @@ Example:
 {
   "ok": true,
   "service": "photivra-engine",
-  "apiVersion": "0.17.0"
+  "apiVersion": "0.18.0"
 }
 ```
 
@@ -62,7 +62,9 @@ Requests must use `Content-Type: application/json`.
 
 All physical quantities use explicit units in their property names.
 
-API 0.17 composes projection using the selected focus plane. The response includes a `projection` block with ideal thin-lens image distance, scale relative to the infinity-focus approximation, and model provenance. Full-sensor field of view, crop field of view, object sampling, subject motion, and camera-shake projection use that same selected projection plane.
+The POC transport reports the composed simulation contract version, not the root library `ENGINE_API_VERSION`. The current composed contract is exposed as `POC_SIMULATION_API_VERSION`.
+
+POC simulation API 0.18 composes projection using the selected focus plane. The response includes a `projection` block with ideal thin-lens image distance, scale relative to the infinity-focus approximation, and model provenance. Full-sensor field of view, crop field of view, object sampling, subject motion, and camera-shake projection use that same selected projection plane.
 
 ### Required request groups
 
@@ -122,7 +124,12 @@ If `subjectCrop` is requested, subject framing is composed **after** the fixed c
 
 The framing calculation assumes the crop can be positioned around the subject; it does not validate subject position against source-image edges.
 
+### Sensor sampling
+
+The response exposes horizontal and vertical geometric sampling pitch plus their relative difference. The composed POC still uses the backwards-compatible horizontal pitch as its representative scalar for blur/sampling calculations and therefore rejects sensor geometry whose X/Y pitch differs by more than 1%. This prevents silent directional error until the composed POC becomes fully axis-aware.
+
 ### Subject/object sampling
+
 
 When physical subject/object dimensions are supplied, projected dimensions are returned in sensor millimetres and pixels using the focus-aware projection plane.
 
