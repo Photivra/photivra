@@ -43,6 +43,7 @@ See the [Usage Guide](docs/USAGE.md) for the complete public API.
 - [Changelog](CHANGELOG.md)
 - [Public API Style](docs/API_STYLE.md)
 - [Physics Foundation](docs/PHYSICS_FOUNDATION.md)
+- [Image-Formation Contract](docs/IMAGE_FORMATION.md)
 - [Motion and Signal Foundation](docs/MOTION_AND_SIGNAL.md)
 - [Camera Shake and Stabilization](docs/STABILIZATION.md)
 - [Scientific and Source Provenance](docs/PROVENANCE.md)
@@ -84,6 +85,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 
 ### Data, validation, and composition
 
+- [image-formation ownership/order contract](docs/IMAGE_FORMATION.md), including coordinate, temporal, renderer, and reserved sensor-stage semantics;
 - [camera/scene schemas and runtime validation](docs/USAGE.md#camera-and-scene-schema-validation);
 - [provenance plus optional uncertainty/quality metadata](docs/USAGE.md#provenance-uncertainty-and-quality-metadata);
 - [the composed `simulatePocCamera()` proof-of-concept calculation](docs/USAGE.md#composed-poc-simulation).
@@ -169,13 +171,19 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Package version: `0.3.0`
-- Engine API contract: `0.25.0`
+- Engine API contract: `0.26.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
 Package version and engine API version are intentionally separate. Public APIs may evolve before 1.0 while the scientific models and composition contracts are validated.
 
 Creating a GitHub release/tag and publishing `@photivra/engine` are separate release actions. The tag-triggered publish workflow verifies that the `vX.Y.Z` tag matches the package version before publishing.
+
+## Image-formation integration boundary
+
+The root engine now exports `getImageFormationContract()` as a descriptive public contract for scientific domain ownership, coordinate spaces, stage dependencies/couplings, temporal basis, renderer warp/compositing semantics, and reserved sensor ordering.
+
+The contract does **not** claim that every listed stage is implemented. Reserved stages remain future work, and `simulatePocCamera()` is unchanged at API 0.20. See [Image-Formation Contract](docs/IMAGE_FORMATION.md).
 
 ## Important scientific limits
 
