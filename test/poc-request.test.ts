@@ -117,6 +117,66 @@ describe("POC API request parser", () => {
     ).toThrow("exposure.shutterSeconds must be a finite number.");
   });
 
+  it("accepts opt-in staged capture geometry", () => {
+    const request = {
+      ...createValidRequest(),
+      crop: { factor: 1 },
+      capture: {
+        orientation: "portrait-clockwise",
+        activeCaptureRect: {
+          x: 500,
+          y: 250,
+          width: 5000,
+          height: 3500
+        },
+        outputCropRect: {
+          x: 250,
+          y: 500,
+          width: 3000,
+          height: 4000
+        },
+        outputRaster: {
+          pixelWidth: 1500,
+          pixelHeight: 2000
+        }
+      }
+    } satisfies PocSimulationRequest;
+
+    expect(parsePocSimulationRequest(request)).toBe(request);
+  });
+
+  it("rejects an unknown capture orientation at the transport boundary", () => {
+    const request = createValidRequest();
+
+    expect(() =>
+      parsePocSimulationRequest({
+        ...request,
+        capture: {
+          orientation: "sideways"
+        }
+      })
+    ).toThrow("capture.orientation must be one of");
+  });
+
+  it("rejects malformed capture rectangles with precise paths", () => {
+    const request = createValidRequest();
+
+    expect(() =>
+      parsePocSimulationRequest({
+        ...request,
+        capture: {
+          orientation: "landscape",
+          activeCaptureRect: {
+            x: 0,
+            y: 0,
+            width: "wide",
+            height: 4000
+          }
+        }
+      })
+    ).toThrow("capture.activeCaptureRect.width must be a finite number.");
+  });
+
   it("rejects malformed optional defocus samples", () => {
     const request = createValidRequest();
 
