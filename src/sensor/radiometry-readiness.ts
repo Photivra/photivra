@@ -436,6 +436,15 @@ function parseRequirement(
   }
 
   if (requirement === "photosite-collection-area") {
+    if (
+      record.areaModel === undefined &&
+      (record.geometricPitchXMicrometers !== undefined ||
+        record.geometricPitchYMicrometers !== undefined)
+    ) {
+      throw new InvalidConfigurationError(
+        `${path}.areaModel is required. Geometric sample pitch alone is not a photosite collection-area model.`
+      );
+    }
     const areaModel = requireString(record, "areaModel", path);
     if (areaModel === "effective-collection-area") {
       return {
