@@ -4,6 +4,8 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ## Unreleased
 
+## 0.3.0 - 2026-09-25
+
 ### Added
 
 - `calculateSensorGeometryMetrics()` plus `SensorImagingArea` and `NativeImageRaster`, separating physical imaging geometry from native effective image resolution while deriving diagonal 35 mm crop factor, megapixels, and independent X/Y sampling pitch.
