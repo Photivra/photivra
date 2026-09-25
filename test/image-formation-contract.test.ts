@@ -204,6 +204,12 @@ describe("image-formation contract", () => {
     expect(byStage.get("reconstruction")?.requiredUpstreamStages).toEqual([
       "adc-quantization"
     ]);
+    expect(
+      byStage.get("physical-orientation-transform")?.requiredUpstreamStages
+    ).toEqual(["reconstruction"]);
+    expect(byStage.get("output-crop-resample")?.requiredUpstreamStages).toEqual([
+      "physical-orientation-transform"
+    ]);
   });
 
   it("requires inverse warp sampling and stable alpha/occlusion semantics", () => {
