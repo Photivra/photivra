@@ -44,6 +44,24 @@ console.log(focused.value.degrees);
 
 Without `focusDistanceM`, nominal focal length is used as the infinity-focus/pinhole projection distance. Neither mode models real-lens distortion or focus breathing.
 
+For off-center sensor regions, use `calculateFieldOfViewBounds()` with signed sensor-plane coordinates relative to the optical axis:
+
+```ts
+import { calculateFieldOfViewBounds } from "@photivra/engine";
+
+const leftHalf = calculateFieldOfViewBounds({
+  focalLengthMm: 50,
+  minimumSensorCoordinateMm: -18,
+  maximumSensorCoordinateMm: 0
+});
+
+console.log(leftHalf.value.minimumDegrees);
+console.log(leftHalf.value.maximumDegrees);
+console.log(leftHalf.value.degrees);
+```
+
+Unlike the centered `2 × atan(size / 2d)` form, the bounds API preserves asymmetric angular limits and is used by active-capture geometry for off-center crops.
+
 See [Physics Foundation](PHYSICS_FOUNDATION.md#rectilinear-field-of-view).
 
 ## Actual and 35 mm-equivalent focal length
@@ -261,55 +279,61 @@ Use `parseSensorArchitectureProfile()` for descriptive hardware/capability metad
 import { parseSensorArchitectureProfile } from "@photivra/engine";
 
 const architecture = parseSensorArchitectureProfile({
-  schemaVersion: "0.1.0",
+  schemaVersion: "0.2.0",
   illumination: {
     value: "bsi",
-    provenance: {
-      sourceKind: "manufacturer-published",
-      sourceReference: "manufacturer-spec:example",
-      reuseStatus: "factual-reference-only"
-    }
+    evidence: [
+      {
+        sourceOrigin: "manufacturer",
+        sourceReference: "manufacturer-spec:example",
+        reuseStatus: "factual-reference-only"
+      }
+    ]
   },
   integration: {
     value: "stacked",
-    provenance: {
-      sourceKind: "manufacturer-published",
-      sourceReference: "manufacturer-spec:example",
-      reuseStatus: "factual-reference-only"
-    }
+    evidence: [
+      {
+        sourceOrigin: "manufacturer",
+        sourceReference: "manufacturer-spec:example",
+        reuseStatus: "factual-reference-only"
+      }
+    ]
   },
-  readoutCapabilities: {
-    value: ["rolling"],
-    provenance: {
-      sourceKind: "manufacturer-published",
-      sourceReference: "manufacturer-spec:example",
-      reuseStatus: "factual-reference-only"
+  readoutCapabilities: [
+    {
+      value: "rolling",
+      evidence: [
+        {
+          sourceOrigin: "manufacturer",
+          sourceReference: "manufacturer-spec:example",
+          reuseStatus: "factual-reference-only"
+        }
+      ]
     }
-  },
+  ],
   colorSamplingFamily: {
     value: "bayer",
-    provenance: {
-      sourceKind: "manufacturer-published",
-      sourceReference: "manufacturer-spec:example",
-      reuseStatus: "factual-reference-only"
-    }
+    evidence: [
+      {
+        sourceOrigin: "manufacturer",
+        sourceReference: "manufacturer-spec:example",
+        reuseStatus: "factual-reference-only"
+      }
+    ]
   }
 });
 ```
 
-The axes are independent. For example, BSI may be stacked or monolithic; stacking does not imply global shutter; and global readout capability does not imply a particular stacking architecture.
+The axes are independent. BSI may be stacked or monolithic; stacking does not imply global shutter; and global readout capability does not imply a particular stacking architecture.
+
+Source origin and reuse rights are also independent. Manufacturer or third-party material may be factual-reference-only or explicitly reusable when an appropriate license is present. `photivra-owned` evidence must originate from Photivra. Reusable-data evidence requires an explicit license.
+
+Scalar facts may cite multiple evidence records. Multi-valued capabilities such as rolling/global readout carry evidence independently for each value so one source does not silently support another capability.
 
 `readoutCapabilities` describes hardware capabilities, not the mode selected for one exposure. Capture-specific readout selection and timing belong to later readout/capture-mode models.
 
-Unknown facts should be omitted instead of inferred. Each asserted field carries its own provenance so one well-sourced fact does not imply that unrelated sensor internals are known.
-
-Supported provenance classes intentionally separate:
-
-- manufacturer-published factual reference;
-- openly reusable data with an explicit license;
-- Photivra-generated evidence owned by Photivra.
-
-The parser fails closed on contradictory source/reuse claims. Architecture metadata is descriptive only: BSI, stacking, readout family, and CFA family do not directly change FOV, crop factor, pixel pitch, exposure, noise, or dynamic range. A separate documented downstream physical/calibration model is required before any such effect can be claimed.
+Unknown facts should be omitted instead of inferred. Architecture metadata remains descriptive only: BSI, stacking, readout family, and CFA family do not directly change FOV, crop factor, pixel pitch, exposure, noise, or dynamic range. A separate documented downstream physical/calibration model is required before any such effect can be claimed.
 
 ## Capture orientation, active area, and output geometry
 
@@ -319,14 +343,8 @@ Use `resolveCaptureGeometry()` to keep physical sensor identity, active capture,
 import { resolveCaptureGeometry } from "@photivra/engine";
 
 const geometry = resolveCaptureGeometry({
-  imagingArea: {
-    widthMm: 36,
-    heightMm: 24
-  },
-  nativeRaster: {
-    pixelWidth: 6000,
-    pixelHeight: 4000
-  },
+  imagingArea: { widthMm: 36, heightMm: 24 },
+  nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 },
   orientation: "portrait-clockwise",
   activeCaptureRect: {
     x: 1000,
@@ -346,8 +364,7 @@ const geometry = resolveCaptureGeometry({
   }
 });
 
-console.log(geometry.value.native.raster);
-console.log(geometry.value.activeCapture.imagingArea);
+console.log(geometry.value.activeCapture.centerOffsetFromOpticalAxisMm);
 console.log(geometry.value.orientedCapture.raster);
 console.log(geometry.value.output.raster);
 ```
@@ -359,30 +376,26 @@ Native sensor raster coordinates are invariant under physical camera rotation:
 - +Y: down;
 - rectangles: integer, half-open extents `[x, x + width) × [y, y + height)`.
 
-`activeCaptureRect` is expressed in that native coordinate system. Portrait orientation changes the oriented capture axes but does not redefine native sensor coordinates, physical sensor size, or native sampling pitch. Clockwise and counter-clockwise portrait orientations remain distinct even though they have the same oriented dimensions.
-
-`outputCropRect` is expressed in oriented active-capture coordinates. It is a digital/output operation and does not mutate the physical sensor or active capture area. `outputRaster` describes the final raster after optional crop/resampling.
-
-Display/file orientation transforms such as EXIF mirroring are intentionally not represented by `CaptureOrientation`; they belong to a separate output-metadata/transform layer.
-
-Use `calculateActiveCaptureFieldOfView()` for active physical capture FOV:
+The engine exports exact native↔oriented point, vector, and rectangle transforms for all four physical rotations:
 
 ```ts
-import { calculateActiveCaptureFieldOfView } from "@photivra/engine";
-
-const fov = calculateActiveCaptureFieldOfView({
-  imagingArea: { widthMm: 36, heightMm: 24 },
-  nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 },
-  orientation: "portrait-clockwise",
-  focalLengthMm: 50
-});
-
-console.log(fov.value.horizontalDegrees);
-console.log(fov.value.verticalDegrees);
-console.log(fov.value.diagonalDegrees);
+import {
+  transformNativeRasterPointToOriented,
+  transformOrientedRasterPointToNative
+} from "@photivra/engine";
 ```
 
-The function reuses the canonical Photivra field-of-view model. A 90° physical rotation swaps horizontal/vertical FOV while preserving diagonal FOV. Final digital/output crop is deliberately excluded from this active-capture FOV quantity.
+Point transforms use continuous raster-edge coordinates; pixel centers may be represented with +0.5 offsets. Vector transforms rotate direction only. Rectangle transforms preserve integer half-open semantics. Clockwise and counter-clockwise portrait transforms are distinct and round-trip to native coordinates.
+
+`activeCaptureRect` is expressed in native coordinates. The generic model derives physical active-area bounds by assuming native image samples uniformly span the declared physical imaging area. The result exposes physical bounds and center offset relative to the optical axis so off-center crops remain optically asymmetric.
+
+`outputCropRect` is expressed in oriented active-capture coordinates. `outputRaster` may resample that crop but must preserve its aspect ratio within integer-rounding tolerance; implicit geometric stretching is rejected.
+
+Display/file transforms such as EXIF mirroring remain separate from physical `CaptureOrientation`.
+
+Use `calculateActiveCaptureFieldOfView()` for active physical capture FOV. It preserves signed horizontal/vertical bounds for off-center crops and reports both opposite-corner diagonal spans. `diagonalDegrees` is the larger of those spans; centered crops produce equal diagonal spans.
+
+Final digital/output crop is deliberately excluded from active-capture FOV.
 
 ## Centered crop and subject framing crop
 
@@ -683,6 +696,11 @@ See [Scientific and Source Provenance](PROVENANCE.md) and [Public API Style](API
 ## Composed POC simulation
 
 Use `simulatePocCamera()` when you want one composed response containing the current POC calculations.
+
+The root engine and composed POC are versioned independently. `ENGINE_API_VERSION` describes the root library surface; `POC_SIMULATION_API_VERSION` describes this composed request/response contract.
+
+The current composed POC reports X/Y geometric sample pitch but still uses one backwards-compatible representative horizontal pitch internally for blur/sampling calculations. It therefore rejects sensor geometry whose X/Y pitch differs by more than 1%. Axis-aware lower-level geometry remains available for more general sensor layouts.
+
 
 ```ts
 import { simulatePocCamera } from "@photivra/engine";
