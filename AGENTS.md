@@ -111,6 +111,19 @@ Backward compatibility matters.
 - Do not silently reinterpret an existing field or unit.
 - If behavior must change, add regression tests and document compatibility impact.
 
+## Composition boundary
+
+Do not assume every public root-engine foundation is already part of the composed POC.
+
+As of the current post-0.2 mainline:
+
+- `simulatePocCamera()` does not accept `CaptureOrientation`, arbitrary active-capture rectangles, sensor-architecture metadata, or radiometry-readiness profiles.
+- Equivalent focal length is a derived informational result, not a replacement for physical focal length inside POC physics.
+- The POC reports X/Y pitch diagnostics but still uses one representative horizontal pitch internally and fails closed above a 1% axis difference.
+- Radiometry readiness never enables photon/noise output by itself.
+
+Composing any of these newer foundations into `simulatePocCamera()` requires an explicit `POC_SIMULATION_API_VERSION` review/change, migration analysis, regression tests, and documentation. Do not silently reinterpret existing POC fields to “adopt” the newer model.
+
 ## Runtime and package boundary
 
 - The root package must remain browser-safe and ESM-only.
