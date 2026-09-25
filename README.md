@@ -226,7 +226,7 @@ Yarn and pnpm may be used for development, but the repository's release/CI depen
 
 TypeScript types are not treated as validation for untrusted data.
 
-- Use `parseCameraConfiguration()` and `parseSceneDefinition()` for external camera/scene JSON.
+- Use `parseCameraConfiguration()`, `parseSceneDefinition()`, and `parseSensorArchitectureProfile()` for their respective external JSON/configuration boundaries.
 - The repository-local Node POC HTTP layer has its own structural request parser before invoking `simulatePocCamera()`.
 - Scientific range/domain validation remains in the calculation modules.
 - Public `CalculationResult<T>` envelopes reject non-finite numeric output.
