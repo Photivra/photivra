@@ -16,23 +16,21 @@ import {
 export type LateralChromaticAberrationChannel = "red" | "green" | "blue";
 
 export interface LateralChromaticAberrationProfile {
-  /**
-   * Shared physical image-plane normalization radius in millimetres.
-   *
-   * All channel coefficient sets use this same normalization so pairwise
-   * separation has one unambiguous physical basis.
-   */
+  /** Shared physical image-plane normalization radius in millimetres. */
   normalizationRadiusMm: number;
-  /**
-   * Shared maximum undistorted normalized radius over which every channel
-   * profile must remain one-to-one/invertible.
-   */
+  /** Shared undistorted normalized-radius operating envelope. */
   maximumNormalizedRadius: number;
-  channelCoefficients: {
-    red: RadialDistortionCoefficients;
-    green: RadialDistortionCoefficients;
-    blue: RadialDistortionCoefficients;
-  };
+  /**
+   * Green-reference base geometric distortion.
+   *
+   * This common mapping is included in every channel. Red/blue CA terms are
+   * added to this base, so callers should not apply a second distortion pass.
+   */
+  baseDistortionCoefficients: RadialDistortionCoefficients;
+  /** Additional red-channel radial coefficients relative to green. */
+  redCoefficientOffset: RadialDistortionCoefficients;
+  /** Additional blue-channel radial coefficients relative to green. */
+  blueCoefficientOffset: RadialDistortionCoefficients;
 }
 
 export interface CalculateLateralChromaticAberrationMappingInput {
@@ -53,63 +51,121 @@ export interface CalculateInverseLateralChromaticAberrationMappingInput {
 export interface LateralChromaticAberrationChannelMapping {
   mappedImagePointMm: LensFieldPointMm;
   radialScale: number;
-  deltaMm: {
-    x: number;
-    y: number;
-    distance: number;
-  };
+  combinedCoefficients: RadialDistortionCoefficients;
 }
 
 export interface InverseLateralChromaticAberrationChannelMapping {
   sourceImagePointMm: LensFieldPointMm;
   radialScaleAtSource: number;
-  deltaMm: {
-    x: number;
-    y: number;
-    distance: number;
-  };
+  combinedCoefficients: RadialDistortionCoefficients;
 }
 
-export interface ChannelSeparationMm {
-  redGreen: number;
-  blueGreen: number;
-  redBlue: number;
-  maximum: number;
+export interface ChannelSeparationVectorMm {
+  x: number;
+  y: number;
+  distance: number;
+}
+
+export interface LateralChromaticAberrationSeparation {
+  redGreen: ChannelSeparationVectorMm;
+  blueGreen: ChannelSeparationVectorMm;
+  redBlue: ChannelSeparationVectorMm;
+  maximumPairDistanceMm: number;
 }
 
 export interface LateralChromaticAberrationMapping {
   direction: "undistorted-to-channel-distorted";
+  referenceChannel: "green";
   sourceImagePointMm: LensFieldPointMm;
   channels: {
     red: LateralChromaticAberrationChannelMapping;
     green: LateralChromaticAberrationChannelMapping;
     blue: LateralChromaticAberrationChannelMapping;
   };
-  pairwiseSeparationMm: ChannelSeparationMm;
+  separation: LateralChromaticAberrationSeparation;
 }
 
 export interface InverseLateralChromaticAberrationMapping {
   direction: "distorted-output-to-channel-sources";
+  referenceChannel: "green";
   distortedImagePointMm: LensFieldPointMm;
   channels: {
     red: InverseLateralChromaticAberrationChannelMapping;
     green: InverseLateralChromaticAberrationChannelMapping;
     blue: InverseLateralChromaticAberrationChannelMapping;
   };
-  pairwiseSourceSeparationMm: ChannelSeparationMm;
+  sourceSeparation: LateralChromaticAberrationSeparation;
 }
 
-const CHANNELS = ["red", "green", "blue"] as const satisfies readonly LateralChromaticAberrationChannel[];
+interface ChannelProfiles {
+  red: RadialDistortionProfile;
+  green: RadialDistortionProfile;
+  blue: RadialDistortionProfile;
+}
 
-function channelProfile(
-  profile: LateralChromaticAberrationProfile,
-  channel: LateralChromaticAberrationChannel
-): RadialDistortionProfile {
+function requireFiniteCoefficients(
+  path: string,
+  coefficients: RadialDistortionCoefficients
+): void {
+  for (const key of ["k1", "k2", "k3"] as const) {
+    if (!Number.isFinite(coefficients[key])) {
+      throw new InvalidScientificInputError(
+        `${path}.${key} must be finite.`
+      );
+    }
+  }
+}
+
+function addCoefficients(
+  base: RadialDistortionCoefficients,
+  offset: RadialDistortionCoefficients
+): RadialDistortionCoefficients {
   return {
+    k1: base.k1 + offset.k1,
+    k2: base.k2 + offset.k2,
+    k3: base.k3 + offset.k3
+  };
+}
+
+function resolveProfiles(
+  profile: LateralChromaticAberrationProfile
+): ChannelProfiles {
+  requireFiniteCoefficients(
+    "profile.baseDistortionCoefficients",
+    profile.baseDistortionCoefficients
+  );
+  requireFiniteCoefficients(
+    "profile.redCoefficientOffset",
+    profile.redCoefficientOffset
+  );
+  requireFiniteCoefficients(
+    "profile.blueCoefficientOffset",
+    profile.blueCoefficientOffset
+  );
+
+  const shared = {
     normalizationRadiusMm: profile.normalizationRadiusMm,
-    maximumNormalizedRadius: profile.maximumNormalizedRadius,
-    coefficients: {
-      ...profile.channelCoefficients[channel]
+    maximumNormalizedRadius: profile.maximumNormalizedRadius
+  };
+
+  return {
+    red: {
+      ...shared,
+      coefficients: addCoefficients(
+        profile.baseDistortionCoefficients,
+        profile.redCoefficientOffset
+      )
+    },
+    green: {
+      ...shared,
+      coefficients: { ...profile.baseDistortionCoefficients }
+    },
+    blue: {
+      ...shared,
+      coefficients: addCoefficients(
+        profile.baseDistortionCoefficients,
+        profile.blueCoefficientOffset
+      )
     }
   };
 }
@@ -130,143 +186,177 @@ function withChannelContext<T>(
   }
 }
 
-function distanceMm(
+function separationVector(
   first: LensFieldPointMm,
   second: LensFieldPointMm
-): number {
-  return Math.hypot(first.x - second.x, first.y - second.y);
+): ChannelSeparationVectorMm {
+  const x = first.x - second.x;
+  const y = first.y - second.y;
+  return {
+    x,
+    y,
+    distance: Math.hypot(x, y)
+  };
 }
 
 function separations(
   red: LensFieldPointMm,
   green: LensFieldPointMm,
   blue: LensFieldPointMm
-): ChannelSeparationMm {
-  const redGreen = distanceMm(red, green);
-  const blueGreen = distanceMm(blue, green);
-  const redBlue = distanceMm(red, blue);
+): LateralChromaticAberrationSeparation {
+  const redGreen = separationVector(red, green);
+  const blueGreen = separationVector(blue, green);
+  const redBlue = separationVector(red, blue);
 
   return {
     redGreen,
     blueGreen,
     redBlue,
-    maximum: Math.max(redGreen, blueGreen, redBlue)
+    maximumPairDistanceMm: Math.max(
+      redGreen.distance,
+      blueGreen.distance,
+      redBlue.distance
+    )
   };
 }
 
 function assumptions(): readonly string[] {
   return [
     "Generic lateral chromatic aberration is represented as independent radial field mapping for abstract red, green, and blue renderer channels",
+    "Green is the reference field mapping; red and blue coefficient offsets are added to the green-reference base distortion rather than applied as a second warp",
     "All channel mappings share one physical normalization radius and declared operating envelope",
-    "Each channel radial profile must remain one-to-one over the declared operating envelope",
-    "This RGB-channel model is not a spectral lens model, sensor CFA calibration, or colorimetric camera profile",
-    "Longitudinal chromatic aberration, wavelength-dependent PSF behavior, tangential/decentered chromatic effects, and named-lens calibration are not modeled",
-    "Renderer implementations should inverse-map each destination channel to its engine-derived source coordinate rather than applying a finished-image RGB blur"
+    "Each combined channel radial profile must remain one-to-one over the declared operating envelope",
+    "The RGB channel labels are representative rendering channels, not calibrated wavelengths, sensor spectral responses, or CFA primaries",
+    "This model changes channel field coordinates only; it does not blur, alter longitudinal focus, change PSF shape, or modify channel intensity",
+    "Profiles are generic caller inputs and do not represent a named lens unless separately calibrated with defensible provenance"
   ];
 }
 
 /**
  * Calculates generic lateral chromatic-aberration field separation by mapping
- * one ideal image-plane point independently through red/green/blue radial
- * profiles.
+ * one ideal image-plane point through a shared green-reference base distortion
+ * and red/blue radial coefficient offsets.
  *
- * This is channel-dependent field mapping, not a blur kernel. It is intended
- * for generic renderer experimentation and deterministic regression, not
- * spectral or named-lens calibration.
+ * This is channel-dependent field mapping, not a blur kernel.
  */
 export function calculateLateralChromaticAberrationMapping(
   input: CalculateLateralChromaticAberrationMappingInput
 ): CalculationResult<LateralChromaticAberrationMapping> {
-  const mapped = Object.fromEntries(
-    CHANNELS.map((channel) => {
-      const result = withChannelContext(channel, () =>
-        calculateRadialDistortionMapping({
-          imagePointMm: input.imagePointMm,
-          profile: channelProfile(input.profile, channel)
-        })
-      );
+  const profiles = resolveProfiles(input.profile);
 
-      return [
-        channel,
-        {
-          mappedImagePointMm: {
-            ...result.value.mappedImagePointMm
-          },
-          radialScale: result.value.radialScale,
-          deltaMm: {
-            ...result.value.deltaMm
-          }
-        }
-      ];
+  const red = withChannelContext("red", () =>
+    calculateRadialDistortionMapping({
+      imagePointMm: input.imagePointMm,
+      profile: profiles.red
     })
-  ) as LateralChromaticAberrationMapping["channels"];
+  ).value;
+  const green = withChannelContext("green", () =>
+    calculateRadialDistortionMapping({
+      imagePointMm: input.imagePointMm,
+      profile: profiles.green
+    })
+  ).value;
+  const blue = withChannelContext("blue", () =>
+    calculateRadialDistortionMapping({
+      imagePointMm: input.imagePointMm,
+      profile: profiles.blue
+    })
+  ).value;
 
   return approximationResult(
     {
       direction: "undistorted-to-channel-distorted",
+      referenceChannel: "green",
       sourceImagePointMm: { ...input.imagePointMm },
-      channels: mapped,
-      pairwiseSeparationMm: separations(
-        mapped.red.mappedImagePointMm,
-        mapped.green.mappedImagePointMm,
-        mapped.blue.mappedImagePointMm
+      channels: {
+        red: {
+          mappedImagePointMm: { ...red.mappedImagePointMm },
+          radialScale: red.radialScale,
+          combinedCoefficients: { ...profiles.red.coefficients }
+        },
+        green: {
+          mappedImagePointMm: { ...green.mappedImagePointMm },
+          radialScale: green.radialScale,
+          combinedCoefficients: { ...profiles.green.coefficients }
+        },
+        blue: {
+          mappedImagePointMm: { ...blue.mappedImagePointMm },
+          radialScale: blue.radialScale,
+          combinedCoefficients: { ...profiles.blue.coefficients }
+        }
+      },
+      separation: separations(
+        red.mappedImagePointMm,
+        green.mappedImagePointMm,
+        blue.mappedImagePointMm
       )
     },
-    "generic-rgb-lateral-chromatic-aberration",
+    "generic-green-reference-lateral-chromatic-aberration",
     "1.0.0",
     assumptions()
   );
 }
 
 /**
- * Inverse-maps one distorted output destination independently for red, green,
- * and blue so a renderer can sample each channel from the correct ideal source
- * coordinate.
+ * Inverse-maps one distorted output destination independently for the
+ * representative red/green/blue channels.
  *
- * This preserves the image-formation contract's destination-to-source warp
- * semantics and avoids backend-specific chromatic-aberration equations.
+ * Renderers can use the returned per-channel ideal source coordinates for
+ * inverse sampling without inventing chromatic-aberration equations.
  */
 export function calculateInverseLateralChromaticAberrationMapping(
   input: CalculateInverseLateralChromaticAberrationMappingInput
 ): CalculationResult<InverseLateralChromaticAberrationMapping> {
-  const mapped = Object.fromEntries(
-    CHANNELS.map((channel) => {
-      const result = withChannelContext(channel, () =>
-        calculateInverseRadialDistortionMapping({
-          distortedImagePointMm: input.distortedImagePointMm,
-          profile: channelProfile(input.profile, channel)
-        })
-      );
+  const profiles = resolveProfiles(input.profile);
 
-      return [
-        channel,
-        {
-          sourceImagePointMm: {
-            ...result.value.sourceImagePointMm
-          },
-          radialScaleAtSource: result.value.radialScaleAtSource,
-          deltaMm: {
-            ...result.value.deltaMm
-          }
-        }
-      ];
+  const red = withChannelContext("red", () =>
+    calculateInverseRadialDistortionMapping({
+      distortedImagePointMm: input.distortedImagePointMm,
+      profile: profiles.red
     })
-  ) as InverseLateralChromaticAberrationMapping["channels"];
+  ).value;
+  const green = withChannelContext("green", () =>
+    calculateInverseRadialDistortionMapping({
+      distortedImagePointMm: input.distortedImagePointMm,
+      profile: profiles.green
+    })
+  ).value;
+  const blue = withChannelContext("blue", () =>
+    calculateInverseRadialDistortionMapping({
+      distortedImagePointMm: input.distortedImagePointMm,
+      profile: profiles.blue
+    })
+  ).value;
 
   return approximationResult(
     {
       direction: "distorted-output-to-channel-sources",
-      distortedImagePointMm: {
-        ...input.distortedImagePointMm
+      referenceChannel: "green",
+      distortedImagePointMm: { ...input.distortedImagePointMm },
+      channels: {
+        red: {
+          sourceImagePointMm: { ...red.sourceImagePointMm },
+          radialScaleAtSource: red.radialScaleAtSource,
+          combinedCoefficients: { ...profiles.red.coefficients }
+        },
+        green: {
+          sourceImagePointMm: { ...green.sourceImagePointMm },
+          radialScaleAtSource: green.radialScaleAtSource,
+          combinedCoefficients: { ...profiles.green.coefficients }
+        },
+        blue: {
+          sourceImagePointMm: { ...blue.sourceImagePointMm },
+          radialScaleAtSource: blue.radialScaleAtSource,
+          combinedCoefficients: { ...profiles.blue.coefficients }
+        }
       },
-      channels: mapped,
-      pairwiseSourceSeparationMm: separations(
-        mapped.red.sourceImagePointMm,
-        mapped.green.sourceImagePointMm,
-        mapped.blue.sourceImagePointMm
+      sourceSeparation: separations(
+        red.sourceImagePointMm,
+        green.sourceImagePointMm,
+        blue.sourceImagePointMm
       )
     },
-    "generic-inverse-rgb-lateral-chromatic-aberration",
+    "generic-inverse-green-reference-lateral-chromatic-aberration",
     "1.0.0",
     assumptions()
   );
