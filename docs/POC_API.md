@@ -50,7 +50,7 @@ Example:
 {
   "ok": true,
   "service": "photivra-engine",
-  "apiVersion": "0.18.0"
+  "apiVersion": "0.20.0"
 }
 ```
 
@@ -64,11 +64,11 @@ All physical quantities use explicit units in their property names.
 
 The POC transport reports the composed simulation contract version, not the root library `ENGINE_API_VERSION`. The current composed contract is exposed as `POC_SIMULATION_API_VERSION`.
 
-POC simulation API 0.19 composes projection using the selected focus plane. The response includes a `projection` block with ideal thin-lens image distance, scale relative to the infinity-focus approximation, and model provenance. Full-sensor field of view, crop field of view, object sampling, subject motion, and camera-shake projection use that same selected projection plane.
+POC simulation API 0.20 composes projection using the selected focus plane. The response includes a `projection` block with ideal thin-lens image distance, scale relative to the infinity-focus approximation, and model provenance. Full-sensor field of view, crop field of view, object sampling, subject motion, and camera-shake projection use that same selected projection plane.
 
 ### Post-0.2 sensor/capture composition
 
-POC simulation API 0.19 begins composing the standalone sensor/capture foundation **additively**.
+POC simulation API 0.20 begins composing the standalone sensor/capture foundation **additively**.
 
 The existing request remains valid. New callers may opt into staged capture geometry with a `capture` object containing:
 
@@ -81,14 +81,17 @@ Compatibility rules are intentionally strict:
 
 - legacy `crop.factor` remains available for existing callers;
 - when `capture` is supplied, legacy `crop.factor` must be `1` so two crop models are not silently stacked;
-- `subjectCrop` is temporarily rejected in capture mode until subject-framing semantics are explicitly migrated to staged output geometry;
-- equivalent-viewing circle-of-confusion input is temporarily rejected in capture mode; use explicit `circleOfConfusionMm` until the retained-capture/output viewing convention is defined.
+- legacy top-level `subjectCrop` response semantics remain unchanged when staged capture is absent;
+- with staged capture, subject framing is reported under `capture.subjectFraming` and is applied after declared output crop/resampling;
+- equivalent-viewing CoC in staged capture is based on the final retained physical image region used for viewing, including subject framing when present; output pixel count alone does not change it.
 
 The response keeps existing full-sensor/native-vector fields intact and adds an optional `capture` block with:
 
-- resolved native/active/oriented/output geometry;
-- active-capture FOV, including asymmetric bounds for off-center capture;
+- resolved native/active/oriented/output geometry, including final retained physical bounds;
+- active-capture and final-output FOV, including asymmetric bounds for off-center capture/output crop;
 - physical actual focal length plus active-capture diagonal-based 35 mm equivalence;
+- explicit oriented-capture→output pixel scaling;
+- optional capture-specific subject framing with final retained physical area and effective FOV;
 - explicit native-raster, oriented-capture, and final-output motion-vector diagnostics;
 - corresponding native-raster/oriented/output camera-shake vectors when camera shake is requested.
 
@@ -217,9 +220,11 @@ Polygon aperture geometry does not convert the circular Airy result into a polyg
 
 ### Focus criterion
 
-For cross-format comparisons, the equivalent-viewing helper scales a caller-supplied reference CoC by sensor-diagonal ratio.
+For cross-format comparisons, the equivalent-viewing helper scales a caller-supplied reference CoC by the diagonal of the physical image region assumed to be enlarged to the final viewing size.
 
-That is explicitly an approximation based on equivalent final viewing assumptions; it is not a physical lens/sensor blur threshold.
+Legacy requests continue to use the full physical sensor. In staged capture mode the target is the final physical region retained by active capture + output crop and, when requested, centered subject framing. Changing only the encoded output raster does not change this viewing criterion.
+
+This remains explicitly a viewing approximation, not a physical lens/sensor blur threshold. An explicit caller-supplied `circleOfConfusionMm` is never changed by crop or output geometry.
 
 ### Primary-subject diagnostics
 
