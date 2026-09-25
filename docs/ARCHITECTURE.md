@@ -122,6 +122,20 @@ The POC still does **not** consume:
 
 That separation is deliberate. Further foundation APIs should remain independently testable and only enter the POC through explicit contract/version changes and migration review.
 
+## Standalone illumination-throughput foundation
+
+The lens-field/pupil domain now includes generic illumination vignetting as field-dependent linear throughput.
+
+The engine owns:
+- physical field-radius normalization;
+- the declared operating envelope;
+- full-envelope extrema validation;
+- the linear throughput factor and stop-loss diagnostic.
+
+Renderer backends consume that factor in a linear working domain. They must not reinterpret this stage as gamma-space darkening, coordinate warp, or pupil clipping.
+
+Mechanical/pupil vignetting remains part of future pupil/PSF work because it can change both throughput and bokeh/PSF shape.
+
 ## Standalone lateral-CA field-mapping foundation
 
 The lens-field domain also exposes generic red/green/blue channel-dependent radial mapping.

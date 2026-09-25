@@ -267,6 +267,61 @@ The channel labels are representative renderer RGB channels. They are not wavele
 
 A renderer should inverse-map each destination channel to the source coordinate returned by the engine instead of adding a backend-specific RGB offset or finished-image fringe blur.
 
+## Illumination vignetting
+
+Use `calculateIlluminationVignetting()` when a generic virtual lens needs field-dependent **relative linear throughput** without changing geometry or pupil/PSF shape.
+
+```ts
+import { calculateIlluminationVignetting } from "@photivra/engine";
+
+const illumination = calculateIlluminationVignetting({
+  imagePointMm: { x: 16, y: 0 },
+  profile: {
+    normalizationRadiusMm: 20,
+    maximumNormalizedRadius: 1,
+    coefficients: {
+      r2: -0.5,
+      r4: 0.1,
+      r6: 0
+    }
+  }
+});
+
+console.log(illumination.value.linearThroughputFactor);
+console.log(illumination.value.attenuationStops);
+```
+
+The generic radial model is:
+
+```text
+rho = image-plane radius / normalizationRadiusMm
+T(rho) = 1 + r2*rho² + r4*rho⁴ + r6*rho⁶
+```
+
+`T` is a multiplicative **scene-linear/channel-linear** throughput factor. Apply it before display transfer/gamma encoding.
+
+The profile declares `maximumNormalizedRadius`. Photivra analytically checks the complete interval, including internal extrema, and rejects profiles that:
+
+- reach zero or negative throughput; or
+- amplify above the optical-axis normalization of `1`.
+
+The output also reports positive attenuation in stops:
+
+```text
+attenuationStops = -log2(T)
+```
+
+This model changes throughput only. It does not change:
+
+- image-plane coordinates;
+- focus;
+- pupil shape;
+- PSF shape;
+- bokeh;
+- channel geometry.
+
+Mechanical/pupil vignetting and cat's-eye bokeh belong to the later pupil/PSF foundation. This generic profile is also not calibrated radiometry or a named-lens measurement.
+
 ## Thin-lens image distance and magnification
 
 Use `calculateThinLensImageDistance()` to calculate ideal Gaussian thin-lens image distance for an object/focus plane.
