@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.29.0" as const;
+export const ENGINE_API_VERSION = "0.30.0" as const;
 
 export {
   approximationResult,
@@ -189,6 +189,20 @@ export {
   type RadialDistortionMapping,
   type RadialDistortionProfile
 } from "./optics/radial-distortion.js";
+
+export {
+  calculateInverseLateralChromaticAberrationMapping,
+  calculateLateralChromaticAberrationMapping,
+  type CalculateInverseLateralChromaticAberrationMappingInput,
+  type CalculateLateralChromaticAberrationMappingInput,
+  type ChannelSeparationMm,
+  type InverseLateralChromaticAberrationChannelMapping,
+  type InverseLateralChromaticAberrationMapping,
+  type LateralChromaticAberrationChannel,
+  type LateralChromaticAberrationChannelMapping,
+  type LateralChromaticAberrationMapping,
+  type LateralChromaticAberrationProfile
+} from "./optics/lateral-chromatic-aberration.js";
 
 export type {
   CameraConfiguration,
