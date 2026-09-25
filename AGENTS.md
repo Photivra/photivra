@@ -25,17 +25,24 @@ Treat this repository as a complete, standalone open-source scientific/business-
 ## Repository map
 
 - `src/` — scientific implementation, schemas, validation, and composed engine logic.
+- `src/camera/` — projection, field-of-view, and equivalent-focal-length primitives.
+- `src/sensor/` — sensor geometry, architecture metadata, radiometry readiness, sampling, and signal/noise primitives.
+- `src/output/` — capture/orientation/output geometry and crop/framing calculations.
+- `src/core/` — shared result metadata, errors, and evidence/provenance contracts; lower layers must not depend on schema/UI code.
 - `src/api/` — repository-only local Node transport; not a public package surface.
 - `test/` — deterministic unit, regression, invariant, fuzz/property, parser, and integration tests.
 - `docs/USAGE.md` — canonical public API examples.
-- `docs/PROVENANCE.md` — scientific/source provenance rules.
-- `docs/API_STYLE.md` — public API conventions.
+- `docs/PHYSICS_FOUNDATION.md` — geometry/optics model assumptions and coordinate conventions.
+- `docs/MOTION_AND_SIGNAL.md` — motion/exposure/signal boundaries, including radiometry gating.
+- `docs/PROVENANCE.md` — scientific/source evidence and reuse-rights rules.
+- `docs/API_STYLE.md` — public API and versioning conventions.
 - `scripts/` — CI, package-surface, license, identity, and browser-boundary gates.
 
 ## Sources of truth
 
 - Scientific equations and behavior are defined by implementation plus tests; documentation must agree with them.
 - Public API shape and semantics are defined by exported TypeScript contracts, tests, and `docs/API_STYLE.md`.
+- Root engine compatibility is versioned by `ENGINE_API_VERSION`; the composed `simulatePocCamera()` request/response contract is separately versioned by `POC_SIMULATION_API_VERSION`. Never conflate either with the npm package version.
 - If documentation, tests, and implementation disagree, do not guess. Determine the intended contract, fix the stale source, and add a regression test when behavior is involved.
 - UI or downstream clients are never authoritative sources for camera science.
 
@@ -65,6 +72,32 @@ Do not weaken an existing release, provenance, licensing, browser-surface, or pa
 - Do not claim performance for named commercial cameras, lenses, stabilization systems, or sensors without defensible licensed calibration data.
 - Treat public standards, papers, patents, and web references as references, not permission to copy protected expression or data.
 
+## Sensor, capture, and coordinate-system rules
+
+The post-0.2 sensor/capture foundation has explicit semantics. Preserve them.
+
+- `SensorImagingArea` is the physical photosensitive imaging area used for image formation, not die/package dimensions.
+- `NativeImageRaster` describes the effective native image-sampling grid. It does not assert one image sample equals one physical photodiode.
+- `RasterDimensions` is the generic raster-size type for active/output rasters; do not misuse `NativeImageRaster` for non-native outputs.
+- Geometric sampling pitch has separate X/Y values. Do not silently collapse materially non-square sampling to one pitch.
+- Native raster coordinates use top-left origin, +X right, +Y down, with integer half-open rectangles.
+- Native coordinates remain invariant under physical camera rotation. Use the exported point/vector/rectangle transforms rather than ad-hoc width/height swaps.
+- Active capture and digital/output crop are different stages. Do not treat a later output crop as a smaller physical sensor.
+- Off-center active capture must preserve its optical-axis offset and asymmetric angular bounds; do not recenter it for convenience.
+- Output resampling must not imply geometric stretching unless a future explicit pixel-aspect/transform contract supports it.
+- 35 mm-equivalent focal length is diagonal-based from the active physical capture area. Physical focal length remains authoritative and digital output crop does not redefine it.
+
+## Radiometry and sensor-metadata rules
+
+- Sensor architecture metadata is descriptive and scientifically inert until a separate downstream model consumes it.
+- Unknown sensor facts must remain unknown; do not infer BSI, stacking, CFA, readout, or performance from adjacent marketing claims.
+- Evidence source origin and reuse rights are separate concepts. Public availability is not reuse permission.
+- Multi-valued capabilities must carry evidence per value when sources differ.
+- Geometric sample pitch is not photosite photon-collection area. Radiometry requires explicit collection-area semantics.
+- `assessRadiometryReadiness()` is a gate, not a photon model. `calibrated-ready` does not prove the calibration is factually correct and never enables composed photon/noise output by itself.
+- Approximate representations must remain labeled approximation; never upgrade them to calibrated merely because all prerequisite categories are present.
+- Calibration/data artifacts must retain stable identifiers, hashes, evidence, reuse status, and uncertainty/limitation metadata.
+
 ## Public API and compatibility
 
 Backward compatibility matters.
@@ -73,6 +106,8 @@ Backward compatibility matters.
 - Prefer typed/config-object inputs for multi-parameter functions.
 - Follow the conventions in `docs/API_STYLE.md`.
 - Keep result/provenance structures consistent across modules.
+- Keep `ENGINE_API_VERSION`, `POC_SIMULATION_API_VERSION`, package version, and any schema version semantically distinct.
+- Runtime parsers must fail closed on unknown enum/string values; TypeScript unions are not validation.
 - Do not silently reinterpret an existing field or unit.
 - If behavior must change, add regression tests and document compatibility impact.
 
@@ -117,6 +152,8 @@ npm run pack:check
 Requirements:
 
 - Add deterministic tests for equations, invariants, parsing, edge cases, and regressions where they materially increase confidence.
+- For coordinate/geometry changes, include round-trip/invariance tests for all four orientations and off-center cases where applicable.
+- For provenance/readiness parsers, test malformed input, contradictory claims, duplicate facts, missing evidence, and approximation/calibration boundaries.
 - Preserve fixed seeds for fuzz/property tests.
 - Do not reduce coverage thresholds to land a change.
 - Keep browser-surface, dependency-license, SPDX, identity, and package-surface gates green.
