@@ -30,9 +30,20 @@ The returned X/Y shake components are expressed in the primitive's sensor/image-
 
 The supplied shake profile is synthetic input. The model is not an empirical statement about how much a particular photographer shakes.
 
-### Spatial limitation
+### Spatial limitation and the separate rotation primitive
 
-The current result is one global image-plane yaw/pitch vector. Real camera rotation produces position-dependent optical flow away from the optical axis; that spatial variation is not yet modeled. Roll and translational camera motion are also omitted.
+`estimateCameraShakeBlur()` intentionally remains one global image-plane yaw/pitch vector for backwards compatibility with the existing stabilization-equivalent teaching model.
+
+The root engine now separately exposes `calculateCameraRotationImageMapping()`, which models field-position-dependent **pure camera rotation** for yaw/pitch/roll at arbitrary physical time from exposure start.
+
+The two APIs do not share sign semantics:
+
+- the legacy shake estimator preserves its historical direct image-plane displacement convention;
+- the spatial rotation primitive represents physical camera rotation using right-hand pitch/yaw/roll, then maps a stationary world ray through the inverse camera rotation.
+
+Do not substitute one result for the other without an explicit migration.
+
+The spatial primitive does not apply stabilization stops. Real IBIS/OIS behavior and translation/parallax remain separate future models.
 
 ## Equivalent stabilization stops
 
@@ -62,11 +73,11 @@ Only the public standard identifier and high-level terminology are referenced he
 
 ## Not yet modeled
 
-The current model intentionally omits:
+The legacy stabilization-equivalent model intentionally omits:
 
 - roll;
 - translational camera shake;
-- spatially varying rotational optical flow;
+- spatially varying rotational optical flow inside this compatibility API;
 - frequency-dependent shake spectra;
 - photographer-to-photographer variation;
 - shutter-button impulse;
