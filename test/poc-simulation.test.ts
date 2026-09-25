@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { simulatePocCamera } from "../src/index.js";
+import {
+  simulatePocCamera,
+  type PocSimulationRequest
+} from "../src/index.js";
 
 describe("POC composed simulation", () => {
   it("rejects meaningfully non-square geometric sampling in the composed POC", () => {
@@ -507,7 +510,7 @@ describe("POC composed simulation", () => {
     const createRequest = (outputRaster: {
       pixelWidth: number;
       pixelHeight: number;
-    }) => ({
+    }): PocSimulationRequest => ({
       sensor: {
         widthMm: 36,
         heightMm: 24,
