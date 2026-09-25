@@ -20,7 +20,12 @@ const uncertainty = {
   basis: "Test-only documented calibration uncertainty."
 } as const;
 
-function completeProfile() {
+interface MutableRadiometryFixture {
+  schemaVersion: "0.1.0";
+  components: Array<Record<string, unknown>>;
+}
+
+function completeProfile(): MutableRadiometryFixture {
   return {
     schemaVersion: "0.1.0",
     components: [
@@ -115,7 +120,7 @@ describe("radiometry readiness", () => {
   it("distinguishes approximate-only readiness from calibrated claims", () => {
     const raw = completeProfile();
     raw.components[1] = {
-      ...raw.components[1],
+      ...raw.components[1]!,
       scientificStatus: "approximation",
       representation: "t-stop-approximation",
       tStop: 2.8
@@ -150,7 +155,7 @@ describe("radiometry readiness", () => {
   it("blocks calibrated claims when uncertainty is not quantified", () => {
     const raw = completeProfile();
     raw.components[5] = {
-      ...raw.components[5],
+      ...raw.components[5]!,
       uncertainty: {
         kind: "not-quantified",
         limitation: "No defensible uncertainty estimate yet."
@@ -215,7 +220,7 @@ describe("radiometry readiness", () => {
       ...profile,
       components: [
         ...profile.components,
-        profile.components[0]
+        profile.components[0]!
       ]
     };
 
@@ -229,7 +234,7 @@ describe("radiometry readiness", () => {
   it("validates fill factor, quantum efficiency, artifacts, and uniqueness", () => {
     const badFill = completeProfile();
     badFill.components[3] = {
-      ...badFill.components[3],
+      ...badFill.components[3]!,
       areaModel: "geometric-area-times-fill-factor",
       geometricCellAreaSquareMicrometers: 36,
       fillFactor: 1.2
@@ -240,7 +245,7 @@ describe("radiometry readiness", () => {
 
     const badQe = completeProfile();
     badQe.components[5] = {
-      ...badQe.components[5],
+      ...badQe.components[5]!,
       responseRepresentation: "effective-qe-approximation",
       effectiveQuantumEfficiency: 1.2
     };
@@ -250,7 +255,7 @@ describe("radiometry readiness", () => {
 
     const badHash = completeProfile();
     badHash.components[0] = {
-      ...badHash.components[0],
+      ...badHash.components[0]!,
       dataArtifact: {
         id: "scene-spectrum-v1",
         checksumSha256: "bad"
@@ -261,7 +266,7 @@ describe("radiometry readiness", () => {
     ).toThrow("SHA-256");
 
     const duplicate = completeProfile();
-    duplicate.components.push(duplicate.components[0]);
+    duplicate.components.push(duplicate.components[0]!);
     expect(() =>
       parseRadiometryReadinessProfile(duplicate)
     ).toThrow("duplicate requirement IDs");
