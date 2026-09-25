@@ -39,6 +39,8 @@ output raster
 
 Native coordinates use a top-left origin with +X right and +Y down and remain invariant under physical camera rotation. This keeps later CFA phase, rolling-readout direction, motion-vector transforms, and camera-shake transforms anchored to one stable sensor coordinate system. Display/file transforms remain separate from physical capture orientation.
 
+Equivalent focal length is also layered on top of physical capture geometry rather than stored as lens identity. The engine keeps physical `focalLengthMm` authoritative and derives diagonal-based 35 mm equivalence from the active physical capture area. Focus distance and final digital/output crop do not redefine this conventional capture-equivalent quantity.
+
 Sensor architecture, capture-mode semantics, reconstruction, and calibrated radiometry remain separate follow-on layers.
 
 ## Repository-local Node POC transport
