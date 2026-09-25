@@ -57,6 +57,8 @@ For the generic sensor model, active physical dimensions and optical-axis offset
 
 An off-center active rectangle changes both retained physical extent and angular position relative to the optical axis. It must therefore use asymmetric angular bounds rather than a centered FOV formula.
 
+For an off-center rectangular active area, the two opposite-corner diagonal angular spans need not be equal. `calculateActiveCaptureFieldOfView()` reports both and uses the larger span for its compatibility `diagonalDegrees` summary.
+
 Output crop/resampling is digital geometry. It does not mutate physical sensor identity or active-capture geometry. Output raster aspect ratio must remain consistent with the selected output crop; implicit geometric stretching is rejected.
 
 Centered crop dimensions are derived from a linear crop factor while preserving source aspect ratio, subject to integer pixel flooring.
