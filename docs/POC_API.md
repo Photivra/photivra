@@ -89,8 +89,8 @@ The response keeps existing full-sensor/native-vector fields intact and adds an 
 - resolved native/active/oriented/output geometry;
 - active-capture FOV, including asymmetric bounds for off-center capture;
 - physical actual focal length plus active-capture diagonal-based 35 mm equivalence;
-- oriented-capture and final-output motion-vector diagnostics;
-- corresponding oriented/output camera-shake vectors when camera shake is requested.
+- explicit native-raster, oriented-capture, and final-output motion-vector diagnostics;
+- corresponding native-raster/oriented/output camera-shake vectors when camera shake is requested.
 
 Final digital/output crop does not redefine physical focal length or active-capture 35 mm equivalence. Physical `lens.focalLengthMm` remains the optical input.
 
@@ -161,7 +161,9 @@ digital/output crop
 final output raster
 ```
 
-Native sensor coordinates remain invariant under orientation. Active-capture FOV is calculated from the physical retained area, including off-center asymmetric angular bounds. Motion and camera-shake vectors retain their legacy native-coordinate fields and receive additive oriented-capture/output diagnostics.
+Native sensor coordinates remain invariant under orientation. Active-capture FOV is calculated from the physical retained area, including off-center asymmetric angular bounds.
+
+Legacy projected-motion/camera-shake X/Y values use the existing image-plane basis (+X right, +Y up). Capture raster coordinates use +X right, +Y down. The capture diagnostics therefore expose the explicit conversion to `nativeRasterDeltaPixels` before rotating to `orientedCaptureDeltaPixels` and scaling to `outputDeltaPixels`; legacy fields remain unchanged.
 
 ### Legacy crop
 
