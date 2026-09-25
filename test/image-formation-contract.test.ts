@@ -43,7 +43,7 @@ describe("image-formation contract", () => {
     const contract = getImageFormationContract();
 
     expect(contract.version).toBe(IMAGE_FORMATION_CONTRACT_VERSION);
-    expect(contract.version).toBe("0.1.0");
+    expect(contract.version).toBe("0.2.0");
     expect(contract.domains).toEqual([
       "scene-ray-geometry",
       "lens-pupil-throughput",
@@ -185,6 +185,9 @@ describe("image-formation contract", () => {
     const contract = getImageFormationContract();
     const byStage = new Map(contract.stages.map((stage) => [stage.id, stage]));
 
+    expect(byStage.get("lens-field-pupil-evaluation")?.status).toBe(
+      "partial-foundation"
+    );
     expect(byStage.get("sensor-optical-stack")?.status).toBe(
       "reserved-contract"
     );
