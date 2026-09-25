@@ -145,6 +145,18 @@ As of POC simulation API 0.20:
 
 Any further foundation composition still requires an explicit `POC_SIMULATION_API_VERSION` review/change, migration analysis, regression tests, and documentation. Do not silently reinterpret existing POC fields.
 
+## Lateral-CA boundary
+
+`calculateLateralChromaticAberrationMapping()` and its inverse are engine-owned channel field mappings.
+
+- Treat red/green/blue as abstract renderer channels, not wavelengths or CFA calibration.
+- Every channel shares one physical normalization radius/operating envelope but uses its own coefficients.
+- Every channel must satisfy the radial invertibility contract.
+- Renderers should inverse-map each destination channel to the engine-derived source coordinate; do not substitute an RGB blur or arbitrary post-output pixel offset.
+- Longitudinal CA, spectral PSFs, sensor color response, and named-lens calibration are outside this model.
+- Test Fixture RGB edges can verify renderer behavior but are not spectral calibration evidence.
+- Do not compose this standalone model into the POC/app without an explicit contract/version review.
+
 ## Radial-distortion boundary
 
 `calculateRadialDistortionMapping()` and `calculateInverseRadialDistortionMapping()` are the engine-owned generic radial field-mapping primitives.
