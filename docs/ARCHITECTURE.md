@@ -60,6 +60,28 @@ These states describe the declared prerequisite package only. They do **not** pr
 
 Geometric sample pitch is explicitly insufficient as a photosite photon-collection area. A radiometric profile must supply either an effective collection area or a geometric cell area plus explicit fill factor. Calibration artifacts are identified by stable IDs and SHA-256 checksums rather than being embedded implicitly in geometry metadata.
 
+## Composition boundary after 0.2.0
+
+The newer sensor/capture/architecture/radiometry modules are public root-engine foundations, but the composed `simulatePocCamera()` contract intentionally remains narrower for compatibility.
+
+Today the POC still composes:
+
+- physical sensor width/height plus raster dimensions;
+- one same-aspect centered crop factor;
+- one representative pixel-pitch path, with a fail-closed guard for materially non-square sampling;
+- the established projection, DOF/defocus, diffraction, motion, exposure, aperture-shape, and camera-shake models.
+
+It does **not** yet consume:
+
+- `CaptureOrientation` or native↔oriented coordinate transforms;
+- an arbitrary `activeCaptureRect`;
+- off-center active-capture optical bounds;
+- `calculateEquivalentFocalLength35Mm()` as an input to physics;
+- `SensorArchitectureProfile`;
+- `RadiometryReadinessProfile` or calibrated photon/noise output.
+
+That separation is deliberate. New foundation APIs should first remain independently testable; composing them into the POC requires an explicit POC contract/version change and migration review rather than implicit reinterpretation of existing fields.
+
 ## Repository-local Node POC transport
 
 The repository contains a minimal Node-only HTTP transport under `src/api` for contributor integration testing.

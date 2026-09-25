@@ -769,6 +769,8 @@ The root engine and composed POC are versioned independently. `ENGINE_API_VERSIO
 
 The current composed POC reports X/Y geometric sample pitch but still uses one backwards-compatible representative horizontal pitch internally for blur/sampling calculations. It therefore rejects sensor geometry whose X/Y pitch differs by more than 1%. Axis-aware lower-level geometry remains available for more general sensor layouts.
 
+The post-0.2 capture/sensor foundations are not silently injected into the POC. `simulatePocCamera()` does not currently accept physical capture orientation, arbitrary active-capture rectangles, sensor-architecture metadata, or radiometry-readiness profiles. Use those standalone APIs directly when needed; integrating them into the composed request/response contract is a separate future versioned change.
+
 
 ```ts
 import { simulatePocCamera } from "@photivra/engine";

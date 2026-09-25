@@ -16,6 +16,9 @@ The open engine should feel like one coherent library.
 - Public calculation functions and meaningful public contracts require concise JSDoc covering purpose, units, assumptions, and return meaning.
 - Do not expose renderer, framework, or UI-specific types through calculation APIs.
 - Public configuration interfaces that are expected to cross JSON/untrusted boundaries should have corresponding runtime parsers; TypeScript types alone are not a validation boundary.
+- Runtime parsers must reject unknown enum/string values rather than falling through to a default interpretation.
+- Prefer semantic role types over reusing a narrower type in the wrong stage. For example, use `RasterDimensions` for generic active/output rasters and reserve `NativeImageRaster` for the native sampling grid.
+- When a physical quantity is axis-dependent, preserve the axes explicitly instead of collapsing to a scalar unless the model documents and validates that simplification.
 - Preserve backward compatibility after 1.0 unless a documented major version changes the contract.
 
 ## Preferred shape
@@ -36,6 +39,18 @@ calculateDepthOfField({
 ```
 
 Avoid one-off positional signatures and inconsistent abbreviations.
+
+## Coordinate and staged-geometry contracts
+
+Coordinate systems and image-formation stages are part of the API contract, not implementation details.
+
+- Native raster coordinates use a top-left origin with +X right and +Y down.
+- Raster rectangles use integer half-open extents.
+- Physical camera rotation does not redefine native sensor coordinates; transform points, vectors, and rectangles explicitly.
+- Physical active capture and later digital/output crop are distinct concepts and should have distinct fields/types.
+- Off-center physical capture must preserve position relative to the optical axis rather than being silently recentered.
+- Output resizing/cropping must not imply geometric stretching without an explicit transform or pixel-aspect contract.
+- Conventional 35 mm-equivalent focal length is derived from active physical capture geometry; it must not replace physical focal length or silently include later digital crop.
 
 ## Result metadata
 
@@ -60,6 +75,13 @@ Do **not** automatically sum, average, add in quadrature, or otherwise collapse 
 
 ## Versioning
 
-`ENGINE_API_VERSION` describes the composed engine API contract and is independent of the npm/package version.
+Photivra has multiple independent version surfaces:
 
-Before 1.0, public APIs may evolve with documented changes. After 1.0, breaking public-contract changes require an appropriate major-version transition.
+- npm/package version: distribution/release version;
+- `ENGINE_API_VERSION`: root browser-safe engine/public-contract version;
+- `POC_SIMULATION_API_VERSION`: composed `simulatePocCamera()` request/response contract;
+- schema-specific versions such as sensor-architecture or radiometry-readiness schemas.
+
+Do not reuse one version as a proxy for another. A change to a parser/schema does not necessarily require changing the POC contract, and a POC response change does not necessarily mean the npm package has been released.
+
+Before 1.0, public APIs may evolve with documented changes. Breaking or semantically meaningful contract changes must update the relevant version surface, tests, changelog, and migration/compatibility documentation. After 1.0, breaking public-contract changes require an appropriate major-version transition.

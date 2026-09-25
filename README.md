@@ -37,9 +37,11 @@ See the [Usage Guide](docs/USAGE.md) for the complete public API.
 ## Documentation
 
 - [Usage Guide](docs/USAGE.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Contributor Guide](CONTRIBUTING.md)
+- [Agent Instructions](AGENTS.md)
 - [Changelog](CHANGELOG.md)
 - [Public API Style](docs/API_STYLE.md)
-- [Architecture](docs/ARCHITECTURE.md)
 - [Physics Foundation](docs/PHYSICS_FOUNDATION.md)
 - [Motion and Signal Foundation](docs/MOTION_AND_SIGNAL.md)
 - [Camera Shake and Stabilization](docs/STABILIZATION.md)
@@ -87,6 +89,27 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [the composed `simulatePocCamera()` proof-of-concept calculation](docs/USAGE.md#composed-poc-simulation).
 
 The package has no runtime npm dependencies.
+
+## Post-0.2 integration status
+
+The post-0.2 sensor/capture work is intentionally **additive**.
+
+The root engine now exposes standalone APIs for:
+
+- physical sensor imaging area and native raster metrics;
+- independent X/Y geometric sampling pitch;
+- active-capture rectangles and physical camera orientation;
+- native↔oriented point/vector/rectangle transforms;
+- off-center/asymmetric active-capture FOV;
+- diagonal-based 35 mm-equivalent focal length;
+- evidence-backed sensor architecture metadata;
+- radiometry prerequisite/readiness assessment.
+
+These contracts are **not all composed into `simulatePocCamera()` yet**. The current POC remains a compatibility composition around the older sensor width/height + raster + same-aspect crop-factor request. It does not currently accept capture orientation, an active-capture rectangle, sensor-architecture metadata, or a radiometry-readiness profile.
+
+The POC exposes X/Y sampling diagnostics but still uses one representative horizontal pitch internally for several pixel-domain calculations; it therefore rejects geometry whose X/Y pitch differs by more than 1% rather than silently producing directional error.
+
+Likewise, radiometry readiness does not enable photon/noise output in the POC. Integration of these foundations is separate future work and should happen explicitly rather than by silently changing existing request semantics.
 
 ## Sample use case
 
