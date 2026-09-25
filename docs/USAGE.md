@@ -773,7 +773,7 @@ POC API 0.19 composes the capture-geometry foundation additively. Existing reque
 
 Capture mode deliberately fails closed where old and new semantics would be ambiguous: legacy `crop.factor` must remain `1`, `subjectCrop` is not yet combined with staged output geometry, and equivalent-viewing CoC input is not yet combined with retained-area/output-viewing semantics. Use explicit `circleOfConfusionMm` in capture mode.
 
-The optional response `capture` block exposes resolved geometry, active-capture FOV, active-capture diagonal-based 35 mm-equivalent focal length, and oriented/output motion diagnostics. Physical focal length remains authoritative. Sensor-architecture metadata and radiometry-readiness profiles are still standalone.
+The optional response `capture` block exposes resolved geometry, active-capture FOV, active-capture diagonal-based 35 mm-equivalent focal length, and explicit native-raster/oriented/output motion diagnostics. Legacy motion Y is image-plane +Y-up; capture raster Y is +Y-down, so the conversion is reported rather than hidden. Physical focal length remains authoritative. Sensor-architecture metadata and radiometry-readiness profiles are still standalone.
 
 
 ```ts
