@@ -560,6 +560,47 @@ These relations do not model scene radiance, lens T-stop/transmission, vignettin
 
 See [Motion and Signal Foundation](MOTION_AND_SIGNAL.md#exposure-relations).
 
+## Spatial camera-rotation mapping
+
+Use `calculateCameraRotationImageMapping()` when you need the image-plane location of a stationary world ray after **pure camera rotation** at an arbitrary physical time from exposure start.
+
+```ts
+import { calculateCameraRotationImageMapping } from "@photivra/engine";
+
+const mapped = calculateCameraRotationImageMapping({
+  focalLengthMm: 50,
+  imagePointMm: { x: 18, y: 12 },
+  timeSecondsFromExposureStart: 1 / 60,
+  angularVelocityRadPerSec: {
+    pitch: 0.01,
+    yaw: 0.02,
+    roll: 0.005
+  },
+  samplingPitchMicrometers: {
+    x: 6,
+    y: 6
+  }
+});
+
+console.log(mapped.value.mappedImagePointMm);
+console.log(mapped.value.deltaMm);
+console.log(mapped.value.deltaImagePlaneSamples);
+```
+
+Coordinate/sign convention:
+
+- camera axes at exposure start are +X right, +Y up, +Z forward;
+- positive pitch/yaw/roll follow the right-hand rule about +X/+Y/+Z;
+- the returned image-plane basis is +X right, +Y up;
+- a stationary world ray is transformed by the **inverse** camera rotation, so positive physical camera rotation generally moves scene imagery in the opposite screen direction;
+- optional `deltaImagePlaneSamples` retains image-plane +Y-up semantics and is **not** a native-raster (+Y-down) vector.
+
+The angular-velocity vector is assumed constant and is integrated as one axis-angle rotation. This avoids arbitrary Euler ordering for simultaneous pitch/yaw/roll.
+
+The function is intentionally rotation-only. Camera translation is excluded because translational optical flow depends on scene depth/parallax.
+
+It is also separate from stabilization. `estimateCameraShakeBlur()` remains the older educational stabilization-equivalent approximation and keeps its existing global-vector semantics for compatibility.
+
 ## Camera shake and stabilization-equivalent approximation
 
 Use `estimateCameraShakeBlur()` with a controlled yaw/pitch angular-velocity profile:
@@ -921,7 +962,7 @@ console.log(portraitCrop.capture?.focalLength);
 console.log(portraitCrop.capture?.motion.outputDeltaPixels);
 ```
 
-The legacy focus request must supply exactly one circle-of-confusion criterion: either `circleOfConfusionMm` or `equivalentViewingCircleOfConfusion`. Capture mode currently requires explicit `circleOfConfusionMm` until equivalent-viewing semantics for retained capture/output area are defined.
+The focus request must supply exactly one circle-of-confusion criterion: either `circleOfConfusionMm` or `equivalentViewingCircleOfConfusion`. In staged capture mode, the equivalent-viewing approximation uses the final retained physical image region; an explicit `circleOfConfusionMm` remains unchanged by crop/output geometry.
 
 Additional named defocus, sampling, and motion samples can be supplied when a renderer or analysis client needs per-object outputs.
 

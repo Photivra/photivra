@@ -145,6 +145,19 @@ As of POC simulation API 0.20:
 
 Any further foundation composition still requires an explicit `POC_SIMULATION_API_VERSION` review/change, migration analysis, regression tests, and documentation. Do not silently reinterpret existing POC fields.
 
+## Spatial camera-rotation boundary
+
+`calculateCameraRotationImageMapping()` is the engine-owned low-level model for pure rotational field flow.
+
+- It uses physical camera rotation signs (right-hand pitch/yaw/roll about +X/+Y/+Z at exposure start).
+- It returns image-plane +Y-up displacement; do not treat optional sample displacement as native-raster +Y-down without an explicit transform.
+- It is time-parameterized in seconds from exposure start.
+- It integrates simultaneous angular velocity as one axis-angle vector rather than ordered Euler steps.
+- Do not add translation to this depth-independent primitive; translation/parallax requires scene depth.
+- Do not silently replace `estimateCameraShakeBlur()`; that older function keeps its legacy global-vector/stabilization approximation and sign semantics.
+- Do not add stabilization stops to the pure rotation primitive without a separate documented control/stabilization model.
+- Rolling readout must consume the same time-parameterized rotation semantics rather than defining another camera-motion equation.
+
 ## Runtime and package boundary
 
 - The root package must remain browser-safe and ESM-only.

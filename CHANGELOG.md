@@ -8,14 +8,16 @@ Notable public changes to `@photivra/engine` are documented here.
 
 - `getImageFormationContract()` and `IMAGE_FORMATION_CONTRACT_VERSION` defining public scientific ownership domains, coordinate spaces, hard stage dependencies, cross-stage couplings, temporal semantics, renderer warp/alpha/occlusion rules, and reserved sensor/reconstruction ordering.
 - Explicit effect placement for focus breathing, distortion, lateral chromatic aberration, illumination/mechanical vignetting, non-circular diffraction, field-dependent PSF effects, time-parameterized camera rotation, rolling readout, CFA/photosite sampling, sensor statistics, and reconstruction.
+- `calculateCameraRotationImageMapping()` for field-position-dependent, time-parameterized pure camera rotation using exact axis-angle integration of constant pitch/yaw/roll angular velocity.
 
 ### Changed
 
-- Engine API contract advances to `0.26.0`. The composed POC remains `0.20.0`; no `simulatePocCamera()` request/response semantics change in this slice.
+- Engine API contract advances to `0.27.0`. The composed POC remains `0.20.0`; neither the image-formation contract nor the spatial camera-rotation primitive changes `simulatePocCamera()` request/response semantics.
 
 ### Documentation
 
 - Added the image-formation contract guide and synchronized architecture, physics, motion, API-style, and agent guidance around partial-order/coupled-stage semantics and reserved sensor stages.
+- Documented the physical camera-rotation sign/axis conventions, field-dependent mapping, and compatibility boundary with the legacy stabilization-equivalent approximation.
 
 ## 0.3.0 - 2026-09-25
 

@@ -70,7 +70,8 @@ The root package exports deterministic or explicitly labeled approximate models 
 
 - [EV100, relative optical exposure, relative rendered exposure, and equivalent ISO compensation](docs/USAGE.md#exposure-and-iso-relations);
 - [constant-velocity projected point motion](docs/USAGE.md#projected-subject-motion);
-- [a controlled yaw/pitch camera-shake and stabilization-equivalent approximation](docs/USAGE.md#camera-shake-and-stabilization-equivalent-approximation).
+- [time-parameterized spatial camera-rotation mapping](docs/USAGE.md#spatial-camera-rotation-mapping) for yaw/pitch/roll;
+- [the existing controlled yaw/pitch camera-shake and stabilization-equivalent approximation](docs/USAGE.md#camera-shake-and-stabilization-equivalent-approximation).
 
 ### Sensor and output
 
@@ -171,7 +172,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Package version: `0.3.0`
-- Engine API contract: `0.26.0`
+- Engine API contract: `0.27.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
@@ -191,7 +192,7 @@ Photivra deliberately avoids claiming more than the current models support.
 
 - Focus-aware projection is ideal paraxial thin-lens geometry, not a real-lens focus-breathing or macro calibration model.
 - Projected subject motion follows a representative point under constant linear velocity. It does not yet model scale blur of an extended object moving substantially along the optical axis.
-- Camera shake is represented by one global yaw/pitch image-plane vector. Spatially varying rotational optical flow, roll, translation, and real IBIS/OIS behavior are not yet modeled.
+- The legacy stabilization-equivalent camera-shake API remains one global yaw/pitch image-plane vector. A separate low-level rotation-only mapping now models field-position-dependent yaw/pitch/roll image motion; camera translation/parallax, real IBIS/OIS behavior, and composed rolling-readout integration remain unmodeled.
 - The Airy diagnostic assumes an ideal circular pupil. Polygon aperture geometry does not produce a polygon diffraction PSF.
 - Signal/noise primitives require caller-supplied photon/electron quantities. The radiometry-readiness API can assess declared prerequisites, but it does not derive photons or enable photon/noise output in the composed POC.
 - The composed POC still uses one representative pixel-pitch path internally and therefore rejects sensor geometry whose X/Y sample pitch differs by more than 1%; lower-level geometry APIs already preserve independent X/Y pitch.
