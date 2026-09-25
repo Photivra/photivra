@@ -207,11 +207,18 @@ describe("green-reference lateral chromatic aberration mapping", () => {
       k2: 0.008,
       k3: 0.002
     });
-    expect(result.value.channels.blue.combinedCoefficients).toEqual({
-      k1: -0.065,
-      k2: 0.013,
-      k3: 0.001
-    });
+    expect(result.value.channels.blue.combinedCoefficients.k1).toBeCloseTo(
+      -0.065,
+      12
+    );
+    expect(result.value.channels.blue.combinedCoefficients.k2).toBeCloseTo(
+      0.013,
+      12
+    );
+    expect(result.value.channels.blue.combinedCoefficients.k3).toBeCloseTo(
+      0.001,
+      12
+    );
   });
 
   it("round-trips each representative channel through the shared composite inverse API", () => {
@@ -377,6 +384,6 @@ describe("green-reference lateral chromatic aberration mapping", () => {
     expect(assumptions).toContain("representative rendering channels");
     expect(assumptions).toContain("not calibrated wavelengths");
     expect(assumptions).toContain("does not blur");
-    expect(assumptions).toContain("Longitudinal");
+    expect(assumptions).toContain("longitudinal chromatic aberration");
   });
 });
