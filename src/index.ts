@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.22.0" as const;
+export const ENGINE_API_VERSION = "0.23.0" as const;
 
 export {
   approximationResult,
@@ -202,6 +202,24 @@ export {
   type CalculateSignalToNoiseInput,
   type SignalToNoise
 } from "./sensor/signal-noise.js";
+
+export {
+  assessRadiometryReadiness,
+  parseRadiometryReadinessProfile,
+  type CalibrationArtifactReference,
+  type ExposureIntegrationRequirement,
+  type OpticalTransmissionRequirement,
+  type PhotositeCollectionAreaRequirement,
+  type PupilVignettingRequirement,
+  type RadiometryReadinessAssessment,
+  type RadiometryReadinessProfile,
+  type RadiometryRequirement,
+  type RadiometryRequirementId,
+  type RadiometryScientificStatus,
+  type RadiometryUncertaintyDeclaration,
+  type SceneSpectralRadianceRequirement,
+  type SensorResponseRequirement
+} from "./sensor/radiometry-readiness.js";
 
 export {
   POC_SIMULATION_API_VERSION,
