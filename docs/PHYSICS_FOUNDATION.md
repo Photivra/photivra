@@ -100,7 +100,7 @@ The geometric depth-of-field model uses the conventional hyperfocal/near/far equ
 
 The circle-of-confusion criterion is a viewing/acceptability input, not a physical sensor threshold. The optional equivalent-viewing helper scales a caller-supplied reference criterion by sensor-diagonal ratio and is explicitly labeled an approximation.
 
-In composed POC capture-geometry mode, that equivalent-viewing helper is temporarily rejected. Once active capture and final output can differ, the retained-area/final-viewing basis must be declared explicitly rather than silently continuing to scale from the full physical sensor. Capture mode therefore requires an explicit `circleOfConfusionMm` until that convention is versioned.
+In composed POC capture mode, the equivalent-viewing helper uses the final retained physical image region that will be enlarged to the assumed final viewing size. Active capture, digital output crop, and centered subject framing can therefore change the viewing criterion; output pixel resolution alone cannot. This changes only the viewing/acceptability convention, not the physical optical blur. An explicit caller-supplied `circleOfConfusionMm` is never rescaled.
 
 The model is not a macro calibration model and does not include diffraction, pupil magnification, aberrations, focus breathing, or lens-specific principal-plane behavior in its DOF criterion.
 
