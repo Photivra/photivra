@@ -1,0 +1,395 @@
+// SPDX-License-Identifier: Apache-2.0
+
+import {
+  approximationResult,
+  type CalculationResult
+} from "../core/calculation-result.js";
+import {
+  InvalidScientificInputError,
+  requirePositiveFinite
+} from "../core/validation.js";
+
+export interface RadialDistortionCoefficients {
+  /** Dimensionless r² coefficient. */
+  k1: number;
+  /** Dimensionless r⁴ coefficient. */
+  k2: number;
+  /** Dimensionless r⁶ coefficient. */
+  k3: number;
+}
+
+export interface RadialDistortionProfile {
+  /**
+   * Physical image-plane radius used to normalize field position, in mm.
+   * Coefficients are meaningful only with this declared normalization.
+   */
+  normalizationRadiusMm: number;
+  /**
+   * Maximum undistorted normalized radius over which this profile is declared
+   * valid and must remain one-to-one/invertible.
+   */
+  maximumNormalizedRadius: number;
+  coefficients: RadialDistortionCoefficients;
+}
+
+export interface LensFieldPointMm {
+  /** Image-plane X coordinate relative to the optical axis, in mm. */
+  x: number;
+  /** Image-plane Y coordinate relative to the optical axis, in mm. */
+  y: number;
+}
+
+export interface CalculateRadialDistortionMappingInput {
+  /** Ideal/undistorted image-plane point. */
+  imagePointMm: LensFieldPointMm;
+  profile: RadialDistortionProfile;
+}
+
+export interface CalculateInverseRadialDistortionMappingInput {
+  /** Distorted image-plane point to inverse-map back to ideal coordinates. */
+  distortedImagePointMm: LensFieldPointMm;
+  profile: RadialDistortionProfile;
+}
+
+export interface RadialDistortionMapping {
+  direction: "undistorted-to-distorted";
+  sourceImagePointMm: LensFieldPointMm;
+  mappedImagePointMm: LensFieldPointMm;
+  sourceNormalizedRadius: number;
+  mappedNormalizedRadius: number;
+  radialScale: number;
+  deltaMm: {
+    x: number;
+    y: number;
+    distance: number;
+  };
+  profileMinimumRadialDerivative: number;
+}
+
+export interface InverseRadialDistortionMapping {
+  direction: "distorted-to-undistorted";
+  distortedImagePointMm: LensFieldPointMm;
+  sourceImagePointMm: LensFieldPointMm;
+  distortedNormalizedRadius: number;
+  sourceNormalizedRadius: number;
+  radialScaleAtSource: number;
+  deltaMm: {
+    x: number;
+    y: number;
+    distance: number;
+  };
+  profileMinimumRadialDerivative: number;
+}
+
+interface ValidatedRadialProfile {
+  normalizationRadiusMm: number;
+  maximumNormalizedRadius: number;
+  coefficients: RadialDistortionCoefficients;
+  minimumRadialDerivative: number;
+  maximumMappedNormalizedRadius: number;
+}
+
+const INVERSE_BISECTION_ITERATIONS = 80;
+
+function requireFinite(name: string, value: number): void {
+  if (!Number.isFinite(value)) {
+    throw new InvalidScientificInputError(`${name} must be finite.`);
+  }
+}
+
+function radialScale(
+  normalizedRadius: number,
+  coefficients: RadialDistortionCoefficients
+): number {
+  const r2 = normalizedRadius * normalizedRadius;
+  const r4 = r2 * r2;
+  const r6 = r4 * r2;
+  return (
+    1 +
+    coefficients.k1 * r2 +
+    coefficients.k2 * r4 +
+    coefficients.k3 * r6
+  );
+}
+
+function mappedNormalizedRadius(
+  normalizedRadius: number,
+  coefficients: RadialDistortionCoefficients
+): number {
+  return normalizedRadius * radialScale(normalizedRadius, coefficients);
+}
+
+function radialDerivativeFromSquaredRadius(
+  squaredRadius: number,
+  coefficients: RadialDistortionCoefficients
+): number {
+  return (
+    1 +
+    3 * coefficients.k1 * squaredRadius +
+    5 * coefficients.k2 * squaredRadius * squaredRadius +
+    7 *
+      coefficients.k3 *
+      squaredRadius *
+      squaredRadius *
+      squaredRadius
+  );
+}
+
+function derivativeCriticalSquaredRadii(
+  coefficients: RadialDistortionCoefficients
+): number[] {
+  // d/dr² of the radial derivative:
+  // 3 k1 + 10 k2 s + 21 k3 s² = 0, where s = r².
+  const a = 21 * coefficients.k3;
+  const b = 10 * coefficients.k2;
+  const c = 3 * coefficients.k1;
+
+  if (a === 0) {
+    return b === 0 ? [] : [-c / b];
+  }
+
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant < 0) {
+    return [];
+  }
+
+  const root = Math.sqrt(discriminant);
+  return [(-b - root) / (2 * a), (-b + root) / (2 * a)];
+}
+
+function validateProfile(
+  profile: RadialDistortionProfile
+): ValidatedRadialProfile {
+  requirePositiveFinite(
+    "profile.normalizationRadiusMm",
+    profile.normalizationRadiusMm
+  );
+  requirePositiveFinite(
+    "profile.maximumNormalizedRadius",
+    profile.maximumNormalizedRadius
+  );
+  requireFinite("profile.coefficients.k1", profile.coefficients.k1);
+  requireFinite("profile.coefficients.k2", profile.coefficients.k2);
+  requireFinite("profile.coefficients.k3", profile.coefficients.k3);
+
+  const maximumSquaredRadius =
+    profile.maximumNormalizedRadius * profile.maximumNormalizedRadius;
+  const candidates = [
+    0,
+    maximumSquaredRadius,
+    ...derivativeCriticalSquaredRadii(profile.coefficients).filter(
+      (value) => value > 0 && value < maximumSquaredRadius
+    )
+  ];
+  const minimumRadialDerivative = Math.min(
+    ...candidates.map((squaredRadius) =>
+      radialDerivativeFromSquaredRadius(
+        squaredRadius,
+        profile.coefficients
+      )
+    )
+  );
+
+  if (
+    !Number.isFinite(minimumRadialDerivative) ||
+    minimumRadialDerivative <= 0
+  ) {
+    throw new InvalidScientificInputError(
+      "Radial distortion profile must remain strictly monotonic over maximumNormalizedRadius so inverse mapping is single-valued."
+    );
+  }
+
+  const maximumMappedRadius = mappedNormalizedRadius(
+    profile.maximumNormalizedRadius,
+    profile.coefficients
+  );
+  if (!Number.isFinite(maximumMappedRadius) || maximumMappedRadius <= 0) {
+    throw new InvalidScientificInputError(
+      "Radial distortion profile produces an invalid mapped operating radius."
+    );
+  }
+
+  return {
+    normalizationRadiusMm: profile.normalizationRadiusMm,
+    maximumNormalizedRadius: profile.maximumNormalizedRadius,
+    coefficients: { ...profile.coefficients },
+    minimumRadialDerivative,
+    maximumMappedNormalizedRadius: maximumMappedRadius
+  };
+}
+
+function requirePoint(name: string, point: LensFieldPointMm): void {
+  requireFinite(`${name}.x`, point.x);
+  requireFinite(`${name}.y`, point.y);
+}
+
+function mappingAssumptions(): readonly string[] {
+  return [
+    "Generic rotationally symmetric radial polynomial field mapping",
+    "Distortion is centered on the optical axis; decentering and tangential distortion are not modeled",
+    "Normalized radius is image-plane radius divided by the caller-declared normalizationRadiusMm",
+    "Radial scale is 1 + k1 r^2 + k2 r^4 + k3 r^6",
+    "The declared operating radius is required to remain strictly monotonic so inverse mapping is single-valued",
+    "Coefficients are generic caller inputs and do not represent a named lens unless separately calibrated with defensible provenance"
+  ];
+}
+
+/**
+ * Applies a generic radial lens-distortion field mapping to one ideal
+ * image-plane point.
+ *
+ * The mapping is rotationally symmetric about the optical axis:
+ *
+ *   p_distorted = p_ideal * (1 + k1 r² + k2 r⁴ + k3 r⁶)
+ *
+ * where r is normalized by the caller-declared physical reference radius.
+ *
+ * The profile is accepted only when the radial mapping is strictly monotonic
+ * over its declared operating radius, which makes inverse destination-to-source
+ * sampling well-defined.
+ */
+export function calculateRadialDistortionMapping(
+  input: CalculateRadialDistortionMappingInput
+): CalculationResult<RadialDistortionMapping> {
+  requirePoint("imagePointMm", input.imagePointMm);
+  const profile = validateProfile(input.profile);
+
+  const sourceRadiusMm = Math.hypot(
+    input.imagePointMm.x,
+    input.imagePointMm.y
+  );
+  const sourceNormalizedRadius =
+    sourceRadiusMm / profile.normalizationRadiusMm;
+
+  if (sourceNormalizedRadius > profile.maximumNormalizedRadius) {
+    throw new InvalidScientificInputError(
+      "imagePointMm lies outside the radial distortion profile maximumNormalizedRadius."
+    );
+  }
+
+  const scale = radialScale(
+    sourceNormalizedRadius,
+    profile.coefficients
+  );
+  const mappedImagePointMm = {
+    x: input.imagePointMm.x * scale,
+    y: input.imagePointMm.y * scale
+  };
+  const mappedRadius = sourceNormalizedRadius * scale;
+  const deltaX = mappedImagePointMm.x - input.imagePointMm.x;
+  const deltaY = mappedImagePointMm.y - input.imagePointMm.y;
+
+  return approximationResult(
+    {
+      direction: "undistorted-to-distorted",
+      sourceImagePointMm: { ...input.imagePointMm },
+      mappedImagePointMm,
+      sourceNormalizedRadius,
+      mappedNormalizedRadius: mappedRadius,
+      radialScale: scale,
+      deltaMm: {
+        x: deltaX,
+        y: deltaY,
+        distance: Math.hypot(deltaX, deltaY)
+      },
+      profileMinimumRadialDerivative:
+        profile.minimumRadialDerivative
+    },
+    "generic-radial-lens-distortion",
+    "1.0.0",
+    mappingAssumptions()
+  );
+}
+
+/**
+ * Inverse-maps one distorted image-plane point to its ideal/undistorted source
+ * coordinate for destination-to-source renderer sampling.
+ *
+ * The same profile monotonicity requirement used by the forward mapping makes
+ * the inverse unique over the declared operating radius. A deterministic fixed
+ * bisection count is used rather than an unconstrained iterative solver.
+ */
+export function calculateInverseRadialDistortionMapping(
+  input: CalculateInverseRadialDistortionMappingInput
+): CalculationResult<InverseRadialDistortionMapping> {
+  requirePoint("distortedImagePointMm", input.distortedImagePointMm);
+  const profile = validateProfile(input.profile);
+
+  const distortedRadiusMm = Math.hypot(
+    input.distortedImagePointMm.x,
+    input.distortedImagePointMm.y
+  );
+  const distortedNormalizedRadius =
+    distortedRadiusMm / profile.normalizationRadiusMm;
+
+  if (
+    distortedNormalizedRadius >
+    profile.maximumMappedNormalizedRadius
+  ) {
+    throw new InvalidScientificInputError(
+      "distortedImagePointMm lies outside the mapped radial distortion profile operating radius."
+    );
+  }
+
+  let sourceNormalizedRadius = 0;
+  if (distortedNormalizedRadius > 0) {
+    let lower = 0;
+    let upper = profile.maximumNormalizedRadius;
+
+    for (let iteration = 0; iteration < INVERSE_BISECTION_ITERATIONS; iteration += 1) {
+      const midpoint = (lower + upper) / 2;
+      const mapped = mappedNormalizedRadius(
+        midpoint,
+        profile.coefficients
+      );
+      if (mapped < distortedNormalizedRadius) {
+        lower = midpoint;
+      } else {
+        upper = midpoint;
+      }
+    }
+    sourceNormalizedRadius = (lower + upper) / 2;
+  }
+
+  const scaleAtSource = radialScale(
+    sourceNormalizedRadius,
+    profile.coefficients
+  );
+  const sourceImagePointMm =
+    distortedNormalizedRadius === 0
+      ? { x: 0, y: 0 }
+      : {
+          x: input.distortedImagePointMm.x / scaleAtSource,
+          y: input.distortedImagePointMm.y / scaleAtSource
+        };
+  const deltaX =
+    sourceImagePointMm.x - input.distortedImagePointMm.x;
+  const deltaY =
+    sourceImagePointMm.y - input.distortedImagePointMm.y;
+
+  return approximationResult(
+    {
+      direction: "distorted-to-undistorted",
+      distortedImagePointMm: {
+        ...input.distortedImagePointMm
+      },
+      sourceImagePointMm,
+      distortedNormalizedRadius,
+      sourceNormalizedRadius,
+      radialScaleAtSource: scaleAtSource,
+      deltaMm: {
+        x: deltaX,
+        y: deltaY,
+        distance: Math.hypot(deltaX, deltaY)
+      },
+      profileMinimumRadialDerivative:
+        profile.minimumRadialDerivative
+    },
+    "generic-inverse-radial-lens-distortion",
+    "1.0.0",
+    [
+      ...mappingAssumptions(),
+      `Inverse radius is solved with ${INVERSE_BISECTION_ITERATIONS} deterministic bisection iterations`
+    ]
+  );
+}

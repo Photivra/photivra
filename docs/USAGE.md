@@ -156,6 +156,56 @@ The physical focal length remains authoritative. The effective projection distan
 
 This generic model is returned as an `approximation`. A future calibrated lens profile would need defensible provenance, reuse rights, and uncertainty/limitation metadata.
 
+## Radial lens-distortion mapping
+
+Use `calculateRadialDistortionMapping()` for a generic rotationally symmetric ideal-to-distorted image-plane mapping and `calculateInverseRadialDistortionMapping()` for the destination-to-source mapping a renderer needs for inverse sampling.
+
+```ts
+import {
+  calculateInverseRadialDistortionMapping,
+  calculateRadialDistortionMapping
+} from "@photivra/engine";
+
+const profile = {
+  normalizationRadiusMm: 21.63,
+  maximumNormalizedRadius: 1,
+  coefficients: {
+    k1: -0.08,
+    k2: 0.025,
+    k3: -0.004
+  }
+};
+
+const forward = calculateRadialDistortionMapping({
+  imagePointMm: { x: 14, y: 8 },
+  profile
+});
+
+const inverse = calculateInverseRadialDistortionMapping({
+  distortedImagePointMm: forward.value.mappedImagePointMm,
+  profile
+});
+
+console.log(forward.value.radialScale);
+console.log(inverse.value.sourceImagePointMm);
+```
+
+The model is:
+
+```text
+r = image-plane radius / normalizationRadiusMm
+scale = 1 + k1 r² + k2 r⁴ + k3 r⁶
+p_distorted = p_ideal × scale
+```
+
+The coefficients are dimensionless **only together with the declared physical normalization radius**. Reusing coefficients with a different normalization changes the model.
+
+`maximumNormalizedRadius` is the caller-declared valid operating envelope. Photivra analytically checks that radial distance remains strictly monotonic over that interval; profiles that fold over are rejected so inverse mapping is unique.
+
+This first field-mapping slice is radial-only and centered on the optical axis. It does not model tangential/decentered distortion, anamorphic mapping, wavelength dependence, or a calibrated named lens.
+
+The engine returns an `approximation` because the polynomial is a generic caller-parameterized lens model. Test Fixture grid/fiducials can provide renderer regression evidence, but they do not calibrate real-lens coefficients.
+
 ## Thin-lens image distance and magnification
 
 Use `calculateThinLensImageDistance()` to calculate ideal Gaussian thin-lens image distance for an object/focus plane.

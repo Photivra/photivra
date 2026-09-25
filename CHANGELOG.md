@@ -10,16 +10,18 @@ Notable public changes to `@photivra/engine` are documented here.
 - Explicit effect placement for focus breathing, distortion, lateral chromatic aberration, illumination/mechanical vignetting, non-circular diffraction, field-dependent PSF effects, time-parameterized camera rotation, rolling readout, CFA/photosite sampling, sensor statistics, and reconstruction.
 - `calculateCameraRotationImageMapping()` for field-position-dependent, time-parameterized pure camera rotation using exact axis-angle integration of constant pitch/yaw/roll angular velocity.
 - `calculateFocusBreathingProjection()` and `calculateFocusBreathingFieldOfView()` for an explicit caller-declared projection scale at the selected focus state, without mutating physical focal length or inventing a lens-specific breathing curve.
+- `calculateRadialDistortionMapping()` plus `calculateInverseRadialDistortionMapping()` for generic optical-axis-centered radial field mapping with explicit normalization radius, declared operating envelope, and fail-closed monotonicity/invertibility validation.
 
 ### Changed
 
-- Engine API contract advances to `0.28.0`. The image-formation contract advances to `0.2.0` because the lens-field/pupil stage now has a partial focus-breathing foundation. The composed POC remains `0.20.0`; these standalone additions do not change `simulatePocCamera()` request/response semantics.
+- Engine API contract advances to `0.29.0`. The image-formation contract remains `0.2.0`; radial distortion fills another standalone lens-field mapping capability without changing stage placement semantics. The composed POC remains `0.20.0`.
 
 ### Documentation
 
 - Added the image-formation contract guide and synchronized architecture, physics, motion, API-style, and agent guidance around partial-order/coupled-stage semantics and reserved sensor stages.
 - Documented the physical camera-rotation sign/axis conventions, field-dependent mapping, and compatibility boundary with the legacy stabilization-equivalent approximation.
 - Documented the declared-scale focus-breathing model, its zero-breathing compatibility case, and the prohibition on inferring real-lens behavior from focal/focus metadata.
+- Documented radial distortion normalization, forward/inverse mapping, operating-envelope monotonicity, and the boundary excluding tangential/decentered and named-lens behavior.
 
 ## 0.3.0 - 2026-09-25
 

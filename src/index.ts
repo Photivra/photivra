@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.28.0" as const;
+export const ENGINE_API_VERSION = "0.29.0" as const;
 
 export {
   approximationResult,
@@ -177,6 +177,18 @@ export {
   type FocusBreathingFieldOfView,
   type FocusBreathingProjection
 } from "./optics/focus-breathing.js";
+
+export {
+  calculateInverseRadialDistortionMapping,
+  calculateRadialDistortionMapping,
+  type CalculateInverseRadialDistortionMappingInput,
+  type CalculateRadialDistortionMappingInput,
+  type InverseRadialDistortionMapping,
+  type LensFieldPointMm,
+  type RadialDistortionCoefficients,
+  type RadialDistortionMapping,
+  type RadialDistortionProfile
+} from "./optics/radial-distortion.js";
 
 export type {
   CameraConfiguration,
