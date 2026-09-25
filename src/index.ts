@@ -195,13 +195,14 @@ export {
   calculateLateralChromaticAberrationMapping,
   type CalculateInverseLateralChromaticAberrationMappingInput,
   type CalculateLateralChromaticAberrationMappingInput,
-  type ChannelSeparationMm,
+  type ChannelSeparationVectorMm,
   type InverseLateralChromaticAberrationChannelMapping,
   type InverseLateralChromaticAberrationMapping,
   type LateralChromaticAberrationChannel,
   type LateralChromaticAberrationChannelMapping,
   type LateralChromaticAberrationMapping,
-  type LateralChromaticAberrationProfile
+  type LateralChromaticAberrationProfile,
+  type LateralChromaticAberrationSeparation
 } from "./optics/lateral-chromatic-aberration.js";
 
 export type {
