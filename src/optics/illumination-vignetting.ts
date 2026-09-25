@@ -211,12 +211,17 @@ export function calculateIlluminationVignetting(
     profile.coefficients
   );
 
+  const attenuationStops =
+    linearThroughputFactor === 1
+      ? 0
+      : -Math.log2(linearThroughputFactor);
+
   return approximationResult(
     {
       imagePointMm: { ...input.imagePointMm },
       normalizedRadius,
       linearThroughputFactor,
-      attenuationStops: -Math.log2(linearThroughputFactor),
+      attenuationStops,
       profileMinimumThroughputFactor: profile.minimumThroughputFactor,
       profileMaximumThroughputFactor: profile.maximumThroughputFactor
     },
