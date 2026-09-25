@@ -6,6 +6,7 @@ import {
   type CalculationResult
 } from "../core/calculation-result.js";
 import {
+  InvalidScientificInputError,
   requirePositiveFinite
 } from "../core/validation.js";
 import type { LensFieldPointMm } from "./radial-distortion.js";
@@ -226,10 +227,14 @@ export function calculatePsfFoundationComponents(
   );
 
   if (!Number.isFinite(input.fieldPointMm.x)) {
-    throw new Error("fieldPointMm.x must be finite.");
+    throw new InvalidScientificInputError(
+      "fieldPointMm.x must be finite."
+    );
   }
   if (!Number.isFinite(input.fieldPointMm.y)) {
-    throw new Error("fieldPointMm.y must be finite.");
+    throw new InvalidScientificInputError(
+      "fieldPointMm.y must be finite."
+    );
   }
 
   const defocus = calculateDefocusCircle({
