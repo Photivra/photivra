@@ -249,7 +249,7 @@ describe("PSF/pupil foundation", () => {
     expect(
       contract.contributions.some(
         (contribution) =>
-          contribution.id === ("illumination-vignetting" as never)
+          (contribution.id as string) === "illumination-vignetting"
       )
     ).toBe(false);
     expect(contract.notes.join(" ")).toContain(
