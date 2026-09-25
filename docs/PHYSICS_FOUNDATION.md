@@ -94,6 +94,23 @@ The focus-aware model improves internal consistency with thin-lens DOF/defocus c
 
 Projected subject motion is a representative-point displacement model with constant linear world velocity. It does not yet describe scale blur of an extended object whose magnification changes materially during the exposure.
 
+### Declared-scale focus breathing
+
+The root engine exposes a generic focus-breathing projection approximation.
+
+For one selected focus state:
+
+```text
+effective projection distance
+  = ideal thin-lens image distance × caller-declared breathing projection scale
+```
+
+Scale `1` exactly preserves the existing thin-lens projection.
+
+The model intentionally does not infer a focus-breathing curve. It represents focus-dependent framing/magnification only when the caller supplies the scale for that state. Physical focal length remains unchanged.
+
+This simplified scale does not model principal-plane movement, pupil magnification, distortion, aberrations, or a named commercial lens. Those require separate models and, for calibrated profiles, defensible provenance.
+
 ### Thin-lens focus and depth of field
 
 The geometric depth-of-field model uses the conventional hyperfocal/near/far equations with a caller-supplied acceptable circle of confusion.
