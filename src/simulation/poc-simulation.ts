@@ -776,6 +776,94 @@ export function simulatePocCamera(
           pixelPitchMicrometers: pixelPitch.value.micrometers
         }).value;
 
+  const captureSubjectFraming =
+    captureGeometry === undefined ||
+    request.capture === undefined ||
+    request.subjectCrop === undefined ||
+    subjectSampling === undefined
+      ? undefined
+      : (() => {
+          const orientedSubjectHeightPixels = isPortraitOrientation(
+            request.capture.orientation
+          )
+            ? (subjectSampling.widthPixels ?? 0)
+            : (subjectSampling.heightPixels ?? 0);
+          const outputSubjectHeightPixels =
+            orientedSubjectHeightPixels *
+            captureGeometry.output.orientedCaptureToOutputScale.y;
+          const framing = calculateSubjectFramingCrop({
+            pixelWidth: captureGeometry.output.raster.pixelWidth,
+            pixelHeight: captureGeometry.output.raster.pixelHeight,
+            subjectHeightPixels: outputSubjectHeightPixels,
+            targetSubjectHeightFraction:
+              request.subjectCrop.targetSubjectHeightFraction
+          }).value;
+          const retainedBounds = centeredPhysicalCropBounds(
+            captureGeometry.output.physicalBoundsFromOpticalAxisMm,
+            framing.cropFactor
+          );
+          const retainedImagingArea: SensorImagingArea = {
+            widthMm: retainedBounds.right - retainedBounds.left,
+            heightMm: retainedBounds.bottom - retainedBounds.top
+          };
+
+          return {
+            additionalCropFactor: framing.cropFactor,
+            raster: {
+              pixelWidth: framing.pixelWidth,
+              pixelHeight: framing.pixelHeight
+            },
+            megapixels: framing.megapixels,
+            subjectHeightFraction: framing.subjectHeightFraction,
+            subjectClipped: framing.subjectClipped,
+            additionalCropApplied: framing.cropped,
+            retainedImagingArea,
+            physicalBoundsFromOpticalAxisMm: retainedBounds,
+            effectiveFieldOfView: calculateFieldOfViewForPhysicalBounds(
+              retainedBounds,
+              request.lens.focalLengthMm,
+              request.focus.focusDistanceM
+            ),
+            basis: "centered-output-framing" as const
+          };
+        })();
+
+  const equivalentViewingTargetArea: SensorImagingArea =
+    captureGeometry === undefined
+      ? {
+          widthMm: request.sensor.widthMm,
+          heightMm: request.sensor.heightMm
+        }
+      : (captureSubjectFraming?.retainedImagingArea ??
+        captureGeometry.output.imagingArea);
+
+  const equivalentViewingCircleOfConfusion =
+    request.focus.equivalentViewingCircleOfConfusion === undefined
+      ? undefined
+      : estimateEquivalentViewingCircleOfConfusion({
+          sensorWidthMm: equivalentViewingTargetArea.widthMm,
+          sensorHeightMm: equivalentViewingTargetArea.heightMm,
+          ...request.focus.equivalentViewingCircleOfConfusion
+        });
+
+  const circleOfConfusionMm =
+    equivalentViewingCircleOfConfusion?.value.circleOfConfusionMm ??
+    request.focus.circleOfConfusionMm;
+
+  if (circleOfConfusionMm === undefined) {
+    throw new InvalidScientificInputError(
+      "A focus circle-of-confusion criterion is required."
+    );
+  }
+  requirePositiveFinite("focus.circleOfConfusionMm", circleOfConfusionMm);
+
+  const depthOfField = calculateDepthOfField({
+    focalLengthMm: request.lens.focalLengthMm,
+    aperture: request.lens.aperture,
+    focusDistanceM: request.focus.focusDistanceM,
+    circleOfConfusionMm
+  });
+
   const samplingSamples =
     request.samplingSamples === undefined
       ? undefined
@@ -827,7 +915,9 @@ export function simulatePocCamera(
         });
 
   const subjectCrop =
-    request.subjectCrop === undefined || subjectSampling === undefined
+    request.capture !== undefined ||
+    request.subjectCrop === undefined ||
+    subjectSampling === undefined
       ? undefined
       : calculateSubjectFramingCrop({
           pixelWidth: crop.value.pixelWidth,
