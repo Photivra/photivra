@@ -7,7 +7,7 @@
  * versions. It describes semantic ownership/order only; it does not imply that
  * every reserved stage is implemented.
  */
-export const IMAGE_FORMATION_CONTRACT_VERSION = "0.1.0" as const;
+export const IMAGE_FORMATION_CONTRACT_VERSION = "0.2.0" as const;
 
 export type ImageFormationDomainId =
   | "scene-ray-geometry"
@@ -191,7 +191,7 @@ const STAGES = [
   {
     id: "lens-field-pupil-evaluation",
     domain: "lens-pupil-throughput",
-    status: "reserved-contract",
+    status: "partial-foundation",
     coordinateSpaces: ["image-plane-metric", "native-sensor-physical"],
     requiredUpstreamStages: ["scene-ray-projection"],
     coupledStages: ["field-wavelength-psf"],
