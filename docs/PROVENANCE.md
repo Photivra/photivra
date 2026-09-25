@@ -96,6 +96,16 @@ Valid-range metadata describes where a model/calibration is considered applicabl
 
 When composing models, preserve uncertainty components separately unless a documented model provides a defensible combination rule. Do not imply statistical independence, add errors in quadrature, or publish a single aggregate confidence score without evidence.
 
+## Radiometry readiness evidence
+
+Radiometry readiness is a declaration/validation gate, not proof that a calibration is correct.
+
+A component labeled `calibrated` must identify its model/version, supporting evidence, and quantified uncertainty. If uncertainty cannot yet be quantified, the component may still be represented, but the overall assessment cannot become `calibrated-ready`.
+
+Data-bearing calibration artifacts are referenced by stable identifier plus SHA-256 checksum. Publicly viewable curves/tables without reuse rights must not be copied into those artifacts. Manufacturer-published factual specifications may support independently authored models, while copied calibration datasets require explicit reusable licensing or Photivra ownership.
+
+An `approximation` remains explicitly approximate even when all prerequisite categories are present. Readiness must never be used to upgrade approximation provenance into calibration provenance.
+
 ## Release gate
 
 Ambiguous licensing, unresolved material patent risk, uncertain provenance, unexplained copied material, fabricated uncertainty, undocumented uncertainty combination, or unsupported scientific claims block release until resolved.

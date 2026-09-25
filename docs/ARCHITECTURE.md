@@ -46,6 +46,20 @@ Equivalent focal length is also layered on top of physical capture geometry rath
 Sensor architecture is a separate descriptive layer. Illumination (FSI/BSI), integration/stacking, readout capabilities, and color-sampling family are independent evidence-backed facts. Their presence alone has no image-quality effect in the engine. Evidence origin is modeled independently from reuse rights, scalar facts may cite multiple evidence records, and multi-valued capabilities carry evidence per value. Omitted facts remain unknown rather than being inferred. Capture-mode semantics, readout timing, reconstruction, and calibrated radiometry consume these facts only through later explicit models.
 
 
+## Radiometry readiness boundary
+
+Radiometry prerequisites are represented separately from the composed POC and from low-level signal/noise primitives. `parseRadiometryReadinessProfile()` validates declared scene spectral radiance, optical transmission, pupil/vignetting behavior, photosite collection-area semantics, exposure integration, and sensor response together with evidence and uncertainty declarations.
+
+`assessRadiometryReadiness()` distinguishes:
+
+- `not-ready`: one or more required components are absent;
+- `approximate-only`: all required components exist, but one or more are approximate or lack quantified uncertainty;
+- `calibrated-ready`: every required component is declared calibrated and carries quantified uncertainty.
+
+These states describe the declared prerequisite package only. They do **not** prove that cited evidence is scientifically correct, do not derive photon counts, and never enable photon/noise output in `simulatePocCamera()` automatically.
+
+Geometric sample pitch is explicitly insufficient as a photosite photon-collection area. A radiometric profile must supply either an effective collection area or a geometric cell area plus explicit fill factor. Calibration artifacts are identified by stable IDs and SHA-256 checksums rather than being embedded implicitly in geometry metadata.
+
 ## Repository-local Node POC transport
 
 The repository contains a minimal Node-only HTTP transport under `src/api` for contributor integration testing.

@@ -77,6 +77,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [provenance-aware sensor architecture/capability metadata](docs/USAGE.md#sensor-architecture-metadata);
 - [capture orientation, active sensor area, and output geometry](docs/USAGE.md#capture-orientation-active-area-and-output-geometry);
 - [centered crop and subject-height framing crop](docs/USAGE.md#centered-crop-and-subject-framing-crop);
+- [radiometry prerequisite/readiness assessment](docs/USAGE.md#radiometry-readiness);
 - [mean photoelectron conversion and basic shot-noise/read-noise SNR primitives](docs/USAGE.md#photoelectron-and-snr-primitives).
 
 ### Data, validation, and composition
@@ -145,7 +146,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Package version: `0.2.0`
-- Engine API contract: `0.22.0`
+- Engine API contract: `0.23.0`
 - Composed POC simulation API contract: `0.18.0`
 - Stability: pre-1.0 / proof of concept
 
@@ -161,7 +162,7 @@ Photivra deliberately avoids claiming more than the current models support.
 - Projected subject motion follows a representative point under constant linear velocity. It does not yet model scale blur of an extended object moving substantially along the optical axis.
 - Camera shake is represented by one global yaw/pitch image-plane vector. Spatially varying rotational optical flow, roll, translation, and real IBIS/OIS behavior are not yet modeled.
 - The Airy diagnostic assumes an ideal circular pupil. Polygon aperture geometry does not produce a polygon diffraction PSF.
-- Signal/noise primitives require caller-supplied photon/electron quantities. The composed POC does not derive calibrated photon counts from scene imagery.
+- Signal/noise primitives require caller-supplied photon/electron quantities. The radiometry-readiness API can assess declared prerequisites, but it does not derive photons or enable photon/noise output in the composed POC.
 - The composed POC still uses one representative pixel-pitch path internally and therefore rejects sensor geometry whose X/Y sample pitch differs by more than 1%; lower-level geometry APIs already preserve independent X/Y pitch.
 - No named commercial camera or lens performance is claimed.
 
@@ -226,7 +227,7 @@ Yarn and pnpm may be used for development, but the repository's release/CI depen
 
 TypeScript types are not treated as validation for untrusted data.
 
-- Use `parseCameraConfiguration()`, `parseSceneDefinition()`, and `parseSensorArchitectureProfile()` for their respective external JSON/configuration boundaries.
+- Use `parseCameraConfiguration()`, `parseSceneDefinition()`, `parseSensorArchitectureProfile()`, and `parseRadiometryReadinessProfile()` for their respective external JSON/configuration boundaries.
 - The repository-local Node POC HTTP layer has its own structural request parser before invoking `simulatePocCamera()`.
 - Scientific range/domain validation remains in the calculation modules.
 - Public `CalculationResult<T>` envelopes reject non-finite numeric output.

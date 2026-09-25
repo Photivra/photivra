@@ -18,13 +18,15 @@ Notable public changes to `@photivra/engine` are documented here.
 - `RasterDimensions` as the generic active/output raster contract while `NativeImageRaster` remains the semantic native-raster alias.
 - Off-center active-capture optical-axis offsets/bounds, asymmetric FOV, and dual diagonal-corner angular spans.
 - Output-raster aspect-ratio validation that rejects implicit geometric stretching.
+- `parseRadiometryReadinessProfile()` and `assessRadiometryReadiness()` for explicit scene/optics/photosite/exposure/sensor-response prerequisite gating before any future photon simulation.
 
 ### Changed
 
-- Engine API contract advances to `0.22.0`.
+- Engine API contract advances to `0.23.0`.
 - Composed POC simulation API advances to `0.18.0`, exposes X/Y sample pitch diagnostics, and rejects sensor geometry whose X/Y geometric pitch differs by more than 1% until the composed POC is axis-aware.
 - Unreleased sensor-architecture schema advances to `0.2.0`: source origin and reuse rights are independent, scalar facts accept multiple evidence records, and each readout capability carries its own evidence.
 - `InvalidConfigurationError` now lives in the core dependency layer and remains re-exported from the existing public surface.
+- Radiometry readiness distinguishes `not-ready`, `approximate-only`, and `calibrated-ready`; assessment never enables composed photon output by itself.
 
 ## 0.2.0 - 2026-09-21
 
