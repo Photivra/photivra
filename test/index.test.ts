@@ -4,6 +4,6 @@ import { ENGINE_API_VERSION } from "../src/index.js";
 
 describe("engine foundation", () => {
   it("exposes an explicit API version", () => {
-    expect(ENGINE_API_VERSION).toBe("0.17.0");
+    expect(ENGINE_API_VERSION).toBe("0.18.0");
   });
 });
