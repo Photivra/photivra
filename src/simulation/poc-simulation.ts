@@ -636,25 +636,6 @@ export function simulatePocCamera(
     );
   }
 
-  const equivalentViewingCircleOfConfusion =
-    request.focus.equivalentViewingCircleOfConfusion === undefined
-      ? undefined
-      : estimateEquivalentViewingCircleOfConfusion({
-          sensorWidthMm: request.sensor.widthMm,
-          sensorHeightMm: request.sensor.heightMm,
-          ...request.focus.equivalentViewingCircleOfConfusion
-        });
-
-  const circleOfConfusionMm =
-    equivalentViewingCircleOfConfusion?.value.circleOfConfusionMm ??
-    request.focus.circleOfConfusionMm;
-
-  if (circleOfConfusionMm === undefined) {
-    throw new InvalidScientificInputError(
-      "A focus circle-of-confusion criterion is required."
-    );
-  }
-  requirePositiveFinite("focus.circleOfConfusionMm", circleOfConfusionMm);
   requirePositiveFinite("crop.factor", request.crop.factor);
 
   if (request.capture !== undefined && request.crop.factor !== 1) {
@@ -662,20 +643,6 @@ export function simulatePocCamera(
       "capture geometry cannot be combined with legacy crop.factor other than 1."
     );
   }
-  if (
-    request.capture !== undefined &&
-    request.focus.equivalentViewingCircleOfConfusion !== undefined
-  ) {
-    throw new InvalidScientificInputError(
-      "capture geometry currently requires explicit focus.circleOfConfusionMm; equivalent-viewing CoC semantics for retained capture/output area are not yet composed."
-    );
-  }
-  if (request.capture !== undefined && request.subjectCrop !== undefined) {
-    throw new InvalidScientificInputError(
-      "capture geometry cannot yet be combined with subjectCrop; subject-framing crop semantics must be migrated to the staged output geometry explicitly."
-    );
-  }
-
   requirePositiveFinite(
     "diffraction.wavelengthNm",
     request.diffraction.wavelengthNm
@@ -737,6 +704,29 @@ export function simulatePocCamera(
           activeImagingArea: captureGeometry.activeCapture.imagingArea
         }).value;
 
+  const outputFieldOfView =
+    captureGeometry === undefined || request.capture === undefined
+      ? undefined
+      : calculateOutputFieldOfView({
+          imagingArea: {
+            widthMm: request.sensor.widthMm,
+            heightMm: request.sensor.heightMm
+          },
+          nativeRaster: {
+            pixelWidth: request.sensor.pixelWidth,
+            pixelHeight: request.sensor.pixelHeight
+          },
+          orientation: request.capture.orientation,
+          ...(request.capture.activeCaptureRect === undefined
+            ? {}
+            : { activeCaptureRect: request.capture.activeCaptureRect }),
+          ...(request.capture.outputCropRect === undefined
+            ? {}
+            : { outputCropRect: request.capture.outputCropRect }),
+          focalLengthMm: request.lens.focalLengthMm,
+          focusDistanceM: request.focus.focusDistanceM
+        }).value;
+
   const pixelPitch = calculatePixelPitch({
     sensorWidthMm: request.sensor.widthMm,
     pixelWidth: request.sensor.pixelWidth
@@ -754,13 +744,6 @@ export function simulatePocCamera(
     request.focus.focusDistanceM,
     request.crop.factor
   );
-
-  const depthOfField = calculateDepthOfField({
-    focalLengthMm: request.lens.focalLengthMm,
-    aperture: request.lens.aperture,
-    focusDistanceM: request.focus.focusDistanceM,
-    circleOfConfusionMm
-  });
 
   const diffraction = calculateAiryDisk({
     aperture: request.lens.aperture,
