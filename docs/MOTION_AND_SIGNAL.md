@@ -27,6 +27,8 @@ The model can represent a representative point moving laterally and/or along the
 
 Camera motion is not folded into subject motion. Camera shake is modeled separately by `estimateCameraShakeBlur()`; panning detection/intent is not currently modeled.
 
+The returned `deltaXmm`/`deltaYmm` components are sensor/image-plane components from the projection primitive. The function does not accept `CaptureOrientation` and does not automatically rotate those components into portrait/oriented output coordinates. When a caller combines projected motion with the newer capture-orientation APIs, vector orientation must be transformed explicitly with the native↔oriented vector helpers.
+
 ## Exposure relations
 
 `calculateExposureValue100()` implements EV100 from aperture and shutter duration.
