@@ -145,6 +145,18 @@ As of POC simulation API 0.20:
 
 Any further foundation composition still requires an explicit `POC_SIMULATION_API_VERSION` review/change, migration analysis, regression tests, and documentation. Do not silently reinterpret existing POC fields.
 
+## Focus-breathing boundary
+
+`calculateFocusBreathingProjection()` and `calculateFocusBreathingFieldOfView()` are generic declared-scale approximations.
+
+- Never infer `breathingProjectionScale` from focal length, focus distance, sensor crop, lens brand/model, or adjacent metadata.
+- Scale `1` must reproduce the existing focus-aware thin-lens projection exactly.
+- Physical focal length remains authoritative; do not relabel effective projection distance as focal length.
+- Digital/output crop must remain downstream and must not be folded into the breathing scale.
+- A real-lens breathing profile requires defensible provenance, compatible reuse rights, and explicit limitations/uncertainty.
+- Keep distortion, CA, pupil magnification, vignetting, and PSF effects separate unless a later documented model couples them.
+- Do not compose this standalone model into the POC without a POC API/version review.
+
 ## Spatial camera-rotation boundary
 
 `calculateCameraRotationImageMapping()` is the engine-owned low-level model for pure rotational field flow.
