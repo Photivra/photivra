@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {
+  parseEvidenceProvenance,
+  type EvidenceProvenance,
+  type EvidenceReuseStatus,
+  type EvidenceSourceKind
+} from "../core/evidence-provenance.js";
 import { InvalidConfigurationError } from "../schema/validation.js";
 
 type UnknownRecord = Record<string, unknown>;
@@ -20,29 +26,9 @@ export type SensorColorSamplingFamily =
   | "custom-rgb-mosaic"
   | "layered-color";
 
-export type SensorArchitectureSourceKind =
-  | "manufacturer-published"
-  | "openly-reusable"
-  | "photivra-generated";
-
-export type SensorArchitectureReuseStatus =
-  | "factual-reference-only"
-  | "reusable-data"
-  | "photivra-owned";
-
-export interface SensorArchitectureFactProvenance {
-  sourceKind: SensorArchitectureSourceKind;
-  /**
-   * Public/stable source reference or Photivra evidence identifier.
-   *
-   * The engine does not fetch this reference at runtime.
-   */
-  sourceReference: string;
-  reuseStatus: SensorArchitectureReuseStatus;
-  /** Required when reuseStatus is reusable-data. */
-  license?: string;
-  note?: string;
-}
+export type SensorArchitectureSourceKind = EvidenceSourceKind;
+export type SensorArchitectureReuseStatus = EvidenceReuseStatus;
+export type SensorArchitectureFactProvenance = EvidenceProvenance;
 
 export interface SourcedSensorArchitectureFact<T> {
   value: T;
@@ -94,18 +80,6 @@ const COLOR_SAMPLING_VALUES = new Set<SensorColorSamplingFamily>([
   "layered-color"
 ]);
 
-const SOURCE_KIND_VALUES = new Set<SensorArchitectureSourceKind>([
-  "manufacturer-published",
-  "openly-reusable",
-  "photivra-generated"
-]);
-
-const REUSE_STATUS_VALUES = new Set<SensorArchitectureReuseStatus>([
-  "factual-reference-only",
-  "reusable-data",
-  "photivra-owned"
-]);
-
 function requireRecord(value: unknown, path: string): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new InvalidConfigurationError(`${path} must be an object.`);
@@ -127,81 +101,6 @@ function requireNonEmptyString(
   return value;
 }
 
-function parseProvenance(
-  value: unknown,
-  path: string
-): SensorArchitectureFactProvenance {
-  const record = requireRecord(value, path);
-  const sourceKind = requireNonEmptyString(record, "sourceKind", path);
-  const sourceReference = requireNonEmptyString(
-    record,
-    "sourceReference",
-    path
-  );
-  const reuseStatus = requireNonEmptyString(record, "reuseStatus", path);
-
-  if (!SOURCE_KIND_VALUES.has(sourceKind as SensorArchitectureSourceKind)) {
-    throw new InvalidConfigurationError(
-      `${path}.sourceKind is invalid.`
-    );
-  }
-  if (!REUSE_STATUS_VALUES.has(reuseStatus as SensorArchitectureReuseStatus)) {
-    throw new InvalidConfigurationError(
-      `${path}.reuseStatus is invalid.`
-    );
-  }
-
-  const expectedReuseStatus: Record<
-    SensorArchitectureSourceKind,
-    SensorArchitectureReuseStatus
-  > = {
-    "manufacturer-published": "factual-reference-only",
-    "openly-reusable": "reusable-data",
-    "photivra-generated": "photivra-owned"
-  };
-  if (
-    reuseStatus !==
-    expectedReuseStatus[sourceKind as SensorArchitectureSourceKind]
-  ) {
-    throw new InvalidConfigurationError(
-      `${path}.reuseStatus is inconsistent with sourceKind.`
-    );
-  }
-
-  const license = record.license;
-  if (
-    license !== undefined &&
-    (typeof license !== "string" || license.trim().length === 0)
-  ) {
-    throw new InvalidConfigurationError(
-      `${path}.license must be a non-empty string when supplied.`
-    );
-  }
-  if (reuseStatus === "reusable-data" && license === undefined) {
-    throw new InvalidConfigurationError(
-      `${path}.license is required for reusable-data provenance.`
-    );
-  }
-
-  const note = record.note;
-  if (
-    note !== undefined &&
-    (typeof note !== "string" || note.trim().length === 0)
-  ) {
-    throw new InvalidConfigurationError(
-      `${path}.note must be a non-empty string when supplied.`
-    );
-  }
-
-  return {
-    sourceKind: sourceKind as SensorArchitectureSourceKind,
-    sourceReference,
-    reuseStatus: reuseStatus as SensorArchitectureReuseStatus,
-    ...(license === undefined ? {} : { license }),
-    ...(note === undefined ? {} : { note })
-  };
-}
-
 function parseScalarFact<T extends string>(
   value: unknown,
   path: string,
@@ -215,7 +114,10 @@ function parseScalarFact<T extends string>(
 
   return {
     value: factValue as T,
-    provenance: parseProvenance(record.provenance, `${path}.provenance`)
+    provenance: parseEvidenceProvenance(
+      record.provenance,
+      `${path}.provenance`
+    )
   };
 }
 
@@ -251,7 +153,10 @@ function parseReadoutFact(
 
   return {
     value: parsed,
-    provenance: parseProvenance(record.provenance, `${path}.provenance`)
+    provenance: parseEvidenceProvenance(
+      record.provenance,
+      `${path}.provenance`
+    )
   };
 }
 
