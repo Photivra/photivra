@@ -221,6 +221,11 @@ export function calculatePsfFoundationComponents(
     "fieldNormalizationRadiusMm",
     input.fieldNormalizationRadiusMm
   );
+  if (input.spectralBasis?.kind !== "monochromatic") {
+    throw new InvalidScientificInputError(
+      'spectralBasis.kind must be "monochromatic".'
+    );
+  }
   requirePositiveFinite(
     "spectralBasis.wavelengthNm",
     input.spectralBasis.wavelengthNm
