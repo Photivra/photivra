@@ -230,6 +230,8 @@ export interface PocSimulationResponse {
       basis: "diagonal";
     };
     motion: {
+      nativeRasterDeltaPixels: RasterVector;
+      nativeRasterDeltaPixels: RasterVector;
       orientedCaptureDeltaPixels: RasterVector;
       outputDeltaPixels: RasterVector;
     };
@@ -240,10 +242,12 @@ export interface PocSimulationResponse {
     }[];
     cameraShake?: {
       unstabilized: {
+        nativeRasterDeltaPixels: RasterVector;
         orientedCaptureDeltaPixels: RasterVector;
         outputDeltaPixels: RasterVector;
       };
       stabilized: {
+        nativeRasterDeltaPixels: RasterVector;
         orientedCaptureDeltaPixels: RasterVector;
         outputDeltaPixels: RasterVector;
       };
@@ -408,16 +412,24 @@ export interface PocSimulationResponse {
 }
 
 function resolveCaptureVector(
-  vector: RasterVector,
+  legacyImagePlaneVector: RasterVector,
   orientation: CaptureOrientation,
   geometry: ResolvedCaptureGeometry
 ): {
+  nativeRasterDeltaPixels: RasterVector;
   orientedCaptureDeltaPixels: RasterVector;
   outputDeltaPixels: RasterVector;
 } {
+  // Legacy projected-motion/camera-shake components use +X right and +Y up.
+  // Capture raster coordinates use +X right and +Y down. Preserve the legacy
+  // fields unchanged and convert explicitly before applying physical rotation.
+  const nativeRasterDeltaPixels = {
+    x: legacyImagePlaneVector.x,
+    y: -legacyImagePlaneVector.y
+  };
   const orientedCaptureDeltaPixels =
     transformNativeRasterVectorToOriented({
-      vector,
+      vector: nativeRasterDeltaPixels,
       orientation
     });
   const scaleX =
@@ -426,6 +438,7 @@ function resolveCaptureVector(
     geometry.output.raster.pixelHeight / geometry.output.cropRect.height;
 
   return {
+    nativeRasterDeltaPixels,
     orientedCaptureDeltaPixels,
     outputDeltaPixels: {
       x: orientedCaptureDeltaPixels.x * scaleX,
