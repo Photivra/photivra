@@ -449,6 +449,59 @@ describe("POC composed simulation", () => {
     ).toBeCloseTo(result.motion.deltaXPixels, 12);
   });
 
+  it("converts legacy image-plane Y-up motion into raster Y-down before orientation", () => {
+    const result = simulatePocCamera({
+      sensor: {
+        widthMm: 36,
+        heightMm: 24,
+        pixelWidth: 6000,
+        pixelHeight: 4000
+      },
+      lens: {
+        focalLengthMm: 50,
+        aperture: 4
+      },
+      exposure: {
+        shutterSeconds: 1 / 125,
+        iso: 100
+      },
+      focus: {
+        focusDistanceM: 5,
+        circleOfConfusionMm: 0.03
+      },
+      crop: {
+        factor: 1
+      },
+      capture: {
+        orientation: "portrait-clockwise"
+      },
+      diffraction: {
+        wavelengthNm: 550
+      },
+      motion: {
+        positionM: { x: 0, y: 0, z: 5 },
+        velocityMps: { x: 0, y: 1, z: 0 }
+      }
+    });
+
+    expect(result.motion.deltaXPixels).toBeCloseTo(0, 12);
+    expect(result.motion.deltaYPixels).toBeGreaterThan(0);
+    expect(result.capture?.motion.nativeRasterDeltaPixels.x).toBeCloseTo(
+      0,
+      12
+    );
+    expect(result.capture?.motion.nativeRasterDeltaPixels.y).toBeCloseTo(
+      -result.motion.deltaYPixels,
+      12
+    );
+    expect(
+      result.capture?.motion.orientedCaptureDeltaPixels.x
+    ).toBeCloseTo(result.motion.deltaYPixels, 12);
+    expect(
+      result.capture?.motion.orientedCaptureDeltaPixels.y
+    ).toBeCloseTo(0, 12);
+  });
+
   it("keeps active-capture equivalence independent from later output crop and resampling", () => {
     const createRequest = (outputRaster: {
       pixelWidth: number;
