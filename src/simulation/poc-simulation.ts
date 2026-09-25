@@ -20,8 +20,13 @@ import {
 import { calculateCenteredCrop } from "../output/crop.js";
 import { calculateSubjectFramingCrop } from "../output/subject-framing-crop.js";
 import { calculatePixelPitch } from "../sensor/pixel-pitch.js";
+import { calculateSensorGeometryMetrics } from "../sensor/sensor-geometry.js";
 import type { Vector3 } from "../schema/scene.js";
 import { estimateCameraShakeBlur } from "../stabilization/camera-shake.js";
+
+export const POC_SIMULATION_API_VERSION = "0.18.0" as const;
+
+const POC_MAX_PITCH_AXIS_RELATIVE_DIFFERENCE = 0.01;
 
 export interface PocSimulationRequest {
   sensor: {
@@ -155,7 +160,7 @@ interface FieldOfViewSummary {
 }
 
 export interface PocSimulationResponse {
-  apiVersion: "0.17.0";
+  apiVersion: typeof POC_SIMULATION_API_VERSION;
   projection: {
     kind: "focus-aware-thin-lens";
     focusDistanceM: number;
@@ -172,7 +177,14 @@ export interface PocSimulationResponse {
     diagonalDegrees: number;
   };
   sensor: {
+    /**
+     * Backwards-compatible representative pitch used by the current composed
+     * POC calculations. This remains the horizontal pitch.
+     */
     pixelPitchMicrometers: number;
+    pitchXMicrometers: number;
+    pitchYMicrometers: number;
+    pitchAxisRelativeDifference: number;
   };
   crop: {
     cropFactor: number;
@@ -344,6 +356,31 @@ export function simulatePocCamera(
 ): PocSimulationResponse {
   requirePositiveFinite("sensor.widthMm", request.sensor.widthMm);
   requirePositiveFinite("sensor.heightMm", request.sensor.heightMm);
+
+  const sensorGeometry = calculateSensorGeometryMetrics({
+    imagingArea: {
+      widthMm: request.sensor.widthMm,
+      heightMm: request.sensor.heightMm
+    },
+    nativeRaster: {
+      pixelWidth: request.sensor.pixelWidth,
+      pixelHeight: request.sensor.pixelHeight
+    }
+  }).value;
+  const pitchXMicrometers = sensorGeometry.sampling.pitchXMicrometers;
+  const pitchYMicrometers = sensorGeometry.sampling.pitchYMicrometers;
+  const pitchAxisRelativeDifference =
+    Math.abs(pitchXMicrometers - pitchYMicrometers) /
+    ((pitchXMicrometers + pitchYMicrometers) / 2);
+
+  if (
+    pitchAxisRelativeDifference >
+    POC_MAX_PITCH_AXIS_RELATIVE_DIFFERENCE
+  ) {
+    throw new InvalidScientificInputError(
+      "The composed POC currently requires approximately square geometric sampling; X/Y pitch differ by more than 1%. Use lower-level axis-aware engine primitives until the POC contract supports separate X/Y sampling."
+    );
+  }
   requirePositiveFinite("lens.focalLengthMm", request.lens.focalLengthMm);
   requirePositiveFinite("lens.aperture", request.lens.aperture);
   requirePositiveFinite(
@@ -659,7 +696,7 @@ export function simulatePocCamera(
         });
 
   return {
-    apiVersion: "0.17.0",
+    apiVersion: POC_SIMULATION_API_VERSION,
     projection: {
       kind: "focus-aware-thin-lens",
       focusDistanceM: request.focus.focusDistanceM,
@@ -673,7 +710,10 @@ export function simulatePocCamera(
       diagonalDegrees: diagonalFov.value.degrees
     },
     sensor: {
-      pixelPitchMicrometers: pixelPitch.value.micrometers
+      pixelPitchMicrometers: pixelPitch.value.micrometers,
+      pitchXMicrometers,
+      pitchYMicrometers,
+      pitchAxisRelativeDifference
     },
     crop: {
       cropFactor: request.crop.factor,
