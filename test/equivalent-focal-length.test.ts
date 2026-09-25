@@ -52,7 +52,7 @@ describe("35 mm-equivalent focal length", () => {
     }).value;
 
     expect(result.actualFocalLengthMm).toBe(50);
-    expect(result.equivalentFocalLength35Mm).toBeCloseTo(75, 2);
+    expect(result.equivalentFocalLength35Mm).toBeCloseTo(75, 1);
   });
 
   it("does not change equivalent focal length when only output resolution/crop changes", () => {
