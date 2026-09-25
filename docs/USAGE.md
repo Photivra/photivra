@@ -962,7 +962,7 @@ console.log(portraitCrop.capture?.focalLength);
 console.log(portraitCrop.capture?.motion.outputDeltaPixels);
 ```
 
-The legacy focus request must supply exactly one circle-of-confusion criterion: either `circleOfConfusionMm` or `equivalentViewingCircleOfConfusion`. Capture mode currently requires explicit `circleOfConfusionMm` until equivalent-viewing semantics for retained capture/output area are defined.
+The focus request must supply exactly one circle-of-confusion criterion: either `circleOfConfusionMm` or `equivalentViewingCircleOfConfusion`. In staged capture mode, the equivalent-viewing approximation uses the final retained physical image region; an explicit `circleOfConfusionMm` remains unchanged by crop/output geometry.
 
 Additional named defocus, sampling, and motion samples can be supplied when a renderer or analysis client needs per-object outputs.
 
