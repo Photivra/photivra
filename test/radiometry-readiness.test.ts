@@ -246,6 +246,7 @@ describe("radiometry readiness", () => {
     const badQe = completeProfile();
     badQe.components[5] = {
       ...badQe.components[5]!,
+      scientificStatus: "approximation",
       responseRepresentation: "effective-qe-approximation",
       effectiveQuantumEfficiency: 1.2
     };
