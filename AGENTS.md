@@ -145,6 +145,21 @@ As of POC simulation API 0.20:
 
 Any further foundation composition still requires an explicit `POC_SIMULATION_API_VERSION` review/change, migration analysis, regression tests, and documentation. Do not silently reinterpret existing POC fields.
 
+## PSF/pupil foundation rules
+
+`getPsfFoundationContract()` and `calculatePsfFoundationComponents()` define the current PSF contribution boundary.
+
+- Keep geometric defocus and circular diffraction separately named; do not add their diameters or convert them into one undocumented blur/sharpness scalar.
+- Do not call the current diagnostics a complete PSF or MTF.
+- Field position, focus/subject depth, wavelength basis, and pupil semantics are explicit context.
+- The current field position is context only for defocus/Airy; do not invent field dependence until a corresponding model is implemented.
+- Non-circular diffraction, mechanical pupil clipping, field curvature, field-dependent aberration, and field-dependent bokeh remain reserved until implemented.
+- Illumination vignetting remains throughput-only and outside the PSF contribution list.
+- Polygon aperture geometry does not by itself implement non-circular diffraction.
+- Preview/reference renderers may differ in bounded fidelity but must preserve engine-owned contribution semantics.
+- Test Fixture optics/highlight targets are regression evidence, not calibrated MTF or real-lens PSF data.
+- Real-lens PSF profiles require defensible provenance, compatible reuse rights, and explicit limitations/uncertainty.
+
 ## Illumination-vignetting boundary
 
 `calculateIlluminationVignetting()` is the engine-owned generic field-throughput model.
