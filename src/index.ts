@@ -95,6 +95,7 @@ export {
 
 export {
   calculateActiveCaptureFieldOfView,
+  calculateOutputFieldOfView,
   resolveCaptureGeometry,
   transformNativeRasterPointToOriented,
   transformNativeRasterRectToOriented,
@@ -104,7 +105,9 @@ export {
   transformOrientedRasterVectorToNative,
   type ActiveCaptureFieldOfView,
   type CalculateActiveCaptureFieldOfViewInput,
+  type CalculateOutputFieldOfViewInput,
   type CaptureOrientation,
+  type OutputFieldOfView,
   type PhysicalBoundsFromOpticalAxisMm,
   type RasterPoint,
   type RasterRect,
