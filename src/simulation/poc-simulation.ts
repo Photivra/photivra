@@ -869,20 +869,21 @@ export function simulatePocCamera(
           };
         });
 
+  const capture = request.capture;
   const captureMotion =
-    captureGeometry === undefined || request.capture === undefined
+    captureGeometry === undefined || capture === undefined
       ? undefined
       : resolveCaptureVector(
           {
             x: motion.value.deltaXMm / (pixelPitch.value.micrometers / 1000),
             y: motion.value.deltaYMm / (pixelPitch.value.micrometers / 1000)
           },
-          request.capture.orientation,
+          capture.orientation,
           captureGeometry
         );
   const captureMotionSamples =
     captureGeometry === undefined ||
-    request.capture === undefined ||
+    capture === undefined ||
     motionSamples === undefined
       ? undefined
       : motionSamples.map((sample) => ({
@@ -892,13 +893,13 @@ export function simulatePocCamera(
               x: sample.deltaXPixels,
               y: sample.deltaYPixels
             },
-            request.capture.orientation,
+            capture.orientation,
             captureGeometry
           )
         }));
   const captureCameraShake =
     captureGeometry === undefined ||
-    request.capture === undefined ||
+    capture === undefined ||
     cameraShake === undefined
       ? undefined
       : {
@@ -907,7 +908,7 @@ export function simulatePocCamera(
               x: cameraShake.value.unstabilized.deltaXPixels ?? 0,
               y: cameraShake.value.unstabilized.deltaYPixels ?? 0
             },
-            request.capture.orientation,
+            capture.orientation,
             captureGeometry
           ),
           stabilized: resolveCaptureVector(
@@ -915,7 +916,7 @@ export function simulatePocCamera(
               x: cameraShake.value.stabilized.deltaXPixels ?? 0,
               y: cameraShake.value.stabilized.deltaYPixels ?? 0
             },
-            request.capture.orientation,
+            capture.orientation,
             captureGeometry
           )
         };
