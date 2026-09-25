@@ -151,6 +151,23 @@ function parseProvenance(
     );
   }
 
+  const expectedReuseStatus: Record<
+    SensorArchitectureSourceKind,
+    SensorArchitectureReuseStatus
+  > = {
+    "manufacturer-published": "factual-reference-only",
+    "openly-reusable": "reusable-data",
+    "photivra-generated": "photivra-owned"
+  };
+  if (
+    reuseStatus !==
+    expectedReuseStatus[sourceKind as SensorArchitectureSourceKind]
+  ) {
+    throw new InvalidConfigurationError(
+      `${path}.reuseStatus is inconsistent with sourceKind.`
+    );
+  }
+
   const license = record.license;
   if (
     license !== undefined &&
@@ -215,7 +232,10 @@ function parseReadoutFact(
   }
 
   const parsed = values.map((entry, index) => {
-    if (typeof entry !== "string" || !READOUT_VALUES.has(entry as SensorReadoutArchitecture)) {
+    if (
+      typeof entry !== "string" ||
+      !READOUT_VALUES.has(entry as SensorReadoutArchitecture)
+    ) {
       throw new InvalidConfigurationError(
         `${path}.value[${index}] is invalid.`
       );
