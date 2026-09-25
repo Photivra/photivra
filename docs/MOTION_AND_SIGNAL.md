@@ -31,6 +31,26 @@ The returned `deltaXmm`/`deltaYmm` components are legacy camera/image-plane comp
 
 Capture raster coordinates use +X right and +Y down. POC API 0.19 therefore converts a legacy image-plane vector to native raster axes as `{ x, y: -y }` before applying the native↔oriented rotation helper. The additive capture diagnostics expose `nativeRasterDeltaPixels`, `orientedCaptureDeltaPixels`, and `outputDeltaPixels`; the legacy motion fields are not reinterpreted.
 
+## Spatial camera rotation
+
+`calculateCameraRotationImageMapping()` now provides the rotation-only primitive reserved by the image-formation contract.
+
+The function:
+
+- accepts one image-plane point at exposure start;
+- uses physical time in seconds from exposure start;
+- accepts constant pitch/yaw/roll angular velocity resolved in the camera axes at exposure start;
+- integrates the simultaneous angular velocity as one axis-angle vector;
+- transforms the stationary world ray by the inverse camera rotation;
+- returns field-position-dependent image-plane displacement;
+- optionally reports axis-aware geometric sample displacement.
+
+For pure yaw/pitch, image displacement varies with field position because the rectilinear projection denominator changes away from the optical axis. Pure roll leaves the optical-axis center fixed while rotating off-axis points.
+
+This is camera **rotation only**. Translation is excluded because parallax requires scene depth.
+
+The returned image-plane/sample components use +X right and +Y up. Native raster remains +X right/+Y down and requires the existing explicit coordinate transform at capture composition boundaries.
+
 ## Temporal image-formation basis
 
 The image-formation contract defines physical time in **seconds from exposure start**.
