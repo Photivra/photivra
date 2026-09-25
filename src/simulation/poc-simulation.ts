@@ -199,12 +199,15 @@ interface FieldOfViewSummary {
 
 function centeredPhysicalCropBounds(
   bounds: PhysicalBoundsFromOpticalAxisMm,
-  cropFactor: number
+  retainedFractionX: number,
+  retainedFractionY: number
 ): PhysicalBoundsFromOpticalAxisMm {
   const centerX = (bounds.left + bounds.right) / 2;
   const centerY = (bounds.top + bounds.bottom) / 2;
-  const halfWidth = (bounds.right - bounds.left) / (2 * cropFactor);
-  const halfHeight = (bounds.bottom - bounds.top) / (2 * cropFactor);
+  const halfWidth =
+    ((bounds.right - bounds.left) * retainedFractionX) / 2;
+  const halfHeight =
+    ((bounds.bottom - bounds.top) * retainedFractionY) / 2;
 
   return {
     left: centerX - halfWidth,
@@ -800,7 +803,8 @@ export function simulatePocCamera(
           }).value;
           const retainedBounds = centeredPhysicalCropBounds(
             captureGeometry.output.physicalBoundsFromOpticalAxisMm,
-            framing.cropFactor
+            framing.pixelWidth / captureGeometry.output.raster.pixelWidth,
+            framing.pixelHeight / captureGeometry.output.raster.pixelHeight
           );
           const retainedImagingArea: SensorImagingArea = {
             widthMm: retainedBounds.right - retainedBounds.left,
