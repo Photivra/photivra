@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { simulatePocCamera } from "../src/index.js";
+import {
+  simulatePocCamera,
+  type PocSimulationRequest
+} from "../src/index.js";
 
 describe("POC composed simulation", () => {
   it("rejects meaningfully non-square geometric sampling in the composed POC", () => {
@@ -167,7 +170,7 @@ describe("POC composed simulation", () => {
       ]
     });
 
-    expect(result.apiVersion).toBe("0.18.0");
+    expect(result.apiVersion).toBe("0.19.0");
     expect(result.projection.kind).toBe("focus-aware-thin-lens");
     expect(result.projection.imageDistanceMm).toBeCloseTo(201.834862385, 9);
     expect(result.projection.infinityProjectionScale).toBeCloseTo(
@@ -178,6 +181,8 @@ describe("POC composed simulation", () => {
       "gaussian-thin-lens-image-distance"
     );
     expect(result.fieldOfView.horizontalDegrees).toBeCloseTo(10.1925, 3);
+    expect(result.sensor.geometry.imagingArea.cropFactor35Mm).toBeCloseTo(1, 12);
+    expect(result.sensor.geometry.nativeRaster.megapixels).toBeCloseTo(24, 12);
     expect(result.sensor.pixelPitchMicrometers).toBeCloseTo(6, 12);
     expect(result.sensor.pitchXMicrometers).toBeCloseTo(6, 12);
     expect(result.sensor.pitchYMicrometers).toBeCloseTo(6, 12);
@@ -379,4 +384,339 @@ describe("POC composed simulation", () => {
     expect(result.subjectCrop?.subjectClipped).toBe(true);
     expect(result.subjectCrop?.subjectHeightFraction).toBeGreaterThan(1);
   });
+
+  it("composes portrait capture geometry without redefining legacy native vectors", () => {
+    const result = simulatePocCamera({
+      sensor: {
+        widthMm: 36,
+        heightMm: 24,
+        pixelWidth: 6000,
+        pixelHeight: 4000
+      },
+      lens: {
+        focalLengthMm: 50,
+        aperture: 2.8
+      },
+      exposure: {
+        shutterSeconds: 1 / 125,
+        iso: 100
+      },
+      focus: {
+        focusDistanceM: 5,
+        circleOfConfusionMm: 0.03
+      },
+      crop: {
+        factor: 1
+      },
+      capture: {
+        orientation: "portrait-clockwise"
+      },
+      diffraction: {
+        wavelengthNm: 550
+      },
+      motion: {
+        positionM: { x: 0, y: 0, z: 5 },
+        velocityMps: { x: 1, y: 0, z: 0 }
+      }
+    });
+
+    expect(result.capture).toBeDefined();
+    expect(result.capture?.geometry.orientedCapture.raster).toEqual({
+      pixelWidth: 4000,
+      pixelHeight: 6000
+    });
+    expect(result.capture?.activeFieldOfView.horizontalDegrees).toBeCloseTo(
+      result.fieldOfView.verticalDegrees,
+      12
+    );
+    expect(result.capture?.activeFieldOfView.verticalDegrees).toBeCloseTo(
+      result.fieldOfView.horizontalDegrees,
+      12
+    );
+    expect(result.capture?.activeFieldOfView.diagonalDegrees).toBeCloseTo(
+      result.fieldOfView.diagonalDegrees,
+      12
+    );
+    expect(result.capture?.focalLength.actualFocalLengthMm).toBe(50);
+    expect(result.capture?.focalLength.equivalentFocalLength35Mm).toBeCloseTo(
+      50,
+      12
+    );
+
+    expect(result.motion.deltaXPixels).toBeGreaterThan(0);
+    expect(result.motion.deltaYPixels).toBeCloseTo(0, 12);
+    expect(
+      result.capture?.motion.orientedCaptureDeltaPixels.x
+    ).toBeCloseTo(0, 12);
+    expect(
+      result.capture?.motion.orientedCaptureDeltaPixels.y
+    ).toBeCloseTo(result.motion.deltaXPixels, 12);
+  });
+
+  it("converts legacy image-plane Y-up motion into raster Y-down before orientation", () => {
+    const result = simulatePocCamera({
+      sensor: {
+        widthMm: 36,
+        heightMm: 24,
+        pixelWidth: 6000,
+        pixelHeight: 4000
+      },
+      lens: {
+        focalLengthMm: 50,
+        aperture: 4
+      },
+      exposure: {
+        shutterSeconds: 1 / 125,
+        iso: 100
+      },
+      focus: {
+        focusDistanceM: 5,
+        circleOfConfusionMm: 0.03
+      },
+      crop: {
+        factor: 1
+      },
+      capture: {
+        orientation: "portrait-clockwise"
+      },
+      diffraction: {
+        wavelengthNm: 550
+      },
+      motion: {
+        positionM: { x: 0, y: 0, z: 5 },
+        velocityMps: { x: 0, y: 1, z: 0 }
+      }
+    });
+
+    expect(result.motion.deltaXPixels).toBeCloseTo(0, 12);
+    expect(result.motion.deltaYPixels).toBeGreaterThan(0);
+    expect(result.capture?.motion.nativeRasterDeltaPixels.x).toBeCloseTo(
+      0,
+      12
+    );
+    expect(result.capture?.motion.nativeRasterDeltaPixels.y).toBeCloseTo(
+      -result.motion.deltaYPixels,
+      12
+    );
+    expect(
+      result.capture?.motion.orientedCaptureDeltaPixels.x
+    ).toBeCloseTo(result.motion.deltaYPixels, 12);
+    expect(
+      result.capture?.motion.orientedCaptureDeltaPixels.y
+    ).toBeCloseTo(0, 12);
+  });
+
+  it("keeps active-capture equivalence independent from later output crop and resampling", () => {
+    const createRequest = (outputRaster: {
+      pixelWidth: number;
+      pixelHeight: number;
+    }): PocSimulationRequest => ({
+      sensor: {
+        widthMm: 36,
+        heightMm: 24,
+        pixelWidth: 6000,
+        pixelHeight: 4000
+      },
+      lens: {
+        focalLengthMm: 50,
+        aperture: 4
+      },
+      exposure: {
+        shutterSeconds: 1 / 250,
+        iso: 100
+      },
+      focus: {
+        focusDistanceM: 10,
+        circleOfConfusionMm: 0.03
+      },
+      crop: {
+        factor: 1
+      },
+      capture: {
+        orientation: "landscape" as const,
+        activeCaptureRect: {
+          x: 1500,
+          y: 1000,
+          width: 3000,
+          height: 2000
+        },
+        outputCropRect: {
+          x: 750,
+          y: 500,
+          width: 1500,
+          height: 1000
+        },
+        outputRaster
+      },
+      diffraction: {
+        wavelengthNm: 550
+      },
+      motion: {
+        positionM: { x: 0, y: 0, z: 10 },
+        velocityMps: { x: 1, y: 0, z: 0 }
+      }
+    });
+
+    const first = simulatePocCamera(
+      createRequest({ pixelWidth: 3000, pixelHeight: 2000 })
+    );
+    const second = simulatePocCamera(
+      createRequest({ pixelWidth: 1500, pixelHeight: 1000 })
+    );
+
+    expect(first.capture?.geometry.activeCapture.imagingArea).toEqual({
+      widthMm: 18,
+      heightMm: 12
+    });
+    expect(first.capture?.focalLength.cropFactor35Mm).toBeCloseTo(2, 12);
+    expect(first.capture?.focalLength.equivalentFocalLength35Mm).toBeCloseTo(
+      100,
+      12
+    );
+    expect(
+      second.capture?.focalLength.equivalentFocalLength35Mm
+    ).toBeCloseTo(first.capture?.focalLength.equivalentFocalLength35Mm ?? 0, 12);
+    expect(second.capture?.activeFieldOfView).toEqual(
+      first.capture?.activeFieldOfView
+    );
+    expect(first.capture?.geometry.output.sourceRetainedAreaFraction).toBeCloseTo(
+      0.25,
+      12
+    );
+    expect(first.capture?.motion.outputDeltaPixels.x).toBeCloseTo(
+      2 * (first.capture?.motion.orientedCaptureDeltaPixels.x ?? 0),
+      12
+    );
+    expect(second.capture?.motion.outputDeltaPixels.x).toBeCloseTo(
+      first.capture?.motion.orientedCaptureDeltaPixels.x ?? 0,
+      12
+    );
+  });
+
+  it("fails closed instead of combining staged capture geometry with legacy crop", () => {
+    expect(() =>
+      simulatePocCamera({
+        sensor: {
+          widthMm: 36,
+          heightMm: 24,
+          pixelWidth: 6000,
+          pixelHeight: 4000
+        },
+        lens: {
+          focalLengthMm: 50,
+          aperture: 4
+        },
+        exposure: {
+          shutterSeconds: 1 / 125,
+          iso: 100
+        },
+        focus: {
+          focusDistanceM: 5,
+          circleOfConfusionMm: 0.03
+        },
+        crop: {
+          factor: 1.2
+        },
+        capture: {
+          orientation: "landscape"
+        },
+        diffraction: {
+          wavelengthNm: 550
+        },
+        motion: {
+          positionM: { x: 0, y: 0, z: 5 },
+          velocityMps: { x: 0, y: 0, z: 0 }
+        }
+      })
+    ).toThrow("cannot be combined with legacy crop.factor");
+  });
+
+  it("fails closed on unresolved equivalent-viewing CoC semantics in staged capture mode", () => {
+    expect(() =>
+      simulatePocCamera({
+        sensor: {
+          widthMm: 36,
+          heightMm: 24,
+          pixelWidth: 6000,
+          pixelHeight: 4000
+        },
+        lens: {
+          focalLengthMm: 50,
+          aperture: 4
+        },
+        exposure: {
+          shutterSeconds: 1 / 125,
+          iso: 100
+        },
+        focus: {
+          focusDistanceM: 5,
+          equivalentViewingCircleOfConfusion: {
+            referenceSensorWidthMm: 36,
+            referenceSensorHeightMm: 24,
+            referenceCircleOfConfusionMm: 0.03
+          }
+        },
+        crop: {
+          factor: 1
+        },
+        capture: {
+          orientation: "landscape"
+        },
+        diffraction: {
+          wavelengthNm: 550
+        },
+        motion: {
+          positionM: { x: 0, y: 0, z: 5 },
+          velocityMps: { x: 0, y: 0, z: 0 }
+        }
+      })
+    ).toThrow("requires explicit focus.circleOfConfusionMm");
+  });
+
+  it("fails closed on subject-framing crop until staged output semantics are explicit", () => {
+    expect(() =>
+      simulatePocCamera({
+        sensor: {
+          widthMm: 36,
+          heightMm: 24,
+          pixelWidth: 6000,
+          pixelHeight: 4000
+        },
+        lens: {
+          focalLengthMm: 50,
+          aperture: 4
+        },
+        exposure: {
+          shutterSeconds: 1 / 125,
+          iso: 100
+        },
+        focus: {
+          focusDistanceM: 5,
+          circleOfConfusionMm: 0.03
+        },
+        crop: {
+          factor: 1
+        },
+        capture: {
+          orientation: "landscape"
+        },
+        diffraction: {
+          wavelengthNm: 550
+        },
+        motion: {
+          positionM: { x: 0, y: 0, z: 5 },
+          velocityMps: { x: 0, y: 0, z: 0 }
+        },
+        subject: {
+          widthM: 1,
+          heightM: 1,
+          distanceM: 5
+        },
+        subjectCrop: {
+          targetSubjectHeightFraction: 0.5
+        }
+      })
+    ).toThrow("cannot yet be combined with subjectCrop");
+  });
+
 });

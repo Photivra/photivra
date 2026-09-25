@@ -7,7 +7,7 @@ import {
 
 describe("engine foundation", () => {
   it("exposes independent root-engine and composed-POC API versions", () => {
-    expect(ENGINE_API_VERSION).toBe("0.23.0");
-    expect(POC_SIMULATION_API_VERSION).toBe("0.18.0");
+    expect(ENGINE_API_VERSION).toBe("0.24.0");
+    expect(POC_SIMULATION_API_VERSION).toBe("0.19.0");
   });
 });

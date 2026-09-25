@@ -105,7 +105,7 @@ The root engine now exposes standalone APIs for:
 - evidence-backed sensor architecture metadata;
 - radiometry prerequisite/readiness assessment.
 
-These contracts are **not all composed into `simulatePocCamera()` yet**. The current POC remains a compatibility composition around the older sensor width/height + raster + same-aspect crop-factor request. It does not currently accept capture orientation, an active-capture rectangle, sensor-architecture metadata, or a radiometry-readiness profile.
+These contracts are **not all composed into `simulatePocCamera()` yet**. POC API 0.19 now adds an opt-in staged capture-geometry path for orientation, active-capture rectangles, output crop/raster, active-capture FOV, and active-capture 35 mm-equivalent focal length while preserving the legacy request shape. Sensor-architecture metadata and radiometry-readiness profiles remain standalone and are not yet composed.
 
 The POC exposes X/Y sampling diagnostics but still uses one representative horizontal pitch internally for several pixel-domain calculations; it therefore rejects geometry whose X/Y pitch differs by more than 1% rather than silently producing directional error.
 
@@ -169,8 +169,8 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Package version: `0.2.0`
-- Engine API contract: `0.23.0`
-- Composed POC simulation API contract: `0.18.0`
+- Engine API contract: `0.24.0`
+- Composed POC simulation API contract: `0.19.0`
 - Stability: pre-1.0 / proof of concept
 
 Package version and engine API version are intentionally separate. Public APIs may evolve before 1.0 while the scientific models and composition contracts are validated.

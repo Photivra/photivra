@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { calculateEquivalentFocalLength35Mm } from "../camera/equivalent-focal-length.js";
 import { calculateFieldOfView } from "../camera/field-of-view.js";
 import { calculateProjectedObjectSize } from "../camera/projected-object-size.js";
 import type { CalculationProvenance } from "../core/calculation-result.js";
@@ -17,14 +18,28 @@ import {
   calculateDefocusCircle,
   calculateDepthOfField
 } from "../optics/depth-of-field.js";
+import {
+  calculateActiveCaptureFieldOfView,
+  resolveCaptureGeometry,
+  transformNativeRasterVectorToOriented,
+  type ActiveCaptureFieldOfView,
+  type CaptureOrientation,
+  type RasterRect,
+  type RasterVector,
+  type ResolvedCaptureGeometry
+} from "../output/capture-geometry.js";
 import { calculateCenteredCrop } from "../output/crop.js";
 import { calculateSubjectFramingCrop } from "../output/subject-framing-crop.js";
 import { calculatePixelPitch } from "../sensor/pixel-pitch.js";
-import { calculateSensorGeometryMetrics } from "../sensor/sensor-geometry.js";
+import {
+  calculateSensorGeometryMetrics,
+  type RasterDimensions,
+  type SensorGeometryMetrics
+} from "../sensor/sensor-geometry.js";
 import type { Vector3 } from "../schema/scene.js";
 import { estimateCameraShakeBlur } from "../stabilization/camera-shake.js";
 
-export const POC_SIMULATION_API_VERSION = "0.18.0" as const;
+export const POC_SIMULATION_API_VERSION = "0.19.0" as const;
 
 const POC_MAX_PITCH_AXIS_RELATIVE_DIFFERENCE = 0.01;
 
@@ -53,7 +68,23 @@ export interface PocSimulationRequest {
     };
   };
   crop: {
+    /**
+     * Legacy centered same-aspect crop factor.
+     *
+     * When capture geometry is supplied this must remain 1. New callers should
+     * use capture.activeCaptureRect/outputCropRect instead of stacking two
+     * independent crop models.
+     */
     factor: number;
+  };
+  /**
+   * Opt-in staged capture geometry. Omit for exact legacy POC behavior.
+   */
+  capture?: {
+    orientation: CaptureOrientation;
+    activeCaptureRect?: RasterRect;
+    outputCropRect?: RasterRect;
+    outputRaster?: RasterDimensions;
   };
   diffraction: {
     wavelengthNm: number;
@@ -177,6 +208,8 @@ export interface PocSimulationResponse {
     diagonalDegrees: number;
   };
   sensor: {
+    /** Physical imaging-area/native-raster metrics from the shared sensor foundation. */
+    geometry: SensorGeometryMetrics;
     /**
      * Backwards-compatible representative pitch used by the current composed
      * POC calculations. This remains the horizontal pitch.
@@ -185,6 +218,40 @@ export interface PocSimulationResponse {
     pitchXMicrometers: number;
     pitchYMicrometers: number;
     pitchAxisRelativeDifference: number;
+  };
+  capture?: {
+    geometry: ResolvedCaptureGeometry;
+    activeFieldOfView: ActiveCaptureFieldOfView;
+    focalLength: {
+      actualFocalLengthMm: number;
+      equivalentFocalLength35Mm: number;
+      cropFactor35Mm: number;
+      activeImagingAreaDiagonalMm: number;
+      basis: "diagonal";
+    };
+    motion: {
+      nativeRasterDeltaPixels: RasterVector;
+      orientedCaptureDeltaPixels: RasterVector;
+      outputDeltaPixels: RasterVector;
+    };
+    motionSamples?: readonly {
+      id: string;
+      nativeRasterDeltaPixels: RasterVector;
+      orientedCaptureDeltaPixels: RasterVector;
+      outputDeltaPixels: RasterVector;
+    }[];
+    cameraShake?: {
+      unstabilized: {
+        nativeRasterDeltaPixels: RasterVector;
+        orientedCaptureDeltaPixels: RasterVector;
+        outputDeltaPixels: RasterVector;
+      };
+      stabilized: {
+        nativeRasterDeltaPixels: RasterVector;
+        orientedCaptureDeltaPixels: RasterVector;
+        outputDeltaPixels: RasterVector;
+      };
+    };
   };
   crop: {
     cropFactor: number;
@@ -344,6 +411,42 @@ export interface PocSimulationResponse {
   };
 }
 
+function resolveCaptureVector(
+  legacyImagePlaneVector: RasterVector,
+  orientation: CaptureOrientation,
+  geometry: ResolvedCaptureGeometry
+): {
+  nativeRasterDeltaPixels: RasterVector;
+  orientedCaptureDeltaPixels: RasterVector;
+  outputDeltaPixels: RasterVector;
+} {
+  // Legacy projected-motion/camera-shake components use +X right and +Y up.
+  // Capture raster coordinates use +X right and +Y down. Preserve the legacy
+  // fields unchanged and convert explicitly before applying physical rotation.
+  const nativeRasterDeltaPixels = {
+    x: legacyImagePlaneVector.x,
+    y: -legacyImagePlaneVector.y
+  };
+  const orientedCaptureDeltaPixels =
+    transformNativeRasterVectorToOriented({
+      vector: nativeRasterDeltaPixels,
+      orientation
+    });
+  const scaleX =
+    geometry.output.raster.pixelWidth / geometry.output.cropRect.width;
+  const scaleY =
+    geometry.output.raster.pixelHeight / geometry.output.cropRect.height;
+
+  return {
+    nativeRasterDeltaPixels,
+    orientedCaptureDeltaPixels,
+    outputDeltaPixels: {
+      x: orientedCaptureDeltaPixels.x * scaleX,
+      y: orientedCaptureDeltaPixels.y * scaleY
+    }
+  };
+}
+
 /**
  * Composes the validated POC calculations into a single renderer/agent-facing
  * response without introducing any new photographic model.
@@ -381,6 +484,30 @@ export function simulatePocCamera(
       "The composed POC currently requires approximately square geometric sampling; X/Y pitch differ by more than 1%. Use lower-level axis-aware engine primitives until the POC contract supports separate X/Y sampling."
     );
   }
+  const captureGeometry =
+    request.capture === undefined
+      ? undefined
+      : resolveCaptureGeometry({
+          imagingArea: {
+            widthMm: request.sensor.widthMm,
+            heightMm: request.sensor.heightMm
+          },
+          nativeRaster: {
+            pixelWidth: request.sensor.pixelWidth,
+            pixelHeight: request.sensor.pixelHeight
+          },
+          orientation: request.capture.orientation,
+          ...(request.capture.activeCaptureRect === undefined
+            ? {}
+            : { activeCaptureRect: request.capture.activeCaptureRect }),
+          ...(request.capture.outputCropRect === undefined
+            ? {}
+            : { outputCropRect: request.capture.outputCropRect }),
+          ...(request.capture.outputRaster === undefined
+            ? {}
+            : { outputRaster: request.capture.outputRaster })
+        }).value;
+
   requirePositiveFinite("lens.focalLengthMm", request.lens.focalLengthMm);
   requirePositiveFinite("lens.aperture", request.lens.aperture);
   requirePositiveFinite(
@@ -421,6 +548,26 @@ export function simulatePocCamera(
   }
   requirePositiveFinite("focus.circleOfConfusionMm", circleOfConfusionMm);
   requirePositiveFinite("crop.factor", request.crop.factor);
+
+  if (request.capture !== undefined && request.crop.factor !== 1) {
+    throw new InvalidScientificInputError(
+      "capture geometry cannot be combined with legacy crop.factor other than 1."
+    );
+  }
+  if (
+    request.capture !== undefined &&
+    request.focus.equivalentViewingCircleOfConfusion !== undefined
+  ) {
+    throw new InvalidScientificInputError(
+      "capture geometry currently requires explicit focus.circleOfConfusionMm; equivalent-viewing CoC semantics for retained capture/output area are not yet composed."
+    );
+  }
+  if (request.capture !== undefined && request.subjectCrop !== undefined) {
+    throw new InvalidScientificInputError(
+      "capture geometry cannot yet be combined with subjectCrop; subject-framing crop semantics must be migrated to the staged output geometry explicitly."
+    );
+  }
+
   requirePositiveFinite(
     "diffraction.wavelengthNm",
     request.diffraction.wavelengthNm
@@ -454,6 +601,33 @@ export function simulatePocCamera(
     sensorDimensionMm: diagonalMm,
     focusDistanceM: request.focus.focusDistanceM
   });
+
+  const activeCaptureFieldOfView =
+    captureGeometry === undefined || request.capture === undefined
+      ? undefined
+      : calculateActiveCaptureFieldOfView({
+          imagingArea: {
+            widthMm: request.sensor.widthMm,
+            heightMm: request.sensor.heightMm
+          },
+          nativeRaster: {
+            pixelWidth: request.sensor.pixelWidth,
+            pixelHeight: request.sensor.pixelHeight
+          },
+          orientation: request.capture.orientation,
+          ...(request.capture.activeCaptureRect === undefined
+            ? {}
+            : { activeCaptureRect: request.capture.activeCaptureRect }),
+          focalLengthMm: request.lens.focalLengthMm,
+          focusDistanceM: request.focus.focusDistanceM
+        }).value;
+  const equivalentFocalLength =
+    captureGeometry === undefined
+      ? undefined
+      : calculateEquivalentFocalLength35Mm({
+          focalLengthMm: request.lens.focalLengthMm,
+          activeImagingArea: captureGeometry.activeCapture.imagingArea
+        }).value;
 
   const pixelPitch = calculatePixelPitch({
     sensorWidthMm: request.sensor.widthMm,
@@ -695,6 +869,58 @@ export function simulatePocCamera(
           };
         });
 
+  const capture = request.capture;
+  const captureMotion =
+    captureGeometry === undefined || capture === undefined
+      ? undefined
+      : resolveCaptureVector(
+          {
+            x: motion.value.deltaXMm / (pixelPitch.value.micrometers / 1000),
+            y: motion.value.deltaYMm / (pixelPitch.value.micrometers / 1000)
+          },
+          capture.orientation,
+          captureGeometry
+        );
+  const captureMotionSamples =
+    captureGeometry === undefined ||
+    capture === undefined ||
+    motionSamples === undefined
+      ? undefined
+      : motionSamples.map((sample) => ({
+          id: sample.id,
+          ...resolveCaptureVector(
+            {
+              x: sample.deltaXPixels,
+              y: sample.deltaYPixels
+            },
+            capture.orientation,
+            captureGeometry
+          )
+        }));
+  const captureCameraShake =
+    captureGeometry === undefined ||
+    capture === undefined ||
+    cameraShake === undefined
+      ? undefined
+      : {
+          unstabilized: resolveCaptureVector(
+            {
+              x: cameraShake.value.unstabilized.deltaXPixels ?? 0,
+              y: cameraShake.value.unstabilized.deltaYPixels ?? 0
+            },
+            capture.orientation,
+            captureGeometry
+          ),
+          stabilized: resolveCaptureVector(
+            {
+              x: cameraShake.value.stabilized.deltaXPixels ?? 0,
+              y: cameraShake.value.stabilized.deltaYPixels ?? 0
+            },
+            capture.orientation,
+            captureGeometry
+          )
+        };
+
   return {
     apiVersion: POC_SIMULATION_API_VERSION,
     projection: {
@@ -710,11 +936,31 @@ export function simulatePocCamera(
       diagonalDegrees: diagonalFov.value.degrees
     },
     sensor: {
+      geometry: sensorGeometry,
       pixelPitchMicrometers: pixelPitch.value.micrometers,
       pitchXMicrometers,
       pitchYMicrometers,
       pitchAxisRelativeDifference
     },
+    ...(captureGeometry === undefined ||
+    activeCaptureFieldOfView === undefined ||
+    equivalentFocalLength === undefined ||
+    captureMotion === undefined
+      ? {}
+      : {
+          capture: {
+            geometry: captureGeometry,
+            activeFieldOfView: activeCaptureFieldOfView,
+            focalLength: equivalentFocalLength,
+            motion: captureMotion,
+            ...(captureMotionSamples === undefined
+              ? {}
+              : { motionSamples: captureMotionSamples }),
+            ...(captureCameraShake === undefined
+              ? {}
+              : { cameraShake: captureCameraShake })
+          }
+        }),
     crop: {
       cropFactor: request.crop.factor,
       ...crop.value,

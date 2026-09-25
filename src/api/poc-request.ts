@@ -4,6 +4,13 @@ import type { PocSimulationRequest } from "../simulation/poc-simulation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
+const CAPTURE_ORIENTATIONS = new Set([
+  "landscape",
+  "portrait-clockwise",
+  "landscape-inverted",
+  "portrait-counter-clockwise"
+]);
+
 /**
  * Error thrown when decoded HTTP JSON does not match the POC request shape.
  */
@@ -62,6 +69,43 @@ function assertSensor(value: unknown): void {
   requireFiniteNumber(sensor, "heightMm", "sensor");
   requireFiniteNumber(sensor, "pixelWidth", "sensor");
   requireFiniteNumber(sensor, "pixelHeight", "sensor");
+}
+
+function assertRasterRect(value: unknown, path: string): void {
+  const rect = requireRecord(value, path);
+  requireFiniteNumber(rect, "x", path);
+  requireFiniteNumber(rect, "y", path);
+  requireFiniteNumber(rect, "width", path);
+  requireFiniteNumber(rect, "height", path);
+}
+
+function assertRasterDimensions(value: unknown, path: string): void {
+  const raster = requireRecord(value, path);
+  requireFiniteNumber(raster, "pixelWidth", path);
+  requireFiniteNumber(raster, "pixelHeight", path);
+}
+
+function assertCapture(value: unknown): void {
+  const capture = requireRecord(value, "capture");
+  const orientation = requireString(capture, "orientation", "capture");
+  if (!CAPTURE_ORIENTATIONS.has(orientation)) {
+    throw new InvalidPocRequestError(
+      "capture.orientation must be one of landscape, portrait-clockwise, landscape-inverted, portrait-counter-clockwise."
+    );
+  }
+
+  if (capture.activeCaptureRect !== undefined) {
+    assertRasterRect(
+      capture.activeCaptureRect,
+      "capture.activeCaptureRect"
+    );
+  }
+  if (capture.outputCropRect !== undefined) {
+    assertRasterRect(capture.outputCropRect, "capture.outputCropRect");
+  }
+  if (capture.outputRaster !== undefined) {
+    assertRasterDimensions(capture.outputRaster, "capture.outputRaster");
+  }
 }
 
 function assertLens(value: unknown): void {
@@ -183,6 +227,10 @@ export function parsePocSimulationRequest(
 
   const crop = requireRecord(request.crop, "crop");
   requireFiniteNumber(crop, "factor", "crop");
+
+  if (request.capture !== undefined) {
+    assertCapture(request.capture);
+  }
 
   const diffraction = requireRecord(request.diffraction, "diffraction");
   requireFiniteNumber(diffraction, "wavelengthNm", "diffraction");

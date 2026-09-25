@@ -22,8 +22,11 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Changed
 
-- Engine API contract advances to `0.23.0`.
-- Composed POC simulation API advances to `0.18.0`, exposes X/Y sample pitch diagnostics, and rejects sensor geometry whose X/Y geometric pitch differs by more than 1% until the composed POC is axis-aware.
+- Engine API contract advances to `0.24.0`.
+- Composed POC simulation API advances to `0.19.0`, preserving legacy requests while adding opt-in staged capture orientation/active/output geometry, active-capture FOV, active-capture 35 mm-equivalent focal length, and oriented/output motion diagnostics.
+- The composed POC exposes shared sensor-geometry metrics while retaining backwards-compatible representative pitch fields.
+- Capture-geometry mode fails closed on ambiguous legacy double-crop, subject-framing crop, and equivalent-viewing CoC combinations until those staged semantics are explicitly defined.
+- The composed POC continues to expose X/Y sample pitch diagnostics and rejects sensor geometry whose X/Y geometric pitch differs by more than 1% until all pixel-domain calculations are axis-aware.
 - Unreleased sensor-architecture schema advances to `0.2.0`: source origin and reuse rights are independent, scalar facts accept multiple evidence records, and each readout capability carries its own evidence.
 - `InvalidConfigurationError` now lives in the core dependency layer and remains re-exported from the existing public surface.
 - Radiometry readiness distinguishes `not-ready`, `approximate-only`, and `calibrated-ready`; assessment never enables composed photon output by itself.
