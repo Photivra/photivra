@@ -193,6 +193,38 @@ The current primitive calculates horizontal pixel pitch. It assumes the supplied
 
 See [Physics Foundation](PHYSICS_FOUNDATION.md#pixel-pitch-and-crop).
 
+## Sensor imaging area and native raster
+
+Use `calculateSensorGeometryMetrics()` when physical imaging size and native image resolution need to remain independent:
+
+```ts
+import { calculateSensorGeometryMetrics } from "@photivra/engine";
+
+const metrics = calculateSensorGeometryMetrics({
+  imagingArea: {
+    widthMm: 36,
+    heightMm: 24
+  },
+  nativeRaster: {
+    pixelWidth: 6000,
+    pixelHeight: 4000
+  }
+});
+
+console.log(metrics.value.imagingArea.cropFactor35Mm); // 1
+console.log(metrics.value.nativeRaster.megapixels); // 24
+console.log(metrics.value.sampling.pitchXMicrometers); // 6
+console.log(metrics.value.sampling.pitchYMicrometers); // 6
+```
+
+`SensorImagingArea` means the physical photosensitive imaging area used for image formation, not sensor package or die dimensions. `NativeImageRaster` is the effective native image-sampling grid; it does not assert a one-to-one relationship between image samples and physical photodiodes/photosites.
+
+The 35 mm crop factor is diagonal-based relative to a 36 × 24 mm reference frame. Changing native raster density does not change the physical crop factor. Changing physical imaging area does not inherently change native megapixels.
+
+The returned X/Y sampling pitches are geometric image-sample spacing. They are not photodiode active area, fill factor, or a photon-collection model and must not be used as those quantities.
+
+The existing `calculatePixelPitch()` API remains available for callers that only need horizontal pitch from sensor width and horizontal pixel count.
+
 ## Centered crop and subject framing crop
 
 Use `calculateCenteredCrop()` for a same-aspect centered digital crop:

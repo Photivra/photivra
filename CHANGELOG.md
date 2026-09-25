@@ -2,6 +2,17 @@
 
 Notable public changes to `@photivra/engine` are documented here.
 
+## Unreleased
+
+### Added
+
+- `calculateSensorGeometryMetrics()` plus `SensorImagingArea` and `NativeImageRaster`, separating physical imaging geometry from native effective image resolution while deriving diagonal 35 mm crop factor, megapixels, and independent X/Y sampling pitch.
+- Explicit provenance assumptions that prevent geometric sample spacing from being treated as photosite active area or photon-collection area.
+
+### Compatibility
+
+- Existing `SensorConfiguration`, `calculatePixelPitch()`, and `simulatePocCamera()` contracts remain unchanged.
+
 ## 0.2.0 - 2026-09-21
 
 ### Added
