@@ -107,7 +107,7 @@ Temporal exposure/readout couples into the photosite/charge stages rather than a
 Each stage is labeled:
 
 - `existing-foundation` — the root engine already contains the relevant foundation;
-- `partial-foundation` — some low-level science exists, but the full stage contract is not implemented; spatial camera rotation in the temporal domain plus declared-scale focus breathing, radial distortion, and RGB-channel lateral CA in the lens-field domain are current examples;
+- `partial-foundation` — some low-level science exists, but the full stage contract is not implemented; spatial camera rotation in the temporal domain plus declared-scale focus breathing, radial distortion, RGB-channel lateral CA, and illumination throughput in the lens-field domain are current examples;
 - `reserved-contract` — ordering/ownership is reserved for future work only.
 
 Do not infer capabilities from a stage merely because it is present in the contract.
