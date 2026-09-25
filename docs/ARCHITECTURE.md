@@ -122,6 +122,14 @@ The POC still does **not** consume:
 
 That separation is deliberate. Further foundation APIs should remain independently testable and only enter the POC through explicit contract/version changes and migration review.
 
+## Standalone focus-breathing foundation
+
+The lens-field/pupil domain now has a partial standalone foundation through `calculateFocusBreathingProjection()` and `calculateFocusBreathingFieldOfView()`.
+
+These functions apply an explicit caller-declared scale to the ideal thin-lens projection for one focus state. They do not infer a breathing curve, identify a real lens, or mutate physical focal length.
+
+The model remains standalone and is not composed into `simulatePocCamera()` yet. Distortion, lateral chromatic aberration, illumination/mechanical vignetting, pupil/PSF behavior, and calibrated lens profiles remain separate future work.
+
 ## Standalone spatial camera-rotation foundation
 
 The root engine exposes `calculateCameraRotationImageMapping()` as a low-level implementation of the image-formation contract's time-parameterized camera-rotation placement.

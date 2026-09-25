@@ -116,6 +116,46 @@ Focus distance is not part of conventional 35 mm-equivalent focal length. Later 
 
 `calculateImagingAreaMetrics()` exposes the same canonical diagonal crop-factor calculation independently of raster density so other engine modules do not need to duplicate that formula.
 
+## Focus-breathing projection
+
+Use `calculateFocusBreathingProjection()` when a caller has an explicit projection-scale value for the selected focus state.
+
+```ts
+import {
+  calculateFocusBreathingFieldOfView,
+  calculateFocusBreathingProjection
+} from "@photivra/engine";
+
+const projection = calculateFocusBreathingProjection({
+  focalLengthMm: 50,
+  focusDistanceM: 1.5,
+  breathingProjectionScale: 1.04
+});
+
+const horizontalFov = calculateFocusBreathingFieldOfView({
+  focalLengthMm: 50,
+  focusDistanceM: 1.5,
+  sensorDimensionMm: 36,
+  breathingProjectionScale: 1.04
+});
+
+console.log(projection.value.physicalFocalLengthMm); // still 50
+console.log(projection.value.effectiveProjectionDistanceMm);
+console.log(horizontalFov.value.effectiveDegrees);
+```
+
+`breathingProjectionScale` is dimensionless and applies to the ideal thin-lens projection distance for that one focus state:
+
+- `1` means no additional breathing relative to the current thin-lens model;
+- values above `1` narrow framing / increase magnification;
+- values below `1` widen framing / reduce magnification.
+
+Photivra does **not** infer this scale from focal length, focus distance, lens identity, sensor format, or marketing specifications. Supplying the same scale at two focus distances means exactly that: the caller explicitly declared the same relative projection scale at both states.
+
+The physical focal length remains authoritative. The effective projection distance is not a renamed focal length and later digital/output crop does not redefine the breathing scale.
+
+This generic model is returned as an `approximation`. A future calibrated lens profile would need defensible provenance, reuse rights, and uncertainty/limitation metadata.
+
 ## Thin-lens image distance and magnification
 
 Use `calculateThinLensImageDistance()` to calculate ideal Gaussian thin-lens image distance for an object/focus plane.

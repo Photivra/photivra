@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.27.0" as const;
+export const ENGINE_API_VERSION = "0.28.0" as const;
 
 export {
   approximationResult,
@@ -168,6 +168,15 @@ export {
   type DefocusCircle,
   type DepthOfField
 } from "./optics/depth-of-field.js";
+
+export {
+  calculateFocusBreathingFieldOfView,
+  calculateFocusBreathingProjection,
+  type CalculateFocusBreathingFieldOfViewInput,
+  type CalculateFocusBreathingProjectionInput,
+  type FocusBreathingFieldOfView,
+  type FocusBreathingProjection
+} from "./optics/focus-breathing.js";
 
 export type {
   CameraConfiguration,
