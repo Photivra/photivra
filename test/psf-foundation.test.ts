@@ -319,5 +319,23 @@ describe("PSF/pupil foundation", () => {
         }
       })
     ).toThrow("spectralBasis.wavelengthNm");
+
+    expect(() =>
+      calculatePsfFoundationComponents({
+        focalLengthMm: 50,
+        aperture: 4,
+        focusDistanceM: 5,
+        subjectDistanceM: 7,
+        fieldPointMm: { x: 0, y: 0 },
+        fieldNormalizationRadiusMm: 20,
+        spectralBasis: {
+          kind: "broadband",
+          wavelengthNm: 550
+        } as unknown as {
+          kind: "monochromatic";
+          wavelengthNm: number;
+        }
+      })
+    ).toThrow("spectralBasis.kind");
   });
 });
