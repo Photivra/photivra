@@ -31,6 +31,19 @@ The returned `deltaXmm`/`deltaYmm` components are legacy camera/image-plane comp
 
 Capture raster coordinates use +X right and +Y down. POC API 0.19 therefore converts a legacy image-plane vector to native raster axes as `{ x, y: -y }` before applying the native↔oriented rotation helper. The additive capture diagnostics expose `nativeRasterDeltaPixels`, `orientedCaptureDeltaPixels`, and `outputDeltaPixels`; the legacy motion fields are not reinterpreted.
 
+## Temporal image-formation basis
+
+The image-formation contract defines physical time in **seconds from exposure start**.
+
+A future spatial camera-rotation model should be evaluable at arbitrary physical times rather than returning only one finished full-frame displacement. That allows global exposure and later rolling readout to consume the same camera-motion model.
+
+Exposure duration and sensor readout timing are independent concepts:
+
+- global readout can still contain subject/camera motion blur;
+- rolling readout changes the exposure/readout schedule across native sensor locations;
+- physical orientation does not redefine native sensor scan direction;
+- depth-dependent camera translation is not part of the initial rotational-flow model because parallax depends on scene depth.
+
 ## Exposure relations
 
 `calculateExposureValue100()` implements EV100 from aperture and shutter duration.

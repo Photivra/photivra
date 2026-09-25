@@ -46,6 +46,35 @@ Equivalent focal length is also layered on top of physical capture geometry rath
 Sensor architecture is a separate descriptive layer. Illumination (FSI/BSI), integration/stacking, readout capabilities, and color-sampling family are independent evidence-backed facts. Their presence alone has no image-quality effect in the engine. Evidence origin is modeled independently from reuse rights, scalar facts may cite multiple evidence records, and multi-valued capabilities carry evidence per value. Omitted facts remain unknown rather than being inferred. Capture-mode semantics, readout timing, reconstruction, and calibrated radiometry consume these facts only through later explicit models.
 
 
+## Image-formation ownership and ordering
+
+The root package exports `getImageFormationContract()` as the canonical semantic map for current and future image-formation work.
+
+It defines five scientific domains:
+
+1. scene/ray geometry;
+2. lens mapping plus pupil/throughput;
+3. field- and wavelength-dependent PSF;
+4. time-dependent exposure/readout;
+5. sensor sampling through orientation/output/display.
+
+The graph is a **dependency/ownership graph**, not a literal renderer filter list. Hard upstream dependencies are acyclic; explicit couplings record interactions that must not be split into scientifically independent post-effects.
+
+Important consequences:
+
+- focus breathing is projection/lens mapping;
+- lateral CA is wavelength/channel-dependent field mapping;
+- illumination vignetting is throughput-only;
+- mechanical/pupil vignetting can affect both throughput and PSF/bokeh;
+- diffraction belongs to the pupil/PSF domain;
+- camera rotation should be time-parameterized so global and rolling readout consume one motion model;
+- exposure duration and readout timing remain independent;
+- future sensor ordering is reserved from optical stack/CFA sampling through charge/noise/ADC/reconstruction before oriented/output transforms.
+
+Renderer implementations may optimize or approximate only when they preserve the engine-owned semantics. Geometric warps use inverse destination-to-source sampling, premultiplied alpha, and stable depth/occlusion order.
+
+See `docs/IMAGE_FORMATION.md`.
+
 ## Radiometry readiness boundary
 
 Radiometry prerequisites are represented separately from the composed POC and from low-level signal/noise primitives. `parseRadiometryReadinessProfile()` validates declared scene spectral radiance, optical transmission, pupil/vignetting behavior, photosite collection-area semantics, exposure integration, and sensor response together with evidence and uncertainty declarations.

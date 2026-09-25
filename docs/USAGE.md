@@ -14,6 +14,30 @@ console.log(result.quality);
 
 `quality` is optional and is omitted when the engine does not have defensible quantified uncertainty/accuracy metadata to report.
 
+## Image-formation contract
+
+Use the public image-formation contract when coordinating effects that cross optics, motion, sensor, and output domains:
+
+```ts
+import { getImageFormationContract } from "@photivra/engine";
+
+const contract = getImageFormationContract();
+
+console.log(contract.domains);
+console.log(contract.temporal.authoritativeTimeUnit);
+console.log(
+  contract.effectPlacements.find(
+    (effect) => effect.id === "mechanical-vignetting"
+  )
+);
+```
+
+The contract is descriptive metadata. It does not imply that every reserved stage is implemented, and it does not change the composed POC request/response contract.
+
+Use `requiredUpstreamStages` for hard scientific dependencies and `coupledStages` for shared state/interactions that must not be treated as independent renderer filters.
+
+See [Image-Formation Contract](IMAGE_FORMATION.md) for coordinate, temporal, renderer, and reserved sensor-stage semantics.
+
 ## Field of view
 
 Use `calculateFieldOfView()` for one sensor dimension at a time.

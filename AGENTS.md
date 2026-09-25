@@ -87,6 +87,22 @@ The post-0.2 sensor/capture foundation has explicit semantics. Preserve them.
 - Output resampling must not imply geometric stretching unless a future explicit pixel-aspect/transform contract supports it.
 - 35 mm-equivalent focal length is diagonal-based from the active physical capture area. Physical focal length remains authoritative and digital output crop does not redefine it.
 
+## Image-formation contract rules
+
+Cross-cutting optics, motion, sensor, and output work must follow `getImageFormationContract()` and `docs/IMAGE_FORMATION.md`.
+
+- Do not implement future lens/sensor effects as arbitrary renderer post-processes when the contract assigns them to another scientific domain.
+- Hard upstream dependencies and coupled-stage relationships are different concepts.
+- Focus breathing is projection/lens mapping.
+- Lateral CA is wavelength/channel-dependent field mapping.
+- Illumination vignetting is throughput-only; mechanical/pupil vignetting can also modify PSF/bokeh.
+- Diffraction belongs to the pupil/PSF domain.
+- Time-dependent camera mapping uses seconds from exposure start; normalized shutter time is derived convenience only.
+- Exposure duration and readout timing remain independent.
+- Camera rotation should be time-parameterized before rolling-readout integration; do not fold depth-dependent translation into a depth-independent screen flow.
+- Geometric renderer warps use inverse sampling, premultiplied alpha, and must preserve scene occlusion order.
+- Reserved sensor/ADC/reconstruction stages are not implemented capabilities and must not be advertised as such.
+
 ## Radiometry and sensor-metadata rules
 
 - Sensor architecture metadata is descriptive and scientifically inert until a separate downstream model consumes it.

@@ -52,6 +52,17 @@ Coordinate systems and image-formation stages are part of the API contract, not 
 - Output resizing/cropping must not imply geometric stretching without an explicit transform or pixel-aspect contract.
 - Conventional 35 mm-equivalent focal length is derived from active physical capture geometry; it must not replace physical focal length or silently include later digital crop.
 
+## Image-formation ownership contracts
+
+Cross-cutting optical/sensor effects must use the public image-formation contract rather than defining one-off stage ordering in a renderer or downstream app.
+
+- Treat `requiredUpstreamStages` as hard scientific dependencies.
+- Treat `coupledStages` as shared scientific state, not an instruction to serialize independent filters.
+- Coordinate spaces are part of the public semantic contract.
+- Time-dependent models use seconds from exposure start as the authoritative temporal coordinate.
+- A reserved stage does not imply an implemented capability.
+- Preview and reference implementations may differ in bounded fidelity but must consume the same engine-owned parameters and semantics.
+
 ## Result metadata
 
 Primitive public scientific calculation functions return `CalculationResult<T>`, which carries model provenance and optional quality metadata.
