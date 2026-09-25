@@ -409,6 +409,45 @@ The circle-of-confusion criterion used for depth-of-field is caller supplied. Th
 
 See [Physics Foundation](PHYSICS_FOUNDATION.md#thin-lens-focus-and-depth-of-field).
 
+## PSF and pupil foundation
+
+Use `getPsfFoundationContract()` to inspect current/reserved PSF contribution ownership and `calculatePsfFoundationComponents()` to evaluate the currently implemented diagnostics in one explicit field/depth/spectral/pupil context.
+
+```ts
+import {
+  calculatePsfFoundationComponents,
+  getPsfFoundationContract
+} from "@photivra/engine";
+
+const contract = getPsfFoundationContract();
+
+const components = calculatePsfFoundationComponents({
+  focalLengthMm: 85,
+  aperture: 2.8,
+  focusDistanceM: 10,
+  subjectDistanceM: 20,
+  fieldPointMm: { x: 12, y: 8 },
+  fieldNormalizationRadiusMm: 21.6,
+  spectralBasis: {
+    kind: "monochromatic",
+    wavelengthNm: 550
+  }
+});
+
+console.log(contract.compositionPolicy);
+console.log(components.value.contributions.geometricDefocus);
+console.log(components.value.contributions.circularDiffraction);
+console.log(components.value.composition.status); // "not-composed"
+```
+
+The current foundation intentionally **does not combine** geometric defocus and circular diffraction into a synthetic PSF, MTF, convolution kernel, combined blur radius, or “lens sharpness” score.
+
+It records field position now even though the current defocus/Airy diagnostics are field invariant. Future field-curvature, pupil-clipping, bokeh, and aberration contributions can therefore consume the same context without reinterpreting existing outputs.
+
+The current spectral basis is explicitly monochromatic for the Airy diagnostic. This does not create a spectral lens or sensor-color model.
+
+See [PSF and Pupil Foundation](PSF_FOUNDATION.md).
+
 ## Circular-aperture diffraction
 
 Use `calculateAiryDisk()` for the ideal monochromatic circular-pupil first-zero Airy diameter:

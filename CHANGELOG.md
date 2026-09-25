@@ -13,10 +13,11 @@ Notable public changes to `@photivra/engine` are documented here.
 - `calculateRadialDistortionMapping()` plus `calculateInverseRadialDistortionMapping()` for generic optical-axis-centered radial field mapping with explicit normalization radius, declared operating envelope, and fail-closed monotonicity/invertibility validation.
 - `calculateLateralChromaticAberrationMapping()` plus its inverse for green-reference channel field mapping: one common base distortion plus red/blue coefficient offsets, deterministic per-channel source sampling, and physical separation diagnostics.
 - `calculateIlluminationVignetting()` for generic radial field-dependent linear throughput with full-envelope extrema validation, positive stop-loss reporting, and a strict separation from pupil/PSF vignetting.
+- `getPsfFoundationContract()` and `calculatePsfFoundationComponents()` for explicit field/depth/wavelength/pupil context plus separately preserved geometric-defocus and circular-diffraction diagnostics, with future pupil/field contributions reserved but not implemented.
 
 ### Changed
 
-- Engine API contract advances to `0.31.0`. The image-formation contract remains `0.2.0`; illumination vignetting completes the current standalone lens-field mapping/throughput tranche without changing stage placement semantics. The composed POC remains `0.20.0`.
+- Engine API contract advances to `0.32.0`. The image-formation contract remains `0.2.0`; the new PSF/pupil foundation formalizes already-partial field/PSF ownership without changing composed POC semantics. The composed POC remains `0.20.0`.
 
 ### Documentation
 
@@ -26,6 +27,7 @@ Notable public changes to `@photivra/engine` are documented here.
 - Documented radial distortion normalization, forward/inverse mapping, operating-envelope monotonicity, and the boundary excluding tangential/decentered and named-lens behavior.
 - Documented lateral CA as channel-dependent field mapping rather than RGB blur, including the non-spectral/non-CFA calibration boundary.
 - Documented illumination vignetting as scene-linear/channel-linear throughput only, including full-envelope validity checks and the boundary excluding mechanical/pupil vignetting and PSF/bokeh changes.
+- Added the PSF/pupil foundation guide, preserving defocus and circular diffraction as separate diagnostics and reserving future pupil clipping, non-circular diffraction, field curvature, aberration, and bokeh contributions without claiming a combined PSF.
 
 ## 0.3.0 - 2026-09-25
 

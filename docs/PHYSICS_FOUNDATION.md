@@ -180,6 +180,24 @@ The model is not a macro calibration model and does not include diffraction, pup
 
 Defocus is calculated geometrically by comparing the selected sensor plane for the focus distance with the ideal image plane for the subject distance and projecting an ideal circular entrance-pupil cone to the sensor.
 
+### PSF/pupil foundation
+
+The engine now exposes a PSF/pupil foundation that evaluates existing geometric defocus and circular diffraction diagnostics in one explicit context while keeping the numerical contributions separate.
+
+The context declares:
+
+- physical image-plane field position;
+- a comparison-only field normalization radius;
+- focus and subject depth;
+- monochromatic wavelength basis;
+- ideal circular f-number-derived pupil size.
+
+The current foundation does **not** calculate a combined point-spread function or MTF. Defocus-circle diameter and Airy first-zero diameter are not added together or collapsed into one sharpness value.
+
+Reserved future contributions include non-circular diffraction, mechanical pupil clipping, field curvature, field-dependent aberration structure, and field-dependent bokeh.
+
+Illumination vignetting remains outside the PSF contribution list because it is currently modeled as throughput-only.
+
 ### Diffraction
 
 For an ideal circular aperture, first-zero Airy diameter is:

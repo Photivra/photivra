@@ -58,6 +58,24 @@ The required-dependency graph is acyclic. Coupling may be bidirectional because 
 
 An implementation may combine stages for performance only when the combination is mathematically equivalent and the public stage/effect semantics remain intact.
 
+## PSF contribution foundation
+
+The `field-wavelength-psf` stage has a dedicated public foundation documented in [PSF and Pupil Foundation](PSF_FOUNDATION.md).
+
+Current implementation:
+- geometric defocus-circle diagnostic;
+- ideal circular-pupil Airy first-zero diagnostic;
+- explicit field/depth/wavelength/pupil context.
+
+Reserved contributions:
+- non-circular diffraction;
+- mechanical pupil clipping;
+- field curvature;
+- field-dependent aberration;
+- field-dependent bokeh.
+
+No combined PSF is currently calculated.
+
 ## Temporal basis
 
 Physical time is measured in **seconds from exposure start**.

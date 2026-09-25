@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.31.0" as const;
+export const ENGINE_API_VERSION = "0.32.0" as const;
 
 export {
   approximationResult,
@@ -212,6 +212,18 @@ export {
   type IlluminationVignettingCoefficients,
   type IlluminationVignettingProfile
 } from "./optics/illumination-vignetting.js";
+
+export {
+  PSF_FOUNDATION_VERSION,
+  calculatePsfFoundationComponents,
+  getPsfFoundationContract,
+  type CalculatePsfFoundationComponentsInput,
+  type PsfContributionContract,
+  type PsfContributionId,
+  type PsfContributionStatus,
+  type PsfFoundationComponents,
+  type PsfFoundationContract
+} from "./optics/psf-foundation.js";
 
 export type {
   CameraConfiguration,
