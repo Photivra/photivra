@@ -62,25 +62,33 @@ Geometric sample pitch is explicitly insufficient as a photosite photon-collecti
 
 ## Composition boundary after 0.2.0
 
-The newer sensor/capture/architecture/radiometry modules are public root-engine foundations, but the composed `simulatePocCamera()` contract intentionally remains narrower for compatibility.
+The sensor/capture/architecture/radiometry modules are public root-engine foundations. POC simulation API 0.19 composes the geometry foundation additively while keeping older callers valid.
 
-Today the POC still composes:
+The POC now composes:
 
-- physical sensor width/height plus raster dimensions;
-- one same-aspect centered crop factor;
-- one representative pixel-pitch path, with a fail-closed guard for materially non-square sampling;
+- physical sensor width/height plus native effective raster dimensions;
+- shared sensor-geometry metrics, including physical crop factor, raster-derived megapixels, and X/Y geometric sampling pitch;
+- the legacy same-aspect centered `crop.factor` path for compatibility;
+- an opt-in staged `capture` path for physical orientation, native active-capture rectangle, oriented digital/output crop, and final output raster;
+- active-capture FOV, including asymmetric bounds for off-center physical capture;
+- diagonal-based 35 mm-equivalent focal length derived from active physical capture while physical focal length remains authoritative;
+- additive oriented-capture and final-output motion/camera-shake vector diagnostics;
+- one representative horizontal-pitch path for existing blur/sampling calculations, with a fail-closed guard for materially non-square sampling;
 - the established projection, DOF/defocus, diffraction, motion, exposure, aperture-shape, and camera-shake models.
 
-It does **not** yet consume:
+Compatibility boundaries remain explicit:
 
-- `CaptureOrientation` or native↔oriented coordinate transforms;
-- an arbitrary `activeCaptureRect`;
-- off-center active-capture optical bounds;
-- `calculateEquivalentFocalLength35Mm()` as an input to physics;
+- staged capture geometry cannot be combined with legacy `crop.factor` other than `1`;
+- `subjectCrop` is not yet composed with staged output geometry;
+- equivalent-viewing CoC input is not yet composed with retained capture/output viewing semantics, so capture mode currently requires explicit `circleOfConfusionMm`;
+- existing native motion/camera-shake fields retain their meaning rather than being reinterpreted by orientation.
+
+The POC still does **not** consume:
+
 - `SensorArchitectureProfile`;
 - `RadiometryReadinessProfile` or calibrated photon/noise output.
 
-That separation is deliberate. New foundation APIs should first remain independently testable; composing them into the POC requires an explicit POC contract/version change and migration review rather than implicit reinterpretation of existing fields.
+That separation is deliberate. Further foundation APIs should remain independently testable and only enter the POC through explicit contract/version changes and migration review.
 
 ## Repository-local Node POC transport
 
