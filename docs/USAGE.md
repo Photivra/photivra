@@ -208,7 +208,7 @@ The engine returns an `approximation` because the polynomial is a generic caller
 
 ## Lateral chromatic-aberration mapping
 
-Use `calculateLateralChromaticAberrationMapping()` to map one ideal image-plane point independently through generic red, green, and blue radial field profiles.
+Use `calculateLateralChromaticAberrationMapping()` to map one ideal image-plane point through a shared **green-reference base distortion** plus red/blue radial coefficient offsets.
 
 Use `calculateInverseLateralChromaticAberrationMapping()` when a renderer needs the ideal source coordinate for each output channel at one distorted destination.
 
@@ -221,10 +221,20 @@ import {
 const profile = {
   normalizationRadiusMm: 21.63,
   maximumNormalizedRadius: 1,
-  channelCoefficients: {
-    red:   { k1: -0.04, k2: 0.012, k3: 0 },
-    green: { k1: -0.06, k2: 0.018, k3: 0 },
-    blue:  { k1: -0.08, k2: 0.024, k3: 0 }
+  baseDistortionCoefficients: {
+    k1: -0.06,
+    k2: 0.018,
+    k3: 0
+  },
+  redCoefficientOffset: {
+    k1: 0.02,
+    k2: -0.006,
+    k3: 0
+  },
+  blueCoefficientOffset: {
+    k1: -0.02,
+    k2: 0.006,
+    k3: 0
   }
 };
 
@@ -238,15 +248,22 @@ const inverse = calculateInverseLateralChromaticAberrationMapping({
   profile
 });
 
-console.log(forward.value.pairwiseSeparationMm);
+console.log(forward.value.separation);
 console.log(inverse.value.channels.red.sourceImagePointMm);
 console.log(inverse.value.channels.green.sourceImagePointMm);
 console.log(inverse.value.channels.blue.sourceImagePointMm);
 ```
 
-This is **field mapping, not a blur kernel**. Every channel uses the same declared physical normalization radius and operating envelope, but has its own generic radial coefficients. Each channel must remain individually invertible over that envelope.
+This is **field mapping, not a blur kernel**.
 
-The channel labels are abstract renderer RGB channels. They are not wavelength samples, a spectral lens model, sensor CFA primaries, or a camera colorimetric profile. Longitudinal chromatic aberration and wavelength-dependent PSF behavior remain separate future work.
+The green channel carries the common base geometric distortion. Red and blue offsets are added to that base before mapping. Therefore:
+
+- zero red/blue offsets mean no lateral CA, while base distortion can still exist;
+- callers should not apply the same base distortion as a second renderer warp;
+- all three combined channel profiles share one physical normalization radius and operating envelope;
+- every combined channel profile must remain individually invertible over that envelope.
+
+The channel labels are representative renderer RGB channels. They are not wavelength samples, a spectral lens model, sensor CFA primaries, or a camera colorimetric profile. Longitudinal chromatic aberration and wavelength-dependent PSF behavior remain separate future work.
 
 A renderer should inverse-map each destination channel to the source coordinate returned by the engine instead of adding a backend-specific RGB offset or finished-image fringe blur.
 
