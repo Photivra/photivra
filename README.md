@@ -44,6 +44,7 @@ See the [Usage Guide](docs/USAGE.md) for the complete public API.
 - [Public API Style](docs/API_STYLE.md)
 - [Physics Foundation](docs/PHYSICS_FOUNDATION.md)
 - [Image-Formation Contract](docs/IMAGE_FORMATION.md)
+- [PSF and Pupil Foundation](docs/PSF_FOUNDATION.md)
 - [Motion and Signal Foundation](docs/MOTION_AND_SIGNAL.md)
 - [Camera Shake and Stabilization](docs/STABILIZATION.md)
 - [Scientific and Source Provenance](docs/PROVENANCE.md)
@@ -68,6 +69,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [Gaussian thin-lens image distance and magnification](docs/USAGE.md#thin-lens-image-distance-and-magnification);
 - [geometric depth of field and defocus-circle diameter](docs/USAGE.md#depth-of-field-and-defocus);
 - [ideal circular-aperture first-zero Airy diameter](docs/USAGE.md#circular-aperture-diffraction);
+- [separated PSF/pupil contribution foundation](docs/USAGE.md#psf-and-pupil-foundation);
 - [ideal regular-polygon aperture geometry and sunstar direction symmetry](docs/USAGE.md#aperture-geometry-and-sunstar-directions).
 
 ### Exposure and motion
@@ -176,7 +178,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Package version: `0.3.0`
-- Engine API contract: `0.31.0`
+- Engine API contract: `0.32.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
@@ -200,7 +202,7 @@ Photivra deliberately avoids claiming more than the current models support.
 - Generic lateral CA is represented as independent radial field mapping for abstract RGB renderer channels. It is not a spectral lens model, sensor-CFA calibration, longitudinal-CA model, or named-lens profile.
 - Projected subject motion follows a representative point under constant linear velocity. It does not yet model scale blur of an extended object moving substantially along the optical axis.
 - The legacy stabilization-equivalent camera-shake API remains one global yaw/pitch image-plane vector. A separate low-level rotation-only mapping now models field-position-dependent yaw/pitch/roll image motion; camera translation/parallax, real IBIS/OIS behavior, and composed rolling-readout integration remain unmodeled.
-- The Airy diagnostic assumes an ideal circular pupil. Polygon aperture geometry does not produce a polygon diffraction PSF.
+- The Airy diagnostic assumes an ideal circular pupil. The PSF foundation keeps circular diffraction and geometric defocus as separately named diagnostics; it does not calculate a combined PSF, and polygon aperture geometry does not produce a polygon diffraction PSF.
 - Signal/noise primitives require caller-supplied photon/electron quantities. The radiometry-readiness API can assess declared prerequisites, but it does not derive photons or enable photon/noise output in the composed POC.
 - The composed POC still uses one representative pixel-pitch path internally and therefore rejects sensor geometry whose X/Y sample pitch differs by more than 1%; lower-level geometry APIs already preserve independent X/Y pitch.
 - No named commercial camera or lens performance is claimed.
