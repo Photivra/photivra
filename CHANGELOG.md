@@ -12,11 +12,19 @@ Notable public changes to `@photivra/engine` are documented here.
 - `calculateActiveCaptureFieldOfView()`, which reuses the canonical field-of-view model and preserves diagonal FOV across 90° orientation changes.
 - `calculateImagingAreaMetrics()` as the shared diagonal crop-factor primitive for physical imaging areas.
 - `calculateEquivalentFocalLength35Mm()`, keeping physical focal length authoritative while deriving conventional diagonal-based 35 mm equivalence from the active physical capture area.
-- `parseSensorArchitectureProfile()` plus provenance-aware independent metadata axes for illumination, stacking/integration, readout capabilities, and color-sampling family.
+- `parseSensorArchitectureProfile()` plus evidence-backed independent metadata axes for illumination, stacking/integration, readout capabilities, and color-sampling family.
+- `calculateFieldOfViewBounds()` for asymmetric/off-center sensor-plane angular bounds.
+- Exact native↔oriented raster point/vector/rectangle transforms for all four physical camera rotations.
+- `RasterDimensions` as the generic active/output raster contract while `NativeImageRaster` remains the semantic native-raster alias.
+- Off-center active-capture optical-axis offsets/bounds, asymmetric FOV, and dual diagonal-corner angular spans.
+- Output-raster aspect-ratio validation that rejects implicit geometric stretching.
 
-### Compatibility
+### Changed
 
-- Existing `SensorConfiguration`, `calculatePixelPitch()`, and `simulatePocCamera()` contracts remain unchanged.
+- Engine API contract advances to `0.22.0`.
+- Composed POC simulation API advances to `0.18.0`, exposes X/Y sample pitch diagnostics, and rejects sensor geometry whose X/Y geometric pitch differs by more than 1% until the composed POC is axis-aware.
+- Unreleased sensor-architecture schema advances to `0.2.0`: source origin and reuse rights are independent, scalar facts accept multiple evidence records, and each readout capability carries its own evidence.
+- `InvalidConfigurationError` now lives in the core dependency layer and remains re-exported from the existing public surface.
 
 ## 0.2.0 - 2026-09-21
 
