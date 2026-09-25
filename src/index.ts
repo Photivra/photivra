@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.26.0" as const;
+export const ENGINE_API_VERSION = "0.27.0" as const;
 
 export {
   approximationResult,
@@ -193,6 +193,15 @@ export {
   type CalculateProjectedMotionBlurInput,
   type ProjectedMotionBlur
 } from "./motion/projected-motion.js";
+
+export {
+  calculateCameraRotationImageMapping,
+  type AxisSamplingPitchMicrometers,
+  type CalculateCameraRotationImageMappingInput,
+  type CameraAngularVelocityRadPerSec,
+  type CameraRotationImageMapping,
+  type ImagePlanePointMm
+} from "./motion/camera-rotation.js";
 
 export {
   calculateEquivalentIso,
