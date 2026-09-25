@@ -19,7 +19,27 @@ The root package has no runtime npm dependencies. CI walks the root import graph
 
 Comparison, optimization, real-camera calibration databases, renderer effects, and full optical simulation are **not** current root-package capabilities.
 
-The sensor foundation intentionally keeps physical image-formation geometry separate from digital sampling. `SensorImagingArea` represents the photosensitive imaging dimensions used for image formation; `NativeImageRaster` represents effective image samples and does not imply one image sample equals one physical photodiode. Derived sampling pitch is geometric spacing only, not fill factor or photon-collection area. Capture orientation, active-area transforms, output crop, sensor architecture, and calibrated radiometry remain separate follow-on layers.
+The sensor foundation intentionally keeps physical image-formation geometry separate from digital sampling. `SensorImagingArea` represents the photosensitive imaging dimensions used for image formation; `NativeImageRaster` represents effective image samples and does not imply one image sample equals one physical photodiode. Derived sampling pitch is geometric spacing only, not fill factor or photon-collection area.
+
+Capture geometry builds on that foundation without mutating native sensor identity:
+
+```text
+physical imaging area + native raster
+              ↓
+native active-capture rectangle
+              ↓
+physical camera orientation
+              ↓
+oriented active capture
+              ↓
+digital/output crop
+              ↓
+output raster
+```
+
+Native coordinates use a top-left origin with +X right and +Y down and remain invariant under physical camera rotation. This keeps later CFA phase, rolling-readout direction, motion-vector transforms, and camera-shake transforms anchored to one stable sensor coordinate system. Display/file transforms remain separate from physical capture orientation.
+
+Sensor architecture, capture-mode semantics, reconstruction, and calibrated radiometry remain separate follow-on layers.
 
 ## Repository-local Node POC transport
 
