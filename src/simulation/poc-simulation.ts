@@ -231,12 +231,12 @@ export interface PocSimulationResponse {
     };
     motion: {
       nativeRasterDeltaPixels: RasterVector;
-      nativeRasterDeltaPixels: RasterVector;
       orientedCaptureDeltaPixels: RasterVector;
       outputDeltaPixels: RasterVector;
     };
     motionSamples?: readonly {
       id: string;
+      nativeRasterDeltaPixels: RasterVector;
       orientedCaptureDeltaPixels: RasterVector;
       outputDeltaPixels: RasterVector;
     }[];
