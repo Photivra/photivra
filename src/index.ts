@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.33.0" as const;
+export const ENGINE_API_VERSION = "0.34.0" as const;
 
 export {
   approximationResult,
@@ -186,10 +186,13 @@ export {
 
 export {
   calculateInverseRadialDistortionMapping,
+  calculateInverseRadialDistortionMappings,
   calculateRadialDistortionMapping,
   type CalculateInverseRadialDistortionMappingInput,
+  type CalculateInverseRadialDistortionMappingsInput,
   type CalculateRadialDistortionMappingInput,
   type InverseRadialDistortionMapping,
+  type InverseRadialDistortionMappings,
   type LensFieldPointMm,
   type RadialDistortionCoefficients,
   type RadialDistortionMapping,
@@ -198,12 +201,15 @@ export {
 
 export {
   calculateInverseLateralChromaticAberrationMapping,
+  calculateInverseLateralChromaticAberrationMappings,
   calculateLateralChromaticAberrationMapping,
   type CalculateInverseLateralChromaticAberrationMappingInput,
+  type CalculateInverseLateralChromaticAberrationMappingsInput,
   type CalculateLateralChromaticAberrationMappingInput,
   type ChannelSeparationVectorMm,
   type InverseLateralChromaticAberrationChannelMapping,
   type InverseLateralChromaticAberrationMapping,
+  type InverseLateralChromaticAberrationMappings,
   type LateralChromaticAberrationChannel,
   type LateralChromaticAberrationChannelMapping,
   type LateralChromaticAberrationMapping,
