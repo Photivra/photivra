@@ -18,6 +18,7 @@ jobs:
     outputs:
       package_name: ${{ steps.package.outputs.name }}
       package_version: ${{ steps.package.outputs.version }}
+      package_sha256: ${{ steps.release_artifact.outputs.sha256 }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -74,12 +75,16 @@ jobs:
         run: npm run pack:check
 
       - name: Create verified release tarball
+        id: release_artifact
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release-artifact
           npm pack --ignore-scripts --pack-destination release-artifact
           test "$(find release-artifact -maxdepth 1 -type f -name '*.tgz' | wc -l | tr -d ' ')" = "1"
+          TARBALL="$(find release-artifact -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+          TARBALL_SHA256="$(sha256sum "$TARBALL" | awk '{print $1}')"
+          echo "sha256=$TARBALL_SHA256" >> "$GITHUB_OUTPUT"
           (
             cd release-artifact
             sha256sum -- *.tgz > SHA256SUMS
@@ -133,11 +138,21 @@ jobs:
 
       - name: Verify release artifact integrity
         shell: bash
+        env:
+          EXPECTED_SHA256: ${{ needs.verify.outputs.package_sha256 }}
         run: |
           set -euo pipefail
           cd release-artifact
           sha256sum --check SHA256SUMS
           test "$(find . -maxdepth 1 -type f -name '*.tgz' | wc -l | tr -d ' ')" = "1"
+          TARBALL="$(find . -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+          ACTUAL_SHA256="$(sha256sum "$TARBALL" | awk '{print $1}')"
+          if [ "$ACTUAL_SHA256" != "$EXPECTED_SHA256" ]; then
+            echo "Downloaded release tarball SHA-256 does not match the verified build job output."
+            echo "expected: $EXPECTED_SHA256"
+            echo "actual:   $ACTUAL_SHA256"
+            exit 1
+          fi
 
       - name: Publish
         shell: bash
