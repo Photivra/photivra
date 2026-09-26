@@ -170,21 +170,57 @@ function derivativeCriticalSquaredRadii(
 ): number[] {
   // d/dr² of the radial derivative:
   // 3 k1 + 10 k2 s + 21 k3 s² = 0, where s = r².
+  //
+  // Scale the quadratic before solving so finite caller coefficients cannot
+  // overflow the discriminant calculation. Use the stable q-form roots so a
+  // tiny quadratic term cannot erase the smaller physical root through
+  // cancellation and accidentally let a non-monotonic profile pass.
   const a = 21 * coefficients.k3;
   const b = 10 * coefficients.k2;
   const c = 3 * coefficients.k1;
+  const coefficientScale = Math.max(
+    Math.abs(a),
+    Math.abs(b),
+    Math.abs(c)
+  );
 
-  if (a === 0) {
-    return b === 0 ? [] : [-c / b];
-  }
-
-  const discriminant = b * b - 4 * a * c;
-  if (discriminant < 0) {
+  if (coefficientScale === 0) {
     return [];
   }
 
-  const root = Math.sqrt(discriminant);
-  return [(-b - root) / (2 * a), (-b + root) / (2 * a)];
+  const scaledA = a / coefficientScale;
+  const scaledB = b / coefficientScale;
+  const scaledC = c / coefficientScale;
+
+  if (scaledA === 0) {
+    return scaledB === 0 ? [] : [-scaledC / scaledB];
+  }
+
+  const squaredB = scaledB * scaledB;
+  const fourAC = 4 * scaledA * scaledC;
+  const discriminant = squaredB - fourAC;
+  const discriminantTolerance =
+    Number.EPSILON *
+    16 *
+    Math.max(1, Math.abs(squaredB), Math.abs(fourAC));
+
+  if (discriminant < -discriminantTolerance) {
+    return [];
+  }
+
+  const root = Math.sqrt(Math.max(0, discriminant));
+  if (root === 0) {
+    return [-scaledB / (2 * scaledA)];
+  }
+
+  const q =
+    -0.5 *
+    (scaledB + (scaledB >= 0 ? root : -root));
+  if (q === 0) {
+    return [-scaledB / (2 * scaledA)];
+  }
+
+  return [q / scaledA, scaledC / q];
 }
 
 /** @internal Validates/copies one profile for repeated in-package evaluation. */
@@ -205,6 +241,12 @@ export function validateRadialDistortionProfile(
 
   const maximumSquaredRadius =
     profile.maximumNormalizedRadius * profile.maximumNormalizedRadius;
+  if (!Number.isFinite(maximumSquaredRadius)) {
+    throw new InvalidScientificInputError(
+      "profile.maximumNormalizedRadius is too large to evaluate safely."
+    );
+  }
+
   const candidates = [
     0,
     maximumSquaredRadius,
@@ -250,8 +292,21 @@ export function validateRadialDistortionProfile(
 }
 
 function requirePoint(name: string, point: LensFieldPointMm): void {
-  requireFinite(`${name}.x`, point.x);
-  requireFinite(`${name}.y`, point.y);
+  if (typeof point !== "object" || point === null) {
+    throw new InvalidScientificInputError(
+      `${name} must be an object with finite numeric x and y coordinates.`
+    );
+  }
+  if (
+    typeof point.x !== "number" ||
+    typeof point.y !== "number" ||
+    !Number.isFinite(point.x) ||
+    !Number.isFinite(point.y)
+  ) {
+    throw new InvalidScientificInputError(
+      `${name} must contain finite numeric x and y coordinates.`
+    );
+  }
 }
 
 function mappingAssumptions(): readonly string[] {
@@ -291,6 +346,7 @@ export function calculateRadialDistortionMapping(
   );
   const sourceNormalizedRadius =
     sourceRadiusMm / profile.normalizationRadiusMm;
+  requireFinite("imagePointMm normalized radius", sourceNormalizedRadius);
 
   if (sourceNormalizedRadius > profile.maximumNormalizedRadius) {
     throw new InvalidScientificInputError(
@@ -337,8 +393,10 @@ export function calculateRadialDistortionMapping(
  * coordinate for destination-to-source renderer sampling.
  *
  * The same profile monotonicity requirement used by the forward mapping makes
- * the inverse unique over the declared operating radius. A deterministic fixed
- * bisection count is used rather than an unconstrained iterative solver.
+ * the inverse unique over the declared operating radius. Exact center,
+ * identity-profile, and mapped-boundary cases are resolved directly; other
+ * radii use bounded deterministic bisection that stops once floating-point
+ * bounds can no longer narrow.
  */
 export interface InverseRadialSourcePointValue {
   sourceImagePointMm: LensFieldPointMm;
@@ -364,6 +422,10 @@ export function calculateInverseRadialSourcePointValue(
   );
   const distortedNormalizedRadius =
     distortedRadiusMm / profile.normalizationRadiusMm;
+  requireFinite(
+    `${pointPath} normalized radius`,
+    distortedNormalizedRadius
+  );
 
   const mappedRadiusTolerance = inverseMappedRadiusTolerance(
     distortedNormalizedRadius,
@@ -383,27 +445,41 @@ export function calculateInverseRadialSourcePointValue(
   );
 
   let sourceNormalizedRadius = 0;
-  if (solverDistortedNormalizedRadius > 0) {
-    let lower = 0;
-    let upper = profile.maximumNormalizedRadius;
+  if (
+    solverDistortedNormalizedRadius ===
+    profile.maximumMappedNormalizedRadius
+  ) {
+    sourceNormalizedRadius = profile.maximumNormalizedRadius;
+  } else if (solverDistortedNormalizedRadius > 0) {
+    const { k1, k2, k3 } = profile.coefficients;
+    if (k1 === 0 && k2 === 0 && k3 === 0) {
+      sourceNormalizedRadius = solverDistortedNormalizedRadius;
+    } else {
+      let lower = 0;
+      let upper = profile.maximumNormalizedRadius;
 
-    for (
-      let iteration = 0;
-      iteration < INVERSE_BISECTION_ITERATIONS;
-      iteration += 1
-    ) {
-      const midpoint = (lower + upper) / 2;
-      const mapped = mappedNormalizedRadius(
-        midpoint,
-        profile.coefficients
-      );
-      if (mapped < solverDistortedNormalizedRadius) {
-        lower = midpoint;
-      } else {
-        upper = midpoint;
+      for (
+        let iteration = 0;
+        iteration < INVERSE_BISECTION_ITERATIONS;
+        iteration += 1
+      ) {
+        const midpoint = (lower + upper) / 2;
+        if (midpoint === lower || midpoint === upper) {
+          break;
+        }
+
+        const mapped = mappedNormalizedRadius(
+          midpoint,
+          profile.coefficients
+        );
+        if (mapped < solverDistortedNormalizedRadius) {
+          lower = midpoint;
+        } else {
+          upper = midpoint;
+        }
       }
+      sourceNormalizedRadius = (lower + upper) / 2;
     }
-    sourceNormalizedRadius = (lower + upper) / 2;
   }
 
   const radialScaleAtSource = radialScale(
@@ -482,7 +558,7 @@ export function calculateInverseRadialDistortionMapping(
     "1.0.0",
     [
       ...mappingAssumptions(),
-      `Inverse radius is solved with ${INVERSE_BISECTION_ITERATIONS} deterministic bisection iterations`
+      `Inverse radius uses exact center/identity/boundary solutions where applicable and otherwise up to ${INVERSE_BISECTION_ITERATIONS} deterministic bisection iterations, stopping when IEEE-754 bounds can no longer narrow`
     ]
   );
 }
@@ -498,13 +574,32 @@ export function calculateInverseRadialDistortionMappings(
   input: CalculateInverseRadialDistortionMappingsInput
 ): CalculationResult<InverseRadialDistortionMappings> {
   const profile = validateRadialDistortionProfile(input.profile);
-  const mappings = input.distortedImagePointsMm.map((point, index) =>
-    calculateInverseRadialDistortionMappingValue(
-      point,
-      profile,
-      `distortedImagePointsMm[${index}]`
-    )
-  );
+  if (!Array.isArray(input.distortedImagePointsMm)) {
+    throw new InvalidScientificInputError(
+      "distortedImagePointsMm must be an array of image-plane points."
+    );
+  }
+
+  const mappings: InverseRadialDistortionMapping[] = [];
+  for (
+    let index = 0;
+    index < input.distortedImagePointsMm.length;
+    index += 1
+  ) {
+    const point = input.distortedImagePointsMm[index];
+    if (point === undefined) {
+      throw new InvalidScientificInputError(
+        `distortedImagePointsMm[${index}] must be an image-plane point.`
+      );
+    }
+    mappings.push(
+      calculateInverseRadialDistortionMappingValue(
+        point,
+        profile,
+        `distortedImagePointsMm[${index}]`
+      )
+    );
+  }
 
   return approximationResult(
     {
@@ -517,7 +612,7 @@ export function calculateInverseRadialDistortionMappings(
     "1.0.0",
     [
       ...mappingAssumptions(),
-      `Inverse radius is solved with ${INVERSE_BISECTION_ITERATIONS} deterministic bisection iterations per point`,
+      `Inverse radius uses exact center/identity/boundary solutions where applicable and otherwise up to ${INVERSE_BISECTION_ITERATIONS} deterministic bisection iterations per point, stopping when IEEE-754 bounds can no longer narrow`,
       "The radial profile is validated and its invariant extrema are resolved once for the batch"
     ]
   );

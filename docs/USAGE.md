@@ -233,7 +233,7 @@ p_distorted = p_ideal × scale
 
 The coefficients are dimensionless **only together with the declared physical normalization radius**. Reusing coefficients with a different normalization changes the model.
 
-`maximumNormalizedRadius` is the caller-declared valid operating envelope. Photivra analytically checks that radial distance remains strictly monotonic over that interval; profiles that fold over are rejected so inverse mapping is unique.
+`maximumNormalizedRadius` is the caller-declared valid operating envelope. Photivra analytically checks that radial distance remains strictly monotonic over that interval, including near-linear higher-order coefficient cases; profiles that fold over are rejected so inverse mapping is unique. Derived normalized radii must remain finite, and malformed runtime point/batch inputs fail closed rather than entering the inverse solver.
 
 This first field-mapping slice is radial-only and centered on the optical axis. It does not model tangential/decentered distortion, anamorphic mapping, wavelength dependence, or a calibrated named lens.
 

@@ -9,6 +9,10 @@ import {
   calculateEquivalentIso,
   calculateExposureValue100,
   calculateFieldOfView,
+  calculateInverseRadialDistortionMapping,
+  calculateRadialDistortionMapping,
+  mapImagePlanePointToOrientedPhysicalUv,
+  mapOrientedPhysicalUvToImagePlanePoint,
   resolveCaptureGeometry,
   transformNativeRasterPointToOriented,
   transformNativeRasterRectToOriented,
@@ -295,6 +299,25 @@ describe("deterministic scientific fuzz corpus", () => {
         }).value;
         expect(geometry.activeCapture.nativeRect).toEqual(rect);
         expect(geometry.output.sourceRetainedAreaFraction).toBeCloseTo(1, 12);
+
+        const uv = {
+          u: random.next(),
+          v: random.next()
+        };
+        const imagePlanePointMm = mapOrientedPhysicalUvToImagePlanePoint({
+          uv,
+          orientedPhysicalBoundsFromOpticalAxisMm:
+            geometry.output.physicalBoundsFromOpticalAxisMm,
+          orientation
+        });
+        const uvRoundTrip = mapImagePlanePointToOrientedPhysicalUv({
+          imagePlanePointMm,
+          orientedPhysicalBoundsFromOpticalAxisMm:
+            geometry.output.physicalBoundsFromOpticalAxisMm,
+          orientation
+        });
+        expect(uvRoundTrip.u).toBeCloseTo(uv.u, 10);
+        expect(uvRoundTrip.v).toBeCloseTo(uv.v, 10);
       }
 
       const baseGeometry = resolveCaptureGeometry({
@@ -322,6 +345,41 @@ describe("deterministic scientific fuzz corpus", () => {
         activeImagingArea: resizedOutput.activeCapture.imagingArea
       }).value.equivalentFocalLength35Mm;
       expect(resizedEquivalent).toBeCloseTo(baseEquivalent, 12);
+    }
+  });
+
+  it("round-trips invertible radial profiles across a seeded corpus", () => {
+    const random = createSeededRandom(0xd1570a7);
+
+    for (let index = 0; index < 200; index += 1) {
+      const normalizationRadiusMm = random.between(4, 50);
+      const angle = random.between(-Math.PI, Math.PI);
+      const normalizedRadius = random.between(0, 0.95);
+      const source = {
+        x: Math.cos(angle) * normalizedRadius * normalizationRadiusMm,
+        y: Math.sin(angle) * normalizedRadius * normalizationRadiusMm
+      };
+      const profile = {
+        normalizationRadiusMm,
+        maximumNormalizedRadius: 1,
+        coefficients: {
+          k1: random.between(-0.08, 0.08),
+          k2: random.between(-0.02, 0.02),
+          k3: random.between(-0.005, 0.005)
+        }
+      };
+
+      const forward = calculateRadialDistortionMapping({
+        imagePointMm: source,
+        profile
+      });
+      const inverse = calculateInverseRadialDistortionMapping({
+        distortedImagePointMm: forward.value.mappedImagePointMm,
+        profile
+      });
+
+      expect(inverse.value.sourceImagePointMm.x).toBeCloseTo(source.x, 10);
+      expect(inverse.value.sourceImagePointMm.y).toBeCloseTo(source.y, 10);
     }
   });
 

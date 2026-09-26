@@ -343,4 +343,59 @@ describe("generic radial distortion mapping", () => {
       })
     ).toThrow("coefficients.k1");
   });
+  it("rejects near-linear high-order profiles whose interior radial derivative becomes negative", () => {
+    const profile: RadialDistortionProfile = {
+      normalizationRadiusMm: 20,
+      maximumNormalizedRadius: 1,
+      coefficients: {
+        k1: -1,
+        k2: 0.42,
+        k3: 1e-18
+      }
+    };
+
+    expect(() =>
+      calculateRadialDistortionMapping({
+        imagePointMm: { x: 1, y: 0 },
+        profile
+      })
+    ).toThrow("strictly monotonic");
+
+    expect(() =>
+      calculateInverseRadialDistortionMapping({
+        distortedImagePointMm: { x: 1, y: 0 },
+        profile
+      })
+    ).toThrow("strictly monotonic");
+  });
+
+  it("fails closed when normalization would overflow an inverse normalized radius", () => {
+    expect(() =>
+      calculateInverseRadialDistortionMapping({
+        distortedImagePointMm: { x: 1, y: 0 },
+        profile: {
+          normalizationRadiusMm: Number.MIN_VALUE,
+          maximumNormalizedRadius: 1,
+          coefficients: { k1: 0, k2: 0, k3: 0 }
+        }
+      })
+    ).toThrow("normalized radius");
+  });
+
+  it("returns an exact inverse for an identity profile without iterative drift", () => {
+    const source = { x: 12, y: -5 };
+    const inverse = calculateInverseRadialDistortionMapping({
+      distortedImagePointMm: source,
+      profile: IDENTITY_PROFILE
+    });
+
+    expect(inverse.value.sourceImagePointMm).toEqual(source);
+    expect(inverse.value.sourceNormalizedRadius).toBe(
+      Math.hypot(source.x, source.y) /
+        IDENTITY_PROFILE.normalizationRadiusMm
+    );
+    expect(inverse.value.radialScaleAtSource).toBe(1);
+    expect(inverse.value.deltaMm).toEqual({ x: 0, y: 0, distance: 0 });
+  });
+
 });
