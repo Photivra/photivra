@@ -188,6 +188,46 @@ describe("capture geometry", () => {
         }
       })
     ).toThrow("implicit geometric stretching");
+
+    // This mismatch was previously accepted by the fixed 1% tolerance even
+    // though it cannot result from nearest-integer rounding of one isotropic
+    // scale factor.
+    expect(() =>
+      resolveCaptureGeometry({
+        imagingArea: FULL_FRAME,
+        nativeRaster: RASTER_24MP,
+        orientation: "landscape",
+        outputCropRect: {
+          x: 0,
+          y: 0,
+          width: 4000,
+          height: 2250
+        },
+        outputRaster: {
+          pixelWidth: 1920,
+          pixelHeight: 1079
+        }
+      })
+    ).toThrow("nearest-integer raster rounding");
+
+    // Legitimate one-pixel integer rounding remains accepted.
+    expect(() =>
+      resolveCaptureGeometry({
+        imagingArea: FULL_FRAME,
+        nativeRaster: RASTER_24MP,
+        orientation: "landscape",
+        outputCropRect: {
+          x: 0,
+          y: 0,
+          width: 3000,
+          height: 2000
+        },
+        outputRaster: {
+          pixelWidth: 1000,
+          pixelHeight: 667
+        }
+      })
+    ).not.toThrow();
   });
 
   it("tracks the physical region and scale retained by final output crop", () => {

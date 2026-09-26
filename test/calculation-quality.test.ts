@@ -149,6 +149,40 @@ describe("calculation quality metadata", () => {
     ).toThrow("confidence.level must be in (0, 1]");
   });
 
+  it("fails closed on unknown runtime uncertainty discriminants", () => {
+    expect(() =>
+      validateCalculationQuality({
+        uncertainty: [
+          {
+            kind: "unknown",
+            quantityPath: "value.factor",
+            source: "measurement",
+            fraction: 0.1
+          } as never
+        ]
+      })
+    ).toThrow("uncertainty[0].kind is invalid");
+
+    expect(() =>
+      validateCalculationQuality({
+        uncertainty: [
+          {
+            kind: "relative",
+            quantityPath: "value.factor",
+            source: "unknown",
+            fraction: 0.1
+          } as never
+        ]
+      })
+    ).toThrow("uncertainty[0].source is invalid");
+
+    expect(() =>
+      validateCalculationQuality({
+        notes: [123 as never]
+      })
+    ).toThrow("notes[0] must not be empty");
+  });
+
   it("rejects malformed valid ranges and empty quality placeholders", () => {
     expect(() =>
       validateCalculationQuality({

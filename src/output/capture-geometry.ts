@@ -32,8 +32,6 @@ const CAPTURE_ORIENTATIONS = new Set<CaptureOrientation>([
   "portrait-counter-clockwise"
 ]);
 
-const OUTPUT_ASPECT_RATIO_RELATIVE_TOLERANCE = 0.01;
-
 export interface RasterPoint {
   x: number;
   y: number;
@@ -567,15 +565,31 @@ function validateOutputAspectRatio(
   cropRect: RasterRect,
   outputRaster: RasterDimensions
 ): void {
-  const sourceAspectRatio = cropRect.width / cropRect.height;
-  const outputAspectRatio =
-    outputRaster.pixelWidth / outputRaster.pixelHeight;
-  const relativeDifference =
-    Math.abs(outputAspectRatio - sourceAspectRatio) / sourceAspectRatio;
+  // Preserve one isotropic output scale while allowing only the sub-pixel
+  // disagreement introduced when an ideal scaled dimension is rounded to an
+  // integer raster size. A fixed percentage tolerance can admit visible
+  // anisotropic stretching at large output dimensions.
+  const widthScaleMinimum =
+    (outputRaster.pixelWidth - 0.5) / cropRect.width;
+  const widthScaleMaximum =
+    (outputRaster.pixelWidth + 0.5) / cropRect.width;
+  const heightScaleMinimum =
+    (outputRaster.pixelHeight - 0.5) / cropRect.height;
+  const heightScaleMaximum =
+    (outputRaster.pixelHeight + 0.5) / cropRect.height;
 
-  if (relativeDifference > OUTPUT_ASPECT_RATIO_RELATIVE_TOLERANCE) {
+  const minimumCommonScale = Math.max(
+    widthScaleMinimum,
+    heightScaleMinimum
+  );
+  const maximumCommonScale = Math.min(
+    widthScaleMaximum,
+    heightScaleMaximum
+  );
+
+  if (minimumCommonScale > maximumCommonScale) {
     throw new InvalidScientificInputError(
-      "outputRaster must preserve outputCropRect aspect ratio; implicit geometric stretching is not supported."
+      "outputRaster must preserve outputCropRect aspect ratio within nearest-integer raster rounding; implicit geometric stretching is not supported."
     );
   }
 }
