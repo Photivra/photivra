@@ -63,7 +63,8 @@
     "check:browser-surface": "node scripts/check-browser-surface.mjs",
     "check:licenses": "node scripts/check-license-policy.mjs",
     "check:license-headers": "node scripts/check-license-headers.mjs",
-    "check:identity": "node scripts/check-project-identity.mjs"
+    "check:identity": "node scripts/check-project-identity.mjs",
+    "bench:image-formation": "npm run build && node --expose-gc scripts/benchmark-image-formation.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
