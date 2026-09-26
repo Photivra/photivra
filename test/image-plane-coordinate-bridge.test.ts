@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   mapImagePlanePointToOrientedPhysicalUv,
   mapOrientedPhysicalUvToImagePlanePoint,
+  resolveCaptureGeometry,
   type CaptureOrientation,
   type PhysicalBoundsFromOpticalAxisMm
 } from "../src/index.js";
@@ -177,4 +178,89 @@ describe("oriented physical raster ↔ image-plane metric bridge", () => {
 
     expect(uv).toEqual({ u: 1, v: 1 });
   });
+  it("round-trips asymmetric resolved output geometry for all four orientations", () => {
+    const nativeRaster = { pixelWidth: 6000, pixelHeight: 4000 };
+    const imagingArea = { widthMm: 36, heightMm: 24 };
+
+    for (const orientation of ORIENTATIONS) {
+      const activeOnly = resolveCaptureGeometry({
+        imagingArea,
+        nativeRaster,
+        orientation,
+        activeCaptureRect: {
+          x: 420,
+          y: 360,
+          width: 4560,
+          height: 2920
+        }
+      }).value;
+      const orientedRaster = activeOnly.orientedCapture.raster;
+      const outputCropRect = {
+        x: Math.floor(orientedRaster.pixelWidth * 0.08),
+        y: Math.floor(orientedRaster.pixelHeight * 0.17),
+        width: Math.floor(orientedRaster.pixelWidth * 0.63),
+        height: Math.floor(orientedRaster.pixelHeight * 0.57)
+      };
+      const geometry = resolveCaptureGeometry({
+        imagingArea,
+        nativeRaster,
+        orientation,
+        activeCaptureRect: {
+          x: 420,
+          y: 360,
+          width: 4560,
+          height: 2920
+        },
+        outputCropRect
+      }).value;
+      const bounds = geometry.output.physicalBoundsFromOpticalAxisMm;
+
+      for (const uv of [
+        { u: 0, v: 0 },
+        { u: 1, v: 0 },
+        { u: 0.37, v: 0.61 },
+        { u: 0.5, v: 0.5 },
+        { u: 1, v: 1 }
+      ]) {
+        const point = mapOrientedPhysicalUvToImagePlanePoint({
+          uv,
+          orientedPhysicalBoundsFromOpticalAxisMm: bounds,
+          orientation
+        });
+        const roundTrip = mapImagePlanePointToOrientedPhysicalUv({
+          imagePlanePointMm: point,
+          orientedPhysicalBoundsFromOpticalAxisMm: bounds,
+          orientation
+        });
+
+        expect(roundTrip.u).toBeCloseTo(uv.u, 12);
+        expect(roundTrip.v).toBeCloseTo(uv.v, 12);
+      }
+
+      const center = mapOrientedPhysicalUvToImagePlanePoint({
+        uv: { u: 0.5, v: 0.5 },
+        orientedPhysicalBoundsFromOpticalAxisMm: bounds,
+        orientation
+      });
+      expect(Math.hypot(center.x, center.y)).toBeGreaterThan(0.25);
+    }
+  });
+
+  it("scales reverse-edge tolerance with physical bounds rather than normalized UV", () => {
+    const tinyBounds = {
+      left: -1e-9,
+      right: 1e-9,
+      top: -1e-9,
+      bottom: 1e-9
+    };
+
+    expect(() =>
+      mapImagePlanePointToOrientedPhysicalUv({
+        imagePlanePointMm: { x: 1e-9 + 1e-15, y: 0 },
+        orientedPhysicalBoundsFromOpticalAxisMm: tinyBounds,
+        orientation: "landscape"
+      })
+    ).toThrow("within the supplied oriented physical bounds");
+  });
+
 });
