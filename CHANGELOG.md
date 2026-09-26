@@ -4,6 +4,14 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ## Unreleased
 
+### Added
+
+- `mapOrientedPhysicalUvToImagePlanePoint()` and `mapImagePlanePointToOrientedPhysicalUv()` for explicit round-trip conversion between normalized oriented physical raster regions (+Y down) and the pre-orientation optical image plane (+Y up), preserving all four capture orientations and asymmetric/off-axis bounds.
+
+### Changed
+
+- Engine API contract advances to `0.33.0`. The composed POC remains `0.20.0`; this change adds a standalone coordinate bridge and does not compose lens-field effects into the POC.
+
 ## 0.4.0 - 2026-09-25
 
 ### Added

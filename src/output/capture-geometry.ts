@@ -62,6 +62,43 @@ export interface PhysicalBoundsFromOpticalAxisMm {
   bottom: number;
 }
 
+export interface NormalizedRasterUv {
+  /** 0 at the left edge, 1 at the right edge. */
+  u: number;
+  /** 0 at the top edge, 1 at the bottom edge. */
+  v: number;
+}
+
+/**
+ * Pre-orientation optical image-plane coordinate in millimetres.
+ *
+ * Origin is the optical axis; +X points right and +Y points up.
+ */
+export interface ImagePlaneMetricPointMm {
+  x: number;
+  y: number;
+}
+
+export interface MapOrientedPhysicalUvToImagePlaneInput {
+  uv: NormalizedRasterUv;
+  /**
+   * Physical region represented by the normalized raster, after physical
+   * camera orientation, using the capture contract's +Y-down physical basis.
+   */
+  orientedPhysicalBoundsFromOpticalAxisMm: PhysicalBoundsFromOpticalAxisMm;
+  orientation: CaptureOrientation;
+}
+
+export interface MapImagePlanePointToOrientedPhysicalUvInput {
+  imagePlanePointMm: ImagePlaneMetricPointMm;
+  /**
+   * Physical region represented by the normalized raster, after physical
+   * camera orientation, using the capture contract's +Y-down physical basis.
+   */
+  orientedPhysicalBoundsFromOpticalAxisMm: PhysicalBoundsFromOpticalAxisMm;
+  orientation: CaptureOrientation;
+}
+
 export interface ResolveCaptureGeometryInput {
   imagingArea: SensorImagingArea;
   nativeRaster: NativeImageRaster;
@@ -310,6 +347,59 @@ function validateRasterVector(name: string, vector: RasterVector): void {
   }
 }
 
+const NORMALIZED_UV_EDGE_TOLERANCE = 1e-12;
+
+function validatePhysicalBounds(
+  name: string,
+  bounds: PhysicalBoundsFromOpticalAxisMm
+): void {
+  for (const key of ["left", "right", "top", "bottom"] as const) {
+    if (!Number.isFinite(bounds[key])) {
+      throw new InvalidScientificInputError(
+        `${name}.${key} must be finite.`
+      );
+    }
+  }
+  if (bounds.right <= bounds.left) {
+    throw new InvalidScientificInputError(
+      `${name} must have right greater than left.`
+    );
+  }
+  if (bounds.bottom <= bounds.top) {
+    throw new InvalidScientificInputError(
+      `${name} must have bottom greater than top.`
+    );
+  }
+}
+
+function validateNormalizedUv(name: string, uv: NormalizedRasterUv): void {
+  if (!Number.isFinite(uv.u) || !Number.isFinite(uv.v)) {
+    throw new InvalidScientificInputError(
+      `${name} coordinates must be finite.`
+    );
+  }
+  if (uv.u < 0 || uv.u > 1 || uv.v < 0 || uv.v > 1) {
+    throw new InvalidScientificInputError(
+      `${name} coordinates must lie within [0, 1].`
+    );
+  }
+}
+
+function normalizeUvEdge(name: string, value: number): number {
+  if (!Number.isFinite(value)) {
+    throw new InvalidScientificInputError(`${name} must be finite.`);
+  }
+  if (
+    value < -NORMALIZED_UV_EDGE_TOLERANCE ||
+    value > 1 + NORMALIZED_UV_EDGE_TOLERANCE
+  ) {
+    throw new InvalidScientificInputError(
+      `${name} must lie within the supplied oriented physical bounds.`
+    );
+  }
+  return Math.max(0, Math.min(1, value));
+}
+
 function fullRect(raster: RasterDimensions): RasterRect {
   return {
     x: 0,
@@ -429,6 +519,82 @@ export function transformOrientedRasterVectorToNative(
   requireCaptureOrientation(input.orientation);
   validateRasterVector("vector", input.vector);
   return inverseRotateVector(input.vector, input.orientation);
+}
+
+/**
+ * Maps normalized coordinates in an oriented physical raster region into the
+ * pre-orientation optical image plane used by lens-field and camera-mapping
+ * APIs.
+ *
+ * The supplied physical bounds use the capture contract's +Y-down basis after
+ * physical camera orientation. The returned image-plane point uses optical-axis
+ * origin, +X right and +Y up. No lens or projection equation is applied.
+ */
+export function mapOrientedPhysicalUvToImagePlanePoint(
+  input: MapOrientedPhysicalUvToImagePlaneInput
+): ImagePlaneMetricPointMm {
+  requireCaptureOrientation(input.orientation);
+  validateNormalizedUv("uv", input.uv);
+  validatePhysicalBounds(
+    "orientedPhysicalBoundsFromOpticalAxisMm",
+    input.orientedPhysicalBoundsFromOpticalAxisMm
+  );
+
+  const bounds = input.orientedPhysicalBoundsFromOpticalAxisMm;
+  const orientedPhysicalPoint = {
+    x: bounds.left + input.uv.u * (bounds.right - bounds.left),
+    y: bounds.top + input.uv.v * (bounds.bottom - bounds.top)
+  };
+  const nativePhysicalPoint = inverseRotateVector(
+    orientedPhysicalPoint,
+    input.orientation
+  );
+
+  return {
+    x: nativePhysicalPoint.x,
+    y: -nativePhysicalPoint.y
+  };
+}
+
+/**
+ * Maps a pre-orientation optical image-plane point into normalized coordinates
+ * of an oriented physical raster region.
+ *
+ * This is the exact coordinate inverse of
+ * mapOrientedPhysicalUvToImagePlanePoint(). Points outside the supplied region
+ * fail closed; a tiny tolerance only absorbs floating-point round-trip noise at
+ * an edge.
+ */
+export function mapImagePlanePointToOrientedPhysicalUv(
+  input: MapImagePlanePointToOrientedPhysicalUvInput
+): NormalizedRasterUv {
+  requireCaptureOrientation(input.orientation);
+  validateRasterVector("imagePlanePointMm", input.imagePlanePointMm);
+  validatePhysicalBounds(
+    "orientedPhysicalBoundsFromOpticalAxisMm",
+    input.orientedPhysicalBoundsFromOpticalAxisMm
+  );
+
+  const bounds = input.orientedPhysicalBoundsFromOpticalAxisMm;
+  const nativePhysicalPoint = {
+    x: input.imagePlanePointMm.x,
+    y: -input.imagePlanePointMm.y
+  };
+  const orientedPhysicalPoint = rotateVector(
+    nativePhysicalPoint,
+    input.orientation
+  );
+  const u =
+    (orientedPhysicalPoint.x - bounds.left) /
+    (bounds.right - bounds.left);
+  const v =
+    (orientedPhysicalPoint.y - bounds.top) /
+    (bounds.bottom - bounds.top);
+
+  return {
+    u: normalizeUvEdge("imagePlanePointMm.u", u),
+    v: normalizeUvEdge("imagePlanePointMm.v", v)
+  };
 }
 
 /** Transforms an integer half-open native raster rectangle into oriented coordinates. */

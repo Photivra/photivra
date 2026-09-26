@@ -48,6 +48,15 @@ The contract explicitly distinguishes:
 
 Native sensor/raster coordinates remain invariant under physical camera orientation.
 
+Use `mapOrientedPhysicalUvToImagePlanePoint()` and
+`mapImagePlanePointToOrientedPhysicalUv()` when a renderer or integration
+boundary must cross between a normalized oriented physical raster region and
+the pre-orientation `image-plane-metric` space. These transforms explicitly
+undo/apply physical orientation and convert the capture contract's physical
++Y-down basis to/from the optical image plane's +Y-up basis. They do not apply
+projection, distortion, crop, or lens equations, and asymmetric physical bounds
+remain asymmetric.
+
 ## Partial ordering and coupling
 
 `requiredUpstreamStages` defines hard scientific dependencies.

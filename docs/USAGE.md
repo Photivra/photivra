@@ -156,6 +156,39 @@ The physical focal length remains authoritative. The effective projection distan
 
 This generic model is returned as an `approximation`. A future calibrated lens profile would need defensible provenance, reuse rights, and uncertainty/limitation metadata.
 
+## Oriented raster to image-plane coordinates
+
+Use the coordinate bridge before calling image-plane lens or camera-mapping APIs
+from an oriented/output renderer. The capture/output physical region uses the
+raster-style +Y-down basis, while lens-field APIs use the pre-orientation
+optical image plane with +Y up.
+
+```ts
+import {
+  mapImagePlanePointToOrientedPhysicalUv,
+  mapOrientedPhysicalUvToImagePlanePoint
+} from "@photivra/engine";
+
+const bounds = { left: -12, right: 12, top: -18, bottom: 18 };
+
+const destination = mapOrientedPhysicalUvToImagePlanePoint({
+  uv: { u: 0.25, v: 0.75 },
+  orientedPhysicalBoundsFromOpticalAxisMm: bounds,
+  orientation: "portrait-clockwise"
+});
+
+const roundTrip = mapImagePlanePointToOrientedPhysicalUv({
+  imagePlanePointMm: destination,
+  orientedPhysicalBoundsFromOpticalAxisMm: bounds,
+  orientation: "portrait-clockwise"
+});
+```
+
+These functions only transform coordinate bases. They do not apply projection,
+distortion, focus breathing, crop, or resampling. Asymmetric/off-axis physical
+bounds are preserved rather than recentered, and reverse mapping fails closed
+when the image-plane point lies outside the supplied physical region.
+
 ## Radial lens-distortion mapping
 
 Use `calculateRadialDistortionMapping()` for a generic rotationally symmetric ideal-to-distorted image-plane mapping and `calculateInverseRadialDistortionMapping()` for the destination-to-source mapping a renderer needs for inverse sampling.
