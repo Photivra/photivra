@@ -263,4 +263,19 @@ describe("oriented physical raster ↔ image-plane metric bridge", () => {
     ).toThrow("within the supplied oriented physical bounds");
   });
 
+  it("rejects physical bounds whose span is not resolvable at their coordinate magnitude", () => {
+    expect(() =>
+      mapOrientedPhysicalUvToImagePlanePoint({
+        uv: { u: 0.5, v: 0.5 },
+        orientedPhysicalBoundsFromOpticalAxisMm: {
+          left: 1e12,
+          right: 1e12 + 0.001,
+          top: -1,
+          bottom: 1
+        },
+        orientation: "landscape"
+      })
+    ).toThrow("numerically resolvable finite spans");
+  });
+
 });
