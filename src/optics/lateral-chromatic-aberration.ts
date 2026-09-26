@@ -7,8 +7,9 @@ import {
 import { InvalidScientificInputError } from "../core/validation.js";
 import {
   calculateInverseRadialDistortionMapping,
-  calculateInverseRadialDistortionMappings,
+  calculateInverseRadialSourcePointValue,
   calculateRadialDistortionMapping,
+  validateRadialDistortionProfile,
   type LensFieldPointMm,
   type RadialDistortionCoefficients,
   type RadialDistortionProfile
@@ -392,33 +393,40 @@ export function calculateInverseLateralChromaticAberrationMappings(
   input: CalculateInverseLateralChromaticAberrationMappingsInput
 ): CalculationResult<InverseLateralChromaticAberrationMappings> {
   const profiles = resolveProfiles(input.profile);
-
-  const redBatch = withChannelContext("red", () =>
-    calculateInverseRadialDistortionMappings({
-      distortedImagePointsMm: input.distortedImagePointsMm,
-      profile: profiles.red
-    })
-  ).value;
-  const greenBatch = withChannelContext("green", () =>
-    calculateInverseRadialDistortionMappings({
-      distortedImagePointsMm: input.distortedImagePointsMm,
-      profile: profiles.green
-    })
-  ).value;
-  const blueBatch = withChannelContext("blue", () =>
-    calculateInverseRadialDistortionMappings({
-      distortedImagePointsMm: input.distortedImagePointsMm,
-      profile: profiles.blue
-    })
-  ).value;
+  const validatedProfiles = {
+    red: withChannelContext("red", () =>
+      validateRadialDistortionProfile(profiles.red)
+    ),
+    green: withChannelContext("green", () =>
+      validateRadialDistortionProfile(profiles.green)
+    ),
+    blue: withChannelContext("blue", () =>
+      validateRadialDistortionProfile(profiles.blue)
+    )
+  };
 
   const mappings = input.distortedImagePointsMm.map((point, index) => {
-    const red = redBatch.mappings[index];
-    const green = greenBatch.mappings[index];
-    const blue = blueBatch.mappings[index];
-    if (red === undefined || green === undefined || blue === undefined) {
-      throw new Error("Lateral chromatic aberration batch channel lengths diverged.");
-    }
+    const red = withChannelContext("red", () =>
+      calculateInverseRadialSourcePointValue(
+        point,
+        validatedProfiles.red,
+        `distortedImagePointsMm[${index}]`
+      )
+    );
+    const green = withChannelContext("green", () =>
+      calculateInverseRadialSourcePointValue(
+        point,
+        validatedProfiles.green,
+        `distortedImagePointsMm[${index}]`
+      )
+    );
+    const blue = withChannelContext("blue", () =>
+      calculateInverseRadialSourcePointValue(
+        point,
+        validatedProfiles.blue,
+        `distortedImagePointsMm[${index}]`
+      )
+    );
 
     return {
       direction: "distorted-output-to-channel-sources" as const,
