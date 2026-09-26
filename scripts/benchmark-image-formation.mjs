@@ -20,7 +20,9 @@ const packageJson = JSON.parse(
 const GRID_COLUMNS = 33;
 const GRID_ROWS = 33;
 const ROTATION_TIME_SAMPLES = [0, 1 / 1000, 1 / 500, 1 / 250, 1 / 125];
-const REPEATS = 5;
+const WARMUP_REPEATS = 3;
+const REPEATS = 9;
+const INNER_REPEATS = 5;
 const SENSOR_HALF_WIDTH_MM = 18;
 const SENSOR_HALF_HEIGHT_MM = 12;
 const NORMALIZATION_RADIUS_MM = Math.hypot(
@@ -89,33 +91,48 @@ function median(values) {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
-function measure(label, operationCount, sample) {
-  sample();
-
-  const durationsMs = [];
-  const retainedHeapDeltasBytes = [];
-
-  for (let repeat = 0; repeat < REPEATS; repeat += 1) {
-    globalThis.gc?.();
-    const heapBeforeBytes = process.memoryUsage().heapUsed;
-    const started = process.hrtime.bigint();
-
+function runInner(sample) {
+  for (let inner = 0; inner < INNER_REPEATS; inner += 1) {
     sample();
-
-    const finished = process.hrtime.bigint();
-    globalThis.gc?.();
-    const heapAfterBytes = process.memoryUsage().heapUsed;
-
-    durationsMs.push(Number(finished - started) / 1_000_000);
-    retainedHeapDeltasBytes.push(heapAfterBytes - heapBeforeBytes);
   }
+}
 
+function warm(sample) {
+  for (let repeat = 0; repeat < WARMUP_REPEATS; repeat += 1) {
+    runInner(sample);
+  }
+}
+
+function measureOne(sample) {
+  globalThis.gc?.();
+  const heapBeforeBytes = process.memoryUsage().heapUsed;
+  const started = process.hrtime.bigint();
+
+  runInner(sample);
+
+  const finished = process.hrtime.bigint();
+  globalThis.gc?.();
+  const heapAfterBytes = process.memoryUsage().heapUsed;
+
+  return {
+    durationMs: Number(finished - started) / 1_000_000,
+    retainedHeapDeltaBytes: heapAfterBytes - heapBeforeBytes
+  };
+}
+
+function summarize(label, operationCountPerInner, samples) {
+  const durationsMs = samples.map((sample) => sample.durationMs);
+  const retainedHeapDeltasBytes = samples.map(
+    (sample) => sample.retainedHeapDeltaBytes
+  );
   const medianMs = median(durationsMs);
+  const operationCount = operationCountPerInner * INNER_REPEATS;
 
   return {
     label,
     operationCount,
     repeats: REPEATS,
+    innerRepeats: INNER_REPEATS,
     medianMs,
     operationsPerSecond: operationCount / (medianMs / 1000),
     durationSamplesMs: durationsMs,
@@ -125,37 +142,120 @@ function measure(label, operationCount, sample) {
   };
 }
 
+function measure(label, operationCountPerInner, sample) {
+  warm(sample);
+  const samples = [];
+  for (let repeat = 0; repeat < REPEATS; repeat += 1) {
+    samples.push(measureOne(sample));
+  }
+  return summarize(label, operationCountPerInner, samples);
+}
+
+function measureAlternatingPair(first, second) {
+  warm(first.sample);
+  warm(second.sample);
+
+  const firstSamples = [];
+  const secondSamples = [];
+  for (let repeat = 0; repeat < REPEATS; repeat += 1) {
+    const order =
+      repeat % 2 === 0
+        ? [
+            [first, firstSamples],
+            [second, secondSamples]
+          ]
+        : [
+            [second, secondSamples],
+            [first, firstSamples]
+          ];
+
+    for (const [definition, samples] of order) {
+      samples.push(measureOne(definition.sample));
+    }
+  }
+
+  const firstResult = summarize(
+    first.label,
+    first.operationCountPerInner,
+    firstSamples
+  );
+  const secondResult = summarize(
+    second.label,
+    second.operationCountPerInner,
+    secondSamples
+  );
+
+  return {
+    results: [firstResult, secondResult],
+    comparison: {
+      baselineLabel: first.label,
+      comparisonLabel: second.label,
+      comparisonToBaselineMedianRatio:
+        secondResult.medianMs / firstResult.medianMs
+    }
+  };
+}
+
 const points = gridPoints();
 
-const results = [
-  measure("inverse-radial-distortion-33x33", points.length, () => {
-    for (const point of points) {
-      calculateInverseRadialDistortionMapping({
-        distortedImagePointMm: point,
-        profile: radialProfile
-      });
-    }
-  }),
-  measure("inverse-radial-distortion-batch-33x33", points.length, () => {
-    calculateInverseRadialDistortionMappings({
-      distortedImagePointsMm: points,
+const inverseRadialScalar = () => {
+  for (const point of points) {
+    calculateInverseRadialDistortionMapping({
+      distortedImagePointMm: point,
       profile: radialProfile
     });
-  }),
-  measure("inverse-lateral-ca-33x33", points.length, () => {
-    for (const point of points) {
-      calculateInverseLateralChromaticAberrationMapping({
-        distortedImagePointMm: point,
-        profile: caProfile
-      });
-    }
-  }),
-  measure("inverse-lateral-ca-batch-33x33", points.length, () => {
-    calculateInverseLateralChromaticAberrationMappings({
-      distortedImagePointsMm: points,
+  }
+};
+const inverseRadialBatch = () => {
+  calculateInverseRadialDistortionMappings({
+    distortedImagePointsMm: points,
+    profile: radialProfile
+  });
+};
+const inverseCaScalar = () => {
+  for (const point of points) {
+    calculateInverseLateralChromaticAberrationMapping({
+      distortedImagePointMm: point,
       profile: caProfile
     });
-  }),
+  }
+};
+const inverseCaBatch = () => {
+  calculateInverseLateralChromaticAberrationMappings({
+    distortedImagePointsMm: points,
+    profile: caProfile
+  });
+};
+
+const radialPair = measureAlternatingPair(
+  {
+    label: "inverse-radial-distortion-33x33",
+    operationCountPerInner: points.length,
+    sample: inverseRadialScalar
+  },
+  {
+    label: "inverse-radial-distortion-batch-33x33",
+    operationCountPerInner: points.length,
+    sample: inverseRadialBatch
+  }
+);
+
+const caPair = measureAlternatingPair(
+  {
+    label: "inverse-lateral-ca-33x33",
+    operationCountPerInner: points.length,
+    sample: inverseCaScalar
+  },
+  {
+    label: "inverse-lateral-ca-batch-33x33",
+    operationCountPerInner: points.length,
+    sample: inverseCaBatch
+  }
+);
+
+const results = [
+  ...radialPair.results,
+  ...caPair.results,
   measure("illumination-vignetting-33x33", points.length, () => {
     for (const point of points) {
       calculateIlluminationVignetting({
@@ -190,12 +290,16 @@ const results = [
 process.stdout.write(
   `${JSON.stringify(
     {
-      benchmark: "image-formation-scalar-sampling",
-      benchmarkVersion: 1,
+      benchmark: "image-formation-sampling",
+      benchmarkVersion: 2,
       enginePackageVersion: packageJson.version,
       nodeVersion: process.version,
       platform: process.platform,
       arch: process.arch,
+      measurementPolicy: "informational-only-no-ci-threshold",
+      warmupRepeats: WARMUP_REPEATS,
+      repeats: REPEATS,
+      innerRepeats: INNER_REPEATS,
       grid: {
         columns: GRID_COLUMNS,
         rows: GRID_ROWS,
@@ -209,6 +313,7 @@ process.stdout.write(
         normalizationRadiusMm: NORMALIZATION_RADIUS_MM
       },
       rotationTimeSamplesSeconds: ROTATION_TIME_SAMPLES,
+      comparisons: [radialPair.comparison, caPair.comparison],
       results
     },
     null,
