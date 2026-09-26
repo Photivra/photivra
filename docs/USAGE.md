@@ -506,7 +506,7 @@ console.log(pitch.value.millimeters);
 
 The current primitive calculates horizontal pixel pitch. It assumes the supplied sensor width and pixel count describe the same active dimension.
 
-See [Physics Foundation](PHYSICS_FOUNDATION.md#pixel-pitch-and-crop).
+See [Physics Foundation](PHYSICS_FOUNDATION.md#sensor-geometry-sampling-capture-and-crop).
 
 ## Sensor imaging area and native raster
 
@@ -704,7 +704,7 @@ console.log(framing.value.subjectClipped);
 
 Subject framing assumes the crop can be positioned around the subject; it does not check the subject's actual position against image edges.
 
-See [Physics Foundation](PHYSICS_FOUNDATION.md#pixel-pitch-and-crop).
+See [Physics Foundation](PHYSICS_FOUNDATION.md#sensor-geometry-sampling-capture-and-crop).
 
 ## Projected subject motion
 
