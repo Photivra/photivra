@@ -393,8 +393,10 @@ export function calculateRadialDistortionMapping(
  * coordinate for destination-to-source renderer sampling.
  *
  * The same profile monotonicity requirement used by the forward mapping makes
- * the inverse unique over the declared operating radius. A deterministic fixed
- * bisection count is used rather than an unconstrained iterative solver.
+ * the inverse unique over the declared operating radius. Exact center,
+ * identity-profile, and mapped-boundary cases are resolved directly; other
+ * radii use bounded deterministic bisection that stops once floating-point
+ * bounds can no longer narrow.
  */
 export interface InverseRadialSourcePointValue {
   sourceImagePointMm: LensFieldPointMm;
