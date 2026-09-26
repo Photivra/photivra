@@ -4,6 +4,8 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ## Unreleased
 
+## 0.5.0 - 2026-09-26
+
 ### Added
 
 - `calculateInverseRadialDistortionMappings()` and `calculateInverseLateralChromaticAberrationMappings()` for multi-point inverse field sampling with one profile-validation/provenance boundary per batch; scalar APIs remain unchanged.
@@ -11,7 +13,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Changed
 
-- Engine API contract advances to `0.34.0`. The composed POC remains `0.20.0`; this change adds a standalone coordinate bridge and does not compose lens-field effects into the POC.
+- Engine API contract advances to `0.34.0`. The composed POC remains `0.20.0`; this release adds standalone coordinate and batch lens-field APIs without composing lens-field effects into the POC.
 
 ## 0.4.0 - 2026-09-25
 
