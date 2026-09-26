@@ -4,6 +4,10 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- Inverse radial distortion now tolerates only floating-point-scale overshoot at the validated mapped operating boundary and clamps the solver target to that boundary, preventing exact limiting coordinates from failing because of one-ULP polynomial rounding while keeping materially out-of-envelope destinations fail-closed.
+
 ## 0.5.0 - 2026-09-26
 
 ### Added
