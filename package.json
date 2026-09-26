@@ -64,7 +64,8 @@
     "check:licenses": "node scripts/check-license-policy.mjs",
     "check:license-headers": "node scripts/check-license-headers.mjs",
     "check:identity": "node scripts/check-project-identity.mjs",
-    "bench:image-formation": "npm run build && node --expose-gc scripts/benchmark-image-formation.mjs"
+    "bench:image-formation": "npm run build && npm run bench:image-formation:built",
+    "bench:image-formation:built": "node --expose-gc scripts/benchmark-image-formation.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
