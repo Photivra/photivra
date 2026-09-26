@@ -123,8 +123,14 @@ export interface CalculationResult<T> {
   quality?: CalculationQuality;
 }
 
-function requireNonEmptyString(path: string, value: string): void {
-  if (value.trim().length === 0) {
+const UNCERTAINTY_SOURCES = new Set<UncertaintySource>([
+  "measurement",
+  "model-approximation",
+  "calibration"
+]);
+
+function requireNonEmptyString(path: string, value: unknown): void {
+  if (typeof value !== "string" || value.trim().length === 0) {
     throw new InvalidScientificResultError(
       `Calculation quality field ${path} must not be empty.`
     );
@@ -165,6 +171,11 @@ function validateUncertaintyEstimate(
 ): void {
   const path = `uncertainty[${index}]`;
   requireNonEmptyString(`${path}.quantityPath`, estimate.quantityPath);
+  if (!UNCERTAINTY_SOURCES.has(estimate.source as UncertaintySource)) {
+    throw new InvalidScientificResultError(
+      `Calculation quality field ${path}.source is invalid.`
+    );
+  }
   validateConfidence(estimate.confidence, `${path}.confidence`);
 
   if (estimate.note !== undefined) {
@@ -177,7 +188,14 @@ function validateUncertaintyEstimate(
     return;
   }
 
-  requireNonNegativeFinite(`${path}.fraction`, estimate.fraction);
+  if (estimate.kind === "relative") {
+    requireNonNegativeFinite(`${path}.fraction`, estimate.fraction);
+    return;
+  }
+
+  throw new InvalidScientificResultError(
+    `Calculation quality field ${path}.kind is invalid.`
+  );
 }
 
 function validateValidRange(
