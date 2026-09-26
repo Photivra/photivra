@@ -63,7 +63,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [centered and asymmetric rectilinear field of view, with optional focus-aware thin-lens projection](docs/USAGE.md#field-of-view);
 - [physical vs diagonal-based 35 mm-equivalent focal length](docs/USAGE.md#actual-and-35-mm-equivalent-focal-length);
 - [caller-declared focus-breathing projection/FOV approximation](docs/USAGE.md#focus-breathing-projection);
-- [generic invertible radial distortion mapping](docs/USAGE.md#radial-lens-distortion-mapping);
+- [generic invertible radial distortion mapping](docs/USAGE.md#radial-lens-distortion-mapping), including multi-point inverse batch sampling;
 - [generic RGB-channel lateral chromatic-aberration field mapping](docs/USAGE.md#lateral-chromatic-aberration-mapping);
 - [generic linear-light illumination-vignetting approximation](docs/USAGE.md#illumination-vignetting);
 - [Gaussian thin-lens image distance and magnification](docs/USAGE.md#thin-lens-image-distance-and-magnification);
@@ -86,6 +86,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [sensor imaging-area, native-raster, crop-factor, megapixel, and 2D sampling metrics](docs/USAGE.md#sensor-imaging-area-and-native-raster);
 - [provenance-aware sensor architecture/capability metadata](docs/USAGE.md#sensor-architecture-metadata);
 - [capture orientation, active sensor area, and output geometry](docs/USAGE.md#capture-orientation-active-area-and-output-geometry);
+- explicit oriented-physical-raster ↔ pre-orientation image-plane metric coordinate transforms for renderer/lens-field integration;
 - [centered crop and subject-height framing crop](docs/USAGE.md#centered-crop-and-subject-framing-crop);
 - [radiometry prerequisite/readiness assessment](docs/USAGE.md#radiometry-readiness);
 - [mean photoelectron conversion and basic shot-noise/read-noise SNR primitives](docs/USAGE.md#photoelectron-and-snr-primitives).
@@ -177,8 +178,8 @@ The calling application can then use those results while keeping the underlying 
 
 ## Status
 
-- Repository package version: `0.4.0`
-- Engine API contract: `0.32.0`
+- Repository package version: `0.5.0`
+- Engine API contract: `0.34.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
