@@ -4,6 +4,8 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ## Unreleased
 
+## 0.5.0 - 2026-09-26
+
 ### Added
 
 - `calculateInverseRadialDistortionMappings()` and `calculateInverseLateralChromaticAberrationMappings()` for multi-point inverse field sampling with one profile-validation/provenance boundary per batch; scalar APIs remain unchanged.
