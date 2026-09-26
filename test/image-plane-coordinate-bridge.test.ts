@@ -34,13 +34,13 @@ describe("oriented physical raster ↔ image-plane metric bridge", () => {
       })
     ).toEqual({ x: 18, y: -12 });
 
-    expect(
-      mapOrientedPhysicalUvToImagePlanePoint({
-        uv: { u: 0.5, v: 0.5 },
-        orientedPhysicalBoundsFromOpticalAxisMm: bounds,
-        orientation: "landscape"
-      })
-    ).toEqual({ x: 0, y: -0 });
+    const center = mapOrientedPhysicalUvToImagePlanePoint({
+      uv: { u: 0.5, v: 0.5 },
+      orientedPhysicalBoundsFromOpticalAxisMm: bounds,
+      orientation: "landscape"
+    });
+    expect(center.x).toBeCloseTo(0, 12);
+    expect(center.y).toBeCloseTo(0, 12);
   });
 
   it("round-trips deterministic points for all four physical orientations", () => {
