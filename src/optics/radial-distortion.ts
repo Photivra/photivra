@@ -51,6 +51,12 @@ export interface CalculateInverseRadialDistortionMappingInput {
   profile: RadialDistortionProfile;
 }
 
+export interface CalculateInverseRadialDistortionMappingsInput {
+  /** Distorted image-plane destinations to inverse-map in one validated batch. */
+  distortedImagePointsMm: readonly LensFieldPointMm[];
+  profile: RadialDistortionProfile;
+}
+
 export interface RadialDistortionMapping {
   direction: "undistorted-to-distorted";
   sourceImagePointMm: LensFieldPointMm;
@@ -78,6 +84,13 @@ export interface InverseRadialDistortionMapping {
     y: number;
     distance: number;
   };
+  profileMinimumRadialDerivative: number;
+}
+
+export interface InverseRadialDistortionMappings {
+  direction: "distorted-to-undistorted-batch";
+  mappings: readonly InverseRadialDistortionMapping[];
+  pointCount: number;
   profileMinimumRadialDerivative: number;
 }
 
@@ -309,15 +322,16 @@ export function calculateRadialDistortionMapping(
  * the inverse unique over the declared operating radius. A deterministic fixed
  * bisection count is used rather than an unconstrained iterative solver.
  */
-export function calculateInverseRadialDistortionMapping(
-  input: CalculateInverseRadialDistortionMappingInput
-): CalculationResult<InverseRadialDistortionMapping> {
-  requirePoint("distortedImagePointMm", input.distortedImagePointMm);
-  const profile = validateProfile(input.profile);
+function calculateInverseRadialDistortionMappingValue(
+  distortedImagePointMm: LensFieldPointMm,
+  profile: ValidatedRadialProfile,
+  pointPath: string
+): InverseRadialDistortionMapping {
+  requirePoint(pointPath, distortedImagePointMm);
 
   const distortedRadiusMm = Math.hypot(
-    input.distortedImagePointMm.x,
-    input.distortedImagePointMm.y
+    distortedImagePointMm.x,
+    distortedImagePointMm.y
   );
   const distortedNormalizedRadius =
     distortedRadiusMm / profile.normalizationRadiusMm;
@@ -327,7 +341,7 @@ export function calculateInverseRadialDistortionMapping(
     profile.maximumMappedNormalizedRadius
   ) {
     throw new InvalidScientificInputError(
-      "distortedImagePointMm lies outside the mapped radial distortion profile operating radius."
+      `${pointPath} lies outside the mapped radial distortion profile operating radius.`
     );
   }
 
@@ -336,7 +350,11 @@ export function calculateInverseRadialDistortionMapping(
     let lower = 0;
     let upper = profile.maximumNormalizedRadius;
 
-    for (let iteration = 0; iteration < INVERSE_BISECTION_ITERATIONS; iteration += 1) {
+    for (
+      let iteration = 0;
+      iteration < INVERSE_BISECTION_ITERATIONS;
+      iteration += 1
+    ) {
       const midpoint = (lower + upper) / 2;
       const mapped = mappedNormalizedRadius(
         midpoint,
@@ -359,37 +377,81 @@ export function calculateInverseRadialDistortionMapping(
     distortedNormalizedRadius === 0
       ? { x: 0, y: 0 }
       : {
-          x: input.distortedImagePointMm.x / scaleAtSource,
-          y: input.distortedImagePointMm.y / scaleAtSource
+          x: distortedImagePointMm.x / scaleAtSource,
+          y: distortedImagePointMm.y / scaleAtSource
         };
-  const deltaX =
-    sourceImagePointMm.x - input.distortedImagePointMm.x;
-  const deltaY =
-    sourceImagePointMm.y - input.distortedImagePointMm.y;
+  const deltaX = sourceImagePointMm.x - distortedImagePointMm.x;
+  const deltaY = sourceImagePointMm.y - distortedImagePointMm.y;
+
+  return {
+    direction: "distorted-to-undistorted",
+    distortedImagePointMm: { ...distortedImagePointMm },
+    sourceImagePointMm,
+    distortedNormalizedRadius,
+    sourceNormalizedRadius,
+    radialScaleAtSource: scaleAtSource,
+    deltaMm: {
+      x: deltaX,
+      y: deltaY,
+      distance: Math.hypot(deltaX, deltaY)
+    },
+    profileMinimumRadialDerivative: profile.minimumRadialDerivative
+  };
+}
+
+export function calculateInverseRadialDistortionMapping(
+  input: CalculateInverseRadialDistortionMappingInput
+): CalculationResult<InverseRadialDistortionMapping> {
+  const profile = validateProfile(input.profile);
+  const mapping = calculateInverseRadialDistortionMappingValue(
+    input.distortedImagePointMm,
+    profile,
+    "distortedImagePointMm"
+  );
 
   return approximationResult(
-    {
-      direction: "distorted-to-undistorted",
-      distortedImagePointMm: {
-        ...input.distortedImagePointMm
-      },
-      sourceImagePointMm,
-      distortedNormalizedRadius,
-      sourceNormalizedRadius,
-      radialScaleAtSource: scaleAtSource,
-      deltaMm: {
-        x: deltaX,
-        y: deltaY,
-        distance: Math.hypot(deltaX, deltaY)
-      },
-      profileMinimumRadialDerivative:
-        profile.minimumRadialDerivative
-    },
+    mapping,
     "generic-inverse-radial-lens-distortion",
     "1.0.0",
     [
       ...mappingAssumptions(),
       `Inverse radius is solved with ${INVERSE_BISECTION_ITERATIONS} deterministic bisection iterations`
+    ]
+  );
+}
+
+/**
+ * Inverse-maps multiple distorted image-plane destinations while validating
+ * and resolving the radial profile only once for the complete batch.
+ *
+ * The returned per-point mappings are numerically identical to the scalar API;
+ * provenance and profile validation are shared once at the batch boundary.
+ */
+export function calculateInverseRadialDistortionMappings(
+  input: CalculateInverseRadialDistortionMappingsInput
+): CalculationResult<InverseRadialDistortionMappings> {
+  const profile = validateProfile(input.profile);
+  const mappings = input.distortedImagePointsMm.map((point, index) =>
+    calculateInverseRadialDistortionMappingValue(
+      point,
+      profile,
+      `distortedImagePointsMm[${index}]`
+    )
+  );
+
+  return approximationResult(
+    {
+      direction: "distorted-to-undistorted-batch",
+      mappings,
+      pointCount: mappings.length,
+      profileMinimumRadialDerivative: profile.minimumRadialDerivative
+    },
+    "generic-inverse-radial-lens-distortion-batch",
+    "1.0.0",
+    [
+      ...mappingAssumptions(),
+      `Inverse radius is solved with ${INVERSE_BISECTION_ITERATIONS} deterministic bisection iterations per point`,
+      "The radial profile is validated and its invariant extrema are resolved once for the batch"
     ]
   );
 }
