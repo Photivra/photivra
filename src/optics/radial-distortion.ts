@@ -94,7 +94,8 @@ export interface InverseRadialDistortionMappings {
   profileMinimumRadialDerivative: number;
 }
 
-interface ValidatedRadialProfile {
+/** @internal Shared by composite lens-field batch evaluators; not root-exported. */
+export interface ValidatedRadialProfile {
   normalizationRadiusMm: number;
   maximumNormalizedRadius: number;
   coefficients: RadialDistortionCoefficients;
@@ -170,7 +171,8 @@ function derivativeCriticalSquaredRadii(
   return [(-b - root) / (2 * a), (-b + root) / (2 * a)];
 }
 
-function validateProfile(
+/** @internal Validates/copies one profile for repeated in-package evaluation. */
+export function validateRadialDistortionProfile(
   profile: RadialDistortionProfile
 ): ValidatedRadialProfile {
   requirePositiveFinite(
@@ -265,7 +267,7 @@ export function calculateRadialDistortionMapping(
   input: CalculateRadialDistortionMappingInput
 ): CalculationResult<RadialDistortionMapping> {
   requirePoint("imagePointMm", input.imagePointMm);
-  const profile = validateProfile(input.profile);
+  const profile = validateRadialDistortionProfile(input.profile);
 
   const sourceRadiusMm = Math.hypot(
     input.imagePointMm.x,
@@ -322,11 +324,22 @@ export function calculateRadialDistortionMapping(
  * the inverse unique over the declared operating radius. A deterministic fixed
  * bisection count is used rather than an unconstrained iterative solver.
  */
-function calculateInverseRadialDistortionMappingValue(
+export interface InverseRadialSourcePointValue {
+  sourceImagePointMm: LensFieldPointMm;
+  distortedNormalizedRadius: number;
+  sourceNormalizedRadius: number;
+  radialScaleAtSource: number;
+}
+
+/**
+ * @internal Minimal inverse evaluation used by composite in-package batch
+ * models that do not need the standalone radial delta/provenance envelope.
+ */
+export function calculateInverseRadialSourcePointValue(
   distortedImagePointMm: LensFieldPointMm,
   profile: ValidatedRadialProfile,
   pointPath: string
-): InverseRadialDistortionMapping {
+): InverseRadialSourcePointValue {
   requirePoint(pointPath, distortedImagePointMm);
 
   const distortedRadiusMm = Math.hypot(
@@ -369,7 +382,7 @@ function calculateInverseRadialDistortionMappingValue(
     sourceNormalizedRadius = (lower + upper) / 2;
   }
 
-  const scaleAtSource = radialScale(
+  const radialScaleAtSource = radialScale(
     sourceNormalizedRadius,
     profile.coefficients
   );
@@ -377,19 +390,40 @@ function calculateInverseRadialDistortionMappingValue(
     distortedNormalizedRadius === 0
       ? { x: 0, y: 0 }
       : {
-          x: distortedImagePointMm.x / scaleAtSource,
-          y: distortedImagePointMm.y / scaleAtSource
+          x: distortedImagePointMm.x / radialScaleAtSource,
+          y: distortedImagePointMm.y / radialScaleAtSource
         };
-  const deltaX = sourceImagePointMm.x - distortedImagePointMm.x;
-  const deltaY = sourceImagePointMm.y - distortedImagePointMm.y;
+
+  return {
+    sourceImagePointMm,
+    distortedNormalizedRadius,
+    sourceNormalizedRadius,
+    radialScaleAtSource
+  };
+}
+
+function calculateInverseRadialDistortionMappingValue(
+  distortedImagePointMm: LensFieldPointMm,
+  profile: ValidatedRadialProfile,
+  pointPath: string
+): InverseRadialDistortionMapping {
+  const source = calculateInverseRadialSourcePointValue(
+    distortedImagePointMm,
+    profile,
+    pointPath
+  );
+  const deltaX =
+    source.sourceImagePointMm.x - distortedImagePointMm.x;
+  const deltaY =
+    source.sourceImagePointMm.y - distortedImagePointMm.y;
 
   return {
     direction: "distorted-to-undistorted",
     distortedImagePointMm: { ...distortedImagePointMm },
-    sourceImagePointMm,
-    distortedNormalizedRadius,
-    sourceNormalizedRadius,
-    radialScaleAtSource: scaleAtSource,
+    sourceImagePointMm: source.sourceImagePointMm,
+    distortedNormalizedRadius: source.distortedNormalizedRadius,
+    sourceNormalizedRadius: source.sourceNormalizedRadius,
+    radialScaleAtSource: source.radialScaleAtSource,
     deltaMm: {
       x: deltaX,
       y: deltaY,
@@ -402,7 +436,7 @@ function calculateInverseRadialDistortionMappingValue(
 export function calculateInverseRadialDistortionMapping(
   input: CalculateInverseRadialDistortionMappingInput
 ): CalculationResult<InverseRadialDistortionMapping> {
-  const profile = validateProfile(input.profile);
+  const profile = validateRadialDistortionProfile(input.profile);
   const mapping = calculateInverseRadialDistortionMappingValue(
     input.distortedImagePointMm,
     profile,
@@ -430,7 +464,7 @@ export function calculateInverseRadialDistortionMapping(
 export function calculateInverseRadialDistortionMappings(
   input: CalculateInverseRadialDistortionMappingsInput
 ): CalculationResult<InverseRadialDistortionMappings> {
-  const profile = validateProfile(input.profile);
+  const profile = validateRadialDistortionProfile(input.profile);
   const mappings = input.distortedImagePointsMm.map((point, index) =>
     calculateInverseRadialDistortionMappingValue(
       point,
