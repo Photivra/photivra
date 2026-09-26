@@ -66,7 +66,7 @@ The POC transport reports the composed simulation contract version, not the root
 
 POC simulation API 0.20 composes projection using the selected focus plane. The response includes a `projection` block with ideal thin-lens image distance, scale relative to the infinity-focus approximation, and model provenance. Full-sensor field of view, crop field of view, object sampling, subject motion, and camera-shake projection use that same selected projection plane.
 
-### Post-0.2 sensor/capture composition
+### Sensor/capture composition in POC API 0.20
 
 POC simulation API 0.20 begins composing the standalone sensor/capture foundation **additively**.
 
