@@ -30,7 +30,7 @@ CI verifies Node.js 22.13 and Node.js 24.
 - If generative tools assisted with code or prose, the contributor remains responsible for originality, licensing, scientific accuracy, confidentiality, and substantive human review.
 - Do not rely on an AI system's statement that generated material is original, copyrightable, unpatented, or license-compatible as legal evidence.
 
-## Post-0.2 sensor/capture contribution checklist
+## Sensor/capture contribution checklist
 
 Changes in sensor, capture, output, or radiometry code should explicitly answer:
 
