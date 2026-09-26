@@ -99,9 +99,9 @@ The root package exports deterministic or explicitly labeled approximate models 
 
 The package has no runtime npm dependencies.
 
-## Post-0.2 integration status
+## Sensor/capture integration status
 
-The post-0.2 sensor/capture work is intentionally **additive**.
+The sensor/capture foundations are intentionally **additive**.
 
 The root engine now exposes standalone APIs for:
 
