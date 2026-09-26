@@ -89,7 +89,7 @@ These states describe the declared prerequisite package only. They do **not** pr
 
 Geometric sample pitch is explicitly insufficient as a photosite photon-collection area. A radiometric profile must supply either an effective collection area or a geometric cell area plus explicit fill factor. Calibration artifacts are identified by stable IDs and SHA-256 checksums rather than being embedded implicitly in geometry metadata.
 
-## Composition boundary after 0.2.0
+## Composition boundary at POC API 0.20
 
 The sensor/capture/architecture/radiometry modules are public root-engine foundations. POC simulation API 0.20 composes the geometry foundation through final output/viewing semantics while keeping older callers valid.
 
@@ -174,7 +174,7 @@ The engine, rather than a renderer backend, owns:
 
 This prevents WebGPU/WebGL2 implementations from inventing separate distortion equations.
 
-The first slice is radial and optical-axis-centered only. Tangential/decentered distortion, lateral chromatic aberration, illumination vignetting, and calibrated lens profiles remain separate work.
+The radial-distortion slice is optical-axis-centered only. Tangential/decentered distortion and calibrated lens profiles remain future work. Lateral chromatic aberration and illumination vignetting are implemented as separate standalone foundations and are not part of the radial-distortion model.
 
 ## Standalone focus-breathing foundation
 
@@ -182,7 +182,7 @@ The lens-field/pupil domain now has a partial standalone foundation through `cal
 
 These functions apply an explicit caller-declared scale to the ideal thin-lens projection for one focus state. They do not infer a breathing curve, identify a real lens, or mutate physical focal length.
 
-The model remains standalone and is not composed into `simulatePocCamera()` yet. Distortion, lateral chromatic aberration, illumination/mechanical vignetting, pupil/PSF behavior, and calibrated lens profiles remain separate future work.
+The model remains standalone and is not composed into `simulatePocCamera()` yet. Generic radial distortion, lateral chromatic aberration, and illumination vignetting are separately implemented standalone foundations and must not be silently coupled into focus breathing. Mechanical/pupil vignetting, pupil/PSF coupling, and calibrated lens profiles remain future work.
 
 ## Standalone spatial camera-rotation foundation
 
