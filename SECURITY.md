@@ -31,6 +31,22 @@ The repository-local `src/api` code is a separate Node-only proof-of-concept dev
 - CORS is a browser policy, not authentication or authorization;
 - exposing it on a non-loopback interface requires separate production-grade protection that this repository does not provide.
 
+## Release and publishing controls
+
+The npm release workflow is designed so verification/build tooling does not receive npm publishing identity:
+
+- release tags must be protected, match the package version, and point at the current `main` commit;
+- the `main` branch must report as protected through GitHub before a publish is allowed;
+- verification, coverage, build, and package creation run in a job without `id-token: write`;
+- only the minimal final publish job receives OIDC permission;
+- the verified tarball is transferred between jobs as a short-lived Actions artifact and checked against its SHA-256 before publication;
+- GitHub Actions are pinned to immutable commit SHAs;
+- checkout credentials are not persisted into later CI steps;
+- dependency installation uses the lockfile and `--ignore-scripts`;
+- the public package has no runtime npm dependencies.
+
+Repository administrators must keep release tags and the default branch protected; the publish workflow fails closed if either protection is absent. For the strongest npm posture, also use a protected GitHub deployment environment in the npm trusted-publisher configuration and disable traditional token-based publishing after trusted publishing is verified.
+
 ## Development rules
 
 - Never commit credentials, API keys, tokens, private keys, private datasets, or proprietary calibration material.
