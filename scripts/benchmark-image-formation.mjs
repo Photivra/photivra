@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { readFileSync } from "node:fs";
+
 import {
   calculateCameraRotationImageMapping,
   calculateIlluminationVignetting,
   calculateInverseLateralChromaticAberrationMapping,
   calculateInverseRadialDistortionMapping
 } from "../dist/index.js";
+
+const packageJson = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8")
+);
 
 const GRID_COLUMNS = 33;
 const GRID_ROWS = 33;
@@ -170,7 +176,7 @@ console.log(
     {
       benchmark: "image-formation-scalar-sampling",
       benchmarkVersion: 1,
-      enginePackageVersion: "0.4.0",
+      enginePackageVersion: packageJson.version,
       nodeVersion: process.version,
       platform: process.platform,
       arch: process.arch,
