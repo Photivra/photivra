@@ -347,7 +347,7 @@ function validateRasterVector(name: string, vector: RasterVector): void {
   }
 }
 
-const NORMALIZED_UV_EDGE_TOLERANCE = 1e-12;
+const PHYSICAL_EDGE_TOLERANCE_ULPS = 16;
 
 function validatePhysicalBounds(
   name: string,
@@ -385,19 +385,35 @@ function validateNormalizedUv(name: string, uv: NormalizedRasterUv): void {
   }
 }
 
-function normalizeUvEdge(name: string, value: number): number {
+function normalizePhysicalCoordinateToUv(
+  name: string,
+  value: number,
+  minimum: number,
+  maximum: number
+): number {
   if (!Number.isFinite(value)) {
     throw new InvalidScientificInputError(`${name} must be finite.`);
   }
-  if (
-    value < -NORMALIZED_UV_EDGE_TOLERANCE ||
-    value > 1 + NORMALIZED_UV_EDGE_TOLERANCE
-  ) {
+
+  const span = maximum - minimum;
+  const scale = Math.max(
+    Math.abs(value),
+    Math.abs(minimum),
+    Math.abs(maximum),
+    Math.abs(span),
+    Number.MIN_VALUE
+  );
+  const tolerance =
+    Number.EPSILON * PHYSICAL_EDGE_TOLERANCE_ULPS * scale;
+
+  if (value < minimum - tolerance || value > maximum + tolerance) {
     throw new InvalidScientificInputError(
       `${name} must lie within the supplied oriented physical bounds.`
     );
   }
-  return Math.max(0, Math.min(1, value));
+
+  const clamped = Math.max(minimum, Math.min(maximum, value));
+  return (clamped - minimum) / span;
 }
 
 function fullRect(raster: RasterDimensions): RasterRect {
@@ -584,16 +600,19 @@ export function mapImagePlanePointToOrientedPhysicalUv(
     nativePhysicalPoint,
     input.orientation
   );
-  const u =
-    (orientedPhysicalPoint.x - bounds.left) /
-    (bounds.right - bounds.left);
-  const v =
-    (orientedPhysicalPoint.y - bounds.top) /
-    (bounds.bottom - bounds.top);
-
   return {
-    u: normalizeUvEdge("imagePlanePointMm.u", u),
-    v: normalizeUvEdge("imagePlanePointMm.v", v)
+    u: normalizePhysicalCoordinateToUv(
+      "imagePlanePointMm.x",
+      orientedPhysicalPoint.x,
+      bounds.left,
+      bounds.right
+    ),
+    v: normalizePhysicalCoordinateToUv(
+      "imagePlanePointMm.y",
+      orientedPhysicalPoint.y,
+      bounds.top,
+      bounds.bottom
+    )
   };
 }
 
