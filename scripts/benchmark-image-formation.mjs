@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { readFileSync } from "node:fs";
+import process from "node:process";
+import { URL } from "node:url";
 
 import {
   calculateCameraRotationImageMapping,
@@ -171,8 +173,8 @@ const results = [
   )
 ];
 
-console.log(
-  JSON.stringify(
+process.stdout.write(
+  `${JSON.stringify(
     {
       benchmark: "image-formation-scalar-sampling",
       benchmarkVersion: 1,
@@ -197,5 +199,5 @@ console.log(
     },
     null,
     2
-  )
+  )}\n`
 );
