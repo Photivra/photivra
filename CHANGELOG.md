@@ -4,6 +4,16 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- Radial-distortion invertibility validation now uses scale-normalized, cancellation-resistant stationary-point solving so near-linear high-order profiles cannot hide an interior fold; unsafe derived normalized radii and malformed/sparse batch points fail closed as scientific input errors.
+- Reverse image-plane coordinate mapping now uses a physical-scale floating-point edge tolerance instead of a fixed normalized-UV tolerance.
+
+### Performance
+
+- Inverse radial mapping resolves exact identity and mapped-boundary cases directly and stops deterministic bisection once IEEE-754 bounds can no longer narrow.
+- The image-formation benchmark now warms and amplifies measured work, alternates scalar/batch ordering, reports paired median ratios, remains informational-only, and avoids a duplicate CI build.
+
 ## 0.5.1 - 2026-09-26
 
 ### Fixed
