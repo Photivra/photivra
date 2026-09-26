@@ -74,7 +74,7 @@ Do not weaken an existing release, provenance, licensing, browser-surface, or pa
 
 ## Sensor, capture, and coordinate-system rules
 
-The post-0.2 sensor/capture foundation has explicit semantics. Preserve them.
+The sensor/capture foundation has explicit semantics. Preserve them.
 
 - `SensorImagingArea` is the physical photosensitive imaging area used for image formation, not die/package dimensions.
 - `NativeImageRaster` describes the effective native image-sampling grid. It does not assert one image sample equals one physical photodiode.
