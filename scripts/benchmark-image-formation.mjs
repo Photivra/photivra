@@ -8,7 +8,9 @@ import {
   calculateCameraRotationImageMapping,
   calculateIlluminationVignetting,
   calculateInverseLateralChromaticAberrationMapping,
-  calculateInverseRadialDistortionMapping
+  calculateInverseLateralChromaticAberrationMappings,
+  calculateInverseRadialDistortionMapping,
+  calculateInverseRadialDistortionMappings
 } from "../dist/index.js";
 
 const packageJson = JSON.parse(
@@ -134,6 +136,12 @@ const results = [
       });
     }
   }),
+  measure("inverse-radial-distortion-batch-33x33", points.length, () => {
+    calculateInverseRadialDistortionMappings({
+      distortedImagePointsMm: points,
+      profile: radialProfile
+    });
+  }),
   measure("inverse-lateral-ca-33x33", points.length, () => {
     for (const point of points) {
       calculateInverseLateralChromaticAberrationMapping({
@@ -141,6 +149,12 @@ const results = [
         profile: caProfile
       });
     }
+  }),
+  measure("inverse-lateral-ca-batch-33x33", points.length, () => {
+    calculateInverseLateralChromaticAberrationMappings({
+      distortedImagePointsMm: points,
+      profile: caProfile
+    });
   }),
   measure("illumination-vignetting-33x33", points.length, () => {
     for (const point of points) {

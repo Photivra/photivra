@@ -7,7 +7,9 @@ import {
 import { InvalidScientificInputError } from "../core/validation.js";
 import {
   calculateInverseRadialDistortionMapping,
+  calculateInverseRadialSourcePointValue,
   calculateRadialDistortionMapping,
+  validateRadialDistortionProfile,
   type LensFieldPointMm,
   type RadialDistortionCoefficients,
   type RadialDistortionProfile
@@ -45,6 +47,16 @@ export interface CalculateInverseLateralChromaticAberrationMappingInput {
    * mapped independently to its ideal source coordinate.
    */
   distortedImagePointMm: LensFieldPointMm;
+  profile: LateralChromaticAberrationProfile;
+}
+
+export interface CalculateInverseLateralChromaticAberrationMappingsInput {
+  /**
+   * Distorted output image-plane destinations. Each destination is inverse-
+   * mapped independently for red, green, and blue after one profile-resolution
+   * step for the batch.
+   */
+  distortedImagePointsMm: readonly LensFieldPointMm[];
   profile: LateralChromaticAberrationProfile;
 }
 
@@ -95,6 +107,13 @@ export interface InverseLateralChromaticAberrationMapping {
     blue: InverseLateralChromaticAberrationChannelMapping;
   };
   sourceSeparation: LateralChromaticAberrationSeparation;
+}
+
+export interface InverseLateralChromaticAberrationMappings {
+  direction: "distorted-output-to-channel-sources-batch";
+  referenceChannel: "green";
+  mappings: readonly InverseLateralChromaticAberrationMapping[];
+  pointCount: number;
 }
 
 interface ChannelProfiles {
@@ -359,5 +378,98 @@ export function calculateInverseLateralChromaticAberrationMapping(
     "generic-inverse-green-reference-lateral-chromatic-aberration",
     "1.0.0",
     assumptions()
+  );
+}
+
+/**
+ * Inverse-maps multiple distorted destinations while resolving the shared CA
+ * profile once and validating each combined channel profile once for the
+ * complete batch.
+ *
+ * Per-point values match calculateInverseLateralChromaticAberrationMapping();
+ * provenance is shared once at the batch boundary.
+ */
+export function calculateInverseLateralChromaticAberrationMappings(
+  input: CalculateInverseLateralChromaticAberrationMappingsInput
+): CalculationResult<InverseLateralChromaticAberrationMappings> {
+  const profiles = resolveProfiles(input.profile);
+  const validatedProfiles = {
+    red: withChannelContext("red", () =>
+      validateRadialDistortionProfile(profiles.red)
+    ),
+    green: withChannelContext("green", () =>
+      validateRadialDistortionProfile(profiles.green)
+    ),
+    blue: withChannelContext("blue", () =>
+      validateRadialDistortionProfile(profiles.blue)
+    )
+  };
+
+  const mappings = input.distortedImagePointsMm.map((point, index) => {
+    const red = withChannelContext("red", () =>
+      calculateInverseRadialSourcePointValue(
+        point,
+        validatedProfiles.red,
+        `distortedImagePointsMm[${index}]`
+      )
+    );
+    const green = withChannelContext("green", () =>
+      calculateInverseRadialSourcePointValue(
+        point,
+        validatedProfiles.green,
+        `distortedImagePointsMm[${index}]`
+      )
+    );
+    const blue = withChannelContext("blue", () =>
+      calculateInverseRadialSourcePointValue(
+        point,
+        validatedProfiles.blue,
+        `distortedImagePointsMm[${index}]`
+      )
+    );
+
+    return {
+      direction: "distorted-output-to-channel-sources" as const,
+      referenceChannel: "green" as const,
+      distortedImagePointMm: { ...point },
+      channels: {
+        red: {
+          sourceImagePointMm: { ...red.sourceImagePointMm },
+          radialScaleAtSource: red.radialScaleAtSource,
+          combinedCoefficients: { ...profiles.red.coefficients }
+        },
+        green: {
+          sourceImagePointMm: { ...green.sourceImagePointMm },
+          radialScaleAtSource: green.radialScaleAtSource,
+          combinedCoefficients: { ...profiles.green.coefficients }
+        },
+        blue: {
+          sourceImagePointMm: { ...blue.sourceImagePointMm },
+          radialScaleAtSource: blue.radialScaleAtSource,
+          combinedCoefficients: { ...profiles.blue.coefficients }
+        }
+      },
+      sourceSeparation: separations(
+        red.sourceImagePointMm,
+        green.sourceImagePointMm,
+        blue.sourceImagePointMm
+      )
+    };
+  });
+
+  return approximationResult(
+    {
+      direction: "distorted-output-to-channel-sources-batch",
+      referenceChannel: "green",
+      mappings,
+      pointCount: mappings.length
+    },
+    "generic-inverse-green-reference-lateral-chromatic-aberration-batch",
+    "1.0.0",
+    [
+      ...assumptions(),
+      "Combined red/green/blue radial profiles are resolved once for the batch",
+      "Each channel profile is validated once before batch point sampling"
+    ]
   );
 }

@@ -300,6 +300,30 @@ The channel labels are representative renderer RGB channels. They are not wavele
 
 A renderer should inverse-map each destination channel to the source coordinate returned by the engine instead of adding a backend-specific RGB offset or finished-image fringe blur.
 
+For renderer grids or other multi-point evaluation, use the batch inverse APIs so
+one profile validation/provenance boundary serves the full point set:
+
+```ts
+import {
+  calculateInverseLateralChromaticAberrationMappings,
+  calculateInverseRadialDistortionMappings
+} from "@photivra/engine";
+
+const radialGrid = calculateInverseRadialDistortionMappings({
+  distortedImagePointsMm: points,
+  profile: radialProfile
+});
+
+const caGrid = calculateInverseLateralChromaticAberrationMappings({
+  distortedImagePointsMm: points,
+  profile: caProfile
+});
+```
+
+Batch per-point values are defined to match the corresponding scalar inverse
+APIs. Batching changes repeated validation/allocation structure, not the lens
+model, operating envelope, coordinate basis, or numerical solver.
+
 ## Illumination vignetting
 
 Use `calculateIlluminationVignetting()` when a generic virtual lens needs field-dependent **relative linear throughput** without changing geometry or pupil/PSF shape.
