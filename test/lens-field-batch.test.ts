@@ -192,4 +192,45 @@ describe("batch inverse lens-field mappings", () => {
       })
     ).toThrow("distortedImagePointsMm[1]");
   });
+  it("fails closed on sparse point arrays instead of preserving holes", () => {
+    const radialPoints = new Array<LensFieldPointMm>(2);
+    radialPoints[0] = { x: 0, y: 0 };
+
+    expect(() =>
+      calculateInverseRadialDistortionMappings({
+        distortedImagePointsMm: radialPoints,
+        profile: RADIAL_PROFILE
+      })
+    ).toThrow("distortedImagePointsMm[1]");
+
+    const caPoints = new Array<LensFieldPointMm>(2);
+    caPoints[0] = { x: 0, y: 0 };
+
+    expect(() =>
+      calculateInverseLateralChromaticAberrationMappings({
+        distortedImagePointsMm: caPoints,
+        profile: CA_PROFILE
+      })
+    ).toThrow("distortedImagePointsMm[1]");
+  });
+
+  it("fails closed with scientific input errors for malformed runtime point shapes", () => {
+    expect(() =>
+      calculateInverseRadialDistortionMappings({
+        distortedImagePointsMm: [
+          null as unknown as LensFieldPointMm
+        ],
+        profile: RADIAL_PROFILE
+      })
+    ).toThrow("finite numeric x and y");
+
+    expect(() =>
+      calculateInverseLateralChromaticAberrationMappings({
+        distortedImagePointsMm:
+          null as unknown as readonly LensFieldPointMm[],
+        profile: CA_PROFILE
+      })
+    ).toThrow("must be an array");
+  });
+
 });
