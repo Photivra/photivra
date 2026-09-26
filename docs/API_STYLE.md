@@ -49,6 +49,7 @@ Coordinate systems and image-formation stages are part of the API contract, not 
 - Physical camera rotation does not redefine native sensor coordinates; transform points, vectors, and rectangles explicitly.
 - Physical active capture and later digital/output crop are distinct concepts and should have distinct fields/types.
 - Off-center physical capture must preserve position relative to the optical axis rather than being silently recentered.
+- Crossing between an oriented physical raster region (+Y down) and the pre-orientation optical image plane (+Y up) must use the exported coordinate bridge rather than ad-hoc axis swaps or sign changes.
 - Output resizing/cropping must not imply geometric stretching without an explicit transform or pixel-aspect contract.
 - Conventional 35 mm-equivalent focal length is derived from active physical capture geometry; it must not replace physical focal length or silently include later digital crop.
 
