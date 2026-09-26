@@ -149,6 +149,38 @@ describe("batch inverse lens-field mappings", () => {
     ).toThrow("blue channel");
   });
 
+  it("accepts the frozen Test Fixture barrel limiting corner in batch mode", () => {
+    const normalizationRadiusMm = Math.hypot(18, 12);
+    const profile: RadialDistortionProfile = {
+      normalizationRadiusMm,
+      maximumNormalizedRadius: 1.1534673051457625,
+      coefficients: { k1: -0.1, k2: 0, k3: 0 }
+    };
+    const batch = calculateInverseRadialDistortionMappings({
+      distortedImagePointsMm: [
+        { x: -18, y: 12 },
+        { x: 18, y: 12 },
+        { x: 18, y: -12 },
+        { x: -18, y: -12 }
+      ],
+      profile
+    });
+
+    expect(batch.value.mappings).toHaveLength(4);
+    for (const mapping of batch.value.mappings) {
+      expect(mapping.sourceNormalizedRadius).toBeCloseTo(
+        profile.maximumNormalizedRadius,
+        14
+      );
+      expect(
+        Math.hypot(
+          mapping.sourceImagePointMm.x,
+          mapping.sourceImagePointMm.y
+        ) / normalizationRadiusMm
+      ).toBeLessThanOrEqual(profile.maximumNormalizedRadius);
+    }
+  });
+
   it("reports the failing batch point index when a destination leaves the mapped envelope", () => {
     expect(() =>
       calculateInverseRadialDistortionMappings({

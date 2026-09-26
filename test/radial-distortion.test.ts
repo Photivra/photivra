@@ -244,6 +244,43 @@ describe("generic radial distortion mapping", () => {
     ).toThrow("strictly monotonic");
   });
 
+  it("accepts only floating-point-scale overshoot at the mapped inverse boundary", () => {
+    const normalizationRadiusMm = Math.hypot(18, 12);
+    const profile: RadialDistortionProfile = {
+      normalizationRadiusMm,
+      maximumNormalizedRadius: 1.1534673051457625,
+      coefficients: {
+        k1: -0.1,
+        k2: 0,
+        k3: 0
+      }
+    };
+
+    const limitingCorner = calculateInverseRadialDistortionMapping({
+      distortedImagePointMm: { x: 18, y: 12 },
+      profile
+    });
+
+    expect(limitingCorner.value.distortedNormalizedRadius).toBeCloseTo(1, 15);
+    expect(limitingCorner.value.sourceNormalizedRadius).toBeCloseTo(
+      profile.maximumNormalizedRadius,
+      14
+    );
+    expect(
+      Math.hypot(
+        limitingCorner.value.sourceImagePointMm.x,
+        limitingCorner.value.sourceImagePointMm.y
+      ) / normalizationRadiusMm
+    ).toBeLessThanOrEqual(profile.maximumNormalizedRadius);
+
+    expect(() =>
+      calculateInverseRadialDistortionMapping({
+        distortedImagePointMm: { x: 18.000000001, y: 12 },
+        profile
+      })
+    ).toThrow("outside the mapped radial distortion profile");
+  });
+
   it("fails closed outside the declared forward and inverse operating envelope", () => {
     const profile: RadialDistortionProfile = {
       normalizationRadiusMm: 20,
