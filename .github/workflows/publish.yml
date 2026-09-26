@@ -199,6 +199,7 @@ jobs:
             exit 0
           fi
 
-          TARBALL="$(find release-artifact -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+          TARBALL="$(find "$PWD/release-artifact" -maxdepth 1 -type f -name '*.tgz' -print -quit)"
           test -n "$TARBALL"
+          test -f "$TARBALL"
           npm publish "$TARBALL" --access public
