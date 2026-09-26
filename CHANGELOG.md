@@ -21,6 +21,11 @@ Notable public changes to `@photivra/engine` are documented here.
 
 - Engine API contract advances to `0.32.0`. The image-formation contract remains `0.2.0`; the new PSF/pupil foundation formalizes already-partial field/PSF ownership without changing composed POC semantics. The composed POC remains `0.20.0`.
 
+### Fixed
+
+- Tightened final output-raster aspect validation so only nearest-integer rounding from one isotropic scale is accepted; fixed-percentage tolerance no longer permits visible anisotropic stretching.
+- Calculation-quality validation now fails closed on unknown runtime uncertainty `kind` and `source` values instead of treating unknown discriminants as valid metadata.
+
 ### Documentation
 
 - Added the image-formation contract guide and synchronized architecture, physics, motion, API-style, and agent guidance around partial-order/coupled-stage semantics and reserved sensor stages.
