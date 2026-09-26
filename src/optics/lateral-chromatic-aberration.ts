@@ -404,8 +404,25 @@ export function calculateInverseLateralChromaticAberrationMappings(
       validateRadialDistortionProfile(profiles.blue)
     )
   };
+  if (!Array.isArray(input.distortedImagePointsMm)) {
+    throw new InvalidScientificInputError(
+      "distortedImagePointsMm must be an array of image-plane points."
+    );
+  }
 
-  const mappings = input.distortedImagePointsMm.map((point, index) => {
+  const mappings: InverseLateralChromaticAberrationMapping[] = [];
+  for (
+    let index = 0;
+    index < input.distortedImagePointsMm.length;
+    index += 1
+  ) {
+    const point = input.distortedImagePointsMm[index];
+    if (point === undefined) {
+      throw new InvalidScientificInputError(
+        `distortedImagePointsMm[${index}] must be an image-plane point.`
+      );
+    }
+
     const red = withChannelContext("red", () =>
       calculateInverseRadialSourcePointValue(
         point,
@@ -428,7 +445,7 @@ export function calculateInverseLateralChromaticAberrationMappings(
       )
     );
 
-    return {
+    mappings.push({
       direction: "distorted-output-to-channel-sources" as const,
       referenceChannel: "green" as const,
       distortedImagePointMm: { ...point },
@@ -454,8 +471,8 @@ export function calculateInverseLateralChromaticAberrationMappings(
         green.sourceImagePointMm,
         blue.sourceImagePointMm
       )
-    };
-  });
+    });
+  }
 
   return approximationResult(
     {
