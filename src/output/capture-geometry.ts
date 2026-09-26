@@ -349,6 +349,22 @@ function validateRasterVector(name: string, vector: RasterVector): void {
 
 const PHYSICAL_EDGE_TOLERANCE_ULPS = 16;
 
+function physicalCoordinateTolerance(
+  value: number,
+  minimum: number,
+  maximum: number
+): number {
+  const span = maximum - minimum;
+  const scale = Math.max(
+    Math.abs(value),
+    Math.abs(minimum),
+    Math.abs(maximum),
+    Math.abs(span),
+    Number.MIN_VALUE
+  );
+  return Number.EPSILON * PHYSICAL_EDGE_TOLERANCE_ULPS * scale;
+}
+
 function validatePhysicalBounds(
   name: string,
   bounds: PhysicalBoundsFromOpticalAxisMm
@@ -368,6 +384,21 @@ function validatePhysicalBounds(
   if (bounds.bottom <= bounds.top) {
     throw new InvalidScientificInputError(
       `${name} must have bottom greater than top.`
+    );
+  }
+
+  const horizontalSpan = bounds.right - bounds.left;
+  const verticalSpan = bounds.bottom - bounds.top;
+  if (
+    !Number.isFinite(horizontalSpan) ||
+    !Number.isFinite(verticalSpan) ||
+    horizontalSpan <=
+      physicalCoordinateTolerance(bounds.left, bounds.left, bounds.right) ||
+    verticalSpan <=
+      physicalCoordinateTolerance(bounds.top, bounds.top, bounds.bottom)
+  ) {
+    throw new InvalidScientificInputError(
+      `${name} must have numerically resolvable finite spans relative to the optical-axis coordinate magnitude.`
     );
   }
 }
@@ -396,15 +427,11 @@ function normalizePhysicalCoordinateToUv(
   }
 
   const span = maximum - minimum;
-  const scale = Math.max(
-    Math.abs(value),
-    Math.abs(minimum),
-    Math.abs(maximum),
-    Math.abs(span),
-    Number.MIN_VALUE
+  const tolerance = physicalCoordinateTolerance(
+    value,
+    minimum,
+    maximum
   );
-  const tolerance =
-    Number.EPSILON * PHYSICAL_EDGE_TOLERANCE_ULPS * scale;
 
   if (value < minimum - tolerance || value > maximum + tolerance) {
     throw new InvalidScientificInputError(
