@@ -104,11 +104,27 @@ export interface ValidatedRadialProfile {
 }
 
 const INVERSE_BISECTION_ITERATIONS = 80;
+const INVERSE_MAPPED_RADIUS_FLOATING_TOLERANCE_ULPS = 16;
 
 function requireFinite(name: string, value: number): void {
   if (!Number.isFinite(value)) {
     throw new InvalidScientificInputError(`${name} must be finite.`);
   }
+}
+
+function inverseMappedRadiusTolerance(
+  distortedNormalizedRadius: number,
+  maximumMappedNormalizedRadius: number
+): number {
+  return (
+    Number.EPSILON *
+    INVERSE_MAPPED_RADIUS_FLOATING_TOLERANCE_ULPS *
+    Math.max(
+      1,
+      Math.abs(distortedNormalizedRadius),
+      Math.abs(maximumMappedNormalizedRadius)
+    )
+  );
 }
 
 function radialScale(
@@ -349,17 +365,25 @@ export function calculateInverseRadialSourcePointValue(
   const distortedNormalizedRadius =
     distortedRadiusMm / profile.normalizationRadiusMm;
 
+  const mappedRadiusTolerance = inverseMappedRadiusTolerance(
+    distortedNormalizedRadius,
+    profile.maximumMappedNormalizedRadius
+  );
   if (
     distortedNormalizedRadius >
-    profile.maximumMappedNormalizedRadius
+    profile.maximumMappedNormalizedRadius + mappedRadiusTolerance
   ) {
     throw new InvalidScientificInputError(
       `${pointPath} lies outside the mapped radial distortion profile operating radius.`
     );
   }
+  const solverDistortedNormalizedRadius = Math.min(
+    distortedNormalizedRadius,
+    profile.maximumMappedNormalizedRadius
+  );
 
   let sourceNormalizedRadius = 0;
-  if (distortedNormalizedRadius > 0) {
+  if (solverDistortedNormalizedRadius > 0) {
     let lower = 0;
     let upper = profile.maximumNormalizedRadius;
 
@@ -373,7 +397,7 @@ export function calculateInverseRadialSourcePointValue(
         midpoint,
         profile.coefficients
       );
-      if (mapped < distortedNormalizedRadius) {
+      if (mapped < solverDistortedNormalizedRadius) {
         lower = midpoint;
       } else {
         upper = midpoint;
@@ -389,10 +413,19 @@ export function calculateInverseRadialSourcePointValue(
   const sourceImagePointMm =
     distortedNormalizedRadius === 0
       ? { x: 0, y: 0 }
-      : {
-          x: distortedImagePointMm.x / radialScaleAtSource,
-          y: distortedImagePointMm.y / radialScaleAtSource
-        };
+      : solverDistortedNormalizedRadius === distortedNormalizedRadius
+        ? {
+            x: distortedImagePointMm.x / radialScaleAtSource,
+            y: distortedImagePointMm.y / radialScaleAtSource
+          }
+        : {
+            x:
+              distortedImagePointMm.x *
+              (sourceNormalizedRadius / distortedNormalizedRadius),
+            y:
+              distortedImagePointMm.y *
+              (sourceNormalizedRadius / distortedNormalizedRadius)
+          };
 
   return {
     sourceImagePointMm,
