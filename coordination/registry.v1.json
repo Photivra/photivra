@@ -8,26 +8,5 @@
       "description": "SimulatedCapture, TIFF/DNG export, measured performance, and CI-efficiency work."
     }
   },
-  "leases": [
-    {
-      "resource": "lane:engine-science",
-      "lane": "engine-science",
-      "leaseId": "science-20260928T1919Z-issue8-audit",
-      "task": "Audit and resolve roadmap issue #8 against current main",
-      "branch": "main",
-      "pr": null,
-      "acquiredAt": "2026-09-28T19:19:00Z",
-      "expiresAt": "2026-09-28T20:14:00Z"
-    },
-    {
-      "resource": "issue:8",
-      "lane": "engine-science",
-      "leaseId": "science-20260928T1919Z-issue8-audit",
-      "task": "Audit and resolve roadmap issue #8 against current main",
-      "branch": "main",
-      "pr": null,
-      "acquiredAt": "2026-09-28T19:19:00Z",
-      "expiresAt": "2026-09-28T20:14:00Z"
-    }
-  ]
+  "leases": []
 }
