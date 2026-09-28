@@ -12,42 +12,42 @@
     {
       "resource": "lane:export-performance",
       "lane": "export-performance",
-      "leaseId": "export-perf-20260928T180534Z-ci44",
+      "leaseId": "export-perf-20260928T190500Z-ci44",
       "task": "Issue #44 remove redundant CI test execution",
       "branch": "ci/dedupe-coverage",
       "pr": null,
-      "acquiredAt": "2026-09-28T18:05:34Z",
-      "expiresAt": "2026-09-28T18:55:34Z"
+      "acquiredAt": "2026-09-28T19:05:00Z",
+      "expiresAt": "2026-09-28T19:55:00Z"
     },
     {
       "resource": "shared:ci",
       "lane": "export-performance",
-      "leaseId": "export-perf-20260928T180534Z-ci44",
+      "leaseId": "export-perf-20260928T190500Z-ci44",
       "task": "Issue #44 remove redundant CI test execution",
       "branch": "ci/dedupe-coverage",
       "pr": null,
-      "acquiredAt": "2026-09-28T18:05:34Z",
-      "expiresAt": "2026-09-28T18:55:34Z"
+      "acquiredAt": "2026-09-28T19:05:00Z",
+      "expiresAt": "2026-09-28T19:55:00Z"
     },
     {
       "resource": "shared:package",
       "lane": "export-performance",
-      "leaseId": "export-perf-20260928T180534Z-ci44",
+      "leaseId": "export-perf-20260928T190500Z-ci44",
       "task": "Issue #44 remove redundant CI test execution",
       "branch": "ci/dedupe-coverage",
       "pr": null,
-      "acquiredAt": "2026-09-28T18:05:34Z",
-      "expiresAt": "2026-09-28T18:55:34Z"
+      "acquiredAt": "2026-09-28T19:05:00Z",
+      "expiresAt": "2026-09-28T19:55:00Z"
     },
     {
       "resource": "issue:44",
       "lane": "export-performance",
-      "leaseId": "export-perf-20260928T180534Z-ci44",
+      "leaseId": "export-perf-20260928T190500Z-ci44",
       "task": "Issue #44 remove redundant CI test execution",
       "branch": "ci/dedupe-coverage",
       "pr": null,
-      "acquiredAt": "2026-09-28T18:05:34Z",
-      "expiresAt": "2026-09-28T18:55:34Z"
+      "acquiredAt": "2026-09-28T19:05:00Z",
+      "expiresAt": "2026-09-28T19:55:00Z"
     }
   ]
 }
