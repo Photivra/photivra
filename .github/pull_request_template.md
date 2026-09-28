@@ -1,3 +1,12 @@
+## Automation coordination
+
+- Owner lane: <!-- Engine Science | Export & Performance | Human -->
+- Closes/advances: <!-- #issue -->
+- Depends on: <!-- merged issue/PR/commit, or None -->
+- Shared resources touched: <!-- shared:ci, shared:package, shared:api-version, shared:changelog, path:..., or None -->
+- [ ] No other automation lane owns the active branch/resources
+- [ ] Cross-lane prerequisites are merged to `main` or an explicit owner-approved exception is documented
+
 ## Summary
 
 <!-- What changed and why? -->
