@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://photivra.com/schemas/open-engine-automation-coordination.v1.schema.json",
+  "title": "Photivra public-engine automation coordination registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "lanes", "leases"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "lanes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine-science", "export-performance"],
+      "properties": {
+        "engine-science": { "$ref": "#/$defs/lane" },
+        "export-performance": { "$ref": "#/$defs/lane" }
+      }
+    },
+    "leases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/lease" }
+    }
+  },
+  "$defs": {
+    "lane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description"],
+      "properties": {
+        "description": { "type": "string", "minLength": 1 }
+      }
+    },
+    "lease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resource",
+        "lane",
+        "leaseId",
+        "task",
+        "branch",
+        "acquiredAt",
+        "expiresAt"
+      ],
+      "properties": {
+        "resource": { "type": "string", "minLength": 1 },
+        "lane": { "enum": ["engine-science", "export-performance"] },
+        "leaseId": { "type": "string", "minLength": 1 },
+        "task": { "type": "string", "minLength": 1 },
+        "branch": { "type": "string", "minLength": 1 },
+        "pr": {
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ]
+        },
+        "acquiredAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
