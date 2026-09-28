@@ -51,11 +51,25 @@ This is camera **rotation only**. Translation is excluded because parallax requi
 
 The returned image-plane/sample components use +X right and +Y up. Native raster remains +X right/+Y down and requires the existing explicit coordinate transform at capture composition boundaries.
 
+## Sensor readout timing
+
+`calculateSensorReadoutTiming()` provides a standalone capture-specific readout timing foundation.
+
+The caller declares the native effective sensor raster, optional active-capture rectangle in native coordinates, physical camera orientation, rolling or global readout, native scan direction for rolling readout, capture-specific readout duration in seconds, shutter mechanism independently as mechanical/EFCS/electronic, exposure start and integration duration, evidence for the readout facts, and optional native sample points for timing diagnostics.
+
+For rolling readout, Photivra linearly maps position along the declared native scan axis to exposure-start offset. The first scanned active-capture edge has zero offset and the last edge reaches the declared capture readout duration. Physical orientation rotates the reported scan vector into the oriented capture basis without redefining the native sensor scan direction.
+
+For global readout, every sensor location shares the same exposure start. A non-zero transfer/readout duration may still be declared, but it does not create line-by-line exposure-start skew.
+
+Exposure duration and readout duration remain independent. Output resolution is intentionally absent from this model and therefore cannot silently alter readout timing. Active-capture or capture-mode timing must be declared explicitly rather than inferred from sensor size or raster changes.
+
+Shutter mechanism is represented separately from sensor readout architecture. This timing foundation does not model mechanical-curtain travel, EFCS curtain asymmetry, rolling-shutter geometric distortion, flash/flicker bands, or motion integration. Later models may consume this schedule without redefining it.
+
 ## Temporal image-formation basis
 
 The image-formation contract defines physical time in **seconds from exposure start**.
 
-A future spatial camera-rotation model should be evaluable at arbitrary physical times rather than returning only one finished full-frame displacement. That allows global exposure and later rolling readout to consume the same camera-motion model.
+Spatial camera rotation is evaluable at arbitrary physical times rather than returning only one finished full-frame displacement. The standalone readout-timing foundation can provide per-location physical exposure-start/end times for a later integration layer without folding readout timing into the motion primitive.
 
 Exposure duration and sensor readout timing are independent concepts:
 

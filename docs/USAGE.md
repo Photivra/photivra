@@ -379,6 +379,49 @@ This model changes throughput only. It does not change:
 
 Mechanical/pupil vignetting and cat's-eye bokeh belong to the later pupil/PSF foundation. This generic profile is also not calibrated radiometry or a named-lens measurement.
 
+## Sensor readout timing
+
+Use `calculateSensorReadoutTiming()` to describe the exposure-start schedule across a selected active capture without conflating sensor readout with shutter mechanism or output resolution.
+
+```ts
+import { calculateSensorReadoutTiming } from "@photivra/engine";
+
+const timing = calculateSensorReadoutTiming({
+  nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 },
+  activeCaptureRect: { x: 0, y: 0, width: 6000, height: 4000 },
+  orientation: "portrait-clockwise",
+  readoutMode: "rolling",
+  scanDirectionNative: "top-to-bottom",
+  captureReadoutDurationSeconds: 0.02,
+  shutterMechanism: "electronic",
+  exposureDurationSeconds: 1 / 1000,
+  readoutEvidence: [
+    {
+      sourceOrigin: "photivra",
+      sourceReference: "example:declared-readout-timing",
+      reuseStatus: "photivra-owned"
+    }
+  ],
+  samplePointsNative: [
+    { x: 3000, y: 0 },
+    { x: 3000, y: 2000 },
+    { x: 3000, y: 4000 }
+  ]
+});
+
+console.log(timing.value.scan?.unitVectorNative);
+console.log(timing.value.scan?.unitVectorOriented);
+console.log(timing.value.samples);
+```
+
+Rolling timing uses native sensor coordinates and linearly maps the first scanned active edge to zero exposure-start offset and the last edge to the declared capture readout duration. Physical orientation changes the reported oriented scan vector but never rewrites the native scan direction.
+
+Global readout has simultaneous exposure start at every location even when a non-zero transfer/readout duration is declared. Shutter mechanism remains an independent capture property and does not alter sensor readout timing in this foundation.
+
+The caller must supply evidence for the readout timing declaration. Photivra does not infer capture readout duration from output resolution, active crop, sensor architecture labels, or a commercial camera identity.
+
+This API provides timing diagnostics only. It does not yet warp geometry for rolling shutter, model shutter-curtain travel, integrate camera/subject motion, or compose readout into `simulatePocCamera()`.
+
 ## Thin-lens image distance and magnification
 
 Use `calculateThinLensImageDistance()` to calculate ideal Gaussian thin-lens image distance for an object/focus plane.

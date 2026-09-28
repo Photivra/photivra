@@ -4,6 +4,10 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ## Unreleased
 
+### Added
+
+- Added a capture-specific sensor readout timing foundation with explicit rolling/global behavior, native scan direction, physical-orientation scan-vector reporting, active-capture timing, shutter-mechanism separation, evidence-backed timing declarations, and pointwise exposure-start/end diagnostics. The model remains standalone and does not yet calculate rolling-shutter image distortion or compose readout into the POC.
+
 ### Fixed
 
 - Radial-distortion invertibility validation now uses scale-normalized, cancellation-resistant stationary-point solving so near-linear high-order profiles cannot hide an interior fold; unsafe derived normalized radii and malformed/sparse batch points fail closed as scientific input errors.

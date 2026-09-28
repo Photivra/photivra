@@ -179,7 +179,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.5.1`
-- Engine API contract: `0.34.0`
+- Engine API contract: `0.35.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
@@ -203,6 +203,7 @@ Photivra deliberately avoids claiming more than the current models support.
 - Generic lateral CA is represented as independent radial field mapping for abstract RGB renderer channels. It is not a spectral lens model, sensor-CFA calibration, longitudinal-CA model, or named-lens profile.
 - Projected subject motion follows a representative point under constant linear velocity. It does not yet model scale blur of an extended object moving substantially along the optical axis.
 - The legacy stabilization-equivalent camera-shake API remains one global yaw/pitch image-plane vector. A separate low-level rotation-only mapping now models field-position-dependent yaw/pitch/roll image motion; camera translation/parallax, real IBIS/OIS behavior, and composed rolling-readout integration remain unmodeled.
+- A standalone capture-specific sensor readout timing foundation models rolling/global exposure-start schedules in native sensor coordinates, reports physical-orientation scan vectors, and keeps shutter mechanism independent. It does not yet calculate rolling-shutter image distortion or compose readout into the POC.
 - The Airy diagnostic assumes an ideal circular pupil. The PSF foundation keeps circular diffraction and geometric defocus as separately named diagnostics; it does not calculate a combined PSF, and polygon aperture geometry does not produce a polygon diffraction PSF.
 - Signal/noise primitives require caller-supplied photon/electron quantities. The radiometry-readiness API can assess declared prerequisites, but it does not derive photons or enable photon/noise output in the composed POC.
 - The composed POC still uses one representative pixel-pitch path internally and therefore rejects sensor geometry whose X/Y sample pitch differs by more than 1%; lower-level geometry APIs already preserve independent X/Y pitch.

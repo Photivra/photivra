@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.34.0" as const;
+export const ENGINE_API_VERSION = "0.35.0" as const;
 
 export {
   approximationResult,
@@ -140,6 +140,16 @@ export {
   type TransformRasterRectInput,
   type TransformRasterVectorInput
 } from "./output/capture-geometry.js";
+
+export {
+  calculateSensorReadoutTiming,
+  type CalculateSensorReadoutTimingInput,
+  type CaptureShutterMechanism,
+  type NativeSensorReadoutScanDirection,
+  type SensorReadoutMode,
+  type SensorReadoutTiming,
+  type SensorReadoutTimingSample
+} from "./output/readout-timing.js";
 
 export {
   calculateIdealApertureGeometry,
