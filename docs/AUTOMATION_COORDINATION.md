@@ -124,6 +124,63 @@ Automation-owned non-breaking PRs may be merged only when:
 Intentional breaking public API/schema changes, releases/publication, new paid services, ambiguous
 provenance/legal decisions, or other owner-gated actions still require explicit human approval.
 
+## Productive-run contract
+
+A scheduled implementation run is successful only when it produces at least one concrete delivery
+outcome:
+
+1. a safe roadmap PR is merged;
+2. an active roadmap PR contains substantive implementation/documentation changes and exact-head CI
+   is running or has produced actionable results;
+3. a roadmap issue is closed or materially narrowed with repository evidence because current
+   `main` already satisfies part or all of its acceptance criteria; or
+4. a specific blocker that truly requires external/human action is recorded with the exact missing
+   prerequisite and the lane immediately moves to another independent ready issue when one exists.
+
+A general audit, plan, status recap, repeated inspection, or rediscovery of an already-known blocker
+does **not** count as a productive outcome while actionable work exists.
+
+Before starting implementation, read the issue's latest **Roadmap reconciliation** section when
+present. Do not redo capabilities already verified on `main`. If reconciliation evidence shows the
+issue is already complete, close it with evidence and continue to the next ready issue in the same
+run when practical.
+
+## Stalled-progress rule
+
+A lane must not spend repeated scheduled runs on the same non-productive state.
+
+If two consecutive expected lane runs have produced none of the productive outcomes above:
+
+1. rescan current `main`, open PRs, recent merges, reconciliation state, dependencies, and leases;
+2. stop repeating the same audit or retry path;
+3. choose the next independent ready issue owned by the lane; or
+4. if no owned issue is actionable, record the precise blocker/dependency and surface it through the
+   health process.
+
+An ordinary CI failure, owned merge conflict, stale automation branch, test regression, or expired
+lease is an implementation problem to resolve, not by itself a reason to declare the lane blocked.
+Only owner-gated decisions, unavailable external prerequisites, unresolved legal/provenance
+questions, release gates, or another genuinely external dependency qualify as persistent blockers
+after safe remediation paths are exhausted.
+
+The health watch should treat an enabled/on-cadence lane with two consecutive scheduled windows and
+no concrete delivery outcome as potentially stalled when a reconciled ready issue exists. It should
+identify the lane and ready issue rather than disabling the lane.
+
+## Roadmap reconciliation discipline
+
+Open issues are the roadmap, but issue state must reflect current `main`.
+
+- Periodically reconcile issue acceptance criteria against merged implementation and tests.
+- Close an issue when all of its open-source acceptance criteria are demonstrably satisfied.
+- For partially completed issues, record the landed capability and the exact remaining scope in the
+  issue itself so future runs do not recreate completed work.
+- Unmerged historical branches are evidence to inspect, not authoritative project state.
+- A private/product requirement outside the current open-source scope does not keep an otherwise
+  completed public-engine issue open.
+- After reconciliation or a merge, select work from the remaining dependency graph rather than issue
+  age.
+
 ## Avoiding coordination drift
 
 Do not duplicate scientific requirements or rewrite roadmap acceptance criteria in this document or
