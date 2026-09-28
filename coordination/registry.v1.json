@@ -8,5 +8,42 @@
       "description": "SimulatedCapture, TIFF/DNG export, measured performance, and CI-efficiency work."
     }
   },
-  "leases": []
+  "leases": [
+    {
+      "resource": "lane:engine-science",
+      "lane": "engine-science",
+      "leaseId": "engine-science-20260928T223836Z-12-v3",
+      "task": "Issue #12 sensor readout and shutter timing foundation",
+      "branch": "science/readout-timing-foundation-v3",
+      "acquiredAt": "2026-09-28T22:38:36Z",
+      "expiresAt": "2026-09-28T23:28:36Z"
+    },
+    {
+      "resource": "issue:12",
+      "lane": "engine-science",
+      "leaseId": "engine-science-20260928T223836Z-12-v3",
+      "task": "Issue #12 sensor readout and shutter timing foundation",
+      "branch": "science/readout-timing-foundation-v3",
+      "acquiredAt": "2026-09-28T22:38:36Z",
+      "expiresAt": "2026-09-28T23:28:36Z"
+    },
+    {
+      "resource": "shared:api-version",
+      "lane": "engine-science",
+      "leaseId": "engine-science-20260928T223836Z-12-v3",
+      "task": "Issue #12 sensor readout and shutter timing foundation",
+      "branch": "science/readout-timing-foundation-v3",
+      "acquiredAt": "2026-09-28T22:38:36Z",
+      "expiresAt": "2026-09-28T23:28:36Z"
+    },
+    {
+      "resource": "shared:changelog",
+      "lane": "engine-science",
+      "leaseId": "engine-science-20260928T223836Z-12-v3",
+      "task": "Issue #12 sensor readout and shutter timing foundation",
+      "branch": "science/readout-timing-foundation-v3",
+      "acquiredAt": "2026-09-28T22:38:36Z",
+      "expiresAt": "2026-09-28T23:28:36Z"
+    }
+  ]
 }
