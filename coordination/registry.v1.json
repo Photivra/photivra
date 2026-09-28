@@ -1,12 +1,18 @@
 {
   "schemaVersion": 1,
   "lanes": {
-    "engine-science": {
-      "description": "Scientific and foundational public-engine roadmap work."
-    },
-    "export-performance": {
-      "description": "SimulatedCapture, TIFF/DNG export, measured performance, and CI-efficiency work."
-    }
+    "engine-science": {"description":"Scientific and foundational public-engine roadmap work."},
+    "export-performance": {"description":"SimulatedCapture, TIFF/DNG export, measured performance, and CI-efficiency work."}
   },
-  "leases": []
+  "leases": [
+    {"resource":"lane:export-performance","lane":"export-performance","leaseId":"export-perf-20260928T2009Z-simcap","task":"Issue #15 SimulatedCapture contract","branch":"export/simulated-capture-contract","acquiredAt":"2026-09-28T20:09:02Z","expiresAt":"2026-09-28T21:00:00Z"},
+    {"resource":"shared:api-version","lane":"export-performance","leaseId":"export-perf-20260928T2009Z-simcap","task":"Issue #15 SimulatedCapture contract","branch":"export/simulated-capture-contract","acquiredAt":"2026-09-28T20:09:02Z","expiresAt":"2026-09-28T21:00:00Z"},
+    {"resource":"shared:changelog","lane":"export-performance","leaseId":"export-perf-20260928T2009Z-simcap","task":"Issue #15 SimulatedCapture contract","branch":"export/simulated-capture-contract","acquiredAt":"2026-09-28T20:09:02Z","expiresAt":"2026-09-28T21:00:00Z"},
+    {"resource":"path:src/output/simulated-capture.ts","lane":"export-performance","leaseId":"export-perf-20260928T2009Z-simcap","task":"Issue #15 SimulatedCapture contract","branch":"export/simulated-capture-contract","acquiredAt":"2026-09-28T20:09:02Z","expiresAt":"2026-09-28T21:00:00Z"},
+    {"resource":"path:test/simulated-capture.test.ts","lane":"export-performance","leaseId":"export-perf-20260928T2009Z-simcap","task":"Issue #15 SimulatedCapture contract","branch":"export/simulated-capture-contract","acquiredAt":"2026-09-28T20:09:02Z","expiresAt":"2026-09-28T21:00:00Z"},
+    {"resource":"path:src/index.ts","lane":"export-performance","leaseId":"export-perf-20260928T2009Z-simcap","task":"Issue #15 SimulatedCapture contract","branch":"export/simulated-capture-contract","acquiredAt":"2026-09-28T20:09:02Z","expiresAt":"2026-09-28T21:00:00Z"},
+    {"resource":"path:docs/USAGE.md","lane":"export-performance","leaseId":"export-perf-20260928T2009Z-simcap","task":"Issue #15 SimulatedCapture contract","branch":"export/simulated-capture-contract","acquiredAt":"2026-09-28T20:09:02Z","expiresAt":"2026-09-28T21:00:00Z"},
+    {"resource":"path:README.md","lane":"export-performance","leaseId":"export-perf-20260928T2009Z-simcap","task":"Issue #15 SimulatedCapture contract","branch":"export/simulated-capture-contract","acquiredAt":"2026-09-28T20:09:02Z","expiresAt":"2026-09-28T21:00:00Z"},
+    {"resource":"path:CHANGELOG.md","lane":"export-performance","leaseId":"export-perf-20260928T2009Z-simcap","task":"Issue #15 SimulatedCapture contract","branch":"export/simulated-capture-contract","acquiredAt":"2026-09-28T20:09:02Z","expiresAt":"2026-09-28T21:00:00Z"}
+  ]
 }
