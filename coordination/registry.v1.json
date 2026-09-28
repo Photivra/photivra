@@ -15,7 +15,7 @@
       "leaseId": "export-20260928T1922Z-issue44-ci-dedup",
       "task": "Remove redundant CI test execution for issue #44",
       "branch": "ci/remove-redundant-test-work",
-      "pr": null,
+      "pr": 60,
       "acquiredAt": "2026-09-28T19:22:00Z",
       "expiresAt": "2026-09-28T20:17:00Z"
     },
@@ -25,7 +25,7 @@
       "leaseId": "export-20260928T1922Z-issue44-ci-dedup",
       "task": "Remove redundant CI test execution for issue #44",
       "branch": "ci/remove-redundant-test-work",
-      "pr": null,
+      "pr": 60,
       "acquiredAt": "2026-09-28T19:22:00Z",
       "expiresAt": "2026-09-28T20:17:00Z"
     },
@@ -35,7 +35,7 @@
       "leaseId": "export-20260928T1922Z-issue44-ci-dedup",
       "task": "Remove redundant CI test execution for issue #44",
       "branch": "ci/remove-redundant-test-work",
-      "pr": null,
+      "pr": 60,
       "acquiredAt": "2026-09-28T19:22:00Z",
       "expiresAt": "2026-09-28T20:17:00Z"
     },
@@ -45,7 +45,7 @@
       "leaseId": "export-20260928T1922Z-issue44-ci-dedup",
       "task": "Remove redundant CI test execution for issue #44",
       "branch": "ci/remove-redundant-test-work",
-      "pr": null,
+      "pr": 60,
       "acquiredAt": "2026-09-28T19:22:00Z",
       "expiresAt": "2026-09-28T20:17:00Z"
     }
