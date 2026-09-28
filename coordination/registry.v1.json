@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "lanes": {
+    "engine-science": {
+      "description": "Scientific and foundational public-engine roadmap work."
+    },
+    "export-performance": {
+      "description": "SimulatedCapture, TIFF/DNG export, measured performance, and CI-efficiency work."
+    }
+  },
+  "leases": []
+}
