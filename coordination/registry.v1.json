@@ -8,5 +8,46 @@
       "description": "SimulatedCapture, TIFF/DNG export, measured performance, and CI-efficiency work."
     }
   },
-  "leases": []
+  "leases": [
+    {
+      "resource": "lane:export-performance",
+      "lane": "export-performance",
+      "leaseId": "export-perf-20260928T180534Z-ci44",
+      "task": "Issue #44 remove redundant CI test execution",
+      "branch": "ci/dedupe-coverage",
+      "pr": null,
+      "acquiredAt": "2026-09-28T18:05:34Z",
+      "expiresAt": "2026-09-28T18:55:34Z"
+    },
+    {
+      "resource": "shared:ci",
+      "lane": "export-performance",
+      "leaseId": "export-perf-20260928T180534Z-ci44",
+      "task": "Issue #44 remove redundant CI test execution",
+      "branch": "ci/dedupe-coverage",
+      "pr": null,
+      "acquiredAt": "2026-09-28T18:05:34Z",
+      "expiresAt": "2026-09-28T18:55:34Z"
+    },
+    {
+      "resource": "shared:package",
+      "lane": "export-performance",
+      "leaseId": "export-perf-20260928T180534Z-ci44",
+      "task": "Issue #44 remove redundant CI test execution",
+      "branch": "ci/dedupe-coverage",
+      "pr": null,
+      "acquiredAt": "2026-09-28T18:05:34Z",
+      "expiresAt": "2026-09-28T18:55:34Z"
+    },
+    {
+      "resource": "issue:44",
+      "lane": "export-performance",
+      "leaseId": "export-perf-20260928T180534Z-ci44",
+      "task": "Issue #44 remove redundant CI test execution",
+      "branch": "ci/dedupe-coverage",
+      "pr": null,
+      "acquiredAt": "2026-09-28T18:05:34Z",
+      "expiresAt": "2026-09-28T18:55:34Z"
+    }
+  ]
 }
