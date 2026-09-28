@@ -53,7 +53,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepare": "npm run build",
-    "check": "eslint . && tsc --noEmit && vitest run && npm run check:licenses && npm run check:license-headers && npm run check:identity && npm run check:browser-surface",
+    "check:static": "eslint . && tsc --noEmit && npm run check:licenses && npm run check:license-headers && npm run check:identity && npm run check:browser-surface",
+    "check": "npm run check:static && vitest run",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",

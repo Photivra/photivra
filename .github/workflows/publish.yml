@@ -94,8 +94,8 @@ jobs:
       - name: Install
         run: npm ci --ignore-scripts
 
-      - name: Verify
-        run: npm run check
+      - name: Verify static and policy gates
+        run: npm run check:static
 
       - name: Coverage gate
         run: npm run coverage

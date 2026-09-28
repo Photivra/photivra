@@ -32,8 +32,12 @@ jobs:
           node .github/node-lts-policy.mjs
       - name: Install
         run: npm ci --ignore-scripts
-      - name: Verify
+      - name: Verify with ordinary tests
+        if: matrix.node-version == '22.13.0'
         run: npm run check
+      - name: Verify static and policy gates
+        if: matrix.node-version == '24'
+        run: npm run check:static
       - name: Coverage gate
         if: matrix.node-version == '24'
         run: npm run coverage
