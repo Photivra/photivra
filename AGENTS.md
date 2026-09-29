@@ -91,6 +91,12 @@ The sensor/capture foundation has explicit semantics. Preserve them.
 - Sensor-shift/pixel-shift offsets move the sensor and CFA together relative to the optical image; do not change CFA channel assignment or convert those offsets into CFA-phase shifts in the binding layer.
 - Structural source rectangles/channel counts are pre-reconstruction topology only. Do not treat them as signal-combination weights, a complete downstream reconstructed-pixel dependency graph, spectral response, photon/electron values, or physical photodiode counts.
 - `declared-effective-raster` capture modes and layered color remain unbound until separate mode/layer-specific spatial mappings are explicitly modeled.
+- Sensor optical-stack physical component metadata and effective anti-aliasing spatial response are separate facts; do not infer one from the other.
+- Omitted effective AA response means unknown/unasserted. Explicit `absent` means no intentional AA point-splitting term in this model, not that the whole stack is optically identity or that aliasing cannot occur.
+- Do not model OLPF behavior as a universal Gaussian or fixed four-ray kernel. A declared point-splitting kernel may have arbitrary component count/geometry and must use normalized spatial weights in native sensor physical coordinates.
+- AA point-splitting weights are spatial redistribution only, not optical throughput or photon efficiency. Keep spectral transmission, cover/filter attenuation, microlens collection, QE, fill factor, and radiometry separate.
+- Physical low-pass-related elements may coexist with an effectively absent/cancelled AA response; do not reject that combination as contradictory.
+- Microlens presence/absence and cover/filter-stack component roles remain descriptive until explicit angular/spectral/refraction models exist.
 - Capture-mode profiles must preserve that distinction: do not relabel `NativeImageRaster` as a photosite raster or infer physical photosite count from native, processed, or final output megapixels.
 - Model capture modes on orthogonal axes (acquisition sequence, per-frame sampling, optional inter-frame sensor offsets, reconstruction stages, processed raster, dependencies) rather than one mutually exclusive marketing-style mode enum.
 - Grouped sampling does not establish charge-domain binning; the combination domain stays unknown unless separately evidenced as charge-domain, pre-conversion analog, or post-conversion digital.
@@ -162,7 +168,7 @@ As of POC simulation API 0.20:
 - The response exposes shared sensor-geometry metrics plus an optional capture block with active/output FOV, active-capture 35 mm-equivalent focal length, output sampling scale, subject framing, and oriented/output motion diagnostics.
 - Equivalent focal length remains informational and never replaces physical focal length inside POC physics; final digital/output crop does not redefine it.
 - Existing motion/camera-shake X/Y fields retain their legacy image-plane meaning (+X right, +Y up). Capture raster coordinates are +X right, +Y down; additive diagnostics must expose the explicit basis conversion before orientation/output scaling.
-- Sensor-architecture metadata, color-sampling topology profiles, native-effective-raster/color-site bindings, capture-mode profiles, sensor readout timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not composed unless an explicit versioned integration is added.
+- Sensor-architecture metadata, color-sampling topology profiles, native-effective-raster/color-site bindings, sensor optical-stack profiles, capture-mode profiles, sensor readout timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not composed unless an explicit versioned integration is added.
 - The POC reports X/Y pitch diagnostics but still uses one representative horizontal pitch internally and fails closed above a 1% axis difference.
 - Radiometry readiness never enables photon/noise output by itself.
 

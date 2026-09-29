@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.43.0" as const;
+export const ENGINE_API_VERSION = "0.44.0" as const;
 
 export {
   approximationResult,
@@ -128,6 +128,18 @@ export {
   type ResolvedCaptureModeColorSamplingContributors,
   type ResolvedNativeEffectiveRasterColorSamplingBinding
 } from "./sensor/capture-color-sampling-binding.js";
+
+export {
+  parseSensorOpticalStackProfile,
+  resolveAntiAliasingSpatialKernel,
+  type AntiAliasingPointSplitComponent,
+  type ResolvedAntiAliasingSpatialKernel,
+  type SensorEffectiveAntiAliasingSpatialResponse,
+  type SensorMicrolensDeclaration,
+  type SensorOpticalStackComponent,
+  type SensorOpticalStackComponentRole,
+  type SensorOpticalStackProfile
+} from "./sensor/optical-stack.js";
 
 export {
   parseCaptureModeProfile,

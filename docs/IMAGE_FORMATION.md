@@ -147,6 +147,8 @@ The standalone color-sampling topology profile now describes monochrome, arbitra
 
 The additive native-effective-raster/color-site binding now provides the missing structural bridge between capture-mode effective samples and monochrome/periodic topology. It requires evidence for the exact native raster relationship and grouped-mode phase, preserves full-frame absolute CFA phase, and reports compact pre-reconstruction source regions/channel counts. This still does **not** implement the reserved photosite/CFA sampling stage: no signal weights, spectral response, photons/electrons, RAW values, aliasing, or reconstruction are calculated.
 
+The standalone sensor optical-stack profile now makes the upstream stack boundary explicit without claiming a complete stack response. Ordered physical component roles and microlens presence are descriptive. Effective anti-aliasing response is separately modeled as unknown, absent, present-but-unresolved, or a normalized native-physical point-splitting approximation. The resolver exposes only that AA spatial term; cover/filter transmission/refraction, microlens angular/collection behavior, wavelength/field/polarization dependence, and convolution with the lens PSF remain future work. Consequently the `sensor-optical-stack` image-formation stage remains reserved rather than being promoted to a complete implementation.
+
 ## Current implementation status
 
 Each stage is labeled:
