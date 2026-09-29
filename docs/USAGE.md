@@ -1416,6 +1416,34 @@ Those depend on temporal integration and downstream electronics and remain separ
 
 The first operating-range model also does not infer a valid wavelength interval from one or a few isolated linearity measurements. If a source only establishes linearity at specific wavelengths, a continuous wavelength applicability range must not be fabricated.
 
+## Photon energy wavelength basis
+
+Use `calculatePhotonEnergyFromWavelength()` when a later photon-domain calculation needs (hν).
+
+For a vacuum-basis wavelength, Photivra uses the exact SI defining constants:
+
+- (h = 6.62607015 × 10^{-34}) J·s;
+- (c = 299792458) m/s.
+
+The calculation is (ν = c / λ_mathrm{vac}) and (E_mathrm{photon} = hν).
+
+For an **air-basis** wavelength, the wavelength cannot be substituted directly into (hc/λ). The caller must provide a sourced phase refractive index at that **exact wavelength** using the explicit definition:
+
+`n = λ_vacuum / λ_air`.
+
+Photivra then computes `λ_vacuum = n × λ_air` before deriving frequency and photon energy.
+
+The air refractive-index sample carries scientific status, uncertainty, evidence, and optional reference atmosphere. Calibrated samples require quantified relative uncertainty plus temperature and pressure reference conditions.
+
+Air refractive index also depends on atmospheric conditions. Therefore an air-basis photon-energy calculation requires one of two policies:
+
+- `exact-match-required`: the caller supplies operating atmosphere conditions that match the refractive-index reference temperature/pressure and any declared humidity/CO₂ fields;
+- `assume-compatible`: an explicit evidence-backed approximation with a limitation.
+
+Photivra never silently sets (n=1).
+
+The current foundation preserves refractive-index uncertainty but does **not** propagate that uncertainty into the derived photon energy. It also does not apply QE, calculate photon rate, generate electrons, integrate exposure time, or model saturation/noise.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
