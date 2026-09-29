@@ -325,7 +325,8 @@ export function assessReadoutExposureTimingLinkage(
     );
   }
 
-  if (sensorReadout.value.scan === null) {
+  const readoutScan = sensorReadout.value.scan;
+  if (readoutScan === null) {
     throw new InvalidScientificInputError(
       "spatial-phase-linked linkage requires rolling sensor readout with a spatial scan."
     );
@@ -355,7 +356,7 @@ export function assessReadoutExposureTimingLinkage(
         }
 
         const readoutDirection =
-          sensorReadout.value.scan.directionNative.value;
+          readoutScan.directionNative.value;
         const boundaryDirection =
           boundary.schedule.directionNative.value;
         const expectedDirection = expectedBoundaryDirection(
@@ -370,7 +371,7 @@ export function assessReadoutExposureTimingLinkage(
         }
 
         const readoutSpatialSamplingSkewSeconds =
-          sensorReadout.value.scan.spatialSamplingSkewSeconds;
+          readoutScan.spatialSamplingSkewSeconds;
         const boundaryTraversalDurationSeconds =
           boundary.schedule.traversalDurationSeconds;
 
