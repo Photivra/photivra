@@ -56,6 +56,33 @@ export interface SensorResponseLinearityCriterion {
   maximumAbsoluteRelativeDeviation: number;
 }
 
+export type SensorResponseOperatingSpectralInputModel =
+  | {
+      kind: "broadband-integrated-only";
+    }
+  | {
+      kind: "per-spectral-bin";
+      maximumBinWidthNanometers: number;
+      scientificStatus:
+        SensorSpectralResponseScientificStatus;
+      evidence: readonly EvidenceProvenance[];
+      limitation?: string;
+    };
+
+export type SensorResponseOperatingSpatialLinearityModel =
+  | {
+      kind:
+        "linear-superposition-over-geometric-aperture";
+      scientificStatus:
+        SensorSpectralResponseScientificStatus;
+      evidence: readonly EvidenceProvenance[];
+      limitation?: string;
+    }
+  | {
+      kind: "not-established";
+      limitation: string;
+    };
+
 export interface SensorResponseOperatingRangeProfile {
   schemaVersion: "0.1.0";
   profileId: string;
@@ -74,6 +101,19 @@ export interface SensorResponseOperatingRangeProfile {
     SensorResponseOperatingWavelengthApplicability;
   linearityCriterion:
     SensorResponseLinearityCriterion;
+  /**
+   * Optional for backward compatibility. Omission parses as not-established
+   * and blocks new response-rate authorization.
+   */
+  spatialLinearityModel?:
+    SensorResponseOperatingSpatialLinearityModel;
+  /**
+   * Optional for backward compatibility. Omission means the calibration only
+   * establishes a broadband-integrated operating range and cannot authorize
+   * wavelength-by-wavelength response conversion.
+   */
+  spectralInputModel?:
+    SensorResponseOperatingSpectralInputModel;
   referenceConditions?:
     SensorSpectralReferenceConditions;
   referenceConditionPolicy:
@@ -100,6 +140,10 @@ export type SensorResponseOperatingRangeBlocker =
   | "wavelength-range-outside-linearity-applicability"
   | "input-below-linearity-range"
   | "input-above-linearity-range"
+  | "spectral-bin-width-outside-linearity-applicability"
+  | "spectral-bin-input-below-linearity-range"
+  | "spectral-bin-input-above-linearity-range"
+  | "spatial-linearity-superposition-not-established"
   | "operating-conditions-not-declared"
   | "linearity-operating-conditions-mismatch";
 
@@ -128,6 +172,23 @@ export interface SensorResponseOperatingRangeAssessment {
   };
   linearityCriterion:
     SensorResponseLinearityCriterion;
+  spectralInputModel:
+    SensorResponseOperatingSpectralInputModel;
+  evaluatedSpectralNodeInputs?:
+    readonly {
+      spectralSampleIndex: number;
+      wavelengthNanometers: number;
+      wavelengthMeasureNanometers: number;
+      kind:
+        SensorResponseOperatingInputRange["kind"];
+      unit:
+        SensorResponseOperatingInputRange["unit"];
+      value: number;
+    }[];
+  spectralNodeRangeCompatibilityAssessed:
+    boolean;
+  spatialLinearityModel:
+    SensorResponseOperatingSpatialLinearityModel;
   referenceConditionPolicy:
     SensorResponseReferenceConditionPolicy;
   referenceConditions?:
@@ -137,6 +198,8 @@ export interface SensorResponseOperatingRangeAssessment {
   operatingRangeCompatibilityAssessed: true;
   instantaneousResponseRangeCompatible: boolean;
   status:
+    | "broadband-range-compatible"
+    | "broadband-range-compatible-approximation"
     | "rate-conversion-authorized"
     | "rate-conversion-authorized-approximation"
     | "blocked";
@@ -155,6 +218,8 @@ export interface SensorResponseOperatingRangeAssessment {
     operatingRange:
       readonly EvidenceProvenance[];
     referenceConditionAssumption:
+      readonly EvidenceProvenance[];
+    spatialLinearity:
       readonly EvidenceProvenance[];
     structuralCompatibility:
       SensorResponseApplicationCompatibilityAssessment["componentEvidence"];
@@ -548,6 +613,168 @@ function parseLinearityCriterion(
   };
 }
 
+function parseSpectralInputModel(
+  value: unknown
+): SensorResponseOperatingSpectralInputModel {
+  if (value === undefined) {
+    return {
+      kind: "broadband-integrated-only"
+    };
+  }
+
+  const record = requireRecord(
+    value,
+    "sensorResponseOperatingRange.spectralInputModel"
+  );
+
+  if (
+    record.kind ===
+      "broadband-integrated-only"
+  ) {
+    return {
+      kind: "broadband-integrated-only"
+    };
+  }
+
+  if (
+    record.kind !==
+      "per-spectral-bin"
+  ) {
+    throw new InvalidConfigurationError(
+      "sensorResponseOperatingRange.spectralInputModel.kind is invalid."
+    );
+  }
+
+  if (
+    record.scientificStatus !==
+      "calibrated" &&
+    record.scientificStatus !==
+      "approximation"
+  ) {
+    throw new InvalidConfigurationError(
+      "sensorResponseOperatingRange.spectralInputModel.scientificStatus is invalid."
+    );
+  }
+
+  const maximumBinWidthNanometers =
+    requirePositiveFinite(
+      record.maximumBinWidthNanometers,
+      "sensorResponseOperatingRange.spectralInputModel.maximumBinWidthNanometers"
+    );
+  const limitation =
+    record.limitation === undefined
+      ? undefined
+      : requireNonEmptyString(
+          record.limitation,
+          "sensorResponseOperatingRange.spectralInputModel.limitation"
+        );
+
+  if (
+    record.scientificStatus ===
+      "approximation" &&
+    limitation === undefined
+  ) {
+    throw new InvalidConfigurationError(
+      "sensorResponseOperatingRange.spectralInputModel.limitation is required for an approximation."
+    );
+  }
+
+  return {
+    kind: "per-spectral-bin",
+    maximumBinWidthNanometers,
+    scientificStatus:
+      record.scientificStatus,
+    evidence: parseEvidenceList(
+      record.evidence,
+      "sensorResponseOperatingRange.spectralInputModel.evidence"
+    ),
+    ...(limitation === undefined
+      ? {}
+      : { limitation })
+  };
+}
+
+function parseSpatialLinearityModel(
+  value: unknown
+): SensorResponseOperatingSpatialLinearityModel {
+  if (value === undefined) {
+    return {
+      kind: "not-established",
+      limitation:
+        "Spatial-distribution linear superposition was not declared."
+    };
+  }
+
+  const record = requireRecord(
+    value,
+    "sensorResponseOperatingRange.spatialLinearityModel"
+  );
+
+  if (
+    record.kind === "not-established"
+  ) {
+    return {
+      kind: "not-established",
+      limitation: requireNonEmptyString(
+        record.limitation,
+        "sensorResponseOperatingRange.spatialLinearityModel.limitation"
+      )
+    };
+  }
+
+  if (
+    record.kind !==
+    "linear-superposition-over-geometric-aperture"
+  ) {
+    throw new InvalidConfigurationError(
+      "sensorResponseOperatingRange.spatialLinearityModel.kind is invalid."
+    );
+  }
+
+  if (
+    record.scientificStatus !==
+      "calibrated" &&
+    record.scientificStatus !==
+      "approximation"
+  ) {
+    throw new InvalidConfigurationError(
+      "sensorResponseOperatingRange.spatialLinearityModel.scientificStatus is invalid."
+    );
+  }
+
+  const limitation =
+    record.limitation === undefined
+      ? undefined
+      : requireNonEmptyString(
+          record.limitation,
+          "sensorResponseOperatingRange.spatialLinearityModel.limitation"
+        );
+
+  if (
+    record.scientificStatus ===
+      "approximation" &&
+    limitation === undefined
+  ) {
+    throw new InvalidConfigurationError(
+      "sensorResponseOperatingRange.spatialLinearityModel.limitation is required for an approximation."
+    );
+  }
+
+  return {
+    kind:
+      "linear-superposition-over-geometric-aperture",
+    scientificStatus:
+      record.scientificStatus,
+    evidence: parseEvidenceList(
+      record.evidence,
+      "sensorResponseOperatingRange.spatialLinearityModel.evidence"
+    ),
+    ...(limitation === undefined
+      ? {}
+      : { limitation })
+  };
+}
+
 export function parseSensorResponseOperatingRangeProfile(
   value: unknown
 ): SensorResponseOperatingRangeProfile {
@@ -667,6 +894,14 @@ export function parseSensorResponseOperatingRangeProfile(
         record.linearityCriterion,
         "sensorResponseOperatingRange.linearityCriterion"
       ),
+    spatialLinearityModel:
+      parseSpatialLinearityModel(
+        record.spatialLinearityModel
+      ),
+    spectralInputModel:
+      parseSpectralInputModel(
+        record.spectralInputModel
+      ),
     ...(referenceConditions ===
     undefined
       ? {}
@@ -732,6 +967,32 @@ function requireReductionMetric(
   ) {
     throw new InvalidScientificInputError(
       "The selected operating-range input metric must be finite and nonnegative."
+    );
+  }
+  return value;
+}
+
+function spectralNodeInputValue(
+  entry:
+    SensorSpatioSpectralIrradianceReduction["perWavelength"][number],
+  range:
+    SensorResponseOperatingInputRange
+): number {
+  const value =
+    range.kind ===
+      "wavelength-integrated-geometric-aperture-radiant-power"
+      ? entry
+          .wavelengthIntegratedGeometricApertureIncidentFluxContributionWatts
+      : entry
+          .wavelengthIntegratedSpatialAverageContributionWattsPerSquareMeter;
+
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < 0
+  ) {
+    throw new InvalidScientificInputError(
+      "Per-spectral-node operating-range input must be finite and nonnegative."
     );
   }
   return value;
@@ -878,6 +1139,89 @@ export function assessSensorResponseOperatingRange(
     );
   }
 
+  const spectralInputModel =
+    profile.spectralInputModel ?? {
+      kind: "broadband-integrated-only" as const
+    };
+  const evaluatedSpectralNodeInputs:
+    {
+      spectralSampleIndex: number;
+      wavelengthNanometers: number;
+      wavelengthMeasureNanometers: number;
+      kind:
+        SensorResponseOperatingInputRange["kind"];
+      unit:
+        SensorResponseOperatingInputRange["unit"];
+      value: number;
+    }[] = [];
+
+  if (
+    spectralInputModel.kind ===
+      "per-spectral-bin"
+  ) {
+    for (
+      const entry of
+      input.reduction.perWavelength
+    ) {
+      if (
+        entry.wavelengthMeasureNanometers >
+        spectralInputModel
+          .maximumBinWidthNanometers
+      ) {
+        blockers.push(
+          "spectral-bin-width-outside-linearity-applicability"
+        );
+      }
+
+      const value =
+        spectralNodeInputValue(
+          entry,
+          profile.inputRange
+        );
+      evaluatedSpectralNodeInputs.push({
+        spectralSampleIndex:
+          entry.spectralSampleIndex,
+        wavelengthNanometers:
+          entry.wavelengthNanometers,
+        wavelengthMeasureNanometers:
+          entry.wavelengthMeasureNanometers,
+        kind:
+          profile.inputRange.kind,
+        unit:
+          profile.inputRange.unit,
+        value
+      });
+
+      if (
+        value <
+        profile.inputRange
+          .minimumInclusive
+      ) {
+        blockers.push(
+          "spectral-bin-input-below-linearity-range"
+        );
+      }
+      if (
+        value >
+        profile.inputRange
+          .maximumInclusive
+      ) {
+        blockers.push(
+          "spectral-bin-input-above-linearity-range"
+        );
+      }
+    }
+  }
+
+  if (
+    profile.spatialLinearityModel?.kind !==
+      "linear-superposition-over-geometric-aperture"
+  ) {
+    blockers.push(
+      "spatial-linearity-superposition-not-established"
+    );
+  }
+
   if (
     profile.referenceConditionPolicy.kind ===
       "exact-match-required"
@@ -916,14 +1260,37 @@ export function assessSensorResponseOperatingRange(
       "approximation" ||
     profile.uncertainty.kind ===
       "not-quantified" ||
+    (
+      profile.spatialLinearityModel?.kind ===
+        "linear-superposition-over-geometric-aperture" &&
+      profile.spatialLinearityModel
+        .scientificStatus ===
+        "approximation"
+    ) ||
+    (
+      spectralInputModel.kind ===
+        "per-spectral-bin" &&
+      spectralInputModel
+        .scientificStatus ===
+        "approximation"
+    ) ||
     profile.referenceConditionPolicy.kind ===
       "assume-compatible";
 
+  const spectralRateReady =
+    compatible &&
+    spectralInputModel.kind ===
+      "per-spectral-bin";
+
   const status =
     compatible
-      ? approximate
-        ? "rate-conversion-authorized-approximation"
-        : "rate-conversion-authorized"
+      ? spectralRateReady
+        ? approximate
+          ? "rate-conversion-authorized-approximation"
+          : "rate-conversion-authorized"
+        : approximate
+          ? "broadband-range-compatible-approximation"
+          : "broadband-range-compatible"
       : "blocked";
 
   const referenceConditionEvidence =
@@ -931,6 +1298,11 @@ export function assessSensorResponseOperatingRange(
       "assume-compatible"
       ? profile.referenceConditionPolicy
           .evidence
+      : [];
+  const spatialLinearityEvidence =
+    profile.spatialLinearityModel?.kind ===
+      "linear-superposition-over-geometric-aperture"
+      ? profile.spatialLinearityModel.evidence
       : [];
 
   return calculatedResult(
@@ -966,6 +1338,22 @@ export function assessSensorResponseOperatingRange(
         },
       linearityCriterion:
         profile.linearityCriterion,
+      spectralInputModel,
+      ...(evaluatedSpectralNodeInputs.length ===
+      0
+        ? {}
+        : {
+            evaluatedSpectralNodeInputs
+          }),
+      spectralNodeRangeCompatibilityAssessed:
+        spectralInputModel.kind ===
+        "per-spectral-bin",
+      spatialLinearityModel:
+        profile.spatialLinearityModel ?? {
+          kind: "not-established",
+          limitation:
+            "Spatial-distribution linear superposition was not declared."
+        },
       referenceConditionPolicy:
         profile.referenceConditionPolicy,
       ...(profile.referenceConditions ===
@@ -991,7 +1379,7 @@ export function assessSensorResponseOperatingRange(
       status,
       blockers,
       responseRateConversionAuthorized:
-        compatible,
+        spectralRateReady,
       responseApplicationPerformed:
         false,
       temporalIntegrationAuthorized:
@@ -1012,6 +1400,8 @@ export function assessSensorResponseOperatingRange(
           profile.evidence,
         referenceConditionAssumption:
           referenceConditionEvidence,
+        spatialLinearity:
+          spatialLinearityEvidence,
         structuralCompatibility:
           input.compatibility
             .componentEvidence
@@ -1022,7 +1412,10 @@ export function assessSensorResponseOperatingRange(
     [
       "This gate assesses instantaneous response-law applicability only; it does not apply response or integrate exposure.",
       "The valid optical-input range is evidence-backed and must be expressed in the same wavelength-integrated power or irradiance domain produced by the pre-response reducer.",
+      "Broadband-integrated range compatibility alone cannot authorize wavelength-dependent response conversion; per-spectral-bin applicability must be explicitly established and every bin must remain inside the calibrated input range.",
+      "Per-spectral-bin applicability also declares a maximum supported bin width so a broad quadrature bin is not silently treated as an equivalent monochromatic calibration point.",
       "Linearity can depend on optical input level and wavelength; the reduction wavelength range must remain inside the declared applicability range.",
+      "Post-spatial rate conversion additionally requires explicit linear superposition over the geometric aperture; otherwise sub-aperture illumination patterns could hide local nonlinear behavior.",
       "The maximumAbsoluteRelativeDeviation criterion documents the tolerated response nonlinearity for the declared valid range; this function does not derive that criterion from synthetic data.",
       "Reference conditions for the linearity calibration are separate from spectral-response reference conditions and must match when exact matching is required.",
       "Exposure-domain linearity, accumulated-charge saturation/full-well behavior, and downstream electronics linearity are intentionally not assessed here.",

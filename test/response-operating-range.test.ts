@@ -294,6 +294,23 @@ function profile(
       maximumAbsoluteRelativeDeviation:
         0.01
     },
+    spatialLinearityModel: {
+      kind:
+        "linear-superposition-over-geometric-aperture",
+      scientificStatus:
+        "calibrated",
+      evidence:
+        evidence("spatial-linearity")
+    },
+    spectralInputModel: {
+      kind: "per-spectral-bin",
+      maximumBinWidthNanometers:
+        100,
+      scientificStatus:
+        "calibrated",
+      evidence:
+        evidence("spectral-input-linearity")
+    },
     referenceConditions:
       operatingConditions,
     referenceConditionPolicy: {
@@ -348,6 +365,95 @@ describe(
         result.value
           .temporalIntegrationAuthorized
       ).toBe(false);
+    });
+
+    it("does not authorize wavelength-dependent conversion from broadband-only linearity", () => {
+      const result =
+        assessSensorResponseOperatingRange({
+          reduction: reduction(),
+          compatibility:
+            compatibility(),
+          operatingRangeProfile:
+            profile({
+              spectralInputModel: {
+                kind:
+                  "broadband-integrated-only"
+              }
+            })
+        });
+
+      expect(
+        result.value.status
+      ).toBe(
+        "broadband-range-compatible"
+      );
+      expect(
+        result.value
+          .spectralNodeRangeCompatibilityAssessed
+      ).toBe(false);
+      expect(
+        result.value
+          .responseRateConversionAuthorized
+      ).toBe(false);
+      expect(
+        result.value
+          .evaluatedSpectralNodeInputs
+      ).toBeUndefined();
+    });
+
+    it("blocks spectral bins outside calibrated input level or maximum bin width", () => {
+      const tooWide =
+        assessSensorResponseOperatingRange({
+          reduction: reduction(),
+          compatibility:
+            compatibility(),
+          operatingRangeProfile:
+            profile({
+              spectralInputModel: {
+                kind:
+                  "per-spectral-bin",
+                maximumBinWidthNanometers:
+                  50,
+                scientificStatus:
+                  "calibrated",
+                evidence:
+                  evidence(
+                    "spectral-input-linearity"
+                  )
+              }
+            })
+        });
+      expect(
+        tooWide.value.blockers
+      ).toContain(
+        "spectral-bin-width-outside-linearity-applicability"
+      );
+
+      const tooLow =
+        assessSensorResponseOperatingRange({
+          reduction: reduction({
+            perWavelength: [{
+              ...reduction()
+                .perWavelength[0]!,
+              wavelengthIntegratedGeometricApertureIncidentFluxContributionWatts:
+                1e-9
+            }],
+            wavelengthIntegratedGeometricApertureIncidentFluxWatts:
+              1e-9
+          }),
+          compatibility:
+            compatibility(),
+          operatingRangeProfile:
+            profile()
+        });
+      expect(
+        tooLow.value.blockers
+      ).toEqual(
+        expect.arrayContaining([
+          "input-below-linearity-range",
+          "spectral-bin-input-below-linearity-range"
+        ])
+      );
     });
 
     it("supports an irradiance-domain linearity calibration without substituting power", () => {
@@ -469,6 +575,71 @@ describe(
         range.value.blockers
       ).toContain(
         "wavelength-range-outside-linearity-applicability"
+      );
+    });
+
+    it("blocks rate conversion when spatial linear superposition is not established", () => {
+      const withoutSpatialLinearity =
+        {
+          ...profile()
+        };
+      delete withoutSpatialLinearity
+        .spatialLinearityModel;
+
+      const omitted =
+        assessSensorResponseOperatingRange({
+          reduction: reduction(),
+          compatibility:
+            compatibility(),
+          operatingRangeProfile:
+            withoutSpatialLinearity
+        });
+
+      expect(
+        omitted.value.blockers
+      ).toContain(
+        "spatial-linearity-superposition-not-established"
+      );
+      expect(
+        omitted.value
+          .responseRateConversionAuthorized
+      ).toBe(false);
+
+      const approximate =
+        assessSensorResponseOperatingRange({
+          reduction: reduction(),
+          compatibility:
+            compatibility(),
+          operatingRangeProfile:
+            profile({
+              spatialLinearityModel: {
+                kind:
+                  "linear-superposition-over-geometric-aperture",
+                scientificStatus:
+                  "approximation",
+                evidence:
+                  evidence(
+                    "spatial-linearity-approx"
+                  ),
+                limitation:
+                  "Sub-aperture distribution independence is approximated for this operating regime."
+              }
+            })
+        });
+
+      expect(
+        approximate.value.status
+      ).toBe(
+        "rate-conversion-authorized-approximation"
+      );
+      expect(
+        approximate.value
+          .componentEvidence
+          .spatialLinearity
+      ).toEqual(
+        evidence(
+          "spatial-linearity-approx"
+        )
       );
     });
 
@@ -806,5 +977,88 @@ describe(
         "must be finite and nonnegative"
       );
     });
+
+    it("validates per-spectral-bin applicability metadata", () => {
+      expect(() =>
+        parseSensorResponseOperatingRangeProfile({
+          ...profile(),
+          spectralInputModel: {
+            kind: "invalid"
+          }
+        })
+      ).toThrow(
+        "spectralInputModel.kind"
+      );
+
+      expect(() =>
+        parseSensorResponseOperatingRangeProfile({
+          ...profile(),
+          spectralInputModel: {
+            kind:
+              "per-spectral-bin",
+            maximumBinWidthNanometers:
+              100,
+            scientificStatus:
+              "unknown",
+            evidence:
+              evidence("bad")
+          }
+        })
+      ).toThrow(
+        "spectralInputModel.scientificStatus"
+      );
+
+      expect(() =>
+        parseSensorResponseOperatingRangeProfile({
+          ...profile(),
+          spectralInputModel: {
+            kind:
+              "per-spectral-bin",
+            maximumBinWidthNanometers:
+              100,
+            scientificStatus:
+              "approximation",
+            evidence:
+              evidence("approx")
+          }
+        })
+      ).toThrow(
+        "spectralInputModel.limitation is required"
+      );
+    });
+
+    it("checks per-bin upper input range independently from broadband total", () => {
+      const base =
+        reduction();
+      const high = {
+        ...base,
+        perWavelength: [{
+          ...base.perWavelength[0]!,
+          wavelengthIntegratedGeometricApertureIncidentFluxContributionWatts:
+            2e-3
+        }],
+        wavelengthIntegratedGeometricApertureIncidentFluxWatts:
+          2e-3
+      };
+
+      const result =
+        assessSensorResponseOperatingRange({
+          reduction: high,
+          compatibility:
+            compatibility(),
+          operatingRangeProfile:
+            profile()
+        });
+
+      expect(
+        result.value.blockers
+      ).toEqual(
+        expect.arrayContaining([
+          "input-above-linearity-range",
+          "spectral-bin-input-above-linearity-range"
+        ])
+      );
+    });
+
   }
 );

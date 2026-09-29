@@ -1130,18 +1130,14 @@ function interpolateCurve<T extends {
  * QE and A/W responsivity remain distinct physical representations; this API
  * does not convert between them.
  */
-export function resolveSensorSpectralResponseAtWavelength(
+export function resolveParsedSensorSpectralResponseAtWavelength(
   input:
     ResolveSensorSpectralResponseAtWavelengthInput
 ): CalculationResult<ResolvedSensorSpectralResponse> {
   const colorProfile =
-    parseSensorColorSamplingProfile(
-      input.colorSamplingProfile
-    );
+    input.colorSamplingProfile;
   const responseProfile =
-    parseSensorSpectralResponseProfile(
-      input.spectralResponseProfile
-    );
+    input.spectralResponseProfile;
 
   if (
     responseProfile
@@ -1439,4 +1435,34 @@ export function resolveSensorSpectralResponseAtWavelength(
       "Spectral irradiance integration, wavelength integration, photon/electron conversion and RAW-domain output remain future work."
     ]
   );
+}
+
+
+/**
+ * Public spectral-response resolver for untrusted/raw profile inputs.
+ *
+ * Profiles are parsed once here. Internal composition code that has already
+ * parsed both profiles may use resolveParsedSensorSpectralResponseAtWavelength
+ * to avoid repeating full profile parsing for every wavelength node.
+ */
+export function resolveSensorSpectralResponseAtWavelength(
+  input:
+    ResolveSensorSpectralResponseAtWavelengthInput
+): CalculationResult<ResolvedSensorSpectralResponse> {
+  const colorProfile =
+    parseSensorColorSamplingProfile(
+      input.colorSamplingProfile
+    );
+  const responseProfile =
+    parseSensorSpectralResponseProfile(
+      input.spectralResponseProfile
+    );
+
+  return resolveParsedSensorSpectralResponseAtWavelength({
+    ...input,
+    colorSamplingProfile:
+      colorProfile,
+    spectralResponseProfile:
+      responseProfile
+  });
 }
