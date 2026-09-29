@@ -224,6 +224,9 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 - Do not silently replace `estimateCameraShakeBlur()`; that older function keeps its legacy global-vector/stabilization approximation and sign semantics.
 - Do not add stabilization stops to the pure rotation primitive without a separate documented control/stabilization model.
 - Rolling readout must consume the same time-parameterized rotation semantics rather than defining another camera-motion equation.
+- Capture rotation trajectories may bind the exposure-window `first-opening-boundary-phase` to the existing rotation model's t=0 only inside an explicit integration layer; do not silently redefine the low-level time origin.
+- Do not call forward local-exposure trajectory endpoints a rolling-shutter warp or blur kernel. Renderer-ready rolling-shutter geometry must solve capture-location-dependent timing consistently and exposure blur requires integration over the local interval.
+- Sensor data-readout timing must not enter capture-motion geometry unless a separate explicit capture-mode/link contract establishes that relationship.
 
 ## Runtime and package boundary
 

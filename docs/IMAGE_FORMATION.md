@@ -103,6 +103,8 @@ The standalone `calculateSensorReadoutTiming()` foundation now supplies an invar
 
 The standalone `calculateCaptureExposureWindows()` foundation separately describes local opening/closing exposure boundaries. It uses the first opening-boundary phase as its explicit time reference, preserves independent nominal/opening/closing timing, validates positive local duration across the whole active rectangle, and keeps mechanical/EFCS/electronic actuator identity separate from timing. It does not automatically bind those exposure boundaries to sensor readout phase or to the existing camera-rotation time origin.
 
+The standalone `calculateCaptureRotationTrajectories()` bridge now explicitly binds that first opening-boundary phase to `t = 0` of the existing pure-camera-rotation model and evaluates stationary reference rays at local exposure start/end. It remains forward temporal geometry only: it does not consume sensor readout timing, solve the implicit rolling-shutter image warp, or integrate motion blur over the exposure interval.
+
 ## Renderer semantics
 
 Renderer implementations may use a bounded real-time preview approximation or a higher-fidelity deterministic reference evaluation, but both must consume the same engine-owned scientific contract.

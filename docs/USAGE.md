@@ -1050,6 +1050,110 @@ These relations do not model scene radiance, lens T-stop/transmission, vignettin
 
 See [Motion and Signal Foundation](MOTION_AND_SIGNAL.md#exposure-relations).
 
+## Capture rotation exposure trajectories
+
+Use `calculateCaptureRotationTrajectories()` when you need to evaluate **pure camera rotation over each native point's local exposure interval** while preserving the separation between shutter/exposure timing and sensor readout:
+
+```ts
+import { calculateCaptureRotationTrajectories } from "@photivra/engine";
+
+const trajectories = calculateCaptureRotationTrajectories({
+  imagingArea: { widthMm: 36, heightMm: 24 },
+  nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 },
+  shutterMechanism: "electronic",
+  nominalExposureDurationSeconds: {
+    value: 1 / 1000,
+    unit: "s",
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference: "capture-config:example",
+        reuseStatus: "photivra-owned"
+      }
+    ]
+  },
+  opening: {
+    kind: "uniform-linear-native-scan",
+    directionNative: {
+      value: "top-to-bottom",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "timing-profile:opening-direction",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    },
+    traversalDurationSeconds: {
+      value: 0.015,
+      unit: "s",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "timing-profile:opening-traversal",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    }
+  },
+  closing: {
+    kind: "uniform-linear-native-scan",
+    directionNative: {
+      value: "top-to-bottom",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "timing-profile:closing-direction",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    },
+    traversalDurationSeconds: {
+      value: 0.015,
+      unit: "s",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "timing-profile:closing-traversal",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    }
+  },
+  focalLengthMm: 50,
+  angularVelocityRadPerSec: {
+    pitch: 0,
+    yaw: 0.1,
+    roll: 0
+  },
+  samplePointsNative: [
+    { x: 3000, y: 0 },
+    { x: 3000, y: 2000 },
+    { x: 3000, y: 4000 }
+  ]
+});
+
+console.log(trajectories.value.samples);
+```
+
+The function maps each native point to the pre-orientation image plane at the capture reference time, then evaluates the existing `calculateCameraRotationImageMapping()` primitive at that point's local exposure start and end.
+
+The explicit time reference is the **first opening-boundary phase**. For this composition only, that reference is bound to `t = 0` of the low-level rotation model. This does not redefine the standalone rotation API for other callers.
+
+The returned trajectory is **forward temporal geometry for a stationary world ray**:
+
+- `referenceImagePointMm` is the ray's image-plane position at the capture reference;
+- `atLocalExposureStart` and `atLocalExposureEnd` are its mapped positions at the local window endpoints;
+- `localExposureTrajectoryEndpointDeltaMm` is the chord between those endpoints.
+
+The chord is not an integrated blur kernel. It also is not a renderer-ready rolling-shutter warp.
+
+A true rolling-shutter image mapping can be implicit: capture time depends on image location, while camera motion changes where a ray lands. A future inverse renderer mapping must solve that relationship consistently and integrate over the full local exposure interval rather than applying one forward displacement at a destination coordinate.
+
+`calculateSensorReadoutTiming()` is intentionally not an input. If a specific capture mode has a defensible relationship between electronic exposure timing and sensor readout timing, that relationship should be represented by a future explicit mode/link contract rather than assumed by this API.
+
+The current trajectory model remains pure rotation only. It excludes camera translation/parallax, subject motion, rotating/deforming subjects, occlusion changes, panning intent, exposure integration, flash/flicker, shutter shock, and final rolling-shutter inverse warping.
+
 ## Spatial camera-rotation mapping
 
 Use `calculateCameraRotationImageMapping()` when you need the image-plane location of a stationary world ray after **pure camera rotation** at an arbitrary physical time from exposure start.
