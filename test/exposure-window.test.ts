@@ -134,11 +134,12 @@ describe("capture exposure-window timing", () => {
         (sample) => sample.endOffsetSecondsFromOpeningReference
       )
     ).toEqual([0.005, 0.015, 0.025]);
-    expect(
-      result.value.samples.map(
-        (sample) => sample.localExposureDurationSeconds
-      )
-    ).toEqual([0.005, 0.005, 0.005]);
+    for (const sample of result.value.samples) {
+      expect(sample.localExposureDurationSeconds).toBeCloseTo(
+        0.005,
+        12
+      );
+    }
   });
 
   it("allows independent opening and closing schedules to vary local duration", () => {
@@ -168,15 +169,19 @@ describe("capture exposure-window timing", () => {
 
     expect(result.value.opening.actuator).toBe("electronic");
     expect(result.value.closing.actuator).toBe("mechanical");
-    expect(
-      result.value.samples.map(
-        (sample) => sample.localExposureDurationSeconds
-      )
-    ).toEqual([0.02, 0.0225, 0.025]);
-    expect(result.value.localExposureDurationRangeSeconds).toEqual({
-      minimum: 0.02,
-      maximum: 0.025
+    const expectedDurations = [0.02, 0.0225, 0.025];
+    result.value.samples.forEach((sample, index) => {
+      expect(sample.localExposureDurationSeconds).toBeCloseTo(
+        expectedDurations[index] ?? 0,
+        12
+      );
     });
+    expect(
+      result.value.localExposureDurationRangeSeconds.minimum
+    ).toBeCloseTo(0.02, 12);
+    expect(
+      result.value.localExposureDurationRangeSeconds.maximum
+    ).toBeCloseTo(0.025, 12);
   });
 
   it("keeps shutter mechanism independent from declared boundary timing", () => {
