@@ -100,7 +100,6 @@ export type SensorResponseOperatingRangeBlocker =
   | "wavelength-range-outside-linearity-applicability"
   | "input-below-linearity-range"
   | "input-above-linearity-range"
-  | "linearity-reference-conditions-not-declared"
   | "operating-conditions-not-declared"
   | "linearity-operating-conditions-mismatch";
 
@@ -884,14 +883,8 @@ export function assessSensorResponseOperatingRange(
       "exact-match-required"
   ) {
     const referenceConditions =
-      profile.referenceConditions;
+      profile.referenceConditions!;
     if (
-      referenceConditions === undefined
-    ) {
-      blockers.push(
-        "linearity-reference-conditions-not-declared"
-      );
-    } else if (
       input.compatibility
         .operatingConditions ===
       undefined
