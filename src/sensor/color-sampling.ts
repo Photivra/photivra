@@ -12,6 +12,10 @@ type UnknownRecord = Record<string, unknown>;
 export type NativeColorSamplingSiteCoordinateSystem =
   "native-sensor-color-sampling-site-index";
 
+export type SensorColorSamplingProfileCoordinateSystem =
+  | NativeColorSamplingSiteCoordinateSystem
+  | "native-sensor-layered-spatial-relationship-not-resolved";
+
 export interface NativeColorSamplingSiteIndex {
   /**
    * Zero-based integer site index from the native sensor's left edge.
@@ -90,7 +94,7 @@ export interface SensorColorSamplingProfile {
    * Descriptive architecture-family metadata remains a separate contract.
    */
   evidence: readonly EvidenceProvenance[];
-  coordinateSystem: NativeColorSamplingSiteCoordinateSystem;
+  coordinateSystem: SensorColorSamplingProfileCoordinateSystem;
   layout: SensorColorSamplingLayout;
 }
 
@@ -372,12 +376,22 @@ export function parseSensorColorSamplingProfile(
     );
   }
 
+  const layout = parseLayout(
+    profile.layout,
+    "sensorColorSampling.layout"
+  );
+
+  const expectedCoordinateSystem =
+    layout.kind === "layered"
+      ? "native-sensor-layered-spatial-relationship-not-resolved"
+      : "native-sensor-color-sampling-site-index";
+
   if (
     profile.coordinateSystem !==
-    "native-sensor-color-sampling-site-index"
+    expectedCoordinateSystem
   ) {
     throw new InvalidConfigurationError(
-      'sensorColorSampling.coordinateSystem must be "native-sensor-color-sampling-site-index".'
+      "sensorColorSampling.coordinateSystem does not match the declared layout kind."
     );
   }
 
@@ -391,12 +405,8 @@ export function parseSensorColorSamplingProfile(
       profile.evidence,
       "sensorColorSampling.evidence"
     ),
-    coordinateSystem:
-      "native-sensor-color-sampling-site-index",
-    layout: parseLayout(
-      profile.layout,
-      "sensorColorSampling.layout"
-    )
+    coordinateSystem: expectedCoordinateSystem,
+    layout
   };
 }
 
@@ -455,6 +465,15 @@ export function resolveColorSamplingSite(
   if (profile.layout.kind === "layered") {
     throw new InvalidScientificInputError(
       "Layered color sampling is structural-only in schema 0.1.0; per-site resolution requires an explicit per-layer spatial sampling relationship."
+    );
+  }
+
+  if (
+    profile.coordinateSystem !==
+    "native-sensor-color-sampling-site-index"
+  ) {
+    throw new InvalidScientificInputError(
+      "Resolvable color sampling requires the native sensor color-sampling-site coordinate system."
     );
   }
 
