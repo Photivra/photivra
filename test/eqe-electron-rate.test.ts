@@ -323,7 +323,7 @@ function operatingProfile(
     spectralInputModel: {
       kind: "per-spectral-bin",
       maximumBinWidthNanometers:
-        maximumSubintervalWidthNanometers,
+        100,
       scientificStatus:
         "calibrated",
       evidence: evidence(
