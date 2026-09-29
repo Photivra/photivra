@@ -1538,6 +1538,35 @@ The A/W path does **not**:
 
 Those remain later explicit stages.
 
+## Local sensor-rate/exposure binding
+
+Use `bindSensorRateToLocalExposure()` before any response-rate result is integrated over time.
+
+Engine-produced EQE electron-rate and A/W photocurrent results preserve the exact abstract color-sampling site that generated the response. The binding resolves that site against the exact color topology and the existing native-effective-raster/color-site binding before selecting a local shutter window.
+
+The first temporal registration is deliberately narrow: `sitesPerNativeSampleX` and `sitesPerNativeSampleY` must both equal 1. Under that evidenced shared-top-left relationship, color-site `(x, y)` maps to native effective sample center `(x + 0.5, y + 0.5)`.
+
+A multi-site block binding is **not** enough to infer sub-sample timing coordinates. When one native effective sample spans multiple color sites, Photivra fails closed rather than inventing where each site lies inside that effective sample for a spatially varying shutter scan.
+
+The binding then calls the authoritative capture exposure-window calculation at that exact native point. It verifies that:
+
+- the rate carries a valid site;
+- the bound color site exists and resolves to the same channel as the rate;
+- the binding belongs to the same color topology and exact native raster used by the exposure schedule;
+- the bound point lies inside the active capture;
+- the local window has positive finite duration.
+
+The result preserves local start/end offsets and duration in the exposure schedule's `first-opening-boundary-phase` time basis.
+
+This is a **timing binding only**. It explicitly reports:
+
+- no physical-photodiode timing registration;
+- no multi-frame sequence binding;
+- no time-stationarity guarantee;
+- `constantRateTemporalIntegrationAuthorized: false`.
+
+A response rate may therefore **not** yet be multiplied by this duration. Motion, flicker, flash, time-varying illumination/vignetting, shutter modulation, or detector transients require a time-dependent signal model. A separate stationarity contract is required for the constant-rate approximation.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
