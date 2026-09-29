@@ -80,7 +80,7 @@ The sensor/capture foundation has explicit semantics. Preserve them.
 - `NativeImageRaster` describes the effective native image-sampling grid. It does not assert one image sample equals one physical photodiode.
 - Capture-mode profiles must preserve that distinction: do not relabel `NativeImageRaster` as a photosite raster or infer physical photosite count from native, processed, or final output megapixels.
 - Model capture modes on orthogonal axes (acquisition sequence, per-frame sampling, optional inter-frame sensor offsets, reconstruction stages, processed raster, dependencies) rather than one mutually exclusive marketing-style mode enum.
-- Grouped sampling does not establish charge-domain binning; the combination domain stays unknown unless separately evidenced as charge-domain or post-conversion digital.
+- Grouped sampling does not establish charge-domain binning; the combination domain stays unknown unless separately evidenced as charge-domain, pre-conversion analog, or post-conversion digital.
 - Inter-frame sensor offsets use units of native effective sampling pitch, not asserted photodiode pitch.
 - Capture-mode processed-image raster is pre-output and does not redefine physical active area, crop factor, field of view, or final output raster semantics.
 - `RasterDimensions` is the generic raster-size type for active/output rasters; do not misuse `NativeImageRaster` for non-native outputs.
