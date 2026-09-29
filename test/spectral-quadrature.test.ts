@@ -271,6 +271,8 @@ describe("sensor spectral quadrature", () => {
       .toBe("effective-spectral-responsivity");
     expect(result.value.responseScope)
       .toBe("sensor-package-incident-effective-channel-response");
+    expect(result.value.wavelengthBasisResolved)
+      .toBe(true);
     expect(result.value.responseScientificStatus)
       .toBe("approximation");
     expect(result.value.responseUncertainty)
@@ -417,8 +419,10 @@ describe("sensor spectral quadrature", () => {
   });
 
   it("validates exact color-topology linkage once without evaluating response at every node", () => {
-    const wrongColor = colorProfile();
-    wrongColor.profileId = "wrong";
+    const wrongColor: SensorColorSamplingProfile = {
+      ...colorProfile(),
+      profileId: "wrong"
+    };
 
     expect(() =>
       calculateSensorSpectralQuadrature({
