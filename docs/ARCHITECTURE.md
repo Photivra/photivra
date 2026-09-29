@@ -45,6 +45,8 @@ Equivalent focal length is also layered on top of physical capture geometry rath
 
 Sensor architecture is a separate descriptive layer. Illumination (FSI/BSI), integration/stacking, readout capabilities, and color-sampling family are independent evidence-backed facts. Their presence alone has no image-quality effect in the engine. Evidence origin is modeled independently from reuse rights, scalar facts may cite multiple evidence records, and multi-valued capabilities carry evidence per value. Omitted facts remain unknown rather than being inferred. Capture-mode semantics, readout timing, reconstruction, and calibrated radiometry consume these facts only through later explicit models.
 
+Exact color-sampling topology is a separate layer again. `SensorColorSamplingProfile` can describe monochrome or an arbitrary periodic mosaic on an abstract native sensor sampling-site lattice, while layered color remains structural-only until per-layer spatial sampling is modeled. This lattice is intentionally not `NativeImageRaster`; a future binding must establish how capture-mode effective samples relate to color-sampling sites. Active crop/orientation/output transforms therefore cannot reset periodic CFA phase, and architecture-family metadata cannot synthesize an exact tile.
+
 
 ## Image-formation ownership and ordering
 
@@ -118,6 +120,8 @@ Compatibility boundaries remain explicit:
 The POC still does **not** consume:
 
 - `SensorArchitectureProfile`;
+- `SensorColorSamplingProfile`;
+- `CaptureModeProfile`;
 - `RadiometryReadinessProfile` or calibrated photon/noise output.
 
 That separation is deliberate. Further foundation APIs should remain independently testable and only enter the POC through explicit contract/version changes and migration review.
