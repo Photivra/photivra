@@ -527,7 +527,7 @@ function conditionsMatch(
 function validateReductionBoundary(
   reduction:
     SensorSpatioSpectralIrradianceReduction
-): void {
+): number {
   if (
     reduction.outputMeaning !==
       "pre-response-spatio-spectral-radiometric-reduction" ||
@@ -562,15 +562,19 @@ function validateReductionBoundary(
       "reduction.geometricApertureAreaSquareMicrometers is required and must be positive."
     );
   }
+
+  return reduction
+    .geometricApertureAreaSquareMicrometers;
 }
 
 export function assessSensorResponseApplicationCompatibility(
   input:
     AssessSensorResponseApplicationCompatibilityInput
 ): CalculationResult<SensorResponseApplicationCompatibilityAssessment> {
-  validateReductionBoundary(
-    input.reduction
-  );
+  const geometricArea =
+    validateReductionBoundary(
+      input.reduction
+    );
   const profile =
     parseSensorResponseApplicationProfile(
       input.applicationProfile
@@ -664,10 +668,6 @@ export function assessSensorResponseApplicationCompatibility(
       "wavelength-basis-unresolved"
     );
   }
-
-  const geometricArea =
-    input.reduction
-      .geometricApertureAreaSquareMicrometers;
 
   if (
     profile.incidentAreaBasis.kind !==
