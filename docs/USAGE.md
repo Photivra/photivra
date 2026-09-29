@@ -661,6 +661,111 @@ Scalar facts may cite multiple evidence records. Multi-valued capabilities such 
 
 Unknown facts should be omitted instead of inferred. Architecture metadata remains descriptive only: BSI, stacking, readout family, and CFA family do not directly change FOV, crop factor, pixel pitch, exposure, noise, or dynamic range. A separate documented downstream physical/calibration model is required before any such effect can be claimed.
 
+## Color-sampling topology
+
+Use `parseSensorColorSamplingProfile()` when an exact color-sampling topology is known independently from descriptive sensor-family metadata:
+
+```ts
+import {
+  parseSensorColorSamplingProfile,
+  resolveColorSamplingSite
+} from "@photivra/engine";
+
+const topology = parseSensorColorSamplingProfile({
+  schemaVersion: "0.1.0",
+  profileId: "example-periodic-layout",
+  evidence: [
+    {
+      sourceOrigin: "photivra",
+      sourceReference: "example:periodic-layout",
+      reuseStatus: "photivra-owned"
+    }
+  ],
+  coordinateSystem:
+    "native-sensor-color-sampling-site-index",
+  layout: {
+    kind: "periodic-mosaic",
+    repeatWidthSites: 2,
+    repeatHeightSites: 2,
+    siteChannelIds: [
+      "red-like",
+      "green-a",
+      "green-b",
+      "blue-like"
+    ],
+    anchor: "native-sensor-top-left-site"
+  }
+});
+
+const site = resolveColorSamplingSite({
+  profile: topology,
+  site: { x: 5, y: 8 }
+});
+
+console.log(site.mapping);
+```
+
+The topology coordinate system is a distinct **native sensor color-sampling-site lattice**:
+
+- zero-based integer site indices;
+- origin at the native sensor's top-left sampling site;
+- +X right and +Y down;
+- periodic phase anchored to absolute sensor-site indices.
+
+It is intentionally **not** `NativeImageRaster`. The existing native image raster is an effective image-sampling grid and does not guarantee one sample per physical photodiode or one sample per color-filter site. A later explicit binding must establish how a selected capture mode's effective raster maps to this topology before RAW/CFA sampling can be simulated.
+
+That distinction also protects crop phase. If an active crop begins part-way through a repeating tile, callers must preserve the original absolute native site indices. Crop-local `(0,0)` must not silently become a new CFA origin.
+
+`siteChannelIds` are semantic measurement-channel identifiers only. Names such as `red-like`, `green-a`, or `clear` do not establish:
+
+- wavelength response;
+- quantum efficiency;
+- spectral sensitivity;
+- colorimetric primaries;
+- white balance behavior;
+- calibrated sensor response.
+
+Those belong to later spectral/radiometric contracts.
+
+The periodic layout is generic. It can represent a 2×2 Bayer-like phase, larger repeating mosaics, grouped-color tiles, RGBW-like layouts, or other periodic channel arrangements without adding a manufacturer-specific layout enum. Distinct green positions can use the same channel ID or separate IDs when later calibration requires them to remain distinct.
+
+The exact topology is also separate from `SensorArchitectureProfile.colorSamplingFamily`. A family such as `bayer`, `quad-bayer`, `custom-rgb-mosaic`, or `layered-color` is descriptive metadata; Photivra never invents an exact repeating tile from that family label.
+
+Monochrome is represented separately with one semantic measurement-channel ID and no spatial mosaic.
+
+Layered color is deliberately **structural-only** in schema 0.1.0 and uses a separate unresolved spatial-reference marker rather than pretending it shares the periodic site lattice:
+
+```ts
+const layered = parseSensorColorSamplingProfile({
+  schemaVersion: "0.1.0",
+  profileId: "example-layered",
+  evidence: [
+    {
+      sourceOrigin: "photivra",
+      sourceReference: "example:layered",
+      reuseStatus: "photivra-owned"
+    }
+  ],
+  coordinateSystem:
+    "native-sensor-layered-spatial-relationship-not-resolved",
+  layout: {
+    kind: "layered",
+    layerChannelIds: [
+      "layer-a",
+      "layer-b",
+      "layer-c"
+    ],
+    spatialSamplingRelationship: "not-resolved"
+  }
+});
+```
+
+The engine does not expose per-site layered resolution yet. Real layered designs can use unequal per-layer spatial density or registration, so assuming one coincident equal-resolution RGB triplet at every site would be scientifically unsafe.
+
+Schema 0.1.0 also does not model sparse exceptions to an otherwise periodic layout, such as phase-detect sites, masked sites, sensor defects, or other non-periodic overrides.
+
+Physical orientation remains downstream. The native topology is not rotated or re-phased merely because the camera is held vertically. Likewise, changing CFA topology does not change physical imaging area, crop factor, FOV, or output geometry.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
