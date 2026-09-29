@@ -82,7 +82,7 @@ The sensor/capture foundation has explicit semantics. Preserve them.
 - Periodic color-sampling phase is anchored to absolute native sensor site indices; active crop, physical orientation, and output crop/resampling must never silently reset the repeat phase.
 - Color-sampling channel IDs are semantic identifiers only. They do not establish wavelength response, quantum efficiency, colorimetry, or calibrated sensor primaries.
 - Do not infer an exact CFA tile from descriptive `SensorArchitectureProfile.colorSamplingFamily`; exact layouts require their own evidence-backed topology profile.
-- Layered-color schema 0.1.0 is structural-only. Do not expose per-site layered mapping until per-layer spatial sampling density/registration is explicit.
+- Layered-color schema 0.1.0 uses a separate unresolved spatial-reference marker and is structural-only. Do not expose per-site layered mapping until per-layer spatial sampling density/registration is explicit.
 - Periodic mosaic schema 0.1.0 does not model sparse overrides such as phase-detect sites, masked pixels, defects, or other non-periodic exceptions.
 - Capture-mode profiles must preserve that distinction: do not relabel `NativeImageRaster` as a photosite raster or infer physical photosite count from native, processed, or final output megapixels.
 - Model capture modes on orthogonal axes (acquisition sequence, per-frame sampling, optional inter-frame sensor offsets, reconstruction stages, processed raster, dependencies) rather than one mutually exclusive marketing-style mode enum.
