@@ -100,6 +100,8 @@ export interface SensorSpatioSpectralIrradianceReduction {
     SensorSpectralQuadrature["responseScientificStatus"];
   responseUncertainty:
     SensorSpectralQuadrature["responseUncertainty"];
+  responseChannelBinding?:
+    SensorSpectralQuadrature["responseChannelBinding"];
   responseReferenceConditions?:
     SensorSpectralQuadrature["responseReferenceConditions"];
   wavelengthBasis:
@@ -632,6 +634,15 @@ export function reduceSensorSpatioSpectralIrradiance(
       responseUncertainty:
         input.spectralQuadrature
           .responseUncertainty,
+      ...(input.spectralQuadrature
+        .responseChannelBinding ===
+      undefined
+        ? {}
+        : {
+            responseChannelBinding:
+              input.spectralQuadrature
+                .responseChannelBinding
+          }),
       ...(input.spectralQuadrature
         .responseReferenceConditions ===
       undefined
