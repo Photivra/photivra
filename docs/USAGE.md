@@ -1379,6 +1379,43 @@ A successful assessment reports the future signal path:
 
 Even a successful assessment keeps `signalConversionAuthorized: false`. Response linearity/dynamic-range validity is not yet assessed, and no response, photon/electron, current, temporal, noise, ADC, RAW, or reconstruction calculation is performed.
 
+## Sensor response operating range
+
+Use `assessSensorResponseOperatingRange()` after structural response compatibility has passed. This second gate asks a narrower question: is the **instantaneous optical input** inside a response-law range for which the detector's linearity has been explicitly characterized?
+
+The operating-range profile is evidence-backed and preserves the quantity that was actually calibrated:
+
+- wavelength-integrated geometric-aperture radiant power in W; or
+- wavelength-integrated spatial-average irradiance in W/m².
+
+Photivra does not substitute one for the other.
+
+The profile also declares:
+
+- the applicable air/vacuum wavelength basis;
+- a wavelength interval that must contain the reduction's requested interval;
+- the inclusive optical-input range;
+- the maximum absolute relative response deviation accepted as "linear" for that range;
+- scientific status and uncertainty;
+- reference temperature/incidence-angle/polarization conditions and their matching policy.
+
+The assessment first requires the prior structural compatibility result to be non-blocked and to refer to the same response application, spectral response, color topology and channel. It then checks wavelength basis/range, optical-input level and linearity-calibration conditions.
+
+A successful result sets `responseRateConversionAuthorized: true`. That authorization is deliberately limited to a future **instantaneous rate-domain conversion**.
+
+It does **not** establish:
+
+- exposure-domain characteristic-curve linearity;
+- accumulated-charge/full-well saturation;
+- conversion-gain linearity;
+- readout/amplifier linearity;
+- ADC linearity or clipping;
+- RAW-code validity.
+
+Those depend on temporal integration and downstream electronics and remain separate gates. In particular, an optical detector can be linear over a given incident-power range while a camera exposure still saturates after sufficient integration time.
+
+The first operating-range model also does not infer a valid wavelength interval from one or a few isolated linearity measurements. If a source only establishes linearity at specific wavelengths, a continuous wavelength applicability range must not be fabricated.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
