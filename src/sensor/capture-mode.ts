@@ -19,6 +19,7 @@ type UnknownRecord = Record<string, unknown>;
 
 export type CaptureModeSampleCombinationDomain =
   | "charge-domain"
+  | "pre-conversion-analog"
   | "post-conversion-digital";
 
 export type CaptureModeReconstructionStage =
@@ -201,6 +202,7 @@ export interface ResolvedCaptureMode {
 const COMBINATION_DOMAINS =
   new Set<CaptureModeSampleCombinationDomain>([
     "charge-domain",
+    "pre-conversion-analog",
     "post-conversion-digital"
   ]);
 
@@ -238,12 +240,16 @@ function requirePositiveSafeIntegerValue(
   value: unknown,
   path: string
 ): number {
-  if (!Number.isSafeInteger(value) || (value as number) <= 0) {
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value <= 0
+  ) {
     throw new InvalidConfigurationError(
       path + " must be a positive safe integer."
     );
   }
-  return value as number;
+  return value;
 }
 
 function parseIntegerFact(
@@ -857,6 +863,14 @@ export function resolveCaptureMode(
   input: ResolveCaptureModeInput
 ): ResolvedCaptureMode {
   validateNativeRaster(input.nativeRaster);
+  if (
+    typeof input.modeId !== "string" ||
+    input.modeId.trim().length === 0
+  ) {
+    throw new InvalidScientificInputError(
+      "modeId must be a non-empty string."
+    );
+  }
   const profile = parseCaptureModeProfile(input.profile);
 
   const mode = profile.modes.find(
