@@ -688,6 +688,7 @@ export function calculateSensorSpectralQuadrature(
       totalNodeCount,
       normalizedWavelengthWeightSum,
       wavelengthMeasureSumNanometers,
+      nodes,
       responseKnotAlignmentIncluded:
         true,
       componentEvidence: {
