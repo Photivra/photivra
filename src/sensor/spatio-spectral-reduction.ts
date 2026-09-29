@@ -84,6 +84,8 @@ export interface SensorSpatioSpectralWavelengthReduction {
 
 export interface SensorSpatioSpectralIrradianceReduction {
   colorSamplingProfileId: string;
+  samplingApertureProfileId?: string;
+  opticalStackProfileId?: string;
   site: {
     x: number;
     y: number;
@@ -98,6 +100,8 @@ export interface SensorSpatioSpectralIrradianceReduction {
     SensorSpectralQuadrature["responseScientificStatus"];
   responseUncertainty:
     SensorSpectralQuadrature["responseUncertainty"];
+  responseReferenceConditions?:
+    SensorSpectralQuadrature["responseReferenceConditions"];
   wavelengthBasis:
     SensorSpectralQuadrature["wavelengthBasis"];
   wavelengthBasisResolved: boolean;
@@ -120,6 +124,9 @@ export interface SensorSpatioSpectralIrradianceReduction {
     "spatial-node-identity-plus-spectral-sample-index-and-wavelength";
   sourceValuesSuppliedForAllCombinedNodes: true;
   outsideImagingAreaSourceValuesRequired: boolean;
+  geometricApertureAreaSquareMicrometers?: number;
+  nominalSiteCellAreaSquareMicrometers?: number;
+  geometricSensitiveAreaFractionOfLatticeCell?: number;
   perWavelength:
     readonly SensorSpatioSpectralWavelengthReduction[];
   /**
@@ -588,6 +595,24 @@ export function reduceSensorSpatioSpectralIrradiance(
   return approximationResult(
     {
       colorSamplingProfileId,
+      ...(input.spatialQuadrature
+        .samplingApertureProfileId ===
+      undefined
+        ? {}
+        : {
+            samplingApertureProfileId:
+              input.spatialQuadrature
+                .samplingApertureProfileId
+          }),
+      ...(input.spatialQuadrature
+        .opticalStackProfileId ===
+      undefined
+        ? {}
+        : {
+            opticalStackProfileId:
+              input.spatialQuadrature
+                .opticalStackProfileId
+          }),
       site: {
         ...input.spatialQuadrature.site
       },
@@ -607,6 +632,15 @@ export function reduceSensorSpatioSpectralIrradiance(
       responseUncertainty:
         input.spectralQuadrature
           .responseUncertainty,
+      ...(input.spectralQuadrature
+        .responseReferenceConditions ===
+      undefined
+        ? {}
+        : {
+            responseReferenceConditions:
+              input.spectralQuadrature
+                .responseReferenceConditions
+          }),
       wavelengthBasis:
         input.spectralQuadrature
           .wavelengthBasis,
@@ -646,6 +680,27 @@ export function reduceSensorSpatioSpectralIrradiance(
         input.spatialQuadrature
           .preAntiAliasingSourceOutsideImagingAreaNodeCount >
         0,
+      geometricApertureAreaSquareMicrometers:
+        input.spatialQuadrature
+          .geometricApertureAreaSquareMicrometers,
+      ...(input.spatialQuadrature
+        .nominalSiteCellAreaSquareMicrometers ===
+      undefined
+        ? {}
+        : {
+            nominalSiteCellAreaSquareMicrometers:
+              input.spatialQuadrature
+                .nominalSiteCellAreaSquareMicrometers
+          }),
+      ...(input.spatialQuadrature
+        .geometricSensitiveAreaFractionOfLatticeCell ===
+      undefined
+        ? {}
+        : {
+            geometricSensitiveAreaFractionOfLatticeCell:
+              input.spatialQuadrature
+                .geometricSensitiveAreaFractionOfLatticeCell
+          }),
       perWavelength,
       wavelengthIntegratedSpatialAverageIrradianceWattsPerSquareMeter:
         wavelengthIntegratedSpatialAverage,
