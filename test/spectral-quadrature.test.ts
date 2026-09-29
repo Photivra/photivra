@@ -532,7 +532,7 @@ describe("sensor spectral quadrature", () => {
       "d-lambda",
       "different physical representations",
       "Discrete/delta-like line spectra",
-      "does not prove convergence"
+      "do not prove convergence"
     ]) {
       expect(
         assumptions.some((entry) =>
