@@ -281,6 +281,9 @@ describe("sensor spectral quadrature", () => {
         limitation: "test"
       });
     expect(
+      result.value.componentEvidence.colorSamplingProfile
+    ).toEqual(evidence("test:color"));
+    expect(
       result.value.componentEvidence.profile
     ).toEqual(evidence("test:responsivity-profile"));
     expect(
@@ -297,7 +300,21 @@ describe("sensor spectral quadrature", () => {
     ).toBe(false);
   });
 
-  it("fails closed on basis mismatch and out-of-range requests", () => {
+  it("fails closed on invalid/mismatched basis and out-of-range requests", () => {
+    expect(() =>
+      calculateSensorSpectralQuadrature({
+        colorSamplingProfile: colorProfile(),
+        spectralResponseProfile: qeProfile(),
+        channelId: "red",
+        wavelengthBasis: "invalid" as never,
+        wavelengthRangeNanometers: {
+          minimum: 400,
+          maximum: 700
+        },
+        maximumSubintervalWidthNanometers: 10
+      })
+    ).toThrow("wavelengthBasis is invalid");
+
     expect(() =>
       calculateSensorSpectralQuadrature({
         colorSamplingProfile: colorProfile(),
@@ -372,6 +389,22 @@ describe("sensor spectral quadrature", () => {
         additionalBreakpointsNanometers: [400]
       })
     ).toThrow("strictly inside");
+
+    expect(() =>
+      calculateSensorSpectralQuadrature({
+        colorSamplingProfile: colorProfile(),
+        spectralResponseProfile: qeProfile(),
+        channelId: "red",
+        wavelengthBasis: "air",
+        wavelengthRangeNanometers: {
+          minimum: 400,
+          maximum: 700
+        },
+        maximumSubintervalWidthNanometers: 10,
+        additionalBreakpointsNanometers:
+          new Array(100_000).fill(500)
+      })
+    ).toThrow("too many entries");
   });
 
   it("rejects invalid ranges, step widths, and oversized plans", () => {
