@@ -1382,6 +1382,141 @@ describe(
       );
     });
 
+    it("rejects malformed wavelength ordering, weights, and operating-range summaries", () => {
+      const pipeline =
+        buildPipeline(
+          "responsivity",
+          50
+        );
+
+      expect(() =>
+        calculateSensorResponsivityPhotocurrent({
+          reduction: {
+            ...pipeline.reduction,
+            perWavelength:
+              pipeline.reduction
+                .perWavelength.map(
+                  (node, index) =>
+                    index === 1
+                      ? {
+                          ...node,
+                          wavelengthNanometers:
+                            pipeline.reduction
+                              .perWavelength[0]!
+                              .wavelengthNanometers
+                        }
+                      : node
+                )
+          },
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            pipeline.operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline
+              .spectralResponseProfile,
+          electricalApplicabilityProfile:
+            electricalProfile(),
+          operatingElectricalConditions:
+            zeroBiasConditions
+        })
+      ).toThrow(
+        "strictly increasing"
+      );
+
+      expect(() =>
+        calculateSensorResponsivityPhotocurrent({
+          reduction: {
+            ...pipeline.reduction,
+            perWavelength:
+              pipeline.reduction
+                .perWavelength.map(
+                  (node, index) =>
+                    index === 0
+                      ? {
+                          ...node,
+                          normalizedWavelengthWeight:
+                            node
+                              .normalizedWavelengthWeight *
+                            0.5
+                        }
+                      : node
+                )
+          },
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            pipeline.operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline
+              .spectralResponseProfile,
+          electricalApplicabilityProfile:
+            electricalProfile(),
+          operatingElectricalConditions:
+            zeroBiasConditions
+        })
+      ).toThrow(
+        "normalized wavelength weights must sum to 1"
+      );
+
+      expect(() =>
+        calculateSensorResponsivityPhotocurrent({
+          reduction:
+            pipeline.reduction,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange: {
+            ...pipeline.operatingRange,
+            evaluatedSpectralNodeInputs:
+              undefined
+          } as never,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline
+              .spectralResponseProfile,
+          electricalApplicabilityProfile:
+            electricalProfile(),
+          operatingElectricalConditions:
+            zeroBiasConditions
+        })
+      ).toThrow(
+        "one evaluated spectral-node input"
+      );
+
+      expect(() =>
+        calculateSensorResponsivityPhotocurrent({
+          reduction:
+            pipeline.reduction,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange: {
+            ...pipeline.operatingRange,
+            evaluatedWavelengthRangeNanometers:
+              {
+                minimum: 401,
+                maximum: 500
+              }
+          },
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline
+              .spectralResponseProfile,
+          electricalApplicabilityProfile:
+            electricalProfile(),
+          operatingElectricalConditions:
+            zeroBiasConditions
+        })
+      ).toThrow(
+        "wavelength range must exactly match"
+      );
+    });
+
     it("fails closed on malformed reduction power", () => {
       const pipeline =
         buildPipeline();
