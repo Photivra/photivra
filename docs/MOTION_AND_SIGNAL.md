@@ -70,6 +70,33 @@ Active-capture timing is also explicit: Photivra never scales a full-frame timin
 
 Mechanical, electronic-first-curtain and fully electronic shutter mechanisms are reported independently but remain scientifically inert in this slice. The function does **not** define local exposure start/end times, mechanical curtain travel, EFCS curtain interaction, rolling-shutter image distortion, flash/flicker bands, or motion integration. Those later models must combine their own timing with this sensor schedule explicitly rather than treating sensor readout as a surrogate shutter-curtain model.
 
+## Readout/exposure spatial linkage
+
+`assessReadoutExposureTimingLinkage()` is the explicit boundary between the native sensor readout schedule and the capture exposure-window schedule.
+
+The contract deliberately distinguishes **spatial phase/order** from **absolute temporal synchronization**.
+
+A caller may declare:
+
+- `unlinked` — Photivra asserts no relationship for this capture. This is not evidence that the physical processes are independent.
+- `spatial-phase-linked` — one or more electronic exposure boundaries are asserted to share the rolling readout's normalized native spatial phase, either in the same direction or reversed.
+
+Every positive link carries its own provenance. The underlying readout direction/skew and exposure-boundary direction/traversal facts keep their own separate evidence.
+
+A positive spatial-phase link is valid only when:
+
+- sensor readout is rolling and therefore has a spatial scan;
+- the selected exposure boundary is electronic;
+- the selected exposure boundary is itself a uniform-linear native scan;
+- `same` phase orientation uses the same native scan direction;
+- `reversed` phase orientation uses the exact opposite direction on the same native axis.
+
+The rolling-readout spatial skew and exposure-boundary traversal duration do **not** have to be equal. Their dimensionless ratio is reported diagnostically. A ratio of 1 still does not prove a shared clock origin or temporal coincidence.
+
+`captureReadoutDurationSeconds` is preserved with units/evidence but is never used to validate an exposure linkage. Data transfer/readout duration can describe a different physical interval from exposure-boundary traversal.
+
+Absolute temporal alignment remains `not-established` in this foundation. A future mode profile may supply an evidence-backed temporal offset/synchronization relationship if defensible data exists, but Photivra will not infer it from shutter mechanism, scan direction, matching timing spans, output resolution, or adjacent camera specifications.
+
 ## Capture exposure windows
 
 `calculateCaptureExposureWindows()` adds the next standalone timing layer after native sensor readout timing.
