@@ -227,6 +227,9 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 - Capture rotation trajectories may bind the exposure-window `first-opening-boundary-phase` to the existing rotation model's t=0 only inside an explicit integration layer; do not silently redefine the low-level time origin.
 - Do not call forward local-exposure trajectory endpoints a rolling-shutter warp or blur kernel. Renderer-ready rolling-shutter geometry must solve capture-location-dependent timing consistently and exposure blur requires integration over the local interval.
 - Sensor data-readout timing must not enter capture-motion geometry unless a separate explicit capture-mode/link contract establishes that relationship.
+- For the current constant-axis pure-rotation model, prefer the analytic inverse mapping over an iterative/fixed-point solver; do not introduce numerical convergence machinery when the inverse is closed-form.
+- Any instantaneous capture-scan mapping must require an explicit local-exposure phase. Never silently choose midpoint/start/end and present it as the finite-exposure result.
+- Do not clamp reference rays that leave the active source frame under motion; expose the geometry and let renderer/source-coverage policy handle missing samples.
 
 ## Runtime and package boundary
 
