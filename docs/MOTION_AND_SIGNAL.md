@@ -90,6 +90,28 @@ This contract remains deliberately separate from `calculateSensorReadoutTiming()
 
 The first exposure-window model does not include curtain acceleration, nonlinear or segmented electronic scheduling, flash/flicker interaction, shutter shock, EFCS-specific pupil/bokeh behavior, or rolling-shutter image distortion.
 
+## Capture rotation exposure trajectories
+
+`calculateCaptureRotationTrajectories()` is the first explicit integration between local capture exposure windows and the existing pure-camera-rotation mapping.
+
+For each caller-selected native raster point, the engine:
+
+1. resolves the point's local exposure start/end with `calculateCaptureExposureWindows()`;
+2. maps that native point into the pre-orientation image plane at the **first opening-boundary phase**;
+3. explicitly binds that capture reference to `t = 0` of `calculateCameraRotationImageMapping()` for this composition;
+4. evaluates the same stationary world ray at the local exposure start and end;
+5. reports the two mapped endpoints plus their image-plane chord.
+
+The output is deliberately a **forward stationary-reference-ray trajectory**, not a rolling-shutter image warp.
+
+That distinction matters because in a rolling capture the exposure/capture time depends on image location while camera motion also changes where a world ray lands. A renderer-ready rolling-shutter transform therefore requires a self-consistent inverse destination-to-source mapping rather than one forward displacement evaluated at a destination coordinate.
+
+The endpoint chord also is **not a blur kernel**. Pure rotational image motion can follow a curved image-plane path, and exposure integrates radiance over the entire local interval rather than only its two endpoints.
+
+Sensor data-readout timing from `calculateSensorReadoutTiming()` is intentionally absent. A particular electronic capture mode may have a documented relationship between sensor readout and exposure boundaries, but Photivra will require that relationship to be declared explicitly rather than assuming it universally.
+
+The trajectory foundation remains rotation-only. Camera translation/parallax, subject motion, panning intent, object rotation/deformation, occlusion changes, exposure integration, flash/flicker, shutter shock, and the final inverse rolling-shutter warp remain future work.
+
 ## Temporal image-formation basis
 
 The image-formation contract defines physical time in **seconds from exposure start**.
