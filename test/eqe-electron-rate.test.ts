@@ -10,7 +10,8 @@ import {
   type SensorResponseApplicationProfile,
   type SensorResponseOperatingRangeProfile,
   type SensorSpectralResponseProfile,
-  type SensorSpatioSpectralIrradianceSample
+  type SensorSpatioSpectralIrradianceSample,
+  type SourcedAirPhaseRefractiveIndex
 } from "../src/index.js";
 import {
   makeQuadrature
@@ -1059,7 +1060,11 @@ describe(
       const indexSample = (
         spectralSampleIndex: number,
         wavelengthNanometers: number
-      ) => ({
+      ): {
+        spectralSampleIndex: number;
+        refractiveIndex:
+          SourcedAirPhaseRefractiveIndex;
+      } => ({
         spectralSampleIndex,
         refractiveIndex: {
           wavelengthNanometers,
