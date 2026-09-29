@@ -549,6 +549,210 @@ describe(
       );
     });
 
+    it("requires explicit spatial profile identity for the new composition boundary", () => {
+      const spatial =
+        makeQuadrature().value;
+      const spectral =
+        spectralPlan().value;
+      const samples =
+        samplesFor(
+          spatial,
+          spectral,
+          () => 1
+        );
+      const withoutIdentity = {
+        ...spatial
+      };
+      delete withoutIdentity
+        .colorSamplingProfileId;
+
+      expect(() =>
+        reduceSensorSpatioSpectralIrradiance({
+          spatialQuadrature:
+            withoutIdentity,
+          spectralQuadrature:
+            spectral,
+          sampleValues: samples
+        })
+      ).toThrow(
+        "colorSamplingProfileId is required"
+      );
+    });
+
+    it("rejects malformed and unknown spatial sample identities", () => {
+      const spatial =
+        makeQuadrature().value;
+      const spectral =
+        spectralPlan().value;
+      const samples =
+        samplesFor(
+          spatial,
+          spectral,
+          () => 1
+        );
+
+      expect(() =>
+        reduceSensorSpatioSpectralIrradiance({
+          spatialQuadrature: spatial,
+          spectralQuadrature:
+            spectral,
+          sampleValues: [
+            null as never,
+            samples[1]!
+          ]
+        })
+      ).toThrow(
+        "complete spatio-spectral node identity"
+      );
+
+      expect(() =>
+        reduceSensorSpatioSpectralIrradiance({
+          spatialQuadrature: spatial,
+          spectralQuadrature:
+            spectral,
+          sampleValues: [
+            {
+              ...samples[0]!,
+              node: {
+                ...samples[0]!.node,
+                spatialNode: {
+                  ...samples[0]!.node
+                    .spatialNode,
+                  apertureSampleXIndex:
+                    99
+                }
+              }
+            },
+            samples[1]!
+          ]
+        })
+      ).toThrow(
+        "spatial node"
+      );
+    });
+
+    it("rejects mutated spectral-plan identity and semantics", () => {
+      const spatial =
+        makeQuadrature().value;
+      const spectral =
+        spectralPlan().value;
+      const samples =
+        samplesFor(
+          spatial,
+          spectral,
+          () => 1
+        );
+
+      expect(() =>
+        reduceSensorSpatioSpectralIrradiance({
+          spatialQuadrature: spatial,
+          spectralQuadrature: {
+            ...spectral,
+            nodes:
+              spectral.nodes.map(
+                (node, index) =>
+                  index === 0
+                    ? {
+                        ...node,
+                        spectralSampleIndex:
+                          2
+                      }
+                    : node
+              )
+          },
+          sampleValues: samples
+        })
+      ).toThrow(
+        "contiguous range"
+      );
+
+      expect(() =>
+        reduceSensorSpatioSpectralIrradiance({
+          spatialQuadrature: spatial,
+          spectralQuadrature: {
+            ...spectral,
+            responseApplicationPerformed:
+              true
+          } as unknown as typeof spectral,
+          sampleValues: samples
+        })
+      ).toThrow(
+        "incompatible with pre-response"
+      );
+    });
+
+    it("avoids premature overflow when converting geometric area units", () => {
+      const spatial =
+        makeQuadrature().value;
+      const spectral =
+        spectralPlan(
+          100,
+          {
+            minimum: 400,
+            maximum: 500
+          }
+        ).value;
+      const value = 1e300;
+
+      const result =
+        reduceSensorSpatioSpectralIrradiance({
+          spatialQuadrature: spatial,
+          spectralQuadrature:
+            spectral,
+          sampleValues: samplesFor(
+            spatial,
+            spectral,
+            () => value
+          )
+        }).value;
+
+      expect(
+        result.perWavelength[0]
+          ?.geometricApertureIncidentSpectralFluxWattsPerNanometer
+      ).toBeCloseTo(
+        value *
+          (
+            480_000 *
+            1e-12
+          ),
+        -285
+      );
+      expect(
+        Number.isFinite(
+          result
+            .wavelengthIntegratedGeometricApertureIncidentFluxWatts
+        )
+      ).toBe(true);
+    });
+
+    it("fails closed when wavelength integration overflows", () => {
+      const spatial =
+        makeQuadrature().value;
+      const spectral =
+        spectralPlan(
+          100,
+          {
+            minimum: 400,
+            maximum: 500
+          }
+        ).value;
+
+      expect(() =>
+        reduceSensorSpatioSpectralIrradiance({
+          spatialQuadrature: spatial,
+          spectralQuadrature:
+            spectral,
+          sampleValues: samplesFor(
+            spatial,
+            spectral,
+            () => 1e307
+          )
+        })
+      ).toThrow(
+        "Wavelength-integrated"
+      );
+    });
+
     it("labels geometric area, response, temporal, and convergence boundaries explicitly", () => {
       const spatial =
         makeQuadrature().value;
