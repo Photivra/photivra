@@ -88,6 +88,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [pixel pitch](docs/USAGE.md#pixel-pitch);
 - [sensor imaging-area, native-raster, crop-factor, megapixel, and 2D sampling metrics](docs/USAGE.md#sensor-imaging-area-and-native-raster);
 - [provenance-aware sensor architecture/capability metadata](docs/USAGE.md#sensor-architecture-metadata);
+- [exact color-sampling topology profiles](docs/USAGE.md#color-sampling-topology), supporting monochrome and arbitrary periodic mosaics on a sensor-anchored abstract sampling-site lattice while keeping spectral response and raster/photodiode binding separate;
 - [orthogonal capture-mode profiles](docs/USAGE.md#capture-mode-profiles), separating acquisition sequence, per-frame sampling, sensor-shift sequence, reconstruction stages, processed raster, and final output geometry;
 - [capture-specific native sensor readout scan timing](docs/USAGE.md#sensor-readout-timing), with separately evidenced total data-readout duration and rolling spatial timing skew;
 - [readout/exposure spatial linkage assessment](docs/USAGE.md#readoutexposure-spatial-linkage), for evidence-backed same/reversed normalized phase relationships between rolling readout and electronic exposure boundaries without asserting absolute synchronization;
@@ -120,6 +121,7 @@ The root engine now exposes standalone APIs for:
 - off-center/asymmetric active-capture FOV;
 - diagonal-based 35 mm-equivalent focal length;
 - evidence-backed sensor architecture metadata;
+- evidence-backed color-sampling topology profiles for monochrome, arbitrary periodic mosaics, and structural-only layered color declarations;
 - evidence-backed capture-mode profiles with single/fixed/variable multi-frame acquisition, native/grouped/declared per-frame sampling, optional sensor-shift offsets, reconstruction stages, and processed-image raster separation;
 - capture-specific native readout scan timing with explicit provenance and no output-resolution inference;
 - capture exposure-window timing with independent opening/closing boundary schedules;
@@ -127,7 +129,7 @@ The root engine now exposes standalone APIs for:
 - instantaneous inverse capture-scan rotation mapping at a caller-selected local-exposure phase, still independent from sensor data-readout timing;
 - radiometry prerequisite/readiness assessment.
 
-These contracts are **not all composed into `simulatePocCamera()` yet**. POC API 0.20 now composes staged capture geometry through final output/viewing semantics: orientation, active-capture rectangles, output crop/raster, active/output FOV, active-capture 35 mm-equivalent focal length, viewing-based CoC against the final retained physical area, orientation-aware subject framing, and explicit output pixel scaling. Sensor-architecture metadata, capture-mode profiles, sensor readout scan timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not yet composed. Readout timing stays in invariant native sensor coordinates; physical orientation is an explicit downstream transform.
+These contracts are **not all composed into `simulatePocCamera()` yet**. POC API 0.20 now composes staged capture geometry through final output/viewing semantics: orientation, active-capture rectangles, output crop/raster, active/output FOV, active-capture 35 mm-equivalent focal length, viewing-based CoC against the final retained physical area, orientation-aware subject framing, and explicit output pixel scaling. Sensor-architecture metadata, color-sampling topology profiles, capture-mode profiles, sensor readout scan timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not yet composed. Readout timing stays in invariant native sensor coordinates; physical orientation is an explicit downstream transform.
 
 The POC exposes X/Y sampling diagnostics but still uses one representative horizontal pitch internally for several pixel-domain calculations; it therefore rejects geometry whose X/Y pitch differs by more than 1% rather than silently producing directional error.
 
@@ -191,7 +193,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.5.1`
-- Engine API contract: `0.40.0`
+- Engine API contract: `0.42.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
@@ -223,6 +225,7 @@ Photivra deliberately avoids claiming more than the current models support.
 - Instantaneous capture-rotation inverse mapping now provides destination-to-reference geometry at an explicit phase within each local exposure window. Pure rotation is inverted analytically, not iteratively. The result is still not a finite-exposure image or blur model; reference rays may validly fall outside the active source frame and are not clamped.
 - The Airy diagnostic assumes an ideal circular pupil. The PSF foundation keeps circular diffraction and geometric defocus as separately named diagnostics; it does not calculate a combined PSF, and polygon aperture geometry does not produce a polygon diffraction PSF.
 - Capture-mode profiles describe acquisition/sampling/reconstruction structure only. Grouped sampling does not imply charge-domain binning unless that domain is separately evidenced; processed-image resolution does not change FOV, physical sensor identity, or establish physical photosite count. Pixel-shift offsets are expressed in native effective-sampling-pitch units and do not claim photodiode pitch.
+- Color-sampling topology is independent from `NativeImageRaster`: periodic mosaic phase is anchored to absolute native sensor sampling-site indices, not crop-local coordinates. Channel IDs are semantic labels rather than spectral response curves. Layered color is structural-only until per-layer sampling density/registration is explicit; sparse non-periodic exceptions such as PDAF/masked/defect sites are not represented by schema 0.1.0.
 - Signal/noise primitives require caller-supplied photon/electron quantities. The radiometry-readiness API can assess declared prerequisites, but it does not derive photons or enable photon/noise output in the composed POC.
 - The composed POC still uses one representative pixel-pitch path internally and therefore rejects sensor geometry whose X/Y sample pitch differs by more than 1%; lower-level geometry APIs already preserve independent X/Y pitch.
 - No named commercial camera or lens performance is claimed.
