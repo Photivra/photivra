@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.44.0" as const;
+export const ENGINE_API_VERSION = "0.45.0" as const;
 
 export {
   approximationResult,
@@ -140,6 +140,18 @@ export {
   type SensorOpticalStackComponentRole,
   type SensorOpticalStackProfile
 } from "./sensor/optical-stack.js";
+
+export {
+  parseSensorSamplingApertureProfile,
+  resolveSensorSamplingAperture,
+  type NativeSensorPhysicalBoundsMm,
+  type NativeSensorPhysicalPointMm,
+  type ResolveSensorSamplingApertureInput,
+  type ResolvedSensorSamplingAperture,
+  type SensorGeometricSensitiveAperture,
+  type SensorSamplingApertureProfile,
+  type SensorSiteCenterLatticeRegistration
+} from "./sensor/sampling-aperture.js";
 
 export {
   parseCaptureModeProfile,

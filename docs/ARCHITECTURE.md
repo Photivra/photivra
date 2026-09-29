@@ -51,6 +51,8 @@ That binding is now explicit through the native-effective-raster/color-site foun
 
 Sensor optical-stack metadata is a separate upstream layer. `SensorOpticalStackProfile` records ordered physical component roles and microlens presence independently from the effective anti-aliasing spatial response. Unknown AA response, documented absence/cancellation, unresolved presence, and an explicit normalized point-splitting kernel remain distinct. The first kernel is native-sensor-physical, field/wavelength/polarization-invariant, and spatial-only; it does not include throughput, spectral filtering, cover-glass refraction, microlens collection, or whole-stack PSF composition. This prevents OLPF presence from becoming a universal Gaussian/four-ray blur and prevents descriptive filter/microlens metadata from silently changing image formation.
 
+Physical sampling aperture is a separate downstream prerequisite for CFA/site sampling. `SensorSamplingApertureProfile` explicitly registers the regular color-site center lattice in native sensor physical coordinates and can declare the first geometric sensitive-region approximation as a uniform rectangle. Site pitch/origin is never derived from `NativeImageRaster`, and aperture dimensions/offset are never inferred from pitch or a scalar fill fraction. The derived geometric sensitive-area fraction is diagnostic only. AA redistribution, microlenses, charge diffusion/crosstalk, spectral response, QE, optical throughput, radiometric collection area, and physical photodiode geometry remain separate models so spatial sampling can later compose them deliberately rather than double-count them.
+
 
 ## Image-formation ownership and ordering
 
@@ -127,6 +129,7 @@ The POC still does **not** consume:
 - `SensorColorSamplingProfile`;
 - `NativeEffectiveRasterColorSamplingBindingProfile`;
 - `SensorOpticalStackProfile`;
+- `SensorSamplingApertureProfile`;
 - `CaptureModeProfile`;
 - `RadiometryReadinessProfile` or calibrated photon/noise output.
 
