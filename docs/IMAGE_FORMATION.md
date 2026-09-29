@@ -157,6 +157,8 @@ The additive spatial-sample reducer can now apply those weights to caller-suppli
 
 The standalone sensor spectral-response profile now establishes explicit wavelength-dependent meaning for linked semantic channels. It can resolve effective external QE, effective A/W responsivity, or declared filter×detector-EQE at one wavelength while preserving response scope and reusable-data provenance. It performs no spectral irradiance integration, exposure-time integration, photon/electron conversion, or RAW reconstruction, so the complete `photosite-cfa-sampling` and downstream charge stages remain only partially founded/reserved.
 
+The additive sensor spectral-quadrature plan supplies deterministic wavelength nodes and dλ measures without turning them into signal. Response knots and explicit caller breakpoints define segment boundaries, a maximum subinterval width bounds midpoint spacing, and the selected response scope/provenance remain visible. Sensor-response coverage is not treated as scene/optics coverage, response values are not applied, QE is not conflated with A/W responsivity, and continuous-density quadrature does not silently approximate discrete spectral lines. Spatial, wavelength and temporal measures therefore remain separate until a later versioned composition defines a common radiometric integrand and units.
+
 ## Current implementation status
 
 Each stage is labeled:
