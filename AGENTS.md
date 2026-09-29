@@ -100,6 +100,9 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - Time-dependent camera mapping uses seconds from exposure start; normalized shutter time is derived convenience only.
 - Exposure duration and readout timing remain independent.
 - Capture exposure-window opening/closing timing remains independent from sensor data-readout timing; never equate a readout phase with an exposure boundary without an explicit integration model.
+- An explicit readout/exposure link may establish normalized native spatial phase/order only unless separate evidence establishes absolute temporal synchronization; equal direction, equal timing span, or shutter mechanism alone are never sufficient.
+- `unlinked` means no relationship is asserted by Photivra, not that physical independence has been proven.
+- Preserve units/evidence for readout duration, rolling spatial skew, exposure-boundary traversal, and the relationship itself; derived cadence ratios must not upgrade provenance or calibration status.
 - When local exposure start varies spatially, use the exposure-window contract's explicit first-opening-boundary reference rather than silently redefining the existing camera-rotation `timeSecondsFromExposureStart` semantic.
 - Camera rotation should be time-parameterized before rolling-readout integration; do not fold depth-dependent translation into a depth-independent screen flow.
 - Geometric renderer warps use inverse sampling, premultiplied alpha, and must preserve scene occlusion order.
