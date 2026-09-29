@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.40.0" as const;
+export const ENGINE_API_VERSION = "0.41.0" as const;
 
 export {
   approximationResult,
@@ -96,6 +96,28 @@ export {
   type SensorReadoutArchitecture,
   type SourcedSensorArchitectureFact
 } from "./sensor/architecture.js";
+
+export {
+  parseCaptureModeProfile,
+  resolveCaptureMode,
+  type CaptureModeAcquisition,
+  type CaptureModeDefinition,
+  type CaptureModeDependency,
+  type CaptureModePerFrameSampling,
+  type CaptureModeProfile,
+  type CaptureModeReconstructionStage,
+  type CaptureModeSampleCombinationDomain,
+  type CaptureModeSensorOffsetNativeSamples,
+  type DeclaredEffectiveCaptureSampling,
+  type FixedMultiFrameCaptureAcquisition,
+  type GroupedNativeCaptureSampling,
+  type NativeEffectiveCaptureSampling,
+  type ResolveCaptureModeInput,
+  type ResolvedCaptureMode,
+  type SingleFrameCaptureAcquisition,
+  type SourcedCaptureModeFact,
+  type VariableMultiFrameCaptureAcquisition
+} from "./sensor/capture-mode.js";
 
 export {
   calculateSensorReadoutTiming,
