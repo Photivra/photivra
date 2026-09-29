@@ -707,6 +707,109 @@ describe(
       ).toBe(false);
     });
 
+    it("rejects consumed/malformed local timing bindings", () => {
+      expect(() =>
+        integrateStationarySensorRateOverLocalExposure({
+          rate: eqeRate(),
+          exposureBinding: {
+            ...binding(),
+            temporalIntegrationApplied:
+              true
+          } as never,
+          stationarityProfile:
+            stationarity()
+        })
+      ).toThrow(
+        "must remain an unintegrated local timing binding"
+      );
+    });
+
+    it("requires exact A/W electrical identity and forbids it on EQE bindings", () => {
+      expect(() =>
+        integrateStationarySensorRateOverLocalExposure({
+          rate:
+            currentRate(),
+          exposureBinding: {
+            ...binding(
+              "responsivity-photocurrent"
+            ),
+            rateIdentity: {
+              ...binding(
+                "responsivity-photocurrent"
+              ).rateIdentity,
+              electricalApplicabilityProfileId:
+                "other-electrical"
+            }
+          },
+          stationarityProfile:
+            stationarity(
+              "responsivity-photocurrent"
+            )
+        })
+      ).toThrow(
+        "electrical applicability identity"
+      );
+
+      expect(() =>
+        integrateStationarySensorRateOverLocalExposure({
+          rate: eqeRate(),
+          exposureBinding: {
+            ...binding(),
+            rateIdentity: {
+              ...binding().rateIdentity,
+              electricalApplicabilityProfileId:
+                "illegal-electrical"
+            }
+          },
+          stationarityProfile:
+            stationarity()
+        })
+      ).toThrow(
+        "must not carry an A/W electrical"
+      );
+    });
+
+    it("fails closed on A/W charge overflow", () => {
+      expect(() =>
+        integrateStationarySensorRateOverLocalExposure({
+          rate: currentRate({
+            photocurrentMagnitudeAmperes:
+              Number.MAX_VALUE
+          }),
+          exposureBinding: {
+            ...binding(
+              "responsivity-photocurrent"
+            ),
+            localExposureWindow: {
+              ...binding(
+                "responsivity-photocurrent"
+              ).localExposureWindow,
+              endOffsetSecondsFromOpeningReference:
+                2
+            },
+            localExposureDurationSeconds:
+              1.998
+          },
+          stationarityProfile:
+            stationarity(
+              "responsivity-photocurrent",
+              {
+                localExposureWindow: {
+                  timeReference:
+                    "first-opening-boundary-phase",
+                  startOffsetSecondsFromOpeningReference:
+                    0.002,
+                  endOffsetSecondsFromOpeningReference:
+                    2
+                }
+              }
+            )
+        })
+      ).toThrow(
+        "constant-current temporal integration must remain finite"
+      );
+    });
+
     it("validates stationarity profile schema and approximation limitation", () => {
       expect(() =>
         parseSensorRateTemporalStationarityProfile({
