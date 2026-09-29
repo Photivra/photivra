@@ -1345,6 +1345,40 @@ The current AA point-splitting kernel is a normalized, wavelength-invariant spat
 
 As with the spatial and spectral planners individually, no source-independent convergence/error estimate is reported. Reference work should test convergence in the actual downstream integrand by increasing spatial and/or wavelength sampling.
 
+## Sensor response application compatibility
+
+Use `assessSensorResponseApplicationCompatibility()` before any future sensor-response conversion. The assessment is deliberately a **structural gate**, not a response application function.
+
+It requires an evidence-backed `SensorResponseApplicationProfile` that binds one exact spectral-response profile/channel to the sampling-aperture and optical-stack identities used by the spatial plan. It also declares:
+
+- the response's incident-area normalization;
+- whether a single wavelength-only response can be treated as uniform/separable over the geometric sensitive aperture;
+- how response reference conditions are handled.
+
+The caller separately declares whether the supplied radiometric field is at the `sensor-package-incident` or `site-incident` response reference plane. That declaration carries provenance.
+
+A response scope and source plane must match exactly:
+
+- `sensor-package-incident-effective-channel-response` requires a sensor-package-incident source;
+- site-incident effective response and separable channel-filter × detector-EQE require a site-incident source.
+
+The current spatio-spectral reducer integrates **geometric-sensitive-aperture** flux only. Therefore the first compatibility gate accepts response application only when the response's incident-area basis is that same geometric sensitive aperture and its declared area matches. A response normalized to the full site cell or an effective collection area is reported as blocked rather than silently reused.
+
+This distinction is important for common image-sensor QE conventions: a total-pixel QE can be defined against photons incident on the whole pixel area and may therefore already include fill-factor and microlens effects. Such a response is not interchangeable with a curve normalized to photons incident only on the geometric sensitive aperture.
+
+Spatial response is a separate gate as well. Reducing the field spatially before applying one scalar response (R(λ)) assumes response is effectively uniform/separable over the integrated aperture. If that is not established, the gate blocks post-spatial application because the physically correct model may require (R(λ,x,y)) at the original spatial nodes.
+
+Reference conditions are also fail-closed. With `exact-match-required`, the response must declare reference conditions and the caller must provide matching operating temperature, incidence angle, and/or polarization for every condition present in that reference. `assume-compatible` is allowed only as an explicit evidence-backed approximation with a limitation.
+
+An unresolved wavelength basis blocks the gate.
+
+A successful assessment reports the future signal path:
+
+- EQE and filter×EQE → `photon-rate-to-electrons`;
+- A/W responsivity → `radiant-power-to-current`.
+
+Even a successful assessment keeps `signalConversionAuthorized: false`. Response linearity/dynamic-range validity is not yet assessed, and no response, photon/electron, current, temporal, noise, ADC, RAW, or reconstruction calculation is performed.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
