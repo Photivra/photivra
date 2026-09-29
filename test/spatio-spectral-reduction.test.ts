@@ -706,17 +706,19 @@ describe(
           )
         }).value;
 
-      expect(
-        result.perWavelength[0]
-          ?.geometricApertureIncidentSpectralFluxWattsPerNanometer
-      ).toBeCloseTo(
+      const expectedSpectralFlux =
         value *
-          (
-            480_000 *
-            1e-12
-          ),
-        -285
-      );
+        (
+          480_000 *
+          1e-12
+        );
+      const actualSpectralFlux =
+        result.perWavelength[0]
+          ?.geometricApertureIncidentSpectralFluxWattsPerNanometer;
+      expect(
+        (actualSpectralFlux ?? 0) /
+          expectedSpectralFlux
+      ).toBeCloseTo(1, 12);
       expect(
         Number.isFinite(
           result
