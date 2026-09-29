@@ -96,6 +96,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [sensor spatial-sample reduction](docs/USAGE.md#sensor-spatial-sample-reduction), reducing explicitly identified nonnegative linear node values in relative or physical irradiance domains without claiming CFA spectral filtering or RAW conversion;
 - [sensor spectral-response profiles](docs/USAGE.md#sensor-spectral-response), binding reusable wavelength-dependent channel response data to exact color-sampling IDs without inferring spectra from CFA labels;
 - [sensor spectral quadrature](docs/USAGE.md#sensor-spectral-quadrature), creating response-knot-aware, bounded-midpoint wavelength plans with explicit dλ while keeping response application and source-spectrum integration separate;
+- [sensor spatio-spectral irradiance reduction](docs/USAGE.md#sensor-spatio-spectral-irradiance-reduction), composing explicit W/m^2/nm source samples over spatial and wavelength quadrature into pre-response irradiance/incident-flux integrals;
 - [orthogonal capture-mode profiles](docs/USAGE.md#capture-mode-profiles), separating acquisition sequence, per-frame sampling, sensor-shift sequence, reconstruction stages, processed raster, and final output geometry;
 - [capture-specific native sensor readout scan timing](docs/USAGE.md#sensor-readout-timing), with separately evidenced total data-readout duration and rolling spatial timing skew;
 - [readout/exposure spatial linkage assessment](docs/USAGE.md#readoutexposure-spatial-linkage), for evidence-backed same/reversed normalized phase relationships between rolling readout and electronic exposure boundaries without asserting absolute synchronization;
@@ -204,7 +205,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.49.0`
+- Engine API contract: `0.50.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 

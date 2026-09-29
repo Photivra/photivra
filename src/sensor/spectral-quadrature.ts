@@ -473,6 +473,476 @@ function planSegments(
   };
 }
 
+const SPECTRAL_VALIDATION_TOLERANCE = 1e-10;
+
+function requireNonNegativeSafeInteger(
+  value: unknown,
+  path: string
+): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value < 0
+  ) {
+    throw new InvalidScientificInputError(
+      path + " must be a non-negative safe integer."
+    );
+  }
+  return value;
+}
+
+function approximatelyEqual(
+  actual: number,
+  expected: number,
+  tolerance = SPECTRAL_VALIDATION_TOLERANCE
+): boolean {
+  const scale = Math.max(
+    1,
+    Math.abs(actual),
+    Math.abs(expected)
+  );
+  return (
+    Math.abs(actual - expected) <=
+    tolerance * scale
+  );
+}
+
+export function validateSensorSpectralQuadrature(
+  quadrature: SensorSpectralQuadrature
+): Map<number, SensorSpectralQuadratureNode> {
+  if (
+    typeof quadrature !== "object" ||
+    quadrature === null ||
+    !Array.isArray(quadrature.nodes)
+  ) {
+    throw new InvalidScientificInputError(
+      "spectralQuadrature must contain a nodes array."
+    );
+  }
+
+  for (const [field, value] of [
+    ["profileId", quadrature.profileId],
+    [
+      "colorSamplingProfileId",
+      quadrature.colorSamplingProfileId
+    ],
+    ["channelId", quadrature.channelId]
+  ] as const) {
+    if (
+      typeof value !== "string" ||
+      value.trim().length === 0
+    ) {
+      throw new InvalidScientificInputError(
+        "spectralQuadrature." +
+          field +
+          " must be a non-empty string."
+      );
+    }
+  }
+
+  if (
+    quadrature.wavelengthBasis !== "air" &&
+    quadrature.wavelengthBasis !== "vacuum" &&
+    quadrature.wavelengthBasis !== "unspecified"
+  ) {
+    throw new InvalidScientificInputError(
+      "spectralQuadrature.wavelengthBasis is invalid."
+    );
+  }
+
+  const rangeMinimum = requirePositiveFinite(
+    quadrature.wavelengthRangeNanometers.minimum,
+    "spectralQuadrature.wavelengthRangeNanometers.minimum"
+  );
+  const rangeMaximum = requirePositiveFinite(
+    quadrature.wavelengthRangeNanometers.maximum,
+    "spectralQuadrature.wavelengthRangeNanometers.maximum"
+  );
+  if (!(rangeMinimum < rangeMaximum)) {
+    throw new InvalidScientificInputError(
+      "spectralQuadrature wavelength range minimum must be less than maximum."
+    );
+  }
+
+  const maximumSubintervalWidthNanometers =
+    requirePositiveFinite(
+      quadrature.maximumSubintervalWidthNanometers,
+      "spectralQuadrature.maximumSubintervalWidthNanometers"
+    );
+
+  if (
+    !Array.isArray(
+      quadrature.segmentBoundariesNanometers
+    ) ||
+    quadrature.segmentBoundariesNanometers.length <
+      2
+  ) {
+    throw new InvalidScientificInputError(
+      "spectralQuadrature.segmentBoundariesNanometers must contain at least two boundaries."
+    );
+  }
+
+  let previousBoundary =
+    Number.NEGATIVE_INFINITY;
+  quadrature.segmentBoundariesNanometers.forEach(
+    (boundary, index) => {
+      const parsed = requirePositiveFinite(
+        boundary,
+        "spectralQuadrature.segmentBoundariesNanometers[" +
+          index +
+          "]"
+      );
+      if (parsed <= previousBoundary) {
+        throw new InvalidScientificInputError(
+          "spectralQuadrature.segmentBoundariesNanometers must be strictly increasing."
+        );
+      }
+      previousBoundary = parsed;
+    }
+  );
+
+  const segmentCount =
+    requireNonNegativeSafeInteger(
+      quadrature.segmentCount,
+      "spectralQuadrature.segmentCount"
+    );
+  if (
+    segmentCount <= 0 ||
+    segmentCount !==
+      quadrature.segmentBoundariesNanometers.length -
+        1
+  ) {
+    throw new InvalidScientificInputError(
+      "spectralQuadrature.segmentCount must be positive and match the boundary count."
+    );
+  }
+
+  if (
+    !approximatelyEqual(
+      quadrature.segmentBoundariesNanometers[0]!,
+      rangeMinimum
+    ) ||
+    !approximatelyEqual(
+      quadrature.segmentBoundariesNanometers[
+        quadrature.segmentBoundariesNanometers.length -
+          1
+      ]!,
+      rangeMaximum
+    )
+  ) {
+    throw new InvalidScientificInputError(
+      "spectralQuadrature segment boundaries must exactly span the requested wavelength range."
+    );
+  }
+
+  const totalNodeCount =
+    requireNonNegativeSafeInteger(
+      quadrature.totalNodeCount,
+      "spectralQuadrature.totalNodeCount"
+    );
+  if (
+    totalNodeCount <= 0 ||
+    totalNodeCount !== quadrature.nodes.length
+  ) {
+    throw new InvalidScientificInputError(
+      "spectralQuadrature.totalNodeCount must be positive and exactly match spectralQuadrature.nodes.length."
+    );
+  }
+  if (
+    totalNodeCount >
+    MAX_SPECTRAL_QUADRATURE_NODES
+  ) {
+    throw new InvalidScientificInputError(
+      "spectralQuadrature.totalNodeCount exceeds the spectral quadrature safety limit."
+    );
+  }
+
+  if (
+    quadrature.responseApplicationPerformed !==
+      false ||
+    quadrature.responseValuesIncluded !== false ||
+    quadrature.wavelengthIntegrationPerformed !==
+      false ||
+    quadrature.continuousSpectralDensityQuadratureOnly !==
+      true ||
+    quadrature.discreteLineSpectrumIncluded !==
+      false
+  ) {
+    throw new InvalidScientificInputError(
+      "spectralQuadrature semantics are incompatible with pre-response continuous-density composition."
+    );
+  }
+
+  const span =
+    rangeMaximum - rangeMinimum;
+  const nodesByIndex =
+    new Map<number, SensorSpectralQuadratureNode>();
+  const seenSegmentSubdivisions =
+    new Set<string>();
+  const segmentSubdivisionCounts =
+    new Map<number, number>();
+  const segmentSeenCounts =
+    new Map<number, number>();
+  let measureSum = 0;
+  let normalizedWeightSum = 0;
+
+  quadrature.nodes.forEach(
+    (node, nodeArrayIndex) => {
+      const spectralSampleIndex =
+        requireNonNegativeSafeInteger(
+          node.spectralSampleIndex,
+          "spectralQuadrature.nodes[" +
+            nodeArrayIndex +
+            "].spectralSampleIndex"
+        );
+      if (
+        nodesByIndex.has(
+          spectralSampleIndex
+        )
+      ) {
+        throw new InvalidScientificInputError(
+          "spectralQuadrature contains duplicate spectralSampleIndex values."
+        );
+      }
+
+      const segmentIndex =
+        requireNonNegativeSafeInteger(
+          node.segmentIndex,
+          "spectralQuadrature.nodes[" +
+            nodeArrayIndex +
+            "].segmentIndex"
+        );
+      if (segmentIndex >= segmentCount) {
+        throw new InvalidScientificInputError(
+          "spectralQuadrature node segmentIndex is outside the declared segment range."
+        );
+      }
+
+      const subdivisionIndex =
+        requireNonNegativeSafeInteger(
+          node.subdivisionIndex,
+          "spectralQuadrature.nodes[" +
+            nodeArrayIndex +
+            "].subdivisionIndex"
+        );
+      const segmentSubdivisionCount =
+        requireNonNegativeSafeInteger(
+          node.segmentSubdivisionCount,
+          "spectralQuadrature.nodes[" +
+            nodeArrayIndex +
+            "].segmentSubdivisionCount"
+        );
+      if (
+        segmentSubdivisionCount <= 0 ||
+        subdivisionIndex >=
+          segmentSubdivisionCount
+      ) {
+        throw new InvalidScientificInputError(
+          "spectralQuadrature node subdivision identity is invalid."
+        );
+      }
+
+      const priorSegmentCount =
+        segmentSubdivisionCounts.get(
+          segmentIndex
+        );
+      if (
+        priorSegmentCount !== undefined &&
+        priorSegmentCount !==
+          segmentSubdivisionCount
+      ) {
+        throw new InvalidScientificInputError(
+          "spectralQuadrature nodes disagree on a segment subdivision count."
+        );
+      }
+      segmentSubdivisionCounts.set(
+        segmentIndex,
+        segmentSubdivisionCount
+      );
+
+      const subdivisionKey =
+        segmentIndex +
+        ":" +
+        subdivisionIndex;
+      if (
+        seenSegmentSubdivisions.has(
+          subdivisionKey
+        )
+      ) {
+        throw new InvalidScientificInputError(
+          "spectralQuadrature contains duplicate segment/subdivision identities."
+        );
+      }
+      seenSegmentSubdivisions.add(
+        subdivisionKey
+      );
+      segmentSeenCounts.set(
+        segmentIndex,
+        (segmentSeenCounts.get(
+          segmentIndex
+        ) ?? 0) + 1
+      );
+
+      const wavelengthNanometers =
+        requirePositiveFinite(
+          node.wavelengthNanometers,
+          "spectralQuadrature.nodes[" +
+            nodeArrayIndex +
+            "].wavelengthNanometers"
+        );
+      const wavelengthMeasureNanometers =
+        requirePositiveFinite(
+          node.wavelengthMeasureNanometers,
+          "spectralQuadrature.nodes[" +
+            nodeArrayIndex +
+            "].wavelengthMeasureNanometers"
+        );
+      const normalizedWavelengthWeight =
+        requirePositiveFinite(
+          node.normalizedWavelengthWeight,
+          "spectralQuadrature.nodes[" +
+            nodeArrayIndex +
+            "].normalizedWavelengthWeight"
+        );
+
+      const segmentMinimum =
+        quadrature.segmentBoundariesNanometers[
+          segmentIndex
+        ]!;
+      const segmentMaximum =
+        quadrature.segmentBoundariesNanometers[
+          segmentIndex + 1
+        ]!;
+      const expectedMeasure =
+        (segmentMaximum -
+          segmentMinimum) /
+        segmentSubdivisionCount;
+      const expectedWavelength =
+        segmentMinimum +
+        (subdivisionIndex + 0.5) *
+          expectedMeasure;
+      const expectedNormalizedWeight =
+        expectedMeasure / span;
+
+      if (
+        !approximatelyEqual(
+          wavelengthMeasureNanometers,
+          expectedMeasure
+        ) ||
+        !approximatelyEqual(
+          wavelengthNanometers,
+          expectedWavelength
+        ) ||
+        !approximatelyEqual(
+          normalizedWavelengthWeight,
+          expectedNormalizedWeight
+        )
+      ) {
+        throw new InvalidScientificInputError(
+          "spectralQuadrature node geometry/measure does not match its declared segment/subdivision identity."
+        );
+      }
+
+      if (
+        wavelengthMeasureNanometers >
+          maximumSubintervalWidthNanometers &&
+        !approximatelyEqual(
+          wavelengthMeasureNanometers,
+          maximumSubintervalWidthNanometers
+        )
+      ) {
+        throw new InvalidScientificInputError(
+          "spectralQuadrature node width exceeds maximumSubintervalWidthNanometers."
+        );
+      }
+
+      measureSum +=
+        wavelengthMeasureNanometers;
+      normalizedWeightSum +=
+        normalizedWavelengthWeight;
+      if (
+        !Number.isFinite(measureSum) ||
+        !Number.isFinite(
+          normalizedWeightSum
+        )
+      ) {
+        throw new InvalidScientificInputError(
+          "spectralQuadrature aggregate measures must remain finite."
+        );
+      }
+
+      nodesByIndex.set(
+        spectralSampleIndex,
+        node
+      );
+    }
+  );
+
+  for (
+    let spectralSampleIndex = 0;
+    spectralSampleIndex < totalNodeCount;
+    spectralSampleIndex += 1
+  ) {
+    if (
+      !nodesByIndex.has(
+        spectralSampleIndex
+      )
+    ) {
+      throw new InvalidScientificInputError(
+        "spectralQuadrature spectralSampleIndex values must form the exact contiguous range 0..totalNodeCount-1."
+      );
+    }
+  }
+
+  for (
+    let segmentIndex = 0;
+    segmentIndex < segmentCount;
+    segmentIndex += 1
+  ) {
+    const expected =
+      segmentSubdivisionCounts.get(
+        segmentIndex
+      );
+    const seen =
+      segmentSeenCounts.get(
+        segmentIndex
+      ) ?? 0;
+    if (
+      expected === undefined ||
+      seen !== expected
+    ) {
+      throw new InvalidScientificInputError(
+        "spectralQuadrature must contain every declared subdivision exactly once."
+      );
+    }
+  }
+
+  if (
+    !approximatelyEqual(
+      measureSum,
+      span
+    ) ||
+    !approximatelyEqual(
+      normalizedWeightSum,
+      1
+    ) ||
+    !approximatelyEqual(
+      quadrature.wavelengthMeasureSumNanometers,
+      measureSum
+    ) ||
+    !approximatelyEqual(
+      quadrature.normalizedWavelengthWeightSum,
+      normalizedWeightSum
+    )
+  ) {
+    throw new InvalidScientificInputError(
+      "spectralQuadrature aggregate wavelength measures/weights are inconsistent."
+    );
+  }
+
+  return nodesByIndex;
+}
+
 /**
  * Builds deterministic wavelength quadrature nodes for one exact sensor
  * response channel without applying the response to a source spectrum.

@@ -124,6 +124,12 @@ The sensor/capture foundation has explicit semantics. Preserve them.
 - Spectral quadrature is a wavelength-measure plan only. Do not apply sensor response in the planner or collapse EQE and A/W responsivity into one downstream signal formula.
 - Future spectral signal composition must match responseScope to the source plane and collection-area semantics so upstream transmission is neither omitted nor double-counted.
 - The first spectral-quadrature contract is for continuous spectral densities. Discrete/delta-like line spectra require a separate explicit representation rather than hidden point-mass approximations.
+- Spatio-spectral reduction requires exact colorSamplingProfileId and channelId agreement between spatial and spectral plans. Never compose plans merely because their channel labels happen to match.
+- Spatio-spectral source values use W/m^2/nm at every explicit spatial × spectral node. Multiply by d-lambda in nm directly; do not introduce a 1e-9 factor unless the spectral-density wavelength unit is also converted from per-nanometre to per-metre.
+- The spatial × spectral Cartesian product has its own safety bound. Individual spatial/spectral plans being below their own caps does not make their product safe to materialize.
+- Spatio-spectral geometric aperture integration remains a geometric incident-flux calculation. Do not relabel geometric aperture area as effective radiometric collection area.
+- The first spatio-spectral reducer stops before response application. It may consume a response-derived wavelength plan, but must not apply QE, A/W responsivity, channel-filter transmission, temporal exposure, photons/electrons, current, noise, ADC, or RAW conversion.
+- Response scope/source-plane matching remains an explicit later gate. Do not infer that a pre-AA source field automatically satisfies site-incident or sensor-package-incident response scope.
 - Capture-mode profiles must preserve that distinction: do not relabel `NativeImageRaster` as a photosite raster or infer physical photosite count from native, processed, or final output megapixels.
 - Model capture modes on orthogonal axes (acquisition sequence, per-frame sampling, optional inter-frame sensor offsets, reconstruction stages, processed raster, dependencies) rather than one mutually exclusive marketing-style mode enum.
 - Grouped sampling does not establish charge-domain binning; the combination domain stays unknown unless separately evidenced as charge-domain, pre-conversion analog, or post-conversion digital.
