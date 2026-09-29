@@ -223,12 +223,7 @@ function spectralProfile(
   };
 }
 
-function applicationProfile(
-  responseKind:
-    | "direct-eqe"
-    | "separable-eqe"
-    | "responsivity" = "direct-eqe"
-): SensorResponseApplicationProfile {
+function applicationProfile(): SensorResponseApplicationProfile {
   return {
     schemaVersion: "0.1.0",
     profileId: "application",
@@ -421,7 +416,7 @@ function buildPipeline(
     assessSensorResponseApplicationCompatibility({
       reduction,
       applicationProfile:
-        applicationProfile(kind),
+        applicationProfile(),
       sourcePlane: {
         value: "site-incident",
         evidence: evidence(
