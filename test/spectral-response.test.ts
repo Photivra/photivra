@@ -418,4 +418,67 @@ describe("sensor spectral response foundation", () => {
     expect(result.value.electronsCalculated).toBe(false);
     expect(result.value.rawCodeValueProduced).toBe(false);
   });
+  it("fails closed on empty/missing channel and invalid wavelength inputs", () => {
+    expect(() =>
+      resolveSensorSpectralResponseAtWavelength({
+        colorSamplingProfile: colorProfile(),
+        spectralResponseProfile: profile(),
+        channelId: "",
+        wavelengthNanometers: 500,
+        wavelengthBasis: "air"
+      })
+    ).toThrow("channelId must be a non-empty string");
+
+    const missing = profile();
+    const withoutBlue: SensorSpectralResponseProfile = {
+      ...missing,
+      channels: missing.channels.filter(
+        (entry) => entry.channelId !== "blue"
+      )
+    };
+    expect(() =>
+      resolveSensorSpectralResponseAtWavelength({
+        colorSamplingProfile: colorProfile(),
+        spectralResponseProfile: withoutBlue,
+        channelId: "blue",
+        wavelengthNanometers: 500,
+        wavelengthBasis: "air"
+      })
+    ).toThrow("No spectral response is declared");
+
+    expect(() =>
+      resolveSensorSpectralResponseAtWavelength({
+        colorSamplingProfile: colorProfile(),
+        spectralResponseProfile: profile(),
+        channelId: "red",
+        wavelengthNanometers: Number.NaN,
+        wavelengthBasis: "air"
+      })
+    ).toThrow("wavelengthNanometers must be finite");
+
+    expect(() =>
+      resolveSensorSpectralResponseAtWavelength({
+        colorSamplingProfile: colorProfile(),
+        spectralResponseProfile: profile(),
+        channelId: "red",
+        wavelengthNanometers: 500,
+        wavelengthBasis: "invalid" as never
+      })
+    ).toThrow("wavelengthBasis is invalid");
+  });
+
+  it("rejects mismatched wavelength bases in separable response data", () => {
+    const input = profile() as unknown as Record<string, unknown>;
+    const channels =
+      input.channels as Array<Record<string, unknown>>;
+    const greenB = channels[2]!;
+    const detector =
+      greenB.detectorExternalQuantumEfficiency as Record<string, unknown>;
+    detector.wavelengthBasis = "vacuum";
+
+    expect(() =>
+      parseSensorSpectralResponseProfile(input)
+    ).toThrow("same wavelength basis");
+  });
+
 });
