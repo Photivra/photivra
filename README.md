@@ -132,6 +132,7 @@ The root engine now exposes standalone APIs for:
 - evidence-backed native-effective-raster ↔ color-site-grid bindings plus capture-mode structural-source resolution with explicit grouped-mode phase and channel-site counts;
 - evidence-backed sensor optical-stack profiles with ordered physical components, microlens presence metadata, and separately declared effective anti-aliasing spatial response;
 - evidence-backed sensor site-center registration plus geometric sampling-aperture profiles with unresolved/resolved footprint semantics and derived geometric sensitive-area fraction;
+- evidence-backed sensor spectral-response profiles plus deterministic bounded spectral-quadrature plans that preserve wavelength measure separately from response application and source-spectrum integration;
 - evidence-backed capture-mode profiles with single/fixed/variable multi-frame acquisition, native/grouped/declared per-frame sampling, optional sensor-shift offsets, reconstruction stages, and processed-image raster separation;
 - capture-specific native readout scan timing with explicit provenance and no output-resolution inference;
 - capture exposure-window timing with independent opening/closing boundary schedules;
