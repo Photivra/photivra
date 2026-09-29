@@ -85,6 +85,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [pixel pitch](docs/USAGE.md#pixel-pitch);
 - [sensor imaging-area, native-raster, crop-factor, megapixel, and 2D sampling metrics](docs/USAGE.md#sensor-imaging-area-and-native-raster);
 - [provenance-aware sensor architecture/capability metadata](docs/USAGE.md#sensor-architecture-metadata);
+- [capture-specific native sensor readout scan timing](docs/USAGE.md#sensor-readout-timing), with separately evidenced total data-readout duration and rolling spatial timing skew;
 - [capture orientation, active sensor area, and output geometry](docs/USAGE.md#capture-orientation-active-area-and-output-geometry);
 - explicit oriented-physical-raster ↔ pre-orientation image-plane metric coordinate transforms for renderer/lens-field integration;
 - [centered crop and subject-height framing crop](docs/USAGE.md#centered-crop-and-subject-framing-crop);
@@ -113,9 +114,10 @@ The root engine now exposes standalone APIs for:
 - off-center/asymmetric active-capture FOV;
 - diagonal-based 35 mm-equivalent focal length;
 - evidence-backed sensor architecture metadata;
+- capture-specific native readout scan timing with explicit provenance and no output-resolution inference;
 - radiometry prerequisite/readiness assessment.
 
-These contracts are **not all composed into `simulatePocCamera()` yet**. POC API 0.20 now composes staged capture geometry through final output/viewing semantics: orientation, active-capture rectangles, output crop/raster, active/output FOV, active-capture 35 mm-equivalent focal length, viewing-based CoC against the final retained physical area, orientation-aware subject framing, and explicit output pixel scaling. Sensor-architecture metadata and radiometry-readiness profiles remain standalone and are not yet composed.
+These contracts are **not all composed into `simulatePocCamera()` yet**. POC API 0.20 now composes staged capture geometry through final output/viewing semantics: orientation, active-capture rectangles, output crop/raster, active/output FOV, active-capture 35 mm-equivalent focal length, viewing-based CoC against the final retained physical area, orientation-aware subject framing, and explicit output pixel scaling. Sensor-architecture metadata, sensor readout scan timing, and radiometry-readiness profiles remain standalone and are not yet composed. Readout timing stays in invariant native sensor coordinates; physical orientation is an explicit downstream transform.
 
 The POC exposes X/Y sampling diagnostics but still uses one representative horizontal pitch internally for several pixel-domain calculations; it therefore rejects geometry whose X/Y pitch differs by more than 1% rather than silently producing directional error.
 
@@ -179,7 +181,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.5.1`
-- Engine API contract: `0.34.0`
+- Engine API contract: `0.35.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
@@ -203,6 +205,7 @@ Photivra deliberately avoids claiming more than the current models support.
 - Generic lateral CA is represented as independent radial field mapping for abstract RGB renderer channels. It is not a spectral lens model, sensor-CFA calibration, longitudinal-CA model, or named-lens profile.
 - Projected subject motion follows a representative point under constant linear velocity. It does not yet model scale blur of an extended object moving substantially along the optical axis.
 - The legacy stabilization-equivalent camera-shake API remains one global yaw/pitch image-plane vector. A separate low-level rotation-only mapping now models field-position-dependent yaw/pitch/roll image motion; camera translation/parallax, real IBIS/OIS behavior, and composed rolling-readout integration remain unmodeled.
+- Native sensor readout timing currently uses a caller-declared uniform-linear single-axis spatial phase approximation. Capture data-readout duration and rolling spatial skew are distinct evidence-backed facts; the model does not infer one effective raster row/column as one physical hardware readout line and does not yet define exposure windows, shutter-curtain timing, non-uniform/segmented readout, or rolling-shutter image distortion.
 - The Airy diagnostic assumes an ideal circular pupil. The PSF foundation keeps circular diffraction and geometric defocus as separately named diagnostics; it does not calculate a combined PSF, and polygon aperture geometry does not produce a polygon diffraction PSF.
 - Signal/noise primitives require caller-supplied photon/electron quantities. The radiometry-readiness API can assess declared prerequisites, but it does not derive photons or enable photon/noise output in the composed POC.
 - The composed POC still uses one representative pixel-pitch path internally and therefore rejects sensor geometry whose X/Y sample pitch differs by more than 1%; lower-level geometry APIs already preserve independent X/Y pitch.

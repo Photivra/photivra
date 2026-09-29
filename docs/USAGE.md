@@ -661,6 +661,81 @@ Scalar facts may cite multiple evidence records. Multi-valued capabilities such 
 
 Unknown facts should be omitted instead of inferred. Architecture metadata remains descriptive only: BSI, stacking, readout family, and CFA family do not directly change FOV, crop factor, pixel pitch, exposure, noise, or dynamic range. A separate documented downstream physical/calibration model is required before any such effect can be claimed.
 
+## Sensor readout timing
+
+Use `calculateSensorReadoutTiming()` for a capture-specific native sensor scan schedule without conflating sensor readout with shutter-curtain timing:
+
+```ts
+import {
+  calculateSensorReadoutTiming,
+  transformNativeRasterVectorToOriented
+} from "@photivra/engine";
+
+const timing = calculateSensorReadoutTiming({
+  nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 },
+  activeCaptureRect: { x: 0, y: 0, width: 6000, height: 4000 },
+  shutterMechanism: "electronic",
+  readout: {
+    readoutMode: "rolling",
+    captureReadoutDurationSeconds: {
+      value: 0.024,
+      unit: "s",
+      evidence: [
+        {
+          sourceOrigin: "manufacturer",
+          sourceReference: "manufacturer-spec:example",
+          reuseStatus: "factual-reference-only"
+        }
+      ]
+    },
+    scanDirectionNative: {
+      value: "top-to-bottom",
+      evidence: [
+        {
+          sourceOrigin: "manufacturer",
+          sourceReference: "manufacturer-spec:direction-example",
+          reuseStatus: "factual-reference-only"
+        }
+      ]
+    },
+    spatialSamplingSkewSeconds: {
+      value: 0.020,
+      unit: "s",
+      evidence: [
+        {
+          sourceOrigin: "third-party",
+          sourceReference: "measurement:spatial-skew-example",
+          reuseStatus: "factual-reference-only"
+        }
+      ]
+    }
+  },
+  samplePointsNative: [
+    { x: 3000, y: 0 },
+    { x: 3000, y: 2000 },
+    { x: 3000, y: 4000 }
+  ]
+});
+
+console.log(timing.value.samples);
+console.log(timing.value.scan?.unitVectorNative);
+
+const orientedDirection = transformNativeRasterVectorToOriented({
+  vector: timing.value.scan?.unitVectorNative ?? { x: 0, y: 0 },
+  orientation: "portrait-clockwise"
+});
+```
+
+The two timing facts are intentionally separate. `captureReadoutDurationSeconds` records the selected capture's declared data-readout duration; `spatialSamplingSkewSeconds` drives only the spatial phase span of the current rolling approximation. Photivra does not assume those values are equal.
+
+Global readout declares only the capture data-readout duration. Its spatial phase offset is zero everywhere even when that duration is non-zero.
+
+The rolling schedule is a `uniform-linear-single-axis` approximation in invariant native sensor coordinates. `NativeImageRaster` remains an effective image-sampling grid, so this API does not claim that each raster row/column corresponds to one physical photodiode row or hardware readout line. Non-uniform, segmented, center-out, interleaved and multi-tap readout patterns are not represented by this first model.
+
+Physical camera orientation is deliberately excluded from the timing input. Use the existing native↔oriented vector transform when a downstream renderer needs the scan direction in oriented capture coordinates. Output crop/resolution is also excluded and therefore cannot silently change native readout timing.
+
+Active-crop/capture-mode timing must be supplied explicitly; the engine never scales full-frame timing from crop dimensions. Shutter mechanism is recorded independently and does not modify the schedule. Mechanical-curtain travel, EFCS timing, local exposure windows, rolling-shutter geometric distortion, flash/flicker interaction and motion integration remain future work.
+
 ## Capture orientation, active area, and output geometry
 
 Use `resolveCaptureGeometry()` to keep physical sensor identity, active capture, physical camera orientation, and final digital output geometry separate:

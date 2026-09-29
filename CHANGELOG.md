@@ -4,6 +4,14 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ## Unreleased
 
+### Added
+
+- Added a standalone native-sensor readout scan timing foundation with separately evidenced seconds-valued capture data-readout duration and rolling spatial-sampling skew, native scan direction, active-capture support, pointwise native phase diagnostics, and independent mechanical/EFCS/electronic shutter-mechanism metadata. The first model is explicitly a uniform-linear single-axis approximation and does not infer physical readout lines from the effective image raster.
+
+### Changed
+
+- Engine API contract advances to `0.35.0`. The composed POC remains `0.20.0`; readout timing is additive standalone engine science and is not yet composed into exposure windows, rolling-shutter warping, or renderer behavior.
+
 ### Fixed
 
 - Radial-distortion invertibility validation now uses scale-normalized, cancellation-resistant stationary-point solving so near-linear high-order profiles cannot hide an interior fold; unsafe derived normalized radii and malformed/sparse batch points fail closed as scientific input errors.

@@ -99,6 +99,8 @@ Exposure duration and sensor readout timing are independent:
 
 This allows later rolling-shutter work to consume the same time-parameterized camera-motion model used for global exposure.
 
+The standalone `calculateSensorReadoutTiming()` foundation now supplies an invariant native-raster spatial readout phase schedule. Its first model is a caller-declared uniform-linear single-axis approximation with independently evidenced data-readout duration and rolling spatial skew. It does not define exposure windows or shutter-curtain motion, and it does not infer physical hardware readout lines from the effective native image raster.
+
 ## Renderer semantics
 
 Renderer implementations may use a bounded real-time preview approximation or a higher-fidelity deterministic reference evaluation, but both must consume the same engine-owned scientific contract.
