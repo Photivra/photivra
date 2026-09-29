@@ -4,7 +4,8 @@ import {
   parseSensorSpectralResponseProfile,
   resolveSensorSpectralResponseAtWavelength,
   type SensorColorSamplingProfile,
-  type SensorSpectralResponseProfile
+  type SensorSpectralResponseProfile,
+  type SpectralFractionCurve
 } from "../src/index.js";
 
 const ownedEvidence = (ref: string) =>
@@ -44,7 +45,7 @@ const colorProfile = (): SensorColorSamplingProfile => ({
 const fractionCurve = (
   values: readonly [number, number][],
   basis: "air" | "vacuum" | "unspecified" = "air"
-) => ({
+): SpectralFractionCurve => ({
   wavelengthUnit: "nm" as const,
   wavelengthBasis: basis,
   interpolation: "piecewise-linear" as const,
