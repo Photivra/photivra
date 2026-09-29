@@ -93,6 +93,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [sensor optical-stack profiles](docs/USAGE.md#sensor-optical-stack), separating physical stack-component metadata from effective AA spatial response, with explicit absent/unknown/unresolved distinctions and arbitrary normalized point-splitting kernels;
 - [sensor sampling-aperture profiles](docs/USAGE.md#sensor-sampling-aperture), explicitly registering color-site centers in native sensor physical space and resolving geometric sensitive rectangles without conflating pitch, fill area, QE, microlenses, or radiometry;
 - [sensor spatial-sampling quadrature](docs/USAGE.md#sensor-spatial-sampling-quadrature), combining AA point splitting with geometric aperture integration into deterministic native-physical source nodes and weights;
+- [sensor spatial-sample reduction](docs/USAGE.md#sensor-spatial-sample-reduction), reducing explicitly identified nonnegative linear node values in relative or physical irradiance domains without claiming CFA spectral filtering or RAW conversion;
 - [orthogonal capture-mode profiles](docs/USAGE.md#capture-mode-profiles), separating acquisition sequence, per-frame sampling, sensor-shift sequence, reconstruction stages, processed raster, and final output geometry;
 - [capture-specific native sensor readout scan timing](docs/USAGE.md#sensor-readout-timing), with separately evidenced total data-readout duration and rolling spatial timing skew;
 - [readout/exposure spatial linkage assessment](docs/USAGE.md#readoutexposure-spatial-linkage), for evidence-backed same/reversed normalized phase relationships between rolling readout and electronic exposure boundaries without asserting absolute synchronization;
@@ -200,7 +201,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.5.1`
-- Engine API contract: `0.46.0`
+- Engine API contract: `0.47.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
