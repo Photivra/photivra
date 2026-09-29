@@ -70,6 +70,26 @@ Active-capture timing is also explicit: Photivra never scales a full-frame timin
 
 Mechanical, electronic-first-curtain and fully electronic shutter mechanisms are reported independently but remain scientifically inert in this slice. The function does **not** define local exposure start/end times, mechanical curtain travel, EFCS curtain interaction, rolling-shutter image distortion, flash/flicker bands, or motion integration. Those later models must combine their own timing with this sensor schedule explicitly rather than treating sensor readout as a surrogate shutter-curtain model.
 
+## Capture exposure windows
+
+`calculateCaptureExposureWindows()` adds the next standalone timing layer after native sensor readout timing.
+
+It represents **opening and closing exposure boundaries separately**. Each boundary can currently be simultaneous or a caller-declared uniform-linear scan in invariant native sensor coordinates. The nominal exposure duration is another independent evidence-backed seconds-valued quantity.
+
+The output time reference is the **first opening-boundary phase**, not a claim that every native location has the same local exposure start. For each point, local start and end offsets are derived independently, and the engine reports local exposure duration.
+
+Mechanical, EFCS, and electronic shutter mechanisms determine only which conceptual actuator owns the opening/closing boundary. They do not invent traversal timing:
+
+- mechanical: mechanical opening and closing;
+- EFCS: electronic opening, mechanical closing;
+- electronic: electronic opening and closing.
+
+The complete active rectangle is validated so a zero/negative local exposure duration cannot hide in an unsampled region.
+
+This contract remains deliberately separate from `calculateSensorReadoutTiming()`. Sensor readout phase is not automatically an exposure boundary. It also remains separate from `calculateCameraRotationImageMapping()`: that API still accepts seconds from its existing exposure-start reference, and a later integration layer must define how local capture-window times bind to that motion time basis.
+
+The first exposure-window model does not include curtain acceleration, nonlinear or segmented electronic scheduling, flash/flicker interaction, shutter shock, EFCS-specific pupil/bokeh behavior, or rolling-shutter image distortion.
+
 ## Temporal image-formation basis
 
 The image-formation contract defines physical time in **seconds from exposure start**.

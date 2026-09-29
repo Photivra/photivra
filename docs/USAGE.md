@@ -736,6 +736,119 @@ Physical camera orientation is deliberately excluded from the timing input. Use 
 
 Active-crop/capture-mode timing must be supplied explicitly; the engine never scales full-frame timing from crop dimensions. Shutter mechanism is recorded independently and does not modify the schedule. Mechanical-curtain travel, EFCS timing, local exposure windows, rolling-shutter geometric distortion, flash/flicker interaction and motion integration remain future work.
 
+## Capture exposure-window timing
+
+Use `calculateCaptureExposureWindows()` to describe when different native-sensor locations begin and end their local exposure without conflating shutter actuation with sensor readout:
+
+```ts
+import { calculateCaptureExposureWindows } from "@photivra/engine";
+
+const windows = calculateCaptureExposureWindows({
+  nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 },
+  shutterMechanism: "electronic-first-curtain",
+  nominalExposureDurationSeconds: {
+    value: 1 / 1000,
+    unit: "s",
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference: "capture-config:example",
+        reuseStatus: "photivra-owned"
+      }
+    ]
+  },
+  opening: {
+    kind: "uniform-linear-native-scan",
+    directionNative: {
+      value: "top-to-bottom",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "timing-profile:opening-direction",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    },
+    traversalDurationSeconds: {
+      value: 0.004,
+      unit: "s",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "timing-profile:opening-traversal",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    }
+  },
+  closing: {
+    kind: "uniform-linear-native-scan",
+    directionNative: {
+      value: "top-to-bottom",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "timing-profile:closing-direction",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    },
+    traversalDurationSeconds: {
+      value: 0.004,
+      unit: "s",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "timing-profile:closing-traversal",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    }
+  },
+  samplePointsNative: [
+    { x: 3000, y: 0 },
+    { x: 3000, y: 2000 },
+    { x: 3000, y: 4000 }
+  ]
+});
+
+console.log(windows.value.samples);
+console.log(windows.value.localExposureDurationRangeSeconds);
+```
+
+The time basis is `first-opening-boundary-phase`: zero means the first spatial phase of the declared opening boundary. This deliberately avoids pretending that a spatially scanned capture has one universal local exposure-start event.
+
+Opening and closing schedules are independent. Each may currently be either:
+
+- `simultaneous`; or
+- `uniform-linear-native-scan` with its own evidence-backed native direction and traversal duration.
+
+The nominal exposure duration is a separate evidence-backed quantity. For a native point:
+
+```text
+local start = opening phase
+local end   = nominal exposure duration + closing phase
+local duration = local end - local start
+```
+
+Matched opening/closing scans with equal traversal produce constant local exposure duration. Different directions or traversal durations can intentionally produce spatially varying local duration.
+
+Photivra validates the **entire active rectangle**, not only supplied diagnostic points. Because the first schedules are affine over the native rectangle, corner extrema are sufficient to reject any declaration that would produce zero or negative local exposure duration somewhere in the capture.
+
+`shutterMechanism` determines only the conceptual boundary actuators:
+
+- `mechanical` → mechanical opening + mechanical closing;
+- `electronic-first-curtain` → electronic opening + mechanical closing;
+- `electronic` → electronic opening + electronic closing.
+
+The mechanism does not supply traversal direction or timing.
+
+This exposure-window model remains separate from `calculateSensorReadoutTiming()`. A later integration layer must explicitly bind exposure boundaries, sensor readout, and time-parameterized motion; Photivra does not assume a sensor readout phase is an exposure-start or exposure-end boundary.
+
+Physical orientation and digital output geometry remain downstream. The schedule stays in invariant native sensor coordinates and can use the existing native↔oriented vector transforms when a consumer needs presentation-oriented direction.
+
+The first model does not cover curtain acceleration, curved/nonlinear curtain travel, segmented/center-out/interleaved electronic schedules, flash/flicker interaction, shutter shock, EFCS-specific pupil/bokeh effects, or rolling-shutter image distortion.
+
 ## Capture orientation, active area, and output geometry
 
 Use `resolveCaptureGeometry()` to keep physical sensor identity, active capture, physical camera orientation, and final digital output geometry separate:
