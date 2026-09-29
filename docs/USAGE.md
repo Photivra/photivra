@@ -1494,6 +1494,44 @@ A/W spectral responsivity is rejected by this API and remains a separate radiant
 
 Response, refractive-index and quadrature uncertainties remain visible upstream but are not yet propagated into a combined electron-rate uncertainty.
 
+## A/W responsivity photocurrent conversion
+
+Use `calculateSensorResponsivityPhotocurrent()` for the sibling current-domain path when the spectral response is explicitly calibrated in **A/W**.
+
+The same structural and operating-range gates used by EQE still apply: exact response/profile linkage, matching response reference plane and area basis, spatial response uniformity/separability, linear superposition over the geometric aperture, and explicit per-spectral-bin operating-range applicability.
+
+For every spectral node Photivra computes:
+
+1. radiant-power contribution = geometric-aperture spectral flux density × `dλ`;
+2. spectral responsivity in A/W at that exact wavelength using the authoritative response resolver;
+3. photocurrent-magnitude contribution = radiant power × responsivity.
+
+The wavelength contributions are summed with Kahan compensated summation.
+
+A/W also has an additional **electrical calibration applicability** contract. `SensorResponsivityElectricalApplicabilityProfile` binds the response pipeline to the detector electrical conditions under which the A/W calibration is intended to apply:
+
+- zero-bias photovoltaic operation or reverse bias with an explicit magnitude;
+- virtual-ground current readout or a finite declared input impedance;
+- exact-match or explicit evidence-backed compatibility-approximation policy.
+
+These fields are applicability metadata, not a circuit simulator. In particular, Photivra does not use a declared input impedance to claim that a transimpedance circuit is adequate; it only verifies that the operating condition matches the calibration contract.
+
+The result is a **nonnegative detector-terminal photocurrent magnitude in amperes**. Photivra intentionally does not assign circuit direction/polarity from the optical response curve.
+
+The A/W path does **not**:
+
+- use photon energy or calculate photon/electron rate;
+- convert current to accumulated charge;
+- apply exposure duration;
+- apply transimpedance gain or offset;
+- calculate detector/readout voltage;
+- establish amplifier or ADC linearity;
+- assess full-well/saturation;
+- add shot/read noise;
+- produce RAW values or reconstructed pixels.
+
+Those remain later explicit stages.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
