@@ -766,6 +766,115 @@ Schema 0.1.0 also does not model sparse exceptions to an otherwise periodic layo
 
 Physical orientation remains downstream. The native topology is not rotated or re-phased merely because the camera is held vertically. Likewise, changing CFA topology does not change physical imaging area, crop factor, FOV, or output geometry.
 
+## Capture-mode/color-sampling binding
+
+Use `parseNativeEffectiveRasterColorSamplingBindingProfile()` when evidence establishes how one exact canonical `NativeImageRaster` relates to the separate native color-sampling-site lattice.
+
+The first binding is deliberately regular and sensor-anchored:
+
+```ts
+import {
+  parseNativeEffectiveRasterColorSamplingBindingProfile,
+  resolveNativeEffectiveRasterColorSamplingBinding
+} from "@photivra/engine";
+
+const binding = parseNativeEffectiveRasterColorSamplingBindingProfile({
+  schemaVersion: "0.1.0",
+  bindingId: "example-native-to-cfa",
+  colorSamplingProfileId: "example-periodic-layout",
+  nativeRaster: {
+    pixelWidth: 6000,
+    pixelHeight: 4000
+  },
+  evidence: [
+    {
+      sourceOrigin: "photivra",
+      sourceReference: "example:native-to-cfa-binding",
+      reuseStatus: "photivra-owned"
+    }
+  ],
+  relationship: {
+    kind: "regular-native-effective-sample-blocks",
+    sitesPerNativeSampleX: 1,
+    sitesPerNativeSampleY: 1,
+    anchor: "shared-native-top-left"
+  }
+});
+
+const resolvedBinding =
+  resolveNativeEffectiveRasterColorSamplingBinding({
+    nativeRaster: {
+      pixelWidth: 6000,
+      pixelHeight: 4000
+    },
+    colorSamplingProfile: topology,
+    bindingProfile: binding
+  });
+```
+
+A `1 × 1` relationship is still an **asserted/evidenced binding**. Matching dimensions, matching aspect ratio, output megapixels, or a family label such as Bayer never prove that one `NativeImageRaster` sample corresponds to one color-sampling site.
+
+The binding applies only to the exact native raster dimensions recorded in the profile. The first schema supports one native effective sample mapping to a regular rectangular block of color-sampling sites with a shared native top-left anchor. Irregular site relationships require a later explicit mapping.
+
+To compose that sensor-level relationship with a capture mode, use `resolveCaptureModeColorSamplingContributors()`:
+
+```ts
+import {
+  resolveCaptureModeColorSamplingContributors
+} from "@photivra/engine";
+
+const sources =
+  resolveCaptureModeColorSamplingContributors({
+    nativeRaster: {
+      pixelWidth: 6000,
+      pixelHeight: 4000
+    },
+    captureModeProfile: modes,
+    modeId: "grouped",
+    colorSamplingProfile: topology,
+    bindingProfile: binding,
+    modeSampleIndexFullFrame: {
+      x: 10,
+      y: 20
+    },
+    groupedSamplingAnchor: {
+      anchor: "native-effective-raster-top-left",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "example:group-phase",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    }
+  });
+
+console.log(sources.colorSamplingSiteRect);
+console.log(sources.channelSiteCounts);
+console.log(sources.channelComposition);
+```
+
+`modeSampleIndexFullFrame` is always expressed in the selected mode's **full-frame per-frame effective sampling raster**. The API intentionally does not accept crop-local coordinates. If an active crop starts away from the native origin, a caller must preserve or recover the absolute full-frame mode index before resolving CFA structure. This prevents active crops from silently re-phasing the mosaic.
+
+For `grouped-native-samples` modes, group width/height alone do not prove group phase. The caller must separately provide evidence that the groups are anchored at the native effective raster top-left. A future contract can add other explicitly evidenced group phases if required.
+
+The result is a compact **pre-reconstruction structural source region**:
+
+- `nativeEffectiveSampleRect` identifies the absolute native effective samples structurally associated with the mode sample;
+- `colorSamplingSiteRect` identifies the corresponding absolute color-site rectangle;
+- `channelSiteCounts` gives exact counts per semantic channel for monochrome/periodic topology;
+- `channelComposition` reports whether the structural region contains one channel or multiple channels.
+
+The bridge does **not** enumerate every contributing site. It also does not establish sum/average weights, spectral response, photon/electron values, or a complete downstream reconstructed-pixel dependency graph.
+
+A mixed-channel region therefore remains mixed. Photivra does not collapse a red/green/blue structural region into one synthetic CFA channel merely because a capture mode groups those native effective samples. `combinationDomain` from the capture mode remains separate from any unimplemented weighting/combination equation.
+
+`declared-effective-raster` modes fail closed even when their dimensions happen to match the native raster. Their relationship was intentionally declared non-simple in #13 and therefore needs a mode-specific color-site mapping rather than dimension inference.
+
+Layered-color topology also remains unbound because schema 0.1.0 does not yet define per-layer spatial density/registration.
+
+Pixel-shift/sensor-shift metadata is preserved but does not change CFA assignment. The sensor and its filters move together relative to the optical image; the optical-registration effect of that shift belongs to a later image-formation contract.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
