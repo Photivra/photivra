@@ -108,6 +108,7 @@ export interface SensorSpatialSamplingQuadratureNode {
 
 export interface SensorSpatialSamplingQuadrature {
   coordinateSystem: "native-sensor-physical";
+  colorSamplingProfileId: string;
   site: NativeColorSamplingSiteIndex;
   channelId: string;
   quadratureScheme:
@@ -390,6 +391,9 @@ export function calculateSensorSpatialSamplingQuadrature(
     {
       coordinateSystem:
         "native-sensor-physical",
+      colorSamplingProfileId:
+        samplingAperture
+          .colorSamplingProfileId,
       site: {
         ...samplingAperture.site
       },
