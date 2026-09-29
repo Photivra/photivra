@@ -14,10 +14,11 @@ Notable public changes to `@photivra/engine` are documented here.
 - Added deterministic pure-rotation temporal quadrature over each destination point's local exposure window. The first model uses uniform midpoint nodes, preserves the #65 instantaneous inverse mapping as the geometry source of truth, reports both normalized time-average weights and seconds-valued integration measures, and deliberately does not calculate radiance, a blur kernel, or a geometry-only integration error estimate.
 - Added the first capture-mode profile/resolution contract with orthogonal acquisition sequence, per-frame sampling, optional evidence-backed inter-frame sensor offsets, reconstruction stages, processed-image raster, and downstream dependency declarations. Grouped sampling preserves unknown vs charge-domain vs pre-conversion-analog vs post-conversion-digital combination semantics; processed/output resolution never mutates physical sensor identity or permits photosite-count inference.
 - Added the first exact color-sampling topology contract. It supports monochrome and arbitrary periodic mosaics on an abstract native sensor sampling-site lattice, preserves sensor-anchored repeat phase, allows arbitrary semantic channel IDs without implying spectral calibration, and represents layered color as structural-only until per-layer spatial sampling is modeled. It intentionally does not bind color-sampling sites to `NativeImageRaster` or physical photodiodes.
+- Added an evidence-backed native-effective-raster ↔ color-sampling-site-grid binding plus capture-mode structural-source resolution. The bridge binds one exact native effective raster to regular color-site blocks, requires separately evidenced grouped-mode phase, preserves absolute CFA phase, reports compact source rectangles and exact channel-site counts, keeps pixel-shift offsets from changing CFA assignment, and fails closed for declared-effective or layered relationships that are not explicitly mapped.
 
 ### Changed
 
-- Engine API contract advances to `0.42.0`. The composed POC remains `0.20.0`; the engine now exposes a standalone color-sampling topology profile/resolver without composing CFA sampling, spectral response, RAW reconstruction, or capture-mode-to-site-grid binding into the POC.
+- Engine API contract advances to `0.43.0`. The composed POC remains `0.20.0`; capture modes and exact color topology can now be connected by an explicit evidence-backed structural binding without implementing RAW sampling, spectral response, signal-combination weights, or reconstruction.
 
 ### Fixed
 

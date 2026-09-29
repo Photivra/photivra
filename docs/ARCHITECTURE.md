@@ -47,6 +47,8 @@ Sensor architecture is a separate descriptive layer. Illumination (FSI/BSI), int
 
 Exact color-sampling topology is a separate layer again. `SensorColorSamplingProfile` can describe monochrome or an arbitrary periodic mosaic on an abstract native sensor sampling-site lattice, while layered color uses a separate unresolved spatial reference and remains structural-only until per-layer spatial sampling is modeled. This lattice is intentionally not `NativeImageRaster`; a future binding must establish how capture-mode effective samples relate to color-sampling sites. Active crop/orientation/output transforms therefore cannot reset periodic CFA phase, and architecture-family metadata cannot synthesize an exact tile.
 
+That binding is now explicit through the native-effective-raster/color-site foundation. One evidence-backed profile ties one exact canonical native effective raster to regular sensor-anchored color-site blocks; a second resolver composes that relationship with a selected capture mode. Grouped modes require separately evidenced full-frame grouping phase, use absolute full-frame mode indices, and return compact pre-reconstruction source rectangles plus channel-site counts. Matching dimensions alone never create a binding. Pixel-shift metadata does not re-phase the CFA because the sensor/filter structure moves together; its optical-registration effect remains a later spatial-sampling concern. Declared-effective capture modes and unresolved layered layouts fail closed rather than receiving inferred mappings.
+
 
 ## Image-formation ownership and ordering
 
@@ -121,6 +123,7 @@ The POC still does **not** consume:
 
 - `SensorArchitectureProfile`;
 - `SensorColorSamplingProfile`;
+- `NativeEffectiveRasterColorSamplingBindingProfile`;
 - `CaptureModeProfile`;
 - `RadiometryReadinessProfile` or calibrated photon/noise output.
 

@@ -145,6 +145,8 @@ The standalone capture-mode profile now describes acquisition sequence, per-fram
 
 The standalone color-sampling topology profile now describes monochrome, arbitrary periodic mosaic phase/channel assignment, and layered color declarations with an explicitly unresolved spatial relationship. The periodic topology lives on a distinct native sensor sampling-site lattice rather than `NativeImageRaster`; no binding to effective image samples or physical photodiodes is inferred. This metadata foundation does not yet implement the reserved photosite/CFA sampling stage, spectral response, sparse site exceptions, RAW sampling, or reconstruction.
 
+The additive native-effective-raster/color-site binding now provides the missing structural bridge between capture-mode effective samples and monochrome/periodic topology. It requires evidence for the exact native raster relationship and grouped-mode phase, preserves full-frame absolute CFA phase, and reports compact pre-reconstruction source regions/channel counts. This still does **not** implement the reserved photosite/CFA sampling stage: no signal weights, spectral response, photons/electrons, RAW values, aliasing, or reconstruction are calculated.
+
 ## Current implementation status
 
 Each stage is labeled:
