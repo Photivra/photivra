@@ -90,6 +90,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [provenance-aware sensor architecture/capability metadata](docs/USAGE.md#sensor-architecture-metadata);
 - [exact color-sampling topology profiles](docs/USAGE.md#color-sampling-topology), supporting monochrome and arbitrary periodic mosaics on a sensor-anchored abstract sampling-site lattice while keeping spectral response and raster/photodiode binding separate;
 - [capture-mode/color-sampling structural bindings](docs/USAGE.md#capture-modecolor-sampling-binding), explicitly relating one exact native effective raster to the color-site lattice and resolving compact pre-reconstruction source regions without inventing signal weights;
+- [sensor optical-stack profiles](docs/USAGE.md#sensor-optical-stack), separating physical stack-component metadata from effective AA spatial response, with explicit absent/unknown/unresolved distinctions and arbitrary normalized point-splitting kernels;
 - [orthogonal capture-mode profiles](docs/USAGE.md#capture-mode-profiles), separating acquisition sequence, per-frame sampling, sensor-shift sequence, reconstruction stages, processed raster, and final output geometry;
 - [capture-specific native sensor readout scan timing](docs/USAGE.md#sensor-readout-timing), with separately evidenced total data-readout duration and rolling spatial timing skew;
 - [readout/exposure spatial linkage assessment](docs/USAGE.md#readoutexposure-spatial-linkage), for evidence-backed same/reversed normalized phase relationships between rolling readout and electronic exposure boundaries without asserting absolute synchronization;
@@ -124,6 +125,7 @@ The root engine now exposes standalone APIs for:
 - evidence-backed sensor architecture metadata;
 - evidence-backed color-sampling topology profiles for monochrome, arbitrary periodic mosaics, and structural-only layered color declarations;
 - evidence-backed native-effective-raster ↔ color-site-grid bindings plus capture-mode structural-source resolution with explicit grouped-mode phase and channel-site counts;
+- evidence-backed sensor optical-stack profiles with ordered physical components, microlens presence metadata, and separately declared effective anti-aliasing spatial response;
 - evidence-backed capture-mode profiles with single/fixed/variable multi-frame acquisition, native/grouped/declared per-frame sampling, optional sensor-shift offsets, reconstruction stages, and processed-image raster separation;
 - capture-specific native readout scan timing with explicit provenance and no output-resolution inference;
 - capture exposure-window timing with independent opening/closing boundary schedules;
@@ -131,7 +133,7 @@ The root engine now exposes standalone APIs for:
 - instantaneous inverse capture-scan rotation mapping at a caller-selected local-exposure phase, still independent from sensor data-readout timing;
 - radiometry prerequisite/readiness assessment.
 
-These contracts are **not all composed into `simulatePocCamera()` yet**. POC API 0.20 now composes staged capture geometry through final output/viewing semantics: orientation, active-capture rectangles, output crop/raster, active/output FOV, active-capture 35 mm-equivalent focal length, viewing-based CoC against the final retained physical area, orientation-aware subject framing, and explicit output pixel scaling. Sensor-architecture metadata, color-sampling topology profiles, native-effective-raster/color-site bindings, capture-mode profiles, sensor readout scan timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not yet composed. Readout timing stays in invariant native sensor coordinates; physical orientation is an explicit downstream transform.
+These contracts are **not all composed into `simulatePocCamera()` yet**. POC API 0.20 now composes staged capture geometry through final output/viewing semantics: orientation, active-capture rectangles, output crop/raster, active/output FOV, active-capture 35 mm-equivalent focal length, viewing-based CoC against the final retained physical area, orientation-aware subject framing, and explicit output pixel scaling. Sensor-architecture metadata, color-sampling topology profiles, native-effective-raster/color-site bindings, sensor optical-stack profiles, capture-mode profiles, sensor readout scan timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not yet composed. Readout timing stays in invariant native sensor coordinates; physical orientation is an explicit downstream transform.
 
 The POC exposes X/Y sampling diagnostics but still uses one representative horizontal pitch internally for several pixel-domain calculations; it therefore rejects geometry whose X/Y pitch differs by more than 1% rather than silently producing directional error.
 
@@ -195,7 +197,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.5.1`
-- Engine API contract: `0.43.0`
+- Engine API contract: `0.44.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
@@ -229,6 +231,7 @@ Photivra deliberately avoids claiming more than the current models support.
 - Capture-mode profiles describe acquisition/sampling/reconstruction structure only. Grouped sampling does not imply charge-domain binning unless that domain is separately evidenced; processed-image resolution does not change FOV, physical sensor identity, or establish physical photosite count. Pixel-shift offsets are expressed in native effective-sampling-pitch units and do not claim photodiode pitch.
 - Color-sampling topology is independent from `NativeImageRaster`: periodic mosaic phase is anchored to absolute native sensor sampling-site indices, not crop-local coordinates. Channel IDs are semantic labels rather than spectral response curves. Layered color uses a separate unresolved spatial reference and remains structural-only until per-layer sampling density/registration is explicit; sparse non-periodic exceptions such as PDAF/masked/defect sites are not represented by schema 0.1.0.
 - Native-effective-raster/color-site binding requires its own evidence and is tied to one exact native raster; matching dimensions alone never prove 1:1 CFA correspondence. Grouped capture modes also require an evidenced full-frame top-left grouping phase. The bridge reports compact pre-reconstruction source rectangles and channel-site counts only—no sum/average weights, spectral response, downstream reconstructed-pixel dependency, or photodiode count. Pixel-shift offsets do not change CFA channel assignment because sensor and CFA move together.
+- Sensor optical-stack schema 0.1.0 separates physical component presence from effective anti-aliasing response. Omitted AA response means unknown, while explicit `absent` means no intentional AA spatial-splitting term in this contract—not an identity whole-stack PSF or zero aliasing risk. Point-splitting kernels are normalized spatial redistribution only and exclude throughput, spectral transmission, field/wavelength/polarization dependence, cover-glass refraction, and microlens behavior.
 - Signal/noise primitives require caller-supplied photon/electron quantities. The radiometry-readiness API can assess declared prerequisites, but it does not derive photons or enable photon/noise output in the composed POC.
 - The composed POC still uses one representative pixel-pitch path internally and therefore rejects sensor geometry whose X/Y sample pitch differs by more than 1%; lower-level geometry APIs already preserve independent X/Y pitch.
 - No named commercial camera or lens performance is claimed.
