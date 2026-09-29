@@ -165,6 +165,9 @@ export interface SensorResponsivityPhotocurrent {
   electronRateCalculated: false;
   currentCalculated: true;
   chargeCalculated: false;
+  temporalResponseModel:
+    "quasi-static-steady-state-only";
+  detectorBandwidthModeled: false;
   transimpedanceGainApplied: false;
   voltageCalculated: false;
   temporalIntegrationApplied: false;
@@ -250,6 +253,23 @@ function requireFiniteNonNegative(
     throw new InvalidConfigurationError(
       path +
         " must be finite and greater than or equal to zero."
+    );
+  }
+  return value;
+}
+
+function requirePositiveFiniteConfiguration(
+  value: unknown,
+  path: string
+): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value <= 0
+  ) {
+    throw new InvalidConfigurationError(
+      path +
+        " must be finite and greater than zero."
     );
   }
   return value;
@@ -381,7 +401,7 @@ function parseElectricalConditions(
               kind:
                 "reverse-biased",
               magnitudeVolts:
-                requireFiniteNonNegative(
+                requirePositiveFiniteConfiguration(
                   bias.magnitudeVolts,
                   path +
                     ".bias.magnitudeVolts"
@@ -408,7 +428,7 @@ function parseElectricalConditions(
               kind:
                 "finite-input-impedance",
               inputImpedanceOhms:
-                requireFiniteNonNegative(
+                requirePositiveFiniteConfiguration(
                   readoutLoad
                     .inputImpedanceOhms,
                   path +
@@ -1311,6 +1331,9 @@ export function calculateSensorResponsivityPhotocurrent(
       electronRateCalculated: false,
       currentCalculated: true,
       chargeCalculated: false,
+      temporalResponseModel:
+        "quasi-static-steady-state-only",
+      detectorBandwidthModeled: false,
       transimpedanceGainApplied:
         false,
       voltageCalculated: false,
@@ -1351,6 +1374,7 @@ export function calculateSensorResponsivityPhotocurrent(
       "Response metadata/evidence and operating-range spectral-node values are rebound to the exact reduction so matching IDs alone or stale authorization cannot enable conversion.",
       "The calculation does not use photon energy, QE, photon rate or electron rate. A/W remains a distinct current-domain response representation.",
       "No transimpedance gain or voltage conversion is performed; current-to-voltage converter gain/offset/linearity remain downstream electronics contracts.",
+      "The A/W response is used only as a quasi-static steady-state power→current mapping. Detector impulse response, bandwidth, modulation-frequency response and transient settling are not modeled.",
       "Outputs are instantaneous current only. Exposure-time integration to charge, saturation, noise, ADC/RAW conversion and reconstruction remain downstream.",
       "Response/electrical uncertainties and quadrature convergence error are not propagated into a combined current uncertainty by this version."
     ]
