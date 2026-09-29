@@ -200,7 +200,7 @@ The calling application can then use those results while keeping the underlying 
 
 ## Status
 
-- Repository package version: `0.5.1`
+- Repository package version: `0.6.0`
 - Engine API contract: `0.47.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
