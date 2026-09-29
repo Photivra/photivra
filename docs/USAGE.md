@@ -657,9 +657,130 @@ Source origin and reuse rights are also independent. Manufacturer or third-party
 
 Scalar facts may cite multiple evidence records. Multi-valued capabilities such as rolling/global readout carry evidence independently for each value so one source does not silently support another capability.
 
-`readoutCapabilities` describes hardware capabilities, not the mode selected for one exposure. Capture-specific readout selection and timing belong to later readout/capture-mode models.
+`readoutCapabilities` describes hardware capabilities, not the mode selected for one exposure. The capture-mode profile can declare that a selected mode needs mode-specific readout timing, while the actual timing values remain owned by the separate readout-timing contract.
 
 Unknown facts should be omitted instead of inferred. Architecture metadata remains descriptive only: BSI, stacking, readout family, and CFA family do not directly change FOV, crop factor, pixel pitch, exposure, noise, or dynamic range. A separate documented downstream physical/calibration model is required before any such effect can be claimed.
+
+## Capture-mode profiles
+
+Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
+
+```ts
+import {
+  parseCaptureModeProfile,
+  resolveCaptureMode
+} from "@photivra/engine";
+
+const modes = parseCaptureModeProfile({
+  schemaVersion: "0.1.0",
+  modes: [
+    {
+      modeId: "pixel-shift-4",
+      evidence: [
+        {
+          sourceOrigin: "manufacturer",
+          sourceReference: "example:pixel-shift-mode",
+          reuseStatus: "factual-reference-only"
+        }
+      ],
+      acquisition: {
+        kind: "fixed-multi-frame",
+        frameCount: {
+          value: 4,
+          evidence: [
+            {
+              sourceOrigin: "manufacturer",
+              sourceReference: "example:pixel-shift-frame-count",
+              reuseStatus: "factual-reference-only"
+            }
+          ]
+        }
+      },
+      perFrameSampling: {
+        kind: "native-effective-raster"
+      },
+      interFrameSensorOffsetsNativeSamples: {
+        value: [
+          { x: 0, y: 0 },
+          { x: 0.5, y: 0 },
+          { x: 0, y: 0.5 },
+          { x: 0.5, y: 0.5 }
+        ],
+        evidence: [
+          {
+            sourceOrigin: "manufacturer",
+            sourceReference: "example:pixel-shift-offset-sequence",
+            reuseStatus: "factual-reference-only"
+          }
+        ]
+      },
+      reconstructionStages: [
+        {
+          value: "pixel-shift-combination",
+          evidence: [
+            {
+              sourceOrigin: "manufacturer",
+              sourceReference: "example:pixel-shift-combination",
+              reuseStatus: "factual-reference-only"
+            }
+          ]
+        }
+      ],
+      processedImageRaster: {
+        value: {
+          pixelWidth: 12000,
+          pixelHeight: 8000
+        },
+        evidence: [
+          {
+            sourceOrigin: "manufacturer",
+            sourceReference: "example:processed-raster",
+            reuseStatus: "factual-reference-only"
+          }
+        ]
+      },
+      dependencies: [
+        "color-sampling-model",
+        "inter-frame-registration"
+      ]
+    }
+  ]
+});
+
+const selected = resolveCaptureMode({
+  nativeRaster: {
+    pixelWidth: 6000,
+    pixelHeight: 4000
+  },
+  profile: modes,
+  modeId: "pixel-shift-4"
+});
+
+console.log(selected.processedImageMegapixels);
+```
+
+The model is deliberately **orthogonal**, not one mutually exclusive marketing-style mode enum. A mode independently describes:
+
+- acquisition as single-frame, fixed multi-frame, or variable multi-frame;
+- per-frame sampling as the native effective raster, exact integer grouping of native effective samples, or another explicitly evidenced effective raster;
+- an optional ordered inter-frame sensor-offset sequence for fixed multi-frame modes;
+- zero or more reconstruction stages such as remosaic, pixel-shift combination, and generic multi-frame computational combination;
+- the processed-image raster before final output crop/resampling;
+- explicit downstream model dependencies.
+
+This lets a computational multi-frame mode also use grouped per-frame sampling instead of forcing it into one exclusive category.
+
+`NativeImageRaster` keeps its canonical meaning: an **effective native image-sampling grid**, not a physical photosite raster. Neither native megapixels nor processed/final-output megapixels may be used to infer physical photodiode count.
+
+For grouped sampling, Photivra derives the per-frame sampling raster only when the native dimensions divide exactly by the evidenced grouping factors. The optional `combinationDomain` distinguishes `charge-domain` from `post-conversion-digital`. When that fact is not known it must be omitted; the word “binning” or a 2×2 resolution ratio does not establish where combination occurred.
+
+Inter-frame sensor offsets are expressed in units of the **native effective sampling pitch**. They are not evidence of physical photodiode pitch. The offset sequence length must match a fixed multi-frame count when supplied.
+
+`processedImageRaster` belongs to the capture-mode/reconstruction pipeline. It does not change physical imaging area, crop factor, field of view, or the native effective raster. It may be larger than the native raster for a multi-frame reconstruction without implying a higher-resolution physical sensor.
+
+Final output crop/resampling remains owned by the existing staged capture/output geometry contract. A processed raster therefore does not itself define final display/export dimensions or viewing FOV.
+
+The capture-mode schema records dependencies such as `color-sampling-model`, `mode-specific-readout-timing`, `radiometric-calibration`, and `inter-frame-registration` without pretending those downstream models are already implemented.
 
 ## Sensor readout timing
 
@@ -1764,7 +1885,7 @@ The current composed POC reports X/Y geometric sample pitch but still uses one b
 
 POC API 0.20 composes the capture-geometry foundation through final output/viewing semantics. Existing requests remain valid. New callers may supply an optional `capture` object with physical orientation, an optional native active-capture rectangle, an optional oriented output crop, and an optional final output raster.
 
-Capture mode deliberately keeps legacy `crop.factor` separate: it must remain `1` when `capture` is present. Staged capture can use the existing `subjectCrop` request, but the result appears under `capture.subjectFraming` because it is a post-output framing stage rather than a legacy total-crop factor.
+The POC staged `capture` geometry request deliberately keeps legacy `crop.factor` separate: it must remain `1` when `capture` is present. This geometry request is distinct from the sensor/capture-mode profile contract. Staged capture can use the existing `subjectCrop` request, but the result appears under `capture.subjectFraming` because it is a post-output framing stage rather than a legacy total-crop factor.
 
 Equivalent-viewing CoC in capture mode uses the final retained physical image region, including subject framing when present; changing only output pixel resolution does not change the criterion. Explicit `circleOfConfusionMm` remains unchanged.
 
