@@ -151,6 +151,8 @@ The standalone sensor optical-stack profile now makes the upstream stack boundar
 
 The standalone sensor sampling-aperture profile now supplies explicit native-physical registration for the color-site center lattice and a first geometric sensitive-region footprint. The rectangle is a normalized spatial-area averaging support plus a separately reported geometric area/fraction; it is **not** QE or radiometric collection efficiency. AA point splitting, microlens redirection, diffusion/crosstalk, spectral response, photons/electrons, and RAW values are still absent. This advances the geometry needed by the reserved `photosite-cfa-sampling` stage without claiming that stage is fully implemented.
 
+The additive sensor spatial-quadrature layer now combines the resolved AA point-splitting term with the geometric aperture using deterministic native-physical midpoint nodes. AA is applied by inverse source lookup, the destination site's CFA channel remains fixed, and off-active-area pre-AA source support is preserved. The result is still a geometry/measure plan only: no optical field, spectral response, radiometry, temporal integration, RAW value, or reconstruction is calculated, so the `photosite-cfa-sampling` stage remains reserved.
+
 ## Current implementation status
 
 Each stage is labeled:
