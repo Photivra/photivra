@@ -720,7 +720,7 @@ describe(
             )
         })
       ).toThrow(
-        "evidence must match"
+        "response-channel binding"
       );
     });
 
@@ -1370,7 +1370,7 @@ describe(
             changedResponse
         })
       ).toThrow(
-        "uncertainty must match"
+        "response-channel binding"
       );
 
       expect(() =>
