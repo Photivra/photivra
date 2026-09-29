@@ -94,6 +94,7 @@ export interface SensorSpectralQuadrature {
   responseUncertainty:
     SensorSpectralResponseUncertainty;
   wavelengthBasis: SpectralWavelengthBasis;
+  wavelengthBasisResolved: boolean;
   wavelengthRangeNanometers:
     SensorSpectralWavelengthRangeNanometers;
   responseDeclaredWavelengthRangeNanometers:
@@ -302,6 +303,14 @@ function additionalBreakpoints(
   if (!Array.isArray(value)) {
     throw new InvalidScientificInputError(
       "additionalBreakpointsNanometers must be an array when supplied."
+    );
+  }
+  if (
+    value.length >=
+    MAX_SPECTRAL_QUADRATURE_NODES
+  ) {
+    throw new InvalidScientificInputError(
+      "additionalBreakpointsNanometers contains too many entries for the spectral quadrature safety limit."
     );
   }
 
@@ -643,6 +652,9 @@ export function calculateSensorSpectralQuadrature(
         representative.uncertainty,
       wavelengthBasis:
         input.wavelengthBasis,
+      wavelengthBasisResolved:
+        representative
+          .wavelengthBasisResolved,
       wavelengthRangeNanometers:
         range,
       responseDeclaredWavelengthRangeNanometers:
