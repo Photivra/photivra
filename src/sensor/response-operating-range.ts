@@ -56,6 +56,20 @@ export interface SensorResponseLinearityCriterion {
   maximumAbsoluteRelativeDeviation: number;
 }
 
+export type SensorResponseOperatingSpatialLinearityModel =
+  | {
+      kind:
+        "linear-superposition-over-geometric-aperture";
+      scientificStatus:
+        SensorSpectralResponseScientificStatus;
+      evidence: readonly EvidenceProvenance[];
+      limitation?: string;
+    }
+  | {
+      kind: "not-established";
+      limitation: string;
+    };
+
 export interface SensorResponseOperatingRangeProfile {
   schemaVersion: "0.1.0";
   profileId: string;
@@ -74,6 +88,12 @@ export interface SensorResponseOperatingRangeProfile {
     SensorResponseOperatingWavelengthApplicability;
   linearityCriterion:
     SensorResponseLinearityCriterion;
+  /**
+   * Optional for backward compatibility. Omission parses as not-established
+   * and blocks new response-rate authorization.
+   */
+  spatialLinearityModel?:
+    SensorResponseOperatingSpatialLinearityModel;
   referenceConditions?:
     SensorSpectralReferenceConditions;
   referenceConditionPolicy:
@@ -100,6 +120,7 @@ export type SensorResponseOperatingRangeBlocker =
   | "wavelength-range-outside-linearity-applicability"
   | "input-below-linearity-range"
   | "input-above-linearity-range"
+  | "spatial-linearity-superposition-not-established"
   | "operating-conditions-not-declared"
   | "linearity-operating-conditions-mismatch";
 
@@ -128,6 +149,8 @@ export interface SensorResponseOperatingRangeAssessment {
   };
   linearityCriterion:
     SensorResponseLinearityCriterion;
+  spatialLinearityModel:
+    SensorResponseOperatingSpatialLinearityModel;
   referenceConditionPolicy:
     SensorResponseReferenceConditionPolicy;
   referenceConditions?:
@@ -155,6 +178,8 @@ export interface SensorResponseOperatingRangeAssessment {
     operatingRange:
       readonly EvidenceProvenance[];
     referenceConditionAssumption:
+      readonly EvidenceProvenance[];
+    spatialLinearity:
       readonly EvidenceProvenance[];
     structuralCompatibility:
       SensorResponseApplicationCompatibilityAssessment["componentEvidence"];
@@ -548,6 +573,87 @@ function parseLinearityCriterion(
   };
 }
 
+function parseSpatialLinearityModel(
+  value: unknown
+): SensorResponseOperatingSpatialLinearityModel {
+  if (value === undefined) {
+    return {
+      kind: "not-established",
+      limitation:
+        "Spatial-distribution linear superposition was not declared."
+    };
+  }
+
+  const record = requireRecord(
+    value,
+    "sensorResponseOperatingRange.spatialLinearityModel"
+  );
+
+  if (
+    record.kind === "not-established"
+  ) {
+    return {
+      kind: "not-established",
+      limitation: requireNonEmptyString(
+        record.limitation,
+        "sensorResponseOperatingRange.spatialLinearityModel.limitation"
+      )
+    };
+  }
+
+  if (
+    record.kind !==
+    "linear-superposition-over-geometric-aperture"
+  ) {
+    throw new InvalidConfigurationError(
+      "sensorResponseOperatingRange.spatialLinearityModel.kind is invalid."
+    );
+  }
+
+  if (
+    record.scientificStatus !==
+      "calibrated" &&
+    record.scientificStatus !==
+      "approximation"
+  ) {
+    throw new InvalidConfigurationError(
+      "sensorResponseOperatingRange.spatialLinearityModel.scientificStatus is invalid."
+    );
+  }
+
+  const limitation =
+    record.limitation === undefined
+      ? undefined
+      : requireNonEmptyString(
+          record.limitation,
+          "sensorResponseOperatingRange.spatialLinearityModel.limitation"
+        );
+
+  if (
+    record.scientificStatus ===
+      "approximation" &&
+    limitation === undefined
+  ) {
+    throw new InvalidConfigurationError(
+      "sensorResponseOperatingRange.spatialLinearityModel.limitation is required for an approximation."
+    );
+  }
+
+  return {
+    kind:
+      "linear-superposition-over-geometric-aperture",
+    scientificStatus:
+      record.scientificStatus,
+    evidence: parseEvidenceList(
+      record.evidence,
+      "sensorResponseOperatingRange.spatialLinearityModel.evidence"
+    ),
+    ...(limitation === undefined
+      ? {}
+      : { limitation })
+  };
+}
+
 export function parseSensorResponseOperatingRangeProfile(
   value: unknown
 ): SensorResponseOperatingRangeProfile {
@@ -666,6 +772,10 @@ export function parseSensorResponseOperatingRangeProfile(
       parseLinearityCriterion(
         record.linearityCriterion,
         "sensorResponseOperatingRange.linearityCriterion"
+      ),
+    spatialLinearityModel:
+      parseSpatialLinearityModel(
+        record.spatialLinearityModel
       ),
     ...(referenceConditions ===
     undefined
@@ -879,6 +989,15 @@ export function assessSensorResponseOperatingRange(
   }
 
   if (
+    profile.spatialLinearityModel?.kind !==
+      "linear-superposition-over-geometric-aperture"
+  ) {
+    blockers.push(
+      "spatial-linearity-superposition-not-established"
+    );
+  }
+
+  if (
     profile.referenceConditionPolicy.kind ===
       "exact-match-required"
   ) {
@@ -916,6 +1035,13 @@ export function assessSensorResponseOperatingRange(
       "approximation" ||
     profile.uncertainty.kind ===
       "not-quantified" ||
+    (
+      profile.spatialLinearityModel?.kind ===
+        "linear-superposition-over-geometric-aperture" &&
+      profile.spatialLinearityModel
+        .scientificStatus ===
+        "approximation"
+    ) ||
     profile.referenceConditionPolicy.kind ===
       "assume-compatible";
 
@@ -931,6 +1057,11 @@ export function assessSensorResponseOperatingRange(
       "assume-compatible"
       ? profile.referenceConditionPolicy
           .evidence
+      : [];
+  const spatialLinearityEvidence =
+    profile.spatialLinearityModel?.kind ===
+      "linear-superposition-over-geometric-aperture"
+      ? profile.spatialLinearityModel.evidence
       : [];
 
   return calculatedResult(
@@ -966,6 +1097,12 @@ export function assessSensorResponseOperatingRange(
         },
       linearityCriterion:
         profile.linearityCriterion,
+      spatialLinearityModel:
+        profile.spatialLinearityModel ?? {
+          kind: "not-established",
+          limitation:
+            "Spatial-distribution linear superposition was not declared."
+        },
       referenceConditionPolicy:
         profile.referenceConditionPolicy,
       ...(profile.referenceConditions ===
@@ -1012,6 +1149,8 @@ export function assessSensorResponseOperatingRange(
           profile.evidence,
         referenceConditionAssumption:
           referenceConditionEvidence,
+        spatialLinearity:
+          spatialLinearityEvidence,
         structuralCompatibility:
           input.compatibility
             .componentEvidence
@@ -1023,6 +1162,7 @@ export function assessSensorResponseOperatingRange(
       "This gate assesses instantaneous response-law applicability only; it does not apply response or integrate exposure.",
       "The valid optical-input range is evidence-backed and must be expressed in the same wavelength-integrated power or irradiance domain produced by the pre-response reducer.",
       "Linearity can depend on optical input level and wavelength; the reduction wavelength range must remain inside the declared applicability range.",
+      "Post-spatial rate conversion additionally requires explicit linear superposition over the geometric aperture; otherwise sub-aperture illumination patterns could hide local nonlinear behavior.",
       "The maximumAbsoluteRelativeDeviation criterion documents the tolerated response nonlinearity for the declared valid range; this function does not derive that criterion from synthetic data.",
       "Reference conditions for the linearity calibration are separate from spectral-response reference conditions and must match when exact matching is required.",
       "Exposure-domain linearity, accumulated-charge saturation/full-well behavior, and downstream electronics linearity are intentionally not assessed here.",
