@@ -149,7 +149,8 @@ The sensor/capture foundation has explicit semantics. Preserve them.
 - Post-spatial EQE application additionally requires the operating-range model to establish linear superposition over the same geometric aperture; otherwise arbitrary sub-aperture illumination may hide local nonlinear behavior.
 - EQE must be applied per wavelength quadrature node to spectral radiant-power contributions after photon-energy conversion. Never multiply broadband integrated power by an average QE.
 - Direct effective EQE and explicitly separable channel-filter × detector-EQE remain distinct provenance/composition cases; only the existing spectral-response resolver may compose the separable case.
-- Response application must bind to the calibration evidence already carried by the reduction, not merely matching profile IDs or channel names.
+- Response application must bind to the exact parsed response-channel data carried forward from spectral planning, not merely matching profile IDs, channel names, or evidence references. Same provenance with changed numeric curve samples must fail closed.
+- The response-channel binding is an exact canonical-data identity, not a cryptographic integrity claim; it prevents accidental/stale calibration substitution but does not replace source-file checksums where adversarial integrity matters.
 - A response-rate authorization must bind its evaluated per-bin identities and values back to the exact reduction; stale authorization must fail after spectral power, wavelength, bin width, or identity changes.
 - EQE conversion at this stage produces photon/electron rates only. Do not multiply by exposure duration, label rates as counts, apply shot noise, test full-well saturation, or generate RAW values until the temporal/saturation stages are explicitly composed.
 - A/W responsivity must never enter the EQE photon-rate→electron-rate path; it remains a separate radiant-power→current path.
