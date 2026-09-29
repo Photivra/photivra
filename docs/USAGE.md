@@ -1452,7 +1452,9 @@ The current foundation preserves refractive-index uncertainty but does **not** p
 
 Use `calculateSensorEqeElectronRate()` only after both the structural response-application assessment and the instantaneous response operating-range assessment have passed.
 
-The converter accepts the original color-sampling and spectral-response profiles in addition to those assessments. It reparses the profiles once and verifies that the response metadata **and calibration evidence** match the spectral evidence carried by the pre-response reduction. Matching IDs alone are not enough.
+The converter accepts the original color-sampling and spectral-response profiles in addition to those assessments. Spectral planning now carries an exact canonical response-channel data binding through the pre-response reduction. The converter reparses the supplied response once and requires that binding to match exactly, so matching IDs and even matching evidence references are not enough when numeric calibration samples differ.
+
+The canonical binding is a deterministic exact-data identity for stale/calibration substitution detection; it is not presented as a cryptographic checksum or security boundary.
 
 The calculation stays in the wavelength quadrature. For every spectral node it computes:
 
@@ -1498,7 +1500,7 @@ Response, refractive-index and quadrature uncertainties remain visible upstream 
 
 Use `calculateSensorResponsivityPhotocurrent()` for the sibling current-domain path when the spectral response is explicitly calibrated in **A/W**.
 
-The same structural and operating-range gates used by EQE still apply: exact response/profile linkage, matching response reference plane and area basis, spatial response uniformity/separability, linear superposition over the geometric aperture, and explicit per-spectral-bin operating-range applicability.
+The same structural and operating-range gates used by EQE still apply: exact response/profile linkage, matching response reference plane and area basis, spatial response uniformity/separability, linear superposition over the geometric aperture, and explicit per-spectral-bin operating-range applicability. The exact canonical response-channel binding must also match the curve data used upstream; same IDs/evidence with altered A/W samples are rejected.
 
 For every spectral node Photivra computes:
 
