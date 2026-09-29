@@ -11,6 +11,7 @@ import {
   type SensorColorSamplingProfile
 } from "./color-sampling.js";
 import {
+  createSensorSpectralResponseChannelBinding,
   parseSensorSpectralResponseProfile,
   resolveSensorSpectralResponseAtWavelength,
   type SensorSpectralReferenceConditions,
@@ -95,6 +96,7 @@ export interface SensorSpectralQuadrature {
     SensorSpectralResponseScientificStatus;
   responseUncertainty:
     SensorSpectralResponseUncertainty;
+  responseChannelBinding?: import("./spectral-response.js").SensorSpectralResponseChannelBinding;
   responseReferenceConditions?:
     SensorSpectralReferenceConditions;
   wavelengthBasis: SpectralWavelengthBasis;
@@ -1140,6 +1142,10 @@ export function calculateSensorSpectralQuadrature(
           .scientificStatus,
       responseUncertainty:
         representative.uncertainty,
+      responseChannelBinding:
+        createSensorSpectralResponseChannelBinding(
+          response
+        ),
       ...(representative.referenceConditions ===
       undefined
         ? {}
