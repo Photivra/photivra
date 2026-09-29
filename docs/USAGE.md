@@ -733,7 +733,7 @@ The exact topology is also separate from `SensorArchitectureProfile.colorSamplin
 
 Monochrome is represented separately with one semantic measurement-channel ID and no spatial mosaic.
 
-Layered color is deliberately **structural-only** in schema 0.1.0:
+Layered color is deliberately **structural-only** in schema 0.1.0 and uses a separate unresolved spatial-reference marker rather than pretending it shares the periodic site lattice:
 
 ```ts
 const layered = parseSensorColorSamplingProfile({
@@ -747,7 +747,7 @@ const layered = parseSensorColorSamplingProfile({
     }
   ],
   coordinateSystem:
-    "native-sensor-color-sampling-site-index",
+    "native-sensor-layered-spatial-relationship-not-resolved",
   layout: {
     kind: "layered",
     layerChannelIds: [
