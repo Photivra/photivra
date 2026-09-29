@@ -395,7 +395,7 @@ describe("sensor readout scan timing", () => {
             unit: "s",
             evidence: []
           }
-        }
+        } as never
       })
     ).toThrow("must be a non-empty array");
   });
