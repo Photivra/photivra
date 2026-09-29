@@ -78,6 +78,12 @@ The sensor/capture foundation has explicit semantics. Preserve them.
 
 - `SensorImagingArea` is the physical photosensitive imaging area used for image formation, not die/package dimensions.
 - `NativeImageRaster` describes the effective native image-sampling grid. It does not assert one image sample equals one physical photodiode.
+- Exact color-sampling topology must not be indexed directly by `NativeImageRaster` unless a separate explicit binding establishes that relationship. The color-sampling-site lattice is a distinct native sensor coordinate contract.
+- Periodic color-sampling phase is anchored to absolute native sensor site indices; active crop, physical orientation, and output crop/resampling must never silently reset the repeat phase.
+- Color-sampling channel IDs are semantic identifiers only. They do not establish wavelength response, quantum efficiency, colorimetry, or calibrated sensor primaries.
+- Do not infer an exact CFA tile from descriptive `SensorArchitectureProfile.colorSamplingFamily`; exact layouts require their own evidence-backed topology profile.
+- Layered-color schema 0.1.0 is structural-only. Do not expose per-site layered mapping until per-layer spatial sampling density/registration is explicit.
+- Periodic mosaic schema 0.1.0 does not model sparse overrides such as phase-detect sites, masked pixels, defects, or other non-periodic exceptions.
 - Capture-mode profiles must preserve that distinction: do not relabel `NativeImageRaster` as a photosite raster or infer physical photosite count from native, processed, or final output megapixels.
 - Model capture modes on orthogonal axes (acquisition sequence, per-frame sampling, optional inter-frame sensor offsets, reconstruction stages, processed raster, dependencies) rather than one mutually exclusive marketing-style mode enum.
 - Grouped sampling does not establish charge-domain binning; the combination domain stays unknown unless separately evidenced as charge-domain, pre-conversion analog, or post-conversion digital.
@@ -149,7 +155,7 @@ As of POC simulation API 0.20:
 - The response exposes shared sensor-geometry metrics plus an optional capture block with active/output FOV, active-capture 35 mm-equivalent focal length, output sampling scale, subject framing, and oriented/output motion diagnostics.
 - Equivalent focal length remains informational and never replaces physical focal length inside POC physics; final digital/output crop does not redefine it.
 - Existing motion/camera-shake X/Y fields retain their legacy image-plane meaning (+X right, +Y up). Capture raster coordinates are +X right, +Y down; additive diagnostics must expose the explicit basis conversion before orientation/output scaling.
-- Sensor-architecture metadata, capture-mode profiles, sensor readout timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not composed unless an explicit versioned integration is added.
+- Sensor-architecture metadata, color-sampling topology profiles, capture-mode profiles, sensor readout timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not composed unless an explicit versioned integration is added.
 - The POC reports X/Y pitch diagnostics but still uses one representative horizontal pitch internally and fails closed above a 1% axis difference.
 - Radiometry readiness never enables photon/noise output by itself.
 
