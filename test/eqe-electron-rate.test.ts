@@ -320,6 +320,16 @@ function operatingProfile(
             limitation:
               "No sub-aperture superposition evidence."
           },
+    spectralInputModel: {
+      kind: "per-spectral-bin",
+      maximumBinWidthNanometers:
+        maximumSubintervalWidthNanometers,
+      scientificStatus:
+        "calibrated",
+      evidence: evidence(
+        "test:spectral-input-linearity"
+      )
+    },
     referenceConditions:
       operatingConditions,
     referenceConditionPolicy: {
