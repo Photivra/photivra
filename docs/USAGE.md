@@ -1567,6 +1567,46 @@ This is a **timing binding only**. It explicitly reports:
 
 A response rate may therefore **not** yet be multiplied by this duration. Motion, flicker, flash, time-varying illumination/vignetting, shutter modulation, or detector transients require a time-dependent signal model. A separate stationarity contract is required for the constant-rate approximation.
 
+## Constant-rate local-exposure integration
+
+Use `integrateStationarySensorRateOverLocalExposure()` only when an evidence-backed `SensorRateTemporalStationarityProfile` explicitly states that the **reported rate itself** is constant through the exact local exposure window.
+
+The stationarity declaration is bound to:
+
+- EQE-vs-A/W rate domain;
+- color topology/channel/site;
+- local-exposure binding ID;
+- exact local start/end offsets in the `first-opening-boundary-phase` time basis.
+
+It therefore cannot be silently reused for a different site or shutter window.
+
+Under that explicit model, temporal integration is exactly:
+
+`accumulated quantity = reported rate × local exposure duration`.
+
+For the EQE path:
+
+- incident photon rate becomes **expected incident photon count**;
+- expected generated-electron rate becomes **expected generated-electron count**;
+- expectation values remain floating point and are not rounded or stochastically sampled.
+
+For the A/W path:
+
+- detector-terminal photocurrent magnitude becomes **photocharge magnitude in coulombs**;
+- circuit polarity is still not inferred;
+- carrier/electron count is deliberately **not** inferred from A/W current.
+
+The A/W constant-current approximation also inherits the upstream quasi-static detector-response boundary. The stationarity evidence must justify treating the reported steady-state photocurrent as valid throughout the window; Photivra still does not model detector impulse response or bandwidth.
+
+The result is explicitly **photo-signal-only** accumulation. It does not include dark current, hot-pixel/defect current, leakage, charge injection, or other accumulated charge sources. Accordingly:
+
+- physical full-well assessment is not authorized;
+- camera/digital saturation assessment is not authorized;
+- no clamp is applied;
+- shot/read noise, conversion gain, ADC/RAW and reconstruction remain downstream.
+
+Physical full-well capacity and camera saturation capacity must remain separate future contracts; they are not interchangeable thresholds.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
