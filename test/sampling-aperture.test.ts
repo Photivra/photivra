@@ -189,15 +189,13 @@ describe("sensor sampling aperture foundation", () => {
       x: -0.5,
       y: -0.5
     });
-    expect(
+    const bounds =
       result.geometricSensitiveAperture
-        .boundsFromOpticalAxisMm
-    ).toEqual({
-      left: -0.9,
-      right: -0.1,
-      top: -0.8,
-      bottom: -0.2
-    });
+        .boundsFromOpticalAxisMm;
+    expect(bounds.left).toBeCloseTo(-0.9, 12);
+    expect(bounds.right).toBeCloseTo(-0.1, 12);
+    expect(bounds.top).toBeCloseTo(-0.8, 12);
+    expect(bounds.bottom).toBeCloseTo(-0.2, 12);
   });
 
   it("derives geometric sensitive area fraction without promoting it to QE or radiometric collection area", () => {
