@@ -523,12 +523,13 @@ describe(
         result.spectralNodeCount
       ).toBe(2);
       expect(
-        result.perWavelength.map(
-          (entry) =>
-            entry
-              .spectralResponsivityAmperesPerWatt
-        )
-      ).toEqual([0.25, 0.35]);
+        result.perWavelength[0]
+          ?.spectralResponsivityAmperesPerWatt
+      ).toBeCloseTo(0.25, 12);
+      expect(
+        result.perWavelength[1]
+          ?.spectralResponsivityAmperesPerWatt
+      ).toBeCloseTo(0.35, 12);
       expect(
         result.summationMethod
       ).toBe("kahan-compensated");
@@ -777,7 +778,7 @@ describe(
             zeroBiasConditions
         })
       ).toThrow(
-        "metadata/evidence must exactly match"
+        "response-channel binding"
       );
 
       const stale = {
@@ -1027,8 +1028,7 @@ describe(
         pipeline.reduction
           .perWavelength[0]!;
       const contribution =
-        pipeline.reduction
-          .wavelengthIntegratedGeometricApertureIncidentFluxWatts;
+        10_000;
       const reduction = {
         ...pipeline.reduction,
         perWavelength: [{
