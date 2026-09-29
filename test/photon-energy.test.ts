@@ -102,7 +102,20 @@ describe(
             500,
           wavelengthBasis: "air",
           airPhaseRefractiveIndex:
-            airIndex()
+            airIndex(),
+          airOperatingConditions:
+            {
+      temperatureC: 20,
+      pressurePascal: 101_325,
+      relativeHumidityFraction:
+        0.4,
+      carbonDioxideMoleFraction:
+        0.00042
+    },
+          airConditionPolicy: {
+            kind:
+              "exact-match-required"
+          }
         });
 
       expect(
@@ -230,7 +243,17 @@ describe(
               },
               referenceConditions:
                 undefined
-            } as never)
+            } as never),
+          airConditionPolicy: {
+            kind:
+              "assume-compatible",
+            limitation:
+              "test atmosphere assumption",
+            evidence:
+              evidence(
+                "air-condition-assumption"
+              )
+          }
         });
 
       expect(
@@ -249,6 +272,75 @@ describe(
         result.value
           .airRefractiveIndexReferenceConditions
       ).toBeUndefined();
+      expect(
+        result.value
+          .airConditionCompatibility
+      ).toBe(
+        "assumed-compatible"
+      );
+      expect(
+        result.value
+          .airConditionAssumptionEvidence
+      ).toEqual(
+        evidence(
+          "air-condition-assumption"
+        )
+      );
+    });
+
+    it("requires an explicit air-condition policy and exact atmosphere matching when selected", () => {
+      expect(() =>
+        calculatePhotonEnergyFromWavelength({
+          wavelengthNanometers:
+            500,
+          wavelengthBasis: "air",
+          airPhaseRefractiveIndex:
+            airIndex()
+        })
+      ).toThrow(
+        "airConditionPolicy is required"
+      );
+
+      expect(() =>
+        calculatePhotonEnergyFromWavelength({
+          wavelengthNanometers:
+            500,
+          wavelengthBasis: "air",
+          airPhaseRefractiveIndex:
+            airIndex(),
+          airConditionPolicy: {
+            kind:
+              "exact-match-required"
+          }
+        })
+      ).toThrow(
+        "airOperatingConditions is required"
+      );
+
+      expect(() =>
+        calculatePhotonEnergyFromWavelength({
+          wavelengthNanometers:
+            500,
+          wavelengthBasis: "air",
+          airPhaseRefractiveIndex:
+            airIndex(),
+          airOperatingConditions: {
+            temperatureC: 21,
+            pressurePascal:
+              101_325,
+            relativeHumidityFraction:
+              0.4,
+            carbonDioxideMoleFraction:
+              0.00042
+          },
+          airConditionPolicy: {
+            kind:
+              "exact-match-required"
+          }
+        })
+      ).toThrow(
+        "must match"
+      );
     });
 
     it("requires calibrated air index uncertainty and reference conditions", () => {
@@ -331,7 +423,20 @@ describe(
         wavelengthBasis:
           "air" as const,
         airPhaseRefractiveIndex:
-          airIndex()
+          airIndex(),
+        airOperatingConditions:
+          {
+      temperatureC: 20,
+      pressurePascal: 101_325,
+      relativeHumidityFraction:
+        0.4,
+      carbonDioxideMoleFraction:
+        0.00042
+    },
+        airConditionPolicy: {
+          kind:
+            "exact-match-required" as const
+        }
       };
 
       expect(
