@@ -232,6 +232,10 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 - Sensor data-readout timing must not enter capture-motion geometry unless a separate explicit capture-mode/link contract establishes that relationship.
 - For the current constant-axis pure-rotation model, prefer the analytic inverse mapping over an iterative/fixed-point solver; do not introduce numerical convergence machinery when the inverse is closed-form.
 - Any instantaneous capture-scan mapping must require an explicit local-exposure phase. Never silently choose midpoint/start/end and present it as the finite-exposure result.
+- Finite-exposure temporal geometry must preserve separate dimensionless time-average weights and seconds-valued integration measures; do not conflate either with shutter transmission, radiometric throughput, photon count, or sensor response.
+- The first finite-exposure rotation model uses deterministic uniform midpoint quadrature and must reuse the existing instantaneous inverse mapping rather than copy camera-motion equations.
+- Do not average geometric coordinates and call the result motion blur. Blur/radiance accumulation belongs to downstream scene sampling and must account for visibility/radiance over time.
+- Do not invent a geometry-only quadrature error bound; convergence evidence must be measured in the downstream quantity being integrated.
 - Do not clamp reference rays that leave the active source frame under motion; expose the geometry and let renderer/source-coverage policy handle missing samples.
 
 ## Runtime and package boundary

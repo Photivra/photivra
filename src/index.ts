@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.39.0" as const;
+export const ENGINE_API_VERSION = "0.40.0" as const;
 
 export {
   approximationResult,
@@ -328,6 +328,14 @@ export {
   type CaptureRotationInverseMappings,
   type CaptureRotationInverseMappingSample
 } from "./motion/capture-rotation-inverse-mapping.js";
+
+export {
+  calculateCaptureRotationTemporalQuadrature,
+  type CalculateCaptureRotationTemporalQuadratureInput,
+  type CaptureRotationTemporalQuadrature,
+  type CaptureRotationTemporalQuadratureNode,
+  type CaptureRotationTemporalQuadraturePoint
+} from "./motion/capture-rotation-temporal-quadrature.js";
 
 export {
   calculateEquivalentIso,
