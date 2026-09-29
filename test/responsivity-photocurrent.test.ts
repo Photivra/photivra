@@ -1231,6 +1231,157 @@ describe(
       );
     });
 
+    it("rejects stale operating-range spectral-node identities", () => {
+      const pipeline =
+        buildPipeline();
+      const stale = {
+        ...pipeline.operatingRange,
+        evaluatedSpectralNodeInputs:
+          pipeline.operatingRange
+            .evaluatedSpectralNodeInputs!
+            .map(
+              (entry, index) =>
+                index === 0
+                  ? {
+                      ...entry,
+                      wavelengthNanometers:
+                        entry.wavelengthNanometers +
+                        1
+                    }
+                  : entry
+            )
+      };
+
+      expect(() =>
+        calculateSensorResponsivityPhotocurrent({
+          reduction:
+            pipeline.reduction,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange: stale,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline
+              .spectralResponseProfile,
+          electricalApplicabilityProfile:
+            electricalProfile(),
+          operatingElectricalConditions:
+            zeroBiasConditions
+        })
+      ).toThrow(
+        "spectral-node identities must exactly match"
+      );
+    });
+
+    it("rejects response metadata/evidence drift carried by the reduction", () => {
+      const pipeline =
+        buildPipeline();
+      const altered = {
+        ...pipeline.reduction,
+        componentEvidence: {
+          ...pipeline.reduction
+            .componentEvidence,
+          spectral: {
+            ...pipeline.reduction
+              .componentEvidence.spectral,
+            channel:
+              evidence(
+                "test:altered-channel-evidence"
+              )
+          }
+        }
+      };
+
+      expect(() =>
+        calculateSensorResponsivityPhotocurrent({
+          reduction: altered,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            pipeline.operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline
+              .spectralResponseProfile,
+          electricalApplicabilityProfile:
+            electricalProfile(),
+          operatingElectricalConditions:
+            zeroBiasConditions
+        })
+      ).toThrow(
+        "calibration metadata/evidence"
+      );
+    });
+
+    it("rejects malformed wavelength-node identity and total-power summaries", () => {
+      const pipeline =
+        buildPipeline();
+
+      expect(() =>
+        calculateSensorResponsivityPhotocurrent({
+          reduction: {
+            ...pipeline.reduction,
+            perWavelength:
+              pipeline.reduction
+                .perWavelength.map(
+                  (node, index) =>
+                    index === 0
+                      ? {
+                          ...node,
+                          spectralSampleIndex:
+                            99
+                        }
+                      : node
+                )
+          },
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            pipeline.operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline
+              .spectralResponseProfile,
+          electricalApplicabilityProfile:
+            electricalProfile(),
+          operatingElectricalConditions:
+            zeroBiasConditions
+        })
+      ).toThrow(
+        "contiguous range"
+      );
+
+      expect(() =>
+        calculateSensorResponsivityPhotocurrent({
+          reduction: {
+            ...pipeline.reduction,
+            wavelengthIntegratedGeometricApertureIncidentFluxWatts:
+              pipeline.reduction
+                .wavelengthIntegratedGeometricApertureIncidentFluxWatts *
+              2
+          },
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            pipeline.operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline
+              .spectralResponseProfile,
+          electricalApplicabilityProfile:
+            electricalProfile(),
+          operatingElectricalConditions:
+            zeroBiasConditions
+        })
+      ).toThrow(
+        "must match the per-wavelength sum"
+      );
+    });
+
     it("fails closed on malformed reduction power", () => {
       const pipeline =
         buildPipeline();
