@@ -1518,6 +1518,10 @@ A/W also has an additional **electrical calibration applicability** contract. `S
 
 These fields are applicability metadata, not a circuit simulator. In particular, Photivra does not use a declared input impedance to claim that a transimpedance circuit is adequate; it only verifies that the operating condition matches the calibration contract.
 
+The electrical categories are intentionally disjoint: `reverse-biased` requires a strictly positive reverse-bias magnitude, while true zero-bias operation uses `zero-bias-photovoltaic`; a finite input impedance must also be strictly greater than zero.
+
+The spectral A/W curve is treated as a **quasi-static steady-state** power→current relation only. Detector impulse response, modulation bandwidth, settling time and frequency-dependent responsivity are not modeled by this first path. A future time-varying current integrator must add a separate temporal-response contract before it can consume rapidly varying optical power.
+
 The result is a **nonnegative detector-terminal photocurrent magnitude in amperes**. Photivra intentionally does not assign circuit direction/polarity from the optical response curve.
 
 The A/W path does **not**:
