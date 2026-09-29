@@ -143,7 +143,7 @@ Temporal exposure/readout couples into the photosite/charge stages rather than a
 
 The standalone capture-mode profile now describes acquisition sequence, per-frame effective sampling, optional inter-frame sensor offsets, reconstruction-stage labels, processed-image raster, and downstream dependencies. It does **not** implement the reserved CFA/photosite/reconstruction algorithms. A mode's processed raster remains upstream of physical orientation and final output crop/resampling and cannot redefine physical sensor geometry or FOV.
 
-The standalone color-sampling topology profile now describes monochrome, arbitrary periodic mosaic phase/channel assignment, and structural-only layered color declarations. The periodic topology lives on a distinct native sensor sampling-site lattice rather than `NativeImageRaster`; no binding to effective image samples or physical photodiodes is inferred. This metadata foundation does not yet implement the reserved photosite/CFA sampling stage, spectral response, sparse site exceptions, RAW sampling, or reconstruction.
+The standalone color-sampling topology profile now describes monochrome, arbitrary periodic mosaic phase/channel assignment, and layered color declarations with an explicitly unresolved spatial relationship. The periodic topology lives on a distinct native sensor sampling-site lattice rather than `NativeImageRaster`; no binding to effective image samples or physical photodiodes is inferred. This metadata foundation does not yet implement the reserved photosite/CFA sampling stage, spectral response, sparse site exceptions, RAW sampling, or reconstruction.
 
 ## Current implementation status
 
