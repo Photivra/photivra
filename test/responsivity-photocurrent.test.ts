@@ -59,7 +59,10 @@ function responseProfile(
     | "responsivity"
     | "eqe" = "responsivity",
   curveEvidence =
-    "test:responsivity-curve"
+    "test:responsivity-curve",
+  responsivityValues:
+    readonly [number, number] =
+      [0.2, 0.4]
 ): SensorSpectralResponseProfile {
   const common = {
     channelId: "green",
@@ -108,13 +111,13 @@ function responseProfile(
                   wavelengthNanometers:
                     400,
                   amperesPerWatt:
-                    0.2
+                    responsivityValues[0]
                 },
                 {
                   wavelengthNanometers:
                     500,
                   amperesPerWatt:
-                    0.4
+                    responsivityValues[1]
                 }
               ]
             }
@@ -304,7 +307,10 @@ function buildPipeline(
     | "responsivity"
     | "eqe" = "responsivity",
   maximumSubintervalWidthNanometers =
-    100
+    100,
+  responsivityValues:
+    readonly [number, number] =
+      [0.2, 0.4]
 ): {
   reduction: ReturnType<
     typeof reduceSensorSpatioSpectralIrradiance
@@ -321,7 +327,11 @@ function buildPipeline(
   const spatial =
     makeQuadrature().value;
   const spectralResponseProfile =
-    responseProfile(kind);
+    responseProfile(
+      kind,
+      "test:responsivity-curve",
+      responsivityValues
+    );
   const spectral =
     calculateSensorSpectralQuadrature({
       colorSamplingProfile:
@@ -712,6 +722,36 @@ describe(
       );
     });
 
+    it("rejects numeric A/W calibration drift even when IDs and evidence are unchanged", () => {
+      const pipeline =
+        buildPipeline();
+
+      expect(() =>
+        calculateSensorResponsivityPhotocurrent({
+          reduction:
+            pipeline.reduction,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            pipeline.operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            responseProfile(
+              "responsivity",
+              "test:responsivity-curve",
+              [0.25, 0.45]
+            ),
+          electricalApplicabilityProfile:
+            electricalProfile(),
+          operatingElectricalConditions:
+            zeroBiasConditions
+        })
+      ).toThrow(
+        "response-channel binding"
+      );
+    });
+
     it("binds A/W calibration evidence and operating-range bins to the exact reduction", () => {
       const pipeline =
         buildPipeline();
@@ -975,12 +1015,20 @@ describe(
 
     it("fails closed on photocurrent overflow", () => {
       const pipeline =
-        buildPipeline();
+        buildPipeline(
+          "responsivity",
+          100,
+          [
+            Number.MAX_VALUE,
+            Number.MAX_VALUE
+          ]
+        );
       const node =
         pipeline.reduction
           .perWavelength[0]!;
       const contribution =
-        Number.MAX_VALUE;
+        pipeline.reduction
+          .wavelengthIntegratedGeometricApertureIncidentFluxWatts;
       const reduction = {
         ...pipeline.reduction,
         perWavelength: [{
