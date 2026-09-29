@@ -139,6 +139,33 @@ Sensor data-readout timing from `calculateSensorReadoutTiming()` is intentionall
 
 The trajectory foundation remains rotation-only. Camera translation/parallax, subject motion, panning intent, object rotation/deformation, occlusion changes, exposure integration, flash/flicker, shutter shock, and the final inverse rolling-shutter warp remain future work.
 
+## Capture rotation temporal quadrature
+
+`calculateCaptureRotationTemporalQuadrature()` extends the instantaneous inverse mapping into a deterministic **temporal-geometry quadrature** over each destination point's complete local exposure interval.
+
+The first model uses the uniform midpoint rule. For `N` temporal samples, normalized local phases are:
+
+```text
+phase_i = (i + 0.5) / N
+```
+
+so the exact opening and closing boundaries are not sampled. Each phase is evaluated through the already-public `calculateCaptureRotationInverseMappings()` contract rather than introducing a second camera-motion equation.
+
+Every temporal node reports two different measures:
+
+- `normalizedTimeWeight = 1 / N` — dimensionless weight for a downstream **time average** under the declared uniform temporal-response approximation;
+- `timeMeasureSeconds = localExposureDuration / N` — seconds-valued `dt` measure for a downstream **time integral**.
+
+These are intentionally separate. The seconds-valued measure is not shutter transmission, photon count, radiometric throughput, scene radiance, sensor response, or a calibrated energy measurement.
+
+The local exposure interval remains destination-dependent. A scanned opening/closing schedule can therefore shift node times between sensor locations, and different opening/closing traversal schedules can produce different local durations and therefore different `timeMeasureSeconds` values.
+
+The first temporal-response model is `uniform-over-local-exposure`. That is an explicit approximation. Photivra does not yet model shutter-transmission ramps, exposure-dependent sensor response, scene flicker, flash pulses, or other time-varying radiometric weighting.
+
+The API returns **nodes and weights only**. It does not average reference coordinates, compute a blur radius/kernel, sample scene radiance, resolve visibility/occlusion, or write output pixels. Averaging geometric coordinates is not a substitute for integrating the radiance seen along the time-varying rays.
+
+No geometry-only quadrature error estimate is reported. Image-integration error depends on downstream scene radiance, visibility, texture/edge frequency, and reconstruction as well as the camera trajectory. Renderer/reference implementations can compare increasing temporal sample counts in their radiance domain when convergence evidence is needed.
+
 ## Instantaneous capture rotation inverse mapping
 
 `calculateInverseCameraRotationImageMapping()` is the exact inverse of the existing forward pure-rotation ray mapping under the same constant-axis assumptions. Once capture time is known, the captured image-plane ray is rotated analytically back into the exposure-start reference camera frame. There is no numerical root/fixed-point solve.
