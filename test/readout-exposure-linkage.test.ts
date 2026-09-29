@@ -345,7 +345,7 @@ describe("readout/exposure spatial linkage", () => {
       shutterMechanism: "electronic",
       readout: rollingReadout("top-to-bottom", 0.02),
       nominalExposureDurationSeconds: captureSeconds(
-        0.01,
+        0.02,
         "test:nominal"
       ),
       opening: scanned(
