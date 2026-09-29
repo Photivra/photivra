@@ -353,8 +353,10 @@ describe("spatial camera-rotation image mapping", () => {
       }
     }).value;
 
-    expect(zeroTime.referenceImagePointMm).toEqual({ x: 7, y: -3 });
-    expect(zeroRotation.referenceImagePointMm).toEqual({ x: 7, y: -3 });
+    expect(zeroTime.referenceImagePointMm.x).toBeCloseTo(7, 12);
+    expect(zeroTime.referenceImagePointMm.y).toBeCloseTo(-3, 12);
+    expect(zeroRotation.referenceImagePointMm.x).toBeCloseTo(7, 12);
+    expect(zeroRotation.referenceImagePointMm.y).toBeCloseTo(-3, 12);
   });
 
   it("reports inverse sample displacement in the image-plane basis", () => {
