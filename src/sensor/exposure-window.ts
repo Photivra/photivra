@@ -14,7 +14,8 @@ import {
 } from "../core/validation.js";
 import type {
   RasterPoint,
-  RasterRect
+  RasterRect,
+  RasterVector
 } from "../output/capture-geometry.js";
 import type { NativeImageRaster } from "./sensor-geometry.js";
 import type {
@@ -81,7 +82,7 @@ export interface ResolvedCaptureExposureBoundary {
     | {
         kind: "uniform-linear-native-scan";
         directionNative: SourcedCaptureBoundaryDirection;
-        unitVectorNative: RasterPoint;
+        unitVectorNative: RasterVector;
         traversalDurationSeconds: SourcedCaptureTimingSeconds;
       };
 }
@@ -306,7 +307,7 @@ function validatePointWithinActiveCapture(
 
 function scanVector(
   direction: NativeSensorReadoutScanDirection
-): RasterPoint {
+): RasterVector {
   switch (direction) {
     case "top-to-bottom":
       return { x: 0, y: 1 };
