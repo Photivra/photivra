@@ -983,6 +983,130 @@ Microlens presence or absence is also descriptive only. A `present` microlens do
 
 The resolver therefore returns only the **effective AA spatial kernel** and explicitly reports that cover/filter effects, microlens response, throughput, spectral transmission, field dependence, wavelength dependence, and polarization dependence are not included.
 
+## Sensor sampling aperture
+
+Use `parseSensorSamplingApertureProfile()` and `resolveSensorSamplingAperture()` when the physical color-site lattice registration and a geometric photosensitive-region approximation are known:
+
+```ts
+import {
+  parseSensorSamplingApertureProfile,
+  resolveSensorSamplingAperture
+} from "@photivra/engine";
+
+const sampling = parseSensorSamplingApertureProfile({
+  schemaVersion: "0.1.0",
+  profileId: "example-sampling-aperture",
+  colorSamplingProfileId: "example-periodic-layout",
+  colorSamplingBindingId: "example-native-to-cfa",
+  evidence: [
+    {
+      sourceOrigin: "photivra",
+      sourceReference: "example:sampling-aperture",
+      reuseStatus: "photivra-owned"
+    }
+  ],
+  siteCenterLattice: {
+    kind: "regular-rectangular-site-center-lattice",
+    coordinateSystem: "native-sensor-physical",
+    pitchXMicrometers: 6,
+    pitchYMicrometers: 6,
+    firstSiteCenterFromImagingAreaTopLeftMicrometers: {
+      x: 3,
+      y: 3
+    },
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference: "example:site-registration",
+        reuseStatus: "photivra-owned"
+      }
+    ]
+  },
+  geometricSensitiveAperture: {
+    kind: "uniform-axis-aligned-rectangle",
+    widthMicrometers: 5,
+    heightMicrometers: 5,
+    centerOffsetFromSiteCenterMicrometers: {
+      x: 0,
+      y: 0
+    },
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference: "example:sensitive-region",
+        reuseStatus: "photivra-owned"
+      }
+    ]
+  }
+});
+
+const siteAperture = resolveSensorSamplingAperture({
+  imagingArea: {
+    widthMm: 36,
+    heightMm: 24
+  },
+  nativeRaster: {
+    pixelWidth: 6000,
+    pixelHeight: 4000
+  },
+  colorSamplingProfile: topology,
+  colorSamplingBindingProfile: binding,
+  samplingApertureProfile: sampling,
+  site: { x: 100, y: 200 }
+});
+
+console.log(
+  siteAperture.geometricSensitiveAperture
+    .boundsFromOpticalAxisMm
+);
+```
+
+The site-center lattice is a distinct physical registration contract:
+
+- coordinates are `native-sensor-physical`: optical-axis origin, +X right, +Y down;
+- `pitchXMicrometers` and `pitchYMicrometers` are explicit evidence-backed site-center spacings;
+- the first site's center is explicitly registered relative to the physical imaging area's top-left edge;
+- the full declared lattice must fit inside the supplied physical imaging area.
+
+Photivra does **not** derive this site pitch or origin from `NativeImageRaster`. The native effective raster and the color-site lattice already have a structural binding, but physical placement remains a separate fact.
+
+The geometric sensitive aperture is separate from site pitch. A scalar fill fraction is not sufficient to reconstruct shape or centering, so schema 0.1.0 stores explicit rectangle dimensions and center offset.
+
+The first resolved footprint is deliberately narrow:
+
+- uniform axis-aligned rectangle;
+- contained within one regular lattice cell;
+- no neighboring geometric-aperture overlap in this model;
+- normalized spatial weighting is a unit-area average;
+- physical aperture area is reported separately.
+
+The engine also derives `geometricSensitiveAreaFractionOfLatticeCell`:
+
+```text
+geometric sensitive rectangle area
+----------------------------------
+nominal site lattice cell area
+```
+
+This is a **geometry diagnostic**, not a calibrated sensitivity result. It does not establish QE, effective radiometric collection area, photon conversion, optical throughput, or physical photodiode truth.
+
+Use `kind: "unresolved"` when the geometric footprint is known to be required but its shape/dimensions are not defensibly available. Resolution then fails closed instead of fabricating a rectangle from site pitch, megapixels, or a fill-factor percentage.
+
+The first sampling-aperture model explicitly excludes:
+
+- effective AA point splitting;
+- microlens spatial redirection;
+- charge diffusion;
+- electrical/optical crosstalk;
+- wavelength/spectral response;
+- quantum efficiency;
+- optical transmission/throughput;
+- calibrated radiometric collection area.
+
+Those effects may change the **effective** spatial response or sensitivity even when the geometric sensitive region is unchanged. For example, microlenses can redirect incident light toward the photosensitive portion of a front-illuminated pixel, and their effectiveness can vary with incidence angle. The geometric aperture must therefore not absorb microlens behavior silently.
+
+Physical camera orientation remains downstream. The site lattice and aperture stay in invariant native sensor physical coordinates.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
