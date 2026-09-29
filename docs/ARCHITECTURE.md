@@ -61,6 +61,8 @@ The spectral-response foundation now supplies that next channel-specific metadat
 
 The spectral-quadrature foundation now plans the next wavelength dimension without performing signal integration. It partitions an explicitly requested response-supported interval at sensor-response knots plus optional caller-supplied continuous-spectrum/optics breakpoints, then uses bounded equal-width midpoint subintervals with dλ expressed in nanometres. The result preserves response kind, scope, uncertainty and evidence but does not apply response values, establish common scene/optics/sensor spectral coverage, or calculate photons, electrons, current or RAW values. QE and A/W therefore remain separate downstream signal paths, response scope must later match the source plane, and discrete line spectra remain outside the continuous-density quadrature contract.
 
+The spatio-spectral reducer now composes the spatial and wavelength measures against explicitly supplied E_lambda(x,y) in W/m²/nm. Spatial plans carry their exact colorSamplingProfileId so composition can require profile identity rather than channel-name coincidence. The reducer validates the full spatial × spectral Cartesian product, caps it independently, reports per-wavelength spatial averages and geometric-aperture spectral flux density, and integrates those pre-response quantities over dλ. It still applies no QE, A/W responsivity, channel-filter transmission, temporal exposure, effective collection-area correction, photon/electron conversion or RAW processing. Response-scope/source-plane matching therefore remains the next explicit gate rather than an inferred property of these pre-response values.
+
 
 ## Image-formation ownership and ordering
 
