@@ -165,7 +165,9 @@ function calculate(
     spatialSampleCountY?: number;
     samplingApertureProfile?: SensorSamplingApertureProfile;
   } = {}
-) {
+): ReturnType<
+  typeof calculateSensorSpatialSamplingQuadrature
+> {
   return calculateSensorSpatialSamplingQuadrature({
     imagingArea,
     nativeRaster,
