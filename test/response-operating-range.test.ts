@@ -762,6 +762,34 @@ describe(
       );
     });
 
+    it("rejects unsupported profile schema/status and exact matching without reference conditions", () => {
+      expect(() =>
+        parseSensorResponseOperatingRangeProfile({
+          ...profile(),
+          schemaVersion: "9.9.9"
+        })
+      ).toThrow("schemaVersion");
+
+      expect(() =>
+        parseSensorResponseOperatingRangeProfile({
+          ...profile(),
+          scientificStatus: "unknown"
+        })
+      ).toThrow("scientificStatus");
+
+      expect(() =>
+        parseSensorResponseOperatingRangeProfile({
+          ...profile(),
+          referenceConditions: undefined,
+          referenceConditionPolicy: {
+            kind: "exact-match-required"
+          }
+        })
+      ).toThrow(
+        "referenceConditions is required"
+      );
+    });
+
     it("rejects malformed metric values before range classification", () => {
       expect(() =>
         assessSensorResponseOperatingRange({
