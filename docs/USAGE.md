@@ -1107,6 +1107,62 @@ Those effects may change the **effective** spatial response or sensitivity even 
 
 Physical camera orientation remains downstream. The site lattice and aperture stay in invariant native sensor physical coordinates.
 
+## Sensor spatial-sampling quadrature
+
+Use `calculateSensorSpatialSamplingQuadrature()` to build deterministic renderer-neutral spatial integration nodes for one resolved color-sampling site after combining:
+
+1. the geometric sensitive aperture from `SensorSamplingApertureProfile`; and
+2. the effective anti-aliasing point-splitting response from `SensorOpticalStackProfile`.
+
+```ts
+import {
+  calculateSensorSpatialSamplingQuadrature
+} from "@photivra/engine";
+
+const quadrature =
+  calculateSensorSpatialSamplingQuadrature({
+    imagingArea: { widthMm: 36, heightMm: 24 },
+    nativeRaster: {
+      pixelWidth: 6000,
+      pixelHeight: 4000
+    },
+    colorSamplingProfile: topology,
+    colorSamplingBindingProfile: binding,
+    samplingApertureProfile: sampling,
+    opticalStackProfile: stack,
+    site: { x: 100, y: 200 },
+    spatialSampleCountX: 4,
+    spatialSampleCountY: 4
+  });
+
+console.log(quadrature.value.nodes);
+```
+
+The first scheme is a tensor-product uniform midpoint rule over the geometric aperture. Each AA split component multiplies that aperture quadrature.
+
+AA composition uses **inverse source sampling**. If the optical stack declares that a component displaces optical energy by `+delta` on the sensor plane, a destination aperture point reads the pre-AA optical field at:
+
+```text
+pre-AA source = destination aperture point - AA displacement
+```
+
+The destination sensor site's CFA/color channel applies to every node. A shifted pre-AA source coordinate is an optical-field location, not another CFA site, so it never reassigns the destination CFA channel.
+
+Two measures are returned separately:
+
+- `combinedNormalizedSpatialWeight` — dimensionless weight for approximating a spatial average;
+- `combinedAreaMeasureSquareMicrometers` — geometric area measure for approximating a spatial area integral.
+
+The area measure is **not** effective radiometric collection area, throughput, QE, or photon count.
+
+Near sensor edges, AA inverse-source coordinates may lie outside the active physical imaging area. Those nodes remain valid and are retained. Photivra does not clamp them, drop them, or renormalize the remaining weights. A renderer/optical-field provider owns source-coverage policy.
+
+The API intentionally returns geometry and measures only. It does not evaluate optical-field values, radiance, spectral response, photons/electrons, temporal exposure, RAW values, or reconstruction. Spatial and temporal quadrature remain separate until a later explicit composition evaluates a common downstream field.
+
+Because spatial integration error depends on the downstream optical field's spatial-frequency/content, Photivra does not report a geometry-only convergence/error estimate. Reference rendering can compare increasing spatial sample counts in the quantity actually being integrated.
+
+A per-site node allocation safety limit prevents malformed/untrusted counts from creating an oversized array in one call.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:

@@ -53,6 +53,8 @@ Sensor optical-stack metadata is a separate upstream layer. `SensorOpticalStackP
 
 Physical sampling aperture is a separate downstream prerequisite for CFA/site sampling. `SensorSamplingApertureProfile` explicitly registers the regular color-site center lattice in native sensor physical coordinates and can declare the first geometric sensitive-region approximation as a uniform rectangle. Site pitch/origin is never derived from `NativeImageRaster`, and aperture dimensions/offset are never inferred from pitch or a scalar fill fraction. The derived geometric sensitive-area fraction is diagnostic only. AA redistribution, microlenses, charge diffusion/crosstalk, spectral response, QE, optical throughput, radiometric collection area, and physical photodiode geometry remain separate models so spatial sampling can later compose them deliberately rather than double-count them.
 
+The spatial-quadrature foundation now performs that first explicit composition of AA redistribution and geometric aperture support. It inverse-samples the pre-AA optical field, keeps the destination CFA channel authoritative, returns both normalized-average and geometric-area measures, and preserves off-imaging-area optical support without clamping. It still evaluates no optical/radiometric values and remains separate from temporal quadrature, microlens response, diffusion/crosstalk, RAW generation, and reconstruction.
+
 
 ## Image-formation ownership and ordering
 
