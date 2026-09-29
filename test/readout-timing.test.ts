@@ -4,12 +4,23 @@ import {
   calculateSensorReadoutTiming,
   resolveCaptureGeometry,
   transformNativeRasterVectorToOriented,
-  type CaptureOrientation
+  type CaptureOrientation,
+  type RollingSensorReadoutTimingDeclaration,
+  type SensorReadoutTiming,
+  type SourcedSensorTimingSeconds
 } from "../src/index.js";
+
+type PhotivraOwnedEvidence = readonly [
+  {
+    sourceOrigin: "photivra";
+    sourceReference: string;
+    reuseStatus: "photivra-owned";
+  }
+];
 
 const nativeRaster = { pixelWidth: 6000, pixelHeight: 4000 };
 
-const factEvidence = (sourceReference: string) =>
+const factEvidence = (sourceReference: string): PhotivraOwnedEvidence =>
   [
     {
       sourceOrigin: "photivra",
@@ -18,14 +29,17 @@ const factEvidence = (sourceReference: string) =>
     }
   ] as const;
 
-const secondsFact = (value: number, sourceReference: string) =>
+const secondsFact = (
+  value: number,
+  sourceReference: string
+): SourcedSensorTimingSeconds =>
   ({
     value,
     unit: "s" as const,
     evidence: factEvidence(sourceReference)
   });
 
-const rollingReadout = () =>
+const rollingReadout = (): RollingSensorReadoutTimingDeclaration =>
   ({
     readoutMode: "rolling" as const,
     captureReadoutDurationSeconds: secondsFact(
@@ -115,6 +129,66 @@ describe("sensor readout scan timing", () => {
     ).toEqual([null, null, null]);
   });
 
+  it("maps every supported single-axis native scan direction from first to last edge", () => {
+    const cases = [
+      {
+        direction: "top-to-bottom" as const,
+        points: [
+          { x: 3000, y: 0 },
+          { x: 3000, y: 4000 }
+        ],
+        vector: { x: 0, y: 1 }
+      },
+      {
+        direction: "bottom-to-top" as const,
+        points: [
+          { x: 3000, y: 4000 },
+          { x: 3000, y: 0 }
+        ],
+        vector: { x: 0, y: -1 }
+      },
+      {
+        direction: "left-to-right" as const,
+        points: [
+          { x: 0, y: 2000 },
+          { x: 6000, y: 2000 }
+        ],
+        vector: { x: 1, y: 0 }
+      },
+      {
+        direction: "right-to-left" as const,
+        points: [
+          { x: 6000, y: 2000 },
+          { x: 0, y: 2000 }
+        ],
+        vector: { x: -1, y: 0 }
+      }
+    ];
+
+    for (const item of cases) {
+      const value = calculateSensorReadoutTiming({
+        nativeRaster,
+        shutterMechanism: "electronic",
+        readout: {
+          ...rollingReadout(),
+          scanDirectionNative: {
+            value: item.direction,
+            evidence: factEvidence("test:" + item.direction)
+          }
+        },
+        samplePointsNative: item.points
+      }).value;
+
+      expect(value.scan?.unitVectorNative).toEqual(item.vector);
+      expect(
+        value.samples.map((sample) => sample.normalizedScanPosition)
+      ).toEqual([0, 1]);
+      expect(
+        value.samples.map((sample) => sample.readoutPhaseOffsetSeconds)
+      ).toEqual([0, 0.02]);
+    }
+  });
+
   it("keeps native scan timing invariant while existing orientation transforms rotate its direction", () => {
     const timing = calculateSensorReadoutTiming({
       nativeRaster,
@@ -181,7 +255,9 @@ describe("sensor readout scan timing", () => {
       outputRaster: { pixelWidth: 1500, pixelHeight: 1000 }
     }).value;
 
-    const calculate = (activeCaptureRect: typeof full.activeCapture.nativeRect) =>
+    const calculate = (
+      activeCaptureRect: typeof full.activeCapture.nativeRect
+    ): SensorReadoutTiming =>
       calculateSensorReadoutTiming({
         nativeRaster,
         activeCaptureRect,
