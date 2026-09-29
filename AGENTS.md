@@ -111,6 +111,13 @@ The sensor/capture foundation has explicit semantics. Preserve them.
 - Physical spatial reduction uses sensor-plane irradiance in W/m². Radiance, RGB renderer values, gamma-encoded values, spectral irradiance, exposure, photons/electrons, and RAW code values are different domains and must not be substituted silently.
 - A destination CFA channel ID is metadata until an explicit spectral filter/sensor-response model is applied; channel tagging alone is not mosaiced color measurement.
 - Spatial node values must be matched by explicit quadrature-node identity. Do not rely on array position, auto-fill missing edge support, or renormalize away unsupplied nodes.
+- CFA/color channel IDs are semantic labels, not spectral curves. Never infer wavelength response from names such as red, green, blue, clear, Bayer, Quad Bayer, or X-Trans-like family metadata.
+- Embedded multi-point spectral curve data requires reusable-data or Photivra-owned provenance. Factual-reference-only sources may inform research/metadata but do not authorize copying numeric curves into the public engine.
+- Direct effective spectral response and separable channel-filter × detector response are different evidence models. Do not force decomposition when only combined response is established, and do not multiply a combined effective response by the same upstream components again.
+- External QE and spectral responsivity (A/W) are distinct physical representations. Never convert between them implicitly or treat equal numeric values as equivalent.
+- Spectral wavelength basis is explicit. Air, vacuum, and unspecified wavelength coordinates must not be silently converted or mixed; calibrated curves cannot use an unspecified basis.
+- Spectral response is valid only over its declared sampled wavelength interval in schema 0.1.0. Do not extrapolate or assume response is zero outside that interval.
+- First spectral-response profiles are single-condition only. Optional reference temperature/incidence/polarization metadata does not create field-angle, temperature, or polarization dependence models.
 - Capture-mode profiles must preserve that distinction: do not relabel `NativeImageRaster` as a photosite raster or infer physical photosite count from native, processed, or final output megapixels.
 - Model capture modes on orthogonal axes (acquisition sequence, per-frame sampling, optional inter-frame sensor offsets, reconstruction stages, processed raster, dependencies) rather than one mutually exclusive marketing-style mode enum.
 - Grouped sampling does not establish charge-domain binning; the combination domain stays unknown unless separately evidenced as charge-domain, pre-conversion analog, or post-conversion digital.

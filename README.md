@@ -94,6 +94,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [sensor sampling-aperture profiles](docs/USAGE.md#sensor-sampling-aperture), explicitly registering color-site centers in native sensor physical space and resolving geometric sensitive rectangles without conflating pitch, fill area, QE, microlenses, or radiometry;
 - [sensor spatial-sampling quadrature](docs/USAGE.md#sensor-spatial-sampling-quadrature), combining AA point splitting with geometric aperture integration into deterministic native-physical source nodes and weights;
 - [sensor spatial-sample reduction](docs/USAGE.md#sensor-spatial-sample-reduction), reducing explicitly identified nonnegative linear node values in relative or physical irradiance domains without claiming CFA spectral filtering or RAW conversion;
+- [sensor spectral-response profiles](docs/USAGE.md#sensor-spectral-response), binding reusable wavelength-dependent channel response data to exact color-sampling IDs without inferring spectra from CFA labels;
 - [orthogonal capture-mode profiles](docs/USAGE.md#capture-mode-profiles), separating acquisition sequence, per-frame sampling, sensor-shift sequence, reconstruction stages, processed raster, and final output geometry;
 - [capture-specific native sensor readout scan timing](docs/USAGE.md#sensor-readout-timing), with separately evidenced total data-readout duration and rolling spatial timing skew;
 - [readout/exposure spatial linkage assessment](docs/USAGE.md#readoutexposure-spatial-linkage), for evidence-backed same/reversed normalized phase relationships between rolling readout and electronic exposure boundaries without asserting absolute synchronization;
@@ -201,7 +202,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.47.0`
+- Engine API contract: `0.48.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
@@ -238,6 +239,7 @@ Photivra deliberately avoids claiming more than the current models support.
 - Sensor optical-stack schema 0.1.0 separates physical component presence from effective anti-aliasing response. Omitted AA response means unknown, while explicit `absent` means no intentional AA spatial-splitting term in this contract—not an identity whole-stack PSF or zero aliasing risk. Point-splitting kernels are normalized spatial redistribution only and exclude throughput, spectral transmission, field/wavelength/polarization dependence, cover-glass refraction, and microlens behavior.
 - Sensor sampling-aperture schema 0.1.0 keeps color-site physical registration separate from both `NativeImageRaster` and radiometry. Site pitch/origin must be explicitly evidenced; aperture geometry is not inferred from pitch or fill fraction. The first resolved aperture is a uniform axis-aligned geometric sensitive rectangle contained within one lattice cell. Its derived sensitive-area fraction is a geometry diagnostic only—not QE, effective collection area, microlens behavior, charge diffusion/crosstalk, spectral response, or optical throughput.
 - Sensor spatial quadrature inverse-samples the pre-AA optical field through the declared AA split and geometric aperture. Destination CFA channel remains authoritative for all nodes; pre-AA source coordinates never reassign CFA color. Off-imaging-area source support is exposed rather than clamped/dropped, normalized weights remain unchanged, and square-micrometre measures remain geometric—not radiometric collection area.
+- Sensor spectral-response schema 0.1.0 treats channel IDs as labels until explicit wavelength-dependent data is supplied. Direct effective EQE, direct A/W responsivity, and explicitly separable filter×detector-QE are distinct representations; response curves require reusable-data/Photivra-owned provenance, never extrapolate outside their wavelength range, never convert air/vacuum wavelength coordinates implicitly, and do not model field-angle/temperature/polarization dependence or perform wavelength/photon/electron integration.
 - Signal/noise primitives require caller-supplied photon/electron quantities. The radiometry-readiness API can assess declared prerequisites, but it does not derive photons or enable photon/noise output in the composed POC.
 - The composed POC still uses one representative pixel-pitch path internally and therefore rejects sensor geometry whose X/Y sample pitch differs by more than 1%; lower-level geometry APIs already preserve independent X/Y pitch.
 - No named commercial camera or lens performance is claimed.

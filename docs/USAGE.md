@@ -1184,6 +1184,49 @@ Every quadrature node requires an explicit nonnegative finite input, including n
 
 Signed color-transform intermediates, RGB display values, gamma-encoded values, radiance, spectral irradiance, temporal exposure, photons/electrons, noise, saturation, black level, ADC quantization, RAW codes, and demosaic/reconstruction are outside this contract.
 
+## Sensor spectral response
+
+Use `parseSensorSpectralResponseProfile()` to declare wavelength-dependent response for exact semantic channel IDs from a linked `SensorColorSamplingProfile`, and `resolveSensorSpectralResponseAtWavelength()` to evaluate one channel at one wavelength.
+
+The first contract supports three evidence models:
+
+- **direct effective external QE** — dimensionless generated-charge/incident-photon response for the declared response scope;
+- **direct effective spectral responsivity** — A/W as a distinct physical representation;
+- **separable channel-filter transmittance × detector external QE** — only when both components are independently established and explicitly declared separable.
+
+Do not force a real measured effective response into filter and detector components when the source does not support that decomposition. Conversely, do not apply upstream optical/filter terms again to a response whose scope already includes them.
+
+Curve rules are intentionally strict:
+
+- wavelength unit is nanometres;
+- wavelength basis is explicitly `air`, `vacuum`, or `unspecified`;
+- calibrated response may not use an unspecified wavelength basis;
+- sample wavelengths are strictly increasing;
+- fraction curves are constrained to [0, 1];
+- A/W responsivity is nonnegative;
+- interpolation is piecewise-linear;
+- requests outside the declared wavelength range fail closed;
+- Photivra never assumes response becomes zero outside the measured range.
+
+Embedded multi-point numeric curves require at least one `reusable-data` or `photivra-owned` evidence record. Publicly viewable/manufacturer curves that are only factual-reference material may guide research, but cannot be copied into the public engine without reuse rights.
+
+Channel IDs remain exact. If two mosaic positions require different green-channel response curves, the color topology must use distinct semantic IDs such as `green-a` and `green-b`; one shared `green` ID means one shared semantic channel for this contract.
+
+The resolver validates the entire spectral profile against the linked topology. Unknown channels fail closed. Layered-color topology remains fail-closed because its per-layer spatial relationship is still unresolved.
+
+Optional reference temperature, incidence angle, and polarization metadata may record the condition under which a curve applies. Schema 0.1.0 does not model response variation with those conditions.
+
+This foundation performs **spectral lookup only**. It does not:
+
+- integrate spectral irradiance over wavelength;
+- convert A/W responsivity to QE or vice versa;
+- calculate photons or electrons;
+- apply temporal exposure integration;
+- generate RAW values;
+- demosaic/remosaic or reconstruct pixels.
+
+Those remain explicit downstream steps.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:

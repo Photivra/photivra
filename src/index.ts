@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.47.0" as const;
+export const ENGINE_API_VERSION = "0.48.0" as const;
 
 export {
   approximationResult,
@@ -169,6 +169,25 @@ export {
   type SensorSpatialSampleReductionValue,
   type SensorSpatialSampleValueDomain
 } from "./sensor/spatial-sample-reduction.js";
+
+export {
+  parseSensorSpectralResponseProfile,
+  resolveSensorSpectralResponseAtWavelength,
+  type EffectiveSensorResponseScope,
+  type ResolveSensorSpectralResponseAtWavelengthInput,
+  type ResolvedSensorSpectralResponse,
+  type ResolvedSensorSpectralResponseValue,
+  type SensorSpectralChannelResponse,
+  type SensorSpectralReferenceConditions,
+  type SensorSpectralResponseProfile,
+  type SensorSpectralResponseScientificStatus,
+  type SensorSpectralResponseUncertainty,
+  type SpectralFractionCurve,
+  type SpectralFractionSample,
+  type SpectralResponsivityCurve,
+  type SpectralResponsivitySample,
+  type SpectralWavelengthBasis
+} from "./sensor/spectral-response.js";
 
 export {
   parseCaptureModeProfile,
