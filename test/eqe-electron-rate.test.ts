@@ -787,6 +787,98 @@ describe(
       );
     });
 
+    it("rejects A/W response even if an external authorization snapshot is forged to the EQE path", () => {
+      const pipeline =
+        buildPipeline(
+          "responsivity"
+        );
+      const compatibility = {
+        ...pipeline.compatibility,
+        requiredSignalPath:
+          "photon-rate-to-electrons" as const
+      };
+      const operatingRange = {
+        ...pipeline.operatingRange,
+        requiredSignalPath:
+          "photon-rate-to-electrons" as const
+      };
+
+      expect(() =>
+        calculateSensorEqeElectronRate({
+          reduction:
+            pipeline.reduction,
+          compatibility,
+          operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline.responseProfile
+        })
+      ).toThrow(
+        "not A/W responsivity"
+      );
+    });
+
+    it("fails closed when a wavelength-node photon-rate calculation overflows", () => {
+      const pipeline =
+        buildPipeline();
+      const node =
+        pipeline.reduction
+          .perWavelength[0]!;
+      const hugeContribution =
+        Number.MAX_VALUE;
+      const hugeFluxDensity =
+        hugeContribution /
+        node.wavelengthMeasureNanometers;
+      const reduction = {
+        ...pipeline.reduction,
+        perWavelength: [{
+          ...node,
+          geometricApertureIncidentSpectralFluxWattsPerNanometer:
+            hugeFluxDensity,
+          wavelengthIntegratedGeometricApertureIncidentFluxContributionWatts:
+            hugeContribution
+        }],
+        wavelengthIntegratedGeometricApertureIncidentFluxWatts:
+          hugeContribution
+      };
+      const operatingRange = {
+        ...pipeline.operatingRange,
+        inputRange: {
+          ...pipeline.operatingRange
+            .inputRange,
+          minimumInclusive: 0,
+          maximumInclusive:
+            Number.MAX_VALUE
+        },
+        evaluatedInput: {
+          ...pipeline.operatingRange
+            .evaluatedInput,
+          value: hugeContribution
+        },
+        evaluatedSpectralNodeInputs: [{
+          ...pipeline.operatingRange
+            .evaluatedSpectralNodeInputs![0]!,
+          value: hugeContribution
+        }]
+      };
+
+      expect(() =>
+        calculateSensorEqeElectronRate({
+          reduction,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline.responseProfile
+        })
+      ).toThrow(
+        "rate calculation must remain finite"
+      );
+    });
+
     it("keeps exposure, counts, saturation, noise, current and RAW downstream", () => {
       const pipeline =
         buildPipeline();
