@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.41.0" as const;
+export const ENGINE_API_VERSION = "0.42.0" as const;
 
 export {
   approximationResult,
@@ -96,6 +96,20 @@ export {
   type SensorReadoutArchitecture,
   type SourcedSensorArchitectureFact
 } from "./sensor/architecture.js";
+
+export {
+  parseSensorColorSamplingProfile,
+  resolveColorSamplingSite,
+  type LayeredColorSamplingLayout,
+  type MonochromeColorSamplingLayout,
+  type NativeColorSamplingSiteCoordinateSystem,
+  type NativeColorSamplingSiteIndex,
+  type PeriodicMosaicColorSamplingLayout,
+  type ResolveColorSamplingSiteInput,
+  type ResolvedColorSamplingSite,
+  type SensorColorSamplingLayout,
+  type SensorColorSamplingProfile
+} from "./sensor/color-sampling.js";
 
 export {
   parseCaptureModeProfile,
