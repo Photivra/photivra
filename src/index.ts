@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.51.0" as const;
+export const ENGINE_API_VERSION = "0.52.0" as const;
 
 export {
   approximationResult,
@@ -220,6 +220,18 @@ export {
   type SensorResponseSpatialModel,
   type SourcedSensorResponseSourcePlane
 } from "./sensor/response-application-compatibility.js";
+
+export {
+  assessSensorResponseOperatingRange,
+  parseSensorResponseOperatingRangeProfile,
+  type AssessSensorResponseOperatingRangeInput,
+  type SensorResponseLinearityCriterion,
+  type SensorResponseOperatingInputRange,
+  type SensorResponseOperatingRangeAssessment,
+  type SensorResponseOperatingRangeBlocker,
+  type SensorResponseOperatingRangeProfile,
+  type SensorResponseOperatingWavelengthApplicability
+} from "./sensor/response-operating-range.js";
 
 export {
   parseCaptureModeProfile,
