@@ -55,6 +55,8 @@ Physical sampling aperture is a separate downstream prerequisite for CFA/site sa
 
 The spatial-quadrature foundation now performs that first explicit composition of AA redistribution and geometric aperture support. It inverse-samples the pre-AA optical field, keeps the destination CFA channel authoritative, returns both normalized-average and geometric-area measures, and preserves off-imaging-area optical support without clamping. It still evaluates no optical/radiometric values and remains separate from temporal quadrature, microlens response, diffusion/crosstalk, RAW generation, and reconstruction.
 
+The spatial-sample reducer now evaluates those quadrature weights against explicitly supplied nonnegative linear values. It supports either a dimensionless relative irradiance proxy or physical sensor-plane irradiance in W/m², matches values by node identity rather than position, and preserves both average and area-integral semantics. CFA channel labeling remains metadata until a later spectral response model; temporal exposure, photons/electrons, noise, ADC and RAW/reconstruction remain downstream.
+
 
 ## Image-formation ownership and ordering
 

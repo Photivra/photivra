@@ -1163,6 +1163,27 @@ Because spatial integration error depends on the downstream optical field's spat
 
 A per-site node allocation safety limit prevents malformed/untrusted counts from creating an oversized array in one call.
 
+## Sensor spatial-sample reduction
+
+Use `reduceSensorSpatialSamplingQuadrature()` after a renderer or optical model has evaluated one scalar value at every spatial quadrature node's `preAntiAliasingSourcePointMm`.
+
+Node values are identified by the quadrature identity tuple—AA component index plus aperture X/Y sample indices—rather than by array position.
+
+Two input domains are supported:
+
+- `relative-linear`: a nonnegative dimensionless irradiance-like proxy for deterministic regression/testing;
+- `radiometric-irradiance`: physical sensor-plane irradiance in W/m².
+
+The physical domain follows standard radiometric meaning: irradiance is incident radiant flux per unit area, so integrating W/m² over the geometric aperture area yields incident radiant flux in watts. This still remains upstream of CFA spectral response, microlens response, QE, exposure-time integration, and sensor conversion.
+
+The reducer returns both a normalized spatial average and an area-weighted integral. For relative values the area integral is relative-value × µm²; for physical irradiance it is converted to watts.
+
+The CFA `channelId` is descriptive metadata only. No wavelength-dependent filter/sensor response is applied, so the output is **not** a physically color-filtered mosaic value and must not be called RAW.
+
+Every quadrature node requires an explicit nonnegative finite input, including nodes whose pre-AA source coordinate lies outside the active imaging area. The reducer never clamps, zero-fills, extrapolates, drops, or renormalizes missing edge support.
+
+Signed color-transform intermediates, RGB display values, gamma-encoded values, radiance, spectral irradiance, temporal exposure, photons/electrons, noise, saturation, black level, ADC quantization, RAW codes, and demosaic/reconstruction are outside this contract.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:

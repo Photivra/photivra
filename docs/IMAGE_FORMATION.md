@@ -153,6 +153,8 @@ The standalone sensor sampling-aperture profile now supplies explicit native-phy
 
 The additive sensor spatial-quadrature layer now combines the resolved AA point-splitting term with the geometric aperture using deterministic native-physical midpoint nodes. AA is applied by inverse source lookup, the destination site's CFA channel remains fixed, and off-active-area pre-AA source support is preserved. The result is still a geometry/measure plan only: no optical field, spectral response, radiometry, temporal integration, RAW value, or reconstruction is calculated, so the `photosite-cfa-sampling` stage remains reserved.
 
+The additive spatial-sample reducer can now apply those weights to caller-supplied nonnegative linear relative values or physical irradiance. It does not turn a channel ID into spectral filtering, does not integrate over time/wavelength, and does not calculate photons, electrons or RAW codes. Consequently this is still a pre-response site sample and the full `photosite-cfa-sampling` stage remains reserved.
+
 ## Current implementation status
 
 Each stage is labeled:

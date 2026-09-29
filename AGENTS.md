@@ -107,6 +107,10 @@ The sensor/capture foundation has explicit semantics. Preserve them.
 - Preserve both dimensionless normalized spatial-average weights and square-micrometre geometric area measures; do not reinterpret either as throughput, QE, photon count, or calibrated collection area.
 - Pre-AA source points may validly lie outside the active imaging area near edges. Do not clamp, drop, or renormalize them; downstream optical-source coverage owns that policy.
 - Spatial quadrature and temporal quadrature remain separate until an explicit versioned composition multiplies their measures and evaluates a downstream optical/radiometric field.
+- Do not call generic spatial-reduction inputs an optical field amplitude. The current AA/aperture model consumes nonnegative additive irradiance-like scalars only; coherent complex field/phase interference is outside scope.
+- Physical spatial reduction uses sensor-plane irradiance in W/m². Radiance, RGB renderer values, gamma-encoded values, spectral irradiance, exposure, photons/electrons, and RAW code values are different domains and must not be substituted silently.
+- A destination CFA channel ID is metadata until an explicit spectral filter/sensor-response model is applied; channel tagging alone is not mosaiced color measurement.
+- Spatial node values must be matched by explicit quadrature-node identity. Do not rely on array position, auto-fill missing edge support, or renormalize away unsupplied nodes.
 - Capture-mode profiles must preserve that distinction: do not relabel `NativeImageRaster` as a photosite raster or infer physical photosite count from native, processed, or final output megapixels.
 - Model capture modes on orthogonal axes (acquisition sequence, per-frame sampling, optional inter-frame sensor offsets, reconstruction stages, processed raster, dependencies) rather than one mutually exclusive marketing-style mode enum.
 - Grouped sampling does not establish charge-domain binning; the combination domain stays unknown unless separately evidenced as charge-domain, pre-conversion analog, or post-conversion digital.
