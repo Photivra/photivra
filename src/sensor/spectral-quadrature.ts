@@ -6,8 +6,9 @@ import {
 } from "../core/calculation-result.js";
 import type { EvidenceProvenance } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
-import type {
-  SensorColorSamplingProfile
+import {
+  parseSensorColorSamplingProfile,
+  type SensorColorSamplingProfile
 } from "./color-sampling.js";
 import {
   parseSensorSpectralResponseProfile,
@@ -115,6 +116,7 @@ export interface SensorSpectralQuadrature {
   wavelengthMeasureSumNanometers: number;
   responseKnotAlignmentIncluded: true;
   componentEvidence: {
+    colorSamplingProfile: readonly EvidenceProvenance[];
     profile: readonly EvidenceProvenance[];
     channel: readonly EvidenceProvenance[];
     curves:
@@ -502,6 +504,20 @@ export function calculateSensorSpectralQuadrature(
       "maximumSubintervalWidthNanometers"
     );
 
+  if (
+    input.wavelengthBasis !== "air" &&
+    input.wavelengthBasis !== "vacuum" &&
+    input.wavelengthBasis !== "unspecified"
+  ) {
+    throw new InvalidScientificInputError(
+      "wavelengthBasis is invalid."
+    );
+  }
+
+  const colorProfile =
+    parseSensorColorSamplingProfile(
+      input.colorSamplingProfile
+    );
   const responseProfile =
     parseSensorSpectralResponseProfile(
       input.spectralResponseProfile
@@ -532,6 +548,25 @@ export function calculateSensorSpectralQuadrature(
     input.wavelengthRangeNanometers,
     usable
   );
+  const validationWavelength =
+    range.minimum +
+    (range.maximum - range.minimum) /
+      2;
+  const representative =
+    resolveSensorSpectralResponseAtWavelength(
+      {
+        colorSamplingProfile:
+          colorProfile,
+        spectralResponseProfile:
+          responseProfile,
+        channelId: input.channelId,
+        wavelengthNanometers:
+          validationWavelength,
+        wavelengthBasis:
+          input.wavelengthBasis
+      }
+    ).value;
+
   const additional =
     additionalBreakpoints(
       input.additionalBreakpointsNanometers,
@@ -612,25 +647,6 @@ export function calculateSensorSpectralQuadrature(
       0
     );
 
-  const validationWavelength =
-    range.minimum +
-    (range.maximum - range.minimum) /
-      2;
-  const representative =
-    resolveSensorSpectralResponseAtWavelength(
-      {
-        colorSamplingProfile:
-          input.colorSamplingProfile,
-        spectralResponseProfile:
-          responseProfile,
-        channelId: input.channelId,
-        wavelengthNanometers:
-          validationWavelength,
-        wavelengthBasis:
-          input.wavelengthBasis
-      }
-    ).value;
-
   return approximationResult(
     {
       profileId:
@@ -674,6 +690,8 @@ export function calculateSensorSpectralQuadrature(
       responseKnotAlignmentIncluded:
         true,
       componentEvidence: {
+        colorSamplingProfile:
+          colorProfile.evidence,
         profile:
           representative
             .componentEvidence.profile,
