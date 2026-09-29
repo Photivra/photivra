@@ -600,6 +600,45 @@ export function resolveSensorSamplingAperture(
     );
   }
 
+  const aperture =
+    profile.geometricSensitiveAperture;
+  const apertureOffsetX =
+    aperture.centerOffsetFromSiteCenterMicrometers.x;
+  const apertureOffsetY =
+    aperture.centerOffsetFromSiteCenterMicrometers.y;
+  const apertureHalfWidth =
+    aperture.widthMicrometers / 2;
+  const apertureHalfHeight =
+    aperture.heightMicrometers / 2;
+
+  const firstApertureLeft =
+    lattice.firstSiteCenterFromImagingAreaTopLeftMicrometers.x +
+    apertureOffsetX -
+    apertureHalfWidth;
+  const firstApertureTop =
+    lattice.firstSiteCenterFromImagingAreaTopLeftMicrometers.y +
+    apertureOffsetY -
+    apertureHalfHeight;
+  const lastApertureRight =
+    lastCenterX +
+    apertureOffsetX +
+    apertureHalfWidth;
+  const lastApertureBottom =
+    lastCenterY +
+    apertureOffsetY +
+    apertureHalfHeight;
+
+  if (
+    firstApertureLeft < 0 ||
+    firstApertureTop < 0 ||
+    lastApertureRight > imagingWidthMicrometers ||
+    lastApertureBottom > imagingHeightMicrometers
+  ) {
+    throw new InvalidScientificInputError(
+      "Declared geometric sensitive aperture does not fit within the supplied physical imaging area across the complete site grid."
+    );
+  }
+
   const siteCenterFromTopLeftX =
     lattice
       .firstSiteCenterFromImagingAreaTopLeftMicrometers
@@ -611,8 +650,6 @@ export function resolveSensorSamplingAperture(
       .y +
     siteY * lattice.pitchYMicrometers;
 
-  const aperture =
-    profile.geometricSensitiveAperture;
   const apertureCenterFromTopLeftX =
     siteCenterFromTopLeftX +
     aperture
