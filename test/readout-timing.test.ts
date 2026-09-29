@@ -392,7 +392,7 @@ describe("sensor readout scan timing", () => {
           ...rollingReadout(),
           spatialSamplingSkewSeconds: {
             value: 0.02,
-            unit: "s",
+            unit: "s" as const,
             evidence: []
           }
         } as never
