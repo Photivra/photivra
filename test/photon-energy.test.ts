@@ -415,6 +415,135 @@ describe(
       );
     });
 
+    it("rejects invalid runtime wavelength basis values", () => {
+      expect(() =>
+        calculatePhotonEnergyFromWavelength({
+          wavelengthNanometers:
+            500,
+          wavelengthBasis:
+            "invalid" as never
+        })
+      ).toThrow(
+        "wavelengthBasis is invalid"
+      );
+    });
+
+    it("requires reference atmosphere for exact matching even with an approximate air index", () => {
+      expect(() =>
+        calculatePhotonEnergyFromWavelength({
+          wavelengthNanometers:
+            500,
+          wavelengthBasis: "air",
+          airPhaseRefractiveIndex:
+            airIndex({
+              scientificStatus:
+                "approximation",
+              uncertainty: {
+                kind:
+                  "not-quantified",
+                limitation:
+                  "test approximation"
+              },
+              referenceConditions:
+                undefined
+            } as never),
+          airOperatingConditions: {
+            temperatureC: 20,
+            pressurePascal:
+              101_325
+          },
+          airConditionPolicy: {
+            kind:
+              "exact-match-required"
+          }
+        })
+      ).toThrow(
+        "requires refractive-index reference conditions"
+      );
+    });
+
+    it("rejects invalid air condition policy metadata", () => {
+      expect(() =>
+        calculatePhotonEnergyFromWavelength({
+          wavelengthNanometers:
+            500,
+          wavelengthBasis: "air",
+          airPhaseRefractiveIndex:
+            airIndex(),
+          airConditionPolicy: {
+            kind: "invalid"
+          } as never
+        })
+      ).toThrow(
+        "airConditionPolicy.kind is invalid"
+      );
+
+      expect(() =>
+        calculatePhotonEnergyFromWavelength({
+          wavelengthNanometers:
+            500,
+          wavelengthBasis: "air",
+          airPhaseRefractiveIndex:
+            airIndex({
+              scientificStatus:
+                "approximation",
+              uncertainty: {
+                kind:
+                  "not-quantified",
+                limitation:
+                  "test"
+              },
+              referenceConditions:
+                undefined
+            } as never),
+          airConditionPolicy: {
+            kind:
+              "assume-compatible",
+            limitation: "",
+            evidence:
+              evidence("bad-policy")
+          }
+        })
+      ).toThrow(
+        "limitation must be a non-empty string"
+      );
+    });
+
+    it("fails closed when an extreme positive wavelength underflows during conversion", () => {
+      expect(() =>
+        calculatePhotonEnergyFromWavelength({
+          wavelengthNanometers:
+            Number.MIN_VALUE,
+          wavelengthBasis:
+            "vacuum"
+        })
+      ).toThrow(
+        "must remain finite"
+      );
+    });
+
+    it("validates air index basis and scientific status at runtime", () => {
+      expect(() =>
+        parseSourcedAirPhaseRefractiveIndex({
+          ...airIndex(),
+          wavelengthBasis:
+            "vacuum"
+        })
+      ).toThrow(
+        "wavelengthBasis"
+      );
+
+      expect(() =>
+        parseSourcedAirPhaseRefractiveIndex({
+          ...airIndex(),
+          scientificStatus:
+            "unknown"
+        })
+      ).toThrow(
+        "scientificStatus"
+      );
+    });
+
     it("is deterministic for identical physical inputs", () => {
       const input = {
         wavelengthNanometers:
