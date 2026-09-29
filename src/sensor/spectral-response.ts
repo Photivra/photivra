@@ -119,6 +119,12 @@ export type SensorSpectralChannelResponse =
         SpectralFractionCurve;
     });
 
+export interface SensorSpectralResponseChannelBinding {
+  format:
+    "photivra-spectral-channel-response-canonical-json-v1";
+  canonicalJson: string;
+}
+
 export interface SensorSpectralResponseProfile {
   schemaVersion: "0.1.0";
   profileId: string;
@@ -992,6 +998,17 @@ export function parseSensorSpectralResponseProfile(
       "sensorSpectralResponse.evidence"
     ),
     channels
+  };
+}
+
+export function createSensorSpectralResponseChannelBinding(
+  response: SensorSpectralChannelResponse
+): SensorSpectralResponseChannelBinding {
+  return {
+    format:
+      "photivra-spectral-channel-response-canonical-json-v1",
+    canonicalJson:
+      JSON.stringify(response)
   };
 }
 
