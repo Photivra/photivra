@@ -29,6 +29,12 @@ export interface NativeEffectiveRasterColorSamplingBindingProfile {
   bindingId: string;
   colorSamplingProfileId: string;
   /**
+   * Exact canonical native effective raster this binding was evidenced for.
+   * The binding must not be reused against a different raster merely because
+   * another sensor/mode has similar dimensions or a matching aspect ratio.
+   */
+  nativeRaster: NativeImageRaster;
+  /**
    * Evidence supporting the native-effective-grid ↔ color-site-grid
    * relationship itself.
    *
@@ -125,6 +131,11 @@ export type ColorSamplingChannelComposition =
       channelIds: readonly string[];
     };
 
+export interface GroupedCaptureModeSamplingAnchorDeclaration {
+  anchor: "native-effective-raster-top-left";
+  evidence: readonly EvidenceProvenance[];
+}
+
 export interface ResolveCaptureModeColorSamplingContributorsInput {
   nativeRaster: NativeImageRaster;
   captureModeProfile: CaptureModeProfile;
@@ -132,6 +143,11 @@ export interface ResolveCaptureModeColorSamplingContributorsInput {
   colorSamplingProfile: SensorColorSamplingProfile;
   bindingProfile: NativeEffectiveRasterColorSamplingBindingProfile;
   modeSampleIndexFullFrame: CaptureModeFullFrameSampleIndex;
+  /**
+   * Required for grouped-native-samples modes because #68 declares grouping
+   * factors but does not itself prove the grouping phase/origin.
+   */
+  groupedSamplingAnchor?: GroupedCaptureModeSamplingAnchorDeclaration;
 }
 
 export interface ResolvedCaptureModeColorSamplingContributors {
@@ -161,6 +177,8 @@ export interface ResolvedCaptureModeColorSamplingContributors {
         groupWidthSamples: SourcedCaptureModeFact<number>;
         groupHeightSamples: SourcedCaptureModeFact<number>;
         combinationDomain?: SourcedCaptureModeFact<CaptureModeSampleCombinationDomain>;
+        anchor: "native-effective-raster-top-left";
+        anchorEvidence: readonly EvidenceProvenance[];
       }
     | null;
   /**
@@ -339,6 +357,30 @@ export function parseNativeEffectiveRasterColorSamplingBindingProfile(
         profile.colorSamplingProfileId,
         "colorSamplingBinding.colorSamplingProfileId"
       ),
+    nativeRaster: (() => {
+      const nativeRaster = requireRecord(
+        profile.nativeRaster,
+        "colorSamplingBinding.nativeRaster"
+      );
+      const pixelWidth =
+        requirePositiveSafeInteger(
+          nativeRaster.pixelWidth,
+          "colorSamplingBinding.nativeRaster.pixelWidth"
+        );
+      const pixelHeight =
+        requirePositiveSafeInteger(
+          nativeRaster.pixelHeight,
+          "colorSamplingBinding.nativeRaster.pixelHeight"
+        );
+      safeProduct(
+        [pixelWidth, pixelHeight],
+        "colorSamplingBinding.nativeRaster total image-sample count"
+      );
+      return {
+        pixelWidth,
+        pixelHeight
+      };
+    })(),
     evidence: parseEvidenceList(
       profile.evidence,
       "colorSamplingBinding.evidence"
@@ -393,6 +435,17 @@ export function resolveNativeEffectiveRasterColorSamplingBinding(
   ) {
     throw new InvalidScientificInputError(
       "Binding colorSamplingProfileId must match colorSamplingProfile.profileId."
+    );
+  }
+
+  if (
+    bindingProfile.nativeRaster.pixelWidth !==
+      input.nativeRaster.pixelWidth ||
+    bindingProfile.nativeRaster.pixelHeight !==
+      input.nativeRaster.pixelHeight
+  ) {
+    throw new InvalidScientificInputError(
+      "Binding nativeRaster must exactly match the supplied canonical native effective raster."
     );
   }
 
@@ -693,6 +746,12 @@ export function resolveCaptureModeColorSamplingContributors(
     captureMode.perFrameSampling.kind ===
     "native-effective-raster"
   ) {
+    if (input.groupedSamplingAnchor !== undefined) {
+      throw new InvalidScientificInputError(
+        "groupedSamplingAnchor must be omitted for native-effective-raster capture modes."
+      );
+    }
+
     nativeEffectiveSampleRect = {
       x: modeX,
       y: modeY,
@@ -701,6 +760,21 @@ export function resolveCaptureModeColorSamplingContributors(
     };
     grouping = null;
   } else {
+    if (
+      input.groupedSamplingAnchor === undefined ||
+      input.groupedSamplingAnchor.anchor !==
+        "native-effective-raster-top-left"
+    ) {
+      throw new InvalidScientificInputError(
+        "grouped-native-samples capture modes require an explicit native-effective-raster-top-left grouping anchor declaration."
+      );
+    }
+    const groupingAnchorEvidence =
+      parseEvidenceList(
+        input.groupedSamplingAnchor.evidence,
+        "groupedSamplingAnchor.evidence"
+      );
+
     const groupWidth =
       captureMode.perFrameSampling
         .groupWidthSamples.value;
@@ -734,7 +808,11 @@ export function resolveCaptureModeColorSamplingContributors(
             combinationDomain:
               captureMode.perFrameSampling
                 .combinationDomain
-          })
+          }),
+      anchor:
+        "native-effective-raster-top-left",
+      anchorEvidence:
+        groupingAnchorEvidence
     };
   }
 
