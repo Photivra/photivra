@@ -3,8 +3,7 @@
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import {
   parseEvidenceList,
-  type EvidenceBackedFact,
-  type EvidenceProvenance
+  type EvidenceBackedFact
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError, requirePositiveInteger } from "../core/validation.js";
 import type { RasterPoint, RasterRect } from "../output/capture-geometry.js";
