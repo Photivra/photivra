@@ -875,6 +875,114 @@ Layered-color topology also remains unbound because schema 0.1.0 does not yet de
 
 Pixel-shift/sensor-shift metadata is preserved but does not change CFA assignment. The sensor and its filters move together relative to the optical image; the optical-registration effect of that shift belongs to a later image-formation contract.
 
+## Sensor optical stack
+
+Use `parseSensorOpticalStackProfile()` for evidence-backed physical stack metadata and a separately declared **effective anti-aliasing spatial response**:
+
+```ts
+import {
+  parseSensorOpticalStackProfile,
+  resolveAntiAliasingSpatialKernel
+} from "@photivra/engine";
+
+const stack = parseSensorOpticalStackProfile({
+  schemaVersion: "0.1.0",
+  profileId: "example-stack",
+  evidence: [
+    {
+      sourceOrigin: "photivra",
+      sourceReference: "example:stack",
+      reuseStatus: "photivra-owned"
+    }
+  ],
+  orderedComponents: [
+    {
+      componentId: "front-pack",
+      roles: [
+        "cover-glass",
+        "infrared-cut",
+        "anti-reflection"
+      ],
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "example:front-pack",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    }
+  ],
+  effectiveAntiAliasingSpatialResponse: {
+    kind: "normalized-point-splitting-kernel",
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference: "example:aa-kernel",
+        reuseStatus: "photivra-owned"
+      }
+    ],
+    coordinateSystem: "native-sensor-physical",
+    scope:
+      "field-wavelength-polarization-invariant-approximation",
+    components: [
+      {
+        offsetMicrometers: { x: -1, y: 0 },
+        normalizedWeight: 0.5
+      },
+      {
+        offsetMicrometers: { x: 1, y: 0 },
+        normalizedWeight: 0.5
+      }
+    ]
+  },
+  microlens: {
+    presence: "present",
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference: "example:microlens-presence",
+        reuseStatus: "photivra-owned"
+      }
+    ],
+    opticalEffectModel: "unresolved"
+  }
+});
+
+const aaKernel =
+  resolveAntiAliasingSpatialKernel(stack);
+
+console.log(aaKernel.components);
+```
+
+The physical component list and effective AA response are intentionally separate. A stack may contain birefringent/retarder elements while the net intentional low-pass response is cancelled or otherwise effectively absent.
+
+`effectiveAntiAliasingSpatialResponse` has three first-stage states:
+
+- omitted — **unknown/unasserted**;
+- `kind: "absent"` — evidence says this model should add no intentional AA spatial-splitting term;
+- `kind: "present-unresolved"` — an AA effect exists but its spatial response is not defensibly known;
+- `kind: "normalized-point-splitting-kernel"` — the caller explicitly supplies a normalized spatial point-splitting approximation.
+
+Unknown and absent are not interchangeable. Likewise, `absent` does **not** mean the complete sensor stack has an identity PSF, and it does not mean aliasing or moiré are impossible. Lens PSF, cover/filter behavior, microlenses, sampling topology, and scene detail still matter.
+
+The point-splitting kernel is deliberately generic:
+
+- component count is arbitrary rather than fixed to four rays;
+- offsets are in micrometres in `native-sensor-physical` coordinates (+X right, +Y down);
+- physical camera orientation does not rotate/redefine the stored kernel;
+- normalized weights must sum to one;
+- the weights describe **spatial redistribution only**.
+
+They do not represent total optical throughput, spectral transmission, photon efficiency, QE, or fill factor. Those belong to separate radiometric/sensor-response contracts.
+
+The first point-splitting scope is explicitly `field-wavelength-polarization-invariant-approximation`. Real OLPF behavior may depend on wavelength, incidence angle/field position, polarization, materials, and stack geometry. Do not upgrade this generic kernel into a calibrated whole-stack PSF.
+
+`orderedComponents` is incident-light → sensor descriptive metadata. Component roles can include cover glass, IR/UV filtering, AR treatment, birefringent low-pass elements, wave plates, and other optical filters. Schema 0.1.0 does not derive transmission, refractive focus shift, aberration, thickness effects, or a spectral response from those roles.
+
+Microlens presence or absence is also descriptive only. A `present` microlens does not by itself specify angular acceptance, spatial concentration, fill factor, crosstalk, QE improvement, or field behavior.
+
+The resolver therefore returns only the **effective AA spatial kernel** and explicitly reports that cover/filter effects, microlens response, throughput, spectral transmission, field dependence, wavelength dependence, and polarization dependence are not included.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
