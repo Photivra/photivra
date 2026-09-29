@@ -386,7 +386,7 @@ function parseElectricalConditions(
                     ".bias.magnitudeVolts"
                 )
             }
-          : (() => {
+          : ((): never => {
               throw new InvalidConfigurationError(
                 path +
                   ".bias.kind is invalid."
@@ -414,7 +414,7 @@ function parseElectricalConditions(
                     ".readoutLoad.inputImpedanceOhms"
                 )
             }
-          : (() => {
+          : ((): never => {
               throw new InvalidConfigurationError(
                 path +
                   ".readoutLoad.kind is invalid."
