@@ -193,6 +193,8 @@ export interface ResolvedCaptureModeColorSamplingContributors {
   sensorShiftChangesColorSiteAssignment: false;
   sensorShiftOpticalRegistration:
     "outside-this-contract";
+  structuralSourceStage: "pre-reconstruction";
+  completeDownstreamPixelDependencyEstablished: false;
   signalCombinationWeightingEstablished: false;
   spectralResponseEstablished: false;
   physicalPhotodiodeBindingEstablished: false;
@@ -372,10 +374,15 @@ export function parseNativeEffectiveRasterColorSamplingBindingProfile(
           nativeRaster.pixelHeight,
           "colorSamplingBinding.nativeRaster.pixelHeight"
         );
-      safeProduct(
-        [pixelWidth, pixelHeight],
-        "colorSamplingBinding.nativeRaster total image-sample count"
-      );
+      if (
+        !Number.isSafeInteger(
+          pixelWidth * pixelHeight
+        )
+      ) {
+        throw new InvalidConfigurationError(
+          "colorSamplingBinding.nativeRaster total image-sample count must be a safe integer."
+        );
+      }
       return {
         pixelWidth,
         pixelHeight
@@ -655,7 +662,7 @@ function channelCountsForSiteRect(
 }
 
 /**
- * Resolves which color-sampling sites structurally contribute to one selected
+ * Resolves which color-sampling sites form the pre-reconstruction structural source region for one selected
  * capture-mode effective sample.
  *
  * The mode sample index is always absolute in the selected mode's full-frame
@@ -663,9 +670,11 @@ function channelCountsForSiteRect(
  * preventing active-crop origins from silently resetting CFA phase.
  *
  * For grouped-native-sample modes, the returned site rectangle covers all
- * native effective samples in the declared regular group. The engine reports
- * channel-site counts but never invents signal-combination weights, sum/average
- * semantics, spectral response or photon/electron values.
+ * native effective samples in the declared regular group. This is a structural
+ * pre-reconstruction association only: the engine reports channel-site counts
+ * but never claims complete downstream digital-pixel dependency or invents
+ * signal-combination weights, sum/average semantics, spectral response, or
+ * photon/electron values.
  *
  * Declared-effective-raster modes fail closed because #68 explicitly says
  * their relationship to the native effective grid is not safely expressible as
@@ -882,14 +891,19 @@ export function resolveCaptureModeColorSamplingContributors(
       colorSamplingSiteRect
     );
 
+  const firstChannel = channelSiteCounts[0];
+  if (firstChannel === undefined) {
+    throw new InvalidScientificInputError(
+      "Resolved structural source region must contain at least one color-sampling channel."
+    );
+  }
+
   const channelComposition:
     ColorSamplingChannelComposition =
     channelSiteCounts.length === 1
       ? {
           kind: "single-channel",
-          channelId:
-            channelSiteCounts[0]?.channelId ??
-            ""
+          channelId: firstChannel.channelId
         }
       : {
           kind: "mixed-channels",
@@ -898,16 +912,6 @@ export function resolveCaptureModeColorSamplingContributors(
               (entry) => entry.channelId
             )
         };
-
-  if (
-    channelComposition.kind ===
-      "single-channel" &&
-    channelComposition.channelId.length === 0
-  ) {
-    throw new InvalidScientificInputError(
-      "Resolved single-channel contributor set must contain a channel ID."
-    );
-  }
 
   return {
     modeId: captureMode.modeId,
@@ -944,6 +948,10 @@ export function resolveCaptureModeColorSamplingContributors(
       false,
     sensorShiftOpticalRegistration:
       "outside-this-contract",
+    structuralSourceStage:
+      "pre-reconstruction",
+    completeDownstreamPixelDependencyEstablished:
+      false,
     signalCombinationWeightingEstablished:
       false,
     spectralResponseEstablished: false,
