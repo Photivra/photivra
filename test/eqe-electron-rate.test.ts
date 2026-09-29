@@ -902,5 +902,275 @@ describe(
         )
       ).toBe(true);
     });
+
+    it("rejects stale per-bin operating-range authorization", () => {
+      const pipeline =
+        buildPipeline();
+
+      const staleValue = {
+        ...pipeline.operatingRange,
+        evaluatedSpectralNodeInputs:
+          pipeline.operatingRange
+            .evaluatedSpectralNodeInputs
+            ?.map((entry, index) =>
+              index === 0
+                ? {
+                    ...entry,
+                    value:
+                      entry.value * 2
+                  }
+                : entry
+            )
+      };
+
+      expect(() =>
+        calculateSensorEqeElectronRate({
+          reduction:
+            pipeline.reduction,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            staleValue,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline.responseProfile
+        })
+      ).toThrow(
+        "spectral-node values must match"
+      );
+
+      const staleRange = {
+        ...pipeline.operatingRange,
+        evaluatedWavelengthRangeNanometers:
+          {
+            minimum: 410,
+            maximum: 500
+          }
+      };
+
+      expect(() =>
+        calculateSensorEqeElectronRate({
+          reduction:
+            pipeline.reduction,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            staleRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline.responseProfile
+        })
+      ).toThrow(
+        "wavelength range must exactly match"
+      );
+    });
+
+    it("rejects malformed reduction spectral-node identity", () => {
+      const pipeline =
+        buildPipeline();
+
+      expect(() =>
+        calculateSensorEqeElectronRate({
+          reduction: {
+            ...pipeline.reduction,
+            spectralNodeCount: 2
+          },
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            pipeline.operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline.responseProfile
+        })
+      ).toThrow(
+        "exactly spectralNodeCount entries"
+      );
+
+      expect(() =>
+        calculateSensorEqeElectronRate({
+          reduction: {
+            ...pipeline.reduction,
+            perWavelength:
+              pipeline.reduction
+                .perWavelength.map(
+                  (entry) => ({
+                    ...entry,
+                    spectralSampleIndex:
+                      1
+                  })
+                )
+          },
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            pipeline.operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline.responseProfile
+        })
+      ).toThrow(
+        "exact contiguous range"
+      );
+    });
+
+    it("rejects air context on vacuum data and duplicate air sample identities", () => {
+      const vacuum =
+        buildPipeline();
+
+      expect(() =>
+        calculateSensorEqeElectronRate({
+          reduction:
+            vacuum.reduction,
+          compatibility:
+            vacuum.compatibility,
+          operatingRange:
+            vacuum.operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            vacuum.responseProfile,
+          airPhotonEnergyContext: {
+            samples: [],
+            conditionPolicy: {
+              kind:
+                "assume-compatible",
+              limitation:
+                "invalid for vacuum",
+              evidence:
+                evidence("bad")
+            }
+          }
+        })
+      ).toThrow(
+        "must be omitted for vacuum"
+      );
+
+      const air =
+        buildPipeline(
+          "direct-eqe",
+          "air",
+          50
+        );
+      const indexSample = (
+        spectralSampleIndex: number,
+        wavelengthNanometers: number
+      ) => ({
+        spectralSampleIndex,
+        refractiveIndex: {
+          wavelengthNanometers,
+          wavelengthBasis:
+            "air" as const,
+          definition:
+            "vacuum-wavelength-divided-by-air-wavelength" as const,
+          phaseRefractiveIndex:
+            1.00027,
+          scientificStatus:
+            "approximation" as const,
+          uncertainty: {
+            kind:
+              "not-quantified" as const,
+            limitation:
+              "test"
+          },
+          evidence:
+            evidence("air-index")
+        }
+      });
+
+      expect(() =>
+        calculateSensorEqeElectronRate({
+          reduction:
+            air.reduction,
+          compatibility:
+            air.compatibility,
+          operatingRange:
+            air.operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            air.responseProfile,
+          airPhotonEnergyContext: {
+            samples: [
+              indexSample(0, 425),
+              indexSample(0, 475)
+            ],
+            conditionPolicy: {
+              kind:
+                "assume-compatible",
+              limitation:
+                "test",
+              evidence:
+                evidence("air-policy")
+            }
+          }
+        })
+      ).toThrow(
+        "unique in-range spectral sample identities"
+      );
+    });
+
+    it("rejects response uncertainty and profile identity drift", () => {
+      const pipeline =
+        buildPipeline();
+      const changed =
+        spectralProfile();
+      const channel =
+        changed.channels[0]!;
+      const changedResponse = {
+        ...changed,
+        channels: [{
+          ...channel,
+          uncertainty: {
+            kind:
+              "relative" as const,
+            fraction: 0.03,
+            basis: "different"
+          }
+        }]
+      } as SensorSpectralResponseProfile;
+
+      expect(() =>
+        calculateSensorEqeElectronRate({
+          reduction:
+            pipeline.reduction,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            pipeline.operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            changedResponse
+        })
+      ).toThrow(
+        "uncertainty must match"
+      );
+
+      expect(() =>
+        calculateSensorEqeElectronRate({
+          reduction:
+            pipeline.reduction,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            pipeline.operatingRange,
+          colorSamplingProfile: {
+            ...colorProfile(),
+            profileId:
+              "different-color"
+          },
+          spectralResponseProfile:
+            pipeline.responseProfile
+        })
+      ).toThrow(
+        "profiles must exactly match"
+      );
+    });
+
   }
 );
