@@ -149,6 +149,8 @@ The additive native-effective-raster/color-site binding now provides the missing
 
 The standalone sensor optical-stack profile now makes the upstream stack boundary explicit without claiming a complete stack response. Ordered physical component roles and microlens presence are descriptive. Effective anti-aliasing response is separately modeled as unknown, absent, present-but-unresolved, or a normalized native-physical point-splitting approximation. The resolver exposes only that AA spatial term; cover/filter transmission/refraction, microlens angular/collection behavior, wavelength/field/polarization dependence, and convolution with the lens PSF remain future work. Consequently the `sensor-optical-stack` image-formation stage remains reserved rather than being promoted to a complete implementation.
 
+The standalone sensor sampling-aperture profile now supplies explicit native-physical registration for the color-site center lattice and a first geometric sensitive-region footprint. The rectangle is a normalized spatial-area averaging support plus a separately reported geometric area/fraction; it is **not** QE or radiometric collection efficiency. AA point splitting, microlens redirection, diffusion/crosstalk, spectral response, photons/electrons, and RAW values are still absent. This advances the geometry needed by the reserved `photosite-cfa-sampling` stage without claiming that stage is fully implemented.
+
 ## Current implementation status
 
 Each stage is labeled:
