@@ -481,13 +481,12 @@ describe(
     });
 
     it("blocks rate conversion when spatial linear superposition is not established", () => {
-      const profileWithSpatial =
-        profile();
-      const {
-        spatialLinearityModel:
-          _spatialLinearityModel,
-        ...withoutSpatialLinearity
-      } = profileWithSpatial;
+      const withoutSpatialLinearity =
+        {
+          ...profile()
+        };
+      delete withoutSpatialLinearity
+        .spatialLinearityModel;
 
       const omitted =
         assessSensorResponseOperatingRange({
