@@ -1296,6 +1296,79 @@ A capture-scan image mapping is location-dependent because capture time varies a
 
 The current trajectory model remains pure rotation only. It excludes camera translation/parallax, subject motion, rotating/deforming subjects, occlusion changes, panning intent, exposure integration, flash/flicker, shutter shock, and final rolling-shutter inverse warping.
 
+## Capture rotation temporal quadrature
+
+Use `calculateCaptureRotationTemporalQuadrature()` when a downstream renderer or reference evaluator needs deterministic pure-rotation geometry samples across each destination point's complete local exposure interval:
+
+```ts
+import { calculateCaptureRotationTemporalQuadrature } from "@photivra/engine";
+
+const quadrature = calculateCaptureRotationTemporalQuadrature({
+  imagingArea: { widthMm: 36, heightMm: 24 },
+  nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 },
+  shutterMechanism: "electronic",
+  nominalExposureDurationSeconds: {
+    value: 1 / 1000,
+    unit: "s",
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference: "capture-config:example",
+        reuseStatus: "photivra-owned"
+      }
+    ]
+  },
+  opening: {
+    kind: "simultaneous"
+  },
+  closing: {
+    kind: "simultaneous"
+  },
+  focalLengthMm: 50,
+  angularVelocityRadPerSec: {
+    pitch: 0,
+    yaw: 0.1,
+    roll: 0
+  },
+  orientation: "landscape",
+  temporalSampleCount: 8,
+  samplePointsNative: [{ x: 3000, y: 2000 }]
+});
+
+console.log(quadrature.value.points[0]?.nodes);
+```
+
+The first model uses deterministic uniform midpoint quadrature. With `N` samples, node phases are:
+
+```text
+phase_i = (i + 0.5) / N
+```
+
+Each phase is passed through `calculateCaptureRotationInverseMappings()`, so instantaneous destination-to-reference geometry remains defined by one existing public model.
+
+Every node exposes two different temporal weights:
+
+- `normalizedTimeWeight = 1 / N` for a downstream time-average under the declared uniform temporal-response approximation;
+- `timeMeasureSeconds = localExposureDuration / N` for a downstream time integral.
+
+Do not interchange them. The first is dimensionless; the second carries seconds. Neither includes shutter transmission, scene radiance, sensor response, photon conversion, vignetting, or other radiometric throughput.
+
+Different sensor locations may have different local exposure start/end times. If opening and closing scans produce different local durations, `timeMeasureSeconds` therefore differs by destination point while the normalized average weights still sum to approximately one for each point.
+
+This API returns **temporal geometry nodes and measures only**. It does not:
+
+- fetch or sample scene radiance;
+- average the reference coordinates;
+- calculate a blur radius/kernel or PSF;
+- resolve visibility/occlusion changes;
+- apply sensor readout timing;
+- apply flash/flicker or shutter-shock behavior;
+- write or resample output pixels.
+
+Averaging geometric coordinates is not equivalent to integrating radiance along moving rays.
+
+Photivra also does not report a geometry-only integration-error estimate. Temporal image error depends on downstream radiance, visibility, texture/edge frequency, reconstruction, and the motion path. A reference renderer can compare increasing `temporalSampleCount` values in the radiance/output domain when convergence evidence is needed.
+
 ## Instantaneous capture rotation inverse mapping
 
 Use `calculateCaptureRotationInverseMappings()` to map captured destination locations back to the **first-opening-boundary reference image** under pure camera rotation:
