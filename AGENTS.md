@@ -84,6 +84,13 @@ The sensor/capture foundation has explicit semantics. Preserve them.
 - Do not infer an exact CFA tile from descriptive `SensorArchitectureProfile.colorSamplingFamily`; exact layouts require their own evidence-backed topology profile.
 - Layered-color schema 0.1.0 uses a separate unresolved spatial-reference marker and is structural-only. Do not expose per-site layered mapping until per-layer spatial sampling density/registration is explicit.
 - Periodic mosaic schema 0.1.0 does not model sparse overrides such as phase-detect sites, masked pixels, defects, or other non-periodic exceptions.
+- A native-effective-raster ↔ color-site-grid binding is a separate evidence-backed contract. Never infer 1:1 correspondence from matching dimensions, aspect ratio, CFA family, or output megapixels.
+- Bindings apply only to the exact native effective raster dimensions they were evidenced for; do not reuse a binding against another sensor/grid silently.
+- Grouped capture-mode phase/origin is separate evidence. Do not assume grouped samples begin at native `(0,0)` merely because grouping factors divide the raster.
+- Capture/color structural-source resolution uses absolute full-frame mode-sample indices. Do not pass crop-local coordinates without an explicit translation back to the full-frame mode grid.
+- Sensor-shift/pixel-shift offsets move the sensor and CFA together relative to the optical image; do not change CFA channel assignment or convert those offsets into CFA-phase shifts in the binding layer.
+- Structural source rectangles/channel counts are pre-reconstruction topology only. Do not treat them as signal-combination weights, a complete downstream reconstructed-pixel dependency graph, spectral response, photon/electron values, or physical photodiode counts.
+- `declared-effective-raster` capture modes and layered color remain unbound until separate mode/layer-specific spatial mappings are explicitly modeled.
 - Capture-mode profiles must preserve that distinction: do not relabel `NativeImageRaster` as a photosite raster or infer physical photosite count from native, processed, or final output megapixels.
 - Model capture modes on orthogonal axes (acquisition sequence, per-frame sampling, optional inter-frame sensor offsets, reconstruction stages, processed raster, dependencies) rather than one mutually exclusive marketing-style mode enum.
 - Grouped sampling does not establish charge-domain binning; the combination domain stays unknown unless separately evidenced as charge-domain, pre-conversion analog, or post-conversion digital.
@@ -155,7 +162,7 @@ As of POC simulation API 0.20:
 - The response exposes shared sensor-geometry metrics plus an optional capture block with active/output FOV, active-capture 35 mm-equivalent focal length, output sampling scale, subject framing, and oriented/output motion diagnostics.
 - Equivalent focal length remains informational and never replaces physical focal length inside POC physics; final digital/output crop does not redefine it.
 - Existing motion/camera-shake X/Y fields retain their legacy image-plane meaning (+X right, +Y up). Capture raster coordinates are +X right, +Y down; additive diagnostics must expose the explicit basis conversion before orientation/output scaling.
-- Sensor-architecture metadata, color-sampling topology profiles, capture-mode profiles, sensor readout timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not composed unless an explicit versioned integration is added.
+- Sensor-architecture metadata, color-sampling topology profiles, native-effective-raster/color-site bindings, capture-mode profiles, sensor readout timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not composed unless an explicit versioned integration is added.
 - The POC reports X/Y pitch diagnostics but still uses one representative horizontal pitch internally and fails closed above a 1% axis difference.
 - Radiometry readiness never enables photon/noise output by itself.
 
