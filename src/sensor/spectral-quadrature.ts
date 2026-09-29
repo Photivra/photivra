@@ -114,6 +114,7 @@ export interface SensorSpectralQuadrature {
   totalNodeCount: number;
   normalizedWavelengthWeightSum: number;
   wavelengthMeasureSumNanometers: number;
+  nodes: readonly SensorSpectralQuadratureNode[];
   responseKnotAlignmentIncluded: true;
   componentEvidence: {
     colorSamplingProfile: readonly EvidenceProvenance[];
