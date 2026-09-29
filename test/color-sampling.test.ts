@@ -196,7 +196,7 @@ describe("sensor color sampling topology", () => {
       profileId: "layered",
       evidence: evidence("test:layered"),
       coordinateSystem:
-        "native-sensor-color-sampling-site-index",
+        "native-sensor-layered-spatial-relationship-not-resolved",
       layout: {
         kind: "layered",
         layerChannelIds: [
@@ -332,7 +332,7 @@ describe("sensor color sampling topology", () => {
         profileId: "duplicate-layers",
         evidence: evidence("test:layers"),
         coordinateSystem:
-          "native-sensor-color-sampling-site-index",
+          "native-sensor-layered-spatial-relationship-not-resolved",
         layout: {
           kind: "layered",
           layerChannelIds: [
@@ -353,7 +353,7 @@ describe("sensor color sampling topology", () => {
         profileId: "premature-layer-grid",
         evidence: evidence("test:layer-grid"),
         coordinateSystem:
-          "native-sensor-color-sampling-site-index",
+          "native-sensor-layered-spatial-relationship-not-resolved",
         layout: {
           kind: "layered",
           layerChannelIds: ["a", "b", "c"],
