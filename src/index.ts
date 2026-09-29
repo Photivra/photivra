@@ -104,6 +104,7 @@ export {
   type MonochromeColorSamplingLayout,
   type NativeColorSamplingSiteCoordinateSystem,
   type NativeColorSamplingSiteIndex,
+  type SensorColorSamplingProfileCoordinateSystem,
   type PeriodicMosaicColorSamplingLayout,
   type ResolveColorSamplingSiteInput,
   type ResolvedColorSamplingSite,
