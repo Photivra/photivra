@@ -588,6 +588,28 @@ describe(
       ).toThrow(
         "duplicate spectralSampleIndex"
       );
+
+      expect(() =>
+        reduceSensorSpatioSpectralIrradiance({
+          spatialQuadrature: spatial,
+          spectralQuadrature: {
+            ...spectral,
+            nodes: spectral.nodes.map(
+              (node, index) =>
+                index === 1
+                  ? {
+                      ...node,
+                      subdivisionIndex:
+                        0
+                    }
+                  : node
+            )
+          },
+          sampleValues: samples
+        })
+      ).toThrow(
+        "duplicate segment/subdivision"
+      );
     });
 
     it("caps the Cartesian product independently of individual quadrature caps", () => {
