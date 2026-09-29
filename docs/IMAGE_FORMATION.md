@@ -105,6 +105,8 @@ The standalone `calculateCaptureExposureWindows()` foundation separately describ
 
 The standalone `calculateCaptureRotationTrajectories()` bridge now explicitly binds that first opening-boundary phase to `t = 0` of the existing pure-camera-rotation model and evaluates stationary reference rays at local exposure start/end. It remains forward temporal geometry only: it does not consume sensor readout timing, solve the implicit rolling-shutter image warp, or integrate motion blur over the exposure interval.
 
+The additive `calculateCaptureRotationInverseMappings()` layer now supplies an instantaneous destination-to-reference mapping at a caller-selected phase within each local exposure window. Under the current pure-rotation model the inverse is analytic once destination location fixes local capture time, so no iterative solver is used. This remains pre-lens, pre-output temporal geometry and does not replace finite-exposure integration.
+
 ## Renderer semantics
 
 Renderer implementations may use a bounded real-time preview approximation or a higher-fidelity deterministic reference evaluation, but both must consume the same engine-owned scientific contract.
