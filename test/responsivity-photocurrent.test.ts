@@ -908,6 +908,14 @@ describe(
       expect(
         result.rawCodeValueProduced
       ).toBe(false);
+      expect(
+        result.temporalResponseModel
+      ).toBe(
+        "quasi-static-steady-state-only"
+      );
+      expect(
+        result.detectorBandwidthModeled
+      ).toBe(false);
     });
 
     it("validates electrical applicability metadata", () => {
@@ -972,6 +980,89 @@ describe(
         })
       ).toThrow(
         "must declare quantified"
+      );
+    });
+
+    it("rejects zero reverse bias and zero finite impedance as ambiguous electrical conditions", () => {
+      expect(() =>
+        parseSensorResponsivityElectricalApplicabilityProfile({
+          ...electricalProfile(),
+          referenceConditions: {
+            bias: {
+              kind:
+                "reverse-biased",
+              magnitudeVolts: 0
+            },
+            readoutLoad:
+              zeroBiasConditions
+                .readoutLoad
+          }
+        })
+      ).toThrow(
+        "magnitudeVolts"
+      );
+
+      expect(() =>
+        parseSensorResponsivityElectricalApplicabilityProfile({
+          ...electricalProfile(),
+          referenceConditions: {
+            bias:
+              zeroBiasConditions.bias,
+            readoutLoad: {
+              kind:
+                "finite-input-impedance",
+              inputImpedanceOhms:
+                0
+            }
+          }
+        })
+      ).toThrow(
+        "inputImpedanceOhms"
+      );
+    });
+
+    it("rejects invalid electrical condition and policy enum values", () => {
+      expect(() =>
+        parseSensorResponsivityElectricalApplicabilityProfile({
+          ...electricalProfile(),
+          referenceConditions: {
+            bias: {
+              kind: "forward-biased"
+            },
+            readoutLoad:
+              zeroBiasConditions
+                .readoutLoad
+          }
+        })
+      ).toThrow(
+        "bias.kind"
+      );
+
+      expect(() =>
+        parseSensorResponsivityElectricalApplicabilityProfile({
+          ...electricalProfile(),
+          referenceConditions: {
+            bias:
+              zeroBiasConditions.bias,
+            readoutLoad: {
+              kind:
+                "unknown-load"
+            }
+          }
+        })
+      ).toThrow(
+        "readoutLoad.kind"
+      );
+
+      expect(() =>
+        parseSensorResponsivityElectricalApplicabilityProfile({
+          ...electricalProfile(),
+          conditionPolicy: {
+            kind: "unknown-policy"
+          }
+        })
+      ).toThrow(
+        "conditionPolicy.kind"
       );
     });
 
