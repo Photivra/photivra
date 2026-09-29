@@ -306,8 +306,9 @@ describe("capture exposure-window timing", () => {
       )
     }).value;
 
+    const openingSchedule = result.opening.schedule;
     if (
-      result.opening.schedule.kind !==
+      openingSchedule.kind !==
       "uniform-linear-native-scan"
     ) {
       throw new Error("Expected scanned opening schedule.");
@@ -322,7 +323,7 @@ describe("capture exposure-window timing", () => {
 
     const vectors = orientations.map((orientation) =>
       transformNativeRasterVectorToOriented({
-        vector: result.opening.schedule.unitVectorNative,
+        vector: openingSchedule.unitVectorNative,
         orientation
       })
     );
