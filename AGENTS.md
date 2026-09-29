@@ -78,6 +78,11 @@ The sensor/capture foundation has explicit semantics. Preserve them.
 
 - `SensorImagingArea` is the physical photosensitive imaging area used for image formation, not die/package dimensions.
 - `NativeImageRaster` describes the effective native image-sampling grid. It does not assert one image sample equals one physical photodiode.
+- Capture-mode profiles must preserve that distinction: do not relabel `NativeImageRaster` as a photosite raster or infer physical photosite count from native, processed, or final output megapixels.
+- Model capture modes on orthogonal axes (acquisition sequence, per-frame sampling, optional inter-frame sensor offsets, reconstruction stages, processed raster, dependencies) rather than one mutually exclusive marketing-style mode enum.
+- Grouped sampling does not establish charge-domain binning; the combination domain stays unknown unless separately evidenced as charge-domain, pre-conversion analog, or post-conversion digital.
+- Inter-frame sensor offsets use units of native effective sampling pitch, not asserted photodiode pitch.
+- Capture-mode processed-image raster is pre-output and does not redefine physical active area, crop factor, field of view, or final output raster semantics.
 - `RasterDimensions` is the generic raster-size type for active/output rasters; do not misuse `NativeImageRaster` for non-native outputs.
 - Geometric sampling pitch has separate X/Y values. Do not silently collapse materially non-square sampling to one pitch.
 - Native raster coordinates use top-left origin, +X right, +Y down, with integer half-open rectangles.
@@ -139,12 +144,12 @@ Do not assume every public root-engine foundation is already part of the compose
 As of POC simulation API 0.20:
 
 - `simulatePocCamera()` preserves the legacy sensor + centered `crop.factor` request and adds an opt-in staged `capture` request for physical orientation, native active-capture rectangle, oriented output crop, and final output raster.
-- Capture mode must not silently stack legacy crop semantics: `crop.factor` must remain `1` when `capture` is present.
-- Capture mode owns final output/viewing semantics: output physical bounds/FOV, post-output subject framing, and equivalent-viewing CoC against the final retained physical image region.
+- The POC staged `capture` geometry request must not silently stack legacy crop semantics: `crop.factor` must remain `1` when `capture` is present.
+- The POC staged `capture` geometry request owns final output/viewing semantics: output physical bounds/FOV, post-output subject framing, and equivalent-viewing CoC against the final retained physical image region. Do not confuse this geometry object with the separate sensor/capture-mode profile contract.
 - The response exposes shared sensor-geometry metrics plus an optional capture block with active/output FOV, active-capture 35 mm-equivalent focal length, output sampling scale, subject framing, and oriented/output motion diagnostics.
 - Equivalent focal length remains informational and never replaces physical focal length inside POC physics; final digital/output crop does not redefine it.
 - Existing motion/camera-shake X/Y fields retain their legacy image-plane meaning (+X right, +Y up). Capture raster coordinates are +X right, +Y down; additive diagnostics must expose the explicit basis conversion before orientation/output scaling.
-- Sensor-architecture metadata, sensor readout timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not composed unless an explicit versioned integration is added.
+- Sensor-architecture metadata, capture-mode profiles, sensor readout timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not composed unless an explicit versioned integration is added.
 - The POC reports X/Y pitch diagnostics but still uses one representative horizontal pitch internally and fails closed above a 1% axis difference.
 - Radiometry readiness never enables photon/noise output by itself.
 

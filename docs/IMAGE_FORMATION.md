@@ -141,6 +141,8 @@ optical PSF
 
 Temporal exposure/readout couples into the photosite/charge stages rather than acting as an unrelated display blur.
 
+The standalone capture-mode profile now describes acquisition sequence, per-frame effective sampling, optional inter-frame sensor offsets, reconstruction-stage labels, processed-image raster, and downstream dependencies. It does **not** implement the reserved CFA/photosite/reconstruction algorithms. A mode's processed raster remains upstream of physical orientation and final output crop/resampling and cannot redefine physical sensor geometry or FOV.
+
 ## Current implementation status
 
 Each stage is labeled:
