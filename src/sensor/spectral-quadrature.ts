@@ -879,6 +879,22 @@ export function validateSensorSpectralQuadrature(
   );
 
   for (
+    let spectralSampleIndex = 0;
+    spectralSampleIndex < totalNodeCount;
+    spectralSampleIndex += 1
+  ) {
+    if (
+      !nodesByIndex.has(
+        spectralSampleIndex
+      )
+    ) {
+      throw new InvalidScientificInputError(
+        "spectralQuadrature spectralSampleIndex values must form the exact contiguous range 0..totalNodeCount-1."
+      );
+    }
+  }
+
+  for (
     let segmentIndex = 0;
     segmentIndex < segmentCount;
     segmentIndex += 1
