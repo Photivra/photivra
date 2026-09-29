@@ -1,0 +1,565 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  parseSensorSamplingApertureProfile,
+  resolveSensorSamplingAperture,
+  type NativeEffectiveRasterColorSamplingBindingProfile,
+  type SensorColorSamplingProfile,
+  type SensorSamplingApertureProfile
+} from "../src/index.js";
+
+type OwnedEvidence = readonly [
+  {
+    sourceOrigin: "photivra";
+    sourceReference: string;
+    reuseStatus: "photivra-owned";
+  }
+];
+
+const evidence = (
+  sourceReference: string
+): OwnedEvidence =>
+  [
+    {
+      sourceOrigin: "photivra",
+      sourceReference,
+      reuseStatus: "photivra-owned"
+    }
+  ] as const;
+
+const imagingArea = {
+  widthMm: 4,
+  heightMm: 2
+};
+
+const nativeRaster = {
+  pixelWidth: 4,
+  pixelHeight: 2
+};
+
+function colorProfile(
+  profileId = "bayer-like"
+): SensorColorSamplingProfile {
+  return {
+    schemaVersion: "0.1.0",
+    profileId,
+    evidence: evidence(
+      "test:color:" + profileId
+    ),
+    coordinateSystem:
+      "native-sensor-color-sampling-site-index",
+    layout: {
+      kind: "periodic-mosaic",
+      repeatWidthSites: 2,
+      repeatHeightSites: 2,
+      siteChannelIds: [
+        "red",
+        "green",
+        "green",
+        "blue"
+      ],
+      anchor: "native-sensor-top-left-site"
+    }
+  };
+}
+
+function bindingProfile(
+  options: {
+    bindingId?: string;
+    colorSamplingProfileId?: string;
+    sitesPerNativeSampleX?: number;
+    sitesPerNativeSampleY?: number;
+  } = {}
+): NativeEffectiveRasterColorSamplingBindingProfile {
+  return {
+    schemaVersion: "0.1.0",
+    bindingId:
+      options.bindingId ?? "binding",
+    colorSamplingProfileId:
+      options.colorSamplingProfileId ??
+      "bayer-like",
+    nativeRaster,
+    evidence: evidence("test:binding"),
+    relationship: {
+      kind:
+        "regular-native-effective-sample-blocks",
+      sitesPerNativeSampleX:
+        options.sitesPerNativeSampleX ?? 1,
+      sitesPerNativeSampleY:
+        options.sitesPerNativeSampleY ?? 1,
+      anchor: "shared-native-top-left"
+    }
+  };
+}
+
+function apertureProfile(
+  options: {
+    profileId?: string;
+    colorSamplingProfileId?: string;
+    colorSamplingBindingId?: string;
+    pitchXMicrometers?: number;
+    pitchYMicrometers?: number;
+    firstXMicrometers?: number;
+    firstYMicrometers?: number;
+    widthMicrometers?: number;
+    heightMicrometers?: number;
+    offsetXMicrometers?: number;
+    offsetYMicrometers?: number;
+  } = {}
+): SensorSamplingApertureProfile {
+  return {
+    schemaVersion: "0.1.0",
+    profileId:
+      options.profileId ?? "sampling",
+    colorSamplingProfileId:
+      options.colorSamplingProfileId ??
+      "bayer-like",
+    colorSamplingBindingId:
+      options.colorSamplingBindingId ??
+      "binding",
+    evidence: evidence("test:sampling"),
+    siteCenterLattice: {
+      kind:
+        "regular-rectangular-site-center-lattice",
+      coordinateSystem:
+        "native-sensor-physical",
+      pitchXMicrometers:
+        options.pitchXMicrometers ?? 1000,
+      pitchYMicrometers:
+        options.pitchYMicrometers ?? 1000,
+      firstSiteCenterFromImagingAreaTopLeftMicrometers:
+        {
+          x:
+            options.firstXMicrometers ??
+            500,
+          y:
+            options.firstYMicrometers ??
+            500
+        },
+      evidence: evidence("test:lattice")
+    },
+    geometricSensitiveAperture: {
+      kind:
+        "uniform-axis-aligned-rectangle",
+      widthMicrometers:
+        options.widthMicrometers ?? 800,
+      heightMicrometers:
+        options.heightMicrometers ?? 600,
+      centerOffsetFromSiteCenterMicrometers:
+        {
+          x:
+            options.offsetXMicrometers ??
+            0,
+          y:
+            options.offsetYMicrometers ??
+            0
+        },
+      evidence: evidence("test:aperture")
+    }
+  };
+}
+
+describe("sensor sampling aperture foundation", () => {
+  it("resolves physical site center and rectangular aperture in native sensor coordinates", () => {
+    const result =
+      resolveSensorSamplingAperture({
+        imagingArea,
+        nativeRaster,
+        colorSamplingProfile:
+          colorProfile(),
+        colorSamplingBindingProfile:
+          bindingProfile(),
+        samplingApertureProfile:
+          apertureProfile(),
+        site: { x: 1, y: 0 }
+      });
+
+    expect(result.channelId).toBe("green");
+    expect(
+      result.lattice
+        .siteCenterFromImagingAreaTopLeftMicrometers
+    ).toEqual({
+      x: 1500,
+      y: 500
+    });
+    expect(
+      result.lattice
+        .siteCenterFromOpticalAxisMm
+    ).toEqual({
+      x: -0.5,
+      y: -0.5
+    });
+    expect(
+      result.geometricSensitiveAperture
+        .boundsFromOpticalAxisMm
+    ).toEqual({
+      left: -0.9,
+      right: -0.1,
+      top: -0.8,
+      bottom: -0.2
+    });
+  });
+
+  it("derives geometric sensitive area fraction without promoting it to QE or radiometric collection area", () => {
+    const result =
+      resolveSensorSamplingAperture({
+        imagingArea,
+        nativeRaster,
+        colorSamplingProfile:
+          colorProfile(),
+        colorSamplingBindingProfile:
+          bindingProfile(),
+        samplingApertureProfile:
+          apertureProfile(),
+        site: { x: 0, y: 0 }
+      });
+
+    expect(
+      result.geometricSensitiveAperture
+        .areaSquareMicrometers
+    ).toBe(480_000);
+    expect(
+      result.lattice
+        .nominalCellAreaSquareMicrometers
+    ).toBe(1_000_000);
+    expect(
+      result.geometricSensitiveAperture
+        .geometricSensitiveAreaFractionOfLatticeCell
+    ).toBeCloseTo(0.48, 12);
+
+    expect(
+      result.quantumEfficiencyIncluded
+    ).toBe(false);
+    expect(
+      result.radiometricCollectionAreaEstablished
+    ).toBe(false);
+    expect(
+      result.physicalPhotodiodeGeometryEstablished
+    ).toBe(false);
+  });
+
+  it("keeps site-center pitch independent from NativeImageRaster-derived pitch", () => {
+    const result =
+      resolveSensorSamplingAperture({
+        imagingArea,
+        nativeRaster,
+        colorSamplingProfile:
+          colorProfile("dense-grid"),
+        colorSamplingBindingProfile:
+          bindingProfile({
+            colorSamplingProfileId:
+              "dense-grid",
+            sitesPerNativeSampleX: 2,
+            sitesPerNativeSampleY: 2
+          }),
+        samplingApertureProfile:
+          apertureProfile({
+            colorSamplingProfileId:
+              "dense-grid",
+            pitchXMicrometers: 400,
+            pitchYMicrometers: 400,
+            firstXMicrometers: 400,
+            firstYMicrometers: 400,
+            widthMicrometers: 300,
+            heightMicrometers: 300
+          }),
+        site: { x: 7, y: 3 }
+      });
+
+    expect(
+      result.lattice.pitchXMicrometers
+    ).toBe(400);
+    expect(
+      result.sitePitchDerivedFromNativeImageRaster
+    ).toBe(false);
+    expect(
+      result.apertureDerivedFromSitePitch
+    ).toBe(false);
+    expect(result.siteGrid).toEqual({
+      widthSites: 8,
+      heightSites: 4
+    });
+  });
+
+  it("supports an off-center sensitive rectangle while keeping it inside one lattice cell", () => {
+    const result =
+      resolveSensorSamplingAperture({
+        imagingArea,
+        nativeRaster,
+        colorSamplingProfile:
+          colorProfile(),
+        colorSamplingBindingProfile:
+          bindingProfile(),
+        samplingApertureProfile:
+          apertureProfile({
+            widthMicrometers: 600,
+            heightMicrometers: 600,
+            offsetXMicrometers: 100,
+            offsetYMicrometers: -100
+          }),
+        site: { x: 1, y: 1 }
+      });
+
+    expect(
+      result.geometricSensitiveAperture
+        .centerOffsetFromSiteCenterMicrometers
+    ).toEqual({
+      x: 100,
+      y: -100
+    });
+    expect(
+      result.geometricSensitiveAperture
+        .neighboringGeometricApertureOverlap
+    ).toBe("none-by-model");
+  });
+
+  it("represents an unresolved aperture without deriving one from site pitch", () => {
+    const unresolved =
+      parseSensorSamplingApertureProfile({
+        schemaVersion: "0.1.0",
+        profileId: "unresolved",
+        colorSamplingProfileId:
+          "bayer-like",
+        colorSamplingBindingId:
+          "binding",
+        evidence: evidence(
+          "test:unresolved"
+        ),
+        siteCenterLattice: {
+          kind:
+            "regular-rectangular-site-center-lattice",
+          coordinateSystem:
+            "native-sensor-physical",
+          pitchXMicrometers: 1000,
+          pitchYMicrometers: 1000,
+          firstSiteCenterFromImagingAreaTopLeftMicrometers:
+            {
+              x: 500,
+              y: 500
+            },
+          evidence: evidence(
+            "test:lattice"
+          )
+        },
+        geometricSensitiveAperture: {
+          kind: "unresolved",
+          evidence: evidence(
+            "test:aperture-unknown"
+          )
+        }
+      });
+
+    expect(
+      unresolved.geometricSensitiveAperture
+        .kind
+    ).toBe("unresolved");
+
+    expect(() =>
+      resolveSensorSamplingAperture({
+        imagingArea,
+        nativeRaster,
+        colorSamplingProfile:
+          colorProfile(),
+        colorSamplingBindingProfile:
+          bindingProfile(),
+        samplingApertureProfile:
+          unresolved,
+        site: { x: 0, y: 0 }
+      })
+    ).toThrow("unresolved");
+  });
+
+  it("rejects a rectangle that extends outside its nominal lattice cell", () => {
+    expect(() =>
+      parseSensorSamplingApertureProfile(
+        apertureProfile({
+          widthMicrometers: 1100
+        })
+      )
+    ).toThrow("within one regular site lattice cell");
+
+    expect(() =>
+      parseSensorSamplingApertureProfile(
+        apertureProfile({
+          widthMicrometers: 800,
+          offsetXMicrometers: 200
+        })
+      )
+    ).toThrow("within one regular site lattice cell");
+  });
+
+  it("fails closed when the physical lattice extends beyond the supplied imaging area", () => {
+    expect(() =>
+      resolveSensorSamplingAperture({
+        imagingArea,
+        nativeRaster,
+        colorSamplingProfile:
+          colorProfile(),
+        colorSamplingBindingProfile:
+          bindingProfile(),
+        samplingApertureProfile:
+          apertureProfile({
+            pitchXMicrometers: 1500
+          }),
+        site: { x: 0, y: 0 }
+      })
+    ).toThrow("lattice extends beyond");
+  });
+
+  it("validates aperture fit across the complete site grid, not only the requested site", () => {
+    expect(() =>
+      resolveSensorSamplingAperture({
+        imagingArea,
+        nativeRaster,
+        colorSamplingProfile:
+          colorProfile(),
+        colorSamplingBindingProfile:
+          bindingProfile(),
+        samplingApertureProfile:
+          apertureProfile({
+            firstXMicrometers: 200
+          }),
+        site: { x: 2, y: 0 }
+      })
+    ).toThrow("complete site grid");
+  });
+
+  it("fails closed when profile IDs do not match the color topology or binding", () => {
+    expect(() =>
+      resolveSensorSamplingAperture({
+        imagingArea,
+        nativeRaster,
+        colorSamplingProfile:
+          colorProfile(),
+        colorSamplingBindingProfile:
+          bindingProfile(),
+        samplingApertureProfile:
+          apertureProfile({
+            colorSamplingProfileId:
+              "wrong-color"
+          }),
+        site: { x: 0, y: 0 }
+      })
+    ).toThrow("colorSamplingProfileId");
+
+    expect(() =>
+      resolveSensorSamplingAperture({
+        imagingArea,
+        nativeRaster,
+        colorSamplingProfile:
+          colorProfile(),
+        colorSamplingBindingProfile:
+          bindingProfile(),
+        samplingApertureProfile:
+          apertureProfile({
+            colorSamplingBindingId:
+              "wrong-binding"
+          }),
+        site: { x: 0, y: 0 }
+      })
+    ).toThrow("colorSamplingBindingId");
+  });
+
+  it("fails closed for a site outside the bound color-site grid", () => {
+    expect(() =>
+      resolveSensorSamplingAperture({
+        imagingArea,
+        nativeRaster,
+        colorSamplingProfile:
+          colorProfile(),
+        colorSamplingBindingProfile:
+          bindingProfile(),
+        samplingApertureProfile:
+          apertureProfile(),
+        site: { x: 4, y: 0 }
+      })
+    ).toThrow("bound color-sampling site grid");
+  });
+
+  it("keeps AA, microlens, diffusion, crosstalk, spectral and throughput effects outside the aperture model", () => {
+    const result =
+      resolveSensorSamplingAperture({
+        imagingArea,
+        nativeRaster,
+        colorSamplingProfile:
+          colorProfile(),
+        colorSamplingBindingProfile:
+          bindingProfile(),
+        samplingApertureProfile:
+          apertureProfile(),
+        site: { x: 0, y: 0 }
+      });
+
+    expect(
+      result.antiAliasingResponseIncluded
+    ).toBe(false);
+    expect(
+      result.microlensSpatialRedistributionIncluded
+    ).toBe(false);
+    expect(result.chargeDiffusionIncluded).toBe(
+      false
+    );
+    expect(
+      result.electricalCrosstalkIncluded
+    ).toBe(false);
+    expect(
+      result.spectralResponseIncluded
+    ).toBe(false);
+    expect(
+      result.opticalThroughputIncluded
+    ).toBe(false);
+  });
+
+  it("uses a normalized spatial average while preserving physical area separately", () => {
+    const result =
+      resolveSensorSamplingAperture({
+        imagingArea,
+        nativeRaster,
+        colorSamplingProfile:
+          colorProfile(),
+        colorSamplingBindingProfile:
+          bindingProfile(),
+        samplingApertureProfile:
+          apertureProfile(),
+        site: { x: 0, y: 0 }
+      });
+
+    expect(
+      result.geometricSensitiveAperture
+        .spatialWeighting
+    ).toBe("uniform-unit-area-average");
+    expect(
+      result.geometricSensitiveAperture
+        .areaSquareMicrometers
+    ).toBeGreaterThan(0);
+    expect(
+      result.radiometricCollectionAreaEstablished
+    ).toBe(false);
+  });
+
+  it("does not expose physical camera orientation as part of native sampling aperture geometry", () => {
+    const result =
+      resolveSensorSamplingAperture({
+        imagingArea,
+        nativeRaster,
+        colorSamplingProfile:
+          colorProfile(),
+        colorSamplingBindingProfile:
+          bindingProfile(),
+        samplingApertureProfile:
+          apertureProfile(),
+        site: { x: 0, y: 0 }
+      });
+
+    expect(
+      "orientation" in
+        (result as unknown as Record<
+          string,
+          unknown
+        >)
+    ).toBe(false);
+    expect(result.coordinateSystem).toBe(
+      "native-sensor-physical"
+    );
+  });
+});
