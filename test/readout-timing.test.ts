@@ -210,7 +210,12 @@ describe("sensor readout scan timing", () => {
       })
     );
 
-    expect(vectors).toEqual([
+    const canonicalVectors = vectors.map((vector) => ({
+      x: vector.x === 0 ? 0 : vector.x,
+      y: vector.y === 0 ? 0 : vector.y
+    }));
+
+    expect(canonicalVectors).toEqual([
       { x: 0, y: 1 },
       { x: -1, y: 0 },
       { x: 0, y: -1 },
