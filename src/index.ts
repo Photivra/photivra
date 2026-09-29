@@ -178,6 +178,7 @@ export {
   type ResolvedSensorSpectralResponse,
   type ResolvedSensorSpectralResponseValue,
   type SensorSpectralChannelResponse,
+  type SensorSpectralResponseChannelBinding,
   type SensorSpectralReferenceConditions,
   type SensorSpectralResponseProfile,
   type SensorSpectralResponseScientificStatus,
