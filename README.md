@@ -99,6 +99,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [sensor spatio-spectral irradiance reduction](docs/USAGE.md#sensor-spatio-spectral-irradiance-reduction), composing explicit W/m^2/nm source samples over spatial and wavelength quadrature into pre-response irradiance/incident-flux integrals;
 - [sensor-response application compatibility](docs/USAGE.md#sensor-response-application-compatibility), fail-closed matching of response plane, area normalization, spatial separability, profile identity, and reference conditions before any QE/A/W conversion;
 - [sensor-response operating-range assessment](docs/USAGE.md#sensor-response-operating-range), preserving calibrated power/irradiance domain, wavelength applicability, reference conditions, and nonlinearity criterion before any instantaneous response-rate conversion;
+- [photon-energy wavelength basis](docs/USAGE.md#photon-energy-wavelength-basis), deriving photon energy from vacuum wavelength with exact SI constants and requiring explicit refractive-index/atmosphere handling for air wavelengths;
 - [orthogonal capture-mode profiles](docs/USAGE.md#capture-mode-profiles), separating acquisition sequence, per-frame sampling, sensor-shift sequence, reconstruction stages, processed raster, and final output geometry;
 - [capture-specific native sensor readout scan timing](docs/USAGE.md#sensor-readout-timing), with separately evidenced total data-readout duration and rolling spatial timing skew;
 - [readout/exposure spatial linkage assessment](docs/USAGE.md#readoutexposure-spatial-linkage), for evidence-backed same/reversed normalized phase relationships between rolling readout and electronic exposure boundaries without asserting absolute synchronization;
@@ -207,7 +208,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.52.0`
+- Engine API contract: `0.53.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 

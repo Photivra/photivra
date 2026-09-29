@@ -67,6 +67,8 @@ The response-application compatibility gate binds the response profile/channel t
 
 The response operating-range gate now follows that structural assessment. It preserves whether linearity was characterized in incident radiant power or irradiance, requires the current wavelength basis/range and operating conditions to remain inside the declared calibration applicability, and records the allowed relative nonlinearity criterion. A successful result authorizes only the next instantaneous response-rate calculation. Exposure/full-well saturation, accumulated-charge linearity and downstream electronics linearity remain separate because they depend on temporal integration and later signal stages.
 
+The photon-energy wavelength foundation supplies the next unit bridge without yet applying sensor response. Vacuum wavelengths use exact SI h and c directly. Air wavelengths require an exact-wavelength sourced phase refractive index to obtain vacuum wavelength, plus explicit atmosphere compatibility because refractive index varies with conditions. Refractive-index uncertainty is preserved as input metadata but is not yet propagated into photon-energy uncertainty.
+
 
 ## Image-formation ownership and ordering
 

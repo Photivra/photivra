@@ -11,10 +11,11 @@ Notable public changes to `@photivra/engine` are documented here.
 - Added pre-response spatio-spectral irradiance reduction over explicit E_lambda(x,y) samples in W/m^2/nm. The reducer validates exact spatial/spectral profile linkage, caps the Cartesian product, composes normalized AA/aperture spatial measures with dλ, and reports wavelength-integrated spatial-average irradiance plus geometric-aperture incident flux without applying sensor response or temporal exposure.
 - Added a sensor-response application compatibility gate. It binds response data to exact color/sampling-aperture/optical-stack identities, validates response reference plane and incident-area normalization, requires explicit spatial response uniformity/separability before post-spatial application, checks declared reference conditions, blocks unresolved wavelength basis, and keeps signal conversion disabled pending a later typed EQE or A/W path.
 - Added an evidence-backed sensor-response operating-range gate for instantaneous optical-input linearity. It preserves radiant-power vs irradiance calibration domains, wavelength applicability, reference conditions, uncertainty, and a declared maximum relative nonlinearity criterion while keeping exposure/full-well saturation and downstream electronics linearity explicitly separate.
+- Added a photon-energy wavelength-basis foundation using exact SI Planck constant and vacuum light speed. Vacuum wavelengths map directly; air wavelengths require an exact-wavelength sourced phase refractive index plus explicit atmosphere compatibility, and refractive-index uncertainty is preserved without falsely claiming uncertainty propagation.
 
 ### Changed
 
-- Engine API contract advances to `0.52.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
+- Engine API contract advances to `0.53.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
 
 ## 0.6.0 - 2026-09-29
 
