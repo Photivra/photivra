@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateSensorSpectralQuadrature,
   reduceSensorSpatioSpectralIrradiance,
+  type SensorColorSamplingProfile,
   type SensorSpectralResponseProfile,
   type SensorSpatioSpectralIrradianceSample
 } from "../src/index.js";
@@ -61,7 +62,8 @@ const spectralProfile =
   }]
 });
 
-const colorProfile = () => ({
+const colorProfile =
+(): SensorColorSamplingProfile => ({
   schemaVersion: "0.1.0" as const,
   profileId: "bayer-like",
   evidence: evidence("test:color"),
@@ -88,7 +90,9 @@ function spectralPlan(
     minimum: 400,
     maximum: 500
   }
-) {
+): ReturnType<
+  typeof calculateSensorSpectralQuadrature
+> {
   return calculateSensorSpectralQuadrature({
     colorSamplingProfile: colorProfile(),
     spectralResponseProfile:
