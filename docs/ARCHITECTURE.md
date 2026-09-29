@@ -49,6 +49,8 @@ Exact color-sampling topology is a separate layer again. `SensorColorSamplingPro
 
 That binding is now explicit through the native-effective-raster/color-site foundation. One evidence-backed profile ties one exact canonical native effective raster to regular sensor-anchored color-site blocks; a second resolver composes that relationship with a selected capture mode. Grouped modes require separately evidenced full-frame grouping phase, use absolute full-frame mode indices, and return compact pre-reconstruction source rectangles plus channel-site counts. Matching dimensions alone never create a binding. Pixel-shift metadata does not re-phase the CFA because the sensor/filter structure moves together; its optical-registration effect remains a later spatial-sampling concern. Declared-effective capture modes and unresolved layered layouts fail closed rather than receiving inferred mappings.
 
+Sensor optical-stack metadata is a separate upstream layer. `SensorOpticalStackProfile` records ordered physical component roles and microlens presence independently from the effective anti-aliasing spatial response. Unknown AA response, documented absence/cancellation, unresolved presence, and an explicit normalized point-splitting kernel remain distinct. The first kernel is native-sensor-physical, field/wavelength/polarization-invariant, and spatial-only; it does not include throughput, spectral filtering, cover-glass refraction, microlens collection, or whole-stack PSF composition. This prevents OLPF presence from becoming a universal Gaussian/four-ray blur and prevents descriptive filter/microlens metadata from silently changing image formation.
+
 
 ## Image-formation ownership and ordering
 
@@ -124,6 +126,7 @@ The POC still does **not** consume:
 - `SensorArchitectureProfile`;
 - `SensorColorSamplingProfile`;
 - `NativeEffectiveRasterColorSamplingBindingProfile`;
+- `SensorOpticalStackProfile`;
 - `CaptureModeProfile`;
 - `RadiometryReadinessProfile` or calibrated photon/noise output.
 
