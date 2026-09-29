@@ -16,11 +16,12 @@ Notable public changes to `@photivra/engine` are documented here.
 - Tightened the operating-range gate so wavelength-dependent rate conversion now fails closed unless both geometric-aperture linear superposition and per-spectral-bin input applicability are explicitly established. Broadband-only range evidence remains diagnostic but cannot authorize EQE/A-W conversion.
 - Added typed A/W spectral-responsivity conversion from per-wavelength geometric-aperture radiant power to detector-terminal photocurrent magnitude. The path requires the same structural/spatial/per-bin operating gates as EQE plus an explicit electrical applicability profile for detector bias and current-readout loading; transimpedance, voltage, temporal charge, saturation, noise, ADC and RAW remain downstream.
 - Added local sensor-rate/exposure-window binding. Engine-produced EQE and A/W rate results now preserve source color-site identity; the binding validates the exact site channel, requires an evidenced one-to-one color-site/native-effective-raster relationship, recomputes the local shutter window at the mapped native sample center, and deliberately leaves constant-rate temporal integration unauthorized.
+- Added evidence-bound constant-rate temporal integration for exact local exposure windows. EQE rates become fractional expected photon/electron counts; A/W photocurrent becomes charge magnitude in coulombs without carrier inference. Results remain photo-signal-only and explicitly cannot authorize full-well or camera-saturation assessment.
 - Added exact canonical response-channel data binding from spectral quadrature through spatio-spectral reduction. EQE and A/W converters now reject numeric calibration-curve drift even when profile IDs and evidence references are unchanged; the binding is an exact data-identity mechanism, not a cryptographic integrity checksum.
 
 ### Changed
 
-- Engine API contract advances to `0.56.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
+- Engine API contract advances to `0.57.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
 
 ## 0.6.0 - 2026-09-29
 

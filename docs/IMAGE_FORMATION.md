@@ -173,7 +173,9 @@ The sibling A/W responsivity foundation applies the current-domain response inde
 
 Both paths still stop before exposure-time integration, accumulated-charge/full-well behavior, stochastic noise, analog electronics, ADC/RAW and reconstruction.
 
-The local sensor-rate/exposure binding now carries each engine-produced response rate back to its exact color-sampling site, through an evidenced one-to-one native-effective-raster relationship, and into the authoritative local shutter-window schedule. This establishes which local time interval belongs to that rate but deliberately does not assume the rate is constant through the interval. Grouped/multi-site raster relationships, multi-frame sequence timing, physical-photodiode timing registration and time-varying signal integration remain unresolved.
+The local sensor-rate/exposure binding carries each engine-produced response rate back to its exact color-sampling site, through an evidenced one-to-one native-effective-raster relationship, and into the authoritative local shutter-window schedule. This establishes which local time interval belongs to that rate but deliberately does not assume the rate is constant through the interval.
+
+The constant-rate temporal-integration foundation now permits rate × local-duration only under a stationarity declaration bound to the exact site/window. EQE rates produce fractional expected photon/electron counts; A/W current produces photocharge magnitude in coulombs without carrier inference. These are photo-signal-only accumulations. Dark/other charge, full-well behavior, camera saturation, stochastic noise, analog electronics, ADC/RAW and reconstruction remain downstream. Physical full-well and camera saturation are deliberately not represented as one shared clamp.
 
 ## Current implementation status
 
