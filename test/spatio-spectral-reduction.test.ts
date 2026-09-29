@@ -514,6 +514,82 @@ describe(
       );
     });
 
+    it("rejects malformed spectral partition structure before composition", () => {
+      const spatial =
+        makeQuadrature().value;
+      const spectral =
+        spectralPlan().value;
+      const samples =
+        samplesFor(
+          spatial,
+          spectral,
+          () => 1
+        );
+
+      expect(() =>
+        reduceSensorSpatioSpectralIrradiance({
+          spatialQuadrature: spatial,
+          spectralQuadrature: {
+            ...spectral,
+            maximumSubintervalWidthNanometers:
+              25
+          },
+          sampleValues: samples
+        })
+      ).toThrow(
+        "node width exceeds"
+      );
+
+      expect(() =>
+        reduceSensorSpatioSpectralIrradiance({
+          spatialQuadrature: spatial,
+          spectralQuadrature: {
+            ...spectral,
+            segmentBoundariesNanometers:
+              [400, 500, 450]
+          },
+          sampleValues: samples
+        })
+      ).toThrow(
+        "strictly increasing"
+      );
+
+      expect(() =>
+        reduceSensorSpatioSpectralIrradiance({
+          spatialQuadrature: spatial,
+          spectralQuadrature: {
+            ...spectral,
+            segmentCount: 2
+          },
+          sampleValues: samples
+        })
+      ).toThrow(
+        "match the boundary count"
+      );
+
+      expect(() =>
+        reduceSensorSpatioSpectralIrradiance({
+          spatialQuadrature: spatial,
+          spectralQuadrature: {
+            ...spectral,
+            nodes: spectral.nodes.map(
+              (node, index) =>
+                index === 1
+                  ? {
+                      ...node,
+                      spectralSampleIndex:
+                        0
+                    }
+                  : node
+            )
+          },
+          sampleValues: samples
+        })
+      ).toThrow(
+        "duplicate spectralSampleIndex"
+      );
+    });
+
     it("caps the Cartesian product independently of individual quadrature caps", () => {
       const spatial =
         makeQuadrature(
