@@ -526,13 +526,19 @@ describe("sensor spectral quadrature", () => {
     expect(result.value.electronsCalculated).toBe(false);
     expect(result.value.rawCodeValueProduced).toBe(false);
     expect(result.value.convergenceErrorEstimated).toBe(false);
-    expect(result.provenance.assumptions).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("d-lambda"),
-        expect.stringContaining("different physical representations"),
-        expect.stringContaining("Discrete/delta-like line spectra"),
-        expect.stringContaining("does not prove convergence")
-      ])
-    );
+    const assumptions =
+      result.provenance.assumptions ?? [];
+    for (const expected of [
+      "d-lambda",
+      "different physical representations",
+      "Discrete/delta-like line spectra",
+      "does not prove convergence"
+    ]) {
+      expect(
+        assumptions.some((entry) =>
+          entry.includes(expected)
+        )
+      ).toBe(true);
+    }
   });
 });
