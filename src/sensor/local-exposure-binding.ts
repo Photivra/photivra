@@ -54,6 +54,12 @@ export interface SensorRateLocalExposureBinding {
   rateDomain:
     | "eqe-electron-rate"
     | "responsivity-photocurrent";
+  rateIdentity: {
+    responseProfileId: string;
+    responseApplicationProfileId: string;
+    operatingRangeProfileId: string;
+    electricalApplicabilityProfileId?: string;
+  };
   colorSamplingProfileId: string;
   channelId: string;
   site: {
@@ -326,6 +332,27 @@ export function bindSensorRateToLocalExposure(
   return approximationResult(
     {
       rateDomain,
+      rateIdentity: {
+        responseProfileId:
+          input.rate.responseProfileId,
+        responseApplicationProfileId:
+          input.rate
+            .responseApplicationProfileId,
+        operatingRangeProfileId:
+          input.rate
+            .operatingRangeProfileId,
+        ...(rateDomain ===
+          "responsivity-photocurrent"
+          ? {
+              electricalApplicabilityProfileId:
+                (
+                  input.rate as
+                    SensorResponsivityPhotocurrent
+                )
+                  .electricalApplicabilityProfileId
+            }
+          : {})
+      },
       colorSamplingProfileId:
         input.rate
           .colorSamplingProfileId,
