@@ -13,6 +13,7 @@ import {
 import {
   parseSensorSpectralResponseProfile,
   resolveSensorSpectralResponseAtWavelength,
+  type SensorSpectralReferenceConditions,
   type SensorSpectralResponseProfile,
   type SensorSpectralResponseScientificStatus,
   type SensorSpectralResponseUncertainty,
@@ -94,6 +95,8 @@ export interface SensorSpectralQuadrature {
     SensorSpectralResponseScientificStatus;
   responseUncertainty:
     SensorSpectralResponseUncertainty;
+  responseReferenceConditions?:
+    SensorSpectralReferenceConditions;
   wavelengthBasis: SpectralWavelengthBasis;
   wavelengthBasisResolved: boolean;
   wavelengthRangeNanometers:
@@ -1137,6 +1140,13 @@ export function calculateSensorSpectralQuadrature(
           .scientificStatus,
       responseUncertainty:
         representative.uncertainty,
+      ...(representative.referenceConditions ===
+      undefined
+        ? {}
+        : {
+            responseReferenceConditions:
+              representative.referenceConditions
+          }),
       wavelengthBasis:
         input.wavelengthBasis,
       wavelengthBasisResolved:
