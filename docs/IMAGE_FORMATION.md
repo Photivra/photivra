@@ -167,7 +167,11 @@ The additive response operating-range gate evaluates optical input against an ev
 
 The photon-energy wavelength foundation resolves the physical energy-per-photon basis used by EQE conversion. Vacuum wavelengths use exact SI h and c. Air wavelengths must first be converted to vacuum wavelength through a sourced phase refractive index at the exact wavelength, with explicit atmospheric-condition compatibility; no implicit air≈vacuum shortcut is allowed.
 
-The EQE electron-rate foundation now applies the first response-domain conversion after all prior gates. It evaluates each wavelength-bin radiant-power contribution independently, divides by photon energy to obtain incident-photon rate, applies effective external QE through the authoritative spectral-response resolver, and sums expected generated-electron rates with compensated summation. It requires response-evidence identity and explicit geometric-aperture linear superposition. It still does not integrate over exposure time, produce photon/electron counts, model saturation/noise, or enter ADC/RAW/reconstruction. A/W responsivity remains outside this path.
+The EQE electron-rate foundation applies the photon-domain response conversion after all prior gates. It evaluates each wavelength-bin radiant-power contribution independently, divides by photon energy to obtain incident-photon rate, applies effective external QE through the authoritative spectral-response resolver, and sums expected generated-electron rates with compensated summation.
+
+The sibling A/W responsivity foundation applies the current-domain response independently per wavelength bin and sums detector-terminal photocurrent magnitude. Its calibration is additionally bound to explicit detector bias and current-readout load conditions. This current is not treated as electron rate, accumulated charge, transimpedance voltage, or circuit-polarity truth.
+
+Both paths still stop before exposure-time integration, accumulated-charge/full-well behavior, stochastic noise, analog electronics, ADC/RAW and reconstruction.
 
 ## Current implementation status
 
