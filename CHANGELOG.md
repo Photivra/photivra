@@ -14,10 +14,11 @@ Notable public changes to `@photivra/engine` are documented here.
 - Added a photon-energy wavelength-basis foundation using exact SI Planck constant and vacuum light speed. Vacuum wavelengths map directly; air wavelengths require an exact-wavelength sourced phase refractive index plus explicit atmosphere compatibility, and refractive-index uncertainty is preserved without falsely claiming uncertainty propagation.
 - Added typed EQE/filter×detector-EQE instantaneous electron-rate conversion. The converter validates structural and operating-range authorization, requires explicit spatial linear superposition and per-spectral-bin operating-range applicability, binds response evidence and evaluated bin inputs to the exact pre-response reduction, converts each wavelength-bin power contribution to photon rate with the photon-energy foundation, applies effective QE per wavelength, and returns expected electron rate without temporal integration.
 - Tightened the operating-range gate so wavelength-dependent rate conversion now fails closed unless both geometric-aperture linear superposition and per-spectral-bin input applicability are explicitly established. Broadband-only range evidence remains diagnostic but cannot authorize EQE/A-W conversion.
+- Added typed A/W spectral-responsivity conversion from per-wavelength geometric-aperture radiant power to detector-terminal photocurrent magnitude. The path requires the same structural/spatial/per-bin operating gates as EQE plus an explicit electrical applicability profile for detector bias and current-readout loading; transimpedance, voltage, temporal charge, saturation, noise, ADC and RAW remain downstream.
 
 ### Changed
 
-- Engine API contract advances to `0.54.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
+- Engine API contract advances to `0.55.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
 
 ## 0.6.0 - 2026-09-29
 
