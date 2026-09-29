@@ -130,6 +130,11 @@ export interface SensorResponsivityPhotocurrent {
   operatingRangeProfileId: string;
   electricalApplicabilityProfileId:
     string;
+  /** Engine-produced results populate the exact source color site. */
+  site?: {
+    x: number;
+    y: number;
+  };
   channelId: string;
   sourceResponseKind:
     "effective-spectral-responsivity";
@@ -1284,6 +1289,9 @@ export function calculateSensorResponsivityPhotocurrent(
           .operatingRangeProfileId,
       electricalApplicabilityProfileId:
         electricalProfile.profileId,
+      site: {
+        ...input.reduction.site
+      },
       channelId:
         input.reduction.channelId,
       sourceResponseKind:

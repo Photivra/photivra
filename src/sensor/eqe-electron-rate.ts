@@ -103,6 +103,11 @@ export interface SensorEqeElectronRate {
   responseProfileId: string;
   responseApplicationProfileId: string;
   operatingRangeProfileId: string;
+  /** Engine-produced results populate the exact source color site. */
+  site?: {
+    x: number;
+    y: number;
+  };
   channelId: string;
   sourceResponseKind:
     | "effective-external-quantum-efficiency"
@@ -1122,6 +1127,9 @@ export function calculateSensorEqeElectronRate(
       operatingRangeProfileId:
         input.operatingRange
           .operatingRangeProfileId,
+      site: {
+        ...input.reduction.site
+      },
       channelId:
         input.reduction.channelId,
       sourceResponseKind:

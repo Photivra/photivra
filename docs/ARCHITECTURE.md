@@ -75,6 +75,8 @@ The sibling A/W foundation remains a separate current-domain path. It applies sp
 
 Both response paths therefore converge only at a later temporal/electrical composition boundary; neither is allowed to reinterpret the other's signal domain.
 
+The local exposure-binding foundation begins that temporal boundary without integrating signal. Engine-produced rate results preserve their color-site identity. The binding validates the site/channel, resolves the existing color-site/native-effective-raster relationship, and recomputes the shutter window at the mapped native sample center. The first binding accepts only one-to-one site/sample registration; grouped multi-site blocks do not prove sub-sample timing coordinates. The result still refuses rate×duration integration until time stationarity is established separately.
+
 
 ## Image-formation ownership and ordering
 

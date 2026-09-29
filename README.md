@@ -102,6 +102,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [photon-energy wavelength basis](docs/USAGE.md#photon-energy-wavelength-basis), deriving photon energy from vacuum wavelength with exact SI constants and requiring explicit refractive-index/atmosphere handling for air wavelengths;
 - [EQE electron-rate conversion](docs/USAGE.md#eqe-electron-rate-conversion), applying authorized effective QE per wavelength node to convert geometric-aperture spectral power into incident-photon and expected-electron rates without exposure integration;
 - [A/W responsivity photocurrent conversion](docs/USAGE.md#aw-responsivity-photocurrent-conversion), applying calibrated spectral responsivity per wavelength node to produce detector-terminal photocurrent magnitude under explicit electrical operating conditions without transimpedance or temporal integration;
+- [local sensor-rate/exposure binding](docs/USAGE.md#local-sensor-rateexposure-binding), mapping an exact response-rate color site through an evidenced one-to-one native-effective-raster relationship to its local shutter window without yet authorizing rate×duration integration;
 - [orthogonal capture-mode profiles](docs/USAGE.md#capture-mode-profiles), separating acquisition sequence, per-frame sampling, sensor-shift sequence, reconstruction stages, processed raster, and final output geometry;
 - [capture-specific native sensor readout scan timing](docs/USAGE.md#sensor-readout-timing), with separately evidenced total data-readout duration and rolling spatial timing skew;
 - [readout/exposure spatial linkage assessment](docs/USAGE.md#readoutexposure-spatial-linkage), for evidence-backed same/reversed normalized phase relationships between rolling readout and electronic exposure boundaries without asserting absolute synchronization;
@@ -210,7 +211,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.55.0`
+- Engine API contract: `0.56.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
