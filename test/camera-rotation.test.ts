@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { calculateCameraRotationImageMapping } from "../src/motion/camera-rotation.js";
+import {
+  calculateCameraRotationImageMapping,
+  calculateInverseCameraRotationImageMapping
+} from "../src/motion/camera-rotation.js";
 
 describe("spatial camera-rotation image mapping", () => {
   it("maps center yaw with the exact rectilinear tangent relation", () => {
@@ -292,4 +295,109 @@ describe("spatial camera-rotation image mapping", () => {
       })
     ).toThrow("to or behind the camera plane");
   });
+  it("round-trips forward and analytic inverse rotation mappings", () => {
+    const input = {
+      focalLengthMm: 85,
+      imagePointMm: { x: 12.5, y: -4.75 },
+      timeSecondsFromExposureStart: 0.037,
+      angularVelocityRadPerSec: {
+        pitch: 0.06,
+        yaw: -0.11,
+        roll: 0.04
+      },
+      focusDistanceM: 8
+    } as const;
+
+    const forward = calculateCameraRotationImageMapping(input).value;
+    const inverse = calculateInverseCameraRotationImageMapping({
+      ...input,
+      imagePointMm: forward.mappedImagePointMm
+    });
+
+    expect(inverse.value.referenceImagePointMm.x).toBeCloseTo(
+      input.imagePointMm.x,
+      11
+    );
+    expect(inverse.value.referenceImagePointMm.y).toBeCloseTo(
+      input.imagePointMm.y,
+      11
+    );
+    expect(inverse.provenance.kind).toBe("calculated");
+    expect(inverse.provenance.assumptions).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("analytic"),
+        expect.stringContaining("no iterative solve")
+      ])
+    );
+  });
+
+  it("keeps the analytic inverse at identity for zero time or zero rotation", () => {
+    const zeroTime = calculateInverseCameraRotationImageMapping({
+      focalLengthMm: 50,
+      imagePointMm: { x: 7, y: -3 },
+      timeSecondsFromExposureStart: 0,
+      angularVelocityRadPerSec: {
+        pitch: 0.2,
+        yaw: -0.1,
+        roll: 0.05
+      }
+    }).value;
+    const zeroRotation = calculateInverseCameraRotationImageMapping({
+      focalLengthMm: 50,
+      imagePointMm: { x: 7, y: -3 },
+      timeSecondsFromExposureStart: 0.5,
+      angularVelocityRadPerSec: {
+        pitch: 0,
+        yaw: 0,
+        roll: 0
+      }
+    }).value;
+
+    expect(zeroTime.referenceImagePointMm.x).toBeCloseTo(7, 12);
+    expect(zeroTime.referenceImagePointMm.y).toBeCloseTo(-3, 12);
+    expect(zeroRotation.referenceImagePointMm.x).toBeCloseTo(7, 12);
+    expect(zeroRotation.referenceImagePointMm.y).toBeCloseTo(-3, 12);
+  });
+
+  it("reports inverse sample displacement in the image-plane basis", () => {
+    const result = calculateInverseCameraRotationImageMapping({
+      focalLengthMm: 50,
+      imagePointMm: { x: 10, y: 5 },
+      timeSecondsFromExposureStart: 0.2,
+      angularVelocityRadPerSec: {
+        pitch: 0.01,
+        yaw: 0.02,
+        roll: 0.03
+      },
+      samplingPitchMicrometers: {
+        x: 5,
+        y: 10
+      }
+    }).value;
+
+    expect(result.deltaImagePlaneSamples?.x).toBeCloseTo(
+      result.deltaMm.x / 0.005,
+      12
+    );
+    expect(result.deltaImagePlaneSamples?.y).toBeCloseTo(
+      result.deltaMm.y / 0.01,
+      12
+    );
+  });
+
+  it("fails closed when inverse rotation sends the ray behind the reference plane", () => {
+    expect(() =>
+      calculateInverseCameraRotationImageMapping({
+        focalLengthMm: 50,
+        imagePointMm: { x: 0, y: 0 },
+        timeSecondsFromExposureStart: 1,
+        angularVelocityRadPerSec: {
+          pitch: 0,
+          yaw: Math.PI,
+          roll: 0
+        }
+      })
+    ).toThrow("reference camera plane");
+  });
+
 });

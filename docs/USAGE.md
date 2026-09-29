@@ -1148,11 +1148,130 @@ The returned trajectory is **forward temporal geometry for a stationary world ra
 
 The chord is not an integrated blur kernel. It also is not a renderer-ready rolling-shutter warp.
 
-A true rolling-shutter image mapping can be implicit: capture time depends on image location, while camera motion changes where a ray lands. A future inverse renderer mapping must solve that relationship consistently and integrate over the full local exposure interval rather than applying one forward displacement at a destination coordinate.
+A capture-scan image mapping is location-dependent because capture time varies across the image. For the current pure-rotation model, destination-to-reference inversion is analytic once the destination location selects its local capture time. More general motion models may require additional solving and global-validity analysis. Finite-exposure rendering still requires integration over the full local interval rather than one endpoint or midpoint displacement.
 
 `calculateSensorReadoutTiming()` is intentionally not an input. If a specific capture mode has a defensible relationship between electronic exposure timing and sensor readout timing, that relationship should be represented by a future explicit mode/link contract rather than assumed by this API.
 
 The current trajectory model remains pure rotation only. It excludes camera translation/parallax, subject motion, rotating/deforming subjects, occlusion changes, panning intent, exposure integration, flash/flicker, shutter shock, and final rolling-shutter inverse warping.
+
+## Instantaneous capture rotation inverse mapping
+
+Use `calculateCaptureRotationInverseMappings()` to map captured destination locations back to the **first-opening-boundary reference image** under pure camera rotation:
+
+```ts
+import {
+  calculateCaptureRotationInverseMappings
+} from "@photivra/engine";
+
+const mapping = calculateCaptureRotationInverseMappings({
+  imagingArea: { widthMm: 36, heightMm: 24 },
+  nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 },
+  shutterMechanism: "electronic",
+  nominalExposureDurationSeconds: {
+    value: 1 / 1000,
+    unit: "s",
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference: "capture-config:example",
+        reuseStatus: "photivra-owned"
+      }
+    ]
+  },
+  opening: {
+    kind: "uniform-linear-native-scan",
+    directionNative: {
+      value: "top-to-bottom",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "timing-profile:opening-direction",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    },
+    traversalDurationSeconds: {
+      value: 0.015,
+      unit: "s",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "timing-profile:opening-traversal",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    }
+  },
+  closing: {
+    kind: "uniform-linear-native-scan",
+    directionNative: {
+      value: "top-to-bottom",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "timing-profile:closing-direction",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    },
+    traversalDurationSeconds: {
+      value: 0.015,
+      unit: "s",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "timing-profile:closing-traversal",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    }
+  },
+  focalLengthMm: 50,
+  angularVelocityRadPerSec: {
+    pitch: 0,
+    yaw: 0.1,
+    roll: 0
+  },
+  localExposurePhase: 0.5,
+  orientation: "landscape",
+  samplePointsNative: [
+    { x: 3000, y: 0 },
+    { x: 3000, y: 2000 },
+    { x: 3000, y: 4000 }
+  ]
+});
+
+console.log(mapping.value.samples);
+```
+
+`localExposurePhase` is mandatory:
+
+- `0` evaluates local exposure start;
+- `0.5` evaluates the local temporal midpoint;
+- `1` evaluates local exposure end.
+
+Photivra does not choose a default phase because a finite exposure does not have one uniquely correct sharp geometry.
+
+Each destination native point first selects its local exposure time. Under the current constant-axis pure-rotation model, the captured ray can then be rotated **analytically** back to the exposure-start reference frame with `calculateInverseCameraRotationImageMapping()`. No iterative/fixed-point solver or convergence tolerance is needed.
+
+The result reports:
+
+- destination native and ideal image-plane coordinates;
+- the local exposure window and selected capture time;
+- the corresponding reference image-plane ray;
+- reference-minus-destination displacement in image-plane millimetres;
+- equivalent continuous native effective-sample displacement;
+- that displacement rotated into the requested physical capture orientation.
+
+The mapping deliberately remains in the ideal pre-lens geometry stage. It does not apply radial distortion, lateral CA, PSF, output crop, or output resampling.
+
+Reference rays are **not clamped** to the active source region. Camera motion can cause a valid captured destination to require reference-image data outside that region. A renderer must decide how to handle unavailable source coverage rather than silently clamping/stretching an edge.
+
+This is an **instantaneous** mapping only. It is not a complete finite-exposure rolling/capture-scan image. Motion blur requires multiple temporal samples or another defensible integration method over each local exposure window, including an explicit exposure-weighting model if the weighting is not uniform.
+
+Sensor data-readout timing is intentionally not part of this calculation. Capture exposure boundaries remain the authoritative timing input until a separate capture-mode/link contract establishes otherwise.
+
+The current model is pure rotation only. Translation/parallax, subject motion, deformation, occlusion changes, global injectivity/fold analysis, flash/flicker, shutter shock, and finite-exposure integration remain outside this slice.
 
 ## Spatial camera-rotation mapping
 
