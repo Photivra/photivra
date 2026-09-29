@@ -343,11 +343,14 @@ export function validateSensorSpatialSamplingQuadrature(
   }
 
   if (
-    typeof quadrature.colorSamplingProfileId !== "string" ||
-    quadrature.colorSamplingProfileId.trim().length === 0
+    quadrature.colorSamplingProfileId !== undefined &&
+    (
+      typeof quadrature.colorSamplingProfileId !== "string" ||
+      quadrature.colorSamplingProfileId.trim().length === 0
+    )
   ) {
     throw new InvalidScientificInputError(
-      "quadrature.colorSamplingProfileId must be a non-empty string."
+      "quadrature.colorSamplingProfileId must be a non-empty string when supplied."
     );
   }
 
