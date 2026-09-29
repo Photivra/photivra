@@ -10,10 +10,11 @@ Notable public changes to `@photivra/engine` are documented here.
 - Added a standalone capture exposure-window timing foundation with independent opening/closing boundary schedules, simultaneous or uniform-linear native scans, explicit mechanism-derived boundary actuators, evidence-backed timing/direction declarations, full-active-region positive-duration validation, and local exposure-window diagnostics relative to the first opening-boundary phase. Sensor readout remains a separate contract.
 - Added a capture-rotation exposure trajectory foundation that maps native sensor points into the reference image plane and evaluates the existing pure-rotation camera model at each point's local exposure start/end. It preserves exposure-window and rotation provenance, excludes sensor readout timing, and explicitly stops short of claiming a rolling-shutter warp or integrated blur kernel.
 - Added an analytic inverse pure-camera-rotation mapping plus an instantaneous capture-scan inverse mapping at an explicitly selected local-exposure phase. The capture mapping uses destination-native timing, reports native/oriented effective-sample displacement, does not clamp reference rays outside the active frame, and intentionally avoids iterative solving, sensor-readout coupling, and finite-exposure blur claims.
+- Added an evidence-backed readout/exposure spatial-linkage assessment for declaring normalized native scan-phase relationships between rolling sensor readout and electronic exposure boundaries. It supports same/reversed spatial phase, preserves evidence-backed seconds facts, reports cadence ratios, and explicitly does not infer absolute temporal synchronization from shutter mechanism, scan direction, equal timing spans, or total data-readout duration.
 
 ### Changed
 
-- Engine API contract advances to `0.38.0`. The composed POC remains `0.20.0`; the engine now exposes analytic inverse pure-rotation mapping and an instantaneous destination-to-reference capture-scan mapping while finite-exposure integration and broader rolling/capture-scan rendering remain separate work.
+- Engine API contract advances to `0.39.0`. The composed POC remains `0.20.0`; rolling sensor readout and exposure-window timing can now carry an explicit evidence-backed normalized spatial-phase relationship without being treated as temporally synchronized.
 
 ### Fixed
 
