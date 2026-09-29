@@ -294,6 +294,14 @@ function profile(
       maximumAbsoluteRelativeDeviation:
         0.01
     },
+    spatialLinearityModel: {
+      kind:
+        "linear-superposition-over-geometric-aperture",
+      scientificStatus:
+        "calibrated",
+      evidence:
+        evidence("spatial-linearity")
+    },
     referenceConditions:
       operatingConditions,
     referenceConditionPolicy: {
@@ -469,6 +477,68 @@ describe(
         range.value.blockers
       ).toContain(
         "wavelength-range-outside-linearity-applicability"
+      );
+    });
+
+    it("blocks rate conversion when spatial linear superposition is not established", () => {
+      const omitted =
+        assessSensorResponseOperatingRange({
+          reduction: reduction(),
+          compatibility:
+            compatibility(),
+          operatingRangeProfile:
+            {
+              ...profile(),
+              spatialLinearityModel:
+                undefined
+            }
+        });
+
+      expect(
+        omitted.value.blockers
+      ).toContain(
+        "spatial-linearity-superposition-not-established"
+      );
+      expect(
+        omitted.value
+          .responseRateConversionAuthorized
+      ).toBe(false);
+
+      const approximate =
+        assessSensorResponseOperatingRange({
+          reduction: reduction(),
+          compatibility:
+            compatibility(),
+          operatingRangeProfile:
+            profile({
+              spatialLinearityModel: {
+                kind:
+                  "linear-superposition-over-geometric-aperture",
+                scientificStatus:
+                  "approximation",
+                evidence:
+                  evidence(
+                    "spatial-linearity-approx"
+                  ),
+                limitation:
+                  "Sub-aperture distribution independence is approximated for this operating regime."
+              }
+            })
+        });
+
+      expect(
+        approximate.value.status
+      ).toBe(
+        "rate-conversion-authorized-approximation"
+      );
+      expect(
+        approximate.value
+          .componentEvidence
+          .spatialLinearity
+      ).toEqual(
+        evidence(
+          "spatial-linearity-approx"
+        )
       );
     });
 
