@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.49.0" as const;
+export const ENGINE_API_VERSION = "0.50.0" as const;
 
 export {
   approximationResult,
@@ -196,6 +196,15 @@ export {
   type SensorSpectralQuadratureNode,
   type SensorSpectralWavelengthRangeNanometers
 } from "./sensor/spectral-quadrature.js";
+
+export {
+  reduceSensorSpatioSpectralIrradiance,
+  type ReduceSensorSpatioSpectralIrradianceInput,
+  type SensorSpatioSpectralIrradianceReduction,
+  type SensorSpatioSpectralIrradianceSample,
+  type SensorSpatioSpectralNodeIdentity,
+  type SensorSpatioSpectralWavelengthReduction
+} from "./sensor/spatio-spectral-reduction.js";
 
 export {
   parseCaptureModeProfile,
