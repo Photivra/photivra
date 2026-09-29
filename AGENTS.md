@@ -99,6 +99,8 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - Diffraction belongs to the pupil/PSF domain.
 - Time-dependent camera mapping uses seconds from exposure start; normalized shutter time is derived convenience only.
 - Exposure duration and readout timing remain independent.
+- Capture exposure-window opening/closing timing remains independent from sensor data-readout timing; never equate a readout phase with an exposure boundary without an explicit integration model.
+- When local exposure start varies spatially, use the exposure-window contract's explicit first-opening-boundary reference rather than silently redefining the existing camera-rotation `timeSecondsFromExposureStart` semantic.
 - Camera rotation should be time-parameterized before rolling-readout integration; do not fold depth-dependent translation into a depth-independent screen flow.
 - Geometric renderer warps use inverse sampling, premultiplied alpha, and must preserve scene occlusion order.
 - Reserved sensor/ADC/reconstruction stages are not implemented capabilities and must not be advertised as such.
@@ -139,7 +141,7 @@ As of POC simulation API 0.20:
 - The response exposes shared sensor-geometry metrics plus an optional capture block with active/output FOV, active-capture 35 mm-equivalent focal length, output sampling scale, subject framing, and oriented/output motion diagnostics.
 - Equivalent focal length remains informational and never replaces physical focal length inside POC physics; final digital/output crop does not redefine it.
 - Existing motion/camera-shake X/Y fields retain their legacy image-plane meaning (+X right, +Y up). Capture raster coordinates are +X right, +Y down; additive diagnostics must expose the explicit basis conversion before orientation/output scaling.
-- Sensor-architecture metadata and radiometry-readiness profiles remain standalone and are not composed.
+- Sensor-architecture metadata, sensor readout timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not composed unless an explicit versioned integration is added.
 - The POC reports X/Y pitch diagnostics but still uses one representative horizontal pitch internally and fails closed above a 1% axis difference.
 - Radiometry readiness never enables photon/noise output by itself.
 
