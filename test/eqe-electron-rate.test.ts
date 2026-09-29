@@ -879,6 +879,71 @@ describe(
       );
     });
 
+    it("fails closed when finite wavelength-node rates overflow only in the total sum", () => {
+      const pipeline =
+        buildPipeline(
+          "direct-eqe",
+          "vacuum",
+          50
+        );
+      const contribution =
+        4e289;
+      const reduction = {
+        ...pipeline.reduction,
+        perWavelength:
+          pipeline.reduction
+            .perWavelength.map(
+              (node) => ({
+                ...node,
+                geometricApertureIncidentSpectralFluxWattsPerNanometer:
+                  contribution /
+                  node
+                    .wavelengthMeasureNanometers,
+                wavelengthIntegratedGeometricApertureIncidentFluxContributionWatts:
+                  contribution
+              })
+            ),
+        wavelengthIntegratedGeometricApertureIncidentFluxWatts:
+          contribution * 2
+      };
+      const operatingRange = {
+        ...pipeline.operatingRange,
+        inputRange: {
+          ...pipeline.operatingRange
+            .inputRange,
+          minimumInclusive: 0,
+          maximumInclusive: 1e300
+        },
+        evaluatedInput: {
+          ...pipeline.operatingRange
+            .evaluatedInput,
+          value: contribution * 2
+        },
+        evaluatedSpectralNodeInputs:
+          pipeline.operatingRange
+            .evaluatedSpectralNodeInputs!
+            .map((entry) => ({
+              ...entry,
+              value: contribution
+            }))
+      };
+
+      expect(() =>
+        calculateSensorEqeElectronRate({
+          reduction,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline.responseProfile
+        })
+      ).toThrow(
+        "Total EQE photon/electron rates must remain finite"
+      );
+    });
+
     it("keeps exposure, counts, saturation, noise, current and RAW downstream", () => {
       const pipeline =
         buildPipeline();
