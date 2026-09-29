@@ -229,21 +229,28 @@ describe("sensor spatial sampling quadrature", () => {
     });
 
     expect(result.value.totalNodeCount).toBe(4);
-    expect(
-      result.value.nodes.map(
-        (node) => ({
-          x:
-            node.destinationAperturePointMm.x,
-          y:
-            node.destinationAperturePointMm.y
-        })
-      )
-    ).toEqual([
+    const points = result.value.nodes.map(
+      (node) => node.destinationAperturePointMm
+    );
+    const expected = [
       { x: -0.7, y: -0.65 },
       { x: -0.3, y: -0.65 },
       { x: -0.7, y: -0.35 },
       { x: -0.3, y: -0.35 }
-    ]);
+    ];
+    expect(points).toHaveLength(expected.length);
+    points.forEach((point, index) => {
+      const target = expected[index];
+      expect(target).toBeDefined();
+      expect(point.x).toBeCloseTo(
+        target?.x ?? 0,
+        12
+      );
+      expect(point.y).toBeCloseTo(
+        target?.y ?? 0,
+        12
+      );
+    });
     expect(
       result.value.normalizedSpatialWeightSum
     ).toBeCloseTo(1, 12);
