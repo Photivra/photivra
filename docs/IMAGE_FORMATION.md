@@ -173,6 +173,8 @@ The sibling A/W responsivity foundation applies the current-domain response inde
 
 Both paths still stop before exposure-time integration, accumulated-charge/full-well behavior, stochastic noise, analog electronics, ADC/RAW and reconstruction.
 
+The local sensor-rate/exposure binding now carries each engine-produced response rate back to its exact color-sampling site, through an evidenced one-to-one native-effective-raster relationship, and into the authoritative local shutter-window schedule. This establishes which local time interval belongs to that rate but deliberately does not assume the rate is constant through the interval. Grouped/multi-site raster relationships, multi-frame sequence timing, physical-photodiode timing registration and time-varying signal integration remain unresolved.
+
 ## Current implementation status
 
 Each stage is labeled:
