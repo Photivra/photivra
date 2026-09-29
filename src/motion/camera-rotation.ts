@@ -88,6 +88,59 @@ export interface CameraRotationImageMapping {
   };
 }
 
+export interface CalculateInverseCameraRotationImageMappingInput {
+  /** Physical focal length in millimetres. */
+  focalLengthMm: number;
+  /**
+   * Captured image-plane location of a stationary world ray at the requested
+   * time. Coordinates use optical-axis origin, +X right and +Y up.
+   */
+  imagePointMm: ImagePlanePointMm;
+  /**
+   * Capture time in seconds from exposure start. Must be greater than or equal
+   * to zero.
+   */
+  timeSecondsFromExposureStart: number;
+  /**
+   * Constant camera angular-velocity vector in radians per second, with the
+   * same sign/axis semantics as calculateCameraRotationImageMapping().
+   */
+  angularVelocityRadPerSec: CameraAngularVelocityRadPerSec;
+  /** Optional focus distance in metres for thin-lens projection distance. */
+  focusDistanceM?: number;
+  /**
+   * Optional axis-aware geometric sampling pitch for reporting sample-domain
+   * inverse displacement.
+   */
+  samplingPitchMicrometers?: AxisSamplingPitchMicrometers;
+}
+
+export interface InverseCameraRotationImageMapping {
+  projectionDistanceMm: number;
+  timeSecondsFromExposureStart: number;
+  angularDisplacementRad: {
+    pitch: number;
+    yaw: number;
+    roll: number;
+    magnitude: number;
+  };
+  capturedImagePointMm: ImagePlanePointMm;
+  referenceImagePointMm: ImagePlanePointMm;
+  /**
+   * Reference-minus-captured displacement in the image-plane basis.
+   */
+  deltaMm: {
+    x: number;
+    y: number;
+    distance: number;
+  };
+  deltaImagePlaneSamples?: {
+    x: number;
+    y: number;
+    distance: number;
+  };
+}
+
 interface Vector3 {
   x: number;
   y: number;
@@ -329,6 +382,164 @@ export function calculateCameraRotationImageMapping(
       "The world ray is stationary; subject motion is not included",
       "Camera translation and depth-dependent parallax are not modeled",
       "The stationary world ray is transformed by the inverse camera rotation before rectilinear projection"
+    ]
+  );
+}
+
+
+/**
+ * Maps a captured stationary-world ray at one non-negative capture time back
+ * to its image-plane location at exposure start.
+ *
+ * For the existing constant-axis pure-rotation model this inverse is analytic:
+ * the captured ray is transformed by the forward camera rotation before
+ * rectilinear projection. No iterative solver is required.
+ */
+export function calculateInverseCameraRotationImageMapping(
+  input: CalculateInverseCameraRotationImageMappingInput
+): CalculationResult<InverseCameraRotationImageMapping> {
+  requirePositiveFinite("focalLengthMm", input.focalLengthMm);
+  requireFinite("imagePointMm.x", input.imagePointMm.x);
+  requireFinite("imagePointMm.y", input.imagePointMm.y);
+  requireNonNegativeFinite(
+    "timeSecondsFromExposureStart",
+    input.timeSecondsFromExposureStart
+  );
+  requireFinite(
+    "angularVelocityRadPerSec.pitch",
+    input.angularVelocityRadPerSec.pitch
+  );
+  requireFinite(
+    "angularVelocityRadPerSec.yaw",
+    input.angularVelocityRadPerSec.yaw
+  );
+  requireFinite(
+    "angularVelocityRadPerSec.roll",
+    input.angularVelocityRadPerSec.roll
+  );
+
+  if (input.samplingPitchMicrometers !== undefined) {
+    requirePositiveFinite(
+      "samplingPitchMicrometers.x",
+      input.samplingPitchMicrometers.x
+    );
+    requirePositiveFinite(
+      "samplingPitchMicrometers.y",
+      input.samplingPitchMicrometers.y
+    );
+  }
+
+  const { projectionDistanceMm, focusAware } =
+    resolveProjectionDistanceMm(
+      input.focalLengthMm,
+      input.focusDistanceM
+    );
+
+  const angularDisplacementRad = {
+    pitch:
+      input.angularVelocityRadPerSec.pitch *
+      input.timeSecondsFromExposureStart,
+    yaw:
+      input.angularVelocityRadPerSec.yaw *
+      input.timeSecondsFromExposureStart,
+    roll:
+      input.angularVelocityRadPerSec.roll *
+      input.timeSecondsFromExposureStart
+  };
+  const angularMagnitude = Math.hypot(
+    angularDisplacementRad.pitch,
+    angularDisplacementRad.yaw,
+    angularDisplacementRad.roll
+  );
+
+  const capturedRay: Vector3 = {
+    x: input.imagePointMm.x / projectionDistanceMm,
+    y: input.imagePointMm.y / projectionDistanceMm,
+    z: 1
+  };
+
+  let referenceRay = capturedRay;
+  if (angularMagnitude !== 0) {
+    const axis = {
+      x: angularDisplacementRad.pitch / angularMagnitude,
+      y: angularDisplacementRad.yaw / angularMagnitude,
+      z: angularDisplacementRad.roll / angularMagnitude
+    };
+    referenceRay = rotateVectorByAxisAngle(
+      capturedRay,
+      axis,
+      angularMagnitude
+    );
+  }
+
+  if (!Number.isFinite(referenceRay.z) || referenceRay.z <= 0) {
+    throw new InvalidScientificInputError(
+      "Inverse camera rotation maps the requested captured ray to or behind the reference camera plane."
+    );
+  }
+
+  const referenceImagePointMm = {
+    x: projectionDistanceMm * (referenceRay.x / referenceRay.z),
+    y: projectionDistanceMm * (referenceRay.y / referenceRay.z)
+  };
+  const deltaMm = {
+    x: referenceImagePointMm.x - input.imagePointMm.x,
+    y: referenceImagePointMm.y - input.imagePointMm.y,
+    distance: Math.hypot(
+      referenceImagePointMm.x - input.imagePointMm.x,
+      referenceImagePointMm.y - input.imagePointMm.y
+    )
+  };
+
+  let deltaImagePlaneSamples:
+    | {
+        x: number;
+        y: number;
+        distance: number;
+      }
+    | undefined;
+  if (input.samplingPitchMicrometers !== undefined) {
+    const pitchXmm = input.samplingPitchMicrometers.x / 1000;
+    const pitchYmm = input.samplingPitchMicrometers.y / 1000;
+    const sampleX = deltaMm.x / pitchXmm;
+    const sampleY = deltaMm.y / pitchYmm;
+    deltaImagePlaneSamples = {
+      x: sampleX,
+      y: sampleY,
+      distance: Math.hypot(sampleX, sampleY)
+    };
+  }
+
+  return calculatedResult(
+    {
+      projectionDistanceMm,
+      timeSecondsFromExposureStart:
+        input.timeSecondsFromExposureStart,
+      angularDisplacementRad: {
+        ...angularDisplacementRad,
+        magnitude: angularMagnitude
+      },
+      capturedImagePointMm: { ...input.imagePointMm },
+      referenceImagePointMm,
+      deltaMm,
+      ...(deltaImagePlaneSamples === undefined
+        ? {}
+        : { deltaImagePlaneSamples })
+    },
+    focusAware
+      ? "focus-aware-inverse-spatial-camera-rotation-mapping"
+      : "inverse-spatial-camera-rotation-mapping",
+    "1.0.0",
+    [
+      "Ideal rectilinear projection",
+      focusAware
+        ? "Thin-lens image distance for the selected focus plane is used as the projection distance"
+        : "Nominal focal length is used as the infinity-focus projection distance",
+      "Camera angular velocity is constant during the evaluated interval",
+      "Angular velocity components are resolved in the camera axes at exposure start and integrated as one axis-angle vector",
+      "The inverse is analytic under the same constant-axis pure-rotation model; no iterative solve is used",
+      "The captured stationary-world ray is transformed by the forward camera rotation to recover its exposure-start reference ray",
+      "Camera translation, scene depth parallax and subject motion are not modeled"
     ]
   );
 }
