@@ -908,12 +908,16 @@ describe(
       const pipeline =
         buildPipeline();
 
+      const evaluated =
+        pipeline.operatingRange
+          .evaluatedSpectralNodeInputs;
+      expect(evaluated).toBeDefined();
+
       const staleValue = {
         ...pipeline.operatingRange,
         evaluatedSpectralNodeInputs:
-          pipeline.operatingRange
-            .evaluatedSpectralNodeInputs
-            ?.map((entry, index) =>
+          evaluated!.map(
+            (entry, index) =>
               index === 0
                 ? {
                     ...entry,
@@ -921,7 +925,7 @@ describe(
                       entry.value * 2
                   }
                 : entry
-            )
+          )
       };
 
       expect(() =>
