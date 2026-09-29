@@ -1200,14 +1200,14 @@ export function calculateSensorResponsivityPhotocurrent(
         true;
     }
 
-    if (
-      resolved.value.response.kind !==
-      "effective-spectral-responsivity"
-    ) {
-      throw new InvalidScientificInputError(
-        "A/W photocurrent conversion cannot consume an EQE response."
-      );
-    }
+    const responsivity =
+      resolved.value.response as Extract<
+        typeof resolved.value.response,
+        {
+          kind:
+            "effective-spectral-responsivity";
+        }
+      >;
 
     const radiantPowerContributionWatts =
       node
@@ -1215,8 +1215,7 @@ export function calculateSensorResponsivityPhotocurrent(
       node.wavelengthMeasureNanometers;
     const photocurrentMagnitudeContributionAmperes =
       radiantPowerContributionWatts *
-      resolved.value.response
-        .amperesPerWatt;
+      responsivity.amperesPerWatt;
 
     if (
       !Number.isFinite(
@@ -1250,8 +1249,7 @@ export function calculateSensorResponsivityPhotocurrent(
           .geometricApertureIncidentSpectralFluxWattsPerNanometer,
       radiantPowerContributionWatts,
       spectralResponsivityAmperesPerWatt:
-        resolved.value.response
-          .amperesPerWatt,
+        responsivity.amperesPerWatt,
       responseInterpolationUsed:
         resolved.value
           .interpolationUsed,
