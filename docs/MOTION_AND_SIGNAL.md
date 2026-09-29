@@ -51,6 +51,25 @@ This is camera **rotation only**. Translation is excluded because parallax requi
 
 The returned image-plane/sample components use +X right and +Y up. Native raster remains +X right/+Y down and requires the existing explicit coordinate transform at capture composition boundaries.
 
+## Sensor readout timing
+
+`calculateSensorReadoutTiming()` provides a standalone capture-specific **native sensor scan-timing** foundation.
+
+The model deliberately separates two evidence-backed seconds-valued facts:
+
+- **capture data-readout duration** — the caller's declared duration for the selected capture mode's sensor data-readout operation;
+- **rolling spatial-sampling skew** — the timing span that drives the first-to-last spatial scan phase in the current approximation.
+
+Photivra does not assume those values are equal, and it does not infer an ordering relationship between them. For global readout, spatial skew is zero in this model even when the declared data-readout duration is non-zero.
+
+For rolling readout, the caller also supplies an independently evidenced native scan direction. The current schedule is a `uniform-linear-single-axis` approximation over continuous native raster edge coordinates. This is intentionally **not** a claim that one `NativeImageRaster` row/column equals one physical photodiode row or one hardware readout line. Segmented, center-out, interleaved, multi-tap and other non-uniform schedules remain unsupported rather than being silently approximated as equivalent hardware.
+
+Native sensor timing is orientation-invariant. `calculateSensorReadoutTiming()` therefore does not accept physical camera orientation or output raster geometry. When presentation/capture orientation is needed, callers compose the returned native direction vector with the existing native-to-oriented vector transform. Digital output crop/resolution cannot alter the native timing schedule.
+
+Active-capture timing is also explicit: Photivra never scales a full-frame timing fact by crop dimensions to invent a cropped-mode timing. A caller must provide timing evidence appropriate to the selected capture mode/active area; later capture-mode work can bind those declarations more formally.
+
+Mechanical, electronic-first-curtain and fully electronic shutter mechanisms are reported independently but remain scientifically inert in this slice. The function does **not** define local exposure start/end times, mechanical curtain travel, EFCS curtain interaction, rolling-shutter image distortion, flash/flicker bands, or motion integration. Those later models must combine their own timing with this sensor schedule explicitly rather than treating sensor readout as a surrogate shutter-curtain model.
+
 ## Temporal image-formation basis
 
 The image-formation contract defines physical time in **seconds from exposure start**.
