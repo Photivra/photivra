@@ -1066,6 +1066,171 @@ describe(
       );
     });
 
+    it("rejects supplied color/response profile identity mismatches before conversion", () => {
+      const pipeline =
+        buildPipeline();
+
+      expect(() =>
+        calculateSensorResponsivityPhotocurrent({
+          reduction:
+            pipeline.reduction,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            pipeline.operatingRange,
+          colorSamplingProfile: {
+            ...colorProfile(),
+            profileId:
+              "wrong-color"
+          },
+          spectralResponseProfile:
+            pipeline
+              .spectralResponseProfile,
+          electricalApplicabilityProfile:
+            electricalProfile(),
+          operatingElectricalConditions:
+            zeroBiasConditions
+        })
+      ).toThrow(
+        "must exactly match the reduction identities"
+      );
+
+      expect(() =>
+        calculateSensorResponsivityPhotocurrent({
+          reduction:
+            pipeline.reduction,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            pipeline.operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile: {
+            ...pipeline
+              .spectralResponseProfile,
+            profileId:
+              "wrong-response"
+          },
+          electricalApplicabilityProfile:
+            electricalProfile(),
+          operatingElectricalConditions:
+            zeroBiasConditions
+        })
+      ).toThrow(
+        "must exactly match the reduction identities"
+      );
+    });
+
+    it("rejects malformed electrical applicability status and approximation metadata", () => {
+      expect(() =>
+        parseSensorResponsivityElectricalApplicabilityProfile({
+          ...electricalProfile(),
+          scientificStatus:
+            "unknown"
+        })
+      ).toThrow(
+        "scientificStatus"
+      );
+
+      expect(() =>
+        parseSensorResponsivityElectricalApplicabilityProfile({
+          ...electricalProfile({
+            scientificStatus:
+              "approximation",
+            uncertainty: {
+              kind:
+                "not-quantified",
+              limitation:
+                "test approximation"
+            }
+          }),
+          conditionPolicy: {
+            kind:
+              "assume-compatible",
+            limitation: "",
+            evidence:
+              evidence(
+                "test:bad-electrical-assumption"
+              )
+          }
+        })
+      ).toThrow(
+        "limitation"
+      );
+    });
+
+    it("fails closed when individually finite spectral currents overflow in the compensated total", () => {
+      const pipeline =
+        buildPipeline(
+          "responsivity",
+          50,
+          [1e304, 1e304]
+        );
+      const contribution =
+        10_000;
+      const reduction = {
+        ...pipeline.reduction,
+        perWavelength:
+          pipeline.reduction
+            .perWavelength.map(
+              (node) => ({
+                ...node,
+                geometricApertureIncidentSpectralFluxWattsPerNanometer:
+                  contribution /
+                  node
+                    .wavelengthMeasureNanometers,
+                wavelengthIntegratedGeometricApertureIncidentFluxContributionWatts:
+                  contribution
+              })
+            ),
+        wavelengthIntegratedGeometricApertureIncidentFluxWatts:
+          contribution * 2
+      };
+      const operatingRange = {
+        ...pipeline.operatingRange,
+        inputRange: {
+          ...pipeline.operatingRange
+            .inputRange,
+          minimumInclusive: 0,
+          maximumInclusive:
+            Number.MAX_VALUE
+        },
+        evaluatedInput: {
+          ...pipeline.operatingRange
+            .evaluatedInput,
+          value:
+            contribution * 2
+        },
+        evaluatedSpectralNodeInputs:
+          pipeline.operatingRange
+            .evaluatedSpectralNodeInputs!
+            .map((entry) => ({
+              ...entry,
+              value: contribution
+            }))
+      };
+
+      expect(() =>
+        calculateSensorResponsivityPhotocurrent({
+          reduction,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            pipeline
+              .spectralResponseProfile,
+          electricalApplicabilityProfile:
+            electricalProfile(),
+          operatingElectricalConditions:
+            zeroBiasConditions
+        })
+      ).toThrow(
+        "Total A/W photocurrent magnitude"
+      );
+    });
+
     it("fails closed on malformed reduction power", () => {
       const pipeline =
         buildPipeline();
