@@ -4,6 +4,8 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ## Unreleased
 
+## 0.6.0 - 2026-09-29
+
 ### Added
 
 - Added a standalone native-sensor readout scan timing foundation with separately evidenced seconds-valued capture data-readout duration and rolling spatial-sampling skew, native scan direction, active-capture support, pointwise native phase diagnostics, and independent mechanical/EFCS/electronic shutter-mechanism metadata. The first model is explicitly a uniform-linear single-axis approximation and does not infer physical readout lines from the effective image raster.
