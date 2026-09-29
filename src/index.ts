@@ -231,6 +231,7 @@ export {
   type SensorResponseOperatingRangeBlocker,
   type SensorResponseOperatingRangeProfile,
   type SensorResponseOperatingSpatialLinearityModel,
+  type SensorResponseOperatingSpectralInputModel,
   type SensorResponseOperatingWavelengthApplicability
 } from "./sensor/response-operating-range.js";
 
