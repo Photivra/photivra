@@ -25,6 +25,7 @@ import {
   type SensorColorSamplingProfile
 } from "./color-sampling.js";
 import {
+  createSensorSpectralResponseChannelBinding,
   parseSensorSpectralResponseProfile,
   resolveParsedSensorSpectralResponseAtWavelength,
   type ResolvedSensorSpectralResponseValue,
@@ -764,6 +765,37 @@ function validateResponseBinding(
   }
 }
 
+function validateExactResponseDataBinding(
+  responseProfile:
+    SensorSpectralResponseProfile,
+  reduction:
+    SensorSpatioSpectralIrradianceReduction
+): void {
+  const response =
+    responseProfile.channels.find(
+      (entry) =>
+        entry.channelId ===
+        reduction.channelId
+    );
+  if (
+    response === undefined ||
+    reduction.responseChannelBinding ===
+      undefined ||
+    canonicalJson(
+      createSensorSpectralResponseChannelBinding(
+        response
+      )
+    ) !==
+      canonicalJson(
+        reduction.responseChannelBinding
+      )
+  ) {
+    throw new InvalidScientificInputError(
+      "Supplied spectral response channel data must exactly match the response-channel binding carried by the reduction."
+    );
+  }
+}
+
 function requireEqeResponse(
   response:
     ResolvedSensorSpectralResponseValue
@@ -839,6 +871,11 @@ export function calculateSensorEqeElectronRate(
       "Supplied color/spectral response profiles must exactly match the reduction identities."
     );
   }
+
+  validateExactResponseDataBinding(
+    responseProfile,
+    input.reduction
+  );
 
   const nodes =
     validateReductionSpectralNodes(
