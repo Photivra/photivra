@@ -20,7 +20,8 @@ import {
   calculateSensorReadoutTiming,
   type CaptureShutterMechanism,
   type NativeSensorReadoutScanDirection,
-  type SensorReadoutTimingDeclaration
+  type SensorReadoutTimingDeclaration,
+  type SourcedSensorTimingSeconds
 } from "./readout-timing.js";
 import type { NativeImageRaster } from "./sensor-geometry.js";
 
@@ -94,11 +95,11 @@ export interface ReadoutExposureBoundarySpatialLinkAssessment {
   /**
    * First-to-last rolling sensor spatial sampling skew.
    */
-  readoutSpatialSamplingSkewSeconds: number;
+  readoutSpatialSamplingSkewSeconds: SourcedSensorTimingSeconds;
   /**
    * First-to-last exposure-boundary traversal duration.
    */
-  boundaryTraversalDurationSeconds: number;
+  boundaryTraversalDurationSeconds: SourcedCaptureTimingSeconds;
   /**
    * Derived descriptive ratio only. A value of 1 does not prove temporal
    * synchronization or a common clock origin.
@@ -120,7 +121,7 @@ export interface ReadoutExposureTimingLinkageAssessment {
    * Capture data-readout duration is preserved for diagnostics but is not used
    * to validate any exposure-boundary linkage.
    */
-  captureReadoutDurationSeconds: number;
+  captureReadoutDurationSeconds: SourcedSensorTimingSeconds;
   links: readonly ReadoutExposureBoundarySpatialLinkAssessment[];
   componentProvenance: {
     sensorReadout: CalculationProvenance;
@@ -307,7 +308,7 @@ export function assessReadoutExposureTimingLinkage(
         },
         absoluteTemporalAlignment: "not-established",
         captureReadoutDurationSeconds:
-          sensorReadout.value.captureReadoutDurationSeconds.value,
+          sensorReadout.value.captureReadoutDurationSeconds,
         links: [],
         componentProvenance: {
           sensorReadout: sensorReadout.provenance,
@@ -369,9 +370,9 @@ export function assessReadoutExposureTimingLinkage(
         }
 
         const readoutSpatialSamplingSkewSeconds =
-          sensorReadout.value.scan.spatialSamplingSkewSeconds.value;
+          sensorReadout.value.scan.spatialSamplingSkewSeconds;
         const boundaryTraversalDurationSeconds =
-          boundary.schedule.traversalDurationSeconds.value;
+          boundary.schedule.traversalDurationSeconds;
 
         return {
           boundary: link.boundary,
@@ -387,8 +388,8 @@ export function assessReadoutExposureTimingLinkage(
           readoutSpatialSamplingSkewSeconds,
           boundaryTraversalDurationSeconds,
           boundaryTraversalToReadoutSpatialSkewRatio:
-            boundaryTraversalDurationSeconds /
-            readoutSpatialSamplingSkewSeconds,
+            boundaryTraversalDurationSeconds.value /
+            readoutSpatialSamplingSkewSeconds.value,
           absoluteTemporalAlignment: "not-established"
         };
       }
@@ -406,7 +407,7 @@ export function assessReadoutExposureTimingLinkage(
       },
       absoluteTemporalAlignment: "not-established",
       captureReadoutDurationSeconds:
-        sensorReadout.value.captureReadoutDurationSeconds.value,
+        sensorReadout.value.captureReadoutDurationSeconds,
       links: assessments,
       componentProvenance: {
         sensorReadout: sensorReadout.provenance,
