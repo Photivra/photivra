@@ -109,6 +109,8 @@ The standalone `calculateCaptureRotationTrajectories()` bridge now explicitly bi
 
 The additive `calculateCaptureRotationInverseMappings()` layer now supplies an instantaneous destination-to-reference mapping at a caller-selected phase within each local exposure window. Under the current pure-rotation model the inverse is analytic once destination location fixes local capture time, so no iterative solver is used. This remains pre-lens, pre-output temporal geometry and does not replace finite-exposure integration.
 
+The additive `calculateCaptureRotationTemporalQuadrature()` layer now supplies deterministic uniform-midpoint time nodes and separate normalized-average/seconds-valued temporal measures across each local exposure. It preserves the instantaneous inverse mapping as the geometry source of truth but does not itself integrate radiance, visibility, shutter transmission, sensor response, PSF, or output pixels.
+
 ## Renderer semantics
 
 Renderer implementations may use a bounded real-time preview approximation or a higher-fidelity deterministic reference evaluation, but both must consume the same engine-owned scientific contract.
