@@ -165,6 +165,8 @@ The additive response-application compatibility gate now checks whether that pre
 
 The additive response operating-range gate then evaluates the current wavelength-integrated optical power or irradiance against an evidence-backed linearity range with explicit wavelength applicability, reference conditions, uncertainty and nonlinearity criterion. Passing this gate authorizes only an instantaneous response-rate calculation. It intentionally does not establish exposure characteristic-curve linearity, accumulated-charge/full-well saturation, conversion gain, readout electronics or ADC linearity; those remain downstream temporal/electrical contracts.
 
+The photon-energy wavelength foundation now resolves the physical energy-per-photon basis required by a later EQE path. Vacuum wavelengths use exact SI h and c. Air wavelengths must first be converted to vacuum wavelength through a sourced phase refractive index at the exact wavelength, with explicit atmospheric-condition compatibility; no implicit air≈vacuum shortcut is allowed. This foundation still does not calculate photon rate or apply sensor response.
+
 ## Current implementation status
 
 Each stage is labeled:
