@@ -572,6 +572,48 @@ describe(
       );
     });
 
+    it("checks incidence angle and polarization in exact linearity conditions", () => {
+      const angle =
+        assessSensorResponseOperatingRange({
+          reduction: reduction(),
+          compatibility:
+            compatibility({
+              operatingConditions: {
+                ...operatingConditions,
+                incidenceAngleDegreesFromNormal:
+                  5
+              }
+            }),
+          operatingRangeProfile:
+            profile()
+        });
+      expect(
+        angle.value.blockers
+      ).toContain(
+        "linearity-operating-conditions-mismatch"
+      );
+
+      const polarization =
+        assessSensorResponseOperatingRange({
+          reduction: reduction(),
+          compatibility:
+            compatibility({
+              operatingConditions: {
+                ...operatingConditions,
+                polarization:
+                  "unspecified"
+              }
+            }),
+          operatingRangeProfile:
+            profile()
+        });
+      expect(
+        polarization.value.blockers
+      ).toContain(
+        "linearity-operating-conditions-mismatch"
+      );
+    });
+
     it("keeps an evidence-backed condition assumption in the approximation lane", () => {
       const result =
         assessSensorResponseOperatingRange({
@@ -664,6 +706,33 @@ describe(
         })
       ).toThrow(
         "wavelengthBasis"
+      );
+
+      expect(() =>
+        parseSensorResponseOperatingRangeProfile({
+          ...profile(),
+          wavelengthApplicability: {
+            ...profile()
+              .wavelengthApplicability,
+            minimumNanometers: 500,
+            maximumNanometers: 400
+          }
+        })
+      ).toThrow(
+        "minimumNanometers must be less"
+      );
+
+      expect(() =>
+        parseSensorResponseOperatingRangeProfile({
+          ...profile(),
+          wavelengthApplicability: {
+            ...profile()
+              .wavelengthApplicability,
+            containment: "bad"
+          }
+        })
+      ).toThrow(
+        "containment"
       );
 
       expect(() =>
