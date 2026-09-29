@@ -1119,25 +1119,6 @@ function interpolateCurve<T extends {
   };
 }
 
-function curveRange(
-  curve:
-    | SpectralFractionCurve
-    | SpectralResponsivityCurve
-): {
-  minimum: number;
-  maximum: number;
-} {
-  return {
-    minimum:
-      curve.samples[0]!
-        .wavelengthNanometers,
-    maximum:
-      curve.samples[
-        curve.samples.length - 1
-      ]!.wavelengthNanometers
-  };
-}
-
 /**
  * Resolves one semantic sensor-channel response at one wavelength.
  *
@@ -1256,7 +1237,7 @@ export function resolveSensorSpectralResponseAtWavelength(
 
   let resolvedValue:
     ResolvedSensorSpectralResponseValue;
-  let interpolationUsed = false;
+  let interpolationUsed: boolean;
   let wavelengthBasis:
     SpectralWavelengthBasis;
 
