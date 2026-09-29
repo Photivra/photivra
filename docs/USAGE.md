@@ -1401,7 +1401,11 @@ The profile also declares:
 
 The assessment first requires the prior structural compatibility result to be non-blocked and to refer to the same response application, spectral response, color topology and channel. It then checks wavelength basis/range, optical-input level and linearity-calibration conditions.
 
-A successful result sets `responseRateConversionAuthorized: true`. That authorization is deliberately limited to a future **instantaneous rate-domain conversion**.
+The operating-range profile also distinguishes **broadband-only** validation from **per-spectral-bin** validation. Broadband-only evidence can establish that the total optical input is inside a characterized range, but it cannot authorize wavelength-dependent EQE or A/W conversion.
+
+For `per-spectral-bin` applicability, the profile declares a maximum supported bin width. Every wavelength node's own integrated power or irradiance contribution must remain inside the calibrated range, and no quadrature bin may exceed that width. This prevents one over-range wavelength band from hiding inside an acceptable broadband total and prevents a broad numerical bin from masquerading as a narrowband calibration point.
+
+Only a non-blocked per-bin assessment can set `responseRateConversionAuthorized: true`. That authorization is deliberately limited to a future **instantaneous rate-domain conversion**.
 
 It does **not** establish:
 
@@ -1463,6 +1467,8 @@ Direct effective EQE stays direct. When the response profile explicitly declares
 The response is applied **per wavelength node**. Photivra never multiplies total broadband radiant power by a single average QE.
 
 Post-spatial response also requires the operating-range profile to establish **linear superposition over the geometric sensitive aperture**. If that declaration is omitted, it remains `not-established` and rate conversion is blocked. This prevents spatial averaging from silently hiding a sub-aperture nonlinear response.
+
+The EQE converter additionally requires the operating-range assessment's per-bin identities and calibrated-domain values to match the exact wavelength nodes in the reduction. A stale assessment cannot be reused after spectral power, node width, wavelength, or identity changes.
 
 For air-basis spectral nodes, the caller supplies exactly one sourced phase-refractive-index record for every spectral sample identity plus the atmosphere compatibility policy used by the photon-energy foundation. Vacuum-basis conversion accepts no air-index context.
 
