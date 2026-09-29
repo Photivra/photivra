@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.38.0" as const;
+export const ENGINE_API_VERSION = "0.39.0" as const;
 
 export {
   approximationResult,
@@ -125,6 +125,17 @@ export {
   type SourcedCaptureTimingSeconds,
   type UniformLinearExposureBoundarySchedule
 } from "./sensor/exposure-window.js";
+
+export {
+  assessReadoutExposureTimingLinkage,
+  type AssessReadoutExposureTimingLinkageInput,
+  type ReadoutExposureBoundaryId,
+  type ReadoutExposureBoundarySpatialLink,
+  type ReadoutExposureBoundarySpatialLinkAssessment,
+  type ReadoutExposureSpatialPhaseOrientation,
+  type ReadoutExposureTimingLinkageAssessment,
+  type ReadoutExposureTimingLinkageDeclaration
+} from "./sensor/readout-exposure-linkage.js";
 
 export {
   calculateCenteredCrop,

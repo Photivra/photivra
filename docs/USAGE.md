@@ -736,6 +736,148 @@ Physical camera orientation is deliberately excluded from the timing input. Use 
 
 Active-crop/capture-mode timing must be supplied explicitly; the engine never scales full-frame timing from crop dimensions. Shutter mechanism is recorded independently and does not modify the schedule. Mechanical-curtain travel, EFCS timing, local exposure windows, rolling-shutter geometric distortion, flash/flicker interaction and motion integration remain future work.
 
+## Readout/exposure spatial linkage
+
+Use `assessReadoutExposureTimingLinkage()` when a specific capture-mode source supports a relationship between rolling sensor readout spatial order and an **electronic** exposure boundary:
+
+```ts
+import { assessReadoutExposureTimingLinkage } from "@photivra/engine";
+
+const relationship = assessReadoutExposureTimingLinkage({
+  nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 },
+  shutterMechanism: "electronic",
+  readout: {
+    readoutMode: "rolling",
+    captureReadoutDurationSeconds: {
+      value: 0.031,
+      unit: "s",
+      evidence: [
+        {
+          sourceOrigin: "manufacturer",
+          sourceReference: "example:data-readout-duration",
+          reuseStatus: "factual-reference-only"
+        }
+      ]
+    },
+    scanDirectionNative: {
+      value: "top-to-bottom",
+      evidence: [
+        {
+          sourceOrigin: "manufacturer",
+          sourceReference: "example:readout-direction",
+          reuseStatus: "factual-reference-only"
+        }
+      ]
+    },
+    spatialSamplingSkewSeconds: {
+      value: 0.02,
+      unit: "s",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "example:measured-spatial-skew",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    }
+  },
+  nominalExposureDurationSeconds: {
+    value: 1 / 1000,
+    unit: "s",
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference: "example:capture-config",
+        reuseStatus: "photivra-owned"
+      }
+    ]
+  },
+  opening: {
+    kind: "uniform-linear-native-scan",
+    directionNative: {
+      value: "top-to-bottom",
+      evidence: [
+        {
+          sourceOrigin: "manufacturer",
+          sourceReference: "example:electronic-opening-direction",
+          reuseStatus: "factual-reference-only"
+        }
+      ]
+    },
+    traversalDurationSeconds: {
+      value: 0.01,
+      unit: "s",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "example:opening-traversal",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    }
+  },
+  closing: {
+    kind: "uniform-linear-native-scan",
+    directionNative: {
+      value: "top-to-bottom",
+      evidence: [
+        {
+          sourceOrigin: "manufacturer",
+          sourceReference: "example:electronic-closing-direction",
+          reuseStatus: "factual-reference-only"
+        }
+      ]
+    },
+    traversalDurationSeconds: {
+      value: 0.01,
+      unit: "s",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "example:closing-traversal",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    }
+  },
+  linkage: {
+    kind: "spatial-phase-linked",
+    links: [
+      {
+        boundary: "opening",
+        phaseOrientation: "same",
+        evidence: [
+          {
+            sourceOrigin: "manufacturer",
+            sourceReference: "example:documented-spatial-relationship",
+            reuseStatus: "factual-reference-only"
+          }
+        ]
+      }
+    ]
+  }
+});
+
+console.log(relationship.value.links[0]);
+```
+
+The positive link means only that the selected electronic exposure boundary shares the rolling readout's **normalized native spatial phase/order**:
+
+- `same` means boundary phase equals readout phase;
+- `reversed` means boundary phase equals `1 - readout phase`.
+
+It does **not** mean the two events occur at the same absolute time.
+
+The function therefore reports `absoluteTemporalAlignment: "not-established"` even when directions and first-to-last timing spans happen to match.
+
+The readout spatial skew and exposure-boundary traversal duration may differ. Their ratio is reported as `boundaryTraversalToReadoutSpatialSkewRatio`, which is descriptive only.
+
+The total `captureReadoutDurationSeconds` remains a separate evidence-backed fact and does not participate in linkage validation.
+
+Only electronic boundaries can be spatial-phase-linked to sensor readout. A mechanical opening/closing boundary is rejected. Global readout has no rolling spatial phase and therefore cannot participate in this first linkage type.
+
+Use `linkage: { kind: "unlinked" }` when Photivra should assert no relationship. This means **no relationship is asserted**; it does not establish that the underlying hardware processes are physically independent.
+
 ## Capture exposure-window timing
 
 Use `calculateCaptureExposureWindows()` to describe when different native-sensor locations begin and end their local exposure without conflating shutter actuation with sensor readout:
