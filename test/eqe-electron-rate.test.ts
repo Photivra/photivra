@@ -724,6 +724,62 @@ describe(
       );
     });
 
+    it("rejects numeric EQE calibration drift even when IDs and evidence are unchanged", () => {
+      const pipeline =
+        buildPipeline();
+      const original =
+        spectralProfile();
+      const channel =
+        original.channels[0]!;
+      if (
+        channel.kind !==
+        "effective-external-quantum-efficiency"
+      ) {
+        throw new Error(
+          "test fixture must be direct EQE"
+        );
+      }
+      const drifted = {
+        ...original,
+        channels: [{
+          ...channel,
+          externalQuantumEfficiency: {
+            ...channel
+              .externalQuantumEfficiency,
+            samples: [
+              {
+                wavelengthNanometers:
+                  400,
+                value: 0.25
+              },
+              {
+                wavelengthNanometers:
+                  500,
+                value: 0.65
+              }
+            ]
+          }
+        }]
+      } as SensorSpectralResponseProfile;
+
+      expect(() =>
+        calculateSensorEqeElectronRate({
+          reduction:
+            pipeline.reduction,
+          compatibility:
+            pipeline.compatibility,
+          operatingRange:
+            pipeline.operatingRange,
+          colorSamplingProfile:
+            colorProfile(),
+          spectralResponseProfile:
+            drifted
+        })
+      ).toThrow(
+        "response-channel binding"
+      );
+    });
+
     it("rejects missing air phase-index samples", () => {
       const pipeline =
         buildPipeline(
