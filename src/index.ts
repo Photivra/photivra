@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.42.0" as const;
+export const ENGINE_API_VERSION = "0.43.0" as const;
 
 export {
   approximationResult,
@@ -111,6 +111,23 @@ export {
   type SensorColorSamplingLayout,
   type SensorColorSamplingProfile
 } from "./sensor/color-sampling.js";
+
+export {
+  parseNativeEffectiveRasterColorSamplingBindingProfile,
+  resolveCaptureModeColorSamplingContributors,
+  resolveNativeEffectiveRasterColorSamplingBinding,
+  type CaptureModeFullFrameSampleIndex,
+  type ColorSamplingChannelComposition,
+  type ColorSamplingChannelSiteCount,
+  type ColorSamplingSiteGridDimensions,
+  type ColorSamplingSiteRect,
+  type GroupedCaptureModeSamplingAnchorDeclaration,
+  type NativeEffectiveRasterColorSamplingBindingProfile,
+  type NativeEffectiveSampleRect,
+  type ResolveCaptureModeColorSamplingContributorsInput,
+  type ResolvedCaptureModeColorSamplingContributors,
+  type ResolvedNativeEffectiveRasterColorSamplingBinding
+} from "./sensor/capture-color-sampling-binding.js";
 
 export {
   parseCaptureModeProfile,
