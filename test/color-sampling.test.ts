@@ -6,14 +6,24 @@ import {
   type SensorColorSamplingProfile
 } from "../src/index.js";
 
-const evidence = (sourceReference: string) =>
+type OwnedEvidence = readonly [
+  {
+    sourceOrigin: "photivra";
+    sourceReference: string;
+    reuseStatus: "photivra-owned";
+  }
+];
+
+const evidence = (
+  sourceReference: string
+): OwnedEvidence =>
   [
     {
       sourceOrigin: "photivra" as const,
       sourceReference,
       reuseStatus: "photivra-owned" as const
     }
-  ];
+  ] as const;
 
 function periodicProfile(
   siteChannelIds: readonly string[] = [
