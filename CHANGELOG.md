@@ -7,10 +7,11 @@ Notable public changes to `@photivra/engine` are documented here.
 ### Added
 
 - Added a sensor spectral-response foundation linked to exact color-sampling channel IDs. It supports direct effective external QE, direct effective spectral responsivity in A/W, or explicitly separable channel-filter transmittance × detector EQE; requires reusable rights for embedded numeric curves; uses explicit air/vacuum/unspecified wavelength bases with piecewise-linear interpolation and fail-closed out-of-range behavior; preserves single-condition metadata without inventing angle/temperature/polarization dependence; and keeps spectral integration, photons/electrons, RAW values, and reconstruction separate.
+- Added response-breakpoint-aware sensor spectral quadrature. Requested range edges, response-curve knots, and optional caller-supplied spectral breakpoints form deterministic midpoint segments with explicit dλ and normalized wavelength weights; response lookup remains authoritative while source spectral values, wavelength integration, spatial/temporal composition, photon/electron conversion, and RAW output remain separate.
 
 ### Changed
 
-- Engine API contract advances to `0.48.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
+- Engine API contract advances to `0.49.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
 
 ## 0.6.0 - 2026-09-29
 
