@@ -857,8 +857,9 @@ export function resolveCaptureMode(
   input: ResolveCaptureModeInput
 ): ResolvedCaptureMode {
   validateNativeRaster(input.nativeRaster);
+  const profile = parseCaptureModeProfile(input.profile);
 
-  const mode = input.profile.modes.find(
+  const mode = profile.modes.find(
     (candidate) => candidate.modeId === input.modeId
   );
   if (mode === undefined) {
