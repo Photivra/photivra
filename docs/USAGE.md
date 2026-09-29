@@ -1227,6 +1227,60 @@ This foundation performs **spectral lookup only**. It does not:
 
 Those remain explicit downstream steps.
 
+## Sensor spectral quadrature
+
+Use `calculateSensorSpectralQuadrature()` to build a deterministic wavelength-sampling plan for one exact sensor-response channel before any source spectrum or sensor response is integrated.
+
+```ts
+import { calculateSensorSpectralQuadrature } from "@photivra/engine";
+
+const plan = calculateSensorSpectralQuadrature({
+  colorSamplingProfile,
+  spectralResponseProfile,
+  channelId: "red",
+  wavelengthBasis: "air",
+  wavelengthRangeNanometers: {
+    minimum: 400,
+    maximum: 700
+  },
+  maximumSubintervalWidthNanometers: 5,
+  additionalBreakpointsNanometers: [500, 600]
+});
+
+console.log(plan.value.nodes[0]?.wavelengthNanometers);
+console.log(plan.value.nodes[0]?.wavelengthMeasureNanometers);
+```
+
+The requested range edges, every applicable sensor-response curve knot, and optional caller-supplied breakpoints form the segment boundaries. Each segment is then subdivided until every midpoint subinterval is no wider than `maximumSubintervalWidthNanometers`.
+
+`wavelengthMeasureNanometers` is **dλ in nanometres**. `normalizedWavelengthWeight` is only that wavelength measure divided by the total requested span. Neither value includes QE, A/W responsivity, channel-filter transmission, lens transmission, source power, photon flux, or any other physical response factor.
+
+The requested wavelength range must lie wholly inside the selected response channel's usable declared range. Photivra does not clip, extrapolate, or implicitly zero-fill response outside that range. This check proves only **sensor-response support**; it does not prove that scene spectral data, optical transmission, or another wavelength-dependent input covers the same interval.
+
+`additionalBreakpointsNanometers` is intended for known interpolation knots or discontinuity boundaries from other **continuous spectral-density** factors. It must be strictly increasing, contain no duplicates, and remain strictly inside the requested range. This API does not ingest those external spectra and does not claim their provenance or validity.
+
+The plan preserves the selected response kind, response scope, scientific status, uncertainty declaration, and response-data evidence, but it deliberately **does not apply response values at the nodes**. That boundary matters because:
+
+- external QE is a dimensionless photon-to-generated-charge efficiency;
+- spectral responsivity in A/W maps incident radiant power to electrical current;
+- those representations require different compatible downstream source/signal semantics and must not be collapsed into one integration formula;
+- response scope must be matched to the source plane and collection-area semantics so upstream transmission is neither omitted nor double-counted.
+
+The first quadrature contract targets continuous spectral densities. Discrete/delta-like emission lines need a separate explicit representation rather than being hidden inside a midpoint grid.
+
+A bounded wavelength step and alignment to known response knots improve deterministic sampling, but neither proves convergence for an arbitrary integrand. The planner therefore reports no source-independent numerical error estimate.
+
+This foundation still does **not**:
+
+- evaluate scene spectral irradiance or spectral photon irradiance;
+- apply sensor response;
+- validate a common spectral interval across scene, optics, and sensor data;
+- combine spectral nodes with spatial or temporal quadrature;
+- calculate radiant energy, photons, electrons, current, noise, ADC values, or RAW codes;
+- perform demosaic/remosaic or reconstruction.
+
+Those remain later explicit, versioned composition steps.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
