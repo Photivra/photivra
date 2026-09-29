@@ -143,6 +143,12 @@ The sensor/capture foundation has explicit semantics. Preserve them.
 - Air-basis wavelength conversion requires an explicit sourced phase refractive index at that exact wavelength, using n = lambda_vacuum / lambda_air. Do not silently assume n = 1.
 - Air refractive-index reference atmosphere matters. Require either exact matching of temperature/pressure and any declared humidity/CO2 conditions, or an explicit evidence-backed compatibility approximation.
 - Refractive-index uncertainty must remain visible; do not claim photon-energy uncertainty has been propagated unless a future explicit uncertainty model actually performs that propagation.
+- Post-spatial EQE application additionally requires the operating-range model to establish linear superposition over the same geometric aperture; otherwise arbitrary sub-aperture illumination may hide local nonlinear behavior.
+- EQE must be applied per wavelength quadrature node to spectral radiant-power contributions after photon-energy conversion. Never multiply broadband integrated power by an average QE.
+- Direct effective EQE and explicitly separable channel-filter × detector-EQE remain distinct provenance/composition cases; only the existing spectral-response resolver may compose the separable case.
+- Response application must bind to the calibration evidence already carried by the reduction, not merely matching profile IDs or channel names.
+- EQE conversion at this stage produces photon/electron rates only. Do not multiply by exposure duration, label rates as counts, apply shot noise, test full-well saturation, or generate RAW values until the temporal/saturation stages are explicitly composed.
+- A/W responsivity must never enter the EQE photon-rate→electron-rate path; it remains a separate radiant-power→current path.
 - Capture-mode profiles must preserve that distinction: do not relabel `NativeImageRaster` as a photosite raster or infer physical photosite count from native, processed, or final output megapixels.
 - Model capture modes on orthogonal axes (acquisition sequence, per-frame sampling, optional inter-frame sensor offsets, reconstruction stages, processed raster, dependencies) rather than one mutually exclusive marketing-style mode enum.
 - Grouped sampling does not establish charge-domain binning; the combination domain stays unknown unless separately evidenced as charge-domain, pre-conversion analog, or post-conversion digital.
