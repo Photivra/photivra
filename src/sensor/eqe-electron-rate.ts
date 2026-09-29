@@ -331,6 +331,18 @@ function validateAuthorizationChain(
   }
 
   if (
+    !operatingRange
+      .spectralNodeRangeCompatibilityAssessed ||
+    operatingRange
+      .spectralInputModel.kind !==
+      "per-spectral-bin"
+  ) {
+    throw new InvalidScientificInputError(
+      "operatingRange must establish per-spectral-bin input-range applicability before wavelength-dependent EQE conversion."
+    );
+  }
+
+  if (
     operatingRange
       .spatialLinearityModel.kind !==
       "linear-superposition-over-geometric-aperture"
@@ -511,6 +523,86 @@ function validateReductionSpectralNodes(
   }
 
   return reduction.perWavelength;
+}
+
+function validateOperatingRangeNodeBinding(
+  reduction:
+    SensorSpatioSpectralIrradianceReduction,
+  nodes:
+    readonly SensorSpatioSpectralWavelengthReduction[],
+  operatingRange:
+    SensorResponseOperatingRangeAssessment
+): void {
+  const evaluated =
+    operatingRange
+      .evaluatedSpectralNodeInputs;
+
+  if (
+    evaluated === undefined ||
+    evaluated.length !== nodes.length
+  ) {
+    throw new InvalidScientificInputError(
+      "operatingRange must carry one evaluated spectral-node input for every reduction wavelength node."
+    );
+  }
+
+  if (
+    operatingRange
+      .evaluatedWavelengthRangeNanometers
+      .minimum !==
+      reduction.wavelengthRangeNanometers
+        .minimum ||
+    operatingRange
+      .evaluatedWavelengthRangeNanometers
+      .maximum !==
+      reduction.wavelengthRangeNanometers
+        .maximum
+  ) {
+    throw new InvalidScientificInputError(
+      "operatingRange wavelength range must exactly match the reduction."
+    );
+  }
+
+  evaluated.forEach(
+    (entry, index) => {
+      const node = nodes[index]!;
+      if (
+        entry.spectralSampleIndex !==
+          node.spectralSampleIndex ||
+        entry.wavelengthNanometers !==
+          node.wavelengthNanometers ||
+        entry.wavelengthMeasureNanometers !==
+          node.wavelengthMeasureNanometers
+      ) {
+        throw new InvalidScientificInputError(
+          "operatingRange spectral-node identities must exactly match the reduction."
+        );
+      }
+
+      const expected =
+        operatingRange.inputRange.kind ===
+          "wavelength-integrated-geometric-aperture-radiant-power"
+          ? node
+              .wavelengthIntegratedGeometricApertureIncidentFluxContributionWatts
+          : node
+              .wavelengthIntegratedSpatialAverageContributionWattsPerSquareMeter;
+
+      if (
+        entry.kind !==
+          operatingRange.inputRange.kind ||
+        entry.unit !==
+          operatingRange.inputRange.unit ||
+        !approximatelyEqual(
+          entry.value,
+          expected
+        )
+      ) {
+        throw new InvalidScientificInputError(
+          "operatingRange spectral-node values must match the reduction values in the calibrated input domain."
+        );
+      }
+    }
+  );
 }
 
 function parseAirContext(
@@ -752,6 +844,12 @@ export function calculateSensorEqeElectronRate(
     validateReductionSpectralNodes(
       input.reduction
     );
+  validateOperatingRangeNodeBinding(
+    input.reduction,
+    nodes,
+    input.operatingRange
+  );
+
   const airIndices =
     parseAirContext(
       input.reduction,
@@ -1049,6 +1147,7 @@ export function calculateSensorEqeElectronRate(
       "Direct effective EQE is preserved as direct response; explicitly separable channel-filter transmittance × detector EQE is multiplied only through the existing spectral-response resolver.",
       "The response calibration metadata/evidence must match the spectral evidence carried by the pre-response reduction; matching profile IDs alone is insufficient.",
       "The structural compatibility and operating-range assessments must both be non-blocked and authorize the photon-rate→electron path.",
+      "Operating-range authorization must be per spectral bin, with spectral-node identities and calibrated-domain values bound back to the exact reduction used for conversion.",
       "Operating-range authorization must establish linear superposition over the geometric aperture so spatial reduction may precede response application without hiding sub-aperture nonlinear behavior.",
       "Air-basis spectral nodes require one exact-wavelength sourced phase refractive index per spectral sample plus the photon-energy atmosphere compatibility policy.",
       "Kahan compensated summation is used across wavelength nodes to reduce loss of small contributions when rates span large dynamic ranges.",
