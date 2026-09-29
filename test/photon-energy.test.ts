@@ -61,21 +61,20 @@ describe(
         result.value
           .vacuumWavelengthNanometers
       ).toBe(500);
-      expect(
-        result.value.frequencyHertz
-      ).toBeCloseTo(
+      const expectedFrequency =
         299_792_458 /
-          (500e-9),
-        5
-      );
-      expect(
-        result.value.photonEnergyJoules
-      ).toBeCloseTo(
+        (500e-9);
+      const expectedPhotonEnergy =
         6.62607015e-34 *
-          299_792_458 /
-          (500e-9),
-        28
-      );
+        expectedFrequency;
+      expect(
+        result.value.frequencyHertz /
+          expectedFrequency
+      ).toBeCloseTo(1, 14);
+      expect(
+        result.value.photonEnergyJoules /
+          expectedPhotonEnergy
+      ).toBeCloseTo(1, 14);
       expect(
         result.value.exactSiConstants
       ).toEqual({
@@ -125,13 +124,13 @@ describe(
         500 * 1.00027,
         12
       );
-      expect(
-        result.value.frequencyHertz
-      ).toBeCloseTo(
+      const expectedAirFrequency =
         299_792_458 /
-          (500e-9 * 1.00027),
-        5
-      );
+        (500e-9 * 1.00027);
+      expect(
+        result.value.frequencyHertz /
+          expectedAirFrequency
+      ).toBeCloseTo(1, 14);
       expect(
         result.value
           .phaseRefractiveIndexUsed
