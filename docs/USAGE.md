@@ -1281,6 +1281,70 @@ This foundation still does **not**:
 
 Those remain later explicit, versioned composition steps.
 
+## Sensor spatio-spectral irradiance reduction
+
+Use `reduceSensorSpatioSpectralIrradiance()` after a renderer or optical model has evaluated spectral irradiance at every Cartesian product of:
+
+- one spatial quadrature node's `preAntiAliasingSourcePointMm`; and
+- one spectral quadrature wavelength.
+
+The required source value is (E_λ(x,y)) in **W/m²/nm**.
+
+```ts
+import {
+  reduceSensorSpatioSpectralIrradiance
+} from "@photivra/engine";
+
+const reduced =
+  reduceSensorSpatioSpectralIrradiance({
+    spatialQuadrature:
+      spatialPlan.value,
+    spectralQuadrature:
+      spectralPlan.value,
+    sampleValues
+  });
+
+console.log(
+  reduced.value
+    .wavelengthIntegratedSpatialAverageIrradianceWattsPerSquareMeter
+);
+console.log(
+  reduced.value
+    .wavelengthIntegratedGeometricApertureIncidentFluxWatts
+);
+```
+
+The reducer validates both plans again at runtime and requires exact `colorSamplingProfileId` and `channelId` agreement. A shared label such as `"red"` is not enough to establish that two independently created plans belong to the same color topology.
+
+Each supplied sample identity contains the full spatial-node identity, `spectralSampleIndex`, and exact wavelength. Array order is irrelevant. Every spatial × spectral pair must be present exactly once.
+
+The Cartesian product has its own **100,000-value safety limit**. The individual spatial and spectral plans may each be below their own limits while their product is still too large to materialize safely.
+
+For each wavelength node, Photivra computes:
+
+- a normalized spatial-average spectral irradiance in W/m²/nm;
+- geometric-aperture incident spectral flux density in W/nm.
+
+It then multiplies those densities by that node's `wavelengthMeasureNanometers` and sums across the requested wavelength interval, yielding:
+
+- wavelength-integrated spatial-average irradiance in W/m²;
+- wavelength-integrated geometric-aperture incident flux in W.
+
+Because the source density is **per nanometre**, `dλ` remains in nanometres in this multiplication. Do not multiply by (10^{-9}) unless the spectral-density denominator has also been converted from per-nanometre to per-metre.
+
+The geometric-aperture flux remains a **geometric incident-flux** result. The current aperture model does not establish effective collection area, microlens collection efficiency, or another radiometric-area correction.
+
+This reducer intentionally stops **before sensor response**. The wavelength plan is response-derived, but no QE, A/W responsivity, or channel-filter transmission is applied. Response scope is carried forward but is not yet matched to a declared source plane. That avoids two invalid shortcuts:
+
+- treating QE as though it were an energy weighting on W/m²/nm;
+- treating A/W responsivity as though it were a photon-to-electron efficiency.
+
+Temporal exposure integration, photons/electrons, electrical current, noise, ADC/RAW conversion, and reconstruction also remain downstream.
+
+The current AA point-splitting kernel is a normalized, wavelength-invariant spatial redistribution approximation. Spectral variation in the supplied (E_λ(x,y)) can still represent wavelength-dependent upstream optics/scene structure, but this reducer does not invent wavelength dependence in the AA kernel itself.
+
+As with the spatial and spectral planners individually, no source-independent convergence/error estimate is reported. Reference work should test convergence in the actual downstream integrand by increasing spatial and/or wavelength sampling.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
