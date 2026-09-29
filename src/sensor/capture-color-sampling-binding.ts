@@ -253,6 +253,40 @@ function requirePositiveSafeInteger(
   return value;
 }
 
+function parseBoundNativeRaster(
+  value: unknown
+): NativeImageRaster {
+  const nativeRaster = requireRecord(
+    value,
+    "colorSamplingBinding.nativeRaster"
+  );
+  const pixelWidth =
+    requirePositiveSafeInteger(
+      nativeRaster.pixelWidth,
+      "colorSamplingBinding.nativeRaster.pixelWidth"
+    );
+  const pixelHeight =
+    requirePositiveSafeInteger(
+      nativeRaster.pixelHeight,
+      "colorSamplingBinding.nativeRaster.pixelHeight"
+    );
+
+  if (
+    !Number.isSafeInteger(
+      pixelWidth * pixelHeight
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      "colorSamplingBinding.nativeRaster total image-sample count must be a safe integer."
+    );
+  }
+
+  return {
+    pixelWidth,
+    pixelHeight
+  };
+}
+
 function safeProduct(
   values: readonly number[],
   path: string
@@ -359,35 +393,9 @@ export function parseNativeEffectiveRasterColorSamplingBindingProfile(
         profile.colorSamplingProfileId,
         "colorSamplingBinding.colorSamplingProfileId"
       ),
-    nativeRaster: (() => {
-      const nativeRaster = requireRecord(
-        profile.nativeRaster,
-        "colorSamplingBinding.nativeRaster"
-      );
-      const pixelWidth =
-        requirePositiveSafeInteger(
-          nativeRaster.pixelWidth,
-          "colorSamplingBinding.nativeRaster.pixelWidth"
-        );
-      const pixelHeight =
-        requirePositiveSafeInteger(
-          nativeRaster.pixelHeight,
-          "colorSamplingBinding.nativeRaster.pixelHeight"
-        );
-      if (
-        !Number.isSafeInteger(
-          pixelWidth * pixelHeight
-        )
-      ) {
-        throw new InvalidConfigurationError(
-          "colorSamplingBinding.nativeRaster total image-sample count must be a safe integer."
-        );
-      }
-      return {
-        pixelWidth,
-        pixelHeight
-      };
-    })(),
+    nativeRaster: parseBoundNativeRaster(
+      profile.nativeRaster
+    ),
     evidence: parseEvidenceList(
       profile.evidence,
       "colorSamplingBinding.evidence"
