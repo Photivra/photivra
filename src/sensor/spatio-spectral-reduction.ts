@@ -94,10 +94,17 @@ export interface SensorSpatioSpectralIrradianceReduction {
     SensorSpectralQuadrature["sourceResponseKind"];
   responseScope:
     SensorSpectralQuadrature["responseScope"];
+  responseScientificStatus:
+    SensorSpectralQuadrature["responseScientificStatus"];
+  responseUncertainty:
+    SensorSpectralQuadrature["responseUncertainty"];
   wavelengthBasis:
     SensorSpectralQuadrature["wavelengthBasis"];
+  wavelengthBasisResolved: boolean;
   wavelengthRangeNanometers:
     SensorSpectralQuadrature["wavelengthRangeNanometers"];
+  responseDeclaredWavelengthRangeNanometers:
+    SensorSpectralQuadrature["responseDeclaredWavelengthRangeNanometers"];
   outputMeaning:
     "pre-response-spatio-spectral-radiometric-reduction";
   inputValueDomain: {
@@ -151,6 +158,12 @@ export interface SensorSpatioSpectralIrradianceReduction {
   rawCodeValueProduced: false;
   demosaicOrReconstructionApplied: false;
   convergenceErrorEstimated: false;
+  componentEvidence: {
+    spatial:
+      SensorSpatialSamplingQuadrature["componentEvidence"];
+    spectral:
+      SensorSpectralQuadrature["componentEvidence"];
+  };
 }
 
 function requireSafeNonNegativeInteger(
@@ -381,9 +394,21 @@ export function reduceSensorSpatioSpectralIrradiance(
       input.spectralQuadrature
     );
 
-  if (
+  const colorSamplingProfileId =
     input.spatialQuadrature
-      .colorSamplingProfileId !==
+      .colorSamplingProfileId;
+  if (
+    typeof colorSamplingProfileId !==
+      "string" ||
+    colorSamplingProfileId.trim().length ===
+      0
+  ) {
+    throw new InvalidScientificInputError(
+      "spatialQuadrature.colorSamplingProfileId is required for spatio-spectral composition."
+    );
+  }
+  if (
+    colorSamplingProfileId !==
     input.spectralQuadrature
       .colorSamplingProfileId
   ) {
@@ -560,9 +585,7 @@ export function reduceSensorSpatioSpectralIrradiance(
 
   return approximationResult(
     {
-      colorSamplingProfileId:
-        input.spatialQuadrature
-          .colorSamplingProfileId,
+      colorSamplingProfileId,
       site: {
         ...input.spatialQuadrature.site
       },
@@ -576,13 +599,27 @@ export function reduceSensorSpatioSpectralIrradiance(
       responseScope:
         input.spectralQuadrature
           .responseScope,
+      responseScientificStatus:
+        input.spectralQuadrature
+          .responseScientificStatus,
+      responseUncertainty:
+        input.spectralQuadrature
+          .responseUncertainty,
       wavelengthBasis:
         input.spectralQuadrature
           .wavelengthBasis,
+      wavelengthBasisResolved:
+        input.spectralQuadrature
+          .wavelengthBasisResolved,
       wavelengthRangeNanometers: {
         ...input.spectralQuadrature
           .wavelengthRangeNanometers
       },
+      responseDeclaredWavelengthRangeNanometers:
+        {
+          ...input.spectralQuadrature
+            .responseDeclaredWavelengthRangeNanometers
+        },
       outputMeaning:
         "pre-response-spatio-spectral-radiometric-reduction",
       inputValueDomain: {
@@ -639,7 +676,15 @@ export function reduceSensorSpatioSpectralIrradiance(
       rawCodeValueProduced: false,
       demosaicOrReconstructionApplied:
         false,
-      convergenceErrorEstimated: false
+      convergenceErrorEstimated: false,
+      componentEvidence: {
+        spatial:
+          input.spatialQuadrature
+            .componentEvidence,
+        spectral:
+          input.spectralQuadrature
+            .componentEvidence
+      }
     },
     "sensor-spatio-spectral-irradiance-reduction",
     "1.0.0",
