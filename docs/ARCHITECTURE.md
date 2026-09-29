@@ -57,6 +57,8 @@ The spatial-quadrature foundation now performs that first explicit composition o
 
 The spatial-sample reducer now evaluates those quadrature weights against explicitly supplied nonnegative linear values. It supports either a dimensionless relative irradiance proxy or physical sensor-plane irradiance in W/m², matches values by node identity rather than position, and preserves both average and area-integral semantics. CFA channel labeling remains metadata until a later spectral response model; temporal exposure, photons/electrons, noise, ADC and RAW/reconstruction remain downstream.
 
+The spectral-response foundation now supplies that next channel-specific metadata layer. It binds exact topology channel IDs to reusable wavelength-dependent effective EQE, A/W responsivity, or explicitly separable channel-filter×detector-EQE data. Wavelength basis/range/interpolation and response scope remain explicit, direct effective response is not decomposed without evidence, and condition dependence plus wavelength/temporal/photon integration remain unimplemented.
+
 
 ## Image-formation ownership and ordering
 
