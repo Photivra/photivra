@@ -46,12 +46,26 @@ export interface SourcedAirPhaseRefractiveIndex {
     AirRefractiveIndexReferenceConditions;
 }
 
+export type AirRefractiveIndexConditionPolicy =
+  | {
+      kind: "exact-match-required";
+    }
+  | {
+      kind: "assume-compatible";
+      limitation: string;
+      evidence: readonly EvidenceProvenance[];
+    };
+
 export interface CalculatePhotonEnergyFromWavelengthInput {
   wavelengthNanometers: number;
   wavelengthBasis:
     SpectralWavelengthBasis;
   airPhaseRefractiveIndex?:
     SourcedAirPhaseRefractiveIndex;
+  airOperatingConditions?:
+    AirRefractiveIndexReferenceConditions;
+  airConditionPolicy?:
+    AirRefractiveIndexConditionPolicy;
 }
 
 export interface PhotonEnergyFromWavelength {
@@ -78,6 +92,15 @@ export interface PhotonEnergyFromWavelength {
   airRefractiveIndexReferenceConditions?:
     AirRefractiveIndexReferenceConditions;
   airRefractiveIndexEvidence?:
+    readonly EvidenceProvenance[];
+  airOperatingConditions?:
+    AirRefractiveIndexReferenceConditions;
+  airConditionPolicy?:
+    AirRefractiveIndexConditionPolicy;
+  airConditionCompatibility?:
+    | "exact-match"
+    | "assumed-compatible";
+  airConditionAssumptionEvidence?:
     readonly EvidenceProvenance[];
   inputUncertaintyPropagated: false;
 }
@@ -260,6 +283,84 @@ function parseReferenceConditions(
   };
 }
 
+function parseConditionPolicy(
+  value: unknown
+): AirRefractiveIndexConditionPolicy {
+  const record = requireRecord(
+    value,
+    "airConditionPolicy"
+  );
+
+  if (
+    record.kind === "exact-match-required"
+  ) {
+    return {
+      kind: "exact-match-required"
+    };
+  }
+
+  if (
+    record.kind === "assume-compatible"
+  ) {
+    if (
+      typeof record.limitation !==
+        "string" ||
+      record.limitation.trim().length ===
+        0
+    ) {
+      throw new InvalidConfigurationError(
+        "airConditionPolicy.limitation must be a non-empty string."
+      );
+    }
+    return {
+      kind: "assume-compatible",
+      limitation:
+        record.limitation,
+      evidence: parseEvidenceList(
+        record.evidence,
+        "airConditionPolicy.evidence"
+      )
+    };
+  }
+
+  throw new InvalidConfigurationError(
+    "airConditionPolicy.kind is invalid."
+  );
+}
+
+function conditionsMatch(
+  reference:
+    AirRefractiveIndexReferenceConditions,
+  operating:
+    AirRefractiveIndexReferenceConditions
+): boolean {
+  if (
+    reference.temperatureC !==
+      operating.temperatureC ||
+    reference.pressurePascal !==
+      operating.pressurePascal
+  ) {
+    return false;
+  }
+  if (
+    reference.relativeHumidityFraction !==
+      undefined &&
+    reference.relativeHumidityFraction !==
+      operating.relativeHumidityFraction
+  ) {
+    return false;
+  }
+  if (
+    reference.carbonDioxideMoleFraction !==
+      undefined &&
+    reference.carbonDioxideMoleFraction !==
+      operating.carbonDioxideMoleFraction
+  ) {
+    return false;
+  }
+  return true;
+}
+
 export function parseSourcedAirPhaseRefractiveIndex(
   value: unknown
 ): SourcedAirPhaseRefractiveIndex {
@@ -392,16 +493,30 @@ export function calculatePhotonEnergyFromWavelength(
     SourcedAirPhaseRefractiveIndex |
     undefined;
 
+  let parsedConditionPolicy:
+    AirRefractiveIndexConditionPolicy |
+    undefined;
+  let parsedOperatingConditions:
+    AirRefractiveIndexReferenceConditions |
+    undefined;
+  let airConditionCompatibility:
+    PhotonEnergyFromWavelength["airConditionCompatibility"] |
+    undefined;
+
   if (
     input.wavelengthBasis ===
       "vacuum"
   ) {
     if (
       input.airPhaseRefractiveIndex !==
-      undefined
+        undefined ||
+      input.airOperatingConditions !==
+        undefined ||
+      input.airConditionPolicy !==
+        undefined
     ) {
       throw new InvalidScientificInputError(
-        "airPhaseRefractiveIndex must be omitted for vacuum-basis wavelengths."
+        "Air refractive-index inputs must be omitted for vacuum-basis wavelengths."
       );
     }
     vacuumWavelengthNanometers =
@@ -429,6 +544,69 @@ export function calculatePhotonEnergyFromWavelength(
       throw new InvalidScientificInputError(
         "airPhaseRefractiveIndex wavelength must exactly match wavelengthNanometers."
       );
+    }
+
+    if (
+      input.airConditionPolicy ===
+      undefined
+    ) {
+      throw new InvalidScientificInputError(
+        "airConditionPolicy is required for air-basis photon-energy calculation."
+      );
+    }
+    parsedConditionPolicy =
+      parseConditionPolicy(
+        input.airConditionPolicy
+      );
+
+    if (
+      parsedConditionPolicy.kind ===
+      "exact-match-required"
+    ) {
+      if (
+        parsedAir.referenceConditions ===
+        undefined
+      ) {
+        throw new InvalidScientificInputError(
+          "Exact air-condition matching requires refractive-index reference conditions."
+        );
+      }
+      if (
+        input.airOperatingConditions ===
+        undefined
+      ) {
+        throw new InvalidScientificInputError(
+          "airOperatingConditions is required when exact air-condition matching is selected."
+        );
+      }
+      parsedOperatingConditions =
+        parseReferenceConditions(
+          input.airOperatingConditions,
+          "airOperatingConditions"
+        );
+      if (
+        !conditionsMatch(
+          parsedAir.referenceConditions,
+          parsedOperatingConditions
+        )
+      ) {
+        throw new InvalidScientificInputError(
+          "airOperatingConditions must match the refractive-index reference conditions."
+        );
+      }
+      airConditionCompatibility =
+        "exact-match";
+    } else {
+      parsedOperatingConditions =
+        input.airOperatingConditions ===
+        undefined
+          ? undefined
+          : parseReferenceConditions(
+              input.airOperatingConditions,
+              "airOperatingConditions"
+            );
+      airConditionCompatibility =
+        "assumed-compatible";
     }
 
     vacuumWavelengthNanometers =
@@ -499,7 +677,35 @@ export function calculatePhotonEnergyFromWavelength(
                       .referenceConditions
                 }),
             airRefractiveIndexEvidence:
-              parsedAir.evidence
+              parsedAir.evidence,
+            ...(parsedOperatingConditions ===
+            undefined
+              ? {}
+              : {
+                  airOperatingConditions:
+                    parsedOperatingConditions
+                }),
+            ...(parsedConditionPolicy ===
+            undefined
+              ? {}
+              : {
+                  airConditionPolicy:
+                    parsedConditionPolicy
+                }),
+            ...(airConditionCompatibility ===
+            undefined
+              ? {}
+              : {
+                  airConditionCompatibility
+                }),
+            ...(parsedConditionPolicy?.kind ===
+            "assume-compatible"
+              ? {
+                  airConditionAssumptionEvidence:
+                    parsedConditionPolicy
+                      .evidence
+                }
+              : {})
           }),
       inputUncertaintyPropagated:
         false
@@ -512,6 +718,7 @@ export function calculatePhotonEnergyFromWavelength(
       "Vacuum-basis wavelength requires no refractive-index correction.",
       "Air-basis wavelength is converted with the phase refractive index definition n = lambda_vacuum / lambda_air at the exact requested wavelength.",
       "Air refractive index varies with wavelength and atmospheric conditions; this function never substitutes n = 1.",
+      "Air-basis conversion requires either exact matching to the refractive-index reference atmosphere or an explicit evidence-backed compatibility assumption.",
       "Input refractive-index uncertainty is preserved as metadata but is not propagated into photon-energy uncertainty by this foundation.",
       "This calculation does not apply QE, calculate photon rate, generate electrons, integrate exposure time, or model saturation/noise."
     ]
