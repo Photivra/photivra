@@ -241,7 +241,7 @@ function parseValueDomain(
   );
 }
 
-function nodeIdentityKey(
+export function sensorSpatialQuadratureNodeIdentityKey(
   identity: SensorSpatialQuadratureNodeIdentity
 ): string {
   return (
@@ -313,7 +313,7 @@ function approximatelyEqual(
   );
 }
 
-function validateQuadrature(
+export function validateSensorSpatialSamplingQuadrature(
   quadrature: SensorSpatialSamplingQuadrature
 ): Map<string, SensorSpatialSamplingQuadratureNode> {
   if (
@@ -339,6 +339,15 @@ function validateQuadrature(
   ) {
     throw new InvalidScientificInputError(
       "quadrature.totalNodeCount must be positive and exactly match quadrature.nodes.length."
+    );
+  }
+
+  if (
+    typeof quadrature.colorSamplingProfileId !== "string" ||
+    quadrature.colorSamplingProfileId.trim().length === 0
+  ) {
+    throw new InvalidScientificInputError(
+      "quadrature.colorSamplingProfileId must be a non-empty string."
     );
   }
 
@@ -378,7 +387,7 @@ function validateQuadrature(
     (node, index) => {
       const identity =
         validateQuadratureNode(node, index);
-      const key = nodeIdentityKey(identity);
+      const key = sensorSpatialQuadratureNodeIdentityKey(identity);
 
       if (nodesByKey.has(key)) {
         throw new InvalidScientificInputError(
@@ -516,7 +525,7 @@ function parseNodeValues(
             "].node.apertureSampleYIndex"
         )
     };
-    const key = nodeIdentityKey(identity);
+    const key = sensorSpatialQuadratureNodeIdentityKey(identity);
 
     if (!nodesByKey.has(key)) {
       throw new InvalidScientificInputError(
@@ -570,7 +579,7 @@ export function reduceSensorSpatialSamplingQuadrature(
   const domain = parseValueDomain(
     input.valueDomain
   );
-  const nodesByKey = validateQuadrature(
+  const nodesByKey = validateSensorSpatialSamplingQuadrature(
     input.quadrature
   );
   const valuesByKey = parseNodeValues(
