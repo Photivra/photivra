@@ -155,6 +155,8 @@ The additive sensor spatial-quadrature layer now combines the resolved AA point-
 
 The additive spatial-sample reducer can now apply those weights to caller-supplied nonnegative linear relative values or physical irradiance. It does not turn a channel ID into spectral filtering, does not integrate over time/wavelength, and does not calculate photons, electrons or RAW codes. Consequently this is still a pre-response site sample and the full `photosite-cfa-sampling` stage remains reserved.
 
+The standalone sensor spectral-response profile now establishes explicit wavelength-dependent meaning for linked semantic channels. It can resolve effective external QE, effective A/W responsivity, or declared filter×detector-EQE at one wavelength while preserving response scope and reusable-data provenance. It performs no spectral irradiance integration, exposure-time integration, photon/electron conversion, or RAW reconstruction, so the complete `photosite-cfa-sampling` and downstream charge stages remain only partially founded/reserved.
+
 ## Current implementation status
 
 Each stage is labeled:
