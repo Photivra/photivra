@@ -516,9 +516,11 @@ export function reduceSensorSpatioSpectralIrradiance(
             .combinedNormalizedSpatialWeight;
         geometricSpectralFluxWattsPerNanometer +=
           value *
-          spatialNode
-            .combinedAreaMeasureSquareMicrometers *
-          SQUARE_MICROMETERS_TO_SQUARE_METERS;
+          (
+            spatialNode
+              .combinedAreaMeasureSquareMicrometers *
+            SQUARE_MICROMETERS_TO_SQUARE_METERS
+          );
 
         if (
           !Number.isFinite(
