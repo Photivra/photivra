@@ -824,9 +824,16 @@ export function calculateSensorEqeElectronRate(
           ? {
               airPhaseRefractiveIndex:
                 airIndex!,
-              airOperatingConditions:
-                input.airPhotonEnergyContext
-                  ?.operatingConditions,
+              ...(input.airPhotonEnergyContext!
+                .operatingConditions ===
+              undefined
+                ? {}
+                : {
+                    airOperatingConditions:
+                      input
+                        .airPhotonEnergyContext!
+                        .operatingConditions
+                  }),
               airConditionPolicy:
                 input.airPhotonEnergyContext!
                   .conditionPolicy
