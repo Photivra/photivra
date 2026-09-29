@@ -112,6 +112,33 @@ Sensor data-readout timing from `calculateSensorReadoutTiming()` is intentionall
 
 The trajectory foundation remains rotation-only. Camera translation/parallax, subject motion, panning intent, object rotation/deformation, occlusion changes, exposure integration, flash/flicker, shutter shock, and the final inverse rolling-shutter warp remain future work.
 
+## Instantaneous capture rotation inverse mapping
+
+`calculateInverseCameraRotationImageMapping()` is the exact inverse of the existing forward pure-rotation ray mapping under the same constant-axis assumptions. Once capture time is known, the captured image-plane ray is rotated analytically back into the exposure-start reference camera frame. There is no numerical root/fixed-point solve.
+
+`calculateCaptureRotationInverseMappings()` composes that inverse with local exposure-window timing.
+
+For each destination native sensor point:
+
+1. the destination point selects its local exposure window;
+2. the caller supplies `localExposurePhase` in `[0, 1]`;
+3. capture time is `start + phase × localDuration`;
+4. the destination native point is mapped into the ideal pre-lens image plane;
+5. the captured ray is analytically inverted to the first-opening-boundary reference frame;
+6. image-plane, native effective-sample, and physically oriented sample displacements are reported.
+
+The phase is mandatory because a finite exposure has no single sharp geometry. Phase `0` means local exposure start, `0.5` is the local temporal midpoint, and `1` is local exposure end. None is automatically privileged as the final rendered image.
+
+This inverse is renderer-oriented in the limited sense that it maps **destination capture location -> reference ray**. It still is not a finite-exposure renderer. Motion blur requires integration over the local interval, with an explicit exposure-weighting model if weighting is not uniform.
+
+Sensor data-readout timing remains absent. A documented mode-specific relationship may later link readout and electronic exposure timing, but no such equality is assumed here.
+
+The mapping is evaluated in the ideal pre-lens image plane. Radial distortion, chromatic aberration, PSF, output crop/resampling, camera translation/parallax, subject motion, occlusion changes, flash/flicker and shutter shock remain separate stages.
+
+Reference rays are not clamped to the active source frame. Under camera motion, a valid captured destination can map to reference geometry outside the available reference image; a renderer must treat that as missing source coverage rather than silently stretching or clamping edge pixels.
+
+The current inverse does not claim that an arbitrary rolling/capture-scan camera is globally one-to-one. More general motion models can produce folds, repeated visibility or other multi-perspective behavior; those cases require additional validity analysis rather than being inferred from this pure-rotation slice.
+
 ## Temporal image-formation basis
 
 The image-formation contract defines physical time in **seconds from exposure start**.
