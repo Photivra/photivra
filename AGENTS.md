@@ -97,6 +97,11 @@ The sensor/capture foundation has explicit semantics. Preserve them.
 - AA point-splitting weights are spatial redistribution only, not optical throughput or photon efficiency. Keep spectral transmission, cover/filter attenuation, microlens collection, QE, fill factor, and radiometry separate.
 - Physical low-pass-related elements may coexist with an effectively absent/cancelled AA response; do not reject that combination as contradictory.
 - Microlens presence/absence and cover/filter-stack component roles remain descriptive until explicit angular/spectral/refraction models exist.
+- Color-site physical pitch/origin is a separate evidence-backed registration contract; never derive it from `NativeImageRaster`, raster megapixels, aspect ratio, or CFA family.
+- Geometric sensitive-aperture dimensions/offset are separate from site pitch. Do not infer aperture shape from fill fraction or derive fill fraction as a substitute for exact footprint geometry.
+- Schema 0.1.0 rectangular geometric sensitive apertures must remain within one regular lattice cell. Charge diffusion, optical/electrical crosstalk, and overlapping effective response require later explicit models rather than widening this geometric rectangle.
+- A geometric sensitive-area fraction is not QE, effective radiometric collection area, throughput, spectral response, or physical photodiode truth. Do not use it to enable calibrated photon/noise claims automatically.
+- Microlens spatial redistribution and AA point splitting are upstream/separate from the geometric aperture; do not fold them into site aperture dimensions unless a later versioned effective-response contract explicitly says so.
 - Capture-mode profiles must preserve that distinction: do not relabel `NativeImageRaster` as a photosite raster or infer physical photosite count from native, processed, or final output megapixels.
 - Model capture modes on orthogonal axes (acquisition sequence, per-frame sampling, optional inter-frame sensor offsets, reconstruction stages, processed raster, dependencies) rather than one mutually exclusive marketing-style mode enum.
 - Grouped sampling does not establish charge-domain binning; the combination domain stays unknown unless separately evidenced as charge-domain, pre-conversion analog, or post-conversion digital.
@@ -168,7 +173,7 @@ As of POC simulation API 0.20:
 - The response exposes shared sensor-geometry metrics plus an optional capture block with active/output FOV, active-capture 35 mm-equivalent focal length, output sampling scale, subject framing, and oriented/output motion diagnostics.
 - Equivalent focal length remains informational and never replaces physical focal length inside POC physics; final digital/output crop does not redefine it.
 - Existing motion/camera-shake X/Y fields retain their legacy image-plane meaning (+X right, +Y up). Capture raster coordinates are +X right, +Y down; additive diagnostics must expose the explicit basis conversion before orientation/output scaling.
-- Sensor-architecture metadata, color-sampling topology profiles, native-effective-raster/color-site bindings, sensor optical-stack profiles, capture-mode profiles, sensor readout timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not composed unless an explicit versioned integration is added.
+- Sensor-architecture metadata, color-sampling topology profiles, native-effective-raster/color-site bindings, sensor optical-stack profiles, sensor sampling-aperture profiles, capture-mode profiles, sensor readout timing, capture exposure-window timing, and radiometry-readiness profiles remain standalone and are not composed unless an explicit versioned integration is added.
 - The POC reports X/Y pitch diagnostics but still uses one representative horizontal pitch internally and fails closed above a 1% axis difference.
 - Radiometry readiness never enables photon/noise output by itself.
 
