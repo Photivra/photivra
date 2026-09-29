@@ -1444,6 +1444,50 @@ Photivra never silently sets (n=1).
 
 The current foundation preserves refractive-index uncertainty but does **not** propagate that uncertainty into the derived photon energy. It also does not apply QE, calculate photon rate, generate electrons, integrate exposure time, or model saturation/noise.
 
+## EQE electron-rate conversion
+
+Use `calculateSensorEqeElectronRate()` only after both the structural response-application assessment and the instantaneous response operating-range assessment have passed.
+
+The converter accepts the original color-sampling and spectral-response profiles in addition to those assessments. It reparses the profiles once and verifies that the response metadata **and calibration evidence** match the spectral evidence carried by the pre-response reduction. Matching IDs alone are not enough.
+
+The calculation stays in the wavelength quadrature. For every spectral node it computes:
+
+1. radiant-power contribution = geometric-aperture spectral flux density × `dλ`;
+2. photon energy (hν), using the photon-energy wavelength-basis foundation;
+3. incident photon rate = radiant power / photon energy;
+4. effective external QE at that exact wavelength through the existing spectral-response resolver;
+5. expected generated-electron rate = photon rate × effective QE.
+
+Direct effective EQE stays direct. When the response profile explicitly declares channel-filter transmittance × detector EQE as separable, the existing resolver is the only component that multiplies those terms; the converter does not invent or repeat filter composition.
+
+The response is applied **per wavelength node**. Photivra never multiplies total broadband radiant power by a single average QE.
+
+Post-spatial response also requires the operating-range profile to establish **linear superposition over the geometric sensitive aperture**. If that declaration is omitted, it remains `not-established` and rate conversion is blocked. This prevents spatial averaging from silently hiding a sub-aperture nonlinear response.
+
+For air-basis spectral nodes, the caller supplies exactly one sourced phase-refractive-index record for every spectral sample identity plus the atmosphere compatibility policy used by the photon-energy foundation. Vacuum-basis conversion accepts no air-index context.
+
+The output reports:
+
+- incident photon rate in photons/s;
+- expected generated-electron rate in electrons/s;
+- per-wavelength power, photon energy, QE and rate contributions;
+- whether channel-filter transmission was part of an explicitly separable response.
+
+Kahan compensated summation is used across wavelength nodes.
+
+This is still **rate-domain only**. The converter does not:
+
+- multiply by exposure time;
+- output photon or electron counts;
+- assess full-well/saturation;
+- apply photon shot noise or read noise;
+- calculate current from A/W responsivity;
+- perform ADC/RAW conversion or reconstruction.
+
+A/W spectral responsivity is rejected by this API and remains a separate radiant-power→current path.
+
+Response, refractive-index and quadrature uncertainties remain visible upstream but are not yet propagated into a combined electron-rate uncertainty.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
