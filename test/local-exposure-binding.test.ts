@@ -71,7 +71,13 @@ function binding(
 function seconds(
   value: number,
   ref: string
-) {
+): {
+  value: number;
+  unit: "s";
+  evidence: ReturnType<
+    typeof evidence
+  >;
+} {
   return {
     value,
     unit: "s" as const,
