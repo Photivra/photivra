@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.54.0" as const;
+export const ENGINE_API_VERSION = "0.55.0" as const;
 
 export {
   approximationResult,
@@ -178,6 +178,7 @@ export {
   type ResolvedSensorSpectralResponse,
   type ResolvedSensorSpectralResponseValue,
   type SensorSpectralChannelResponse,
+  type SensorSpectralResponseChannelBinding,
   type SensorSpectralReferenceConditions,
   type SensorSpectralResponseProfile,
   type SensorSpectralResponseScientificStatus,
@@ -253,6 +254,19 @@ export {
   type SensorEqeElectronRate,
   type SensorEqeWavelengthRateContribution
 } from "./sensor/eqe-electron-rate.js";
+
+export {
+  calculateSensorResponsivityPhotocurrent,
+  parseSensorResponsivityElectricalApplicabilityProfile,
+  type CalculateSensorResponsivityPhotocurrentInput,
+  type SensorResponsivityBiasCondition,
+  type SensorResponsivityElectricalApplicabilityProfile,
+  type SensorResponsivityElectricalConditionPolicy,
+  type SensorResponsivityElectricalConditions,
+  type SensorResponsivityPhotocurrent,
+  type SensorResponsivityReadoutLoadCondition,
+  type SensorResponsivityWavelengthCurrentContribution
+} from "./sensor/responsivity-photocurrent.js";
 
 export {
   parseCaptureModeProfile,

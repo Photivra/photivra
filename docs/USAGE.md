@@ -1452,7 +1452,9 @@ The current foundation preserves refractive-index uncertainty but does **not** p
 
 Use `calculateSensorEqeElectronRate()` only after both the structural response-application assessment and the instantaneous response operating-range assessment have passed.
 
-The converter accepts the original color-sampling and spectral-response profiles in addition to those assessments. It reparses the profiles once and verifies that the response metadata **and calibration evidence** match the spectral evidence carried by the pre-response reduction. Matching IDs alone are not enough.
+The converter accepts the original color-sampling and spectral-response profiles in addition to those assessments. Spectral planning now carries an exact canonical response-channel data binding through the pre-response reduction. The converter reparses the supplied response once and requires that binding to match exactly, so matching IDs and even matching evidence references are not enough when numeric calibration samples differ.
+
+The canonical binding is a deterministic exact-data identity for stale/calibration substitution detection; it is not presented as a cryptographic checksum or security boundary.
 
 The calculation stays in the wavelength quadrature. For every spectral node it computes:
 
@@ -1493,6 +1495,48 @@ This is still **rate-domain only**. The converter does not:
 A/W spectral responsivity is rejected by this API and remains a separate radiant-power→current path.
 
 Response, refractive-index and quadrature uncertainties remain visible upstream but are not yet propagated into a combined electron-rate uncertainty.
+
+## A/W responsivity photocurrent conversion
+
+Use `calculateSensorResponsivityPhotocurrent()` for the sibling current-domain path when the spectral response is explicitly calibrated in **A/W**.
+
+The same structural and operating-range gates used by EQE still apply: exact response/profile linkage, matching response reference plane and area basis, spatial response uniformity/separability, linear superposition over the geometric aperture, and explicit per-spectral-bin operating-range applicability. The exact canonical response-channel binding must also match the curve data used upstream; same IDs/evidence with altered A/W samples are rejected.
+
+For every spectral node Photivra computes:
+
+1. radiant-power contribution = geometric-aperture spectral flux density × `dλ`;
+2. spectral responsivity in A/W at that exact wavelength using the authoritative response resolver;
+3. photocurrent-magnitude contribution = radiant power × responsivity.
+
+The wavelength contributions are summed with Kahan compensated summation.
+
+A/W also has an additional **electrical calibration applicability** contract. `SensorResponsivityElectricalApplicabilityProfile` binds the response pipeline to the detector electrical conditions under which the A/W calibration is intended to apply:
+
+- zero-bias photovoltaic operation or reverse bias with an explicit magnitude;
+- virtual-ground current readout or a finite declared input impedance;
+- exact-match or explicit evidence-backed compatibility-approximation policy.
+
+These fields are applicability metadata, not a circuit simulator. In particular, Photivra does not use a declared input impedance to claim that a transimpedance circuit is adequate; it only verifies that the operating condition matches the calibration contract.
+
+The electrical categories are intentionally disjoint: `reverse-biased` requires a strictly positive reverse-bias magnitude, while true zero-bias operation uses `zero-bias-photovoltaic`; a finite input impedance must also be strictly greater than zero.
+
+The spectral A/W curve is treated as a **quasi-static steady-state** power→current relation only. Detector impulse response, modulation bandwidth, settling time and frequency-dependent responsivity are not modeled by this first path. A future time-varying current integrator must add a separate temporal-response contract before it can consume rapidly varying optical power.
+
+The result is a **nonnegative detector-terminal photocurrent magnitude in amperes**. Photivra intentionally does not assign circuit direction/polarity from the optical response curve.
+
+The A/W path does **not**:
+
+- use photon energy or calculate photon/electron rate;
+- convert current to accumulated charge;
+- apply exposure duration;
+- apply transimpedance gain or offset;
+- calculate detector/readout voltage;
+- establish amplifier or ADC linearity;
+- assess full-well/saturation;
+- add shot/read noise;
+- produce RAW values or reconstructed pixels.
+
+Those remain later explicit stages.
 
 ## Capture-mode profiles
 
