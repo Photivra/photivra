@@ -772,7 +772,7 @@ This lets a computational multi-frame mode also use grouped per-frame sampling i
 
 `NativeImageRaster` keeps its canonical meaning: an **effective native image-sampling grid**, not a physical photosite raster. Neither native megapixels nor processed/final-output megapixels may be used to infer physical photodiode count.
 
-For grouped sampling, Photivra derives the per-frame sampling raster only when the native dimensions divide exactly by the evidenced grouping factors. The optional `combinationDomain` distinguishes `charge-domain` from `post-conversion-digital`. When that fact is not known it must be omitted; the word “binning” or a 2×2 resolution ratio does not establish where combination occurred.
+For grouped sampling, Photivra derives the per-frame sampling raster only when the native dimensions divide exactly by the evidenced grouping factors. The optional `combinationDomain` distinguishes `charge-domain`, `pre-conversion-analog`, and `post-conversion-digital`. When that fact is not known it must be omitted; the word “binning” or a 2×2 resolution ratio does not establish where combination occurred.
 
 Inter-frame sensor offsets are expressed in units of the **native effective sampling pitch**. They are not evidence of physical photodiode pitch. The offset sequence length must match a fixed multi-frame count when supplied.
 
