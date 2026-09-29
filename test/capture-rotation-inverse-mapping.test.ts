@@ -4,7 +4,9 @@ import {
   calculateCaptureRotationInverseMappings,
   calculateInverseCameraRotationImageMapping,
   transformNativeRasterVectorToOriented,
+  type CalculateCaptureRotationInverseMappingsInput,
   type CaptureOrientation,
+  type CaptureRotationInverseMappingSample,
   type ExposureBoundarySchedule,
   type SourcedCaptureTimingSeconds
 } from "../src/index.js";
@@ -64,7 +66,10 @@ const scanned = (
   )
 });
 
-const baseInput = () =>
+const baseInput = (): Omit<
+  CalculateCaptureRotationInverseMappingsInput,
+  "samplePointsNative"
+> =>
   ({
     imagingArea,
     nativeRaster,
@@ -126,7 +131,9 @@ describe("capture rotation instantaneous inverse mapping", () => {
 
   it("requires the caller to select start, midpoint, or end geometry explicitly", () => {
     const point = [{ x: 3000, y: 2000 }];
-    const calculate = (localExposurePhase: number) =>
+    const calculate = (
+      localExposurePhase: number
+    ): CaptureRotationInverseMappingSample | undefined =>
       calculateCaptureRotationInverseMappings({
         ...baseInput(),
         localExposurePhase,
@@ -165,7 +172,7 @@ describe("capture rotation instantaneous inverse mapping", () => {
 
     const calculate = (
       direction: "top-to-bottom" | "bottom-to-top"
-    ) =>
+    ): readonly CaptureRotationInverseMappingSample[] =>
       calculateCaptureRotationInverseMappings({
         ...baseInput(),
         nominalExposureDurationSeconds: secondsFact(
