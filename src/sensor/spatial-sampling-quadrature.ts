@@ -109,6 +109,8 @@ export interface SensorSpatialSamplingQuadratureNode {
 export interface SensorSpatialSamplingQuadrature {
   coordinateSystem: "native-sensor-physical";
   colorSamplingProfileId?: string;
+  samplingApertureProfileId?: string;
+  opticalStackProfileId?: string;
   site: NativeColorSamplingSiteIndex;
   channelId: string;
   quadratureScheme:
@@ -120,6 +122,8 @@ export interface SensorSpatialSamplingQuadrature {
   antiAliasingComponentCount: number;
   totalNodeCount: number;
   geometricApertureAreaSquareMicrometers: number;
+  nominalSiteCellAreaSquareMicrometers?: number;
+  geometricSensitiveAreaFractionOfLatticeCell?: number;
   normalizedSpatialWeightSum: number;
   combinedAreaMeasureSumSquareMicrometers: number;
   preAntiAliasingSourceOutsideImagingAreaNodeCount: number;
@@ -394,6 +398,10 @@ export function calculateSensorSpatialSamplingQuadrature(
       colorSamplingProfileId:
         samplingAperture
           .colorSamplingProfileId,
+      samplingApertureProfileId:
+        samplingAperture.profileId,
+      opticalStackProfileId:
+        antiAliasing.profileId,
       site: {
         ...samplingAperture.site
       },
@@ -412,6 +420,12 @@ export function calculateSensorSpatialSamplingQuadrature(
       totalNodeCount,
       geometricApertureAreaSquareMicrometers:
         aperture.areaSquareMicrometers,
+      nominalSiteCellAreaSquareMicrometers:
+        samplingAperture.lattice
+          .nominalCellAreaSquareMicrometers,
+      geometricSensitiveAreaFractionOfLatticeCell:
+        aperture
+          .geometricSensitiveAreaFractionOfLatticeCell,
       normalizedSpatialWeightSum,
       combinedAreaMeasureSumSquareMicrometers,
       preAntiAliasingSourceOutsideImagingAreaNodeCount:
