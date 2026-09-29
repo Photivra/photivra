@@ -356,6 +356,7 @@ Documentation must:
 
 ## Change discipline
 
+- After a pull request is merged, delete its source branch promptly. Do not delete the default branch, protected/release branches, or a branch that is still required by another open PR or documented active dependency. Any retained merged-PR branch must have the reason documented and must be deleted when that dependency ends.
 - Prefer the smallest change that fully solves the problem.
 - Avoid unrelated refactors, formatting churn, dependency upgrades, and file movement.
 - Preserve existing architecture unless there is evidence that changing it materially improves correctness, safety, maintainability, or performance.
