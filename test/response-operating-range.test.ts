@@ -977,5 +977,88 @@ describe(
         "must be finite and nonnegative"
       );
     });
+
+    it("validates per-spectral-bin applicability metadata", () => {
+      expect(() =>
+        parseSensorResponseOperatingRangeProfile({
+          ...profile(),
+          spectralInputModel: {
+            kind: "invalid"
+          }
+        })
+      ).toThrow(
+        "spectralInputModel.kind"
+      );
+
+      expect(() =>
+        parseSensorResponseOperatingRangeProfile({
+          ...profile(),
+          spectralInputModel: {
+            kind:
+              "per-spectral-bin",
+            maximumBinWidthNanometers:
+              100,
+            scientificStatus:
+              "unknown",
+            evidence:
+              evidence("bad")
+          }
+        })
+      ).toThrow(
+        "spectralInputModel.scientificStatus"
+      );
+
+      expect(() =>
+        parseSensorResponseOperatingRangeProfile({
+          ...profile(),
+          spectralInputModel: {
+            kind:
+              "per-spectral-bin",
+            maximumBinWidthNanometers:
+              100,
+            scientificStatus:
+              "approximation",
+            evidence:
+              evidence("approx")
+          }
+        })
+      ).toThrow(
+        "spectralInputModel.limitation is required"
+      );
+    });
+
+    it("checks per-bin upper input range independently from broadband total", () => {
+      const base =
+        reduction();
+      const high = {
+        ...base,
+        perWavelength: [{
+          ...base.perWavelength[0]!,
+          wavelengthIntegratedGeometricApertureIncidentFluxContributionWatts:
+            2e-3
+        }],
+        wavelengthIntegratedGeometricApertureIncidentFluxWatts:
+          2e-3
+      };
+
+      const result =
+        assessSensorResponseOperatingRange({
+          reduction: high,
+          compatibility:
+            compatibility(),
+          operatingRangeProfile:
+            profile()
+        });
+
+      expect(
+        result.value.blockers
+      ).toEqual(
+        expect.arrayContaining([
+          "input-above-linearity-range",
+          "spectral-bin-input-above-linearity-range"
+        ])
+      );
+    });
+
   }
 );
