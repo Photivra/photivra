@@ -11,10 +11,11 @@ Notable public changes to `@photivra/engine` are documented here.
 - Added a capture-rotation exposure trajectory foundation that maps native sensor points into the reference image plane and evaluates the existing pure-rotation camera model at each point's local exposure start/end. It preserves exposure-window and rotation provenance, excludes sensor readout timing, and explicitly stops short of claiming a rolling-shutter warp or integrated blur kernel.
 - Added an analytic inverse pure-camera-rotation mapping plus an instantaneous capture-scan inverse mapping at an explicitly selected local-exposure phase. The capture mapping uses destination-native timing, reports native/oriented effective-sample displacement, does not clamp reference rays outside the active frame, and intentionally avoids iterative solving, sensor-readout coupling, and finite-exposure blur claims.
 - Added an evidence-backed readout/exposure spatial-linkage assessment for declaring normalized native scan-phase relationships between rolling sensor readout and electronic exposure boundaries. It supports same/reversed spatial phase, preserves evidence-backed seconds facts, reports cadence ratios, and explicitly does not infer absolute temporal synchronization from shutter mechanism, scan direction, equal timing spans, or total data-readout duration.
+- Added deterministic pure-rotation temporal quadrature over each destination point's local exposure window. The first model uses uniform midpoint nodes, preserves the #65 instantaneous inverse mapping as the geometry source of truth, reports both normalized time-average weights and seconds-valued integration measures, and deliberately does not calculate radiance, a blur kernel, or a geometry-only integration error estimate.
 
 ### Changed
 
-- Engine API contract advances to `0.39.0`. The composed POC remains `0.20.0`; rolling sensor readout and exposure-window timing can now carry an explicit evidence-backed normalized spatial-phase relationship without being treated as temporally synchronized.
+- Engine API contract advances to `0.40.0`. The composed POC remains `0.20.0`; finite local exposure now has a deterministic temporal-geometry quadrature foundation for pure camera rotation while radiance integration, non-uniform shutter response and renderer accumulation remain separate.
 
 ### Fixed
 
