@@ -908,6 +908,22 @@ export function parseSceneRadianceProviderProfile(
   };
 }
 
+function parsePositiveWavelengthNanometers(
+  value: unknown,
+  path: string
+): number {
+  const wavelength = requireFinite(
+    value,
+    path
+  );
+  if (wavelength <= 0) {
+    throw new InvalidConfigurationError(
+      path + " must be greater than zero."
+    );
+  }
+  return wavelength;
+}
+
 function parseResolvedWavelengthBasis(
   value: unknown,
   path: string
@@ -1034,19 +1050,10 @@ export function parseSceneRadianceEvaluationRequest(
         "sceneRadianceEvaluationRequest.timeSecondsFromExposureStart"
       ),
     wavelengthNanometers:
-      (() => {
-        const wavelength =
-          requireFinite(
-            record.wavelengthNanometers,
-            "sceneRadianceEvaluationRequest.wavelengthNanometers"
-          );
-        if (wavelength <= 0) {
-          throw new InvalidConfigurationError(
-            "sceneRadianceEvaluationRequest.wavelengthNanometers must be greater than zero."
-          );
-        }
-        return wavelength;
-      })(),
+      parsePositiveWavelengthNanometers(
+        record.wavelengthNanometers,
+        "sceneRadianceEvaluationRequest.wavelengthNanometers"
+      ),
     wavelengthBasis:
       parseResolvedWavelengthBasis(
         record.wavelengthBasis,
@@ -1118,19 +1125,10 @@ export function parseSceneRadianceEvaluationResult(
       "sceneRadianceEvaluationResult.sceneId"
     ),
     wavelengthNanometers:
-      (() => {
-        const wavelength =
-          requireFinite(
-            record.wavelengthNanometers,
-            "sceneRadianceEvaluationResult.wavelengthNanometers"
-          );
-        if (wavelength <= 0) {
-          throw new InvalidConfigurationError(
-            "sceneRadianceEvaluationResult.wavelengthNanometers must be greater than zero."
-          );
-        }
-        return wavelength;
-      })(),
+      parsePositiveWavelengthNanometers(
+        record.wavelengthNanometers,
+        "sceneRadianceEvaluationResult.wavelengthNanometers"
+      ),
     wavelengthBasis:
       parseResolvedWavelengthBasis(
         record.wavelengthBasis,
