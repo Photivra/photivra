@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.74.0" as const;
+export const ENGINE_API_VERSION = "0.75.0" as const;
 
 export {
   approximationResult,
@@ -549,6 +549,23 @@ export {
   type IlluminationVignettingCoefficients,
   type IlluminationVignettingProfile
 } from "./optics/illumination-vignetting.js";
+
+export {
+  SCENE_TO_SENSOR_IRRADIANCE_PROFILE_SCHEMA_VERSION,
+  calculateSceneRadianceToSensorIrradiance,
+  parseSceneToSensorIrradianceProfile,
+  type CalculateSceneRadianceToSensorIrradianceInput,
+  type NumericRange,
+  type OpticalBridgeFieldThroughput,
+  type OpticalBridgeFocusApplicability,
+  type OpticalBridgeFocusContext,
+  type OpticalBridgeScientificStatus,
+  type OpticalBridgeUncertainty,
+  type OpticalTransmissionModel,
+  type SceneToSensorIrradianceProfile,
+  type SceneToSensorIrradianceResult,
+  type SpectralTransmissionSample
+} from "./optics/scene-to-sensor-irradiance.js";
 
 export {
   PSF_FOUNDATION_VERSION,
