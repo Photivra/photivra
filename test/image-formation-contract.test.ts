@@ -43,7 +43,7 @@ describe("image-formation contract", () => {
     const contract = getImageFormationContract();
 
     expect(contract.version).toBe(IMAGE_FORMATION_CONTRACT_VERSION);
-    expect(contract.version).toBe("0.3.0");
+    expect(contract.version).toBe("0.4.0");
     expect(contract.domains).toEqual([
       "scene-ray-geometry",
       "scene-radiance-formation",
@@ -139,6 +139,11 @@ describe("image-formation contract", () => {
       "scene-ray-projection",
       "scene-radiance-evaluation"
     ]);
+    expect(
+      byStage.get("lens-field-pupil-evaluation")?.purpose
+    ).toContain(
+      "sensor-plane spectral irradiance"
+    );
     expect(byStage.get("scene-ray-projection")?.coupledStages).toContain(
       "scene-radiance-evaluation"
     );

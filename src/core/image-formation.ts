@@ -7,7 +7,7 @@
  * versions. It describes semantic ownership/order only; it does not imply that
  * every reserved stage is implemented.
  */
-export const IMAGE_FORMATION_CONTRACT_VERSION = "0.3.0" as const;
+export const IMAGE_FORMATION_CONTRACT_VERSION = "0.4.0" as const;
 
 export type ImageFormationDomainId =
   | "scene-ray-geometry"
@@ -215,7 +215,7 @@ const STAGES = [
     ],
     coupledStages: ["field-wavelength-psf"],
     purpose:
-      "Own focus-dependent framing, geometric field mapping, wavelength/channel field mapping, illumination throughput, and pupil clipping inputs."
+      "Own focus-dependent framing, geometric field mapping, pupil/acceptance geometry, spectral optical transmission, field throughput, and the primary intended bridge from outgoing scene spectral radiance to pre-sensor-stack sensor-plane spectral irradiance. PSF redistribution remains separately owned downstream."
   },
   {
     id: "field-wavelength-psf",
@@ -468,7 +468,8 @@ const NOTES = [
   "The stage graph is a dependency/ownership graph, not a claim that every physical interaction can be evaluated as one independent serial post-process.",
   "Independent effects may be combined computationally only when the implementation documents mathematical equivalence and preserves the public stage/effect semantics.",
   "Generic/parametric virtual-lens models must remain explicitly generic until defensible calibrated data with compatible reuse rights exists.",
-  "Scene radiance is distinct from source illumination metadata, photometric luminance anchors, sensor-plane irradiance, and RGB preview values. A later renderer/provider must explicitly evaluate outgoing spectral radiance before optics/sensor composition."
+  "Scene radiance is distinct from source illumination metadata, photometric luminance anchors, sensor-plane irradiance, and RGB preview values. A later renderer/provider must explicitly evaluate outgoing spectral radiance before optics/sensor composition.",
+  "The primary lens-throughput bridge converts validated outgoing spectral radiance to pre-sensor-stack spectral irradiance through declared pupil acceptance, exactly one optical-transmission path, and at most one declared field-throughput term. It does not apply sensor optical-stack/CFA/QE response, PSF energy redistribution, stray light, or an implicit distortion brightness correction."
 ] as const;
 
 /**

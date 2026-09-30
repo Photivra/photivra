@@ -248,6 +248,42 @@ Temporal illumination is upstream input to future metering/automatic-exposure co
 
 That separation allows a future meter to observe changed pre-exposure radiance after a source changes without feeding final display/tone-mapped brightness back into source or exposure selection.
 
+## Downstream optical-radiometry bridge
+
+#110 now provides the first primary-optics consumer of a validated scene-radiance request/result pair.
+
+`calculateSceneRadianceToSensorIrradiance()` preserves the scene sample's:
+
+- sample/provider/scene identity;
+- physical time from exposure start;
+- wavelength coordinate and air/vacuum basis;
+- outgoing spectral-radiance value and provenance.
+
+It then applies an explicit lens-throughput profile to produce pre-sensor-stack spectral irradiance in `W/m^2/nm`.
+
+The first bridge is intentionally limited to:
+
+- paraxial circular-pupil acceptance;
+- explicit nominal/working f-number semantics;
+- one mutually exclusive transmission path:
+  - wavelength-resolved fractional transmission; or
+  - effective working T-stop approximation;
+- one optional field-throughput result applied exactly once.
+
+This downstream bridge does **not** change #85 scene-radiance semantics. In particular, the current provider/result schema remains approximation-only, so even calibrated optical-transmission data cannot promote the combined result to calibrated sensor-plane irradiance.
+
+The bridge also stops before:
+
+- PSF/diffraction redistribution;
+- distortion area-density correction;
+- sensor cover glass / OLPF / microlens;
+- CFA/filter response;
+- QE/responsivity;
+- photon/electron conversion;
+- stray-light contributions.
+
+Those remain separately owned stages.
+
 ## Still outside this slice
 
 The following remain later work beyond the completed A–E foundation sequence:

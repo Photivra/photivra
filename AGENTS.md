@@ -378,6 +378,24 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - No-signal remains unresolved under compensation; do not manufacture infinity/NaN or a fake reachable target.
 - #100 target/compensation code must not choose aperture, shutter, or ISO. #99 owns axis resolution and capability constraints.
 
+## Scene-radiance → sensor-irradiance optical bridge
+
+- #110 owns the primary intended optical-radiometry path from outgoing scene spectral radiance to **pre-sensor-stack sensor-plane spectral irradiance**. Do not reinterpret relative RGB preview values as this physical quantity.
+- The first model is a declared paraxial circular-pupil approximation. Its geometric acceptance is `pi / (4 * N_working^2)`; keep this labeled approximation and do not promote it to a full ray-traced pupil solution.
+- Nominal f-number, working f-number, optical transmission, and T-stop are distinct. Do not infer real transmission from f-number.
+- Wavelength-resolved transmission and effective working-T-stop approximation are mutually exclusive input paths. Never apply both.
+- An effective **working** T-stop must not be smaller than the geometric working f-number in this passive-optics approximation.
+- At finite focus, do not silently use infinity-focus f-number. The ideal symmetric thin-lens path may use `N(1+m)` only with unity pupil magnification explicitly declared; otherwise consume an evidence-backed supplied working f-number/profile.
+- Optical spectral curves are numeric reusable data. Their provenance must be reusable-data or Photivra-owned; factual-reference-only evidence is insufficient for copied numeric curves.
+- Preserve the exact wavelength basis. Do not implicitly convert air ↔ vacuum coordinates.
+- Field throughput/vignetting is applied at most once. The bridge does not add a universal `cos^4(theta)` term on top of a supplied field-throughput result.
+- Geometric distortion area/Jacobian radiometry is not silently corrected here. A later composition must own it exactly once.
+- PSF/diffraction redistributes energy downstream; do not use a non-normalized PSF as an extra throughput scalar after #110 transmission/vignetting.
+- The bridge stops before sensor cover glass/OLPF/microlens/CFA/QE/responsivity. Sensor optical-stack collection remains #14 ownership.
+- Flare, ghosts, veiling glare and scatter are stray-light contributions, not primary transmission; keep them outside #110.
+- Current #85 scene-radiance results remain approximation-only, so even calibrated lens-transmission data cannot authorize a calibrated final sensor-plane irradiance claim yet.
+- Identical physical/time/wavelength inputs must produce deterministic output. Do not time-average time-varying radiance inside this static sample bridge.
+
 ## Radiometry and sensor-metadata rules
 
 - Sensor architecture metadata is descriptive and scientifically inert until a separate downstream model consumes it.
