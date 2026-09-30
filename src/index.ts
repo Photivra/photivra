@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/**
- * Current public API contract version for the Photivra engine.
- *
- * This constant is intentionally independent of the package version so
- * schema/API compatibility can be discussed explicitly.
- */
-export const ENGINE_API_VERSION = "0.75.0" as const;
+export { ENGINE_API_VERSION } from "./core/version.js";
 
 export {
   approximationResult,
