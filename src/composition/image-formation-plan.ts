@@ -250,6 +250,12 @@ export interface ProductionReleaseFrameBinding {
   sequenceId: string;
   releaseFrameId: string;
   frameIndex: number;
+  exposure: {
+    aperture: number;
+    shutterSeconds: number;
+    iso: number;
+  };
+  stochasticSeedUint32: number;
   exposureStartTimeSeconds: number;
   exposureEndTimeSeconds: number;
   sceneTimeSecondsFromSequenceStart:
@@ -1559,7 +1565,7 @@ function validateTemporalCaptureInput(
       exposureWindows
         .nominalExposureDurationSeconds
         .value,
-      shutterSeconds
+      exposure.shutterSeconds
     )
   ) {
     throw new InvalidConfigurationError(
@@ -1718,7 +1724,12 @@ function validateProductionReleaseFrameBinding(
   binding:
     ProductionReleaseFrameBinding,
   releaseFrameId: string,
-  shutterSeconds: number
+  exposure: {
+    aperture: number;
+    shutterSeconds: number;
+    iso: number;
+  },
+  stochasticSeedUint32: number
 ): ProductionReleaseFrameBinding {
   if (
     binding.releaseSequenceVersion !==
@@ -1843,20 +1854,25 @@ function validateProductionReleaseFrameBinding(
     );
   }
 
+  const automationRecord =
+    requireRecord(
+      binding.automation,
+      "releaseFrameBinding.automation"
+    );
   const automation = {
     ae:
       validateReleaseAutomationState(
-        binding.automation.ae,
+        automationRecord.ae,
         "releaseFrameBinding.automation.ae"
       ),
     af:
       validateReleaseAutomationState(
-        binding.automation.af,
+        automationRecord.af,
         "releaseFrameBinding.automation.af"
       ),
     awb:
       validateReleaseAutomationState(
-        binding.automation.awb,
+        automationRecord.awb,
         "releaseFrameBinding.automation.awb"
       )
   };
@@ -1869,6 +1885,56 @@ function validateProductionReleaseFrameBinding(
           binding.whiteBalanceStateId,
           "releaseFrameBinding.whiteBalanceStateId"
         );
+
+  const parsedExposure = {
+    aperture:
+      requirePositiveFinite(
+        binding.exposure.aperture,
+        "releaseFrameBinding.exposure.aperture"
+      ),
+    shutterSeconds:
+      requirePositiveFinite(
+        binding.exposure.shutterSeconds,
+        "releaseFrameBinding.exposure.shutterSeconds"
+      ),
+    iso:
+      requirePositiveFinite(
+        binding.exposure.iso,
+        "releaseFrameBinding.exposure.iso"
+      )
+  };
+  const parsedSeed =
+    requireUint32(
+      binding.stochasticSeedUint32,
+      "releaseFrameBinding.stochasticSeedUint32"
+    );
+
+  if (
+    !settingEquals(
+      parsedExposure.aperture,
+      exposure.aperture
+    ) ||
+    !settingEquals(
+      parsedExposure.shutterSeconds,
+      exposure.shutterSeconds
+    ) ||
+    !settingEquals(
+      parsedExposure.iso,
+      exposure.iso
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding.exposure must match the committed capture exposure."
+    );
+  }
+  if (
+    parsedSeed !==
+    stochasticSeedUint32
+  ) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding.stochasticSeedUint32 must match the committed capture seed."
+    );
+  }
 
   const parsed: ProductionReleaseFrameBinding = {
     releaseSequenceVersion:
@@ -1884,6 +1950,10 @@ function validateProductionReleaseFrameBinding(
         "releaseFrameBinding.releaseFrameId"
       ),
     frameIndex,
+    exposure:
+      parsedExposure,
+    stochasticSeedUint32:
+      parsedSeed,
     exposureStartTimeSeconds:
       start,
     exposureEndTimeSeconds:
@@ -2064,7 +2134,11 @@ export function createProductionCaptureSnapshot(
       : validateProductionReleaseFrameBinding(
           input.releaseFrameBinding,
           releaseFrameId,
-          exposure.shutterSeconds
+          exposure,
+          requireUint32(
+            input.stochasticSeedUint32,
+            "stochasticSeedUint32"
+          )
         );
 
   const whiteBalanceState =
@@ -2199,6 +2273,11 @@ export function createProductionCaptureSnapshotFromReleaseFrame(
       ),
     frameIndex:
       frame.frameIndex,
+    exposure: {
+      ...frame.exposure
+    },
+    stochasticSeedUint32:
+      frame.stochasticSeedUint32,
     exposureStartTimeSeconds:
       frame.exposureStartTimeSeconds,
     exposureEndTimeSeconds:
