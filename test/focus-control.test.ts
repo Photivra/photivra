@@ -798,3 +798,247 @@ describe("focus-control validation boundaries", () => {
     );
   });
 });
+
+
+describe("focus-control remaining state boundaries", () => {
+  it("acquires optical infinity explicitly and reports no change when already at infinity", () => {
+    const initial =
+      createFocusControlState({
+        stateId: "infinity-initial",
+        profile: profile(),
+        mode: "single-af",
+        initialFocus: {
+          kind: "infinity"
+        }
+      });
+
+    const acquired =
+      resolveFocusTargetObservation({
+        state: initial,
+        stateId: "infinity-acquired",
+        event: "acquire",
+        observation: {
+          kind:
+            "infinity-environment",
+          targetId: "sky",
+          focusAreaId: "center",
+          observedAtSeconds: 1
+        }
+      });
+
+    expect(acquired.state.focus)
+      .toEqual({
+        kind: "infinity"
+      });
+    expect(acquired.focusChanged)
+      .toBe(false);
+    expect(
+      acquired.state
+        .acquisitionState
+    ).toBe("acquired");
+  });
+
+  it("requires explicit AF-C acquisition before an update", () => {
+    expect(() =>
+      resolveFocusTargetObservation({
+        state:
+          state("continuous-af"),
+        stateId:
+          "afc-update-before-acquire",
+        event: "update",
+        observation: {
+          kind: "finite-surface",
+          targetId: "subject",
+          observedAtSeconds: 1,
+          longitudinalDistanceM:
+            4
+        }
+      })
+    ).toThrow(
+      "requires an explicit acquire event before updates"
+    );
+  });
+
+  it("requires explicit acquisition for single AF before updates", () => {
+    expect(() =>
+      resolveFocusTargetObservation({
+        state:
+          state("single-af"),
+        stateId:
+          "afs-update-before-acquire",
+        event: "update",
+        observation: {
+          kind: "finite-surface",
+          targetId: "subject",
+          observedAtSeconds: 1,
+          longitudinalDistanceM:
+            4
+        }
+      })
+    ).toThrow(
+      "Single AF requires an explicit acquire event"
+    );
+  });
+
+  it("makes repeated lock and unlock requests idempotent", () => {
+    const acquired =
+      resolveFocusTargetObservation({
+        state:
+          state("continuous-af"),
+        stateId:
+          "idempotent-acquired",
+        event: "acquire",
+        observation: {
+          kind: "finite-surface",
+          targetId: "subject",
+          observedAtSeconds: 1,
+          longitudinalDistanceM:
+            4
+        }
+      }).state;
+    const locked =
+      setFocusLock({
+        state: acquired,
+        stateId:
+          "idempotent-locked",
+        locked: true,
+        eventTimeSeconds: 2
+      });
+
+    expect(
+      setFocusLock({
+        state: locked,
+        stateId:
+          "ignored-second-lock",
+        locked: true,
+        eventTimeSeconds: 3
+      })
+    ).toBe(locked);
+
+    const unlocked =
+      setFocusLock({
+        state: locked,
+        stateId:
+          "idempotent-unlocked",
+        locked: false,
+        eventTimeSeconds: 3
+      });
+
+    expect(
+      setFocusLock({
+        state: unlocked,
+        stateId:
+          "ignored-second-unlock",
+        locked: false,
+        eventTimeSeconds: 4
+      })
+    ).toBe(unlocked);
+  });
+
+  it("rejects malformed profiles and unsupported release priority", () => {
+    expect(() =>
+      parseFocusControlProfile({
+        ...profile(),
+        schemaVersion: "9.9.9"
+      })
+    ).toThrow("schemaVersion");
+
+    expect(() =>
+      parseFocusControlProfile({
+        ...profile(),
+        scientificStatus:
+          "calibrated"
+      })
+    ).toThrow(
+      "scientificStatus must be"
+    );
+
+    expect(() =>
+      parseFocusControlProfile({
+        ...profile(),
+        continuousTargetLossPolicy:
+          "auto-retarget"
+      })
+    ).toThrow(
+      "continuousTargetLossPolicy"
+    );
+
+    expect(() =>
+      parseFocusControlProfile({
+        ...profile(),
+        supportedModes: [
+          "manual",
+          "manual"
+        ]
+      })
+    ).toThrow(
+      "must not contain duplicates"
+    );
+
+    const focusOnly =
+      parseFocusControlProfile({
+        ...profile(),
+        supportedReleasePriorities: [
+          "focus-priority"
+        ]
+      });
+
+    expect(() =>
+      assessFocusReleaseGate({
+        state:
+          createFocusControlState({
+            stateId:
+              "priority-state",
+            profile: focusOnly,
+            mode: "manual",
+            initialFocus: {
+              kind: "finite",
+              distanceM: 5
+            }
+          }),
+        profile: focusOnly,
+        priority:
+          "release-priority"
+      })
+    ).toThrow(
+      "priority is not supported"
+    );
+  });
+
+  it("rejects invalid unavailable-target reasons and empty manual command identity", () => {
+    expect(() =>
+      resolveFocusTargetObservation({
+        state:
+          state("single-af"),
+        stateId:
+          "bad-loss-reason",
+        event: "acquire",
+        observation: {
+          kind: "unavailable",
+          targetId: "subject",
+          observedAtSeconds: 1,
+          reason:
+            "vanished" as "occluded"
+        }
+      })
+    ).toThrow(
+      "kind/reason is invalid"
+    );
+
+    expect(() =>
+      setManualFocusState({
+        state: state("manual"),
+        stateId:
+          "bad-command",
+        focus: {
+          kind: "finite",
+          distanceM: 3
+        },
+        eventTimeSeconds: 1,
+        commandId: " "
+      })
+    ).toThrow(
+      "commandId must be a non-empty string"
+    );
+  });
+});
