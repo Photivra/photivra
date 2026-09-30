@@ -19,6 +19,7 @@ CI verifies Node.js 22.13 and Node.js 24.
 ## Before submitting
 
 - Follow [docs/API_STYLE.md](docs/API_STYLE.md).
+- Follow [docs/NUMERICAL_CORRECTNESS.md](docs/NUMERICAL_CORRECTNESS.md).
 - Follow [docs/PROVENANCE.md](docs/PROVENANCE.md).
 - Add meaningful analytical/regression tests.
 - Update concise documentation when behavior, assumptions, limitations, schemas, version surfaces, or public APIs change.
