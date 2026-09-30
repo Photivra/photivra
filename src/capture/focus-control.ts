@@ -3,7 +3,6 @@
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,
-  type EvidenceBackedFact,
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
@@ -97,6 +96,8 @@ export interface FocusControlState {
     profileId: string;
     profileVersion: string;
   };
+  profileLimitations:
+    readonly string[];
   mode:
     FocusControlMode;
   acquisitionState:
@@ -283,21 +284,6 @@ function requireScientificNonEmptyString(
     );
   }
   return value.trim();
-}
-
-function requireFinite(
-  value: unknown,
-  path: string
-): number {
-  if (
-    typeof value !== "number" ||
-    !Number.isFinite(value)
-  ) {
-    throw new InvalidConfigurationError(
-      path + " must be finite."
-    );
-  }
-  return value;
 }
 
 function requireScientificNonNegativeFinite(
@@ -584,6 +570,9 @@ function stateBase(
       profileVersion:
         profile.profileVersion
     },
+    profileLimitations: [
+      ...profile.limitations
+    ],
     mode,
     acquisitionState,
     focus:
@@ -755,7 +744,7 @@ function stateProfileView(
     ],
     evidence: [],
     limitations:
-      state.limitations
+      state.profileLimitations
   };
 }
 
