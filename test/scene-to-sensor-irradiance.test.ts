@@ -713,14 +713,16 @@ describe("optical bridge profile schema guards", () => {
         "Expected spectral profile."
       );
     }
+    const transmission =
+      profile.transmission;
 
     expect(() =>
       parseSceneToSensorIrradianceProfile({
         ...profile,
         transmission: {
-          ...profile.transmission,
+          ...transmission,
           samples: {
-            ...profile.transmission
+            ...transmission
               .samples,
             evidence: [{
               sourceOrigin:
