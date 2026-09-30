@@ -1771,7 +1771,7 @@ function validateProductionReleaseFrameBinding(
   if (
     !settingEquals(
       end - start,
-      shutterSeconds
+      exposure.shutterSeconds
     )
   ) {
     throw new InvalidConfigurationError(
@@ -1886,20 +1886,25 @@ function validateProductionReleaseFrameBinding(
           "releaseFrameBinding.whiteBalanceStateId"
         );
 
+  const exposureRecord =
+    requireRecord(
+      binding.exposure,
+      "releaseFrameBinding.exposure"
+    );
   const parsedExposure = {
     aperture:
       requirePositiveFinite(
-        binding.exposure.aperture,
+        exposureRecord.aperture,
         "releaseFrameBinding.exposure.aperture"
       ),
     shutterSeconds:
       requirePositiveFinite(
-        binding.exposure.shutterSeconds,
+        exposureRecord.shutterSeconds,
         "releaseFrameBinding.exposure.shutterSeconds"
       ),
     iso:
       requirePositiveFinite(
-        binding.exposure.iso,
+        exposureRecord.iso,
         "releaseFrameBinding.exposure.iso"
       )
   };
