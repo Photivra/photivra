@@ -806,3 +806,514 @@ describe("explicit temporal relative metering", () => {
     );
   });
 });
+
+describe("scene-radiance metering bridge fail-closed guards", () => {
+  const temporalAt = (
+    captureTime: number,
+    measurementId = "guard-meter"
+  ): ReturnType<
+    typeof createSceneRadianceDerivedExposureMeteringSampleSet
+  > =>
+    createSceneRadianceDerivedExposureMeteringSampleSet({
+      measurementId,
+      sceneStateId: "guard-state",
+      providerProfile:
+        providerProfile(true),
+      illuminationProfile:
+        illuminationProfile(),
+      materialResponseProfile:
+        materialProfile(),
+      illuminationTemporalProfile:
+        temporalProfile(),
+      captureTimeSecondsFromReference:
+        captureTime,
+      captureGeometry:
+        captureGeometry(),
+      derivationProfile:
+        derivationProfile(),
+      samples: samples(1)
+    });
+
+  it("rejects timestamps on static providers and missing temporal profiles on temporal providers", () => {
+    expect(() =>
+      createSceneRadianceDerivedExposureMeteringSampleSet({
+        measurementId: "static-time",
+        sceneStateId: "state",
+        providerProfile:
+          providerProfile(false),
+        illuminationProfile:
+          illuminationProfile(),
+        materialResponseProfile:
+          materialProfile(),
+        captureTimeSecondsFromReference:
+          0,
+        captureGeometry:
+          captureGeometry(),
+        derivationProfile:
+          derivationProfile(),
+        samples: samples(1)
+      })
+    ).toThrow(
+      "must be omitted for a time-invariant provider context"
+    );
+
+    expect(() =>
+      createSceneRadianceDerivedExposureMeteringSampleSet({
+        measurementId: "missing-temporal",
+        sceneStateId: "state",
+        providerProfile:
+          providerProfile(true),
+        illuminationProfile:
+          illuminationProfile(),
+        materialResponseProfile:
+          materialProfile(),
+        captureTimeSecondsFromReference:
+          0,
+        captureGeometry:
+          captureGeometry(),
+        derivationProfile:
+          derivationProfile(),
+        samples: samples(1)
+      })
+    ).toThrow(
+      "requires the matching temporal illumination profile"
+    );
+  });
+
+  it("rejects temporal profile ID, scene, base-illumination, and source-binding drift", () => {
+    const baseTemporal =
+      temporalProfile();
+
+    expect(() =>
+      createSceneRadianceDerivedExposureMeteringSampleSet({
+        measurementId: "bad-id",
+        sceneStateId: "state",
+        providerProfile:
+          providerProfile(true),
+        illuminationProfile:
+          illuminationProfile(),
+        materialResponseProfile:
+          materialProfile(),
+        illuminationTemporalProfile: {
+          ...baseTemporal,
+          profileId: "other-temporal"
+        },
+        captureTimeSecondsFromReference:
+          0,
+        captureGeometry:
+          captureGeometry(),
+        derivationProfile:
+          derivationProfile(),
+        samples: samples(1)
+      })
+    ).toThrow(
+      "illuminationTemporalProfileId must match"
+    );
+
+    expect(() =>
+      createSceneRadianceDerivedExposureMeteringSampleSet({
+        measurementId: "bad-scene",
+        sceneStateId: "state",
+        providerProfile:
+          providerProfile(true),
+        illuminationProfile:
+          illuminationProfile(),
+        materialResponseProfile:
+          materialProfile(),
+        illuminationTemporalProfile: {
+          ...baseTemporal,
+          sceneId: "other-scene"
+        },
+        captureTimeSecondsFromReference:
+          0,
+        captureGeometry:
+          captureGeometry(),
+        derivationProfile:
+          derivationProfile(),
+        samples: samples(1)
+      })
+    ).toThrow(
+      "temporal illumination profiles must reference the same sceneId"
+    );
+
+    expect(() =>
+      createSceneRadianceDerivedExposureMeteringSampleSet({
+        measurementId: "bad-base",
+        sceneStateId: "state",
+        providerProfile:
+          providerProfile(true),
+        illuminationProfile:
+          illuminationProfile(),
+        materialResponseProfile:
+          materialProfile(),
+        illuminationTemporalProfile: {
+          ...baseTemporal,
+          illuminationProfileId:
+            "other-lights"
+        },
+        captureTimeSecondsFromReference:
+          0,
+        captureGeometry:
+          captureGeometry(),
+        derivationProfile:
+          derivationProfile(),
+        samples: samples(1)
+      })
+    ).toThrow(
+      "must bind the provider's illuminationProfileId"
+    );
+
+    const binding =
+      baseTemporal.sourceBindings[0]!;
+    expect(() =>
+      createSceneRadianceDerivedExposureMeteringSampleSet({
+        measurementId: "bad-source",
+        sceneStateId: "state",
+        providerProfile:
+          providerProfile(true),
+        illuminationProfile:
+          illuminationProfile(),
+        materialResponseProfile:
+          materialProfile(),
+        illuminationTemporalProfile: {
+          ...baseTemporal,
+          sourceBindings: [
+            {
+              ...binding,
+              sourceId: "missing"
+            }
+          ]
+        },
+        captureTimeSecondsFromReference:
+          0,
+        captureGeometry:
+          captureGeometry(),
+        derivationProfile:
+          derivationProfile(),
+        samples: samples(1)
+      })
+    ).toThrow(
+      "sourceId that is not declared"
+    );
+  });
+
+  it("rejects non-finite temporal time and malformed sample-set identity", () => {
+    expect(() =>
+      temporalAt(Number.NaN)
+    ).toThrow(
+      "captureTimeSecondsFromReference must be finite"
+    );
+
+    const common = {
+      providerProfile:
+        providerProfile(false),
+      illuminationProfile:
+        illuminationProfile(),
+      materialResponseProfile:
+        materialProfile(),
+      captureGeometry:
+        captureGeometry(),
+      derivationProfile:
+        derivationProfile(),
+      samples: samples(1)
+    };
+
+    expect(() =>
+      createSceneRadianceDerivedExposureMeteringSampleSet({
+        ...common,
+        measurementId: " ",
+        sceneStateId: "state"
+      })
+    ).toThrow(
+      "measurementId must be a non-empty string"
+    );
+    expect(() =>
+      createSceneRadianceDerivedExposureMeteringSampleSet({
+        ...common,
+        measurementId: "m",
+        sceneStateId: " "
+      })
+    ).toThrow(
+      "sceneStateId must be a non-empty string"
+    );
+    expect(() =>
+      createSceneRadianceDerivedExposureMeteringSampleSet({
+        ...common,
+        measurementId: "m",
+        sceneStateId: "state",
+        samples: []
+      })
+    ).toThrow(
+      "samples must be a non-empty array"
+    );
+  });
+
+  it("rejects invalid temporal policy, weights, empty input, and static context", () => {
+    const valid = temporalAt(0);
+
+    expect(() =>
+      meterSceneRadianceTemporalExposure({
+        temporalMeasurementId: " ",
+        profile: meterProfile(),
+        policy: {
+          kind:
+            "weighted-time-average",
+          timeReference:
+            "first-opening-boundary-phase"
+        },
+        temporalSamples: [
+          {
+            normalizedTimeWeight: 1,
+            sampleSet: valid
+          }
+        ]
+      })
+    ).toThrow(
+      "temporalMeasurementId must be a non-empty string"
+    );
+
+    expect(() =>
+      meterSceneRadianceTemporalExposure({
+        temporalMeasurementId: "bad-policy",
+        profile: meterProfile(),
+        policy: {
+          kind: "instantaneous",
+          timeReference:
+            "first-opening-boundary-phase"
+        } as never,
+        temporalSamples: [
+          {
+            normalizedTimeWeight: 1,
+            sampleSet: valid
+          }
+        ]
+      })
+    ).toThrow(
+      'policy.kind must be "weighted-time-average"'
+    );
+
+    expect(() =>
+      meterSceneRadianceTemporalExposure({
+        temporalMeasurementId: "bad-ref",
+        profile: meterProfile(),
+        policy: {
+          kind:
+            "weighted-time-average",
+          timeReference: "readout"
+        } as never,
+        temporalSamples: [
+          {
+            normalizedTimeWeight: 1,
+            sampleSet: valid
+          }
+        ]
+      })
+    ).toThrow(
+      'policy.timeReference must be "first-opening-boundary-phase"'
+    );
+
+    expect(() =>
+      meterSceneRadianceTemporalExposure({
+        temporalMeasurementId: "empty",
+        profile: meterProfile(),
+        policy: {
+          kind:
+            "weighted-time-average",
+          timeReference:
+            "first-opening-boundary-phase"
+        },
+        temporalSamples: []
+      })
+    ).toThrow(
+      "temporalSamples must be a non-empty array"
+    );
+
+    expect(() =>
+      meterSceneRadianceTemporalExposure({
+        temporalMeasurementId: "bad-weight",
+        profile: meterProfile(),
+        policy: {
+          kind:
+            "weighted-time-average",
+          timeReference:
+            "first-opening-boundary-phase"
+        },
+        temporalSamples: [
+          {
+            normalizedTimeWeight: 0,
+            sampleSet: valid
+          }
+        ]
+      })
+    ).toThrow(
+      "normalizedTimeWeight must be finite and in (0, 1]"
+    );
+
+    const staticSet =
+      createSceneRadianceDerivedExposureMeteringSampleSet({
+        measurementId: "static",
+        sceneStateId: "guard-state",
+        providerProfile:
+          providerProfile(false),
+        illuminationProfile:
+          illuminationProfile(),
+        materialResponseProfile:
+          materialProfile(),
+        captureGeometry:
+          captureGeometry(),
+        derivationProfile:
+          derivationProfile(),
+        samples: samples(1)
+      });
+
+    expect(() =>
+      meterSceneRadianceTemporalExposure({
+        temporalMeasurementId: "static",
+        profile: meterProfile(),
+        policy: {
+          kind:
+            "weighted-time-average",
+          timeReference:
+            "first-opening-boundary-phase"
+        },
+        temporalSamples: [
+          {
+            normalizedTimeWeight: 1,
+            sampleSet: staticSet
+          }
+        ]
+      })
+    ).toThrow(
+      "registered-time-varying source context"
+    );
+  });
+
+  it("rejects mixed temporal profile/provider context and non-finite capture time", () => {
+    const first = temporalAt(0, "first");
+    const second = temporalAt(
+      0.01,
+      "second"
+    );
+
+    const temporal =
+      second.sourceContext.temporal;
+    if (
+      temporal.kind !==
+      "registered-time-varying"
+    ) {
+      throw new Error(
+        "Expected temporal source context."
+      );
+    }
+
+    const wrongTemporal = {
+      ...second,
+      sourceContext: {
+        ...second.sourceContext,
+        temporal: {
+          ...temporal,
+          illuminationTemporalProfileId:
+            "other-temporal"
+        }
+      }
+    };
+
+    expect(() =>
+      meterSceneRadianceTemporalExposure({
+        temporalMeasurementId: "mixed-temporal",
+        profile: meterProfile(),
+        policy: {
+          kind:
+            "weighted-time-average",
+          timeReference:
+            "first-opening-boundary-phase"
+        },
+        temporalSamples: [
+          {
+            normalizedTimeWeight: 0.5,
+            sampleSet: first
+          },
+          {
+            normalizedTimeWeight: 0.5,
+            sampleSet:
+              wrongTemporal
+          }
+        ]
+      })
+    ).toThrow(
+      "same illuminationTemporalProfileId"
+    );
+
+    const wrongProvider = {
+      ...second,
+      sourceContext: {
+        ...second.sourceContext,
+        providerProfileId:
+          "other-provider"
+      }
+    };
+
+    expect(() =>
+      meterSceneRadianceTemporalExposure({
+        temporalMeasurementId: "mixed-provider",
+        profile: meterProfile(),
+        policy: {
+          kind:
+            "weighted-time-average",
+          timeReference:
+            "first-opening-boundary-phase"
+        },
+        temporalSamples: [
+          {
+            normalizedTimeWeight: 0.5,
+            sampleSet: first
+          },
+          {
+            normalizedTimeWeight: 0.5,
+            sampleSet: wrongProvider
+          }
+        ]
+      })
+    ).toThrow(
+      "same scene/provider/material/derivation/capture-geometry context"
+    );
+
+    const nonFinite = {
+      ...second,
+      sourceContext: {
+        ...second.sourceContext,
+        temporal: {
+          ...temporal,
+          captureTimeSecondsFromReference:
+            Number.NaN
+        }
+      }
+    };
+
+    expect(() =>
+      meterSceneRadianceTemporalExposure({
+        temporalMeasurementId: "non-finite",
+        profile: meterProfile(),
+        policy: {
+          kind:
+            "weighted-time-average",
+          timeReference:
+            "first-opening-boundary-phase"
+        },
+        temporalSamples: [
+          {
+            normalizedTimeWeight: 0.5,
+            sampleSet: first
+          },
+          {
+            normalizedTimeWeight: 0.5,
+            sampleSet: nonFinite
+          }
+        ]
+      })
+    ).toThrow(
+      "capture time must be finite"
+    );
+  });
+});
+
