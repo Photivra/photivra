@@ -1442,6 +1442,153 @@ function validatePhysicalSceneSample(
   });
 }
 
+const CAPTURE_ORIENTATIONS =
+  new Set<CaptureOrientation>([
+    "landscape",
+    "portrait-clockwise",
+    "landscape-inverted",
+    "portrait-counter-clockwise"
+  ]);
+
+function validateTemporalCaptureInput(
+  input:
+    ProductionTemporalCaptureInput,
+  shutterSeconds: number
+): ProductionTemporalCaptureInput {
+  const exposureWindows =
+    calculateCaptureExposureWindows(
+      input.exposureWindowInput
+    ).value;
+
+  if (
+    !settingEquals(
+      exposureWindows
+        .nominalExposureDurationSeconds
+        .value,
+      shutterSeconds
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      "temporalCapture.exposureWindowInput.nominalExposureDurationSeconds must match exposure.shutterSeconds."
+    );
+  }
+
+  requirePositiveFinite(
+    input.imagingArea.widthMm,
+    "temporalCapture.imagingArea.widthMm"
+  );
+  requirePositiveFinite(
+    input.imagingArea.heightMm,
+    "temporalCapture.imagingArea.heightMm"
+  );
+
+  if (
+    !CAPTURE_ORIENTATIONS.has(
+      input.orientation
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      "temporalCapture.orientation is invalid."
+    );
+  }
+
+  if (input.readout !== undefined) {
+    calculateSensorReadoutTiming({
+      nativeRaster:
+        input.exposureWindowInput
+          .nativeRaster,
+      ...(input.exposureWindowInput
+        .activeCaptureRect ===
+      undefined
+        ? {}
+        : {
+            activeCaptureRect:
+              input
+                .exposureWindowInput
+                .activeCaptureRect
+          }),
+      shutterMechanism:
+        input.exposureWindowInput
+          .shutterMechanism,
+      readout: input.readout,
+      samplePointsNative:
+        input.exposureWindowInput
+          .samplePointsNative
+    });
+  }
+
+  if (input.rotation !== undefined) {
+    const sampleCount =
+      input.rotation
+        .temporalSampleCount;
+    if (
+      !Number.isSafeInteger(
+        sampleCount
+      ) ||
+      sampleCount <= 0
+    ) {
+      throw new InvalidConfigurationError(
+        "temporalCapture.rotation.temporalSampleCount must be a positive safe integer."
+      );
+    }
+
+    for (const [axis, value] of [
+      [
+        "pitch",
+        input.rotation
+          .angularVelocityRadPerSec
+          .pitch
+      ],
+      [
+        "yaw",
+        input.rotation
+          .angularVelocityRadPerSec
+          .yaw
+      ],
+      [
+        "roll",
+        input.rotation
+          .angularVelocityRadPerSec
+          .roll
+      ]
+    ] as const) {
+      requireFinite(
+        value,
+        "temporalCapture.rotation.angularVelocityRadPerSec." +
+          axis
+      );
+    }
+
+    if (
+      input.rotation
+        .focusDistanceM !==
+      undefined
+    ) {
+      requirePositiveFinite(
+        input.rotation
+          .focusDistanceM,
+        "temporalCapture.rotation.focusDistanceM"
+      );
+    }
+
+    if (
+      !Array.isArray(
+        input.exposureWindowInput
+          .samplePointsNative
+      ) ||
+      input.exposureWindowInput
+        .samplePointsNative
+        .length === 0
+    ) {
+      throw new InvalidConfigurationError(
+        "temporalCapture.rotation requires non-empty exposureWindowInput.samplePointsNative."
+      );
+    }
+  }
+
+  return cloneJson(input);
+}
+
 export function createProductionCaptureSnapshot(
   input:
     CreateProductionCaptureSnapshotInput
@@ -1506,6 +1653,17 @@ export function createProductionCaptureSnapshot(
         input.stochasticSeedUint32,
         "stochasticSeedUint32"
       ),
+    ...(input.temporalCapture ===
+    undefined
+      ? {}
+      : {
+          temporalCapture:
+            validateTemporalCaptureInput(
+              input.temporalCapture,
+              input.exposure
+                .shutterSeconds
+            )
+        }),
     ...(input.physicalSceneSample ===
     undefined
       ? {}
@@ -1583,6 +1741,14 @@ export function parseProductionCaptureSnapshot(
             physicalSceneSample:
               record
                 .physicalSceneSample as ProductionPhysicalSceneSample
+          }),
+      ...(record.temporalCapture ===
+      undefined
+        ? {}
+        : {
+            temporalCapture:
+              record
+                .temporalCapture as ProductionTemporalCaptureInput
           })
     });
 
