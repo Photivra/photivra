@@ -193,6 +193,20 @@ In composed POC capture mode, the equivalent-viewing helper uses the final retai
 
 The model is not a macro calibration model and does not include diffraction, pupil magnification, aberrations, focus breathing, or lens-specific principal-plane behavior in its DOF criterion.
 
+### Focus-control state versus optical focus
+
+Focus control is a camera-control state machine, not a blur algorithm.
+
+The #104 layer resolves a target/control event into the existing #103 `FocusPlane`. Downstream thin-lens, defocus and PSF calculations therefore depend only on the resulting finite/infinity optical focus state, not on whether that state came from MF, AF-S, AF-C or focus lock.
+
+Finite autofocus target distance uses the same longitudinal camera-space/conjugate distance convention as #103. Off-axis points on one fronto-parallel plane therefore resolve to the same ideal focus distance; renderer ray length is not an autofocus distance.
+
+The first autofocus actuator is an explicitly ideal instantaneous approximation. It supplies deterministic state semantics without modeling motor dynamics, AF sensor error, hunting, subject-recognition quality, low-light behavior or branded-camera performance.
+
+Single AF acquires once and holds. Continuous AF can consume time-ordered observations of one stable target identity. Target loss holds the last focus and requires an explicit reacquisition event; the engine never silently jumps to another subject.
+
+Focus lock freezes the resolved optical state independently from AE, metering and white balance. Release-priority policy is evaluated by a separate gate and cannot alter the optical focus calculation.
+
 ### Defocus circle
 
 Defocus is calculated geometrically by comparing the selected sensor plane for the focus distance with the ideal image plane for the subject distance and projecting an ideal circular entrance-pupil cone to the sensor.
