@@ -44,6 +44,7 @@ See the [Usage Guide](docs/USAGE.md) for the complete public API.
 - [Public API Style](docs/API_STYLE.md)
 - [Physics Foundation](docs/PHYSICS_FOUNDATION.md)
 - [Image-Formation Contract](docs/IMAGE_FORMATION.md)
+- [Scene Radiance and Illumination](docs/SCENE_RADIANCE_AND_ILLUMINATION.md)
 - [PSF and Pupil Foundation](docs/PSF_FOUNDATION.md)
 - [Motion and Signal Foundation](docs/MOTION_AND_SIGNAL.md)
 - [Camera Shake and Stabilization](docs/STABILIZATION.md)
@@ -119,6 +120,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 
 ### Data, validation, and composition
 
+- [shared spectral wavelength primitives and scene illumination-source profiles](docs/SCENE_RADIANCE_AND_ILLUMINATION.md), keeping source metadata distinct from outgoing scene radiance while preserving explicit source-specific units, approximation/calibration status, provenance, and renderer-independent source identities;
 - [image-formation ownership/order contract](docs/IMAGE_FORMATION.md), including coordinate, temporal, renderer, and reserved sensor-stage semantics;
 - [camera/scene schemas and runtime validation](docs/USAGE.md#camera-and-scene-schema-validation);
 - [provenance plus optional uncertainty/quality metadata](docs/USAGE.md#provenance-uncertainty-and-quality-metadata);

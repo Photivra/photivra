@@ -92,18 +92,21 @@ Physical storage capacity and camera/digital saturation remain separate downstre
 
 The root package exports `getImageFormationContract()` as the canonical semantic map for current and future image-formation work.
 
-It defines five scientific domains:
+It defines six scientific domains:
 
 1. scene/ray geometry;
-2. lens mapping plus pupil/throughput;
-3. field- and wavelength-dependent PSF;
-4. time-dependent exposure/readout;
-5. sensor sampling through orientation/output/display.
+2. scene-radiance formation;
+3. lens mapping plus pupil/throughput;
+4. field- and wavelength-dependent PSF;
+5. time-dependent exposure/readout;
+6. sensor sampling through orientation/output/display.
 
 The graph is a **dependency/ownership graph**, not a literal renderer filter list. Hard upstream dependencies are acyclic; explicit couplings record interactions that must not be split into scientifically independent post-effects.
 
 Important consequences:
 
+- illumination-source metadata is upstream input to scene-radiance formation, not a sensor shortcut or post-render RGB overlay;
+- outgoing scene spectral radiance is distinct from `SceneRadiometry` luminance anchors, source spectra, and sensor-plane irradiance;
 - focus breathing is projection/lens mapping;
 - lateral CA is wavelength/channel-dependent field mapping;
 - illumination vignetting is throughput-only;
@@ -116,6 +119,8 @@ Important consequences:
 Renderer implementations may optimize or approximate only when they preserve the engine-owned semantics. Geometric warps use inverse destination-to-source sampling, premultiplied alpha, and stable depth/occlusion order.
 
 See `docs/IMAGE_FORMATION.md`.
+
+The standalone `parseSceneIlluminationProfile()` foundation now provides stable renderer-independent point/spot/area/directional/environment source identities, scene-object binding, source-specific magnitude semantics, continuous-spectrum provenance, and explicit approximation boundaries. It intentionally stops before material/visibility/transport evaluation, so the `scene-radiance-evaluation` stage remains only partially founded. See `docs/SCENE_RADIANCE_AND_ILLUMINATION.md`.
 
 ## Radiometry readiness boundary
 

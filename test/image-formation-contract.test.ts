@@ -39,13 +39,14 @@ function assertAcyclicRequiredDependencies(
 }
 
 describe("image-formation contract", () => {
-  it("publishes the five scientific domains without claiming a simple filter chain", () => {
+  it("publishes the six scientific domains without claiming a simple filter chain", () => {
     const contract = getImageFormationContract();
 
     expect(contract.version).toBe(IMAGE_FORMATION_CONTRACT_VERSION);
-    expect(contract.version).toBe("0.2.0");
+    expect(contract.version).toBe("0.3.0");
     expect(contract.domains).toEqual([
       "scene-ray-geometry",
+      "scene-radiance-formation",
       "lens-pupil-throughput",
       "field-wavelength-psf",
       "temporal-exposure-readout",
@@ -115,6 +116,31 @@ describe("image-formation contract", () => {
     );
     expect(oriented?.note).toContain(
       "never redefines native readout direction"
+    );
+  });
+
+  it("places scene-radiance formation between scene projection and lens evaluation", () => {
+    const contract = getImageFormationContract();
+    const byStage = new Map(contract.stages.map((stage) => [stage.id, stage]));
+
+    expect(byStage.get("scene-radiance-evaluation")).toMatchObject({
+      domain: "scene-radiance-formation",
+      status: "partial-foundation",
+      coordinateSpaces: ["scene-metric"],
+      requiredUpstreamStages: ["scene-ray-projection"],
+      coupledStages: ["temporal-exposure-readout"]
+    });
+    expect(byStage.get("scene-radiance-evaluation")?.purpose).toContain(
+      "does not calculate scene radiance"
+    );
+    expect(
+      byStage.get("lens-field-pupil-evaluation")?.requiredUpstreamStages
+    ).toEqual([
+      "scene-ray-projection",
+      "scene-radiance-evaluation"
+    ]);
+    expect(byStage.get("scene-ray-projection")?.coupledStages).toContain(
+      "scene-radiance-evaluation"
     );
   });
 
