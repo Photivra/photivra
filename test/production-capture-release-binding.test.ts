@@ -14,9 +14,14 @@ import {
   resolveGenericEquipmentExposureCapabilities,
   resolveManualWhiteBalance,
   resolveReleaseSequence,
+  type CreateProductionCaptureSnapshotInput,
   type GenericReleaseCapabilityProfile,
+  type ProductionReleaseFrameBinding,
   type ResolvedGenericEquipmentExposureCapabilities
 } from "../src/index.js";
+
+type ReleaseFrame =
+  ReturnType<typeof resolveReleaseSequence>["frames"][number];
 
 const evidence = (
   ref: string
@@ -860,9 +865,8 @@ describe("resolved WB parser semantic variants", () => {
 
 describe("release binding validation boundaries", () => {
   const bindingFor = (
-    frame:
-      ReturnType<typeof resolveReleaseSequence>["frames"][number]
-  ) => ({
+    frame: ReleaseFrame
+  ): ProductionReleaseFrameBinding => ({
     releaseSequenceVersion:
       "0.1.0" as const,
     sequenceId:
@@ -899,7 +903,10 @@ describe("release binding validation boundaries", () => {
         })
   });
 
-  const directInput = () => {
+  const directInput = (): {
+    frame: ReleaseFrame;
+    input: CreateProductionCaptureSnapshotInput;
+  } => {
     const frame = releaseFrame();
     return {
       frame,
