@@ -960,4 +960,65 @@ describe("POC composed simulation", () => {
     ).toBe(false);
   });
 
+
+  it("preserves explicit stable-support zero shake through portrait capture/output mapping", () => {
+    const result = simulatePocCamera({
+      sensor: {
+        widthMm: 36,
+        heightMm: 24,
+        pixelWidth: 6000,
+        pixelHeight: 4000
+      },
+      lens: {
+        focalLengthMm: 85,
+        aperture: 4
+      },
+      exposure: {
+        shutterSeconds: 2,
+        iso: 100
+      },
+      focus: {
+        focusDistanceM: 5,
+        circleOfConfusionMm: 0.03
+      },
+      crop: {
+        factor: 1
+      },
+      capture: {
+        orientation: "portrait-clockwise",
+        outputRaster: {
+          pixelWidth: 2000,
+          pixelHeight: 3000
+        }
+      },
+      diffraction: {
+        wavelengthNm: 550
+      },
+      motion: {
+        positionM: { x: 0, y: 0, z: 5 },
+        velocityMps: { x: 0, y: 0, z: 0 }
+      },
+      cameraShake: {
+        angularVelocityRadPerSec: {
+          yaw: 0,
+          pitch: 0
+        },
+        stabilizationStopsEquivalent: 6
+      }
+    });
+
+    expect(result.cameraShake?.unstabilized.distanceMm).toBe(0);
+    expect(result.cameraShake?.stabilized.distanceMm).toBe(0);
+    expect(result.capture?.cameraShake?.unstabilized).toEqual({
+      nativeRasterDeltaPixels: { x: 0, y: 0 },
+      orientedCaptureDeltaPixels: { x: 0, y: 0 },
+      outputDeltaPixels: { x: 0, y: 0 }
+    });
+    expect(result.capture?.cameraShake?.stabilized).toEqual({
+      nativeRasterDeltaPixels: { x: 0, y: 0 },
+      orientedCaptureDeltaPixels: { x: 0, y: 0 },
+      outputDeltaPixels: { x: 0, y: 0 }
+    });
+    expect(result.motion.distanceMm).toBe(0);
+  });
 });

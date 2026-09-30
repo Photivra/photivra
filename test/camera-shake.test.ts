@@ -95,4 +95,81 @@ describe("camera shake stabilization estimate", () => {
       12
     );
   });
+
+  it("keeps ideal stable support at exact zero across focal length, shutter, focus, pitch, and stabilization settings", () => {
+    const cases = [
+      {
+        focalLengthMm: 24,
+        shutterSeconds: 1 / 2000,
+        stabilizationStopsEquivalent: 0,
+        pixelPitchMicrometers: 8
+      },
+      {
+        focalLengthMm: 600,
+        shutterSeconds: 2,
+        stabilizationStopsEquivalent: 8,
+        pixelPitchMicrometers: 3.2
+      },
+      {
+        focalLengthMm: 85,
+        shutterSeconds: 1 / 15,
+        stabilizationStopsEquivalent: 4,
+        focusDistanceM: 1.5,
+        pixelPitchMicrometers: 4.5
+      }
+    ] as const;
+
+    for (const input of cases) {
+      const result = estimateCameraShakeBlur({
+        ...input,
+        angularVelocityRadPerSec: {
+          yaw: 0,
+          pitch: 0
+        }
+      });
+
+      expect(result.value.unstabilized).toMatchObject({
+        deltaXmm: 0,
+        deltaYmm: 0,
+        distanceMm: 0,
+        distancePixels: 0,
+        deltaXPixels: 0,
+        deltaYPixels: 0
+      });
+      expect(result.value.stabilized).toMatchObject({
+        deltaXmm: 0,
+        deltaYmm: 0,
+        distanceMm: 0,
+        distancePixels: 0,
+        deltaXPixels: 0,
+        deltaYPixels: 0
+      });
+    }
+  });
+
+  it("does not let stabilization create motion from a zero-motion input", () => {
+    const off = estimateCameraShakeBlur({
+      focalLengthMm: 200,
+      shutterSeconds: 4,
+      angularVelocityRadPerSec: {
+        yaw: 0,
+        pitch: 0
+      },
+      stabilizationStopsEquivalent: 0
+    });
+    const attenuated = estimateCameraShakeBlur({
+      focalLengthMm: 200,
+      shutterSeconds: 4,
+      angularVelocityRadPerSec: {
+        yaw: 0,
+        pitch: 0
+      },
+      stabilizationStopsEquivalent: 12
+    });
+
+    expect(off.value.unstabilized.distanceMm).toBe(0);
+    expect(off.value.stabilized.distanceMm).toBe(0);
+    expect(attenuated.value.unstabilized.distanceMm).toBe(0);
+    expect(attenuated.value.stabilized.distanceMm).toBe(0);
+  });
 });
