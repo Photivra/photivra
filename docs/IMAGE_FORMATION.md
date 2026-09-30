@@ -179,9 +179,11 @@ The constant-rate temporal-integration foundation now permits rate × local-dura
 
 The dark-current foundation adds pre-compensation thermally generated expected electrons to the EQE-side charge model using exact local exposure duration and explicit temperature applicability. It does not model black-level compensation, hot-pixel/defect excess, leakage/injection, dark-current nonuniformity unless separately evidenced, or dark-current shot-noise realization. A/W integrated charge is still not treated as stored pixel electrons.
 
-The accumulated-charge completeness foundation now combines photo, dark and explicitly incremental other stored-electron expectations only when all terms bind to one exact local exposure. Completeness is not inferred from missing components; an evidence-backed declaration must enumerate the supplied additional charge components and state that all material stored-electron contributors are accounted for. That result authorizes only a later physical charge-capacity assessment.
+The accumulated-charge completeness foundation combines photo, dark and explicitly incremental other stored-electron expectations only when all terms bind to one exact local exposure. Completeness is not inferred from missing components; an evidence-backed declaration must enumerate the supplied additional charge components and state that all material stored-electron contributors are accounted for.
 
-Physical full-well and camera/digital saturation remain deliberately separate. No saturation clamp or blooming redistribution is applied. Stochastic noise, analog electronics, ADC/RAW and reconstruction remain downstream.
+The physical charge-capacity foundation now compares that complete expected electron total with an evidence-backed storage limit. It remains an expectation-domain assessment: no stochastic saturation probability, clamp, post-capacity charge, overflow amount, anti-blooming or neighbor redistribution is modeled. Site, operating-state and temperature applicability remain explicit.
+
+Camera/analog/digital saturation is still a separate downstream signal-chain limit and is not inferred from physical charge capacity. Stochastic noise, analog electronics, ADC/RAW and reconstruction remain downstream.
 
 ## Current implementation status
 

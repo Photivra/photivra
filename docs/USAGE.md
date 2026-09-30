@@ -1653,6 +1653,32 @@ Only this complete stored-electron result sets `physicalFullWellAssessmentAuthor
 
 A/W photocharge remains outside this composition because detector-terminal coulombs are not automatically the number of electrons stored in the pixel charge well.
 
+## Physical charge-capacity
+
+Use `assessSensorPhysicalChargeCapacity()` only after accumulated-charge completeness has explicitly authorized physical capacity assessment.
+
+A `SensorPhysicalChargeCapacityProfile` describes a sourced physical charge-storage limit in **electrons**. The profile is bound to:
+
+- exact color topology/channel;
+- exact site, or an explicit uniform-site approximation;
+- an evidence-backed operating-state identifier;
+- exact reference temperature, or an explicit approximation stating temperature dependence is not modeled.
+
+The operating-state identifier is deliberately opaque. Photivra does not infer the correct physical storage capacity from ISO, gain labels, capture-mode names, pixel pitch, or another nearby specification.
+
+The assessment compares **total expected stored electrons** with the physical capacity and reports:
+
+- charge/capacity ratio;
+- expected headroom in electrons;
+- `below-capacity`, `at-capacity`, or `above-capacity`;
+- whether the unsaturated expected charge exceeds the declared capacity.
+
+This is an expectation comparison, not a stochastic saturation realization. Expected charge below capacity does not prove that every noisy realization remains below capacity. Expected charge above capacity means the unsaturated linear expectation exceeds the physical storage limit.
+
+Photivra does **not** clamp the charge at capacity. It does not calculate post-saturation stored charge, excess/overflow charge, recombination, anti-blooming drain behavior, or neighbor blooming. Those require a separate nonlinear charge-transfer model.
+
+Physical charge capacity is also **not camera saturation capacity**. Camera/analog/digital clipping can occur at a lower signal level, so camera saturation remains a separate downstream contract.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:

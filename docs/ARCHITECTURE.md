@@ -81,9 +81,11 @@ The constant-rate temporal-integration foundation then requires an evidence-back
 
 The dark-current foundation begins charge completion for the EQE path only. It integrates evidence-backed pre-compensation thermal electron rate over the exact local exposure and keeps temperature applicability explicit. Exact-reference values and measured piecewise-linear temperature tables are supported; no universal exponential temperature law is inferred. Population-mean dark current remains an approximation and does not imply DCNU/hot-pixel modeling. A/W photocharge remains outside electron-storage/full-well semantics until a separate carrier/storage mapping exists.
 
-The accumulated-charge foundation then rebinds photo signal, dark charge, and every explicitly incremental additional stored-electron contributor to one exact local exposure event. A separate evidence-backed completeness profile must enumerate the supplied additional-component IDs and assert that all material stored-electron contributors are accounted for. Only that result authorizes a later physical charge-capacity/full-well assessment; the composition itself does not assess saturation or blooming.
+The accumulated-charge foundation then rebinds photo signal, dark charge, and every explicitly incremental additional stored-electron contributor to one exact local exposure event. A separate evidence-backed completeness profile must enumerate the supplied additional-component IDs and assert that all material stored-electron contributors are accounted for.
 
-Physical full-well capacity and camera/digital saturation remain separate downstream stages and must not be represented as one shared clamp.
+The physical charge-capacity foundation compares that complete **expected** stored-electron total to an evidence-backed storage-capacity profile tied to site, operating state and temperature applicability. It reports ratio/headroom and whether the unsaturated expected charge lies below, at or above capacity. It does not clamp charge, calculate nonlinear post-saturation storage, infer blooming/neighbor transfer, or claim the stochastic saturation state is known.
+
+Physical storage capacity and camera/digital saturation remain separate downstream concepts and must not be represented as one shared clamp.
 
 
 ## Image-formation ownership and ordering

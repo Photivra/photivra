@@ -19,11 +19,12 @@ Notable public changes to `@photivra/engine` are documented here.
 - Added evidence-bound constant-rate temporal integration for exact local exposure windows. EQE rates become fractional expected photon/electron counts; A/W photocurrent becomes charge magnitude in coulombs without carrier inference. Results remain photo-signal-only and explicitly cannot authorize full-well or camera-saturation assessment.
 - Added dark-current charge accumulation for the EQE electron-count path. Dark current is explicitly pre-compensation thermal electron generation in e-/s, can use exact-reference temperature or fail-closed piecewise-linear measured temperature tables, and does not infer a universal exponential temperature law or dark-current nonuniformity.
 - Added accumulated stored-charge composition and completeness assessment. Photo and dark expected electrons plus explicitly incremental additional stored-electron contributors are rebound to one exact local exposure; only an evidence-backed all-material-contributors completeness declaration authorizes later physical full-well assessment.
+- Added physical charge-storage capacity assessment against complete expected stored electrons. Capacity is explicitly distinct from camera saturation/digital clipping, remains bound to sensor site/operating state/temperature applicability, and reports expectation-vs-capacity without clamping, blooming, overflow redistribution, or stochastic saturation claims.
 - Added exact canonical response-channel data binding from spectral quadrature through spatio-spectral reduction. EQE and A/W converters now reject numeric calibration-curve drift even when profile IDs and evidence references are unchanged; the binding is an exact data-identity mechanism, not a cryptographic integrity checksum.
 
 ### Changed
 
-- Engine API contract advances to `0.59.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
+- Engine API contract advances to `0.60.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
 
 ## 0.6.0 - 2026-09-29
 
