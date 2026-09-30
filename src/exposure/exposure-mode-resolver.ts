@@ -13,7 +13,7 @@ import {
 type UnknownRecord = Record<string, unknown>;
 
 export const EXPOSURE_MODE_RESOLVER_VERSION =
-  "0.1.0" as const;
+  "0.2.0" as const;
 
 export interface RelativeExposureControlAnchor {
   aperture: number;
@@ -43,6 +43,18 @@ export interface ResolveManualExposureModeInput {
   isoControl: ManualIsoControl;
 }
 
+export interface ResolveAperturePriorityExposureModeInput {
+  target: ExposureMeterTarget;
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities;
+  referenceExposure:
+    RelativeExposureControlAnchor;
+  manualAperture: number;
+  manualIso: number;
+  shutterQuantizationPolicy:
+    "nearest-log2-shorter-on-tie";
+}
+
 export type ExposureTargetResidualState =
   | "matched"
   | "under-target"
@@ -53,7 +65,10 @@ export type ExposureResolutionConstraint =
   | "none"
   | "iso-minimum"
   | "iso-maximum"
-  | "iso-grid-quantization";
+  | "iso-grid-quantization"
+  | "shutter-minimum"
+  | "shutter-maximum"
+  | "shutter-grid-quantization";
 
 export type ExposureTargetResidual =
   | {
@@ -185,6 +200,90 @@ export type ManualExposureModeResolution =
         reason:
           "no-signal-target" |
           "auto-iso-unavailable";
+      };
+    });
+
+interface AperturePriorityExposureResolutionBase {
+  resolverVersion:
+    typeof EXPOSURE_MODE_RESOLVER_VERSION;
+  mode: "aperture-priority";
+  axisOwnership: {
+    aperture: "manual";
+    shutter: "automatic";
+    iso: "manual";
+  };
+  targetId: string;
+  targetSourceMeterSnapshot:
+    ExposureMeterTarget["sourceMeterSnapshot"];
+  capabilityProfiles: {
+    bodyProfileId: string;
+    bodyProfileVersion: string;
+    lensProfileId: string;
+    lensProfileVersion: string;
+  };
+  selectedFocalLengthMm: number;
+  referenceExposure:
+    RelativeExposureControlAnchor;
+  manualAperture: number;
+  manualIso: number;
+  apertureMutatedByResolver: false;
+  isoMutatedByResolver: false;
+  exposureCompensationAppliedByResolver:
+    false;
+  meterRecomputedByResolver: false;
+  isoNoiseOrGainTopologyInferred: false;
+  flashPolicyApplied: false;
+  safetyShiftApplied: false;
+}
+
+export type AperturePriorityExposureModeResolution =
+  | (AperturePriorityExposureResolutionBase & {
+      status: "resolved";
+      resolvedSettings: {
+        aperture: number;
+        shutterSeconds: number;
+        iso: number;
+      };
+      idealShutterSecondsBeforeConstraints:
+        number;
+      shutterResolution: {
+        kind:
+          | "continuous"
+          | "discrete";
+        quantizationPolicy:
+          "nearest-log2-shorter-on-tie";
+        quantized: boolean;
+        clamped:
+          | false
+          | "minimum"
+          | "maximum";
+      };
+      targetResidual: {
+        status: "resolved";
+        state:
+          | "matched"
+          | "under-target"
+          | "over-target";
+        targetExposureStops: number;
+        achievedExposureStops: number;
+        residualStops: number;
+        limitingConstraint:
+          ExposureResolutionConstraint;
+      };
+    })
+  | (AperturePriorityExposureResolutionBase & {
+      status: "blocked";
+      resolvedSettings: {
+        aperture: number;
+        iso: number;
+      };
+      idealShutterSecondsBeforeConstraints:
+        null;
+      blocker: "target-no-signal";
+      targetResidual: {
+        status: "target-unresolved";
+        state: "target-unresolved";
+        reason: "no-signal-target";
       };
     });
 
