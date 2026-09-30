@@ -55,19 +55,27 @@ export type ExposureResolutionConstraint =
   | "iso-maximum"
   | "iso-grid-quantization";
 
-export interface ExposureTargetResidual {
-  status:
-    | "resolved"
-    | "target-unresolved";
-  state:
-    ExposureTargetResidualState;
-  targetExposureStops?: number;
-  achievedExposureStops?: number;
-  residualStops?: number;
-  limitingConstraint?:
-    ExposureResolutionConstraint;
-  reason?: "no-signal-target";
-}
+export type ExposureTargetResidual =
+  | {
+      status: "resolved";
+      state:
+        | "matched"
+        | "under-target"
+        | "over-target";
+      targetExposureStops: number;
+      achievedExposureStops: number;
+      residualStops: number;
+      limitingConstraint:
+        ExposureResolutionConstraint;
+    }
+  | {
+      status:
+        "target-unresolved";
+      state:
+        "target-unresolved";
+      reason:
+        "no-signal-target";
+    };
 
 interface ManualExposureResolutionBase {
   resolverVersion:
