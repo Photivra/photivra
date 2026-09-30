@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.63.0" as const;
+export const ENGINE_API_VERSION = "0.64.0" as const;
 
 export {
   approximationResult,
@@ -38,6 +38,26 @@ export {
   type SpectralWavelengthRangeNanometers,
   type SpectralWavelengthSample
 } from "./core/spectral.js";
+
+export {
+  composeSpectralCoverage,
+  distributeIntegratedQuantityAcrossDiscreteSpectralLines,
+  integrateDiscreteSpectralLineMeasure,
+  parseNormalizedDiscreteSpectralLineDistribution,
+  parseSpectralCoverageParticipant,
+  type ComposeSpectralCoverageInput,
+  type DiscreteSpectralLineMeasure,
+  type DiscreteSpectralLineMeasureEntry,
+  type DiscreteSpectralLineQuantityUnit,
+  type DistributeIntegratedQuantityAcrossDiscreteLinesInput,
+  type IntegratedDiscreteSpectralLineMeasure,
+  type NormalizedDiscreteSpectralLine,
+  type NormalizedDiscreteSpectralLineDistribution,
+  type ResolvedSpectralWavelengthBasis,
+  type SpectralCoverageComposition,
+  type SpectralCoverageParticipant,
+  type SpectralCoverageParticipantRole
+} from "./core/spectral-composition.js";
 
 export {
   IMAGE_FORMATION_CONTRACT_VERSION,
@@ -205,6 +225,11 @@ export {
   type SensorSpectralQuadratureNode,
   type SensorSpectralWavelengthRangeNanometers
 } from "./sensor/spectral-quadrature.js";
+
+export {
+  createSensorSpectralCoverageParticipant,
+  type CreateSensorSpectralCoverageParticipantInput
+} from "./sensor/spectral-coverage.js";
 
 export {
   reduceSensorSpatioSpectralIrradiance,
@@ -569,6 +594,13 @@ export {
   type SceneIlluminationSpectrum,
   type SceneIlluminationUncertainty
 } from "./schema/illumination.js";
+
+export {
+  createSceneIlluminationSpectralCoverageParticipant,
+  resolveSceneIlluminationDiscreteLineMeasure,
+  type CreateSceneIlluminationSpectralCoverageParticipantInput,
+  type SceneIlluminationDiscreteLineMeasure
+} from "./schema/illumination-spectral.js";
 
 export {
   SCENE_MATERIAL_RESPONSE_PROFILE_SCHEMA_VERSION,

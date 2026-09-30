@@ -46,6 +46,8 @@ The existing `SceneRadiometry` metadata remains separate. `absolute-luminance` i
 
 See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md).
 
+Shared spectral planning now distinguishes continuous support from discrete lines. Continuous scene/optics/sensor factors may share an explicit air/vacuum coverage intersection and breakpoint union. Delta-like line spectra remain wavelength-integrated measures and are summed without a dλ multiplier; they are never converted into synthetic continuous density merely to enter the continuous sensor quadrature path.
+
 ## Coordinate spaces
 
 The contract explicitly distinguishes:
@@ -170,6 +172,8 @@ The additive spatial-sample reducer can now apply those weights to caller-suppli
 The standalone sensor spectral-response profile now establishes explicit wavelength-dependent meaning for linked semantic channels. It can resolve effective external QE, effective A/W responsivity, or declared filter×detector-EQE at one wavelength while preserving response scope and reusable-data provenance. It performs no spectral irradiance integration, exposure-time integration, photon/electron conversion, or RAW reconstruction, so the complete `photosite-cfa-sampling` and downstream charge stages remain only partially founded/reserved.
 
 The additive sensor spectral-quadrature plan supplies deterministic wavelength nodes and dλ measures without turning them into signal. Response knots and explicit caller breakpoints define segment boundaries, a maximum subinterval width bounds midpoint spacing, and the selected response scope/provenance remain visible. Sensor-response coverage is not treated as scene/optics coverage, response values are not applied, QE is not conflated with A/W responsivity, and continuous-density quadrature does not silently approximate discrete spectral lines.
+
+The shared spectral-coverage layer can now derive the sensor channel's usable range and interpolation knots and combine them with separately declared scene/optics/material coverage. This is planning metadata only. Discrete illumination lines use a separate integrated-line measure path and are not accepted as additional continuous quadrature breakpoints.
 
 The additive spatio-spectral reducer now performs the first explicit spatial × wavelength measure composition for caller-supplied sensor-plane E_lambda(x,y) in W/m²/nm. It requires exact color-profile/channel linkage, retains every required edge/off-frame spatial source sample, caps the Cartesian product, and produces pre-response wavelength-integrated irradiance plus geometric-aperture incident flux.
 

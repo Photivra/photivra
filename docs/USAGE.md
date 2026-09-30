@@ -2893,6 +2893,8 @@ All source families may use an explicitly approximate relative linear scale. Tur
 
 Spectrum representations are likewise explicit. Linear-sRGB is preview-only. A blackbody temperature is a declared blackbody approximation, not a universal CCT control. Continuous relative spectra require reusable-data provenance and do not become absolute spectral power/radiance merely because a physical broadband magnitude also exists.
 
+Discrete sources may instead use `discrete-relative-lines`. Each line carries an explicit wavelength and a normalized **wavelength-integrated** line weight; line weights must sum to one and use a resolved air/vacuum wavelength basis. These values are not per-nanometre densities and are never assigned an arbitrary line width. `resolveSceneIlluminationDiscreteLineMeasure()` can distribute a source's integrated magnitude across those line fractions while preserving its source quantity unit.
+
 The parser establishes illumination metadata only. It does not calculate material response, visibility, indirect transport, outgoing scene spectral radiance, sensor-plane irradiance, photons/electrons, fluorescence, volumetric spectral transport, or polarization.
 
 See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md).
@@ -3001,6 +3003,127 @@ The binding validator checks exact scene/profile/material/sample/wavelength iden
 Provider/result schema 0.1.0 is approximation-only. Calibrated material or illumination inputs cannot silently promote provider output to calibrated scene radiance.
 
 See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md#scene-radiance-provider-and-material-response-boundary).
+
+## Shared spectral composition
+
+Use `composeSpectralCoverage()` when multiple **continuous** wavelength-dependent factors need one common coverage/breakpoint plan.
+
+```ts
+import {
+  composeSpectralCoverage,
+  createSensorSpectralCoverageParticipant
+} from "@photivra/engine";
+
+const sensorCoverage =
+  createSensorSpectralCoverageParticipant({
+    spectralResponseProfile,
+    channelId: "green"
+  });
+
+const composition =
+  composeSpectralCoverage({
+    participants: [
+      {
+        participantId: "scene-radiance",
+        role: "scene-radiance",
+        wavelengthBasis: "vacuum",
+        wavelengthRangeNanometers: {
+          minimum: 420,
+          maximum: 680
+        },
+        breakpointsNanometers: [
+          500,
+          600
+        ]
+      },
+      {
+        participantId: "lens-transmission",
+        role: "optical-transmission",
+        wavelengthBasis: "vacuum",
+        wavelengthRangeNanometers: {
+          minimum: 400,
+          maximum: 700
+        },
+        breakpointsNanometers: [
+          450,
+          550,
+          650
+        ]
+      },
+      sensorCoverage
+    ]
+  });
+
+console.log(
+  composition
+    .commonWavelengthRangeNanometers
+);
+console.log(
+  composition
+    .segmentBoundariesNanometers
+);
+```
+
+The composition:
+
+- requires all participants to use the same resolved air/vacuum wavelength basis;
+- intersects their wavelength ranges;
+- unions internal interpolation breakpoints inside that overlap;
+- does not apply scene values, optical transmission, QE, or A/W responsivity;
+- does not perform spectral integration or claim convergence.
+
+Continuous illumination spectra can be converted to the same participant shape with `createSceneIlluminationSpectralCoverageParticipant()`. RGB, blackbody approximations, unresolved spectra, and discrete line spectra are rejected by that adapter.
+
+### Discrete line measures
+
+Discrete lines use a different integration path.
+
+```ts
+import {
+  integrateDiscreteSpectralLineMeasure,
+  resolveSceneIlluminationDiscreteLineMeasure
+} from "@photivra/engine";
+
+const lineSource =
+  illumination.sources.find(
+    (source) =>
+      source.sourceId === "line-source"
+  );
+
+if (
+  lineSource?.spectrum.kind ===
+  "discrete-relative-lines"
+) {
+  const measure =
+    resolveSceneIlluminationDiscreteLineMeasure(
+      lineSource
+    );
+
+  const integrated =
+    integrateDiscreteSpectralLineMeasure(
+      measure.measure
+    );
+
+  console.log(
+    integrated.integratedQuantity
+  );
+  console.log(
+    integrated.quantityUnit
+  );
+}
+```
+
+A discrete line entry already represents an integrated wavelength contribution. Therefore line integration is:
+
+```text
+total = sum(line integrated quantities)
+```
+
+There is **no** `dλ` multiplication. Assigning an arbitrary width to a laser/line emitter merely to reuse continuous quadrature is invalid.
+
+The source-level helper may distribute point radiant intensity (W/sr), area radiance (W/m²/sr), directional reference-plane irradiance (W/m²), or an explicitly relative magnitude across normalized line fractions. It does not apply material transport, optics, sensor response, photon conversion, or combined uncertainty, and it does not authorize a calibrated outgoing-radiance claim.
+
+See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md#shared-spectral-composition).
 
 ## Camera and scene schema validation
 

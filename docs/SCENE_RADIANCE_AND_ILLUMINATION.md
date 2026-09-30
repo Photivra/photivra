@@ -76,7 +76,8 @@ Schema `0.1.0` supports:
 - unresolved spectrum with an explicit limitation;
 - linear-sRGB preview approximation;
 - explicit blackbody-temperature approximation;
-- continuous relative spectral shape with wavelength coordinates, interpolation semantics, uncertainty, and reusable-data provenance.
+- continuous relative spectral shape with wavelength coordinates, interpolation semantics, uncertainty, and reusable-data provenance;
+- normalized discrete relative lines with explicit wavelengths and wavelength-integrated line fractions.
 
 A blackbody temperature is an explicit approximation. It is not a universal CCT/color control and must not be used to give arbitrary colored, LED, narrowband, UV, or other non-Planckian sources a fictitious Kelvin meaning.
 
@@ -84,7 +85,41 @@ Embedded continuous numeric spectra require `reusable-data` or `photivra-owned` 
 
 The continuous relative spectrum uses arbitrary relative normalization. Combining it with a broadband physical magnitude into an absolute spectral source distribution remains a later explicit composition step; the parser does not silently normalize or integrate it.
 
-Discrete/delta-like line spectra are not represented by this first schema. Calibrated narrow/line-source composition remains blocked until an explicit line-spectrum path exists.
+Discrete line spectra use the separate `discrete-relative-lines` representation. Each line has an explicit wavelength and a normalized **wavelength-integrated** line weight; weights must sum to one. These are not per-nanometre density samples and are never broadened into synthetic continuous bumps. A calibrated relative line distribution requires reusable-data provenance, a resolved air/vacuum wavelength basis, and quantified relative uncertainty.
+
+`resolveSceneIlluminationDiscreteLineMeasure()` may distribute the source's wavelength-integrated magnitude across those normalized line fractions. Point radiant intensity becomes per-line W/sr, area radiance becomes per-line W/(m²·sr), directional reference-plane irradiance becomes per-line W/m², and relative source magnitude stays relative. Disabled sources resolve to zero contribution.
+
+This source-level line measure still does not authorize a calibrated outgoing scene-radiance claim because material/visibility/transport fidelity and combined uncertainty remain separate.
+
+## Shared spectral composition
+
+`composeSpectralCoverage()` defines the common continuous-spectral planning seam across scene, optics, materials, sensor response, or other wavelength-dependent factors.
+
+Each participant declares:
+
+- stable participant ID and role;
+- one resolved air or vacuum wavelength basis;
+- finite wavelength support;
+- strictly ordered internal interpolation breakpoints.
+
+Composition intersects all participant wavelength ranges and unions every breakpoint that lies inside the common overlap. It does **not** apply response/transmission/radiance values and does not integrate a spectral density. Air/vacuum conversion is never implicit.
+
+The existing sensor spectral response can participate through `createSensorSpectralCoverageParticipant()`, which exposes the channel response's usable overlap and interpolation knots without applying QE or A/W responsivity.
+
+Continuous scene-illumination data can participate through `createSceneIlluminationSpectralCoverageParticipant()`. RGB, blackbody approximations, unresolved spectra, and discrete line spectra are rejected by that adapter rather than being silently converted into a continuous curve.
+
+### Continuous versus discrete integration
+
+The mathematical distinction is hard:
+
+```text
+continuous density:  integral f(lambda) d-lambda
+discrete line measure: sum line_i
+```
+
+`integrateDiscreteSpectralLineMeasure()` therefore sums already wavelength-integrated line quantities. It never multiplies a line by a fabricated `dλ` and never invokes continuous quadrature.
+
+A continuous composition plan and a discrete-line measure may coexist in a future mixed-spectrum transport model, but schema/API 0.1.0 keeps them separate rather than pretending one representation is the other.
 
 ## Temporal boundary
 
@@ -172,11 +207,10 @@ This means a browser preview, Blender reference path, or future spectral rendere
 
 The following remain later #85 work:
 
-- shared scene/optics/sensor spectral coverage and discrete-line composition (#85D);
 - time-varying light emission/flash/flicker tied to the existing exposure-time basis (#85E);
 - fluorescence/excitation-emission;
 - participating-media spectral transport;
 - polarization;
 - a future calibrated scene-radiance provider contract with sufficient completeness evidence.
 
-The next scene-radiance group is #85D: common spectral coverage/breakpoint composition plus an explicit discrete-line representation before any calibrated narrow/line-source claim.
+The next scene-radiance group is #85E: time-varying illumination tied to the existing seconds-based exposure timing, including explicit flash/flicker waveform registration.
