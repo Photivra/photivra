@@ -13,7 +13,7 @@ import {
 type UnknownRecord = Record<string, unknown>;
 
 export const EXPOSURE_MODE_RESOLVER_VERSION =
-  "0.1.0" as const;
+  "0.2.0" as const;
 
 export interface RelativeExposureControlAnchor {
   aperture: number;
@@ -43,6 +43,18 @@ export interface ResolveManualExposureModeInput {
   isoControl: ManualIsoControl;
 }
 
+export interface ResolveAperturePriorityExposureModeInput {
+  target: ExposureMeterTarget;
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities;
+  referenceExposure:
+    RelativeExposureControlAnchor;
+  manualAperture: number;
+  manualIso: number;
+  shutterQuantizationPolicy:
+    "nearest-log2-shorter-on-tie";
+}
+
 export type ExposureTargetResidualState =
   | "matched"
   | "under-target"
@@ -53,7 +65,10 @@ export type ExposureResolutionConstraint =
   | "none"
   | "iso-minimum"
   | "iso-maximum"
-  | "iso-grid-quantization";
+  | "iso-grid-quantization"
+  | "shutter-minimum"
+  | "shutter-maximum"
+  | "shutter-grid-quantization";
 
 export type ExposureTargetResidual =
   | {
@@ -185,6 +200,91 @@ export type ManualExposureModeResolution =
         reason:
           "no-signal-target" |
           "auto-iso-unavailable";
+      };
+    });
+
+interface AperturePriorityExposureResolutionBase {
+  resolverVersion:
+    typeof EXPOSURE_MODE_RESOLVER_VERSION;
+  mode: "aperture-priority";
+  axisOwnership: {
+    aperture: "manual";
+    shutter: "automatic";
+    iso: "manual";
+  };
+  targetId: string;
+  targetSourceMeterSnapshot:
+    ExposureMeterTarget["sourceMeterSnapshot"];
+  capabilityProfiles: {
+    bodyProfileId: string;
+    bodyProfileVersion: string;
+    lensProfileId: string;
+    lensProfileVersion: string;
+  };
+  selectedFocalLengthMm: number;
+  referenceExposure:
+    RelativeExposureControlAnchor;
+  manualAperture: number;
+  manualIso: number;
+  apertureMutatedByResolver: false;
+  isoMutatedByResolver: false;
+  shutterResolvedByResolver: true;
+  exposureCompensationAppliedByResolver:
+    false;
+  meterRecomputedByResolver: false;
+  isoNoiseOrGainTopologyInferred: false;
+  flashPolicyApplied: false;
+  safetyShiftApplied: false;
+}
+
+export type AperturePriorityExposureModeResolution =
+  | (AperturePriorityExposureResolutionBase & {
+      status: "resolved";
+      resolvedSettings: {
+        aperture: number;
+        shutterSeconds: number;
+        iso: number;
+      };
+      idealShutterSecondsBeforeConstraints:
+        number;
+      shutterResolution: {
+        kind:
+          | "continuous"
+          | "discrete";
+        quantizationPolicy:
+          "nearest-log2-shorter-on-tie";
+        quantized: boolean;
+        clamped:
+          | false
+          | "minimum"
+          | "maximum";
+      };
+      targetResidual: {
+        status: "resolved";
+        state:
+          | "matched"
+          | "under-target"
+          | "over-target";
+        targetExposureStops: number;
+        achievedExposureStops: number;
+        residualStops: number;
+        limitingConstraint:
+          ExposureResolutionConstraint;
+      };
+    })
+  | (AperturePriorityExposureResolutionBase & {
+      status: "blocked";
+      resolvedSettings: {
+        aperture: number;
+        iso: number;
+      };
+      idealShutterSecondsBeforeConstraints:
+        null;
+      blocker: "target-no-signal";
+      targetResidual: {
+        status: "target-unresolved";
+        state: "target-unresolved";
+        reason: "no-signal-target";
       };
     });
 
@@ -887,6 +987,176 @@ function resolveAutomaticIso(
   };
 }
 
+function nearestDiscreteShutter(
+  idealShutterSeconds: number,
+  values: readonly number[]
+): {
+  shutterSeconds: number;
+  quantized: boolean;
+  clamped:
+    | false
+    | "minimum"
+    | "maximum";
+  limitingConstraint:
+    ExposureResolutionConstraint;
+} {
+  const first = values[0]!;
+  const last =
+    values[values.length - 1]!;
+
+  if (idealShutterSeconds < first) {
+    return {
+      shutterSeconds: first,
+      quantized: true,
+      clamped: "minimum",
+      limitingConstraint:
+        "shutter-minimum"
+    };
+  }
+  if (idealShutterSeconds > last) {
+    return {
+      shutterSeconds: last,
+      quantized: true,
+      clamped: "maximum",
+      limitingConstraint:
+        "shutter-maximum"
+    };
+  }
+
+  let selected = first;
+  let selectedDistance =
+    Math.abs(
+      Math.log2(
+        idealShutterSeconds /
+        first
+      )
+    );
+
+  for (
+    let index = 1;
+    index < values.length;
+    index += 1
+  ) {
+    const candidate =
+      values[index]!;
+    const distance =
+      Math.abs(
+        Math.log2(
+          idealShutterSeconds /
+          candidate
+        )
+      );
+    if (
+      distance <
+        selectedDistance -
+          1e-15 ||
+      (Math.abs(
+        distance -
+          selectedDistance
+      ) <= 1e-15 &&
+        candidate < selected)
+    ) {
+      selected = candidate;
+      selectedDistance =
+        distance;
+    }
+  }
+
+  const quantized =
+    !settingEquals(
+      selected,
+      idealShutterSeconds
+    );
+
+  return {
+    shutterSeconds: selected,
+    quantized,
+    clamped: false,
+    limitingConstraint:
+      quantized
+        ? "shutter-grid-quantization"
+        : "none"
+  };
+}
+
+function resolveAutomaticShutter(
+  idealShutterSeconds: number,
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities
+): {
+  shutterSeconds: number;
+  kind:
+    | "continuous"
+    | "discrete";
+  quantized: boolean;
+  clamped:
+    | false
+    | "minimum"
+    | "maximum";
+  limitingConstraint:
+    ExposureResolutionConstraint;
+} {
+  const grid =
+    capabilities.shutter.settingGrid;
+
+  if (
+    grid.kind ===
+    "discrete-values"
+  ) {
+    const discrete =
+      nearestDiscreteShutter(
+        idealShutterSeconds,
+        grid.values
+      );
+    return {
+      ...discrete,
+      kind: "discrete"
+    };
+  }
+
+  if (
+    idealShutterSeconds <
+    capabilities.shutter
+      .minimumSeconds
+  ) {
+    return {
+      shutterSeconds:
+        capabilities.shutter
+          .minimumSeconds,
+      kind: "continuous",
+      quantized: false,
+      clamped: "minimum",
+      limitingConstraint:
+        "shutter-minimum"
+    };
+  }
+  if (
+    idealShutterSeconds >
+    capabilities.shutter
+      .maximumSeconds
+  ) {
+    return {
+      shutterSeconds:
+        capabilities.shutter
+          .maximumSeconds,
+      kind: "continuous",
+      quantized: false,
+      clamped: "maximum",
+      limitingConstraint:
+        "shutter-maximum"
+    };
+  }
+
+  return {
+    shutterSeconds:
+      idealShutterSeconds,
+    kind: "continuous",
+    quantized: false,
+    clamped: false,
+    limitingConstraint: "none"
+  };
+}
+
 /**
  * Resolves Manual exposure with either manual ISO or Auto ISO.
  *
@@ -1179,6 +1449,221 @@ export function resolveManualExposureMode(
       quantizationPolicy:
         input.isoControl
           .quantizationPolicy,
+      quantized:
+        automatic.quantized,
+      clamped:
+        automatic.clamped
+    },
+    targetResidual: residual
+  };
+}
+
+/**
+ * Resolves Aperture Priority with manual ISO.
+ *
+ * Aperture and ISO remain caller-owned. Shutter is the only automatic axis.
+ * The target/reference relationship is the same relative exposure model used
+ * by Manual + Auto ISO; no new mode-specific exposure equation is introduced.
+ */
+export function resolveAperturePriorityExposureMode(
+  input:
+    ResolveAperturePriorityExposureModeInput
+): AperturePriorityExposureModeResolution {
+  const target =
+    validateTarget(input.target);
+  validateCapabilities(
+    input.capabilities
+  );
+
+  const referenceExposure =
+    validateReferenceExposure(
+      input.referenceExposure,
+      input.capabilities
+    );
+
+  const manualAperture =
+    requirePositiveFinite(
+      input.manualAperture,
+      "manualAperture"
+    );
+  const manualIso =
+    requirePositiveFinite(
+      input.manualIso,
+      "manualIso"
+    );
+
+  validateSettingAgainstGrid(
+    manualAperture,
+    input.capabilities.aperture
+      .widestAvailableFNumber,
+    input.capabilities.aperture
+      .narrowestAvailableFNumber,
+    input.capabilities.aperture
+      .settingGrid,
+    "manualAperture"
+  );
+  validateSettingAgainstGrid(
+    manualIso,
+    input.capabilities.iso.minimum,
+    input.capabilities.iso.maximum,
+    input.capabilities.iso.settingGrid,
+    "manualIso"
+  );
+
+  if (
+    input.shutterQuantizationPolicy !==
+    "nearest-log2-shorter-on-tie"
+  ) {
+    throw new InvalidScientificInputError(
+      'shutterQuantizationPolicy must be "nearest-log2-shorter-on-tie".'
+    );
+  }
+
+  const base:
+    AperturePriorityExposureResolutionBase = {
+    resolverVersion:
+      EXPOSURE_MODE_RESOLVER_VERSION,
+    mode: "aperture-priority",
+    axisOwnership: {
+      aperture: "manual",
+      shutter: "automatic",
+      iso: "manual"
+    },
+    targetId: target.targetId,
+    targetSourceMeterSnapshot:
+      target.sourceMeterSnapshot,
+    capabilityProfiles: {
+      bodyProfileId:
+        input.capabilities
+          .bodyProfile.profileId,
+      bodyProfileVersion:
+        input.capabilities
+          .bodyProfile.profileVersion,
+      lensProfileId:
+        input.capabilities
+          .lensProfile.profileId,
+      lensProfileVersion:
+        input.capabilities
+          .lensProfile.profileVersion
+    },
+    selectedFocalLengthMm:
+      input.capabilities
+        .selectedFocalLengthMm,
+    referenceExposure,
+    manualAperture,
+    manualIso,
+    apertureMutatedByResolver: false,
+    isoMutatedByResolver: false,
+    shutterResolvedByResolver: true,
+    exposureCompensationAppliedByResolver:
+      false,
+    meterRecomputedByResolver: false,
+    isoNoiseOrGainTopologyInferred:
+      false,
+    flashPolicyApplied: false,
+    safetyShiftApplied: false
+  };
+
+  if (target.status === "no-signal") {
+    return {
+      ...base,
+      status: "blocked",
+      resolvedSettings: {
+        aperture:
+          manualAperture,
+        iso: manualIso
+      },
+      idealShutterSecondsBeforeConstraints:
+        null,
+      blocker: "target-no-signal",
+      targetResidual: {
+        status:
+          "target-unresolved",
+        state:
+          "target-unresolved",
+        reason: "no-signal-target"
+      }
+    };
+  }
+
+  const fixedAxisFactorAtReferenceShutter =
+    opticalExposureFactor(
+      manualAperture,
+      referenceExposure
+        .shutterSeconds,
+      referenceExposure
+    ) *
+    (manualIso /
+      referenceExposure.iso);
+
+  if (
+    !Number.isFinite(
+      fixedAxisFactorAtReferenceShutter
+    ) ||
+    fixedAxisFactorAtReferenceShutter <= 0
+  ) {
+    throw new InvalidScientificInputError(
+      "Aperture Priority fixed-axis exposure factor must remain finite and greater than zero."
+    );
+  }
+
+  const idealShutterSeconds =
+    referenceExposure
+      .shutterSeconds *
+    (target
+      .requiredExposureScaleToTarget /
+      fixedAxisFactorAtReferenceShutter);
+
+  if (
+    !Number.isFinite(
+      idealShutterSeconds
+    ) ||
+    idealShutterSeconds <= 0
+  ) {
+    throw new InvalidScientificInputError(
+      "Ideal automatic shutter duration must remain finite and greater than zero."
+    );
+  }
+
+  const automatic =
+    resolveAutomaticShutter(
+      idealShutterSeconds,
+      input.capabilities
+    );
+
+  const achievedScale =
+    opticalExposureFactor(
+      manualAperture,
+      automatic.shutterSeconds,
+      referenceExposure
+    ) *
+    (manualIso /
+      referenceExposure.iso);
+
+  const residual =
+    targetResidual(
+      target,
+      achievedScale,
+      automatic
+        .limitingConstraint
+    );
+
+  return {
+    ...base,
+    status: "resolved",
+    resolvedSettings: {
+      aperture: manualAperture,
+      shutterSeconds:
+        automatic.shutterSeconds,
+      iso: manualIso
+    },
+    idealShutterSecondsBeforeConstraints:
+      idealShutterSeconds,
+    shutterResolution: {
+      kind: automatic.kind,
+      quantizationPolicy:
+        input
+          .shutterQuantizationPolicy,
       quantized:
         automatic.quantized,
       clamped:

@@ -2980,9 +2980,9 @@ This is intentionally different from Manual + Auto ISO.
 
 ### Boundaries
 
-This first #99 slice does not implement:
+The current #99 resolver foundation does not yet implement:
 
-- Aperture Priority;
+- Aperture Priority + Auto ISO;
 - Shutter Priority;
 - Program Auto;
 - Full Auto exposure;
@@ -2993,6 +2993,90 @@ This first #99 slice does not implement:
 - sensor noise or conversion-gain behavior.
 
 Those later modes should reuse the same target/capability/reference-control contracts rather than introduce separate exposure equations.
+
+## Aperture Priority with manual ISO
+
+Use `resolveAperturePriorityExposureMode()` when aperture and ISO are caller-selected and shutter is the only automatic exposure axis.
+
+```ts
+import {
+  resolveAperturePriorityExposureMode
+} from "@photivra/engine";
+
+const resolved =
+  resolveAperturePriorityExposureMode({
+    target,
+    capabilities,
+    referenceExposure: {
+      aperture: 4,
+      shutterSeconds: 1 / 125,
+      iso: 100
+    },
+    manualAperture: 5.6,
+    manualIso: 200,
+    shutterQuantizationPolicy:
+      "nearest-log2-shorter-on-tie"
+  });
+```
+
+This mode uses the same relative target/reference model as Manual + Auto ISO. It does not introduce an Aperture-Priority-specific exposure equation.
+
+The ideal shutter is:
+
+```text
+fixed-axis factor at reference shutter =
+  (reference aperture^2 / manual aperture^2)
+  * (manual ISO / reference ISO)
+
+ideal shutter =
+  reference shutter
+  * target exposure scale
+  / fixed-axis factor
+```
+
+Aperture and ISO are validated against the same resolved #109 capability envelope and then preserved exactly.
+
+### Shutter capability and quantization
+
+For a continuous shutter grid, an in-range ideal duration is used directly.
+
+For a discrete shutter grid, the first policy chooses the nearest duration in log2 exposure-time space. On an exact tie, the **shorter duration** is selected.
+
+The result reports:
+
+- `idealShutterSecondsBeforeConstraints`;
+- resolved shutter duration;
+- continuous/discrete grid kind;
+- whether quantization occurred;
+- whether the result was clamped at the shortest/longest duration;
+- signed residual exposure error.
+
+Limiting constraints are:
+
+- `none`;
+- `shutter-minimum`;
+- `shutter-maximum`;
+- `shutter-grid-quantization`.
+
+Residual sign is shared with the Manual resolver:
+
+- positive residual = still under target / needs more exposure;
+- negative residual = over target / needs less exposure;
+- zero = matched.
+
+### Exposure compensation and no-signal
+
+Exposure compensation is already encoded in the #100 target. Aperture Priority consumes that target and does not apply compensation again.
+
+A no-signal target blocks automatic shutter resolution. The engine does not select the longest shutter or an infinite duration.
+
+### Boundaries
+
+This slice intentionally keeps ISO manual.
+
+Aperture Priority + Auto ISO is later work because two automatic axes require an explicit selection policy such as a minimum-shutter rule. The engine must not assume ISO always moves before or after shutter.
+
+Flash-aware shutter restrictions, safety shift, and manufacturer-specific program behavior also remain separate.
 
 ## Exposure and ISO relations
 
