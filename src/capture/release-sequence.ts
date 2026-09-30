@@ -1032,7 +1032,7 @@ export function resolveReleaseSequence(
  * Produces an explicit cancelled sequence state without mutating the scheduled
  * source sequence or leaving the completed/omitted frame boundary ambiguous.
  */
-export function cancelReleaseSequence(
+export function createCancelledReleaseSequence(
   input:
     CancelReleaseSequenceInput
 ): CancelledReleaseSequence {
