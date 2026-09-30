@@ -1241,11 +1241,12 @@ export function validateSceneRadianceEvaluationBindings(
   );
 
   if (request.target.kind === "surface-point") {
+    const target = request.target;
     if (
       !materialResponseProfile.materials.some(
         (material) =>
           material.materialResponseId ===
-          request.target.materialResponseId
+          target.materialResponseId
       )
     ) {
       throw new InvalidConfigurationError(
