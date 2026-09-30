@@ -646,59 +646,23 @@ export function integrateDiscreteSpectralLineMeasure(
   measure:
     DiscreteSpectralLineMeasure
 ): IntegratedDiscreteSpectralLineMeasure {
-  const distribution =
-    parseNormalizedDiscreteSpectralLineDistribution(
-      {
-        wavelengthBasis:
-          measure.wavelengthBasis,
-        lineModel:
-          "delta-like-integrated",
-        normalization:
-          "sum-normalized-integrated-weight-to-one",
-        lines: (() => {
-          const total =
-            measure.lines.reduce(
-              (sum, line) =>
-                sum +
-                line.integratedQuantity,
-              0
-            );
-          if (
-            !Number.isFinite(total) ||
-            total < 0
-          ) {
-            throw new InvalidConfigurationError(
-              "Discrete spectral line integrated quantities must have a finite non-negative sum."
-            );
-          }
-          if (total === 0) {
-            return measure.lines.map(
-              (line, index) => ({
-                lineId: line.lineId,
-                wavelengthNanometers:
-                  line.wavelengthNanometers,
-                normalizedIntegratedWeight:
-                  index === 0 ? 1 : 0
-              })
-            );
-          }
-          return measure.lines.map(
-            (line) => ({
-              lineId: line.lineId,
-              wavelengthNanometers:
-                line.wavelengthNanometers,
-              normalizedIntegratedWeight:
-                line.integratedQuantity /
-                total
-            })
-          );
-        })()
-      },
-      "measure"
+  const record = requireRecord(
+    measure,
+    "measure"
+  );
+  const wavelengthBasis =
+    parseResolvedBasis(
+      record.wavelengthBasis,
+      "measure.wavelengthBasis"
+    );
+  const quantityUnit =
+    parseQuantityUnit(
+      record.quantityUnit,
+      "measure.quantityUnit"
     );
 
   if (
-    measure.lineModel !==
+    record.lineModel !==
     "delta-like-integrated"
   ) {
     throw new InvalidConfigurationError(
@@ -706,50 +670,94 @@ export function integrateDiscreteSpectralLineMeasure(
     );
   }
   if (
-    measure
-      .continuousSpectralDensityAssumed !==
+    record.continuousSpectralDensityAssumed !==
       false ||
-    measure
-      .wavelengthMeasureMultiplicationRequired !==
+    record.wavelengthMeasureMultiplicationRequired !==
       false
   ) {
     throw new InvalidConfigurationError(
       "Discrete spectral line measures must not claim continuous-density or d-lambda integration semantics."
     );
   }
-
-  const quantityUnit =
-    parseQuantityUnit(
-      measure.quantityUnit,
-      "measure.quantityUnit"
-    );
-  const integratedQuantity =
-    measure.lines.reduce(
-      (sum, line) =>
-        sum +
-        requireNonNegativeFinite(
-          line.integratedQuantity,
-          "measure.lines.integratedQuantity"
-        ),
-      0
-    );
   if (
-    !Number.isFinite(
-      integratedQuantity
-    )
+    !Array.isArray(record.lines) ||
+    record.lines.length === 0
   ) {
     throw new InvalidConfigurationError(
-      "Discrete spectral line integrated quantity must remain finite."
+      "measure.lines must be a non-empty array."
+    );
+  }
+
+  let previousWavelength =
+    Number.NEGATIVE_INFINITY;
+  const lineIds: string[] = [];
+  let integratedQuantity = 0;
+
+  for (
+    let index = 0;
+    index < record.lines.length;
+    index += 1
+  ) {
+    const linePath =
+      "measure.lines[" + index + "]";
+    const line = requireRecord(
+      record.lines[index],
+      linePath
+    );
+    const lineId =
+      requireNonEmptyString(
+        line.lineId,
+        linePath + ".lineId"
+      );
+    const wavelengthNanometers =
+      requirePositiveFinite(
+        line.wavelengthNanometers,
+        linePath +
+          ".wavelengthNanometers"
+      );
+    if (
+      wavelengthNanometers <=
+      previousWavelength
+    ) {
+      throw new InvalidConfigurationError(
+        "measure.lines wavelengths must be strictly increasing with no duplicates."
+      );
+    }
+    previousWavelength =
+      wavelengthNanometers;
+    lineIds.push(lineId);
+
+    integratedQuantity +=
+      requireNonNegativeFinite(
+        line.integratedQuantity,
+        linePath +
+          ".integratedQuantity"
+      );
+    if (
+      !Number.isFinite(
+        integratedQuantity
+      )
+    ) {
+      throw new InvalidConfigurationError(
+        "Discrete spectral line integrated quantity must remain finite."
+      );
+    }
+  }
+
+  if (
+    new Set(lineIds).size !==
+    lineIds.length
+  ) {
+    throw new InvalidConfigurationError(
+      "measure.lines[].lineId must not contain duplicates."
     );
   }
 
   return {
-    wavelengthBasis:
-      distribution.wavelengthBasis,
+    wavelengthBasis,
     quantityUnit,
     integratedQuantity,
-    lineCount:
-      distribution.lines.length,
+    lineCount: record.lines.length,
     continuousQuadratureApplied: false,
     wavelengthMeasureMultiplicationApplied:
       false
