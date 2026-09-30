@@ -3196,6 +3196,171 @@ All modes:
 
 Program Auto, Full Auto exposure, Bulb/Time, flash-aware behavior, and named-camera program lines remain later work.
 
+## Program Auto and Full Auto exposure
+
+Program Auto and Full Auto exposure both require a declared, versioned **program line**. The engine does not invent a unique "correct" aperture/shutter pair.
+
+### Generic program line
+
+Use `parseExposureProgramLineProfile()`:
+
+```ts
+import {
+  parseExposureProgramLineProfile
+} from "@photivra/engine";
+
+const programLine =
+  parseExposureProgramLineProfile({
+    schemaVersion: "0.1.0",
+    profileId: "balanced-line",
+    profileVersion: "1.0.0",
+    scientificStatus: "approximation",
+    policyKind:
+      "generic-program-line",
+    interpolation:
+      "log2-aperture-shutter",
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference:
+          "program-line:balanced",
+        reuseStatus:
+          "photivra-owned"
+      }
+    ],
+    limitations: [
+      "Generic educational policy."
+    ],
+    nodes: [
+      {
+        nodeId: "minus-two",
+        opticalExposureStopsFromReference:
+          -2,
+        aperture: 8,
+        shutterSeconds: 1 / 125
+      },
+      {
+        nodeId: "zero",
+        opticalExposureStopsFromReference:
+          0,
+        aperture: 4,
+        shutterSeconds: 1 / 125
+      },
+      {
+        nodeId: "plus-two",
+        opticalExposureStopsFromReference:
+          2,
+        aperture: 4,
+        shutterSeconds: 4 / 125
+      }
+    ]
+  });
+```
+
+Each node's declared stop coordinate must match its aperture/shutter optical exposure relative to the same `referenceExposure` supplied to #99. Nodes outside the resolved #109 aperture/shutter envelope fail closed.
+
+Between nodes, aperture and shutter interpolate in log2 space. This keeps optical exposure stops linear across the segment before equipment quantization.
+
+### Program Auto with manual ISO
+
+```ts
+const resolved =
+  resolveProgramAutoExposureMode({
+    target,
+    capabilities,
+    referenceExposure,
+    programLine,
+    isoControl: {
+      kind: "manual",
+      iso: 100
+    }
+  });
+```
+
+Aperture and shutter are automatic; ISO is preserved exactly after capability validation.
+
+If the target falls beyond the first/last program-line node, the line clamps to the endpoint and the result reports residual under/over-exposure.
+
+### Program Auto with Auto ISO
+
+```ts
+const resolved =
+  resolveProgramAutoExposureMode({
+    target,
+    capabilities,
+    referenceExposure,
+    programLine,
+    isoControl: {
+      kind: "automatic",
+      isoBaseline:
+        "minimum-selectable",
+      isoQuantizationPolicy:
+        "nearest-log2-lower-on-tie"
+    }
+  });
+```
+
+The program line is first evaluated at the minimum selectable ISO. Auto ISO then fills any remaining exposure caused by:
+
+- a target beyond the line endpoint;
+- aperture/shutter quantization;
+- capability clamping.
+
+If the program line produces too much exposure even at minimum ISO, ISO clamps at minimum and the residual remains visible.
+
+### Full Auto exposure
+
+```ts
+const resolved =
+  resolveFullAutoExposureMode({
+    target,
+    capabilities,
+    referenceExposure,
+    policy: {
+      kind:
+        "generic-program-line-minimum-iso",
+      programLine,
+      isoBaseline:
+        "minimum-selectable",
+      isoQuantizationPolicy:
+        "nearest-log2-lower-on-tie"
+    }
+  });
+```
+
+Full Auto **exposure** resolves aperture, shutter, and ISO only.
+
+It explicitly does **not** resolve:
+
+- autofocus;
+- white balance;
+- flash;
+- drive mode;
+- scene recognition;
+- stabilization policy.
+
+Those fields remain false in the result so the private app cannot accidentally treat this engine mode as whole-camera automation.
+
+### Program/Full Auto consistency
+
+Given the same:
+
+- #100 exposure target;
+- #109 equipment capabilities;
+- reference exposure;
+- program line;
+- Auto ISO policy;
+
+Program Auto + Auto ISO and Full Auto exposure should resolve identical aperture/shutter/ISO values.
+
+Only the control-mode identity differs.
+
+### Boundaries
+
+Program lines are product policy approximations, not physical laws. Generic lines must not be described as reproducing a specific manufacturer unless exact evidence supports that claim.
+
+Flash-aware program changes, safety shift, Bulb/Time behavior, and broader Full Auto camera decisions remain separate work.
+
 ## Exposure and ISO relations
 
 Use `calculateExposureValue100()` for EV100:
