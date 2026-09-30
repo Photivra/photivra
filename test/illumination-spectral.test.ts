@@ -444,4 +444,132 @@ describe("illumination continuous coverage adapter", () => {
       "discrete lines"
     );
   });
+  it("covers continuous adapter basis/id guards and discrete resolver type guard", () => {
+    const unresolvedBasis =
+      continuousSource();
+    const spectrum =
+      unresolvedBasis.spectrum as Record<
+        string,
+        unknown
+      >;
+    unresolvedBasis.spectrum = {
+      ...spectrum,
+      wavelengthBasis: "unspecified"
+    };
+    const unresolvedSource =
+      profile(unresolvedBasis)
+        .sources[0]!;
+
+    expect(() =>
+      createSceneIlluminationSpectralCoverageParticipant(
+        { source: unresolvedSource }
+      )
+    ).toThrow(
+      "requires a resolved air or vacuum wavelength basis"
+    );
+
+    const continuous =
+      profile(continuousSource())
+        .sources[0]!;
+    expect(() =>
+      createSceneIlluminationSpectralCoverageParticipant(
+        {
+          source: continuous,
+          participantId: " "
+        }
+      )
+    ).toThrow(
+      "participantId must be a non-empty string"
+    );
+
+    expect(() =>
+      resolveSceneIlluminationDiscreteLineMeasure(
+        continuous
+      )
+    ).toThrow(
+      "requires a discrete-relative-lines spectrum"
+    );
+  });
+
+  it("preserves area-radiance and directional-irradiance line quantity domains", () => {
+    const area =
+      profile(
+        discreteSource({
+          family: "area",
+          geometry: {
+            kind: "scene-object-binding",
+            sceneObjectId: "panel"
+          },
+          magnitude: {
+            kind: "surface-radiance",
+            wattsPerSquareMeterSteradian:
+              4,
+            scientificStatus:
+              "approximation",
+            uncertainty: {
+              kind: "not-quantified",
+              limitation: "test"
+            },
+            evidence:
+              evidence("area")
+          }
+        })
+      ).sources[0]!;
+    const areaMeasure =
+      resolveSceneIlluminationDiscreteLineMeasure(
+        area
+      );
+    expect(
+      areaMeasure.measure.quantityUnit
+    ).toBe("W/m^2/sr");
+    expect(
+      integrateDiscreteSpectralLineMeasure(
+        areaMeasure.measure
+      ).integratedQuantity
+    ).toBe(4);
+
+    const directional =
+      profile(
+        discreteSource({
+          family: "directional",
+          geometry: {
+            kind: "directional",
+            directionUnitVector: {
+              x: 0,
+              y: -1,
+              z: 0
+            }
+          },
+          magnitude: {
+            kind:
+              "reference-plane-irradiance",
+            wattsPerSquareMeter: 3,
+            referencePlaneId:
+              "ground",
+            scientificStatus:
+              "approximation",
+            uncertainty: {
+              kind: "not-quantified",
+              limitation: "test"
+            },
+            evidence:
+              evidence("directional")
+          }
+        })
+      ).sources[0]!;
+    const directionalMeasure =
+      resolveSceneIlluminationDiscreteLineMeasure(
+        directional
+      );
+    expect(
+      directionalMeasure.measure
+        .quantityUnit
+    ).toBe("W/m^2");
+    expect(
+      integrateDiscreteSpectralLineMeasure(
+        directionalMeasure.measure
+      ).integratedQuantity
+    ).toBe(3);
+  });
+
 });
