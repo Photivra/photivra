@@ -6,6 +6,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Added
 
+- Added the renderer-neutral scene-radiance provider/material-response boundary. Material profiles distinguish unresolved, RGB/PBR approximation, and wavelength-preserving spectral-data inputs; provider profiles declare spectral/material/visibility/direct/indirect fidelity; evaluation requests bind exact scene/profile/target/time/wavelength identity; results use outgoing spectral radiance in W/m²/sr/nm; and binding validation prevents profile/material/request/result drift without recomputing renderer output. Schema 0.1.0 remains approximation-only at the provider/result level and explicitly does not authorize calibrated radiance, optics/sensor-plane irradiance, photons, fluorescence, volumetric transport, or polarization.
 - Added renderer-neutral shared spectral wavelength primitives plus a scene illumination profile for stable point/spot/area/directional/environment source identities, explicit source-specific magnitude units, relative/RGB/blackbody/continuous-spectrum representations, reusable-data provenance, and fail-closed approximation/calibration boundaries. The profile describes illumination only and does not calculate outgoing scene radiance, material response, visibility, indirect transport, fluorescence, volumetrics, polarization, or sensor signal.
 - Added `scene-radiance-evaluation` as an explicit image-formation ownership stage between scene projection and lens/pupil evaluation. The stage defines the future seam for outgoing spectral radiance without turning `SceneRadiometry`, source metadata, RGB preview values, or sensor-plane irradiance into interchangeable quantities.
 - Added a sensor spectral-response foundation linked to exact color-sampling channel IDs. It supports direct effective external QE, direct effective spectral responsivity in A/W, or explicitly separable channel-filter transmittance × detector EQE; requires reusable rights for embedded numeric curves; uses explicit air/vacuum/unspecified wavelength bases with piecewise-linear interpolation and fail-closed out-of-range behavior; preserves single-condition metadata without inventing angle/temperature/polarization dependence; and keeps spectral integration, photons/electrons, RAW values, and reconstruction separate.
@@ -26,7 +27,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Changed
 
-- Engine API contract advances to `0.61.0`, and the image-formation contract advances to `0.3.0` for explicit scene-radiance ownership. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
+- Engine API contract advances to `0.62.0`; the image-formation contract remains `0.3.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
 
 ## 0.6.0 - 2026-09-29
 
