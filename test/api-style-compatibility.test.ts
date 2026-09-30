@@ -76,7 +76,7 @@ describe("public API style and compatibility contract", () => {
   });
 
   it("keeps independent public version surfaces semver-shaped", () => {
-    const semver = /^\\d+\\.\\d+\\.\\d+$/u;
+    const semver = /^\d+\.\d+\.\d+$/u;
 
     expect(engine.ENGINE_API_VERSION).toMatch(semver);
     expect(engine.POC_SIMULATION_API_VERSION).toMatch(semver);
