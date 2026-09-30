@@ -3,7 +3,6 @@
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,
-  type EvidenceBackedFact,
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
