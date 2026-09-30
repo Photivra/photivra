@@ -620,6 +620,22 @@ export {
 } from "./optics/lateral-chromatic-aberration.js";
 
 export {
+  FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION,
+  composeFrontOfLensFilterTransmission,
+  parseFrontOfLensFilterProfile,
+  resolveFrontOfLensFilterTransmission,
+  type ComposeFrontOfLensFilterTransmissionInput,
+  type ComposedFrontOfLensFilterTransmission,
+  type FrontOfLensFilterProfile,
+  type FrontOfLensFilterScientificStatus,
+  type FrontOfLensFilterSpectralSample,
+  type FrontOfLensFilterTransmissionModel,
+  type FrontOfLensFilterUncertainty,
+  type ResolveFrontOfLensFilterTransmissionInput,
+  type ResolvedFrontOfLensFilterTransmission
+} from "./optics/front-of-lens-filter.js";
+
+export {
   calculateIlluminationVignetting,
   type CalculateIlluminationVignettingInput,
   type IlluminationVignetting,
