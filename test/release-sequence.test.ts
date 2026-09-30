@@ -8,6 +8,7 @@ import {
   resolveGenericEquipmentExposureCapabilities,
   resolveReleaseSequence,
   type GenericReleaseCapabilityProfile,
+  type ReleaseBaseCaptureState,
   type ResolvedGenericEquipmentExposureCapabilities
 } from "../src/index.js";
 
@@ -150,7 +151,7 @@ const exposureCapabilities =
   });
 };
 
-const baseState = () => ({
+const baseState = (): ReleaseBaseCaptureState => ({
   exposure: {
     aperture: 4,
     shutterSeconds: 1 / 125,
