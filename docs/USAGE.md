@@ -3125,6 +3125,110 @@ The source-level helper may distribute point radiant intensity (W/sr), area radi
 
 See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md#shared-spectral-composition).
 
+## Temporal illumination
+
+Use `parseSceneIlluminationTemporalProfile()` to add explicit flash/flicker-style modulation to sources without changing the base illumination schema.
+
+```ts
+import {
+  evaluateSceneIlluminationTemporalMultiplier,
+  parseSceneIlluminationTemporalProfile
+} from "@photivra/engine";
+
+const temporal = parseSceneIlluminationTemporalProfile({
+  schemaVersion: "0.1.0",
+  profileId: "room-light-timing",
+  sceneId: "room",
+  illuminationProfileId: "room-lights",
+  evidence: [
+    {
+      sourceOrigin: "photivra",
+      sourceReference: "timing:room-lights",
+      reuseStatus: "photivra-owned"
+    }
+  ],
+  waveforms: [
+    {
+      waveformId: "flash-pulse",
+      kind: "aperiodic-relative-multiplier",
+      timeUnit: "s",
+      scientificStatus: "approximation",
+      uncertainty: {
+        kind: "not-quantified",
+        limitation: "Example waveform."
+      },
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "waveform:flash-pulse",
+          reuseStatus: "photivra-owned"
+        }
+      ],
+      interpolation: "piecewise-linear",
+      outsideSupportBehavior: "zero",
+      samples: [
+        {
+          timeSecondsFromWaveformReference: 0,
+          relativeMagnitudeMultiplier: 0
+        },
+        {
+          timeSecondsFromWaveformReference: 0.002,
+          relativeMagnitudeMultiplier: 1
+        },
+        {
+          timeSecondsFromWaveformReference: 0.006,
+          relativeMagnitudeMultiplier: 0
+        }
+      ]
+    }
+  ],
+  sourceBindings: [
+    {
+      bindingId: "key-flash-registration",
+      sourceId: "key-flash",
+      waveformId: "flash-pulse",
+      captureTimeReference: "first-opening-boundary-phase",
+      waveformTimeZeroSecondsFromCaptureReference: 0.001,
+      scientificStatus: "approximation",
+      timingUncertainty: {
+        kind: "not-quantified",
+        limitation: "Example registration."
+      },
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "registration:key-flash",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    }
+  ]
+});
+
+const temporalSample =
+  evaluateSceneIlluminationTemporalMultiplier({
+    illuminationProfile,
+    temporalProfile: temporal,
+    sourceId: "key-flash",
+    captureTimeSecondsFromReference: 0.003
+  });
+
+console.log(
+  temporalSample
+    .effectiveRelativeMagnitudeMultiplier
+);
+```
+
+Waveform time is explicitly registered to seconds from the first opening-boundary phase. Sensor readout duration is not used as a substitute for exposure timing.
+
+For finite exposure, use `integrateSceneIlluminationTemporalMultiplierOverExposureWindow()` with the authoritative `CaptureExposureWindows` result and one sample index. The integration uses deterministic midpoint quadrature over that local exposure window and returns average and seconds-integrated relative multipliers.
+
+This layer does not apply the source's physical magnitude, evaluate material/visibility transport, calculate scene radiance, perform sensor response, or choose camera exposure settings.
+
+A scene-radiance provider may optionally bind the temporal profile with `illuminationTemporalProfileId`. When declared, `validateSceneRadianceEvaluationBindings()` requires the matching temporal profile.
+
+See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md#temporal-illumination).
+
 ## Camera and scene schema validation
 
 Use the runtime parsers when camera or scene data crosses an untrusted JSON boundary.
