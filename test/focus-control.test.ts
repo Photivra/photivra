@@ -755,6 +755,28 @@ describe("focus-control validation boundaries", () => {
     );
   });
 
+  it("fails closed on an invalid runtime target event discriminator", () => {
+    expect(() =>
+      resolveFocusTargetObservation({
+        state:
+          state("continuous-af"),
+        stateId:
+          "bad-event",
+        event:
+          "retarget" as "acquire",
+        observation: {
+          kind: "finite-surface",
+          targetId: "subject",
+          observedAtSeconds: 1,
+          longitudinalDistanceM:
+            4
+        }
+      })
+    ).toThrow(
+      'must be "acquire" or "update"'
+    );
+  });
+
   it("rejects release-gate profile identity drift", () => {
     const different =
       parseFocusControlProfile({
