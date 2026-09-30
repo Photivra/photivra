@@ -2631,15 +2631,6 @@ export function resolveAperturePriorityAutoIsoExposureMode(
       }
     });
 
-  if (
-    isoPass.status !== "resolved" ||
-    isoPass.isoControl !== "automatic"
-  ) {
-    throw new InvalidScientificInputError(
-      "Aperture Priority Auto ISO could not resolve its ISO pass."
-    );
-  }
-
   let fallbackUsed = false;
   let shutterSelectionPolicy:
     | "not-longer-than-target"
@@ -3063,15 +3054,6 @@ export function resolveShutterPriorityExposureMode(
           policy.isoQuantizationPolicy
       }
     });
-
-  if (
-    isoPass.status !== "resolved" ||
-    isoPass.isoControl !== "automatic"
-  ) {
-    throw new InvalidScientificInputError(
-      "Shutter Priority Auto ISO could not resolve its ISO pass."
-    );
-  }
 
   return {
     ...base,
