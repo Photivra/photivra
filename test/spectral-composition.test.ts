@@ -506,3 +506,83 @@ describe("discrete spectral line measure", () => {
     );
   });
 });
+
+describe("discrete spectral line fail-closed measure validation", () => {
+  it("rejects unordered and duplicate line identities at integration time", () => {
+    const base = {
+      wavelengthBasis: "vacuum" as const,
+      quantityUnit: "relative" as const,
+      lineModel: "delta-like-integrated" as const,
+      continuousSpectralDensityAssumed: false as const,
+      wavelengthMeasureMultiplicationRequired: false as const
+    };
+
+    expect(() =>
+      integrateDiscreteSpectralLineMeasure({
+        ...base,
+        lines: [
+          {
+            lineId: "red",
+            wavelengthNanometers: 650,
+            integratedQuantity: 1
+          },
+          {
+            lineId: "blue",
+            wavelengthNanometers: 450,
+            integratedQuantity: 1
+          }
+        ]
+      })
+    ).toThrow(
+      "wavelengths must be strictly increasing"
+    );
+
+    expect(() =>
+      integrateDiscreteSpectralLineMeasure({
+        ...base,
+        lines: [
+          {
+            lineId: "same",
+            wavelengthNanometers: 450,
+            integratedQuantity: 1
+          },
+          {
+            lineId: "same",
+            wavelengthNanometers: 650,
+            integratedQuantity: 1
+          }
+        ]
+      })
+    ).toThrow(
+      "lineId must not contain duplicates"
+    );
+  });
+
+  it("fails closed when summing integrated line quantities overflows", () => {
+    expect(() =>
+      integrateDiscreteSpectralLineMeasure({
+        wavelengthBasis: "vacuum",
+        quantityUnit: "W/m^2",
+        lineModel: "delta-like-integrated",
+        continuousSpectralDensityAssumed: false,
+        wavelengthMeasureMultiplicationRequired: false,
+        lines: [
+          {
+            lineId: "a",
+            wavelengthNanometers: 450,
+            integratedQuantity:
+              Number.MAX_VALUE
+          },
+          {
+            lineId: "b",
+            wavelengthNanometers: 650,
+            integratedQuantity:
+              Number.MAX_VALUE
+          }
+        ]
+      })
+    ).toThrow(
+      "integrated quantity must remain finite"
+    );
+  });
+});
