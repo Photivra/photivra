@@ -6,7 +6,8 @@ import {
   parseSceneToSensorIrradianceProfile,
   type SceneRadianceEvaluationRequest,
   type SceneRadianceEvaluationResult,
-  type SceneToSensorIrradianceProfile
+  type SceneToSensorIrradianceProfile,
+  type SceneToSensorIrradianceResult
 } from "../src/index.js";
 
 const evidence = (
@@ -73,7 +74,9 @@ const radiance = (
 });
 
 const spectralProfile = (
-  factors = [0.8, 0.6, 0.4] as const
+  factors:
+    readonly [number, number, number] =
+      [0.8, 0.6, 0.4]
 ): SceneToSensorIrradianceProfile =>
   parseSceneToSensorIrradianceProfile({
     schemaVersion: "0.1.0",
@@ -207,7 +210,7 @@ const calculate = (
       typeof calculateSceneRadianceToSensorIrradiance
     >[0]
   > = {}
-) =>
+): SceneToSensorIrradianceResult =>
   calculateSceneRadianceToSensorIrradiance({
     sceneRadianceRequest: request(),
     sceneRadianceResult: radiance(),
