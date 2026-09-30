@@ -3263,6 +3263,138 @@ The meter averages **linear relative signals first**, then computes the stop off
 
 This policy is explicit ambient temporal metering. It does not infer time weights from source flicker frequency, source waveform shape, shutter/readout duration, renderer frame cadence, or final display brightness. Flash/TTL metering remains separate.
 
+## Logical release sequences
+
+Use `parseGenericReleaseCapabilityProfile()` and `resolveReleaseSequence()` for deterministic logical camera releases such as single-frame capture, bursts, self-timer sequences, exposure bracketing, and focus bracketing.
+
+This is deliberately separate from sensor capture modes: a burst of several photographs is several logical captures, not one multi-frame sensor reconstruction.
+
+```ts
+import {
+  parseGenericReleaseCapabilityProfile,
+  resolveReleaseSequence
+} from "@photivra/engine";
+
+const releaseCapabilities =
+  parseGenericReleaseCapabilityProfile({
+    schemaVersion: "0.1.0",
+    profileId: "generic-release",
+    profileVersion: "1.0.0",
+    scientificStatus: "approximation",
+    evidence,
+    supportedDriveModes: {
+      value: [
+        "single",
+        "burst",
+        "self-timer"
+      ],
+      evidence
+    },
+    maximumLogicalFramesPerSequence: {
+      value: 20,
+      evidence
+    },
+    maximumCadenceFps: {
+      value: 10,
+      evidence
+    },
+    minimumInterFrameGapSeconds: {
+      value: 0.01,
+      evidence
+    },
+    overlappingOrdinaryStillExposures:
+      false,
+    exposureBracketing: {
+      availability: {
+        value: "supported",
+        evidence
+      },
+      supportedAxes: [
+        "shutter",
+        "iso"
+      ]
+    },
+    focusBracketing: {
+      availability: {
+        value: "supported",
+        evidence
+      }
+    }
+  });
+
+const burst =
+  resolveReleaseSequence({
+    sequenceId: "burst-42",
+    releaseRequestTimeSeconds: 10,
+    sequenceSeedUint32: 12345,
+    drive: {
+      kind: "burst",
+      frameCount: 5
+    },
+    bracket: {
+      kind: "none"
+    },
+    requestedCadenceFps: 8,
+    baseState: {
+      exposure: {
+        aperture: 4,
+        shutterSeconds: 1 / 125,
+        iso: 400
+      },
+      focus: {
+        kind: "finite",
+        distanceM: 5
+      },
+      automation: {
+        ae: "locked",
+        af: "continuous",
+        awb: "locked"
+      }
+    },
+    releaseCapabilities,
+    exposureCapabilities
+  });
+```
+
+Each frame carries:
+
+- stable sequence/frame identity;
+- explicit exposure start/end time;
+- scene-time identity;
+- actual aperture/shutter/ISO;
+- explicit focus state;
+- deterministic per-frame seed;
+- explicit automation/lock policy.
+
+Adjacent frames derive different stochastic seeds from the same stable sequence seed, while replaying identical sequence inputs reproduces the same sequence.
+
+### Cadence feasibility
+
+Requested FPS is not treated as more authoritative than physics/capabilities.
+
+For non-overlapping ordinary still exposures, the actual start-to-start interval is constrained by:
+
+- requested cadence;
+- body maximum cadence;
+- previous frame exposure duration;
+- minimum inter-frame gap.
+
+The resolver reports the active timing constraint rather than silently scheduling overlapping exposures.
+
+Buffer/media/thermal slowdown, pre-release capture, and special overlapping acquisition modes are not modeled in schema 0.1.0.
+
+### Bracketing
+
+Exposure bracketing changes an explicit physical exposure axis per frame. It does not apply a post-render brightness offset.
+
+Focus bracketing consumes explicit `FocusPlane` states. It does not claim focus-stacked output or assign universal physical meaning to an abstract focus-step index.
+
+White-balance bracketing is not forced into physical multi-exposure semantics; WB rendering/development variation remains downstream color-pipeline work.
+
+### Cancellation
+
+Use `cancelReleaseSequence()` to record an explicit completed/omitted frame boundary without mutating the scheduled source sequence.
+
 ## Generic equipment exposure capabilities
 
 Use the #109 equipment-capability API to describe **what a generic Photivra body and lens allow** before #99 chooses any setting.
