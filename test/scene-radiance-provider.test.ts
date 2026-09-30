@@ -88,7 +88,9 @@ const materialProfileInput = (
   polarizationModeled: false
 });
 
-const illuminationProfile = () =>
+const illuminationProfile = (): ReturnType<
+  typeof parseSceneIlluminationProfile
+> =>
   parseSceneIlluminationProfile({
     schemaVersion: "0.1.0",
     profileId: "lights",
@@ -693,7 +695,23 @@ describe("scene-radiance evaluation request/result", () => {
 });
 
 describe("scene-radiance provider binding validation", () => {
-  const context = () => {
+  const context = (): {
+    providerProfile: ReturnType<
+      typeof parseSceneRadianceProviderProfile
+    >;
+    illuminationProfile: ReturnType<
+      typeof parseSceneIlluminationProfile
+    >;
+    materialResponseProfile: ReturnType<
+      typeof parseSceneMaterialResponseProfile
+    >;
+    request: ReturnType<
+      typeof parseSceneRadianceEvaluationRequest
+    >;
+    result: ReturnType<
+      typeof parseSceneRadianceEvaluationResult
+    >;
+  } => {
     const materialResponseProfile =
       parseSceneMaterialResponseProfile(
         materialProfileInput([
