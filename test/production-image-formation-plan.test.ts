@@ -193,7 +193,9 @@ const opticalProfile = (): SceneToSensorIrradianceProfile =>
 
 const frontFilter = (
   factor = 0.5
-) =>
+): ReturnType<
+  typeof parseFrontOfLensFilterProfile
+> =>
   parseFrontOfLensFilterProfile({
     schemaVersion: "0.1.0",
     filterId: "generic-front-filter",
