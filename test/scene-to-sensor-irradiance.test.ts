@@ -819,3 +819,62 @@ describe("optical bridge profile schema guards", () => {
     ).toBe(false);
   });
 });
+
+describe("optical bridge numerical fail-closed guards", () => {
+  it("rejects a working f-number so small that paraxial acceptance overflows", () => {
+    expect(() =>
+      calculate({
+        focus: {
+          kind:
+            "supplied-working-f-number",
+          focus: {
+            kind: "infinity"
+          },
+          workingFNumber: {
+            value: Number.MIN_VALUE,
+            evidence:
+              evidence("tiny-working-fnumber")
+          },
+          basis:
+            "Pathological test."
+        }
+      })
+    ).toThrow(
+      "Paraxial geometric acceptance must remain finite"
+    );
+  });
+
+  it("rejects sensor-plane irradiance overflow even when every individual input is finite", () => {
+    const base =
+      spectralProfile([
+        1,
+        1,
+        1
+      ]);
+    const ultraFast =
+      parseSceneToSensorIrradianceProfile({
+        ...base,
+        applicability: {
+          ...base.applicability,
+          nominalFNumber: {
+            minimum: 0.1,
+            maximum: 16
+          }
+        }
+      });
+
+    expect(() =>
+      calculate({
+        sceneRadianceResult:
+          radiance(
+            Number.MAX_VALUE
+          ),
+        profile: ultraFast,
+        nominalFNumber: 0.2
+      })
+    ).toThrow(
+      "Sensor-plane spectral irradiance must remain finite"
+    );
+  });
+});
+
