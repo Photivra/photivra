@@ -193,14 +193,14 @@ describe("scientific assurance composition", () => {
                 uncertainty: [
                   {
                     kind: "relative",
-                    quantity: "throughput",
+                    quantityPath: "value.throughput",
                     fraction: 0.03,
                     source:
                       "model-approximation"
                   },
                   {
                     kind: "absolute",
-                    quantity: "radius",
+                    quantityPath: "value.radius",
                     plusMinus: 0.01,
                     unit: "mm",
                     source:
@@ -233,14 +233,14 @@ describe("scientific assurance composition", () => {
         uncertainty: [
           {
             kind: "relative",
-            quantity: "throughput",
+            quantityPath: "value.throughput",
             fraction: 0.03,
             source:
               "model-approximation"
           },
           {
             kind: "absolute",
-            quantity: "radius",
+            quantityPath: "value.radius",
             plusMinus: 0.01,
             unit: "mm",
             source:
