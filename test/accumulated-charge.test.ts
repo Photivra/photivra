@@ -562,6 +562,32 @@ describe(
       );
     });
 
+    it("rejects invalid component kind and completeness schema/meaning", () => {
+      expect(() =>
+        parseSensorAdditionalStoredChargeComponent({
+          ...component(),
+          kind: "unknown"
+        })
+      ).toThrow("kind is invalid");
+
+      expect(() =>
+        parseSensorAccumulatedChargeCompletenessProfile({
+          ...completeness([]),
+          schemaVersion: "9.9.9"
+        })
+      ).toThrow("schemaVersion");
+
+      expect(() =>
+        parseSensorAccumulatedChargeCompletenessProfile({
+          ...completeness([]),
+          coverageMeaning:
+            "partial"
+        })
+      ).toThrow(
+        "coverageMeaning"
+      );
+    });
+
     it("fails closed on total accumulated-charge overflow", () => {
       expect(() =>
         composeSensorAccumulatedCharge({
