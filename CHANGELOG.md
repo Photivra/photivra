@@ -6,6 +6,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Added
 
+- Added #104 generic focus-control with explicit MF, single-AF and continuous-AF policies; renderer-neutral finite/infinity target observations using #103 longitudinal-distance semantics; deterministic ideal-instantaneous AF actuation; explicit idle/acquired/target-lost/locked state; hold-last-focus target-loss behavior with explicit reacquisition; focus lock independent from exposure/metering/WB; and a separate focus-priority/release-priority/balanced capture-gating seam without claiming commercial AF tracking performance.
 - Completed #12 sensor readout/shutter closure with exact capture-mode timing profiles, depth-dependent camera-translation/parallax temporal quadrature, and provider-neutral temporal scene-radiance sampling/reduction on the authoritative first-opening-boundary exposure clock. Readout timing remains distinct from exposure timing; unsupported non-uniform schedules fail closed; translation requires metric depth and does not authorize one global homography; camera and subject translation remain separate inputs; per-node radiance uncertainty/evidence is preserved without fabricated aggregate uncertainty.
 - Completed the #111 capture-state handoff with `createProductionCaptureSnapshotFromReleaseFrame()`: committed #105 release-frame exposure/focus/automation/timing/seed state and the full resolved #108 white-balance state are validated, frozen, fingerprinted, round-trippable, and surfaced in production-plan capture identity. Legacy direct snapshot construction remains supported.
 - Added #134 engine-wide scientific assurance composition with explicit calibrated/approximation/unknown status, required-evidence visibility, quantified/not-quantified/unknown/not-applicable uncertainty states, preservation of existing `CalculationQuality` uncertainty components, and a fail-closed rule against fabricated aggregate uncertainty. #111 production plans and optimized/reference consumer manifests now preserve the same assurance object and include material evidence/uncertainty changes in reproducibility identity.
@@ -51,7 +52,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Changed
 
-- Engine API contract advances to `0.86.0`; production image-formation plan contract advances to `0.5.0`; scientific-assurance contract remains `0.1.0`; production capture snapshot advances to `0.3.0`; production plan consumer manifest remains `0.1.0`; image-formation contract remains `0.4.0`; Exposure Mode Resolver remains `0.5.0`; Exposure Duration Control remains `0.1.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
+- Engine API contract advances to `0.87.0`; production image-formation plan contract advances to `0.5.0`; scientific-assurance contract remains `0.1.0`; production capture snapshot advances to `0.3.0`; production plan consumer manifest remains `0.1.0`; image-formation contract remains `0.4.0`; Exposure Mode Resolver remains `0.5.0`; Exposure Duration Control remains `0.1.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
 
 ## 0.6.0 - 2026-09-29
 
