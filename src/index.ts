@@ -758,6 +758,19 @@ export {
 } from "./schema/illumination-temporal.js";
 
 export {
+  SCENE_RADIANCE_TEMPORAL_SAMPLING_PLAN_VERSION,
+  createSceneRadianceTemporalSamplingPlan,
+  reduceSceneRadianceTemporalSamples,
+  type CreateSceneRadianceTemporalSamplingPlanInput,
+  type ReducedSceneRadianceTemporalExposure,
+  type ReduceSceneRadianceTemporalSamplesInput,
+  type SceneRadianceTemporalEvaluatedSample,
+  type SceneRadianceTemporalQuery,
+  type SceneRadianceTemporalSamplingNode,
+  type SceneRadianceTemporalSamplingPlan
+} from "./schema/scene-radiance-temporal.js";
+
+export {
   SCENE_MATERIAL_RESPONSE_PROFILE_SCHEMA_VERSION,
   SCENE_RADIANCE_EVALUATION_SCHEMA_VERSION,
   SCENE_RADIANCE_PROVIDER_PROFILE_SCHEMA_VERSION,
