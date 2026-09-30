@@ -3561,10 +3561,12 @@ function physicalAssuranceComponents(
           ?.uncertainty
           ? {
               kind:
-                "not-propagated",
-              limitation:
-                "Field-throughput CalculationResult uncertainty remains on its source result; this plan does not flatten it into a fabricated scalar."
-            } as never
+                "calculation-quality",
+              quality:
+                sample
+                  .fieldThroughput
+                  .result.quality
+            }
           : {
               kind:
                 "not-quantified",
