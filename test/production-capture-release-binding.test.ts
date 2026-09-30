@@ -512,8 +512,13 @@ describe("production capture binding from release frame", () => {
           focus: frame.focus,
           automation:
             frame.automation,
-          whiteBalanceStateId:
-            frame.whiteBalanceStateId
+          ...(frame.whiteBalanceStateId ===
+          undefined
+            ? {}
+            : {
+                whiteBalanceStateId:
+                  frame.whiteBalanceStateId
+              })
         },
         whiteBalanceState:
           lockedWb()
@@ -563,8 +568,13 @@ describe("production capture binding from release frame", () => {
           focus: frame.focus,
           automation:
             frame.automation,
-          whiteBalanceStateId:
-            frame.whiteBalanceStateId
+          ...(frame.whiteBalanceStateId ===
+          undefined
+            ? {}
+            : {
+                whiteBalanceStateId:
+                  frame.whiteBalanceStateId
+              })
         },
         whiteBalanceState:
           lockedWb()
