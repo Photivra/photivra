@@ -621,3 +621,420 @@ describe("resolved WB state parser", () => {
     );
   });
 });
+
+
+describe("resolved WB parser semantic variants", () => {
+  const baseState = {
+    version: "0.1.0" as const,
+    inputDomain:
+      "relative-pre-wb-camera-linear-rgb" as const,
+    channelGains: {
+      red: 1.2,
+      green: 1,
+      blue: 1.4
+    },
+    locked: false,
+    trueIlluminantMetadataUsed:
+      false as const,
+    sceneIlluminationModified:
+      false as const,
+    rawCaptureDestructivelyModified:
+      false as const,
+    physicalExposureModified:
+      false as const,
+    focusModified: false as const,
+    limitations: [] as readonly string[]
+  };
+
+  const measurement = {
+    imageStateId: "image-state",
+    usableSampleCount: 2,
+    rejectedClippedSampleCount: 1,
+    weightedMeanPreWbSignal: {
+      red: 0.8,
+      green: 1,
+      blue: 1.3
+    }
+  };
+
+  it("parses manual, preset, custom, and AWB committed states", () => {
+    const manual =
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        stateId: "manual",
+        source: "manual-gains"
+      });
+    expect(manual.source)
+      .toBe("manual-gains");
+
+    const preset =
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        stateId: "preset",
+        source: "preset",
+        sourceProfile: {
+          profileId: "wb-profile",
+          profileVersion: "1.0.0"
+        },
+        presetId: "daylight"
+      });
+    expect(preset.presetId)
+      .toBe("daylight");
+
+    const custom =
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        stateId: "custom",
+        source:
+          "custom-measurement",
+        measurement
+      });
+    expect(
+      custom.measurement
+        ?.usableSampleCount
+    ).toBe(2);
+
+    const awb =
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        stateId: "awb",
+        source:
+          "auto-white-balance",
+        sourceProfile: {
+          profileId: "wb-profile",
+          profileVersion: "1.0.0"
+        },
+        awbPolicy: {
+          policyId: "standard",
+          intent: "standard",
+          correctionStrength: 0.8
+        },
+        measurement
+      });
+    expect(awb.awbPolicy)
+      .toMatchObject({
+        policyId: "standard",
+        intent: "standard",
+        correctionStrength: 0.8
+      });
+  });
+
+  it("validates committed WB discriminants and required source metadata", () => {
+    expect(() =>
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        version: "9.9.9",
+        stateId: "bad-version",
+        source: "manual-gains"
+      })
+    ).toThrow("version must be");
+
+    expect(() =>
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        inputDomain: "display-rgb",
+        stateId: "bad-domain",
+        source: "manual-gains"
+      })
+    ).toThrow("inputDomain");
+
+    expect(() =>
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        stateId: "bad-source",
+        source: "magic"
+      })
+    ).toThrow("source is invalid");
+
+    expect(() =>
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        stateId: "bad-locked",
+        source: "manual-gains",
+        locked: "yes"
+      })
+    ).toThrow("locked must be boolean");
+
+    expect(() =>
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        stateId: "preset-missing",
+        source: "preset",
+        presetId: "daylight"
+      })
+    ).toThrow(
+      "requires sourceProfile and presetId"
+    );
+
+    expect(() =>
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        stateId: "custom-missing",
+        source:
+          "custom-measurement"
+      })
+    ).toThrow(
+      "requires measurement identity"
+    );
+
+    expect(() =>
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        stateId: "awb-missing",
+        source:
+          "auto-white-balance",
+        sourceProfile: {
+          profileId: "wb",
+          profileVersion: "1"
+        }
+      })
+    ).toThrow(
+      "requires sourceProfile, awbPolicy, and measurement"
+    );
+  });
+
+  it("validates lock identity, AWB policy, and measurement fields", () => {
+    expect(() =>
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        stateId: "unlocked-with-source",
+        source: "manual-gains",
+        sourceStateId: "old"
+      })
+    ).toThrow(
+      "unlocked WB state must not declare sourceStateId"
+    );
+
+    expect(() =>
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        stateId: "bad-awb",
+        source:
+          "auto-white-balance",
+        sourceProfile: {
+          profileId: "wb",
+          profileVersion: "1"
+        },
+        awbPolicy: {
+          policyId: "bad",
+          intent: "magic",
+          correctionStrength: 0.5
+        },
+        measurement
+      })
+    ).toThrow(
+      "awbPolicy.intent is invalid"
+    );
+
+    expect(() =>
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        stateId: "bad-measurement",
+        source:
+          "custom-measurement",
+        measurement: {
+          ...measurement,
+          usableSampleCount: 0
+        }
+      })
+    ).toThrow(
+      "usableSampleCount must be greater than zero"
+    );
+
+    expect(() =>
+      parseResolvedWhiteBalanceState({
+        ...baseState,
+        stateId: "bad-gain",
+        source: "manual-gains",
+        channelGains: {
+          red: 0,
+          green: 1,
+          blue: 1
+        }
+      })
+    ).toThrow(
+      "channelGains.red must be greater than zero"
+    );
+  });
+});
+
+describe("release binding validation boundaries", () => {
+  const bindingFor = (
+    frame:
+      ReturnType<typeof resolveReleaseSequence>["frames"][number]
+  ) => ({
+    releaseSequenceVersion:
+      "0.1.0" as const,
+    sequenceId:
+      frame.sequenceId,
+    releaseFrameId:
+      frame.releaseFrameId,
+    frameIndex:
+      frame.frameIndex,
+    exposure: {
+      ...frame.exposure
+    },
+    stochasticSeedUint32:
+      frame.stochasticSeedUint32,
+    exposureStartTimeSeconds:
+      frame.exposureStartTimeSeconds,
+    exposureEndTimeSeconds:
+      frame.exposureEndTimeSeconds,
+    sceneTimeSecondsFromSequenceStart:
+      frame.sceneTimeSecondsFromSequenceStart,
+    startIntervalFromPreviousSeconds:
+      frame.startIntervalFromPreviousSeconds,
+    timingConstraints: [
+      ...frame.timingConstraints
+    ],
+    focus: frame.focus,
+    automation:
+      frame.automation,
+    ...(frame.whiteBalanceStateId ===
+    undefined
+      ? {}
+      : {
+          whiteBalanceStateId:
+            frame.whiteBalanceStateId
+        })
+  });
+
+  const directInput = () => {
+    const frame = releaseFrame();
+    return {
+      frame,
+      input: {
+        captureId: "binding-validation",
+        releaseFrameId:
+          frame.releaseFrameId,
+        sceneStateId:
+          "scene-state",
+        sceneTimeSecondsFromExposureStart:
+          0,
+        outputStateId: "output",
+        exposure: {
+          ...frame.exposure
+        },
+        stochasticSeedUint32:
+          frame.stochasticSeedUint32,
+        releaseFrameBinding:
+          bindingFor(frame),
+        whiteBalanceState:
+          lockedWb()
+      }
+    };
+  };
+
+  it("rejects release exposure/seed drift and malformed timing metadata", () => {
+    const first = directInput();
+    expect(() =>
+      createProductionCaptureSnapshot({
+        ...first.input,
+        releaseFrameBinding: {
+          ...first.input.releaseFrameBinding,
+          exposure: {
+            ...first.frame.exposure,
+            aperture: 8
+          }
+        }
+      })
+    ).toThrow(
+      "exposure must match the committed capture exposure"
+    );
+
+    const second = directInput();
+    expect(() =>
+      createProductionCaptureSnapshot({
+        ...second.input,
+        releaseFrameBinding: {
+          ...second.input.releaseFrameBinding,
+          stochasticSeedUint32:
+            second.frame
+              .stochasticSeedUint32 +
+            1
+        }
+      })
+    ).toThrow(
+      "stochasticSeedUint32 must match"
+    );
+
+    const third = directInput();
+    expect(() =>
+      createProductionCaptureSnapshot({
+        ...third.input,
+        releaseFrameBinding: {
+          ...third.input.releaseFrameBinding,
+          startIntervalFromPreviousSeconds:
+            0.2
+        }
+      })
+    ).toThrow(
+      "first release frame must not declare"
+    );
+
+    const fourth = directInput();
+    expect(() =>
+      createProductionCaptureSnapshot({
+        ...fourth.input,
+        releaseFrameBinding: {
+          ...fourth.input.releaseFrameBinding,
+          timingConstraints: [
+            "requested-cadence",
+            "requested-cadence"
+          ]
+        }
+      })
+    ).toThrow(
+      "timingConstraints must not contain duplicates"
+    );
+  });
+
+  it("requires WB state exactly when the release frame commits a WB identity", () => {
+    const first = directInput();
+    expect(() =>
+      createProductionCaptureSnapshot({
+        ...first.input,
+        whiteBalanceState:
+          undefined
+      })
+    ).toThrow(
+      "requires the committed resolved white-balance state"
+    );
+
+    const frame = releaseFrame();
+    const binding = bindingFor(frame);
+    const noWbBinding = {
+      ...binding,
+      whiteBalanceStateId:
+        undefined
+    };
+    delete (
+      noWbBinding as {
+        whiteBalanceStateId?: string;
+      }
+    ).whiteBalanceStateId;
+
+    expect(() =>
+      createProductionCaptureSnapshot({
+        captureId: "unexpected-wb",
+        releaseFrameId:
+          frame.releaseFrameId,
+        sceneStateId: "scene",
+        sceneTimeSecondsFromExposureStart:
+          0,
+        outputStateId: "output",
+        exposure: {
+          ...frame.exposure
+        },
+        stochasticSeedUint32:
+          frame.stochasticSeedUint32,
+        releaseFrameBinding:
+          noWbBinding,
+        whiteBalanceState:
+          lockedWb()
+      })
+    ).toThrow(
+      "must not receive a committed whiteBalanceState"
+    );
+  });
+});
