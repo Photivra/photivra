@@ -636,6 +636,26 @@ function opticalExposureFactor(
 
 function targetResidual(
   target:
+    Extract<
+      ExposureMeterTarget,
+      { status: "resolved" }
+    >,
+  achievedScale: number,
+  limitingConstraint:
+    ExposureResolutionConstraint
+): Extract<
+  ExposureTargetResidual,
+  { status: "resolved" }
+>;
+function targetResidual(
+  target:
+    ExposureMeterTarget,
+  achievedScale: number,
+  limitingConstraint:
+    ExposureResolutionConstraint
+): ExposureTargetResidual;
+function targetResidual(
+  target:
     ExposureMeterTarget,
   achievedScale: number,
   limitingConstraint:
