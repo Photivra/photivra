@@ -77,6 +77,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 
 - [EV100, relative optical exposure, relative rendered exposure, and equivalent ISO compensation](docs/USAGE.md#exposure-and-iso-relations);
 - [relative pre-exposure metering](docs/USAGE.md#relative-pre-exposure-metering), with explicit generic multi-zone, center-weighted, spot, and highlight-weighted policies over the oriented active capture frame while keeping exposure compensation and automatic setting resolution downstream;
+- [scene-radiance-derived and explicit temporal metering](docs/USAGE.md#scene-radiance-derived-and-temporal-metering), binding relative meter samples to the #85 provider/material/illumination context and requiring declared time averaging for time-varying illumination without inventing a spectral-to-luminance conversion;
 - [constant-velocity projected point motion](docs/USAGE.md#projected-subject-motion);
 - [time-parameterized spatial camera-rotation mapping](docs/USAGE.md#spatial-camera-rotation-mapping) for yaw/pitch/roll;
 - [capture-local pure-rotation exposure trajectories](docs/USAGE.md#capture-rotation-exposure-trajectories), evaluated at each native point's local exposure start/end without claiming a finished rolling-shutter warp;

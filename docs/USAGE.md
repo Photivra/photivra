@@ -2438,7 +2438,122 @@ A zero-signal sample set returns `status: "no-signal"` rather than infinity/NaN.
 
 The input must explicitly state that exposure settings, white balance, tone mapping, display gamma, and sharpening have not already been applied. This prevents a circular final-preview auto-exposure loop.
 
-This first slice is ambient/relative metering only. Flash/TTL metering, calibrated photometric/radiometric metering, temporal/flicker-aware metering policy, exposure compensation application, and automatic mode resolution remain separate work.
+This first slice is ambient/relative metering only. Flash/TTL metering, calibrated photometric/radiometric metering, exposure compensation application, and automatic mode resolution remain separate work.
+
+## Scene-radiance-derived and temporal metering
+
+Use `createSceneRadianceDerivedExposureMeteringSampleSet()` when a renderer/reference evaluator supplies relative pre-exposure meter zones derived from the #85 scene-radiance context.
+
+The bridge validates:
+
+- scene/provider/illumination/material profile identity;
+- provider material fidelity against the supplied material profile;
+- the declared scalar-reduction derivation profile;
+- optional temporal-illumination profile identity;
+- explicit capture time when the provider is time-varying.
+
+The scalar reduction remains renderer/provider supplied. Photivra does **not** turn one or more spectral-radiance samples into luminance or a camera meter signal automatically.
+
+```ts
+import {
+  createSceneRadianceDerivedExposureMeteringSampleSet,
+  meterRelativeExposure,
+  parseSceneRadianceMeteringDerivationProfile
+} from "@photivra/engine";
+
+const derivation =
+  parseSceneRadianceMeteringDerivationProfile({
+    schemaVersion: "0.1.0",
+    derivationId: "preview-relative-meter",
+    scientificStatus: "approximation",
+    method:
+      "renderer-provided-pre-exposure-relative-reduction",
+    spectralWeighting:
+      "not-calibrated",
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference:
+          "meter-derivation:preview",
+        reuseStatus:
+          "photivra-owned"
+      }
+    ],
+    limitation:
+      "Relative scalar reduction; no calibrated meter spectral response."
+  });
+
+const sampleSet =
+  createSceneRadianceDerivedExposureMeteringSampleSet({
+    measurementId: "meter-frame-1",
+    sceneStateId: "scene-state-42",
+    providerProfile,
+    illuminationProfile,
+    materialResponseProfile,
+    captureGeometry,
+    derivationProfile: derivation,
+    samples: [
+      {
+        sampleId: "zone-0",
+        positionOrientedCaptureUv: {
+          u: 0.5,
+          v: 0.5
+        },
+        relativeLinearSignal: 0.5,
+        areaWeight: 1
+      }
+    ]
+  });
+
+const meter = meterRelativeExposure({
+  profile,
+  sampleSet
+});
+```
+
+The source context reports `spectralReductionCalibrated: false`, and calibrated luminance/scene-radiance claims remain unauthorized.
+
+### Time-varying illumination
+
+If the scene-radiance provider declares `illuminationTemporalProfileId`, the bridge requires the matching temporal profile plus a finite `captureTimeSecondsFromReference` on the shared `first-opening-boundary-phase` reference.
+
+One such sample set is an explicit instantaneous meter snapshot at that time.
+
+To average multiple snapshots, use `meterSceneRadianceTemporalExposure()` with an explicit `weighted-time-average` policy:
+
+```ts
+import {
+  meterSceneRadianceTemporalExposure
+} from "@photivra/engine";
+
+const temporalMeter =
+  meterSceneRadianceTemporalExposure({
+    temporalMeasurementId:
+      "meter-window-1",
+    profile,
+    policy: {
+      kind: "weighted-time-average",
+      timeReference:
+        "first-opening-boundary-phase"
+    },
+    temporalSamples: [
+      {
+        normalizedTimeWeight: 0.5,
+        sampleSet: sampleAtTime0
+      },
+      {
+        normalizedTimeWeight: 0.5,
+        sampleSet: sampleAtTime1
+      }
+    ]
+  });
+```
+
+The temporal weights must be positive and sum to one. Capture times must be strictly increasing. Every sample must share the same committed `sceneStateId`, provider/material/derivation context, temporal profile and active-capture geometry.
+
+The meter averages **linear relative signals first**, then computes the stop offset to the target. It never averages EV/stop offsets.
+
+This policy is explicit ambient temporal metering. It does not infer time weights from source flicker frequency, source waveform shape, shutter/readout duration, renderer frame cadence, or final display brightness. Flash/TTL metering remains separate.
 
 ## Exposure and ISO relations
 

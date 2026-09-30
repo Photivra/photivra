@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.66.0" as const;
+export const ENGINE_API_VERSION = "0.67.0" as const;
 
 export {
   approximationResult,
@@ -713,6 +713,24 @@ export {
   type ExposureMeteringZoneSample,
   type MeterRelativeExposureInput
 } from "./exposure/metering.js";
+
+export {
+  SCENE_RADIANCE_METERING_DERIVATION_SCHEMA_VERSION,
+  createSceneRadianceDerivedExposureMeteringSampleSet,
+  parseSceneRadianceMeteringDerivationProfile,
+  type CreateSceneRadianceDerivedExposureMeteringSampleSetInput,
+  type SceneRadianceDerivedExposureMeteringSampleSet,
+  type SceneRadianceMeteringDerivationProfile,
+  type SceneRadianceMeteringSourceContext,
+  type SceneRadianceMeteringTemporalContext
+} from "./exposure/metering-scene-radiance.js";
+
+export {
+  meterSceneRadianceTemporalExposure,
+  type MeterSceneRadianceTemporalExposureInput,
+  type SceneRadianceTemporalExposureMeteringResult,
+  type SceneRadianceTemporalMeteringSample
+} from "./exposure/metering-temporal.js";
 
 export {
   estimateCameraShakeBlur,
