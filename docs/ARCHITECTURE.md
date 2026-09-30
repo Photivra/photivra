@@ -349,4 +349,4 @@ The published npm package intentionally exposes only the browser-safe scientific
 
 ## Version surfaces
 
-The root library contract and the composed POC simulation contract are versioned independently. `ENGINE_API_VERSION` describes the root browser-safe engine surface. `POC_SIMULATION_API_VERSION` describes the request/response behavior of `simulatePocCamera()` and the repository-local POC HTTP transport. Package versioning remains separate from both.
+The root library, semantic image-formation graph, production composition plan, and composed POC simulation are versioned independently. `ENGINE_API_VERSION` describes the root browser-safe engine surface; `IMAGE_FORMATION_CONTRACT_VERSION` describes ownership/order semantics; `PRODUCTION_IMAGE_FORMATION_PLAN_VERSION` describes the production composition result contract; and `POC_SIMULATION_API_VERSION` describes `simulatePocCamera()` plus the repository-local POC HTTP transport. Prepared-context, capture-snapshot, renderer-capability, and fidelity-profile schemas also retain their own versions. Package versioning remains separate from all of them.
