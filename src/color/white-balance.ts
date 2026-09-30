@@ -856,3 +856,351 @@ export function createLockedWhiteBalanceState(
     limitations: [...source.limitations]
   });
 }
+
+
+function requireNonNegativeSafeInteger(
+  value: unknown,
+  path: string
+): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value < 0
+  ) {
+    throw new InvalidConfigurationError(
+      path + " must be a non-negative safe integer."
+    );
+  }
+  return value;
+}
+
+function requirePositiveSafeInteger(
+  value: unknown,
+  path: string
+): number {
+  const parsed =
+    requireNonNegativeSafeInteger(
+      value,
+      path
+    );
+  if (parsed <= 0) {
+    throw new InvalidConfigurationError(
+      path + " must be greater than zero."
+    );
+  }
+  return parsed;
+}
+
+function parseResolvedWhiteBalanceMeasurement(
+  value: unknown,
+  path: string
+): NonNullable<
+  ResolvedWhiteBalanceState["measurement"]
+> {
+  const record =
+    requireRecord(value, path);
+  const mean =
+    requireRecord(
+      record.weightedMeanPreWbSignal,
+      path +
+        ".weightedMeanPreWbSignal"
+    );
+
+  return {
+    imageStateId:
+      requireNonEmptyString(
+        record.imageStateId,
+        path + ".imageStateId"
+      ),
+    usableSampleCount:
+      requirePositiveSafeInteger(
+        record.usableSampleCount,
+        path +
+          ".usableSampleCount"
+      ),
+    rejectedClippedSampleCount:
+      requireNonNegativeSafeInteger(
+        record
+          .rejectedClippedSampleCount,
+        path +
+          ".rejectedClippedSampleCount"
+      ),
+    weightedMeanPreWbSignal: {
+      red:
+        requirePositiveFinite(
+          mean.red,
+          path +
+            ".weightedMeanPreWbSignal.red"
+        ),
+      green:
+        requirePositiveFinite(
+          mean.green,
+          path +
+            ".weightedMeanPreWbSignal.green"
+        ),
+      blue:
+        requirePositiveFinite(
+          mean.blue,
+          path +
+            ".weightedMeanPreWbSignal.blue"
+        )
+    }
+  };
+}
+
+/**
+ * Parses a committed resolved white-balance state from an untrusted JSON
+ * boundary without re-estimating WB.
+ *
+ * This is intentionally a state parser, not an AWB estimator. It preserves the
+ * resolved gains/policy/measurement identity that a capture committed earlier.
+ */
+export function parseResolvedWhiteBalanceState(
+  value: unknown
+): ResolvedWhiteBalanceState {
+  const record =
+    requireRecord(
+      value,
+      "resolvedWhiteBalanceState"
+    );
+
+  if (
+    record.version !==
+    WHITE_BALANCE_STATE_VERSION
+  ) {
+    throw new InvalidConfigurationError(
+      'resolvedWhiteBalanceState.version must be "' +
+        WHITE_BALANCE_STATE_VERSION +
+        '".'
+    );
+  }
+  if (
+    record.inputDomain !==
+    "relative-pre-wb-camera-linear-rgb"
+  ) {
+    throw new InvalidConfigurationError(
+      'resolvedWhiteBalanceState.inputDomain must be "relative-pre-wb-camera-linear-rgb".'
+    );
+  }
+  if (
+    record.source !== "preset" &&
+    record.source !==
+      "manual-gains" &&
+    record.source !==
+      "custom-measurement" &&
+    record.source !==
+      "auto-white-balance"
+  ) {
+    throw new InvalidConfigurationError(
+      "resolvedWhiteBalanceState.source is invalid."
+    );
+  }
+  if (
+    typeof record.locked !==
+    "boolean"
+  ) {
+    throw new InvalidConfigurationError(
+      "resolvedWhiteBalanceState.locked must be boolean."
+    );
+  }
+
+  for (const key of [
+    "trueIlluminantMetadataUsed",
+    "sceneIlluminationModified",
+    "rawCaptureDestructivelyModified",
+    "physicalExposureModified",
+    "focusModified"
+  ] as const) {
+    if (record[key] !== false) {
+      throw new InvalidConfigurationError(
+        "resolvedWhiteBalanceState." +
+          key +
+          " must remain false."
+      );
+    }
+  }
+
+  const sourceProfile =
+    record.sourceProfile === undefined
+      ? undefined
+      : (() => {
+          const profile =
+            requireRecord(
+              record.sourceProfile,
+              "resolvedWhiteBalanceState.sourceProfile"
+            );
+          return {
+            profileId:
+              requireNonEmptyString(
+                profile.profileId,
+                "resolvedWhiteBalanceState.sourceProfile.profileId"
+              ),
+            profileVersion:
+              requireNonEmptyString(
+                profile.profileVersion,
+                "resolvedWhiteBalanceState.sourceProfile.profileVersion"
+              )
+          };
+        })();
+
+  const awbPolicy =
+    record.awbPolicy === undefined
+      ? undefined
+      : (() => {
+          const policy =
+            requireRecord(
+              record.awbPolicy,
+              "resolvedWhiteBalanceState.awbPolicy"
+            );
+          return {
+            policyId:
+              requireNonEmptyString(
+                policy.policyId,
+                "resolvedWhiteBalanceState.awbPolicy.policyId"
+              ),
+            intent:
+              parseAwbIntent(
+                policy.intent,
+                "resolvedWhiteBalanceState.awbPolicy.intent"
+              ),
+            correctionStrength:
+              requireFraction(
+                policy.correctionStrength,
+                "resolvedWhiteBalanceState.awbPolicy.correctionStrength"
+              )
+          };
+        })();
+
+  const measurement =
+    record.measurement === undefined
+      ? undefined
+      : parseResolvedWhiteBalanceMeasurement(
+          record.measurement,
+          "resolvedWhiteBalanceState.measurement"
+        );
+
+  const presetId =
+    record.presetId === undefined
+      ? undefined
+      : requireNonEmptyString(
+          record.presetId,
+          "resolvedWhiteBalanceState.presetId"
+        );
+
+  const sourceStateId =
+    record.sourceStateId ===
+    undefined
+      ? undefined
+      : requireNonEmptyString(
+          record.sourceStateId,
+          "resolvedWhiteBalanceState.sourceStateId"
+        );
+
+  if (
+    record.source === "preset" &&
+    (sourceProfile === undefined ||
+      presetId === undefined)
+  ) {
+    throw new InvalidConfigurationError(
+      "A preset WB state requires sourceProfile and presetId."
+    );
+  }
+
+  if (
+    record.source ===
+      "custom-measurement" &&
+    measurement === undefined
+  ) {
+    throw new InvalidConfigurationError(
+      "A custom-measurement WB state requires measurement identity."
+    );
+  }
+
+  if (
+    record.source ===
+      "auto-white-balance" &&
+    (sourceProfile === undefined ||
+      awbPolicy === undefined ||
+      measurement === undefined)
+  ) {
+    throw new InvalidConfigurationError(
+      "An auto-white-balance state requires sourceProfile, awbPolicy, and measurement identity."
+    );
+  }
+
+  if (
+    record.locked &&
+    sourceStateId === undefined
+  ) {
+    throw new InvalidConfigurationError(
+      "A locked WB state requires sourceStateId."
+    );
+  }
+
+  if (
+    !record.locked &&
+    sourceStateId !== undefined
+  ) {
+    throw new InvalidConfigurationError(
+      "An unlocked WB state must not declare sourceStateId."
+    );
+  }
+
+  return immutableState({
+    version:
+      WHITE_BALANCE_STATE_VERSION,
+    stateId:
+      requireNonEmptyString(
+        record.stateId,
+        "resolvedWhiteBalanceState.stateId"
+      ),
+    inputDomain:
+      "relative-pre-wb-camera-linear-rgb",
+    source: record.source,
+    channelGains:
+      parseChannelGains(
+        record.channelGains,
+        "resolvedWhiteBalanceState.channelGains"
+      ),
+    locked: record.locked,
+    ...(sourceProfile === undefined
+      ? {}
+      : {
+          sourceProfile
+        }),
+    ...(presetId === undefined
+      ? {}
+      : {
+          presetId
+        }),
+    ...(awbPolicy === undefined
+      ? {}
+      : {
+          awbPolicy
+        }),
+    ...(measurement === undefined
+      ? {}
+      : {
+          measurement
+        }),
+    ...(sourceStateId === undefined
+      ? {}
+      : {
+          sourceStateId
+        }),
+    trueIlluminantMetadataUsed:
+      false,
+    sceneIlluminationModified:
+      false,
+    rawCaptureDestructivelyModified:
+      false,
+    physicalExposureModified:
+      false,
+    focusModified: false,
+    limitations:
+      parseLimitations(
+        record.limitations,
+        "resolvedWhiteBalanceState.limitations"
+      )
+  });
+}
