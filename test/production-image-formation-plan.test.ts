@@ -20,6 +20,7 @@ import {
   type CreateProductionCaptureSnapshotInput,
   type ImageFormationFidelityProfile,
   type PreparedImageFormationContext,
+  type ProductionTemporalCaptureInput,
   type RendererCapabilityDeclaration,
   type SceneRadianceEvaluationRequest,
   type SceneRadianceEvaluationResult,
@@ -1725,7 +1726,7 @@ const temporalCapture = (
       | "missing";
     temporalSampleCount?: number;
   } = {}
-) => {
+): ProductionTemporalCaptureInput => {
   const rotation =
     options.rotation ??
     "active";
