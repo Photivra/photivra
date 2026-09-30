@@ -476,7 +476,7 @@ function parseUniqueStageIds(
   const valid = contractStageIds();
   const seen =
     new Set<ImageFormationStageId>();
-  return value.map(
+  value.forEach(
     (entry, index) => {
       if (
         typeof entry !== "string" ||
@@ -500,9 +500,15 @@ function parseUniqueStageIds(
         );
       }
       seen.add(typed);
-      return typed;
     }
   );
+
+  return getImageFormationContract()
+    .stages
+    .map((stage) => stage.id)
+    .filter((stageId) =>
+      seen.has(stageId)
+    );
 }
 
 function parseUniqueEffectIds(
@@ -517,7 +523,7 @@ function parseUniqueEffectIds(
   const valid = contractEffectIds();
   const seen =
     new Set<ImageFormationEffectId>();
-  return value.map(
+  value.forEach(
     (entry, index) => {
       if (
         typeof entry !== "string" ||
@@ -541,9 +547,15 @@ function parseUniqueEffectIds(
         );
       }
       seen.add(typed);
-      return typed;
     }
   );
+
+  return getImageFormationContract()
+    .effectPlacements
+    .map((effect) => effect.id)
+    .filter((effectId) =>
+      seen.has(effectId)
+    );
 }
 
 export function parseRendererCapabilityDeclaration(
@@ -748,7 +760,7 @@ export function parseImageFormationFidelityProfile(
     contractEffectIds();
   const seenEffects =
     new Set<ImageFormationEffectId>();
-  const requiredEffects =
+  const requestedEffects =
     record.requiredEffects.map(
       (entry, index) => {
         const path =
@@ -800,6 +812,28 @@ export function parseImageFormationFidelityProfile(
         };
       }
     );
+
+  const effectOrder =
+    new Map(
+      getImageFormationContract()
+        .effectPlacements.map(
+          (effect, index) => [
+            effect.id,
+            index
+          ] as const
+        )
+    );
+  const requiredEffects = [
+    ...requestedEffects
+  ].sort(
+    (left, right) =>
+      (effectOrder.get(
+        left.effectId
+      ) ?? 0) -
+      (effectOrder.get(
+        right.effectId
+      ) ?? 0)
+  );
 
   const requirements =
     requireRecord(
