@@ -11,6 +11,11 @@ import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 type UnknownRecord = Record<string, unknown>;
 
+export const SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION = "0.3.0" as const;
+const LEGACY_SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION = "0.2.0" as const;
+
+export type SensorTechnologyFamily = "cmos" | "ccd";
+
 export type SensorIlluminationArchitecture = "fsi" | "bsi";
 
 export type SensorIntegrationArchitecture =
@@ -32,15 +37,7 @@ export type SensorArchitectureReuseStatus = EvidenceReuseStatus;
 export type SensorArchitectureFactProvenance = EvidenceProvenance;
 export type SourcedSensorArchitectureFact<T> = EvidenceBackedFact<T>;
 
-/**
- * Descriptive sensor hardware/capability metadata.
- *
- * Omitted properties mean unknown/unasserted. These fields are not scientific
- * effect switches: no architecture value changes noise, dynamic range, FOV,
- * crop factor, exposure, or sampling without a separate downstream model.
- */
-export interface SensorArchitectureProfile {
-  schemaVersion: "0.2.0";
+interface SensorArchitectureProfileBase {
   illumination?: SourcedSensorArchitectureFact<SensorIlluminationArchitecture>;
   integration?: SourcedSensorArchitectureFact<SensorIntegrationArchitecture>;
   /**
@@ -51,6 +48,42 @@ export interface SensorArchitectureProfile {
   readoutCapabilities?: readonly SourcedSensorArchitectureFact<SensorReadoutArchitecture>[];
   colorSamplingFamily?: SourcedSensorArchitectureFact<SensorColorSamplingFamily>;
 }
+
+/**
+ * Legacy sensor-architecture schema.
+ *
+ * Schema 0.2.0 remains accepted and is preserved exactly when parsed. It does
+ * not support technologyFamily; omission remains unknown/unasserted.
+ */
+export interface SensorArchitectureProfileV0_2
+  extends SensorArchitectureProfileBase {
+  schemaVersion: typeof LEGACY_SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION;
+  technologyFamily?: never;
+}
+
+/**
+ * Current descriptive sensor hardware/capability metadata.
+ *
+ * Omitted properties mean unknown/unasserted. These fields are not scientific
+ * effect switches: no architecture value changes noise, dynamic range, FOV,
+ * crop factor, exposure, readout timing, or sampling without a separate
+ * downstream model that explicitly consumes that fact.
+ */
+export interface SensorArchitectureProfileV0_3
+  extends SensorArchitectureProfileBase {
+  schemaVersion: typeof SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION;
+  /** Coarse detector technology identity only; never a performance switch. */
+  technologyFamily?: SourcedSensorArchitectureFact<SensorTechnologyFamily>;
+}
+
+export type SensorArchitectureProfile =
+  | SensorArchitectureProfileV0_2
+  | SensorArchitectureProfileV0_3;
+
+const TECHNOLOGY_FAMILY_VALUES = new Set<SensorTechnologyFamily>([
+  "cmos",
+  "ccd"
+]);
 
 const ILLUMINATION_VALUES = new Set<SensorIlluminationArchitecture>([
   "fsi",
@@ -142,29 +175,10 @@ function parseReadoutCapabilities(
   return parsed;
 }
 
-/**
- * Parses untrusted descriptive sensor-architecture metadata.
- *
- * Unknown facts should be omitted instead of inferred. The parser validates
- * structure, supported vocabulary, and field-level evidence only; it does not
- * verify that a cited real-world claim is factually true.
- *
- * @param value Unknown external data.
- * @returns Validated sensor architecture profile.
- */
-export function parseSensorArchitectureProfile(
-  value: unknown
-): SensorArchitectureProfile {
-  const profile = requireRecord(value, "sensorArchitecture");
-
-  if (profile.schemaVersion !== "0.2.0") {
-    throw new InvalidConfigurationError(
-      'sensorArchitecture.schemaVersion must be "0.2.0".'
-    );
-  }
-
+function parseSharedArchitectureFields(
+  profile: UnknownRecord
+): SensorArchitectureProfileBase {
   return {
-    schemaVersion: "0.2.0",
     ...(profile.illumination === undefined
       ? {}
       : {
@@ -201,4 +215,62 @@ export function parseSensorArchitectureProfile(
           )
         })
   };
+}
+
+/**
+ * Parses untrusted descriptive sensor-architecture metadata.
+ *
+ * Schema 0.2.0 remains accepted and returns a 0.2.0 profile unchanged in
+ * semantic identity. Schema 0.3.0 adds optional evidence-backed CMOS/CCD
+ * technology-family metadata. Unknown facts should be omitted instead of
+ * inferred.
+ *
+ * The parser validates structure, supported vocabulary, and field-level
+ * evidence only; it does not verify that a cited real-world claim is
+ * factually true and technology family does not activate hidden physics.
+ *
+ * @param value Unknown external data.
+ * @returns Validated sensor architecture profile preserving input schema identity.
+ */
+export function parseSensorArchitectureProfile(
+  value: unknown
+): SensorArchitectureProfile {
+  const profile = requireRecord(value, "sensorArchitecture");
+  const shared = parseSharedArchitectureFields(profile);
+
+  if (
+    profile.schemaVersion ===
+    LEGACY_SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION
+  ) {
+    if (profile.technologyFamily !== undefined) {
+      throw new InvalidConfigurationError(
+        "sensorArchitecture schema 0.2.0 does not support technologyFamily; use schema 0.3.0."
+      );
+    }
+
+    return {
+      schemaVersion: LEGACY_SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION,
+      ...shared
+    };
+  }
+
+  if (profile.schemaVersion === SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION) {
+    return {
+      schemaVersion: SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION,
+      ...shared,
+      ...(profile.technologyFamily === undefined
+        ? {}
+        : {
+            technologyFamily: parseScalarFact(
+              profile.technologyFamily,
+              "sensorArchitecture.technologyFamily",
+              TECHNOLOGY_FAMILY_VALUES
+            )
+          })
+    };
+  }
+
+  throw new InvalidConfigurationError(
+    'sensorArchitecture.schemaVersion must be "0.2.0" or "0.3.0".'
+  );
 }
