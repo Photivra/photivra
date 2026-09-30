@@ -2980,19 +2980,14 @@ This is intentionally different from Manual + Auto ISO.
 
 ### Boundaries
 
-The current #99 resolver foundation does not yet implement:
+The #99 resolver now covers the requested Manual, priority, Program, Full Auto exposure, and Bulb/Time control families.
 
-- Aperture Priority + Auto ISO;
-- Shutter Priority;
-- Program Auto;
-- Full Auto exposure;
-- minimum-shutter Auto ISO policy;
+The following remain intentionally separate rather than hidden inside shooting-mode resolution:
+
 - safety shift;
-- Bulb/Time control behavior;
 - flash-aware exposure;
-- sensor noise or conversion-gain behavior.
-
-Those later modes should reuse the same target/capability/reference-control contracts rather than introduce separate exposure equations.
+- sensor noise or conversion-gain behavior;
+- named-camera/manufacturer-specific mode emulation.
 
 ## Aperture Priority with manual ISO
 
@@ -3194,7 +3189,7 @@ All modes:
 - do not infer ISO noise/gain topology;
 - do not apply flash policy or safety shift.
 
-Program Auto, Full Auto exposure, Bulb/Time, flash-aware behavior, and named-camera program lines remain later work.
+Flash-aware behavior, safety shift, and named-camera program behavior remain separate work.
 
 ## Program Auto and Full Auto exposure
 
@@ -3359,7 +3354,150 @@ Only the control-mode identity differs.
 
 Program lines are product policy approximations, not physical laws. Generic lines must not be described as reproducing a specific manufacturer unless exact evidence supports that claim.
 
-Flash-aware program changes, safety shift, Bulb/Time behavior, and broader Full Auto camera decisions remain separate work.
+Flash-aware program changes, safety shift, and broader Full Auto camera decisions remain separate work.
+
+## Bulb, Time, and long-exposure control
+
+Bulb and Time are **duration-control behaviors**, not alternate exposure equations.
+
+Use `resolveExposureDurationControl()` to turn user/control events into the concrete positive seconds required by image formation.
+
+### Fixed duration
+
+```ts
+const fixed =
+  resolveExposureDurationControl({
+    kind: "fixed-duration",
+    durationSeconds: 8
+  });
+```
+
+### Bulb
+
+Bulb remains active while the release/control is held:
+
+```ts
+const activeBulb =
+  resolveExposureDurationControl({
+    kind: "bulb",
+    timeReference:
+      "control-monotonic-seconds",
+    pressSeconds: 10
+  });
+
+// activeBulb.status === "active"
+// physicalExposureIntegrationAuthorized === false
+```
+
+Once release occurs:
+
+```ts
+const bulb =
+  resolveExposureDurationControl({
+    kind: "bulb",
+    timeReference:
+      "control-monotonic-seconds",
+    pressSeconds: 10,
+    releaseSeconds: 18
+  });
+
+// resolved duration = 8 seconds
+```
+
+### Time
+
+Time starts on one action and stops on a later action:
+
+```ts
+const time =
+  resolveExposureDurationControl({
+    kind: "time",
+    timeReference:
+      "control-monotonic-seconds",
+    startSeconds: 50,
+    stopSeconds: 58
+  });
+```
+
+Bulb and Time require finite, ordered timestamps from the same explicit monotonic-seconds control reference.
+
+An unfinished Bulb/Time control cannot enter the physical exposure pipeline.
+
+### Bind into authoritative exposure timing
+
+After resolution, use `bindResolvedExposureDurationToCaptureExposureInput()`:
+
+```ts
+const exposureWindowInput =
+  bindResolvedExposureDurationToCaptureExposureInput({
+    resolution: bulb,
+    durationEvidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference:
+          "runtime-control:bulb",
+        reuseStatus:
+          "photivra-owned"
+      }
+    ],
+    exposureWindowInput: {
+      nativeRaster,
+      shutterMechanism:
+        "electronic",
+      opening,
+      closing,
+      samplePointsNative
+    }
+  });
+
+const windows =
+  calculateCaptureExposureWindows(
+    exposureWindowInput
+  );
+```
+
+The adapter supplies only `nominalExposureDurationSeconds`.
+
+It does **not** change or infer:
+
+- shutter mechanism;
+- opening/closing boundary topology;
+- sensor readout;
+- tripod/support state;
+- stabilization state;
+- long-exposure noise reduction;
+- sensor temperature/heating;
+- flash behavior.
+
+There is no universal 30-second cap for Bulb/Time. A completed 300-second Bulb exposure resolves to 300 seconds.
+
+Once resolved, that duration flows through the same existing/future physical path as any fixed duration:
+
+```text
+resolved elapsed seconds
+  -> #12 local exposure windows
+  -> temporal scene/motion integration
+  -> photon/electron accumulation
+  -> dark current
+  -> charge/saturation assessment
+  -> downstream signal pipeline
+```
+
+There is no Bulb-specific physics shortcut.
+
+### Mode-invariant downstream physics
+
+Shooting-mode names are control policy only.
+
+If Manual, Program, and Full Auto exposure resolve the same:
+
+- aperture;
+- shutter duration;
+- ISO;
+
+then `calculateRelativeRenderedExposure()` and all later physical models receive identical physical inputs and must produce identical results.
+
+Likewise, equal fixed/Bulb/Time elapsed durations with the same shutter/timing inputs produce identical authoritative exposure windows.
 
 ## Exposure and ISO relations
 

@@ -17,7 +17,7 @@ import {
 type UnknownRecord = Record<string, unknown>;
 
 export const EXPOSURE_MODE_RESOLVER_VERSION =
-  "0.4.0" as const;
+  "0.5.0" as const;
 
 export interface RelativeExposureControlAnchor {
   aperture: number;
