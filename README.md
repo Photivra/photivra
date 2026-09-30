@@ -62,6 +62,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 
 ### Optics and geometry
 
+- [explicit finite/infinity focus-plane state](docs/USAGE.md#explicit-finite-and-infinity-focus-state), without non-finite or fabricated focus distances;
 - [centered and asymmetric rectilinear field of view, with optional focus-aware thin-lens projection](docs/USAGE.md#field-of-view);
 - [physical vs diagonal-based 35 mm-equivalent focal length](docs/USAGE.md#actual-and-35-mm-equivalent-focal-length);
 - [caller-declared focus-breathing projection/FOV approximation](docs/USAGE.md#focus-breathing-projection);
@@ -233,7 +234,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.57.0`
+- Engine API contract: `0.78.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
