@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.57.0" as const;
+export const ENGINE_API_VERSION = "0.58.0" as const;
 
 export {
   approximationResult,
@@ -285,6 +285,16 @@ export {
   type SensorResponsivityExposureIntegration,
   type SensorStationaryRateExposureIntegration
 } from "./sensor/constant-rate-temporal-integration.js";
+
+export {
+  calculateSensorDarkCurrentCharge,
+  parseSensorDarkCurrentProfile,
+  type CalculateSensorDarkCurrentChargeInput,
+  type SensorDarkCurrentCharge,
+  type SensorDarkCurrentProfile,
+  type SensorDarkCurrentSiteApplicability,
+  type SensorDarkCurrentTemperatureModel
+} from "./sensor/dark-current.js";
 
 export {
   parseCaptureModeProfile,
