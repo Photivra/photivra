@@ -2515,25 +2515,9 @@ function deriveStagePlan(
         };
       }
 
-      return {
-        stageId: stage.id,
-        contractStatus:
-          stage.status,
-        state:
-          "unsupported" as const,
-        scientificStatus:
-          "not-applicable" as const,
-        requiredByFidelity:
-          true,
-        requiredUpstreamStages: [
-          ...stage
-            .requiredUpstreamStages
-        ],
-        coupledStages: [
-          ...stage.coupledStages
-        ],
-        blockerCodes: []
-      };
+      throw new InvalidConfigurationError(
+        "Unexpected composed stage."
+      );
     }
   );
 }
