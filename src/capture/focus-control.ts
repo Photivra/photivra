@@ -1003,6 +1003,14 @@ export function resolveFocusTargetObservation(
     ResolveFocusTargetObservationInput
 ): FocusTargetResolution {
   if (
+    input.event !== "acquire" &&
+    input.event !== "update"
+  ) {
+    throw new InvalidScientificInputError(
+      'Focus target event must be "acquire" or "update".'
+    );
+  }
+  if (
     input.state.mode ===
     "manual"
   ) {
