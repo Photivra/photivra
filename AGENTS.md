@@ -288,6 +288,17 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - Flash/TTL metering remains separate from ambient/time-varying exposure metering.
 - Calibrated meter spectral weighting remains future work and requires an explicit spectral-response/photometric model plus evidence; do not infer it from RGB or scene-radiance wavelength samples.
 
+## Meter target / compensation boundary
+
+- Freeze meter results into a separate target object before #99 control resolution; do not pass mutable renderer/app state as the authoritative exposure target.
+- Preserve source measurement ID, scene-state ID, and metering-profile ID by value so AE lock can intentionally reuse a prior meter snapshot after recomposition or scene-light changes.
+- Exposure compensation is downstream of the base meter measurement. Never mutate `meteredRelativeSignal` or the source meter result when compensation changes.
+- Compensation is an absolute control setting, not an incremental delta accumulator. Re-derive from the uncompensated base target on every update.
+- Positive compensation means **more requested exposure**; negative compensation means less.
+- A compensation change must receive a new target ID so changed control state cannot hide behind the same identity.
+- No-signal remains unresolved under compensation; do not manufacture infinity/NaN or a fake reachable target.
+- #100 target/compensation code must not choose aperture, shutter, or ISO. #99 owns axis resolution and capability constraints.
+
 ## Radiometry and sensor-metadata rules
 
 - Sensor architecture metadata is descriptive and scientifically inert until a separate downstream model consumes it.
