@@ -88,6 +88,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [relative pre-exposure metering](docs/USAGE.md#relative-pre-exposure-metering), with explicit generic multi-zone, center-weighted, spot, and highlight-weighted policies over the oriented active capture frame, plus generic body metering capability/profile compatibility and a frozen target seam into automatic exposure;
 - [scene-radiance-derived and explicit temporal metering](docs/USAGE.md#scene-radiance-derived-and-temporal-metering), binding relative meter samples to the #85 provider/material/illumination context and requiring declared time averaging for time-varying illumination without inventing a spectral-to-luminance conversion;
 - [stable meter targets and exposure compensation](docs/USAGE.md#meter-target-and-exposure-compensation), freezing metering identity for AE lock and shifting the automatic-exposure target downstream without mutating the underlying meter result;
+- [deterministic logical release sequencing](docs/USAGE.md#logical-release-sequences) for single, burst, self-timer and exposure/focus bracket timing;
 - [constant-velocity projected point motion](docs/USAGE.md#projected-subject-motion);
 - [time-parameterized spatial camera-rotation mapping](docs/USAGE.md#spatial-camera-rotation-mapping) for yaw/pitch/roll;
 - [capture-local pure-rotation exposure trajectories](docs/USAGE.md#capture-rotation-exposure-trajectories), evaluated at each native point's local exposure start/end without claiming a finished rolling-shutter warp;
@@ -234,7 +235,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.80.0`
+- Engine API contract: `0.81.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
