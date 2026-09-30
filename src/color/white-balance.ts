@@ -251,6 +251,10 @@ function parsePreset(
 ): WhiteBalancePresetDefinition {
   const record = requireRecord(value, path);
   const gainsFact = requireRecord(record.channelGains, path + ".channelGains");
+  const limitations = parseOptionalLimitations(
+    record.limitations,
+    path + ".limitations"
+  );
 
   return {
     presetId: requireNonEmptyString(record.presetId, path + ".presetId"),
@@ -281,14 +285,10 @@ function parsePreset(
             path + ".nominalTint"
           )
         }),
-    ...(parseOptionalLimitations(record.limitations, path + ".limitations") ===
-    undefined
+    ...(limitations === undefined
       ? {}
       : {
-          limitations: parseOptionalLimitations(
-            record.limitations,
-            path + ".limitations"
-          )
+          limitations
         })
   };
 }
