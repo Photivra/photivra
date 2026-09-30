@@ -122,6 +122,8 @@ See `docs/IMAGE_FORMATION.md`.
 
 The standalone `parseSceneIlluminationProfile()` foundation now provides stable renderer-independent point/spot/area/directional/environment source identities, scene-object binding, source-specific magnitude semantics, continuous-spectrum provenance, and explicit approximation boundaries. It intentionally stops before material/visibility/transport evaluation, so the `scene-radiance-evaluation` stage remains only partially founded. See `docs/SCENE_RADIANCE_AND_ILLUMINATION.md`.
 
+The additive scene-radiance provider boundary now defines material-response metadata, provider fidelity, exact surface/environment evaluation requests, and validated outgoing spectral-radiance results. The engine validates identities, units, provenance, wavelength/time/direction semantics and declared fidelity, but does not implement the renderer or recompute the provider's transport result. Provider/result schema 0.1.0 is approximation-only even when calibrated spectral material inputs are present; it therefore cannot satisfy a calibrated scene-radiance claim by itself. RGB/PBR material inputs remain explicit approximation data, while wavelength-changing material behavior, emission, volumetrics and polarization remain unmodeled.
+
 ## Radiometry readiness boundary
 
 Radiometry prerequisites are represented separately from the composed POC and from low-level signal/noise primitives. `parseRadiometryReadinessProfile()` validates declared scene spectral radiance, optical transmission, pupil/vignetting behavior, photosite collection-area semantics, exposure integration, and sensor response together with evidence and uncertainty declarations.
