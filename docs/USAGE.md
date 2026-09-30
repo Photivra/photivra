@@ -1175,6 +1175,159 @@ The current primitive calculates horizontal pixel pitch. It assumes the supplied
 
 See [Physics Foundation](PHYSICS_FOUNDATION.md#sensor-geometry-sampling-capture-and-crop).
 
+## White balance and Auto WB
+
+Photivra keeps **scene illumination**, **camera white-balance state**, and **render/export color transforms** separate.
+
+The #108 white-balance foundation operates on an explicit pre-WB camera-observable domain:
+
+```text
+relative-pre-wb-camera-linear-rgb
+```
+
+It does not inspect authoritative scene-illuminant metadata as an AWB oracle, modify #85 scene lighting, destructively alter RAW-like sensor capture, or change aperture/shutter/ISO/focus.
+
+### Generic presets
+
+Preset labels are resolved through a declared profile rather than universal hard-coded Kelvin aliases:
+
+```ts
+import {
+  parseWhiteBalanceProfile,
+  resolvePresetWhiteBalance
+} from "@photivra/engine";
+
+const profile =
+  parseWhiteBalanceProfile({
+    schemaVersion: "0.1.0",
+    profileId: "generic-wb",
+    profileVersion: "1.0.0",
+    scientificStatus: "approximation",
+    inputDomain:
+      "relative-pre-wb-camera-linear-rgb",
+    presets: [
+      {
+        presetId: "daylight-like",
+        label: "Daylight",
+        channelGains: {
+          value: {
+            red: 1.2,
+            green: 1,
+            blue: 1.45
+          },
+          evidence
+        },
+        nominalColorTemperatureKelvin:
+          5200,
+        nominalTint: 0.03
+      }
+    ],
+    awbPolicies: [
+      {
+        policyId: "neutral",
+        intent: "neutral-priority",
+        correctionStrength: {
+          value: 1,
+          evidence
+        }
+      },
+      {
+        policyId: "ambience",
+        intent:
+          "ambience-preserving",
+        correctionStrength: {
+          value: 0.5,
+          evidence
+        }
+      }
+    ],
+    evidence,
+    limitations: [
+      "Generic camera-linear approximation."
+    ]
+  });
+
+const daylight =
+  resolvePresetWhiteBalance({
+    stateId: "wb-1",
+    profile,
+    presetId: "daylight-like"
+  });
+```
+
+The label, nominal CCT, tint, and actual channel gains are separate profile facts. A camera-specific profile requires defensible evidence; no manufacturer-specific WB behavior is inferred from a common preset name.
+
+### Manual gains and CCT+tint intent
+
+`resolveManualWhiteBalance()` records explicit camera-linear channel gains.
+
+`createColorTemperatureWhiteBalanceIntent()` records a separate Kelvin and tint control **without fabricating channel gains**:
+
+```ts
+const intent =
+  createColorTemperatureWhiteBalanceIntent({
+    intentId: "wb-kelvin",
+    colorTemperatureKelvin: 5000,
+    tint: 0.15
+  });
+```
+
+The result keeps `channelGainsResolved: false` and `requiresCameraProfileColorimetry: true`. CCT alone is not treated as a complete chromatic adaptation model, and tint remains an independent axis.
+
+### Custom measured WB
+
+`resolveCustomWhiteBalance()` accepts renderer-neutral pre-WB RGB sample results tied to a stable image-state ID.
+
+The selected region is assumed by the caller to be intended neutral; Photivra does **not** claim the chosen real-world object is spectrally neutral.
+
+Custom measurement:
+
+- rejects clipped samples;
+- rejects missing/zero channel signal;
+- computes deterministic weighted camera-linear means;
+- resolves relative channel gains from the measured neutral target.
+
+### Auto White Balance
+
+`estimateAutoWhiteBalance()` consumes only pre-WB camera-linear samples plus a profile-owned AWB policy.
+
+The generic first model is a deterministic gray-world-style estimate. A neutralizing gain is derived from the weighted observed channels, then the policy's `correctionStrength` is applied in logarithmic gain space:
+
+```text
+resolved gain = neutralizing gain ^ correctionStrength
+```
+
+A strength of `1` represents a neutral-priority generic estimate. Lower strengths preserve more of the observed cast, supporting explicit generic standard/ambience behavior without pretending there is one universal AWB result.
+
+Clipped AWB samples are excluded and reported; if no usable samples remain, estimation fails closed.
+
+One AWB result is a **global camera WB state**. In mixed illumination, different image regions can retain different local casts after the same global gains.
+
+### AWB lock
+
+Use `createLockedWhiteBalanceState()` to freeze a resolved WB state under a new stable identity:
+
+```ts
+const locked =
+  createLockedWhiteBalanceState({
+    stateId: "wb-lock-1",
+    sourceState: awbState
+  });
+```
+
+Later scene/image signals may produce a different AWB estimate, while the locked state's gains remain unchanged. AWB lock is independent from AE lock and focus lock.
+
+### Image-state/export boundary
+
+Every resolved WB state explicitly reports that it did not:
+
+- modify scene illumination;
+- destructively modify RAW capture;
+- modify physical exposure;
+- modify focus.
+
+#15 remains authoritative for how resolved WB intent is applied or encoded in processed linear images, previews, TIFF, DNG metadata, or other output states.
+
 ## Sensor imaging area and native raster
 
 Use `calculateSensorGeometryMetrics()` when physical imaging size and native image resolution need to remain independent:
