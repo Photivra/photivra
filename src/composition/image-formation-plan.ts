@@ -1565,7 +1565,7 @@ function validateTemporalCaptureInput(
       exposureWindows
         .nominalExposureDurationSeconds
         .value,
-      exposure.shutterSeconds
+      shutterSeconds
     )
   ) {
     throw new InvalidConfigurationError(
