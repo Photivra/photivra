@@ -433,6 +433,18 @@ function validateComponent(
   }
 
   if (
+    value.basisKind ===
+      "evidence-backed-fact" &&
+    value.evidenceRequirement !==
+      "required"
+  ) {
+    throw new InvalidScientificInputError(
+      path +
+        '.basisKind "evidence-backed-fact" requires evidenceRequirement "required".'
+    );
+  }
+
+  if (
     value.evidenceRequirement !==
       "required" &&
     value.evidenceRequirement !==
@@ -673,7 +685,7 @@ export function composeScientificAssurance(
         ) === weakestRank
     );
 
-  const scientificStatus =
+  const statusFromInputs =
     weakestRank === 0
       ? "unknown"
       : weakestRank === 1
@@ -689,15 +701,30 @@ export function composeScientificAssurance(
         component.evidence.length === 0
     );
 
+  const scientificStatus:
+    ScientificAssuranceStatus =
+      missingRequiredEvidence.length >
+      0
+        ? "unknown"
+        : statusFromInputs;
+
+  const weakestRequiredComponentIds =
+    missingRequiredEvidence.length >
+    0
+      ? missingRequiredEvidence.map(
+          (component) =>
+            component.componentId
+        )
+      : weakest.map(
+          (component) =>
+            component.componentId
+        );
+
   return {
     version:
       SCIENTIFIC_ASSURANCE_CONTRACT_VERSION,
     scientificStatus,
-    weakestRequiredComponentIds:
-      weakest.map(
-        (component) =>
-          component.componentId
-      ),
+    weakestRequiredComponentIds,
     evidenceStatus:
       missingRequiredEvidence
         .length === 0
