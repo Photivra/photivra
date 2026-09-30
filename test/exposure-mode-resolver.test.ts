@@ -888,3 +888,150 @@ describe("Manual resolver fail-closed capability and input guards", () => {
     );
   });
 });
+
+describe("Manual + continuous Auto ISO resolution", () => {
+  const continuousCapabilities = (): ResolvedGenericEquipmentExposureCapabilities => {
+    const base = capabilities();
+    return {
+      ...base,
+      iso: {
+        ...base.iso,
+        settingGrid: {
+          kind: "continuous-within-range"
+        }
+      }
+    };
+  };
+
+  it("uses the exact ideal ISO when it lies inside a continuous range", () => {
+    const result =
+      resolveManualExposureMode({
+        target: targetForScale(2.5),
+        capabilities:
+          continuousCapabilities(),
+        referenceExposure,
+        manualAperture: 4,
+        manualShutterSeconds: 1 / 125,
+        isoControl: {
+          kind: "automatic",
+          quantizationPolicy:
+            "nearest-log2-lower-on-tie"
+        }
+      });
+
+    expect(result.status).toBe("resolved");
+    if (
+      result.status !== "resolved" ||
+      result.isoControl !== "automatic"
+    ) {
+      throw new Error("Expected resolved Auto ISO.");
+    }
+    expect(
+      result.resolvedSettings.iso
+    ).toBeCloseTo(250, 12);
+    expect(
+      result.isoResolution.kind
+    ).toBe("continuous");
+    expect(
+      result.isoResolution.quantized
+    ).toBe(false);
+    expect(
+      result.isoResolution.clamped
+    ).toBe(false);
+    expect(
+      result.targetResidual.state
+    ).toBe("matched");
+  });
+
+  it("clamps a continuous ISO range at its minimum and maximum", () => {
+    const low =
+      resolveManualExposureMode({
+        target: targetForScale(0.5),
+        capabilities:
+          continuousCapabilities(),
+        referenceExposure,
+        manualAperture: 4,
+        manualShutterSeconds: 1 / 125,
+        isoControl: {
+          kind: "automatic",
+          quantizationPolicy:
+            "nearest-log2-lower-on-tie"
+        }
+      });
+    const high =
+      resolveManualExposureMode({
+        target: targetForScale(256),
+        capabilities:
+          continuousCapabilities(),
+        referenceExposure,
+        manualAperture: 4,
+        manualShutterSeconds: 1 / 125,
+        isoControl: {
+          kind: "automatic",
+          quantizationPolicy:
+            "nearest-log2-lower-on-tie"
+        }
+      });
+
+    if (
+      low.status !== "resolved" ||
+      low.isoControl !== "automatic" ||
+      high.status !== "resolved" ||
+      high.isoControl !== "automatic"
+    ) {
+      throw new Error("Expected resolved continuous Auto ISO.");
+    }
+
+    expect(low.resolvedSettings.iso)
+      .toBe(100);
+    expect(low.isoResolution.clamped)
+      .toBe("minimum");
+    expect(
+      low.targetResidual
+        .limitingConstraint
+    ).toBe("iso-minimum");
+
+    expect(high.resolvedSettings.iso)
+      .toBe(12800);
+    expect(high.isoResolution.clamped)
+      .toBe("maximum");
+    expect(
+      high.targetResidual
+        .limitingConstraint
+    ).toBe("iso-maximum");
+  });
+
+  it("fails closed if the ideal ISO calculation overflows", () => {
+    const target = targetForScale(1);
+    expect(() =>
+      resolveManualExposureMode({
+        target: {
+          ...target,
+          status: "resolved",
+          requiredExposureScaleToTarget:
+            Number.MAX_VALUE,
+          exposureOffsetStopsToTarget:
+            Math.log2(
+              Number.MAX_VALUE
+            )
+        },
+        capabilities:
+          continuousCapabilities(),
+        referenceExposure: {
+          ...referenceExposure,
+          iso: 12800
+        },
+        manualAperture: 4,
+        manualShutterSeconds: 1 / 125,
+        isoControl: {
+          kind: "automatic",
+          quantizationPolicy:
+            "nearest-log2-lower-on-tie"
+        }
+      })
+    ).toThrow(
+      "Ideal Auto ISO must remain finite"
+    );
+  });
+});
+
