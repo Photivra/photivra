@@ -444,6 +444,54 @@ describe(
       );
     });
 
+    it("validates capacity applicability metadata and runtime temperature", () => {
+      expect(() =>
+        parseSensorPhysicalChargeCapacityProfile({
+          ...capacity(),
+          siteApplicability: {
+            kind: "unknown"
+          }
+        })
+      ).toThrow(
+        "siteApplicability.kind"
+      );
+
+      expect(() =>
+        parseSensorPhysicalChargeCapacityProfile({
+          ...capacity(),
+          temperatureApplicability: {
+            kind: "unknown"
+          }
+        })
+      ).toThrow(
+        "temperatureApplicability.kind"
+      );
+
+      expect(() =>
+        parseSensorPhysicalChargeCapacityProfile({
+          ...capacity(),
+          scientificStatus: "unknown"
+        })
+      ).toThrow(
+        "scientificStatus"
+      );
+
+      expect(() =>
+        assessSensorPhysicalChargeCapacity({
+          accumulatedCharge:
+            charge(),
+          capacityProfile:
+            capacity(),
+          operatingStateId:
+            "state-a",
+          operatingTemperatureC:
+            Number.NaN
+        })
+      ).toThrow(
+        "operatingTemperatureC must be finite"
+      );
+    });
+
     it("rejects mismatched color/channel identity and non-finite expected charge", () => {
       expect(() =>
         assessSensorPhysicalChargeCapacity({
