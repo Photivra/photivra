@@ -506,6 +506,62 @@ describe(
       );
     });
 
+    it("validates completeness component-id metadata", () => {
+      expect(() =>
+        parseSensorAccumulatedChargeCompletenessProfile({
+          ...completeness([]),
+          includedAdditionalComponentIds:
+            "none"
+        })
+      ).toThrow(
+        "must be an array"
+      );
+
+      expect(() =>
+        parseSensorAccumulatedChargeCompletenessProfile({
+          ...completeness([]),
+          includedAdditionalComponentIds: [
+            "same",
+            "same"
+          ]
+        })
+      ).toThrow(
+        "must not contain duplicates"
+      );
+    });
+
+    it("rejects non-finite or negative photo and dark expected counts", () => {
+      expect(() =>
+        composeSensorAccumulatedCharge({
+          photoSignal: photo({
+            expectedGeneratedElectronCount:
+              Number.NaN
+          }),
+          darkCharge: dark(),
+          additionalChargeComponents: [],
+          completenessProfile:
+            completeness([])
+        })
+      ).toThrow(
+        "Photo expected electron count"
+      );
+
+      expect(() =>
+        composeSensorAccumulatedCharge({
+          photoSignal: photo(),
+          darkCharge: dark({
+            expectedDarkElectronCount:
+              -1
+          }),
+          additionalChargeComponents: [],
+          completenessProfile:
+            completeness([])
+        })
+      ).toThrow(
+        "Dark expected electron count"
+      );
+    });
+
     it("fails closed on total accumulated-charge overflow", () => {
       expect(() =>
         composeSensorAccumulatedCharge({
