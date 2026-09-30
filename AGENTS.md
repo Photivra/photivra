@@ -330,6 +330,18 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - A no-signal meter target blocks automatic shutter rather than selecting the longest shutter or infinity.
 - Aperture Priority + Auto ISO is a separate later policy because two automatic axes require an explicit minimum-shutter/selection rule. Do not assume ISO always moves first.
 
+## Multi-axis priority-mode boundary
+
+- When two exposure axes are automatic, require an explicit versioned selection policy. Do not hide axis order inside a mode name.
+- Aperture Priority + Auto ISO first uses minimum selectable ISO. Shutter may lengthen only to the declared `slowestPreferredShutterSeconds`; after that ISO fills exposure. Behavior after ISO maximum must be explicit: either allow slower shutter or hold the preferred shutter and report residual underexposure.
+- A+Auto ISO discrete shutter selection before ISO fill must not choose a shutter longer than the target/preferred duration, because that would require ISO below the declared minimum to undo overexposure.
+- Shutter Priority + manual ISO keeps shutter and ISO fixed and resolves only aperture.
+- Shutter Priority + Auto ISO first uses minimum selectable ISO and resolves aperture. For discrete aperture grids, choose an aperture no wider than the ideal so Auto ISO can add remaining exposure instead of requiring ISO below minimum.
+- Automatic aperture limits use `aperture-widest`, `aperture-narrowest`, or `aperture-grid-quantization` diagnostics; do not infer lens behavior beyond #109.
+- These policies are generic product/control approximations, not optical laws and not emulations of named manufacturers.
+- All priority modes must reuse the typed #100 target, explicit reference exposure anchor, and #109 resolved capability envelope; never re-meter or reapply compensation.
+- Flash policy, safety shift, Program lines, Full Auto policy, Bulb/Time, and manufacturer-specific mode behavior remain separate.
+
 ## Meter target / compensation boundary
 
 - Freeze meter results into a separate target object before #99 control resolution; do not pass mutable renderer/app state as the authoritative exposure target.
