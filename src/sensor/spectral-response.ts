@@ -11,16 +11,17 @@ import {
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import {
+  parseSpectralWavelengthBasis,
+  type SpectralWavelengthBasis,
+  type SpectralWavelengthSample
+} from "../core/spectral.js";
+export type { SpectralWavelengthBasis } from "../core/spectral.js";
+import {
   parseSensorColorSamplingProfile,
   type SensorColorSamplingProfile
 } from "./color-sampling.js";
 
 type UnknownRecord = Record<string, unknown>;
-
-export type SpectralWavelengthBasis =
-  | "air"
-  | "vacuum"
-  | "unspecified";
 
 export type SensorSpectralResponseScientificStatus =
   | "calibrated"
@@ -45,13 +46,13 @@ export interface SensorSpectralReferenceConditions {
     | "unspecified";
 }
 
-export interface SpectralFractionSample {
-  wavelengthNanometers: number;
+export interface SpectralFractionSample
+  extends SpectralWavelengthSample {
   value: number;
 }
 
-export interface SpectralResponsivitySample {
-  wavelengthNanometers: number;
+export interface SpectralResponsivitySample
+  extends SpectralWavelengthSample {
   amperesPerWatt: number;
 }
 
@@ -282,22 +283,6 @@ function requireFraction(
   return number;
 }
 
-function parseWavelengthBasis(
-  value: unknown,
-  path: string
-): SpectralWavelengthBasis {
-  if (
-    value !== "air" &&
-    value !== "vacuum" &&
-    value !== "unspecified"
-  ) {
-    throw new InvalidConfigurationError(
-      path + " is invalid."
-    );
-  }
-  return value;
-}
-
 function requireReusableCurveEvidence(
   value: unknown,
   path: string
@@ -473,7 +458,7 @@ function parseCurveBase(
   return {
     wavelengthUnit: "nm",
     wavelengthBasis:
-      parseWavelengthBasis(
+      parseSpectralWavelengthBasis(
         record.wavelengthBasis,
         path + ".wavelengthBasis"
       ),

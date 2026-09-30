@@ -6,6 +6,10 @@ import {
 } from "../core/calculation-result.js";
 import type { EvidenceProvenance } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import type {
+  SpectralWavelengthBasis,
+  SpectralWavelengthRangeNanometers
+} from "../core/spectral.js";
 import {
   parseSensorColorSamplingProfile,
   type SensorColorSamplingProfile
@@ -17,16 +21,13 @@ import {
   type SensorSpectralReferenceConditions,
   type SensorSpectralResponseProfile,
   type SensorSpectralResponseScientificStatus,
-  type SensorSpectralResponseUncertainty,
-  type SpectralWavelengthBasis
+  type SensorSpectralResponseUncertainty
 } from "./spectral-response.js";
 
 const MAX_SPECTRAL_QUADRATURE_NODES = 100_000;
 
-export interface SensorSpectralWavelengthRangeNanometers {
-  minimum: number;
-  maximum: number;
-}
+export type SensorSpectralWavelengthRangeNanometers =
+  SpectralWavelengthRangeNanometers;
 
 export interface CalculateSensorSpectralQuadratureInput {
   colorSamplingProfile: SensorColorSamplingProfile;

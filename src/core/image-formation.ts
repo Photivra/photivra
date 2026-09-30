@@ -7,10 +7,11 @@
  * versions. It describes semantic ownership/order only; it does not imply that
  * every reserved stage is implemented.
  */
-export const IMAGE_FORMATION_CONTRACT_VERSION = "0.2.0" as const;
+export const IMAGE_FORMATION_CONTRACT_VERSION = "0.3.0" as const;
 
 export type ImageFormationDomainId =
   | "scene-ray-geometry"
+  | "scene-radiance-formation"
   | "lens-pupil-throughput"
   | "field-wavelength-psf"
   | "temporal-exposure-readout"
@@ -27,6 +28,7 @@ export type ImageFormationCoordinateSpaceId =
 
 export type ImageFormationStageId =
   | "scene-ray-projection"
+  | "scene-radiance-evaluation"
   | "lens-field-pupil-evaluation"
   | "field-wavelength-psf"
   | "temporal-exposure-readout"
@@ -119,6 +121,7 @@ export interface ImageFormationContract {
 
 const DOMAINS = [
   "scene-ray-geometry",
+  "scene-radiance-formation",
   "lens-pupil-throughput",
   "field-wavelength-psf",
   "temporal-exposure-readout",
@@ -184,16 +187,32 @@ const STAGES = [
     status: "existing-foundation",
     coordinateSpaces: ["scene-metric", "image-plane-metric"],
     requiredUpstreamStages: [],
-    coupledStages: ["temporal-exposure-readout"],
+    coupledStages: [
+      "scene-radiance-evaluation",
+      "temporal-exposure-readout"
+    ],
     purpose:
       "Project scene geometry into the optical image plane while preserving explicit metric geometry and focus-aware projection."
+  },
+  {
+    id: "scene-radiance-evaluation",
+    domain: "scene-radiance-formation",
+    status: "partial-foundation",
+    coordinateSpaces: ["scene-metric"],
+    requiredUpstreamStages: ["scene-ray-projection"],
+    coupledStages: ["temporal-exposure-readout"],
+    purpose:
+      "Own outgoing scene spectral-radiance formation from illumination, scene geometry/visibility, material optical response, emission, indirect transport, and time. The current foundation establishes ownership and illumination-source metadata only; it does not calculate scene radiance."
   },
   {
     id: "lens-field-pupil-evaluation",
     domain: "lens-pupil-throughput",
     status: "partial-foundation",
     coordinateSpaces: ["image-plane-metric", "native-sensor-physical"],
-    requiredUpstreamStages: ["scene-ray-projection"],
+    requiredUpstreamStages: [
+      "scene-ray-projection",
+      "scene-radiance-evaluation"
+    ],
     coupledStages: ["field-wavelength-psf"],
     purpose:
       "Own focus-dependent framing, geometric field mapping, wavelength/channel field mapping, illumination throughput, and pupil clipping inputs."
@@ -448,7 +467,8 @@ const NOTES = [
   "This contract defines scientific ownership, coordinate semantics, and dependency/coupling boundaries. It does not claim that reserved stages are implemented.",
   "The stage graph is a dependency/ownership graph, not a claim that every physical interaction can be evaluated as one independent serial post-process.",
   "Independent effects may be combined computationally only when the implementation documents mathematical equivalence and preserves the public stage/effect semantics.",
-  "Generic/parametric virtual-lens models must remain explicitly generic until defensible calibrated data with compatible reuse rights exists."
+  "Generic/parametric virtual-lens models must remain explicitly generic until defensible calibrated data with compatible reuse rights exists.",
+  "Scene radiance is distinct from source illumination metadata, photometric luminance anchors, sensor-plane irradiance, and RGB preview values. A later renderer/provider must explicitly evaluate outgoing spectral radiance before optics/sensor composition."
 ] as const;
 
 /**

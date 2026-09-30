@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.60.0" as const;
+export const ENGINE_API_VERSION = "0.61.0" as const;
 
 export {
   approximationResult,
@@ -29,6 +29,15 @@ export {
   InvalidScientificInputError,
   InvalidScientificResultError
 } from "./core/validation.js";
+
+export {
+  parseSpectralWavelengthBasis,
+  parseSpectralWavelengthRangeNanometers,
+  parseSpectralWavelengthSample,
+  type SpectralWavelengthBasis,
+  type SpectralWavelengthRangeNanometers,
+  type SpectralWavelengthSample
+} from "./core/spectral.js";
 
 export {
   IMAGE_FORMATION_CONTRACT_VERSION,
@@ -186,8 +195,7 @@ export {
   type SpectralFractionCurve,
   type SpectralFractionSample,
   type SpectralResponsivityCurve,
-  type SpectralResponsivitySample,
-  type SpectralWavelengthBasis
+  type SpectralResponsivitySample
 } from "./sensor/spectral-response.js";
 
 export {
@@ -537,6 +545,20 @@ export type {
   SceneRadiometry,
   Vector3
 } from "./schema/scene.js";
+
+export {
+  SCENE_ILLUMINATION_PROFILE_SCHEMA_VERSION,
+  parseSceneIlluminationProfile,
+  type SceneIlluminationMagnitude,
+  type SceneIlluminationProfile,
+  type SceneIlluminationRelativeSpectrumSample,
+  type SceneIlluminationScientificStatus,
+  type SceneIlluminationSource,
+  type SceneIlluminationSourceFamily,
+  type SceneIlluminationSourceGeometry,
+  type SceneIlluminationSpectrum,
+  type SceneIlluminationUncertainty
+} from "./schema/illumination.js";
 
 export {
   calculateProjectedMotionBlur,

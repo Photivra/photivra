@@ -6,6 +6,8 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Added
 
+- Added renderer-neutral shared spectral wavelength primitives plus a scene illumination profile for stable point/spot/area/directional/environment source identities, explicit source-specific magnitude units, relative/RGB/blackbody/continuous-spectrum representations, reusable-data provenance, and fail-closed approximation/calibration boundaries. The profile describes illumination only and does not calculate outgoing scene radiance, material response, visibility, indirect transport, fluorescence, volumetrics, polarization, or sensor signal.
+- Added `scene-radiance-evaluation` as an explicit image-formation ownership stage between scene projection and lens/pupil evaluation. The stage defines the future seam for outgoing spectral radiance without turning `SceneRadiometry`, source metadata, RGB preview values, or sensor-plane irradiance into interchangeable quantities.
 - Added a sensor spectral-response foundation linked to exact color-sampling channel IDs. It supports direct effective external QE, direct effective spectral responsivity in A/W, or explicitly separable channel-filter transmittance × detector EQE; requires reusable rights for embedded numeric curves; uses explicit air/vacuum/unspecified wavelength bases with piecewise-linear interpolation and fail-closed out-of-range behavior; preserves single-condition metadata without inventing angle/temperature/polarization dependence; and keeps spectral integration, photons/electrons, RAW values, and reconstruction separate.
 - Added response-breakpoint-aware bounded sensor spectral quadrature. Requested range edges, response-curve knots, and optional caller-supplied continuous-spectrum/optics breakpoints form deterministic midpoint segments with explicit dλ and a maximum subinterval width; response scope/provenance are preserved while response application, source-spectrum integration, photon/electron/current calculation, and RAW output remain separate.
 - Added pre-response spatio-spectral irradiance reduction over explicit E_lambda(x,y) samples in W/m^2/nm. The reducer validates exact spatial/spectral profile linkage, caps the Cartesian product, composes normalized AA/aperture spatial measures with dλ, and reports wavelength-integrated spatial-average irradiance plus geometric-aperture incident flux without applying sensor response or temporal exposure.
@@ -24,7 +26,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Changed
 
-- Engine API contract advances to `0.60.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
+- Engine API contract advances to `0.61.0`, and the image-formation contract advances to `0.3.0` for explicit scene-radiance ownership. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
 
 ## 0.6.0 - 2026-09-29
 

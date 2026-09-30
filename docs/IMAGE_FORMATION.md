@@ -12,20 +12,22 @@ import { getImageFormationContract } from "@photivra/engine";
 const contract = getImageFormationContract();
 ```
 
-## Five scientific domains
+## Six scientific domains
 
-The contract groups image formation into five domains:
+The contract groups image formation into six domains:
 
 1. **scene / ray geometry**
-2. **lens mapping + pupil / throughput**
-3. **field- and wavelength-dependent PSF**
-4. **time-dependent exposure / readout**
-5. **native sensor sampling -> orientation -> output / display**
+2. **scene radiance formation**
+3. **lens mapping + pupil / throughput**
+4. **field- and wavelength-dependent PSF**
+5. **time-dependent exposure / readout**
+6. **native sensor sampling -> orientation -> output / display**
 
 These are scientific ownership domains. Some effects couple more than one domain.
 
 Examples:
 
+- scene illumination, material optical response, geometry/visibility, emission, indirect transport, and time belong upstream in `scene-radiance-evaluation`; source metadata or RGB renderer values are not sensor input;
 - focus breathing changes projection/magnification and therefore couples lens mapping to scene projection;
 - lateral chromatic aberration is wavelength/channel-dependent field mapping and may share wavelength basis with the PSF model;
 - illumination vignetting is throughput-only;
@@ -33,6 +35,16 @@ Examples:
 - diffraction consumes the effective pupil and belongs to the PSF domain;
 - rolling readout couples native sensor timing to temporal integration;
 - camera rotation should be evaluable as a function of physical exposure time so global and rolling readout can consume the same motion model.
+
+## Scene-radiance ownership
+
+`scene-radiance-evaluation` is a partial foundation between `scene-ray-projection` and `lens-field-pupil-evaluation`.
+
+Its authoritative future output is **outgoing scene spectral radiance** produced from illumination, scene geometry/visibility, material response, emission, indirect transport, and physical time. The current implementation establishes ownership plus renderer-independent illumination-source metadata; it does not yet evaluate that radiance field.
+
+The existing `SceneRadiometry` metadata remains separate. `absolute-luminance` is a photometric luminance anchor, not a wavelength-resolved radiance field. Likewise, a light-source SPD, RGB HDR environment, source irradiance, and sensor-plane spectral irradiance are different quantities and must not be substituted for one another.
+
+See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md).
 
 ## Coordinate spaces
 

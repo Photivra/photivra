@@ -2800,6 +2800,77 @@ These primitives do not derive photons from scene imagery and do not model a com
 
 See [Motion and Signal Foundation](MOTION_AND_SIGNAL.md#signalnoise-primitives).
 
+## Scene illumination source profiles
+
+Use `parseSceneIlluminationProfile()` when illumination metadata crosses a renderer/integration boundary:
+
+```ts
+import { parseSceneIlluminationProfile } from "@photivra/engine";
+
+const illumination = parseSceneIlluminationProfile({
+  schemaVersion: "0.1.0",
+  profileId: "studio-reference",
+  sceneId: "studio",
+  evidence: [
+    {
+      sourceOrigin: "photivra",
+      sourceReference: "scene:studio-reference",
+      reuseStatus: "photivra-owned"
+    }
+  ],
+  sources: [
+    {
+      sourceId: "key",
+      family: "area",
+      enabled: true,
+      geometry: {
+        kind: "scene-object-binding",
+        sceneObjectId: "key-panel"
+      },
+      magnitude: {
+        kind: "relative-linear-scale",
+        scale: 1,
+        scientificStatus: "approximation",
+        limitation: "Reference-render brightness only."
+      },
+      spectrum: {
+        kind: "blackbody-temperature-approximation",
+        temperatureKelvin: 3200,
+        limitation: "Declared blackbody approximation."
+      },
+      temporalBehavior: {
+        kind: "time-invariant"
+      },
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "scene:key-panel",
+          reuseStatus: "photivra-owned"
+        }
+      ]
+    }
+  ]
+});
+
+console.log(illumination.sources[0]?.sourceId);
+console.log(illumination.sceneRadianceCalculated); // false
+```
+
+The schema intentionally has no generic `intensity` field. Physical magnitude forms are source-specific:
+
+- point sources may declare radiant intensity in W/sr;
+- area sources may declare surface radiance in W/(m²·sr);
+- directional sources may declare irradiance in W/m² at an explicit reference plane;
+- spot and environment sources are relative-only in schema 0.1.0 until their angular/radiance-field semantics are modeled.
+
+All source families may use an explicitly approximate relative linear scale. Turning a source off uses `enabled: false`; a zero physical/relative magnitude is not used as a hidden off state.
+
+Spectrum representations are likewise explicit. Linear-sRGB is preview-only. A blackbody temperature is a declared blackbody approximation, not a universal CCT control. Continuous relative spectra require reusable-data provenance and do not become absolute spectral power/radiance merely because a physical broadband magnitude also exists.
+
+The parser establishes illumination metadata only. It does not calculate material response, visibility, indirect transport, outgoing scene spectral radiance, sensor-plane irradiance, photons/electrons, fluorescence, volumetric spectral transport, or polarization.
+
+See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md).
+
 ## Camera and scene schema validation
 
 Use the runtime parsers when camera or scene data crosses an untrusted JSON boundary.
