@@ -98,10 +98,19 @@ export {
   type ProductionImageFormationBlockerCode,
   type ProductionImageFormationPlan,
   type ProductionPhysicalSceneSample,
+  type ProductionTemporalCaptureInput,
+  type ProductionTemporalCaptureResult,
   type RendererCapabilityDeclaration,
   type RendererConsumerKind,
   type RequiredImageFormationEffect
 } from "./composition/image-formation-plan.js";
+
+export {
+  PRODUCTION_PLAN_CONSUMER_MANIFEST_VERSION,
+  createProductionPlanConsumerManifest,
+  type CreateProductionPlanConsumerManifestInput,
+  type ProductionPlanConsumerManifest
+} from "./composition/plan-consumer.js";
 
 export {
   calculateFieldOfView,
