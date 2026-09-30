@@ -244,3 +244,87 @@ describe("sensor shared spectral coverage adapter", () => {
     );
   });
 });
+
+describe("sensor coverage adapter additional branches", () => {
+  it("supports direct A/W responsivity coverage", () => {
+    const profile:
+      SensorSpectralResponseProfile = {
+      schemaVersion: "0.1.0",
+      profileId: "responsivity",
+      colorSamplingProfileId: "color",
+      evidence: evidence("profile"),
+      channels: [
+        {
+          channelId: "green",
+          kind:
+            "effective-spectral-responsivity",
+          responseScope:
+            "sensor-package-incident-effective-channel-response",
+          scientificStatus:
+            "approximation",
+          uncertainty: {
+            kind: "not-quantified",
+            limitation: "test"
+          },
+          evidence: evidence("channel"),
+          conditionDependence:
+            "not-modeled",
+          spectralResponsivity: {
+            wavelengthUnit: "nm",
+            wavelengthBasis: "vacuum",
+            interpolation:
+              "piecewise-linear",
+            outsideRangeBehavior:
+              "fail-closed",
+            evidence:
+              evidence("responsivity"),
+            samples: [
+              {
+                wavelengthNanometers:
+                  450,
+                amperesPerWatt: 0.2
+              },
+              {
+                wavelengthNanometers:
+                  550,
+                amperesPerWatt: 0.4
+              },
+              {
+                wavelengthNanometers:
+                  650,
+                amperesPerWatt: 0.1
+              }
+            ]
+          }
+        }
+      ]
+    };
+
+    const participant =
+      createSensorSpectralCoverageParticipant(
+        {
+          spectralResponseProfile:
+            profile,
+          channelId: "green"
+        }
+      );
+
+    expect(
+      participant.breakpointsNanometers
+    ).toEqual([550]);
+  });
+
+  it("rejects an empty channel ID", () => {
+    expect(() =>
+      createSensorSpectralCoverageParticipant(
+        {
+          spectralResponseProfile:
+            directProfile(),
+          channelId: " "
+        }
+      )
+    ).toThrow(
+      "channelId must be a non-empty string"
+    );
+  });
+});
