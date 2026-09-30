@@ -1023,7 +1023,7 @@ export function parseResolvedWhiteBalanceState(
   const sourceProfile =
     record.sourceProfile === undefined
       ? undefined
-      : (() => {
+      : ((): NonNullable<ResolvedWhiteBalanceState["sourceProfile"]> => {
           const profile =
             requireRecord(
               record.sourceProfile,
@@ -1046,7 +1046,7 @@ export function parseResolvedWhiteBalanceState(
   const awbPolicy =
     record.awbPolicy === undefined
       ? undefined
-      : (() => {
+      : ((): NonNullable<ResolvedWhiteBalanceState["awbPolicy"]> => {
           const policy =
             requireRecord(
               record.awbPolicy,
