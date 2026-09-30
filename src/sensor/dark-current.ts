@@ -629,54 +629,36 @@ function resolveDarkCurrentRate(
     };
   }
 
-  for (
-    let index = 0;
-    index < model.samples.length - 1;
-    index += 1
-  ) {
-    const lower =
-      model.samples[index]!;
-    const upper =
-      model.samples[index + 1]!;
-    if (
-      operatingTemperatureC >
-        lower.temperatureC &&
-      operatingTemperatureC <
-        upper.temperatureC
-    ) {
-      const alpha =
-        (operatingTemperatureC -
-          lower.temperatureC) /
-        (upper.temperatureC -
-          lower.temperatureC);
-      const rate =
+  const upperIndex =
+    model.samples.findIndex(
+      (sample) =>
+        sample.temperatureC >
+        operatingTemperatureC
+    );
+  const upper =
+    model.samples[upperIndex]!;
+  const lower =
+    model.samples[upperIndex - 1]!;
+  const alpha =
+    (operatingTemperatureC -
+      lower.temperatureC) /
+    (upper.temperatureC -
+      lower.temperatureC);
+  const rate =
+    lower
+      .darkCurrentElectronsPerSecond +
+    alpha *
+      (
+        upper
+          .darkCurrentElectronsPerSecond -
         lower
-          .darkCurrentElectronsPerSecond +
-        alpha *
-          (
-            upper
-              .darkCurrentElectronsPerSecond -
-            lower
-              .darkCurrentElectronsPerSecond
-          );
-      if (
-        !Number.isFinite(rate) ||
-        rate < 0
-      ) {
-        throw new InvalidScientificInputError(
-          "Interpolated dark current must remain finite and nonnegative."
-        );
-      }
-      return {
-        rate,
-        interpolationUsed: true
-      };
-    }
-  }
+          .darkCurrentElectronsPerSecond
+      );
 
-  throw new InvalidScientificInputError(
-    "Unable to bracket operatingTemperatureC inside the dark-current table."
-  );
+  return {
+    rate,
+    interpolationUsed: true
+  };
 }
 
 function validateExposure(
