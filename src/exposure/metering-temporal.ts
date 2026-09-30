@@ -432,7 +432,7 @@ export function meterSceneRadianceTemporalExposure(
             meteredRelativeSignal,
           exposureOffsetStopsToTarget:
             Math.log2(
-              input.profile.target
+              profile.target
                 .targetRelativeSignal /
                 meteredRelativeSignal
             )
