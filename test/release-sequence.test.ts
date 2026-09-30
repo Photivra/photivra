@@ -593,3 +593,141 @@ describe("logical release sequencing", () => {
     );
   });
 });
+
+
+describe("release sequence fail-closed boundaries", () => {
+  it("rejects malformed release capability profiles", () => {
+    expect(() =>
+      parseGenericReleaseCapabilityProfile({
+        ...releaseCapabilities(),
+        schemaVersion: "9.9.9"
+      })
+    ).toThrow("schemaVersion");
+
+    expect(() =>
+      parseGenericReleaseCapabilityProfile({
+        ...releaseCapabilities(),
+        scientificStatus: "calibrated"
+      })
+    ).toThrow("scientificStatus");
+
+    expect(() =>
+      parseGenericReleaseCapabilityProfile({
+        ...releaseCapabilities(),
+        overlappingOrdinaryStillExposures: true
+      })
+    ).toThrow("overlappingOrdinaryStillExposures");
+
+    expect(() =>
+      parseGenericReleaseCapabilityProfile({
+        ...releaseCapabilities(),
+        exposureBracketing: {
+          availability: {
+            value: "unsupported",
+            evidence: evidence("unsupported")
+          },
+          supportedAxes: ["iso"]
+        }
+      })
+    ).toThrow("must not declare supported axes");
+  });
+
+  it("rejects sequence counts and settings outside declared capabilities", () => {
+    const limited =
+      parseGenericReleaseCapabilityProfile({
+        ...releaseCapabilities(),
+        maximumLogicalFramesPerSequence: {
+          value: 2,
+          evidence: evidence("limit-2")
+        }
+      });
+
+    expect(() =>
+      resolveReleaseSequence({
+        sequenceId: "too-many",
+        releaseRequestTimeSeconds: 0,
+        sequenceSeedUint32: 1,
+        drive: {
+          kind: "burst",
+          frameCount: 3
+        },
+        bracket: {
+          kind: "none"
+        },
+        requestedCadenceFps: 5,
+        baseState: baseState(),
+        releaseCapabilities: limited,
+        exposureCapabilities:
+          exposureCapabilities()
+      })
+    ).toThrow("exceeds the release capability profile");
+
+    expect(() =>
+      resolveReleaseSequence({
+        sequenceId: "bad-bracket-setting",
+        releaseRequestTimeSeconds: 0,
+        sequenceSeedUint32: 2,
+        drive: {
+          kind: "single"
+        },
+        bracket: {
+          kind: "exposure",
+          axis: "iso",
+          offsetsStops: [10]
+        },
+        baseState: baseState(),
+        releaseCapabilities:
+          releaseCapabilities(),
+        exposureCapabilities:
+          exposureCapabilities()
+      })
+    ).toThrow("lies outside the resolved equipment capability range");
+  });
+
+  it("rejects ambiguous cancellation boundaries", () => {
+    const sequence =
+      resolveReleaseSequence({
+        sequenceId: "cancel-validation",
+        releaseRequestTimeSeconds: 0,
+        sequenceSeedUint32: 3,
+        drive: {
+          kind: "burst",
+          frameCount: 2
+        },
+        bracket: {
+          kind: "none"
+        },
+        requestedCadenceFps: 5,
+        baseState: baseState(),
+        releaseCapabilities:
+          releaseCapabilities(),
+        exposureCapabilities:
+          exposureCapabilities()
+      });
+
+    expect(() =>
+      createCancelledReleaseSequence({
+        sequence,
+        completedFrameCount: 1.5,
+        cancelledAtSeconds: 0.25
+      })
+    ).toThrow("safe integer");
+
+    expect(() =>
+      createCancelledReleaseSequence({
+        sequence,
+        completedFrameCount: 3,
+        cancelledAtSeconds: 0.25
+      })
+    ).toThrow("must not exceed");
+
+    expect(() =>
+      createCancelledReleaseSequence({
+        sequence,
+        completedFrameCount: 1,
+        cancelledAtSeconds:
+          Number.POSITIVE_INFINITY
+      })
+    ).toThrow("must be finite");
+  });
+});
