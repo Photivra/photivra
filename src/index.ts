@@ -449,6 +449,15 @@ export {
 } from "./sensor/camera-saturation-capacity.js";
 
 export {
+  CAPTURE_MODE_TIMING_PROFILE_SCHEMA_VERSION,
+  parseCaptureModeTimingProfile,
+  resolveCaptureModeTiming,
+  type CaptureModeTimingProfile,
+  type ResolveCaptureModeTimingInput,
+  type ResolvedCaptureModeTiming
+} from "./sensor/capture-mode-timing.js";
+
+export {
   parseCaptureModeProfile,
   resolveCaptureMode,
   type CaptureModeAcquisition,
@@ -808,6 +817,15 @@ export {
   type CaptureRotationInverseMappings,
   type CaptureRotationInverseMappingSample
 } from "./motion/capture-rotation-inverse-mapping.js";
+
+export {
+  calculateCaptureTranslationParallaxTemporalQuadrature,
+  type CalculateCaptureTranslationParallaxTemporalQuadratureInput,
+  type CaptureTranslationParallaxSceneSample,
+  type CaptureTranslationParallaxTemporalNode,
+  type CaptureTranslationParallaxTemporalQuadrature,
+  type CaptureTranslationParallaxTemporalSample
+} from "./motion/capture-translation-parallax-temporal-quadrature.js";
 
 export {
   calculateCaptureRotationTemporalQuadrature,
