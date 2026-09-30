@@ -2555,6 +2555,65 @@ The meter averages **linear relative signals first**, then computes the stop off
 
 This policy is explicit ambient temporal metering. It does not infer time weights from source flicker frequency, source waveform shape, shutter/readout duration, renderer frame cadence, or final display brightness. Flash/TTL metering remains separate.
 
+## Meter target and exposure compensation
+
+Use `createExposureMeterTargetFromMeteringResult()` to freeze a spatial or temporal metering result into the stable target consumed by #99.
+
+```ts
+import {
+  createExposureMeterTargetFromMeteringResult,
+  setExposureCompensationOnMeterTarget
+} from "@photivra/engine";
+
+const baseTarget =
+  createExposureMeterTargetFromMeteringResult({
+    targetId: "meter-target:frame-42",
+    meterResult
+  });
+
+const compensated =
+  setExposureCompensationOnMeterTarget({
+    targetId: "meter-target:frame-42:+1ev",
+    baseTarget,
+    exposureCompensationStops: 1
+  });
+```
+
+The frozen target copies the authoritative meter identity by value:
+
+- source kind (spatial or temporal metering);
+- measurement ID;
+- scene-state ID;
+- metering-profile ID.
+
+This is the AE-lock seam. Holding the target object intentionally preserves the earlier meter snapshot even if the live scene later changes.
+
+### Compensation semantics
+
+Exposure compensation is an **absolute downstream target offset**.
+
+For a resolved target:
+
+```text
+compensated stops =
+  uncompensated meter stops
+  + exposure compensation
+
+compensated exposure scale =
+  uncompensated meter scale
+  * 2^(exposure compensation stops)
+```
+
+Therefore +1 EV compensation requests twice the exposure of the uncompensated target; -1 EV requests half.
+
+`setExposureCompensationOnMeterTarget()` always re-derives from the stored uncompensated base values. Passing an already compensated target with a new compensation value does not compound the old compensation. This avoids control drift during repeated slider/dial updates.
+
+A changed compensation state requires a new `targetId`. The source meter snapshot identity remains unchanged.
+
+The meter measurement itself is never mutated, and the target still reports `automaticExposureResolved: false`. #99 owns the later aperture/shutter/ISO decision.
+
+A no-signal meter target remains `no-signal` after compensation. The engine does not convert darkness into infinity or fabricate a reachable automatic exposure.
+
 ## Exposure and ISO relations
 
 Use `calculateExposureValue100()` for EV100:
