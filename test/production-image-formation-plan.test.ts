@@ -1506,10 +1506,12 @@ describe("production-plan parser and blocker coverage", () => {
     );
 
     const context = prepared();
-    const {
-      fingerprint: _fingerprint,
-      ...withoutFingerprint
-    } = context;
+    const withoutFingerprint:
+      Record<string, unknown> = {
+        ...context
+      };
+    delete withoutFingerprint.fingerprint;
+
     expect(() =>
       parsePreparedImageFormationContext(
         withoutFingerprint
