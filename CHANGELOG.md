@@ -6,6 +6,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Added
 
+- Added the first #99 exposure-mode resolver slice for Manual exposure with either manual ISO or Auto ISO. Aperture and shutter remain caller-owned and are never changed; manual ISO is preserved exactly after capability validation, while Auto ISO resolves only the ISO axis from the typed #100 meter target and #109 capability envelope. Relative target scale is normalized through an explicit reference exposure anchor rather than a hidden ISO-100 assumption. Discrete ISO values use nearest-log2 quantization with a lower-ISO tie break; ISO limits produce explicit residual under/over-target diagnostics. Unsupported/unknown Auto ISO and no-signal targets block Auto ISO without fabricating a setting.
 - Added the first generic #109 equipment-capability foundation for exposure control. Versioned Photivra body profiles now declare evidence-backed shutter-duration and ISO ranges/grids plus distinct supported/unsupported/unknown Auto ISO capability; generic lens profiles declare focal-length range, focal-dependent or constant widest available f-number, narrowest available f-number, and aperture setting grid. A deterministic resolver produces the body+lens exposure envelope at one selected focal length without mutating source profiles or claiming named-equipment emulation. Selected camera state and #99 exposure setting resolution remain separate.
 - Added a stable #100→#99 exposure-meter target seam. Spatial or temporal meter results can be frozen into a reusable AE-lock-safe target snapshot; exposure compensation is applied downstream as an absolute stop offset without mutating the meter measurement, and changed compensation requires a new target identity. Positive compensation requests more exposure. No-signal targets remain finite/unresolved, and automatic aperture/shutter/ISO selection remains outside this layer.
 - Added the #85→#100 scene-radiance metering bridge plus explicit temporal metering. A derivation profile labels renderer/provider scalar pre-exposure reductions as approximation-only with no calibrated spectral weighting; sample-set creation validates provider, illumination, material, optional temporal-profile, scene-state and capture-time identity. Time-varying metering requires explicit capture times on the shared `first-opening-boundary-phase` reference, and weighted temporal averaging combines linear meter signals under caller-declared positive normalized weights rather than silently averaging stop offsets. Flash/TTL metering, exposure compensation, and automatic aperture/shutter/ISO resolution remain separate.
@@ -34,7 +35,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Changed
 
-- Engine API contract advances to `0.69.0`; the image-formation contract remains `0.3.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
+- Engine API contract advances to `0.70.0`; the image-formation contract remains `0.3.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
 
 ## 0.6.0 - 2026-09-29
 

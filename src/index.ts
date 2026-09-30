@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.69.0" as const;
+export const ENGINE_API_VERSION = "0.70.0" as const;
 
 export {
   approximationResult,
@@ -760,6 +760,18 @@ export {
   type ResolvedNumericSettingGrid,
   type WidestAvailableFNumberCapability
 } from "./equipment/exposure-capabilities.js";
+
+export {
+  EXPOSURE_MODE_RESOLVER_VERSION,
+  resolveManualExposureMode,
+  type ExposureResolutionConstraint,
+  type ExposureTargetResidual,
+  type ExposureTargetResidualState,
+  type ManualExposureModeResolution,
+  type ManualIsoControl,
+  type RelativeExposureControlAnchor,
+  type ResolveManualExposureModeInput
+} from "./exposure/exposure-mode-resolver.js";
 
 export {
   estimateCameraShakeBlur,

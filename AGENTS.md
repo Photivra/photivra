@@ -303,6 +303,21 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - Source equipment profiles are immutable inputs. Resolvers must not mutate them when focal length or selected state changes.
 - #109 capability resolution does not select aperture/shutter/ISO. #99 consumes the resolved envelope and owns manual/automatic axis policy, quantization choice, clamping, and residual exposure diagnostics.
 
+## Manual / Auto ISO exposure-control boundary
+
+- #99 exposure modes are control policy over the existing aperture/shutter/ISO exposure variables; do not add a second exposure equation per named mode.
+- In the first Manual slice, aperture and shutter are always manual axes and must never be changed, clamped, or safety-shifted by the resolver. Unsupported manual settings fail closed.
+- Manual ISO is likewise preserved exactly after #109 capability validation. A changed meter target or exposure compensation may change the residual diagnostic but must not change the manual ISO value.
+- Auto ISO may change only ISO. It must consume the typed #100 meter target and the resolved #109 ISO capability; it must not re-meter the scene or reapply exposure compensation.
+- The relative meter target does not define an absolute ISO. Require an explicit reference exposure anchor `(aperture, shutter, ISO)`; do not assume ISO 100, a universal gray calibration, or any hidden camera baseline.
+- Reference-anchor aperture/shutter/ISO must themselves be valid settings in the same resolved equipment capability envelope.
+- Auto ISO ideal value is solved from target exposure scale divided by the manual optical-exposure factor relative to the reference anchor. ISO does not create photons and this resolver must not infer noise, conversion gain, or sensor topology.
+- For discrete ISO grids, quantize in log2 exposure space. The first policy is nearest value with lower ISO on an exact tie; do not silently use a universal 1/3-EV or 1/2-EV grid.
+- Auto ISO limit/quantization diagnostics must preserve signed residual stops: positive residual means the resolved settings are still under target and need more exposure; negative means over target.
+- `unsupported` and `unknown` Auto ISO capability both block automatic ISO; unknown must never be treated as supported.
+- A no-signal meter target blocks Auto ISO rather than selecting maximum ISO or infinity. Manual settings may still be returned with an unresolved target diagnostic.
+- Flash behavior, minimum-shutter Auto ISO policy for modes with automatic shutter, safety shift, Program lines, aperture priority, shutter priority, and Full Auto remain outside this first resolver slice.
+
 ## Meter target / compensation boundary
 
 - Freeze meter results into a separate target object before #99 control resolution; do not pass mutable renderer/app state as the authoritative exposure target.
