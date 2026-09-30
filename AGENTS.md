@@ -275,6 +275,19 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - Controlled relative-light invariant: uniform 0.5× scene signal must shift the meter by exactly +1 stop to the same declared target.
 - Flash/TTL metering remains separate from ambient exposure metering. Time-varying ambient inputs require an explicit temporal sampling policy rather than silent averaging.
 
+## Scene-radiance metering bridge
+
+- Spectral scene radiance does not become a scalar exposure-meter signal by type conversion. A scalar relative reduction must declare an explicit approximation derivation; schema 0.1.0 does not authorize calibrated spectral weighting, photopic luminance, or camera-specific meter response.
+- Scene-radiance-derived meter samples must bind one exact provider, scene, illumination profile, material-response profile and derivation profile. Provider material fidelity must match the supplied material profile.
+- If a provider declares `illuminationTemporalProfileId`, a metering sample must supply the matching temporal profile and an explicit finite capture time on `first-opening-boundary-phase`. Static providers must not silently consume temporal profiles/timestamps.
+- Temporal source bindings referenced by the temporal profile must exist in the supplied base illumination profile.
+- Time-varying metering must not silently average snapshots. Use an explicit temporal policy.
+- The first temporal policy is a positive normalized weighted average of **linear pre-exposure meter signals**. Average signals first; do not average EV/stop offsets.
+- All samples in one temporal average must share the same committed `sceneStateId`, provider/material/derivation context, temporal profile, and active-capture geometry. This is also the stale-result boundary.
+- Temporal sample weights are caller-declared measurement policy. Do not infer them from flicker frequency, source waveform shape, shutter/readout duration, or renderer frame cadence.
+- Flash/TTL metering remains separate from ambient/time-varying exposure metering.
+- Calibrated meter spectral weighting remains future work and requires an explicit spectral-response/photometric model plus evidence; do not infer it from RGB or scene-radiance wavelength samples.
+
 ## Radiometry and sensor-metadata rules
 
 - Sensor architecture metadata is descriptive and scientifically inert until a separate downstream model consumes it.
