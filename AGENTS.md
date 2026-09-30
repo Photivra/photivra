@@ -342,6 +342,19 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - All priority modes must reuse the typed #100 target, explicit reference exposure anchor, and #109 resolved capability envelope; never re-meter or reapply compensation.
 - Flash policy, safety shift, Program lines, Full Auto policy, Bulb/Time, and manufacturer-specific mode behavior remain separate.
 
+## Program / Full Auto exposure boundary
+
+- Program Auto and Full Auto require an explicit versioned program-line policy. There is no unique physically correct aperture/shutter pair for a target exposure.
+- Program-line nodes declare optical exposure stops relative to the same explicit reference exposure anchor used by other #99 modes. Validate every node's aperture/shutter pair against its declared stop coordinate and the current #109 capability envelope.
+- Interpolate program-line aperture and shutter in log2 space so intermediate optical exposure stops remain mathematically consistent before equipment quantization.
+- Program-line nodes may describe ideal continuous policy points; downstream #109 grids still own actual selectable settings. Quantization/clamping must remain visible in diagnostics.
+- Program Auto with manual ISO resolves aperture+shutter only. Program Auto with Auto ISO and Full Auto exposure start from minimum selectable ISO and let Auto ISO absorb program-line endpoint/quantization residual when possible.
+- A program line is generic product/control policy labeled approximation. Do not describe it as a scientific law or a named manufacturer's program behavior without evidence for that exact profile.
+- Full Auto **exposure** means automatic aperture+shutter+ISO only. It must not imply or report autofocus, white balance, flash, drive, scene recognition, or stabilization resolution.
+- Program/Full Auto must consume the already-compensated #100 target and must not re-meter or reapply exposure compensation.
+- Identical resolved aperture/shutter/ISO values must feed identical downstream physics regardless of whether they came from Program or Full Auto.
+- Flash-aware program shifts, safety shift, Bulb/Time, and broader private-app Full Auto behavior remain separate.
+
 ## Meter target / compensation boundary
 
 - Freeze meter results into a separate target object before #99 control resolution; do not pass mutable renderer/app state as the authoritative exposure target.
