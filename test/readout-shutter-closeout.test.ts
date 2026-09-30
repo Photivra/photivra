@@ -719,3 +719,360 @@ describe("temporal scene-radiance sampling on the authoritative exposure clock",
     );
   });
 });
+
+
+describe("readout/shutter closeout fail-closed boundaries", () => {
+  it("validates capture-mode timing profile discriminants and schedule fields", () => {
+    expect(() =>
+      parseCaptureModeTimingProfile({
+        ...rollingProfile(),
+        schemaVersion: "9.9.9"
+      })
+    ).toThrow("schemaVersion");
+
+    expect(() =>
+      parseCaptureModeTimingProfile({
+        ...rollingProfile(),
+        shutterMechanism: "leaf"
+      })
+    ).toThrow("shutterMechanism is invalid");
+
+    expect(() =>
+      parseCaptureModeTimingProfile({
+        ...rollingProfile(),
+        nonUniformScheduleModeled: true
+      })
+    ).toThrow(
+      "nonUniformScheduleModeled must be false"
+    );
+
+    expect(() =>
+      parseCaptureModeTimingProfile({
+        ...globalProfile(),
+        opening: {
+          kind: "simultaneous",
+          directionNative: {
+            value: "top-to-bottom",
+            evidence: evidence("illegal")
+          }
+        }
+      })
+    ).toThrow(
+      "simultaneous schedule must not include scan-only fields"
+    );
+
+    expect(() =>
+      parseCaptureModeTimingProfile({
+        ...globalProfile(),
+        readout: {
+          ...globalProfile().readout,
+          scanDirectionNative: {
+            value: "top-to-bottom",
+            evidence: evidence("illegal")
+          }
+        }
+      })
+    ).toThrow(
+      "global readout must not include rolling-scan fields"
+    );
+
+    expect(() =>
+      parseCaptureModeTimingProfile({
+        ...rollingProfile(),
+        readout: {
+          readoutMode: "segmented",
+          captureReadoutDurationSeconds: {
+            value: 0.01,
+            unit: "s",
+            evidence: evidence("bad-mode")
+          }
+        }
+      })
+    ).toThrow("readoutMode must be");
+  });
+
+  it("rejects ambiguous or invalid translation/parallax scene inputs", () => {
+    const timing =
+      resolveTiming(
+        rollingProfile(),
+        [centerPoint]
+      );
+    const common = {
+      timing,
+      imagingArea: {
+        widthMm: 36,
+        heightMm: 24
+      },
+      focalLengthMm: 50,
+      orientation:
+        "landscape" as const,
+      cameraTranslationVelocityMps: {
+        x: 0,
+        y: 0,
+        z: 0
+      },
+      temporalSampleCount: 2
+    };
+
+    expect(() =>
+      calculateCaptureTranslationParallaxTemporalQuadrature({
+        ...common,
+        sceneSamples: []
+      })
+    ).toThrow(
+      "sceneSamples must be a non-empty array"
+    );
+
+    expect(() =>
+      calculateCaptureTranslationParallaxTemporalQuadrature({
+        ...common,
+        sceneSamples: [
+          {
+            sampleId: "duplicate",
+            destinationPointNative:
+              centerPoint,
+            positionCameraM: {
+              x: 0,
+              y: 0,
+              z: 5
+            }
+          },
+          {
+            sampleId: "duplicate",
+            destinationPointNative:
+              centerPoint,
+            positionCameraM: {
+              x: 0,
+              y: 0,
+              z: 10
+            }
+          }
+        ]
+      })
+    ).toThrow(
+      "duplicate sampleId"
+    );
+
+    expect(() =>
+      calculateCaptureTranslationParallaxTemporalQuadrature({
+        ...common,
+        cameraTranslationVelocityMps: {
+          x: Number.NaN,
+          y: 0,
+          z: 0
+        },
+        sceneSamples: [{
+          sampleId: "point",
+          destinationPointNative:
+            centerPoint,
+          positionCameraM: {
+            x: 0,
+            y: 0,
+            z: 5
+          }
+        }]
+      })
+    ).toThrow(
+      "cameraTranslationVelocityMps.x must be finite"
+    );
+
+    expect(() =>
+      calculateCaptureTranslationParallaxTemporalQuadrature({
+        ...common,
+        sceneSamples: [{
+          sampleId: "behind",
+          destinationPointNative:
+            centerPoint,
+          positionCameraM: {
+            x: 0,
+            y: 0,
+            z: 0
+          }
+        }]
+      })
+    ).toThrow(
+      "must place the scene point in front of the camera"
+    );
+
+    expect(() =>
+      calculateCaptureTranslationParallaxTemporalQuadrature({
+        ...common,
+        sceneSamples: [{
+          sampleId: "unbound-point",
+          destinationPointNative: {
+            x: 1,
+            y: 1
+          },
+          positionCameraM: {
+            x: 0,
+            y: 0,
+            z: 5
+          }
+        }]
+      })
+    ).toThrow(
+      "must match exactly one committed exposure-window sample point"
+    );
+  });
+
+  it("rejects incomplete, duplicate, and unknown temporal radiance node results", () => {
+    const samplingPlan =
+      createSceneRadianceTemporalSamplingPlan({
+        planId: "boundary-plan",
+        timing:
+          resolveTiming(
+            rollingProfile(),
+            [{ x: 50, y: 50 }]
+          ),
+        destinationPointNative: {
+          x: 50,
+          y: 50
+        },
+        temporalSampleCount: 2,
+        query: {
+          providerProfileId:
+            "provider",
+          sceneId: "scene",
+          illuminationProfileId:
+            "illumination",
+          materialResponseProfileId:
+            "material",
+          target: {
+            kind:
+              "environment-direction",
+            outgoingDirectionUnitVector: {
+              x: 0,
+              y: 0,
+              z: 1
+            }
+          },
+          wavelengthNanometers: 550,
+          wavelengthBasis: "air"
+        }
+      });
+    const first =
+      samplingPlan.nodes[0]!;
+    const second =
+      samplingPlan.nodes[1]!;
+    const makeResult = (
+      node:
+        SceneRadianceTemporalSamplingNode
+    ): SceneRadianceEvaluationResult => ({
+      schemaVersion: "0.1.0",
+      sampleId:
+        node.expectedResultSampleId,
+      providerProfileId:
+        "provider",
+      sceneId: "scene",
+      wavelengthNanometers: 550,
+      wavelengthBasis: "air",
+      quantity:
+        "outgoing-spectral-radiance",
+      unit: "W/m^2/sr/nm",
+      spectralRadianceWattsPerSquareMeterSteradianNanometer:
+        10,
+      scientificStatus:
+        "approximation",
+      uncertainty: {
+        kind: "not-quantified",
+        limitation: "test"
+      },
+      evidence:
+        evidence("radiance-boundary"),
+      limitations: []
+    });
+
+    expect(() =>
+      reduceSceneRadianceTemporalSamples({
+        plan: samplingPlan,
+        samples: [{
+          nodeId: first.nodeId,
+          captureTimeSecondsFromReference:
+            first
+              .captureTimeSecondsFromReference,
+          result:
+            makeResult(first)
+        }]
+      })
+    ).toThrow(
+      "exactly one result for every temporal sampling node"
+    );
+
+    expect(() =>
+      reduceSceneRadianceTemporalSamples({
+        plan: samplingPlan,
+        samples: [
+          {
+            nodeId: first.nodeId,
+            captureTimeSecondsFromReference:
+              first
+                .captureTimeSecondsFromReference,
+            result:
+              makeResult(first)
+          },
+          {
+            nodeId: first.nodeId,
+            captureTimeSecondsFromReference:
+              second
+                .captureTimeSecondsFromReference,
+            result:
+              makeResult(second)
+          }
+        ]
+      })
+    ).toThrow(
+      "duplicate nodeId"
+    );
+
+    expect(() =>
+      reduceSceneRadianceTemporalSamples({
+        plan: samplingPlan,
+        samples: [
+          {
+            nodeId: "unknown-node",
+            captureTimeSecondsFromReference:
+              first
+                .captureTimeSecondsFromReference,
+            result:
+              makeResult(first)
+          },
+          {
+            nodeId: second.nodeId,
+            captureTimeSecondsFromReference:
+              second
+                .captureTimeSecondsFromReference,
+            result:
+              makeResult(second)
+          }
+        ]
+      })
+    ).toThrow(
+      "node result is missing"
+    );
+
+    expect(() =>
+      reduceSceneRadianceTemporalSamples({
+        plan: samplingPlan,
+        samples: [
+          {
+            nodeId: first.nodeId,
+            captureTimeSecondsFromReference:
+              Number.NaN,
+            result:
+              makeResult(first)
+          },
+          {
+            nodeId: second.nodeId,
+            captureTimeSecondsFromReference:
+              second
+                .captureTimeSecondsFromReference,
+            result:
+              makeResult(second)
+          }
+        ]
+      })
+    ).toThrow(
+      "sample time must match"
+    );
+  });
+});
