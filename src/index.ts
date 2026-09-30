@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.72.0" as const;
+export const ENGINE_API_VERSION = "0.73.0" as const;
 
 export {
   approximationResult,
@@ -762,10 +762,19 @@ export {
 } from "./equipment/exposure-capabilities.js";
 
 export {
+  EXPOSURE_PROGRAM_LINE_SCHEMA_VERSION,
+  parseExposureProgramLineProfile,
+  type ExposureProgramLineNode,
+  type ExposureProgramLineProfile
+} from "./exposure/program-line.js";
+
+export {
   EXPOSURE_MODE_RESOLVER_VERSION,
   resolveAperturePriorityAutoIsoExposureMode,
   resolveAperturePriorityExposureMode,
+  resolveFullAutoExposureMode,
   resolveManualExposureMode,
+  resolveProgramAutoExposureMode,
   resolveShutterPriorityExposureMode,
   type AperturePriorityAutoIsoExposureModeResolution,
   type AperturePriorityAutoIsoPolicy,
@@ -774,12 +783,19 @@ export {
   type ExposureResolutionConstraint,
   type ExposureTargetResidual,
   type ExposureTargetResidualState,
+  type FullAutoExposureModeResolution,
+  type FullAutoExposurePolicy,
   type ManualExposureModeResolution,
   type ManualIsoControl,
+  type ProgramAutoExposureModeResolution,
+  type ProgramAutoIsoControl,
+  type ProgramLineSelectionDiagnostics,
   type RelativeExposureControlAnchor,
   type ResolveAperturePriorityAutoIsoExposureModeInput,
   type ResolveAperturePriorityExposureModeInput,
+  type ResolveFullAutoExposureModeInput,
   type ResolveManualExposureModeInput,
+  type ResolveProgramAutoExposureModeInput,
   type ResolveShutterPriorityExposureModeInput,
   type ShutterPriorityAutoIsoPolicy,
   type ShutterPriorityExposureModeResolution
