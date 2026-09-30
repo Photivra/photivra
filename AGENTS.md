@@ -420,6 +420,24 @@ Backward compatibility matters.
 - Do not silently reinterpret an existing field or unit.
 - If behavior must change, add regression tests and document compatibility impact.
 
+## Production image-formation plan boundary
+
+- The production plan is additive and separate from `simulatePocCamera()`. Do not widen POC behavior merely because a stage becomes available to the production composer.
+- `getImageFormationContract()` remains the authoritative stage/dependency/coupling graph. The production planner may expand that graph; it must not invent a second hidden ordering.
+- Separate prepared static context from immutable per-capture state. Do not reparse/rebind unchanged equipment/renderer/fidelity profiles for every capture.
+- Capture snapshots are committed values: copy/freeze them so later UI changes cannot mutate capture identity or plan results.
+- Fidelity profiles are defined by required stage/effect capabilities and renderer requirements, never vague `low/medium/high` labels.
+- Every requested stage/effect must be explicit as active, modeled-zero, omitted-by-fidelity, unsupported, or blocked. Numerically zero is not the same as absent.
+- Unsupported composer stages and renderer capability mismatches must return structured blockers. Do not silently skip requested effects or fall back to renderer/app glue.
+- Renderer capability declarations are semantic metadata only. Do not place React, Three.js, WebGPU, DOM, server, or transport objects in the public scientific plan.
+- The first physical production path consumes #85 + #110 spectral quantities. Do not substitute RGB preview values for a physical sensor-irradiance request.
+- A non-unity field-throughput input must correspond to an explicitly requested illumination-vignetting effect; hidden active effects are blockers.
+- Requesting downstream sensor/RAW stages before they are intentionally composed must block rather than synthesize a shortcut.
+- Preserve static/capture/model/version identities in the plan for reproducibility.
+- Canonical FNV-1a plan fingerprints are deterministic non-cryptographic reproducibility keys only; never present them as cryptographic integrity hashes.
+- Capture stochastic seed ownership is explicit. Backend randomness must not silently change scientific results.
+- Performance caching/preparation (#43/#45) may optimize execution but must preserve exact semantic plan identity.
+
 ## Composition boundary
 
 Do not assume every public root-engine foundation is already part of the composed POC.

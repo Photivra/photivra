@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/**
- * Current public API contract version for the Photivra engine.
- *
- * This constant is intentionally independent of the package version so
- * schema/API compatibility can be discussed explicitly.
- */
-export const ENGINE_API_VERSION = "0.75.0" as const;
+export { ENGINE_API_VERSION } from "./core/version.js";
 
 export {
   approximationResult,
@@ -74,6 +68,40 @@ export {
   type ImageFormationStageId,
   type ImageFormationTemporalContract
 } from "./core/image-formation.js";
+
+export {
+  IMAGE_FORMATION_FIDELITY_PROFILE_SCHEMA_VERSION,
+  PREPARED_IMAGE_FORMATION_CONTEXT_VERSION,
+  PRODUCTION_CAPTURE_SNAPSHOT_VERSION,
+  PRODUCTION_IMAGE_FORMATION_PLAN_VERSION,
+  RENDERER_CAPABILITY_SCHEMA_VERSION,
+  createProductionCaptureSnapshot,
+  createProductionImageFormationPlan,
+  parseImageFormationFidelityProfile,
+  parsePreparedImageFormationContext,
+  parseProductionCaptureSnapshot,
+  parseRendererCapabilityDeclaration,
+  prepareImageFormationContext,
+  serializeProductionImageFormationPlan,
+  type CreateProductionCaptureSnapshotInput,
+  type CreateProductionImageFormationPlanInput,
+  type ImageFormationFidelityProfile,
+  type PlannedImageFormationEffect,
+  type PlannedImageFormationEffectState,
+  type PlannedImageFormationStage,
+  type PlannedImageFormationStageState,
+  type PlannedScientificStatus,
+  type PrepareImageFormationContextInput,
+  type PreparedImageFormationContext,
+  type ProductionCaptureSnapshot,
+  type ProductionImageFormationBlocker,
+  type ProductionImageFormationBlockerCode,
+  type ProductionImageFormationPlan,
+  type ProductionPhysicalSceneSample,
+  type RendererCapabilityDeclaration,
+  type RendererConsumerKind,
+  type RequiredImageFormationEffect
+} from "./composition/image-formation-plan.js";
 
 export {
   calculateFieldOfView,

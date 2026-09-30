@@ -127,6 +127,22 @@ The additive `calculateCaptureRotationInverseMappings()` layer now supplies an i
 
 The additive `calculateCaptureRotationTemporalQuadrature()` layer now supplies deterministic uniform-midpoint time nodes and separate normalized-average/seconds-valued temporal measures across each local exposure. It preserves the instantaneous inverse mapping as the geometry source of truth but does not itself integrate radiance, visibility, shutter transmission, sensor response, PSF, or output pixels.
 
+## Production composition consumer
+
+The ownership graph is now consumed by a separate production-plan contract.
+
+The production planner:
+
+- expands required upstream stages from this graph;
+- preserves coupled-stage metadata;
+- never creates a second hidden stage order;
+- records modeled-zero, omitted, unsupported, and blocked states explicitly;
+- keeps renderer capability declaration separate from scientific stage ownership.
+
+Plan schema `0.1.0` deliberately composes only the first #85 -> #110 physical sample path. Later stages remain visible blockers until they are intentionally integrated into the production composer.
+
+See [Production Image-Formation Plan](PRODUCTION_COMPOSITION.md).
+
 ## Renderer semantics
 
 Renderer implementations may use a bounded real-time preview approximation or a higher-fidelity deterministic reference evaluation, but both must consume the same engine-owned scientific contract.

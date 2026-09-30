@@ -272,6 +272,49 @@ It is intentionally **not** composed into `simulatePocCamera()` yet. The existin
 
 The new primitive provides deterministic yaw/pitch/roll rotation geometry only. It does not model camera translation, stabilization control laws, rolling-readout scheduling, or scene-depth-dependent parallax.
 
+## Production image-formation composition
+
+The production composition contract is additive and separate from `simulatePocCamera()`.
+
+`prepareImageFormationContext()` owns relatively static validated context:
+
+- resolved equipment capability identity;
+- scene/provider identity;
+- #110 optical-throughput profile;
+- output-geometry profile identity;
+- renderer capability declaration;
+- fidelity requirements.
+
+`createProductionCaptureSnapshot()` commits per-capture state:
+
+- capture/release-frame/scene-state identity;
+- scene time;
+- aperture/shutter/ISO;
+- deterministic capture seed;
+- optional #85 scene-radiance + #110 field/focus input.
+
+Prepared context and capture snapshots are copied, deeply frozen and fingerprinted. Later UI mutation cannot alter a committed plan.
+
+`createProductionImageFormationPlan()` expands required dependencies from `getImageFormationContract()`; it does not maintain a second hidden stage order. Every contract stage/effect remains visible in the plan as active, modeled-zero, omitted by fidelity, unsupported, or blocked.
+
+The initial composer intentionally integrates only a conservative subset:
+
+```text
+scene-ray-projection semantic binding
+  -> #85 scene-radiance result
+  -> #110 lens/pupil/throughput evaluation
+```
+
+Requesting later stages such as PSF, sensor optical stack, CFA/charge/ADC/reconstruction produces structured `engine-stage-not-composed` blockers until those standalone foundations are deliberately integrated.
+
+Renderer declarations are semantic capability metadata only; the plan accepts no React/Three.js/WebGPU objects. Optimized and reference renderers consume the same stage/effect semantics and must declare spectral, depth, warp, alpha and sensor-domain capabilities.
+
+Plan fingerprints use canonical serialization plus FNV-1a 32-bit only as deterministic reproducibility keys. They are not security/integrity hashes.
+
+The capture seed is explicit and backend randomness may not redefine the scientific result. Future stochastic stages must derive deterministic sub-seeds through an engine-owned policy.
+
+See [Production Image-Formation Plan](PRODUCTION_COMPOSITION.md).
+
 ## Repository-local Node POC transport
 
 The repository contains a minimal Node-only HTTP transport under `src/api` for contributor integration testing.
@@ -306,4 +349,4 @@ The published npm package intentionally exposes only the browser-safe scientific
 
 ## Version surfaces
 
-The root library contract and the composed POC simulation contract are versioned independently. `ENGINE_API_VERSION` describes the root browser-safe engine surface. `POC_SIMULATION_API_VERSION` describes the request/response behavior of `simulatePocCamera()` and the repository-local POC HTTP transport. Package versioning remains separate from both.
+The root library, semantic image-formation graph, production composition plan, and composed POC simulation are versioned independently. `ENGINE_API_VERSION` describes the root browser-safe engine surface; `IMAGE_FORMATION_CONTRACT_VERSION` describes ownership/order semantics; `PRODUCTION_IMAGE_FORMATION_PLAN_VERSION` describes the production composition result contract; and `POC_SIMULATION_API_VERSION` describes `simulatePocCamera()` plus the repository-local POC HTTP transport. Prepared-context, capture-snapshot, renderer-capability, and fidelity-profile schemas also retain their own versions. Package versioning remains separate from all of them.

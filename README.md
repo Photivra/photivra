@@ -44,6 +44,7 @@ See the [Usage Guide](docs/USAGE.md) for the complete public API.
 - [Public API Style](docs/API_STYLE.md)
 - [Physics Foundation](docs/PHYSICS_FOUNDATION.md)
 - [Image-Formation Contract](docs/IMAGE_FORMATION.md)
+- [Production Image-Formation Plan](docs/PRODUCTION_COMPOSITION.md)
 - [Scene Radiance and Illumination](docs/SCENE_RADIANCE_AND_ILLUMINATION.md)
 - [PSF and Pupil Foundation](docs/PSF_FOUNDATION.md)
 - [Motion and Signal Foundation](docs/MOTION_AND_SIGNAL.md)
@@ -136,6 +137,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [shared continuous spectral coverage and discrete-line composition](docs/SCENE_RADIANCE_AND_ILLUMINATION.md#shared-spectral-composition), intersecting explicit scene/optics/sensor wavelength support and preserving delta-like integrated line measures separately from continuous per-nanometre quadrature;
 - [temporal illumination waveforms and capture-time registration](docs/SCENE_RADIANCE_AND_ILLUMINATION.md#temporal-illumination), evaluating flash/flicker relative multipliers in seconds against authoritative local exposure windows without conflating sensor readout, metering, or automatic exposure policy;
 - [image-formation ownership/order contract](docs/IMAGE_FORMATION.md), including coordinate, temporal, renderer, and reserved sensor-stage semantics;
+- [production image-formation plan](docs/PRODUCTION_COMPOSITION.md), separating prepared static context from immutable capture snapshots, expanding stage dependencies from the authoritative graph, composing the first #110 physical path, and surfacing renderer/engine fidelity blockers without modifying the POC;
 - [camera/scene schemas and runtime validation](docs/USAGE.md#camera-and-scene-schema-validation);
 - [provenance plus optional uncertainty/quality metadata](docs/USAGE.md#provenance-uncertainty-and-quality-metadata);
 - [the composed `simulatePocCamera()` proof-of-concept calculation](docs/USAGE.md#composed-poc-simulation).
