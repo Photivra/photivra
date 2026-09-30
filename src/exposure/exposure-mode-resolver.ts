@@ -2405,7 +2405,9 @@ function validateAutoIsoAvailability(
 function buildPriorityAutoIsoBlocked<
   Mode extends
     | "aperture-priority"
-    | "shutter-priority"
+    | "shutter-priority",
+  Settings extends
+    Record<string, number>
 >(
   mode: Mode,
   target: ExposureMeterTarget,
@@ -2415,8 +2417,7 @@ function buildPriorityAutoIsoBlocked<
     | "auto-iso-unsupported"
     | "auto-iso-unknown"
     | "target-no-signal",
-  resolvedSettings:
-    Record<string, number>
+  resolvedSettings: Settings
 ): {
   resolverVersion:
     typeof EXPOSURE_MODE_RESOLVER_VERSION;
@@ -2427,8 +2428,7 @@ function buildPriorityAutoIsoBlocked<
     ExposureMeterTarget["sourceMeterSnapshot"];
   referenceExposure:
     RelativeExposureControlAnchor;
-  resolvedSettings:
-    Record<string, number>;
+  resolvedSettings: Settings;
   blocker:
     | "auto-iso-unsupported"
     | "auto-iso-unknown"
