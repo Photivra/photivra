@@ -1001,6 +1001,101 @@ describe("release binding validation boundaries", () => {
     );
   });
 
+  it("fails closed on malformed release contract identity and timing", () => {
+    const first = directInput();
+    expect(() =>
+      createProductionCaptureSnapshot({
+        ...first.input,
+        releaseFrameBinding: {
+          ...first.input.releaseFrameBinding,
+          releaseSequenceVersion:
+            "9.9.9" as "0.1.0"
+        }
+      })
+    ).toThrow(
+      "releaseSequenceVersion must be"
+    );
+
+    const second = directInput();
+    expect(() =>
+      createProductionCaptureSnapshot({
+        ...second.input,
+        releaseFrameBinding: {
+          ...second.input.releaseFrameBinding,
+          frameIndex: -1
+        }
+      })
+    ).toThrow(
+      "frameIndex must be a non-negative safe integer"
+    );
+
+    const third = directInput();
+    expect(() =>
+      createProductionCaptureSnapshot({
+        ...third.input,
+        releaseFrameBinding: {
+          ...third.input.releaseFrameBinding,
+          exposureEndTimeSeconds:
+            third.input
+              .releaseFrameBinding
+              .exposureStartTimeSeconds
+        }
+      })
+    ).toThrow(
+      "exposure end must be after exposure start"
+    );
+
+    const fourth = directInput();
+    expect(() =>
+      createProductionCaptureSnapshot({
+        ...fourth.input,
+        releaseFrameBinding: {
+          ...fourth.input.releaseFrameBinding,
+          frameIndex: 1,
+          startIntervalFromPreviousSeconds:
+            null
+        }
+      })
+    ).toThrow(
+      "non-first release frame must declare"
+    );
+  });
+
+  it("fails closed on invalid release timing constraints and automation states", () => {
+    const first = directInput();
+    expect(() =>
+      createProductionCaptureSnapshot({
+        ...first.input,
+        releaseFrameBinding: {
+          ...first.input.releaseFrameBinding,
+          timingConstraints: [
+            "invalid" as "requested-cadence"
+          ]
+        }
+      })
+    ).toThrow(
+      "timingConstraints[0] is invalid"
+    );
+
+    const second = directInput();
+    expect(() =>
+      createProductionCaptureSnapshot({
+        ...second.input,
+        releaseFrameBinding: {
+          ...second.input.releaseFrameBinding,
+          automation: {
+            ...second.input
+              .releaseFrameBinding
+              .automation,
+            ae: "invalid" as "locked"
+          }
+        }
+      })
+    ).toThrow(
+      "automation.ae is invalid"
+    );
+  });
+
   it("requires WB state exactly when the release frame commits a WB identity", () => {
     const first = directInput();
     const withoutWb:
