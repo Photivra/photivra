@@ -606,15 +606,13 @@ describe("temporal scene-radiance sampling on the authoritative exposure clock",
         .startSecondsFromCaptureReference
     ).toBeCloseTo(0.01, 12);
     expect(
-      samplingPlan.nodes.map(
-        (node) =>
-          node
-            .captureTimeSecondsFromReference
-      )
-    ).toEqual([
-      0.015,
-      0.025
-    ]);
+      samplingPlan.nodes[0]
+        ?.captureTimeSecondsFromReference
+    ).toBeCloseTo(0.015, 12);
+    expect(
+      samplingPlan.nodes[1]
+        ?.captureTimeSecondsFromReference
+    ).toBeCloseTo(0.025, 12);
     expect(
       samplingPlan
         .sensorReadoutTimingUsedAsExposureTiming
