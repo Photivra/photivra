@@ -318,6 +318,18 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - A no-signal meter target blocks Auto ISO rather than selecting maximum ISO or infinity. Manual settings may still be returned with an unresolved target diagnostic.
 - Flash behavior, minimum-shutter Auto ISO policy for modes with automatic shutter, safety shift, Program lines, aperture priority, shutter priority, and Full Auto remain outside this first resolver slice.
 
+## Aperture Priority exposure-control boundary
+
+- In the first Aperture Priority slice, aperture and ISO are manual axes and must never be changed, clamped, or safety-shifted by the resolver. Unsupported manual settings fail closed.
+- Shutter is the only automatic axis. Reuse the same relative target/reference exposure model as Manual + Auto ISO; do not add a mode-specific exposure equation.
+- The resolver consumes exposure compensation only through the already-compensated #100 target. Never apply compensation a second time.
+- Continuous shutter capability returns the ideal finite duration when it lies inside the #109 range.
+- Discrete shutter grids quantize in log2 duration/exposure space. The first policy is nearest duration with the **shorter shutter on an exact tie**.
+- Shutter residual diagnostics use the same sign convention as ISO: positive residual means still under target / needs more exposure; negative residual means over target.
+- A required shutter shorter than the minimum duration clamps to the shortest available duration and reports `shutter-minimum`; longer than maximum clamps to the longest duration and reports `shutter-maximum`.
+- A no-signal meter target blocks automatic shutter rather than selecting the longest shutter or infinity.
+- Aperture Priority + Auto ISO is a separate later policy because two automatic axes require an explicit minimum-shutter/selection rule. Do not assume ISO always moves first.
+
 ## Meter target / compensation boundary
 
 - Freeze meter results into a separate target object before #99 control resolution; do not pass mutable renderer/app state as the authoritative exposure target.
