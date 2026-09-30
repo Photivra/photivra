@@ -5,18 +5,29 @@ import {
   parseSceneIlluminationProfile
 } from "../src/index.js";
 
-const ownedEvidence = (ref: string) => [
+const ownedEvidence = (
+  ref: string
+): readonly [{
+  sourceOrigin: "photivra";
+  sourceReference: string;
+  reuseStatus: "photivra-owned";
+}] => [
   {
-    sourceOrigin: "photivra" as const,
+    sourceOrigin: "photivra",
     sourceReference: ref,
-    reuseStatus: "photivra-owned" as const
+    reuseStatus: "photivra-owned"
   }
 ];
 
-const relativeMagnitude = () => ({
-  kind: "relative-linear-scale" as const,
+const relativeMagnitude = (): {
+  kind: "relative-linear-scale";
+  scale: number;
+  scientificStatus: "approximation";
+  limitation: string;
+} => ({
+  kind: "relative-linear-scale",
   scale: 1,
-  scientificStatus: "approximation" as const,
+  scientificStatus: "approximation",
   limitation: "Relative educational/reference source only."
 });
 
