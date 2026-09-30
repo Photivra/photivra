@@ -26,7 +26,7 @@ const evidence = (
   reuseStatus: "photivra-owned"
 }];
 
-const meteringProfile = () =>
+const meteringProfile = (): ReturnType<typeof parseExposureMeteringProfile> =>
   parseExposureMeteringProfile({
     schemaVersion: "0.1.0",
     profileId: "generic-multi-zone",
@@ -49,7 +49,7 @@ const meteringProfile = () =>
     ]
   });
 
-const bodyMeteringCapabilities = () =>
+const bodyMeteringCapabilities = (): ReturnType<typeof parseGenericBodyMeteringCapabilityProfile> =>
   parseGenericBodyMeteringCapabilityProfile({
     schemaVersion: "0.1.0",
     profileId: "generic-body-metering",
@@ -77,7 +77,7 @@ const bodyMeteringCapabilities = () =>
     }
   });
 
-const exposureCapabilities = () => {
+const exposureCapabilities = (): ReturnType<typeof resolveGenericEquipmentExposureCapabilities> => {
   const body =
     parseGenericBodyExposureCapabilityProfile({
       schemaVersion: "0.1.0",
@@ -170,7 +170,7 @@ const captureGeometry =
 const meter = (
   relativeLinearSignal: number,
   sceneStateId: string
-) =>
+): ReturnType<typeof meterRelativeExposure> =>
   meterRelativeExposure({
     profile: meteringProfile(),
     sampleSet: {
