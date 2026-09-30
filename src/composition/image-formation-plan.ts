@@ -2033,6 +2033,70 @@ export function createProductionCaptureSnapshot(
     );
   }
 
+  const releaseFrameId =
+    requireNonEmptyString(
+      input.releaseFrameId,
+      "releaseFrameId"
+    );
+  const exposure = {
+    aperture:
+      requirePositiveFinite(
+        input.exposure.aperture,
+        "exposure.aperture"
+      ),
+    shutterSeconds:
+      requirePositiveFinite(
+        input.exposure
+          .shutterSeconds,
+        "exposure.shutterSeconds"
+      ),
+    iso:
+      requirePositiveFinite(
+        input.exposure.iso,
+        "exposure.iso"
+      )
+  };
+
+  const releaseFrameBinding =
+    input.releaseFrameBinding ===
+    undefined
+      ? undefined
+      : validateProductionReleaseFrameBinding(
+          input.releaseFrameBinding,
+          releaseFrameId,
+          exposure.shutterSeconds
+        );
+
+  const whiteBalanceState =
+    validateCommittedWhiteBalanceState(
+      input.whiteBalanceState,
+      releaseFrameBinding
+    );
+
+  const physicalSceneSample =
+    input.physicalSceneSample ===
+    undefined
+      ? undefined
+      : validatePhysicalSceneSample(
+          input.physicalSceneSample,
+          sceneTime
+        );
+
+  if (
+    releaseFrameBinding !==
+      undefined &&
+    physicalSceneSample !==
+      undefined &&
+    !releaseFocusMatchesOpticalFocus(
+      releaseFrameBinding.focus,
+      physicalSceneSample.focus
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      "physicalSceneSample.focus must match the committed release-frame focus."
+    );
+  }
+
   const core = {
     version:
       PRODUCTION_CAPTURE_SNAPSHOT_VERSION,
@@ -2041,11 +2105,7 @@ export function createProductionCaptureSnapshot(
         input.captureId,
         "captureId"
       ),
-    releaseFrameId:
-      requireNonEmptyString(
-        input.releaseFrameId,
-        "releaseFrameId"
-      ),
+    releaseFrameId,
     sceneStateId:
       requireNonEmptyString(
         input.sceneStateId,
@@ -2058,29 +2118,24 @@ export function createProductionCaptureSnapshot(
         input.outputStateId,
         "outputStateId"
       ),
-    exposure: {
-      aperture:
-        requirePositiveFinite(
-          input.exposure.aperture,
-          "exposure.aperture"
-        ),
-      shutterSeconds:
-        requirePositiveFinite(
-          input.exposure
-            .shutterSeconds,
-          "exposure.shutterSeconds"
-        ),
-      iso:
-        requirePositiveFinite(
-          input.exposure.iso,
-          "exposure.iso"
-        )
-    },
+    exposure,
     stochasticSeedUint32:
       requireUint32(
         input.stochasticSeedUint32,
         "stochasticSeedUint32"
       ),
+    ...(releaseFrameBinding ===
+    undefined
+      ? {}
+      : {
+          releaseFrameBinding
+        }),
+    ...(whiteBalanceState ===
+    undefined
+      ? {}
+      : {
+          whiteBalanceState
+        }),
     ...(input.temporalCapture ===
     undefined
       ? {}
@@ -2088,20 +2143,14 @@ export function createProductionCaptureSnapshot(
           temporalCapture:
             validateTemporalCaptureInput(
               input.temporalCapture,
-              input.exposure
-                .shutterSeconds
+              exposure.shutterSeconds
             )
         }),
-    ...(input.physicalSceneSample ===
+    ...(physicalSceneSample ===
     undefined
       ? {}
       : {
-          physicalSceneSample:
-            validatePhysicalSceneSample(
-              input
-                .physicalSceneSample,
-              sceneTime
-            )
+          physicalSceneSample
         })
   };
 
@@ -2119,6 +2168,104 @@ export function createProductionCaptureSnapshot(
   return deepFreeze(
     cloneJson(snapshot)
   );
+}
+
+/**
+ * Creates one immutable production snapshot directly from a committed #105
+ * release frame. The release frame owns exposure/focus/automation/seed
+ * identity; callers provide only the scene/output-local state that is not
+ * owned by the release sequence.
+ */
+export function createProductionCaptureSnapshotFromReleaseFrame(
+  input:
+    CreateProductionCaptureSnapshotFromReleaseFrameInput
+): ProductionCaptureSnapshot {
+  const frame =
+    input.releaseFrame;
+
+  const releaseFrameBinding:
+    ProductionReleaseFrameBinding = {
+    releaseSequenceVersion:
+      RELEASE_SEQUENCE_VERSION,
+    sequenceId:
+      requireNonEmptyString(
+        frame.sequenceId,
+        "releaseFrame.sequenceId"
+      ),
+    releaseFrameId:
+      requireNonEmptyString(
+        frame.releaseFrameId,
+        "releaseFrame.releaseFrameId"
+      ),
+    frameIndex:
+      frame.frameIndex,
+    exposureStartTimeSeconds:
+      frame.exposureStartTimeSeconds,
+    exposureEndTimeSeconds:
+      frame.exposureEndTimeSeconds,
+    sceneTimeSecondsFromSequenceStart:
+      frame.sceneTimeSecondsFromSequenceStart,
+    startIntervalFromPreviousSeconds:
+      frame.startIntervalFromPreviousSeconds,
+    timingConstraints: [
+      ...frame.timingConstraints
+    ],
+    focus:
+      parseFocusPlane(
+        frame.focus
+      ),
+    automation: {
+      ...frame.automation
+    },
+    ...(frame.whiteBalanceStateId ===
+    undefined
+      ? {}
+      : {
+          whiteBalanceStateId:
+            frame.whiteBalanceStateId
+        })
+  };
+
+  return createProductionCaptureSnapshot({
+    captureId:
+      input.captureId,
+    releaseFrameId:
+      frame.releaseFrameId,
+    sceneStateId:
+      input.sceneStateId,
+    sceneTimeSecondsFromExposureStart:
+      input
+        .sceneTimeSecondsFromExposureStart,
+    outputStateId:
+      input.outputStateId,
+    exposure: {
+      ...frame.exposure
+    },
+    stochasticSeedUint32:
+      frame.stochasticSeedUint32,
+    releaseFrameBinding,
+    ...(input.whiteBalanceState ===
+    undefined
+      ? {}
+      : {
+          whiteBalanceState:
+            input.whiteBalanceState
+        }),
+    ...(input.physicalSceneSample ===
+    undefined
+      ? {}
+      : {
+          physicalSceneSample:
+            input.physicalSceneSample
+        }),
+    ...(input.temporalCapture ===
+    undefined
+      ? {}
+      : {
+          temporalCapture:
+            input.temporalCapture
+        })
+  });
 }
 
 export function parseProductionCaptureSnapshot(
