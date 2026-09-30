@@ -6,6 +6,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Added
 
+- Added #135 generic front-of-lens filter transmission with neutral linear, base-10 optical-density, and wavelength-resolved spectral models. Multiple filters compose multiplicatively with preserved component identity/evidence, remain explicitly unpolarized/unbranded, and integrate exactly once into #110 and #111 without changing aperture geometry, working f-number, DOF, or diffraction. Production capture snapshots now preserve the selected filter stack as immutable capture identity.
 - Added #108 shooting-time white-balance control and Auto WB foundations over an explicit pre-WB camera-linear RGB domain. Generic profile-owned presets, manual gains, independent CCT+tint intent, clipped-sample-safe custom measurement, deterministic gray-world-style AWB priorities, and AWB lock remain separate from physical scene illumination and #15 render/export color transforms. AWB never reads authoritative scene illuminant metadata as an oracle and resolved WB state never changes exposure, focus, or RAW-like capture data.
 - Added #105 deterministic logical release sequencing for single, burst, self-timer, exposure-bracket, and explicit-focus-bracket capture. Generic release capabilities constrain supported drive/bracket modes, maximum frame count/cadence, and inter-frame gap. Scheduling prevents incompatible ordinary-still exposure overlap, derives distinct reproducible per-frame seeds, snapshots base capture state, keeps sensor capture modes separate, and provides an explicit cancellation boundary without conflating WB bracketing with physical multi-exposure capture.
 - Completed the generic #100 metering integration seam with reusable generic-body metering capability profiles, explicit metering-profile/mode compatibility assessment, spot/focus-point linkage capability metadata, and end-to-end meter → frozen target → exposure compensation → #99 automatic-exposure tests. Meter target/calibration policy remains owned by the metering profile rather than duplicated into equipment metadata; the controlled relative-light path preserves the -1 EV scene / +1 EV Auto ISO invariant.
@@ -47,7 +48,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Changed
 
-- Engine API contract advances to `0.77.0`; production image-formation plan contract advances to `0.2.0`; production plan consumer manifest starts at `0.1.0`; image-formation contract remains `0.4.0`; Exposure Mode Resolver remains `0.5.0`; Exposure Duration Control remains `0.1.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
+- Engine API contract advances to `0.83.0`; production image-formation plan contract advances to `0.3.0`; production capture snapshot contract advances to `0.2.0`; production plan consumer manifest remains `0.1.0`; image-formation contract remains `0.4.0`; Exposure Mode Resolver remains `0.5.0`; Exposure Duration Control remains `0.1.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
 
 ## 0.6.0 - 2026-09-29
 

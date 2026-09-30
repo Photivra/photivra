@@ -722,6 +722,114 @@ The production plan therefore does not turn standalone foundations into silently
 
 See [Production Image-Formation Plan](PRODUCTION_COMPOSITION.md).
 
+## Front-of-lens filter transmission
+
+Use `parseFrontOfLensFilterProfile()`, `resolveFrontOfLensFilterTransmission()`, and `composeFrontOfLensFilterTransmission()` for generic passive filters placed **in front of the lens**.
+
+OpenSource V1 supports three generic transmission declarations:
+
+- `neutral-linear-transmission` — explicit wavelength-independent transmission over a declared wavelength range;
+- `neutral-optical-density` — base-10 optical density with `T = 10^-OD`;
+- `spectral-transmission` — wavelength-resolved transmission samples.
+
+All schema 0.1.0 filter profiles are explicitly:
+
+- `photivra-generic-unbranded`;
+- passive transmission only;
+- unpolarized;
+- non-wavelength-changing.
+
+```ts
+import {
+  parseFrontOfLensFilterProfile
+} from "@photivra/engine";
+
+const nd = parseFrontOfLensFilterProfile({
+  schemaVersion: "0.1.0",
+  filterId: "generic-nd-1-stop",
+  profileVersion: "1.0.0",
+  identityScope:
+    "photivra-generic-unbranded",
+  position: "front-of-lens",
+  scientificStatus: "approximation",
+  wavelengthBasis: "air",
+  wavelengthRangeNanometers: {
+    minimum: 400,
+    maximum: 700
+  },
+  transmission: {
+    kind:
+      "neutral-linear-transmission",
+    linearTransmissionFactor: {
+      value: 0.5,
+      evidence
+    }
+  },
+  uncertainty: {
+    kind: "not-quantified",
+    limitation:
+      "Generic educational filter."
+  },
+  polarizationModeled: false,
+  wavelengthChangingBehaviorModeled:
+    false,
+  evidence,
+  limitations: []
+});
+```
+
+A 0.5 transmission factor is exactly one stop of attenuation. Base-10 optical density is reported alongside stop attenuation for diagnostics.
+
+Multiple filters compose multiplicatively:
+
+```text
+T_stack = T_1 * T_2 * ... * T_n
+```
+
+The stack preserves each component's identity/evidence. Aggregate numeric uncertainty is deliberately reported as **not propagated** unless correlation/independence semantics are established; individual filter uncertainty remains attached to each component.
+
+### Spectral boundary
+
+Spectral filter data remains wavelength-resolved through #110. Photivra does not convert a spectral filter into an undocumented RGB tint.
+
+The requested scene wavelength and filter profile must use the same resolved air/vacuum basis and lie inside the declared wavelength range.
+
+Embedded numeric spectral curves require `reusable-data` or `photivra-owned` provenance. Factual-reference-only publication does not authorize copying numeric curve data into the open-source package.
+
+### Optical integration
+
+When `frontOfLensFilters` is supplied to `calculateSceneRadianceToSensorIrradiance()`, the bridge applies the filter stack **exactly once**, independently from:
+
+- lens spectral transmission or effective T-stop;
+- field/vignetting throughput;
+- sensor optical-stack response.
+
+Conceptually:
+
+```text
+scene radiance
+  * lens acceptance/transmission
+  * front-of-lens filter transmission
+  * field throughput
+  -> pre-sensor-stack spectral irradiance
+```
+
+A selected front filter does **not** change:
+
+- nominal or working f-number;
+- aperture geometry;
+- depth of field;
+- geometric defocus;
+- diffraction.
+
+The production capture snapshot/plan also carries the filter stack. Changing the selected filter changes immutable capture/plan identity and the composed #110 physical result.
+
+### Polarization boundary
+
+CPL/polarizer behavior is not modeled here. Correct polarization would require an end-to-end polarization representation across scene radiance, materials/reflections, atmosphere, optics and potentially sensor response.
+
+Schema 0.1.0 therefore rejects filter profiles that claim `polarizationModeled: true`.
+
 ## Scene radiance to sensor irradiance
 
 Use `calculateSceneRadianceToSensorIrradiance()` when you need the first physical primary-optics bridge from one validated #85 outgoing spectral-radiance sample to **pre-sensor-stack sensor-plane spectral irradiance**.
@@ -842,6 +950,7 @@ geometric acceptance ≈ pi / (4 * N_working^2)
 sensor spectral irradiance =
   scene spectral radiance
   * effective optical acceptance
+  * front-of-lens filter transmission
   * field throughput
 ```
 

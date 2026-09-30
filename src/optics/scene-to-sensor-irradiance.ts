@@ -15,6 +15,10 @@ import {
   type SpectralWavelengthBasis
 } from "../core/spectral.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import {
+  composeFrontOfLensFilterTransmission,
+  type FrontOfLensFilterProfile
+} from "./front-of-lens-filter.js";
 import type { IlluminationVignetting } from "./illumination-vignetting.js";
 import { calculateThinLensImageDistance } from "./thin-lens.js";
 import {
@@ -182,6 +186,8 @@ export interface CalculateSceneRadianceToSensorIrradianceInput {
   };
   fieldThroughput:
     OpticalBridgeFieldThroughput;
+  frontOfLensFilters?:
+    readonly FrontOfLensFilterProfile[];
 }
 
 export interface SceneToSensorIrradianceResult {
@@ -225,6 +231,15 @@ export interface SceneToSensorIrradianceResult {
     number | null;
   tStopEquivalentTransmissionFactor:
     number | null;
+  frontOfLensFilterCount: number;
+  frontOfLensFilterTransmissionFactor:
+    number;
+  frontOfLensFilterAttenuationStops:
+    number;
+  frontOfLensFilterTransmissionAppliedExactlyOnce:
+    true;
+  frontOfLensFilterPolarizationModeled:
+    false;
   fieldThroughputFactor: number;
   effectiveAcceptanceAfterTransmissionAndFieldSteradians:
     number;
@@ -264,6 +279,8 @@ export interface SceneToSensorIrradianceResult {
     transmission:
       readonly EvidenceProvenance[];
     workingFNumber:
+      readonly EvidenceProvenance[];
+    frontOfLensFilters:
       readonly EvidenceProvenance[];
   };
   limitations:
@@ -1331,6 +1348,49 @@ export function calculateSceneRadianceToSensorIrradiance(
         .workingTStop.evidence;
   }
 
+  let frontOfLensFilterCount = 0;
+  let frontOfLensFilterTransmissionFactor = 1;
+  let frontOfLensFilterAttenuationStops = 0;
+  let frontOfLensFilterEvidence:
+    readonly EvidenceProvenance[] = [];
+  let frontOfLensFilterLimitations:
+    readonly string[] = [];
+
+  if (
+    input.frontOfLensFilters !==
+    undefined
+  ) {
+    const composed =
+      composeFrontOfLensFilterTransmission({
+        filters:
+          input.frontOfLensFilters,
+        wavelengthNanometers:
+          request.wavelengthNanometers,
+        wavelengthBasis:
+          request.wavelengthBasis
+      });
+    frontOfLensFilterCount =
+      composed.appliedFilterCount;
+    frontOfLensFilterTransmissionFactor =
+      composed
+        .combinedLinearTransmissionFactor;
+    frontOfLensFilterAttenuationStops =
+      composed
+        .combinedAttenuationStops;
+    frontOfLensFilterEvidence =
+      composed.components.flatMap(
+        (component) =>
+          component.evidence
+      );
+    frontOfLensFilterLimitations =
+      composed.components.flatMap(
+        (component) =>
+          component.limitations
+      );
+    effectiveAcceptance *=
+      frontOfLensFilterTransmissionFactor;
+  }
+
   const fieldThroughputFactor =
     fieldFactor(
       input.fieldThroughput,
@@ -1357,6 +1417,8 @@ export function calculateSceneRadianceToSensorIrradiance(
 
   const limitations = [
     ...profile.limitations,
+    ...frontOfLensFilterLimitations,
+    "Front-of-lens filter transmission is applied outside the lens throughput path exactly once and does not change geometric working f-number.",
     "Paraxial circular-pupil acceptance uses pi/(4*N_working^2); no universal cos^4 field falloff is added.",
     "Field throughput is supplied separately and applied exactly once.",
     "Geometric distortion area-density/Jacobian correction is not applied by this bridge.",
@@ -1406,6 +1468,13 @@ export function calculateSceneRadianceToSensorIrradiance(
       spectralTransmissionFactor,
       effectiveWorkingTStop,
       tStopEquivalentTransmissionFactor,
+      frontOfLensFilterCount,
+      frontOfLensFilterTransmissionFactor,
+      frontOfLensFilterAttenuationStops,
+      frontOfLensFilterTransmissionAppliedExactlyOnce:
+        true,
+      frontOfLensFilterPolarizationModeled:
+        false,
       fieldThroughputFactor,
       effectiveAcceptanceAfterTransmissionAndFieldSteradians:
         effectiveAcceptance,
@@ -1453,12 +1522,14 @@ export function calculateSceneRadianceToSensorIrradiance(
         transmission:
           transmissionEvidence,
         workingFNumber:
-          working.evidence
+          working.evidence,
+        frontOfLensFilters:
+          frontOfLensFilterEvidence
       },
       limitations
     },
     "scene-radiance-to-sensor-irradiance",
-    "1.0.0",
+    "1.1.0",
     limitations
   );
 }

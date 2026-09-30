@@ -38,6 +38,10 @@ import {
   type ResolvedNumericSettingGrid
 } from "../equipment/exposure-capabilities.js";
 import {
+  parseFrontOfLensFilterProfile,
+  type FrontOfLensFilterProfile
+} from "../optics/front-of-lens-filter.js";
+import {
   calculateSceneRadianceToSensorIrradiance,
   parseSceneToSensorIrradianceProfile,
   type OpticalBridgeFieldThroughput,
@@ -55,11 +59,11 @@ import {
 type UnknownRecord = Record<string, unknown>;
 
 export const PRODUCTION_IMAGE_FORMATION_PLAN_VERSION =
-  "0.2.0" as const;
+  "0.3.0" as const;
 export const PREPARED_IMAGE_FORMATION_CONTEXT_VERSION =
   "0.1.0" as const;
 export const PRODUCTION_CAPTURE_SNAPSHOT_VERSION =
-  "0.1.0" as const;
+  "0.2.0" as const;
 export const RENDERER_CAPABILITY_SCHEMA_VERSION =
   "0.1.0" as const;
 export const IMAGE_FORMATION_FIDELITY_PROFILE_SCHEMA_VERSION =
@@ -180,6 +184,8 @@ export interface ProductionPhysicalSceneSample {
   };
   fieldThroughput:
     OpticalBridgeFieldThroughput;
+  frontOfLensFilters?:
+    readonly FrontOfLensFilterProfile[];
 }
 
 export interface ProductionTemporalCaptureInput {
@@ -1438,7 +1444,19 @@ function validatePhysicalSceneSample(
         )
     },
     fieldThroughput:
-      sample.fieldThroughput
+      sample.fieldThroughput,
+    ...(sample.frontOfLensFilters ===
+    undefined
+      ? {}
+      : {
+          frontOfLensFilters:
+            sample.frontOfLensFilters.map(
+              (profile) =>
+                parseFrontOfLensFilterProfile(
+                  profile
+                )
+            )
+        })
   });
 }
 
@@ -2845,7 +2863,14 @@ function computePhysicalResult(
       imagePointMm:
         sample.imagePointMm,
       fieldThroughput:
-        sample.fieldThroughput
+        sample.fieldThroughput,
+      ...(sample.frontOfLensFilters ===
+      undefined
+        ? {}
+        : {
+            frontOfLensFilters:
+              sample.frontOfLensFilters
+          })
     }).value;
   } catch (error) {
     if (

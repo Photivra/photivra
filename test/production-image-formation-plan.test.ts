@@ -7,6 +7,7 @@ import {
   createProductionImageFormationPlan,
   createProductionPlanConsumerManifest,
   getImageFormationContract,
+  parseFrontOfLensFilterProfile,
   parseGenericBodyExposureCapabilityProfile,
   parseGenericLensExposureCapabilityProfile,
   parseImageFormationFidelityProfile,
@@ -190,6 +191,45 @@ const opticalProfile = (): SceneToSensorIrradianceProfile =>
     limitations: ["test profile"]
   });
 
+const frontFilter = (
+  factor = 0.5
+): ReturnType<
+  typeof parseFrontOfLensFilterProfile
+> =>
+  parseFrontOfLensFilterProfile({
+    schemaVersion: "0.1.0",
+    filterId: "generic-front-filter",
+    profileVersion: "1.0.0",
+    identityScope:
+      "photivra-generic-unbranded",
+    position: "front-of-lens",
+    scientificStatus: "approximation",
+    wavelengthBasis: "air",
+    wavelengthRangeNanometers: {
+      minimum: 450,
+      maximum: 650
+    },
+    transmission: {
+      kind:
+        "neutral-linear-transmission",
+      linearTransmissionFactor: {
+        value: factor,
+        evidence:
+          evidence("front-filter")
+      }
+    },
+    uncertainty: {
+      kind: "not-quantified",
+      limitation: "test"
+    },
+    polarizationModeled: false,
+    wavelengthChangingBehaviorModeled:
+      false,
+    evidence:
+      evidence("front-filter-profile"),
+    limitations: []
+  });
+
 const sceneRequest = (
   target:
     "environment-direction" |
@@ -360,6 +400,7 @@ const captureInput = (
     field?: "unity" | "vignetted";
     wavelengthNanometers?: number;
     includePhysical?: boolean;
+    frontFilter?: boolean;
   } = {}
 ): CreateProductionCaptureSnapshotInput => {
   const field =
@@ -431,7 +472,14 @@ const captureInput = (
                     y: 0
                   },
             fieldThroughput:
-              field
+              field,
+            ...(options.frontFilter
+              ? {
+                  frontOfLensFilters: [
+                    frontFilter()
+                  ]
+                }
+              : {})
           }
         })
   };
@@ -616,7 +664,7 @@ describe("immutable production capture snapshots", () => {
     const snapshot = capture();
 
     expect(snapshot.version)
-      .toBe("0.1.0");
+      .toBe("0.2.0");
     expect(snapshot.captureId)
       .toBe("capture-1");
     expect(snapshot.stochasticSeedUint32)
@@ -720,10 +768,10 @@ describe("ready physical production plan", () => {
       "ready"
     );
     expect(plan.versions).toMatchObject({
-      engineApi: "0.82.0",
+      engineApi: "0.83.0",
       imageFormationContract:
         "0.4.0",
-      plan: "0.2.0"
+      plan: "0.3.0"
     });
     expect(
       plan
@@ -830,6 +878,63 @@ describe("ready physical production plan", () => {
         .physicalSceneToSensorResult
         ?.fieldThroughputFactor
     ).toBeLessThan(1);
+  });
+
+  it("composes front-of-lens filter transmission into immutable physical capture identity", () => {
+    const withoutFilter =
+      createProductionImageFormationPlan({
+        preparedContext:
+          prepared(),
+        captureSnapshot:
+          capture()
+      });
+    const withFilter =
+      createProductionImageFormationPlan({
+        preparedContext:
+          prepared(),
+        captureSnapshot:
+          capture({
+            frontFilter: true
+          })
+      });
+
+    expect(withFilter.status)
+      .toBe("ready");
+    expect(
+      withFilter
+        .physicalSceneToSensorResult
+        ?.frontOfLensFilterCount
+    ).toBe(1);
+    expect(
+      withFilter
+        .physicalSceneToSensorResult
+        ?.frontOfLensFilterTransmissionFactor
+    ).toBe(0.5);
+    expect(
+      withFilter
+        .physicalSceneToSensorResult
+        ?.sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer
+    ).toBeCloseTo(
+      (withoutFilter
+        .physicalSceneToSensorResult
+        ?.sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer ??
+        0) * 0.5,
+      12
+    );
+    expect(
+      withFilter
+        .captureIdentity
+        .captureSnapshotFingerprint
+    ).not.toBe(
+      withoutFilter
+        .captureIdentity
+        .captureSnapshotFingerprint
+    );
+    expect(
+      withFilter.fingerprint.value
+    ).not.toBe(
+      withoutFilter.fingerprint.value
+    );
   });
 
   it("is deterministic for identical semantic inputs", () => {
