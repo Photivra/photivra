@@ -2842,6 +2842,158 @@ The meter measurement itself is never mutated, and the target still reports `aut
 
 A no-signal meter target remains `no-signal` after compensation. The engine does not convert darkness into infinity or fabricate a reachable automatic exposure.
 
+## Manual and Auto ISO exposure resolution
+
+Use `resolveManualExposureMode()` for the first #99 exposure-control slice.
+
+This resolver consumes:
+
+- a frozen #100 `ExposureMeterTarget`;
+- the resolved #109 generic body+lens exposure capabilities;
+- an explicit relative reference exposure anchor;
+- caller-owned aperture and shutter settings;
+- either manual ISO or Auto ISO.
+
+The resolver does **not** meter the scene, apply exposure compensation, change aperture/shutter, or infer sensor noise/gain behavior.
+
+### Reference exposure anchor
+
+The relative meter target tells the resolver how much exposure change is required, but it does not by itself define an absolute ISO.
+
+Therefore this API requires:
+
+```ts
+const referenceExposure = {
+  aperture: 4,
+  shutterSeconds: 1 / 125,
+  iso: 100
+};
+```
+
+The anchor means: when the target scale is `1`, this aperture/shutter/ISO combination represents the declared relative exposure baseline.
+
+It is explicit input, not a universal ISO-100 or gray-card rule. All three anchor values must be valid in the same resolved equipment capability envelope.
+
+### Manual + Auto ISO
+
+```ts
+import {
+  resolveManualExposureMode
+} from "@photivra/engine";
+
+const resolved =
+  resolveManualExposureMode({
+    target,
+    capabilities,
+    referenceExposure: {
+      aperture: 4,
+      shutterSeconds: 1 / 125,
+      iso: 100
+    },
+    manualAperture: 4,
+    manualShutterSeconds: 1 / 125,
+    isoControl: {
+      kind: "automatic",
+      quantizationPolicy:
+        "nearest-log2-lower-on-tie"
+    }
+  });
+```
+
+With aperture/shutter fixed at the reference values:
+
+- target scale `1` resolves ISO 100;
+- target scale `2` resolves ideal ISO 200;
+- target scale `4` resolves ideal ISO 400.
+
+This is the controlled invariant used for live scene-light response: a uniform -1 stop scene-light change produces +1 stop of ideal ISO when limits/grid permit it.
+
+If manual optical settings differ from the reference, the resolver compensates only through ISO:
+
+```text
+manual optical factor =
+  (manual shutter / manual aperture^2)
+  /
+  (reference shutter / reference aperture^2)
+
+ideal Auto ISO =
+  reference ISO
+  * target exposure scale
+  / manual optical factor
+```
+
+### Discrete ISO quantization
+
+For a discrete #109 ISO grid, the first policy chooses the nearest valid ISO in log2 exposure space.
+
+On an exact midpoint tie, the lower ISO is selected.
+
+The result keeps these concepts separate:
+
+- `idealIsoBeforeConstraints`;
+- final resolved ISO;
+- whether quantization occurred;
+- whether ISO was clamped at minimum/maximum;
+- signed residual exposure error.
+
+Residual sign:
+
+- positive residual = still **under target** / needs more exposure;
+- negative residual = **over target** / needs less exposure;
+- zero = matched.
+
+The limiting constraint is reported as one of:
+
+- `none`;
+- `iso-minimum`;
+- `iso-maximum`;
+- `iso-grid-quantization`.
+
+If Auto ISO capability is `unsupported` or `unknown`, the resolver returns a blocked result. Unknown is not treated as supported.
+
+A `no-signal` meter target also blocks Auto ISO rather than selecting maximum ISO or infinity.
+
+### Manual ISO
+
+Use:
+
+```ts
+const resolved =
+  resolveManualExposureMode({
+    target,
+    capabilities,
+    referenceExposure,
+    manualAperture: 4,
+    manualShutterSeconds: 1 / 125,
+    isoControl: {
+      kind: "manual",
+      iso: 400
+    }
+  });
+```
+
+Manual aperture, shutter, and ISO are preserved exactly after capability validation.
+
+A changed meter target or exposure compensation changes only the target-residual diagnostic. It does not change any manual setting.
+
+This is intentionally different from Manual + Auto ISO.
+
+### Boundaries
+
+This first #99 slice does not implement:
+
+- Aperture Priority;
+- Shutter Priority;
+- Program Auto;
+- Full Auto exposure;
+- minimum-shutter Auto ISO policy;
+- safety shift;
+- Bulb/Time control behavior;
+- flash-aware exposure;
+- sensor noise or conversion-gain behavior.
+
+Those later modes should reuse the same target/capability/reference-control contracts rather than introduce separate exposure equations.
+
 ## Exposure and ISO relations
 
 Use `calculateExposureValue100()` for EV100:
