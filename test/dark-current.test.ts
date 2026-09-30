@@ -438,6 +438,31 @@ describe("sensor dark-current charge", () => {
     );
   });
 
+  it("fails closed when dark-charge accumulation overflows", () => {
+    expect(() =>
+      calculateSensorDarkCurrentCharge({
+        exposure: exposure({
+          localExposureDurationSeconds:
+            2
+        }),
+        darkCurrentProfile:
+          exactProfile({
+            temperatureModel: {
+              kind:
+                "fixed-reference-temperature",
+              referenceTemperatureC:
+                20,
+              darkCurrentElectronsPerSecond:
+                Number.MAX_VALUE
+            }
+          }),
+        operatingTemperatureC: 20
+      })
+    ).toThrow(
+      "must remain finite"
+    );
+  });
+
   it("rejects modified or incomplete exposure integrations", () => {
     expect(() =>
       calculateSensorDarkCurrentCharge({
