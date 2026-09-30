@@ -348,6 +348,28 @@ function validateProviderContext(
       "Temporal illumination profile must bind the provider's illuminationProfileId."
     );
   }
+
+  const knownSourceIds =
+    new Set(
+      illuminationProfile.sources.map(
+        (entry) => entry.sourceId
+      )
+    );
+  for (
+    const binding of
+    illuminationTemporalProfile
+      .sourceBindings
+  ) {
+    if (
+      !knownSourceIds.has(
+        binding.sourceId
+      )
+    ) {
+      throw new InvalidScientificInputError(
+        "Temporal illumination source binding references a sourceId that is not declared by the illumination profile."
+      );
+    }
+  }
   if (
     input
       .captureTimeSecondsFromReference ===
