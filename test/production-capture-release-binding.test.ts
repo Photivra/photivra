@@ -328,6 +328,67 @@ describe("production capture binding from release frame", () => {
     ).toBe(true);
   });
 
+  it("accepts a committed release frame with no WB identity and no WB state", () => {
+    const sequence =
+      resolveReleaseSequence({
+        sequenceId: "sequence-no-wb",
+        releaseRequestTimeSeconds: 2,
+        sequenceSeedUint32: 54321,
+        drive: {
+          kind: "single"
+        },
+        bracket: {
+          kind: "none"
+        },
+        baseState: {
+          exposure: {
+            aperture: 4,
+            shutterSeconds: 1 / 125,
+            iso: 100
+          },
+          focus: {
+            kind: "infinity"
+          },
+          automation: {
+            ae: "manual",
+            af: "manual",
+            awb: "manual"
+          }
+        },
+        releaseCapabilities:
+          releaseCapabilities(),
+        exposureCapabilities:
+          exposureCapabilities()
+      });
+    const frame =
+      sequence.frames[0]!;
+
+    const snapshot =
+      createProductionCaptureSnapshotFromReleaseFrame({
+        captureId: "capture-no-wb",
+        sceneStateId:
+          "scene-state-no-wb",
+        sceneTimeSecondsFromExposureStart:
+          0,
+        outputStateId: "output",
+        releaseFrame: frame
+      });
+
+    expect(
+      snapshot.whiteBalanceState
+    ).toBeUndefined();
+    expect(
+      snapshot.releaseFrameBinding
+        ?.whiteBalanceStateId
+    ).toBeUndefined();
+    expect(
+      snapshot.releaseFrameBinding
+        ?.focus
+    ).toEqual({
+      kind: "infinity"
+    });
+  });
+
   it("round-trips the committed binding without re-estimating WB", () => {
     const snapshot =
       createProductionCaptureSnapshotFromReleaseFrame({
