@@ -648,6 +648,17 @@ describe("Manual + manual ISO exposure resolver", () => {
       iso: 100
     });
     expect(
+      result.targetResidual.status
+    ).toBe("resolved");
+    if (
+      result.targetResidual.status !==
+      "resolved"
+    ) {
+      throw new Error(
+        "Expected resolved target residual."
+      );
+    }
+    expect(
       result.targetResidual.state
     ).toBe("under-target");
     expect(
@@ -688,6 +699,17 @@ describe("Manual + manual ISO exposure resolver", () => {
     }
     expect(result.resolvedSettings.iso)
       .toBe(100);
+    expect(
+      result.targetResidual.status
+    ).toBe("resolved");
+    if (
+      result.targetResidual.status !==
+      "resolved"
+    ) {
+      throw new Error(
+        "Expected resolved target residual."
+      );
+    }
     expect(
       result.targetResidual
         .residualStops
