@@ -85,7 +85,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [Program Auto and Full Auto exposure](docs/USAGE.md#program-auto-and-full-auto-exposure), using versioned generic program lines to choose aperture/shutter while keeping ISO policy explicit and limiting Full Auto to exposure axes only;
 - [Bulb, Time, and long-exposure control](docs/USAGE.md#bulb-time-and-long-exposure-control), resolving control events to concrete elapsed seconds before the existing exposure-window/charge pipeline without inventing a special long-exposure physics path;
 - [EV100, relative optical exposure, relative rendered exposure, and equivalent ISO compensation](docs/USAGE.md#exposure-and-iso-relations);
-- [relative pre-exposure metering](docs/USAGE.md#relative-pre-exposure-metering), with explicit generic multi-zone, center-weighted, spot, and highlight-weighted policies over the oriented active capture frame while keeping exposure compensation and automatic setting resolution downstream;
+- [relative pre-exposure metering](docs/USAGE.md#relative-pre-exposure-metering), with explicit generic multi-zone, center-weighted, spot, and highlight-weighted policies over the oriented active capture frame, plus generic body metering capability/profile compatibility and a frozen target seam into automatic exposure;
 - [scene-radiance-derived and explicit temporal metering](docs/USAGE.md#scene-radiance-derived-and-temporal-metering), binding relative meter samples to the #85 provider/material/illumination context and requiring declared time averaging for time-varying illumination without inventing a spectral-to-luminance conversion;
 - [stable meter targets and exposure compensation](docs/USAGE.md#meter-target-and-exposure-compensation), freezing metering identity for AE lock and shifting the automatic-exposure target downstream without mutating the underlying meter result;
 - [constant-velocity projected point motion](docs/USAGE.md#projected-subject-motion);
@@ -234,7 +234,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.79.0`
+- Engine API contract: `0.80.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
