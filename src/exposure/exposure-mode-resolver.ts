@@ -3629,3 +3629,486 @@ export function resolveShutterPriorityExposureMode(
   };
 }
 
+export function resolveProgramAutoExposureMode(
+  input:
+    ResolveProgramAutoExposureModeInput
+): ProgramAutoExposureModeResolution {
+  const target =
+    validateTarget(input.target);
+  validateCapabilities(
+    input.capabilities
+  );
+  const referenceExposure =
+    validateReferenceExposure(
+      input.referenceExposure,
+      input.capabilities
+    );
+  const programLine =
+    validateProgramLineForResolution(
+      input.programLine,
+      referenceExposure,
+      input.capabilities
+    );
+
+  if (
+    input.isoControl.kind !==
+      "manual" &&
+    input.isoControl.kind !==
+      "automatic"
+  ) {
+    throw new InvalidScientificInputError(
+      "isoControl.kind is invalid for Program Auto."
+    );
+  }
+
+  if (target.status === "no-signal") {
+    return {
+      resolverVersion:
+        EXPOSURE_MODE_RESOLVER_VERSION,
+      mode: "program-auto",
+      status: "blocked",
+      axisOwnership: {
+        aperture: "automatic",
+        shutter: "automatic",
+        iso:
+          input.isoControl.kind ===
+          "manual"
+            ? "manual"
+            : "automatic"
+      },
+      isoControl:
+        input.isoControl.kind,
+      targetId: target.targetId,
+      targetSourceMeterSnapshot:
+        target.sourceMeterSnapshot,
+      referenceExposure,
+      blocker: "target-no-signal",
+      targetResidual: {
+        status: "target-unresolved",
+        state: "target-unresolved",
+        reason: "no-signal-target"
+      },
+      exposureCompensationAppliedByResolver:
+        false,
+      meterRecomputedByResolver:
+        false,
+      flashPolicyApplied: false,
+      safetyShiftApplied: false
+    };
+  }
+
+  if (
+    input.isoControl.kind ===
+    "manual"
+  ) {
+    const manualIso =
+      requirePositiveFinite(
+        input.isoControl.iso,
+        "isoControl.iso"
+      );
+    validateSettingAgainstGrid(
+      manualIso,
+      input.capabilities.iso.minimum,
+      input.capabilities.iso.maximum,
+      input.capabilities.iso.settingGrid,
+      "isoControl.iso"
+    );
+
+    const requestedOpticalStops =
+      target
+        .exposureOffsetStopsToTarget -
+      Math.log2(
+        manualIso /
+          referenceExposure.iso
+      );
+    const selection =
+      selectProgramLineSettings(
+        requestedOpticalStops,
+        programLine,
+        input.capabilities
+      );
+    const achievedScale =
+      opticalExposureFactor(
+        selection.resolvedAperture,
+        selection
+          .resolvedShutterSeconds,
+        referenceExposure
+      ) *
+      (manualIso /
+        referenceExposure.iso);
+
+    return {
+      resolverVersion:
+        EXPOSURE_MODE_RESOLVER_VERSION,
+      mode: "program-auto",
+      status: "resolved",
+      axisOwnership: {
+        aperture: "automatic",
+        shutter: "automatic",
+        iso: "manual"
+      },
+      isoControl: "manual",
+      targetId: target.targetId,
+      targetSourceMeterSnapshot:
+        target.sourceMeterSnapshot,
+      referenceExposure,
+      programLineSelection:
+        selection,
+      apertureResolvedByResolver:
+        true,
+      shutterResolvedByResolver:
+        true,
+      exposureCompensationAppliedByResolver:
+        false,
+      meterRecomputedByResolver:
+        false,
+      flashPolicyApplied: false,
+      safetyShiftApplied: false,
+      manualIso,
+      resolvedSettings: {
+        aperture:
+          selection
+            .resolvedAperture,
+        shutterSeconds:
+          selection
+            .resolvedShutterSeconds,
+        iso: manualIso
+      },
+      targetResidual:
+        targetResidual(
+          target,
+          achievedScale,
+          programLineResidualConstraint(
+            selection
+          )
+        )
+    };
+  }
+
+  if (
+    input.isoControl
+      .isoBaseline !==
+      "minimum-selectable" ||
+    input.isoControl
+      .isoQuantizationPolicy !==
+      "nearest-log2-lower-on-tie"
+  ) {
+    throw new InvalidScientificInputError(
+      "Program Auto ISO policy is invalid."
+    );
+  }
+
+  const availability =
+    validateAutoIsoAvailability(
+      input.capabilities
+    );
+  if (availability !== "supported") {
+    return {
+      resolverVersion:
+        EXPOSURE_MODE_RESOLVER_VERSION,
+      mode: "program-auto",
+      status: "blocked",
+      axisOwnership: {
+        aperture: "automatic",
+        shutter: "automatic",
+        iso: "automatic"
+      },
+      isoControl: "automatic",
+      targetId: target.targetId,
+      targetSourceMeterSnapshot:
+        target.sourceMeterSnapshot,
+      referenceExposure,
+      blocker:
+        availability === "unknown"
+          ? "auto-iso-unknown"
+          : "auto-iso-unsupported",
+      targetResidual: {
+        status: "target-unresolved",
+        state: "target-unresolved",
+        reason:
+          "auto-iso-unavailable"
+      },
+      exposureCompensationAppliedByResolver:
+        false,
+      meterRecomputedByResolver:
+        false,
+      flashPolicyApplied: false,
+      safetyShiftApplied: false
+    };
+  }
+
+  const baselineIso =
+    minimumSelectableIso(
+      input.capabilities
+    );
+  const requestedOpticalStops =
+    target
+      .exposureOffsetStopsToTarget -
+    Math.log2(
+      baselineIso /
+        referenceExposure.iso
+    );
+  const selection =
+    selectProgramLineSettings(
+      requestedOpticalStops,
+      programLine,
+      input.capabilities
+    );
+  const isoPass =
+    resolveManualExposureMode({
+      target,
+      capabilities:
+        input.capabilities,
+      referenceExposure,
+      manualAperture:
+        selection.resolvedAperture,
+      manualShutterSeconds:
+        selection
+          .resolvedShutterSeconds,
+      isoControl: {
+        kind: "automatic",
+        quantizationPolicy:
+          input.isoControl
+            .isoQuantizationPolicy
+      }
+    });
+
+  if (
+    isoPass.status !== "resolved" ||
+    isoPass.isoControl !== "automatic"
+  ) {
+    throw new InvalidScientificInputError(
+      "Program Auto could not resolve its Auto ISO pass."
+    );
+  }
+
+  return {
+    resolverVersion:
+      EXPOSURE_MODE_RESOLVER_VERSION,
+    mode: "program-auto",
+    status: "resolved",
+    axisOwnership: {
+      aperture: "automatic",
+      shutter: "automatic",
+      iso: "automatic"
+    },
+    isoControl: "automatic",
+    targetId: target.targetId,
+    targetSourceMeterSnapshot:
+      target.sourceMeterSnapshot,
+    referenceExposure,
+    programLineSelection:
+      selection,
+    apertureResolvedByResolver: true,
+    shutterResolvedByResolver: true,
+    exposureCompensationAppliedByResolver:
+      false,
+    meterRecomputedByResolver: false,
+    flashPolicyApplied: false,
+    safetyShiftApplied: false,
+    baselineIso,
+    idealIsoBeforeConstraints:
+      isoPass
+        .idealIsoBeforeConstraints,
+    isoResolution:
+      isoPass.isoResolution,
+    resolvedSettings:
+      isoPass.resolvedSettings,
+    targetResidual:
+      isoPass.targetResidual
+  };
+}
+
+export function resolveFullAutoExposureMode(
+  input:
+    ResolveFullAutoExposureModeInput
+): FullAutoExposureModeResolution {
+  const target =
+    validateTarget(input.target);
+  validateCapabilities(
+    input.capabilities
+  );
+  const referenceExposure =
+    validateReferenceExposure(
+      input.referenceExposure,
+      input.capabilities
+    );
+
+  if (
+    input.policy.kind !==
+      "generic-program-line-minimum-iso" ||
+    input.policy.isoBaseline !==
+      "minimum-selectable" ||
+    input.policy
+      .isoQuantizationPolicy !==
+      "nearest-log2-lower-on-tie"
+  ) {
+    throw new InvalidScientificInputError(
+      "Full Auto exposure policy is invalid."
+    );
+  }
+
+  const programLine =
+    validateProgramLineForResolution(
+      input.policy.programLine,
+      referenceExposure,
+      input.capabilities
+    );
+
+  const blocked = (
+    blocker:
+      | "target-no-signal"
+      | "auto-iso-unsupported"
+      | "auto-iso-unknown"
+  ): FullAutoExposureModeResolution => ({
+    resolverVersion:
+      EXPOSURE_MODE_RESOLVER_VERSION,
+    mode:
+      "full-auto-exposure",
+    status: "blocked",
+    axisOwnership: {
+      aperture: "automatic",
+      shutter: "automatic",
+      iso: "automatic"
+    },
+    policy: input.policy,
+    targetId: target.targetId,
+    targetSourceMeterSnapshot:
+      target.sourceMeterSnapshot,
+    referenceExposure,
+    blocker,
+    targetResidual: {
+      status: "target-unresolved",
+      state: "target-unresolved",
+      reason:
+        blocker ===
+        "target-no-signal"
+          ? "no-signal-target"
+          : "auto-iso-unavailable"
+    },
+    exposureCompensationAppliedByResolver:
+      false,
+    meterRecomputedByResolver:
+      false,
+    flashPolicyApplied: false,
+    safetyShiftApplied: false,
+    autofocusResolved: false,
+    whiteBalanceResolved: false,
+    flashResolved: false,
+    driveResolved: false,
+    sceneRecognitionResolved:
+      false,
+    stabilizationPolicyResolved:
+      false
+  });
+
+  if (target.status === "no-signal") {
+    return blocked(
+      "target-no-signal"
+    );
+  }
+
+  const availability =
+    validateAutoIsoAvailability(
+      input.capabilities
+    );
+  if (availability !== "supported") {
+    return blocked(
+      availability === "unknown"
+        ? "auto-iso-unknown"
+        : "auto-iso-unsupported"
+    );
+  }
+
+  const baselineIso =
+    minimumSelectableIso(
+      input.capabilities
+    );
+  const requestedOpticalStops =
+    target
+      .exposureOffsetStopsToTarget -
+    Math.log2(
+      baselineIso /
+        referenceExposure.iso
+    );
+  const selection =
+    selectProgramLineSettings(
+      requestedOpticalStops,
+      programLine,
+      input.capabilities
+    );
+  const isoPass =
+    resolveManualExposureMode({
+      target,
+      capabilities:
+        input.capabilities,
+      referenceExposure,
+      manualAperture:
+        selection.resolvedAperture,
+      manualShutterSeconds:
+        selection
+          .resolvedShutterSeconds,
+      isoControl: {
+        kind: "automatic",
+        quantizationPolicy:
+          input.policy
+            .isoQuantizationPolicy
+      }
+    });
+
+  if (
+    isoPass.status !== "resolved" ||
+    isoPass.isoControl !== "automatic"
+  ) {
+    throw new InvalidScientificInputError(
+      "Full Auto exposure could not resolve its Auto ISO pass."
+    );
+  }
+
+  return {
+    resolverVersion:
+      EXPOSURE_MODE_RESOLVER_VERSION,
+    mode:
+      "full-auto-exposure",
+    status: "resolved",
+    axisOwnership: {
+      aperture: "automatic",
+      shutter: "automatic",
+      iso: "automatic"
+    },
+    policy: input.policy,
+    targetId: target.targetId,
+    targetSourceMeterSnapshot:
+      target.sourceMeterSnapshot,
+    referenceExposure,
+    programLineSelection:
+      selection,
+    apertureResolvedByResolver: true,
+    shutterResolvedByResolver: true,
+    exposureCompensationAppliedByResolver:
+      false,
+    meterRecomputedByResolver:
+      false,
+    flashPolicyApplied: false,
+    safetyShiftApplied: false,
+    baselineIso,
+    idealIsoBeforeConstraints:
+      isoPass
+        .idealIsoBeforeConstraints,
+    isoResolution:
+      isoPass.isoResolution,
+    resolvedSettings:
+      isoPass.resolvedSettings,
+    targetResidual:
+      isoPass.targetResidual,
+    autofocusResolved: false,
+    whiteBalanceResolved: false,
+    flashResolved: false,
+    driveResolved: false,
+    sceneRecognitionResolved:
+      false,
+    stabilizationPolicyResolved:
+      false
+  };
+}
+
