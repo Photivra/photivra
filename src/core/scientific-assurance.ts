@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {
+  validateCalculationQuality,
+  type CalculationQuality
+} from "./calculation-result.js";
 import { InvalidScientificInputError } from "./validation.js";
 import {
   parseEvidenceProvenance,
@@ -42,6 +46,10 @@ export type ScientificAssuranceComponentUncertainty =
       plusMinus: number;
       unit: string;
       basis?: string;
+    }
+  | {
+      kind: "calculation-quality";
+      quality: CalculationQuality;
     }
   | {
       kind: "not-quantified";
@@ -272,6 +280,33 @@ function validateUncertainty(
                 path + ".basis"
               )
           })
+    };
+  }
+
+  if (
+    value.kind ===
+    "calculation-quality"
+  ) {
+    validateCalculationQuality(
+      value.quality
+    );
+    if (
+      value.quality
+        .uncertainty ===
+        undefined ||
+      value.quality
+        .uncertainty.length ===
+        0
+    ) {
+      throw new InvalidScientificInputError(
+        path +
+          ".quality must include quantified uncertainty components; use another semantic uncertainty state otherwise."
+      );
+    }
+    return {
+      kind:
+        "calculation-quality",
+      quality: value.quality
     };
   }
 
@@ -533,7 +568,9 @@ function composedUncertainty(
         component.uncertainty.kind ===
           "relative" ||
         component.uncertainty.kind ===
-          "absolute"
+          "absolute" ||
+        component.uncertainty.kind ===
+          "calculation-quality"
     );
 
   if (quantified.length > 0) {
