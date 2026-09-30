@@ -2309,6 +2309,24 @@ export function parseProductionCaptureSnapshot(
         record
           .stochasticSeedUint32 as number,
       ...(record
+        .releaseFrameBinding ===
+      undefined
+        ? {}
+        : {
+            releaseFrameBinding:
+              record
+                .releaseFrameBinding as ProductionReleaseFrameBinding
+          }),
+      ...(record
+        .whiteBalanceState ===
+      undefined
+        ? {}
+        : {
+            whiteBalanceState:
+              record
+                .whiteBalanceState as ResolvedWhiteBalanceState
+          }),
+      ...(record
         .physicalSceneSample ===
       undefined
         ? {}
@@ -4289,6 +4307,30 @@ export function createProductionImageFormationPlan(
         snapshot.releaseFrameId,
       sceneStateId:
         snapshot.sceneStateId,
+      ...(snapshot
+        .releaseFrameBinding ===
+      undefined
+        ? {}
+        : {
+            releaseSequenceId:
+              snapshot
+                .releaseFrameBinding
+                .sequenceId,
+            releaseFrameIndex:
+              snapshot
+                .releaseFrameBinding
+                .frameIndex
+          }),
+      ...(snapshot
+        .whiteBalanceState ===
+      undefined
+        ? {}
+        : {
+            whiteBalanceStateId:
+              snapshot
+                .whiteBalanceState
+                .stateId
+          }),
       captureSnapshotFingerprint:
         snapshot
           .fingerprint.value
