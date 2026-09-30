@@ -9,6 +9,10 @@ import {
   parseSpectralWavelengthBasis,
   type SpectralWavelengthBasis
 } from "../core/spectral.js";
+import {
+  parseNormalizedDiscreteSpectralLineDistribution,
+  type NormalizedDiscreteSpectralLineDistribution
+} from "../core/spectral-composition.js";
 import type { Vector3 } from "./scene.js";
 
 type UnknownRecord = Record<string, unknown>;
@@ -136,6 +140,18 @@ export type SceneIlluminationSpectrum =
       evidence: readonly EvidenceProvenance[];
       samples:
         readonly SceneIlluminationRelativeSpectrumSample[];
+    }
+  | {
+      kind: "discrete-relative-lines";
+      spectrumId: string;
+      wavelengthUnit: "nm";
+      scientificStatus:
+        | "calibrated-relative-lines"
+        | "approximation";
+      uncertainty: SceneIlluminationUncertainty;
+      evidence: readonly EvidenceProvenance[];
+      distribution:
+        NormalizedDiscreteSpectralLineDistribution;
     };
 
 export interface SceneIlluminationSource {
@@ -691,6 +707,64 @@ function parseSpectrum(
         record.limitation,
         path + ".limitation"
       )
+    };
+  }
+
+  if (
+    record.kind ===
+    "discrete-relative-lines"
+  ) {
+    if (record.wavelengthUnit !== "nm") {
+      throw new InvalidConfigurationError(
+        path + '.wavelengthUnit must be "nm".'
+      );
+    }
+    if (
+      record.scientificStatus !==
+        "calibrated-relative-lines" &&
+      record.scientificStatus !==
+        "approximation"
+    ) {
+      throw new InvalidConfigurationError(
+        path + ".scientificStatus is invalid."
+      );
+    }
+    const uncertainty =
+      parseUncertainty(
+        record.uncertainty,
+        path + ".uncertainty"
+      );
+    if (
+      record.scientificStatus ===
+        "calibrated-relative-lines" &&
+      uncertainty.kind !== "relative"
+    ) {
+      throw new InvalidConfigurationError(
+        path +
+          " calibrated-relative-lines spectra require quantified relative uncertainty."
+      );
+    }
+
+    return {
+      kind: "discrete-relative-lines",
+      spectrumId: requireNonEmptyString(
+        record.spectrumId,
+        path + ".spectrumId"
+      ),
+      wavelengthUnit: "nm",
+      scientificStatus:
+        record.scientificStatus,
+      uncertainty,
+      evidence:
+        requireReusableSpectrumEvidence(
+          record.evidence,
+          path + ".evidence"
+        ),
+      distribution:
+        parseNormalizedDiscreteSpectralLineDistribution(
+          record.distribution,
+          path + ".distribution"
+        )
     };
   }
 
