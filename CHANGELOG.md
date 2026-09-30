@@ -6,6 +6,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Added
 
+- Added #108 shooting-time white-balance control and Auto WB foundations over an explicit pre-WB camera-linear RGB domain. Generic profile-owned presets, manual gains, independent CCT+tint intent, clipped-sample-safe custom measurement, deterministic gray-world-style AWB priorities, and AWB lock remain separate from physical scene illumination and #15 render/export color transforms. AWB never reads authoritative scene illuminant metadata as an oracle and resolved WB state never changes exposure, focus, or RAW-like capture data.
 - Added #105 deterministic logical release sequencing for single, burst, self-timer, exposure-bracket, and explicit-focus-bracket capture. Generic release capabilities constrain supported drive/bracket modes, maximum frame count/cadence, and inter-frame gap. Scheduling prevents incompatible ordinary-still exposure overlap, derives distinct reproducible per-frame seeds, snapshots base capture state, keeps sensor capture modes separate, and provides an explicit cancellation boundary without conflating WB bracketing with physical multi-exposure capture.
 - Completed the generic #100 metering integration seam with reusable generic-body metering capability profiles, explicit metering-profile/mode compatibility assessment, spot/focus-point linkage capability metadata, and end-to-end meter → frozen target → exposure compensation → #99 automatic-exposure tests. Meter target/calibration policy remains owned by the metering profile rather than duplicated into equipment metadata; the controlled relative-light path preserves the -1 EV scene / +1 EV Auto ISO invariant.
 - Extended sensor-architecture metadata to schema 0.3.0 with optional evidence-backed `cmos | ccd` technology-family identity. CMOS/CCD remains independent from FSI/BSI, stacking, readout, shutter, CFA, noise, QE, dynamic range, and other behavior; no hidden physics is activated by the metadata. Legacy schema 0.2.0 profiles remain accepted with their original schema identity and never acquire an inferred technology family.
@@ -71,6 +72,9 @@ Notable public changes to `@photivra/engine` are documented here.
 - Engine API contract advances to `0.47.0`. The composed POC remains `0.20.0`; the engine can now reduce explicitly identified nonnegative linear spatial samples in either relative or physical irradiance domains without claiming CFA spectral filtering, temporal exposure, sensor conversion, or RAW output.
 
 ### Fixed
+
+- Hardened npm package-surface validation so every relative module re-exported by the built root `dist/index.js` must also be present in the packed tarball; added previously missing public `capture`, `composition`, `equipment`, and new `color` dist directories to the package whitelist.
+
 
 - Radial-distortion invertibility validation now uses scale-normalized, cancellation-resistant stationary-point solving so near-linear high-order profiles cannot hide an interior fold; unsafe derived normalized radii and malformed/sparse batch points fail closed as scientific input errors.
 - Reverse image-plane coordinate mapping now uses a physical-scale floating-point edge tolerance instead of a fixed normalized-UV tolerance.

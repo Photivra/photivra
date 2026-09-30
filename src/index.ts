@@ -134,6 +134,35 @@ export {
 } from "./camera/equivalent-focal-length.js";
 
 export {
+  COLOR_TEMPERATURE_WHITE_BALANCE_INTENT_VERSION,
+  WHITE_BALANCE_PROFILE_SCHEMA_VERSION,
+  WHITE_BALANCE_STATE_VERSION,
+  createColorTemperatureWhiteBalanceIntent,
+  createLockedWhiteBalanceState,
+  estimateAutoWhiteBalance,
+  parseWhiteBalanceProfile,
+  resolveCustomWhiteBalance,
+  resolveManualWhiteBalance,
+  resolvePresetWhiteBalance,
+  type ColorTemperatureWhiteBalanceIntent,
+  type CreateColorTemperatureWhiteBalanceIntentInput,
+  type CreateLockedWhiteBalanceStateInput,
+  type EstimateAutoWhiteBalanceInput,
+  type PreWhiteBalanceRgbSample,
+  type PreWhiteBalanceRgbSampleSet,
+  type ResolveCustomWhiteBalanceInput,
+  type ResolveManualWhiteBalanceInput,
+  type ResolvePresetWhiteBalanceInput,
+  type ResolvedWhiteBalanceState,
+  type WhiteBalanceAwbIntent,
+  type WhiteBalanceAwbPolicy,
+  type WhiteBalanceChannelGains,
+  type WhiteBalanceInputDomain,
+  type WhiteBalancePresetDefinition,
+  type WhiteBalanceProfile
+} from "./color/white-balance.js";
+
+export {
   calculatePixelPitch,
   type CalculatePixelPitchInput,
   type PixelPitch
