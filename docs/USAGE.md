@@ -74,6 +74,135 @@ Missing or unknown focus is not interpreted as infinity. It must be supplied exp
 
 Existing APIs that accept `focusDistanceM` remain supported; this tagged contract is additive and intended for newer composition/control paths that need an explicit infinity state.
 
+## Focus control: MF, single AF, continuous AF, and lock
+
+The #104 focus-control layer sits above the #103 optical `FocusPlane` contract.
+
+It deliberately separates:
+
+1. **target observation** — which scene surface/environment target was measured and its longitudinal camera-space distance;
+2. **focus-control policy** — manual, single AF, continuous AF, or locked behavior;
+3. **resolved optical focus** — the finite/infinity `FocusPlane` passed into downstream optics.
+
+Use a generic profile:
+
+```ts
+import {
+  createFocusControlState,
+  parseFocusControlProfile,
+  resolveFocusTargetObservation
+} from "@photivra/engine";
+
+const profile =
+  parseFocusControlProfile({
+    schemaVersion: "0.1.0",
+    profileId: "generic-focus",
+    profileVersion: "1.0.0",
+    scientificStatus: "approximation",
+    supportedModes: [
+      "manual",
+      "single-af",
+      "continuous-af"
+    ],
+    actuator: {
+      kind: "ideal-instantaneous",
+      evidence
+    },
+    continuousTargetLossPolicy:
+      "hold-last-focus-require-explicit-reacquisition",
+    supportedReleasePriorities: [
+      "focus-priority",
+      "release-priority",
+      "balanced"
+    ],
+    evidence,
+    limitations: [
+      "Generic deterministic focus-control approximation."
+    ]
+  });
+
+const afc =
+  createFocusControlState({
+    stateId: "focus-0",
+    profile,
+    mode: "continuous-af",
+    initialFocus: {
+      kind: "finite",
+      distanceM: 5
+    }
+  });
+
+const acquired =
+  resolveFocusTargetObservation({
+    state: afc,
+    stateId: "focus-1",
+    event: "acquire",
+    observation: {
+      kind: "finite-surface",
+      targetId: "subject-42",
+      focusAreaId: "selected-area",
+      observedAtSeconds: 0.5,
+      longitudinalDistanceM: 3
+    }
+  });
+```
+
+Target observations contain no screen/canvas coordinates. `focusAreaId` is an opaque application/renderer-neutral selection identity. Finite target distance is #103's **longitudinal camera-space/conjugate distance**, not Euclidean ray length.
+
+### Manual focus
+
+`setManualFocusState()` changes an explicit finite/infinity focus state only when the active mode is `manual`.
+
+No universal focus-ring scale or lens-specific stepping curve is invented. The caller supplies the next explicit #103 focus state; future equipment profiles may map real focus-ring/actuator behavior into that same contract.
+
+MF does not automatically consume autofocus target observations.
+
+### Single AF
+
+A `single-af` `acquire` event resolves the target once and then holds that focus plane.
+
+Later `update` observations do not follow subject motion. If the subject moves after acquisition, downstream defocus changes because subject depth changes while the camera focus plane remains fixed.
+
+An unavailable target during acquisition produces explicit `target-lost` state without moving focus.
+
+### Continuous AF
+
+`continuous-af` requires an explicit initial `acquire` event.
+
+Subsequent `update` events may move focus only for the same active `targetId`. Another identity cannot silently replace the subject.
+
+The first actuator is:
+
+`ideal-instantaneous`
+
+This is a declared approximation over known simulation geometry. It does **not** claim realistic AF motor speed, phase/contrast detection, hunting, recognition, low-light failure, or commercial-camera tracking behavior.
+
+When the target becomes unavailable, the first policy is:
+
+`hold-last-focus-require-explicit-reacquisition`
+
+Focus is held, state becomes `target-lost`, and an ordinary update cannot silently reacquire. A new explicit `acquire` event is required.
+
+### Focus lock
+
+`setFocusLock()` freezes the resolved focus plane while preserving the active mode and the acquisition state to resume later.
+
+Target updates while locked do not change focus. Unlocking restores the prior acquisition state; a later continuous-AF update may then move focus again.
+
+Focus lock does not engage AE lock, move a metering spot, change WB, or alter aperture/shutter/ISO.
+
+### Focus vs release priority
+
+Use `assessFocusReleaseGate()` as the capture-gating seam for #105 release sequencing.
+
+- `focus-priority` authorizes release for manual focus, acquired AF, or locked focus and otherwise blocks;
+- `release-priority` authorizes release without changing focus;
+- `balanced` is reserved but fails closed in schema 0.1.0 until a specific balanced policy is defined.
+
+The gate never changes the optical focus calculation or exposure state.
+
+The acquisition-state type also reserves `acquiring` for future non-instantaneous actuator models. The current ideal actuator resolves an available acquisition directly to `acquired`.
+
 ## Field of view
 
 Use `calculateFieldOfView()` for one sensor dimension at a time.
