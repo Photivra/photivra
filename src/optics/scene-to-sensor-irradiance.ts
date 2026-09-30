@@ -1529,7 +1529,7 @@ export function calculateSceneRadianceToSensorIrradiance(
       limitations
     },
     "scene-radiance-to-sensor-irradiance",
-    "1.0.0",
+    "1.1.0",
     limitations
   );
 }
