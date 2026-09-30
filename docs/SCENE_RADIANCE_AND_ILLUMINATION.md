@@ -203,14 +203,58 @@ The validation result explicitly reports that calibrated radiance is not authori
 
 This means a browser preview, Blender reference path, or future spectral renderer can plug into one stable scientific seam without the engine prescribing its rendering algorithm.
 
+## Temporal illumination
+
+Time-varying source emission is represented as an additive temporal overlay on the existing illumination profile. The base source keeps its authoritative identity, enabled state, magnitude, geometry and spectrum; the temporal layer supplies a **relative multiplier over physical time**.
+
+Use `parseSceneIlluminationTemporalProfile()` to declare:
+
+- aperiodic piecewise-linear multiplier waveforms for flash/pulse-like behavior;
+- periodic piecewise-linear multiplier waveforms for flicker/repeating emission;
+- reusable numeric waveform evidence and scientific status;
+- one explicit source↔waveform binding per time-varying source;
+- exact registration of waveform-local `t=0` to the capture reference `first-opening-boundary-phase`.
+
+The registration equation is:
+
+```text
+waveform time =
+  capture time from first opening-boundary phase
+  - waveform t=0 offset from that capture reference
+```
+
+A calibrated waveform requires quantified relative uncertainty. A calibrated time registration requires quantified absolute timing uncertainty in seconds. Numeric waveform samples require reusable-data or Photivra-owned provenance.
+
+`evaluateSceneIlluminationTemporalMultiplier()` evaluates one registered source at one physical capture time. It supports times before or after the capture reference; periodic waveforms wrap deterministically, while aperiodic waveforms return zero outside their declared support.
+
+`integrateSceneIlluminationTemporalMultiplierOverExposureWindow()` consumes an authoritative `CaptureExposureWindows` sample from the existing shutter/exposure timing foundation. It uses deterministic uniform-midpoint quadrature over that local exposure interval and reports both:
+
+- a dimensionless average relative multiplier; and
+- a seconds-valued integrated relative multiplier.
+
+The integration does **not** use sensor data-readout duration as a timing proxy. Readout and exposure remain independent.
+
+The result also keeps source `enabled` state separate: a disabled source can retain a non-zero raw waveform value while its effective contribution is zero.
+
+### Scene-radiance provider binding
+
+`SceneRadianceProviderProfile` may now optionally declare `illuminationTemporalProfileId`. When it does, `validateSceneRadianceEvaluationBindings()` requires the matching temporal profile and verifies that it binds the same scene and base illumination profile.
+
+This is semantic binding only. The validator does not prove that the provider numerically applied the waveform correctly, and temporal illumination does not promote provider output beyond the existing approximation-only scene-radiance contract.
+
+### Metering and automatic-exposure boundary
+
+Temporal illumination is upstream input to future metering/automatic-exposure consumers. This foundation never chooses ISO, aperture, shutter duration, compensation, or a target exposure.
+
+That separation allows a future meter to observe changed pre-exposure radiance after a source changes without feeding final display/tone-mapped brightness back into source or exposure selection.
+
 ## Still outside this slice
 
-The following remain later #85 work:
+The following remain later work beyond the completed A–E foundation sequence:
 
-- time-varying light emission/flash/flicker tied to the existing exposure-time basis (#85E);
 - fluorescence/excitation-emission;
 - participating-media spectral transport;
 - polarization;
 - a future calibrated scene-radiance provider contract with sufficient completeness evidence.
 
-The next scene-radiance group is #85E: time-varying illumination tied to the existing seconds-based exposure timing, including explicit flash/flicker waveform registration.
+The staged #85A–#85E foundation sequence is now represented in the engine. Remaining #85 work should be limited to explicitly approved later extensions or closure/hardening rather than widening the renderer contract by default.
