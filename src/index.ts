@@ -836,6 +836,30 @@ export {
 } from "./equipment/exposure-capabilities.js";
 
 export {
+  GENERIC_RELEASE_CAPABILITY_SCHEMA_VERSION,
+  parseGenericReleaseCapabilityProfile,
+  type GenericExposureBracketAxis,
+  type GenericReleaseCapabilityProfile,
+  type GenericReleaseDriveMode
+} from "./equipment/release-capabilities.js";
+
+export {
+  RELEASE_SEQUENCE_VERSION,
+  cancelReleaseSequence,
+  resolveReleaseSequence,
+  type CancelledReleaseSequence,
+  type CancelReleaseSequenceInput,
+  type ReleaseAutomationState,
+  type ReleaseBaseCaptureState,
+  type ReleaseBracketPolicy,
+  type ReleaseDrivePolicy,
+  type ReleaseTimingConstraint,
+  type ResolveReleaseSequenceInput,
+  type ResolvedReleaseFrame,
+  type ResolvedReleaseSequence
+} from "./capture/release-sequence.js";
+
+export {
   GENERIC_BODY_METERING_CAPABILITY_SCHEMA_VERSION,
   assessExposureMeteringProfileCompatibility,
   parseGenericBodyMeteringCapabilityProfile,
