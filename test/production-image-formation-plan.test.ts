@@ -768,10 +768,12 @@ describe("ready physical production plan", () => {
       "ready"
     );
     expect(plan.versions).toMatchObject({
-      engineApi: "0.83.0",
+      engineApi: "0.84.0",
       imageFormationContract:
         "0.4.0",
-      plan: "0.3.0"
+      plan: "0.4.0",
+      scientificAssurance:
+        "0.1.0"
     });
     expect(
       plan
@@ -807,6 +809,83 @@ describe("ready physical production plan", () => {
           (stage) => stage.id
         )
     );
+  });
+
+  it("preserves evidence and uncertainty identity in the production plan", () => {
+    const plan =
+      createProductionImageFormationPlan({
+        preparedContext:
+          prepared(),
+        captureSnapshot:
+          capture()
+      });
+
+    expect(
+      plan.scientificAssurance
+    ).toMatchObject({
+      version: "0.1.0",
+      scientificStatus:
+        "approximation",
+      evidenceStatus: "complete",
+      uncertainty: {
+        kind:
+          "not-quantified",
+        componentIds: [
+          "scene-radiance",
+          "optical-throughput-profile",
+          "primary-optics-bridge-model"
+        ]
+      },
+      componentEvidencePreserved:
+        true,
+      componentUncertaintyPreserved:
+        true,
+      aggregateNumericUncertaintyFabricated:
+        false,
+      downstreamStatusPromotedAboveInputs:
+        false
+    });
+
+    expect(
+      plan
+        .scientificAssurance
+        ?.components.map(
+          (component) =>
+            component.componentId
+        )
+    ).toEqual([
+      "scene-radiance",
+      "optical-throughput-profile",
+      "primary-optics-bridge-model"
+    ]);
+
+    expect(
+      plan
+        .scientificAssurance
+        ?.components[0]
+        ?.evidence
+    ).toEqual(
+      evidence("radiance")
+    );
+    expect(
+      plan
+        .scientificAssurance
+        ?.components[0]
+        ?.uncertainty
+    ).toEqual({
+      kind: "not-quantified",
+      limitation: "test"
+    });
+    expect(
+      plan
+        .scientificAssurance
+        ?.components[1]
+        ?.sourceIdentity
+    ).toEqual({
+      kind: "profile",
+      id: "optics",
+      version: "1.0.0"
+    });
   });
 
   it("distinguishes a modeled-zero projection/effect from effects omitted by fidelity", () => {
@@ -878,6 +957,16 @@ describe("ready physical production plan", () => {
         .physicalSceneToSensorResult
         ?.fieldThroughputFactor
     ).toBeLessThan(1);
+    expect(
+      plan
+        .scientificAssurance
+        ?.components.find(
+          (component) =>
+            component.componentId ===
+            "field-throughput-model"
+        )
+        ?.uncertainty.kind
+    ).toBe("not-quantified");
   });
 
   it("composes front-of-lens filter transmission into immutable physical capture identity", () => {
@@ -935,6 +1024,17 @@ describe("ready physical production plan", () => {
     ).not.toBe(
       withoutFilter.fingerprint.value
     );
+    expect(
+      withFilter
+        .scientificAssurance
+        ?.components.some(
+          (component) =>
+            component.componentId ===
+            "front-filter:0" &&
+            component.sourceIdentity.id ===
+            "generic-front-filter"
+        )
+    ).toBe(true);
   });
 
   it("is deterministic for identical semantic inputs", () => {
@@ -966,6 +1066,82 @@ describe("ready physical production plan", () => {
         first
       )
     );
+  });
+
+  it("changes reproducibility identity when material uncertainty metadata changes", () => {
+    const baseSnapshot =
+      capture();
+
+    const changedInput =
+      captureInput();
+    const physical =
+      changedInput
+        .physicalSceneSample;
+    if (physical === undefined) {
+      throw new Error(
+        "Expected physical scene sample."
+      );
+    }
+
+    physical.sceneRadianceResult = {
+      ...physical
+        .sceneRadianceResult,
+      uncertainty: {
+        kind: "relative",
+        fraction: 0.05,
+        basis:
+          "alternate test uncertainty"
+      }
+    };
+
+    const changedSnapshot =
+      createProductionCaptureSnapshot(
+        changedInput
+      );
+
+    const basePlan =
+      createProductionImageFormationPlan({
+        preparedContext:
+          prepared(),
+        captureSnapshot:
+          baseSnapshot
+      });
+    const changedPlan =
+      createProductionImageFormationPlan({
+        preparedContext:
+          prepared(),
+        captureSnapshot:
+          changedSnapshot
+      });
+
+    expect(
+      changedSnapshot
+        .fingerprint.value
+    ).not.toBe(
+      baseSnapshot
+        .fingerprint.value
+    );
+    expect(
+      changedPlan
+        .fingerprint.value
+    ).not.toBe(
+      basePlan.fingerprint.value
+    );
+    expect(
+      changedPlan
+        .scientificAssurance
+        ?.components.find(
+          (component) =>
+            component.componentId ===
+            "scene-radiance"
+        )
+        ?.uncertainty
+    ).toEqual({
+      kind: "relative",
+      fraction: 0.05,
+      basis:
+        "alternate test uncertainty"
+    });
   });
 
   it("keeps prepared context stable while capture identity/seed can vary", () => {
@@ -2304,6 +2480,16 @@ describe("production plan consumer manifests", () => {
     expect(
       optimized.stochastic
     ).toEqual(reference.stochastic);
+    expect(
+      optimized.scientificAssurance
+    ).toEqual(
+      reference.scientificAssurance
+    );
+    expect(
+      optimized.scientificAssurance
+    ).toEqual(
+      plan.scientificAssurance
+    );
     expect(
       optimized
         .consumerMayReduceCommittedTemporalSampleCount
