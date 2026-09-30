@@ -905,7 +905,12 @@ describe("release binding validation boundaries", () => {
 
   const directInput = (): {
     frame: ReleaseFrame;
-    input: CreateProductionCaptureSnapshotInput;
+    input: CreateProductionCaptureSnapshotInput & {
+      releaseFrameBinding:
+        ProductionReleaseFrameBinding;
+      whiteBalanceState:
+        ReturnType<typeof lockedWb>;
+    };
   } => {
     const frame = releaseFrame();
     return {
@@ -998,28 +1003,26 @@ describe("release binding validation boundaries", () => {
 
   it("requires WB state exactly when the release frame commits a WB identity", () => {
     const first = directInput();
+    const withoutWb:
+      CreateProductionCaptureSnapshotInput = {
+        ...first.input
+      };
+    delete withoutWb.whiteBalanceState;
     expect(() =>
-      createProductionCaptureSnapshot({
-        ...first.input,
-        whiteBalanceState:
-          undefined
-      })
+      createProductionCaptureSnapshot(
+        withoutWb
+      )
     ).toThrow(
       "requires the committed resolved white-balance state"
     );
 
     const frame = releaseFrame();
     const binding = bindingFor(frame);
-    const noWbBinding = {
-      ...binding,
-      whiteBalanceStateId:
-        undefined
-    };
-    delete (
-      noWbBinding as {
-        whiteBalanceStateId?: string;
-      }
-    ).whiteBalanceStateId;
+    const noWbBinding:
+      ProductionReleaseFrameBinding = {
+        ...binding
+      };
+    delete noWbBinding.whiteBalanceStateId;
 
     expect(() =>
       createProductionCaptureSnapshot({
