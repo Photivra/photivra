@@ -114,4 +114,69 @@ Photivra owns the semantic inputs and scene-radiance stage. It does not require 
 
 A browser/WebGPU preview, Blender reference render, or future spectral renderer may use different bounded approximations while consuming the same source identities and declared meanings. Approximate backends must not inherit calibrated spectral/radiometric claims merely because they consume an engine-owned profile.
 
-The next scene-radiance work is a renderer-neutral provider/material-response boundary that can return outgoing spectral radiance with explicit fidelity and reference-direction semantics. This document does not claim that provider exists yet.
+## Scene-radiance provider and material-response boundary
+
+The engine now exposes a renderer-neutral provider boundary without becoming a renderer.
+
+`parseSceneMaterialResponseProfile()` describes stable material-response inputs. Schema `0.1.0` deliberately distinguishes:
+
+- unresolved material response;
+- `rgb-pbr-approximation`, with linear-sRGB base color plus bounded metallic/roughness parameters and an explicit limitation;
+- `spectral-wavelength-preserving-data`, bound to a SHA-256 identified data artifact, explicit wavelength basis/range, uncertainty and a provider-defined wavelength-preserving scattering model.
+
+RGB/PBR input is always approximation data. Spectral material data may itself be calibrated, but schema 0.1.0 does not model wavelength-changing behavior, fluorescence, material emission, volumetric material transport or polarization.
+
+`assessSceneMaterialResponseFidelity()` reports the conservative profile-level state: `spectral-data`, `rgb-pbr-approximation`, `mixed`, or `unresolved`.
+
+`parseSceneRadianceProviderProfile()` declares the provider's bindings and fidelity independently across:
+
+- spectral evaluation;
+- material response;
+- visibility;
+- direct transport;
+- indirect transport.
+
+Its output quantity is fixed to outgoing spectral radiance in `W/m^2/sr/nm`. Provider schema `0.1.0` is intentionally `approximation` only. Calibrated input artifacts therefore cannot automatically promote an incomplete renderer/transport path into a calibrated outgoing-radiance claim.
+
+### Evaluation request
+
+`parseSceneRadianceEvaluationRequest()` identifies one exact sample by:
+
+- provider/scene/illumination/material profile IDs;
+- surface point + scene object + material response, or an environment direction;
+- unit-length outgoing direction;
+- seconds from exposure start;
+- positive wavelength in an explicit air or vacuum basis.
+
+`unspecified` wavelength basis is rejected for physical outgoing spectral-radiance evaluation.
+
+### Evaluation result
+
+`parseSceneRadianceEvaluationResult()` validates provider-produced output with:
+
+- exact sample/provider/scene/wavelength identity;
+- `outgoing-spectral-radiance` quantity;
+- `W/m^2/sr/nm` units;
+- finite nonnegative spectral radiance;
+- approximation status, uncertainty, evidence and limitations.
+
+Parsing does **not** prove that the renderer's numeric radiance value is physically correct.
+
+`validateSceneRadianceEvaluationBindings()` then verifies the exact scene/profile/material/request/result relationships. A surface request must reference a declared material response, and the provider's declared material fidelity must agree with the supplied material-response profile.
+
+The validation result explicitly reports that calibrated radiance is not authorized and that optics, sensor-plane irradiance and photons have not been calculated.
+
+This means a browser preview, Blender reference path, or future spectral renderer can plug into one stable scientific seam without the engine prescribing its rendering algorithm.
+
+## Still outside this slice
+
+The following remain later #85 work:
+
+- shared scene/optics/sensor spectral coverage and discrete-line composition (#85D);
+- time-varying light emission/flash/flicker tied to the existing exposure-time basis (#85E);
+- fluorescence/excitation-emission;
+- participating-media spectral transport;
+- polarization;
+- a future calibrated scene-radiance provider contract with sufficient completeness evidence.
+
+The next scene-radiance group is #85D: common spectral coverage/breakpoint composition plus an explicit discrete-line representation before any calibrated narrow/line-source claim.
