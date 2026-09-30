@@ -8,6 +8,13 @@ import {
   type ImageFormationStageId
 } from "../core/image-formation.js";
 import { ENGINE_API_VERSION } from "../core/version.js";
+import {
+  SCIENTIFIC_ASSURANCE_CONTRACT_VERSION,
+  composeScientificAssurance,
+  type ComposedScientificAssurance,
+  type ScientificAssuranceComponent,
+  type ScientificAssuranceComponentUncertainty
+} from "../core/scientific-assurance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import {
   calculateCaptureRotationTemporalQuadrature,
@@ -39,13 +46,16 @@ import {
 } from "../equipment/exposure-capabilities.js";
 import {
   parseFrontOfLensFilterProfile,
-  type FrontOfLensFilterProfile
+  resolveFrontOfLensFilterTransmission,
+  type FrontOfLensFilterProfile,
+  type FrontOfLensFilterUncertainty
 } from "../optics/front-of-lens-filter.js";
 import {
   calculateSceneRadianceToSensorIrradiance,
   parseSceneToSensorIrradianceProfile,
   type OpticalBridgeFieldThroughput,
   type OpticalBridgeFocusContext,
+  type OpticalBridgeUncertainty,
   type SceneToSensorIrradianceProfile,
   type SceneToSensorIrradianceResult
 } from "../optics/scene-to-sensor-irradiance.js";
@@ -53,13 +63,14 @@ import {
   parseSceneRadianceEvaluationRequest,
   parseSceneRadianceEvaluationResult,
   type SceneRadianceEvaluationRequest,
-  type SceneRadianceEvaluationResult
+  type SceneRadianceEvaluationResult,
+  type SceneRadianceUncertainty
 } from "../schema/scene-radiance.js";
 
 type UnknownRecord = Record<string, unknown>;
 
 export const PRODUCTION_IMAGE_FORMATION_PLAN_VERSION =
-  "0.3.0" as const;
+  "0.4.0" as const;
 export const PREPARED_IMAGE_FORMATION_CONTEXT_VERSION =
   "0.1.0" as const;
 export const PRODUCTION_CAPTURE_SNAPSHOT_VERSION =
@@ -369,6 +380,8 @@ export interface ProductionImageFormationPlan {
       typeof RENDERER_CAPABILITY_SCHEMA_VERSION;
     fidelityProfile:
       typeof IMAGE_FORMATION_FIDELITY_PROFILE_SCHEMA_VERSION;
+    scientificAssurance:
+      typeof SCIENTIFIC_ASSURANCE_CONTRACT_VERSION;
   };
   contextIdentity: {
     contextId: string;
@@ -402,6 +415,8 @@ export interface ProductionImageFormationPlan {
     SceneToSensorIrradianceResult;
   temporalCaptureResult?:
     ProductionTemporalCaptureResult;
+  scientificAssurance?:
+    ComposedScientificAssurance;
   stochastic: {
     captureSeedUint32: number;
     backendRandomnessMayRedefineScientificResult:
@@ -3283,6 +3298,350 @@ function deriveStagePlan(
   );
 }
 
+type ProductionUncertaintyInput =
+  | SceneRadianceUncertainty
+  | OpticalBridgeUncertainty
+  | FrontOfLensFilterUncertainty;
+
+function toAssuranceUncertainty(
+  uncertainty:
+    ProductionUncertaintyInput
+): ScientificAssuranceComponentUncertainty {
+  if (
+    uncertainty.kind ===
+    "relative"
+  ) {
+    return {
+      kind: "relative",
+      fraction:
+        uncertainty.fraction,
+      basis:
+        uncertainty.basis
+    };
+  }
+
+  return {
+    kind: "not-quantified",
+    limitation:
+      uncertainty.limitation
+  };
+}
+
+function physicalAssuranceComponents(
+  prepared:
+    PreparedImageFormationContext,
+  snapshot:
+    ProductionCaptureSnapshot,
+  physicalResult:
+    SceneToSensorIrradianceResult
+): readonly ScientificAssuranceComponent[] {
+  const sample =
+    snapshot.physicalSceneSample;
+  const optical =
+    prepared.opticalBridgeProfile;
+
+  if (
+    sample === undefined ||
+    optical === undefined
+  ) {
+    throw new InvalidConfigurationError(
+      "Physical scientific assurance requires the committed physical sample and optical profile."
+    );
+  }
+
+  const components:
+    ScientificAssuranceComponent[] =
+      [
+        {
+          componentId:
+            "scene-radiance",
+          role:
+            "outgoing scene spectral radiance",
+          required: true,
+          sourceIdentity: {
+            kind: "result",
+            id:
+              sample
+                .sceneRadianceResult
+                .sampleId,
+            version:
+              sample
+                .sceneRadianceResult
+                .schemaVersion
+          },
+          basisKind:
+            "evidence-backed-fact",
+          scientificStatus:
+            sample
+              .sceneRadianceResult
+              .scientificStatus,
+          evidenceRequirement:
+            "required",
+          evidence:
+            sample
+              .sceneRadianceResult
+              .evidence,
+          uncertainty:
+            toAssuranceUncertainty(
+              sample
+                .sceneRadianceResult
+                .uncertainty
+            ),
+          limitations: [
+            ...sample
+              .sceneRadianceResult
+              .limitations
+          ]
+        },
+        {
+          componentId:
+            "optical-throughput-profile",
+          role:
+            "lens throughput and working-aperture profile",
+          required: true,
+          sourceIdentity: {
+            kind: "profile",
+            id:
+              optical.profileId,
+            version:
+              optical.profileVersion
+          },
+          basisKind:
+            "evidence-backed-fact",
+          scientificStatus:
+            optical
+              .scientificStatus,
+          evidenceRequirement:
+            "required",
+          evidence: [
+            ...physicalResult
+              .componentEvidence
+              .opticalProfile,
+            ...physicalResult
+              .componentEvidence
+              .transmission,
+            ...physicalResult
+              .componentEvidence
+              .workingFNumber
+          ],
+          uncertainty:
+            toAssuranceUncertainty(
+              optical
+                .transmission
+                .uncertainty
+            ),
+          limitations: [
+            ...optical.limitations
+          ]
+        },
+        {
+          componentId:
+            "primary-optics-bridge-model",
+          role:
+            "scene-radiance to pre-sensor-stack irradiance composition model",
+          required: true,
+          sourceIdentity: {
+            kind: "model",
+            id:
+              "scene-radiance-to-sensor-irradiance",
+            version: "1.1.0"
+          },
+          basisKind:
+            "photivra-model-assumption",
+          scientificStatus:
+            "approximation",
+          evidenceRequirement:
+            "not-required",
+          evidence: [],
+          uncertainty: {
+            kind:
+              "not-quantified",
+            limitation:
+              "The paraxial primary-optics bridge is an explicit approximation with no defensible aggregate model-error bound yet."
+          },
+          limitations: [
+            "Paraxial circular-pupil acceptance is not a full ray-traced pupil solution.",
+            "PSF redistribution, sensor optical-stack response and polarization remain outside this bridge."
+          ]
+        }
+      ];
+
+  for (
+    let index = 0;
+    index <
+      (sample.frontOfLensFilters
+        ?.length ?? 0);
+    index += 1
+  ) {
+    const profile =
+      sample
+        .frontOfLensFilters![
+          index
+        ]!;
+    const resolved =
+      resolveFrontOfLensFilterTransmission({
+        profile,
+        wavelengthNanometers:
+          physicalResult
+            .wavelengthNanometers,
+        wavelengthBasis:
+          physicalResult
+            .wavelengthBasis
+      });
+
+    components.push({
+      componentId:
+        "front-filter:" +
+        index,
+      role:
+        "front-of-lens transmission filter",
+      required: true,
+      sourceIdentity: {
+        kind: "profile",
+        id: resolved.filterId,
+        version:
+          resolved.profileVersion
+      },
+      basisKind:
+        "evidence-backed-fact",
+      scientificStatus:
+        resolved
+          .scientificStatus,
+      evidenceRequirement:
+        "required",
+      evidence:
+        resolved.evidence,
+      uncertainty:
+        toAssuranceUncertainty(
+          resolved.uncertainty
+        ),
+      limitations: [
+        ...resolved.limitations
+      ]
+    });
+  }
+
+  if (
+    sample.fieldThroughput.kind !==
+    "unity"
+  ) {
+    components.push({
+      componentId:
+        "field-throughput-model",
+      role:
+        "field-dependent illumination throughput",
+      required: true,
+      sourceIdentity: {
+        kind: "model",
+        id:
+          "generic-illumination-vignetting",
+        version: "1.0.0"
+      },
+      basisKind:
+        "photivra-model-assumption",
+      scientificStatus:
+        "approximation",
+      evidenceRequirement:
+        "not-required",
+      evidence: [],
+      uncertainty: {
+        kind: "not-quantified",
+        limitation:
+          "The capture snapshot retains the evaluated vignetting value but not the source CalculationResult quality envelope; no numeric uncertainty is inferred."
+      },
+      limitations: [
+        "Field-throughput model status remains separate from lens transmission and front-filter transmission.",
+        "Future capture contracts must explicitly preserve source quality if calibrated field-throughput uncertainty is required downstream."
+      ]
+    });
+  }
+
+  return components;
+}
+
+function temporalAssuranceComponent(
+  snapshot:
+    ProductionCaptureSnapshot
+): ScientificAssuranceComponent {
+  return {
+    componentId:
+      "temporal-capture-schedule",
+    role:
+      "capture exposure/readout temporal composition",
+    required: true,
+    sourceIdentity: {
+      kind: "model",
+      id:
+        "capture-temporal-schedule",
+      version: "1.0.0"
+    },
+    basisKind:
+      "photivra-model-assumption",
+    scientificStatus:
+      "approximation",
+    evidenceRequirement:
+      "not-required",
+    evidence: [],
+    uncertainty: {
+      kind: "not-quantified",
+      limitation:
+        "Temporal schedule composition preserves declared timing facts but does not claim a generic aggregate timing/model uncertainty."
+    },
+    limitations: [
+      "Readout/exposure synchronization is not assumed unless explicitly modeled.",
+      "Renderer execution timing does not redefine the committed capture schedule.",
+      "Capture identity " +
+        snapshot.captureId +
+        " owns the committed temporal state."
+    ]
+  };
+}
+
+function composeProductionScientificAssurance(
+  prepared:
+    PreparedImageFormationContext,
+  snapshot:
+    ProductionCaptureSnapshot,
+  physicalResult:
+    SceneToSensorIrradianceResult | undefined,
+  temporalResult:
+    ProductionTemporalCaptureResult | undefined
+): ComposedScientificAssurance | undefined {
+  const components:
+    ScientificAssuranceComponent[] =
+      [];
+
+  if (
+    physicalResult !== undefined
+  ) {
+    components.push(
+      ...physicalAssuranceComponents(
+        prepared,
+        snapshot,
+        physicalResult
+      )
+    );
+  }
+
+  if (
+    temporalResult !== undefined
+  ) {
+    components.push(
+      temporalAssuranceComponent(
+        snapshot
+      )
+    );
+  }
+
+  if (components.length === 0) {
+    return undefined;
+  }
+
+  return composeScientificAssurance({
+    components
+  });
+}
+
 export function createProductionImageFormationPlan(
   input:
     CreateProductionImageFormationPlanInput
@@ -3331,6 +3690,14 @@ export function createProductionImageFormationPlan(
       blockers
     );
 
+  const scientificAssurance =
+    composeProductionScientificAssurance(
+      prepared,
+      snapshot,
+      physicalResult,
+      temporalResult
+    );
+
   const effectPlan =
     deriveEffectPlan(
       prepared,
@@ -3369,7 +3736,9 @@ export function createProductionImageFormationPlan(
       rendererCapability:
         RENDERER_CAPABILITY_SCHEMA_VERSION,
       fidelityProfile:
-        IMAGE_FORMATION_FIDELITY_PROFILE_SCHEMA_VERSION
+        IMAGE_FORMATION_FIDELITY_PROFILE_SCHEMA_VERSION,
+      scientificAssurance:
+        SCIENTIFIC_ASSURANCE_CONTRACT_VERSION
     },
     contextIdentity: {
       contextId:
@@ -3424,6 +3793,12 @@ export function createProductionImageFormationPlan(
       : {
           temporalCaptureResult:
             temporalResult
+        }),
+    ...(scientificAssurance ===
+    undefined
+      ? {}
+      : {
+          scientificAssurance
         }),
     stochastic: {
       captureSeedUint32:

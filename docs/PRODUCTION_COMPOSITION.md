@@ -136,7 +136,7 @@ Capability mismatch becomes a structured blocker such as:
 
 ## First physical composed path
 
-Plan schema `0.1.0` composes the first #110 physical sample path.
+Current plan schema `0.4.0` composes the #110 physical sample path.
 
 For a fidelity profile requiring `lens-field-pupil-evaluation`, dependencies
 expand to:
@@ -163,7 +163,7 @@ This path never substitutes an RGB preview for physical spectral irradiance.
 
 ## Front-of-lens filter capture state
 
-Plan contract `0.3.0` / capture snapshot `0.2.0` add optional #135 front-of-lens filter state to the immutable physical scene sample.
+Plan contract `0.4.0` / capture snapshot `0.2.0` preserve optional #135 front-of-lens filter state in the immutable physical scene sample.
 
 The filter stack is:
 
@@ -219,6 +219,23 @@ A renderer whose declared temporal-sampling capacity is below the committed quad
 
 The image-formation graph is still authoritative. Because `temporal-exposure-readout` depends on `field-wavelength-psf`, useful temporal results may exist while the whole requested fidelity plan remains blocked until PSF composition lands.
 
+## Scientific assurance composition
+
+Plan contract `0.4.0` records the cross-engine #134 `scientificAssurance` summary whenever composed scientific results exist.
+
+The physical path preserves distinct required components for scene radiance, optical throughput, the Photivra primary-optics bridge model, selected front filters, and non-unity field throughput when present. Temporal composition adds its own explicit schedule-model component.
+
+The summary:
+
+- cannot exceed the weakest required component status;
+- degrades to `unknown` when required evidence is missing;
+- preserves component evidence and uncertainty declarations;
+- reports quantified component uncertainty as `not-propagated` unless a real propagation rule exists;
+- never converts `not-quantified` into zero;
+- participates in the plan fingerprint.
+
+See [Scientific Assurance and Uncertainty Composition](SCIENTIFIC_ASSURANCE.md).
+
 ## Optimized and reference consumers
 
 Use `createProductionPlanConsumerManifest()` to project one finalized semantic plan into either:
@@ -234,13 +251,14 @@ Both manifests retain the same:
 - #110 physical result;
 - temporal capture result;
 - capture seed;
-- structured blockers.
+- structured blockers;
+- scientific assurance/evidence/uncertainty.
 
 The consumer role changes execution responsibility only. It does not authorize changing scientific inputs, reordering stages, replacing seeds, or reducing committed temporal samples.
 
 ## Unsupported stages remain visible
 
-Current plan schema `0.3.0` deliberately does not claim full downstream sensor
+Current plan schema `0.4.0` deliberately does not claim full downstream sensor
 composition.
 
 If a fidelity profile requests a stage that the production composer has not

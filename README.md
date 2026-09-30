@@ -50,6 +50,7 @@ See the [Usage Guide](docs/USAGE.md) for the complete public API.
 - [Motion and Signal Foundation](docs/MOTION_AND_SIGNAL.md)
 - [Camera Shake and Stabilization](docs/STABILIZATION.md)
 - [Scientific and Source Provenance](docs/PROVENANCE.md)
+- [Scientific Assurance and Uncertainty Composition](docs/SCIENTIFIC_ASSURANCE.md)
 - [Local POC HTTP API](docs/POC_API.md)
 
 ## Getting help
@@ -144,7 +145,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [shared continuous spectral coverage and discrete-line composition](docs/SCENE_RADIANCE_AND_ILLUMINATION.md#shared-spectral-composition), intersecting explicit scene/optics/sensor wavelength support and preserving delta-like integrated line measures separately from continuous per-nanometre quadrature;
 - [temporal illumination waveforms and capture-time registration](docs/SCENE_RADIANCE_AND_ILLUMINATION.md#temporal-illumination), evaluating flash/flicker relative multipliers in seconds against authoritative local exposure windows without conflating sensor readout, metering, or automatic exposure policy;
 - [image-formation ownership/order contract](docs/IMAGE_FORMATION.md), including coordinate, temporal, renderer, and reserved sensor-stage semantics;
-- [production image-formation plan](docs/PRODUCTION_COMPOSITION.md), separating prepared static context from immutable capture snapshots, expanding stage dependencies from the authoritative graph, composing the #110 physical path plus mature temporal timing/rotation foundations, surfacing renderer/engine fidelity blockers, and providing shared optimized/reference consumer manifests without modifying the POC;
+- [production image-formation plan](docs/PRODUCTION_COMPOSITION.md), separating prepared static context from immutable capture snapshots, expanding stage dependencies from the authoritative graph, composing the #110 physical path plus mature temporal timing/rotation foundations, preserving cross-engine scientific assurance/evidence/uncertainty, surfacing renderer/engine fidelity blockers, and providing shared optimized/reference consumer manifests without modifying the POC;
 - [camera/scene schemas and runtime validation](docs/USAGE.md#camera-and-scene-schema-validation);
 - [provenance plus optional uncertainty/quality metadata](docs/USAGE.md#provenance-uncertainty-and-quality-metadata);
 - [the composed `simulatePocCamera()` proof-of-concept calculation](docs/USAGE.md#composed-poc-simulation).
@@ -240,7 +241,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.83.0`
+- Engine API contract: `0.84.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 

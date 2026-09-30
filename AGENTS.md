@@ -35,6 +35,7 @@ Treat this repository as a complete, standalone open-source scientific/business-
 - `docs/PHYSICS_FOUNDATION.md` — geometry/optics model assumptions and coordinate conventions.
 - `docs/MOTION_AND_SIGNAL.md` — motion/exposure/signal boundaries, including radiometry gating.
 - `docs/PROVENANCE.md` — scientific/source evidence and reuse-rights rules.
+- `docs/SCIENTIFIC_ASSURANCE.md` — cross-engine status/evidence/uncertainty composition rules.
 - `docs/API_STYLE.md` — public API and versioning conventions.
 - `docs/NUMERICAL_CORRECTNESS.md` — physical-unit, finite-number, tolerance, rounding, and numerical-determinism rules.
 - `scripts/` — CI, package-surface, license, identity, and browser-boundary gates.

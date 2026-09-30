@@ -54,6 +54,20 @@ export {
 } from "./core/spectral-composition.js";
 
 export {
+  SCIENTIFIC_ASSURANCE_CONTRACT_VERSION,
+  composeScientificAssurance,
+  type ComposeScientificAssuranceInput,
+  type ComposedScientificAssurance,
+  type ComposedScientificUncertaintyStatus,
+  type ScientificAssuranceBasisKind,
+  type ScientificAssuranceComponent,
+  type ScientificAssuranceComponentUncertainty,
+  type ScientificAssuranceSourceIdentity,
+  type ScientificAssuranceSourceKind,
+  type ScientificAssuranceStatus
+} from "./core/scientific-assurance.js";
+
+export {
   IMAGE_FORMATION_CONTRACT_VERSION,
   getImageFormationContract,
   type ImageFormationContract,
