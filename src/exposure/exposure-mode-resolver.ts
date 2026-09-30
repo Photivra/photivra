@@ -9,11 +9,15 @@ import {
   EXPOSURE_METER_TARGET_SCHEMA_VERSION,
   type ExposureMeterTarget
 } from "./metering-target.js";
+import {
+  parseExposureProgramLineProfile,
+  type ExposureProgramLineProfile
+} from "./program-line.js";
 
 type UnknownRecord = Record<string, unknown>;
 
 export const EXPOSURE_MODE_RESOLVER_VERSION =
-  "0.3.0" as const;
+  "0.4.0" as const;
 
 export interface RelativeExposureControlAnchor {
   aperture: number;
@@ -588,6 +592,259 @@ export type ShutterPriorityExposureModeResolution =
           | "auto-iso-unavailable";
       };
     });
+
+export type ProgramAutoIsoControl =
+  | {
+      kind: "manual";
+      iso: number;
+    }
+  | {
+      kind: "automatic";
+      isoBaseline:
+        "minimum-selectable";
+      isoQuantizationPolicy:
+        "nearest-log2-lower-on-tie";
+    };
+
+export interface ResolveProgramAutoExposureModeInput {
+  target: ExposureMeterTarget;
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities;
+  referenceExposure:
+    RelativeExposureControlAnchor;
+  programLine:
+    ExposureProgramLineProfile;
+  isoControl:
+    ProgramAutoIsoControl;
+}
+
+export interface FullAutoExposurePolicy {
+  kind:
+    "generic-program-line-minimum-iso";
+  programLine:
+    ExposureProgramLineProfile;
+  isoBaseline:
+    "minimum-selectable";
+  isoQuantizationPolicy:
+    "nearest-log2-lower-on-tie";
+}
+
+export interface ResolveFullAutoExposureModeInput {
+  target: ExposureMeterTarget;
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities;
+  referenceExposure:
+    RelativeExposureControlAnchor;
+  policy:
+    FullAutoExposurePolicy;
+}
+
+export interface ProgramLineSelectionDiagnostics {
+  profileId: string;
+  profileVersion: string;
+  requestedOpticalExposureStopsFromReference:
+    number;
+  selectedOpticalExposureStopsFromReference:
+    number;
+  position:
+    | "within-line"
+    | "below-line"
+    | "above-line";
+  interpolationPhase:
+    number | null;
+  idealAperture: number;
+  idealShutterSeconds: number;
+  resolvedAperture: number;
+  resolvedShutterSeconds: number;
+  apertureQuantized: boolean;
+  shutterQuantized: boolean;
+  apertureClamped:
+    | false
+    | "widest"
+    | "narrowest";
+  shutterClamped:
+    | false
+    | "minimum"
+    | "maximum";
+}
+
+interface ProgramExposureResolutionBase {
+  resolverVersion:
+    typeof EXPOSURE_MODE_RESOLVER_VERSION;
+  targetId: string;
+  targetSourceMeterSnapshot:
+    ExposureMeterTarget["sourceMeterSnapshot"];
+  referenceExposure:
+    RelativeExposureControlAnchor;
+  programLineSelection:
+    ProgramLineSelectionDiagnostics;
+  apertureResolvedByResolver: true;
+  shutterResolvedByResolver: true;
+  exposureCompensationAppliedByResolver:
+    false;
+  meterRecomputedByResolver: false;
+  flashPolicyApplied: false;
+  safetyShiftApplied: false;
+}
+
+export type ProgramAutoExposureModeResolution =
+  | (ProgramExposureResolutionBase & {
+      mode: "program-auto";
+      status: "resolved";
+      axisOwnership: {
+        aperture: "automatic";
+        shutter: "automatic";
+        iso: "manual";
+      };
+      isoControl: "manual";
+      manualIso: number;
+      resolvedSettings: {
+        aperture: number;
+        shutterSeconds: number;
+        iso: number;
+      };
+      targetResidual:
+        Extract<
+          ExposureTargetResidual,
+          { status: "resolved" }
+        >;
+    })
+  | (ProgramExposureResolutionBase & {
+      mode: "program-auto";
+      status: "resolved";
+      axisOwnership: {
+        aperture: "automatic";
+        shutter: "automatic";
+        iso: "automatic";
+      };
+      isoControl: "automatic";
+      baselineIso: number;
+      idealIsoBeforeConstraints:
+        number;
+      isoResolution:
+        PriorityAutoIsoResolutionCommon["isoResolution"];
+      resolvedSettings: {
+        aperture: number;
+        shutterSeconds: number;
+        iso: number;
+      };
+      targetResidual:
+        Extract<
+          ExposureTargetResidual,
+          { status: "resolved" }
+        >;
+    })
+  | {
+      resolverVersion:
+        typeof EXPOSURE_MODE_RESOLVER_VERSION;
+      mode: "program-auto";
+      status: "blocked";
+      axisOwnership: {
+        aperture: "automatic";
+        shutter: "automatic";
+        iso: "manual" | "automatic";
+      };
+      isoControl: "manual" | "automatic";
+      targetId: string;
+      targetSourceMeterSnapshot:
+        ExposureMeterTarget["sourceMeterSnapshot"];
+      referenceExposure:
+        RelativeExposureControlAnchor;
+      blocker:
+        | "target-no-signal"
+        | "auto-iso-unsupported"
+        | "auto-iso-unknown";
+      targetResidual: {
+        status: "target-unresolved";
+        state: "target-unresolved";
+        reason:
+          | "no-signal-target"
+          | "auto-iso-unavailable";
+      };
+      exposureCompensationAppliedByResolver:
+        false;
+      meterRecomputedByResolver: false;
+      flashPolicyApplied: false;
+      safetyShiftApplied: false;
+    };
+
+export type FullAutoExposureModeResolution =
+  | (ProgramExposureResolutionBase & {
+      mode:
+        "full-auto-exposure";
+      status: "resolved";
+      axisOwnership: {
+        aperture: "automatic";
+        shutter: "automatic";
+        iso: "automatic";
+      };
+      policy:
+        FullAutoExposurePolicy;
+      baselineIso: number;
+      idealIsoBeforeConstraints:
+        number;
+      isoResolution:
+        PriorityAutoIsoResolutionCommon["isoResolution"];
+      resolvedSettings: {
+        aperture: number;
+        shutterSeconds: number;
+        iso: number;
+      };
+      targetResidual:
+        Extract<
+          ExposureTargetResidual,
+          { status: "resolved" }
+        >;
+      autofocusResolved: false;
+      whiteBalanceResolved: false;
+      flashResolved: false;
+      driveResolved: false;
+      sceneRecognitionResolved: false;
+      stabilizationPolicyResolved:
+        false;
+    })
+  | {
+      resolverVersion:
+        typeof EXPOSURE_MODE_RESOLVER_VERSION;
+      mode:
+        "full-auto-exposure";
+      status: "blocked";
+      axisOwnership: {
+        aperture: "automatic";
+        shutter: "automatic";
+        iso: "automatic";
+      };
+      policy:
+        FullAutoExposurePolicy;
+      targetId: string;
+      targetSourceMeterSnapshot:
+        ExposureMeterTarget["sourceMeterSnapshot"];
+      referenceExposure:
+        RelativeExposureControlAnchor;
+      blocker:
+        | "target-no-signal"
+        | "auto-iso-unsupported"
+        | "auto-iso-unknown";
+      targetResidual: {
+        status: "target-unresolved";
+        state: "target-unresolved";
+        reason:
+          | "no-signal-target"
+          | "auto-iso-unavailable";
+      };
+      exposureCompensationAppliedByResolver:
+        false;
+      meterRecomputedByResolver: false;
+      flashPolicyApplied: false;
+      safetyShiftApplied: false;
+      autofocusResolved: false;
+      whiteBalanceResolved: false;
+      flashResolved: false;
+      driveResolved: false;
+      sceneRecognitionResolved: false;
+      stabilizationPolicyResolved:
+        false;
+    };
 
 function requireRecord(
   value: unknown,
