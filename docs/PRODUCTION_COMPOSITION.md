@@ -61,7 +61,8 @@ Use `createProductionCaptureSnapshot()` for per-capture dynamic state:
 - aperture/shutter/ISO;
 - output-state identity;
 - deterministic capture seed;
-- optional #85 scene-radiance request/result plus #110 focus/field input.
+- optional #85 scene-radiance request/result plus #110 focus/field input;
+- optional generic front-of-lens filter stack.
 
 The snapshot is also cloned, deeply frozen, and fingerprinted.
 
@@ -160,6 +161,21 @@ The plan stores the resulting pre-sensor-stack spectral irradiance result.
 
 This path never substitutes an RGB preview for physical spectral irradiance.
 
+## Front-of-lens filter capture state
+
+Plan contract `0.3.0` / capture snapshot `0.2.0` add optional #135 front-of-lens filter state to the immutable physical scene sample.
+
+The filter stack is:
+
+- parsed/validated when the capture snapshot is committed;
+- included in the capture fingerprint;
+- forwarded to #110 exactly once;
+- preserved in the #110 physical result as filter count, transmission factor, attenuation and evidence.
+
+Changing only the selected filter stack changes capture/plan identity and the physical sensor-plane irradiance result, but it does not alter committed aperture/f-number, focus geometry, DOF or diffraction.
+
+Filter transmission remains separate from lens transmission/T-stop and from sensor optical-stack response.
+
 ## Temporal capture composition
 
 Plan contract `0.2.0` adds immutable temporal-capture input.
@@ -224,7 +240,7 @@ The consumer role changes execution responsibility only. It does not authorize c
 
 ## Unsupported stages remain visible
 
-Plan schema `0.1.0` deliberately does not claim full downstream sensor
+Current plan schema `0.3.0` deliberately does not claim full downstream sensor
 composition.
 
 If a fidelity profile requests a stage that the production composer has not
