@@ -2555,6 +2555,234 @@ The meter averages **linear relative signals first**, then computes the stop off
 
 This policy is explicit ambient temporal metering. It does not infer time weights from source flicker frequency, source waveform shape, shutter/readout duration, renderer frame cadence, or final display brightness. Flash/TTL metering remains separate.
 
+## Generic equipment exposure capabilities
+
+Use the #109 equipment-capability API to describe **what a generic Photivra body and lens allow** before #99 chooses any setting.
+
+```ts
+import {
+  parseGenericBodyExposureCapabilityProfile,
+  parseGenericLensExposureCapabilityProfile,
+  resolveGenericEquipmentExposureCapabilities
+} from "@photivra/engine";
+
+const body =
+  parseGenericBodyExposureCapabilityProfile({
+    schemaVersion: "0.1.0",
+    profileId: "body-prosumer",
+    profileVersion: "1.0.0",
+    scientificStatus: "approximation",
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference:
+          "generic-body:prosumer",
+        reuseStatus: "photivra-owned"
+      }
+    ],
+    shutter: {
+      durationSecondsRange: {
+        value: {
+          minimum: 1 / 8000,
+          maximum: 30
+        },
+        evidence: [
+          {
+            sourceOrigin: "photivra",
+            sourceReference:
+              "generic-body:prosumer:shutter",
+            reuseStatus:
+              "photivra-owned"
+          }
+        ]
+      },
+      settingGrid: {
+        kind: "continuous-within-range"
+      }
+    },
+    iso: {
+      range: {
+        value: {
+          minimum: 100,
+          maximum: 12800
+        },
+        evidence: [
+          {
+            sourceOrigin: "photivra",
+            sourceReference:
+              "generic-body:prosumer:iso",
+            reuseStatus:
+              "photivra-owned"
+          }
+        ]
+      },
+      settingGrid: {
+        kind: "discrete-values",
+        values: {
+          value: [
+            100,
+            200,
+            400,
+            800,
+            1600,
+            3200,
+            6400,
+            12800
+          ],
+          evidence: [
+            {
+              sourceOrigin: "photivra",
+              sourceReference:
+                "generic-body:prosumer:iso-grid",
+              reuseStatus:
+                "photivra-owned"
+            }
+          ]
+        }
+      },
+      autoIso: {
+        value: "supported",
+        evidence: [
+          {
+            sourceOrigin: "photivra",
+            sourceReference:
+              "generic-body:prosumer:auto-iso",
+            reuseStatus:
+              "photivra-owned"
+          }
+        ]
+      }
+    }
+  });
+
+const lens =
+  parseGenericLensExposureCapabilityProfile({
+    schemaVersion: "0.1.0",
+    profileId: "lens-standard-variable-zoom",
+    profileVersion: "1.0.0",
+    scientificStatus: "approximation",
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference:
+          "generic-lens:standard-variable-zoom",
+        reuseStatus: "photivra-owned"
+      }
+    ],
+    focalLengthMmRange: {
+      value: {
+        minimum: 24,
+        maximum: 70
+      },
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference:
+            "generic-lens:focal-range",
+          reuseStatus:
+            "photivra-owned"
+        }
+      ]
+    },
+    aperture: {
+      widestAvailableFNumber: {
+        kind:
+          "piecewise-linear-by-focal-length",
+        samples: {
+          value: [
+            {
+              focalLengthMm: 24,
+              fNumber: 2.8
+            },
+            {
+              focalLengthMm: 50,
+              fNumber: 3.5
+            },
+            {
+              focalLengthMm: 70,
+              fNumber: 4
+            }
+          ],
+          evidence: [
+            {
+              sourceOrigin: "photivra",
+              sourceReference:
+                "generic-lens:wide-open-curve",
+              reuseStatus:
+                "photivra-owned"
+            }
+          ]
+        }
+      },
+      narrowestAvailableFNumber: {
+        value: 22,
+        evidence: [
+          {
+            sourceOrigin: "photivra",
+            sourceReference:
+              "generic-lens:narrowest-aperture",
+            reuseStatus:
+              "photivra-owned"
+          }
+        ]
+      },
+      settingGrid: {
+        kind: "continuous-within-range"
+      }
+    }
+  });
+
+const capabilities =
+  resolveGenericEquipmentExposureCapabilities({
+    bodyProfile: body,
+    lensProfile: lens,
+    selectedFocalLengthMm: 60
+  });
+```
+
+The resolved result contains the exposure envelope that #99 may later consume:
+
+- focal-length-specific widest available f-number;
+- narrowest available f-number;
+- aperture setting grid;
+- shortest/longest shutter duration and setting grid;
+- ISO range and setting grid;
+- Auto ISO availability.
+
+### Continuous versus discrete setting grids
+
+A setting grid is either:
+
+- `continuous-within-range` — a downstream resolver may choose any finite value inside the range; or
+- `discrete-values` — only the declared values are valid.
+
+For a variable-aperture lens, the discrete aperture list is filtered after the wide-open f-number is resolved at the selected focal length.
+
+### Capability versus selected state
+
+These profiles do **not** represent the current camera settings. They are immutable capability inputs.
+
+The resolver also does not choose aperture, shutter or ISO. #99 owns:
+
+- manual versus automatic axis policy;
+- validation/quantization of requested settings;
+- clamping to capability limits;
+- residual exposure diagnostics.
+
+The legacy `CameraConfiguration` remains semantically unchanged while #109 builds the newer versioned capability/state architecture.
+
+Auto ISO capability preserves three states:
+
+- `supported`;
+- `unsupported`;
+- `unknown`.
+
+An unknown capability must not be treated as supported.
+
+ISO capability is control metadata only. It does not imply sensor noise, analog gain topology, photon count, conversion gain or high-ISO quality.
+
+Likewise, shutter-duration capability does not imply shutter mechanism, rolling/global readout, exposure-boundary timing or flash sync.
+
 ## Meter target and exposure compensation
 
 Use `createExposureMeterTargetFromMeteringResult()` to freeze a spatial or temporal metering result into the stable target consumed by #99.
