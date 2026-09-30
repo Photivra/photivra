@@ -2284,6 +2284,162 @@ The model assumes constant world-space linear velocity. It tracks a representati
 
 See [Motion and Signal Foundation](MOTION_AND_SIGNAL.md#projected-subject-motion).
 
+## Relative pre-exposure metering
+
+Use `parseExposureMeteringProfile()` and `meterRelativeExposure()` for the first renderer-neutral metering path.
+
+Schema `0.1.0` deliberately accepts only **relative pre-exposure linear signal**. It does not claim calibrated luminance, scene spectral radiance, sensor-plane irradiance, or a commercial-camera meter calibration.
+
+```ts
+import {
+  meterRelativeExposure,
+  parseExposureMeteringProfile,
+  resolveCaptureGeometry
+} from "@photivra/engine";
+
+const captureGeometry =
+  resolveCaptureGeometry({
+    imagingArea: {
+      widthMm: 36,
+      heightMm: 24
+    },
+    nativeRaster: {
+      pixelWidth: 6000,
+      pixelHeight: 4000
+    },
+    orientation: "landscape"
+  }).value;
+
+const profile =
+  parseExposureMeteringProfile({
+    schemaVersion: "0.1.0",
+    profileId: "generic-relative-meter",
+    scientificStatus: "approximation",
+    inputDomain:
+      "relative-pre-exposure-linear-signal",
+    captureRegion:
+      "oriented-active-capture",
+    policy: {
+      kind: "multi-zone-uniform"
+    },
+    target: {
+      kind:
+        "relative-signal-reference",
+      targetRelativeSignal: 1,
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference:
+            "meter-target:example",
+          reuseStatus:
+            "photivra-owned"
+        }
+      ]
+    },
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference:
+          "meter-profile:example",
+        reuseStatus:
+          "photivra-owned"
+      }
+    ],
+    limitations: [
+      "Generic educational relative meter."
+    ]
+  });
+
+const metered =
+  meterRelativeExposure({
+    profile,
+    sampleSet: {
+      measurementId: "frame-42-meter",
+      sceneStateId:
+        "scene-state-after-light-change",
+      inputDomain:
+        "relative-pre-exposure-linear-signal",
+      captureRegion:
+        "oriented-active-capture",
+      captureGeometry,
+      processingState: {
+        exposureSettingsApplied: false,
+        whiteBalanceApplied: false,
+        toneMappingApplied: false,
+        displayGammaApplied: false,
+        sharpeningApplied: false
+      },
+      samples: [
+        {
+          sampleId: "zone-0",
+          positionOrientedCaptureUv: {
+            u: 0.25,
+            v: 0.5
+          },
+          relativeLinearSignal: 0.5,
+          areaWeight: 1
+        },
+        {
+          sampleId: "zone-1",
+          positionOrientedCaptureUv: {
+            u: 0.75,
+            v: 0.5
+          },
+          relativeLinearSignal: 0.5,
+          areaWeight: 1
+        }
+      ]
+    }
+  });
+
+if (metered.value.status === "resolved") {
+  console.log(
+    metered.value
+      .exposureOffsetStopsToTarget
+  ); // 1
+}
+```
+
+For a controlled uniform fixture, halving every relative-linear sample from `1.0` to `0.5` produces a **+1 stop** shift to the same declared target. That is the intended educational invariant used by future Manual + Auto ISO tests.
+
+### Metering policies
+
+The first generic policies are explicit rather than branded:
+
+- `multi-zone-uniform` — area-weighted average over all supplied zones;
+- `center-weighted-radial` — multiplies area weight by a radial physical-frame weighting function with explicit edge weight and exponent;
+- `spot` — selects samples inside an explicit spot center/radius in the oriented active capture frame;
+- `highlight-weighted` — gives brighter relative-linear samples more weight through an explicit exponent and minimum weight fraction.
+
+The sample producer supplies `areaWeight`, so denser sampling in one part of the frame does not automatically mean more metering influence.
+
+Center/spot distance is evaluated using the **physical dimensions of the oriented active capture frame**, not CSS/display pixels. A final output crop is not used by schema 0.1.0.
+
+### Target and downstream control
+
+`targetRelativeSignal` is a profile-defined reference. It is not a universal claim about 18% gray or a specific manufacturer's meter calibration.
+
+The meter reports the base scene measurement independently from exposure compensation. It does not choose aperture, shutter duration, or ISO.
+
+The intended flow is:
+
+```text
+pre-exposure relative scene signal
+  -> meterRelativeExposure()
+  -> base meter result / stop offset
+  -> future exposure compensation
+  -> #99 exposure-mode resolver
+  -> aperture / shutter / ISO
+```
+
+A zero-signal sample set returns `status: "no-signal"` rather than infinity/NaN.
+
+`measurementId` and `sceneStateId` remain in the result so a future application can freeze a meter result for AE lock or reject stale results after scene-light changes.
+
+The input must explicitly state that exposure settings, white balance, tone mapping, display gamma, and sharpening have not already been applied. This prevents a circular final-preview auto-exposure loop.
+
+This first slice is ambient/relative metering only. Flash/TTL metering, calibrated photometric/radiometric metering, temporal/flicker-aware metering policy, exposure compensation application, and automatic mode resolution remain separate work.
+
 ## Exposure and ISO relations
 
 Use `calculateExposureValue100()` for EV100:
