@@ -45,6 +45,35 @@ Do not substitute one result for the other without an explicit migration.
 
 The spatial primitive does not apply stabilization stops. Real IBIS/OIS behavior and translation/parallax remain separate future models.
 
+## Ideal stable support boundary
+
+Photivra's current **ideal stable support** is an explicit zero-disturbance boundary condition, not a separate blur equation and not a claim that real tripods are vibration-free.
+
+Represent the boundary by supplying:
+
+```ts
+angularVelocityRadPerSec: {
+  yaw: 0,
+  pitch: 0
+}
+```
+
+With this explicit input:
+
+- unstabilized shake displacement is exactly zero;
+- stabilized shake displacement is also exactly zero for any `stabilizationStopsEquivalent`;
+- focal length, shutter duration, finite-focus projection, infinity/pinhole projection, and pixel pitch do not create motion from a zero-motion input;
+- subject motion remains independent;
+- physical orientation/output transforms preserve the zero vector.
+
+Do **not** represent stable support by an arbitrarily large stabilization-stop value. Stabilization attenuates supplied camera motion; it is not the source of the stable-support state.
+
+This boundary also does not silently remove disturbances that are not currently modeled, including shutter shock, release-button impulse, wind, floor/ground vibration, support flex/resonance, or future tripod dynamics. Those effects must enter through their own explicit motion/support models.
+
+Omitting the camera-shake input is semantically different from explicitly supplying zero motion: omission means the effect/input was not supplied, while explicit zero motion states the modeled stable-support boundary.
+
+Real-camera policies about whether IBIS/OIS should be enabled on a tripod are equipment/mode-specific and remain separate from this generic boundary.
+
 ## Equivalent stabilization stops
 
 The model accepts `stabilizationStopsEquivalent`.
