@@ -534,6 +534,29 @@ const capture =
   });
 ```
 
+### Capture directly from a resolved release frame
+
+When #105 has already resolved a logical frame, prefer the dedicated handoff instead of copying exposure/seed values manually:
+
+```ts
+import {
+  createProductionCaptureSnapshotFromReleaseFrame
+} from "@photivra/engine";
+
+const capture =
+  createProductionCaptureSnapshotFromReleaseFrame({
+    captureId: "capture-42",
+    sceneStateId: "scene-state-42",
+    sceneTimeSecondsFromExposureStart: 0.01,
+    outputStateId: "output-geometry-a",
+    releaseFrame: sequence.frames[0],
+    whiteBalanceState: lockedWhiteBalance,
+    physicalSceneSample
+  });
+```
+
+The helper binds the release frame's exposure, focus, automation policy, timing, release identity and stochastic seed. If the frame names a WB state, the complete committed #108 state must match that ID. Both are frozen into the capture fingerprint and later surfaced in `plan.captureIdentity`.
+
 Finally create the semantic plan:
 
 ```ts

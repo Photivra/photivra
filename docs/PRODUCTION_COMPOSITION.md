@@ -136,7 +136,7 @@ Capability mismatch becomes a structured blocker such as:
 
 ## First physical composed path
 
-Current plan schema `0.4.0` composes the #110 physical sample path.
+Current plan schema `0.5.0` composes the #110 physical sample path.
 
 For a fidelity profile requiring `lens-field-pupil-evaluation`, dependencies
 expand to:
@@ -161,9 +161,32 @@ The plan stores the resulting pre-sensor-stack spectral irradiance result.
 
 This path never substitutes an RGB preview for physical spectral irradiance.
 
+## Release-frame and white-balance capture binding
+
+Plan contract `0.5.0` / capture snapshot `0.3.0` add the preferred handoff from #105 release sequencing into production composition.
+
+Use `createProductionCaptureSnapshotFromReleaseFrame()` when a logical release frame has already been committed. The helper takes ownership from the release frame for:
+
+- release sequence/frame identity;
+- aperture, shutter and ISO;
+- focus state;
+- AE/AF/AWB automation state;
+- exposure start/end and sequence-relative scene time;
+- timing constraints;
+- stochastic frame seed;
+- committed white-balance state identity.
+
+When the release frame declares `whiteBalanceStateId`, the full resolved #108 WB state must be supplied and its ID must match. A release frame with locked AWB requires a locked WB state.
+
+The snapshot stores both the release binding and resolved WB state inside its deterministic fingerprint. Later UI changes therefore cannot alter the committed capture.
+
+The release-frame sequence-relative scene time is preserved separately from `sceneTimeSecondsFromExposureStart`: the latter remains the local time used by #85/#110 scene-radiance evaluation within the exposure.
+
+Existing `createProductionCaptureSnapshot()` remains supported for lower-level callers. Its optional release/WB fields receive the same validation when present.
+
 ## Front-of-lens filter capture state
 
-Plan contract `0.4.0` / capture snapshot `0.2.0` preserve optional #135 front-of-lens filter state in the immutable physical scene sample.
+Plan contract `0.5.0` / capture snapshot `0.3.0` preserve optional #135 front-of-lens filter state in the immutable physical scene sample.
 
 The filter stack is:
 
@@ -258,7 +281,7 @@ The consumer role changes execution responsibility only. It does not authorize c
 
 ## Unsupported stages remain visible
 
-Current plan schema `0.4.0` deliberately does not claim full downstream sensor
+Current plan schema `0.5.0` deliberately does not claim full downstream sensor
 composition.
 
 If a fidelity profile requests a stage that the production composer has not

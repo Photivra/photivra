@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {
+  RELEASE_SEQUENCE_VERSION,
+  type ReleaseTimingConstraint,
+  type ResolvedReleaseFrame
+} from "../capture/release-sequence.js";
+import {
+  parseResolvedWhiteBalanceState,
+  type ResolvedWhiteBalanceState
+} from "../color/white-balance.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   getImageFormationContract,
@@ -51,6 +60,10 @@ import {
   type FrontOfLensFilterUncertainty
 } from "../optics/front-of-lens-filter.js";
 import {
+  parseFocusPlane,
+  type FocusPlane
+} from "../optics/focus-state.js";
+import {
   calculateSceneRadianceToSensorIrradiance,
   parseSceneToSensorIrradianceProfile,
   type OpticalBridgeFieldThroughput,
@@ -70,11 +83,11 @@ import {
 type UnknownRecord = Record<string, unknown>;
 
 export const PRODUCTION_IMAGE_FORMATION_PLAN_VERSION =
-  "0.4.0" as const;
+  "0.5.0" as const;
 export const PREPARED_IMAGE_FORMATION_CONTEXT_VERSION =
   "0.1.0" as const;
 export const PRODUCTION_CAPTURE_SNAPSHOT_VERSION =
-  "0.2.0" as const;
+  "0.3.0" as const;
 export const RENDERER_CAPABILITY_SCHEMA_VERSION =
   "0.1.0" as const;
 export const IMAGE_FORMATION_FIDELITY_PROFILE_SCHEMA_VERSION =
@@ -231,6 +244,49 @@ export interface ProductionTemporalCaptureResult {
     false;
 }
 
+export interface ProductionReleaseFrameBinding {
+  releaseSequenceVersion:
+    typeof RELEASE_SEQUENCE_VERSION;
+  sequenceId: string;
+  releaseFrameId: string;
+  frameIndex: number;
+  exposure: {
+    aperture: number;
+    shutterSeconds: number;
+    iso: number;
+  };
+  stochasticSeedUint32: number;
+  exposureStartTimeSeconds: number;
+  exposureEndTimeSeconds: number;
+  sceneTimeSecondsFromSequenceStart:
+    number;
+  startIntervalFromPreviousSeconds:
+    number | null;
+  timingConstraints:
+    readonly ReleaseTimingConstraint[];
+  focus:
+    ResolvedReleaseFrame["focus"];
+  automation:
+    ResolvedReleaseFrame["automation"];
+  whiteBalanceStateId?: string;
+}
+
+export interface CreateProductionCaptureSnapshotFromReleaseFrameInput {
+  captureId: string;
+  sceneStateId: string;
+  sceneTimeSecondsFromExposureStart:
+    number;
+  outputStateId: string;
+  releaseFrame:
+    ResolvedReleaseFrame;
+  whiteBalanceState?:
+    ResolvedWhiteBalanceState;
+  physicalSceneSample?:
+    ProductionPhysicalSceneSample;
+  temporalCapture?:
+    ProductionTemporalCaptureInput;
+}
+
 export interface CreateProductionCaptureSnapshotInput {
   captureId: string;
   releaseFrameId: string;
@@ -244,6 +300,10 @@ export interface CreateProductionCaptureSnapshotInput {
     iso: number;
   };
   stochasticSeedUint32: number;
+  releaseFrameBinding?:
+    ProductionReleaseFrameBinding;
+  whiteBalanceState?:
+    ResolvedWhiteBalanceState;
   physicalSceneSample?:
     ProductionPhysicalSceneSample;
   temporalCapture?:
@@ -265,6 +325,10 @@ export interface ProductionCaptureSnapshot {
     iso: number;
   };
   stochasticSeedUint32: number;
+  releaseFrameBinding?:
+    ProductionReleaseFrameBinding;
+  whiteBalanceState?:
+    ResolvedWhiteBalanceState;
   physicalSceneSample?:
     ProductionPhysicalSceneSample;
   temporalCapture?:
@@ -392,6 +456,9 @@ export interface ProductionImageFormationPlan {
     captureId: string;
     releaseFrameId: string;
     sceneStateId: string;
+    releaseSequenceId?: string;
+    releaseFrameIndex?: number;
+    whiteBalanceStateId?: string;
     captureSnapshotFingerprint:
       string;
   };
@@ -1629,6 +1696,402 @@ function validateTemporalCaptureInput(
   return cloneJson(input);
 }
 
+const RELEASE_TIMING_CONSTRAINTS =
+  new Set<ReleaseTimingConstraint>([
+    "requested-cadence",
+    "body-maximum-cadence",
+    "exposure-duration",
+    "minimum-inter-frame-gap"
+  ]);
+
+function validateReleaseAutomationState(
+  value: unknown,
+  path: string
+): ResolvedReleaseFrame["automation"]["ae"] {
+  if (
+    value !== "manual" &&
+    value !== "locked" &&
+    value !== "continuous"
+  ) {
+    throw new InvalidConfigurationError(
+      path + " is invalid."
+    );
+  }
+  return value;
+}
+
+function validateProductionReleaseFrameBinding(
+  binding:
+    ProductionReleaseFrameBinding,
+  releaseFrameId: string,
+  exposure: {
+    aperture: number;
+    shutterSeconds: number;
+    iso: number;
+  },
+  stochasticSeedUint32: number
+): ProductionReleaseFrameBinding {
+  if (
+    binding.releaseSequenceVersion !==
+    RELEASE_SEQUENCE_VERSION
+  ) {
+    throw new InvalidConfigurationError(
+      'releaseFrameBinding.releaseSequenceVersion must be "' +
+        RELEASE_SEQUENCE_VERSION +
+        '".'
+    );
+  }
+
+  const frameIndex =
+    binding.frameIndex;
+  if (
+    !Number.isSafeInteger(frameIndex) ||
+    frameIndex < 0
+  ) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding.frameIndex must be a non-negative safe integer."
+    );
+  }
+
+  const start =
+    requireFinite(
+      binding.exposureStartTimeSeconds,
+      "releaseFrameBinding.exposureStartTimeSeconds"
+    );
+  const end =
+    requireFinite(
+      binding.exposureEndTimeSeconds,
+      "releaseFrameBinding.exposureEndTimeSeconds"
+    );
+  if (end <= start) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding exposure end must be after exposure start."
+    );
+  }
+  if (
+    !settingEquals(
+      end - start,
+      exposure.shutterSeconds
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding exposure duration must match exposure.shutterSeconds."
+    );
+  }
+
+  const sceneTime =
+    requireFinite(
+      binding.sceneTimeSecondsFromSequenceStart,
+      "releaseFrameBinding.sceneTimeSecondsFromSequenceStart"
+    );
+  if (sceneTime < 0) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding.sceneTimeSecondsFromSequenceStart must be greater than or equal to zero."
+    );
+  }
+
+  let interval:
+    number | null = null;
+  if (
+    binding.startIntervalFromPreviousSeconds !==
+    null
+  ) {
+    interval =
+      requirePositiveFinite(
+        binding.startIntervalFromPreviousSeconds,
+        "releaseFrameBinding.startIntervalFromPreviousSeconds"
+      );
+  }
+  if (
+    frameIndex === 0 &&
+    interval !== null
+  ) {
+    throw new InvalidConfigurationError(
+      "The first release frame must not declare a previous-frame interval."
+    );
+  }
+  if (
+    frameIndex > 0 &&
+    interval === null
+  ) {
+    throw new InvalidConfigurationError(
+      "A non-first release frame must declare its previous-frame interval."
+    );
+  }
+
+  if (
+    !Array.isArray(
+      binding.timingConstraints
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding.timingConstraints must be an array."
+    );
+  }
+  const timingConstraints =
+    binding.timingConstraints.map(
+      (constraint, index) => {
+        if (
+          !RELEASE_TIMING_CONSTRAINTS.has(
+            constraint
+          )
+        ) {
+          throw new InvalidConfigurationError(
+            "releaseFrameBinding.timingConstraints[" +
+              index +
+              "] is invalid."
+          );
+        }
+        return constraint;
+      }
+    );
+  if (
+    new Set(timingConstraints).size !==
+    timingConstraints.length
+  ) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding.timingConstraints must not contain duplicates."
+    );
+  }
+
+  const automationRecord =
+    requireRecord(
+      binding.automation,
+      "releaseFrameBinding.automation"
+    );
+  const automation = {
+    ae:
+      validateReleaseAutomationState(
+        automationRecord.ae,
+        "releaseFrameBinding.automation.ae"
+      ),
+    af:
+      validateReleaseAutomationState(
+        automationRecord.af,
+        "releaseFrameBinding.automation.af"
+      ),
+    awb:
+      validateReleaseAutomationState(
+        automationRecord.awb,
+        "releaseFrameBinding.automation.awb"
+      )
+  };
+
+  const whiteBalanceStateId =
+    binding.whiteBalanceStateId ===
+    undefined
+      ? undefined
+      : requireNonEmptyString(
+          binding.whiteBalanceStateId,
+          "releaseFrameBinding.whiteBalanceStateId"
+        );
+
+  const exposureRecord =
+    requireRecord(
+      binding.exposure,
+      "releaseFrameBinding.exposure"
+    );
+  const parsedExposure = {
+    aperture:
+      requirePositiveFinite(
+        exposureRecord.aperture,
+        "releaseFrameBinding.exposure.aperture"
+      ),
+    shutterSeconds:
+      requirePositiveFinite(
+        exposureRecord.shutterSeconds,
+        "releaseFrameBinding.exposure.shutterSeconds"
+      ),
+    iso:
+      requirePositiveFinite(
+        exposureRecord.iso,
+        "releaseFrameBinding.exposure.iso"
+      )
+  };
+  const parsedSeed =
+    requireUint32(
+      binding.stochasticSeedUint32,
+      "releaseFrameBinding.stochasticSeedUint32"
+    );
+
+  if (
+    !settingEquals(
+      parsedExposure.aperture,
+      exposure.aperture
+    ) ||
+    !settingEquals(
+      parsedExposure.shutterSeconds,
+      exposure.shutterSeconds
+    ) ||
+    !settingEquals(
+      parsedExposure.iso,
+      exposure.iso
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding.exposure must match the committed capture exposure."
+    );
+  }
+  if (
+    parsedSeed !==
+    stochasticSeedUint32
+  ) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding.stochasticSeedUint32 must match the committed capture seed."
+    );
+  }
+
+  const parsed: ProductionReleaseFrameBinding = {
+    releaseSequenceVersion:
+      RELEASE_SEQUENCE_VERSION,
+    sequenceId:
+      requireNonEmptyString(
+        binding.sequenceId,
+        "releaseFrameBinding.sequenceId"
+      ),
+    releaseFrameId:
+      requireNonEmptyString(
+        binding.releaseFrameId,
+        "releaseFrameBinding.releaseFrameId"
+      ),
+    frameIndex,
+    exposure:
+      parsedExposure,
+    stochasticSeedUint32:
+      parsedSeed,
+    exposureStartTimeSeconds:
+      start,
+    exposureEndTimeSeconds:
+      end,
+    sceneTimeSecondsFromSequenceStart:
+      sceneTime,
+    startIntervalFromPreviousSeconds:
+      interval,
+    timingConstraints,
+    focus:
+      parseFocusPlane(
+        binding.focus
+      ),
+    automation,
+    ...(whiteBalanceStateId ===
+    undefined
+      ? {}
+      : {
+          whiteBalanceStateId
+        })
+  };
+
+  if (
+    parsed.releaseFrameId !==
+    releaseFrameId
+  ) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding.releaseFrameId must match releaseFrameId."
+    );
+  }
+
+  return parsed;
+}
+
+function releaseFocusMatchesOpticalFocus(
+  releaseFocus: FocusPlane,
+  opticalFocus:
+    OpticalBridgeFocusContext
+): boolean {
+  if (
+    releaseFocus.kind ===
+    "infinity"
+  ) {
+    return (
+      opticalFocus.kind ===
+        "infinity-focus" ||
+      (
+        opticalFocus.kind ===
+          "supplied-working-f-number" &&
+        opticalFocus.focus.kind ===
+          "infinity"
+      )
+    );
+  }
+
+  if (
+    opticalFocus.kind ===
+    "ideal-symmetric-thin-lens"
+  ) {
+    return settingEquals(
+      opticalFocus.objectDistanceM,
+      releaseFocus.distanceM
+    );
+  }
+  if (
+    opticalFocus.kind ===
+      "supplied-working-f-number" &&
+    opticalFocus.focus.kind ===
+      "finite"
+  ) {
+    return settingEquals(
+      opticalFocus.focus.objectDistanceM,
+      releaseFocus.distanceM
+    );
+  }
+  return false;
+}
+
+function validateCommittedWhiteBalanceState(
+  state:
+    ResolvedWhiteBalanceState | undefined,
+  binding:
+    ProductionReleaseFrameBinding | undefined
+): ResolvedWhiteBalanceState | undefined {
+  const parsed =
+    state === undefined
+      ? undefined
+      : parseResolvedWhiteBalanceState(
+          state
+        );
+
+  if (binding === undefined) {
+    return parsed;
+  }
+
+  if (
+    binding.whiteBalanceStateId ===
+    undefined
+  ) {
+    if (parsed !== undefined) {
+      throw new InvalidConfigurationError(
+        "A release frame without whiteBalanceStateId must not receive a committed whiteBalanceState."
+      );
+    }
+    return undefined;
+  }
+
+  if (parsed === undefined) {
+    throw new InvalidConfigurationError(
+      "A release frame with whiteBalanceStateId requires the committed resolved white-balance state."
+    );
+  }
+  if (
+    parsed.stateId !==
+    binding.whiteBalanceStateId
+  ) {
+    throw new InvalidConfigurationError(
+      "whiteBalanceState.stateId must match releaseFrameBinding.whiteBalanceStateId."
+    );
+  }
+  if (
+    binding.automation.awb ===
+      "locked" &&
+    !parsed.locked
+  ) {
+    throw new InvalidConfigurationError(
+      "A release frame with locked AWB requires a locked committed white-balance state."
+    );
+  }
+
+  return parsed;
+}
+
 export function createProductionCaptureSnapshot(
   input:
     CreateProductionCaptureSnapshotInput
@@ -1645,6 +2108,74 @@ export function createProductionCaptureSnapshot(
     );
   }
 
+  const releaseFrameId =
+    requireNonEmptyString(
+      input.releaseFrameId,
+      "releaseFrameId"
+    );
+  const exposure = {
+    aperture:
+      requirePositiveFinite(
+        input.exposure.aperture,
+        "exposure.aperture"
+      ),
+    shutterSeconds:
+      requirePositiveFinite(
+        input.exposure
+          .shutterSeconds,
+        "exposure.shutterSeconds"
+      ),
+    iso:
+      requirePositiveFinite(
+        input.exposure.iso,
+        "exposure.iso"
+      )
+  };
+
+  const releaseFrameBinding =
+    input.releaseFrameBinding ===
+    undefined
+      ? undefined
+      : validateProductionReleaseFrameBinding(
+          input.releaseFrameBinding,
+          releaseFrameId,
+          exposure,
+          requireUint32(
+            input.stochasticSeedUint32,
+            "stochasticSeedUint32"
+          )
+        );
+
+  const whiteBalanceState =
+    validateCommittedWhiteBalanceState(
+      input.whiteBalanceState,
+      releaseFrameBinding
+    );
+
+  const physicalSceneSample =
+    input.physicalSceneSample ===
+    undefined
+      ? undefined
+      : validatePhysicalSceneSample(
+          input.physicalSceneSample,
+          sceneTime
+        );
+
+  if (
+    releaseFrameBinding !==
+      undefined &&
+    physicalSceneSample !==
+      undefined &&
+    !releaseFocusMatchesOpticalFocus(
+      releaseFrameBinding.focus,
+      physicalSceneSample.focus
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      "physicalSceneSample.focus must match the committed release-frame focus."
+    );
+  }
+
   const core = {
     version:
       PRODUCTION_CAPTURE_SNAPSHOT_VERSION,
@@ -1653,11 +2184,7 @@ export function createProductionCaptureSnapshot(
         input.captureId,
         "captureId"
       ),
-    releaseFrameId:
-      requireNonEmptyString(
-        input.releaseFrameId,
-        "releaseFrameId"
-      ),
+    releaseFrameId,
     sceneStateId:
       requireNonEmptyString(
         input.sceneStateId,
@@ -1670,29 +2197,24 @@ export function createProductionCaptureSnapshot(
         input.outputStateId,
         "outputStateId"
       ),
-    exposure: {
-      aperture:
-        requirePositiveFinite(
-          input.exposure.aperture,
-          "exposure.aperture"
-        ),
-      shutterSeconds:
-        requirePositiveFinite(
-          input.exposure
-            .shutterSeconds,
-          "exposure.shutterSeconds"
-        ),
-      iso:
-        requirePositiveFinite(
-          input.exposure.iso,
-          "exposure.iso"
-        )
-    },
+    exposure,
     stochasticSeedUint32:
       requireUint32(
         input.stochasticSeedUint32,
         "stochasticSeedUint32"
       ),
+    ...(releaseFrameBinding ===
+    undefined
+      ? {}
+      : {
+          releaseFrameBinding
+        }),
+    ...(whiteBalanceState ===
+    undefined
+      ? {}
+      : {
+          whiteBalanceState
+        }),
     ...(input.temporalCapture ===
     undefined
       ? {}
@@ -1700,20 +2222,14 @@ export function createProductionCaptureSnapshot(
           temporalCapture:
             validateTemporalCaptureInput(
               input.temporalCapture,
-              input.exposure
-                .shutterSeconds
+              exposure.shutterSeconds
             )
         }),
-    ...(input.physicalSceneSample ===
+    ...(physicalSceneSample ===
     undefined
       ? {}
       : {
-          physicalSceneSample:
-            validatePhysicalSceneSample(
-              input
-                .physicalSceneSample,
-              sceneTime
-            )
+          physicalSceneSample
         })
   };
 
@@ -1731,6 +2247,109 @@ export function createProductionCaptureSnapshot(
   return deepFreeze(
     cloneJson(snapshot)
   );
+}
+
+/**
+ * Creates one immutable production snapshot directly from a committed #105
+ * release frame. The release frame owns exposure/focus/automation/seed
+ * identity; callers provide only the scene/output-local state that is not
+ * owned by the release sequence.
+ */
+export function createProductionCaptureSnapshotFromReleaseFrame(
+  input:
+    CreateProductionCaptureSnapshotFromReleaseFrameInput
+): ProductionCaptureSnapshot {
+  const frame =
+    input.releaseFrame;
+
+  const releaseFrameBinding:
+    ProductionReleaseFrameBinding = {
+    releaseSequenceVersion:
+      RELEASE_SEQUENCE_VERSION,
+    sequenceId:
+      requireNonEmptyString(
+        frame.sequenceId,
+        "releaseFrame.sequenceId"
+      ),
+    releaseFrameId:
+      requireNonEmptyString(
+        frame.releaseFrameId,
+        "releaseFrame.releaseFrameId"
+      ),
+    frameIndex:
+      frame.frameIndex,
+    exposure: {
+      ...frame.exposure
+    },
+    stochasticSeedUint32:
+      frame.stochasticSeedUint32,
+    exposureStartTimeSeconds:
+      frame.exposureStartTimeSeconds,
+    exposureEndTimeSeconds:
+      frame.exposureEndTimeSeconds,
+    sceneTimeSecondsFromSequenceStart:
+      frame.sceneTimeSecondsFromSequenceStart,
+    startIntervalFromPreviousSeconds:
+      frame.startIntervalFromPreviousSeconds,
+    timingConstraints: [
+      ...frame.timingConstraints
+    ],
+    focus:
+      parseFocusPlane(
+        frame.focus
+      ),
+    automation: {
+      ...frame.automation
+    },
+    ...(frame.whiteBalanceStateId ===
+    undefined
+      ? {}
+      : {
+          whiteBalanceStateId:
+            frame.whiteBalanceStateId
+        })
+  };
+
+  return createProductionCaptureSnapshot({
+    captureId:
+      input.captureId,
+    releaseFrameId:
+      frame.releaseFrameId,
+    sceneStateId:
+      input.sceneStateId,
+    sceneTimeSecondsFromExposureStart:
+      input
+        .sceneTimeSecondsFromExposureStart,
+    outputStateId:
+      input.outputStateId,
+    exposure: {
+      ...frame.exposure
+    },
+    stochasticSeedUint32:
+      frame.stochasticSeedUint32,
+    releaseFrameBinding,
+    ...(input.whiteBalanceState ===
+    undefined
+      ? {}
+      : {
+          whiteBalanceState:
+            input.whiteBalanceState
+        }),
+    ...(input.physicalSceneSample ===
+    undefined
+      ? {}
+      : {
+          physicalSceneSample:
+            input.physicalSceneSample
+        }),
+    ...(input.temporalCapture ===
+    undefined
+      ? {}
+      : {
+          temporalCapture:
+            input.temporalCapture
+        })
+  });
 }
 
 export function parseProductionCaptureSnapshot(
@@ -1773,6 +2392,24 @@ export function parseProductionCaptureSnapshot(
       stochasticSeedUint32:
         record
           .stochasticSeedUint32 as number,
+      ...(record
+        .releaseFrameBinding ===
+      undefined
+        ? {}
+        : {
+            releaseFrameBinding:
+              record
+                .releaseFrameBinding as ProductionReleaseFrameBinding
+          }),
+      ...(record
+        .whiteBalanceState ===
+      undefined
+        ? {}
+        : {
+            whiteBalanceState:
+              record
+                .whiteBalanceState as ResolvedWhiteBalanceState
+          }),
       ...(record
         .physicalSceneSample ===
       undefined
@@ -3754,6 +4391,30 @@ export function createProductionImageFormationPlan(
         snapshot.releaseFrameId,
       sceneStateId:
         snapshot.sceneStateId,
+      ...(snapshot
+        .releaseFrameBinding ===
+      undefined
+        ? {}
+        : {
+            releaseSequenceId:
+              snapshot
+                .releaseFrameBinding
+                .sequenceId,
+            releaseFrameIndex:
+              snapshot
+                .releaseFrameBinding
+                .frameIndex
+          }),
+      ...(snapshot
+        .whiteBalanceState ===
+      undefined
+        ? {}
+        : {
+            whiteBalanceStateId:
+              snapshot
+                .whiteBalanceState
+                .stateId
+          }),
       captureSnapshotFingerprint:
         snapshot
           .fingerprint.value
