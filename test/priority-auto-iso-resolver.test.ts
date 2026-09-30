@@ -299,3 +299,100 @@ describe("Shutter Priority",()=>{
     })).toThrow("policy is invalid");
   });
 });
+
+describe("priority-mode guard and limit coverage",()=>{
+  const aPolicy = {
+    kind:"minimum-iso-until-slowest-preferred-shutter" as const,
+    slowestPreferredShutterSeconds:1/50,
+    shutterSelectionPolicy:"not-longer-than-target" as const,
+    isoBaseline:"minimum-selectable" as const,
+    isoQuantizationPolicy:"nearest-log2-lower-on-tie" as const,
+    afterMaximumIso:"allow-slower-shutter" as const
+  };
+
+  it("uses a discrete shutter no longer than the Aperture Priority preference",()=>{
+    const r=resolveAperturePriorityAutoIsoExposureMode({
+      target:targetForScale(4),
+      capabilities:capabilities({shutterGrid:[1/125,1/60,1/30,1/15]}),
+      referenceExposure:ref,manualAperture:4,policy:aPolicy
+    });
+    expect(r.status).toBe("resolved");
+    if(r.status!=="resolved") throw new Error("resolved expected");
+    expect(r.resolvedSettings.shutterSeconds).toBeCloseTo(1/60,12);
+    expect(r.shutterResolution.kind).toBe("discrete");
+    expect(r.resolvedSettings.iso).toBe(200);
+  });
+
+  it("fails closed on invalid Aperture Priority policy and preferred-shutter range",()=>{
+    expect(()=>resolveAperturePriorityAutoIsoExposureMode({
+      target:targetForScale(1),capabilities:capabilities(),referenceExposure:ref,
+      manualAperture:4,policy:{...aPolicy,kind:"magic"} as never
+    })).toThrow("policy is invalid");
+    expect(()=>resolveAperturePriorityAutoIsoExposureMode({
+      target:targetForScale(1),capabilities:capabilities(),referenceExposure:ref,
+      manualAperture:4,policy:{...aPolicy,slowestPreferredShutterSeconds:60}
+    })).toThrow("lies outside the resolved shutter capability range");
+  });
+
+  it("blocks unsupported Aperture Priority Auto ISO",()=>{
+    const r=resolveAperturePriorityAutoIsoExposureMode({
+      target:targetForScale(1),capabilities:capabilities({autoIso:"unsupported"}),
+      referenceExposure:ref,manualAperture:4,policy:aPolicy
+    });
+    expect(r).toMatchObject({status:"blocked",blocker:"auto-iso-unsupported"});
+  });
+
+  it("clamps Shutter Priority manual ISO at widest and narrowest apertures with residuals",()=>{
+    const dark=resolveShutterPriorityExposureMode({
+      target:targetForScale(100),capabilities:capabilities(),referenceExposure:ref,
+      manualShutterSeconds:1/125,
+      isoControl:{kind:"manual",iso:100,apertureQuantizationPolicy:"nearest-log2-narrower-on-tie"}
+    });
+    const bright=resolveShutterPriorityExposureMode({
+      target:targetForScale(0.01),capabilities:capabilities(),referenceExposure:ref,
+      manualShutterSeconds:1/125,
+      isoControl:{kind:"manual",iso:100,apertureQuantizationPolicy:"nearest-log2-narrower-on-tie"}
+    });
+    if(dark.status!=="resolved"||dark.isoControl!=="manual"||bright.status!=="resolved"||bright.isoControl!=="manual"){
+      throw new Error("resolved manual modes expected");
+    }
+    expect(dark.apertureResolution.clamped).toBe("widest");
+    expect(dark.targetResidual.state).toBe("under-target");
+    expect(bright.apertureResolution.clamped).toBe("narrowest");
+    expect(bright.targetResidual.state).toBe("over-target");
+  });
+
+  it("blocks no-signal Shutter Priority Auto ISO and rejects invalid ISO-control kind",()=>{
+    const dark=resolveShutterPriorityExposureMode({
+      target:darkTarget(),capabilities:capabilities(),referenceExposure:ref,
+      manualShutterSeconds:1/125,
+      isoControl:{kind:"automatic",policy:{
+        kind:"minimum-iso-aperture-first",isoBaseline:"minimum-selectable",
+        isoQuantizationPolicy:"nearest-log2-lower-on-tie",apertureSelectionPolicy:"not-wider-than-target"
+      }}
+    });
+    expect(dark).toMatchObject({status:"blocked",blocker:"target-no-signal"});
+    expect(()=>resolveShutterPriorityExposureMode({
+      target:targetForScale(1),capabilities:capabilities(),referenceExposure:ref,
+      manualShutterSeconds:1/125,isoControl:{kind:"magic"} as never
+    })).toThrow("isoControl.kind is invalid");
+  });
+
+  it("reports under-target when Shutter Priority Auto ISO exhausts widest aperture and ISO maximum",()=>{
+    const r=resolveShutterPriorityExposureMode({
+      target:targetForScale(100),capabilities:capabilities({isoValues:[100,200,400,800]}),
+      referenceExposure:ref,manualShutterSeconds:1/125,
+      isoControl:{kind:"automatic",policy:{
+        kind:"minimum-iso-aperture-first",isoBaseline:"minimum-selectable",
+        isoQuantizationPolicy:"nearest-log2-lower-on-tie",apertureSelectionPolicy:"not-wider-than-target"
+      }}
+    });
+    expect(r.status).toBe("resolved");
+    if(r.status!=="resolved"||r.isoControl!=="automatic") throw new Error("auto expected");
+    expect(r.resolvedSettings.aperture).toBe(1.8);
+    expect(r.resolvedSettings.iso).toBe(800);
+    expect(r.targetResidual.state).toBe("under-target");
+    expect(r.isoResolution.clamped).toBe("maximum");
+  });
+});
+
