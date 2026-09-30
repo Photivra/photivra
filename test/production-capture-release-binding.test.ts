@@ -149,7 +149,7 @@ const releaseCapabilities =
     }
   });
 
-const lockedWb = () => {
+const lockedWb = (): ReturnType<typeof createLockedWhiteBalanceState> => {
   const manual =
     resolveManualWhiteBalance({
       stateId: "wb-manual",
@@ -166,7 +166,7 @@ const lockedWb = () => {
   });
 };
 
-const releaseFrame = () => {
+const releaseFrame = (): ReturnType<typeof resolveReleaseSequence>["frames"][number] => {
   const sequence =
     resolveReleaseSequence({
       sequenceId: "sequence-1",
@@ -205,7 +205,7 @@ const releaseFrame = () => {
   return sequence.frames[0]!;
 };
 
-const prepared = () =>
+const prepared = (): ReturnType<typeof prepareImageFormationContext> =>
   prepareImageFormationContext({
     contextId: "context",
     sceneId: "scene",
