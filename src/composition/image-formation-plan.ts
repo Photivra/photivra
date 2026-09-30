@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {
+  RELEASE_SEQUENCE_VERSION,
+  type ReleaseTimingConstraint,
+  type ResolvedReleaseFrame
+} from "../capture/release-sequence.js";
+import {
+  parseResolvedWhiteBalanceState,
+  type ResolvedWhiteBalanceState
+} from "../color/white-balance.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   getImageFormationContract,
@@ -70,11 +79,11 @@ import {
 type UnknownRecord = Record<string, unknown>;
 
 export const PRODUCTION_IMAGE_FORMATION_PLAN_VERSION =
-  "0.4.0" as const;
+  "0.5.0" as const;
 export const PREPARED_IMAGE_FORMATION_CONTEXT_VERSION =
   "0.1.0" as const;
 export const PRODUCTION_CAPTURE_SNAPSHOT_VERSION =
-  "0.2.0" as const;
+  "0.3.0" as const;
 export const RENDERER_CAPABILITY_SCHEMA_VERSION =
   "0.1.0" as const;
 export const IMAGE_FORMATION_FIDELITY_PROFILE_SCHEMA_VERSION =
@@ -231,6 +240,42 @@ export interface ProductionTemporalCaptureResult {
     false;
 }
 
+export interface ProductionReleaseFrameBinding {
+  releaseSequenceVersion:
+    typeof RELEASE_SEQUENCE_VERSION;
+  sequenceId: string;
+  frameIndex: number;
+  exposureStartTimeSeconds: number;
+  exposureEndTimeSeconds: number;
+  sceneTimeSecondsFromSequenceStart:
+    number;
+  startIntervalFromPreviousSeconds:
+    number | null;
+  timingConstraints:
+    readonly ReleaseTimingConstraint[];
+  focus:
+    ResolvedReleaseFrame["focus"];
+  automation:
+    ResolvedReleaseFrame["automation"];
+  whiteBalanceStateId?: string;
+}
+
+export interface CreateProductionCaptureSnapshotFromReleaseFrameInput {
+  captureId: string;
+  sceneStateId: string;
+  sceneTimeSecondsFromExposureStart:
+    number;
+  outputStateId: string;
+  releaseFrame:
+    ResolvedReleaseFrame;
+  whiteBalanceState?:
+    ResolvedWhiteBalanceState;
+  physicalSceneSample?:
+    ProductionPhysicalSceneSample;
+  temporalCapture?:
+    ProductionTemporalCaptureInput;
+}
+
 export interface CreateProductionCaptureSnapshotInput {
   captureId: string;
   releaseFrameId: string;
@@ -244,6 +289,10 @@ export interface CreateProductionCaptureSnapshotInput {
     iso: number;
   };
   stochasticSeedUint32: number;
+  releaseFrameBinding?:
+    ProductionReleaseFrameBinding;
+  whiteBalanceState?:
+    ResolvedWhiteBalanceState;
   physicalSceneSample?:
     ProductionPhysicalSceneSample;
   temporalCapture?:
@@ -265,6 +314,10 @@ export interface ProductionCaptureSnapshot {
     iso: number;
   };
   stochasticSeedUint32: number;
+  releaseFrameBinding?:
+    ProductionReleaseFrameBinding;
+  whiteBalanceState?:
+    ResolvedWhiteBalanceState;
   physicalSceneSample?:
     ProductionPhysicalSceneSample;
   temporalCapture?:
@@ -392,6 +445,9 @@ export interface ProductionImageFormationPlan {
     captureId: string;
     releaseFrameId: string;
     sceneStateId: string;
+    releaseSequenceId?: string;
+    releaseFrameIndex?: number;
+    whiteBalanceStateId?: string;
     captureSnapshotFingerprint:
       string;
   };
