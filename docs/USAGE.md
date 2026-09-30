@@ -579,6 +579,88 @@ serializeProductionImageFormationPlan(
 
 when a canonical deterministic serialization is needed.
 
+### Temporal capture input
+
+A production capture snapshot may include authoritative timing/readout state:
+
+```ts
+const capture =
+  createProductionCaptureSnapshot({
+    ...captureInput,
+    temporalCapture: {
+      exposureWindowInput: {
+        nativeRaster,
+        shutterMechanism: "electronic",
+        nominalExposureDurationSeconds: {
+          value: 1 / 125,
+          unit: "s",
+          evidence
+        },
+        opening: {
+          kind: "simultaneous"
+        },
+        closing: {
+          kind: "simultaneous"
+        },
+        samplePointsNative
+      },
+      imagingArea,
+      orientation: "landscape",
+      readout: {
+        readoutMode: "rolling",
+        captureReadoutDurationSeconds,
+        scanDirectionNative,
+        spatialSamplingSkewSeconds
+      },
+      rotation: {
+        angularVelocityRadPerSec: {
+          pitch: 0,
+          yaw: 0.1,
+          roll: 0
+        },
+        temporalSampleCount: 8
+      }
+    }
+  });
+```
+
+The temporal nominal duration must match the committed shutter duration.
+
+The plan may then expose:
+
+- `exposureWindows`;
+- optional `sensorReadoutTiming`;
+- optional `rotationQuadrature`.
+
+Sensor readout is not silently synchronized to exposure boundaries.
+
+If a requested temporal quadrature has more nodes than the renderer declares it can consume, the plan reports `renderer-temporal-sampling-insufficient` without changing the committed quadrature.
+
+A zero rotation model and global readout remain explicitly `modeled-zero` effects.
+
+### Consumer manifests
+
+After finalizing a plan:
+
+```ts
+const optimized =
+  createProductionPlanConsumerManifest({
+    plan,
+    consumerKind:
+      "interactive-optimized"
+  });
+
+const reference =
+  createProductionPlanConsumerManifest({
+    plan,
+    consumerKind: "reference"
+  });
+```
+
+Both views preserve the same semantic plan fingerprint, stage/effect identities, physical/temporal results, blockers and capture seed.
+
+The consumer role does not permit the backend to alter scientific inputs or reduce committed temporal samples.
+
 ### Renderer/reference split
 
 Renderer declarations contain semantic capabilities only. They do not include WebGPU, Three.js, React, DOM or server objects.
