@@ -1141,15 +1141,6 @@ export function resolveManualExposureMode(
         .limitingConstraint
     );
 
-  if (
-    residual.status !==
-    "resolved"
-  ) {
-    throw new InvalidScientificInputError(
-      "Resolved Auto ISO requires a resolved exposure target."
-    );
-  }
-
   return {
     ...base,
     status: "resolved",
