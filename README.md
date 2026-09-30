@@ -67,6 +67,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [generic invertible radial distortion mapping](docs/USAGE.md#radial-lens-distortion-mapping), including multi-point inverse batch sampling;
 - [generic RGB-channel lateral chromatic-aberration field mapping](docs/USAGE.md#lateral-chromatic-aberration-mapping);
 - [generic linear-light illumination-vignetting approximation](docs/USAGE.md#illumination-vignetting);
+- [scene-radiance to sensor-irradiance optical bridge](docs/USAGE.md#scene-radiance-to-sensor-irradiance), composing explicit pupil acceptance, spectral transmission or working-T-stop approximation, and exactly one field-throughput term while stopping before the sensor optical stack;
 - [Gaussian thin-lens image distance and magnification](docs/USAGE.md#thin-lens-image-distance-and-magnification);
 - [geometric depth of field and defocus-circle diameter](docs/USAGE.md#depth-of-field-and-defocus);
 - [ideal circular-aperture first-zero Airy diameter](docs/USAGE.md#circular-aperture-diffraction);
