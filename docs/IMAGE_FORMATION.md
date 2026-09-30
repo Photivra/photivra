@@ -193,9 +193,11 @@ The dark-current foundation adds pre-compensation thermally generated expected e
 
 The accumulated-charge completeness foundation combines photo, dark and explicitly incremental other stored-electron expectations only when all terms bind to one exact local exposure. Completeness is not inferred from missing components; an evidence-backed declaration must enumerate the supplied additional charge components and state that all material stored-electron contributors are accounted for.
 
-The physical charge-capacity foundation now compares that complete expected electron total with an evidence-backed storage limit. It remains an expectation-domain assessment: no stochastic saturation probability, clamp, post-capacity charge, overflow amount, anti-blooming or neighbor redistribution is modeled. Site, operating-state and temperature applicability remain explicit.
+The physical charge-capacity foundation compares the complete expected stored-electron total with an evidence-backed storage limit. It remains an expectation-domain assessment: no stochastic saturation probability, clamp, post-capacity charge, overflow amount, anti-blooming or neighbor redistribution is modeled.
 
-Camera/analog/digital saturation is still a separate downstream signal-chain limit and is not inferred from physical charge capacity. Stochastic noise, analog electronics, ADC/RAW and reconstruction remain downstream.
+The camera saturation-capacity foundation is separate: it compares dark-corrected photo-signal electron-equivalent expectation against a measured/calibrated camera response-chain capacity. Dark/other stored charge is not added to that signal-domain comparison, and physical full-well is not reused. The first camera-capacity contract does not identify whether analog electronics, ADC/digital clipping, or another stage is the actual limiter.
+
+Stage-specific clipping transfer functions, stochastic noise, analog electronics, ADC/RAW and reconstruction remain downstream.
 
 ## Current implementation status
 

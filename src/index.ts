@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.62.0" as const;
+export const ENGINE_API_VERSION = "0.63.0" as const;
 
 export {
   approximationResult,
@@ -324,6 +324,16 @@ export {
   type SensorPhysicalChargeCapacitySiteApplicability,
   type SensorPhysicalChargeCapacityTemperatureApplicability
 } from "./sensor/physical-charge-capacity.js";
+
+export {
+  assessSensorCameraSaturationCapacity,
+  parseSensorCameraSaturationCapacityProfile,
+  type AssessSensorCameraSaturationCapacityInput,
+  type SensorCameraSaturationCapacityAssessment,
+  type SensorCameraSaturationCapacityProfile,
+  type SensorCameraSaturationSiteApplicability,
+  type SensorCameraSaturationTemperatureApplicability
+} from "./sensor/camera-saturation-capacity.js";
 
 export {
   parseCaptureModeProfile,

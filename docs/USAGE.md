@@ -1679,6 +1679,32 @@ Photivra does **not** clamp the charge at capacity. It does not calculate post-s
 
 Physical charge capacity is also **not camera saturation capacity**. Camera/analog/digital clipping can occur at a lower signal level, so camera saturation remains a separate downstream contract.
 
+## Camera saturation capacity
+
+Use `assessSensorCameraSaturationCapacity()` for a source-specific **camera response-chain saturation capacity** expressed as dark-corrected photo-generated electron-equivalent signal.
+
+This contract intentionally uses a different signal domain from physical charge storage:
+
+- the comparison input is `photoExpectedElectronCount`;
+- total photo + dark + other stored charge is retained only as a diagnostic;
+- total stored charge is **not** added to the camera-signal capacity comparison.
+
+That separation matches camera-characterization practice in which saturation capacity is derived from the camera's saturated photo response and can be lower than physical full-well because a downstream response stage may clip first.
+
+A camera saturation profile is bound to the exact color/channel, site applicability, operating-state identifier, temperature applicability, measurement method, uncertainty, and evidence. A channel-population mean used for one site remains an approximation.
+
+The assessment reports photo-signal/capacity ratio, headroom, and below/at/above-capacity status. It does not:
+
+- identify which analog or digital stage limits the response;
+- infer an ADC maximum code or bit-depth clipping threshold;
+- reuse physical full-well capacity;
+- modify physical stored charge;
+- clamp the output signal;
+- calculate a post-saturation transfer curve;
+- establish stochastic saturation probability.
+
+Stage-specific analog clipping, ADC/digital code limits, and RAW-code behavior require separate evidence-backed response-chain contracts.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:

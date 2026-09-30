@@ -23,11 +23,12 @@ Notable public changes to `@photivra/engine` are documented here.
 - Added dark-current charge accumulation for the EQE electron-count path. Dark current is explicitly pre-compensation thermal electron generation in e-/s, can use exact-reference temperature or fail-closed piecewise-linear measured temperature tables, and does not infer a universal exponential temperature law or dark-current nonuniformity.
 - Added accumulated stored-charge composition and completeness assessment. Photo and dark expected electrons plus explicitly incremental additional stored-electron contributors are rebound to one exact local exposure; only an evidence-backed all-material-contributors completeness declaration authorizes later physical full-well assessment.
 - Added physical charge-storage capacity assessment against complete expected stored electrons. Capacity is explicitly distinct from camera saturation/digital clipping, remains bound to sensor site/operating state/temperature applicability, and reports expectation-vs-capacity without clamping, blooming, overflow redistribution, or stochastic saturation claims.
+- Added camera signal saturation-capacity assessment in dark-corrected photo-generated electron-equivalent units. The comparison deliberately excludes dark/other stored charge, does not reuse physical full-well capacity, and does not infer which analog/digital stage limits the camera response.
 - Added exact canonical response-channel data binding from spectral quadrature through spatio-spectral reduction. EQE and A/W converters now reject numeric calibration-curve drift even when profile IDs and evidence references are unchanged; the binding is an exact data-identity mechanism, not a cryptographic integrity checksum.
 
 ### Changed
 
-- Engine API contract advances to `0.62.0`; the image-formation contract remains `0.3.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
+- Engine API contract advances to `0.63.0`; the image-formation contract remains `0.3.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
 
 ## 0.6.0 - 2026-09-29
 
