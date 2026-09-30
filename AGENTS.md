@@ -260,6 +260,21 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - Temporal illumination must not choose ISO/aperture/shutter or implement metering/automatic-exposure policy. It supplies upstream light-state evidence only.
 - A scene-radiance provider that declares `illuminationTemporalProfileId` must bind the matching temporal profile; a provider without that declaration must not silently consume one.
 
+## Exposure metering boundary
+
+- Exposure metering must consume a declared pre-exposure domain. Schema 0.1.0 supports only `relative-pre-exposure-linear-signal` and is approximation-only; never relabel it calibrated luminance, scene spectral radiance, or sensor-plane irradiance.
+- Metering coordinates are normalized over the physically oriented **active capture** frame. Final output crop/CSS/display geometry must not silently redefine the metering frame.
+- Sample `areaWeight` is producer-supplied spatial measure; metering policy weights multiply it rather than replace it.
+- Multi-zone, center-weighted, spot, and highlight-weighted profiles are generic explicit policies. Do not use manufacturer names or claim they reproduce a specific camera without calibration/evidence.
+- A relative target value is profile policy. Do not hard-code or describe one target (including 18% gray) as universal camera truth.
+- Metering must occur before exposure settings, white balance, tone mapping, display gamma, sharpening, and final-display brightness. Never feed final preview brightness back into the authoritative meter.
+- Exposure compensation is downstream of the base meter result. Do not mutate sampled scene measurements when compensation changes.
+- #100 metering does not choose aperture, shutter or ISO. #99 owns exposure-mode/control resolution.
+- A zero-signal meter result must remain an explicit no-signal state; do not emit infinity/NaN or fabricate a reachable exposure.
+- `measurementId` and `sceneStateId` are stable identity seams for future AE lock and stale-result rejection. Do not overwrite a newer scene-light result with an older meter result merely because it completed later.
+- Controlled relative-light invariant: uniform 0.5× scene signal must shift the meter by exactly +1 stop to the same declared target.
+- Flash/TTL metering remains separate from ambient exposure metering. Time-varying ambient inputs require an explicit temporal sampling policy rather than silent averaging.
+
 ## Radiometry and sensor-metadata rules
 
 - Sensor architecture metadata is descriptive and scientifically inert until a separate downstream model consumes it.
