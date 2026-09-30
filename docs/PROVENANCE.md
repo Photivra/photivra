@@ -80,6 +80,8 @@ The composed `simulatePocCamera()` response is not itself a `CalculationResult<T
 
 ## Uncertainty and quality metadata
 
+Cross-engine composition semantics are defined in [Scientific Assurance and Uncertainty Composition](SCIENTIFIC_ASSURANCE.md). That contract preserves module-level provenance/quality rather than replacing it.
+
 Provenance answers **how a result was produced**; uncertainty answers **what quantitative accuracy/variability is defensibly known**. They are related but must not be conflated.
 
 When available, `CalculationResult.quality` records uncertainty components by affected quantity and source:
