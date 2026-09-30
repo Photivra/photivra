@@ -463,6 +463,121 @@ describe("sensor dark-current charge", () => {
     );
   });
 
+  it("validates dark-current table metadata and runtime temperature inputs", () => {
+    expect(() =>
+      parseSensorDarkCurrentProfile({
+        ...exactProfile(),
+        temperatureModel: {
+          kind:
+            "piecewise-linear-temperature-table",
+          interpolation: "bad",
+          outsideRangeBehavior:
+            "fail-closed",
+          samples: [
+            {
+              temperatureC: 0,
+              darkCurrentElectronsPerSecond:
+                1
+            },
+            {
+              temperatureC: 20,
+              darkCurrentElectronsPerSecond:
+                2
+            }
+          ]
+        }
+      })
+    ).toThrow("interpolation");
+
+    expect(() =>
+      parseSensorDarkCurrentProfile({
+        ...exactProfile(),
+        temperatureModel: {
+          kind:
+            "piecewise-linear-temperature-table",
+          interpolation:
+            "piecewise-linear",
+          outsideRangeBehavior:
+            "extrapolate",
+          samples: [
+            {
+              temperatureC: 0,
+              darkCurrentElectronsPerSecond:
+                1
+            },
+            {
+              temperatureC: 20,
+              darkCurrentElectronsPerSecond:
+                2
+            }
+          ]
+        }
+      })
+    ).toThrow("outsideRangeBehavior");
+
+    expect(() =>
+      parseSensorDarkCurrentProfile({
+        ...exactProfile(),
+        spatialDarkCurrentNonuniformityModeled:
+          "yes"
+      })
+    ).toThrow(
+      "spatialDarkCurrentNonuniformityModeled"
+    );
+
+    expect(() =>
+      calculateSensorDarkCurrentCharge({
+        exposure: exposure(),
+        darkCurrentProfile:
+          exactProfile(),
+        operatingTemperatureC:
+          Number.NaN
+      })
+    ).toThrow(
+      "operatingTemperatureC must be finite"
+    );
+  });
+
+  it("uses an exact measured temperature-table sample without interpolation", () => {
+    const result =
+      calculateSensorDarkCurrentCharge({
+        exposure: exposure(),
+        darkCurrentProfile:
+          exactProfile({
+            temperatureModel: {
+              kind:
+                "piecewise-linear-temperature-table",
+              interpolation:
+                "piecewise-linear",
+              outsideRangeBehavior:
+                "fail-closed",
+              samples: [
+                {
+                  temperatureC: 0,
+                  darkCurrentElectronsPerSecond:
+                    1
+                },
+                {
+                  temperatureC: 20,
+                  darkCurrentElectronsPerSecond:
+                    5
+                }
+              ]
+            }
+          }),
+        operatingTemperatureC: 20
+      });
+
+    expect(
+      result.value
+        .darkCurrentElectronsPerSecond
+    ).toBe(5);
+    expect(
+      result.value
+        .temperatureInterpolationUsed
+    ).toBe(false);
+  });
+
   it("rejects modified or incomplete exposure integrations", () => {
     expect(() =>
       calculateSensorDarkCurrentCharge({
