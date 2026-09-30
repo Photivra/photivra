@@ -36,6 +36,7 @@ Treat this repository as a complete, standalone open-source scientific/business-
 - `docs/MOTION_AND_SIGNAL.md` — motion/exposure/signal boundaries, including radiometry gating.
 - `docs/PROVENANCE.md` — scientific/source evidence and reuse-rights rules.
 - `docs/API_STYLE.md` — public API and versioning conventions.
+- `docs/NUMERICAL_CORRECTNESS.md` — physical-unit, finite-number, tolerance, rounding, and numerical-determinism rules.
 - `scripts/` — CI, package-surface, license, identity, and browser-boundary gates.
 
 ## Sources of truth
