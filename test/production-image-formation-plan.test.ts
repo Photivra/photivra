@@ -1317,3 +1317,396 @@ describe("plan input fail-closed guards", () => {
     );
   });
 });
+
+describe("production-plan parser and blocker coverage", () => {
+  it("covers renderer temporal modes and fail-closed enum/boolean guards", () => {
+    expect(
+      parseRendererCapabilityDeclaration({
+        ...renderer(),
+        temporalSampling: {
+          kind: "none"
+        }
+      }).temporalSampling
+    ).toEqual({
+      kind: "none"
+    });
+
+    expect(() =>
+      parseRendererCapabilityDeclaration({
+        ...renderer(),
+        schemaVersion: "9.9.9"
+      })
+    ).toThrow(
+      "schemaVersion must be"
+    );
+
+    expect(() =>
+      parseRendererCapabilityDeclaration({
+        ...renderer(),
+        spectralCapability: "rgb"
+      })
+    ).toThrow(
+      "spectralCapability is invalid"
+    );
+
+    expect(() =>
+      parseRendererCapabilityDeclaration({
+        ...renderer(),
+        temporalSampling: {
+          kind: "bounded",
+          maximumSamples: 0
+        }
+      })
+    ).toThrow(
+      "maximumSamples must be a positive safe integer"
+    );
+
+    expect(() =>
+      parseRendererCapabilityDeclaration({
+        ...renderer(),
+        temporalSampling: {
+          kind: "magic"
+        }
+      })
+    ).toThrow(
+      "temporalSampling.kind is invalid"
+    );
+
+    expect(() =>
+      parseRendererCapabilityDeclaration({
+        ...renderer(),
+        depthCapability: "per-pixel"
+      })
+    ).toThrow(
+      "depthCapability is invalid"
+    );
+
+    expect(() =>
+      parseRendererCapabilityDeclaration({
+        ...renderer(),
+        alphaRepresentation: "opaque"
+      })
+    ).toThrow(
+      "alphaRepresentation is invalid"
+    );
+
+    expect(() =>
+      parseRendererCapabilityDeclaration({
+        ...renderer(),
+        inverseFieldMapping: "yes"
+      })
+    ).toThrow(
+      "inverseFieldMapping must be boolean"
+    );
+
+    expect(() =>
+      parseRendererCapabilityDeclaration({
+        ...renderer(),
+        supportedEffects: [
+          "illumination-vignetting",
+          "illumination-vignetting"
+        ]
+      })
+    ).toThrow(
+      "duplicate effect IDs"
+    );
+  });
+
+  it("covers fidelity schema and renderer-requirement guards", () => {
+    expect(() =>
+      parseImageFormationFidelityProfile({
+        ...fidelity(),
+        schemaVersion: "9.9.9"
+      })
+    ).toThrow(
+      "schemaVersion must be"
+    );
+
+    expect(() =>
+      parseImageFormationFidelityProfile({
+        ...fidelity(),
+        requiredEffects: null
+      })
+    ).toThrow(
+      "requiredEffects must be an array"
+    );
+
+    expect(() =>
+      parseImageFormationFidelityProfile({
+        ...fidelity(),
+        requiredEffects: [{
+          effectId: "magic-effect",
+          modelId: "x",
+          modelVersion: "1"
+        }]
+      })
+    ).toThrow(
+      "effectId is not a declared"
+    );
+
+    expect(() =>
+      parseImageFormationFidelityProfile({
+        ...fidelity(),
+        requiredStages: [
+          "magic-stage"
+        ]
+      })
+    ).toThrow(
+      "not a declared image-formation stage"
+    );
+
+    expect(() =>
+      parseImageFormationFidelityProfile({
+        ...fidelity(),
+        rendererRequirements: {
+          spectral: "rgb",
+          sensorDomainProcessing: false,
+          depth: "none"
+        }
+      })
+    ).toThrow(
+      "rendererRequirements.spectral is invalid"
+    );
+
+    expect(() =>
+      parseImageFormationFidelityProfile({
+        ...fidelity(),
+        rendererRequirements: {
+          spectral: "wavelength-resolved",
+          sensorDomainProcessing: "yes",
+          depth: "none"
+        }
+      })
+    ).toThrow(
+      "sensorDomainProcessing must be boolean"
+    );
+
+    expect(() =>
+      parseImageFormationFidelityProfile({
+        ...fidelity(),
+        rendererRequirements: {
+          spectral: "wavelength-resolved",
+          sensorDomainProcessing: false,
+          depth: "world"
+        }
+      })
+    ).toThrow(
+      "rendererRequirements.depth is invalid"
+    );
+  });
+
+  it("covers capture/prepared fingerprint and numeric guards", () => {
+    expect(() =>
+      parsePreparedImageFormationContext({
+        ...prepared(),
+        version: "9.9.9"
+      })
+    ).toThrow(
+      "version must be"
+    );
+
+    const context = prepared();
+    const {
+      fingerprint: _fingerprint,
+      ...withoutFingerprint
+    } = context;
+    expect(() =>
+      parsePreparedImageFormationContext(
+        withoutFingerprint
+      )
+    ).toThrow(
+      "fingerprint must be present"
+    );
+
+    expect(() =>
+      createProductionCaptureSnapshot({
+        ...captureInput(),
+        sceneTimeSecondsFromExposureStart:
+          -1
+      })
+    ).toThrow(
+      "must be greater than or equal to zero"
+    );
+
+    expect(() =>
+      createProductionCaptureSnapshot({
+        ...captureInput(),
+        stochasticSeedUint32:
+          0x1_0000_0000
+      })
+    ).toThrow(
+      "must be an unsigned 32-bit integer"
+    );
+
+    expect(() =>
+      parseProductionCaptureSnapshot({
+        ...capture(),
+        version: "9.9.9"
+      })
+    ).toThrow(
+      "version must be"
+    );
+  });
+
+  it("blocks a required effect missing from renderer capability", () => {
+    const context =
+      prepared({
+        rendererOverride: {
+          supportedEffects: []
+        }
+      });
+
+    const plan =
+      createProductionImageFormationPlan({
+        preparedContext: context,
+        captureSnapshot: capture()
+      });
+
+    expect(plan.status).toBe("blocked");
+    expect(plan.blockers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code:
+            "renderer-effect-unsupported",
+          effectId:
+            "illumination-vignetting"
+        })
+      ])
+    );
+  });
+
+  it("allows an empty fidelity plan and leaves every stage/effect omitted", () => {
+    const context =
+      prepared({
+        fidelityOverride: {
+          requiredStages: [],
+          requiredEffects: [],
+          rendererRequirements: {
+            spectral:
+              "wavelength-independent-approximation",
+            sensorDomainProcessing: false,
+            depth: "none"
+          }
+        }
+      });
+
+    const plan =
+      createProductionImageFormationPlan({
+        preparedContext: context,
+        captureSnapshot:
+          capture({
+            includePhysical: false
+          })
+      });
+
+    expect(plan.status).toBe("ready");
+    expect(
+      plan.stagePlan.every(
+        stage =>
+          stage.state ===
+          "omitted-by-fidelity"
+      )
+    ).toBe(true);
+    expect(
+      plan.effectPlan.every(
+        effect =>
+          effect.state ===
+          "omitted-by-fidelity"
+      )
+    ).toBe(true);
+    expect(
+      plan.physicalSceneToSensorResult
+    ).toBeUndefined();
+  });
+
+  it("rejects discrete selected-state drift and provider identity drift", () => {
+    const badIso =
+      createProductionCaptureSnapshot({
+        ...captureInput(),
+        exposure: {
+          aperture: 4,
+          shutterSeconds: 1 / 125,
+          iso: 150
+        }
+      });
+
+    expect(() =>
+      createProductionImageFormationPlan({
+        preparedContext: prepared(),
+        captureSnapshot: badIso
+      })
+    ).toThrow(
+      "not present in the prepared discrete equipment setting grid"
+    );
+
+    const input = captureInput();
+    input.physicalSceneSample = {
+      ...input.physicalSceneSample!,
+      sceneRadianceRequest: {
+        ...sceneRequest(),
+        providerProfileId:
+          "other-provider"
+      },
+      sceneRadianceResult: {
+        ...sceneResult(),
+        providerProfileId:
+          "other-provider"
+      }
+    };
+    const wrongProvider =
+      createProductionCaptureSnapshot(
+        input
+      );
+
+    expect(() =>
+      createProductionImageFormationPlan({
+        preparedContext: prepared(),
+        captureSnapshot:
+          wrongProvider
+      })
+    ).toThrow(
+      "providerProfileId must match"
+    );
+  });
+
+  it("blocks a downstream sensor stage rather than inventing a shortcut", () => {
+    const context =
+      prepared({
+        rendererOverride: {
+          supportedStages: [
+            ...renderer().supportedStages,
+            "field-wavelength-psf",
+            "temporal-exposure-readout",
+            "sensor-optical-stack",
+            "photosite-cfa-sampling",
+            "sensor-charge-statistics"
+          ]
+        },
+        fidelityOverride: {
+          requiredStages: [
+            "sensor-charge-statistics"
+          ],
+          requiredEffects: []
+        }
+      });
+
+    const plan =
+      createProductionImageFormationPlan({
+        preparedContext: context,
+        captureSnapshot: capture()
+      });
+
+    expect(plan.status).toBe("blocked");
+    expect(plan.blockers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code:
+            "engine-stage-not-composed",
+          stageId:
+            "sensor-charge-statistics"
+        })
+      ])
+    );
+  });
+});
+
