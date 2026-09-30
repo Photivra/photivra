@@ -845,7 +845,7 @@ export {
 
 export {
   RELEASE_SEQUENCE_VERSION,
-  cancelReleaseSequence,
+  createCancelledReleaseSequence,
   resolveReleaseSequence,
   type CancelledReleaseSequence,
   type CancelReleaseSequenceInput,
