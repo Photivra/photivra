@@ -181,6 +181,79 @@ describe("scientific assurance composition", () => {
     });
   });
 
+  it("preserves existing CalculationQuality uncertainty components without flattening them", () => {
+    const result =
+      composeScientificAssurance({
+        components: [
+          component({
+            uncertainty: {
+              kind:
+                "calculation-quality",
+              quality: {
+                uncertainty: [
+                  {
+                    kind: "relative",
+                    quantity: "throughput",
+                    fraction: 0.03,
+                    source:
+                      "model-approximation"
+                  },
+                  {
+                    kind: "absolute",
+                    quantity: "radius",
+                    plusMinus: 0.01,
+                    unit: "mm",
+                    source:
+                      "calibration"
+                  }
+                ],
+                notes: [
+                  "Preserve separately."
+                ]
+              }
+            }
+          })
+        ]
+      });
+
+    expect(result.uncertainty)
+      .toMatchObject({
+        kind: "not-propagated",
+        componentIds: [
+          "component-a"
+        ]
+      });
+    expect(
+      result.components[0]
+        ?.uncertainty
+    ).toEqual({
+      kind:
+        "calculation-quality",
+      quality: {
+        uncertainty: [
+          {
+            kind: "relative",
+            quantity: "throughput",
+            fraction: 0.03,
+            source:
+              "model-approximation"
+          },
+          {
+            kind: "absolute",
+            quantity: "radius",
+            plusMinus: 0.01,
+            unit: "mm",
+            source:
+              "calibration"
+          }
+        ],
+        notes: [
+          "Preserve separately."
+        ]
+      }
+    });
+  });
+
   it("keeps unknown uncertainty stronger than not-quantified or quantified summaries", () => {
     const result =
       composeScientificAssurance({
@@ -229,7 +302,13 @@ describe("scientific assurance composition", () => {
       "missing-evidence"
     ]);
     expect(result.scientificStatus)
-      .toBe("calibrated");
+      .toBe("unknown");
+    expect(
+      result
+        .weakestRequiredComponentIds
+    ).toEqual([
+      "missing-evidence"
+    ]);
   });
 
   it("uses the canonical fixture as a deterministic Photivra-owned evidence identity", () => {
