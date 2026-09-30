@@ -81,6 +81,8 @@ The constant-rate temporal-integration foundation then requires an evidence-back
 
 The dark-current foundation begins charge completion for the EQE path only. It integrates evidence-backed pre-compensation thermal electron rate over the exact local exposure and keeps temperature applicability explicit. Exact-reference values and measured piecewise-linear temperature tables are supported; no universal exponential temperature law is inferred. Population-mean dark current remains an approximation and does not imply DCNU/hot-pixel modeling. A/W photocharge remains outside electron-storage/full-well semantics until a separate carrier/storage mapping exists.
 
+The accumulated-charge foundation then rebinds photo signal, dark charge, and every explicitly incremental additional stored-electron contributor to one exact local exposure event. A separate evidence-backed completeness profile must enumerate the supplied additional-component IDs and assert that all material stored-electron contributors are accounted for. Only that result authorizes a later physical charge-capacity/full-well assessment; the composition itself does not assess saturation or blooming.
+
 Physical full-well capacity and camera/digital saturation remain separate downstream stages and must not be represented as one shared clamp.
 
 
