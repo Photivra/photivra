@@ -462,7 +462,10 @@ describe("logical release sequencing", () => {
       });
 
     state.exposure.iso = 6400;
-    state.focus.distanceM = 20;
+    state.focus = {
+      kind: "finite",
+      distanceM: 20
+    };
 
     expect(
       sequence
