@@ -65,7 +65,9 @@ describe("explicit focus-plane state", () => {
     expect(result.provenance.model).toBe(
       "ideal-infinity-focus-image-distance"
     );
-    expect(JSON.stringify(result)).not.toContain("Infinity");
+    expect(Number.isFinite(result.value.imageDistanceMm)).toBe(true);
+    expect(Number.isFinite(result.value.magnification)).toBe(true);
+    expect(Number.isFinite(result.value.infinityProjectionScale)).toBe(true);
   });
 
   it("fails closed on invalid finite focus and unknown/missing focus", () => {
