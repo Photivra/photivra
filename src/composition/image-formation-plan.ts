@@ -10,6 +10,29 @@ import {
 import { ENGINE_API_VERSION } from "../core/version.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import {
+  calculateCaptureRotationTemporalQuadrature,
+  type CaptureRotationTemporalQuadrature
+} from "../motion/capture-rotation-temporal-quadrature.js";
+import type {
+  CameraAngularVelocityRadPerSec
+} from "../motion/camera-rotation.js";
+import type {
+  CaptureOrientation
+} from "../output/capture-geometry.js";
+import {
+  calculateCaptureExposureWindows,
+  type CalculateCaptureExposureWindowsInput,
+  type CaptureExposureWindows
+} from "../sensor/exposure-window.js";
+import {
+  calculateSensorReadoutTiming,
+  type SensorReadoutTiming,
+  type SensorReadoutTimingDeclaration
+} from "../sensor/readout-timing.js";
+import type {
+  SensorImagingArea
+} from "../sensor/sensor-geometry.js";
+import {
   GENERIC_EQUIPMENT_EXPOSURE_CAPABILITY_SCHEMA_VERSION,
   type ResolvedGenericEquipmentExposureCapabilities,
   type ResolvedNumericSettingGrid
@@ -32,7 +55,7 @@ import {
 type UnknownRecord = Record<string, unknown>;
 
 export const PRODUCTION_IMAGE_FORMATION_PLAN_VERSION =
-  "0.1.0" as const;
+  "0.2.0" as const;
 export const PREPARED_IMAGE_FORMATION_CONTEXT_VERSION =
   "0.1.0" as const;
 export const PRODUCTION_CAPTURE_SNAPSHOT_VERSION =
@@ -159,6 +182,38 @@ export interface ProductionPhysicalSceneSample {
     OpticalBridgeFieldThroughput;
 }
 
+export interface ProductionTemporalCaptureInput {
+  exposureWindowInput:
+    CalculateCaptureExposureWindowsInput;
+  imagingArea: SensorImagingArea;
+  orientation: CaptureOrientation;
+  readout?:
+    SensorReadoutTimingDeclaration;
+  rotation?: {
+    angularVelocityRadPerSec:
+      CameraAngularVelocityRadPerSec;
+    focusDistanceM?: number;
+    temporalSampleCount: number;
+  };
+}
+
+export interface ProductionTemporalCaptureResult {
+  exposureWindows:
+    CaptureExposureWindows;
+  sensorReadoutTiming?:
+    SensorReadoutTiming;
+  rotationQuadrature?:
+    CaptureRotationTemporalQuadrature;
+  exposureTimeReference:
+    "first-opening-boundary-phase";
+  readoutExposureSynchronization:
+    "not-assumed";
+  sensorReadoutTimingRemainsSeparate:
+    true;
+  temporalRadianceIntegrated:
+    false;
+}
+
 export interface CreateProductionCaptureSnapshotInput {
   captureId: string;
   releaseFrameId: string;
@@ -174,6 +229,8 @@ export interface CreateProductionCaptureSnapshotInput {
   stochasticSeedUint32: number;
   physicalSceneSample?:
     ProductionPhysicalSceneSample;
+  temporalCapture?:
+    ProductionTemporalCaptureInput;
 }
 
 export interface ProductionCaptureSnapshot {
@@ -193,6 +250,8 @@ export interface ProductionCaptureSnapshot {
   stochasticSeedUint32: number;
   physicalSceneSample?:
     ProductionPhysicalSceneSample;
+  temporalCapture?:
+    ProductionTemporalCaptureInput;
   fingerprint: {
     algorithm:
       "fnv1a-32-non-cryptographic";
@@ -271,7 +330,12 @@ export type ProductionImageFormationBlockerCode =
   | "missing-optical-bridge-profile"
   | "missing-physical-scene-sample"
   | "undeclared-field-throughput-effect"
-  | "physical-radiometry-evaluation-blocked";
+  | "physical-radiometry-evaluation-blocked"
+  | "missing-temporal-capture-input"
+  | "temporal-evaluation-blocked"
+  | "missing-camera-rotation-model"
+  | "missing-sensor-readout-timing"
+  | "renderer-temporal-sampling-insufficient";
 
 export interface ProductionImageFormationBlocker {
   code:
@@ -330,6 +394,8 @@ export interface ProductionImageFormationPlan {
     readonly ProductionImageFormationBlocker[];
   physicalSceneToSensorResult?:
     SceneToSensorIrradianceResult;
+  temporalCaptureResult?:
+    ProductionTemporalCaptureResult;
   stochastic: {
     captureSeedUint32: number;
     backendRandomnessMayRedefineScientificResult:
@@ -357,12 +423,15 @@ const COMPOSER_SUPPORTED_STAGES =
   new Set<ImageFormationStageId>([
     "scene-ray-projection",
     "scene-radiance-evaluation",
-    "lens-field-pupil-evaluation"
+    "lens-field-pupil-evaluation",
+    "temporal-exposure-readout"
   ]);
 
 const COMPOSER_SUPPORTED_EFFECTS =
   new Set<ImageFormationEffectId>([
-    "illumination-vignetting"
+    "illumination-vignetting",
+    "spatial-camera-rotation",
+    "rolling-readout"
   ]);
 
 function requireRecord(
@@ -1373,6 +1442,160 @@ function validatePhysicalSceneSample(
   });
 }
 
+const CAPTURE_ORIENTATIONS =
+  new Set<CaptureOrientation>([
+    "landscape",
+    "portrait-clockwise",
+    "landscape-inverted",
+    "portrait-counter-clockwise"
+  ]);
+
+function validateTemporalCaptureInput(
+  input:
+    ProductionTemporalCaptureInput,
+  shutterSeconds: number
+): ProductionTemporalCaptureInput {
+  const exposureWindows =
+    calculateCaptureExposureWindows(
+      input.exposureWindowInput
+    ).value;
+
+  if (
+    !settingEquals(
+      exposureWindows
+        .nominalExposureDurationSeconds
+        .value,
+      shutterSeconds
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      "temporalCapture.exposureWindowInput.nominalExposureDurationSeconds must match exposure.shutterSeconds."
+    );
+  }
+
+  requirePositiveFinite(
+    input.imagingArea.widthMm,
+    "temporalCapture.imagingArea.widthMm"
+  );
+  requirePositiveFinite(
+    input.imagingArea.heightMm,
+    "temporalCapture.imagingArea.heightMm"
+  );
+
+  if (
+    !CAPTURE_ORIENTATIONS.has(
+      input.orientation
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      "temporalCapture.orientation is invalid."
+    );
+  }
+
+  if (input.readout !== undefined) {
+    calculateSensorReadoutTiming({
+      nativeRaster:
+        input.exposureWindowInput
+          .nativeRaster,
+      ...(input.exposureWindowInput
+        .activeCaptureRect ===
+      undefined
+        ? {}
+        : {
+            activeCaptureRect:
+              input
+                .exposureWindowInput
+                .activeCaptureRect
+          }),
+      shutterMechanism:
+        input.exposureWindowInput
+          .shutterMechanism,
+      readout: input.readout,
+      ...(input.exposureWindowInput
+        .samplePointsNative ===
+      undefined
+        ? {}
+        : {
+            samplePointsNative:
+              input
+                .exposureWindowInput
+                .samplePointsNative
+          })
+    });
+  }
+
+  if (input.rotation !== undefined) {
+    const sampleCount =
+      input.rotation
+        .temporalSampleCount;
+    if (
+      !Number.isSafeInteger(
+        sampleCount
+      ) ||
+      sampleCount <= 0
+    ) {
+      throw new InvalidConfigurationError(
+        "temporalCapture.rotation.temporalSampleCount must be a positive safe integer."
+      );
+    }
+
+    for (const [axis, value] of [
+      [
+        "pitch",
+        input.rotation
+          .angularVelocityRadPerSec
+          .pitch
+      ],
+      [
+        "yaw",
+        input.rotation
+          .angularVelocityRadPerSec
+          .yaw
+      ],
+      [
+        "roll",
+        input.rotation
+          .angularVelocityRadPerSec
+          .roll
+      ]
+    ] as const) {
+      requireFinite(
+        value,
+        "temporalCapture.rotation.angularVelocityRadPerSec." +
+          axis
+      );
+    }
+
+    if (
+      input.rotation
+        .focusDistanceM !==
+      undefined
+    ) {
+      requirePositiveFinite(
+        input.rotation
+          .focusDistanceM,
+        "temporalCapture.rotation.focusDistanceM"
+      );
+    }
+
+    if (
+      !Array.isArray(
+        input.exposureWindowInput
+          .samplePointsNative
+      ) ||
+      input.exposureWindowInput
+        .samplePointsNative
+        .length === 0
+    ) {
+      throw new InvalidConfigurationError(
+        "temporalCapture.rotation requires non-empty exposureWindowInput.samplePointsNative."
+      );
+    }
+  }
+
+  return cloneJson(input);
+}
+
 export function createProductionCaptureSnapshot(
   input:
     CreateProductionCaptureSnapshotInput
@@ -1437,6 +1660,17 @@ export function createProductionCaptureSnapshot(
         input.stochasticSeedUint32,
         "stochasticSeedUint32"
       ),
+    ...(input.temporalCapture ===
+    undefined
+      ? {}
+      : {
+          temporalCapture:
+            validateTemporalCaptureInput(
+              input.temporalCapture,
+              input.exposure
+                .shutterSeconds
+            )
+        }),
     ...(input.physicalSceneSample ===
     undefined
       ? {}
@@ -1514,6 +1748,14 @@ export function parseProductionCaptureSnapshot(
             physicalSceneSample:
               record
                 .physicalSceneSample as ProductionPhysicalSceneSample
+          }),
+      ...(record.temporalCapture ===
+      undefined
+        ? {}
+        : {
+            temporalCapture:
+              record
+                .temporalCapture as ProductionTemporalCaptureInput
           })
     });
 
@@ -1877,11 +2119,254 @@ function hasActiveUndeclaredFieldThroughput(
     );
 }
 
+function angularVelocityIsZero(
+  velocity:
+    CameraAngularVelocityRadPerSec
+): boolean {
+  return (
+    velocity.pitch === 0 &&
+    velocity.yaw === 0 &&
+    velocity.roll === 0
+  );
+}
+
+function computeTemporalResult(
+  prepared:
+    PreparedImageFormationContext,
+  snapshot:
+    ProductionCaptureSnapshot,
+  requiredStages:
+    ReadonlySet<ImageFormationStageId>,
+  blockers:
+    ProductionImageFormationBlocker[]
+): ProductionTemporalCaptureResult | undefined {
+  if (
+    !requiredStages.has(
+      "temporal-exposure-readout"
+    )
+  ) {
+    return undefined;
+  }
+
+  const temporal =
+    snapshot.temporalCapture;
+  if (temporal === undefined) {
+    addBlocker(blockers, {
+      code:
+        "missing-temporal-capture-input",
+      stageId:
+        "temporal-exposure-readout",
+      message:
+        "Temporal exposure/readout planning requires immutable temporal capture input."
+    });
+    return undefined;
+  }
+
+  const requestedEffects =
+    requestedEffectMap(
+      prepared.fidelity
+    );
+
+  if (
+    requestedEffects.has(
+      "spatial-camera-rotation"
+    ) &&
+    temporal.rotation === undefined
+  ) {
+    addBlocker(blockers, {
+      code:
+        "missing-camera-rotation-model",
+      stageId:
+        "temporal-exposure-readout",
+      effectId:
+        "spatial-camera-rotation",
+      message:
+        "Requested spatial camera rotation requires an explicit capture rotation model."
+    });
+  }
+
+  if (
+    requestedEffects.has(
+      "rolling-readout"
+    ) &&
+    temporal.readout === undefined
+  ) {
+    addBlocker(blockers, {
+      code:
+        "missing-sensor-readout-timing",
+      stageId:
+        "temporal-exposure-readout",
+      effectId:
+        "rolling-readout",
+      message:
+        "Requested rolling-readout semantics require an explicit sensor readout declaration."
+    });
+  }
+
+  const rotationRequested =
+    requestedEffects.has(
+      "spatial-camera-rotation"
+    );
+
+  if (
+    rotationRequested &&
+    temporal.rotation !== undefined
+  ) {
+    const rendererTemporal =
+      prepared.renderer
+        .temporalSampling;
+    if (
+      rendererTemporal.kind ===
+        "none" ||
+      rendererTemporal
+        .maximumSamples <
+        temporal.rotation
+          .temporalSampleCount
+    ) {
+      addBlocker(blockers, {
+        code:
+          "renderer-temporal-sampling-insufficient",
+        stageId:
+          "temporal-exposure-readout",
+        effectId:
+          "spatial-camera-rotation",
+        message:
+          "Renderer temporal-sampling capability is insufficient for the committed rotation quadrature sample count."
+      });
+    }
+  }
+
+  try {
+    const exposureWindows =
+      calculateCaptureExposureWindows(
+        temporal
+          .exposureWindowInput
+      ).value;
+
+    const sensorReadoutTiming =
+      temporal.readout === undefined
+        ? undefined
+        : calculateSensorReadoutTiming({
+            nativeRaster:
+              temporal
+                .exposureWindowInput
+                .nativeRaster,
+            ...(temporal
+              .exposureWindowInput
+              .activeCaptureRect ===
+            undefined
+              ? {}
+              : {
+                  activeCaptureRect:
+                    temporal
+                      .exposureWindowInput
+                      .activeCaptureRect
+                }),
+            shutterMechanism:
+              temporal
+                .exposureWindowInput
+                .shutterMechanism,
+            readout:
+              temporal.readout,
+            ...(temporal
+              .exposureWindowInput
+              .samplePointsNative ===
+            undefined
+              ? {}
+              : {
+                  samplePointsNative:
+                    temporal
+                      .exposureWindowInput
+                      .samplePointsNative
+                })
+          }).value;
+
+    const rotationQuadrature =
+      !rotationRequested ||
+      temporal.rotation === undefined
+        ? undefined
+        : calculateCaptureRotationTemporalQuadrature({
+            ...temporal
+              .exposureWindowInput,
+            imagingArea:
+              temporal.imagingArea,
+            focalLengthMm:
+              prepared
+                .equipmentCapabilities
+                .selectedFocalLengthMm,
+            ...(temporal.rotation
+              .focusDistanceM ===
+            undefined
+              ? {}
+              : {
+                  focusDistanceM:
+                    temporal.rotation
+                      .focusDistanceM
+                }),
+            angularVelocityRadPerSec:
+              temporal.rotation
+                .angularVelocityRadPerSec,
+            orientation:
+              temporal.orientation,
+            temporalSampleCount:
+              temporal.rotation
+                .temporalSampleCount,
+            samplePointsNative:
+              temporal
+                .exposureWindowInput
+                .samplePointsNative!
+          }).value;
+
+    return {
+      exposureWindows,
+      ...(sensorReadoutTiming ===
+      undefined
+        ? {}
+        : {
+            sensorReadoutTiming
+          }),
+      ...(rotationQuadrature ===
+      undefined
+        ? {}
+        : {
+            rotationQuadrature
+          }),
+      exposureTimeReference:
+        "first-opening-boundary-phase",
+      readoutExposureSynchronization:
+        "not-assumed",
+      sensorReadoutTimingRemainsSeparate:
+        true,
+      temporalRadianceIntegrated:
+        false
+    };
+  } catch (error) {
+    if (
+      error instanceof
+        InvalidConfigurationError ||
+      error instanceof
+        InvalidScientificInputError
+    ) {
+      addBlocker(blockers, {
+        code:
+          "temporal-evaluation-blocked",
+        stageId:
+          "temporal-exposure-readout",
+        message: error.message
+      });
+      return undefined;
+    }
+    throw error;
+  }
+}
+
 function deriveEffectPlan(
   prepared:
     PreparedImageFormationContext,
   snapshot:
     ProductionCaptureSnapshot,
+  temporalResult:
+    ProductionTemporalCaptureResult | undefined,
   blockers:
     ProductionImageFormationBlocker[]
 ): readonly PlannedImageFormationEffect[] {
@@ -2082,6 +2567,186 @@ function deriveEffectPlan(
           };
         }
 
+        if (
+          placement.id ===
+          "spatial-camera-rotation"
+        ) {
+          const rotation =
+            snapshot.temporalCapture
+              ?.rotation;
+          if (rotation === undefined) {
+            const blocker:
+              ProductionImageFormationBlocker = {
+              code:
+                "missing-camera-rotation-model",
+              effectId:
+                placement.id,
+              stageId:
+                "temporal-exposure-readout",
+              message:
+                "Spatial camera rotation requires committed rotation input."
+            };
+            addBlocker(
+              blockers,
+              blocker
+            );
+            return {
+              effectId:
+                placement.id,
+              primaryStage:
+                placement.primaryStage,
+              coupledStages: [
+                ...placement
+                  .coupledStages
+              ],
+              state: "blocked",
+              scientificStatus:
+                "not-applicable",
+              requiredByFidelity:
+                true,
+              modelId:
+                request.modelId,
+              modelVersion:
+                request.modelVersion,
+              blockerCodes: [
+                blocker.code
+              ]
+            };
+          }
+
+          const blocked =
+            temporalResult
+              ?.rotationQuadrature ===
+              undefined &&
+            !angularVelocityIsZero(
+              rotation
+                .angularVelocityRadPerSec
+            );
+
+          return {
+            effectId:
+              placement.id,
+            primaryStage:
+              placement.primaryStage,
+            coupledStages: [
+              ...placement
+                .coupledStages
+            ],
+            state: blocked
+              ? "blocked"
+              : angularVelocityIsZero(
+                    rotation
+                      .angularVelocityRadPerSec
+                  )
+                ? "modeled-zero"
+                : "active",
+            scientificStatus:
+              blocked
+                ? "not-applicable"
+                : "approximation",
+            requiredByFidelity:
+              true,
+            modelId:
+              request.modelId,
+            modelVersion:
+              request.modelVersion,
+            blockerCodes:
+              blocked
+                ? blockers
+                    .filter(
+                      (blocker) =>
+                        blocker.effectId ===
+                        placement.id ||
+                        blocker.stageId ===
+                          placement
+                            .primaryStage
+                    )
+                    .map(
+                      (blocker) =>
+                        blocker.code
+                    )
+                : []
+          };
+        }
+
+        if (
+          placement.id ===
+          "rolling-readout"
+        ) {
+          const timing =
+            temporalResult
+              ?.sensorReadoutTiming;
+          if (timing === undefined) {
+            const blocker:
+              ProductionImageFormationBlocker = {
+              code:
+                "missing-sensor-readout-timing",
+              effectId:
+                placement.id,
+              stageId:
+                "temporal-exposure-readout",
+              message:
+                "Rolling-readout effect requires resolved sensor readout timing."
+            };
+            addBlocker(
+              blockers,
+              blocker
+            );
+            return {
+              effectId:
+                placement.id,
+              primaryStage:
+                placement.primaryStage,
+              coupledStages: [
+                ...placement
+                  .coupledStages
+              ],
+              state: "blocked",
+              scientificStatus:
+                "not-applicable",
+              requiredByFidelity:
+                true,
+              modelId:
+                request.modelId,
+              modelVersion:
+                request.modelVersion,
+              blockerCodes: [
+                blocker.code
+              ]
+            };
+          }
+
+          const modeledZero =
+            timing.readoutMode ===
+              "global" ||
+            timing
+              .maximumSpatialSamplingSkewSeconds ===
+              0;
+
+          return {
+            effectId:
+              placement.id,
+            primaryStage:
+              placement.primaryStage,
+            coupledStages: [
+              ...placement
+                .coupledStages
+            ],
+            state: modeledZero
+              ? "modeled-zero"
+              : "active",
+            scientificStatus:
+              "approximation",
+            requiredByFidelity:
+              true,
+            modelId:
+              request.modelId,
+            modelVersion:
+              request.modelVersion,
+            blockerCodes: []
+          };
+        }
+
         throw new InvalidConfigurationError(
           "Unexpected composed effect " +
             placement.id +
@@ -2212,6 +2877,8 @@ function deriveStagePlan(
     ReadonlySet<ImageFormationStageId>,
   physicalResult:
     SceneToSensorIrradianceResult | undefined,
+  temporalResult:
+    ProductionTemporalCaptureResult | undefined,
   blockers:
     ProductionImageFormationBlocker[]
 ): readonly PlannedImageFormationStage[] {
@@ -2515,6 +3182,75 @@ function deriveStagePlan(
         };
       }
 
+      if (
+        stage.id ===
+        "temporal-exposure-readout"
+      ) {
+        if (temporalResult === undefined) {
+          const relevant =
+            blockers
+              .filter(
+                (blocker) =>
+                  blocker.stageId ===
+                  stage.id
+              )
+              .map(
+                (blocker) =>
+                  blocker.code
+              );
+          return {
+            stageId: stage.id,
+            contractStatus:
+              stage.status,
+            state: "blocked",
+            scientificStatus:
+              "not-applicable",
+            requiredByFidelity:
+              true,
+            requiredUpstreamStages: [
+              ...stage
+                .requiredUpstreamStages
+            ],
+            coupledStages: [
+              ...stage.coupledStages
+            ],
+            modelId:
+              "capture-temporal-schedule",
+            modelVersion:
+              "1.0.0",
+            blockerCodes: [
+              ...new Set(relevant)
+            ]
+          };
+        }
+
+        return {
+          stageId: stage.id,
+          contractStatus:
+            stage.status,
+          state: "active",
+          scientificStatus:
+            "approximation",
+          requiredByFidelity:
+            true,
+          requiredUpstreamStages: [
+            ...stage
+              .requiredUpstreamStages
+          ],
+          coupledStages: [
+            ...stage.coupledStages
+          ],
+          modelId:
+            "capture-temporal-schedule",
+          modelVersion:
+            "1.0.0",
+          resultIdentity:
+            snapshot
+              .fingerprint.value,
+          blockerCodes: []
+        };
+      }
+
       throw new InvalidConfigurationError(
         "Unexpected composed stage."
       );
@@ -2562,10 +3298,19 @@ export function createProductionImageFormationPlan(
       blockers
     );
 
+  const temporalResult =
+    computeTemporalResult(
+      prepared,
+      snapshot,
+      requiredStages,
+      blockers
+    );
+
   const effectPlan =
     deriveEffectPlan(
       prepared,
       snapshot,
+      temporalResult,
       blockers
     );
   const stagePlan =
@@ -2574,6 +3319,7 @@ export function createProductionImageFormationPlan(
       snapshot,
       requiredStages,
       physicalResult,
+      temporalResult,
       blockers
     );
 
@@ -2646,6 +3392,13 @@ export function createProductionImageFormationPlan(
       : {
           physicalSceneToSensorResult:
             physicalResult
+        }),
+    ...(temporalResult ===
+    undefined
+      ? {}
+      : {
+          temporalCaptureResult:
+            temporalResult
         }),
     stochastic: {
       captureSeedUint32:

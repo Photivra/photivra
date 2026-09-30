@@ -160,6 +160,68 @@ The plan stores the resulting pre-sensor-stack spectral irradiance result.
 
 This path never substitutes an RGB preview for physical spectral irradiance.
 
+## Temporal capture composition
+
+Plan contract `0.2.0` adds immutable temporal-capture input.
+
+A capture may bind:
+
+- #12 exposure-window input;
+- sensor readout declaration;
+- physical imaging area and capture orientation;
+- optional constant pure-camera-rotation velocity;
+- deterministic temporal quadrature sample count.
+
+The planner evaluates exposure windows and sensor readout separately:
+
+```text
+exposure-window time reference:
+  first-opening-boundary-phase
+
+sensor readout phase:
+  separate native-sensor timing contract
+
+synchronization:
+  not assumed
+```
+
+If pure rotation is supplied, the planner reuses `calculateCaptureRotationTemporalQuadrature()`. The committed quadrature count is part of capture identity and a renderer may not silently reduce it.
+
+Requested spatial-camera-rotation distinguishes:
+
+- nonzero rotation with resolved quadrature -> `active`;
+- explicit zero angular velocity -> `modeled-zero`;
+- missing rotation model -> `blocked`.
+
+Requested rolling-readout distinguishes:
+
+- rolling native readout -> `active`;
+- global/no-spatial-skew timing -> `modeled-zero`;
+- missing readout declaration -> `blocked`.
+
+A renderer whose declared temporal-sampling capacity is below the committed quadrature count receives a structured `renderer-temporal-sampling-insufficient` blocker.
+
+The image-formation graph is still authoritative. Because `temporal-exposure-readout` depends on `field-wavelength-psf`, useful temporal results may exist while the whole requested fidelity plan remains blocked until PSF composition lands.
+
+## Optimized and reference consumers
+
+Use `createProductionPlanConsumerManifest()` to project one finalized semantic plan into either:
+
+- `interactive-optimized`; or
+- `reference`.
+
+Both manifests retain the same:
+
+- plan fingerprint;
+- active/modeled stage identities;
+- active/modeled effect identities;
+- #110 physical result;
+- temporal capture result;
+- capture seed;
+- structured blockers.
+
+The consumer role changes execution responsibility only. It does not authorize changing scientific inputs, reordering stages, replacing seeds, or reducing committed temporal samples.
+
 ## Unsupported stages remain visible
 
 Plan schema `0.1.0` deliberately does not claim full downstream sensor

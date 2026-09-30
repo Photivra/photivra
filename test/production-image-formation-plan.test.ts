@@ -5,6 +5,7 @@ import {
   calculateIlluminationVignetting,
   createProductionCaptureSnapshot,
   createProductionImageFormationPlan,
+  createProductionPlanConsumerManifest,
   getImageFormationContract,
   parseGenericBodyExposureCapabilityProfile,
   parseGenericLensExposureCapabilityProfile,
@@ -19,6 +20,7 @@ import {
   type CreateProductionCaptureSnapshotInput,
   type ImageFormationFidelityProfile,
   type PreparedImageFormationContext,
+  type ProductionTemporalCaptureInput,
   type RendererCapabilityDeclaration,
   type SceneRadianceEvaluationRequest,
   type SceneRadianceEvaluationResult,
@@ -718,10 +720,10 @@ describe("ready physical production plan", () => {
       "ready"
     );
     expect(plan.versions).toMatchObject({
-      engineApi: "0.76.0",
+      engineApi: "0.77.0",
       imageFormationContract:
         "0.4.0",
-      plan: "0.1.0"
+      plan: "0.2.0"
     });
     expect(
       plan
@@ -1708,6 +1710,551 @@ describe("production-plan parser and blocker coverage", () => {
             "sensor-charge-statistics"
         })
       ])
+    );
+  });
+});
+
+const temporalCapture = (
+  options: {
+    rotation?:
+      | "active"
+      | "zero"
+      | "missing";
+    readout?:
+      | "rolling"
+      | "global"
+      | "missing";
+    temporalSampleCount?: number;
+  } = {}
+): ProductionTemporalCaptureInput => {
+  const rotation =
+    options.rotation ??
+    "active";
+  const readout =
+    options.readout ??
+    "rolling";
+
+  return {
+    exposureWindowInput: {
+      nativeRaster: {
+        pixelWidth: 6000,
+        pixelHeight: 4000
+      },
+      shutterMechanism:
+        "electronic" as const,
+      nominalExposureDurationSeconds: {
+        value: 1 / 125,
+        unit: "s" as const,
+        evidence:
+          evidence("exposure-duration")
+      },
+      opening: {
+        kind: "simultaneous" as const
+      },
+      closing: {
+        kind: "simultaneous" as const
+      },
+      samplePointsNative: [
+        {
+          x: 3000,
+          y: 2000
+        }
+      ]
+    },
+    imagingArea: {
+      widthMm: 36,
+      heightMm: 24
+    },
+    orientation:
+      "landscape" as const,
+    ...(readout === "missing"
+      ? {}
+      : {
+          readout:
+            readout === "global"
+              ? {
+                  readoutMode:
+                    "global" as const,
+                  captureReadoutDurationSeconds:
+                    {
+                      value: 0.02,
+                      unit: "s" as const,
+                      evidence:
+                        evidence("readout-duration")
+                    }
+                }
+              : {
+                  readoutMode:
+                    "rolling" as const,
+                  captureReadoutDurationSeconds:
+                    {
+                      value: 0.02,
+                      unit: "s" as const,
+                      evidence:
+                        evidence("readout-duration")
+                    },
+                  scanDirectionNative: {
+                    value:
+                      "top-to-bottom" as const,
+                    evidence:
+                      evidence("readout-direction")
+                  },
+                  spatialSamplingSkewSeconds:
+                    {
+                      value: 0.01,
+                      unit: "s" as const,
+                      evidence:
+                        evidence("readout-skew")
+                    }
+                }
+        }),
+    ...(rotation === "missing"
+      ? {}
+      : {
+          rotation: {
+            angularVelocityRadPerSec:
+              rotation === "zero"
+                ? {
+                    pitch: 0,
+                    yaw: 0,
+                    roll: 0
+                  }
+                : {
+                    pitch: 0,
+                    yaw: 0.1,
+                    roll: 0
+                  },
+            temporalSampleCount:
+              options.temporalSampleCount ??
+              4
+          }
+        })
+  };
+};
+
+const temporalPrepared = (
+  options: {
+    maximumTemporalSamples?: number;
+    includeRotationEffect?: boolean;
+    includeReadoutEffect?: boolean;
+  } = {}
+): PreparedImageFormationContext => {
+  const effects = [
+    {
+      effectId:
+        "illumination-vignetting" as const,
+      modelId: "generic-vignetting",
+      modelVersion: "1.0.0"
+    },
+    ...(options.includeRotationEffect ===
+    false
+      ? []
+      : [{
+          effectId:
+            "spatial-camera-rotation" as const,
+          modelId:
+            "pure-rotation-midpoint",
+          modelVersion: "1.0.0"
+        }]),
+    ...(options.includeReadoutEffect ===
+    false
+      ? []
+      : [{
+          effectId:
+            "rolling-readout" as const,
+          modelId:
+            "native-readout-schedule",
+          modelVersion: "1.0.0"
+        }])
+  ];
+
+  return prepared({
+    rendererOverride: {
+      supportedStages: [
+        "scene-ray-projection",
+        "scene-radiance-evaluation",
+        "lens-field-pupil-evaluation",
+        "field-wavelength-psf",
+        "temporal-exposure-readout"
+      ],
+      supportedEffects: [
+        "illumination-vignetting",
+        "spatial-camera-rotation",
+        "rolling-readout"
+      ],
+      temporalSampling: {
+        kind: "bounded",
+        maximumSamples:
+          options
+            .maximumTemporalSamples ??
+          8
+      }
+    },
+    fidelityOverride: {
+      requiredStages: [
+        "temporal-exposure-readout"
+      ],
+      requiredEffects:
+        effects
+    }
+  });
+};
+
+describe("production temporal capture composition", () => {
+  it("composes exposure windows, separate rolling readout timing, and rotation quadrature", () => {
+    const snapshot =
+      createProductionCaptureSnapshot({
+        ...captureInput(),
+        temporalCapture:
+          temporalCapture()
+      });
+
+    const plan =
+      createProductionImageFormationPlan({
+        preparedContext:
+          temporalPrepared(),
+        captureSnapshot:
+          snapshot
+      });
+
+    expect(
+      plan.temporalCaptureResult
+        ?.exposureTimeReference
+    ).toBe(
+      "first-opening-boundary-phase"
+    );
+    expect(
+      plan.temporalCaptureResult
+        ?.sensorReadoutTiming
+        ?.readoutMode
+    ).toBe("rolling");
+    expect(
+      plan.temporalCaptureResult
+        ?.rotationQuadrature
+        ?.temporalSampleCount
+    ).toBe(4);
+    expect(
+      plan.temporalCaptureResult
+        ?.readoutExposureSynchronization
+    ).toBe("not-assumed");
+    expect(
+      plan.temporalCaptureResult
+        ?.temporalRadianceIntegrated
+    ).toBe(false);
+
+    expect(
+      plan.stagePlan.find(
+        stage =>
+          stage.stageId ===
+          "temporal-exposure-readout"
+      )?.state
+    ).toBe("active");
+    expect(
+      plan.effectPlan.find(
+        effect =>
+          effect.effectId ===
+          "spatial-camera-rotation"
+      )?.state
+    ).toBe("active");
+    expect(
+      plan.effectPlan.find(
+        effect =>
+          effect.effectId ===
+          "rolling-readout"
+      )?.state
+    ).toBe("active");
+
+    expect(
+      plan.blockers
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code:
+            "engine-stage-not-composed",
+          stageId:
+            "field-wavelength-psf"
+        })
+      ])
+    );
+  });
+
+  it("preserves zero rotation and global readout as modeled-zero effects", () => {
+    const snapshot =
+      createProductionCaptureSnapshot({
+        ...captureInput(),
+        temporalCapture:
+          temporalCapture({
+            rotation: "zero",
+            readout: "global"
+          })
+      });
+
+    const plan =
+      createProductionImageFormationPlan({
+        preparedContext:
+          temporalPrepared(),
+        captureSnapshot:
+          snapshot
+      });
+
+    expect(
+      plan.effectPlan.find(
+        effect =>
+          effect.effectId ===
+          "spatial-camera-rotation"
+      )?.state
+    ).toBe("modeled-zero");
+    expect(
+      plan.effectPlan.find(
+        effect =>
+          effect.effectId ===
+          "rolling-readout"
+      )?.state
+    ).toBe("modeled-zero");
+  });
+
+  it("blocks insufficient renderer temporal sampling without changing committed quadrature", () => {
+    const snapshot =
+      createProductionCaptureSnapshot({
+        ...captureInput(),
+        temporalCapture:
+          temporalCapture({
+            temporalSampleCount: 6
+          })
+      });
+
+    const plan =
+      createProductionImageFormationPlan({
+        preparedContext:
+          temporalPrepared({
+            maximumTemporalSamples: 4
+          }),
+        captureSnapshot:
+          snapshot
+      });
+
+    expect(
+      plan.blockers
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code:
+            "renderer-temporal-sampling-insufficient",
+          effectId:
+            "spatial-camera-rotation"
+        })
+      ])
+    );
+    expect(
+      plan.temporalCaptureResult
+        ?.rotationQuadrature
+        ?.temporalSampleCount
+    ).toBe(6);
+  });
+
+  it("blocks missing rotation/readout models when those effects are requested", () => {
+    const snapshot =
+      createProductionCaptureSnapshot({
+        ...captureInput(),
+        temporalCapture:
+          temporalCapture({
+            rotation: "missing",
+            readout: "missing"
+          })
+      });
+
+    const plan =
+      createProductionImageFormationPlan({
+        preparedContext:
+          temporalPrepared(),
+        captureSnapshot:
+          snapshot
+      });
+
+    const codes =
+      new Set(
+        plan.blockers.map(
+          blocker =>
+            blocker.code
+        )
+      );
+
+    expect(
+      codes.has(
+        "missing-camera-rotation-model"
+      )
+    ).toBe(true);
+    expect(
+      codes.has(
+        "missing-sensor-readout-timing"
+      )
+    ).toBe(true);
+  });
+
+  it("blocks the temporal stage when immutable temporal capture input is absent", () => {
+    const plan =
+      createProductionImageFormationPlan({
+        preparedContext:
+          temporalPrepared({
+            includeRotationEffect:
+              false,
+            includeReadoutEffect:
+              false
+          }),
+        captureSnapshot:
+          capture()
+      });
+
+    expect(
+      plan.blockers
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code:
+            "missing-temporal-capture-input",
+          stageId:
+            "temporal-exposure-readout"
+        })
+      ])
+    );
+  });
+
+  it("fails closed when temporal nominal duration drifts from committed shutter", () => {
+    expect(() =>
+      createProductionCaptureSnapshot({
+        ...captureInput(),
+        temporalCapture: {
+          ...temporalCapture(),
+          exposureWindowInput: {
+            ...temporalCapture()
+              .exposureWindowInput,
+            nominalExposureDurationSeconds:
+              {
+                value: 1 / 60,
+                unit: "s",
+                evidence:
+                  evidence("wrong-duration")
+              }
+          }
+        }
+      })
+    ).toThrow(
+      "must match exposure.shutterSeconds"
+    );
+  });
+});
+
+describe("production plan consumer manifests", () => {
+  it("projects the same semantic plan to optimized and reference consumers without changing science", () => {
+    const plan =
+      createProductionImageFormationPlan({
+        preparedContext:
+          temporalPrepared(),
+        captureSnapshot:
+          createProductionCaptureSnapshot({
+            ...captureInput(),
+            temporalCapture:
+              temporalCapture()
+          })
+      });
+
+    const optimized =
+      createProductionPlanConsumerManifest({
+        plan,
+        consumerKind:
+          "interactive-optimized"
+      });
+    const reference =
+      createProductionPlanConsumerManifest({
+        plan,
+        consumerKind:
+          "reference"
+      });
+
+    expect(
+      optimized.planFingerprint
+    ).toBe(
+      reference.planFingerprint
+    );
+    expect(
+      optimized.activeOrModeledStages
+    ).toEqual(
+      reference.activeOrModeledStages
+    );
+    expect(
+      optimized.activeOrModeledEffects
+    ).toEqual(
+      reference.activeOrModeledEffects
+    );
+    expect(
+      optimized.temporalCaptureResult
+    ).toEqual(
+      reference.temporalCaptureResult
+    );
+    expect(
+      optimized.physicalSceneToSensorResult
+    ).toEqual(
+      reference.physicalSceneToSensorResult
+    );
+    expect(
+      optimized.stochastic
+    ).toEqual(reference.stochastic);
+    expect(
+      optimized
+        .consumerMayReduceCommittedTemporalSampleCount
+    ).toBe(false);
+    expect(
+      reference
+        .consumerMayChangeScientificInputs
+    ).toBe(false);
+  });
+
+  it("preserves structured blockers in consumer views", () => {
+    const plan =
+      createProductionImageFormationPlan({
+        preparedContext:
+          temporalPrepared(),
+        captureSnapshot:
+          createProductionCaptureSnapshot({
+            ...captureInput(),
+            temporalCapture:
+              temporalCapture()
+          })
+      });
+
+    expect(plan.status).toBe(
+      "blocked"
+    );
+
+    const manifest =
+      createProductionPlanConsumerManifest({
+        plan,
+        consumerKind: "reference"
+      });
+
+    expect(manifest.planStatus)
+      .toBe("blocked");
+    expect(manifest.blockers)
+      .toEqual(plan.blockers);
+  });
+
+  it("fails closed on an invalid consumer role", () => {
+    const plan =
+      createProductionImageFormationPlan({
+        preparedContext:
+          prepared(),
+        captureSnapshot:
+          capture()
+      });
+
+    expect(() =>
+      createProductionPlanConsumerManifest({
+        plan,
+        consumerKind:
+          "magic" as never
+      })
+    ).toThrow(
+      "consumerKind is invalid"
     );
   });
 });

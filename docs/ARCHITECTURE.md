@@ -299,6 +299,20 @@ Prepared context and capture snapshots are copied, deeply frozen and fingerprint
 
 The initial composer intentionally integrates only a conservative subset:
 
+The next production-composition slice adds temporal capture semantics without inventing a new timing model. The immutable capture snapshot may now carry:
+
+- authoritative #12 exposure-window input;
+- invariant native sensor readout declaration;
+- physical imaging area/orientation;
+- optional pure-camera-rotation velocity and deterministic temporal sample count.
+
+The plan evaluates local exposure windows and sensor readout separately. It does **not** assume those clocks are synchronized. When rotation is supplied, it delegates temporal geometry to the existing pure-rotation midpoint quadrature and preserves the committed temporal sample count.
+
+This does not weaken the image-formation dependency graph. `temporal-exposure-readout` still depends on `field-wavelength-psf`; until PSF is intentionally production-composed, a fidelity profile requiring the full temporal stage can carry useful timing/rotation results while the overall plan remains blocked on that upstream stage.
+
+A separate consumer-manifest API projects the same finalized semantic plan into either `interactive-optimized` or `reference` execution roles. Consumer role does not permit changing scientific inputs, stage order, capture seed, or committed temporal sample count.
+
+
 ```text
 scene-ray-projection semantic binding
   -> #85 scene-radiance result
