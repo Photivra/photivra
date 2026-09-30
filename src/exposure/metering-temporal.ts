@@ -7,6 +7,7 @@ import {
 import { InvalidScientificInputError } from "../core/validation.js";
 import {
   meterRelativeExposure,
+  parseExposureMeteringProfile,
   type ExposureMeteringPolicy,
   type ExposureMeteringProfile
 } from "./metering.js";
@@ -178,6 +179,11 @@ export function meterSceneRadianceTemporalExposure(
       "temporalMeasurementId"
     );
 
+  const profile =
+    parseExposureMeteringProfile(
+      input.profile
+    );
+
   if (
     input.policy.kind !==
     "weighted-time-average"
@@ -326,7 +332,7 @@ export function meterSceneRadianceTemporalExposure(
 
     const spatialMeter =
       meterRelativeExposure({
-        profile: input.profile,
+        profile,
         sampleSet
       });
     meteredRelativeSignal +=
@@ -360,7 +366,7 @@ export function meterSceneRadianceTemporalExposure(
     temporalMeasurementId,
     sceneStateId,
     profileId:
-      input.profile.profileId,
+      profile.profileId,
     scientificStatus:
       "approximation" as const,
     inputDomain:
@@ -368,7 +374,7 @@ export function meterSceneRadianceTemporalExposure(
     captureRegion:
       "oriented-active-capture" as const,
     spatialPolicyKind:
-      input.profile.policy.kind,
+      profile.policy.kind,
     temporalPolicyKind:
       "weighted-time-average" as const,
     timeReference:
@@ -381,7 +387,7 @@ export function meterSceneRadianceTemporalExposure(
       maximum: maximumTime
     },
     targetRelativeSignal:
-      input.profile.target
+      profile.target
         .targetRelativeSignal,
     meteredRelativeSignal,
     outputCropUsedForMetering:
@@ -421,7 +427,7 @@ export function meterSceneRadianceTemporalExposure(
           ...base,
           status: "resolved",
           requiredExposureScaleToTarget:
-            input.profile.target
+            profile.target
               .targetRelativeSignal /
             meteredRelativeSignal,
           exposureOffsetStopsToTarget:
