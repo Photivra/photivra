@@ -536,6 +536,17 @@ export interface PocSimulationResponse {
   };
 }
 
+function normalizeSignedZero(value: number): number {
+  return Object.is(value, -0) ? 0 : value;
+}
+
+function normalizeRasterVector(vector: RasterVector): RasterVector {
+  return {
+    x: normalizeSignedZero(vector.x),
+    y: normalizeSignedZero(vector.y)
+  };
+}
+
 function resolveCaptureVector(
   legacyImagePlaneVector: RasterVector,
   orientation: CaptureOrientation,
@@ -548,25 +559,26 @@ function resolveCaptureVector(
   // Legacy projected-motion/camera-shake components use +X right and +Y up.
   // Capture raster coordinates use +X right and +Y down. Preserve the legacy
   // fields unchanged and convert explicitly before applying physical rotation.
-  const nativeRasterDeltaPixels = {
+  const nativeRasterDeltaPixels = normalizeRasterVector({
     x: legacyImagePlaneVector.x,
     y: -legacyImagePlaneVector.y
-  };
-  const orientedCaptureDeltaPixels =
+  });
+  const orientedCaptureDeltaPixels = normalizeRasterVector(
     transformNativeRasterVectorToOriented({
       vector: nativeRasterDeltaPixels,
       orientation
-    });
+    })
+  );
   const scaleX = geometry.output.orientedCaptureToOutputScale.x;
   const scaleY = geometry.output.orientedCaptureToOutputScale.y;
 
   return {
     nativeRasterDeltaPixels,
     orientedCaptureDeltaPixels,
-    outputDeltaPixels: {
+    outputDeltaPixels: normalizeRasterVector({
       x: orientedCaptureDeltaPixels.x * scaleX,
       y: orientedCaptureDeltaPixels.y * scaleY
-    }
+    })
   };
 }
 
