@@ -841,6 +841,27 @@ function requireProfileBindings(
       "Temporal illumination profile illuminationProfileId must match the supplied illumination profile."
     );
   }
+
+  const knownSourceIds =
+    new Set(
+      illuminationProfile.sources.map(
+        (entry) => entry.sourceId
+      )
+    );
+  for (
+    const binding of
+    temporalProfile.sourceBindings
+  ) {
+    if (
+      !knownSourceIds.has(
+        binding.sourceId
+      )
+    ) {
+      throw new InvalidScientificInputError(
+        "Temporal illumination source binding references a sourceId that is not declared by the illumination profile."
+      );
+    }
+  }
 }
 
 function resolveSourceAndTemporalBinding(
