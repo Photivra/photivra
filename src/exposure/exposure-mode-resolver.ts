@@ -2136,6 +2136,271 @@ function idealApertureForTarget(
   return aperture;
 }
 
+function validateProgramLineForResolution(
+  value: ExposureProgramLineProfile,
+  referenceExposure:
+    RelativeExposureControlAnchor,
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities
+): ExposureProgramLineProfile {
+  const profile =
+    parseExposureProgramLineProfile(
+      value
+    );
+  const toleranceStops = 1e-9;
+
+  for (const node of profile.nodes) {
+    if (
+      node.aperture <
+        capabilities.aperture
+          .widestAvailableFNumber ||
+      node.aperture >
+        capabilities.aperture
+          .narrowestAvailableFNumber
+    ) {
+      throw new InvalidScientificInputError(
+        "Program-line aperture lies outside the resolved equipment capability range."
+      );
+    }
+    if (
+      node.shutterSeconds <
+        capabilities.shutter
+          .minimumSeconds ||
+      node.shutterSeconds >
+        capabilities.shutter
+          .maximumSeconds
+    ) {
+      throw new InvalidScientificInputError(
+        "Program-line shutter duration lies outside the resolved equipment capability range."
+      );
+    }
+
+    const computedStops =
+      Math.log2(
+        opticalExposureFactor(
+          node.aperture,
+          node.shutterSeconds,
+          referenceExposure
+        )
+      );
+    if (
+      !Number.isFinite(computedStops) ||
+      Math.abs(
+        computedStops -
+          node
+            .opticalExposureStopsFromReference
+      ) > toleranceStops
+    ) {
+      throw new InvalidScientificInputError(
+        "Program-line node opticalExposureStopsFromReference is inconsistent with its aperture/shutter pair and the selected reference exposure."
+      );
+    }
+  }
+
+  return profile;
+}
+
+function selectProgramLineSettings(
+  requestedOpticalStops: number,
+  profile:
+    ExposureProgramLineProfile,
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities
+): ProgramLineSelectionDiagnostics {
+  if (!Number.isFinite(requestedOpticalStops)) {
+    throw new InvalidScientificInputError(
+      "Requested program-line optical exposure stops must be finite."
+    );
+  }
+
+  const first = profile.nodes[0]!;
+  const last =
+    profile.nodes[
+      profile.nodes.length - 1
+    ]!;
+
+  let position:
+    | "within-line"
+    | "below-line"
+    | "above-line";
+  let selectedStops: number;
+  let interpolationPhase:
+    number | null;
+  let idealAperture: number;
+  let idealShutterSeconds: number;
+
+  if (
+    requestedOpticalStops <=
+    first
+      .opticalExposureStopsFromReference
+  ) {
+    position =
+      requestedOpticalStops <
+      first
+        .opticalExposureStopsFromReference
+        ? "below-line"
+        : "within-line";
+    selectedStops =
+      first
+        .opticalExposureStopsFromReference;
+    interpolationPhase = null;
+    idealAperture = first.aperture;
+    idealShutterSeconds =
+      first.shutterSeconds;
+  } else if (
+    requestedOpticalStops >=
+    last
+      .opticalExposureStopsFromReference
+  ) {
+    position =
+      requestedOpticalStops >
+      last
+        .opticalExposureStopsFromReference
+        ? "above-line"
+        : "within-line";
+    selectedStops =
+      last
+        .opticalExposureStopsFromReference;
+    interpolationPhase = null;
+    idealAperture = last.aperture;
+    idealShutterSeconds =
+      last.shutterSeconds;
+  } else {
+    position = "within-line";
+    let left = first;
+    let right = profile.nodes[1]!;
+
+    for (
+      let index = 1;
+      index < profile.nodes.length;
+      index += 1
+    ) {
+      const candidate =
+        profile.nodes[index]!;
+      if (
+        requestedOpticalStops <=
+        candidate
+          .opticalExposureStopsFromReference
+      ) {
+        left =
+          profile.nodes[index - 1]!;
+        right = candidate;
+        break;
+      }
+    }
+
+    const span =
+      right
+        .opticalExposureStopsFromReference -
+      left
+        .opticalExposureStopsFromReference;
+    const phase =
+      (requestedOpticalStops -
+        left
+          .opticalExposureStopsFromReference) /
+      span;
+    interpolationPhase = phase;
+    selectedStops =
+      requestedOpticalStops;
+
+    const logAperture =
+      Math.log2(left.aperture) +
+      phase *
+        (Math.log2(right.aperture) -
+          Math.log2(left.aperture));
+    const logShutter =
+      Math.log2(
+        left.shutterSeconds
+      ) +
+      phase *
+        (Math.log2(
+          right.shutterSeconds
+        ) -
+          Math.log2(
+            left.shutterSeconds
+          ));
+
+    idealAperture =
+      Math.pow(2, logAperture);
+    idealShutterSeconds =
+      Math.pow(2, logShutter);
+  }
+
+  const aperture =
+    resolveAutomaticAperture(
+      idealAperture,
+      capabilities
+    );
+  const shutter =
+    resolveAutomaticShutter(
+      idealShutterSeconds,
+      capabilities
+    );
+
+  return {
+    profileId: profile.profileId,
+    profileVersion:
+      profile.profileVersion,
+    requestedOpticalExposureStopsFromReference:
+      requestedOpticalStops,
+    selectedOpticalExposureStopsFromReference:
+      selectedStops,
+    position,
+    interpolationPhase,
+    idealAperture,
+    idealShutterSeconds,
+    resolvedAperture:
+      aperture.aperture,
+    resolvedShutterSeconds:
+      shutter.shutterSeconds,
+    apertureQuantized:
+      aperture.quantized,
+    shutterQuantized:
+      shutter.quantized,
+    apertureClamped:
+      aperture.clamped,
+    shutterClamped:
+      shutter.clamped
+  };
+}
+
+function programLineResidualConstraint(
+  selection:
+    ProgramLineSelectionDiagnostics
+): ExposureResolutionConstraint {
+  if (
+    selection.apertureClamped ===
+    "widest"
+  ) {
+    return "aperture-widest";
+  }
+  if (
+    selection.apertureClamped ===
+    "narrowest"
+  ) {
+    return "aperture-narrowest";
+  }
+  if (
+    selection.shutterClamped ===
+    "minimum"
+  ) {
+    return "shutter-minimum";
+  }
+  if (
+    selection.shutterClamped ===
+    "maximum"
+  ) {
+    return "shutter-maximum";
+  }
+  if (selection.apertureQuantized) {
+    return "aperture-grid-quantization";
+  }
+  if (selection.shutterQuantized) {
+    return "shutter-grid-quantization";
+  }
+  return "none";
+}
+
 /**
  * Resolves Manual exposure with either manual ISO or Auto ISO.
  *
