@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { InvalidScientificInputError, requirePositiveInteger } from "../core/validation.js";
 import type { RasterPoint } from "../output/capture-geometry.js";
 import {
