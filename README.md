@@ -75,6 +75,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 
 ### Exposure and motion
 
+- [generic equipment exposure capabilities](docs/USAGE.md#generic-equipment-exposure-capabilities), separating generic body/lens capability facts from selected camera state and resolving focal-length-specific aperture plus shutter/ISO envelopes for downstream #99 control policy;
 - [EV100, relative optical exposure, relative rendered exposure, and equivalent ISO compensation](docs/USAGE.md#exposure-and-iso-relations);
 - [relative pre-exposure metering](docs/USAGE.md#relative-pre-exposure-metering), with explicit generic multi-zone, center-weighted, spot, and highlight-weighted policies over the oriented active capture frame while keeping exposure compensation and automatic setting resolution downstream;
 - [scene-radiance-derived and explicit temporal metering](docs/USAGE.md#scene-radiance-derived-and-temporal-metering), binding relative meter samples to the #85 provider/material/illumination context and requiring declared time averaging for time-varying illumination without inventing a spectral-to-luminance conversion;
