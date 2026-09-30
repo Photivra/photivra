@@ -288,6 +288,9 @@ describe("production capture binding from release frame", () => {
       releaseFrameId:
         frame.releaseFrameId,
       frameIndex: 0,
+      exposure: frame.exposure,
+      stochasticSeedUint32:
+        frame.stochasticSeedUint32,
       sceneTimeSecondsFromSequenceStart:
         frame.sceneTimeSecondsFromSequenceStart,
       focus: {
@@ -491,6 +494,11 @@ describe("production capture binding from release frame", () => {
             "different-frame",
           frameIndex:
             frame.frameIndex,
+          exposure: {
+            ...frame.exposure
+          },
+          stochasticSeedUint32:
+            frame.stochasticSeedUint32,
           exposureStartTimeSeconds:
             frame.exposureStartTimeSeconds,
           exposureEndTimeSeconds:
@@ -537,6 +545,11 @@ describe("production capture binding from release frame", () => {
             frame.releaseFrameId,
           frameIndex:
             frame.frameIndex,
+          exposure: {
+            ...frame.exposure
+          },
+          stochasticSeedUint32:
+            frame.stochasticSeedUint32,
           exposureStartTimeSeconds:
             frame.exposureStartTimeSeconds,
           exposureEndTimeSeconds:
