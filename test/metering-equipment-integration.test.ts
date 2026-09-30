@@ -165,7 +165,7 @@ const captureGeometry =
       pixelHeight: 400
     },
     orientation: "landscape"
-  });
+  }).value;
 
 const meter = (
   relativeLinearSignal: number,
