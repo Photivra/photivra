@@ -439,7 +439,9 @@ const capture = (
   options: Parameters<
     typeof captureInput
   >[0] = {}
-) =>
+): ReturnType<
+  typeof createProductionCaptureSnapshot
+> =>
   createProductionCaptureSnapshot(
     captureInput(options)
   );
