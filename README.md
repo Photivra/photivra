@@ -100,7 +100,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [projected fronto-parallel object size and sensor-pixel sampling](docs/USAGE.md#projected-object-size-and-sensor-sampling);
 - [pixel pitch](docs/USAGE.md#pixel-pitch);
 - [sensor imaging-area, native-raster, crop-factor, megapixel, and 2D sampling metrics](docs/USAGE.md#sensor-imaging-area-and-native-raster);
-- [provenance-aware sensor architecture/capability metadata](docs/USAGE.md#sensor-architecture-metadata);
+- [provenance-aware sensor architecture/capability metadata](docs/USAGE.md#sensor-architecture-metadata), including independent optional CMOS/CCD technology-family identity;
 - [exact color-sampling topology profiles](docs/USAGE.md#color-sampling-topology), supporting monochrome and arbitrary periodic mosaics on a sensor-anchored abstract sampling-site lattice while keeping spectral response and raster/photodiode binding separate;
 - [capture-mode/color-sampling structural bindings](docs/USAGE.md#capture-modecolor-sampling-binding), explicitly relating one exact native effective raster to the color-site lattice and resolving compact pre-reconstruction source regions without inventing signal weights;
 - [sensor optical-stack profiles](docs/USAGE.md#sensor-optical-stack), separating physical stack-component metadata from effective AA spatial response, with explicit absent/unknown/unresolved distinctions and arbitrary normalized point-splitting kernels;
@@ -234,7 +234,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.78.0`
+- Engine API contract: `0.79.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 

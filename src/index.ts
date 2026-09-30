@@ -151,15 +151,19 @@ export {
 } from "./sensor/sensor-geometry.js";
 
 export {
+  SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION,
   parseSensorArchitectureProfile,
   type SensorArchitectureFactProvenance,
   type SensorArchitectureProfile,
+  type SensorArchitectureProfileV0_2,
+  type SensorArchitectureProfileV0_3,
   type SensorArchitectureReuseStatus,
   type SensorArchitectureSourceKind,
   type SensorColorSamplingFamily,
   type SensorIlluminationArchitecture,
   type SensorIntegrationArchitecture,
   type SensorReadoutArchitecture,
+  type SensorTechnologyFamily,
   type SourcedSensorArchitectureFact
 } from "./sensor/architecture.js";
 

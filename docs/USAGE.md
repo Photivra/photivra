@@ -1209,13 +1209,28 @@ The existing `calculatePixelPitch()` API remains available for callers that only
 
 ## Sensor architecture metadata
 
-Use `parseSensorArchitectureProfile()` for descriptive hardware/capability metadata that crosses an untrusted JSON boundary:
+Use `parseSensorArchitectureProfile()` for descriptive hardware/capability metadata that crosses an untrusted JSON boundary.
+
+The current schema is exported as `SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION` and is `0.3.0`:
 
 ```ts
-import { parseSensorArchitectureProfile } from "@photivra/engine";
+import {
+  SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION,
+  parseSensorArchitectureProfile
+} from "@photivra/engine";
 
 const architecture = parseSensorArchitectureProfile({
-  schemaVersion: "0.2.0",
+  schemaVersion: SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION,
+  technologyFamily: {
+    value: "cmos",
+    evidence: [
+      {
+        sourceOrigin: "manufacturer",
+        sourceReference: "manufacturer-spec:example",
+        reuseStatus: "factual-reference-only"
+      }
+    ]
+  },
   illumination: {
     value: "bsi",
     evidence: [
@@ -1261,7 +1276,22 @@ const architecture = parseSensorArchitectureProfile({
 });
 ```
 
-The axes are independent. BSI may be stacked or monolithic; stacking does not imply global shutter; and global readout capability does not imply a particular stacking architecture.
+`technologyFamily` is an optional evidence-backed coarse detector identity:
+
+- `"cmos"`;
+- `"ccd"`.
+
+It is independent from illumination architecture, integration/stacking, readout capability, shutter mechanism, color sampling, and every performance characteristic. For example:
+
+- CMOS may be FSI or BSI;
+- CMOS may expose rolling or global readout;
+- CCD may be FSI or BSI;
+- CCD may be monochrome or color-filtered;
+- the word CMOS or CCD alone says nothing about QE, read noise, dark current, full-well capacity, dynamic range, high-ISO behavior, frame rate, or image quality.
+
+Photivra treats sCMOS as CMOS and EMCCD as CCD at this coarse technology-family level. Those labels are not separate top-level values. Detailed CCD transfer architecture, electron multiplication, CMOS pixel/readout topology, or other technology-specific mechanisms require separate explicit profiles/models if a future scientific consumer needs them.
+
+The other architecture axes remain independent. BSI may be stacked or monolithic; stacking does not imply global shutter; and global readout capability does not imply a particular stacking or technology family.
 
 Source origin and reuse rights are also independent. Manufacturer or third-party material may be factual-reference-only or explicitly reusable when an appropriate license is present. `photivra-owned` evidence must originate from Photivra. Reusable-data evidence requires an explicit license.
 
@@ -1269,7 +1299,13 @@ Scalar facts may cite multiple evidence records. Multi-valued capabilities such 
 
 `readoutCapabilities` describes hardware capabilities, not the mode selected for one exposure. The capture-mode profile can declare that a selected mode needs mode-specific readout timing, while the actual timing values remain owned by the separate readout-timing contract.
 
-Unknown facts should be omitted instead of inferred. Architecture metadata remains descriptive only: BSI, stacking, readout family, and CFA family do not directly change FOV, crop factor, pixel pitch, exposure, noise, or dynamic range. A separate documented downstream physical/calibration model is required before any such effect can be claimed.
+### Schema 0.2.0 compatibility
+
+Existing schema `0.2.0` profiles remain accepted and preserve their `schemaVersion: "0.2.0"` identity when parsed. They do not acquire or infer a technology family.
+
+To assert `technologyFamily`, use schema `0.3.0`. A `0.2.0` document that includes the new field fails closed instead of silently applying new semantics under an older schema version.
+
+Unknown facts should be omitted instead of inferred. Architecture metadata remains descriptive only: CMOS/CCD, BSI/FSI, stacking, readout family, and CFA family do not directly change FOV, crop factor, pixel pitch, exposure, noise, readout timing, or dynamic range. A separate documented downstream physical/calibration model is required before any such effect can be claimed.
 
 ## Color-sampling topology
 
