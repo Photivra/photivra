@@ -1003,18 +1003,25 @@ describe("Manual + continuous Auto ISO resolution", () => {
 
   it("fails closed if the ideal ISO calculation overflows", () => {
     const target = targetForScale(1);
+    if (target.status !== "resolved") {
+      throw new Error(
+        "Expected resolved overflow-test target."
+      );
+    }
+    const overflowTarget:
+      ExposureMeterTarget = {
+        ...target,
+        requiredExposureScaleToTarget:
+          Number.MAX_VALUE,
+        exposureOffsetStopsToTarget:
+          Math.log2(
+            Number.MAX_VALUE
+          )
+      };
+
     expect(() =>
       resolveManualExposureMode({
-        target: {
-          ...target,
-          status: "resolved",
-          requiredExposureScaleToTarget:
-            Number.MAX_VALUE,
-          exposureOffsetStopsToTarget:
-            Math.log2(
-              Number.MAX_VALUE
-            )
-        },
+        target: overflowTarget,
         capabilities:
           continuousCapabilities(),
         referenceExposure: {
