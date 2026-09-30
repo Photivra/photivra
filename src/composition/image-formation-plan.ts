@@ -2488,49 +2488,15 @@ function deriveStagePlan(
         stage.id ===
         "lens-field-pupil-evaluation"
       ) {
-        if (
-          physicalResult ===
-          undefined
-        ) {
-          return {
-            stageId: stage.id,
-            contractStatus:
-              stage.status,
-            state:
-              "blocked" as const,
-            scientificStatus:
-              "not-applicable" as const,
-            requiredByFidelity:
-              true,
-            requiredUpstreamStages: [
-              ...stage
-                .requiredUpstreamStages
-            ],
-            coupledStages: [
-              ...stage
-                .coupledStages
-            ],
-            blockerCodes:
-              blockers
-                .filter(
-                  (blocker) =>
-                    blocker.stageId ===
-                    stage.id
-                )
-                .map(
-                  (blocker) =>
-                    blocker.code
-                )
-          };
-        }
+        const result =
+          physicalResult!;
         return {
           stageId: stage.id,
           contractStatus:
             stage.status,
           state: "active" as const,
           scientificStatus:
-            physicalResult
-              .scientificStatus,
+            result.scientificStatus,
           requiredByFidelity:
             true,
           requiredUpstreamStages: [
@@ -2544,16 +2510,30 @@ function deriveStagePlan(
             "scene-radiance-to-sensor-irradiance",
           modelVersion: "1.0.0",
           resultIdentity:
-            physicalResult.sampleId,
+            result.sampleId,
           blockerCodes: []
         };
       }
 
-      throw new InvalidConfigurationError(
-        "Unexpected composed stage " +
-          stage.id +
-          "."
-      );
+      return {
+        stageId: stage.id,
+        contractStatus:
+          stage.status,
+        state:
+          "unsupported" as const,
+        scientificStatus:
+          "not-applicable" as const,
+        requiredByFidelity:
+          true,
+        requiredUpstreamStages: [
+          ...stage
+            .requiredUpstreamStages
+        ],
+        coupledStages: [
+          ...stage.coupledStages
+        ],
+        blockerCodes: []
+      };
     }
   );
 }
