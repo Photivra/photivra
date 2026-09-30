@@ -1622,6 +1622,37 @@ Dark-current compensation, black-level offset, hot-pixel/defect excess, leakage,
 
 This stage still does not authorize physical full-well assessment because the accumulated sensor charge is not yet complete. It also does not apply to the A/W current-domain path: integrated detector-terminal charge must not be reinterpreted as stored sensor electrons without a separate carrier/storage mapping.
 
+## Accumulated-charge completeness
+
+Use `composeSensorAccumulatedCharge()` after an EQE photo-signal exposure and its matching dark-current result exist for the **same exact local exposure event**.
+
+The composer requires photo and dark terms to share:
+
+- color topology/channel/site;
+- local-exposure binding ID;
+- stationarity profile ID where applicable;
+- exact start/end offsets in the `first-opening-boundary-phase` time basis;
+- the same local exposure duration.
+
+Equal duration alone is insufficient.
+
+Additional stored-electron components may represent explicitly modeled defect/hot-pixel excess, leakage, charge injection, clock-induced charge, or another identified source. Every component must declare the accounting meaning `incremental-stored-electrons-beyond-photo-and-modeled-dark-current`. This prevents an additional defect/leakage model from silently re-counting electrons already represented by the dark-current term.
+
+A separate evidence-backed `SensorAccumulatedChargeCompletenessProfile` lists the exact additional-component IDs and states that all material stored-electron contributors relevant to physical charge-storage capacity are accounted for. An empty additional-component list is therefore **not itself evidence of completeness**.
+
+When all bindings and the completeness declaration pass, the result reports:
+
+- expected photo electrons;
+- expected dark electrons;
+- expected additional stored electrons;
+- total expected stored electrons.
+
+All remain expectation values. No photo/dark shot-noise realization or integer carrier sampling is performed.
+
+Only this complete stored-electron result sets `physicalFullWellAssessmentAuthorized: true`. Camera/digital saturation remains separately unauthorized because camera saturation capacity is not the same physical quantity as full-well charge storage.
+
+A/W photocharge remains outside this composition because detector-terminal coulombs are not automatically the number of electrons stored in the pixel charge well.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
