@@ -14,6 +14,9 @@ import {
 import type {
   SceneIlluminationProfile
 } from "./illumination.js";
+import type {
+  SceneIlluminationTemporalProfile
+} from "./illumination-temporal.js";
 import type { Vector3 } from "./scene.js";
 
 type UnknownRecord = Record<string, unknown>;
@@ -126,6 +129,7 @@ export interface SceneRadianceProviderProfile {
   profileId: string;
   sceneId: string;
   illuminationProfileId: string;
+  illuminationTemporalProfileId?: string;
   materialResponseProfileId: string;
   outputQuantity:
     "outgoing-spectral-radiance";
@@ -203,6 +207,8 @@ export interface SceneRadianceEvaluationResult {
 export interface ValidateSceneRadianceEvaluationBindingsInput {
   providerProfile: SceneRadianceProviderProfile;
   illuminationProfile: SceneIlluminationProfile;
+  illuminationTemporalProfile?:
+    SceneIlluminationTemporalProfile;
   materialResponseProfile:
     SceneMaterialResponseProfile;
   request: SceneRadianceEvaluationRequest;
@@ -214,6 +220,8 @@ export interface SceneRadianceEvaluationBindingAssessment {
   requestResultIdentityMatched: true;
   materialResponseFidelity:
     SceneMaterialResponseFidelity;
+  temporalIlluminationProfileBound:
+    boolean;
   calibratedRadianceClaimAuthorized: false;
   sensorPlaneIrradianceCalculated: false;
   opticsApplied: false;
@@ -876,6 +884,16 @@ export function parseSceneRadianceProviderProfile(
         record.illuminationProfileId,
         "sceneRadianceProviderProfile.illuminationProfileId"
       ),
+    ...(record.illuminationTemporalProfileId ===
+    undefined
+      ? {}
+      : {
+          illuminationTemporalProfileId:
+            requireNonEmptyString(
+              record.illuminationTemporalProfileId,
+              "sceneRadianceProviderProfile.illuminationTemporalProfileId"
+            )
+        }),
     materialResponseProfileId:
       requireNonEmptyString(
         record.materialResponseProfileId,
@@ -1183,6 +1201,7 @@ export function validateSceneRadianceEvaluationBindings(
   const {
     providerProfile,
     illuminationProfile,
+    illuminationTemporalProfile,
     materialResponseProfile,
     request,
     result
@@ -1208,6 +1227,49 @@ export function validateSceneRadianceEvaluationBindings(
     materialResponseProfile.profileId,
     "Provider materialResponseProfileId must match the supplied material-response profile."
   );
+
+  if (
+    providerProfile
+      .illuminationTemporalProfileId ===
+    undefined
+  ) {
+    if (
+      illuminationTemporalProfile !==
+      undefined
+    ) {
+      throw new InvalidConfigurationError(
+        "A temporal illumination profile was supplied but the provider profile does not bind one."
+      );
+    }
+  } else {
+    if (
+      illuminationTemporalProfile ===
+      undefined
+    ) {
+      throw new InvalidConfigurationError(
+        "Provider illuminationTemporalProfileId requires the matching temporal illumination profile."
+      );
+    }
+    requireEqual(
+      providerProfile
+        .illuminationTemporalProfileId,
+      illuminationTemporalProfile
+        .profileId,
+      "Provider illuminationTemporalProfileId must match the supplied temporal illumination profile."
+    );
+    requireEqual(
+      providerProfile.sceneId,
+      illuminationTemporalProfile.sceneId,
+      "Provider and temporal illumination profiles must reference the same sceneId."
+    );
+    requireEqual(
+      providerProfile
+        .illuminationProfileId,
+      illuminationTemporalProfile
+        .illuminationProfileId,
+      "Temporal illumination profile must bind the provider's illuminationProfileId."
+    );
+  }
 
   const materialResponseFidelity =
     assessSceneMaterialResponseFidelity(
@@ -1285,6 +1347,9 @@ export function validateSceneRadianceEvaluationBindings(
     providerBindingsMatched: true,
     requestResultIdentityMatched: true,
     materialResponseFidelity,
+    temporalIlluminationProfileBound:
+      illuminationTemporalProfile !==
+      undefined,
     calibratedRadianceClaimAuthorized: false,
     sensorPlaneIrradianceCalculated:
       false,
