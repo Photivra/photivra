@@ -548,3 +548,300 @@ describe("front filter integration with scene-to-sensor irradiance", () => {
     ).toBe(false);
   });
 });
+
+
+describe("front filter fail-closed profile boundaries", () => {
+  it("rejects malformed identity, placement, status, basis, ranges, and limitations", () => {
+    const base = neutralLinear();
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        schemaVersion: "9.9.9"
+      })
+    ).toThrow("schemaVersion");
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        identityScope: "manufacturer-product"
+      })
+    ).toThrow("identityScope");
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        position: "behind-lens"
+      })
+    ).toThrow("position");
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        scientificStatus: "exact"
+      })
+    ).toThrow("scientificStatus");
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        wavelengthBasis: "unspecified"
+      })
+    ).toThrow('must resolve to "air" or "vacuum"');
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        wavelengthRangeNanometers: {
+          minimum: 700,
+          maximum: 400
+        }
+      })
+    ).toThrow(
+      "minimum must be less than or equal to maximum"
+    );
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        limitations: [
+          "duplicate",
+          "duplicate"
+        ]
+      })
+    ).toThrow(
+      "must not contain duplicates"
+    );
+  });
+
+  it("rejects invalid uncertainty and passive transmission declarations", () => {
+    const base = neutralLinear();
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        uncertainty: {
+          kind: "relative",
+          fraction: 1.1,
+          basis: "bad"
+        }
+      })
+    ).toThrow(
+      "fraction must be less than or equal to one"
+    );
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        uncertainty: {
+          kind: "mystery"
+        }
+      })
+    ).toThrow(
+      "uncertainty.kind is invalid"
+    );
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        transmission: {
+          kind:
+            "neutral-linear-transmission",
+          linearTransmissionFactor: {
+            value: 1.01,
+            evidence:
+              evidence("amplifying")
+          }
+        }
+      })
+    ).toThrow(
+      "less than or equal to one for a passive filter"
+    );
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        transmission: {
+          kind:
+            "neutral-optical-density",
+          opticalDensityBase10: {
+            value: -0.1,
+            evidence:
+              evidence("negative-density")
+          }
+        }
+      })
+    ).toThrow(
+      "greater than or equal to zero"
+    );
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        transmission: {
+          kind: "magic"
+        }
+      })
+    ).toThrow(
+      "transmission.kind is invalid"
+    );
+  });
+
+  it("rejects malformed spectral curve topology and applicability coverage", () => {
+    const base = spectral();
+    if (
+      base.transmission.kind !==
+      "spectral-transmission"
+    ) {
+      throw new Error(
+        "Expected spectral filter."
+      );
+    }
+    const transmission =
+      base.transmission;
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        transmission: {
+          ...transmission,
+          samples: {
+            ...transmission.samples,
+            value: [
+              {
+                wavelengthNanometers: 550,
+                linearTransmissionFactor:
+                  0.6
+              }
+            ]
+          }
+        }
+      })
+    ).toThrow(
+      "must contain at least two samples"
+    );
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        transmission: {
+          ...transmission,
+          samples: {
+            ...transmission.samples,
+            value: [
+              {
+                wavelengthNanometers: 550,
+                linearTransmissionFactor:
+                  0.6
+              },
+              {
+                wavelengthNanometers: 500,
+                linearTransmissionFactor:
+                  0.7
+              }
+            ]
+          }
+        }
+      })
+    ).toThrow(
+      "wavelengths must be strictly increasing"
+    );
+
+    expect(() =>
+      parseFrontOfLensFilterProfile({
+        ...base,
+        wavelengthRangeNanometers: {
+          minimum: 400,
+          maximum: 700
+        }
+      })
+    ).toThrow(
+      "must cover the declared wavelength range"
+    );
+  });
+
+  it("covers spectral endpoint resolution and invalid wavelength/composition input", () => {
+    const atFirst =
+      resolveFrontOfLensFilterTransmission({
+        profile: spectral(),
+        wavelengthNanometers: 450,
+        wavelengthBasis: "air"
+      });
+    const atLast =
+      resolveFrontOfLensFilterTransmission({
+        profile: spectral(),
+        wavelengthNanometers: 650,
+        wavelengthBasis: "air"
+      });
+
+    expect(
+      atFirst.linearTransmissionFactor
+    ).toBe(0.8);
+    expect(
+      atLast.linearTransmissionFactor
+    ).toBe(0.4);
+
+    expect(() =>
+      resolveFrontOfLensFilterTransmission({
+        profile: spectral(),
+        wavelengthNanometers: 0,
+        wavelengthBasis: "air"
+      })
+    ).toThrow(
+      "wavelengthNanometers must be finite and greater than zero"
+    );
+
+    expect(() =>
+      composeFrontOfLensFilterTransmission({
+        filters: [],
+        wavelengthNanometers: 550,
+        wavelengthBasis: "air"
+      })
+    ).toThrow(
+      "filters must be a non-empty array"
+    );
+  });
+
+  it("preserves calibrated status only when all stacked filters are calibrated", () => {
+    const calibrated =
+      parseFrontOfLensFilterProfile({
+        ...neutralLinear(
+          0.5,
+          "calibrated-nd"
+        ),
+        scientificStatus:
+          "calibrated",
+        uncertainty: {
+          kind: "relative",
+          fraction: 0.01,
+          basis:
+            "Photivra calibration fixture"
+        }
+      });
+
+    const allCalibrated =
+      composeFrontOfLensFilterTransmission({
+        filters: [
+          calibrated,
+          calibrated
+        ],
+        wavelengthNanometers: 550,
+        wavelengthBasis: "air"
+      });
+    const mixed =
+      composeFrontOfLensFilterTransmission({
+        filters: [
+          calibrated,
+          neutralLinear()
+        ],
+        wavelengthNanometers: 550,
+        wavelengthBasis: "air"
+      });
+
+    expect(
+      allCalibrated.scientificStatus
+    ).toBe("calibrated");
+    expect(mixed.scientificStatus)
+      .toBe("approximation");
+  });
+});
