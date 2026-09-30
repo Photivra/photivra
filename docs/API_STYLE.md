@@ -97,3 +97,112 @@ Photivra has multiple independent version surfaces:
 Do not reuse one version as a proxy for another. A change to a parser/schema does not necessarily require changing the POC contract, and a POC response change does not necessarily mean the npm package has been released.
 
 Before 1.0, public APIs may evolve with documented changes. Breaking or semantically meaningful contract changes must update the relevant version surface, tests, changelog, and migration/compatibility documentation. After 1.0, breaking public-contract changes require an appropriate major-version transition.
+
+
+## Public function verb families
+
+Use the established verb family that matches the operation's semantics. Do not invent a new synonym when one of these already fits.
+
+- `calculate*` — deterministic scientific/numeric calculation.
+- `estimate*` — explicit approximation/estimate.
+- `parse*` — validate and normalize a versioned/untrusted configuration boundary.
+- `validate*` — assert/check validity without changing semantic identity.
+- `resolve*` — derive one deterministic semantic state from already-defined inputs/profiles.
+- `assess*` — produce a compatibility/readiness/applicability assessment, including structured blockers.
+- `create*` — construct a new semantic record/snapshot/manifest whose identity is part of the contract.
+- `prepare*` — validate/canonicalize relatively static context for repeated later evaluation.
+- `serialize*` — convert an authoritative semantic value to its documented deterministic serialized representation.
+- `compose*` — combine multiple independently meaningful inputs/stages into a higher-level semantic result.
+- `integrate*` / `reduce*` — mathematically aggregate explicit measures/samples under a documented model.
+- `evaluate*` / `meter*` — evaluate a declared model/policy against current scene/capture data.
+- `map*` / `transform*` — coordinate/domain transformation with explicit source/destination semantics.
+- `bind*` — attach one already-defined result/state to another authoritative context without re-solving it.
+- `set*` — return an updated immutable semantic value for a narrowly defined state-setting operation.
+- `get*` — return a descriptive/static contract owned by the engine.
+- `simulate*` — intentionally composed simulation/orchestration API.
+
+Existing result factories `calculatedResult`, `estimatedResult`, `approximationResult`, and `calibratedResult` are documented core helpers rather than new public verb families.
+
+A new verb family requires a concrete semantic distinction from the existing set and a documentation/update review.
+
+## Input and return-shape consistency
+
+Choose API shape from semantic role, not module history.
+
+- Public scientific calculations with multiple inputs accept one typed input object.
+- Parsers accept one value/configuration and return the validated semantic value or throw the appropriate typed/domain error.
+- Compatibility/readiness assessments should return structured blockers for scientifically incomplete-but-well-formed requests instead of converting every blocker into an exception.
+- Malformed schema/numeric input should fail fast with the established typed/domain error.
+- Calculations normally return `CalculationResult<T>`; do not wrap parsers merely to make every function look identical.
+- Immutable snapshots/plans/manifests may use their own versioned record contracts when provenance, identity, or serialization semantics require them.
+- Do not create module-specific aliases for shared concepts such as evidence, uncertainty, coordinate spaces, ranges, or scientific status unless the domain meaning actually differs.
+
+Consistency must never erase a meaningful scientific distinction.
+
+## Compatibility and deprecation policy
+
+Photivra has independent compatibility surfaces. Update only the surface whose observable contract changed.
+
+### Package version
+
+The npm package version identifies a published distribution. It is not a proxy for every internal/public contract version.
+
+### `ENGINE_API_VERSION`
+
+Bump when the browser-safe root public engine contract changes materially, including a breaking or semantically meaningful exported API change.
+
+### Subsystem/schema versions
+
+Versioned schemas, production-plan contracts, POC contracts, and similar surfaces own their own versions. A change to one does not automatically bump unrelated contracts.
+
+### Before package 1.0
+
+The project may make breaking public changes when the scientific/architectural benefit justifies them, but such a change must:
+
+- be intentional rather than incidental;
+- update the relevant API/schema/contract version;
+- update tests and public documentation;
+- describe migration/compatibility impact;
+- avoid silently reinterpreting previously valid serialized data.
+
+### After package 1.0
+
+Breaking root-package public-contract changes require the normal SemVer major-version process. Independently versioned schema/contract changes still follow their own documented compatibility rules.
+
+### Deprecation
+
+When practical, prefer an additive migration period:
+
+1. introduce the replacement contract;
+2. document the migration;
+3. keep old behavior stable long enough for deliberate downstream migration;
+4. remove only through the appropriate breaking/versioned change.
+
+Do not keep an unsafe or scientifically false API solely to avoid a breaking change. Correctness remains the higher priority, but the break must be explicit.
+
+## Compatibility guard tests
+
+The repository should maintain representative compatibility sentinels rather than freezing every pre-1.0 export forever.
+
+Sentinels should cover:
+
+- root engine and composed POC version surfaces;
+- representative `calculate`, `parse`, composition, and simulation APIs;
+- public function naming conventions;
+- typed error/result semantics where relevant.
+
+Adding a legitimate new API may require extending the naming test. Removing or renaming a sentinel requires explicit compatibility/version review.
+
+## OpenSource V1 API consistency audit
+
+The OpenSource V1 audit treats the existing engine conventions as the baseline rather than redesigning stable APIs.
+
+The root runtime surface currently uses the documented verb families above, with the four result-factory helpers as explicit exceptions. Future OpenSource V1 work should follow these conventions at implementation time.
+
+Audit rule:
+
+- preserve scientifically meaningful existing differences;
+- normalize accidental naming/shape drift when low risk;
+- do not perform broad cosmetic refactors solely for symmetry;
+- record/document any intentional exception;
+- keep private-app conventions from becoming public-engine contracts by accident.
