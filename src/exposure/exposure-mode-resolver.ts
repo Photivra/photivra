@@ -986,6 +986,176 @@ function resolveAutomaticIso(
   };
 }
 
+function nearestDiscreteShutter(
+  idealShutterSeconds: number,
+  values: readonly number[]
+): {
+  shutterSeconds: number;
+  quantized: boolean;
+  clamped:
+    | false
+    | "minimum"
+    | "maximum";
+  limitingConstraint:
+    ExposureResolutionConstraint;
+} {
+  const first = values[0]!;
+  const last =
+    values[values.length - 1]!;
+
+  if (idealShutterSeconds < first) {
+    return {
+      shutterSeconds: first,
+      quantized: true,
+      clamped: "minimum",
+      limitingConstraint:
+        "shutter-minimum"
+    };
+  }
+  if (idealShutterSeconds > last) {
+    return {
+      shutterSeconds: last,
+      quantized: true,
+      clamped: "maximum",
+      limitingConstraint:
+        "shutter-maximum"
+    };
+  }
+
+  let selected = first;
+  let selectedDistance =
+    Math.abs(
+      Math.log2(
+        idealShutterSeconds /
+        first
+      )
+    );
+
+  for (
+    let index = 1;
+    index < values.length;
+    index += 1
+  ) {
+    const candidate =
+      values[index]!;
+    const distance =
+      Math.abs(
+        Math.log2(
+          idealShutterSeconds /
+          candidate
+        )
+      );
+    if (
+      distance <
+        selectedDistance -
+          1e-15 ||
+      (Math.abs(
+        distance -
+          selectedDistance
+      ) <= 1e-15 &&
+        candidate < selected)
+    ) {
+      selected = candidate;
+      selectedDistance =
+        distance;
+    }
+  }
+
+  const quantized =
+    !settingEquals(
+      selected,
+      idealShutterSeconds
+    );
+
+  return {
+    shutterSeconds: selected,
+    quantized,
+    clamped: false,
+    limitingConstraint:
+      quantized
+        ? "shutter-grid-quantization"
+        : "none"
+  };
+}
+
+function resolveAutomaticShutter(
+  idealShutterSeconds: number,
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities
+): {
+  shutterSeconds: number;
+  kind:
+    | "continuous"
+    | "discrete";
+  quantized: boolean;
+  clamped:
+    | false
+    | "minimum"
+    | "maximum";
+  limitingConstraint:
+    ExposureResolutionConstraint;
+} {
+  const grid =
+    capabilities.shutter.settingGrid;
+
+  if (
+    grid.kind ===
+    "discrete-values"
+  ) {
+    const discrete =
+      nearestDiscreteShutter(
+        idealShutterSeconds,
+        grid.values
+      );
+    return {
+      ...discrete,
+      kind: "discrete"
+    };
+  }
+
+  if (
+    idealShutterSeconds <
+    capabilities.shutter
+      .minimumSeconds
+  ) {
+    return {
+      shutterSeconds:
+        capabilities.shutter
+          .minimumSeconds,
+      kind: "continuous",
+      quantized: false,
+      clamped: "minimum",
+      limitingConstraint:
+        "shutter-minimum"
+    };
+  }
+  if (
+    idealShutterSeconds >
+    capabilities.shutter
+      .maximumSeconds
+  ) {
+    return {
+      shutterSeconds:
+        capabilities.shutter
+          .maximumSeconds,
+      kind: "continuous",
+      quantized: false,
+      clamped: "maximum",
+      limitingConstraint:
+        "shutter-maximum"
+    };
+  }
+
+  return {
+    shutterSeconds:
+      idealShutterSeconds,
+    kind: "continuous",
+    quantized: false,
+    clamped: false,
+    limitingConstraint: "none"
+  };
+}
+
 /**
  * Resolves Manual exposure with either manual ISO or Auto ISO.
  *
