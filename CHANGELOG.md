@@ -6,6 +6,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Added
 
+- Added the #85→#100 scene-radiance metering bridge plus explicit temporal metering. A derivation profile labels renderer/provider scalar pre-exposure reductions as approximation-only with no calibrated spectral weighting; sample-set creation validates provider, illumination, material, optional temporal-profile, scene-state and capture-time identity. Time-varying metering requires explicit capture times on the shared `first-opening-boundary-phase` reference, and weighted temporal averaging combines linear meter signals under caller-declared positive normalized weights rather than silently averaging stop offsets. Flash/TTL metering, exposure compensation, and automatic aperture/shutter/ISO resolution remain separate.
 - Added a renderer-neutral relative pre-exposure metering foundation for #100. Generic multi-zone, center-weighted, spot, and highlight-weighted policies operate on area-weighted linear samples in the physically oriented active capture frame; output crop, tone mapping, display gamma, white balance, sharpening, exposure compensation, and automatic setting resolution remain outside the meter. The meter preserves stable measurement/scene-state identity, returns a finite no-signal state instead of infinite correction, and enforces the controlled invariant that a uniform -1 stop scene-signal change produces a +1 stop shift to the declared relative target.
 - Added temporal illumination waveforms and explicit source-waveform↔capture-time registration. Aperiodic flash/pulse and periodic flicker profiles use seconds-based piecewise-linear relative multipliers bound to the existing `first-opening-boundary-phase` capture reference; local exposure integration consumes authoritative exposure-window samples with deterministic midpoint quadrature. Sensor readout timing is never used as an exposure-time proxy, base source magnitude/spectrum remain authoritative, and the layer does not choose exposure settings, apply source magnitude/material transport, calculate scene radiance, or estimate convergence error.
 - Added shared continuous spectral-coverage composition plus first-class discrete line-spectrum measures. Continuous participants now intersect explicit air/vacuum support and union interpolation breakpoints without applying spectral values; sensor-response and scene-illumination adapters feed that shared plan. Discrete illumination spectra use normalized wavelength-integrated line weights, distribute broadband source magnitude into integrated per-line quantities, and integrate by summation without inventing a line width or multiplying by dλ. Continuous and discrete paths remain separate, and calibrated absolute line-output claims are still not authorized automatically.
@@ -31,7 +32,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Changed
 
-- Engine API contract advances to `0.66.0`; the image-formation contract remains `0.3.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
+- Engine API contract advances to `0.67.0`; the image-formation contract remains `0.3.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
 
 ## 0.6.0 - 2026-09-29
 
