@@ -3078,6 +3078,124 @@ Aperture Priority + Auto ISO is later work because two automatic axes require an
 
 Flash-aware shutter restrictions, safety shift, and manufacturer-specific program behavior also remain separate.
 
+## Priority modes with Auto ISO
+
+The larger #99 priority group adds the remaining A/S combinations before Program/Full Auto.
+
+### Aperture Priority + Auto ISO
+
+Use `resolveAperturePriorityAutoIsoExposureMode()` with an explicit two-auto-axis policy:
+
+```ts
+const resolved =
+  resolveAperturePriorityAutoIsoExposureMode({
+    target,
+    capabilities,
+    referenceExposure,
+    manualAperture: 4,
+    policy: {
+      kind:
+        "minimum-iso-until-slowest-preferred-shutter",
+      isoBaseline:
+        "minimum-selectable",
+      isoQuantizationPolicy:
+        "nearest-log2-lower-on-tie",
+      slowestPreferredShutterSeconds:
+        1 / 60,
+      shutterSelectionPolicy:
+        "not-longer-than-target",
+      afterMaximumIso:
+        "allow-slower-shutter"
+    }
+  });
+```
+
+The policy is explicit:
+
+1. Start at the lowest selectable ISO.
+2. Resolve shutter, but do not go slower than the declared preferred threshold.
+3. If more exposure is required, hold that shutter region and raise ISO.
+4. If ISO reaches its maximum while the target is still underexposed, the policy explicitly chooses either:
+   - `allow-slower-shutter`; or
+   - `hold-preferred-shutter` and return residual underexposure.
+
+For discrete shutter grids, the pre-ISO shutter selection is never longer than the requested/preferred duration. This prevents a quantization choice from requiring an ISO below the supported minimum to undo overexposure.
+
+### Shutter Priority + manual ISO
+
+Use `resolveShutterPriorityExposureMode()` with manual ISO:
+
+```ts
+const resolved =
+  resolveShutterPriorityExposureMode({
+    target,
+    capabilities,
+    referenceExposure,
+    manualShutterSeconds: 1 / 500,
+    isoControl: {
+      kind: "manual",
+      iso: 400,
+      apertureQuantizationPolicy:
+        "nearest-log2-narrower-on-tie"
+    }
+  });
+```
+
+Shutter and ISO remain fixed. Aperture alone resolves.
+
+Continuous aperture capability uses the ideal f-number directly. Discrete aperture grids choose the nearest log2 f-number, with the narrower aperture on an exact tie.
+
+### Shutter Priority + Auto ISO
+
+Use an aperture-first Auto ISO policy:
+
+```ts
+const resolved =
+  resolveShutterPriorityExposureMode({
+    target,
+    capabilities,
+    referenceExposure,
+    manualShutterSeconds: 1 / 500,
+    isoControl: {
+      kind: "automatic",
+      policy: {
+        kind:
+          "minimum-iso-aperture-first",
+        isoBaseline:
+          "minimum-selectable",
+        isoQuantizationPolicy:
+          "nearest-log2-lower-on-tie",
+        apertureSelectionPolicy:
+          "not-wider-than-target"
+      }
+    }
+  });
+```
+
+This policy:
+
+1. starts at the lowest selectable ISO;
+2. resolves aperture first;
+3. for a discrete aperture grid, chooses an aperture no wider than the ideal;
+4. uses Auto ISO to fill the remaining exposure.
+
+That direction is deliberate: choosing an aperture wider than the ideal at minimum ISO could overexpose while leaving no lower ISO available to compensate.
+
+### Shared boundaries
+
+These are control policies over the same relative exposure equation. They do not create new optics/sensor physics.
+
+All modes:
+
+- consume the already-compensated #100 target;
+- consume the resolved #109 capability envelope;
+- use the explicit reference exposure anchor;
+- preserve residual-stop sign conventions;
+- do not infer ISO noise/gain topology;
+- do not apply flash policy or safety shift.
+
+Program Auto, Full Auto exposure, Bulb/Time, flash-aware behavior, and named-camera program lines remain later work.
+
 ## Exposure and ISO relations
 
 Use `calculateExposureValue100()` for EV100:

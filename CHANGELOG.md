@@ -6,6 +6,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Added
 
+- Expanded #99 with a larger priority-mode group: Aperture Priority + Auto ISO, Shutter Priority + manual ISO, and Shutter Priority + Auto ISO. Two-auto-axis behavior is now explicit product policy rather than hidden physics. A+Auto ISO uses minimum selectable ISO until a declared slowest-preferred shutter, then raises ISO; the policy explicitly chooses whether to allow slower shutter after ISO maximum. S+Auto ISO uses minimum ISO with aperture-first selection, then Auto ISO fills remaining exposure. Shutter Priority with manual ISO resolves aperture only. All paths reuse the same #100 target, #109 capability envelope, reference exposure anchor, quantization rules, and signed residual diagnostics.
 - Added the next #99 resolver slice: Aperture Priority with manual ISO. Aperture and ISO remain caller-owned; shutter is the only automatic axis. The resolver reuses the same typed #100 meter target, explicit relative reference exposure anchor, and #109 capability envelope as Manual/Auto ISO. Continuous shutter ranges resolve the ideal duration directly; discrete grids quantize in log2 duration space with the shorter shutter on an exact tie. Shutter min/max and grid quantization produce explicit signed residual-stop diagnostics. No-signal targets block automatic shutter without fabrication.
 - Added the first #99 exposure-mode resolver slice for Manual exposure with either manual ISO or Auto ISO. Aperture and shutter remain caller-owned and are never changed; manual ISO is preserved exactly after capability validation, while Auto ISO resolves only the ISO axis from the typed #100 meter target and #109 capability envelope. Relative target scale is normalized through an explicit reference exposure anchor rather than a hidden ISO-100 assumption. Discrete ISO values use nearest-log2 quantization with a lower-ISO tie break; ISO limits produce explicit residual under/over-target diagnostics. Unsupported/unknown Auto ISO and no-signal targets block Auto ISO without fabricating a setting.
 - Added the first generic #109 equipment-capability foundation for exposure control. Versioned Photivra body profiles now declare evidence-backed shutter-duration and ISO ranges/grids plus distinct supported/unsupported/unknown Auto ISO capability; generic lens profiles declare focal-length range, focal-dependent or constant widest available f-number, narrowest available f-number, and aperture setting grid. A deterministic resolver produces the body+lens exposure envelope at one selected focal length without mutating source profiles or claiming named-equipment emulation. Selected camera state and #99 exposure setting resolution remain separate.
@@ -36,7 +37,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Changed
 
-- Engine API contract advances to `0.71.0`; Exposure Mode Resolver contract advances to `0.2.0`. the image-formation contract remains `0.3.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
+- Engine API contract advances to `0.72.0`; Exposure Mode Resolver contract advances to `0.3.0`. the image-formation contract remains `0.3.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
 
 ## 0.6.0 - 2026-09-29
 

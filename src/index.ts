@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.71.0" as const;
+export const ENGINE_API_VERSION = "0.72.0" as const;
 
 export {
   approximationResult,
@@ -763,17 +763,26 @@ export {
 
 export {
   EXPOSURE_MODE_RESOLVER_VERSION,
+  resolveAperturePriorityAutoIsoExposureMode,
   resolveAperturePriorityExposureMode,
   resolveManualExposureMode,
+  resolveShutterPriorityExposureMode,
+  type AperturePriorityAutoIsoExposureModeResolution,
+  type AperturePriorityAutoIsoPolicy,
   type AperturePriorityExposureModeResolution,
+  type AutoIsoBaselinePolicy,
   type ExposureResolutionConstraint,
   type ExposureTargetResidual,
   type ExposureTargetResidualState,
   type ManualExposureModeResolution,
   type ManualIsoControl,
   type RelativeExposureControlAnchor,
+  type ResolveAperturePriorityAutoIsoExposureModeInput,
   type ResolveAperturePriorityExposureModeInput,
-  type ResolveManualExposureModeInput
+  type ResolveManualExposureModeInput,
+  type ResolveShutterPriorityExposureModeInput,
+  type ShutterPriorityAutoIsoPolicy,
+  type ShutterPriorityExposureModeResolution
 } from "./exposure/exposure-mode-resolver.js";
 
 export {
