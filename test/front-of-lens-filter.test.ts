@@ -193,7 +193,9 @@ const radiance = (
   limitations: []
 });
 
-const optics = () =>
+const optics = (): ReturnType<
+  typeof parseSceneToSensorIrradianceProfile
+> =>
   parseSceneToSensorIrradianceProfile({
     schemaVersion: "0.1.0",
     profileId: "optics",
@@ -425,7 +427,9 @@ describe("front filter integration with scene-to-sensor irradiance", () => {
   const calculate = (
     filters?:
       readonly FrontOfLensFilterProfile[]
-  ) =>
+  ): ReturnType<
+    typeof calculateSceneRadianceToSensorIrradiance
+  >["value"] =>
     calculateSceneRadianceToSensorIrradiance({
       sceneRadianceRequest:
         request(),
