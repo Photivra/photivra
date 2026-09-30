@@ -3393,7 +3393,7 @@ White-balance bracketing is not forced into physical multi-exposure semantics; W
 
 ### Cancellation
 
-Use `cancelReleaseSequence()` to record an explicit completed/omitted frame boundary without mutating the scheduled source sequence.
+Use `createCancelledReleaseSequence()` to record an explicit completed/omitted frame boundary without mutating the scheduled source sequence.
 
 ## Generic equipment exposure capabilities
 
