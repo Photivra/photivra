@@ -10,6 +10,29 @@ import {
 import { ENGINE_API_VERSION } from "../core/version.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import {
+  calculateCaptureRotationTemporalQuadrature,
+  type CaptureRotationTemporalQuadrature
+} from "../motion/capture-rotation-temporal-quadrature.js";
+import type {
+  CameraAngularVelocityRadPerSec
+} from "../motion/camera-rotation.js";
+import type {
+  CaptureOrientation
+} from "../output/capture-geometry.js";
+import {
+  calculateCaptureExposureWindows,
+  type CalculateCaptureExposureWindowsInput,
+  type CaptureExposureWindows
+} from "../sensor/exposure-window.js";
+import {
+  calculateSensorReadoutTiming,
+  type SensorReadoutTiming,
+  type SensorReadoutTimingDeclaration
+} from "../sensor/readout-timing.js";
+import type {
+  SensorImagingArea
+} from "../sensor/sensor-geometry.js";
+import {
   GENERIC_EQUIPMENT_EXPOSURE_CAPABILITY_SCHEMA_VERSION,
   type ResolvedGenericEquipmentExposureCapabilities,
   type ResolvedNumericSettingGrid
@@ -32,7 +55,7 @@ import {
 type UnknownRecord = Record<string, unknown>;
 
 export const PRODUCTION_IMAGE_FORMATION_PLAN_VERSION =
-  "0.1.0" as const;
+  "0.2.0" as const;
 export const PREPARED_IMAGE_FORMATION_CONTEXT_VERSION =
   "0.1.0" as const;
 export const PRODUCTION_CAPTURE_SNAPSHOT_VERSION =
@@ -159,6 +182,38 @@ export interface ProductionPhysicalSceneSample {
     OpticalBridgeFieldThroughput;
 }
 
+export interface ProductionTemporalCaptureInput {
+  exposureWindowInput:
+    CalculateCaptureExposureWindowsInput;
+  imagingArea: SensorImagingArea;
+  orientation: CaptureOrientation;
+  readout?:
+    SensorReadoutTimingDeclaration;
+  rotation?: {
+    angularVelocityRadPerSec:
+      CameraAngularVelocityRadPerSec;
+    focusDistanceM?: number;
+    temporalSampleCount: number;
+  };
+}
+
+export interface ProductionTemporalCaptureResult {
+  exposureWindows:
+    CaptureExposureWindows;
+  sensorReadoutTiming?:
+    SensorReadoutTiming;
+  rotationQuadrature?:
+    CaptureRotationTemporalQuadrature;
+  exposureTimeReference:
+    "first-opening-boundary-phase";
+  readoutExposureSynchronization:
+    "not-assumed";
+  sensorReadoutTimingRemainsSeparate:
+    true;
+  temporalRadianceIntegrated:
+    false;
+}
+
 export interface CreateProductionCaptureSnapshotInput {
   captureId: string;
   releaseFrameId: string;
@@ -174,6 +229,8 @@ export interface CreateProductionCaptureSnapshotInput {
   stochasticSeedUint32: number;
   physicalSceneSample?:
     ProductionPhysicalSceneSample;
+  temporalCapture?:
+    ProductionTemporalCaptureInput;
 }
 
 export interface ProductionCaptureSnapshot {
@@ -193,6 +250,8 @@ export interface ProductionCaptureSnapshot {
   stochasticSeedUint32: number;
   physicalSceneSample?:
     ProductionPhysicalSceneSample;
+  temporalCapture?:
+    ProductionTemporalCaptureInput;
   fingerprint: {
     algorithm:
       "fnv1a-32-non-cryptographic";
@@ -271,7 +330,12 @@ export type ProductionImageFormationBlockerCode =
   | "missing-optical-bridge-profile"
   | "missing-physical-scene-sample"
   | "undeclared-field-throughput-effect"
-  | "physical-radiometry-evaluation-blocked";
+  | "physical-radiometry-evaluation-blocked"
+  | "missing-temporal-capture-input"
+  | "temporal-evaluation-blocked"
+  | "missing-camera-rotation-model"
+  | "missing-sensor-readout-timing"
+  | "renderer-temporal-sampling-insufficient";
 
 export interface ProductionImageFormationBlocker {
   code:
@@ -330,6 +394,8 @@ export interface ProductionImageFormationPlan {
     readonly ProductionImageFormationBlocker[];
   physicalSceneToSensorResult?:
     SceneToSensorIrradianceResult;
+  temporalCaptureResult?:
+    ProductionTemporalCaptureResult;
   stochastic: {
     captureSeedUint32: number;
     backendRandomnessMayRedefineScientificResult:
@@ -357,12 +423,15 @@ const COMPOSER_SUPPORTED_STAGES =
   new Set<ImageFormationStageId>([
     "scene-ray-projection",
     "scene-radiance-evaluation",
-    "lens-field-pupil-evaluation"
+    "lens-field-pupil-evaluation",
+    "temporal-exposure-readout"
   ]);
 
 const COMPOSER_SUPPORTED_EFFECTS =
   new Set<ImageFormationEffectId>([
-    "illumination-vignetting"
+    "illumination-vignetting",
+    "spatial-camera-rotation",
+    "rolling-readout"
   ]);
 
 function requireRecord(
