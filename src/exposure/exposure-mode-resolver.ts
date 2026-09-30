@@ -2402,10 +2402,12 @@ function validateAutoIsoAvailability(
   return capabilities.iso.autoIsoAvailability;
 }
 
-function buildPriorityAutoIsoBlocked(
-  mode:
+function buildPriorityAutoIsoBlocked<
+  Mode extends
     | "aperture-priority"
-    | "shutter-priority",
+    | "shutter-priority"
+>(
+  mode: Mode,
   target: ExposureMeterTarget,
   referenceExposure:
     RelativeExposureControlAnchor,
@@ -2418,9 +2420,7 @@ function buildPriorityAutoIsoBlocked(
 ): {
   resolverVersion:
     typeof EXPOSURE_MODE_RESOLVER_VERSION;
-  mode:
-    | "aperture-priority"
-    | "shutter-priority";
+  mode: Mode;
   status: "blocked";
   targetId: string;
   targetSourceMeterSnapshot:
