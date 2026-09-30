@@ -389,13 +389,16 @@ describe("front-of-lens filter transmission", () => {
       );
     }
 
+    const transmission =
+      base.transmission;
+
     expect(() =>
       parseFrontOfLensFilterProfile({
         ...base,
         transmission: {
-          ...base.transmission,
+          ...transmission,
           samples: {
-            ...base.transmission.samples,
+            ...transmission.samples,
             evidence: [{
               sourceOrigin: "manufacturer",
               sourceReference:
