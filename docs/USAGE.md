@@ -3084,7 +3084,69 @@ A zero-signal sample set returns `status: "no-signal"` rather than infinity/NaN.
 
 The input must explicitly state that exposure settings, white balance, tone mapping, display gamma, and sharpening have not already been applied. This prevents a circular final-preview auto-exposure loop.
 
-This first slice is ambient/relative metering only. Flash/TTL metering, calibrated photometric/radiometric metering, exposure compensation application, and automatic mode resolution remain separate work.
+This path is ambient/relative metering only. Flash/TTL metering and calibrated camera-specific photometric/radiometric metering remain separate. Exposure compensation and automatic exposure consume the frozen meter target through the dedicated downstream contracts rather than modifying the meter measurement.
+
+### Equipment metering capability binding
+
+Use `parseGenericBodyMeteringCapabilityProfile()` plus `assessExposureMeteringProfileCompatibility()` to declare which engine-owned metering profiles/modes a generic camera body may select.
+
+The equipment profile does **not** duplicate the meter target/calibration values. Those remain authoritative in the selected `ExposureMeteringProfile`.
+
+```ts
+import {
+  assessExposureMeteringProfileCompatibility,
+  parseGenericBodyMeteringCapabilityProfile
+} from "@photivra/engine";
+
+const bodyMetering =
+  parseGenericBodyMeteringCapabilityProfile({
+    schemaVersion: "0.1.0",
+    profileId: "generic-body-metering",
+    profileVersion: "1.0.0",
+    scientificStatus: "approximation",
+    evidence,
+    supportedMeteringProfiles: [
+      {
+        meteringProfileId:
+          "generic-relative-meter",
+        policyKind:
+          "multi-zone-uniform",
+        evidence
+      }
+    ],
+    spotFocusPointLinkage: {
+      availability: "unknown",
+      evidence
+    }
+  });
+
+const compatibility =
+  assessExposureMeteringProfileCompatibility({
+    bodyCapabilities: bodyMetering,
+    meteringProfile: profile
+  });
+```
+
+The compatibility result preserves `targetPolicyOwnership: "metering-profile"`, so equipment metadata never becomes a second source of calibration truth.
+
+Spot/focus-point linkage is capability metadata only. A future AF/spot-link control must explicitly consume it; the meter does not silently move a spot because a focus point exists.
+
+### Meter target and automatic exposure integration
+
+Use `createExposureMeterTargetFromMeteringResult()` to freeze a spatial or temporal meter result into the target consumed by #99 exposure-mode resolution. Use `setExposureCompensationOnMeterTarget()` to apply compensation downstream without mutating the source measurement.
+
+For the controlled relative path:
+
+```text
+uniform scene signal 1.0 -> meter target scale 1 -> ISO 100
+uniform scene signal 0.5 -> meter target scale 2 -> ISO 200
+```
+
+when aperture and shutter are fixed in Manual + Auto ISO and the ISO capability range permits it.
+
+The frozen target retains the original meter measurement/scene/profile identity, providing the AE-lock seam. Reusing that target after scene changes intentionally keeps the locked meter target; creating a new meter result follows the new scene state.
+
+Automatic resolvers consume the typed target directly and do not reapply exposure compensation.
 
 ## Scene-radiance-derived and temporal metering
 
