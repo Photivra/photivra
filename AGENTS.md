@@ -288,6 +288,21 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - Flash/TTL metering remains separate from ambient/time-varying exposure metering.
 - Calibrated meter spectral weighting remains future work and requires an explicit spectral-response/photometric model plus evidence; do not infer it from RGB or scene-radiance wavelength samples.
 
+## Generic equipment exposure-capability boundary
+
+- Keep equipment **capability** separate from selected camera state and from #99 exposure-control resolution. Capability profiles describe what settings are available; they do not choose a setting.
+- Do not repurpose or silently reinterpret the legacy `CameraConfiguration` / `parseCameraConfiguration()` contract. New #109 profiles are additive and versioned.
+- Normal product body/lens profiles are generic Photivra identities, not named commercial equipment emulations. Real-world evidence may inform profile design, but named manufacturer/model identity is not required for the engine contract.
+- Body exposure capability owns shutter-duration capability and ISO capability. ISO range/grid does not imply noise, analog gain topology, photon count, conversion gain, or sensor performance.
+- Auto ISO availability must preserve `supported`, `unsupported`, and `unknown` as distinct states. Unknown must not be treated as supported.
+- Shutter-duration capability does not imply shutter mechanism, rolling/global readout, exposure-boundary schedule, or flash-sync behavior.
+- Lens aperture capability uses **widest available f-number** (smallest f-number) and **narrowest available f-number** (largest f-number) to avoid ambiguous max/min-aperture language.
+- Focal-dependent widest f-number is an explicit capability curve. Do not infer it from zoom range, focal length, or lens class.
+- Discrete setting grids must be strictly increasing and stay inside the declared capability range. Continuous grids mean the downstream resolver may choose any finite value within the range; they do not imply a physical infinitely precise control mechanism.
+- Resolve aperture capability at the selected focal length before #99 validates/quantizes settings. A discrete aperture grid may be filtered by the resolved wide-open limit.
+- Source equipment profiles are immutable inputs. Resolvers must not mutate them when focal length or selected state changes.
+- #109 capability resolution does not select aperture/shutter/ISO. #99 consumes the resolved envelope and owns manual/automatic axis policy, quantization choice, clamping, and residual exposure diagnostics.
+
 ## Meter target / compensation boundary
 
 - Freeze meter results into a separate target object before #99 control resolution; do not pass mutable renderer/app state as the authoritative exposure target.
