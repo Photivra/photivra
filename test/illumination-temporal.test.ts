@@ -670,6 +670,65 @@ describe("temporal illumination exposure integration", () => {
     ).toBe(0);
   });
 
+  it("rejects non-finite capture time and invalid sample/time-reference inputs", () => {
+    expect(() =>
+      evaluateSceneIlluminationTemporalMultiplier(
+        {
+          illuminationProfile:
+            illuminationProfile(),
+          temporalProfile:
+            temporalProfile(),
+          sourceId: "flash",
+          captureTimeSecondsFromReference:
+            Number.NaN
+        }
+      )
+    ).toThrow(
+      "captureTimeSecondsFromReference must be finite"
+    );
+
+    expect(() =>
+      integrateSceneIlluminationTemporalMultiplierOverExposureWindow(
+        {
+          illuminationProfile:
+            illuminationProfile(),
+          temporalProfile:
+            temporalProfile(),
+          sourceId: "flash",
+          exposureWindows:
+            exposureWindows(),
+          sampleIndex: -1,
+          temporalSampleCount: 2
+        }
+      )
+    ).toThrow(
+      "sampleIndex must be a non-negative safe integer"
+    );
+
+    const wrongReference = {
+      ...exposureWindows(),
+      timeReference: "sensor-readout-reference"
+    } as never;
+
+    expect(() =>
+      integrateSceneIlluminationTemporalMultiplierOverExposureWindow(
+        {
+          illuminationProfile:
+            illuminationProfile(),
+          temporalProfile:
+            temporalProfile(),
+          sourceId: "flash",
+          exposureWindows:
+            wrongReference,
+          sampleIndex: 0,
+          temporalSampleCount: 2
+        }
+      )
+    ).toThrow(
+      "Exposure windows must use the first-opening-boundary-phase time reference"
+    );
+  });
+
   it("rejects invalid exposure sample selection or temporal sample count", () => {
     expect(() =>
       integrateSceneIlluminationTemporalMultiplierOverExposureWindow(
