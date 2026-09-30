@@ -50,6 +50,8 @@ export interface ProductionPlanConsumerManifest {
     ProductionImageFormationPlan["physicalSceneToSensorResult"];
   temporalCaptureResult:
     ProductionImageFormationPlan["temporalCaptureResult"];
+  scientificAssurance:
+    ProductionImageFormationPlan["scientificAssurance"];
   stochastic: {
     captureSeedUint32: number;
     consumerMayReplaceSeed: false;
@@ -208,6 +210,8 @@ export function createProductionPlanConsumerManifest(
         .physicalSceneToSensorResult,
     temporalCaptureResult:
       input.plan.temporalCaptureResult,
+    scientificAssurance:
+      input.plan.scientificAssurance,
     stochastic: {
       captureSeedUint32:
         input.plan.stochastic
