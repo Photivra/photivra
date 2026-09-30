@@ -337,7 +337,9 @@ describe("Bulb and Time exposure-duration control", () => {
 });
 
 describe("exposure mode downstream-physics hardening", () => {
-  const capabilities = () => {
+  const capabilities = (): ReturnType<
+    typeof resolveGenericEquipmentExposureCapabilities
+  > => {
     const body =
       parseGenericBodyExposureCapabilityProfile({
         schemaVersion: "0.1.0",
@@ -432,7 +434,9 @@ describe("exposure mode downstream-physics hardening", () => {
     });
   };
 
-  const target = () => {
+  const target = (): ReturnType<
+    typeof createExposureMeterTargetFromMeteringResult
+  > => {
     const profile =
       parseExposureMeteringProfile({
         schemaVersion: "0.1.0",
@@ -502,7 +506,9 @@ describe("exposure mode downstream-physics hardening", () => {
     });
   };
 
-  const line = () =>
+  const line = (): ReturnType<
+    typeof parseExposureProgramLineProfile
+  > =>
     parseExposureProgramLineProfile({
       schemaVersion: "0.1.0",
       profileId: "line",
