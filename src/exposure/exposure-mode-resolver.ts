@@ -228,6 +228,7 @@ interface AperturePriorityExposureResolutionBase {
   manualIso: number;
   apertureMutatedByResolver: false;
   isoMutatedByResolver: false;
+  shutterResolvedByResolver: true;
   exposureCompensationAppliedByResolver:
     false;
   meterRecomputedByResolver: false;
@@ -1448,6 +1449,221 @@ export function resolveManualExposureMode(
       quantizationPolicy:
         input.isoControl
           .quantizationPolicy,
+      quantized:
+        automatic.quantized,
+      clamped:
+        automatic.clamped
+    },
+    targetResidual: residual
+  };
+}
+
+/**
+ * Resolves Aperture Priority with manual ISO.
+ *
+ * Aperture and ISO remain caller-owned. Shutter is the only automatic axis.
+ * The target/reference relationship is the same relative exposure model used
+ * by Manual + Auto ISO; no new mode-specific exposure equation is introduced.
+ */
+export function resolveAperturePriorityExposureMode(
+  input:
+    ResolveAperturePriorityExposureModeInput
+): AperturePriorityExposureModeResolution {
+  const target =
+    validateTarget(input.target);
+  validateCapabilities(
+    input.capabilities
+  );
+
+  const referenceExposure =
+    validateReferenceExposure(
+      input.referenceExposure,
+      input.capabilities
+    );
+
+  const manualAperture =
+    requirePositiveFinite(
+      input.manualAperture,
+      "manualAperture"
+    );
+  const manualIso =
+    requirePositiveFinite(
+      input.manualIso,
+      "manualIso"
+    );
+
+  validateSettingAgainstGrid(
+    manualAperture,
+    input.capabilities.aperture
+      .widestAvailableFNumber,
+    input.capabilities.aperture
+      .narrowestAvailableFNumber,
+    input.capabilities.aperture
+      .settingGrid,
+    "manualAperture"
+  );
+  validateSettingAgainstGrid(
+    manualIso,
+    input.capabilities.iso.minimum,
+    input.capabilities.iso.maximum,
+    input.capabilities.iso.settingGrid,
+    "manualIso"
+  );
+
+  if (
+    input.shutterQuantizationPolicy !==
+    "nearest-log2-shorter-on-tie"
+  ) {
+    throw new InvalidScientificInputError(
+      'shutterQuantizationPolicy must be "nearest-log2-shorter-on-tie".'
+    );
+  }
+
+  const base:
+    AperturePriorityExposureResolutionBase = {
+    resolverVersion:
+      EXPOSURE_MODE_RESOLVER_VERSION,
+    mode: "aperture-priority",
+    axisOwnership: {
+      aperture: "manual",
+      shutter: "automatic",
+      iso: "manual"
+    },
+    targetId: target.targetId,
+    targetSourceMeterSnapshot:
+      target.sourceMeterSnapshot,
+    capabilityProfiles: {
+      bodyProfileId:
+        input.capabilities
+          .bodyProfile.profileId,
+      bodyProfileVersion:
+        input.capabilities
+          .bodyProfile.profileVersion,
+      lensProfileId:
+        input.capabilities
+          .lensProfile.profileId,
+      lensProfileVersion:
+        input.capabilities
+          .lensProfile.profileVersion
+    },
+    selectedFocalLengthMm:
+      input.capabilities
+        .selectedFocalLengthMm,
+    referenceExposure,
+    manualAperture,
+    manualIso,
+    apertureMutatedByResolver: false,
+    isoMutatedByResolver: false,
+    shutterResolvedByResolver: true,
+    exposureCompensationAppliedByResolver:
+      false,
+    meterRecomputedByResolver: false,
+    isoNoiseOrGainTopologyInferred:
+      false,
+    flashPolicyApplied: false,
+    safetyShiftApplied: false
+  };
+
+  if (target.status === "no-signal") {
+    return {
+      ...base,
+      status: "blocked",
+      resolvedSettings: {
+        aperture:
+          manualAperture,
+        iso: manualIso
+      },
+      idealShutterSecondsBeforeConstraints:
+        null,
+      blocker: "target-no-signal",
+      targetResidual: {
+        status:
+          "target-unresolved",
+        state:
+          "target-unresolved",
+        reason: "no-signal-target"
+      }
+    };
+  }
+
+  const fixedAxisFactorAtReferenceShutter =
+    opticalExposureFactor(
+      manualAperture,
+      referenceExposure
+        .shutterSeconds,
+      referenceExposure
+    ) *
+    (manualIso /
+      referenceExposure.iso);
+
+  if (
+    !Number.isFinite(
+      fixedAxisFactorAtReferenceShutter
+    ) ||
+    fixedAxisFactorAtReferenceShutter <= 0
+  ) {
+    throw new InvalidScientificInputError(
+      "Aperture Priority fixed-axis exposure factor must remain finite and greater than zero."
+    );
+  }
+
+  const idealShutterSeconds =
+    referenceExposure
+      .shutterSeconds *
+    (target
+      .requiredExposureScaleToTarget /
+      fixedAxisFactorAtReferenceShutter);
+
+  if (
+    !Number.isFinite(
+      idealShutterSeconds
+    ) ||
+    idealShutterSeconds <= 0
+  ) {
+    throw new InvalidScientificInputError(
+      "Ideal automatic shutter duration must remain finite and greater than zero."
+    );
+  }
+
+  const automatic =
+    resolveAutomaticShutter(
+      idealShutterSeconds,
+      input.capabilities
+    );
+
+  const achievedScale =
+    opticalExposureFactor(
+      manualAperture,
+      automatic.shutterSeconds,
+      referenceExposure
+    ) *
+    (manualIso /
+      referenceExposure.iso);
+
+  const residual =
+    targetResidual(
+      target,
+      achievedScale,
+      automatic
+        .limitingConstraint
+    );
+
+  return {
+    ...base,
+    status: "resolved",
+    resolvedSettings: {
+      aperture: manualAperture,
+      shutterSeconds:
+        automatic.shutterSeconds,
+      iso: manualIso
+    },
+    idealShutterSecondsBeforeConstraints:
+      idealShutterSeconds,
+    shutterResolution: {
+      kind: automatic.kind,
+      quantizationPolicy:
+        input
+          .shutterQuantizationPolicy,
       quantized:
         automatic.quantized,
       clamped:
