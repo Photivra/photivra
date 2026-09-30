@@ -2615,7 +2615,7 @@ export function resolveAperturePriorityAutoIsoExposureMode(
       input.capabilities
     );
 
-  let isoPass =
+  const isoPass =
     resolveManualExposureMode({
       target,
       capabilities:
