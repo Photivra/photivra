@@ -836,6 +836,17 @@ export {
 } from "./equipment/exposure-capabilities.js";
 
 export {
+  GENERIC_BODY_METERING_CAPABILITY_SCHEMA_VERSION,
+  assessExposureMeteringProfileCompatibility,
+  parseGenericBodyMeteringCapabilityProfile,
+  type AssessExposureMeteringProfileCompatibilityInput,
+  type GenericBodyMeteringCapabilityProfile,
+  type GenericSupportedMeteringProfile,
+  type MeteringCapabilityCompatibilityAssessment,
+  type MeteringCapabilityCompatibilityBlocker
+} from "./equipment/metering-capabilities.js";
+
+export {
   EXPOSURE_PROGRAM_LINE_SCHEMA_VERSION,
   parseExposureProgramLineProfile,
   type ExposureProgramLineNode,
