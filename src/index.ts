@@ -523,6 +523,13 @@ export {
 } from "./optics/circle-of-confusion.js";
 
 export {
+  calculateFocusPlaneImageDistance,
+  parseFocusPlane,
+  type CalculateFocusPlaneImageDistanceInput,
+  type FocusPlane
+} from "./optics/focus-state.js";
+
+export {
   calculateThinLensImageDistance,
   type CalculateThinLensImageDistanceInput,
   type ThinLensImageDistance
