@@ -77,7 +77,11 @@ Both response paths therefore converge only at a later temporal/electrical compo
 
 The local exposure-binding foundation begins that temporal boundary without integrating signal. Engine-produced rate results preserve their color-site identity. The binding validates the site/channel, resolves the existing color-site/native-effective-raster relationship, and recomputes the shutter window at the mapped native sample center. The first binding accepts only one-to-one site/sample registration; grouped multi-site blocks do not prove sub-sample timing coordinates.
 
-The constant-rate temporal-integration foundation then requires an evidence-backed stationarity declaration tied to that exact rate domain, site, binding ID and local start/end window. Only then may rate × duration be evaluated. EQE produces expected photon/electron counts without stochastic sampling; A/W produces photocurrent charge magnitude without carrier-count inference. Both remain photo-signal-only accumulations, so dark/other charge composition, physical full-well capacity and camera/digital saturation remain separate downstream stages.
+The constant-rate temporal-integration foundation then requires an evidence-backed stationarity declaration tied to that exact rate domain, site, binding ID and local start/end window. Only then may rate × duration be evaluated. EQE produces expected photon/electron counts without stochastic sampling; A/W produces photocurrent charge magnitude without carrier-count inference.
+
+The dark-current foundation begins charge completion for the EQE path only. It integrates evidence-backed pre-compensation thermal electron rate over the exact local exposure and keeps temperature applicability explicit. Exact-reference values and measured piecewise-linear temperature tables are supported; no universal exponential temperature law is inferred. Population-mean dark current remains an approximation and does not imply DCNU/hot-pixel modeling. A/W photocharge remains outside electron-storage/full-well semantics until a separate carrier/storage mapping exists.
+
+Physical full-well capacity and camera/digital saturation remain separate downstream stages and must not be represented as one shared clamp.
 
 
 ## Image-formation ownership and ordering

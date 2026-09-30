@@ -153,6 +153,10 @@ The sensor/capture foundation has explicit semantics. Preserve them.
 - The response-channel binding is an exact canonical-data identity, not a cryptographic integrity claim; it prevents accidental/stale calibration substitution but does not replace source-file checksums where adversarial integrity matters.
 - A response-rate authorization must bind its evaluated per-bin identities and values back to the exact reduction; stale authorization must fail after spectral power, wavelength, bin width, or identity changes.
 - EQE conversion at this stage produces photon/electron rates only. Do not multiply by exposure duration, label rates as counts, apply shot noise, test full-well saturation, or generate RAW values until the temporal/saturation stages are explicitly composed.
+- Dark current is a separate pre-compensation thermal electron-rate contract in e-/s. Do not fold dark offset, compensation, defects/hot pixels, leakage, injection, or photo-signal into that rate.
+- Do not impose a universal exponential/doubling-temperature law on dark current. Exact-temperature data or explicitly sampled temperature curves may be used; interpolation must fail closed outside the measured range.
+- A population-mean dark current must remain labeled approximation and must not claim dark-current nonuniformity is modeled.
+- Dark-current accumulation currently composes only with the EQE electron-count path. A/W photocharge must not be reinterpreted as stored electrons without a separate carrier/storage mapping.
 - A/W responsivity must never enter the EQE photon-rate→electron-rate path; it remains a separate radiant-power→current path.
 - A/W photocurrent conversion is quasi-static/steady-state only until a detector temporal-response/bandwidth model exists. Do not use the spectral A/W curve as an impulse/frequency-response model.
 - `reverse-biased` electrical applicability requires a strictly positive reverse-bias magnitude; zero bias belongs to `zero-bias-photovoltaic`. `finite-input-impedance` likewise requires a strictly positive impedance; zero-ohm semantics must not be smuggled into that category.

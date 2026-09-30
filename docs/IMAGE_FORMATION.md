@@ -175,7 +175,11 @@ Both paths still stop before exposure-time integration, accumulated-charge/full-
 
 The local sensor-rate/exposure binding carries each engine-produced response rate back to its exact color-sampling site, through an evidenced one-to-one native-effective-raster relationship, and into the authoritative local shutter-window schedule. This establishes which local time interval belongs to that rate but deliberately does not assume the rate is constant through the interval.
 
-The constant-rate temporal-integration foundation now permits rate × local-duration only under a stationarity declaration bound to the exact site/window. EQE rates produce fractional expected photon/electron counts; A/W current produces photocharge magnitude in coulombs without carrier inference. These are photo-signal-only accumulations. Dark/other charge, full-well behavior, camera saturation, stochastic noise, analog electronics, ADC/RAW and reconstruction remain downstream. Physical full-well and camera saturation are deliberately not represented as one shared clamp.
+The constant-rate temporal-integration foundation now permits rate × local-duration only under a stationarity declaration bound to the exact site/window. EQE rates produce fractional expected photon/electron counts; A/W current produces photocharge magnitude in coulombs without carrier inference.
+
+The dark-current foundation adds pre-compensation thermally generated expected electrons to the EQE-side charge model using exact local exposure duration and explicit temperature applicability. It does not model black-level compensation, hot-pixel/defect excess, leakage/injection, dark-current nonuniformity unless separately evidenced, or dark-current shot-noise realization. A/W integrated charge is still not treated as stored pixel electrons.
+
+Accumulated charge is therefore still incomplete; physical full-well and camera/digital saturation remain unauthorized and deliberately separate. Stochastic noise, analog electronics, ADC/RAW and reconstruction remain downstream.
 
 ## Current implementation status
 

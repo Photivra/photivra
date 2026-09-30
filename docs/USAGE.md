@@ -1607,6 +1607,21 @@ The result is explicitly **photo-signal-only** accumulation. It does not include
 
 Physical full-well capacity and camera saturation capacity must remain separate future contracts; they are not interchangeable thresholds.
 
+## Dark-current charge
+
+Use `calculateSensorDarkCurrentCharge()` only with an EQE expected-count exposure result. The current path models **pre-compensation thermally generated electrons** in e⁻/s and integrates that rate over the exact local exposure duration already established by the temporal pipeline.
+
+Photivra deliberately does not impose one universal dark-current temperature law. A dark-current profile may provide either:
+
+- one exact reference temperature and one dark-current rate; or
+- a strictly increasing measured temperature table with piecewise-linear interpolation and fail-closed behavior outside the measured range.
+
+A population-mean dark-current profile is allowed only as an explicit approximation and must not claim pixel/site dark-current nonuniformity is modeled. Exact-site profiles remain bound to the exact color-sampling site.
+
+Dark-current compensation, black-level offset, hot-pixel/defect excess, leakage, charge injection and other charge sources are separate. The result is an **expected dark-electron count** only; no Poisson sampling or dark-current shot-noise realization is performed.
+
+This stage still does not authorize physical full-well assessment because the accumulated sensor charge is not yet complete. It also does not apply to the A/W current-domain path: integrated detector-terminal charge must not be reinterpreted as stored sensor electrons without a separate carrier/storage mapping.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
