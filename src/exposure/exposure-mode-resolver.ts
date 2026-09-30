@@ -344,6 +344,78 @@ function validateTarget(
   return value as ExposureMeterTarget;
 }
 
+function requireNonEmptyString(
+  value: unknown,
+  path: string
+): string {
+  if (
+    typeof value !== "string" ||
+    value.trim().length === 0
+  ) {
+    throw new InvalidScientificInputError(
+      path + " must be a non-empty string."
+    );
+  }
+  return value.trim();
+}
+
+function validateResolvedGrid(
+  grid: ResolvedNumericSettingGrid,
+  minimum: number,
+  maximum: number,
+  path: string
+): void {
+  if (
+    grid.kind ===
+    "continuous-within-range"
+  ) {
+    return;
+  }
+  if (
+    grid.kind !== "discrete-values" ||
+    !Array.isArray(grid.values) ||
+    grid.values.length === 0
+  ) {
+    throw new InvalidScientificInputError(
+      path +
+        " must be a continuous grid or a non-empty discrete-values grid."
+    );
+  }
+
+  let previous =
+    Number.NEGATIVE_INFINITY;
+  for (
+    let index = 0;
+    index < grid.values.length;
+    index += 1
+  ) {
+    const value =
+      requirePositiveFinite(
+        grid.values[index],
+        path +
+          ".values[" +
+          index +
+          "]"
+      );
+    if (value <= previous) {
+      throw new InvalidScientificInputError(
+        path +
+          ".values must be strictly increasing with no duplicates."
+      );
+    }
+    if (
+      value < minimum ||
+      value > maximum
+    ) {
+      throw new InvalidScientificInputError(
+        path +
+          ".values must stay inside the resolved capability range."
+      );
+    }
+    previous = value;
+  }
+}
+
 function validateCapabilities(
   value:
     ResolvedGenericEquipmentExposureCapabilities
@@ -386,6 +458,87 @@ function validateCapabilities(
   requirePositiveFinite(
     value.iso.maximum,
     "capabilities.iso.maximum"
+  );
+
+  if (
+    value.aperture
+      .widestAvailableFNumber >
+    value.aperture
+      .narrowestAvailableFNumber
+  ) {
+    throw new InvalidScientificInputError(
+      "capabilities aperture range is invalid."
+    );
+  }
+  if (
+    value.shutter.minimumSeconds >
+    value.shutter.maximumSeconds
+  ) {
+    throw new InvalidScientificInputError(
+      "capabilities shutter range is invalid."
+    );
+  }
+  if (
+    value.iso.minimum >
+    value.iso.maximum
+  ) {
+    throw new InvalidScientificInputError(
+      "capabilities ISO range is invalid."
+    );
+  }
+
+  requireNonEmptyString(
+    value.bodyProfile.profileId,
+    "capabilities.bodyProfile.profileId"
+  );
+  requireNonEmptyString(
+    value.bodyProfile.profileVersion,
+    "capabilities.bodyProfile.profileVersion"
+  );
+  requireNonEmptyString(
+    value.lensProfile.profileId,
+    "capabilities.lensProfile.profileId"
+  );
+  requireNonEmptyString(
+    value.lensProfile.profileVersion,
+    "capabilities.lensProfile.profileVersion"
+  );
+
+  if (
+    value.iso
+      .autoIsoAvailability !==
+      "supported" &&
+    value.iso
+      .autoIsoAvailability !==
+      "unsupported" &&
+    value.iso
+      .autoIsoAvailability !==
+      "unknown"
+  ) {
+    throw new InvalidScientificInputError(
+      "capabilities.iso.autoIsoAvailability is invalid."
+    );
+  }
+
+  validateResolvedGrid(
+    value.aperture.settingGrid,
+    value.aperture
+      .widestAvailableFNumber,
+    value.aperture
+      .narrowestAvailableFNumber,
+    "capabilities.aperture.settingGrid"
+  );
+  validateResolvedGrid(
+    value.shutter.settingGrid,
+    value.shutter.minimumSeconds,
+    value.shutter.maximumSeconds,
+    "capabilities.shutter.settingGrid"
+  );
+  validateResolvedGrid(
+    value.iso.settingGrid,
+    value.iso.minimum,
+    value.iso.maximum,
+    "capabilities.iso.settingGrid"
   );
 }
 
@@ -815,6 +968,28 @@ export function resolveManualExposureMode(
       manualShutterSeconds,
       referenceExposure
     );
+
+  if (
+    input.isoControl.kind !==
+      "manual" &&
+    input.isoControl.kind !==
+      "automatic"
+  ) {
+    throw new InvalidScientificInputError(
+      "isoControl.kind is invalid."
+    );
+  }
+  if (
+    input.isoControl.kind ===
+      "automatic" &&
+    input.isoControl
+      .quantizationPolicy !==
+      "nearest-log2-lower-on-tie"
+  ) {
+    throw new InvalidScientificInputError(
+      'isoControl.quantizationPolicy must be "nearest-log2-lower-on-tie".'
+    );
+  }
 
   if (
     input.isoControl.kind ===
