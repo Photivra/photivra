@@ -26,7 +26,9 @@ const evidence = (
   reuseStatus: "photivra-owned"
 }];
 
-const captureGeometry = () =>
+const captureGeometry = (): ReturnType<
+  typeof resolveCaptureGeometry
+>["value"] =>
   resolveCaptureGeometry({
     imagingArea: {
       widthMm: 36,
@@ -39,7 +41,9 @@ const captureGeometry = () =>
     orientation: "landscape"
   }).value;
 
-const illuminationProfile = () =>
+const illuminationProfile = (): ReturnType<
+  typeof parseSceneIlluminationProfile
+> =>
   parseSceneIlluminationProfile({
     schemaVersion: "0.1.0",
     profileId: "lights",
@@ -76,7 +80,9 @@ const illuminationProfile = () =>
     ]
   });
 
-const temporalProfile = () =>
+const temporalProfile = (): ReturnType<
+  typeof parseSceneIlluminationTemporalProfile
+> =>
   parseSceneIlluminationTemporalProfile({
     schemaVersion: "0.1.0",
     profileId: "temporal-lights",
@@ -130,7 +136,9 @@ const temporalProfile = () =>
     ]
   });
 
-const materialProfile = () =>
+const materialProfile = (): ReturnType<
+  typeof parseSceneMaterialResponseProfile
+> =>
   parseSceneMaterialResponseProfile({
     schemaVersion: "0.1.0",
     profileId: "materials",
@@ -161,7 +169,9 @@ const materialProfile = () =>
 
 const providerProfile = (
   temporal = false
-) =>
+): ReturnType<
+  typeof parseSceneRadianceProviderProfile
+> =>
   parseSceneRadianceProviderProfile({
     schemaVersion: "0.1.0",
     profileId: "provider",
@@ -197,7 +207,9 @@ const providerProfile = (
     ]
   });
 
-const derivationProfile = () =>
+const derivationProfile = (): ReturnType<
+  typeof parseSceneRadianceMeteringDerivationProfile
+> =>
   parseSceneRadianceMeteringDerivationProfile({
     schemaVersion: "0.1.0",
     derivationId: "relative-meter-reduction",
@@ -233,7 +245,9 @@ const samples = (
   }
 ];
 
-const meterProfile = () =>
+const meterProfile = (): ReturnType<
+  typeof parseExposureMeteringProfile
+> =>
   parseExposureMeteringProfile({
     schemaVersion: "0.1.0",
     profileId: "meter",
@@ -490,7 +504,9 @@ describe("explicit temporal relative metering", () => {
     signal: number,
     measurementId: string,
     sceneStateId = "state-live"
-  ) =>
+  ): ReturnType<
+    typeof createSceneRadianceDerivedExposureMeteringSampleSet
+  > =>
     createSceneRadianceDerivedExposureMeteringSampleSet({
       measurementId,
       sceneStateId,
