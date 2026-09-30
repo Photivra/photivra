@@ -1,0 +1,816 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  calculateIlluminationVignetting,
+  calculateSceneRadianceToSensorIrradiance,
+  parseSceneToSensorIrradianceProfile,
+  type SceneRadianceEvaluationRequest,
+  type SceneRadianceEvaluationResult,
+  type SceneToSensorIrradianceProfile
+} from "../src/index.js";
+
+const evidence = (
+  ref: string
+): readonly [{
+  sourceOrigin: "photivra";
+  sourceReference: string;
+  reuseStatus: "photivra-owned";
+}] => [{
+  sourceOrigin: "photivra",
+  sourceReference: ref,
+  reuseStatus: "photivra-owned"
+}];
+
+const request = (
+  wavelengthNanometers = 550,
+  wavelengthBasis:
+    "air" | "vacuum" = "air"
+): SceneRadianceEvaluationRequest => ({
+  schemaVersion: "0.1.0",
+  sampleId: "sample-1",
+  providerProfileId: "provider-1",
+  sceneId: "scene-1",
+  illuminationProfileId: "illumination-1",
+  materialResponseProfileId: "materials-1",
+  target: {
+    kind: "environment-direction",
+    outgoingDirectionUnitVector: {
+      x: 0,
+      y: 0,
+      z: 1
+    }
+  },
+  timeSecondsFromExposureStart: 0.125,
+  wavelengthNanometers,
+  wavelengthBasis
+});
+
+const radiance = (
+  value = 10,
+  wavelengthNanometers = 550,
+  wavelengthBasis:
+    "air" | "vacuum" = "air"
+): SceneRadianceEvaluationResult => ({
+  schemaVersion: "0.1.0",
+  sampleId: "sample-1",
+  providerProfileId: "provider-1",
+  sceneId: "scene-1",
+  wavelengthNanometers,
+  wavelengthBasis,
+  quantity: "outgoing-spectral-radiance",
+  unit: "W/m^2/sr/nm",
+  spectralRadianceWattsPerSquareMeterSteradianNanometer:
+    value,
+  scientificStatus: "approximation",
+  uncertainty: {
+    kind: "not-quantified",
+    limitation: "test scene radiance"
+  },
+  evidence: evidence("scene-radiance"),
+  limitations: [
+    "Test approximation."
+  ]
+});
+
+const spectralProfile = (
+  factors = [0.8, 0.6, 0.4] as const
+): SceneToSensorIrradianceProfile =>
+  parseSceneToSensorIrradianceProfile({
+    schemaVersion: "0.1.0",
+    profileId: "optics-1",
+    profileVersion: "1.0.0",
+    lensProfileId: "lens-generic-1",
+    scientificStatus: "approximation",
+    applicability: {
+      focalLengthMm: {
+        minimum: 50,
+        maximum: 50
+      },
+      nominalFNumber: {
+        minimum: 1.4,
+        maximum: 16
+      },
+      focus: {
+        kind: "any"
+      }
+    },
+    transmission: {
+      kind: "spectral-transmission",
+      scientificStatus: "approximation",
+      wavelengthBasis: "air",
+      samples: {
+        value: [
+          {
+            wavelengthNanometers: 450,
+            linearTransmissionFactor:
+              factors[0]
+          },
+          {
+            wavelengthNanometers: 550,
+            linearTransmissionFactor:
+              factors[1]
+          },
+          {
+            wavelengthNanometers: 650,
+            linearTransmissionFactor:
+              factors[2]
+          }
+        ],
+        evidence:
+          evidence("transmission-data")
+      },
+      uncertainty: {
+        kind: "not-quantified",
+        limitation:
+          "Generic approximation."
+      }
+    },
+    distortionAreaMappingOwnership:
+      "not-applied-by-bridge",
+    psfRedistributionOwnership:
+      "downstream-normalized-energy-redistribution",
+    sensorOpticalStackIncluded: false,
+    strayLightIncluded: false,
+    polarizationModeled: false,
+    wavelengthChangingBehaviorModeled:
+      false,
+    volumetricScatteringModeled: false,
+    evidence: evidence("optical-profile"),
+    limitations: [
+      "Generic optical-throughput profile."
+    ]
+  });
+
+const tStopProfile = (
+  workingTStop = 4.5
+): SceneToSensorIrradianceProfile =>
+  parseSceneToSensorIrradianceProfile({
+    schemaVersion: "0.1.0",
+    profileId: "optics-tstop",
+    profileVersion: "1.0.0",
+    lensProfileId: "lens-generic-1",
+    scientificStatus: "approximation",
+    applicability: {
+      focalLengthMm: {
+        minimum: 50,
+        maximum: 50
+      },
+      nominalFNumber: {
+        minimum: 1.4,
+        maximum: 16
+      },
+      focus: {
+        kind: "any"
+      }
+    },
+    transmission: {
+      kind:
+        "effective-working-t-stop-approximation",
+      scientificStatus:
+        "approximation",
+      workingTStop: {
+        value: workingTStop,
+        evidence: evidence("working-tstop")
+      },
+      wavelengthBasis: "air",
+      wavelengthRangeNanometers: {
+        minimum: 450,
+        maximum: 650
+      },
+      uncertainty: {
+        kind: "not-quantified",
+        limitation:
+          "Photometric approximation used spectrally over declared range."
+      },
+      limitation:
+        "Effective working T-stop approximation."
+    },
+    distortionAreaMappingOwnership:
+      "not-applied-by-bridge",
+    psfRedistributionOwnership:
+      "downstream-normalized-energy-redistribution",
+    sensorOpticalStackIncluded: false,
+    strayLightIncluded: false,
+    polarizationModeled: false,
+    wavelengthChangingBehaviorModeled:
+      false,
+    volumetricScatteringModeled: false,
+    evidence: evidence("optical-profile"),
+    limitations: [
+      "Generic optical-throughput profile."
+    ]
+  });
+
+const calculate = (
+  overrides: Partial<
+    Parameters<
+      typeof calculateSceneRadianceToSensorIrradiance
+    >[0]
+  > = {}
+) =>
+  calculateSceneRadianceToSensorIrradiance({
+    sceneRadianceRequest: request(),
+    sceneRadianceResult: radiance(),
+    profile: spectralProfile(),
+    focalLengthMm: 50,
+    nominalFNumber: 4,
+    focus: {
+      kind: "infinity-focus"
+    },
+    imagePointMm: {
+      x: 0,
+      y: 0
+    },
+    fieldThroughput: {
+      kind: "unity"
+    },
+    ...overrides
+  }).value;
+
+describe("scene radiance to sensor irradiance bridge", () => {
+  it("converts wavelength-resolved radiance to pre-sensor-stack irradiance", () => {
+    const result = calculate();
+
+    const expectedAcceptance =
+      Math.PI / (4 * 4 * 4);
+    const expected =
+      10 *
+      expectedAcceptance *
+      0.6;
+
+    expect(
+      result
+        .paraxialGeometricAcceptanceSolidAngleSteradians
+    ).toBeCloseTo(
+      expectedAcceptance,
+      14
+    );
+    expect(
+      result
+        .sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer
+    ).toBeCloseTo(expected, 14);
+
+    expect(result).toMatchObject({
+      inputQuantity:
+        "outgoing-spectral-radiance",
+      inputUnit: "W/m^2/sr/nm",
+      outputQuantity:
+        "sensor-plane-spectral-irradiance",
+      outputUnit: "W/m^2/nm",
+      transmissionPath:
+        "spectral-transmission",
+      spectralTransmissionFactor: 0.6,
+      effectiveWorkingTStop: null,
+      fieldThroughputFactor: 1,
+      radianceAmplificationApplied:
+        false,
+      fieldThroughputAppliedExactlyOnce:
+        true,
+      universalCos4FalloffApplied:
+        false,
+      distortionAreaCorrectionApplied:
+        false,
+      psfRedistributionApplied:
+        false,
+      sensorOpticalStackApplied:
+        false,
+      cfaApplied: false,
+      quantumEfficiencyApplied: false,
+      spectralResponsivityApplied:
+        false,
+      strayLightApplied: false,
+      calibratedSensorPlaneIrradianceClaimAuthorized:
+        false
+    });
+  });
+
+  it("maps zero scene radiance to exactly zero sensor irradiance", () => {
+    const result = calculate({
+      sceneRadianceResult:
+        radiance(0)
+    });
+
+    expect(
+      result
+        .sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer
+    ).toBe(0);
+  });
+
+  it("increases ideal sensor irradiance when f-number is smaller", () => {
+    const fast = calculate({
+      nominalFNumber: 2
+    });
+    const slow = calculate({
+      nominalFNumber: 4
+    });
+
+    expect(
+      fast
+        .sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer /
+        slow
+          .sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer
+    ).toBeCloseTo(4, 12);
+  });
+
+  it("reduces irradiance with optical transmission without changing geometric working f-number", () => {
+    const high = calculate({
+      profile:
+        spectralProfile([
+          0.9,
+          0.8,
+          0.7
+        ])
+    });
+    const low = calculate({
+      profile:
+        spectralProfile([
+          0.5,
+          0.4,
+          0.3
+        ])
+    });
+
+    expect(high.workingFNumber)
+      .toBe(low.workingFNumber);
+    expect(
+      low
+        .sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer
+    ).toBeCloseTo(
+      high
+        .sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer /
+        2,
+      12
+    );
+  });
+
+  it("interpolates spectral transmission at the requested wavelength", () => {
+    const result = calculate({
+      sceneRadianceRequest:
+        request(500),
+      sceneRadianceResult:
+        radiance(10, 500)
+    });
+
+    expect(
+      result
+        .spectralTransmissionFactor
+    ).toBeCloseTo(0.7, 12);
+  });
+
+  it("supports an explicitly declared ideal symmetric thin-lens working f-number at close focus", () => {
+    const infinity = calculate({
+      nominalFNumber: 4,
+      focus: {
+        kind: "infinity-focus"
+      }
+    });
+
+    const close = calculate({
+      nominalFNumber: 4,
+      focus: {
+        kind:
+          "ideal-symmetric-thin-lens",
+        objectDistanceM: 0.5,
+        pupilMagnificationAssumption:
+          "unity"
+      }
+    });
+
+    expect(close.workingFNumber)
+      .toBeGreaterThan(
+        infinity.workingFNumber
+      );
+    expect(
+      close
+        .sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer
+    ).toBeLessThan(
+      infinity
+        .sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer
+    );
+    expect(close.focusModel).toBe(
+      "ideal-symmetric-thin-lens"
+    );
+  });
+
+  it("supports an evidence-backed supplied working f-number", () => {
+    const result = calculate({
+      focus: {
+        kind:
+          "supplied-working-f-number",
+        focus: {
+          kind: "finite",
+          objectDistanceM: 0.4
+        },
+        workingFNumber: {
+          value: 5.2,
+          evidence:
+            evidence("working-f-number")
+        },
+        basis:
+          "Generic lens profile."
+      }
+    });
+
+    expect(result.workingFNumber)
+      .toBe(5.2);
+    expect(
+      result.componentEvidence
+        .workingFNumber
+    ).toEqual(
+      evidence("working-f-number")
+    );
+  });
+
+  it("applies field vignetting exactly once and does not add universal cos4 falloff", () => {
+    const field =
+      calculateIlluminationVignetting({
+        imagePointMm: {
+          x: 10,
+          y: 0
+        },
+        profile: {
+          normalizationRadiusMm: 20,
+          maximumNormalizedRadius: 1,
+          coefficients: {
+            r2: -0.5,
+            r4: 0,
+            r6: 0
+          }
+        }
+      }).value;
+
+    const unity = calculate({
+      imagePointMm: {
+        x: 10,
+        y: 0
+      },
+      fieldThroughput: {
+        kind: "unity"
+      }
+    });
+    const vignetted = calculate({
+      imagePointMm: {
+        x: 10,
+        y: 0
+      },
+      fieldThroughput: {
+        kind:
+          "illumination-vignetting-result",
+        result: field
+      }
+    });
+
+    expect(
+      vignetted.fieldThroughputFactor
+    ).toBeCloseTo(
+      field.linearThroughputFactor,
+      12
+    );
+    expect(
+      vignetted
+        .sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer
+    ).toBeCloseTo(
+      unity
+        .sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer *
+        field.linearThroughputFactor,
+      12
+    );
+    expect(
+      vignetted.universalCos4FalloffApplied
+    ).toBe(false);
+  });
+
+  it("uses T-stop as an alternative effective throughput path without separately applying spectral transmission", () => {
+    const result = calculate({
+      nominalFNumber: 4,
+      profile: tStopProfile(4.5)
+    });
+
+    const expected =
+      10 *
+      Math.PI /
+      (4 * 4.5 * 4.5);
+
+    expect(result.transmissionPath)
+      .toBe(
+        "effective-working-t-stop-approximation"
+      );
+    expect(
+      result.spectralTransmissionFactor
+    ).toBeNull();
+    expect(
+      result.effectiveWorkingTStop
+    ).toBe(4.5);
+    expect(
+      result
+        .tStopEquivalentTransmissionFactor
+    ).toBeCloseTo(
+      (4 / 4.5) ** 2,
+      12
+    );
+    expect(
+      result
+        .sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer
+    ).toBeCloseTo(expected, 12);
+  });
+
+  it("rejects a passive T-stop approximation smaller than the working f-number", () => {
+    expect(() =>
+      calculate({
+        nominalFNumber: 4,
+        profile: tStopProfile(3.5)
+      })
+    ).toThrow(
+      "T-stop must not be smaller"
+    );
+  });
+
+  it("keeps air/vacuum wavelength basis explicit and fails outside spectral support", () => {
+    expect(() =>
+      calculate({
+        sceneRadianceRequest:
+          request(550, "vacuum"),
+        sceneRadianceResult:
+          radiance(
+            10,
+            550,
+            "vacuum"
+          )
+      })
+    ).toThrow(
+      "wavelength bases must match"
+    );
+
+    expect(() =>
+      calculate({
+        sceneRadianceRequest:
+          request(700),
+        sceneRadianceResult:
+          radiance(10, 700)
+      })
+    ).toThrow(
+      "outside the spectral transmission sample range"
+    );
+  });
+
+  it("fails closed when request/result identity drifts", () => {
+    expect(() =>
+      calculate({
+        sceneRadianceResult: {
+          ...radiance(),
+          sampleId: "other"
+        }
+      })
+    ).toThrow(
+      "request/result identity must match exactly"
+    );
+  });
+
+  it("enforces focal/aperture/focus applicability", () => {
+    expect(() =>
+      calculate({
+        focalLengthMm: 85
+      })
+    ).toThrow(
+      "focalLengthMm lies outside"
+    );
+
+    const finiteOnly =
+      parseSceneToSensorIrradianceProfile({
+        ...spectralProfile(),
+        applicability: {
+          ...spectralProfile()
+            .applicability,
+          focus: {
+            kind:
+              "finite-distance-range",
+            objectDistanceM: {
+              minimum: 0.4,
+              maximum: 1
+            }
+          }
+        }
+      });
+
+    expect(() =>
+      calculate({
+        profile: finiteOnly,
+        focus: {
+          kind: "infinity-focus"
+        }
+      })
+    ).toThrow(
+      "requires a finite focus distance"
+    );
+
+    expect(() =>
+      calculate({
+        profile: finiteOnly,
+        focus: {
+          kind:
+            "ideal-symmetric-thin-lens",
+          objectDistanceM: 2,
+          pupilMagnificationAssumption:
+            "unity"
+        }
+      })
+    ).toThrow(
+      "focus object distance lies outside"
+    );
+  });
+
+  it("rejects mismatched field-throughput coordinates", () => {
+    const field =
+      calculateIlluminationVignetting({
+        imagePointMm: {
+          x: 5,
+          y: 0
+        },
+        profile: {
+          normalizationRadiusMm: 20,
+          maximumNormalizedRadius: 1,
+          coefficients: {
+            r2: -0.2,
+            r4: 0,
+            r6: 0
+          }
+        }
+      }).value;
+
+    expect(() =>
+      calculate({
+        imagePointMm: {
+          x: 10,
+          y: 0
+        },
+        fieldThroughput: {
+          kind:
+            "illumination-vignetting-result",
+          result: field
+        }
+      })
+    ).toThrow(
+      "imagePointMm must match"
+    );
+  });
+
+  it("is deterministic for identical physical inputs", () => {
+    const first = calculate();
+    const second = calculate();
+
+    expect(second).toEqual(first);
+  });
+});
+
+describe("optical bridge profile schema guards", () => {
+  it("prevents spectral-transmission and T-stop fields from being double-applied", () => {
+    expect(() =>
+      parseSceneToSensorIrradianceProfile({
+        ...spectralProfile(),
+        transmission: {
+          ...spectralProfile()
+            .transmission,
+          workingTStop: {
+            value: 4.5,
+            evidence:
+              evidence("tstop")
+          }
+        }
+      })
+    ).toThrow(
+      "must not include T-stop-only fields"
+    );
+
+    expect(() =>
+      parseSceneToSensorIrradianceProfile({
+        ...tStopProfile(),
+        transmission: {
+          ...tStopProfile()
+            .transmission,
+          samples: {
+            value: [],
+            evidence:
+              evidence("samples")
+          }
+        }
+      })
+    ).toThrow(
+      "must not include spectral transmission samples"
+    );
+  });
+
+  it("requires reusable provenance for numeric spectral curves", () => {
+    const profile =
+      spectralProfile();
+    if (
+      profile.transmission.kind !==
+      "spectral-transmission"
+    ) {
+      throw new Error(
+        "Expected spectral profile."
+      );
+    }
+
+    expect(() =>
+      parseSceneToSensorIrradianceProfile({
+        ...profile,
+        transmission: {
+          ...profile.transmission,
+          samples: {
+            ...profile.transmission
+              .samples,
+            evidence: [{
+              sourceOrigin:
+                "manufacturer",
+              sourceReference:
+                "published-curve",
+              reuseStatus:
+                "factual-reference-only"
+            }]
+          }
+        }
+      })
+    ).toThrow(
+      "numeric optical curve data must be reusable-data or photivra-owned"
+    );
+  });
+
+  it("requires quantified uncertainty for calibrated spectral transmission", () => {
+    const profile =
+      spectralProfile();
+    if (
+      profile.transmission.kind !==
+      "spectral-transmission"
+    ) {
+      throw new Error(
+        "Expected spectral profile."
+      );
+    }
+
+    expect(() =>
+      parseSceneToSensorIrradianceProfile({
+        ...profile,
+        scientificStatus:
+          "calibrated",
+        transmission: {
+          ...profile.transmission,
+          scientificStatus:
+            "calibrated",
+          uncertainty: {
+            kind:
+              "not-quantified",
+            limitation: "missing"
+          }
+        }
+      })
+    ).toThrow(
+      "requires quantified relative uncertainty"
+    );
+  });
+
+  it("allows calibrated optical data but does not promote approximate scene radiance to calibrated sensor irradiance", () => {
+    const profile =
+      spectralProfile();
+    if (
+      profile.transmission.kind !==
+      "spectral-transmission"
+    ) {
+      throw new Error(
+        "Expected spectral profile."
+      );
+    }
+
+    const calibrated =
+      parseSceneToSensorIrradianceProfile({
+        ...profile,
+        scientificStatus:
+          "calibrated",
+        transmission: {
+          ...profile.transmission,
+          scientificStatus:
+            "calibrated",
+          uncertainty: {
+            kind: "relative",
+            fraction: 0.02,
+            basis:
+              "Calibration repeatability."
+          }
+        }
+      });
+
+    const result = calculate({
+      profile: calibrated
+    });
+
+    expect(
+      result
+        .opticalProfileScientificStatus
+    ).toBe("calibrated");
+    expect(result.scientificStatus)
+      .toBe("approximation");
+    expect(
+      result
+        .calibratedSensorPlaneIrradianceClaimAuthorized
+    ).toBe(false);
+  });
+});
