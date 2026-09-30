@@ -1511,9 +1511,16 @@ function validateTemporalCaptureInput(
         input.exposureWindowInput
           .shutterMechanism,
       readout: input.readout,
-      samplePointsNative:
-        input.exposureWindowInput
-          .samplePointsNative
+      ...(input.exposureWindowInput
+        .samplePointsNative ===
+      undefined
+        ? {}
+        : {
+            samplePointsNative:
+              input
+                .exposureWindowInput
+                .samplePointsNative
+          })
     });
   }
 
@@ -2196,7 +2203,13 @@ function computeTemporalResult(
     });
   }
 
+  const rotationRequested =
+    requestedEffects.has(
+      "spatial-camera-rotation"
+    );
+
   if (
+    rotationRequested &&
     temporal.rotation !== undefined
   ) {
     const rendererTemporal =
@@ -2255,13 +2268,21 @@ function computeTemporalResult(
                 .shutterMechanism,
             readout:
               temporal.readout,
-            samplePointsNative:
-              temporal
-                .exposureWindowInput
-                .samplePointsNative
+            ...(temporal
+              .exposureWindowInput
+              .samplePointsNative ===
+            undefined
+              ? {}
+              : {
+                  samplePointsNative:
+                    temporal
+                      .exposureWindowInput
+                      .samplePointsNative
+                })
           }).value;
 
     const rotationQuadrature =
+      !rotationRequested ||
       temporal.rotation === undefined
         ? undefined
         : calculateCaptureRotationTemporalQuadrature({
