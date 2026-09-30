@@ -536,7 +536,7 @@ describe("temporal scene-radiance sampling on the authoritative exposure clock",
       [{ x: 50, y: 50 }]
     );
 
-  const plan = () =>
+  const plan = (): ReturnType<typeof createSceneRadianceTemporalSamplingPlan> =>
     createSceneRadianceTemporalSamplingPlan({
       planId: "radiance-plan",
       timing: timing(),
