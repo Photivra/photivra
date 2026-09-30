@@ -355,6 +355,18 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - Identical resolved aperture/shutter/ISO values must feed identical downstream physics regardless of whether they came from Program or Full Auto.
 - Flash-aware program shifts, safety shift, Bulb/Time, and broader private-app Full Auto behavior remain separate.
 
+## Bulb / Time and long-exposure boundary
+
+- Bulb and Time are shutter-duration **control behaviors**, not alternate exposure equations and not shutter mechanisms.
+- A physical exposure calculation must receive a concrete positive elapsed duration. An active Bulb/Time control with no terminating release/stop event is not authorized for image-formation integration.
+- Bulb duration is release time minus press/start time; Time duration is stop action minus start action. Control timestamps use one explicit monotonic-seconds reference and must be finite/ordered.
+- Do not encode Bulb as an arbitrary enormous fixed shutter speed and do not impose a universal 30 s limit on Bulb/Time.
+- Binding a resolved duration into #12 may set only the nominal seconds-valued exposure duration. Preserve the independently supplied shutter mechanism and opening/closing boundary schedules.
+- Bulb/Time must not imply mechanical shutter, focal-plane curtains, tripod support, stabilization off, long-exposure noise reduction, sensor heating/temperature, or flash behavior.
+- Once resolved, long duration flows through the same existing/future local exposure-window, temporal motion/radiance, electron accumulation, dark-current, saturation, and downstream models. Do not create Bulb-specific physics shortcuts.
+- Equal elapsed durations with equal physical camera/scene inputs must produce equal downstream timing/physics regardless of fixed/Bulb/Time control vocabulary.
+- More generally, shooting-mode names are control policy only: identical resolved aperture/shutter/ISO values must produce identical downstream physical exposure results.
+
 ## Meter target / compensation boundary
 
 - Freeze meter results into a separate target object before #99 control resolution; do not pass mutable renderer/app state as the authoritative exposure target.
