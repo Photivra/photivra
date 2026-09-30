@@ -38,6 +38,42 @@ Use `requiredUpstreamStages` for hard scientific dependencies and `coupledStages
 
 See [Image-Formation Contract](IMAGE_FORMATION.md) for coordinate, temporal, renderer, and reserved sensor-stage semantics.
 
+## Explicit finite and infinity focus state
+
+Use `FocusPlane` when a caller must distinguish a real finite focus plane from optical infinity without JavaScript `Infinity` or an arbitrary very-large distance.
+
+```ts
+import {
+  calculateFocusPlaneImageDistance,
+  parseFocusPlane
+} from "@photivra/engine";
+
+const finite = parseFocusPlane({
+  kind: "finite",
+  distanceM: 5
+});
+
+const infinity = parseFocusPlane({
+  kind: "infinity"
+});
+
+const projection = calculateFocusPlaneImageDistance({
+  focalLengthMm: 50,
+  focus: infinity
+});
+
+console.log(projection.value.imageDistanceMm); // 50
+console.log(projection.value.infinityProjectionScale); // 1
+```
+
+For finite focus, `distanceM` is the **longitudinal object-plane distance along the camera optical axis from the ideal lens principal plane**. A renderer/raycast layer must not pass raw Euclidean ray length directly for an off-axis hit. Points on the same fronto-parallel plane should resolve to the same finite focus distance in the current paraxial model.
+
+The finite branch delegates to the existing Gaussian thin-lens calculation, so existing finite-focus numeric behavior and provenance are preserved. The infinity branch resolves exactly to nominal focal length with zero limiting magnification.
+
+Missing or unknown focus is not interpreted as infinity. It must be supplied explicitly as either `{ kind: "finite", distanceM }` or `{ kind: "infinity" }`.
+
+Existing APIs that accept `focusDistanceM` remain supported; this tagged contract is additive and intended for newer composition/control paths that need an explicit infinity state.
+
 ## Field of view
 
 Use `calculateFieldOfView()` for one sensor dimension at a time.
