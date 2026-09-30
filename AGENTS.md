@@ -215,6 +215,19 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - Geometric renderer warps use inverse sampling, premultiplied alpha, and must preserve scene occlusion order.
 - Reserved sensor/ADC/reconstruction stages are not implemented capabilities and must not be advertised as such.
 
+## Scene-radiance provider boundary
+
+- `SceneMaterialResponseProfile` is metadata for provider inputs, not a rendered material result. RGB/PBR representations are approximation-only and must never be described as measured spectral reflectance.
+- Spectral material data in schema 0.1.0 is wavelength-preserving provider input. Fluorescence/wavelength-changing behavior and material emission remain explicitly unmodeled.
+- Provider output is outgoing spectral radiance in W/m²/sr/nm. Do not substitute source irradiance, luminance, RGB values, or sensor-plane irradiance.
+- Scene-radiance provider/result schema 0.1.0 is approximation-only even when some input artifacts are calibrated. Do not promote provider output to calibrated radiometry.
+- Provider fidelity must keep spectral, material, visibility, direct-transport, and indirect-transport axes separate. Do not collapse them into one vague quality level.
+- Evaluation requests use scene targets, unit outgoing directions, seconds from exposure start, and explicit air/vacuum wavelength basis. Do not use display/raster coordinates as the scene-radiance reference frame.
+- Surface requests must bind a declared materialResponseId. Result sample/provider/scene/wavelength identity must match the request exactly.
+- `validateSceneRadianceEvaluationBindings()` validates identities and declared fidelity only. It does not verify the renderer's numerical transport result.
+- The scene-radiance provider boundary remains upstream of optics. It must not calculate or claim sensor-plane irradiance, photon/electron values, or sensor response.
+- Renderer implementation remains external. Browser preview, Blender reference, or future spectral renderers may differ in computation while preserving the same engine-owned request/result semantics.
+
 ## Radiometry and sensor-metadata rules
 
 - Sensor architecture metadata is descriptive and scientifically inert until a separate downstream model consumes it.
