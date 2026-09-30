@@ -85,7 +85,9 @@ The accumulated-charge foundation then rebinds photo signal, dark charge, and ev
 
 The physical charge-capacity foundation compares that complete **expected** stored-electron total to an evidence-backed storage-capacity profile tied to site, operating state and temperature applicability. It reports ratio/headroom and whether the unsaturated expected charge lies below, at or above capacity. It does not clamp charge, calculate nonlinear post-saturation storage, infer blooming/neighbor transfer, or claim the stochastic saturation state is known.
 
-Physical storage capacity and camera/digital saturation remain separate downstream concepts and must not be represented as one shared clamp.
+The camera saturation-capacity foundation separately compares dark-corrected photo-generated electron-equivalent signal against an evidence-backed camera response-chain saturation capacity. It deliberately does not use total stored charge or physical full-well capacity. The capacity may reflect an earlier analog/digital limit, but the first contract does not infer the limiting stage, ADC code, or post-saturation transfer behavior.
+
+Physical storage capacity and camera saturation are therefore parallel assessments in different calibrated domains, not one shared clamp.
 
 
 ## Image-formation ownership and ordering
