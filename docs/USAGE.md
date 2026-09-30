@@ -2871,6 +2871,111 @@ The parser establishes illumination metadata only. It does not calculate materia
 
 See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md).
 
+## Scene-radiance provider and material response
+
+Use the provider boundary when a renderer or reference evaluator needs to return one outgoing spectral-radiance sample without moving its rendering algorithm into the engine.
+
+First define material-response metadata:
+
+```ts
+import {
+  parseSceneMaterialResponseProfile
+} from "@photivra/engine";
+
+const materials = parseSceneMaterialResponseProfile({
+  schemaVersion: "0.1.0",
+  profileId: "room-materials",
+  sceneId: "room",
+  evidence: [
+    {
+      sourceOrigin: "photivra",
+      sourceReference: "materials:room",
+      reuseStatus: "photivra-owned"
+    }
+  ],
+  materials: [
+    {
+      materialResponseId: "wall-preview",
+      evidence: [
+        {
+          sourceOrigin: "photivra",
+          sourceReference: "material:wall-preview",
+          reuseStatus: "photivra-owned"
+        }
+      ],
+      representation: {
+        kind: "rgb-pbr-approximation",
+        colorSpace: "linear-srgb",
+        baseColor: {
+          red: 0.2,
+          green: 0.3,
+          blue: 0.6
+        },
+        metallic: 0,
+        roughness: 0.7,
+        limitation:
+          "RGB/PBR preview data is not measured spectral response."
+      }
+    }
+  ],
+  fluorescenceModeled: false,
+  volumetricMaterialTransportModeled: false,
+  polarizationModeled: false
+});
+```
+
+Then declare the provider's fidelity and bindings:
+
+```ts
+import {
+  parseSceneRadianceProviderProfile
+} from "@photivra/engine";
+
+const provider = parseSceneRadianceProviderProfile({
+  schemaVersion: "0.1.0",
+  profileId: "reference-renderer",
+  sceneId: "room",
+  illuminationProfileId: "room-lights",
+  materialResponseProfileId: "room-materials",
+  outputQuantity: "outgoing-spectral-radiance",
+  outputUnit: "W/m^2/sr/nm",
+  scientificStatus: "approximation",
+  uncertainty: {
+    kind: "not-quantified",
+    limitation:
+      "Renderer transport has not been calibrated as a complete radiance model."
+  },
+  fidelity: {
+    spectral: "rgb-derived-approximation",
+    material: "rgb-pbr-approximation",
+    visibility: "resolved",
+    directTransport: "resolved",
+    indirectTransport: "approximation"
+  },
+  wavelengthChangingTransportModeled: false,
+  volumetricTransportModeled: false,
+  polarizationModeled: false,
+  evidence: [
+    {
+      sourceOrigin: "photivra",
+      sourceReference: "provider:reference-renderer",
+      reuseStatus: "photivra-owned"
+    }
+  ],
+  limitations: [
+    "Fluorescence and polarization are not modeled."
+  ]
+});
+```
+
+An evaluation request identifies one exact surface/environment direction, physical time, and wavelength. The renderer/provider computes the radiance externally and returns a result in `W/m^2/sr/nm`. Parse both with `parseSceneRadianceEvaluationRequest()` and `parseSceneRadianceEvaluationResult()`, then call `validateSceneRadianceEvaluationBindings()` with the provider, illumination profile, material profile, request, and result.
+
+The binding validator checks exact scene/profile/material/sample/wavelength identity and provider material-fidelity consistency. It **does not** recompute the renderer's numeric result, apply optics, calculate sensor-plane irradiance, or authorize photon output.
+
+Provider/result schema 0.1.0 is approximation-only. Calibrated material or illumination inputs cannot silently promote provider output to calibrated scene radiance.
+
+See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md#scene-radiance-provider-and-material-response-boundary).
+
 ## Camera and scene schema validation
 
 Use the runtime parsers when camera or scene data crosses an untrusted JSON boundary.
