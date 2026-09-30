@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  cancelReleaseSequence,
+  createCancelledReleaseSequence,
   parseGenericBodyExposureCapabilityProfile,
   parseGenericLensExposureCapabilityProfile,
   parseGenericReleaseCapabilityProfile,
@@ -505,7 +505,7 @@ describe("logical release sequencing", () => {
       });
 
     const cancelled =
-      cancelReleaseSequence({
+      createCancelledReleaseSequence({
         sequence,
         completedFrameCount: 2,
         cancelledAtSeconds: 0.45
