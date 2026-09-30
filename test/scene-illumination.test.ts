@@ -39,6 +39,31 @@ const sourceBase = {
   evidence: ownedEvidence("test:source")
 };
 
+const environmentSource = (
+  overrides: Record<string, unknown> = {}
+): Record<string, unknown> => ({
+  ...sourceBase,
+  sourceId: "environment",
+  family: "environment",
+  geometry: { kind: "environment" },
+  magnitude: relativeMagnitude(),
+  spectrum: {
+    kind: "unresolved",
+    limitation: "test"
+  },
+  ...overrides
+});
+
+const profileWithSource = (
+  source: unknown
+): Record<string, unknown> => ({
+  schemaVersion: "0.1.0",
+  profileId: "test-profile",
+  sceneId: "room",
+  evidence: ownedEvidence("test:profile"),
+  sources: [source]
+});
+
 describe("scene illumination profile", () => {
   it("represents mixed renderer-independent source families without calculating radiance", () => {
     const profile = parseSceneIlluminationProfile({
@@ -424,4 +449,348 @@ describe("scene illumination profile", () => {
       'temporalBehavior.kind must be "time-invariant"'
     );
   });
+  it("fails closed on malformed profile and source primitives", () => {
+    expect(() =>
+      parseSceneIlluminationProfile({
+        schemaVersion: "0.2.0",
+        profileId: "bad",
+        sceneId: "room",
+        evidence: ownedEvidence("test:profile"),
+        sources: []
+      })
+    ).toThrow("schemaVersion");
+
+    expect(() =>
+      parseSceneIlluminationProfile({
+        schemaVersion: "0.1.0",
+        profileId: "bad",
+        sceneId: "room",
+        evidence: ownedEvidence("test:profile"),
+        sources: {}
+      })
+    ).toThrow("sources must be an array");
+
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource(
+          environmentSource({
+            family: "laser"
+          })
+        )
+      )
+    ).toThrow(".family is invalid.");
+
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource(
+          environmentSource({
+            enabled: "yes"
+          })
+        )
+      )
+    ).toThrow(".enabled must be a boolean.");
+  });
+
+  it("rejects geometry that violates source-family contracts", () => {
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource({
+          ...environmentSource(),
+          family: "area",
+          geometry: {
+            kind: "point-position",
+            positionM: { x: 0, y: 0, z: 1 }
+          }
+        })
+      )
+    ).toThrow(
+      'kind must be "scene-object-binding" for an area source'
+    );
+
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource({
+          ...environmentSource(),
+          family: "directional",
+          geometry: {
+            kind: "environment"
+          }
+        })
+      )
+    ).toThrow(
+      'kind must be "directional" for a directional source'
+    );
+
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource({
+          ...environmentSource(),
+          family: "environment",
+          geometry: {
+            kind: "point-position",
+            positionM: { x: 0, y: 0, z: 1 }
+          }
+        })
+      )
+    ).toThrow(
+      'kind must be "environment" for an environment source'
+    );
+
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource({
+          ...environmentSource(),
+          family: "spot",
+          geometry: {
+            kind: "spot",
+            origin: {
+              kind: "point-position",
+              positionM: { x: 0, y: 0, z: 0 }
+            },
+            directionUnitVector: {
+              x: 0,
+              y: 0,
+              z: -2
+            },
+            outerConeAngleDegrees: 30
+          }
+        })
+      )
+    ).toThrow("must be a unit-length direction vector");
+
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource({
+          ...environmentSource(),
+          family: "spot",
+          geometry: {
+            kind: "spot",
+            origin: {
+              kind: "point-position",
+              positionM: { x: 0, y: 0, z: 0 }
+            },
+            directionUnitVector: {
+              x: 0,
+              y: 0,
+              z: -1
+            },
+            outerConeAngleDegrees: 180
+          }
+        })
+      )
+    ).toThrow("outerConeAngleDegrees must be less than 180");
+  });
+
+  it("keeps relative and calibrated magnitude claims fail-closed", () => {
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource(
+          environmentSource({
+            magnitude: {
+              kind: "relative-linear-scale",
+              scale: 1,
+              scientificStatus: "calibrated",
+              limitation: "invalid promotion"
+            }
+          })
+        )
+      )
+    ).toThrow(
+      'scientificStatus must be "approximation" for relative-linear-scale'
+    );
+
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource({
+          ...environmentSource(),
+          family: "point",
+          geometry: {
+            kind: "point-position",
+            positionM: { x: 0, y: 0, z: 1 }
+          },
+          magnitude: {
+            kind: "radiant-intensity",
+            wattsPerSteradian: 1,
+            scientificStatus: "calibrated",
+            uncertainty: {
+              kind: "not-quantified",
+              limitation: "missing calibration uncertainty"
+            },
+            evidence: ownedEvidence("test:intensity")
+          }
+        })
+      )
+    ).toThrow(
+      "calibrated physical magnitude requires quantified relative uncertainty"
+    );
+  });
+
+  it("validates preview and continuous-spectrum numeric boundaries", () => {
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource(
+          environmentSource({
+            spectrum: {
+              kind: "rgb-preview-approximation",
+              colorSpace: "display-p3",
+              red: 1,
+              green: 0,
+              blue: 0,
+              limitation: "test"
+            }
+          })
+        )
+      )
+    ).toThrow('colorSpace must be "linear-srgb"');
+
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource(
+          environmentSource({
+            spectrum: {
+              kind: "rgb-preview-approximation",
+              colorSpace: "linear-srgb",
+              red: 1.1,
+              green: 0,
+              blue: 0,
+              limitation: "test"
+            }
+          })
+        )
+      )
+    ).toThrow("must be a finite fraction from 0 through 1");
+
+    const spectrum = {
+      kind: "continuous-relative-spectrum",
+      spectrumId: "curve",
+      wavelengthUnit: "nm",
+      wavelengthBasis: "vacuum",
+      interpolation: "piecewise-linear",
+      outsideRangeBehavior: "fail-closed",
+      normalization: "arbitrary-relative-scale",
+      scientificStatus: "approximation",
+      uncertainty: {
+        kind: "not-quantified",
+        limitation: "test"
+      },
+      evidence: ownedEvidence("test:curve"),
+      samples: [
+        {
+          wavelengthNanometers: 500,
+          relativeDensityPerNanometer: 1
+        },
+        {
+          wavelengthNanometers: 600,
+          relativeDensityPerNanometer: 0.5
+        }
+      ]
+    };
+
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource(
+          environmentSource({
+            spectrum: {
+              ...spectrum,
+              wavelengthUnit: "um"
+            }
+          })
+        )
+      )
+    ).toThrow('wavelengthUnit must be "nm"');
+
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource(
+          environmentSource({
+            spectrum: {
+              ...spectrum,
+              interpolation: "nearest"
+            }
+          })
+        )
+      )
+    ).toThrow(
+      'interpolation must be "piecewise-linear"'
+    );
+
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource(
+          environmentSource({
+            spectrum: {
+              ...spectrum,
+              samples: [
+                {
+                  wavelengthNanometers: 600,
+                  relativeDensityPerNanometer: 1
+                },
+                {
+                  wavelengthNanometers: 500,
+                  relativeDensityPerNanometer: 0.5
+                }
+              ]
+            }
+          })
+        )
+      )
+    ).toThrow(
+      "samples wavelengths must be strictly increasing"
+    );
+
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource(
+          environmentSource({
+            spectrum: {
+              ...spectrum,
+              samples: [
+                {
+                  wavelengthNanometers: 500,
+                  relativeDensityPerNanometer: 0
+                },
+                {
+                  wavelengthNanometers: 600,
+                  relativeDensityPerNanometer: 0
+                }
+              ]
+            }
+          })
+        )
+      )
+    ).toThrow(
+      "samples must contain at least one positive relative density"
+    );
+  });
+
+  it("validates optional source limitations and point bindings", () => {
+    const parsed = parseSceneIlluminationProfile(
+      profileWithSource({
+        ...environmentSource(),
+        sourceId: "bound-point",
+        family: "point",
+        geometry: {
+          kind: "scene-object-binding",
+          sceneObjectId: "bulb"
+        },
+        limitations: [
+          "No angular emission model."
+        ]
+      })
+    );
+    expect(parsed.sources[0]?.geometry).toEqual({
+      kind: "scene-object-binding",
+      sceneObjectId: "bulb"
+    });
+
+    expect(() =>
+      parseSceneIlluminationProfile(
+        profileWithSource({
+          ...environmentSource(),
+          limitations: ["same", "same"]
+        })
+      )
+    ).toThrow("limitations must not contain duplicates");
+  });
+
 });
