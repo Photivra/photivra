@@ -13,6 +13,7 @@ import {
   resolveProgramAutoExposureMode,
   type ExposureMeterTarget,
   type ExposureProgramLineProfile,
+  type FullAutoExposurePolicy,
   type ResolvedGenericEquipmentExposureCapabilities
 } from "../src/index.js";
 
@@ -678,7 +679,7 @@ describe("Program Auto", () => {
 });
 
 describe("Full Auto exposure", () => {
-  const policy = () => ({
+  const policy = (): FullAutoExposurePolicy => ({
     kind:
       "generic-program-line-minimum-iso" as const,
     programLine: programLine(),
