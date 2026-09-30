@@ -1339,17 +1339,6 @@ export function calculateSceneRadianceToSensorIrradiance(
   effectiveAcceptance *=
     fieldThroughputFactor;
 
-  if (
-    !Number.isFinite(
-      effectiveAcceptance
-    ) ||
-    effectiveAcceptance < 0
-  ) {
-    throw new InvalidScientificInputError(
-      "Effective optical acceptance must remain finite and non-negative."
-    );
-  }
-
   const sceneRadiance =
     sceneResult
       .spectralRadianceWattsPerSquareMeterSteradianNanometer;
