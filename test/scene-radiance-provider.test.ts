@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   assessSceneMaterialResponseFidelity,
   parseSceneIlluminationProfile,
+  parseSceneIlluminationTemporalProfile,
   parseSceneMaterialResponseProfile,
   parseSceneRadianceEvaluationRequest,
   parseSceneRadianceEvaluationResult,
@@ -118,6 +119,62 @@ const illuminationProfile = (): ReturnType<
           kind: "time-invariant"
         },
         evidence: ownedEvidence("test:environment")
+      }
+    ]
+  });
+
+const temporalIlluminationProfile = (): ReturnType<
+  typeof parseSceneIlluminationTemporalProfile
+> =>
+  parseSceneIlluminationTemporalProfile({
+    schemaVersion: "0.1.0",
+    profileId: "temporal-lights",
+    sceneId: "room",
+    illuminationProfileId: "lights",
+    evidence: ownedEvidence("test:temporal"),
+    waveforms: [
+      {
+        waveformId: "environment-waveform",
+        kind: "periodic-relative-multiplier",
+        timeUnit: "s",
+        scientificStatus: "approximation",
+        uncertainty: {
+          kind: "not-quantified",
+          limitation: "test"
+        },
+        evidence: ownedEvidence("test:waveform"),
+        interpolation: "piecewise-linear",
+        periodSeconds: 0.02,
+        endpointContinuityRequired: true,
+        samples: [
+          {
+            timeSecondsFromWaveformReference: 0,
+            relativeMagnitudeMultiplier: 1
+          },
+          {
+            timeSecondsFromWaveformReference: 0.01,
+            relativeMagnitudeMultiplier: 0.8
+          },
+          {
+            timeSecondsFromWaveformReference: 0.02,
+            relativeMagnitudeMultiplier: 1
+          }
+        ]
+      }
+    ],
+    sourceBindings: [
+      {
+        bindingId: "environment-binding",
+        sourceId: "environment",
+        waveformId: "environment-waveform",
+        captureTimeReference: "first-opening-boundary-phase",
+        waveformTimeZeroSecondsFromCaptureReference: 0,
+        scientificStatus: "approximation",
+        timingUncertainty: {
+          kind: "not-quantified",
+          limitation: "test"
+        },
+        evidence: ownedEvidence("test:binding")
       }
     ]
   });
@@ -751,6 +808,8 @@ describe("scene-radiance provider binding validation", () => {
       requestResultIdentityMatched: true,
       materialResponseFidelity:
         "spectral-data",
+      temporalIlluminationProfileBound:
+        false,
       calibratedRadianceClaimAuthorized:
         false,
       sensorPlaneIrradianceCalculated:
@@ -817,6 +876,79 @@ describe("scene-radiance provider binding validation", () => {
       )
     ).toThrow(
       "Provider illuminationProfileId must match"
+    );
+  });
+
+  it("requires an explicitly matching temporal illumination profile when the provider binds one", () => {
+    const value = context();
+    value.providerProfile =
+      parseSceneRadianceProviderProfile({
+        ...providerInput(
+          "spectral-data"
+        ),
+        illuminationTemporalProfileId:
+          "temporal-lights"
+      });
+
+    expect(() =>
+      validateSceneRadianceEvaluationBindings(
+        value
+      )
+    ).toThrow(
+      "requires the matching temporal illumination profile"
+    );
+
+    const assessment =
+      validateSceneRadianceEvaluationBindings({
+        ...value,
+        illuminationTemporalProfile:
+          temporalIlluminationProfile()
+      });
+
+    expect(
+      assessment
+        .temporalIlluminationProfileBound
+    ).toBe(true);
+    expect(
+      assessment
+        .calibratedRadianceClaimAuthorized
+    ).toBe(false);
+  });
+
+  it("rejects temporal illumination profile drift or an undeclared temporal profile", () => {
+    const declared = context();
+    declared.providerProfile =
+      parseSceneRadianceProviderProfile({
+        ...providerInput(
+          "spectral-data"
+        ),
+        illuminationTemporalProfileId:
+          "temporal-lights"
+      });
+
+    const temporal =
+      temporalIlluminationProfile();
+    expect(() =>
+      validateSceneRadianceEvaluationBindings({
+        ...declared,
+        illuminationTemporalProfile: {
+          ...temporal,
+          profileId: "other-temporal"
+        }
+      })
+    ).toThrow(
+      "illuminationTemporalProfileId must match"
+    );
+
+    const undeclared = context();
+    expect(() =>
+      validateSceneRadianceEvaluationBindings({
+        ...undeclared,
+        illuminationTemporalProfile:
+          temporalIlluminationProfile()
+      })
+    ).toThrow(
+      "provider profile does not bind one"
     );
   });
 
