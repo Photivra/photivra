@@ -379,6 +379,231 @@ This model changes throughput only. It does not change:
 
 Mechanical/pupil vignetting and cat's-eye bokeh belong to the later pupil/PSF foundation. This generic profile is also not calibrated radiometry or a named-lens measurement.
 
+## Production image-formation plan
+
+The production composition API is separate from `simulatePocCamera()`.
+
+Prepare static context once:
+
+```ts
+import {
+  prepareImageFormationContext
+} from "@photivra/engine";
+
+const prepared =
+  prepareImageFormationContext({
+    contextId: "scene-a:camera-a",
+    sceneId: "scene-a",
+    sceneRadianceProviderProfileId:
+      "radiance-provider-a",
+    outputGeometryProfileId:
+      "output-geometry-a",
+    equipmentCapabilities,
+    opticalBridgeProfile,
+    renderer: {
+      schemaVersion: "0.1.0",
+      rendererId: "webgpu-preview",
+      rendererVersion: "1.0.0",
+      consumerKind:
+        "interactive-optimized",
+      supportedStages: [
+        "scene-ray-projection",
+        "scene-radiance-evaluation",
+        "lens-field-pupil-evaluation"
+      ],
+      supportedEffects: [
+        "illumination-vignetting"
+      ],
+      spectralCapability:
+        "wavelength-resolved",
+      temporalSampling: {
+        kind: "bounded",
+        maximumSamples: 8
+      },
+      depthCapability: "per-layer",
+      inverseFieldMapping: true,
+      alphaRepresentation:
+        "premultiplied",
+      preservesDepthOrderAcrossWarps:
+        true,
+      sensorDomainProcessing:
+        false
+    },
+    fidelity: {
+      schemaVersion: "0.1.0",
+      profileId:
+        "physical-optics-sample",
+      profileVersion: "1.0.0",
+      requiredStages: [
+        "lens-field-pupil-evaluation"
+      ],
+      requiredEffects: [
+        {
+          effectId:
+            "illumination-vignetting",
+          modelId:
+            "generic-vignetting",
+          modelVersion: "1.0.0"
+        }
+      ],
+      rendererRequirements: {
+        spectral:
+          "wavelength-resolved",
+        sensorDomainProcessing:
+          false,
+        depth: "none"
+      }
+    }
+  });
+```
+
+Then commit one immutable capture snapshot:
+
+```ts
+import {
+  createProductionCaptureSnapshot
+} from "@photivra/engine";
+
+const capture =
+  createProductionCaptureSnapshot({
+    captureId: "capture-42",
+    releaseFrameId: "frame-42",
+    sceneStateId:
+      "scene-state-42",
+    sceneTimeSecondsFromExposureStart:
+      0.01,
+    outputStateId:
+      "output-geometry-a",
+    exposure: {
+      aperture: 4,
+      shutterSeconds: 1 / 125,
+      iso: 100
+    },
+    stochasticSeedUint32:
+      123456,
+    physicalSceneSample: {
+      sceneRadianceRequest,
+      sceneRadianceResult,
+      focus: {
+        kind: "infinity-focus"
+      },
+      imagePointMm: {
+        x: 0,
+        y: 0
+      },
+      fieldThroughput: {
+        kind: "unity"
+      }
+    }
+  });
+```
+
+Finally create the semantic plan:
+
+```ts
+import {
+  createProductionImageFormationPlan
+} from "@photivra/engine";
+
+const plan =
+  createProductionImageFormationPlan({
+    preparedContext: prepared,
+    captureSnapshot: capture
+  });
+```
+
+### Dependency expansion
+
+If fidelity requires:
+
+```text
+lens-field-pupil-evaluation
+```
+
+the planner expands the authoritative graph to include:
+
+```text
+scene-ray-projection
+  -> scene-radiance-evaluation
+  -> lens-field-pupil-evaluation
+```
+
+The order comes from `getImageFormationContract()`, not a second planner-specific stage list.
+
+### Explicit stage/effect state
+
+Every stage/effect is visible as one of:
+
+- `active`;
+- `modeled-zero`;
+- `omitted-by-fidelity`;
+- `unsupported`;
+- `blocked`.
+
+For example, unity illumination throughput can remain an explicitly modeled zero/no-loss vignetting effect rather than disappearing from provenance.
+
+### Structured blockers
+
+Scientifically incomplete but structurally valid requests return a blocked plan.
+
+Examples:
+
+- required stage not yet composed;
+- renderer lacks required stage/effect capability;
+- renderer lacks wavelength/depth/sensor-domain fidelity;
+- missing #110 optical profile;
+- missing physical scene sample;
+- #110 wavelength/applicability failure.
+
+Malformed config, invalid selected camera settings, identity drift and tampered fingerprints still fail fast.
+
+### Deterministic identity
+
+Prepared contexts, capture snapshots and finished plans carry deterministic fingerprints produced from canonical JSON.
+
+The algorithm is explicitly:
+
+```text
+fnv1a-32-non-cryptographic
+```
+
+This is a reproducibility key, not a security/integrity checksum.
+
+Use:
+
+```ts
+serializeProductionImageFormationPlan(
+  plan
+)
+```
+
+when a canonical deterministic serialization is needed.
+
+### Renderer/reference split
+
+Renderer declarations contain semantic capabilities only. They do not include WebGPU, Three.js, React, DOM or server objects.
+
+An optimized interactive renderer and a slower reference evaluator consume the same engine-owned stage/effect plan structure and declare what they can faithfully represent.
+
+### Current first-slice boundary
+
+Plan schema `0.1.0` deliberately composes only the initial primary spectral path through #110.
+
+Later requested stages remain explicit blockers until intentionally integrated, including:
+
+- PSF;
+- temporal exposure/readout composition;
+- sensor optical stack;
+- CFA/photosite sampling;
+- charge/noise;
+- ADC;
+- reconstruction;
+- final output/display processing.
+
+The production plan therefore does not turn standalone foundations into silently active pipeline stages.
+
+See [Production Image-Formation Plan](PRODUCTION_COMPOSITION.md).
+
 ## Scene radiance to sensor irradiance
 
 Use `calculateSceneRadianceToSensorIrradiance()` when you need the first physical primary-optics bridge from one validated #85 outgoing spectral-radiance sample to **pre-sensor-stack sensor-plane spectral irradiance**.
