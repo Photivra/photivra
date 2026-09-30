@@ -938,6 +938,32 @@ export {
 } from "./equipment/release-capabilities.js";
 
 export {
+  FOCUS_CONTROL_PROFILE_SCHEMA_VERSION,
+  FOCUS_CONTROL_STATE_VERSION,
+  assessFocusReleaseGate,
+  createFocusControlState,
+  parseFocusControlProfile,
+  resolveFocusTargetObservation,
+  setFocusLock,
+  setManualFocusState,
+  type AssessFocusReleaseGateInput,
+  type CreateFocusControlStateInput,
+  type FocusAcquisitionState,
+  type FocusControlMode,
+  type FocusControlProfile,
+  type FocusControlState,
+  type FocusReleaseGateAssessment,
+  type FocusReleasePriority,
+  type FocusTargetControlEvent,
+  type FocusTargetLossReason,
+  type FocusTargetObservation,
+  type FocusTargetResolution,
+  type ResolveFocusTargetObservationInput,
+  type SetFocusLockInput,
+  type SetManualFocusStateInput
+} from "./capture/focus-control.js";
+
+export {
   RELEASE_SEQUENCE_VERSION,
   createCancelledReleaseSequence,
   resolveReleaseSequence,
