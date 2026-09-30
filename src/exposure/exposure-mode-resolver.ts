@@ -1458,6 +1458,427 @@ function resolveAutomaticShutter(
   };
 }
 
+function minimumSelectableIso(
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities
+): number {
+  const grid =
+    capabilities.iso.settingGrid;
+  return grid.kind === "discrete-values"
+    ? grid.values[0]!
+    : capabilities.iso.minimum;
+}
+
+function selectShutterNotLongerThanTarget(
+  targetSeconds: number,
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities
+): {
+  shutterSeconds: number;
+  kind: "continuous" | "discrete";
+  quantized: boolean;
+  clamped:
+    | false
+    | "minimum"
+    | "maximum";
+  limitingConstraint:
+    ExposureResolutionConstraint;
+} {
+  const minimum =
+    capabilities.shutter.minimumSeconds;
+  const maximum =
+    capabilities.shutter.maximumSeconds;
+  const grid =
+    capabilities.shutter.settingGrid;
+
+  if (grid.kind === "continuous-within-range") {
+    if (targetSeconds < minimum) {
+      return {
+        shutterSeconds: minimum,
+        kind: "continuous",
+        quantized: false,
+        clamped: "minimum",
+        limitingConstraint:
+          "shutter-minimum"
+      };
+    }
+    if (targetSeconds > maximum) {
+      return {
+        shutterSeconds: maximum,
+        kind: "continuous",
+        quantized: false,
+        clamped: "maximum",
+        limitingConstraint:
+          "shutter-maximum"
+      };
+    }
+    return {
+      shutterSeconds: targetSeconds,
+      kind: "continuous",
+      quantized: false,
+      clamped: false,
+      limitingConstraint: "none"
+    };
+  }
+
+  const values = grid.values;
+  const first = values[0]!;
+  const last = values[values.length - 1]!;
+
+  if (targetSeconds < first) {
+    return {
+      shutterSeconds: first,
+      kind: "discrete",
+      quantized: true,
+      clamped: "minimum",
+      limitingConstraint:
+        "shutter-minimum"
+    };
+  }
+  if (targetSeconds >= last) {
+    return {
+      shutterSeconds:
+        targetSeconds > last
+          ? last
+          : targetSeconds,
+      kind: "discrete",
+      quantized:
+        !settingEquals(
+          targetSeconds,
+          last
+        ),
+      clamped:
+        targetSeconds > last
+          ? "maximum"
+          : false,
+      limitingConstraint:
+        targetSeconds > last
+          ? "shutter-maximum"
+          : "none"
+    };
+  }
+
+  let selected = first;
+  for (const candidate of values) {
+    if (candidate > targetSeconds) {
+      break;
+    }
+    selected = candidate;
+  }
+
+  const quantized =
+    !settingEquals(
+      selected,
+      targetSeconds
+    );
+  return {
+    shutterSeconds: selected,
+    kind: "discrete",
+    quantized,
+    clamped: false,
+    limitingConstraint:
+      quantized
+        ? "shutter-grid-quantization"
+        : "none"
+  };
+}
+
+function nearestDiscreteAperture(
+  idealFNumber: number,
+  values: readonly number[]
+): {
+  aperture: number;
+  quantized: boolean;
+  clamped:
+    | false
+    | "widest"
+    | "narrowest";
+  limitingConstraint:
+    ExposureResolutionConstraint;
+} {
+  const first = values[0]!;
+  const last =
+    values[values.length - 1]!;
+
+  if (idealFNumber < first) {
+    return {
+      aperture: first,
+      quantized: true,
+      clamped: "widest",
+      limitingConstraint:
+        "aperture-widest"
+    };
+  }
+  if (idealFNumber > last) {
+    return {
+      aperture: last,
+      quantized: true,
+      clamped: "narrowest",
+      limitingConstraint:
+        "aperture-narrowest"
+    };
+  }
+
+  let selected = first;
+  let selectedDistance =
+    Math.abs(
+      Math.log2(
+        idealFNumber /
+        first
+      )
+    );
+
+  for (
+    let index = 1;
+    index < values.length;
+    index += 1
+  ) {
+    const candidate =
+      values[index]!;
+    const distance =
+      Math.abs(
+        Math.log2(
+          idealFNumber /
+          candidate
+        )
+      );
+    if (
+      distance <
+        selectedDistance -
+          1e-15 ||
+      (Math.abs(
+        distance -
+          selectedDistance
+      ) <= 1e-15 &&
+        candidate > selected)
+    ) {
+      selected = candidate;
+      selectedDistance =
+        distance;
+    }
+  }
+
+  const quantized =
+    !settingEquals(
+      selected,
+      idealFNumber
+    );
+
+  return {
+    aperture: selected,
+    quantized,
+    clamped: false,
+    limitingConstraint:
+      quantized
+        ? "aperture-grid-quantization"
+        : "none"
+  };
+}
+
+function resolveAutomaticAperture(
+  idealFNumber: number,
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities
+): {
+  aperture: number;
+  kind: "continuous" | "discrete";
+  quantized: boolean;
+  clamped:
+    | false
+    | "widest"
+    | "narrowest";
+  limitingConstraint:
+    ExposureResolutionConstraint;
+} {
+  const minimum =
+    capabilities.aperture
+      .widestAvailableFNumber;
+  const maximum =
+    capabilities.aperture
+      .narrowestAvailableFNumber;
+  const grid =
+    capabilities.aperture.settingGrid;
+
+  if (grid.kind === "discrete-values") {
+    return {
+      ...nearestDiscreteAperture(
+        idealFNumber,
+        grid.values
+      ),
+      kind: "discrete"
+    };
+  }
+
+  if (idealFNumber < minimum) {
+    return {
+      aperture: minimum,
+      kind: "continuous",
+      quantized: false,
+      clamped: "widest",
+      limitingConstraint:
+        "aperture-widest"
+    };
+  }
+  if (idealFNumber > maximum) {
+    return {
+      aperture: maximum,
+      kind: "continuous",
+      quantized: false,
+      clamped: "narrowest",
+      limitingConstraint:
+        "aperture-narrowest"
+    };
+  }
+
+  return {
+    aperture: idealFNumber,
+    kind: "continuous",
+    quantized: false,
+    clamped: false,
+    limitingConstraint: "none"
+  };
+}
+
+function selectApertureNotWiderThanTarget(
+  idealFNumber: number,
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities
+): {
+  aperture: number;
+  kind: "continuous" | "discrete";
+  quantized: boolean;
+  clamped:
+    | false
+    | "widest"
+    | "narrowest";
+  limitingConstraint:
+    ExposureResolutionConstraint;
+} {
+  const minimum =
+    capabilities.aperture
+      .widestAvailableFNumber;
+  const maximum =
+    capabilities.aperture
+      .narrowestAvailableFNumber;
+  const grid =
+    capabilities.aperture.settingGrid;
+
+  if (grid.kind === "continuous-within-range") {
+    if (idealFNumber < minimum) {
+      return {
+        aperture: minimum,
+        kind: "continuous",
+        quantized: false,
+        clamped: "widest",
+        limitingConstraint:
+          "aperture-widest"
+      };
+    }
+    if (idealFNumber > maximum) {
+      return {
+        aperture: maximum,
+        kind: "continuous",
+        quantized: false,
+        clamped: "narrowest",
+        limitingConstraint:
+          "aperture-narrowest"
+      };
+    }
+    return {
+      aperture: idealFNumber,
+      kind: "continuous",
+      quantized: false,
+      clamped: false,
+      limitingConstraint: "none"
+    };
+  }
+
+  const values = grid.values;
+  const first = values[0]!;
+  const last = values[values.length - 1]!;
+
+  if (idealFNumber <= first) {
+    return {
+      aperture: first,
+      kind: "discrete",
+      quantized:
+        !settingEquals(
+          idealFNumber,
+          first
+        ),
+      clamped:
+        idealFNumber < first
+          ? "widest"
+          : false,
+      limitingConstraint:
+        idealFNumber < first
+          ? "aperture-widest"
+          : "none"
+    };
+  }
+  if (idealFNumber > last) {
+    return {
+      aperture: last,
+      kind: "discrete",
+      quantized: true,
+      clamped: "narrowest",
+      limitingConstraint:
+        "aperture-narrowest"
+    };
+  }
+
+  const selected =
+    values.find(
+      (candidate) =>
+        candidate >= idealFNumber
+    ) ?? last;
+  const quantized =
+    !settingEquals(
+      selected,
+      idealFNumber
+    );
+
+  return {
+    aperture: selected,
+    kind: "discrete",
+    quantized,
+    clamped: false,
+    limitingConstraint:
+      quantized
+        ? "aperture-grid-quantization"
+        : "none"
+  };
+}
+
+function idealApertureForTarget(
+  targetScale: number,
+  shutterSeconds: number,
+  iso: number,
+  reference:
+    RelativeExposureControlAnchor
+): number {
+  const numerator =
+    reference.aperture *
+    reference.aperture *
+    (shutterSeconds /
+      reference.shutterSeconds) *
+    (iso /
+      reference.iso);
+  const squared =
+    numerator / targetScale;
+  const aperture =
+    Math.sqrt(squared);
+  if (
+    !Number.isFinite(aperture) ||
+    aperture <= 0
+  ) {
+    throw new InvalidScientificInputError(
+      "Ideal automatic aperture must remain finite and greater than zero."
+    );
+  }
+  return aperture;
+}
+
 /**
  * Resolves Manual exposure with either manual ISO or Auto ISO.
  *
