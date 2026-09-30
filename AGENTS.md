@@ -438,6 +438,17 @@ Backward compatibility matters.
 - Capture stochastic seed ownership is explicit. Backend randomness must not silently change scientific results.
 - Performance caching/preparation (#43/#45) may optimize execution but must preserve exact semantic plan identity.
 
+## Production temporal-composition boundary
+
+- Temporal capture input is immutable capture state, not renderer state. Preserve native raster, exposure boundaries, shutter mechanism, readout declaration, orientation, imaging area, rotation model and committed temporal sample count.
+- The committed shutter duration and temporal-capture nominal exposure duration must match exactly enough for the shared setting tolerance; do not let temporal timing drift from resolved exposure control.
+- Sensor data-readout timing and exposure-window timing remain separate contracts. The production plan must report synchronization as not assumed unless an explicit linkage model establishes it.
+- Pure-camera-rotation temporal sampling delegates to the existing deterministic midpoint quadrature. Do not create a second motion equation or silently reduce the committed sample count for preview performance.
+- A zero angular-velocity model is `modeled-zero`, not omitted. Global/no-spatial-skew readout requested through rolling-readout semantics is likewise modeled-zero.
+- Renderer temporal-sampling limits are capability gates. Insufficient capacity blocks the renderer path but does not mutate the committed scientific quadrature.
+- The authoritative image-formation graph still applies. Computing mature temporal timing results does not authorize bypassing an uncomposed PSF dependency.
+- Production-plan consumer manifests may label an execution role `interactive-optimized` or `reference`, but both consume the same finalized scientific plan. Consumer role cannot reorder stages, change seeds, alter physical results, or reduce committed temporal samples.
+
 ## Composition boundary
 
 Do not assume every public root-engine foundation is already part of the composed POC.
