@@ -664,7 +664,7 @@ describe("immutable production capture snapshots", () => {
     const snapshot = capture();
 
     expect(snapshot.version)
-      .toBe("0.2.0");
+      .toBe("0.3.0");
     expect(snapshot.captureId)
       .toBe("capture-1");
     expect(snapshot.stochasticSeedUint32)
@@ -768,10 +768,10 @@ describe("ready physical production plan", () => {
       "ready"
     );
     expect(plan.versions).toMatchObject({
-      engineApi: "0.84.0",
+      engineApi: "0.85.0",
       imageFormationContract:
         "0.4.0",
-      plan: "0.4.0",
+      plan: "0.5.0",
       scientificAssurance:
         "0.1.0"
     });
