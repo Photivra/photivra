@@ -449,6 +449,15 @@ export {
 } from "./sensor/camera-saturation-capacity.js";
 
 export {
+  CAPTURE_MODE_TIMING_PROFILE_SCHEMA_VERSION,
+  parseCaptureModeTimingProfile,
+  resolveCaptureModeTiming,
+  type CaptureModeTimingProfile,
+  type ResolveCaptureModeTimingInput,
+  type ResolvedCaptureModeTiming
+} from "./sensor/capture-mode-timing.js";
+
+export {
   parseCaptureModeProfile,
   resolveCaptureMode,
   type CaptureModeAcquisition,
@@ -749,6 +758,19 @@ export {
 } from "./schema/illumination-temporal.js";
 
 export {
+  SCENE_RADIANCE_TEMPORAL_SAMPLING_PLAN_VERSION,
+  createSceneRadianceTemporalSamplingPlan,
+  reduceSceneRadianceTemporalSamples,
+  type CreateSceneRadianceTemporalSamplingPlanInput,
+  type ReducedSceneRadianceTemporalExposure,
+  type ReduceSceneRadianceTemporalSamplesInput,
+  type SceneRadianceTemporalEvaluatedSample,
+  type SceneRadianceTemporalQuery,
+  type SceneRadianceTemporalSamplingNode,
+  type SceneRadianceTemporalSamplingPlan
+} from "./schema/scene-radiance-temporal.js";
+
+export {
   SCENE_MATERIAL_RESPONSE_PROFILE_SCHEMA_VERSION,
   SCENE_RADIANCE_EVALUATION_SCHEMA_VERSION,
   SCENE_RADIANCE_PROVIDER_PROFILE_SCHEMA_VERSION,
@@ -808,6 +830,15 @@ export {
   type CaptureRotationInverseMappings,
   type CaptureRotationInverseMappingSample
 } from "./motion/capture-rotation-inverse-mapping.js";
+
+export {
+  calculateCaptureTranslationParallaxTemporalQuadrature,
+  type CalculateCaptureTranslationParallaxTemporalQuadratureInput,
+  type CaptureTranslationParallaxSceneSample,
+  type CaptureTranslationParallaxTemporalNode,
+  type CaptureTranslationParallaxTemporalQuadrature,
+  type CaptureTranslationParallaxTemporalSample
+} from "./motion/capture-translation-parallax-temporal-quadrature.js";
 
 export {
   calculateCaptureRotationTemporalQuadrature,

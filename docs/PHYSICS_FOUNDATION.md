@@ -94,6 +94,23 @@ The focus-aware model improves internal consistency with thin-lens DOF/defocus c
 
 Projected subject motion is a representative-point displacement model with constant linear world velocity. It does not yet describe scale blur of an extended object whose magnification changes materially during the exposure.
 
+### Mode-bound exposure/readout timing and temporal translation
+
+The #12 closure preserves two different clocks:
+
+1. **local exposure-window timing**, referenced to the first opening-boundary phase; and
+2. **sensor data-readout timing**, referenced to its own native readout phase.
+
+A capture-mode timing profile binds both sets of facts to one exact capture-mode/profile identity without asserting that those clocks are synchronized. Global readout removes spatial readout skew; it does not remove finite-exposure motion.
+
+The first supported exposure/readout schedules remain simultaneous or uniform-linear native scans. More complex non-uniform schedules are rejected unless a future explicit model represents them.
+
+Pure camera rotation can be evaluated without scene depth. Camera translation cannot. Under constant translation, a stationary scene point at metric position `(x,y,z)` is evaluated from its relative camera-space position over time, so image displacement scales with scene depth through rectilinear projection. Consequently, arbitrary 3D translation does not admit one globally valid image-plane homography.
+
+Optional subject velocity remains separate from camera translation and composes as relative motion. The model does not reinterpret subject motion as sensor/readout behavior.
+
+Temporal radiance integration uses deterministic midpoint nodes inside each authoritative local exposure interval. Scene-radiance providers must evaluate at those physical capture times; sensor readout timing is not substituted for exposure time. Per-node uncertainty/evidence is preserved, while aggregate uncertainty remains unquantified unless justified correlation assumptions are supplied.
+
 ### Generic illumination vignetting
 
 The engine exposes a generic rotationally symmetric **relative linear illumination** model:

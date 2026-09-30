@@ -3087,6 +3087,90 @@ Physical orientation and digital output geometry remain downstream. The schedule
 
 The first model does not cover curtain acceleration, curved/nonlinear curtain travel, segmented/center-out/interleaved electronic schedules, flash/flicker interaction, shutter shock, EFCS-specific pupil/bokeh effects, or rolling-shutter image distortion.
 
+## Capture-mode-bound shutter/readout timing
+
+Use `parseCaptureModeTimingProfile()` and `resolveCaptureModeTiming()` when exposure/readout timing evidence applies to one exact resolved capture mode.
+
+The profile binds:
+
+- stable timing profile ID/version;
+- exact `captureModeId`;
+- shutter mechanism;
+- opening and closing exposure-boundary schedules;
+- sensor readout timing;
+- provenance and limitations.
+
+Schema `0.1.0` supports only the timing families already modeled by Photivra:
+
+- simultaneous/global timing; and
+- uniform-linear native-sensor scans.
+
+Segmented, center-out, interleaved or other non-uniform schedules fail closed rather than being silently approximated.
+
+The resolved result carries both authoritative local exposure windows and sensor data-readout timing, but still reports:
+
+`readoutExposureSynchronization: "not-assumed"`
+
+A shared mode/profile identity does not make readout phase an exposure-start or exposure-end clock.
+
+Changing only a processed/output raster does not alter this timing. Timing changes only when the exact capture mode/profile or explicit timing facts change.
+
+## Depth-aware translation/parallax temporal geometry
+
+Use `calculateCaptureTranslationParallaxTemporalQuadrature()` for camera translation/parallax over the exact local exposure windows resolved above.
+
+Unlike pure camera rotation, translation is **depth dependent**. Every scene sample therefore supplies a metric camera-space position with positive `z`.
+
+The model evaluates each scene point independently at deterministic midpoint nodes:
+
+```text
+relative scene position(t)
+  = reference scene position
+  + (subject velocity - camera translation velocity) * t
+```
+
+This keeps camera motion and subject motion separate while allowing them to coexist.
+
+Important boundaries:
+
+- metric scene depth is required;
+- one global homography/warp is not authorized for arbitrary 3D translation;
+- orientation changes the reported native/oriented sample vector, not the underlying physical projection;
+- camera rotation is still a separate model;
+- visibility, occlusion/disocclusion, deformation and acceleration remain downstream/future responsibilities;
+- sensor data-readout timing is not used as exposure timing.
+
+Two scene points at different depths under the same lateral camera translation therefore produce different image-plane displacement.
+
+## Temporal scene-radiance sampling
+
+Use `createSceneRadianceTemporalSamplingPlan()` to generate deterministic provider/renderer evaluation times over one committed local exposure window.
+
+The sampling plan uses the same authoritative:
+
+`first-opening-boundary-phase`
+
+time basis as the #12 exposure-window contract.
+
+Each node carries:
+
+- deterministic node/result identity;
+- local exposure phase;
+- capture time in seconds;
+- normalized averaging weight;
+- seconds-valued integration measure.
+
+A scene-radiance provider evaluates the scene/source state at those node times. Then `reduceSceneRadianceTemporalSamples()` validates that every returned result matches the exact node, provider, scene, wavelength and time identity before integrating.
+
+The reducer reports both:
+
+- average outgoing spectral radiance; and
+- time-integrated spectral radiance.
+
+Per-node evidence and uncertainty are retained. Aggregate numeric uncertainty is explicitly `not-propagated` because the engine does not invent temporal independence/correlation assumptions.
+
+This is the bridge required for physically timed flicker/flash/source variation. It does not use sensor readout phase as an exposure-time surrogate and does not itself implement visibility, material transport or a renderer.
+
 ## Capture orientation, active area, and output geometry
 
 Use `resolveCaptureGeometry()` to keep physical sensor identity, active capture, physical camera orientation, and final digital output geometry separate:
