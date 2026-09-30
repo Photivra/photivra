@@ -60,6 +60,10 @@ import {
   type FrontOfLensFilterUncertainty
 } from "../optics/front-of-lens-filter.js";
 import {
+  parseFocusPlane,
+  type FocusPlane
+} from "../optics/focus-state.js";
+import {
   calculateSceneRadianceToSensorIrradiance,
   parseSceneToSensorIrradianceProfile,
   type OpticalBridgeFieldThroughput,
@@ -244,6 +248,7 @@ export interface ProductionReleaseFrameBinding {
   releaseSequenceVersion:
     typeof RELEASE_SEQUENCE_VERSION;
   sequenceId: string;
+  releaseFrameId: string;
   frameIndex: number;
   exposureStartTimeSeconds: number;
   exposureEndTimeSeconds: number;
@@ -1683,6 +1688,333 @@ function validateTemporalCaptureInput(
   }
 
   return cloneJson(input);
+}
+
+const RELEASE_TIMING_CONSTRAINTS =
+  new Set<ReleaseTimingConstraint>([
+    "requested-cadence",
+    "body-maximum-cadence",
+    "exposure-duration",
+    "minimum-inter-frame-gap"
+  ]);
+
+function validateReleaseAutomationState(
+  value: unknown,
+  path: string
+): ResolvedReleaseFrame["automation"]["ae"] {
+  if (
+    value !== "manual" &&
+    value !== "locked" &&
+    value !== "continuous"
+  ) {
+    throw new InvalidConfigurationError(
+      path + " is invalid."
+    );
+  }
+  return value;
+}
+
+function validateProductionReleaseFrameBinding(
+  binding:
+    ProductionReleaseFrameBinding,
+  releaseFrameId: string,
+  shutterSeconds: number
+): ProductionReleaseFrameBinding {
+  if (
+    binding.releaseSequenceVersion !==
+    RELEASE_SEQUENCE_VERSION
+  ) {
+    throw new InvalidConfigurationError(
+      'releaseFrameBinding.releaseSequenceVersion must be "' +
+        RELEASE_SEQUENCE_VERSION +
+        '".'
+    );
+  }
+
+  const frameIndex =
+    binding.frameIndex;
+  if (
+    !Number.isSafeInteger(frameIndex) ||
+    frameIndex < 0
+  ) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding.frameIndex must be a non-negative safe integer."
+    );
+  }
+
+  const start =
+    requireFinite(
+      binding.exposureStartTimeSeconds,
+      "releaseFrameBinding.exposureStartTimeSeconds"
+    );
+  const end =
+    requireFinite(
+      binding.exposureEndTimeSeconds,
+      "releaseFrameBinding.exposureEndTimeSeconds"
+    );
+  if (end <= start) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding exposure end must be after exposure start."
+    );
+  }
+  if (
+    !settingEquals(
+      end - start,
+      shutterSeconds
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding exposure duration must match exposure.shutterSeconds."
+    );
+  }
+
+  const sceneTime =
+    requireFinite(
+      binding.sceneTimeSecondsFromSequenceStart,
+      "releaseFrameBinding.sceneTimeSecondsFromSequenceStart"
+    );
+  if (sceneTime < 0) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding.sceneTimeSecondsFromSequenceStart must be greater than or equal to zero."
+    );
+  }
+
+  let interval:
+    number | null = null;
+  if (
+    binding.startIntervalFromPreviousSeconds !==
+    null
+  ) {
+    interval =
+      requirePositiveFinite(
+        binding.startIntervalFromPreviousSeconds,
+        "releaseFrameBinding.startIntervalFromPreviousSeconds"
+      );
+  }
+  if (
+    frameIndex === 0 &&
+    interval !== null
+  ) {
+    throw new InvalidConfigurationError(
+      "The first release frame must not declare a previous-frame interval."
+    );
+  }
+  if (
+    frameIndex > 0 &&
+    interval === null
+  ) {
+    throw new InvalidConfigurationError(
+      "A non-first release frame must declare its previous-frame interval."
+    );
+  }
+
+  if (
+    !Array.isArray(
+      binding.timingConstraints
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding.timingConstraints must be an array."
+    );
+  }
+  const timingConstraints =
+    binding.timingConstraints.map(
+      (constraint, index) => {
+        if (
+          !RELEASE_TIMING_CONSTRAINTS.has(
+            constraint
+          )
+        ) {
+          throw new InvalidConfigurationError(
+            "releaseFrameBinding.timingConstraints[" +
+              index +
+              "] is invalid."
+          );
+        }
+        return constraint;
+      }
+    );
+  if (
+    new Set(timingConstraints).size !==
+    timingConstraints.length
+  ) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding.timingConstraints must not contain duplicates."
+    );
+  }
+
+  const automation = {
+    ae:
+      validateReleaseAutomationState(
+        binding.automation.ae,
+        "releaseFrameBinding.automation.ae"
+      ),
+    af:
+      validateReleaseAutomationState(
+        binding.automation.af,
+        "releaseFrameBinding.automation.af"
+      ),
+    awb:
+      validateReleaseAutomationState(
+        binding.automation.awb,
+        "releaseFrameBinding.automation.awb"
+      )
+  };
+
+  const whiteBalanceStateId =
+    binding.whiteBalanceStateId ===
+    undefined
+      ? undefined
+      : requireNonEmptyString(
+          binding.whiteBalanceStateId,
+          "releaseFrameBinding.whiteBalanceStateId"
+        );
+
+  const parsed: ProductionReleaseFrameBinding = {
+    releaseSequenceVersion:
+      RELEASE_SEQUENCE_VERSION,
+    sequenceId:
+      requireNonEmptyString(
+        binding.sequenceId,
+        "releaseFrameBinding.sequenceId"
+      ),
+    releaseFrameId:
+      requireNonEmptyString(
+        binding.releaseFrameId,
+        "releaseFrameBinding.releaseFrameId"
+      ),
+    frameIndex,
+    exposureStartTimeSeconds:
+      start,
+    exposureEndTimeSeconds:
+      end,
+    sceneTimeSecondsFromSequenceStart:
+      sceneTime,
+    startIntervalFromPreviousSeconds:
+      interval,
+    timingConstraints,
+    focus:
+      parseFocusPlane(
+        binding.focus
+      ),
+    automation,
+    ...(whiteBalanceStateId ===
+    undefined
+      ? {}
+      : {
+          whiteBalanceStateId
+        })
+  };
+
+  if (
+    parsed.releaseFrameId !==
+    releaseFrameId
+  ) {
+    throw new InvalidConfigurationError(
+      "releaseFrameBinding.releaseFrameId must match releaseFrameId."
+    );
+  }
+
+  return parsed;
+}
+
+function releaseFocusMatchesOpticalFocus(
+  releaseFocus: FocusPlane,
+  opticalFocus:
+    OpticalBridgeFocusContext
+): boolean {
+  if (
+    releaseFocus.kind ===
+    "infinity"
+  ) {
+    return (
+      opticalFocus.kind ===
+        "infinity-focus" ||
+      (
+        opticalFocus.kind ===
+          "supplied-working-f-number" &&
+        opticalFocus.focus.kind ===
+          "infinity"
+      )
+    );
+  }
+
+  if (
+    opticalFocus.kind ===
+    "ideal-symmetric-thin-lens"
+  ) {
+    return settingEquals(
+      opticalFocus.objectDistanceM,
+      releaseFocus.distanceM
+    );
+  }
+  if (
+    opticalFocus.kind ===
+      "supplied-working-f-number" &&
+    opticalFocus.focus.kind ===
+      "finite"
+  ) {
+    return settingEquals(
+      opticalFocus.focus.objectDistanceM,
+      releaseFocus.distanceM
+    );
+  }
+  return false;
+}
+
+function validateCommittedWhiteBalanceState(
+  state:
+    ResolvedWhiteBalanceState | undefined,
+  binding:
+    ProductionReleaseFrameBinding | undefined
+): ResolvedWhiteBalanceState | undefined {
+  const parsed =
+    state === undefined
+      ? undefined
+      : parseResolvedWhiteBalanceState(
+          state
+        );
+
+  if (binding === undefined) {
+    return parsed;
+  }
+
+  if (
+    binding.whiteBalanceStateId ===
+    undefined
+  ) {
+    if (parsed !== undefined) {
+      throw new InvalidConfigurationError(
+        "A release frame without whiteBalanceStateId must not receive a committed whiteBalanceState."
+      );
+    }
+    return undefined;
+  }
+
+  if (parsed === undefined) {
+    throw new InvalidConfigurationError(
+      "A release frame with whiteBalanceStateId requires the committed resolved white-balance state."
+    );
+  }
+  if (
+    parsed.stateId !==
+    binding.whiteBalanceStateId
+  ) {
+    throw new InvalidConfigurationError(
+      "whiteBalanceState.stateId must match releaseFrameBinding.whiteBalanceStateId."
+    );
+  }
+  if (
+    binding.automation.awb ===
+      "locked" &&
+    !parsed.locked
+  ) {
+    throw new InvalidConfigurationError(
+      "A release frame with locked AWB requires a locked committed white-balance state."
+    );
+  }
+
+  return parsed;
 }
 
 export function createProductionCaptureSnapshot(
