@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "0.1.0",
+  "fixtureId": "basic-reference-scene",
+  "description": "Minimal deterministic Photivra-owned reference scene for cross-engine scientific unit tests.",
+  "provenance": {
+    "sourceOrigin": "photivra",
+    "sourceReference": "test:basic-reference-scene",
+    "reuseStatus": "photivra-owned"
+  },
+  "sensor": {
+    "imagingArea": {
+      "widthMm": 36,
+      "heightMm": 24
+    },
+    "nativeRaster": {
+      "pixelWidth": 600,
+      "pixelHeight": 400
+    },
+    "orientation": "landscape"
+  },
+  "lens": {
+    "model": "ideal-thin-lens",
+    "focalLengthMm": 50,
+    "aperture": 4,
+    "distortion": "none",
+    "lateralChromaticAberration": "none",
+    "vignetting": "none"
+  },
+  "exposure": {
+    "shutterSeconds": 0.008,
+    "iso": 100
+  },
+  "focus": {
+    "distanceM": 5,
+    "circleOfConfusionMm": 0.03
+  },
+  "target": {
+    "kind": "planar-lambertian",
+    "widthM": 1,
+    "heightM": 1,
+    "distanceM": 5,
+    "centerM": {
+      "x": 0,
+      "y": 0,
+      "z": 5
+    },
+    "velocityMps": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "reflectance": 0.5
+  },
+  "illumination": {
+    "kind": "uniform-monochromatic-spectral-irradiance",
+    "wavelengthNm": 550,
+    "spectralIrradianceWattsPerSquareMeterNanometer": 1
+  },
+  "support": {
+    "kind": "ideal-stable",
+    "angularVelocityRadPerSec": {
+      "yaw": 0,
+      "pitch": 0,
+      "roll": 0
+    }
+  },
+  "stabilization": {
+    "enabled": false
+  },
+  "corrections": {
+    "distortion": false,
+    "chromaticAberration": false,
+    "vignetting": false,
+    "digitalLensCorrection": false
+  },
+  "stochasticSeedUint32": 12345,
+  "expected": {
+    "sensor": {
+      "diagonalMm": 43.266615305567875,
+      "aspectRatio": 1.5,
+      "cropFactor35Mm": 1,
+      "pitchXMicrometers": 60,
+      "pitchYMicrometers": 60,
+      "totalImageSamples": 240000,
+      "megapixels": 0.24
+    },
+    "projection": {
+      "imageDistanceMm": 50.505050505050505,
+      "magnification": 0.010101010101010102,
+      "infinityProjectionScale": 1.0101010101010102,
+      "horizontalFieldOfViewDegrees": 39.232134743823956,
+      "verticalFieldOfViewDegrees": 26.731283946000666,
+      "diagonalFieldOfViewDegrees": 46.374725290798644,
+      "projectedTargetWidthMm": 10.101010101010102,
+      "projectedTargetHeightMm": 10.101010101010102,
+      "projectedTargetWidthPixels": 168.3501683501684,
+      "projectedTargetHeightPixels": 168.3501683501684
+    },
+    "focus": {
+      "defocusDiameterMm": 0,
+      "hyperfocalDistanceM": 20.883333333333336,
+      "nearLimitM": 4.041935483870967,
+      "farLimitM": 6.5533472803347275,
+      "totalDepthOfFieldM": 2.51141179646376
+    },
+    "diffraction": {
+      "wavelengthNm": 550,
+      "firstZeroDiameterMicrometers": 5.368
+    },
+    "exposure": {
+      "ev100": 10.965784284662087
+    },
+    "radiance": {
+      "lambertianSpectralRadianceWattsPerSquareMeterSteradianNanometer": 0.15915494309189535
+    }
+  }
+}
