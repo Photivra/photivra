@@ -70,6 +70,40 @@ export {
 } from "./core/image-formation.js";
 
 export {
+  IMAGE_FORMATION_FIDELITY_PROFILE_SCHEMA_VERSION,
+  PREPARED_IMAGE_FORMATION_CONTEXT_VERSION,
+  PRODUCTION_CAPTURE_SNAPSHOT_VERSION,
+  PRODUCTION_IMAGE_FORMATION_PLAN_VERSION,
+  RENDERER_CAPABILITY_SCHEMA_VERSION,
+  createProductionCaptureSnapshot,
+  createProductionImageFormationPlan,
+  parseImageFormationFidelityProfile,
+  parsePreparedImageFormationContext,
+  parseProductionCaptureSnapshot,
+  parseRendererCapabilityDeclaration,
+  prepareImageFormationContext,
+  serializeProductionImageFormationPlan,
+  type CreateProductionCaptureSnapshotInput,
+  type CreateProductionImageFormationPlanInput,
+  type ImageFormationFidelityProfile,
+  type PlannedImageFormationEffect,
+  type PlannedImageFormationEffectState,
+  type PlannedImageFormationStage,
+  type PlannedImageFormationStageState,
+  type PlannedScientificStatus,
+  type PrepareImageFormationContextInput,
+  type PreparedImageFormationContext,
+  type ProductionCaptureSnapshot,
+  type ProductionImageFormationBlocker,
+  type ProductionImageFormationBlockerCode,
+  type ProductionImageFormationPlan,
+  type ProductionPhysicalSceneSample,
+  type RendererCapabilityDeclaration,
+  type RendererConsumerKind,
+  type RequiredImageFormationEffect
+} from "./composition/image-formation-plan.js";
+
+export {
   calculateFieldOfView,
   calculateFieldOfViewBounds,
   type CalculateFieldOfViewBoundsInput,
