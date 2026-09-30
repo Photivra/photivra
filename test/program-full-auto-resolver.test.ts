@@ -817,3 +817,222 @@ describe("Full Auto exposure", () => {
     );
   });
 });
+
+describe("program-line fail-closed schema coverage", () => {
+  it("rejects invalid schema metadata and insufficient nodes", () => {
+    const base = programLine();
+
+    expect(() =>
+      parseExposureProgramLineProfile({
+        ...base,
+        schemaVersion: "9.9.9"
+      })
+    ).toThrow("schemaVersion must be");
+
+    expect(() =>
+      parseExposureProgramLineProfile({
+        ...base,
+        scientificStatus: "calibrated"
+      })
+    ).toThrow(
+      'scientificStatus must be "approximation"'
+    );
+
+    expect(() =>
+      parseExposureProgramLineProfile({
+        ...base,
+        policyKind: "manufacturer-program"
+      })
+    ).toThrow(
+      'policyKind must be "generic-program-line"'
+    );
+
+    expect(() =>
+      parseExposureProgramLineProfile({
+        ...base,
+        interpolation: "linear-aperture"
+      })
+    ).toThrow(
+      'interpolation must be "log2-aperture-shutter"'
+    );
+
+    expect(() =>
+      parseExposureProgramLineProfile({
+        ...base,
+        nodes: [base.nodes[0]]
+      })
+    ).toThrow(
+      "must contain at least two nodes"
+    );
+  });
+
+  it("rejects malformed node numbers, IDs, and limitations", () => {
+    const base = programLine();
+
+    expect(() =>
+      parseExposureProgramLineProfile({
+        ...base,
+        nodes: [
+          {
+            ...base.nodes[0],
+            nodeId: " "
+          },
+          base.nodes[1]
+        ]
+      })
+    ).toThrow(
+      "nodeId must be a non-empty string"
+    );
+
+    expect(() =>
+      parseExposureProgramLineProfile({
+        ...base,
+        nodes: [
+          {
+            ...base.nodes[0],
+            opticalExposureStopsFromReference:
+              Number.NaN
+          },
+          base.nodes[1]
+        ]
+      })
+    ).toThrow(
+      "opticalExposureStopsFromReference must be finite"
+    );
+
+    expect(() =>
+      parseExposureProgramLineProfile({
+        ...base,
+        nodes: [
+          {
+            ...base.nodes[0],
+            aperture: 0
+          },
+          base.nodes[1]
+        ]
+      })
+    ).toThrow(
+      "aperture must be greater than zero"
+    );
+
+    expect(() =>
+      parseExposureProgramLineProfile({
+        ...base,
+        nodes: [
+          {
+            ...base.nodes[0],
+            shutterSeconds: 0
+          },
+          base.nodes[1]
+        ]
+      })
+    ).toThrow(
+      "shutterSeconds must be greater than zero"
+    );
+
+    expect(() =>
+      parseExposureProgramLineProfile({
+        ...base,
+        limitations: [
+          "same",
+          "same"
+        ]
+      })
+    ).toThrow(
+      "limitations must not contain duplicates"
+    );
+  });
+});
+
+describe("Program Auto fail-closed control coverage", () => {
+  it("rejects invalid ISO-control and Auto ISO policy metadata", () => {
+    expect(() =>
+      resolveProgramAutoExposureMode({
+        target: targetForScale(1),
+        capabilities: capabilities(),
+        referenceExposure,
+        programLine: programLine(),
+        isoControl: {
+          kind: "magic"
+        } as never
+      })
+    ).toThrow(
+      "isoControl.kind is invalid for Program Auto"
+    );
+
+    expect(() =>
+      resolveProgramAutoExposureMode({
+        target: targetForScale(1),
+        capabilities: capabilities(),
+        referenceExposure,
+        programLine: programLine(),
+        isoControl: {
+          kind: "automatic",
+          isoBaseline:
+            "reference",
+          isoQuantizationPolicy:
+            "nearest-log2-lower-on-tie"
+        } as never
+      })
+    ).toThrow(
+      "Program Auto ISO policy is invalid"
+    );
+  });
+
+  it("rejects program nodes outside current aperture/shutter capability", () => {
+    const base = programLine();
+
+    expect(() =>
+      resolveProgramAutoExposureMode({
+        target: targetForScale(1),
+        capabilities: capabilities(),
+        referenceExposure,
+        programLine: {
+          ...base,
+          nodes: base.nodes.map(
+            (node, index) =>
+              index === 0
+                ? {
+                    ...node,
+                    aperture: 32
+                  }
+                : node
+          )
+        },
+        isoControl: {
+          kind: "manual",
+          iso: 100
+        }
+      })
+    ).toThrow(
+      "Program-line aperture lies outside"
+    );
+
+    expect(() =>
+      resolveProgramAutoExposureMode({
+        target: targetForScale(1),
+        capabilities: capabilities(),
+        referenceExposure,
+        programLine: {
+          ...base,
+          nodes: base.nodes.map(
+            (node, index) =>
+              index === 2
+                ? {
+                    ...node,
+                    shutterSeconds: 60
+                  }
+                : node
+          )
+        },
+        isoControl: {
+          kind: "manual",
+          iso: 100
+        }
+      })
+    ).toThrow(
+      "Program-line shutter duration lies outside"
+    );
+  });
+});
+
