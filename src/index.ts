@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.61.0" as const;
+export const ENGINE_API_VERSION = "0.62.0" as const;
 
 export {
   approximationResult,
@@ -559,6 +559,34 @@ export {
   type SceneIlluminationSpectrum,
   type SceneIlluminationUncertainty
 } from "./schema/illumination.js";
+
+export {
+  SCENE_MATERIAL_RESPONSE_PROFILE_SCHEMA_VERSION,
+  SCENE_RADIANCE_EVALUATION_SCHEMA_VERSION,
+  SCENE_RADIANCE_PROVIDER_PROFILE_SCHEMA_VERSION,
+  assessSceneMaterialResponseFidelity,
+  parseSceneMaterialResponseProfile,
+  parseSceneRadianceEvaluationRequest,
+  parseSceneRadianceEvaluationResult,
+  parseSceneRadianceProviderProfile,
+  validateSceneRadianceEvaluationBindings,
+  type SceneMaterialResponseDefinition,
+  type SceneMaterialResponseFidelity,
+  type SceneMaterialResponseProfile,
+  type SceneMaterialResponseRepresentation,
+  type SceneRadianceDataArtifactReference,
+  type SceneRadianceEvaluationBindingAssessment,
+  type SceneRadianceEvaluationRequest,
+  type SceneRadianceEvaluationResult,
+  type SceneRadianceEvaluationTarget,
+  type SceneRadianceProviderProfile,
+  type SceneRadianceProviderSpectralFidelity,
+  type SceneRadianceProviderTransportFidelity,
+  type SceneRadianceProviderVisibilityFidelity,
+  type SceneRadianceScientificStatus,
+  type SceneRadianceUncertainty,
+  type ValidateSceneRadianceEvaluationBindingsInput
+} from "./schema/scene-radiance.js";
 
 export {
   calculateProjectedMotionBlur,
