@@ -36,6 +36,26 @@ if (entry === undefined || !Array.isArray(entry.files)) {
 }
 
 const paths = entry.files.map((file) => file.path);
+const packedPaths = new Set(paths);
+
+const builtRoot = await readFile("dist/index.js", "utf8");
+const relativeRootSpecifiers = [
+  ...builtRoot.matchAll(/from\s+["'](\.\/[^"']+\.js)["']/gu)
+].map((match) => match[1]);
+
+for (const specifier of new Set(relativeRootSpecifiers)) {
+  const jsPath = "dist/" + specifier.slice(2);
+  const declarationPath = jsPath.replace(/\.js$/u, ".d.ts");
+
+  for (const requiredPath of [jsPath, declarationPath]) {
+    if (!packedPaths.has(requiredPath)) {
+      throw new Error(
+        `Root export references unpacked module: ${requiredPath}`
+      );
+    }
+  }
+}
+
 const forbidden = paths.filter(
   (path) =>
     path.startsWith("dist/api/") ||
