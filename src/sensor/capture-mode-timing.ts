@@ -468,16 +468,6 @@ export function parseCaptureModeTimingProfile(
   };
 }
 
-function sameRaster(
-  a: NativeImageRaster,
-  b: NativeImageRaster
-): boolean {
-  return (
-    a.pixelWidth === b.pixelWidth &&
-    a.pixelHeight === b.pixelHeight
-  );
-}
-
 /**
  * Resolves the authoritative exposure/readout timing for one exact capture
  * mode and timing-profile identity.
@@ -502,18 +492,6 @@ export function resolveCaptureModeTiming(
       "captureModeTimingProfile.captureModeId must exactly match the resolved capture mode."
     );
   }
-  if (
-    !sameRaster(
-      input.captureMode.nativeRaster,
-      input.captureMode
-        .nativeRaster
-    )
-  ) {
-    throw new InvalidScientificInputError(
-      "Resolved capture-mode raster identity is invalid."
-    );
-  }
-
   const exposureWindows =
     calculateCaptureExposureWindows({
       nativeRaster:
