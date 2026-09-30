@@ -3535,46 +3535,23 @@ function physicalAssuranceComponents(
         kind: "model",
         id:
           "generic-illumination-vignetting",
-        version:
-          sample
-            .fieldThroughput
-            .result.provenance
-            .modelVersion
+        version: "1.0.0"
       },
       basisKind:
         "photivra-model-assumption",
       scientificStatus:
-        sample
-          .fieldThroughput
-          .result.provenance
-          .kind ===
-          "calibrated"
-          ? "calibrated"
-          : "approximation",
+        "approximation",
       evidenceRequirement:
         "not-required",
       evidence: [],
-      uncertainty:
-        sample
-          .fieldThroughput
-          .result.quality
-          ?.uncertainty
-          ? {
-              kind:
-                "calculation-quality",
-              quality:
-                sample
-                  .fieldThroughput
-                  .result.quality
-            }
-          : {
-              kind:
-                "not-quantified",
-              limitation:
-                "No quantified field-throughput uncertainty is available for this generic approximation."
-            },
+      uncertainty: {
+        kind: "not-quantified",
+        limitation:
+          "The capture snapshot retains the evaluated vignetting value but not the source CalculationResult quality envelope; no numeric uncertainty is inferred."
+      },
       limitations: [
-        "Field-throughput model status remains separate from lens transmission and front-filter transmission."
+        "Field-throughput model status remains separate from lens transmission and front-filter transmission.",
+        "Future capture contracts must explicitly preserve source quality if calibrated field-throughput uncertainty is required downstream."
       ]
     });
   }
