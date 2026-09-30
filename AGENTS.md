@@ -232,6 +232,20 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - The scene-radiance provider boundary remains upstream of optics. It must not calculate or claim sensor-plane irradiance, photon/electron values, or sensor response.
 - Renderer implementation remains external. Browser preview, Blender reference, or future spectral renderers may differ in computation while preserving the same engine-owned request/result semantics.
 
+## Shared spectral composition boundary
+
+- Continuous spectral coverage and discrete line spectra are different mathematical representations. Never broaden a discrete/delta-like line into an arbitrary continuous bump merely to reuse continuous quadrature.
+- Continuous spectral-coverage participants must use one explicit resolved air/vacuum wavelength basis. Do not silently convert or mix bases.
+- Continuous composition intersects participant wavelength support and unions interpolation breakpoints only. It does not apply response/transmission/radiance values and does not prove numerical convergence.
+- Breakpoints are interpolation structure, not quadrature weights, spectral values, uncertainty, or evidence of physical significance.
+- A discrete line weight is a wavelength-integrated fraction. It is not a per-nanometre spectral-density sample.
+- Discrete line integration sums already wavelength-integrated line quantities. Never multiply a discrete line by d-lambda or invent a line width unless a separate physical line-shape model explicitly requires it.
+- Discrete line IDs and wavelengths must be unique/ordered, weights must be positive and normalized to one, and wavelength basis must be resolved.
+- A broadband physical illumination magnitude may be distributed across normalized line fractions in the same source quantity domain. Do not reinterpret point W/sr, area W/m²/sr, directional W/m², or relative magnitude as one another.
+- Calibrated source magnitude plus calibrated relative line weights still does not automatically authorize calibrated outgoing scene radiance. Material/visibility/transport fidelity and combined uncertainty remain separate.
+- Sensor-response spectral coverage exposes support/knots only. It must not be treated as response application, photon conversion, or proof that scene/optics share the same coverage.
+- RGB, blackbody approximations, unresolved spectra, and discrete lines must not enter the continuous-coverage adapter by silent conversion.
+
 ## Radiometry and sensor-metadata rules
 
 - Sensor architecture metadata is descriptive and scientifically inert until a separate downstream model consumes it.
