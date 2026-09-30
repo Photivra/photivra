@@ -6,6 +6,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Added
 
+- Added temporal illumination waveforms and explicit source-waveform↔capture-time registration. Aperiodic flash/pulse and periodic flicker profiles use seconds-based piecewise-linear relative multipliers bound to the existing `first-opening-boundary-phase` capture reference; local exposure integration consumes authoritative exposure-window samples with deterministic midpoint quadrature. Sensor readout timing is never used as an exposure-time proxy, base source magnitude/spectrum remain authoritative, and the layer does not choose exposure settings, apply source magnitude/material transport, calculate scene radiance, or estimate convergence error.
 - Added shared continuous spectral-coverage composition plus first-class discrete line-spectrum measures. Continuous participants now intersect explicit air/vacuum support and union interpolation breakpoints without applying spectral values; sensor-response and scene-illumination adapters feed that shared plan. Discrete illumination spectra use normalized wavelength-integrated line weights, distribute broadband source magnitude into integrated per-line quantities, and integrate by summation without inventing a line width or multiplying by dλ. Continuous and discrete paths remain separate, and calibrated absolute line-output claims are still not authorized automatically.
 - Added the renderer-neutral scene-radiance provider/material-response boundary. Material profiles distinguish unresolved, RGB/PBR approximation, and wavelength-preserving spectral-data inputs; provider profiles declare spectral/material/visibility/direct/indirect fidelity; evaluation requests bind exact scene/profile/target/time/wavelength identity; results use outgoing spectral radiance in W/m²/sr/nm; and binding validation prevents profile/material/request/result drift without recomputing renderer output. Schema 0.1.0 remains approximation-only at the provider/result level and explicitly does not authorize calibrated radiance, optics/sensor-plane irradiance, photons, fluorescence, volumetric transport, or polarization.
 - Added renderer-neutral shared spectral wavelength primitives plus a scene illumination profile for stable point/spot/area/directional/environment source identities, explicit source-specific magnitude units, relative/RGB/blackbody/continuous-spectrum representations, reusable-data provenance, and fail-closed approximation/calibration boundaries. The profile describes illumination only and does not calculate outgoing scene radiance, material response, visibility, indirect transport, fluorescence, volumetrics, polarization, or sensor signal.
@@ -29,7 +30,7 @@ Notable public changes to `@photivra/engine` are documented here.
 
 ### Changed
 
-- Engine API contract advances to `0.64.0`; the image-formation contract remains `0.3.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
+- Engine API contract advances to `0.65.0`; the image-formation contract remains `0.3.0`. The composed POC remains `0.20.0`; package version remains `0.6.0` until the next public release.
 
 ## 0.6.0 - 2026-09-29
 

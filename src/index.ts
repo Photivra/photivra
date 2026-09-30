@@ -6,7 +6,7 @@
  * This constant is intentionally independent of the package version so
  * schema/API compatibility can be discussed explicitly.
  */
-export const ENGINE_API_VERSION = "0.64.0" as const;
+export const ENGINE_API_VERSION = "0.65.0" as const;
 
 export {
   approximationResult,
@@ -601,6 +601,24 @@ export {
   type CreateSceneIlluminationSpectralCoverageParticipantInput,
   type SceneIlluminationDiscreteLineMeasure
 } from "./schema/illumination-spectral.js";
+
+export {
+  SCENE_ILLUMINATION_TEMPORAL_PROFILE_SCHEMA_VERSION,
+  evaluateSceneIlluminationTemporalMultiplier,
+  integrateSceneIlluminationTemporalMultiplierOverExposureWindow,
+  parseSceneIlluminationTemporalProfile,
+  type EvaluateSceneIlluminationTemporalMultiplierInput,
+  type IntegrateSceneIlluminationTemporalMultiplierInput,
+  type SceneIlluminationTemporalExposureIntegration,
+  type SceneIlluminationTemporalIntegrationNode,
+  type SceneIlluminationTemporalMultiplierEvaluation,
+  type SceneIlluminationTemporalProfile,
+  type SceneIlluminationTemporalRegistrationUncertainty,
+  type SceneIlluminationTemporalScientificStatus,
+  type SceneIlluminationTemporalSourceBinding,
+  type SceneIlluminationTemporalWaveform,
+  type SceneIlluminationTemporalWaveformSample
+} from "./schema/illumination-temporal.js";
 
 export {
   SCENE_MATERIAL_RESPONSE_PROFILE_SCHEMA_VERSION,

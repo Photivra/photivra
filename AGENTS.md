@@ -246,6 +246,20 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - Sensor-response spectral coverage exposes support/knots only. It must not be treated as response application, photon conversion, or proof that scene/optics share the same coverage.
 - RGB, blackbody approximations, unresolved spectra, and discrete lines must not enter the continuous-coverage adapter by silent conversion.
 
+## Temporal illumination boundary
+
+- The existing `SceneIlluminationProfile` remains the static/base source definition. Time-varying emission is an additive temporal overlay; do not mutate base source magnitude/spectrum to encode flash or flicker.
+- Source waveforms use physical seconds and relative non-negative magnitude multipliers. Do not encode display brightness, EV compensation, ISO, aperture, or shutter-setting policy into a waveform.
+- A time-varying source must have an explicit source↔waveform registration to the capture `first-opening-boundary-phase` reference. Do not infer synchronization from readout direction, shutter mechanism, waveform frequency, or timestamps from another clock.
+- Sensor data-readout timing is not exposure timing. Never use total readout duration as a flash/flicker phase proxy.
+- Aperiodic waveforms are zero outside declared support in schema 0.1.0. Periodic waveforms must close continuously at exactly one declared period.
+- Numeric waveform samples require reusable-data or Photivra-owned evidence. Calibrated waveforms require quantified relative uncertainty; calibrated registration requires quantified absolute timing uncertainty in seconds.
+- Local exposure integration consumes authoritative `CaptureExposureWindows` samples and uses deterministic midpoint quadrature. It integrates relative modulation only; source magnitude, material/visibility transport, optics, sensor response, and photon/electron formation remain separate.
+- Source enabled/disabled state is separate from waveform value. Do not use zero waveform magnitude as the only representation of a disabled source.
+- Temporal quadrature convergence/error is a downstream radiance-domain question. Do not invent a waveform-only error bound for the final image.
+- Temporal illumination must not choose ISO/aperture/shutter or implement metering/automatic-exposure policy. It supplies upstream light-state evidence only.
+- A scene-radiance provider that declares `illuminationTemporalProfileId` must bind the matching temporal profile; a provider without that declaration must not silently consume one.
+
 ## Radiometry and sensor-metadata rules
 
 - Sensor architecture metadata is descriptive and scientifically inert until a separate downstream model consumes it.

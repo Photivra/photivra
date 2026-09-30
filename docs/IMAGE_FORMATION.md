@@ -48,6 +48,8 @@ See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md).
 
 Shared spectral planning now distinguishes continuous support from discrete lines. Continuous scene/optics/sensor factors may share an explicit air/vacuum coverage intersection and breakpoint union. Delta-like line spectra remain wavelength-integrated measures and are summed without a dλ multiplier; they are never converted into synthetic continuous density merely to enter the continuous sensor quadrature path.
 
+Time-varying illumination now uses a separate temporal profile. Source waveforms are relative multipliers evaluated in physical seconds and must be explicitly registered to the capture `first-opening-boundary-phase` reference before flash/flicker can participate in exposure integration. The local exposure window—not total sensor data-readout duration—defines the integration interval. The temporal foundation returns multiplier/time measures only; source magnitude, material/visibility transport, outgoing radiance, optics, sensor response, metering and automatic exposure remain downstream/separate.
+
 ## Coordinate spaces
 
 The contract explicitly distinguishes:
