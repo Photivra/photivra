@@ -379,6 +379,273 @@ This model changes throughput only. It does not change:
 
 Mechanical/pupil vignetting and cat's-eye bokeh belong to the later pupil/PSF foundation. This generic profile is also not calibrated radiometry or a named-lens measurement.
 
+## Scene radiance to sensor irradiance
+
+Use `calculateSceneRadianceToSensorIrradiance()` when you need the first physical primary-optics bridge from one validated #85 outgoing spectral-radiance sample to **pre-sensor-stack sensor-plane spectral irradiance**.
+
+The bridge operates on one explicit wavelength/time/field sample at a time.
+
+```ts
+import {
+  calculateSceneRadianceToSensorIrradiance,
+  parseSceneToSensorIrradianceProfile
+} from "@photivra/engine";
+
+const opticalProfile =
+  parseSceneToSensorIrradianceProfile({
+    schemaVersion: "0.1.0",
+    profileId: "generic-lens-throughput",
+    profileVersion: "1.0.0",
+    lensProfileId: "lens-prosumer-standard",
+    scientificStatus: "approximation",
+    applicability: {
+      focalLengthMm: {
+        minimum: 50,
+        maximum: 50
+      },
+      nominalFNumber: {
+        minimum: 1.8,
+        maximum: 16
+      },
+      focus: {
+        kind: "any"
+      }
+    },
+    transmission: {
+      kind: "spectral-transmission",
+      scientificStatus: "approximation",
+      wavelengthBasis: "air",
+      samples: {
+        value: [
+          {
+            wavelengthNanometers: 450,
+            linearTransmissionFactor: 0.78
+          },
+          {
+            wavelengthNanometers: 550,
+            linearTransmissionFactor: 0.82
+          },
+          {
+            wavelengthNanometers: 650,
+            linearTransmissionFactor: 0.76
+          }
+        ],
+        evidence: [
+          {
+            sourceOrigin: "photivra",
+            sourceReference:
+              "generic-lens-throughput:v1",
+            reuseStatus:
+              "photivra-owned"
+          }
+        ]
+      },
+      uncertainty: {
+        kind: "not-quantified",
+        limitation:
+          "Generic optical approximation."
+      }
+    },
+    distortionAreaMappingOwnership:
+      "not-applied-by-bridge",
+    psfRedistributionOwnership:
+      "downstream-normalized-energy-redistribution",
+    sensorOpticalStackIncluded: false,
+    strayLightIncluded: false,
+    polarizationModeled: false,
+    wavelengthChangingBehaviorModeled: false,
+    volumetricScatteringModeled: false,
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference:
+          "generic-lens-throughput-profile:v1",
+        reuseStatus:
+          "photivra-owned"
+      }
+    ],
+    limitations: [
+      "Paraxial primary-image approximation."
+    ]
+  });
+
+const irradiance =
+  calculateSceneRadianceToSensorIrradiance({
+    sceneRadianceRequest,
+    sceneRadianceResult,
+    profile: opticalProfile,
+    focalLengthMm: 50,
+    nominalFNumber: 4,
+    focus: {
+      kind: "infinity-focus"
+    },
+    imagePointMm: {
+      x: 0,
+      y: 0
+    },
+    fieldThroughput: {
+      kind: "unity"
+    }
+  });
+```
+
+### Primary relation
+
+The first bridge uses the paraxial circular-pupil approximation:
+
+```text
+geometric acceptance ≈ pi / (4 * N_working^2)
+
+sensor spectral irradiance =
+  scene spectral radiance
+  * effective optical acceptance
+  * field throughput
+```
+
+where the effective optical acceptance includes exactly one optical-transmission path.
+
+This is a **paraxial approximation**, not a ray-traced pupil solution.
+
+### f-number, working f-number, transmission, and T-stop
+
+These quantities remain separate.
+
+- nominal f-number describes geometric aperture;
+- working f-number describes the finite-focus geometric aperture relation used by the bridge;
+- spectral transmission is a wavelength-dependent fractional throughput;
+- effective working T-stop is an alternative approximation that already incorporates transmission loss.
+
+Do not apply a spectral transmission curve and T-stop simultaneously.
+
+For a spectral-transmission profile:
+
+```text
+effective acceptance =
+  pi / (4 * N_working^2)
+  * spectral transmission
+```
+
+For an effective-working-T-stop approximation:
+
+```text
+effective acceptance =
+  pi / (4 * T_working^2)
+```
+
+The T-stop approximation must not be smaller than the geometric working f-number in this passive-optics model.
+
+### Close focus
+
+At infinity focus:
+
+```text
+N_working = N_nominal
+```
+
+The ideal symmetric thin-lens option may use:
+
+```text
+N_working = N_nominal * (1 + magnification)
+```
+
+but only when unity pupil magnification is explicitly declared.
+
+This is not assumed to be universally correct for real lenses.
+
+A generic/real lens profile may instead supply an evidence-backed working f-number:
+
+```ts
+focus: {
+  kind: "supplied-working-f-number",
+  focus: {
+    kind: "finite",
+    objectDistanceM: 0.4
+  },
+  workingFNumber: {
+    value: 5.2,
+    evidence: [
+      {
+        sourceOrigin: "photivra",
+        sourceReference:
+          "lens-working-fnumber:0.4m",
+        reuseStatus:
+          "photivra-owned"
+      }
+    ]
+  },
+  basis:
+    "Generic lens calibration/profile."
+}
+```
+
+### Field throughput
+
+The bridge never hard-codes a universal `cos^4(theta)` falloff.
+
+Supply either:
+
+- `{ kind: "unity" }`; or
+- one already evaluated `calculateIlluminationVignetting()` result for the exact same image-plane field coordinate.
+
+That factor is applied **exactly once**.
+
+Mechanical pupil clipping / cat-eye behavior remains a later pupil/PSF concern and must not be stacked as a second hidden illumination loss.
+
+### Wavelength basis and provenance
+
+Scene radiance and optical transmission must use the same resolved wavelength basis:
+
+- `air`; or
+- `vacuum`.
+
+Photivra does not silently convert between them.
+
+Numeric wavelength-transmission curves are reusable data, not merely factual metadata. Their evidence must therefore be `reusable-data` or `photivra-owned`; `factual-reference-only` is insufficient for copied numeric curves.
+
+### Boundary of the result
+
+The output quantity is:
+
+```text
+sensor-plane spectral irradiance
+unit: W/m^2/nm
+```
+
+It is still **upstream** of:
+
+- sensor cover glass / OLPF;
+- microlens angular response;
+- CFA/filter response;
+- QE or A/W spectral responsivity;
+- photon/electron conversion;
+- charge accumulation;
+- dark current;
+- saturation;
+- ADC/RAW/reconstruction.
+
+The bridge also does not apply:
+
+- PSF/diffraction redistribution;
+- distortion/Jacobian brightness correction;
+- flare/ghosts/veiling glare;
+- polarization;
+- volumetric scattering;
+- wavelength-changing transport.
+
+Those remain separately owned so transmission or energy loss cannot be counted twice.
+
+### Calibration status
+
+Schema 0.1.0 can preserve calibrated optical transmission metadata, but current #85 scene-radiance evaluation is still approximation-only.
+
+Therefore the combined result currently reports:
+
+```text
+calibratedSensorPlaneIrradianceClaimAuthorized = false
+```
+
+even when the optical profile itself is calibrated.
+
 ## Thin-lens image distance and magnification
 
 Use `calculateThinLensImageDistance()` to calculate ideal Gaussian thin-lens image distance for an object/focus plane.
