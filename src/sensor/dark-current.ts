@@ -95,6 +95,14 @@ export interface SensorDarkCurrentCharge {
     x: number;
     y: number;
   };
+  bindingId: string;
+  stationarityProfileId: string;
+  timeReference:
+    "first-opening-boundary-phase";
+  startOffsetSecondsFromOpeningReference:
+    number;
+  endOffsetSecondsFromOpeningReference:
+    number;
   operatingTemperatureC: number;
   temperatureModel:
     SensorDarkCurrentTemperatureModel["kind"];
@@ -773,6 +781,19 @@ export function calculateSensorDarkCurrentCharge(
       site: {
         ...site
       },
+      bindingId:
+        input.exposure.bindingId,
+      stationarityProfileId:
+        input.exposure
+          .stationarityProfileId,
+      timeReference:
+        input.exposure.timeReference,
+      startOffsetSecondsFromOpeningReference:
+        input.exposure
+          .startOffsetSecondsFromOpeningReference,
+      endOffsetSecondsFromOpeningReference:
+        input.exposure
+          .endOffsetSecondsFromOpeningReference,
       operatingTemperatureC:
         input.operatingTemperatureC,
       temperatureModel:
