@@ -96,6 +96,10 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [instantaneous inverse capture-scan mapping under pure rotation](docs/USAGE.md#instantaneous-capture-rotation-inverse-mapping), with an explicit local-exposure phase and analytic destination-to-reference ray inversion;
 - [the existing controlled yaw/pitch camera-shake and stabilization-equivalent approximation](docs/USAGE.md#camera-shake-and-stabilization-equivalent-approximation).
 
+### Color controls
+
+- [white-balance control and Auto WB](docs/USAGE.md#white-balance-and-auto-wb), including generic profile-owned presets, manual gains, independent CCT+tint intent, custom measurement, deterministic AWB priorities, and AWB lock without modifying scene illumination or RAW-like capture.
+
 ### Sensor and output
 
 - [projected fronto-parallel object size and sensor-pixel sampling](docs/USAGE.md#projected-object-size-and-sensor-sampling);
@@ -235,7 +239,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.81.0`
+- Engine API contract: `0.82.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
