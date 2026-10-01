@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 export { SENSOR_RAW_PRODUCER_SCHEMA_VERSION, SENSOR_RAW_PRODUCER_NOISE_MODEL, parseSensorRawProducerInput, simulateSensorRawFrame,
-  type SensorRawProducerSiteInput, type SensorRawProducerInput, type SensorRawProducerResult } from "./capture/sensor-raw-producer.js";
+  type SensorRawProducerExposureWindowInput, type SensorRawProducerSiteInput, type SensorRawProducerInput, type SensorRawProducerResult } from "./capture/sensor-raw-producer.js";
 export { CAPTURE_CORRECTED_SDR_SCHEMA_VERSION, parseCaptureCorrectedSdrInput, calculateCaptureCorrectedSdr,
   type CaptureCorrectedSdrInput, type CaptureCorrectedSdrResult } from "./output/capture-corrected-sdr.js";
 export { PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION, parseExportSensorColorProfile, parsePhotographicExportInput, createPhotographicExportPair,

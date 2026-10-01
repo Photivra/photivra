@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — engine API 0.103.0
+## Unreleased — engine API 0.104.0
+
+- Added optional full-native local shutter-window binding to the RAW producer (producer result schema 0.2.0). Exact per-site photo/dark/completeness windows must match the existing engine timing calculation. Omitted timing retains global behavior and unchanged native seed ownership; no rolling motion/radiance integration or production-stage activation is claimed.
 
 - Add optional RAW-derived JPEG correction to paired photographic export, reusing the capture correction executor after explicit color/WB. Preserve DNG codes and native crop; expose the processed crop, clipping diagnostics and separate informational RAW intent. Require full active reconstruction and reject unprovided prefiltering. No production-stage activation or external-editor validation claim.
 
