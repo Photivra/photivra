@@ -92,6 +92,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [EV100, relative optical exposure, relative rendered exposure, and equivalent ISO compensation](docs/USAGE.md#exposure-and-iso-relations);
 - [relative pre-exposure metering](docs/USAGE.md#relative-pre-exposure-metering), with explicit generic multi-zone, center-weighted, spot, and highlight-weighted policies over the oriented active capture frame, plus generic body metering capability/profile compatibility and a frozen target seam into automatic exposure;
 - [scene-radiance-derived and explicit temporal metering](docs/USAGE.md#scene-radiance-derived-and-temporal-metering), binding relative meter samples to the #85 provider/material/illumination context and requiring declared time averaging for time-varying illumination without inventing a spectral-to-luminance conversion;
+- [manual ordinary flash + front/rear sync](docs/USAGE.md#manual-flash-and-ordinary-sync), registering a spatial #85 scene-light source and explicit pulse waveform to #12 exposure-window timing, preserving ambient temporal illumination, and failing closed when an ordinary pulse cannot fit a real whole-frame-open interval; HSS/TTL are not faked;
 - [stable meter targets and exposure compensation](docs/USAGE.md#meter-target-and-exposure-compensation), freezing metering identity for AE lock and shifting the automatic-exposure target downstream without mutating the underlying meter result;
 - [deterministic logical release sequencing](docs/USAGE.md#logical-release-sequences) for single, burst, self-timer and exposure/focus bracket timing;
 - [constant-velocity projected point motion](docs/USAGE.md#projected-subject-motion);
@@ -249,7 +250,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.89.0`
+- Engine API contract: `0.90.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
@@ -275,7 +276,7 @@ Photivra deliberately avoids claiming more than the current models support.
 - The legacy stabilization-equivalent camera-shake API remains one global yaw/pitch image-plane vector. A separate low-level rotation-only mapping now models field-position-dependent yaw/pitch/roll image motion; camera translation/parallax, real IBIS/OIS behavior, and composed rolling-readout integration remain unmodeled.
 - Native sensor readout timing currently uses a caller-declared uniform-linear single-axis spatial phase approximation. Capture data-readout duration and rolling spatial skew are distinct evidence-backed facts; the model does not infer one effective raster row/column as one physical hardware readout line and does not yet model non-uniform/segmented readout or rolling-shutter image distortion.
 - Readout/exposure linkage can assert only a normalized native spatial-phase/order relationship to an electronic exposure boundary. It does not establish absolute readout-vs-exposure timing, and equal directions or equal timing spans are never treated as proof of synchronization.
-- Capture exposure-window timing models opening and closing boundaries independently as simultaneous or uniform-linear native scans. It validates positive local duration across the full active rectangle, but does not model curtain acceleration, segmented/nonlinear electronic timing, flash/flicker, shutter shock, EFCS-specific pupil/bokeh behavior, or automatically equate exposure boundaries with sensor readout.
+- Capture exposure-window timing models opening and closing boundaries independently as simultaneous or uniform-linear native scans. It validates positive local duration across the full active rectangle, but does not itself model curtain acceleration, segmented/nonlinear electronic timing, shutter shock, EFCS-specific pupil/bokeh behavior, or automatically equate exposure boundaries with sensor readout. The separate manual-flash foundation registers a pulse against this timing without redefining the #12 exposure-window contract.
 - Capture rotation trajectories evaluate a stationary reference ray at local exposure start/end under pure constant camera rotation. The endpoint chord is not an integrated blur kernel, and the API is not an inverse destination-to-source rolling-shutter warp; capture-location-dependent warp solving and exposure integration remain future work.
 - Capture rotation temporal quadrature supplies deterministic midpoint geometry samples across each local exposure. It does not sample scene radiance, output an averaged coordinate/blur radius, model shutter-transmission ramps, or claim a geometry-only error bound; downstream radiance integration remains separate.
 - Instantaneous capture-rotation inverse mapping now provides destination-to-reference geometry at an explicit phase within each local exposure window. Pure rotation is inverted analytically, not iteratively. The result is still not a finite-exposure image or blur model; reference rays may validly fall outside the active source frame and are not clamped.

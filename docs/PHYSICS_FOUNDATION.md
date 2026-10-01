@@ -111,6 +111,31 @@ Optional subject velocity remains separate from camera translation and composes 
 
 Temporal radiance integration uses deterministic midpoint nodes inside each authoritative local exposure interval. Scene-radiance providers must evaluate at those physical capture times; sensor readout timing is not substituted for exposure time. Per-node uncertainty/evidence is preserved, while aggregate uncertainty remains unquantified unless justified correlation assumptions are supplied.
 
+### Manual flash timing and scene-light boundary
+
+The first flash model composes two already-established domains instead of introducing a special image effect:
+
+1. #85 spatial/temporal illumination; and
+2. #12 exposure-boundary timing.
+
+A short manual-flash pulse is an aperiodic relative illumination waveform attached to an explicit spatial source. The source geometry therefore remains available to the scene-radiance transport layer for distance, surface-angle, visibility/shadow, and indirect-light behavior.
+
+Ordinary full-frame flash synchronization requires a non-empty interval where every point in the active capture is simultaneously exposed. For the currently supported simultaneous or uniform-linear boundary schedules:
+
+- latest opening phase is zero for a simultaneous opening, otherwise the declared opening traversal duration;
+- earliest closing phase is the nominal closing reference;
+- ordinary one-pulse sync is valid only when the complete pulse support lies inside that interval.
+
+This rule is derived from exposure boundaries, not sensor data readout.
+
+Front- and rear-curtain modes differ only in where the same pulse support is registered inside that valid interval. Their different relationship to subject motion/ambient trails must emerge from time-dependent scene-radiance integration rather than drawing a synthetic trail.
+
+Flash duration and shutter duration remain independent. Extending the shutter can integrate more ambient scene time without proportionally increasing a fixed short flash pulse.
+
+Schema 0.1.0 intentionally excludes HSS. A moving-slit exposure with no whole-frame-open interval cannot be made ordinary-flash-compatible by relabeling a single pulse as HSS.
+
+Manual flash also excludes TTL/preflash metering, recycle/thermal behavior, flash exposure lock, red-eye/modeling/AF-assist emissions and branded protocols. Camera WB remains downstream interpretation and never changes the emitted flash spectrum.
+
 ### Generic illumination vignetting
 
 The engine exposes a generic rotationally symmetric **relative linear illumination** model:
