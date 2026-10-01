@@ -111,7 +111,7 @@ export interface SensorRawReconstructionProfile {
   limitations: readonly string[];
 }
 
-export interface ReconstructSensorRawNeighborhoodInput {
+export interface ResolveSensorRawReconstructionInput {
   profile:
     SensorRawReconstructionProfile;
   centerSite: {
@@ -672,9 +672,9 @@ function requireCenterSite(
   };
 }
 
-export function reconstructSensorRawNeighborhood(
+export function resolveSensorRawReconstruction(
   input:
-    ReconstructSensorRawNeighborhoodInput
+    ResolveSensorRawReconstructionInput
 ): CalculationResult<SensorRawReconstructedPixel> {
   const profile =
     parseSensorRawReconstructionProfile(
