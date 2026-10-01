@@ -8,7 +8,7 @@ import { calculateEquivalentFocalLength35Mm } from "../camera/equivalent-focal-l
 import { parseFocusPlane, type FocusPlane } from "../optics/focus-state.js";
 import { resolveCaptureGeometry, type ResolveCaptureGeometryInput, type ResolvedCaptureGeometry } from "../output/capture-geometry.js";
 
-export const SIMULATED_CAPTURE_SCHEMA_VERSION = "0.1.0" as const;
+export const SIMULATED_CAPTURE_SCHEMA_VERSION = "0.2.0" as const;
 /** Distinct linear domains, not one interchangeable 'linear' flag. */
 export type CaptureLinearImageState = "scene-referred-xyz" | "virtual-sensor-channels" | "color-transformed-linear-rgb";
 export interface CapturePublicProfileReference { id: string; version: string }
@@ -40,7 +40,7 @@ export interface CaptureLinearPlane {
   encodingReferenceWhiteXyz: CaptureWhiteXyz | null;
   /** Value normalization, independent of capture saturation or eventual integer white. */
   referenceWhiteValue: number;
-  whiteBalanceApplication: "intent-only" | "applied-rgb-gains" | "not-applicable";
+  whiteBalanceApplication: "intent-only" | "applied-rgb-gains" | "applied-chromatic-adaptation" | "not-applicable";
   captureSaturation:
     | { kind: "not-modeled" }
     | { kind: "declared-virtual-white"; whiteLevel: number; upstreamClippedSampleCount: number };
@@ -166,8 +166,8 @@ function plane(value: unknown, resolved: ResolvedCaptureGeometry, intent: Captur
   if (state === "scene-referred-xyz" && (colorProfile!.id !== "cie-1931-2-degree-xyz" || colorProfile!.version !== "1.0.0")) {
     throw new InvalidConfigurationError("XYZ planes require the explicit CIE 1931 2-degree identity.");
   }
-  const application = enumValue(r.whiteBalanceApplication, ["intent-only", "applied-rgb-gains", "not-applicable"]);
-  if ((application !== "not-applicable" && intent === null) ||
+  const application = enumValue(r.whiteBalanceApplication, ["intent-only", "applied-rgb-gains", "applied-chromatic-adaptation", "not-applicable"]);
+  if (((application === "intent-only" || application === "applied-rgb-gains") && intent === null) ||
       (application === "applied-rgb-gains" && JSON.stringify(channels) !== JSON.stringify(["red", "green", "blue"]))) {
     throw new InvalidConfigurationError("WB application must refer to a resolved compatible RGB intent.");
   }
@@ -199,6 +199,8 @@ function plane(value: unknown, resolved: ResolvedCaptureGeometry, intent: Captur
     return { profile: profile(t.profile), kind: enumValue(t.kind, ["linear-color", "chromatic-adaptation", "digital-lens-correction"]) };
   });
   if (state === "color-transformed-linear-rgb" && !transforms.some((t) => t.kind === "linear-color")) throw new InvalidConfigurationError("Transformed RGB requires explicit color-transform history.");
+  if (application === "applied-chromatic-adaptation" && (state !== "color-transformed-linear-rgb" ||
+      !transforms.some((t) => t.kind === "chromatic-adaptation"))) throw new InvalidConfigurationError("Applied adaptation requires transformed RGB and adaptation history.");
   return { id: id(r.id), imageStateId: id(r.imageStateId), imageState: state, rasterBinding: binding, pixelWidth: width, pixelHeight: height,
     channelIds: channels, colorProfile, encodingReferenceWhiteXyz: referenceWhite, referenceWhiteValue: number(r.referenceWhiteValue, true),
     whiteBalanceApplication: application, captureSaturation, appliedTransforms: transforms, storage };
@@ -229,6 +231,10 @@ function normalize(value: unknown, apiVersion: string): SimulatedCapture {
     return { profile: profile(m.profile), scientificStatus: enumValue(m.scientificStatus, ["calculated", "calibrated", "estimated", "approximation"]), publicEvidenceIds: evidence };
   });
   const planes = array(r.planes, 32).map((p) => plane(p, resolved, intent));
+  const adoptedWhite = white(r.adoptedWhiteXyz);
+  if (planes.some((p) => p.whiteBalanceApplication === "applied-chromatic-adaptation") && adoptedWhite === null) {
+    throw new InvalidConfigurationError("Applied adaptation requires an adopted white.");
+  }
   if (!models.length || !planes.length || new Set(models.map((m) => m.profile.id)).size !== models.length ||
       new Set(planes.map((p) => p.id)).size !== planes.length || new Set(planes.map((p) => p.imageStateId)).size !== planes.length ||
       planes.reduce((n, p) => n+(p.storage.kind === "inline-float64" ? p.storage.samples.length : 0), 0) > 1_000_000) {
@@ -240,7 +246,7 @@ function normalize(value: unknown, apiVersion: string): SimulatedCapture {
     focus, noise: { seedUint32: seed, realizationId: id(noise.realizationId), model: profile(noise.model) },
     source: { kind: enumValue(source.kind, ["scene-linear-master", "sensor-derived-linear", "color-transformed-linear-master"]),
       artifactId: id(source.artifactId), sha256: digest(source.sha256), dynamicRangeHistory: enumValue(source.dynamicRangeHistory, ["unknown", "no-loss-declared", "upstream-clipped"]) },
-    whiteBalanceIntent: intent, adoptedWhiteXyz: white(r.adoptedWhiteXyz), models, planes });
+    whiteBalanceIntent: intent, adoptedWhiteXyz: adoptedWhite, models, planes });
 }
 /** Commits a format-neutral float master manifest; no radiance generation, clamp, WB or export encoding. */
 export function createSimulatedCapture(input: SimulatedCaptureInput): CalculationResult<SimulatedCapture> {
@@ -251,7 +257,10 @@ export function createSimulatedCapture(input: SimulatedCaptureInput): Calculatio
 export function parseSimulatedCapture(value: unknown): SimulatedCapture {
   const r = object(value, ["schemaVersion", "engineApiVersion", "captureId", "sceneStateId", "sceneTimeSeconds", "geometry", "resolvedGeometry",
     "equivalentFocalLength35Mm", "exposure", "focus", "noise", "source", "whiteBalanceIntent", "adoptedWhiteXyz", "models", "planes"]);
-  if (r.schemaVersion !== SIMULATED_CAPTURE_SCHEMA_VERSION) throw new InvalidConfigurationError("Unsupported capture schema.");
+  if (r.schemaVersion !== SIMULATED_CAPTURE_SCHEMA_VERSION && r.schemaVersion !== "0.1.0") throw new InvalidConfigurationError("Unsupported capture schema.");
+  if (r.schemaVersion === "0.1.0" && Array.isArray(r.planes) && r.planes.some((p: CaptureLinearPlane) => p?.whiteBalanceApplication === "applied-chromatic-adaptation")) {
+    throw new InvalidConfigurationError("Legacy capture schema cannot declare the new adaptation state.");
+  }
   const { schemaVersion: _schemaVersion, engineApiVersion, resolvedGeometry, equivalentFocalLength35Mm, ...input } = r;
   const result = normalize(input, id(engineApiVersion));
   if (canonical(resolvedGeometry) !== canonical(result.resolvedGeometry) || equivalentFocalLength35Mm !== result.equivalentFocalLength35Mm) {

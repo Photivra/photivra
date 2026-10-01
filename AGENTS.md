@@ -566,6 +566,7 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 - Reuse geometry/focal/focus/WB contracts. Digital/output crop never changes active-capture focal equivalence. External plane references are public IDs plus SHA-256 and declared IEEE float layout; no runtime file/network access is introduced.
 - Allowlist public metadata; reject paths, URLs, private/debug fields and LDR/tonemapped state declarations. Producer IDs must remain public and non-personal. An ID grammar is not a provenance/privacy audit.
 - #15B owns actual color transforms/validity; #15C owns total quantization behavior; #112 owns rendering and #16 file mapping. Do not infer serializer readiness from container validity. #15 remains open until its remaining acceptance is implemented/reviewed.
+- Follow `docs/CAPTURE_COLOR.md` for #15B. The ideal colorimetric virtual RGB profile is an explicit XYZ encoding, never inferred for arbitrary spectral/commercial sensor channels. Resolved RGB gains require the exact camera-basis binding; adopted-white XYZ scaling is a separately selected approximation. Preserve float range and source capture history; reject double application and do not claim a physically unique global white under mixed illumination.
 
 - The root package must remain browser-safe and ESM-only.
 - Node-only code must not become reachable from the root public export.

@@ -10,7 +10,7 @@ Its calculations use explicit units, documented assumptions, validation, provena
 
 The source is licensed under Apache-2.0.
 
-The standalone [SimulatedCapture contract](docs/SIMULATED_CAPTURE.md) commits format-neutral linear float master data and public metadata. This is #15A; virtual-camera color transforms, integer quantization and file serialization remain subsequent stages.
+The standalone [SimulatedCapture contract](docs/SIMULATED_CAPTURE.md) commits format-neutral linear float master data and public metadata. Its [virtual-camera color model](docs/CAPTURE_COLOR.md) provides explicit linear color conversion and resolved-WB application. Integer quantization and file serialization remain subsequent stages.
 
 ## Quick start
 

@@ -17,6 +17,19 @@ export {
   type CaptureWhiteBalanceIntent
 } from "./capture/simulated-capture.js";
 
+export {
+  CAPTURE_COLOR_MODEL_VERSION,
+  VIRTUAL_COLOR_CAMERA_PROFILE,
+  LINEAR_CAPTURE_RGB_PROFILE,
+  resolveCaptureColorModel,
+  parseCaptureColorTransformInput,
+  calculateCaptureColorTransform,
+  type CaptureColorModel,
+  type CaptureColorWhiteBalance,
+  type CaptureColorTransformInput,
+  type CaptureColorTransformResult
+} from "./color/capture-color.js";
+
 export { ENGINE_API_VERSION } from "./core/version.js";
 
 export {

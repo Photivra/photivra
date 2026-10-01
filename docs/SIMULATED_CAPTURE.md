@@ -1,6 +1,6 @@
-# Authoritative simulated capture: #15A
+# Authoritative simulated capture: #15A/#15B
 
-This first independent slice of #15 commits a format-neutral float master manifest before tone mapping/LDR conversion. It does not generate pixels, perform color/WB conversion, quantize, serialize TIFF/DNG or enable production-plan stages. #15 remains open for #15B colorimetry and #15C quantization; #112/#16 remain later consumers.
+The container commits a format-neutral float master manifest before tone mapping/LDR conversion. It does not itself generate or convert pixels. The separate [#15B color API](CAPTURE_COLOR.md) converts supported planes without mutating the master. Quantization, TIFF/DNG serialization and production-stage activation remain outside this contract. #15 remains open for #15C; #112/#16 remain later consumers.
 
 ## Image state and storage
 
@@ -40,7 +40,7 @@ const state = resolveManualWhiteBalance({
 const intent = createCaptureWhiteBalanceIntent({ state });
 ```
 
-Intent and plane application are separate: intent-only, applied-rgb-gains or not-applicable. Declared applied gains require compatible RGB channels/resolved intent. Recording does not apply/verify upstream gains; camera RGB gains cannot be directly declared applied to XYZ. More complex adaptation/history and actual conversion belong to #15B.
+Intent and plane application are separate: intent-only, applied-rgb-gains, applied-chromatic-adaptation or not-applicable. Applied gains require compatible RGB channels/resolved intent. Applied adaptation requires adopted white, transformed RGB and explicit adaptation history, independently of RGB intent. Recording does not verify upstream application; the separate #15B API performs actual conversion. Camera RGB gains cannot be directly declared applied to XYZ.
 
 Adopted white and encoding white remain separate normalized XYZ records (Y=1, positive X/Z). Null adopted white is unresolved, not an implicit D65/encoding white. No single physically unique white is claimed under mixed illumination.
 
@@ -54,7 +54,7 @@ Producers must select genuinely public, non-personal IDs. Syntax cannot prove an
 
 ## Versioning and evidence
 
-Schema is 0.1.0; root API advances main 0.93.0 to 0.94.0. Package, POC and production contracts are unchanged. This independent branch consumes no pending #157/#158 code; reconcile API identity in final merge order.
+Schema is 0.2.0; legacy 0.1.0 archives normalize to 0.2.0 while preserving creator API identity. The new applied-chromatic-adaptation state cannot be declared in a 0.1.0 archive. Re-serialization emits the current schema, so archive bytes change on migration. Root API advances main 0.93.0 to 0.94.0. Package, POC and production contracts are unchanged. This independent branch consumes no pending #157/#158 code; reconcile API identity in final merge order.
 
 Tests reuse #130's canonical fixture for geometry/settings/seed, and cover unclamped data, immutable/canonical archive round trips, four orientations/off-center capture, active/output equivalence, WB sanitization/intent/application, image-state substitution, RGB history, large external planes, saturation distinction, private/malformed metadata, infinity and historical identity.
 
