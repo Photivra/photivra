@@ -1,5 +1,10 @@
 # Changelog
 
+## Capture-owned native RAW producer — unreleased
+
+- Added `simulateSensorRawFrame()` and strict handoff parser: declared untreated EQE/dark exposure expectations → existing accumulated charge/completeness → physical capacity assessment → seeded charge realization → read noise/ADC → native CFA samples → immutable RAW attachment. A versioned capture-owned site seed schedule, full native coverage and global exposure/state checks are explicit. Child provenance/saturation diagnostics and genuine same-RAW DNG/JPEG tests are retained. See `docs/SENSOR_RAW_PRODUCER.md`.
+- Root API advances to 0.102.0; producer schema/noise identity 0.1.0. Package/POC/capture/RAW-frame/production schemas are unchanged. The reference producer does not verify upstream radiometry, accept RGB as RAW input, support rolling/high-resolution/multi-frame capture or activate reserved production stages. New human review and contribution-specific DCO remain required.
+
 ## Capture-bound correction and SDR bridge — unreleased
 
 - Added `calculateCaptureCorrectedSdr()` and its strict parser: committed capture/color/WB → native optical geometry/CA → gain → oriented joint-valid output view → existing SDR rendering. Four orientations, off-center crops, separate clocks and preserved source history are inspectable. Gain clipping events are separately reported by the correction executor. See `docs/CAPTURE_CORRECTED_SDR.md`.
