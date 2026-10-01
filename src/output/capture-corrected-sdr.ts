@@ -50,7 +50,13 @@ function fields(value: unknown, allowed: readonly string[]): Record<string, unkn
 export function parseCaptureCorrectedSdrInput(input: unknown): CaptureCorrectedSdrInput {
   const r = fields(input, ["capture", "sourcePlaneId", "color", "profile", "correction"]);
   const base = parseCaptureSdrInput({ capture: r.capture, sourcePlaneId: r.sourcePlaneId, color: r.color, profile: r.profile });
-  const c = fields(r.correction, ["profile", "state", "coordinateFrame", "selections", "selectionKind", "frameTimeSeconds",
+  return { ...base, correction: parseCaptureCorrectionChoice(r.correction, base.capture,
+    base.color.kind === "transform" ? [base.color.outputImageStateId] : []) };
+}
+/** Internal shared validation for capture-derived exporters; does not create or validate pixel values. */
+export function parseCaptureCorrectionChoice(input: unknown, capture: CaptureSdrInput["capture"],
+  forbiddenImageStateIds: readonly string[] = []): CaptureCorrectedSdrInput["correction"] {
+  const c = fields(input, ["profile", "state", "coordinateFrame", "selections", "selectionKind", "frameTimeSeconds",
     "resampler", "clippingLevel", "invalidSupport", "outputImageStateId"]);
   const profile = parseGenericLensCorrectionProfile(c.profile), state = parseOpticalProfileState(c.state);
   const selections = fields(c.selections, profile.components.map((v) => v.id));
@@ -61,8 +67,8 @@ export function parseCaptureCorrectedSdrInput(input: unknown): CaptureCorrectedS
       typeof c.frameTimeSeconds !== "number" || !Number.isFinite(c.frameTimeSeconds) || c.frameTimeSeconds < 0 ||
       typeof c.clippingLevel !== "number" || !Number.isFinite(c.clippingLevel) || c.clippingLevel <= 0 ||
       typeof c.outputImageStateId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(c.outputImageStateId) ||
-      base.capture.planes.some((p) => p.imageStateId === c.outputImageStateId) ||
-      (base.color.kind === "transform" && base.color.outputImageStateId === c.outputImageStateId)) {
+      capture.planes.some((p) => p.imageStateId === c.outputImageStateId) ||
+      forbiddenImageStateIds.includes(c.outputImageStateId)) {
     throw new InvalidConfigurationError("Invalid correction choice, clock, threshold or derived state identity.");
   }
   const s = fields(c.resampler, ["id", "version", "filter", "antialias"]);
@@ -72,10 +78,10 @@ export function parseCaptureCorrectedSdrInput(input: unknown): CaptureCorrectedS
   }
   resolveLensCorrectionPlan({ profile, state, selections: selections as CaptureCorrectedSdrInput["correction"]["selections"],
     outputKind: "processed", selectionKind: c.selectionKind });
-  return { ...base, correction: { profile, state, coordinateFrame: c.coordinateFrame,
+  return { profile, state, coordinateFrame: c.coordinateFrame,
     selections: selections as CaptureCorrectedSdrInput["correction"]["selections"], selectionKind: c.selectionKind,
     frameTimeSeconds: c.frameTimeSeconds, clippingLevel: c.clippingLevel, invalidSupport: c.invalidSupport,
-    outputImageStateId: c.outputImageStateId, resampler: { id: s.id, version: s.version, filter: s.filter, antialias: s.antialias } } };
+    outputImageStateId: c.outputImageStateId, resampler: { id: s.id, version: s.version, filter: s.filter, antialias: s.antialias } };
 }
 function nativeRaster(bounds: PhysicalBoundsFromOpticalAxisMm, width: number, height: number,
   orientation: CaptureOrientation): GeometricRaster {

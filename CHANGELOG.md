@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — engine API 0.103.0
+
+- Add optional RAW-derived JPEG correction to paired photographic export, reusing the capture correction executor after explicit color/WB. Preserve DNG codes and native crop; expose the processed crop, clipping diagnostics and separate informational RAW intent. Require full active reconstruction and reject unprovided prefiltering. No production-stage activation or external-editor validation claim.
+
 ## Capture-owned native RAW producer — unreleased
 
 - Added `simulateSensorRawFrame()` and strict handoff parser: declared untreated EQE/dark exposure expectations → existing accumulated charge/completeness → physical capacity assessment → seeded charge realization → read noise/ADC → native CFA samples → immutable RAW attachment. A versioned capture-owned site seed schedule, full native coverage and global exposure/state checks are explicit. Child provenance/saturation diagnostics and genuine same-RAW DNG/JPEG tests are retained. See `docs/SENSOR_RAW_PRODUCER.md`.

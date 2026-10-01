@@ -3,7 +3,7 @@
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
-import { resolveCaptureColorModel } from "../color/capture-color.js";
+import { resolveCaptureColorModel, LINEAR_CAPTURE_RGB_PROFILE } from "../color/capture-color.js";
 import { calculateSdrRendering, parseSdrRenderingProfile, type SdrRenderingProfile, type SdrRenderingResult } from "../output/sdr-rendering.js";
 import { transformOrientedRasterPointToNative, transformOrientedRasterRectToNative, type RasterRect } from "../output/capture-geometry.js";
 import { resolveRawFrameReconstruction, parseRawFrameReconstructionInput, type RawFrameReconstructionInput, type RawFrameReconstruction } from "./raw-frame-reconstruction.js";
@@ -11,6 +11,10 @@ import { createCaptureExportMetadataPair, type CaptureExportMetadataInput, type 
 import { encodeExportJpeg } from "./export-jpeg.js";
 import { packExportTiff, exportTiffAscii as ascii, exportTiffNumbers as numbers, exportTiffRationals as rationals,
   exportTiffBytes as rawBytes, type ExportTiffTag } from "./export-tiff.js";
+import { calculateCaptureCorrectedSdr, parseCaptureCorrectionChoice,
+  type CaptureCorrectedSdrInput, type CaptureCorrectedSdrResult } from "../output/capture-corrected-sdr.js";
+import { resolveLensCorrectionPlan, type ResolvedLensCorrectionPlan } from "../output/lens-corrections.js";
+import { parseSimulatedCapture } from "./simulated-capture.js";
 import type { CalculationResult } from "../core/calculation-result.js";
 
 export const PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION = "0.1.0" as const;
@@ -39,6 +43,8 @@ export interface PhotographicExportInput {
   sceneProfile: { id: string; version: string; sceneStateId: string };
   /** JPEG constant quantization step 1..255, not an emulated manufacturer's 'quality' scale. */
   jpegQuantizationStep: number;
+  /** Optional native-optical post-color correction; JPEG only, RAW records informational intent. */
+  correction?: CaptureCorrectedSdrInput["correction"];
 }
 /** Owned byte arrays are mutable; identities/hashes refer to the exact bytes returned at creation. */
 export interface PhotographicExportPair {
@@ -51,6 +57,10 @@ export interface PhotographicExportPair {
   source: CalculationResult<RawFrameReconstruction>;
   rendering: CalculationResult<SdrRenderingResult>;
   nativeDefaultCrop: RasterRect;
+  /** Derived JPEG rectangle in the declared oriented output; never replaces the RAW default crop. */
+  processedOutputView: { rect: RasterRect; pixelWidth: number; pixelHeight: number };
+  correction: CalculationResult<CaptureCorrectedSdrResult> | null;
+  rawCorrectionIntent: CalculationResult<ResolvedLensCorrectionPlan> | null;
   imageDataPairing: "jpeg-generated-from-exact-attached-raw";
   dng: { mediaType: "image/dng"; bytes: Uint8Array; sha256: string };
   jpeg: { mediaType: "image/jpeg"; bytes: Uint8Array; sha256: string };
@@ -89,7 +99,7 @@ export function parseExportSensorColorProfile(value: unknown): ExportSensorColor
 }
 /** Strict boundary for an atomic paired export; validated metadata comes only from the attached capture. */
 export function parsePhotographicExportInput(value: unknown): PhotographicExportInput {
-  const r=object(value,["reconstruction","colorProfile","whiteBalance","rendering","metadata","sceneProfile","jpegQuantizationStep"]);
+  const r=object(value,["reconstruction","colorProfile","whiteBalance","rendering","metadata","sceneProfile","jpegQuantizationStep","correction"]);
   const reconstruction=parseRawFrameReconstructionInput(r.reconstruction), colorProfile=parseExportSensorColorProfile(r.colorProfile), rendering=parseSdrRenderingProfile(r.rendering);
   const meta=object(r.metadata,["workflow","capturedAtUtc","raw","jpeg"]);
   const metadata=createCaptureExportMetadataPair({ ...meta, capture:reconstruction.rawFrame.capture } as unknown as CaptureExportMetadataInput);
@@ -99,7 +109,13 @@ export function parsePhotographicExportInput(value: unknown): PhotographicExport
       reconstruction.phaseProfiles.some((p) => JSON.stringify(p.profile.kernels.map((k) => k.outputChannelId))!==JSON.stringify(colorProfile.channelIds)) || sceneProfile.sceneStateId!==reconstruction.rawFrame.capture.sceneStateId ||
       rendering.bitDepth!==8 || (r.whiteBalance!=="not-required" && r.whiteBalance!=="apply-resolved-sensor-gains") ||
       ((r.whiteBalance==="not-required") !== (intent===null)) || !Number.isInteger(r.jpegQuantizationStep) || (r.jpegQuantizationStep as number)<1 || (r.jpegQuantizationStep as number)>255) throw new InvalidConfigurationError("Export color/WB/rendering identities or encoder settings are inconsistent.");
+  const correction=r.correction===undefined ? undefined : parseCaptureCorrectionChoice(r.correction,
+    reconstruction.rawFrame.capture,["photivra-export-developed"]);
+  if (correction?.resampler.antialias!==undefined && correction.resampler.antialias!=="none") {
+    throw new InvalidConfigurationError("RAW-derived export has no source prefilter; prefiltered declarations are unsupported.");
+  }
   return { reconstruction,colorProfile,whiteBalance:r.whiteBalance,rendering,sceneProfile,
+    ...(correction===undefined ? {} : {correction}),
     metadata:{ workflow:metadata.shared.workflow,capturedAtUtc:metadata.shared.capturedAtUtc,
       raw:{ documentId:metadata.raw.documentId,instanceId:metadata.raw.instanceId }, jpeg:{ documentId:metadata.jpeg.documentId,instanceId:metadata.jpeg.instanceId } },
     jpegQuantizationStep:r.jpegQuantizationStep as number };
@@ -117,7 +133,7 @@ async function hash(value: Uint8Array | string): Promise<string> {
   const result=await globalThis.crypto.subtle.digest("SHA-256",data);
   return Array.from(new Uint8Array(result),(v) => v.toString(16).padStart(2,"0")).join("");
 }
-function xmp(pair: CaptureExportMetadataPair, role: "raw" | "jpeg", simulationHash: string, color: ExportSensorColorProfile, mode: string, scene: PhotographicExportInput["sceneProfile"]): Uint8Array {
+function xmp(pair: CaptureExportMetadataPair, role: "raw" | "jpeg", simulationHash: string, color: ExportSensorColorProfile, mode: string, scene: PhotographicExportInput["sceneProfile"], corrected?: { choice: NonNullable<PhotographicExportInput["correction"]>; rect: RasterRect; clippingEvents: number }): Uint8Array {
   const s=pair.shared, artifact=pair[role];
   const values: Record<string,string>={ "xmp:CreatorTool":s.creatorTool,"xmpMM:DocumentID":"uuid:"+artifact.documentId,"xmpMM:InstanceID":"uuid:"+artifact.instanceId,
     "Iptc4xmpExt:DigitalImageGUID":"urn:uuid:"+artifact.documentId,"Iptc4xmpExt:DigitalSourceType":s.digitalSourceTypeUri,
@@ -126,6 +142,15 @@ function xmp(pair: CaptureExportMetadataPair, role: "raw" | "jpeg", simulationHa
     "photivra:SceneID":scene.id,"photivra:SceneVersion":scene.version,"photivra:SensorProfileID":color.profileId,"photivra:CaptureMode":mode,"photivra:RawSampleModel":"post_adc_pre_demosaic",
     "photivra:DeterministicSeed":String(s.noise.seedUint32),"photivra:SimulationHashAlgorithm":"sha-256","photivra:SimulationHash":simulationHash,
     "photivra:SceneTime":String(s.sceneTimeSeconds) };
+  if (corrected) {
+    values["photivra:CorrectionProfileID"]=corrected.choice.profile.id;
+    values["photivra:CorrectionProfileVersion"]=corrected.choice.profile.version;
+    values["photivra:CorrectionSelectionKind"]=corrected.choice.selectionKind;
+    values["photivra:CorrectionSelections"]=canonical(corrected.choice.selections);
+    values["photivra:CorrectionDisposition"]=role==="raw" ? "informational-intent-only" : "processed-view";
+    values["photivra:ProcessedOutputRect"]=canonical(corrected.rect);
+    values["photivra:ProcessedIlluminationClippingEvents"]=String(corrected.clippingEvents);
+  }
   if (role==="jpeg") values["photivra:ProcessedPipelineVersion"]=PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION;
   if (s.focus.kind==="finite") values["photivra:FocusDistanceMeters"]=String(s.focus.distanceM);
   const escape=(v: string): string => v.replaceAll("&","&amp;").replaceAll('"',"&quot;").replaceAll("<","&lt;").replaceAll(">","&gt;");
@@ -162,14 +187,34 @@ export async function createPhotographicExportPair(input: PhotographicExportInpu
     gains=intent ? [intent.channelGains.red,intent.channelGains.green,intent.channelGains.blue] : [1,1,1];
   if (cameraWhite.some((x) => x<=0 || !Number.isFinite(x))) throw new InvalidConfigurationError("DNG reference white must map to positive camera-neutral coordinates.");
   const neutral=cameraWhite.map((x,i) => x/gains[i]!), scale=neutral[1]!;
+  if (v.correction && (active.x<region.x || active.y<region.y || active.x+active.width>region.x+region.width ||
+      active.y+active.height>region.y+region.height)) throw new InvalidConfigurationError("Corrected export requires reconstruction of the full active native RAW area.");
+  const developedRaster=v.correction ? g.orientedCapture.raster : raster,
+    developedRect=v.correction ? {x:0,y:0,width:developedRaster.pixelWidth,height:developedRaster.pixelHeight} : crop;
   const rgb: number[]=[];
-  for (let y=0;y<raster.pixelHeight;y++) for (let x=0;x<raster.pixelWidth;x++) {
-    const p=transformOrientedRasterPointToNative({ point:{x:crop.x+x+.5,y:crop.y+y+.5},nativeRaster:g.activeCapture.raster,orientation:capture.geometry.orientation });
+  for (let y=0;y<developedRaster.pixelHeight;y++) for (let x=0;x<developedRaster.pixelWidth;x++) {
+    const p=transformOrientedRasterPointToNative({ point:{x:developedRect.x+x+.5,y:developedRect.y+y+.5},nativeRaster:g.activeCapture.raster,orientation:capture.geometry.orientation });
     const index=((Math.floor(p.y)+active.y-region.y)*region.width+Math.floor(p.x)+active.x-region.x)*3;
     const values=source.value.linearPlane.samples.slice(index,index+3).map((n,i) => n*gains[i]!);
     rgb.push(...multiply(model.xyzToCameraRgb,multiply(v.colorProfile.normalizedCameraChannelsToXyz,values)));
   }
-  const rendering=calculateSdrRendering({ sourceImageStateId:frame.frameId+":developed",inputImageState:"color-transformed-linear-rgb",inputColorSpace:"linear-srgb-d65",
+  // Only exact attached RAW reconstruction supplies this private processing plane. Original float planes are discarded.
+  const correction=v.correction ? calculateCaptureCorrectedSdr({capture:parseSimulatedCapture({...capture,planes:[{
+    id:"photivra-export-linear",imageStateId:"photivra-export-developed",imageState:"color-transformed-linear-rgb",
+    rasterBinding:"oriented-active-capture",pixelWidth:developedRaster.pixelWidth,pixelHeight:developedRaster.pixelHeight,
+    channelIds:["red","green","blue"],colorProfile:LINEAR_CAPTURE_RGB_PROFILE,encodingReferenceWhiteXyz:white,referenceWhiteValue:1,
+    whiteBalanceApplication:intent ? "applied-rgb-gains" : "not-applicable",captureSaturation:{kind:"not-modeled"},
+    appliedTransforms:[{kind:"linear-color",profile:{id:v.colorProfile.profileId,version:v.colorProfile.profileVersion}}],
+    storage:{kind:"inline-float64",samples:rgb}
+  }]}),sourcePlaneId:"photivra-export-linear",color:{kind:"already-transformed"},profile:v.rendering,correction:v.correction}) : null;
+  const rawCorrectionIntent=v.correction ? resolveLensCorrectionPlan({profile:v.correction.profile,state:v.correction.state,
+    selections:v.correction.selections,selectionKind:v.correction.selectionKind,outputKind:"raw-like"}) : null;
+  const processedOutputView=correction ? {rect:correction.value.outputView.rect,pixelWidth:correction.value.outputView.pixelWidth,
+    pixelHeight:correction.value.outputView.pixelHeight} : {rect:{x:0,y:0,width:raster.pixelWidth,height:raster.pixelHeight},
+    pixelWidth:raster.pixelWidth,pixelHeight:raster.pixelHeight};
+  const correctedMetadata=v.correction && correction ? {choice:v.correction,rect:processedOutputView.rect,
+    clippingEvents:correction.value.correction.value.illuminationClippingEventCount} : undefined;
+  const rendering=correction?.value.rendering ?? calculateSdrRendering({ sourceImageStateId:frame.frameId+":developed",inputImageState:"color-transformed-linear-rgb",inputColorSpace:"linear-srgb-d65",
     whiteBalanceHandling:intent ? "already-applied-upstream" : "not-required",pixelWidth:raster.pixelWidth,pixelHeight:raster.pixelHeight,referenceWhiteValue:1,samples:rgb,profile:v.rendering });
   const layout=frame.colorSamplingProfile.layout;
   if (layout.kind!=="periodic-mosaic" || layout.repeatWidthSites!==2 || layout.repeatHeightSites!==2 || !["red","green","green","blue"].every((ch) => layout.siteChannelIds.includes(ch)) ||
@@ -181,7 +226,8 @@ export async function createPhotographicExportPair(input: PhotographicExportInpu
     black.push(first.blackLevelCode);
   }
   const simulationHash=await hash(canonical({ schema:PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION,rawFrame:frame,phaseProfiles:source.value.phaseProfiles,region,
-    colorProfile:v.colorProfile,sceneProfile:v.sceneProfile,whiteBalance:v.whiteBalance,rendering:v.rendering,jpegQuantizationStep:v.jpegQuantizationStep }));
+    colorProfile:v.colorProfile,sceneProfile:v.sceneProfile,whiteBalance:v.whiteBalance,rendering:v.rendering,jpegQuantizationStep:v.jpegQuantizationStep,
+    ...(v.correction ? {correction:v.correction} : {}) }));
   const rawHash=await hash(canonical({ schema:"photivra-raw-data-id-0.1",width:frame.nativePixelWidth,height:frame.nativePixelHeight,
     cfa:layout,containerBitDepth:16,codes:frame.samples.map((s) => s.rawCode) })),rawDataUniqueId=rawHash.slice(0,32);
   const colorHash=await hash(canonical(v.colorProfile)),uniqueCameraModel="Photivra Virtual Camera "+v.colorProfile.profileId+" "+v.colorProfile.profileVersion+" "+colorHash;
@@ -195,11 +241,11 @@ export async function createPhotographicExportPair(input: PhotographicExportInpu
     rationals(50714,false,black),numbers(50717,4,[whiteLevel]),numbers(50719,4,[local.x,local.y]),numbers(50720,4,[local.width,local.height]),
     rationals(50721,true,colorMatrix.flat()),rationals(50728,false,neutral.map((n) => n/scale)),numbers(50778,3,[21]),
     rawBytes(50781,1,Uint8Array.from(rawDataUniqueId.match(/../g)!.map((s) => parseInt(s,16)))),numbers(50829,4,[active.y,active.x,active.y+active.height,active.x+active.width]),
-    rawBytes(700,1,xmp(metadata,"raw",simulationHash,v.colorProfile,frame.modeId,v.sceneProfile))],commonExif(metadata,"raw",local.width,local.height),pixels);
-  const jpegExif=packExportTiff(identity(metadata,1),commonExif(metadata,"jpeg",raster.pixelWidth,raster.pixelHeight));
-  const jpegBytes=encodeExportJpeg({width:raster.pixelWidth,height:raster.pixelHeight,samples:rendering.value.integerSamples,
-    quantizationStep:v.jpegQuantizationStep,exif:jpegExif,xmp:xmp(metadata,"jpeg",simulationHash,v.colorProfile,frame.modeId,v.sceneProfile)});
-  return { schemaVersion:PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION,metadata,simulationHashAlgorithm:"sha-256",simulationHash,rawDataUniqueId,uniqueCameraModel,source,rendering,nativeDefaultCrop,
+    rawBytes(700,1,xmp(metadata,"raw",simulationHash,v.colorProfile,frame.modeId,v.sceneProfile,correctedMetadata))],commonExif(metadata,"raw",local.width,local.height),pixels);
+  const jpegExif=packExportTiff(identity(metadata,1),commonExif(metadata,"jpeg",processedOutputView.pixelWidth,processedOutputView.pixelHeight));
+  const jpegBytes=encodeExportJpeg({width:processedOutputView.pixelWidth,height:processedOutputView.pixelHeight,samples:rendering.value.integerSamples,
+    quantizationStep:v.jpegQuantizationStep,exif:jpegExif,xmp:xmp(metadata,"jpeg",simulationHash,v.colorProfile,frame.modeId,v.sceneProfile,correctedMetadata)});
+  return { schemaVersion:PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION,metadata,simulationHashAlgorithm:"sha-256",simulationHash,rawDataUniqueId,uniqueCameraModel,source,rendering,nativeDefaultCrop,processedOutputView,correction,rawCorrectionIntent,
     imageDataPairing:"jpeg-generated-from-exact-attached-raw",
     dng:{mediaType:"image/dng",bytes:dngBytes,sha256:await hash(dngBytes)},jpeg:{mediaType:"image/jpeg",bytes:jpegBytes,sha256:await hash(jpegBytes)},
     interoperability:"independent-decode-required-editor-validation-pending" };
