@@ -92,7 +92,35 @@ At a focus distance of at least 100 focal lengths, the ideal thin-lens projectio
 
 The focus-aware model improves internal consistency with thin-lens DOF/defocus calculations, but it is still an ideal paraxial model. It does not model real-lens focus breathing, pupil magnification, principal-plane movement, distortion, aberrations, or lens-specific macro behavior.
 
-Projected subject motion is a representative-point displacement model with constant linear world velocity. It does not yet describe scale blur of an extended object whose magnification changes materially during the exposure.
+Projected subject motion remains a representative-point displacement model with constant linear world velocity. The separate extended-object projection foundation now evaluates multiple explicit metric points under shared rigid translation, so depth-direction motion can produce spatially varying trajectories and validated planar magnification where appropriate.
+
+### Extended-object projection under rigid translation
+
+A representative point does not fully describe an extended object moving along the optical axis. Under rectilinear projection, an on-axis center point can remain fixed while off-axis points move radially as object depth changes.
+
+The extended-object foundation therefore projects each supplied metric point independently through time.
+
+For a rigid object and translating camera:
+
+```text
+relative velocity = object translation - camera translation
+position_i(t) = position_i(0) + relative velocity * t
+projected_i(t) = v * (x_i(t)/z_i(t), y_i(t)/z_i(t))
+```
+
+where `v` is the selected nominal or focus-aware image-plane projection distance.
+
+This first model is deliberately rigid and translational. It does not model object rotation, articulation, deformation or acceleration.
+
+A single uniform magnification is scientifically justified only for a constrained geometry. Photivra therefore reports a planar scale diagnostic only when the caller explicitly declares a fronto-parallel planar patch and every supplied point validates against the same reference depth. Under shared rigid translation the diagnostic scale is:
+
+`reference depth / current depth`
+
+That special-case result does not imply that arbitrary 3D geometry admits one scale or one homography.
+
+When bound to #12, each object point is evaluated on its own local exposure clock. This preserves rolling-capture timing without treating sensor data readout as exposure timing.
+
+The geometry result does not solve visibility. Axial/lateral motion can reveal/hide surfaces or move geometry through frame boundaries; a renderer must evaluate those states explicitly. Similarly, relative depth changes can alter defocus/PSF through the exposure, so a static blur/PSF composition is not automatically valid.
 
 ### Mode-bound exposure/readout timing and temporal translation
 

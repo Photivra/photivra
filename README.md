@@ -95,6 +95,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [manual ordinary flash + front/rear sync](docs/USAGE.md#manual-flash-and-ordinary-sync), registering a spatial #85 scene-light source and explicit pulse waveform to #12 exposure-window timing, preserving ambient temporal illumination, and failing closed when an ordinary pulse cannot fit a real whole-frame-open interval; HSS/TTL are not faked;
 - [stable meter targets and exposure compensation](docs/USAGE.md#meter-target-and-exposure-compensation), freezing metering identity for AE lock and shifting the automatic-exposure target downstream without mutating the underlying meter result;
 - [deterministic logical release sequencing](docs/USAGE.md#logical-release-sequences) for single, burst, self-timer and exposure/focus bracket timing;
+- [extended-object time-varying projection](docs/USAGE.md#extended-object-time-varying-projection), projecting explicit metric object points under shared rigid translation, optionally validating fronto-parallel magnification, and binding the same geometry to #12 local exposure windows without claiming visibility or a finished blur kernel;
 - [constant-velocity projected point motion](docs/USAGE.md#projected-subject-motion);
 - [time-parameterized spatial camera-rotation mapping](docs/USAGE.md#spatial-camera-rotation-mapping) for yaw/pitch/roll;
 - [capture-local pure-rotation exposure trajectories](docs/USAGE.md#capture-rotation-exposure-trajectories), evaluated at each native point's local exposure start/end without claiming a finished rolling-shutter warp;
@@ -251,7 +252,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.91.0`
+- Engine API contract: `0.92.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 

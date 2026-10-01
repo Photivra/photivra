@@ -3601,6 +3601,97 @@ The model assumes constant world-space linear velocity. It tracks a representati
 
 See [Motion and Signal Foundation](MOTION_AND_SIGNAL.md#projected-subject-motion).
 
+## Extended-object time-varying projection
+
+`calculateProjectedMotionBlur()` remains the compact representative-point displacement API. Use `calculateExtendedObjectProjectionTrajectory()` when object extent matters.
+
+The extended-object foundation accepts:
+
+- multiple explicit metric camera-space points belonging to one object/region;
+- one shared constant rigid object-translation velocity;
+- a separate constant camera-translation velocity;
+- deterministic physical sample times;
+- the same focal-length / optional focus-aware projection semantics used by the existing motion primitives.
+
+Each point is projected independently:
+
+```text
+relative point(t)
+  = reference point
+  + (object translation - camera translation) * t
+
+image x(t) = projection distance * x(t) / z(t)
+image y(t) = projection distance * y(t) / z(t)
+```
+
+This is important for axial motion. An object centered on the optical axis can have almost zero center-point displacement while its off-axis corners move radially because magnification changes.
+
+### Front-to-back motion and scale
+
+Do not interpret every depth-direction motion result as one global scale.
+
+If the caller has a known fronto-parallel planar patch, it may explicitly provide:
+
+```ts
+frontoparallelPlane: {
+  kind: "fronto-parallel-planar-patch",
+  referenceDepthM: 10
+}
+```
+
+Photivra verifies that every supplied reference point lies on that depth plane before returning a planar magnification diagnostic.
+
+Under the first shared rigid-translation model:
+
+```text
+scale(t) = reference depth / current depth(t)
+```
+
+The scale diagnostic is valid for that declared patch only. It does **not** authorize one scale or one homography for arbitrary non-coplanar 3D geometry.
+
+### Mixed lateral + depth motion
+
+Lateral and depth translation are evaluated together. Because projection depends on each point's depth, different object points can have materially different image-plane trajectories.
+
+The result therefore exposes per-point, per-time:
+
+- metric relative position;
+- absolute mapped image-plane position;
+- displacement from the reference projection;
+- depth;
+- optional validated planar scale.
+
+Camera and object translation remain separate input identities even though the relative projection uses `object - camera` translation.
+
+### #12 local-exposure integration
+
+Use `calculateCaptureExtendedObjectTemporalProjection()` when the geometry must follow capture timing.
+
+Every object point supplies the native destination point whose committed #12 exposure window applies. The engine creates deterministic midpoint nodes inside each point's local exposure interval and evaluates the same extended-object projection there.
+
+With rolling/local exposure timing, two image locations can therefore integrate different portions of the same physical object trajectory.
+
+Sensor **data readout timing is not substituted for exposure timing**.
+
+### Scientific boundary
+
+This foundation returns **time-varying geometry**, not rendered motion blur.
+
+It does not calculate:
+
+- visibility or occlusion/disocclusion;
+- frame-boundary coverage;
+- a blur kernel;
+- radiance/time averaging;
+- articulated or deforming motion;
+- acceleration;
+- camera rotation;
+- a universal projective warp.
+
+If relative depth changes, the object-to-focus relationship also changes through time. A downstream high-fidelity renderer may therefore need to evaluate defocus/PSF at the same physical-time nodes rather than convolving one motion result with one static defocus kernel.
+
+A renderer using #85 should evaluate scene radiance/visibility at the temporal geometry states rather than inferring a complete blur from endpoints alone.
+
 ## Relative pre-exposure metering
 
 Use `parseExposureMeteringProfile()` and `meterRelativeExposure()` for the first renderer-neutral metering path.
