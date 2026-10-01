@@ -458,7 +458,7 @@ describe("sensor stochastic charge realization", () => {
           charge(25, {
             saturationAssessed:
               true
-          }),
+          } as never),
         samplingProfile:
           samplingProfile(),
         seedUint32: 1
