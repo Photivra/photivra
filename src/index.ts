@@ -634,6 +634,12 @@ export {
 } from "./optics/diffraction.js";
 
 export {
+  calculateIdealPolygonDiffractionPsf,
+  type CalculateIdealPolygonDiffractionInput,
+  type IdealPolygonDiffraction
+} from "./optics/polygon-diffraction.js";
+
+export {
   estimateEquivalentViewingCircleOfConfusion,
   type EquivalentViewingCircleOfConfusion,
   type EstimateEquivalentViewingCircleOfConfusionInput
