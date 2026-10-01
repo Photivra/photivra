@@ -92,6 +92,12 @@ export interface RegularPolygonDiffractionResult {
   };
   psf: LensPsfKernel;
   normalizedPsfEnergy: number;
+  sampledCircularReference: {
+    psf: LensPsfKernel;
+    l1IntensityDistanceFromPolygon:
+      number;
+    samePhysicalGrid: true;
+  };
   circularReference: {
     model:
       "ideal-circular-aperture-airy-disk";
@@ -227,6 +233,52 @@ function pointInsideConvexPolygon(
     }
   }
   return true;
+}
+
+function createCircularPupilAmplitude(
+  radiusMm: number,
+  gridSize: number,
+  samplePitchMm: number
+): readonly number[] {
+  const center =
+    Math.floor(
+      gridSize / 2
+    );
+  const radiusSquared =
+    radiusMm * radiusMm;
+  const tolerance =
+    samplePitchMm *
+    samplePitchMm *
+    1e-9;
+  const amplitude:
+    number[] = [];
+
+  for (
+    let row = 0;
+    row < gridSize;
+    row += 1
+  ) {
+    const y =
+      (center - row) *
+      samplePitchMm;
+    for (
+      let column = 0;
+      column < gridSize;
+      column += 1
+    ) {
+      const x =
+        (column - center) *
+        samplePitchMm;
+      amplitude.push(
+        x * x + y * y <=
+          radiusSquared +
+          tolerance
+          ? 1
+          : 0
+      );
+    }
+  }
+  return amplitude;
 }
 
 function createPolygonPupilAmplitude(
@@ -531,6 +583,128 @@ export function calculateRegularPolygonDiffraction(
           sum + value,
         0
       );
+
+  const circularAmplitude =
+    createCircularPupilAmplitude(
+      equivalentRadiusMm,
+      gridSize,
+      samplePitchMm
+    );
+  const sampledCircular =
+    calculateLensComplexPupilPsf({
+      profile: {
+        schemaVersion: "0.1.0",
+        profileId:
+          "ideal-sampled-circular-reference",
+        profileVersion: "1.0.0",
+        scientificStatus:
+          "approximation",
+        opticalDomain:
+          "lens-primary-optical-path-only",
+        representation:
+          "complex-pupil-amplitude-plus-opd",
+        pupilCoordinateSystem:
+          "pupil-plane-metric-aligned-to-image-plane",
+        imageFieldAxes:
+          "+X right, +Y up",
+        amplitudeMeaning:
+          "relative-complex-pupil-amplitude-shape",
+        wavefrontMeaning:
+          "optical-path-difference-micrometers",
+        throughputOwnership:
+          "separate-relative-pupil-throughput-factor",
+        kernelEnergyNormalization:
+          "unit-energy-shape",
+        propagationModel:
+          "scalar-fraunhofer-discrete-reference",
+        context: {
+          focalLengthMm:
+            input.focalLengthMm,
+          focus: {
+            kind: "infinity"
+          },
+          apertureFNumber:
+            input.apertureFNumber,
+          fieldPointMm: {
+            x: 0,
+            y: 0
+          },
+          wavelengthNm:
+            input.wavelengthNm,
+          signedDefocusImagePlaneMicrometers:
+            0
+        },
+        responseIncludes: {
+          diffraction: true,
+          aberration: false,
+          defocus: false,
+          pupilClippingShape:
+            false
+        },
+        relativePupilThroughputFactor:
+          1,
+        grid: {
+          widthSamples:
+            gridSize,
+          heightSamples:
+            gridSize,
+          pupilSamplePitchMmX:
+            samplePitchMm,
+          pupilSamplePitchMmY:
+            samplePitchMm,
+          centerSampleX:
+            Math.floor(
+              gridSize / 2
+            ),
+          centerSampleY:
+            Math.floor(
+              gridSize / 2
+            ),
+          relativeAmplitude:
+            circularAmplitude,
+          opticalPathDifferenceMicrometers:
+            new Array<number>(
+              gridSize *
+              gridSize
+            ).fill(0)
+        },
+        sensorOpticalStackIncluded:
+          false,
+        sensorSamplingIncluded:
+          false,
+        reconstructionIncluded:
+          false,
+        strayLightIncluded:
+          false,
+        evidence: [],
+        uncertainty: {
+          kind:
+            "not-quantified",
+          limitation:
+            "Finite same-grid sampled circular reference used only for numerical convergence comparison."
+        },
+        limitations: [
+          "Sampled circular reference on the exact same pupil/propagation grid as the polygon result."
+        ]
+      }
+    }).value;
+
+  const l1CircularDistance =
+    complexPupil.kernel
+      .normalizedIntensity
+      .reduce(
+        (sum, value, index) =>
+          sum +
+          Math.abs(
+            value -
+            sampledCircular.kernel
+              .normalizedIntensity[
+                index
+              ]!
+          ),
+        0
+      );
+
   const circular =
     calculateAiryDisk({
       aperture:
@@ -603,6 +777,13 @@ export function calculateRegularPolygonDiffraction(
       psf:
         complexPupil.kernel,
       normalizedPsfEnergy,
+      sampledCircularReference: {
+        psf:
+          sampledCircular.kernel,
+        l1IntensityDistanceFromPolygon:
+          l1CircularDistance,
+        samePhysicalGrid: true
+      },
       circularReference: {
         model:
           "ideal-circular-aperture-airy-disk",
@@ -642,7 +823,7 @@ export function calculateRegularPolygonDiffraction(
       "Physical scale uses an equal-area equivalent circular diameter D=f/N, so polygon area equals the nominal circular f-number pupil area while finite blade count changes shape.",
       "The pupil has uniform amplitude and zero phase and is evaluated on axis at one monochromatic wavelength using the #113 scalar Fraunhofer complex-pupil reference path.",
       "PSF intensity is normalized to unit energy; no separate throughput loss is encoded in the normalized kernel.",
-      "The existing circular Airy first-zero result remains a separate analytical reference and is not replaced or relabeled.",
+      "A same-grid sampled circular pupil is evaluated only as a numerical convergence reference; the existing circular Airy first-zero result remains a separate analytical reference and is not replaced or relabeled.",
       "Finite sampled pupil support and zero padding introduce numerical approximation error; convergence should be checked by increasing support sampling within the reference evaluator limits.",
       "Aberration, field dependence, mechanical clipping/cat-eye behavior, blade curvature, polychromatic integration, polarization and stray light are excluded."
     ]
