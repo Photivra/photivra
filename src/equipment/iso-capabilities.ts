@@ -960,10 +960,18 @@ export function resolveIsoCapability(
 
   if (
     input.setting.kind !==
-    "expanded" ||
-    typeof input.setting.settingId !==
+    "expanded"
+  ) {
+    throw new InvalidScientificInputError(
+      "ISO setting must be a valid standard or expanded setting."
+    );
+  }
+  const expandedSettingId =
+    input.setting.settingId;
+  if (
+    typeof expandedSettingId !==
       "string" ||
-    input.setting.settingId.trim()
+    expandedSettingId.trim()
       .length === 0
   ) {
     throw new InvalidScientificInputError(
@@ -975,7 +983,7 @@ export function resolveIsoCapability(
     profile.expandedSettings.find(
       (entry) =>
         entry.settingId ===
-        input.setting.settingId
+        expandedSettingId
     );
   if (
     setting === undefined ||
