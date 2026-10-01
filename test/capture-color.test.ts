@@ -106,7 +106,7 @@ describe("virtual-camera colorimetry", () => {
     const p = { ...c.planes[0]!, whiteBalanceApplication: "applied-chromatic-adaptation" };
     expect(() => parseSimulatedCapture({ ...c, planes: [p] })).toThrow();
     expect(() => parseSimulatedCapture({ ...c, schemaVersion: "0.1.0", planes: [p] })).toThrow();
-    const m = resolveCaptureColorModel(); (m.cameraRgbToXyz[0] as number[])[0] = 99;
+    const m = resolveCaptureColorModel(); (m.cameraRgbToXyz[0] as unknown as number[])[0] = 99;
     expect(resolveCaptureColorModel().cameraRgbToXyz[0][0]).toBeCloseTo(.4123907992659595, 13);
   });
 });
