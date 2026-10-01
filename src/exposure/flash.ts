@@ -171,6 +171,8 @@ export interface ResolvedManualFlashSync {
 export interface CreateManualFlashIlluminationOverlayInput {
   baseIlluminationProfile:
     SceneIlluminationProfile;
+  baseTemporalProfile?:
+    SceneIlluminationTemporalProfile;
   flashProfile:
     ManualFlashProfile;
   resolvedSync:
@@ -202,6 +204,8 @@ export interface ManualFlashIlluminationOverlay {
   whiteBalanceModified: false;
   ambientMeteringModified: false;
   ttlMeteringIncluded: false;
+  ambientTemporalBehaviorPreserved:
+    true;
 }
 
 const ORDINARY_SYNC_MODES =
@@ -1052,6 +1056,28 @@ export function createManualFlashIlluminationOverlay(
       input
         .baseIlluminationProfile
     );
+  const baseTemporal =
+    input.baseTemporalProfile ===
+    undefined
+      ? null
+      : parseSceneIlluminationTemporalProfile(
+          input.baseTemporalProfile
+        );
+  if (
+    baseTemporal !== null &&
+    (
+      baseTemporal.sceneId !==
+        base.sceneId ||
+      baseTemporal
+        .illuminationProfileId !==
+        base.profileId
+    )
+  ) {
+    throw new InvalidScientificInputError(
+      "baseTemporalProfile must exactly match the base illumination profile scene/profile identities."
+    );
+  }
+
   const flash =
     parseManualFlashProfile(
       input.flashProfile
@@ -1089,7 +1115,8 @@ export function createManualFlashIlluminationOverlay(
       flashApplied: false,
       illuminationProfile:
         base,
-      temporalProfile: null,
+      temporalProfile:
+        baseTemporal,
       sourceId:
         flash.sourceTemplate
           .sourceId,
@@ -1111,6 +1138,8 @@ export function createManualFlashIlluminationOverlay(
         false,
       ambientMeteringModified:
         false,
+      ambientTemporalBehaviorPreserved:
+        true,
       ttlMeteringIncluded:
         false
     };
@@ -1156,10 +1185,13 @@ export function createManualFlashIlluminationOverlay(
       illuminationProfileId:
         illumination.profileId,
       evidence: [
+        ...(baseTemporal?.evidence ?? []),
         ...flash.evidence,
         ...sync.evidence
       ],
-      waveforms: [{
+      waveforms: [
+        ...(baseTemporal?.waveforms ?? []),
+        {
         waveformId:
           flash.pulse.waveformId,
         kind:
@@ -1181,8 +1213,11 @@ export function createManualFlashIlluminationOverlay(
           flash.pulse.samples,
         outsideSupportBehavior:
           "zero"
-      }],
-      sourceBindings: [{
+        }
+      ],
+      sourceBindings: [
+        ...(baseTemporal?.sourceBindings ?? []),
+        {
         bindingId:
           flash.profileId +
           ":sync",
@@ -1205,7 +1240,8 @@ export function createManualFlashIlluminationOverlay(
         },
         evidence:
           sync.evidence
-      }],
+        }
+      ],
       baseIlluminationProfileRemainsAuthoritative:
         true,
       sensorReadoutTimingUsedAsExposureTiming:
@@ -1240,7 +1276,9 @@ export function createManualFlashIlluminationOverlay(
       false,
     ambientMeteringModified:
       false,
-    ttlMeteringIncluded:
+    ambientTemporalBehaviorPreserved:
+        true,
+      ttlMeteringIncluded:
       false
   };
 }
