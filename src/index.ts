@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+export { RAW_FRAME_RECONSTRUCTION_SCHEMA_VERSION, parseRawFrameReconstructionInput, resolveRawFrameReconstruction,
+  type RawFrameReconstructionPhaseProfile, type RawFrameReconstructionInput, type RawFrameReconstruction } from "./capture/raw-frame-reconstruction.js";
 export { SENSOR_RAW_FRAME_SCHEMA_VERSION, createSensorRawFrame, parseSensorRawFrameInput,
   type SensorRawFrameInput, type SensorRawFrame } from "./capture/sensor-raw-frame.js";
 

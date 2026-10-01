@@ -1,5 +1,10 @@
 # Changelog
 
+## Same-RAW reconstruction handoff — unreleased
+
+- Added #16C `resolveRawFrameReconstruction()`: bounded native-region values derived only from the attached #166 RAW frame via #14 explicit linear-neighborhood reconstruction, complete absolute-phase dispatch, child provenance and exact source contributions. Signed values survive; missing edges fail rather than padding/clamping/rephasing. Independent captured float planes are not used. No sensor color calibration, downstream WB/color/output processing or file writer is claimed. See `docs/RAW_FRAME_RECONSTRUCTION.md`.
+- Proposed root API 0.99.0, handoff schema 0.1.0. Stacked draft requires #166; reconcile parallel additive root versions before merge. Existing package/POC/capture/production contracts are unchanged.
+
 ## Native RAW-frame attachment — unreleased
 
 - Added #16 prerequisite `createSensorRawFrame()` and strict input parser: complete bounded native periodic-CFA coverage, exact one-site binding, immutable capture attachment, code/black/digital-white/per-site-seed preservation, and rejection of processed/grouped/multi-frame inputs. Producer origin is explicitly caller-declared; no serializer or RAW-to-RGB pairing proof is claimed. See `docs/SENSOR_RAW_FRAME.md`.
