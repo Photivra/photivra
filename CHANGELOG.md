@@ -1,5 +1,10 @@
 # Changelog
 
+## Capture-bound correction and SDR bridge — unreleased
+
+- Added `calculateCaptureCorrectedSdr()` and its strict parser: committed capture/color/WB → native optical geometry/CA → gain → oriented joint-valid output view → existing SDR rendering. Four orientations, off-center crops, separate clocks and preserved source history are inspectable. Gain clipping events are separately reported by the correction executor. See `docs/CAPTURE_CORRECTED_SDR.md`.
+- Root API advances to 0.101.0; package, POC, production and capture schemas are unchanged. No sensor producer, production-stage activation, editor acceptance or new dependency is claimed. Human review and new contribution-specific DCO certification remain required.
+
 ## Paired DNG/JPEG reference export — unreleased
 
 - Added `createPhotographicExportPair()` and strict input/color-profile parsers: uncompressed 16-bit native Bayer DNG and baseline 8-bit YCbCr444 JPEG developed from the exact attached RAW frame. Explicit reconstruction, approximate camera color interpretation, existing resolved WB, final orientation/crop and existing SDR rendering are traceable; unsupported resampling fails closed. EXIF/XMP, distinct artifact identities and deterministic SHA-256 provenance accompany owned bytes. See `docs/PHOTOGRAPHIC_EXPORT.md`.
