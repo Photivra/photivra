@@ -162,5 +162,11 @@ describe("ideal polygon diffraction", () => {
     }
     expect(() => calculateIdealPolygonDiffractionPsf({ ...base, wavelengthBasis: "unspecified" } as unknown as CalculateIdealPolygonDiffractionInput)).toThrow();
     expect(() => calculateIdealPolygonDiffractionPsf({ ...base, firstBladeEdgeAngleDegrees: NaN })).toThrow();
+    for (const malformed of [null, [], { ...base, firstBladeEdgeAngleDegrees: null },
+      { ...base, imagePointsMicrometers: [null] },
+      { ...base, imagePointsMicrometers: [{ x: 0, y: 0, field: 1 }] },
+      { ...base, imagePointsMicrometers: new Array(1) }]) {
+      expect(() => calculateIdealPolygonDiffractionPsf(malformed as unknown as CalculateIdealPolygonDiffractionInput)).toThrow(InvalidScientificInputError);
+    }
   });
 });

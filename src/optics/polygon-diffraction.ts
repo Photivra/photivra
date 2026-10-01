@@ -113,9 +113,17 @@ export function calculateIdealPolygonDiffractionPsf(
   if (input.wavelengthBasis !== "air" && input.wavelengthBasis !== "vacuum") {
     throw new InvalidScientificInputError("wavelengthBasis must be air or vacuum.");
   }
+  if (input.firstBladeEdgeAngleDegrees !== undefined && !Number.isFinite(input.firstBladeEdgeAngleDegrees)) {
+    throw new InvalidScientificInputError("firstBladeEdgeAngleDegrees must be finite when supplied.");
+  }
   if (!Array.isArray(input.imagePointsMicrometers) ||
       input.imagePointsMicrometers.length === 0 || input.imagePointsMicrometers.length > 4096) {
     throw new InvalidScientificInputError("imagePointsMicrometers must contain 1 through 4096 points.");
+  }
+  for (let index = 0; index < input.imagePointsMicrometers.length; index += 1) {
+    if (!Object.hasOwn(input.imagePointsMicrometers, index)) {
+      throw new InvalidScientificInputError("imagePointsMicrometers must not contain sparse entries.");
+    }
   }
   const geometry = calculateIdealApertureGeometry(input).value;
   const unitArea = input.bladeCount * Math.sin(2 * Math.PI / input.bladeCount) / 2;
