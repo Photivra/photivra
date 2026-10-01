@@ -54,7 +54,7 @@ Producers must select genuinely public, non-personal IDs. Syntax cannot prove an
 
 ## Versioning and evidence
 
-Schema is 0.2.0; legacy 0.1.0 archives normalize to 0.2.0 while preserving creator API identity. The new applied-chromatic-adaptation state cannot be declared in a 0.1.0 archive. Re-serialization emits the current schema, so archive bytes change on migration. Root API advances main 0.93.0 to 0.94.0. Package, POC and production contracts are unchanged. This independent branch consumes no pending #157/#158 code; reconcile API identity in final merge order.
+Schema is 0.2.0; legacy 0.1.0 archives normalize to 0.2.0 while preserving creator API identity. The new applied-chromatic-adaptation state cannot be declared in a 0.1.0 archive. Re-serialization emits the current schema, so archive bytes change on migration. Root API advances main 0.95.0 to 0.96.0. Package, POC and production contracts are unchanged. This independent branch consumes no pending #157/#158 code; reconcile API identity in final merge order.
 
 Tests reuse #130's canonical fixture for geometry/settings/seed, and cover unclamped data, immutable/canonical archive round trips, four orientations/off-center capture, active/output equivalence, WB sanitization/intent/application, image-state substitution, RGB history, large external planes, saturation distinction, private/malformed metadata, infinity and historical identity.
 

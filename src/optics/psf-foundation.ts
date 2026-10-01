@@ -13,7 +13,7 @@ import type { LensFieldPointMm } from "./radial-distortion.js";
 import { calculateDefocusCircle } from "./depth-of-field.js";
 import { calculateAiryDisk } from "./diffraction.js";
 
-export const PSF_FOUNDATION_VERSION = "0.2.0" as const;
+export const PSF_FOUNDATION_VERSION = "0.3.0" as const;
 
 export type PsfContributionId =
   | "geometric-defocus-circle"
@@ -134,10 +134,10 @@ const CONTRIBUTIONS = [
   },
   {
     id: "non-circular-diffraction",
-    status: "reserved-contract",
-    dependsOn: ["pupil", "wavelength", "field-position"],
+    status: "implemented-framework",
+    dependsOn: ["pupil", "wavelength"],
     note:
-      "Reserved for a defensible pupil-dependent diffraction model. Polygon aperture geometry alone does not implement this contribution."
+      "Implemented ideal on-axis regular-polygon Fraunhofer PSF density with explicit equal-area physical pupil scaling. Curved blades, aberration and off-axis/clipped real pupils are not inferred."
   },
   {
     id: "mechanical-pupil-clipping",
@@ -172,7 +172,7 @@ const CONTRIBUTIONS = [
 const NOTES = [
   "This foundation preserves the legacy defocus/Airy diagnostics separately while the lens-PSF framework can resolve explicitly profiled combined primary-optical PSFs. It still never emits one scalar lens-sharpness result.",
   "Existing geometric defocus and circular Airy outputs remain independently named scientific diagnostics with their own provenance.",
-  "Framework contributions are implemented through explicit profile/evaluator APIs; non-circular diffraction remains reserved for its dedicated model.",
+  "Framework contributions require explicit profile/evaluator APIs; the ideal polygon diffraction evaluator is standalone and is not silently composed into the legacy diagnostics or POC.",
   "Illumination vignetting is a separate throughput-only model and is not a PSF contribution.",
   "Real-lens PSF calibration requires defensible provenance, compatible reuse rights, and explicit limitations/uncertainty."
 ] as const;

@@ -14,7 +14,48 @@ console.log(result.quality);
 
 `quality` is optional and is omitted when the engine does not have defensible quantified uncertainty/accuracy metadata to report.
 
-## Image-formation contract
+## Standalone digital optics
+
+See [Digital optics foundations](DIGITAL_OPTICS_FOUNDATION.md) for exact-state stray-light/correction profiles and scientific boundaries. A compatible map can be prepared separately from its sampling filter:
+
+```ts
+import {
+  prepareGeometricMapping,
+  calculateGeometricSamplingPlan,
+  calculateGeometricResampling
+} from "@photivra/engine";
+
+const mapping = prepareGeometricMapping({
+  frameTimeSeconds: 0,
+  transforms: [{
+    id: "declared-breathing-compensation",
+    version: "1",
+    kind: "affine",
+    domain: "reconstructed-linear",
+    purpose: "breathing",
+    matrix: [0.9, 0, 0, 0.9],
+    offsetMm: { x: 0, y: 0 }
+  }]
+}).value;
+const raster = {
+  width: 5, height: 5, pitchMm: 1, centerMm: { x: 0, y: 0 }
+};
+const plan = calculateGeometricSamplingPlan({
+  mapping, sourceRaster: raster, destinationRaster: raster,
+  physicalProjectionDistanceMm: 50,
+  resampler: { id: "bilinear-no-compression", version: "1",
+    filter: "bilinear", antialias: "none" }
+}).value;
+const warped = calculateGeometricResampling({
+  plan, sourceSamples: Array<number>(25).fill(1)
+}).value;
+// warped.samples contains null wherever source support is unavailable.
+// plan.jointCrop and validSourceMask preserve the actual support.
+```
+
+This warps captured samples; it does not recalculate the physical lens PSF or regenerate noise. Compression requires explicitly source-prefiltered data; incompatible domains require separate stages. Stray light instead adds to incident spectral irradiance before the sensor. RAW-like correction intent can remain metadata-only.
+
+## Image-formation ownership
 
 Use the public image-formation contract when coordinating effects that cross optics, motion, sensor, and output domains:
 
@@ -37,6 +78,25 @@ The contract is descriptive metadata. It does not imply that every reserved stag
 Use `requiredUpstreamStages` for hard scientific dependencies and `coupledStages` for shared state/interactions that must not be treated as independent renderer filters.
 
 See [Image-Formation Contract](IMAGE_FORMATION.md) for coordinate, temporal, renderer, and reserved sensor-stage semantics.
+
+## Ideal regular-polygon diffraction
+
+```ts
+import { calculateIdealPolygonDiffractionPsf } from "@photivra/engine";
+
+const polygon = calculateIdealPolygonDiffractionPsf({
+  bladeCount: 7,
+  firstBladeEdgeAngleDegrees: 0,
+  equivalentAreaPupilDiameterMm: 10,
+  pupilToImageDistanceMm: 50,
+  wavelengthNm: 550,
+  wavelengthBasis: "air",
+  imagePointsMicrometers: [{ x: 0, y: 0 }, { x: 3, y: -2 }]
+});
+console.log(polygon.value.samples[0]?.intensityDensityPerSquareMicrometer);
+```
+
+This is a uniform-amplitude, zero-phase, on-axis, in-focus scalar approximation. Equal-area diameter is not polygon circumdiameter. Image points are PSF displacements (+X right / +Y up), not source-field positions. Density integrates to one over the **infinite** plane; supplied samples do not sum to one. Finite image-plane quadrature needs explicit area measures, support and convergence checks. No air/vacuum conversion, clipping, aberration, throughput or sensor response is inferred. Circular Airy and already-diffracted #113 kernels remain separate; do not stack diffraction twice.
 
 ## Explicit finite and infinity focus state
 

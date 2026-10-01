@@ -477,7 +477,7 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 - Do not call the current diagnostics a complete PSF or MTF.
 - Field position, focus/subject depth, wavelength basis, and pupil semantics are explicit context.
 - The current field position is context only for defocus/Airy; do not invent field dependence until a corresponding model is implemented.
-- Non-circular diffraction, mechanical pupil clipping, field curvature, field-dependent aberration, and field-dependent bokeh remain reserved until implemented.
+- Ideal regular-polygon non-circular diffraction is implemented only through its explicit equal-area, on-axis, zero-phase scalar API. Arbitrary non-circular real diaphragms are not inferred. Mechanical pupil clipping, field curvature, field-dependent aberration and bokeh require explicit #113 profile/evaluator semantics; never infer them from blade count or legacy diagnostics.
 - Illumination vignetting remains throughput-only and outside the PSF contribution list.
 - Polygon aperture geometry does not by itself implement non-circular diffraction.
 - Preview/reference renderers may differ in bounded fidelity but must preserve engine-owned contribution semantics.
@@ -559,6 +559,15 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 
 ## Runtime and package boundary
 
+### Standalone stray light and digital corrections
+
+- Consume `docs/DIGITAL_OPTICS_FOUNDATION.md` for #114/#118/#117. These primitives do not activate production-plan stages or change POC behavior.
+- Ghost/veil contributions are additive spectral irradiance before exposure/sensor processing. Keep diffraction, primary PSF, contamination and display effects separate.
+- Profiles require exact generic system/acquisition binding and explicit generic evidence. Do not promote synthetic coefficients to calibration or extrapolate.
+- Preserve full destination-to-source Jacobians, compatible-domain groups, resampler identity, prefilter requirements and valid-source masks/joint crops. Invalid support remains unavailable.
+- Corrections warp already-sampled blur/noise; gain changes downstream signal/variance without rewriting photons. RAW metadata intent, camera mandatory settings and educational reference bypass are separate states.
+- The bounded RGB executor accepts reconstructed-linear geometry/CA followed by gain only. Reject incompatible-domain or geometry-across-gain execution rather than reorder it. Production #111/#112 require their own explicit composition.
+- Reconcile root API versions against other pending API branches before merge; schemas and package/POC versions remain independent.
 ### Authoritative linear capture container
 
 - #15A `SimulatedCapture` is a standalone immutable data commitment, not a radiance generator, virtual-camera color transform, quantizer, file serializer or production-stage activation.

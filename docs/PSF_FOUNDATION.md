@@ -8,7 +8,7 @@ The legacy foundation keeps the ideal **geometric defocus-circle** and **circula
 
 Use `getPsfFoundationContract()` and `calculatePsfFoundationComponents()` for the established diagnostics and common field/depth/wavelength/pupil context.
 
-The foundation contract is version `0.2.0`.
+The foundation contract is version `0.3.0`.
 
 Implemented diagnostic contributions:
 
@@ -17,16 +17,39 @@ Implemented diagnostic contributions:
 
 Implemented framework contributions:
 
+- ideal regular-polygon diffraction density (on-axis, in focus);
 - mechanical pupil clipping / cat-eye PSF shape;
 - field curvature;
 - field-dependent aberration;
 - field-dependent bokeh / signed-defocus response.
 
-Still reserved here:
-
-- non-circular diffraction generation, owned by #1.
+Arbitrary curved-blade, off-axis and clipped-pupil diffraction is not inferred by the ideal polygon API.
 
 The legacy component calculator still returns no combined PSF. That is intentional: a combined PSF is available only when an explicit #113 profile or complex pupil supplies the information needed to justify one.
+
+## Ideal polygon diffraction
+
+`calculateIdealPolygonDiffractionPsf()` reuses the regular-polygon geometry and image-plane conventions, but evaluates its continuous Fourier transform analytically rather than rasterizing the pupil into the bounded #113 DFT grid. This avoids a second sampled approximation of the same ideal aperture; #113 still owns arbitrary complex sampled pupils and aberration phase.
+
+Inputs are explicit: equal-area physical pupil diameter, pupil-to-image propagation distance, wavelength and resolved air/vacuum basis, blade count/orientation, and image-plane displacements in micrometres (+X right, +Y up). A nonzero displacement is a location within the **on-axis PSF**, not an off-axis source field position. There is no implicit wavelength conversion or focus-to-propagation-distance conversion.
+
+For unit-circumradius area `A_unit = n sin(2π/n)/2`, the physical radius is `sqrt(A/A_unit)`, with `A = π(D_equal_area/2)²`. This fixes equal area, not equal circumradius/inradius. Under a declared nominal-area convention, a caller may use `D_equal_area = f/N`; that convention is not an inferred real-lens pupil calibration.
+
+For dimensionless pupil coordinates `u`, the independently derived boundary integral follows the divergence theorem:
+
+`F(q) = i/|q|² Σ_edges (qx Δy − qy Δx) exp(−i q·midpoint) sinc(q·edge/2)`.
+
+The phase coordinate is `q = 2π R x/(λ L)`. The center uses the exact area limit. Subtracting each edge's constant term (which sums to zero on a closed contour), a cancellation-safe sinc-minus-one series and `cos(t)−1 = −2 sin²(t/2)` keep near-origin evaluation stable. There is no FFT, pupil rasterization or hidden pupil-grid convergence parameter.
+
+Output gives both `|F/A_unit|²` (unity at center) and continuous intensity density `A |F/A_unit|²/(λ L)²`, converted from 1/mm² to **1/µm²**. Parseval's identity gives unit integral over the infinite image plane. Neither the density nor the peak-normalized intensity is a discrete probability weight. A finite point list is **not** renormalized to sum to one. Renderer quadrature must multiply density by image-plane area, measure support truncation and convergence, and explicitly own any finite-kernel normalization. Throughput stays separate.
+
+Bounds: 3–1024 blades, 1–4096 image points per request, finite positive scales and dimensionless phase radius at most `1e6` (a computational envelope, not a calibrated accuracy claim). Unsupported fields, including aberration/clipping/field inputs, fail closed. Uniform unit amplitude and zero phase are fixed ideal-model assumptions; there is no defocus, curved-blade, field, polarization, sensor, stray-light or polychromatic claim. No quantified physical uncertainty is asserted.
+
+Validation independently checks square sinc-squared response (absolute tolerance `5e-13`), rotated odd/even apertures, direct triangular-pupil quadrature refinement, the equal-area many-blade circular limit (absolute intensity tolerance `1e-7` at the tested points), and finite-support energy integration/refinement. Those tolerances describe test evidence, not universal real-lens accuracy bounds.
+
+Mathematical reference: [Sillitto, Fraunhofer diffraction at straight-edged apertures (1979)](https://doi.org/10.1364/JOSA.69.000765), whose abstract establishes analytical polygon Fourier methods. The implementation and tests are independently authored from Fourier integration, the divergence theorem and Parseval's identity; no third-party implementation, tabulated data or protected exposition is incorporated. AI-assisted draft work still requires substantive human provenance/science review under `PROVENANCE.md` and DCO certification before inclusion.
+
+The circular Airy diagnostic remains separate and unchanged. Do not convolve this diffraction PSF over a #113 kernel that already includes diffraction. This standalone API does not enable an uncomposed production-plan stage or change the POC.
 
 ## Sampled real-lens PSFs
 
