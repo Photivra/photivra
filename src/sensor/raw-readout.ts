@@ -1724,14 +1724,9 @@ export function simulateSensorRawCode(
     roundHalfUp(
       codeBeforeQuantization
     );
-  const lowerClamped =
-    Math.max(
-      0,
-      quantized
-    );
   const rawCode =
     Math.min(
-      lowerClamped,
+      quantized,
       readout.regime
         .adc
         .digitalSaturationCode
@@ -1816,12 +1811,12 @@ export function simulateSensorRawCode(
           .digitalSaturationCode,
       rawCode,
       digitalSaturationApplied:
-        lowerClamped >
+        quantized >
         readout.regime
           .adc
           .digitalSaturationCode,
       lowerCodeClampApplied:
-        quantized < 0,
+        false,
       adcTransfer:
         "uniform-round-half-up",
       physicalSaturationApplied:
