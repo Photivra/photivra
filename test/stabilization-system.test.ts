@@ -477,9 +477,10 @@ describe("time-domain stabilization trajectory", () => {
       14
     );
     expect(
-      result
-        .stopRatingUsedAsDynamicResponse
-    ).toBeUndefined();
+      "stopRatingUsedAsDynamicResponse" in
+        (result as unknown as
+          Record<string, unknown>)
+    ).toBe(false);
   });
 
   it("clips correction at an explicit per-axis travel limit", () => {
@@ -824,7 +825,7 @@ describe("stabilization validation boundaries", () => {
       parseStabilizationSystemProfile({
         ...offProfile(),
         axisResponses: [
-          profile().axisResponses[0]
+          profile().axisResponses[0]!
         ]
       })
     ).toThrow(
