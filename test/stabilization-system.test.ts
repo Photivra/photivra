@@ -853,8 +853,24 @@ describe("stabilization validation boundaries", () => {
       parseStabilizationSystemProfile({
         ...profile({
           axisResponses: [
-            profile()
-              .axisResponses[0]!
+            {
+              axis: "pitch",
+              correctionGain: {
+                value: 1,
+                evidence:
+                  evidence("pitch-gain")
+              },
+              latencySeconds: {
+                value: 0,
+                evidence:
+                  evidence("pitch-latency")
+              },
+              maximumCorrectionAngleRad: {
+                value: 1,
+                evidence:
+                  evidence("pitch-limit")
+              }
+            }
           ]
         }),
         panningPolicy: {
