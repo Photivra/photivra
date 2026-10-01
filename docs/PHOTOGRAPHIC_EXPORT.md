@@ -109,6 +109,14 @@ async function exportCommittedRaw(input: PhotographicExportInput) {
 Callers supply actual committed input and explicit profile evidence. Test profiles
 are synthetic and are not suggested physical calibrations.
 
+Generate concrete acceptance files with `npm run build`, then
+`node scripts/generate-photographic-export-fixtures.mjs OUTPUT_DIRECTORY`.
+With an existing Pillow installation, run
+`python scripts/verify-photographic-export-fixtures.py OUTPUT_DIRECTORY`.
+This repository-only optional checker adds no engine dependency. The manifest
+records elapsed time and before/after heap usage for the tiny fixture only;
+these are not peak-memory measurements or high-resolution evidence.
+
 Supplemental local checks use Pillow's independent TIFF-directory reader plus
 direct strip unpacking for exact RAW codes; Pillow decodes JPEG/EXIF and extracts
 XMP, and Python DOM parses both packets. Diverse 1×1, 7×8, 9×13 and 64×64 patterns

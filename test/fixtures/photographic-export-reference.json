@@ -1,0 +1,775 @@
+{
+  "reconstruction": {
+    "rawFrame": {
+      "frameId": "raw-frame",
+      "capture": {
+        "schemaVersion": "0.2.0",
+        "engineApiVersion": "0.100.0",
+        "captureId": "00000000-0000-4000-8000-000000000001",
+        "sceneStateId": "fixture-scene",
+        "sceneTimeSeconds": 0,
+        "geometry": {
+          "imagingArea": {
+            "widthMm": 36,
+            "heightMm": 24
+          },
+          "nativeRaster": {
+            "pixelWidth": 2,
+            "pixelHeight": 2
+          },
+          "orientation": "landscape",
+          "outputRaster": {
+            "pixelWidth": 2,
+            "pixelHeight": 2
+          }
+        },
+        "resolvedGeometry": {
+          "native": {
+            "imagingArea": {
+              "widthMm": 36,
+              "heightMm": 24
+            },
+            "raster": {
+              "pixelWidth": 2,
+              "pixelHeight": 2
+            }
+          },
+          "activeCapture": {
+            "nativeRect": {
+              "x": 0,
+              "y": 0,
+              "width": 2,
+              "height": 2
+            },
+            "imagingArea": {
+              "widthMm": 36,
+              "heightMm": 24
+            },
+            "physicalOffsetMm": {
+              "x": 0,
+              "y": 0
+            },
+            "centerOffsetFromOpticalAxisMm": {
+              "x": 0,
+              "y": 0
+            },
+            "physicalBoundsFromOpticalAxisMm": {
+              "left": -18,
+              "right": 18,
+              "top": -12,
+              "bottom": 12
+            },
+            "imagingAreaDerivation": "uniform-native-raster",
+            "raster": {
+              "pixelWidth": 2,
+              "pixelHeight": 2
+            }
+          },
+          "orientedCapture": {
+            "orientation": "landscape",
+            "imagingArea": {
+              "widthMm": 36,
+              "heightMm": 24
+            },
+            "physicalBoundsFromOpticalAxisMm": {
+              "left": -18,
+              "right": 18,
+              "top": -12,
+              "bottom": 12
+            },
+            "raster": {
+              "pixelWidth": 2,
+              "pixelHeight": 2
+            }
+          },
+          "output": {
+            "cropRect": {
+              "x": 0,
+              "y": 0,
+              "width": 2,
+              "height": 2
+            },
+            "raster": {
+              "pixelWidth": 2,
+              "pixelHeight": 2
+            },
+            "imagingArea": {
+              "widthMm": 36,
+              "heightMm": 24
+            },
+            "physicalBoundsFromOpticalAxisMm": {
+              "left": -18,
+              "right": 18,
+              "top": -12,
+              "bottom": 12
+            },
+            "centerOffsetFromOpticalAxisMm": {
+              "x": 0,
+              "y": 0
+            },
+            "sourceRetainedAreaFraction": 1,
+            "orientedCaptureToOutputScale": {
+              "x": 1,
+              "y": 1,
+              "axisRelativeDifference": 0
+            }
+          }
+        },
+        "exposure": {
+          "focalLengthMm": 50,
+          "aperture": 4,
+          "shutterSeconds": 0.008,
+          "iso": 100
+        },
+        "equivalentFocalLength35Mm": 50,
+        "focus": {
+          "kind": "finite",
+          "distanceM": 5
+        },
+        "noise": {
+          "seedUint32": 12345,
+          "realizationId": "noise",
+          "model": {
+            "id": "fixture-noise",
+            "version": "1"
+          }
+        },
+        "source": {
+          "kind": "scene-linear-master",
+          "artifactId": "fixture-master",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "dynamicRangeHistory": "unknown"
+        },
+        "whiteBalanceIntent": null,
+        "adoptedWhiteXyz": null,
+        "models": [
+          {
+            "profile": {
+              "id": "photivra-colorimetric-rgb-d65",
+              "version": "0.1.0"
+            },
+            "scientificStatus": "calculated",
+            "publicEvidenceIds": [
+              "w3c:css-color-4:srgb-primaries-d65"
+            ]
+          }
+        ],
+        "planes": [
+          {
+            "id": "source",
+            "imageStateId": "source-state",
+            "imageState": "scene-referred-xyz",
+            "rasterBinding": "output",
+            "pixelWidth": 2,
+            "pixelHeight": 2,
+            "channelIds": [
+              "X",
+              "Y",
+              "Z"
+            ],
+            "colorProfile": {
+              "id": "cie-1931-2-degree-xyz",
+              "version": "1.0.0"
+            },
+            "encodingReferenceWhiteXyz": {
+              "x": 0.9504559270516716,
+              "y": 1,
+              "z": 1.0890577507598784
+            },
+            "referenceWhiteValue": 1,
+            "whiteBalanceApplication": "not-applicable",
+            "captureSaturation": {
+              "kind": "not-modeled"
+            },
+            "appliedTransforms": [],
+            "storage": {
+              "kind": "inline-float64",
+              "samples": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        ]
+      },
+      "modeId": "native",
+      "captureModeProfile": {
+        "schemaVersion": "0.1.0",
+        "modes": [
+          {
+            "modeId": "native",
+            "evidence": [
+              {
+                "sourceOrigin": "photivra",
+                "sourceReference": "synthetic-frame-test",
+                "reuseStatus": "photivra-owned"
+              }
+            ],
+            "acquisition": {
+              "kind": "single-frame"
+            },
+            "perFrameSampling": {
+              "kind": "native-effective-raster"
+            },
+            "reconstructionStages": [],
+            "processedImageRaster": {
+              "value": {
+                "pixelWidth": 2,
+                "pixelHeight": 2
+              },
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ]
+            },
+            "dependencies": [
+              "color-sampling-model"
+            ]
+          }
+        ]
+      },
+      "colorSamplingProfile": {
+        "schemaVersion": "0.1.0",
+        "profileId": "cfa",
+        "evidence": [
+          {
+            "sourceOrigin": "photivra",
+            "sourceReference": "synthetic-frame-test",
+            "reuseStatus": "photivra-owned"
+          }
+        ],
+        "coordinateSystem": "native-sensor-color-sampling-site-index",
+        "layout": {
+          "kind": "periodic-mosaic",
+          "repeatWidthSites": 2,
+          "repeatHeightSites": 2,
+          "siteChannelIds": [
+            "red",
+            "green",
+            "green",
+            "blue"
+          ],
+          "anchor": "native-sensor-top-left-site"
+        }
+      },
+      "bindingProfile": {
+        "schemaVersion": "0.1.0",
+        "bindingId": "native-cfa",
+        "colorSamplingProfileId": "cfa",
+        "nativeRaster": {
+          "pixelWidth": 2,
+          "pixelHeight": 2
+        },
+        "evidence": [
+          {
+            "sourceOrigin": "photivra",
+            "sourceReference": "synthetic-frame-test",
+            "reuseStatus": "photivra-owned"
+          }
+        ],
+        "relationship": {
+          "kind": "regular-native-effective-sample-blocks",
+          "sitesPerNativeSampleX": 1,
+          "sitesPerNativeSampleY": 1,
+          "anchor": "shared-native-top-left"
+        }
+      },
+      "containerBitDepth": 16,
+      "samples": [
+        {
+          "version": "0.1.0",
+          "captureModeId": "native",
+          "modeSampleCoordinateSystem": "capture-mode-full-frame-effective-sample-index",
+          "modeSampleIndexFullFrame": {
+            "x": 0,
+            "y": 0
+          },
+          "colorSamplingProfileId": "cfa",
+          "colorSamplingSite": {
+            "x": 0,
+            "y": 0
+          },
+          "channelId": "red",
+          "rawCode": 0,
+          "blackLevelCode": 64,
+          "digitalSaturationCode": 1023,
+          "blackSubtractedNormalizedCode": -0.0667361835245047,
+          "readoutProfileId": "readout",
+          "readoutRegimeId": "base",
+          "sourceChargeSeedUint32": 0,
+          "sourceReadNoiseSeedUint32": 4,
+          "physicalScalarSaturationApplied": false,
+          "digitalSaturationApplied": false,
+          "cfaPhasePreservedInNativeCoordinates": true,
+          "physicalOrientationApplied": false,
+          "outputRotationApplied": false,
+          "groupedModeCombinationApplied": false,
+          "reconstructionApplied": false,
+          "aliasingModeled": false,
+          "moireModeled": false
+        },
+        {
+          "version": "0.1.0",
+          "captureModeId": "native",
+          "modeSampleCoordinateSystem": "capture-mode-full-frame-effective-sample-index",
+          "modeSampleIndexFullFrame": {
+            "x": 1,
+            "y": 0
+          },
+          "colorSamplingProfileId": "cfa",
+          "colorSamplingSite": {
+            "x": 1,
+            "y": 0
+          },
+          "channelId": "green",
+          "rawCode": 64,
+          "blackLevelCode": 64,
+          "digitalSaturationCode": 1023,
+          "blackSubtractedNormalizedCode": 0,
+          "readoutProfileId": "readout",
+          "readoutRegimeId": "base",
+          "sourceChargeSeedUint32": 1,
+          "sourceReadNoiseSeedUint32": 5,
+          "physicalScalarSaturationApplied": false,
+          "digitalSaturationApplied": false,
+          "cfaPhasePreservedInNativeCoordinates": true,
+          "physicalOrientationApplied": false,
+          "outputRotationApplied": false,
+          "groupedModeCombinationApplied": false,
+          "reconstructionApplied": false,
+          "aliasingModeled": false,
+          "moireModeled": false
+        },
+        {
+          "version": "0.1.0",
+          "captureModeId": "native",
+          "modeSampleCoordinateSystem": "capture-mode-full-frame-effective-sample-index",
+          "modeSampleIndexFullFrame": {
+            "x": 0,
+            "y": 1
+          },
+          "colorSamplingProfileId": "cfa",
+          "colorSamplingSite": {
+            "x": 0,
+            "y": 1
+          },
+          "channelId": "green",
+          "rawCode": 512,
+          "blackLevelCode": 64,
+          "digitalSaturationCode": 1023,
+          "blackSubtractedNormalizedCode": 0.46715328467153283,
+          "readoutProfileId": "readout",
+          "readoutRegimeId": "base",
+          "sourceChargeSeedUint32": 2,
+          "sourceReadNoiseSeedUint32": 6,
+          "physicalScalarSaturationApplied": false,
+          "digitalSaturationApplied": false,
+          "cfaPhasePreservedInNativeCoordinates": true,
+          "physicalOrientationApplied": false,
+          "outputRotationApplied": false,
+          "groupedModeCombinationApplied": false,
+          "reconstructionApplied": false,
+          "aliasingModeled": false,
+          "moireModeled": false
+        },
+        {
+          "version": "0.1.0",
+          "captureModeId": "native",
+          "modeSampleCoordinateSystem": "capture-mode-full-frame-effective-sample-index",
+          "modeSampleIndexFullFrame": {
+            "x": 1,
+            "y": 1
+          },
+          "colorSamplingProfileId": "cfa",
+          "colorSamplingSite": {
+            "x": 1,
+            "y": 1
+          },
+          "channelId": "blue",
+          "rawCode": 1023,
+          "blackLevelCode": 64,
+          "digitalSaturationCode": 1023,
+          "blackSubtractedNormalizedCode": 1,
+          "readoutProfileId": "readout",
+          "readoutRegimeId": "base",
+          "sourceChargeSeedUint32": 3,
+          "sourceReadNoiseSeedUint32": 7,
+          "physicalScalarSaturationApplied": false,
+          "digitalSaturationApplied": true,
+          "cfaPhasePreservedInNativeCoordinates": true,
+          "physicalOrientationApplied": false,
+          "outputRotationApplied": false,
+          "groupedModeCombinationApplied": false,
+          "reconstructionApplied": false,
+          "aliasingModeled": false,
+          "moireModeled": false
+        }
+      ],
+      "schemaVersion": "0.1.0",
+      "sampleDomain": "native-cfa-raw-code",
+      "sampleOrder": "native-row-major",
+      "producerBinding": "caller-declared-capture-attachment",
+      "reconstructionApplied": false,
+      "renderingApplied": false,
+      "nativePixelWidth": 2,
+      "nativePixelHeight": 2
+    },
+    "phaseProfiles": [
+      {
+        "phaseX": 0,
+        "phaseY": 0,
+        "profile": {
+          "schemaVersion": "0.1.0",
+          "profileId": "phase-0",
+          "profileVersion": "1",
+          "captureModeId": "native",
+          "colorSamplingProfileId": "cfa",
+          "scientificStatus": "approximation",
+          "method": "explicit-linear-native-neighborhood",
+          "normalization": "weights-sum-to-one-per-output-channel",
+          "negativeBlackSubtractedValuesAllowed": true,
+          "kernels": [
+            {
+              "outputChannelId": "red",
+              "contributions": [
+                {
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "sourceChannelId": "red",
+                  "weight": 1
+                }
+              ]
+            },
+            {
+              "outputChannelId": "green",
+              "contributions": [
+                {
+                  "offsetX": 1,
+                  "offsetY": 0,
+                  "sourceChannelId": "green",
+                  "weight": 0.5
+                },
+                {
+                  "offsetX": 0,
+                  "offsetY": 1,
+                  "sourceChannelId": "green",
+                  "weight": 0.5
+                }
+              ]
+            },
+            {
+              "outputChannelId": "blue",
+              "contributions": [
+                {
+                  "offsetX": 1,
+                  "offsetY": 1,
+                  "sourceChannelId": "blue",
+                  "weight": 1
+                }
+              ]
+            }
+          ],
+          "evidence": [
+            {
+              "sourceOrigin": "photivra",
+              "sourceReference": "synthetic-frame-test",
+              "reuseStatus": "photivra-owned"
+            }
+          ],
+          "limitations": [
+            "Synthetic tile-average regression policy, not calibrated demosaic."
+          ]
+        }
+      },
+      {
+        "phaseX": 1,
+        "phaseY": 0,
+        "profile": {
+          "schemaVersion": "0.1.0",
+          "profileId": "phase-1",
+          "profileVersion": "1",
+          "captureModeId": "native",
+          "colorSamplingProfileId": "cfa",
+          "scientificStatus": "approximation",
+          "method": "explicit-linear-native-neighborhood",
+          "normalization": "weights-sum-to-one-per-output-channel",
+          "negativeBlackSubtractedValuesAllowed": true,
+          "kernels": [
+            {
+              "outputChannelId": "red",
+              "contributions": [
+                {
+                  "offsetX": -1,
+                  "offsetY": 0,
+                  "sourceChannelId": "red",
+                  "weight": 1
+                }
+              ]
+            },
+            {
+              "outputChannelId": "green",
+              "contributions": [
+                {
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "sourceChannelId": "green",
+                  "weight": 0.5
+                },
+                {
+                  "offsetX": -1,
+                  "offsetY": 1,
+                  "sourceChannelId": "green",
+                  "weight": 0.5
+                }
+              ]
+            },
+            {
+              "outputChannelId": "blue",
+              "contributions": [
+                {
+                  "offsetX": 0,
+                  "offsetY": 1,
+                  "sourceChannelId": "blue",
+                  "weight": 1
+                }
+              ]
+            }
+          ],
+          "evidence": [
+            {
+              "sourceOrigin": "photivra",
+              "sourceReference": "synthetic-frame-test",
+              "reuseStatus": "photivra-owned"
+            }
+          ],
+          "limitations": [
+            "Synthetic tile-average regression policy, not calibrated demosaic."
+          ]
+        }
+      },
+      {
+        "phaseX": 0,
+        "phaseY": 1,
+        "profile": {
+          "schemaVersion": "0.1.0",
+          "profileId": "phase-2",
+          "profileVersion": "1",
+          "captureModeId": "native",
+          "colorSamplingProfileId": "cfa",
+          "scientificStatus": "approximation",
+          "method": "explicit-linear-native-neighborhood",
+          "normalization": "weights-sum-to-one-per-output-channel",
+          "negativeBlackSubtractedValuesAllowed": true,
+          "kernels": [
+            {
+              "outputChannelId": "red",
+              "contributions": [
+                {
+                  "offsetX": 0,
+                  "offsetY": -1,
+                  "sourceChannelId": "red",
+                  "weight": 1
+                }
+              ]
+            },
+            {
+              "outputChannelId": "green",
+              "contributions": [
+                {
+                  "offsetX": 1,
+                  "offsetY": -1,
+                  "sourceChannelId": "green",
+                  "weight": 0.5
+                },
+                {
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "sourceChannelId": "green",
+                  "weight": 0.5
+                }
+              ]
+            },
+            {
+              "outputChannelId": "blue",
+              "contributions": [
+                {
+                  "offsetX": 1,
+                  "offsetY": 0,
+                  "sourceChannelId": "blue",
+                  "weight": 1
+                }
+              ]
+            }
+          ],
+          "evidence": [
+            {
+              "sourceOrigin": "photivra",
+              "sourceReference": "synthetic-frame-test",
+              "reuseStatus": "photivra-owned"
+            }
+          ],
+          "limitations": [
+            "Synthetic tile-average regression policy, not calibrated demosaic."
+          ]
+        }
+      },
+      {
+        "phaseX": 1,
+        "phaseY": 1,
+        "profile": {
+          "schemaVersion": "0.1.0",
+          "profileId": "phase-3",
+          "profileVersion": "1",
+          "captureModeId": "native",
+          "colorSamplingProfileId": "cfa",
+          "scientificStatus": "approximation",
+          "method": "explicit-linear-native-neighborhood",
+          "normalization": "weights-sum-to-one-per-output-channel",
+          "negativeBlackSubtractedValuesAllowed": true,
+          "kernels": [
+            {
+              "outputChannelId": "red",
+              "contributions": [
+                {
+                  "offsetX": -1,
+                  "offsetY": -1,
+                  "sourceChannelId": "red",
+                  "weight": 1
+                }
+              ]
+            },
+            {
+              "outputChannelId": "green",
+              "contributions": [
+                {
+                  "offsetX": 0,
+                  "offsetY": -1,
+                  "sourceChannelId": "green",
+                  "weight": 0.5
+                },
+                {
+                  "offsetX": -1,
+                  "offsetY": 0,
+                  "sourceChannelId": "green",
+                  "weight": 0.5
+                }
+              ]
+            },
+            {
+              "outputChannelId": "blue",
+              "contributions": [
+                {
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "sourceChannelId": "blue",
+                  "weight": 1
+                }
+              ]
+            }
+          ],
+          "evidence": [
+            {
+              "sourceOrigin": "photivra",
+              "sourceReference": "synthetic-frame-test",
+              "reuseStatus": "photivra-owned"
+            }
+          ],
+          "limitations": [
+            "Synthetic tile-average regression policy, not calibrated demosaic."
+          ]
+        }
+      }
+    ],
+    "region": {
+      "x": 0,
+      "y": 0,
+      "width": 2,
+      "height": 2
+    }
+  },
+  "colorProfile": {
+    "schemaVersion": "0.1.0",
+    "profileId": "owned-ideal-rgb-test",
+    "profileVersion": "1",
+    "colorSamplingProfileId": "cfa",
+    "channelIds": [
+      "red",
+      "green",
+      "blue"
+    ],
+    "scientificStatus": "approximation",
+    "referenceIlluminant": "D65",
+    "normalizedCameraChannelsToXyz": [
+      [
+        0.4123907992659593,
+        0.357584339383878,
+        0.1804807884018343
+      ],
+      [
+        0.21263900587151024,
+        0.715168678767756,
+        0.07219231536073371
+      ],
+      [
+        0.01933081871559182,
+        0.11919477979462598,
+        0.9505321522496607
+      ]
+    ],
+    "evidence": [
+      {
+        "sourceOrigin": "photivra",
+        "sourceReference": "synthetic-frame-test",
+        "reuseStatus": "photivra-owned"
+      }
+    ],
+    "limitations": [
+      "Synthetic ideal test-color declaration, not physical sensor calibration."
+    ]
+  },
+  "whiteBalance": "not-required",
+  "rendering": {
+    "schemaVersion": "0.1.0",
+    "profileId": "neutral",
+    "profileVersion": "1",
+    "renderingExposureEv": 0,
+    "toneCurve": "identity",
+    "gamutHandling": "clip-components",
+    "outputDynamicRange": "sdr",
+    "transferFunction": "srgb",
+    "bitDepth": 8,
+    "rounding": "nearest-ties-up",
+    "dither": "none"
+  },
+  "metadata": {
+    "workflow": "human-directed-non-generative",
+    "capturedAtUtc": "2026-10-01T19:00:00.123Z",
+    "raw": {
+      "documentId": "00000000-0000-4000-8000-000000000002",
+      "instanceId": "00000000-0000-4000-8000-000000000003"
+    },
+    "jpeg": {
+      "documentId": "00000000-0000-4000-8000-000000000004",
+      "instanceId": "00000000-0000-4000-8000-000000000005"
+    }
+  },
+  "sceneProfile": {
+    "id": "owned-basic-test",
+    "version": "1",
+    "sceneStateId": "fixture-scene"
+  },
+  "jpegQuantizationStep": 1
+}
