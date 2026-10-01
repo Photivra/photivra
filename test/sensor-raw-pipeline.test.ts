@@ -1258,3 +1258,734 @@ describe("RAW capture-mode/CFA binding and reconstruction", () => {
     );
   });
 });
+
+
+describe("sensor RAW closeout validation and edge boundaries", () => {
+  it("validates charge-sampling profile schema, models, and component policy identity", () => {
+    expect(() =>
+      parseSensorChargeSamplingProfile({
+        ...samplingProfile(),
+        schemaVersion: "9.9.9"
+      })
+    ).toThrow("schemaVersion");
+
+    expect(() =>
+      parseSensorChargeSamplingProfile({
+        ...samplingProfile(),
+        scientificStatus: "calibrated"
+      })
+    ).toThrow("scientificStatus");
+
+    expect(() =>
+      parseSensorChargeSamplingProfile({
+        ...samplingProfile(),
+        photoShotNoiseModel: "gaussian"
+      })
+    ).toThrow("must be Poisson");
+
+    expect(() =>
+      parseSensorChargeSamplingProfile({
+        ...samplingProfile(),
+        additionalComponentPolicies: "none"
+      })
+    ).toThrow("must be an array");
+
+    expect(() =>
+      parseSensorChargeSamplingProfile({
+        ...samplingProfile(),
+        additionalComponentPolicies: [{
+          componentId: "leakage",
+          model: "unknown"
+        }]
+      })
+    ).toThrow(".model is invalid");
+
+    expect(() =>
+      parseSensorChargeSamplingProfile({
+        ...samplingProfile(),
+        additionalComponentPolicies: [
+          {
+            componentId: "same",
+            model: "poisson"
+          },
+          {
+            componentId: "same",
+            model: "poisson"
+          }
+        ]
+      })
+    ).toThrow("duplicate componentId");
+  });
+
+  it("handles zero expected charge without inventing stochastic carriers", () => {
+    const zeroCharge =
+      charge(0, {
+        photoExpectedElectronCount: 0,
+        darkExpectedElectronCount: 0,
+        additionalExpectedElectronCount: 0,
+        totalExpectedStoredElectronCount: 0,
+        additionalComponents: [],
+        otherChargeIncluded: false
+      });
+    const zeroProfile =
+      parseSensorChargeSamplingProfile({
+        ...samplingProfile(),
+        additionalComponentPolicies: []
+      });
+
+    const result =
+      simulateSensorChargeRealization({
+        accumulatedCharge: zeroCharge,
+        samplingProfile: zeroProfile,
+        seedUint32: 0
+      }).value;
+
+    expect(
+      result.photoRealizedElectronCount
+    ).toBe(0);
+    expect(
+      result.darkRealizedElectronCount
+    ).toBe(0);
+    expect(
+      result.totalRealizedStoredElectronEquivalentCount
+    ).toBe(0);
+  });
+
+  it("validates readout schema, ADC envelope, and read-noise component identity", () => {
+    expect(() =>
+      parseSensorReadoutConversionProfile({
+        ...readoutProfile(),
+        schemaVersion: "9.9.9"
+      })
+    ).toThrow("schemaVersion");
+
+    expect(() =>
+      parseSensorReadoutConversionProfile({
+        ...readoutProfile(),
+        regimeSelectionOwnedBy: "iso-inferred"
+      })
+    ).toThrow("regimeSelectionOwnedBy");
+
+    expect(() =>
+      parseSensorReadoutConversionProfile({
+        ...readoutProfile(),
+        regimes: []
+      })
+    ).toThrow("non-empty array");
+
+    expect(() =>
+      parseSensorReadoutConversionProfile({
+        ...readoutProfile(),
+        regimes: [
+          readoutProfile().regimes[0],
+          readoutProfile().regimes[0]
+        ]
+      })
+    ).toThrow("duplicate regimeId");
+
+    const base =
+      readoutProfile().regimes[0]!;
+
+    expect(() =>
+      parseSensorReadoutConversionProfile({
+        ...readoutProfile(),
+        regimes: [{
+          ...base,
+          adc: {
+            ...base.adc,
+            bitDepth: 0
+          }
+        }]
+      })
+    ).toThrow("bitDepth");
+
+    expect(() =>
+      parseSensorReadoutConversionProfile({
+        ...readoutProfile(),
+        regimes: [{
+          ...base,
+          adc: {
+            ...base.adc,
+            blackLevelCode: -1
+          }
+        }]
+      })
+    ).toThrow("blackLevelCode");
+
+    expect(() =>
+      parseSensorReadoutConversionProfile({
+        ...readoutProfile(),
+        regimes: [{
+          ...base,
+          adc: {
+            ...base.adc,
+            transfer: "truncate"
+          }
+        }]
+      })
+    ).toThrow("uniform-round-half-up");
+
+    expect(() =>
+      parseSensorReadoutConversionProfile({
+        ...readoutProfile(),
+        regimes: [{
+          ...base,
+          readNoiseComponents: [
+            base.readNoiseComponents[0],
+            base.readNoiseComponents[0]
+          ]
+        }]
+      })
+    ).toThrow("duplicate componentId");
+
+    expect(() =>
+      resolveSensorReadoutRegime({
+        profile: readoutProfile(),
+        regimeId: " "
+      })
+    ).toThrow("non-empty string");
+  });
+
+  it("keeps expected pre-ADC and digital saturation diagnostics explicit", () => {
+    const base =
+      readoutProfile().regimes[0]!;
+    const narrow =
+      parseSensorReadoutConversionProfile({
+        ...readoutProfile(),
+        profileId: "narrow-readout",
+        regimes: [{
+          ...base,
+          regimeId: "narrow",
+          systemConversionGainElectronsPerCode: {
+            value: 0.001,
+            evidence: evidence("tiny-gain")
+          },
+          preAdcSaturationElectronEquivalent: {
+            value: 10,
+            evidence: evidence("low-pre-adc")
+          },
+          readNoiseComponents: [],
+          adc: {
+            bitDepth: 12,
+            blackLevelCode: 64,
+            digitalSaturationCode: 1000,
+            transfer: "uniform-round-half-up"
+          }
+        }]
+      });
+    const accumulated = charge(25);
+    const result =
+      calculateExpectedSensorReadout({
+        accumulatedCharge: accumulated,
+        physicalCapacityAssessment:
+          capacity(accumulated),
+        readoutProfile: narrow,
+        regimeId: "narrow"
+      }).value;
+
+    expect(
+      result.preAdcSaturationAppliedToExpectation
+    ).toBe(true);
+    expect(
+      result.expectedElectronEquivalentAfterPreAdcSaturation
+    ).toBe(10);
+    expect(
+      result.expectedDigitalSaturation
+    ).toBe(true);
+    expect(
+      result.electronicReadNoiseRmsElectrons
+    ).toBe(0);
+  });
+
+  it("rejects expected-readout identity drift across capacity and conversion profiles", () => {
+    const accumulated = charge(25);
+    const assessed =
+      capacity(accumulated);
+
+    expect(() =>
+      calculateExpectedSensorReadout({
+        accumulatedCharge: accumulated,
+        physicalCapacityAssessment: {
+          ...assessed,
+          bindingId: "other-binding"
+        },
+        readoutProfile:
+          readoutProfile(),
+        regimeId: "base"
+      })
+    ).toThrow(
+      "identity must match the accumulated charge"
+    );
+
+    const wrongChannel =
+      parseSensorReadoutConversionProfile({
+        ...readoutProfile(),
+        profileId:
+          "wrong-channel-readout",
+        channelId: "red"
+      });
+
+    expect(() =>
+      calculateExpectedSensorReadout({
+        accumulatedCharge: accumulated,
+        physicalCapacityAssessment:
+          assessed,
+        readoutProfile:
+          wrongChannel,
+        regimeId: "base"
+      })
+    ).toThrow(
+      "profile color/channel identity"
+    );
+  });
+
+  it("covers zero-read-noise RAW conversion and explicit digital saturation", () => {
+    const accumulated = charge(25);
+    const realization =
+      simulateSensorChargeRealization({
+        accumulatedCharge:
+          accumulated,
+        samplingProfile:
+          samplingProfile(),
+        seedUint32: 22
+      }).value;
+    const base =
+      readoutProfile().regimes[0]!;
+    const digitalLimited =
+      parseSensorReadoutConversionProfile({
+        ...readoutProfile(),
+        profileId:
+          "digital-limited",
+        regimes: [{
+          ...base,
+          regimeId:
+            "digital-limited",
+          systemConversionGainElectronsPerCode: {
+            value: 0.001,
+            evidence:
+              evidence("digital-gain")
+          },
+          preAdcSaturationElectronEquivalent: {
+            value: 90,
+            evidence:
+              evidence("digital-pre-adc")
+          },
+          readNoiseComponents: [{
+            componentId:
+              "zero-read-noise",
+            rmsElectrons: {
+              value: 0,
+              evidence:
+                evidence("zero-noise")
+            },
+            evidence:
+              evidence("zero-noise-component")
+          }],
+          adc: {
+            bitDepth: 12,
+            blackLevelCode: 0,
+            digitalSaturationCode:
+              1000,
+            transfer:
+              "uniform-round-half-up"
+          }
+        }]
+      });
+
+    const raw =
+      simulateSensorRawCode({
+        chargeRealization:
+          realization,
+        physicalCapacityAssessment:
+          capacity(accumulated),
+        readoutProfile:
+          digitalLimited,
+        regimeId:
+          "digital-limited",
+        readNoiseSeedUint32:
+          23
+      }).value;
+
+    expect(
+      raw.totalElectronicReadNoiseElectrons
+    ).toBe(0);
+    expect(
+      raw.digitalSaturationApplied
+    ).toBe(true);
+    expect(raw.rawCode)
+      .toBe(1000);
+    expect(
+      raw.lowerCodeClampApplied
+    ).toBe(false);
+  });
+
+  it("rejects invalid RAW realization seeds, values, and identity drift", () => {
+    const accumulated = charge(25);
+    const realization =
+      simulateSensorChargeRealization({
+        accumulatedCharge:
+          accumulated,
+        samplingProfile:
+          samplingProfile(),
+        seedUint32: 33
+      }).value;
+    const assessed =
+      capacity(accumulated);
+
+    expect(() =>
+      simulateSensorRawCode({
+        chargeRealization:
+          realization,
+        physicalCapacityAssessment:
+          assessed,
+        readoutProfile:
+          readoutProfile(),
+        regimeId: "base",
+        readNoiseSeedUint32:
+          -1
+      })
+    ).toThrow(
+      "unsigned 32-bit integer"
+    );
+
+    expect(() =>
+      simulateSensorRawCode({
+        chargeRealization: {
+          ...realization,
+          totalRealizedStoredElectronEquivalentCount:
+            -1
+        },
+        physicalCapacityAssessment:
+          assessed,
+        readoutProfile:
+          readoutProfile(),
+        regimeId: "base",
+        readNoiseSeedUint32:
+          1
+      })
+    ).toThrow(
+      "must be finite and nonnegative"
+    );
+
+    expect(() =>
+      simulateSensorRawCode({
+        chargeRealization:
+          realization,
+        physicalCapacityAssessment: {
+          ...assessed,
+          channelId: "red"
+        },
+        readoutProfile:
+          readoutProfile(),
+        regimeId: "base",
+        readNoiseSeedUint32:
+          1
+      })
+    ).toThrow(
+      "identity must match the charge realization"
+    );
+  });
+
+  it("validates RAW capture sample CFA/profile/site identity and code span", () => {
+    const contributors =
+      contributorsAt(1, 0);
+    const valid =
+      rawAt(
+        1,
+        0,
+        "green",
+        1064
+      );
+
+    expect(() =>
+      createSensorRawCaptureSample({
+        rawCode: {
+          ...valid,
+          colorSamplingProfileId:
+            "other-color"
+        },
+        contributors
+      })
+    ).toThrow(
+      "color-sampling profile identity"
+    );
+
+    expect(() =>
+      createSensorRawCaptureSample({
+        rawCode: {
+          ...valid,
+          channelId: "red"
+        },
+        contributors
+      })
+    ).toThrow(
+      "channel must match"
+    );
+
+    expect(() =>
+      createSensorRawCaptureSample({
+        rawCode: {
+          ...valid,
+          site: {
+            x: 2,
+            y: 0
+          }
+        },
+        contributors
+      })
+    ).toThrow(
+      "site must match"
+    );
+
+    expect(() =>
+      createSensorRawCaptureSample({
+        rawCode: {
+          ...valid,
+          digitalSaturationCode:
+            valid.blackLevelCode
+        },
+        contributors
+      })
+    ).toThrow(
+      "span must be positive"
+    );
+  });
+
+  it("validates reconstruction profile discriminants and kernel uniqueness", () => {
+    expect(() =>
+      parseSensorRawReconstructionProfile({
+        ...reconstructionProfile(),
+        schemaVersion: "9.9.9"
+      })
+    ).toThrow("schemaVersion");
+
+    expect(() =>
+      parseSensorRawReconstructionProfile({
+        ...reconstructionProfile(),
+        method: "nearest"
+      })
+    ).toThrow("method");
+
+    expect(() =>
+      parseSensorRawReconstructionProfile({
+        ...reconstructionProfile(),
+        normalization: "none"
+      })
+    ).toThrow("normalization");
+
+    expect(() =>
+      parseSensorRawReconstructionProfile({
+        ...reconstructionProfile(),
+        negativeBlackSubtractedValuesAllowed:
+          false
+      })
+    ).toThrow(
+      "negativeBlackSubtractedValuesAllowed"
+    );
+
+    expect(() =>
+      parseSensorRawReconstructionProfile({
+        ...reconstructionProfile(),
+        kernels: []
+      })
+    ).toThrow(
+      "non-empty array"
+    );
+
+    const kernel =
+      reconstructionProfile()
+        .kernels[0]!;
+
+    expect(() =>
+      parseSensorRawReconstructionProfile({
+        ...reconstructionProfile(),
+        kernels: [
+          kernel,
+          {
+            ...kernel,
+            contributions:
+              kernel.contributions
+          }
+        ]
+      })
+    ).toThrow(
+      "duplicate outputChannelId"
+    );
+
+    expect(() =>
+      parseSensorRawReconstructionProfile({
+        ...reconstructionProfile(),
+        kernels: [{
+          outputChannelId: "red",
+          contributions: []
+        }]
+      })
+    ).toThrow(
+      "contributions must be a non-empty array"
+    );
+
+    const contribution =
+      kernel.contributions[0]!;
+    expect(() =>
+      parseSensorRawReconstructionProfile({
+        ...reconstructionProfile(),
+        kernels: [{
+          outputChannelId: "red",
+          contributions: [
+            contribution,
+            contribution
+          ]
+        }]
+      })
+    ).toThrow(
+      "duplicate site/channel references"
+    );
+  });
+
+  it("fails reconstruction closed on profile/sample identity, duplicates, and out-of-domain kernel coordinates", () => {
+    const red =
+      captureRawAt(
+        0,
+        0,
+        "red",
+        1064
+      );
+    const green =
+      captureRawAt(
+        1,
+        0,
+        "green",
+        2064
+      );
+
+    expect(() =>
+      resolveSensorRawReconstruction({
+        profile:
+          reconstructionProfile(),
+        colorSamplingProfile: {
+          ...colorProfile(),
+          profileId: "other-color"
+        },
+        centerSite: {
+          x: 1,
+          y: 0
+        },
+        samples: [green]
+      })
+    ).toThrow(
+      "profile identity must match"
+    );
+
+    expect(() =>
+      resolveSensorRawReconstruction({
+        profile:
+          reconstructionProfile(),
+        colorSamplingProfile:
+          colorProfile(),
+        centerSite: {
+          x: 1,
+          y: 0
+        },
+        samples: []
+      })
+    ).toThrow(
+      "non-empty RAW neighborhood"
+    );
+
+    expect(() =>
+      resolveSensorRawReconstruction({
+        profile:
+          reconstructionProfile(),
+        colorSamplingProfile:
+          colorProfile(),
+        centerSite: {
+          x: 1,
+          y: 0
+        },
+        samples: [
+          green,
+          green
+        ]
+      })
+    ).toThrow(
+      "duplicate site/channel"
+    );
+
+    expect(() =>
+      resolveSensorRawReconstruction({
+        profile:
+          parseSensorRawReconstructionProfile({
+            ...reconstructionProfile(),
+            profileId:
+              "negative-kernel",
+            kernels: [{
+              outputChannelId:
+                "red",
+              contributions: [{
+                offsetX: -1,
+                offsetY: 0,
+                sourceChannelId:
+                  "red",
+                weight: 1
+              }]
+            }]
+          }),
+        colorSamplingProfile:
+          colorProfile(),
+        centerSite: {
+          x: 0,
+          y: 0
+        },
+        samples: [red]
+      })
+    ).toThrow(
+      "outside the non-negative native sensor coordinate domain"
+    );
+  });
+
+  it("rejects non-finite reconstructed values rather than silently clamping them", () => {
+    const green =
+      captureRawAt(
+        1,
+        0,
+        "green",
+        2064
+      );
+    const tampered = {
+      ...green,
+      blackSubtractedNormalizedCode:
+        Number.NaN
+    };
+
+    expect(() =>
+      resolveSensorRawReconstruction({
+        profile:
+          parseSensorRawReconstructionProfile({
+            ...reconstructionProfile(),
+            profileId:
+              "green-only",
+            kernels: [{
+              outputChannelId:
+                "green",
+              contributions: [{
+                offsetX: 0,
+                offsetY: 0,
+                sourceChannelId:
+                  "green",
+                weight: 1
+              }]
+            }]
+          }),
+        colorSamplingProfile:
+          colorProfile(),
+        centerSite: {
+          x: 1,
+          y: 0
+        },
+        samples: [tampered]
+      })
+    ).toThrow(
+      "must remain finite"
+    );
+  });
+});
