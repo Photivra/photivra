@@ -75,15 +75,15 @@ describe("exposure / photon / signal conformance on merged primitives", () => {
   });
 
   it("scales photon count with vacuum wavelength at fixed supplied energy and constant test QE", () => {
-    const counts = [1, 2].map((scale) => {
+    const count = (scale: number): number => {
       const photon = calculatePhotonEnergyFromWavelength({
         wavelengthNanometers: fixture.illumination.wavelengthNm * scale, wavelengthBasis: "vacuum"
       });
       return calculatePhotoelectrons({
         incidentPhotons: referenceEnergyJoules / photon.value.photonEnergyJoules, quantumEfficiency
       }).value;
-    });
-    expect(counts[1] / counts[0]).toBeCloseTo(2, 13);
+    };
+    expect(count(2) / count(1)).toBeCloseTo(2, 13);
   });
 
   it("keeps zero detection JSON-safe and rejects invalid counts before noise calculation", () => {
