@@ -281,6 +281,25 @@ RAW codes retain absolute native sensor/CFA coordinates. Capture orientation and
 
 The first reconstruction model is an explicit linear native-neighborhood transform tied to exact capture-mode and CFA identities. It is intentionally not a generic claim that a CFA name determines a demosaic algorithm. It also does not claim moiré/aliasing physics unless an adequate pre-sampling optical/scene spatial-frequency model exists.
 
+### ISO/exposure-index and sensor-readout boundary
+
+ISO/exposure index is a camera control/reporting state, not a photon source.
+
+For fixed scene radiance, aperture, shutter duration, optical transmission and sensor collection geometry, changing ISO does not change the number of photons that arrived during the exposure. Accordingly, #7 never modifies upstream photon/photoelectron expectation or photon shot-noise statistics merely because a different ISO/EI was selected.
+
+The detailed ISO capability contract distinguishes:
+
+- standard exposure-index settings;
+- expanded low/high reported settings;
+- Auto ISO eligibility/ranges;
+- optional capture-mode restrictions.
+
+It does not infer physical gain, conversion gain, read noise or saturation from those numbers.
+
+When generic high-ISO behavior is needed, #7 maps an explicit ISO/capture-mode state to an explicit #14 readout regime. The selected regime—not the ISO number itself—contains the declared conversion gain, electronic read noise and downstream saturation/ADC behavior. This keeps piecewise or dual/multiple-gain behavior representable without smoothing it into a universal ISO→noise curve.
+
+Good/Better/Best labels are convenience mappings to full signal-chain profile identities. They are not sensor equations and do not rank real cameras. Sensor size/resolution, photon shot noise, processed-image denoising/sharpening, and technology-family labels such as CMOS/CCD remain separate domains.
+
 ### Radiometry readiness boundary
 
 Absolute scene luminance or relative exposure alone is not enough to derive a defensible photon count.
