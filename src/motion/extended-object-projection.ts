@@ -270,17 +270,13 @@ function requireFiniteVector(
   };
 }
 
-function requireNonNegativeFinite(
+function requireFiniteTime(
   value: number,
   path: string
 ): number {
-  if (
-    !Number.isFinite(value) ||
-    value < 0
-  ) {
+  if (!Number.isFinite(value)) {
     throw new InvalidScientificInputError(
-      path +
-        " must be finite and greater than or equal to zero."
+      path + " must be finite."
     );
   }
   return value;
@@ -455,7 +451,7 @@ function validateSampleTimes(
   return times.map(
     (value, index) => {
       const time =
-        requireNonNegativeFinite(
+        requireFiniteTime(
           value,
           "sampleTimesSecondsFromReference[" +
             index +
