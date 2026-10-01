@@ -567,6 +567,7 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 - Allowlist public metadata; reject paths, URLs, private/debug fields and LDR/tonemapped state declarations. Producer IDs must remain public and non-personal. An ID grammar is not a provenance/privacy audit.
 - #15B owns actual color transforms/validity; #15C owns total quantization behavior; #112 owns rendering and #16 file mapping. Do not infer serializer readiness from container validity. #15 remains open until its remaining acceptance is implemented/reviewed.
 - Follow `docs/CAPTURE_COLOR.md` for #15B. The ideal colorimetric virtual RGB profile is an explicit XYZ encoding, never inferred for arbitrary spectral/commercial sensor channels. Resolved RGB gains require the exact camera-basis binding; adopted-white XYZ scaling is a separately selected approximation. Preserve float range and source capture history; reject double application and do not claim a physically unique global white under mixed illumination.
+- Follow `docs/LINEAR_CAPTURE_ENCODING.md` for #15C. Linear uint16 encoding requires explicit black/reference codes, negative and range policies and nearest-ties-up rounding. Use the plane's reference value; preserve float source data and color/WB/capture-saturation identity. Integer code limits never redefine capture saturation or display white. No serializer tags, gamma/tone mapping or implicit color conversion belongs here.
 
 - The root package must remain browser-safe and ESM-only.
 - Node-only code must not become reachable from the root public export.

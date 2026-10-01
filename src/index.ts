@@ -33,6 +33,15 @@ export {
 export { ENGINE_API_VERSION } from "./core/version.js";
 
 export {
+  LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION,
+  parseLinearCaptureEncoding,
+  calculateLinearCaptureEncoding,
+  type LinearCaptureEncoding,
+  type LinearCaptureEncodingInput,
+  type EncodedLinearCapture
+} from "./capture/linear-encoding.js";
+
+export {
   approximationResult,
   calibratedResult,
   calculatedResult,

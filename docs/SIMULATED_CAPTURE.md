@@ -1,6 +1,6 @@
 # Authoritative simulated capture: #15A/#15B
 
-The container commits a format-neutral float master manifest before tone mapping/LDR conversion. It does not itself generate or convert pixels. The separate [#15B color API](CAPTURE_COLOR.md) converts supported planes without mutating the master. Quantization, TIFF/DNG serialization and production-stage activation remain outside this contract. #15 remains open for #15C; #112/#16 remain later consumers.
+The container commits a format-neutral float master manifest before tone mapping/LDR conversion. It does not itself generate or convert pixels. The separate [#15B color API](CAPTURE_COLOR.md) converts supported planes and [#15C encoding API](LINEAR_CAPTURE_ENCODING.md) quantizes them without mutating the master. TIFF/DNG serialization and production-stage activation remain separate. #15 remains open until review/inclusion; #112/#16 remain later consumers.
 
 ## Image state and storage
 
