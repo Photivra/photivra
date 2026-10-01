@@ -528,6 +528,8 @@ function regimeIdForIso(
     iso.setting.kind ===
     "expanded"
   ) {
+    const expandedSettingId =
+      iso.setting.settingId;
     const expanded =
       binding
         .expandedRegimeBindings
@@ -535,7 +537,7 @@ function regimeIdForIso(
           (entry) =>
             entry
               .expandedSettingId ===
-            iso.setting.settingId
+            expandedSettingId
         );
     if (expanded === undefined) {
       throw new InvalidScientificInputError(
