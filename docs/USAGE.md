@@ -2793,7 +2793,7 @@ Regime selection is explicitly:
 
 `explicit-upstream-camera-state-not-inferred-from-iso`
 
-ISO therefore does not silently choose conversion gain, read noise, or ADC behavior. #7 may later map an explicit camera ISO state to a documented regime, but this sensor contract does not infer that mapping.
+ISO therefore does not silently choose conversion gain, read noise, or ADC behavior. #7 maps an explicit camera ISO/capture-mode state to a documented #14 regime through the separate generic ISO signal-chain contract; the sensor readout contract itself still does not infer that mapping from the ISO number.
 
 `calculateExpectedSensorReadout()` remains an expectation path: it reports zero-mean read noise and does not quantize. If the upstream expected stored charge is already above physical storage capacity, it fails closed because the physical-capacity assessment does not define a linear post-saturation charge value.
 
@@ -4261,6 +4261,85 @@ A changed compensation state requires a new `targetId`. The source meter snapsho
 The meter measurement itself is never mutated, and the target still reports `automaticExposureResolved: false`. #99 owns the later aperture/shutter/ISO decision.
 
 A no-signal meter target remains `no-signal` after compensation. The engine does not convert darkness into infinity or fabricate a reachable automatic exposure.
+
+## ISO/exposure-index capabilities and generic high-ISO signal chain
+
+Photivra keeps **reported ISO/exposure-index state** separate from captured photons and from the #14 electronic readout model.
+
+Use `parseIsoCapabilityProfile()` for detailed camera/body capability metadata beyond the older generic numeric envelope.
+
+The profile can declare:
+
+- a standard ISO/EI range;
+- either continuous or explicit discrete standard settings;
+- expanded low/high states such as generic `L`, `H1`, or `H2` identifiers with reported exposure-index equivalents;
+- whether each expanded state is Auto-ISO eligible;
+- a global Auto ISO range;
+- evidenced per-capture-mode standard ranges, expanded-setting availability, and Auto ISO ranges.
+
+The contract describes **reported exposure-index capability**, not physical sensor gain. Resolving a setting therefore explicitly reports that it did not modify or infer:
+
+- captured-photon expectation;
+- photon shot-noise statistics;
+- physical/analog gain;
+- conversion gain;
+- read noise;
+- saturation;
+- exact commercial-camera behavior.
+
+Expanded settings are intentionally separate from the ordinary standard numeric setting grid. A reported `H1` equivalent does not mean Photivra has inferred how a real camera implements that state internally.
+
+### Binding detailed ISO capability into automatic exposure
+
+Use `bindIsoCapabilityToExposureCapabilities()` to combine the detailed #7 profile with the existing resolved body/lens exposure envelope consumed by #99.
+
+The global standard ISO range/grid must agree exactly between both contracts; conflicting duplicate capability facts fail closed.
+
+An evidenced capture-mode policy may narrow the standard ISO range for that mode. Auto ISO can then be narrower still.
+
+For example, a mode may allow manual standard ISO 100–12800 while restricting Auto ISO to 200–3200. #99 keeps manual ISO validation on the mode's standard range/grid but uses the separate Auto ISO bounds for all automatic-ISO paths.
+
+Expanded settings remain outside #99's ordinary numeric Auto-ISO resolver and are selected explicitly through the detailed ISO capability contract.
+
+### Generic high-ISO signal-chain profiles
+
+`parseGenericIsoSignalChainProfile()` and `resolveGenericIsoSignalChain()` provide the generic Stage-B model.
+
+The profile does **not** define an ISO→noise equation. Instead, for one exact capture mode it maps:
+
+- standard ISO/EI bands; and
+- explicitly named expanded ISO states
+
+to existing #14 `SensorReadoutConversionRegime` IDs.
+
+Those #14 regimes own the actual declared conversion gain, electronic read-noise components, pre-ADC saturation, black level, ADC and RAW-code behavior.
+
+Changing ISO or a generic profile therefore cannot alter upstream photoelectron expectation or photon shot-noise statistics. Any change in downstream read noise or conversion/saturation behavior comes from the explicitly selected #14 regime.
+
+Signal-chain bands may be discontinuous where only discrete ISO values are supported. Overlapping bands fail closed rather than letting ordering choose a regime.
+
+The first generic profile deliberately does not add:
+
+- fixed-pattern/row/column noise;
+- low-signal color degradation;
+- denoising/sharpening;
+- processed-image/JPEG behavior;
+- manufacturer-specific response curves.
+
+Those effects require their own explicit models/evidence and must not be hidden inside an ordinal quality label.
+
+### Good / Better / Best convenience mapping
+
+`parseGenericIsoSignalChainPresetCatalog()` can map the user-facing convenience labels `good`, `better`, and `best` to explicit signal-chain profile IDs.
+
+The labels are not the scientific input. The selected profile parameters are.
+
+The catalog explicitly carries:
+
+- `performanceOrderingClaimed: false`;
+- `realCameraRankingClaimed: false`.
+
+This prevents the convenience labels from becoming a claim that one real camera class is universally superior or that a tier name itself changes sensor physics.
 
 ## Manual and Auto ISO exposure resolution
 

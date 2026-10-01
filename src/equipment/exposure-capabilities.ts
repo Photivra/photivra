@@ -143,6 +143,12 @@ export interface ResolvedGenericEquipmentExposureCapabilities {
       ResolvedNumericSettingGrid;
     autoIsoAvailability:
       GenericCapabilityAvailability;
+    /**
+     * Optional Auto-ISO-only bounds. Manual ISO continues to use minimum /
+     * maximum and the complete standard setting grid.
+     */
+    autoIsoMinimum?: number;
+    autoIsoMaximum?: number;
   };
   sourceProfilesMutated: false;
   exactNamedEquipmentEmulationClaimed:
