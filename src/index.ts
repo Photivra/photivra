@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
+export { CAPTURE_EXPORT_METADATA_SCHEMA_VERSION, parseCaptureExportMetadataInput, createCaptureExportMetadataPair,
+  type CaptureExportWorkflow, type CaptureExportArtifactIdentity, type CaptureExportMetadataInput,
+  type CaptureExportSharedMetadata, type CaptureExportMetadataPair } from "./capture/capture-export-metadata.js";
+
 export {
   parseOpticalProfileState,
   type OpticalProfileState,

@@ -1,5 +1,10 @@
 # Changelog
 
+## Capture export metadata foundation — unreleased
+
+- Added #16 metadata-only `createCaptureExportMetadataPair()` and strict input parser. Projects immutable shared known capture values, explicit non-generative workflow/IPTC classification, a pinned event timestamp distinct from scene time, and separate caller-owned capture/resource/incarnation UUID identities. Image-data pairing is explicitly not verified; no format writer, XMP packet, simulation hash, RAW integrity, physical-device or invented rights metadata is claimed. See `docs/CAPTURE_EXPORT_METADATA.md`.
+- Proposed root API 0.98.0; metadata schema 0.1.0. Independent main-based draft; reconcile versions with parallel #164/#166 before merge. Existing capture/production/POC/package contracts unchanged.
+
 Notable public changes to `@photivra/engine` are documented here.
 
 ## Unreleased
