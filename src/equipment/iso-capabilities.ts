@@ -6,6 +6,10 @@ import {
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import type {
+  ResolvedGenericEquipmentExposureCapabilities,
+  ResolvedNumericSettingGrid
+} from "./exposure-capabilities.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1044,6 +1048,195 @@ export function resolveIsoCapability(
     readNoiseInferred: false,
     saturationInferred: false,
     exactCommercialCameraBehaviorClaimed:
+      false
+  };
+}
+
+
+export interface BindIsoCapabilityToExposureCapabilitiesInput {
+  isoCapabilityProfile:
+    IsoCapabilityProfile;
+  equipmentCapabilities:
+    ResolvedGenericEquipmentExposureCapabilities;
+  captureModeId?: string;
+}
+
+export interface BoundIsoExposureCapabilities {
+  isoCapabilityProfileId: string;
+  isoCapabilityProfileVersion: string;
+  captureModeId: string | null;
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities;
+  expandedSettingsExcludedFromNumericExposureGrid:
+    true;
+  physicalGainInferred: false;
+  readNoiseInferred: false;
+}
+
+function sameResolvedGrid(
+  resolved:
+    ResolvedNumericSettingGrid,
+  detailed:
+    IsoStandardSettingGrid
+): boolean {
+  if (
+    resolved.kind !==
+    detailed.kind
+  ) {
+    return false;
+  }
+  if (
+    resolved.kind ===
+      "continuous-within-range" ||
+    detailed.kind ===
+      "continuous-within-range"
+  ) {
+    return true;
+  }
+  return (
+    resolved.values.length ===
+      detailed.values.length &&
+    resolved.values.every(
+      (value, index) =>
+        value ===
+        detailed.values[index]
+    )
+  );
+}
+
+function gridWithinRange(
+  grid:
+    ResolvedNumericSettingGrid,
+  range:
+    IsoExposureIndexRange
+): ResolvedNumericSettingGrid {
+  if (
+    grid.kind ===
+    "continuous-within-range"
+  ) {
+    return {
+      kind:
+        "continuous-within-range"
+    };
+  }
+  const values =
+    grid.values.filter(
+      (value) =>
+        value >= range.minimum &&
+        value <= range.maximum
+    );
+  if (values.length === 0) {
+    throw new InvalidScientificInputError(
+      "Selected capture-mode ISO range contains no values from the resolved equipment ISO grid."
+    );
+  }
+  return {
+    kind: "discrete-values",
+    values
+  };
+}
+
+/**
+ * Binds the detailed #7 ISO/EI capability contract into the numeric capability
+ * envelope consumed by #99.
+ *
+ * The existing equipment capability must agree exactly with the profile's
+ * global standard ISO range/grid. An evidenced capture-mode policy may narrow
+ * the standard manual envelope for that mode. Auto ISO may then be narrower
+ * still. Expanded L/H-style settings remain outside #99's ordinary numeric
+ * ISO grid and are resolved through resolveIsoCapability().
+ */
+export function bindIsoCapabilityToExposureCapabilities(
+  input:
+    BindIsoCapabilityToExposureCapabilitiesInput
+): BoundIsoExposureCapabilities {
+  const profile =
+    parseIsoCapabilityProfile(
+      input.isoCapabilityProfile
+    );
+  const source =
+    input.equipmentCapabilities;
+
+  if (
+    source.iso.minimum !==
+      profile.standard
+        .exposureIndexRange
+        .minimum ||
+    source.iso.maximum !==
+      profile.standard
+        .exposureIndexRange
+        .maximum ||
+    !sameResolvedGrid(
+      source.iso.settingGrid,
+      profile.standard
+        .settingGrid
+    )
+  ) {
+    throw new InvalidScientificInputError(
+      "Detailed ISO capability standard range/grid must exactly match the existing resolved equipment ISO capability."
+    );
+  }
+
+  const modePolicy =
+    resolveModePolicy(
+      profile,
+      input.captureModeId
+    );
+  const settingGrid =
+    gridWithinRange(
+      source.iso.settingGrid,
+      modePolicy.range
+    );
+
+  const iso =
+    modePolicy.autoIso
+      .availability ===
+      "supported"
+      ? {
+          minimum:
+            modePolicy.range.minimum,
+          maximum:
+            modePolicy.range.maximum,
+          settingGrid,
+          autoIsoAvailability:
+            "supported" as const,
+          autoIsoMinimum:
+            modePolicy.autoIso
+              .standardExposureIndexRange
+              .minimum,
+          autoIsoMaximum:
+            modePolicy.autoIso
+              .standardExposureIndexRange
+              .maximum
+        }
+      : {
+          minimum:
+            modePolicy.range.minimum,
+          maximum:
+            modePolicy.range.maximum,
+          settingGrid,
+          autoIsoAvailability:
+            modePolicy.autoIso
+              .availability
+        };
+
+  return {
+    isoCapabilityProfileId:
+      profile.profileId,
+    isoCapabilityProfileVersion:
+      profile.profileVersion,
+    captureModeId:
+      input.captureModeId ??
+      null,
+    capabilities: {
+      ...source,
+      iso
+    },
+    expandedSettingsExcludedFromNumericExposureGrid:
+      true,
+    physicalGainInferred:
+      false,
+    readNoiseInferred:
       false
   };
 }
