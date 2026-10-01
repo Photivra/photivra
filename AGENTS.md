@@ -559,6 +559,13 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 
 ## Runtime and package boundary
 
+### Standalone SDR rendering primitives
+
+- Follow `docs/SDR_RENDERING.md` for #112A. Accept only explicitly color-transformed linear-sRGB/D65 input with completed/not-required WB; unresolved scene/sensor/WB states fail closed. This independent slice does not consume pending #15/#118/#117 branches or activate production display-processing.
+- Rendering exposure is post-capture relative scaling. Keep tone, gamut handling, transfer encoding, quantization and external display adaptation separately inspectable; no processing result rewrites metering, noise, physical exposure or upstream saturation.
+- Positive per-channel Reinhard is a named generic rendering choice that can change chromaticity. Component clipping is explicit, not perceptual gamut mapping. SDR source headroom never establishes HDR output or actual display capability.
+- #112 integration remains pending merged authoritative capture/color/correction contracts and must reuse #111 ordering and #108/#15 WB rather than introduce a second estimator/composer.
+
 - The root package must remain browser-safe and ESM-only.
 - Node-only code must not become reachable from the root public export.
 - The repository-local POC HTTP code under `src/api` is contributor tooling, not a supported package subpath or production architecture.

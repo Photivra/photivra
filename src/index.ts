@@ -3,6 +3,16 @@
 export { ENGINE_API_VERSION } from "./core/version.js";
 
 export {
+  SDR_RENDERING_SCHEMA_VERSION,
+  parseSdrRenderingProfile,
+  parseSdrRenderingInput,
+  calculateSdrRendering,
+  type SdrRenderingProfile,
+  type SdrRenderingInput,
+  type SdrRenderingResult
+} from "./output/sdr-rendering.js";
+
+export {
   approximationResult,
   calibratedResult,
   calculatedResult,
