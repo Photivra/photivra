@@ -854,7 +854,7 @@ describe("stabilization validation boundaries", () => {
         ...profile({
           axisResponses: [
             profile()
-              .axisResponses[0]
+              .axisResponses[0]!
           ]
         }),
         panningPolicy: {
