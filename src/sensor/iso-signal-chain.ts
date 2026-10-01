@@ -853,12 +853,7 @@ export function resolveGenericIsoSignalChainPreset(
       (candidate) =>
         candidate.preset ===
         input.preset
-    );
-  if (entry === undefined) {
-    throw new InvalidScientificInputError(
-      "Requested generic ISO preset is missing from the catalog."
-    );
-  }
+    )!;
 
   return {
     preset:
