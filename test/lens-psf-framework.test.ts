@@ -873,3 +873,590 @@ describe("MTF-only boundary", () => {
     });
   });
 });
+
+
+describe("lens PSF profile validation boundaries", () => {
+  it("supports explicit optical-infinity focus through the zero-diopter grid point", () => {
+    const base =
+      sampledProfile();
+    const infinityProfile =
+      parseLensSampledPsfProfile({
+        ...base,
+        axes: {
+          ...base.axes,
+          focusDiopters: [0]
+        },
+        nodes:
+          base.nodes.map(
+            (node) => ({
+              ...node,
+              coordinate: {
+                ...node.coordinate,
+                focusDiopters: 0
+              }
+            })
+          )
+      });
+
+    const result =
+      resolveLensSampledPsf({
+        profile:
+          infinityProfile,
+        focalLengthMm: 50,
+        focus: {
+          kind: "infinity"
+        },
+        apertureFNumber: 2,
+        fieldPointMm: {
+          x: -10,
+          y: 0
+        },
+        wavelengthNm: 500,
+        signedDefocusImagePlaneMicrometers:
+          -50
+      }).value;
+
+    expect(result.focus)
+      .toEqual({
+        kind: "infinity"
+      });
+    expect(
+      result.coordinate
+        .focusDiopters
+    ).toBe(0);
+  });
+
+  it("rejects invalid optical ownership and sensor/stray-light contamination", () => {
+    const base =
+      sampledProfile();
+
+    expect(() =>
+      parseLensSampledPsfProfile({
+        ...base,
+        opticalDomain:
+          "combined-camera-system"
+      })
+    ).toThrow(
+      "opticalDomain"
+    );
+
+    expect(() =>
+      parseLensSampledPsfProfile({
+        ...base,
+        sensorOpticalStackIncluded:
+          true
+      })
+    ).toThrow(
+      "lens-primary-optical-path-only"
+    );
+
+    expect(() =>
+      parseLensSampledPsfProfile({
+        ...base,
+        strayLightIncluded:
+          true
+      })
+    ).toThrow(
+      "lens-primary-optical-path-only"
+    );
+
+    expect(() =>
+      parseLensSampledPsfProfile({
+        ...base,
+        responseIncludes: {
+          ...base.responseIncludes,
+          diffraction: "yes"
+        }
+      })
+    ).toThrow(
+      "responseIncludes.diffraction"
+    );
+  });
+
+  it("rejects malformed grid axes and kernel energy/geometry", () => {
+    const base =
+      sampledProfile();
+
+    expect(() =>
+      parseLensSampledPsfProfile({
+        ...base,
+        axes: {
+          ...base.axes,
+          wavelengthNm: [
+            600,
+            500
+          ]
+        }
+      })
+    ).toThrow(
+      "strictly increasing"
+    );
+
+    expect(() =>
+      parseLensSampledPsfProfile({
+        ...base,
+        nodes:
+          base.nodes.map(
+            (node, index) =>
+              index === 0
+                ? {
+                    ...node,
+                    kernel: {
+                      ...node.kernel,
+                      normalizedIntensity:
+                        node.kernel
+                          .normalizedIntensity
+                          .map(
+                            (value) =>
+                              value * 0.5
+                          )
+                    }
+                  }
+                : node
+          )
+      })
+    ).toThrow(
+      "must sum to one"
+    );
+
+    expect(() =>
+      parseLensSampledPsfProfile({
+        ...base,
+        nodes:
+          base.nodes.map(
+            (node, index) =>
+              index === 1
+                ? {
+                    ...node,
+                    kernel: {
+                      ...node.kernel,
+                      samplePitchMicrometersX:
+                        3
+                    }
+                  }
+                : node
+          )
+      })
+    ).toThrow(
+      "identical PSF kernel grid geometry"
+    );
+  });
+
+  it("rejects duplicate profile node identities and coordinates", () => {
+    const base =
+      sampledProfile();
+
+    expect(() =>
+      parseLensSampledPsfProfile({
+        ...base,
+        nodes:
+          base.nodes.map(
+            (node, index) =>
+              index === 1
+                ? {
+                    ...node,
+                    nodeId:
+                      base.nodes[0]!
+                        .nodeId
+                  }
+                : node
+          )
+      })
+    ).toThrow(
+      "duplicate nodeId"
+    );
+
+    expect(() =>
+      parseLensSampledPsfProfile({
+        ...base,
+        nodes:
+          base.nodes.map(
+            (node, index) =>
+              index === 1
+                ? {
+                    ...node,
+                    coordinate: {
+                      ...base.nodes[0]!
+                        .coordinate
+                    }
+                  }
+                : node
+          )
+      })
+    ).toThrow(
+      "duplicate grid coordinates"
+    );
+  });
+
+  it("rejects non-finite/invalid runtime PSF queries and focus outside profile support", () => {
+    const profile =
+      sampledProfile();
+
+    expect(() =>
+      resolveLensSampledPsf({
+        profile,
+        focalLengthMm: 0,
+        focus: {
+          kind: "finite",
+          distanceM: 5
+        },
+        apertureFNumber: 2,
+        fieldPointMm: {
+          x: 0,
+          y: 0
+        },
+        wavelengthNm: 550,
+        signedDefocusImagePlaneMicrometers:
+          0
+      })
+    ).toThrow(
+      "focalLengthMm"
+    );
+
+    expect(() =>
+      resolveLensSampledPsf({
+        profile,
+        focalLengthMm: 50,
+        focus: {
+          kind: "finite",
+          distanceM: 10
+        },
+        apertureFNumber: 2,
+        fieldPointMm: {
+          x: 0,
+          y: 0
+        },
+        wavelengthNm: 550,
+        signedDefocusImagePlaneMicrometers:
+          0
+      })
+    ).toThrow(
+      "focus lies outside"
+    );
+
+    expect(() =>
+      resolveLensSampledPsf({
+        profile,
+        focalLengthMm: 50,
+        focus: {
+          kind: "finite",
+          distanceM: 5
+        },
+        apertureFNumber: 2,
+        fieldPointMm: {
+          x: Number.NaN,
+          y: 0
+        },
+        wavelengthNm: 550,
+        signedDefocusImagePlaneMicrometers:
+          0
+      })
+    ).toThrow(
+      "fieldPointMm.x"
+    );
+  });
+
+  it("accepts calibrated sampled data only when every node carries quantified uncertainty", () => {
+    const base =
+      sampledProfile();
+    const calibrated =
+      parseLensSampledPsfProfile({
+        ...base,
+        scientificStatus:
+          "calibrated",
+        nodes:
+          base.nodes.map(
+            (node) => ({
+              ...node,
+              uncertainty: {
+                kind: "relative",
+                fraction: 0.02,
+                basis:
+                  "synthetic calibration test"
+              }
+            })
+          )
+      });
+
+    expect(
+      calibrated
+        .scientificStatus
+    ).toBe("calibrated");
+  });
+});
+
+describe("complex-pupil validation boundaries", () => {
+  it("rejects invalid representation semantics and forbidden downstream content", () => {
+    const base =
+      complexPupil();
+
+    expect(() =>
+      parseLensComplexPupilProfile({
+        ...base,
+        schemaVersion:
+          "9.9.9"
+      })
+    ).toThrow(
+      "schemaVersion"
+    );
+
+    expect(() =>
+      parseLensComplexPupilProfile({
+        ...base,
+        propagationModel:
+          "geometric-blur"
+      })
+    ).toThrow(
+      "representation/coordinate/energy semantics"
+    );
+
+    expect(() =>
+      parseLensComplexPupilProfile({
+        ...base,
+        sensorSamplingIncluded:
+          true
+      })
+    ).toThrow(
+      "exclude sensor/reconstruction/stray-light"
+    );
+
+    expect(() =>
+      parseLensComplexPupilProfile({
+        ...base,
+        responseIncludes: {
+          ...base.responseIncludes,
+          diffraction: false
+        }
+      })
+    ).toThrow(
+      "diffraction must be included"
+    );
+  });
+
+  it("rejects invalid pupil-grid cardinality, center, and amplitude values", () => {
+    const base =
+      complexPupil();
+
+    expect(() =>
+      parseLensComplexPupilProfile({
+        ...base,
+        grid: {
+          ...base.grid,
+          centerSampleX: 4
+        }
+      })
+    ).toThrow(
+      "center must lie within"
+    );
+
+    expect(() =>
+      parseLensComplexPupilProfile({
+        ...base,
+        grid: {
+          ...base.grid,
+          relativeAmplitude: [
+            1
+          ]
+        }
+      })
+    ).toThrow(
+      "relativeAmplitude length"
+    );
+
+    expect(() =>
+      parseLensComplexPupilProfile({
+        ...base,
+        grid: {
+          ...base.grid,
+          opticalPathDifferenceMicrometers: [
+            0
+          ]
+        }
+      })
+    ).toThrow(
+      "opticalPathDifferenceMicrometers length"
+    );
+
+    expect(() =>
+      parseLensComplexPupilProfile({
+        ...base,
+        grid: {
+          ...base.grid,
+          relativeAmplitude:
+            base.grid
+              .relativeAmplitude
+              .map(
+                (value, index) =>
+                  index === 0
+                    ? 1.1
+                    : value
+              )
+        }
+      })
+    ).toThrow(
+      "must lie from zero through one"
+    );
+  });
+
+  it("supports calibrated complex-pupil data with quantified uncertainty and optical infinity", () => {
+    const profile =
+      parseLensComplexPupilProfile({
+        ...complexPupil(),
+        scientificStatus:
+          "calibrated",
+        context: {
+          ...complexPupil()
+            .context,
+          focus: {
+            kind: "infinity"
+          }
+        },
+        uncertainty: {
+          kind: "relative",
+          fraction: 0.01,
+          basis:
+            "synthetic pupil calibration"
+        }
+      });
+
+    const result =
+      calculateLensComplexPupilPsf({
+        profile
+      }).value;
+
+    expect(
+      result.scientificStatus
+    ).toBe("calibrated");
+    expect(
+      result.context.focus
+    ).toEqual({
+      kind: "infinity"
+    });
+  });
+
+  it("preserves a zero throughput factor separately from normalized PSF energy", () => {
+    const result =
+      calculateLensComplexPupilPsf({
+        profile:
+          complexPupil({
+            relativePupilThroughputFactor:
+              0
+          })
+      }).value;
+
+    expect(
+      result
+        .relativePupilThroughputFactor
+    ).toBe(0);
+    expect(
+      result.kernel
+        .normalizedIntensity
+        .reduce(
+          (sum, value) =>
+            sum + value,
+          0
+        )
+    ).toBeCloseTo(1, 14);
+  });
+});
+
+describe("MTF diagnostic validation boundaries", () => {
+  const validMtf = () => ({
+    schemaVersion: "0.1.0",
+    profileId: "mtf-validation",
+    profileVersion: "1.0.0",
+    opticalDomain:
+      "lens-primary-optical-path-only",
+    phaseInformationAvailable:
+      false,
+    magnitudeMeaning:
+      "mtf-magnitude-only",
+    fieldPointMm: {
+      x: 0,
+      y: 0
+    },
+    focalLengthMm: 50,
+    focus: {
+      kind: "infinity"
+    },
+    apertureFNumber: 4,
+    wavelengthNm: null,
+    samples: [
+      {
+        spatialFrequencyCyclesPerMm:
+          0,
+        sagittalMagnitude: 1,
+        tangentialMagnitude: 1
+      },
+      {
+        spatialFrequencyCyclesPerMm:
+          20,
+        sagittalMagnitude: 0.7,
+        tangentialMagnitude: 0.6
+      }
+    ],
+    evidence:
+      evidence("mtf-validation"),
+    limitations: [
+      "Magnitude only."
+    ]
+  });
+
+  it("supports broadband/unspecified-wavelength MTF diagnostics without inventing phase", () => {
+    const profile =
+      parseLensMtfDiagnosticProfile(
+        validMtf()
+      );
+    expect(
+      profile.wavelengthNm
+    ).toBeNull();
+    expect(
+      assessMtfOnlyPsfRenderability(
+        profile
+      ).psfReconstructionAuthorized
+    ).toBe(false);
+  });
+
+  it("rejects non-increasing frequencies and invalid magnitudes", () => {
+    expect(() =>
+      parseLensMtfDiagnosticProfile({
+        ...validMtf(),
+        samples: [
+          {
+            spatialFrequencyCyclesPerMm:
+              20,
+            sagittalMagnitude:
+              0.7,
+            tangentialMagnitude:
+              0.6
+          },
+          {
+            spatialFrequencyCyclesPerMm:
+              20,
+            sagittalMagnitude:
+              0.5,
+            tangentialMagnitude:
+              0.4
+          }
+        ]
+      })
+    ).toThrow(
+      "strictly increasing"
+    );
+
+    expect(() =>
+      parseLensMtfDiagnosticProfile({
+        ...validMtf(),
+        samples: [{
+          spatialFrequencyCyclesPerMm:
+            0,
+          sagittalMagnitude:
+            1.1,
+          tangentialMagnitude: 1
+        }]
+      })
+    ).toThrow(
+      "must lie from zero through one"
+    );
+  });
+});
