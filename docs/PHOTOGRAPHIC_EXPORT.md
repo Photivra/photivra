@@ -113,16 +113,30 @@ Generate concrete acceptance files with `npm run build`, then
 `node scripts/generate-photographic-export-fixtures.mjs OUTPUT_DIRECTORY`.
 With an existing Pillow installation, run
 `python scripts/verify-photographic-export-fixtures.py OUTPUT_DIRECTORY`.
-This repository-only optional checker adds no engine dependency. The manifest
-records elapsed time and before/after heap usage for the tiny fixture only;
+This repository-only optional checker adds no engine dependency. It also uses
+existing lxml and LibRaw installations when available, and reports skipped
+checks explicitly. Both the 2×2 strip regression and 64×64 owned grayscale
+chart are generated with separate capture/artifact identities. The manifest
+records elapsed time and before/after heap usage for each bounded fixture;
 these are not peak-memory measurements or high-resolution evidence.
 
 Supplemental local checks use Pillow's independent TIFF-directory reader plus
 direct strip unpacking for exact RAW codes; Pillow decodes JPEG/EXIF and extracts
 XMP, and Python DOM parses both packets. Diverse 1×1, 7×8, 9×13 and 64×64 patterns
 decode at steps 1, 7 and 255; measured step-1 maximum channel error is ≤2 codes.
-Pillow cannot render the CFA photometric profile. These checks do not establish
-RAW-editor color agreement or two independent metadata-reader acceptance.
+Pillow cannot render the CFA photometric profile. LibRaw 0.21.2 independently
+opens, unpacks and processes the 64×64 DNG, retaining the native 64×64 size and
+WhiteLevel=1023. It rejects the 2×2 file as unsupported; that tiny file remains
+a strip/tag regression fixture, not an editor acceptance file. XMP attributes
+in both pair members are independently decoded and compared through DOM/Expat
+and lxml/libxml2. These checks do not establish Adobe acceptance, exact
+agreement between different demosaic/rendering algorithms or a complete
+schema-aware XMP implementation conformance claim.
+
+Concrete 64×64 files are checked into `test/fixtures/paired-export-acceptance/`
+for external review. Their owned synthetic ramp codes exercise the serializer,
+not the physical sensor producer. See its README for hashes and the exact
+remaining acceptance steps. No commercial-camera calibration is used.
 
 Before closing #16, validate outputs in Adobe Camera Raw/Lightroom and an open
 RAW processor; compare crop/orientation/WB/color and privacy/identity metadata;
