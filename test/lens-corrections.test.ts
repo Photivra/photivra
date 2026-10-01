@@ -17,6 +17,33 @@ function render(resolved = plan()): ReturnType<typeof calculateLensCorrectedCapt
     physicalProjectionDistanceMm: 50, clippingLevel: 100 }).value;
 }
 describe("generic camera lens correction", () => {
+  it("honors a shifted output lattice with all corrections Off and preserves missing support", () => {
+    const output = calculateLensCorrectedCapture({ plan: plan(correctionProfile, { geometry: "off", gain: "off" }),
+      capture, destinationRaster: { ...raster, centerMm: { x: 1, y: 0 } }, resampler,
+      physicalProjectionDistanceMm: 50, clippingLevel: 100 }).value;
+    expect(output.channels.red[0]).toBe(physical[1]);
+    expect(output.channels.red[4]).toBe(null);
+    expect(output.validSourceMask.filter(Boolean).length).toBe(20);
+    expect(output.jointCrop).toEqual({ x: 0, y: 0, width: 4, height: 5 });
+    expect(output.samplingPlans.red!.mapping.transforms).toEqual([]);
+    expect(output.captureId).toBe(capture.captureId);
+    expect(output.noiseRealizationId).toBe(capture.noiseRealizationId);
+  });
+  it("returns the requested processed crop size when corrections are Off, leaving RAW-like samples intact", () => {
+    const croppedState = { ...state, outputWidth: 3, outputHeight: 3 };
+    const profile = { ...correctionProfile, state: croppedState };
+    const croppedCapture = { ...capture, state: croppedState };
+    const destination = { ...raster, width: 3, height: 3 };
+    const resolved = plan(profile, { geometry: "off", gain: "off" });
+    const request = { plan: resolved, capture: croppedCapture, destinationRaster: destination,
+      resampler, physicalProjectionDistanceMm: 50, clippingLevel: 100 };
+    const output = calculateLensCorrectedCapture(request).value;
+    expect(output.channels.red).toEqual([6, 7, 8, 11, 12, 13, 16, 17, 18].map((i) => physical[i]));
+    expect(output.validSourceMask).toEqual(Array<boolean>(9).fill(true));
+    expect(output.jointCrop).toEqual({ x: 0, y: 0, width: 3, height: 3 });
+    expect(calculateLensCorrectedCapture({ ...request, plan: { ...resolved, outputKind: "raw-like" } }).value.channels)
+      .toEqual(capture.channels);
+  });
   it("Off and RAW-like metadata preserve the same physical samples/noise/capture", () => {
     const off = render(plan(correctionProfile, { geometry: "off", gain: "off" }));
     expect(off.channels).toEqual(capture.channels); expect(off.noiseRealizationId).toBe("noise-42");

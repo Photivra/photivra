@@ -199,7 +199,7 @@ export function calculateLensCorrectedCapture(input: {
     outputKind: input.plan.outputKind, selectionKind: input.plan.selectionKind }).value;
   const capture = input.capture;
   requireSameState(plan.profile.state, capture.state);
-  parseGeometricRaster(capture.raster);
+  const sourceRaster = parseGeometricRaster(capture.raster);
   const destination = parseGeometricRaster(input.destinationRaster);
   if (destination.width !== plan.profile.state.outputWidth || destination.height !== plan.profile.state.outputHeight) {
     throw new InvalidScientificInputError("Destination raster differs from correction output binding.");
@@ -213,7 +213,11 @@ export function calculateLensCorrectedCapture(input: {
     data.forEach((s) => finite(s, "channel sample"));
   }
   const active = plan.components.filter((e) => e.enabled).map((e) => e.component);
-  if (plan.application === "metadata-only" || !active.length) {
+  const sameLattice = sourceRaster.width === destination.width && sourceRaster.height === destination.height &&
+    sourceRaster.pitchMm === destination.pitchMm && sourceRaster.centerMm.x === destination.centerMm.x &&
+    sourceRaster.centerMm.y === destination.centerMm.y;
+  // Disabling corrections does not disable an explicit output crop/resampling request.
+  if (plan.application === "metadata-only" || (!active.length && sameLattice)) {
     return approximationResult({ captureId: capture.captureId, noiseRealizationId: capture.noiseRealizationId,
       timeSeconds: capture.timeSeconds, application: plan.application, channels: capture.channels,
       samplingPlans: {}, validSourceMask: Array<boolean>(count).fill(true),
