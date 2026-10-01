@@ -4,6 +4,7 @@ import { readFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { performance } from "node:perf_hooks";
+import { URL } from "node:url";
 import { createPhotographicExportPair, parsePhotographicExportInput, ENGINE_API_VERSION } from "../dist/index.js";
 
 // Repository-only owned test fixture, not scientific sensor calibration.
