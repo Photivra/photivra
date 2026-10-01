@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs";
 import { cpus, platform, arch } from "node:os";
 import process from "node:process";
+import { URL } from "node:url";
 import { ENGINE_API_VERSION, POC_SIMULATION_API_VERSION, simulatePocCamera } from "../dist/index.js";
 
 const commit = process.argv.find((v) => v.startsWith("--commit="))?.slice(9);
