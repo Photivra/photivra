@@ -439,6 +439,46 @@ export {
 } from "./sensor/physical-charge-capacity.js";
 
 export {
+  SENSOR_CHARGE_SAMPLING_PROFILE_SCHEMA_VERSION,
+  SENSOR_READOUT_CONVERSION_PROFILE_SCHEMA_VERSION,
+  calculateExpectedSensorReadout,
+  parseSensorChargeSamplingProfile,
+  parseSensorReadoutConversionProfile,
+  resolveSensorReadoutRegime,
+  simulateSensorChargeRealization,
+  simulateSensorRawCode,
+  type CalculateExpectedSensorReadoutInput,
+  type ResolveSensorReadoutRegimeInput,
+  type ResolvedSensorReadoutRegime,
+  type SensorAdditionalChargeSamplingModel,
+  type SensorAdditionalChargeSamplingPolicy,
+  type SensorChargeRealization,
+  type SensorChargeSamplingProfile,
+  type SensorElectronicReadNoiseComponent,
+  type SensorExpectedReadoutSignal,
+  type SensorRawCodeSample,
+  type SensorReadoutConversionProfile,
+  type SensorReadoutConversionRegime,
+  type SimulateSensorChargeRealizationInput,
+  type SimulateSensorRawCodeInput
+} from "./sensor/raw-readout.js";
+
+export {
+  SENSOR_RAW_CAPTURE_SAMPLE_VERSION,
+  SENSOR_RAW_RECONSTRUCTION_PROFILE_SCHEMA_VERSION,
+  createSensorRawCaptureSample,
+  parseSensorRawReconstructionProfile,
+  resolveSensorRawReconstruction,
+  type CreateSensorRawCaptureSampleInput,
+  type ResolveSensorRawReconstructionInput,
+  type SensorRawCaptureSample,
+  type SensorRawReconstructedPixel,
+  type SensorRawReconstructionChannelKernel,
+  type SensorRawReconstructionKernelContribution,
+  type SensorRawReconstructionProfile
+} from "./sensor/raw-reconstruction.js";
+
+export {
   assessSensorCameraSaturationCapacity,
   parseSensorCameraSaturationCapacityProfile,
   type AssessSensorCameraSaturationCapacityInput,
