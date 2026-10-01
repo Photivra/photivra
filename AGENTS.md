@@ -568,6 +568,15 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 - Corrections warp already-sampled blur/noise; gain changes downstream signal/variance without rewriting photons. RAW metadata intent, camera mandatory settings and educational reference bypass are separate states.
 - The bounded RGB executor accepts reconstructed-linear geometry/CA followed by gain only. Reject incompatible-domain or geometry-across-gain execution rather than reorder it. Production #111/#112 require their own explicit composition.
 - Reconcile root API versions against other pending API branches before merge; schemas and package/POC versions remain independent.
+### Authoritative linear capture container
+
+- #15A `SimulatedCapture` is a standalone immutable data commitment, not a radiance generator, virtual-camera color transform, quantizer, file serializer or production-stage activation.
+- Follow `docs/SIMULATED_CAPTURE.md`. Preserve distinct image states, float headroom/negative values, source dynamic-range history, capture saturation, reference white, adopted white and resolved WB intent/application.
+- Reuse geometry/focal/focus/WB contracts. Digital/output crop never changes active-capture focal equivalence. External plane references are public IDs plus SHA-256 and declared IEEE float layout; no runtime file/network access is introduced.
+- Allowlist public metadata; reject paths, URLs, private/debug fields and LDR/tonemapped state declarations. Producer IDs must remain public and non-personal. An ID grammar is not a provenance/privacy audit.
+- #15B owns actual color transforms/validity; #15C owns total quantization behavior; #112 owns rendering and #16 file mapping. Do not infer serializer readiness from container validity. #15 remains open until its remaining acceptance is implemented/reviewed.
+- Follow `docs/CAPTURE_COLOR.md` for #15B. The ideal colorimetric virtual RGB profile is an explicit XYZ encoding, never inferred for arbitrary spectral/commercial sensor channels. Resolved RGB gains require the exact camera-basis binding; adopted-white XYZ scaling is a separately selected approximation. Preserve float range and source capture history; reject double application and do not claim a physically unique global white under mixed illumination.
+- Follow `docs/LINEAR_CAPTURE_ENCODING.md` for #15C. Linear uint16 encoding requires explicit black/reference codes, negative and range policies and nearest-ties-up rounding. Use the plane's reference value; preserve float source data and color/WB/capture-saturation identity. Integer code limits never redefine capture saturation or display white. No serializer tags, gamma/tone mapping or implicit color conversion belongs here.
 
 - The root package must remain browser-safe and ESM-only.
 - Node-only code must not become reachable from the root public export.

@@ -46,7 +46,46 @@ export {
   type LensCorrectionCapture
 } from "./output/lens-corrections.js";
 
+export {
+  SIMULATED_CAPTURE_SCHEMA_VERSION,
+  createSimulatedCapture,
+  parseSimulatedCapture,
+  serializeSimulatedCapture,
+  resolveSimulatedCapturePlane,
+  createCaptureWhiteBalanceIntent,
+  type SimulatedCapture,
+  type SimulatedCaptureInput,
+  type CaptureLinearImageState,
+  type CaptureLinearPlane,
+  type CaptureFloatStorage,
+  type CapturePublicProfileReference,
+  type CaptureWhiteXyz,
+  type CaptureWhiteBalanceIntent
+} from "./capture/simulated-capture.js";
+
+export {
+  CAPTURE_COLOR_MODEL_VERSION,
+  VIRTUAL_COLOR_CAMERA_PROFILE,
+  LINEAR_CAPTURE_RGB_PROFILE,
+  resolveCaptureColorModel,
+  parseCaptureColorTransformInput,
+  calculateCaptureColorTransform,
+  type CaptureColorModel,
+  type CaptureColorWhiteBalance,
+  type CaptureColorTransformInput,
+  type CaptureColorTransformResult
+} from "./color/capture-color.js";
+
 export { ENGINE_API_VERSION } from "./core/version.js";
+
+export {
+  LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION,
+  parseLinearCaptureEncoding,
+  calculateLinearCaptureEncoding,
+  type LinearCaptureEncoding,
+  type LinearCaptureEncodingInput,
+  type EncodedLinearCapture
+} from "./capture/linear-encoding.js";
 
 export {
   approximationResult,

@@ -11,6 +11,7 @@ Its calculations use explicit units, documented assumptions, validation, provena
 The source is licensed under Apache-2.0.
 
 Standalone stray-light irradiance, composed digital geometry and generic camera lens-correction APIs are documented in [Digital optics foundations](docs/DIGITAL_OPTICS_FOUNDATION.md). They preserve optical/sensor capture authority and explicit sampling/noise costs; production composition remains separate.
+The standalone [SimulatedCapture contract](docs/SIMULATED_CAPTURE.md) commits format-neutral linear float master data and public metadata. Its [virtual-camera color model](docs/CAPTURE_COLOR.md) provides explicit linear color conversion and resolved-WB application; [linear encoding](docs/LINEAR_CAPTURE_ENCODING.md) defines deterministic 16-bit quantization. File serialization remains a subsequent stage.
 
 ## Quick start
 
@@ -255,7 +256,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.95.0`
+- Engine API contract: `0.96.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
