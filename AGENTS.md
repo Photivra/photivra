@@ -559,6 +559,14 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 
 ## Runtime and package boundary
 
+### Authoritative linear capture container
+
+- #15A `SimulatedCapture` is a standalone immutable data commitment, not a radiance generator, virtual-camera color transform, quantizer, file serializer or production-stage activation.
+- Follow `docs/SIMULATED_CAPTURE.md`. Preserve distinct image states, float headroom/negative values, source dynamic-range history, capture saturation, reference white, adopted white and resolved WB intent/application.
+- Reuse geometry/focal/focus/WB contracts. Digital/output crop never changes active-capture focal equivalence. External plane references are public IDs plus SHA-256 and declared IEEE float layout; no runtime file/network access is introduced.
+- Allowlist public metadata; reject paths, URLs, private/debug fields and LDR/tonemapped state declarations. Producer IDs must remain public and non-personal. An ID grammar is not a provenance/privacy audit.
+- #15B owns actual color transforms/validity; #15C owns total quantization behavior; #112 owns rendering and #16 file mapping. Do not infer serializer readiness from container validity. #15 remains open until its remaining acceptance is implemented/reviewed.
+
 - The root package must remain browser-safe and ESM-only.
 - Node-only code must not become reachable from the root public export.
 - The repository-local POC HTTP code under `src/api` is contributor tooling, not a supported package subpath or production architecture.

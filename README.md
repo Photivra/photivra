@@ -10,6 +10,8 @@ Its calculations use explicit units, documented assumptions, validation, provena
 
 The source is licensed under Apache-2.0.
 
+The standalone [SimulatedCapture contract](docs/SIMULATED_CAPTURE.md) commits format-neutral linear float master data and public metadata. This is #15A; virtual-camera color transforms, integer quantization and file serialization remain subsequent stages.
+
 ## Quick start
 
 Install the ESM package:
@@ -253,7 +255,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.93.0`
+- Engine API contract: `0.94.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 

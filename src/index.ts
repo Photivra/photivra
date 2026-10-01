@@ -1,5 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
+export {
+  SIMULATED_CAPTURE_SCHEMA_VERSION,
+  createSimulatedCapture,
+  parseSimulatedCapture,
+  serializeSimulatedCapture,
+  resolveSimulatedCapturePlane,
+  createCaptureWhiteBalanceIntent,
+  type SimulatedCapture,
+  type SimulatedCaptureInput,
+  type CaptureLinearImageState,
+  type CaptureLinearPlane,
+  type CaptureFloatStorage,
+  type CapturePublicProfileReference,
+  type CaptureWhiteXyz,
+  type CaptureWhiteBalanceIntent
+} from "./capture/simulated-capture.js";
+
 export { ENGINE_API_VERSION } from "./core/version.js";
 
 export {
