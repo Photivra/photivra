@@ -69,7 +69,8 @@ describe("sensor RAW frame attachment", () => {
       { groupedModeCombinationApplied: true }, { cfaPhasePreservedInNativeCoordinates: false }, { version: "2" },
       { rawCode: NaN }, { rawCode: 1.5 }, { rawCode: 1024 }, { blackLevelCode: 1023 }, { digitalSaturationCode: 70000 },
       { blackSubtractedNormalizedCode: 0 }, { sourceChargeSeedUint32: -1 }, { sourceReadNoiseSeedUint32: 4294967296 },
-      { physicalScalarSaturationApplied: "unknown" }, { debug: "private" }, { colorSamplingSite: { x: 1, y: 0 } }]) {
+      { physicalScalarSaturationApplied: "unknown" }, { digitalSaturationApplied: true },
+      { debug: "private" }, { colorSamplingSite: { x: 1, y: 0 } }]) {
       const v = input(); expect(() => parseSensorRawFrameInput({ ...v, samples: [{ ...v.samples[0], ...patch }, ...v.samples.slice(1)] })).toThrow();
     }
     const v = input(); v.samples[1]!.readoutProfileId = "other"; expect(() => createSensorRawFrame(v)).toThrow();

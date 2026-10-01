@@ -67,6 +67,7 @@ function sample(value: unknown): SensorRawCaptureSample {
   const rawCode = integer(s.rawCode, 65535), blackLevelCode = integer(s.blackLevelCode, 65535),
     digitalSaturationCode = integer(s.digitalSaturationCode, 65535);
   if (digitalSaturationCode <= blackLevelCode || rawCode > digitalSaturationCode ||
+      (s.digitalSaturationApplied && rawCode !== digitalSaturationCode) ||
       typeof s.blackSubtractedNormalizedCode !== "number" ||
       s.blackSubtractedNormalizedCode !== (rawCode-blackLevelCode)/(digitalSaturationCode-blackLevelCode)) {
     throw new InvalidConfigurationError("RAW-frame code/black/white/normalization mismatch.");
