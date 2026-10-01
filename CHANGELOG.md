@@ -1,5 +1,10 @@
 # Changelog
 
+## Native RAW-frame attachment — unreleased
+
+- Added #16 prerequisite `createSensorRawFrame()` and strict input parser: complete bounded native periodic-CFA coverage, exact one-site binding, immutable capture attachment, code/black/digital-white/per-site-seed preservation, and rejection of processed/grouped/multi-frame inputs. Producer origin is explicitly caller-declared; no serializer or RAW-to-RGB pairing proof is claimed. See `docs/SENSOR_RAW_FRAME.md`.
+- Proposed root API 0.98.0 and RAW-frame schema 0.1.0. Reconcile additive root versions against parallel drafts before merge; existing package/POC/capture/production versions unchanged.
+
 Notable public changes to `@photivra/engine` are documented here.
 
 ## Unreleased
