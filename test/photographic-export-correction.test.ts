@@ -100,6 +100,24 @@ describe("RAW-paired corrected photographic export",()=>{
     expect(b.rendering.value.integerSamples).toEqual(a.rendering.value.integerSamples);
     expect(b.correction!.value.whiteBalance).toBe("already-applied-upstream");expect(rawCodes(b.dng.bytes)).toEqual([0,64,512,1023]);
   });
+  it("uses full active RAW support for an off-center output and snapshots correction choices before async hashing",async()=>{
+    const v=input("portrait-clockwise"),c=v.reconstruction.rawFrame.capture;
+    replaceCapture(v,{geometry:{...c.geometry,outputCropRect:{x:1,y:0,width:1,height:2},outputRaster:{pixelWidth:1,pixelHeight:2}},
+      planes:[{...c.planes[0]!,pixelWidth:1,pixelHeight:2,storage:{kind:"inline-float64",samples:Array(6).fill(0)}}]});
+    // Native output dimensions swap for the portrait view; full native reconstruction remains 2x2.
+    v.correction!.state={...v.correction!.state,outputWidth:2,outputHeight:1};
+    v.correction!.profile={...v.correction!.profile,state:v.correction!.state};
+    const {correction:_c,...plain}=v;void _c;
+    const a=await createPhotographicExportPair(plain),expected=await createPhotographicExportPair(v);
+    expect(expected.rendering.value.integerSamples).toEqual(a.rendering.value.integerSamples);
+    expect(expected.processedOutputView.rect).toEqual({x:0,y:0,width:1,height:2});
+    expect(jpegSize(expected.jpeg.bytes)).toEqual([1,2]);
+    const pending=createPhotographicExportPair(v);
+    v.correction!.clippingLevel=.0001;v.correction!.selections={geometry:"off",gain:"on"};
+    const actual=await pending;
+    expect(actual.simulationHash).toBe(expected.simulationHash);expect(actual.jpeg.bytes).toEqual(expected.jpeg.bytes);
+    expect(actual.dng.bytes).toEqual(expected.dng.bytes);
+  });
   it("rejects guessed prefiltering, incomplete active coverage, unavailable support and malformed correction state",async()=>{
     const v=input();
     expect(()=>parsePhotographicExportInput({...v,correction:{...v.correction!,resampler:{...v.correction!.resampler,antialias:"source-prefiltered"}}})).toThrow();
