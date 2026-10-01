@@ -298,7 +298,7 @@ The context declares:
 
 The current foundation does **not** calculate a combined point-spread function or MTF. Defocus-circle diameter and Airy first-zero diameter are not added together or collapsed into one sharpness value.
 
-Reserved future contributions include non-circular diffraction, mechanical pupil clipping, field curvature, field-dependent aberration structure, and field-dependent bokeh.
+The dedicated ideal-polygon API evaluates on-axis non-circular diffraction density; the real-lens framework owns explicitly profiled pupil clipping, field curvature, aberration and bokeh. None is silently combined by the legacy diagnostic calculator. See [PSF and Pupil Foundation](PSF_FOUNDATION.md).
 
 Illumination vignetting remains outside the PSF contribution list because it is currently modeled as throughput-only.
 
@@ -312,7 +312,7 @@ where `λ` is wavelength and `N` is f-number.
 
 This is a monochromatic, ideal-circular-pupil diagnostic.
 
-It is deliberately separate from regular-polygon aperture geometry used for bokeh/sunstar exploration. Supplying a polygon blade count does not convert the circular Airy result into a polygon-aperture diffraction PSF; a physically consistent non-circular diffraction model remains future work.
+It is deliberately separate from regular-polygon aperture geometry used for bokeh/sunstar exploration. Supplying a polygon blade count does not convert the circular Airy result into a polygon-aperture diffraction PSF. Use `calculateIdealPolygonDiffractionPsf()` with an explicit physical equal-area pupil, propagation distance and wavelength for the ideal on-axis polygon model; arbitrary real diaphragms remain outside that model.
 
 ### Ideal diaphragm geometry and sunstar symmetry
 

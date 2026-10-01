@@ -38,6 +38,25 @@ Use `requiredUpstreamStages` for hard scientific dependencies and `coupledStages
 
 See [Image-Formation Contract](IMAGE_FORMATION.md) for coordinate, temporal, renderer, and reserved sensor-stage semantics.
 
+## Ideal regular-polygon diffraction
+
+```ts
+import { calculateIdealPolygonDiffractionPsf } from "@photivra/engine";
+
+const polygon = calculateIdealPolygonDiffractionPsf({
+  bladeCount: 7,
+  firstBladeEdgeAngleDegrees: 0,
+  equivalentAreaPupilDiameterMm: 10,
+  pupilToImageDistanceMm: 50,
+  wavelengthNm: 550,
+  wavelengthBasis: "air",
+  imagePointsMicrometers: [{ x: 0, y: 0 }, { x: 3, y: -2 }]
+});
+console.log(polygon.value.samples[0]?.intensityDensityPerSquareMicrometer);
+```
+
+This is a uniform-amplitude, zero-phase, on-axis, in-focus scalar approximation. Equal-area diameter is not polygon circumdiameter. Image points are PSF displacements (+X right / +Y up), not source-field positions. Density integrates to one over the **infinite** plane; supplied samples do not sum to one. Finite image-plane quadrature needs explicit area measures, support and convergence checks. No air/vacuum conversion, clipping, aberration, throughput or sensor response is inferred. Circular Airy and already-diffracted #113 kernels remain separate; do not stack diffraction twice.
+
 ## Explicit finite and infinity focus state
 
 Use `FocusPlane` when a caller must distinguish a real finite focus plane from optical infinity without JavaScript `Infinity` or an arbitrary very-large distance.

@@ -477,7 +477,7 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 - Do not call the current diagnostics a complete PSF or MTF.
 - Field position, focus/subject depth, wavelength basis, and pupil semantics are explicit context.
 - The current field position is context only for defocus/Airy; do not invent field dependence until a corresponding model is implemented.
-- Non-circular diffraction, mechanical pupil clipping, field curvature, field-dependent aberration, and field-dependent bokeh remain reserved until implemented.
+- Ideal regular-polygon non-circular diffraction is implemented only through its explicit equal-area, on-axis, zero-phase scalar API. Arbitrary non-circular real diaphragms are not inferred. Mechanical pupil clipping, field curvature, field-dependent aberration and bokeh require explicit #113 profile/evaluator semantics; never infer them from blade count or legacy diagnostics.
 - Illumination vignetting remains throughput-only and outside the PSF contribution list.
 - Polygon aperture geometry does not by itself implement non-circular diffraction.
 - Preview/reference renderers may differ in bounded fidelity but must preserve engine-owned contribution semantics.
