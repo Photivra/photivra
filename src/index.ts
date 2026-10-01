@@ -88,6 +88,16 @@ export {
 } from "./capture/linear-encoding.js";
 
 export {
+  SDR_RENDERING_SCHEMA_VERSION,
+  parseSdrRenderingProfile,
+  parseSdrRenderingInput,
+  calculateSdrRendering,
+  type SdrRenderingProfile,
+  type SdrRenderingInput,
+  type SdrRenderingResult
+} from "./output/sdr-rendering.js";
+
+export {
   approximationResult,
   calibratedResult,
   calculatedResult,

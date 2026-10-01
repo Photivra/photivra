@@ -578,6 +578,13 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 - Follow `docs/CAPTURE_COLOR.md` for #15B. The ideal colorimetric virtual RGB profile is an explicit XYZ encoding, never inferred for arbitrary spectral/commercial sensor channels. Resolved RGB gains require the exact camera-basis binding; adopted-white XYZ scaling is a separately selected approximation. Preserve float range and source capture history; reject double application and do not claim a physically unique global white under mixed illumination.
 - Follow `docs/LINEAR_CAPTURE_ENCODING.md` for #15C. Linear uint16 encoding requires explicit black/reference codes, negative and range policies and nearest-ties-up rounding. Use the plane's reference value; preserve float source data and color/WB/capture-saturation identity. Integer code limits never redefine capture saturation or display white. No serializer tags, gamma/tone mapping or implicit color conversion belongs here.
 
+### Standalone SDR rendering primitives
+
+- Follow `docs/SDR_RENDERING.md` for #112A. Accept only explicitly color-transformed linear-sRGB/D65 input with completed/not-required WB; unresolved scene/sensor/WB states fail closed. This independent slice does not consume pending #15/#118/#117 branches or activate production display-processing.
+- Rendering exposure is post-capture relative scaling. Keep tone, gamut handling, transfer encoding, quantization and external display adaptation separately inspectable; no processing result rewrites metering, noise, physical exposure or upstream saturation.
+- Positive per-channel Reinhard is a named generic rendering choice that can change chromaticity. Component clipping is explicit, not perceptual gamut mapping. SDR source headroom never establishes HDR output or actual display capability.
+- #112 integration remains pending merged authoritative capture/color/correction contracts and must reuse #111 ordering and #108/#15 WB rather than introduce a second estimator/composer.
+
 - The root package must remain browser-safe and ESM-only.
 - Node-only code must not become reachable from the root public export.
 - The repository-local POC HTTP code under `src/api` is contributor tooling, not a supported package subpath or production architecture.
