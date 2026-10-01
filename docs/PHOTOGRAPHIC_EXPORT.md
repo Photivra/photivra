@@ -43,6 +43,50 @@ orientation, native ActiveArea and DefaultCrop. Resampling fails closed. JPEG
 coding replicates edges solely to fill partial 8×8 coding blocks; it does not
 supply missing reconstruction samples or change photograph dimensions.
 
+## Optional correction of the JPEG view
+
+The optional `correction` field reuses the choice contract documented in
+[CAPTURE_CORRECTED_SDR.md](CAPTURE_CORRECTED_SDR.md). Order is exact attached RAW
+reconstruction → resolved camera-channel WB → declared camera-to-XYZ/D65 →
+existing linear-sRGB transform → native-optical geometry/CA/gain correction →
+SDR → JPEG. The private intermediate plane contains only RAW-derived RGB; it
+replaces all independent float planes for this calculation and is never returned
+as a replacement capture. Parent `source` retains the exact RAW reconstruction,
+its provenance, site-level physical/digital saturation and source history.
+Intermediate RGB capture saturation is explicitly unmodeled; no scalar RGB white
+level is inferred from heterogeneous RAW site saturation flags.
+
+This branch requires reconstruction of the **full active native area**, square
+physical pixel pitch and 1:1 declared output crop sampling. The exporter supplies
+no prefilter, so `resampler.antialias` must be `none`; maps requiring compression
+filtering fail through the existing executor. It cannot claim a prefiltered input
+or silently create a filter. Correction state uses native output dimensions,
+exact committed optics and exposure-local time, independently of scene time.
+Profiles remain generic declarations for the post-color/WB linear-sRGB basis,
+not physical sensor-channel CA calibration. The pipeline does not redraw noise,
+blur or photons and does not activate reserved production stages.
+
+`invalidSupport` either rejects unavailable samples or chooses the existing
+largest joint-valid rectangle. `processedOutputView.rect` records that rectangle
+in the full oriented output raster, with dimensions used by JPEG SOF and EXIF.
+It is relative to the declared output crop, not the active/native sensor origin.
+The DNG's native codes, ActiveArea and original DefaultCrop remain unchanged;
+a nonlinear corrected JPEG cannot be represented by moving an uncorrected RAW
+crop. These paired files share the exact capture and source codes, while their
+processed geometry can differ. Physical focal equivalence remains capture-owned.
+
+The result exposes the processed `correction` calculation and a separate
+`rawCorrectionIntent` plan with application `metadata-only`. Custom XMP in both
+files records CorrectionProfileID/version, CorrectionSelectionKind/selections,
+ProcessedOutputRect and ProcessedIlluminationClippingEvents. CorrectionDisposition
+is `informational-intent-only` in DNG and `processed-view` in JPEG. This is
+informational metadata, not standardized DNG opcodes or a promise that editors
+apply the profile. Gain clipping events precede joint cropping and remain
+separate from RAW saturation and SDR gamut clipping. Full profile and choices
+enter SimulationHash; RawDataUniqueID still depends only on the exact RAW codes.
+Omitting correction preserves the original rendering/hash inputs and emits no
+correction XMP. The additive contract retains export schema 0.1.0.
+
 ## Files and metadata
 
 DNG uses little-endian TIFF, version/backward version 1.1, one uncompressed
@@ -78,7 +122,8 @@ Private paths/GPS/serials and unsupported rights/calibration/AI fields are rejec
 
 - SimulationHash is SHA-256 over sorted finite canonical JSON containing the
   entire RAW frame, including capture identity/history/float planes, phase
-  profiles, region, color/scene profiles, WB policy, rendering and JPEG step.
+  profiles, region, color/scene profiles, WB policy, rendering, JPEG step and
+  the optional correction choice.
   Save timestamp and artifact IDs are excluded. History changes may change the
   hash without changing decoded pixels.
 - RawDataUniqueID is the first 128 bits of SHA-256 over versioned native
