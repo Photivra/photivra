@@ -1153,6 +1153,51 @@ function validateCapabilities(
     );
   }
 
+  const hasAutoMinimum =
+    value.iso.autoIsoMinimum !==
+    undefined;
+  const hasAutoMaximum =
+    value.iso.autoIsoMaximum !==
+    undefined;
+  if (
+    hasAutoMinimum !==
+    hasAutoMaximum
+  ) {
+    throw new InvalidScientificInputError(
+      "capabilities Auto ISO bounds must provide both minimum and maximum or neither."
+    );
+  }
+  if (
+    hasAutoMinimum &&
+    hasAutoMaximum
+  ) {
+    const autoMinimum =
+      requirePositiveFinite(
+        value.iso.autoIsoMinimum,
+        "capabilities.iso.autoIsoMinimum"
+      );
+    const autoMaximum =
+      requirePositiveFinite(
+        value.iso.autoIsoMaximum,
+        "capabilities.iso.autoIsoMaximum"
+      );
+    if (
+      value.iso
+        .autoIsoAvailability !==
+        "supported" ||
+      autoMinimum >
+        autoMaximum ||
+      autoMinimum <
+        value.iso.minimum ||
+      autoMaximum >
+        value.iso.maximum
+    ) {
+      throw new InvalidScientificInputError(
+        "capabilities Auto ISO bounds must be ordered, inside the manual ISO range, and used only when Auto ISO is supported."
+      );
+    }
+  }
+
   requireNonEmptyString(
     value.bodyProfile.profileId,
     "capabilities.bodyProfile.profileId"
@@ -1472,6 +1517,25 @@ function nearestDiscreteIso(
   };
 }
 
+function autoIsoBounds(
+  capabilities:
+    ResolvedGenericEquipmentExposureCapabilities
+): {
+  minimum: number;
+  maximum: number;
+} {
+  return {
+    minimum:
+      capabilities.iso
+        .autoIsoMinimum ??
+      capabilities.iso.minimum,
+    maximum:
+      capabilities.iso
+        .autoIsoMaximum ??
+      capabilities.iso.maximum
+  };
+}
+
 function resolveAutomaticIso(
   idealIso: number,
   capabilities:
@@ -1491,15 +1555,32 @@ function resolveAutomaticIso(
 } {
   const grid =
     capabilities.iso.settingGrid;
+  const bounds =
+    autoIsoBounds(
+      capabilities
+    );
 
   if (
     grid.kind ===
     "discrete-values"
   ) {
+    const autoValues =
+      grid.values.filter(
+        (value) =>
+          value >= bounds.minimum &&
+          value <= bounds.maximum
+      );
+    if (
+      autoValues.length === 0
+    ) {
+      throw new InvalidScientificInputError(
+        "Auto ISO bounds contain no selectable values from the resolved ISO grid."
+      );
+    }
     const discrete =
       nearestDiscreteIso(
         idealIso,
-        grid.values
+        autoValues
       );
     return {
       ...discrete,
@@ -1509,11 +1590,11 @@ function resolveAutomaticIso(
 
   if (
     idealIso <
-    capabilities.iso.minimum
+    bounds.minimum
   ) {
     return {
       iso:
-        capabilities.iso.minimum,
+        bounds.minimum,
       kind: "continuous",
       quantized: false,
       clamped: "minimum",
@@ -1523,11 +1604,11 @@ function resolveAutomaticIso(
   }
   if (
     idealIso >
-    capabilities.iso.maximum
+    bounds.maximum
   ) {
     return {
       iso:
-        capabilities.iso.maximum,
+        bounds.maximum,
       kind: "continuous",
       quantized: false,
       clamped: "maximum",
@@ -1721,9 +1802,28 @@ function minimumSelectableIso(
 ): number {
   const grid =
     capabilities.iso.settingGrid;
-  return grid.kind === "discrete-values"
-    ? grid.values[0]!
-    : capabilities.iso.minimum;
+  const bounds =
+    autoIsoBounds(
+      capabilities
+    );
+  if (
+    grid.kind ===
+    "continuous-within-range"
+  ) {
+    return bounds.minimum;
+  }
+  const first =
+    grid.values.find(
+      (value) =>
+        value >= bounds.minimum &&
+        value <= bounds.maximum
+    );
+  if (first === undefined) {
+    throw new InvalidScientificInputError(
+      "Auto ISO bounds contain no selectable values from the resolved ISO grid."
+    );
+  }
+  return first;
 }
 
 function selectShutterNotLongerThanTarget(
