@@ -1274,3 +1274,653 @@ describe("Good / Better / Best convenience presets", () => {
     );
   });
 });
+
+
+describe("ISO capability fail-closed boundaries", () => {
+  it("supports continuous standard ISO and unsupported Auto ISO without inventing bounds", () => {
+    const continuous =
+      parseIsoCapabilityProfile({
+        ...isoProfile(),
+        profileId:
+          "continuous-iso",
+        standard: {
+          exposureIndexRange: {
+            minimum: 100,
+            maximum: 12800
+          },
+          settingGrid: {
+            kind:
+              "continuous-within-range"
+          }
+        },
+        autoIso: {
+          availability:
+            "unsupported",
+          evidence:
+            evidence("auto-off")
+        },
+        captureModePolicies: []
+      });
+
+    const resolved =
+      resolveIsoCapability({
+        profile: continuous,
+        setting: {
+          kind: "standard",
+          exposureIndex: 333
+        }
+      });
+
+    expect(
+      resolved.reportedExposureIndex
+    ).toBe(333);
+    expect(
+      resolved.autoIsoEligible
+    ).toBe(false);
+    expect(
+      resolved.standardSettingGrid
+    ).toEqual({
+      kind:
+        "continuous-within-range"
+    });
+
+    const equipment =
+      equipmentCapabilities();
+    const bound =
+      bindIsoCapabilityToExposureCapabilities({
+        isoCapabilityProfile:
+          continuous,
+        equipmentCapabilities: {
+          ...equipment,
+          iso: {
+            ...equipment.iso,
+            settingGrid: {
+              kind:
+                "continuous-within-range"
+            }
+          }
+        }
+      });
+
+    expect(
+      bound.capabilities.iso
+        .autoIsoAvailability
+    ).toBe("unsupported");
+    expect(
+      "autoIsoMinimum" in
+        bound.capabilities.iso
+    ).toBe(false);
+  });
+
+  it("rejects malformed capability meaning, unsupported-Auto range metadata, duplicate expanded IDs, and unknown mode expanded IDs", () => {
+    expect(() =>
+      parseIsoCapabilityProfile({
+        ...isoProfile(),
+        capabilityMeaning:
+          "physical-gain"
+      })
+    ).toThrow(
+      "capabilityMeaning"
+    );
+
+    expect(() =>
+      parseIsoCapabilityProfile({
+        ...isoProfile(),
+        autoIso: {
+          availability:
+            "unsupported",
+          standardExposureIndexRange: {
+            minimum: 100,
+            maximum: 800
+          },
+          evidence:
+            evidence("invalid-auto")
+        }
+      })
+    ).toThrow(
+      "must be omitted unless Auto ISO is supported"
+    );
+
+    expect(() =>
+      parseIsoCapabilityProfile({
+        ...isoProfile(),
+        expandedSettings: [
+          isoProfile()
+            .expandedSettings[0],
+          isoProfile()
+            .expandedSettings[0]
+        ]
+      })
+    ).toThrow(
+      "duplicate settingId"
+    );
+
+    expect(() =>
+      parseIsoCapabilityProfile({
+        ...isoProfile(),
+        captureModePolicies: [{
+          captureModeId:
+            "bad-mode",
+          standardExposureIndexRange: {
+            minimum: 100,
+            maximum: 12800
+          },
+          expandedSettingIds: [
+            "does-not-exist"
+          ],
+          autoIso: {
+            availability:
+              "unknown",
+            evidence:
+              evidence("unknown-auto")
+          },
+          evidence:
+            evidence("bad-mode")
+        }]
+      })
+    ).toThrow(
+      "unknown settingId"
+    );
+  });
+
+  it("rejects empty capture-mode identity and invalid runtime setting discriminants", () => {
+    expect(() =>
+      resolveIsoCapability({
+        profile: isoProfile(),
+        setting: {
+          kind: "standard",
+          exposureIndex: 100
+        },
+        captureModeId: " "
+      })
+    ).toThrow(
+      "captureModeId must be a non-empty string"
+    );
+
+    expect(() =>
+      resolveIsoCapability({
+        profile: isoProfile(),
+        setting: {
+          kind:
+            "mystery" as "expanded",
+          settingId: "high-1"
+        }
+      })
+    ).toThrow(
+      "valid standard or expanded setting"
+    );
+  });
+
+  it("fails binding when a mode range contains no standard value from the existing discrete grid", () => {
+    const profile =
+      parseIsoCapabilityProfile({
+        ...isoProfile(),
+        captureModePolicies: [{
+          captureModeId:
+            "between-grid",
+          standardExposureIndexRange: {
+            minimum: 250,
+            maximum: 350
+          },
+          expandedSettingIds: [],
+          autoIso: {
+            availability:
+              "supported",
+            standardExposureIndexRange: {
+              minimum: 250,
+              maximum: 350
+            },
+            evidence:
+              evidence("between-grid-auto")
+          },
+          evidence:
+            evidence("between-grid")
+        }]
+      });
+
+    expect(() =>
+      bindIsoCapabilityToExposureCapabilities({
+        isoCapabilityProfile:
+          profile,
+        equipmentCapabilities:
+          equipmentCapabilities(),
+        captureModeId:
+          "between-grid"
+      })
+    ).toThrow(
+      "contains no values from the resolved equipment ISO grid"
+    );
+  });
+});
+
+describe("Auto ISO bounded-envelope hardening", () => {
+  const referenceExposure = {
+    aperture: 4,
+    shutterSeconds: 1 / 125,
+    iso: 100
+  };
+
+  it("honors independent Auto ISO bounds on a continuous grid", () => {
+    const base =
+      equipmentCapabilities();
+    const capabilities = {
+      ...base,
+      iso: {
+        ...base.iso,
+        settingGrid: {
+          kind:
+            "continuous-within-range" as const
+        },
+        autoIsoMinimum: 200,
+        autoIsoMaximum: 800
+      }
+    };
+
+    const low =
+      resolveManualExposureMode({
+        target:
+          targetForScale(0.5),
+        capabilities,
+        referenceExposure,
+        manualAperture: 4,
+        manualShutterSeconds:
+          1 / 125,
+        isoControl: {
+          kind: "automatic",
+          quantizationPolicy:
+            "nearest-log2-lower-on-tie"
+        }
+      });
+    const high =
+      resolveManualExposureMode({
+        target:
+          targetForScale(16),
+        capabilities,
+        referenceExposure,
+        manualAperture: 4,
+        manualShutterSeconds:
+          1 / 125,
+        isoControl: {
+          kind: "automatic",
+          quantizationPolicy:
+            "nearest-log2-lower-on-tie"
+        }
+      });
+
+    if (
+      low.status !== "resolved" ||
+      low.isoControl !==
+        "automatic" ||
+      high.status !==
+        "resolved" ||
+      high.isoControl !==
+        "automatic"
+    ) {
+      throw new Error(
+        "Expected resolved bounded Auto ISO."
+      );
+    }
+
+    expect(
+      low.resolvedSettings.iso
+    ).toBe(200);
+    expect(
+      low.isoResolution.clamped
+    ).toBe("minimum");
+    expect(
+      high.resolvedSettings.iso
+    ).toBe(800);
+    expect(
+      high.isoResolution.clamped
+    ).toBe("maximum");
+  });
+
+  it("fails closed on incomplete/invalid Auto ISO bound metadata", () => {
+    const base =
+      equipmentCapabilities();
+
+    expect(() =>
+      resolveManualExposureMode({
+        target:
+          targetForScale(2),
+        capabilities: {
+          ...base,
+          iso: {
+            ...base.iso,
+            autoIsoMinimum: 200
+          }
+        },
+        referenceExposure,
+        manualAperture: 4,
+        manualShutterSeconds:
+          1 / 125,
+        isoControl: {
+          kind: "automatic",
+          quantizationPolicy:
+            "nearest-log2-lower-on-tie"
+        }
+      })
+    ).toThrow(
+      "must provide both minimum and maximum or neither"
+    );
+
+    expect(() =>
+      resolveManualExposureMode({
+        target:
+          targetForScale(2),
+        capabilities: {
+          ...base,
+          iso: {
+            ...base.iso,
+            autoIsoAvailability:
+              "unsupported",
+            autoIsoMinimum: 200,
+            autoIsoMaximum: 800
+          }
+        },
+        referenceExposure,
+        manualAperture: 4,
+        manualShutterSeconds:
+          1 / 125,
+        isoControl: {
+          kind: "automatic",
+          quantizationPolicy:
+            "nearest-log2-lower-on-tie"
+        }
+      })
+    ).toThrow(
+      "used only when Auto ISO is supported"
+    );
+  });
+
+  it("fails if discrete Auto ISO bounds contain no selectable grid value", () => {
+    const base =
+      equipmentCapabilities();
+
+    expect(() =>
+      resolveManualExposureMode({
+        target:
+          targetForScale(3),
+        capabilities: {
+          ...base,
+          iso: {
+            ...base.iso,
+            autoIsoMinimum: 250,
+            autoIsoMaximum: 350
+          }
+        },
+        referenceExposure,
+        manualAperture: 4,
+        manualShutterSeconds:
+          1 / 125,
+        isoControl: {
+          kind: "automatic",
+          quantizationPolicy:
+            "nearest-log2-lower-on-tie"
+        }
+      })
+    ).toThrow(
+      "contain no selectable values"
+    );
+  });
+});
+
+describe("generic signal-chain validation boundaries", () => {
+  it("validates schema, domain ownership, required bindings, and duplicate mode identities", () => {
+    expect(() =>
+      parseGenericIsoSignalChainProfile({
+        ...signalChainProfile(),
+        schemaVersion: "9.9.9"
+      })
+    ).toThrow("schemaVersion");
+
+    expect(() =>
+      parseGenericIsoSignalChainProfile({
+        ...signalChainProfile(),
+        scientificStatus:
+          "calibrated"
+      })
+    ).toThrow(
+      "scientificStatus"
+    );
+
+    expect(() =>
+      parseGenericIsoSignalChainProfile({
+        ...signalChainProfile(),
+        behaviorMeaning:
+          "iso-is-noise"
+      })
+    ).toThrow(
+      "behaviorMeaning"
+    );
+
+    expect(() =>
+      parseGenericIsoSignalChainProfile({
+        ...signalChainProfile(),
+        photonShotNoiseOwnedUpstream:
+          false
+      })
+    ).toThrow(
+      "domain-ownership flags"
+    );
+
+    expect(() =>
+      parseGenericIsoSignalChainProfile({
+        ...signalChainProfile(),
+        captureModeBindings: []
+      })
+    ).toThrow(
+      "non-empty array"
+    );
+
+    expect(() =>
+      parseGenericIsoSignalChainProfile({
+        ...signalChainProfile(),
+        captureModeBindings: [
+          signalChainProfile()
+            .captureModeBindings[0],
+          signalChainProfile()
+            .captureModeBindings[0]
+        ]
+      })
+    ).toThrow(
+      "duplicate captureModeId"
+    );
+  });
+
+  it("validates regime-band order and expanded binding uniqueness", () => {
+    expect(() =>
+      parseGenericIsoSignalChainProfile({
+        ...signalChainProfile(),
+        captureModeBindings: [{
+          captureModeId:
+            "native",
+          standardRegimeBands: [{
+            minimumExposureIndex:
+              800,
+            maximumExposureIndex:
+              400,
+            readoutRegimeId:
+              "base"
+          }],
+          expandedRegimeBindings:
+            [],
+          evidence:
+            evidence("bad-band")
+        }]
+      })
+    ).toThrow(
+      "minimumExposureIndex must be less than or equal"
+    );
+
+    expect(() =>
+      parseGenericIsoSignalChainProfile({
+        ...signalChainProfile(),
+        captureModeBindings: [{
+          captureModeId:
+            "native",
+          standardRegimeBands: [{
+            minimumExposureIndex:
+              100,
+            maximumExposureIndex:
+              12800,
+            readoutRegimeId:
+              "base"
+          }],
+          expandedRegimeBindings: [
+            {
+              expandedSettingId:
+                "high-1",
+              readoutRegimeId:
+                "base"
+            },
+            {
+              expandedSettingId:
+                "high-1",
+              readoutRegimeId:
+                "high-gain"
+            }
+          ],
+          evidence:
+            evidence("dup-expanded")
+        }]
+      })
+    ).toThrow(
+      "duplicate expandedSettingId"
+    );
+  });
+
+  it("fails closed on readout identity drift, empty mode identity, and missing expanded regime binding", () => {
+    expect(() =>
+      resolveGenericIsoSignalChain({
+        profile:
+          signalChainProfile(),
+        isoCapability:
+          isoProfile(),
+        requestedIsoSetting: {
+          kind: "standard",
+          exposureIndex: 400
+        },
+        captureModeId:
+          "native",
+        readoutProfile:
+          parseSensorReadoutConversionProfile({
+            ...readoutProfile(),
+            profileId:
+              "different-readout"
+          })
+      })
+    ).toThrow(
+      "readoutProfileId"
+    );
+
+    expect(() =>
+      resolveGenericIsoSignalChain({
+        profile:
+          signalChainProfile(),
+        isoCapability:
+          isoProfile(),
+        requestedIsoSetting: {
+          kind: "standard",
+          exposureIndex: 400
+        },
+        captureModeId: " ",
+        readoutProfile:
+          readoutProfile()
+      })
+    ).toThrow(
+      "captureModeId must be a non-empty string"
+    );
+
+    const missingExpanded =
+      parseGenericIsoSignalChainProfile({
+        ...signalChainProfile(),
+        profileId:
+          "missing-expanded",
+        captureModeBindings: [{
+          ...signalChainProfile()
+            .captureModeBindings[0]!,
+          expandedRegimeBindings:
+            []
+        }]
+      });
+
+    expect(() =>
+      resolveGenericIsoSignalChain({
+        profile:
+          missingExpanded,
+        isoCapability:
+          isoProfile(),
+        requestedIsoSetting: {
+          kind: "expanded",
+          settingId: "high-1"
+        },
+        captureModeId:
+          "native",
+        readoutProfile:
+          readoutProfile()
+      })
+    ).toThrow(
+      "has no signal-chain regime binding"
+    );
+  });
+});
+
+describe("generic ISO preset validation boundaries", () => {
+  it("validates catalog schema, exact cardinality, and preset labels", () => {
+    expect(() =>
+      parseGenericIsoSignalChainPresetCatalog({
+        ...presetCatalog(),
+        schemaVersion: "9.9.9"
+      })
+    ).toThrow("schemaVersion");
+
+    expect(() =>
+      parseGenericIsoSignalChainPresetCatalog({
+        ...presetCatalog(),
+        entries: [
+          presetCatalog()
+            .entries[0],
+          presetCatalog()
+            .entries[1]
+        ]
+      })
+    ).toThrow(
+      "exactly Good, Better, and Best"
+    );
+
+    expect(() =>
+      parseGenericIsoSignalChainPresetCatalog({
+        ...presetCatalog(),
+        entries: [
+          {
+            preset: "great",
+            signalChainProfileId:
+              "profile",
+            evidence:
+              evidence("great")
+          },
+          presetCatalog()
+            .entries[1],
+          presetCatalog()
+            .entries[2]
+        ]
+      })
+    ).toThrow(
+      ".preset is invalid"
+    );
+  });
+
+  it("fails closed on an invalid runtime preset discriminator", () => {
+    expect(() =>
+      resolveGenericIsoSignalChainPreset({
+        catalog:
+          presetCatalog(),
+        preset:
+          "great" as "good"
+      })
+    ).toThrow(
+      "preset must be good, better, or best"
+    );
+  });
+});
