@@ -886,3 +886,166 @@ describe("stabilization validation boundaries", () => {
     );
   });
 });
+
+
+describe("stabilization closeout fail-closed boundaries", () => {
+  it("validates profile schema, duplicate axes, response gain, and coordinated ownership", () => {
+    expect(() =>
+      parseStabilizationSystemProfile({
+        ...profile(),
+        schemaVersion: "9.9.9"
+      })
+    ).toThrow("schemaVersion");
+
+    expect(() =>
+      parseStabilizationSystemProfile({
+        ...profile(),
+        axisResponses: [
+          profile().axisResponses[0]!,
+          profile().axisResponses[0]!
+        ]
+      })
+    ).toThrow(
+      "must not contain duplicate axes"
+    );
+
+    expect(() =>
+      parseStabilizationSystemProfile({
+        ...profile(),
+        axisResponses: [{
+          ...profile().axisResponses[0]!,
+          correctionGain: {
+            value: 1.1,
+            evidence:
+              evidence("bad-gain")
+          }
+        }]
+      })
+    ).toThrow(
+      "must lie from zero through one"
+    );
+
+    expect(() =>
+      parseStabilizationSystemProfile({
+        ...profile(),
+        architecture:
+          "coordinated-physical"
+      })
+    ).toThrow(
+      "requires an explicit body/lens correction allocation"
+    );
+
+    expect(() =>
+      parseStabilizationSystemProfile({
+        ...profile(),
+        coordinatedAllocation: {
+          bodyFraction: 0.5,
+          lensFraction: 0.5,
+          evidence:
+            evidence("unexpected-coordination"),
+          totalCorrectionAppliedOnce:
+            true
+        }
+      })
+    ).toThrow(
+      "Only coordinated physical stabilization"
+    );
+  });
+
+  it("keeps off mode free of panning policy and validates disturbance metadata", () => {
+    expect(() =>
+      parseStabilizationSystemProfile({
+        ...offProfile(),
+        panningPolicy: {
+          kind:
+            "declared-axis-bypass",
+          axis: "yaw",
+          evidence:
+            evidence("off-pan")
+        }
+      })
+    ).toThrow(
+      "must use panningPolicy.kind"
+    );
+
+    expect(() =>
+      parseStabilizationDisturbanceTrajectory({
+        ...trajectory(),
+        supportStateEncoded:
+          true
+      })
+    ).toThrow(
+      "metadata is invalid"
+    );
+
+    expect(() =>
+      parseStabilizationDisturbanceTrajectory({
+        ...trajectory(),
+        samples: [
+          trajectory().samples[0]
+        ]
+      })
+    ).toThrow(
+      "at least two samples"
+    );
+  });
+
+  it("validates capture-local request shape and still/video applicability", () => {
+    expect(() =>
+      calculateStabilizedCaptureTemporalSamples({
+        disturbance:
+          trajectory(),
+        profile:
+          profile(),
+        captureKind:
+          "video",
+        timing:
+          timing(),
+        samplePointsNative: [{
+          x: 50,
+          y: 25
+        }],
+        temporalSampleCount: 2
+      })
+    ).toThrow(
+      "must exactly match"
+    );
+
+    expect(() =>
+      calculateStabilizedCaptureTemporalSamples({
+        disturbance:
+          trajectory(),
+        profile:
+          profile(),
+        captureKind:
+          "still",
+        timing:
+          timing(),
+        samplePointsNative: [],
+        temporalSampleCount: 2
+      })
+    ).toThrow(
+      "must be a non-empty array"
+    );
+
+    expect(() =>
+      calculateStabilizedCaptureTemporalSamples({
+        disturbance:
+          trajectory(),
+        profile:
+          profile(),
+        captureKind:
+          "still",
+        timing:
+          timing(),
+        samplePointsNative: [{
+          x: 50,
+          y: 25
+        }],
+        temporalSampleCount: 0
+      })
+    ).toThrow(
+      "temporalSampleCount"
+    );
+  });
+});
