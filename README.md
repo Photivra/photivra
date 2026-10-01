@@ -129,6 +129,8 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [dark-current charge accumulation](docs/USAGE.md#dark-current-charge), integrating evidence-backed pre-compensation thermal electron rate over the exact local EQE exposure without inventing a universal temperature law or full-well assessment;
 - [accumulated-charge completeness](docs/USAGE.md#accumulated-charge-completeness), binding photo, dark, and explicitly incremental other stored-electron contributors to one exact exposure before physical full-well assessment can be authorized;
 - [physical charge-capacity assessment](docs/USAGE.md#physical-charge-capacity), comparing complete expected stored electrons with an evidence-backed physical storage capacity without conflating it with camera/digital saturation or inventing blooming/clamping;
+- [stochastic sensor charge and RAW-code readout](docs/USAGE.md#stochastic-charge-conversion-adc-and-raw-code), with deterministic seeded photo/dark shot-noise, explicit additional-charge sampling policies, separate electronic read-noise components, explicit conversion-gain regimes, black offset, pre-ADC saturation, ADC quantization, and digital saturation without inferring behavior from ISO;
+- [capture-mode/CFA-bound RAW samples and reconstruction](docs/USAGE.md#raw-capture-samples-and-reconstruction), preserving absolute native CFA phase, failing closed for grouped/remosaic modes without explicit combination math, and using evidence-backed capture-mode/CFA-specific linear reconstruction kernels without claiming aliasing or moiré modeling;
 - [camera saturation-capacity assessment](docs/USAGE.md#camera-saturation-capacity), comparing dark-corrected photo-signal electron-equivalent expectation against an evidence-backed camera response-chain saturation capacity without reusing total stored charge or inferring the limiting clipping stage;
 - [local sensor-rate/exposure binding](docs/USAGE.md#local-sensor-rateexposure-binding), mapping an exact response-rate color site through an evidenced one-to-one native-effective-raster relationship to its local shutter window without yet authorizing rate×duration integration;
 - [constant-rate local-exposure integration](docs/USAGE.md#constant-rate-local-exposure-integration), requiring stationarity evidence for the exact local window before producing EQE expected counts or A/W photocurrent charge while keeping saturation unauthorized;
@@ -245,7 +247,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.87.0`
+- Engine API contract: `0.88.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 

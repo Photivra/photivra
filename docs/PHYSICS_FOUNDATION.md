@@ -259,6 +259,28 @@ The current model returns one global image-plane vector. It does not compute the
 
 Equivalent stabilization stops attenuate angular displacement by `2^-stops`; that attenuation is explicitly an educational approximation rather than a real IBIS/OIS or CIPA performance model.
 
+### Sensor stochastic readout and RAW boundary
+
+The #14 closure separates deterministic expectation calculations from stochastic realizations and from digital encoding.
+
+Expected photo, dark and additional stored charge remain upstream scientific quantities. A seeded realization may sample photo/dark Poisson statistics and explicitly declared additional-component statistics without mutating those expectation APIs.
+
+Electronic read noise is a downstream input-referred stochastic contribution and remains separate from photon/dark shot noise. Multiple declared RMS read-noise components are sampled independently; their metadata is not collapsed into a claim about physical circuit origin unless evidence says so.
+
+The electronic chain preserves separate saturation domains:
+
+1. physical charge-storage capacity;
+2. pre-ADC electron-equivalent saturation;
+3. ADC/digital code saturation.
+
+A scalar clamp at physical capacity is not a blooming model. Blooming requires spatial charge-transfer/adjacency and anti-blooming semantics.
+
+Conversion gain is expressed as electrons per digital code for one explicitly selected operating regime. The engine does not infer that regime from ISO, CMOS/CCD family, capture-mode labels, or product tier.
+
+RAW codes retain absolute native sensor/CFA coordinates. Capture orientation and final output rotation do not rotate or re-phase the sensor mosaic.
+
+The first reconstruction model is an explicit linear native-neighborhood transform tied to exact capture-mode and CFA identities. It is intentionally not a generic claim that a CFA name determines a demosaic algorithm. It also does not claim moiré/aliasing physics unless an adequate pre-sampling optical/scene spatial-frequency model exists.
+
 ### Radiometry readiness boundary
 
 Absolute scene luminance or relative exposure alone is not enough to derive a defensible photon count.
