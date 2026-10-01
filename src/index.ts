@@ -1,4 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
+export { PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION, parseExportSensorColorProfile, parsePhotographicExportInput, createPhotographicExportPair,
+  type ExportSensorColorProfile, type PhotographicExportInput, type PhotographicExportPair } from "./capture/photographic-export.js";
+export { CAPTURE_EXPORT_METADATA_SCHEMA_VERSION, parseCaptureExportMetadataInput, createCaptureExportMetadataPair,
+  type CaptureExportWorkflow, type CaptureExportArtifactIdentity, type CaptureExportMetadataInput,
+  type CaptureExportSharedMetadata, type CaptureExportMetadataPair } from "./capture/capture-export-metadata.js";
+export { CAPTURE_SDR_SCHEMA_VERSION, parseCaptureSdrInput, calculateCaptureSdr, type CaptureSdrInput, type CaptureSdrResult } from "./output/capture-sdr.js";
+export { RAW_FRAME_RECONSTRUCTION_SCHEMA_VERSION, parseRawFrameReconstructionInput, resolveRawFrameReconstruction,
+  type RawFrameReconstructionPhaseProfile, type RawFrameReconstructionInput, type RawFrameReconstruction } from "./capture/raw-frame-reconstruction.js";
+export { SENSOR_RAW_FRAME_SCHEMA_VERSION, createSensorRawFrame, parseSensorRawFrameInput,
+  type SensorRawFrameInput, type SensorRawFrame } from "./capture/sensor-raw-frame.js";
 
 export {
   parseOpticalProfileState,

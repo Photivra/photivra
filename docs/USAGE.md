@@ -1,5 +1,9 @@
 # Usage Guide
 
+For bounded same-RAW paired DNG/JPEG byte export, see
+[Photographic export](PHOTOGRAPHIC_EXPORT.md). It requires an explicit approximate
+sensor-color profile; external editor acceptance remains pending.
+
 This guide shows how to call the capabilities exported by the root `@photivra/engine` package.
 
 The package is ESM-only. Primitive scientific calculations generally return a `CalculationResult<T>`:

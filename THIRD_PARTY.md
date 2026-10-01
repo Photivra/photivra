@@ -23,6 +23,26 @@ This inventory does not replace a transitive dependency/SBOM review before a rel
 
 ## Automated license policy
 
+The bounded DNG/TIFF and baseline JPEG encoders are independently authored.
+No Adobe SDK, external encoder source, default quantization/Huffman tables,
+calibration dataset or runtime dependency is incorporated. Numeric test profiles
+and custom coding tables are owned synthetic fixtures, not camera calibration.
+
+Format references:
+
+- Adobe DNG and patent-license notice: https://helpx.adobe.com/camera-raw/desktop/dng-and-file-formats/digital-negative.html
+- DNG specification: https://helpx.adobe.com/content/dam/help/en/photoshop/pdf/DNG_Spec_1_7_1_0.pdf
+- ITU-T T.81 JPEG: https://www.w3.org/Graphics/JPEG/itu-t81.pdf
+- JFIF: https://www.w3.org/Graphics/JPEG/jfif3.pdf
+- Adobe XMP: https://developer.adobe.com/xmp/docs/xmp-specifications/
+- CIPA Exif: https://www.cipa.jp/std/documents/e/DC-X008-Translation-2019-E.pdf
+
+The DNG patent-license notice appears in `NOTICE` and exporter source. These
+references do not authorize copying SDK code or scientific datasets. Human
+provenance/license review remains required before release.
+
+### Dependency allowlist
+
 `npm run check:licenses` reviews every package recorded in `package-lock.json`.
 
 Currently allowed without additional review:
