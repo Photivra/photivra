@@ -7,7 +7,7 @@ import {
 } from "../src/index.js";
 import { correctionProfile, gain, raster, resampler, state, transform } from "./optics-group-fixtures.js";
 const physical = Array.from({ length: 25 }, (_, i) => 10+i*.01);
-const capture = { captureId: "physical-capture-1", noiseRealizationId: "noise-42", timeSeconds: .1, raster,
+const capture = { state, captureId: "physical-capture-1", noiseRealizationId: "noise-42", timeSeconds: .1, raster,
   channels: { red: physical, green: physical, blue: physical } };
 function plan(profile = correctionProfile, selections: Record<string, "on" | "off" | "auto"> = {}): ResolvedLensCorrectionPlan {
   return resolveLensCorrectionPlan({ profile, state: profile.state, selections, outputKind: "processed", selectionKind: "camera-selectable" }).value;
@@ -86,6 +86,20 @@ describe("generic camera lens correction", () => {
     expect(result.channels.red.slice(10, 15)).toEqual([1, 1.5, 2, 1.5, 1]);
     expect(result.samplingPlans.red!.points[12]!.anisotropy).toBe(2);
   });
+  it("permits deliberately residual distortion maps without changing capture or lens state", () => {
+    const geometry = correctionProfile.components[0]!;
+    if (geometry.kind !== "geometry") throw new Error("fixture");
+    const make = (k1: number): GenericLensCorrectionProfile => ({ ...correctionProfile, components: [{ ...geometry,
+      residualNote: "Declared correction polynomial; no exact physical inverse claim.",
+      transform: { id: "residual-distortion", version: "1", kind: "radial", purpose: "distortion", domain: "reconstructed-linear",
+        profile: { normalizationRadiusMm: 4, maximumNormalizedRadius: 1, coefficients: { k1, k2: 0, k3: 0 } } } }] });
+    const full = render(plan(make(-.1))), partial = render(plan(make(-.05)));
+    expect(full.samplingPlans.red!.points[0]!.sourcePointMm.x).toBeCloseTo(-1.9, 12);
+    expect(partial.samplingPlans.red!.points[0]!.sourcePointMm.x).toBeCloseTo(-1.95, 12);
+    expect(full.channels.red[0]).not.toBe(partial.channels.red[0]);
+    expect(full.noiseRealizationId).toBe(partial.noiseRealizationId);
+    expect(capture.state).toEqual(state);
+  });
   it("fails closed for incompatible domains, geometry across gain, and wrong output geometry", () => {
     const geometry = correctionProfile.components[0]!;
     if (geometry.kind !== "geometry") throw new Error("fixture");
@@ -96,6 +110,8 @@ describe("generic camera lens correction", () => {
     expect(() => render(plan(badOrder))).toThrow();
     expect(() => calculateLensCorrectedCapture({ plan: plan(), capture, destinationRaster: { ...raster, width: 6 },
       resampler, physicalProjectionDistanceMm: 50, clippingLevel: 100 })).toThrow();
+    expect(() => calculateLensCorrectedCapture({ plan: plan(), capture: { ...capture, state: { ...state, aperture: 8 } },
+      destinationRaster: raster, resampler, physicalProjectionDistanceMm: 50, clippingLevel: 100 })).toThrow();
   });
   it("rejects unsupported families, hidden tier assumptions, invalid strengths and bindings", () => {
     for (const value of [{ ...correctionProfile, tier: "professional" }, { ...correctionProfile, schemaVersion: "2" },

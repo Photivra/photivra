@@ -169,6 +169,7 @@ export function calculatePeripheralIlluminationCorrection(input: {
 
 /** Immutable capture identity accompanies downstream channels for meaningful On/Off comparisons. */
 export interface LensCorrectionCapture {
+  state: OpticalProfileState;
   captureId: string;
   noiseRealizationId: string;
   timeSeconds: number;
@@ -197,6 +198,7 @@ export function calculateLensCorrectedCapture(input: {
     selections: Object.fromEntries(input.plan.components.filter((e) => e.component.availability === "toggle").map((e) => [e.component.id, e.enabled ? "on" : "off"])),
     outputKind: input.plan.outputKind, selectionKind: input.plan.selectionKind }).value;
   const capture = input.capture;
+  requireSameState(plan.profile.state, capture.state);
   parseGeometricRaster(capture.raster);
   const destination = parseGeometricRaster(input.destinationRaster);
   if (destination.width !== plan.profile.state.outputWidth || destination.height !== plan.profile.state.outputHeight) {

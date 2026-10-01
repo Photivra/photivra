@@ -95,6 +95,18 @@ describe("composed digital geometry", () => {
     const result = calculateGeometricResampling({ plan: p, sourceSamples: data }).value.samples;
     expect(result[0]).toBe(5.5); expect(result[4]).toBe(null); expect(result[24]).toBe(null);
   });
+  it("preserves a nonrectangular support mask before choosing a joint safe crop", () => {
+    const c = Math.SQRT1_2;
+    const p = plan(prepared([{ ...transform, matrix: [c, -c, c, c], purpose: "orientation-crop" }]));
+    expect(p.validSourceMask.map((v) => v ? 1 : 0)).toEqual([
+      0, 0, 1, 0, 0,
+      0, 1, 1, 1, 0,
+      1, 1, 1, 1, 1,
+      0, 1, 1, 1, 0,
+      0, 0, 1, 0, 0
+    ]);
+    expect(p.jointCrop).toEqual({ x: 1, y: 1, width: 3, height: 3 });
+  });
   it("keeps incompatible domains separate and rejects a fused pass", () => {
     const mapping = prepared([transform, { ...transform, id: "raw", domain: "raw-channel" }]);
     expect(mapping.groups.length).toBe(2); expect(() => plan(mapping)).toThrow();
