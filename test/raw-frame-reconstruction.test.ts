@@ -2,14 +2,14 @@
 
 import { describe, expect, it } from "vitest";
 import { createSensorRawFrame, createSimulatedCapture, resolveRawFrameReconstruction, parseRawFrameReconstructionInput,
-  resolveSensorRawReconstruction, type RawFrameReconstructionInput } from "../src/index.js";
+  resolveSensorRawReconstruction, type RawFrameReconstructionInput, type SensorRawReconstructionKernelContribution } from "../src/index.js";
 import { loadSensorRawFrameInput } from "./helpers/sensor-raw-frame-fixture.js";
 
 function input(): RawFrameReconstructionInput {
   const rawFrame = createSensorRawFrame(loadSensorRawFrameInput());
   const phaseProfiles = [0, 1, 2, 3].map((i) => {
     const phaseX = i%2, phaseY = Math.floor(i/2);
-    const c = (x: number, y: number, sourceChannelId: string, weight: number) =>
+    const c = (x: number, y: number, sourceChannelId: string, weight: number): SensorRawReconstructionKernelContribution =>
       ({ offsetX: x-phaseX, offsetY: y-phaseY, sourceChannelId, weight });
     return { phaseX, phaseY, profile: { schemaVersion: "0.1.0", profileId: "phase-"+i, profileVersion: "1",
       captureModeId: "native", colorSamplingProfileId: "cfa", scientificStatus: "approximation",
@@ -57,6 +57,7 @@ describe("same-RAW native reconstruction handoff", () => {
     for (const orientation of ["landscape", "portrait-clockwise", "landscape-inverted", "portrait-counter-clockwise"] as const) {
       const raw = loadSensorRawFrameInput(), c = raw.capture;
       const { schemaVersion: _s, engineApiVersion: _e, resolvedGeometry: _r, equivalentFocalLength35Mm: _f, ...captureInput } = c;
+      void _s; void _e; void _r; void _f;
       raw.capture = createSimulatedCapture({ ...captureInput, geometry: { ...c.geometry, orientation } }).value;
       const v = input(), r = resolveRawFrameReconstruction({ ...v, rawFrame: createSensorRawFrame(raw), region: { x: 1, y: 1, width: 1, height: 1 } });
       expect(r.value.pixels[0]!.value.reconstructionProfileId).toBe("phase-3");
