@@ -749,6 +749,14 @@ export function parseStabilizationSystemProfile(
       "stabilizationSystemProfile.panningPolicy"
     );
   if (
+    architecture === "off" &&
+    panningPolicy.kind !== "none"
+  ) {
+    throw new InvalidConfigurationError(
+      "An off stabilization profile must use panningPolicy.kind \"none\"."
+    );
+  }
+  if (
     panningPolicy.kind ===
       "declared-axis-bypass" &&
     !axisResponses.some(
@@ -1218,8 +1226,7 @@ function evaluateAtTime(
           maximumCorrectionAngleRad:
             response
               ?.maximumCorrectionAngleRad
-              .value ??
-            Number.MAX_VALUE,
+              .value ?? 0,
           bypassedForDeclaredPan:
             bypassed,
           correctionLimitReached:
