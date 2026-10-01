@@ -1,6 +1,6 @@
 # Stray light and digital lens correction foundations
 
-Issues #114, #118 and #117 add standalone browser-safe primitives. They do not enable a production-plan stage, change the POC, or supply a calibrated camera/lens preset. The public root API advances from 0.93.0 to 0.94.0; each new profile/prepared-map schema is 0.1.0. Package, POC, production-plan and PSF versions are unchanged. This branch starts from main independently of pending polygon-diffraction PR #157. Resolve the root API version against the final merged sequence before merging both branches.
+Issues #114, #118 and #117 add standalone browser-safe primitives. They do not enable a production-plan stage, change the POC, or supply a calibrated camera/lens preset. The public root API advances from 0.94.0 to 0.95.0; each new profile/prepared-map schema is 0.1.0. Package, POC, production-plan and PSF versions are unchanged. This branch incorporates merged polygon-diffraction PR #157 and reconciles the root API increment with that predecessor.
 
 ## Applicability and evidence
 
