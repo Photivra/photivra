@@ -2765,6 +2765,88 @@ The assessment reports photo-signal/capacity ratio, headroom, and below/at/above
 
 Stage-specific analog clipping, ADC/digital code limits, and RAW-code behavior require separate evidence-backed response-chain contracts.
 
+## Stochastic charge, conversion, ADC, and RAW code
+
+Use `simulateSensorChargeRealization()` only after the existing accumulated-charge completeness contract has produced complete expected stored charge for one exact sensor site/exposure.
+
+The first stochastic layer keeps expectation values separate from realizations:
+
+- photo-generated electrons use an explicit Poisson model;
+- dark-generated electrons use an explicit Poisson model;
+- each additional stored-charge component must declare its own Poisson or deterministic electron-equivalent policy;
+- the realization uses an explicit deterministic 32-bit seed;
+- electronic read noise is still downstream.
+
+The stochastic realization does not change the upstream expected charge or its provenance.
+
+Use `parseSensorReadoutConversionProfile()` and `resolveSensorReadoutRegime()` for the downstream electronic chain. A regime declares:
+
+- system conversion gain in electrons per code;
+- explicit input-referred electronic read-noise components in RMS electrons;
+- a pre-ADC electron-equivalent saturation threshold;
+- ADC bit depth;
+- black-level code;
+- digital saturation code;
+- deterministic uniform round-half-up quantization.
+
+Regime selection is explicitly:
+
+`explicit-upstream-camera-state-not-inferred-from-iso`
+
+ISO therefore does not silently choose conversion gain, read noise, or ADC behavior. #7 may later map an explicit camera ISO state to a documented regime, but this sensor contract does not infer that mapping.
+
+`calculateExpectedSensorReadout()` remains an expectation path: it reports zero-mean read noise and does not quantize. If the upstream expected stored charge is already above physical storage capacity, it fails closed because the physical-capacity assessment does not define a linear post-saturation charge value.
+
+`simulateSensorRawCode()` consumes a stochastic charge realization plus the matching physical-capacity assessment. Its stage order is explicit:
+
+```text
+realized stored charge
+  → scalar physical storage-capacity clamp
+  → electronic read-noise realization
+  → pre-ADC electron-equivalent saturation
+  → system conversion gain
+  → black-level code offset
+  → ADC quantization
+  → digital saturation clamp
+  → RAW code
+```
+
+The physical storage clamp is a bounded scalar approximation only. Overflow is reported diagnostically, while `bloomingModeled` remains false because neighbor topology, charge transport, and anti-blooming behavior are not modeled.
+
+Physical storage capacity, pre-ADC saturation, and digital/ADC saturation are independent thresholds and may disagree.
+
+## RAW capture samples and reconstruction
+
+Use `createSensorRawCaptureSample()` to bind one generated RAW code to the existing capture-mode/color-sampling structural contract.
+
+Schema 0.1.0 intentionally permits only an ungrouped native-effective capture-mode sample that maps to exactly one color-sampling site. Grouped/binning/remosaic modes fail closed because structural contributor counts do not define signal-combination weights or analog/digital combination math.
+
+The RAW sample preserves:
+
+- absolute native full-frame sample coordinate;
+- absolute sensor/CFA site coordinate;
+- exact channel identity;
+- raw/black/digital-saturation code values;
+- readout regime identity;
+- charge/read-noise seeds;
+- physical/digital saturation diagnostics.
+
+Physical orientation and output rotation remain downstream, so CFA phase is never reset by portrait orientation or an active crop.
+
+Use `parseSensorRawReconstructionProfile()` and `resolveSensorRawReconstruction()` for the first reconstruction contract. The profile is tied to one exact capture-mode ID and color-sampling profile ID and declares explicit native-neighborhood linear weights per output channel.
+
+Every input RAW sample is re-resolved against the declared color-sampling topology. A stored channel label that disagrees with the CFA at that native site fails closed.
+
+The first reconstruction contract:
+
+- preserves negative black-subtracted linear values;
+- leaves RAW samples unchanged;
+- applies no sharpening or denoising;
+- does not infer branded Bayer/X-Trans/remosaic behavior from a topology label;
+- reports `aliasingModeled: false` and `moireModeled: false`.
+
+Aliasing/moiré claims require an adequate pre-sampling optical/scene spatial-frequency model; reconstruction artifacts alone are not treated as proof that that physical aliasing model exists.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
