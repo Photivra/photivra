@@ -3382,6 +3382,97 @@ Per-node evidence and uncertainty are retained. Aggregate numeric uncertainty is
 
 This is the bridge required for physically timed flicker/flash/source variation. It does not use sensor readout phase as an exposure-time surrogate and does not itself implement visibility, material transport or a renderer.
 
+## Manual flash and ordinary sync
+
+The #106 foundation models a manual flash as **time-varying scene illumination**, not a post-render brightness control.
+
+The flow is:
+
+```text
+manual flash source geometry + spectrum + relative output
+  + explicit pulse waveform
+  + #12 exposure-window timing
+  -> #85 temporal illumination source
+  -> scene radiance / material / visibility transport
+  -> optics and sensor integration
+```
+
+Use `parseManualFlashProfile()` for one generic manual flash source and `parseFlashSyncCapabilityProfile()` for the exact capture-mode/timing profile that permits ordinary synchronization.
+
+A manual flash profile declares:
+
+- stable source identity;
+- #85 point/spot/area/etc. geometry;
+- source spectrum;
+- relative-linear output scale;
+- explicit piecewise-linear pulse support and shape;
+- provenance/limitations.
+
+Schema 0.1.0 uses relative source magnitude only. It does not claim a calibrated guide number, joule value, branded flash range, or manufacturer-specific pulse curve.
+
+### Front- and rear-curtain timing
+
+Call `resolveManualFlashSync()` with the resolved #12 capture-mode timing.
+
+For ordinary one-pulse flash, Photivra derives the interval during which **the entire active frame is simultaneously exposed**:
+
+```text
+whole-frame-open start = latest opening-boundary phase
+whole-frame-open end   = earliest closing-boundary phase
+```
+
+For a uniform focal-plane opening scan, the latest opening is the opening traversal duration. The earliest closing remains the nominal closing reference. If the interval is zero/negative, ordinary flash cannot uniformly light the full active frame.
+
+Front sync places the pulse at the beginning of this valid interval. Rear sync places it at the end:
+
+```text
+front pulse start = whole-frame-open start
+rear pulse start  = whole-frame-open end - pulse support duration
+```
+
+The full pulse support must fit inside the interval. A shutter/capture timing with no adequate all-frame-open interval fails closed.
+
+Sensor **data readout timing is never used as flash exposure timing**.
+
+### HSS boundary
+
+`high-speed-sync` is a recognized request but is intentionally unsupported in schema 0.1.0.
+
+Photivra does not make HSS work by allowing an ordinary short pulse above the normal sync regime. Real HSS requires an extended/repeated illumination waveform coordinated with the moving exposure slit and has different energy/range behavior.
+
+### Illumination overlay
+
+`createManualFlashIlluminationOverlay()` appends the flash as a real #85 illumination source and constructs the matching temporal waveform/source binding.
+
+If an ambient `SceneIlluminationTemporalProfile` already exists, its waveforms and source bindings are preserved and rebound to the new combined illumination-profile identity. Flash therefore does not erase ambient flicker or other source timing.
+
+When flash is disabled, the base illumination and temporal profiles are returned unchanged in meaning and no flash source is added.
+
+The flash source retains its position/direction/coverage geometry. Distance falloff, surface orientation, shadows, visibility and indirect transport remain owned by the scene-radiance provider/renderer; Photivra does not fake those effects with a frame-wide scalar.
+
+### Manual flash controls remain separate
+
+The manual-flash layer does not change:
+
+- aperture;
+- shutter duration;
+- ISO;
+- ambient exposure compensation;
+- WB;
+- focus;
+- drive mode;
+- stable-support state.
+
+The source output control is independent of camera ISO/aperture/shutter. Those camera settings affect the resulting captured flash contribution only through the normal image-formation chain.
+
+Flash spectrum is physical scene illumination. A downstream Flash WB preset, if selected, must not alter the source spectrum.
+
+### #105 release binding
+
+An optional committed `ResolvedReleaseFrame` may be supplied. Its shutter duration must match the #12 timing contract. The resolved flash event then exposes pulse start/end in sequence-relative scene time without changing the release frame.
+
+TTL/preflash metering, flash exposure compensation policy, FE/FV lock, recycle/burst/thermal limits, red-eye preflashes, modeling lamps, AF-assist and wireless protocol simulation remain outside this first manual-flash contract.
+
 ## Capture orientation, active area, and output geometry
 
 Use `resolveCaptureGeometry()` to keep physical sensor identity, active capture, physical camera orientation, and final digital output geometry separate:
