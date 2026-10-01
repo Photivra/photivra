@@ -117,6 +117,7 @@ export function calculateLinearCaptureEncoding(input: LinearCaptureEncodingInput
   });
   const { storage: _storage, ...sourcePlane } = plane;
   const { planes: _planes, ...captureMetadata } = capture;
+  void _storage; void _planes; // Float sample arrays are intentionally omitted from encoded metadata.
   return calculatedResult({ schemaVersion: LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION, captureId: capture.captureId, captureMetadata, sourcePlane,
     encoding, sampleLayout: "row-major-interleaved", bitDepth: 16, codeMinimum: 0, codeMaximum: 65535,
     referenceWhiteValue: plane.referenceWhiteValue, scale, minimumRepresentableValue: minimum, maximumRepresentableValue: maximum,
