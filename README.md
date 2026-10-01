@@ -10,6 +10,8 @@ Its calculations use explicit units, documented assumptions, validation, provena
 
 The source is licensed under Apache-2.0.
 
+Standalone stray-light irradiance, composed digital geometry and generic camera lens-correction APIs are documented in [Digital optics foundations](docs/DIGITAL_OPTICS_FOUNDATION.md). They preserve optical/sensor capture authority and explicit sampling/noise costs; production composition remains separate.
+
 ## Quick start
 
 Install the ESM package:
@@ -253,7 +255,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.94.0`
+- Engine API contract: `0.95.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
