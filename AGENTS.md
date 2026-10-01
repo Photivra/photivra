@@ -559,6 +559,16 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 
 ## Runtime and package boundary
 
+### Standalone stray light and digital corrections
+
+- Consume `docs/DIGITAL_OPTICS_FOUNDATION.md` for #114/#118/#117. These primitives do not activate production-plan stages or change POC behavior.
+- Ghost/veil contributions are additive spectral irradiance before exposure/sensor processing. Keep diffraction, primary PSF, contamination and display effects separate.
+- Profiles require exact generic system/acquisition binding and explicit generic evidence. Do not promote synthetic coefficients to calibration or extrapolate.
+- Preserve full destination-to-source Jacobians, compatible-domain groups, resampler identity, prefilter requirements and valid-source masks/joint crops. Invalid support remains unavailable.
+- Corrections warp already-sampled blur/noise; gain changes downstream signal/variance without rewriting photons. RAW metadata intent, camera mandatory settings and educational reference bypass are separate states.
+- The bounded RGB executor accepts reconstructed-linear geometry/CA followed by gain only. Reject incompatible-domain or geometry-across-gain execution rather than reorder it. Production #111/#112 require their own explicit composition.
+- Reconcile root API versions against other pending API branches before merge; schemas and package/POC versions remain independent.
+
 - The root package must remain browser-safe and ESM-only.
 - Node-only code must not become reachable from the root public export.
 - The repository-local POC HTTP code under `src/api` is contributor tooling, not a supported package subpath or production architecture.

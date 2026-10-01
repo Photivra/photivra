@@ -1,5 +1,51 @@
 // SPDX-License-Identifier: Apache-2.0
 
+export {
+  parseOpticalProfileState,
+  type OpticalProfileState,
+  type GenericOpticalEvidence
+} from "./optics/profile-contract.js";
+export {
+  parseLensStrayLightProfile,
+  calculateLensStrayLightIrradiance,
+  type LensStrayLightProfile,
+  type ParametricStrayLightResponse,
+  type StrayLightSource,
+  type StrayLightIrradiance
+} from "./optics/stray-light.js";
+export {
+  parseDigitalGeometricTransform,
+  prepareGeometricMapping,
+  calculateComposedGeometricMapping,
+  calculateForwardGeometricMapping,
+  calculateGeometricSamplingPlan,
+  calculateGeometricResampling,
+  type DigitalGeometricTransform,
+  type AffineGeometricTransform,
+  type RadialGeometricTransform,
+  type GeometricJacobian,
+  type GeometricImageDomain,
+  type PreparedGeometricMapping,
+  type GeometricRaster,
+  type GeometricResampler,
+  type GeometricMappingPoint,
+  type GeometricSamplingPlan
+} from "./output/geometric-transforms.js";
+export {
+  parseGenericLensCorrectionProfile,
+  resolveLensCorrectionPlan,
+  calculatePeripheralIlluminationCorrection,
+  calculateLensCorrectedCapture,
+  type GenericLensCorrectionProfile,
+  type LensCorrectionComponent,
+  type LensCorrectionChannel,
+  type GeometricLensCorrection,
+  type LateralCaLensCorrection,
+  type IlluminationLensCorrection,
+  type ResolvedLensCorrectionPlan,
+  type LensCorrectionCapture
+} from "./output/lens-corrections.js";
+
 export { ENGINE_API_VERSION } from "./core/version.js";
 
 export {
