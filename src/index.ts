@@ -1125,6 +1125,33 @@ export {
 } from "./exposure/exposure-mode-resolver.js";
 
 export {
+  STABILIZATION_DISTURBANCE_TRAJECTORY_VERSION,
+  STABILIZATION_SYSTEM_PROFILE_SCHEMA_VERSION,
+  calculateStabilizedCaptureTemporalSamples,
+  calculateStabilizedRotationTrajectory,
+  parseStabilizationDisturbanceTrajectory,
+  parseStabilizationSystemProfile,
+  type CalculateStabilizedCaptureTemporalSamplesInput,
+  type CalculateStabilizedRotationTrajectoryInput,
+  type PhysicalStabilizationArchitecture,
+  type StabilizationAngularStateRad,
+  type StabilizationAxisResolution,
+  type StabilizationAxisResponseProfile,
+  type StabilizationCaptureKind,
+  type StabilizationCoordinatedAllocation,
+  type StabilizationDisturbanceSample,
+  type StabilizationDisturbanceTrajectory,
+  type StabilizationPanningPolicy,
+  type StabilizationRotationAxis,
+  type StabilizationSystemProfile,
+  type StabilizedCaptureTemporalNode,
+  type StabilizedCaptureTemporalPoint,
+  type StabilizedCaptureTemporalSamples,
+  type StabilizedRotationSample,
+  type StabilizedRotationTrajectory
+} from "./stabilization/system.js";
+
+export {
   estimateCameraShakeBlur,
   type CameraShakeBlurSample,
   type CameraShakeEstimate,
