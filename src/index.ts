@@ -906,6 +906,24 @@ export {
 } from "./motion/capture-rotation-temporal-quadrature.js";
 
 export {
+  FLASH_SYNC_CAPABILITY_SCHEMA_VERSION,
+  MANUAL_FLASH_PROFILE_SCHEMA_VERSION,
+  createManualFlashIlluminationOverlay,
+  parseFlashSyncCapabilityProfile,
+  parseManualFlashProfile,
+  resolveManualFlashSync,
+  type CreateManualFlashIlluminationOverlayInput,
+  type FlashSyncCapabilityProfile,
+  type ManualFlashIlluminationOverlay,
+  type ManualFlashProfile,
+  type ManualFlashPulseProfile,
+  type ManualFlashSyncMode,
+  type RequestedFlashSyncMode,
+  type ResolveManualFlashSyncInput,
+  type ResolvedManualFlashSync
+} from "./exposure/flash.js";
+
+export {
   calculateEquivalentIso,
   calculateExposureValue100,
   calculateRelativeOpticalExposure,
