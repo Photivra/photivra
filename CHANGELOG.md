@@ -1,5 +1,20 @@
 # Changelog
 
+## Paired DNG/JPEG reference export — unreleased
+
+- Added `createPhotographicExportPair()` and strict input/color-profile parsers: uncompressed 16-bit native Bayer DNG and baseline 8-bit YCbCr444 JPEG developed from the exact attached RAW frame. Explicit reconstruction, approximate camera color interpretation, existing resolved WB, final orientation/crop and existing SDR rendering are traceable; unsupported resampling fails closed. EXIF/XMP, distinct artifact identities and deterministic SHA-256 provenance accompany owned bytes. See `docs/PHOTOGRAPHIC_EXPORT.md`.
+- Integrates pending capture-SDR, RAW attachment, metadata and reconstruction slices as one main-based draft. Proposed root API 0.100.0; export schema 0.1.0. No runtime dependency or package/POC/capture schema change. Full native input is limited to 4,096 sites. Editor interoperability, production execution and high-resolution support remain open gates.
+
+## Same-RAW reconstruction handoff — unreleased
+
+- Added #16C `resolveRawFrameReconstruction()`: bounded native-region values derived only from the attached #166 RAW frame via #14 explicit linear-neighborhood reconstruction, complete absolute-phase dispatch, child provenance and exact source contributions. Signed values survive; missing edges fail rather than padding/clamping/rephasing. Independent captured float planes are not used. No sensor color calibration, downstream WB/color/output processing or file writer is claimed. See `docs/RAW_FRAME_RECONSTRUCTION.md`.
+- Proposed root API 0.99.0, handoff schema 0.1.0. Stacked draft requires #166; reconcile parallel additive root versions before merge. Existing package/POC/capture/production contracts are unchanged.
+
+## Native RAW-frame attachment — unreleased
+
+- Added #16 prerequisite `createSensorRawFrame()` and strict input parser: complete bounded native periodic-CFA coverage, exact one-site binding, immutable capture attachment, code/black/digital-white/per-site-seed preservation, and rejection of processed/grouped/multi-frame inputs. Producer origin is explicitly caller-declared; no serializer or RAW-to-RGB pairing proof is claimed. See `docs/SENSOR_RAW_FRAME.md`.
+- Proposed root API 0.98.0 and RAW-frame schema 0.1.0. Reconcile additive root versions against parallel drafts before merge; existing package/POC/capture/production versions unchanged.
+
 Notable public changes to `@photivra/engine` are documented here.
 
 ## Unreleased
