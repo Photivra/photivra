@@ -12,6 +12,7 @@ import {
   resolveCaptureModeTiming,
   resolveManualFlashSync,
   type FlashSyncCapabilityProfile,
+  type ManualFlashIlluminationOverlay,
   type ManualFlashProfile,
   type ResolvedCaptureModeTiming,
   type ResolvedReleaseFrame,
@@ -864,7 +865,7 @@ describe("manual flash illumination overlay", () => {
     const create = (
       timing:
         ResolvedCaptureModeTiming
-    ) => {
+    ): ManualFlashIlluminationOverlay => {
       const sync =
         resolveManualFlashSync({
           flashEnabled: true,
