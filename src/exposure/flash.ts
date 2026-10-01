@@ -470,13 +470,27 @@ function validateSourceTemplate(
       "manualFlashProfile.sourceTemplate must produce one valid illumination source."
     );
   }
-  const {
-    enabled: _enabled,
-    temporalBehavior:
-      _temporalBehavior,
-    ...validated
-  } = source;
-  return validated;
+  return {
+    sourceId:
+      source.sourceId,
+    family:
+      source.family,
+    geometry:
+      source.geometry,
+    magnitude:
+      source.magnitude,
+    spectrum:
+      source.spectrum,
+    evidence:
+      source.evidence,
+    ...(source.limitations ===
+    undefined
+      ? {}
+      : {
+          limitations:
+            source.limitations
+        })
+  };
 }
 
 export function parseManualFlashProfile(
