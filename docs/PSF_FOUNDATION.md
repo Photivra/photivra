@@ -1,133 +1,130 @@
 # PSF and Pupil Foundation
 
-Photivra's PSF/pupil foundation keeps optical blur contributions **separate and explicitly contextualized** until a defensible composition model exists.
+Photivra has two complementary PSF layers.
 
-Use:
+The legacy foundation keeps the ideal **geometric defocus-circle** and **circular Airy first-zero** diagnostics separately named and independently testable. The #113 real-lens framework adds explicitly profiled or pupil-derived **combined primary-optical PSFs** without converting those older diagnostics into a synthetic blur score.
 
-```ts
-import {
-  calculatePsfFoundationComponents,
-  getPsfFoundationContract
-} from "@photivra/engine";
+## Legacy diagnostics
 
-const contract = getPsfFoundationContract();
+Use `getPsfFoundationContract()` and `calculatePsfFoundationComponents()` for the established diagnostics and common field/depth/wavelength/pupil context.
 
-const components = calculatePsfFoundationComponents({
-  focalLengthMm: 85,
-  aperture: 2.8,
-  focusDistanceM: 10,
-  subjectDistanceM: 20,
-  fieldPointMm: { x: 12, y: 8 },
-  fieldNormalizationRadiusMm: 21.6,
-  spectralBasis: {
-    kind: "monochromatic",
-    wavelengthNm: 550
-  }
-});
-```
+The foundation contract is version `0.2.0`.
 
-## What is implemented
+Implemented diagnostic contributions:
 
-The current foundation evaluates two existing diagnostics in one explicit context:
+- geometric defocus circle;
+- circular diffraction first-zero diameter.
 
-- **geometric defocus circle** — the existing thin-lens defocus-circle diameter;
-- **circular diffraction first-zero diameter** — the existing ideal circular-pupil Airy diagnostic.
+Implemented framework contributions:
 
-Each contribution retains the provenance of its underlying primitive.
-
-The foundation records:
-
-- physical image-plane field position;
-- normalized field radius for comparison;
-- focus and subject depth;
-- monochromatic wavelength basis;
-- ideal circular f-number-derived pupil diameter.
-
-## What is deliberately not calculated
-
-The foundation does **not** currently calculate:
-
-- a combined PSF;
-- a convolution kernel;
-- MTF;
-- one combined blur diameter;
-- a lens-sharpness score.
-
-Defocus and diffraction are independent diagnostics. A future combined PSF must document the mathematical composition method and assumptions rather than adding their diameters or scores ad hoc.
-
-## Reserved contributions
-
-The public contract reserves ownership for:
-
-- non-circular diffraction;
-- mechanical/pupil clipping;
+- mechanical pupil clipping / cat-eye PSF shape;
 - field curvature;
-- field-dependent aberration/PSF structure;
-- field-dependent bokeh.
+- field-dependent aberration;
+- field-dependent bokeh / signed-defocus response.
 
-A reserved contribution is not an implemented capability.
+Still reserved here:
 
-## Field position
+- non-circular diffraction generation, owned by #1.
 
-Field position uses physical image-plane coordinates:
+The legacy component calculator still returns no combined PSF. That is intentional: a combined PSF is available only when an explicit #113 profile or complex pupil supplies the information needed to justify one.
 
-- optical axis at the origin;
-- +X right;
-- +Y up;
-- millimetres.
+## Sampled real-lens PSFs
 
-`fieldNormalizationRadiusMm` exists only to make center/mid/edge/corner comparisons reproducible. It is not a real-lens calibration or model-validity limit by itself.
+`LensSampledPsfProfile` stores full 2D intensity PSFs on an explicit regular calibration/simulation grid.
 
-The current defocus and circular Airy diagnostics are field invariant. Recording field position now gives future field-dependent contributions a stable context without changing those existing calculations.
+Profile axes:
 
-## Spectral basis
+- focal length;
+- focus diopters (`0` = #103 optical infinity);
+- f-number;
+- image-plane field X/Y;
+- wavelength;
+- signed image-plane defocus.
 
-The current foundation accepts an explicit monochromatic wavelength because the circular Airy diagnostic is wavelength dependent.
+Every node declares a unit-energy PSF kernel with physical X/Y sample pitch. All nodes in one interpolated profile must share the same kernel grid geometry.
 
-This does not create:
+`resolveLensSampledPsf()` reports either:
 
-- a spectral lens model;
-- longitudinal chromatic aberration;
-- sensor spectral response;
-- CFA/color calibration.
+- `exact-grid-sample`; or
+- `interpolated`.
 
-Future wavelength-dependent PSFs must declare their basis explicitly.
+No extrapolation is permitted.
 
-## Pupil boundary
+The full 2D kernel preserves image-plane +X right / +Y up orientation, allowing off-axis sagittal/tangential/asymmetric structure instead of forcing radial symmetry.
 
-The current context records an ideal circular, f-number-derived pupil diameter because the existing defocus/Airy diagnostics use circular-pupil assumptions.
+## Field curvature and longitudinal chromatic focus
 
-Polygon aperture geometry is not automatically a non-circular diffraction PSF.
+Each sampled node carries `bestFocusImagePlaneOffsetMicrometers`.
 
-Mechanical/pupil vignetting is also separate from illumination vignetting:
+That quantity may vary with:
 
-- illumination vignetting changes throughput only;
-- pupil clipping can change throughput **and** PSF/bokeh shape.
+- field position — field curvature;
+- wavelength — longitudinal/axial chromatic focus;
+- focal/aperture/focus configuration.
 
-## Preview and reference fidelity
+It is a focus/PSF quantity. It does not modify geometric distortion, lateral CA, or the selected camera focus-control state.
 
-Browser preview and higher-fidelity reference implementations may use different numerical approximations or sampling budgets.
+## Complex pupil / wavefront reference
 
-They must preserve the same:
+`LensComplexPupilProfile` represents one explicit primary-optical state as:
 
-- contribution identities;
-- field/depth/spectral context;
-- pupil semantics;
-- engine-owned parameters;
-- scientific limitations.
+- relative pupil amplitude; and
+- optical-path difference in micrometres.
 
-A preview approximation must not redefine the science merely because it is cheaper to render.
+`calculateLensComplexPupilPsf()` performs deterministic scalar Fraunhofer propagation of that complex pupil.
 
-## Test Fixture relationship
+This path evaluates diffraction and aberration in one pupil calculation. Do not stack another independent Airy or diffraction blur over its output.
 
-Test Fixture v0.3 provides deterministic center/mid/edge/corner detail and point-highlight targets for integration regression.
+The output intensity PSF is normalized to unit energy.
 
-It does not establish:
+## Pupil clipping and throughput
 
-- calibrated MTF;
-- a measured real-lens PSF;
-- spectral lens behavior;
-- calibrated mechanical vignetting;
-- named-lens performance.
+PSF energy normalization and optical throughput are separate.
 
-Engine analytical/reference tests remain the scientific source of truth.
+A clipped pupil can change:
+
+1. the pupil/PSF shape; and
+2. the relative amount of transmitted light.
+
+The #113 profiles therefore keep `relativePupilThroughputFactor` separate from the normalized PSF kernel. The throughput factor belongs in the optical-throughput path (including #110 integration) and must be applied exactly once.
+
+The existing illumination-vignetting primitive remains a separate throughput-only approximation; it does not become pupil clipping automatically.
+
+## MTF boundary
+
+MTF magnitude is useful validation evidence, including sagittal/tangential trends.
+
+It does **not** uniquely determine a PSF without phase.
+
+`assessMtfOnlyPsfRenderability()` therefore always blocks unique PSF reconstruction from magnitude-only MTF data while allowing diagnostic use.
+
+## Sensor and stray-light boundaries
+
+V1 lens PSF profiles are `lens-primary-optical-path-only`.
+
+They exclude:
+
+- sensor OLPF;
+- microlens response;
+- CFA/spectral sensor response;
+- sensor crosstalk;
+- sensor sampling;
+- RAW reconstruction/demosaic;
+- sharpening/denoise;
+- ghosting, flare and veiling glare.
+
+A future combined camera-system response must be labeled separately rather than silently stored as a lens PSF.
+
+#114 owns stray light.
+
+## Preview and reference use
+
+The sampled-profile contract can be consumed by both preview and reference paths.
+
+The complex-pupil scalar Fraunhofer evaluator is a deterministic reference calculation. A preview implementation may use a validated approximation, but it must preserve the same profile semantics, field orientation, throughput ownership and limitations.
+
+## No scalar lens quality
+
+Photivra does not produce a universal lens sharpness or bokeh-quality score.
+
+Real optical response remains field-, focus-, aperture-, wavelength-, pupil- and defocus-dependent. Generic equipment tiers may later choose different versioned profiles, but the tier label is not itself an optical algorithm.
