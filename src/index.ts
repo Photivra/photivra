@@ -439,6 +439,23 @@ export {
 } from "./sensor/physical-charge-capacity.js";
 
 export {
+  GENERIC_ISO_SIGNAL_CHAIN_PRESET_CATALOG_SCHEMA_VERSION,
+  GENERIC_ISO_SIGNAL_CHAIN_PROFILE_SCHEMA_VERSION,
+  parseGenericIsoSignalChainPresetCatalog,
+  parseGenericIsoSignalChainProfile,
+  resolveGenericIsoSignalChain,
+  resolveGenericIsoSignalChainPreset,
+  type GenericIsoCaptureModeSignalChainBinding,
+  type GenericIsoExpandedRegimeBinding,
+  type GenericIsoSignalChainPreset,
+  type GenericIsoSignalChainPresetCatalog,
+  type GenericIsoSignalChainProfile,
+  type GenericIsoStandardRegimeBand,
+  type ResolveGenericIsoSignalChainInput,
+  type ResolvedGenericIsoSignalChain
+} from "./sensor/iso-signal-chain.js";
+
+export {
   SENSOR_CHARGE_SAMPLING_PROFILE_SCHEMA_VERSION,
   SENSOR_READOUT_CONVERSION_PROFILE_SCHEMA_VERSION,
   calculateExpectedSensorReadout,
@@ -951,6 +968,25 @@ export {
   type ExposureMeterTargetSourceResult,
   type SetExposureCompensationOnMeterTargetInput
 } from "./exposure/metering-target.js";
+
+export {
+  ISO_CAPABILITY_PROFILE_SCHEMA_VERSION,
+  bindIsoCapabilityToExposureCapabilities,
+  parseIsoCapabilityProfile,
+  resolveIsoCapability,
+  type BindIsoCapabilityToExposureCapabilitiesInput,
+  type BoundIsoExposureCapabilities,
+  type IsoAutoIsoCapability,
+  type IsoCapabilityAvailability,
+  type IsoCapabilityProfile,
+  type IsoCaptureModePolicy,
+  type IsoExpandedSetting,
+  type IsoExposureIndexRange,
+  type IsoStandardSettingGrid,
+  type RequestedIsoSetting,
+  type ResolveIsoCapabilityInput,
+  type ResolvedIsoCapability
+} from "./equipment/iso-capabilities.js";
 
 export {
   GENERIC_EQUIPMENT_EXPOSURE_CAPABILITY_SCHEMA_VERSION,
