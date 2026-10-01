@@ -1361,7 +1361,7 @@ describe("complex-pupil validation boundaries", () => {
 });
 
 describe("MTF diagnostic validation boundaries", () => {
-  const validMtf = () => ({
+  const validMtf = (): ReturnType<typeof parseLensMtfDiagnosticProfile> => ({
     schemaVersion: "0.1.0",
     profileId: "mtf-validation",
     profileVersion: "1.0.0",
