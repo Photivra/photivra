@@ -3,7 +3,7 @@
 import { describe, it, expect } from "vitest";
 import { calculateThinLensImageDistance, calculateFieldOfView, calculateProjectedObjectSize,
   calculateProjectedMotionBlur, calculateExposureValue100, calculateRelativeOpticalExposure,
-  calculateAiryDisk, calculateDefocusCircle } from "../src/index.js";
+  calculateAiryDisk, calculateDefocusCircle, type ProjectedMotionBlur } from "../src/index.js";
 import { loadBasicReferenceFixture } from "./helpers/basic-reference-fixture.js";
 const f = loadBasicReferenceFixture();
 const lens = { focalLengthMm: f.lens.focalLengthMm, focusDistanceM: f.focus.distanceM };
@@ -32,7 +32,7 @@ describe("incremental merged-engine cross-stage conformance", () => {
     const base = { aperture: f.lens.aperture, shutterSeconds: f.exposure.shutterSeconds };
     const slower = { ...base, shutterSeconds: 2*base.shutterSeconds };
     const exposure = calculateRelativeOpticalExposure({ ...slower, referenceAperture: base.aperture, referenceShutterSeconds: base.shutterSeconds });
-    const m = (shutterSeconds: number) => calculateProjectedMotionBlur({ ...lens, shutterSeconds, positionM: f.target.centerM,
+    const m = (shutterSeconds: number): ProjectedMotionBlur => calculateProjectedMotionBlur({ ...lens, shutterSeconds, positionM: f.target.centerM,
       velocityMps: { x: 1, y: 0, z: 0 }, pixelPitchMicrometers: pitch }).value;
     const short = m(base.shutterSeconds), long = m(slower.shutterSeconds);
     expect(exposure.value.factor).toBe(2); expect(exposure.value.stops).toBe(1);
@@ -45,7 +45,7 @@ describe("incremental merged-engine cross-stage conformance", () => {
     const aperture = f.lens.aperture, stopped = aperture*Math.SQRT2;
     const relative = calculateRelativeOpticalExposure({ aperture: stopped, shutterSeconds: f.exposure.shutterSeconds,
       referenceAperture: aperture, referenceShutterSeconds: f.exposure.shutterSeconds });
-    const airy = (aperture: number) => calculateAiryDisk({ aperture, wavelengthNm: f.illumination.wavelengthNm }).value.firstZeroDiameterMicrometers;
+    const airy = (aperture: number): number => calculateAiryDisk({ aperture, wavelengthNm: f.illumination.wavelengthNm }).value.firstZeroDiameterMicrometers;
     expect(relative.value.factor).toBeCloseTo(.5, 14); expect(relative.value.stops).toBeCloseTo(-1, 14);
     expect(airy(stopped)/airy(aperture)).toBeCloseTo(Math.SQRT2, 14);
     for (const n of [aperture, stopped]) expect(calculateDefocusCircle({ ...lens, aperture: n, subjectDistanceM: lens.focusDistanceM }).value.diameterMm).toBe(0);
