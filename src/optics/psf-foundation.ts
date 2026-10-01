@@ -13,7 +13,7 @@ import type { LensFieldPointMm } from "./radial-distortion.js";
 import { calculateDefocusCircle } from "./depth-of-field.js";
 import { calculateAiryDisk } from "./diffraction.js";
 
-export const PSF_FOUNDATION_VERSION = "0.1.0" as const;
+export const PSF_FOUNDATION_VERSION = "0.2.0" as const;
 
 export type PsfContributionId =
   | "geometric-defocus-circle"
@@ -26,6 +26,7 @@ export type PsfContributionId =
 
 export type PsfContributionStatus =
   | "implemented-diagnostic"
+  | "implemented-framework"
   | "reserved-contract";
 
 export interface PsfContributionContract {
@@ -44,7 +45,8 @@ export interface PsfFoundationContract {
   version: typeof PSF_FOUNDATION_VERSION;
   coordinateSpace: "image-plane-metric";
   fieldAxes: "+X right, +Y up";
-  compositionPolicy: "separate-contributions-no-combined-psf";
+  compositionPolicy:
+    "separate-diagnostics-plus-explicit-profiled-combined-psf";
   contributions: readonly PsfContributionContract[];
   previewReferencePolicy: {
     previewMayApproximate: true;
@@ -139,38 +141,38 @@ const CONTRIBUTIONS = [
   },
   {
     id: "mechanical-pupil-clipping",
-    status: "reserved-contract",
+    status: "implemented-framework",
     dependsOn: ["pupil", "field-position"],
     note:
-      "Reserved for field-dependent pupil clipping/mechanical vignetting that can affect both throughput and PSF/bokeh shape."
+      "Implemented through explicit sampled-PSF or complex-pupil profile semantics. PSF shape and relative pupil throughput remain separately owned to avoid double counting."
   },
   {
     id: "field-curvature",
-    status: "reserved-contract",
+    status: "implemented-framework",
     dependsOn: ["field-position", "focus-depth"],
     note:
-      "Reserved for field-dependent focus displacement. It must not be represented as geometric distortion."
+      "Implemented as explicit field-dependent best-focus image-plane offset in the lens-PSF profile framework. It remains separate from geometric distortion."
   },
   {
     id: "field-dependent-aberration",
-    status: "reserved-contract",
+    status: "implemented-framework",
     dependsOn: ["field-position", "focus-depth", "pupil", "wavelength"],
     note:
-      "Reserved for defensible field-dependent aberration/PSF structure. Do not replace this with a generic lens-sharpness score."
+      "Implemented through full 2D sampled PSF kernels and explicit complex-pupil amplitude/OPD propagation. No scalar lens-sharpness score is produced."
   },
   {
     id: "field-dependent-bokeh",
-    status: "reserved-contract",
+    status: "implemented-framework",
     dependsOn: ["field-position", "focus-depth", "pupil"],
     note:
-      "Reserved for field-dependent out-of-focus PSF/bokeh behavior, including future cat's-eye effects when pupil clipping is modeled."
+      "Implemented through signed-defocus sampled PSF context and optional pupil-clipping shape. Visibility/depth compositing remains renderer work."
   }
 ] as const satisfies readonly PsfContributionContract[];
 
 const NOTES = [
-  "This foundation preserves PSF-related contributions separately; it does not calculate a combined PSF, MTF, or one scalar lens-sharpness result.",
+  "This foundation preserves the legacy defocus/Airy diagnostics separately while the lens-PSF framework can resolve explicitly profiled combined primary-optical PSFs. It still never emits one scalar lens-sharpness result.",
   "Existing geometric defocus and circular Airy outputs remain independently named scientific diagnostics with their own provenance.",
-  "Reserved contributions describe ownership/dependencies only and do not claim implemented visual behavior.",
+  "Framework contributions are implemented through explicit profile/evaluator APIs; non-circular diffraction remains reserved for its dedicated model.",
   "Illumination vignetting is a separate throughput-only model and is not a PSF contribution.",
   "Real-lens PSF calibration requires defensible provenance, compatible reuse rights, and explicit limitations/uncertainty."
 ] as const;
@@ -186,7 +188,8 @@ export function getPsfFoundationContract(): PsfFoundationContract {
     version: PSF_FOUNDATION_VERSION,
     coordinateSpace: "image-plane-metric",
     fieldAxes: "+X right, +Y up",
-    compositionPolicy: "separate-contributions-no-combined-psf",
+    compositionPolicy:
+      "separate-diagnostics-plus-explicit-profiled-combined-psf",
     contributions: CONTRIBUTIONS.map((contribution) => ({
       ...contribution,
       dependsOn: [...contribution.dependsOn]
