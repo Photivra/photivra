@@ -856,6 +856,23 @@ export {
 } from "./schema/scene-radiance.js";
 
 export {
+  calculateCaptureExtendedObjectTemporalProjection,
+  calculateExtendedObjectProjectionTrajectory,
+  type CalculateCaptureExtendedObjectTemporalProjectionInput,
+  type CalculateExtendedObjectProjectionTrajectoryInput,
+  type CaptureExtendedObjectMetricPoint,
+  type CaptureExtendedObjectPointTrajectory,
+  type CaptureExtendedObjectTemporalNode,
+  type CaptureExtendedObjectTemporalProjection,
+  type ExtendedObjectFrontoparallelPlaneDeclaration,
+  type ExtendedObjectMetricPoint,
+  type ExtendedObjectPlanarMagnificationDiagnostic,
+  type ExtendedObjectPointProjectionTrajectory,
+  type ExtendedObjectProjectionNode,
+  type ExtendedObjectProjectionTrajectory
+} from "./motion/extended-object-projection.js";
+
+export {
   calculateProjectedMotionBlur,
   type CalculateProjectedMotionBlurInput,
   type ProjectedMotionBlur
