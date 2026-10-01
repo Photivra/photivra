@@ -152,6 +152,7 @@ export interface ResolveCaptureModeColorSamplingContributorsInput {
 
 export interface ResolvedCaptureModeColorSamplingContributors {
   modeId: string;
+  colorSamplingProfileId: string;
   modeSampleCoordinateSystem:
     "capture-mode-full-frame-effective-sample-index";
   modeSampleIndexFullFrame: CaptureModeFullFrameSampleIndex;
@@ -923,6 +924,8 @@ export function resolveCaptureModeColorSamplingContributors(
 
   return {
     modeId: captureMode.modeId,
+    colorSamplingProfileId:
+      colorSamplingProfile.profileId,
     modeSampleCoordinateSystem:
       "capture-mode-full-frame-effective-sample-index",
     modeSampleIndexFullFrame: {
