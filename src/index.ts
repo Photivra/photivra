@@ -1,6 +1,91 @@
 // SPDX-License-Identifier: Apache-2.0
 
+export {
+  parseOpticalProfileState,
+  type OpticalProfileState,
+  type GenericOpticalEvidence
+} from "./optics/profile-contract.js";
+export {
+  parseLensStrayLightProfile,
+  calculateLensStrayLightIrradiance,
+  type LensStrayLightProfile,
+  type ParametricStrayLightResponse,
+  type StrayLightSource,
+  type StrayLightIrradiance
+} from "./optics/stray-light.js";
+export {
+  parseDigitalGeometricTransform,
+  prepareGeometricMapping,
+  calculateComposedGeometricMapping,
+  calculateForwardGeometricMapping,
+  calculateGeometricSamplingPlan,
+  calculateGeometricResampling,
+  type DigitalGeometricTransform,
+  type AffineGeometricTransform,
+  type RadialGeometricTransform,
+  type GeometricJacobian,
+  type GeometricImageDomain,
+  type PreparedGeometricMapping,
+  type GeometricRaster,
+  type GeometricResampler,
+  type GeometricMappingPoint,
+  type GeometricSamplingPlan
+} from "./output/geometric-transforms.js";
+export {
+  parseGenericLensCorrectionProfile,
+  resolveLensCorrectionPlan,
+  calculatePeripheralIlluminationCorrection,
+  calculateLensCorrectedCapture,
+  type GenericLensCorrectionProfile,
+  type LensCorrectionComponent,
+  type LensCorrectionChannel,
+  type GeometricLensCorrection,
+  type LateralCaLensCorrection,
+  type IlluminationLensCorrection,
+  type ResolvedLensCorrectionPlan,
+  type LensCorrectionCapture
+} from "./output/lens-corrections.js";
+
+export {
+  SIMULATED_CAPTURE_SCHEMA_VERSION,
+  createSimulatedCapture,
+  parseSimulatedCapture,
+  serializeSimulatedCapture,
+  resolveSimulatedCapturePlane,
+  createCaptureWhiteBalanceIntent,
+  type SimulatedCapture,
+  type SimulatedCaptureInput,
+  type CaptureLinearImageState,
+  type CaptureLinearPlane,
+  type CaptureFloatStorage,
+  type CapturePublicProfileReference,
+  type CaptureWhiteXyz,
+  type CaptureWhiteBalanceIntent
+} from "./capture/simulated-capture.js";
+
+export {
+  CAPTURE_COLOR_MODEL_VERSION,
+  VIRTUAL_COLOR_CAMERA_PROFILE,
+  LINEAR_CAPTURE_RGB_PROFILE,
+  resolveCaptureColorModel,
+  parseCaptureColorTransformInput,
+  calculateCaptureColorTransform,
+  type CaptureColorModel,
+  type CaptureColorWhiteBalance,
+  type CaptureColorTransformInput,
+  type CaptureColorTransformResult
+} from "./color/capture-color.js";
+
 export { ENGINE_API_VERSION } from "./core/version.js";
+
+export {
+  LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION,
+  parseLinearCaptureEncoding,
+  calculateLinearCaptureEncoding,
+  type LinearCaptureEncoding,
+  type LinearCaptureEncodingInput,
+  type EncodedLinearCapture
+} from "./capture/linear-encoding.js";
 
 export {
   SDR_RENDERING_SCHEMA_VERSION,
@@ -642,6 +727,12 @@ export {
   type AiryDisk,
   type CalculateAiryDiskInput
 } from "./optics/diffraction.js";
+
+export {
+  calculateIdealPolygonDiffractionPsf,
+  type CalculateIdealPolygonDiffractionInput,
+  type IdealPolygonDiffraction
+} from "./optics/polygon-diffraction.js";
 
 export {
   estimateEquivalentViewingCircleOfConfusion,

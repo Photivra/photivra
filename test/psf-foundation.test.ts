@@ -8,7 +8,7 @@ import {
 } from "../src/index.js";
 
 describe("PSF/pupil foundation", () => {
-  it("publishes current diagnostics, implemented framework contributions, and the reserved non-circular diffraction seam", () => {
+  it("publishes current diagnostics and implemented framework contributions including ideal polygon diffraction", () => {
     const contract = getPsfFoundationContract();
     const byId = new Map(
       contract.contributions.map((contribution) => [
@@ -17,7 +17,7 @@ describe("PSF/pupil foundation", () => {
       ])
     );
 
-    expect(contract.version).toBe("0.2.0");
+    expect(contract.version).toBe("0.3.0");
     expect(contract.coordinateSpace).toBe("image-plane-metric");
     expect(contract.fieldAxes).toBe("+X right, +Y up");
     expect(contract.compositionPolicy).toBe(
@@ -31,7 +31,7 @@ describe("PSF/pupil foundation", () => {
       "implemented-diagnostic"
     );
     expect(byId.get("non-circular-diffraction")?.status).toBe(
-      "reserved-contract"
+      "implemented-framework"
     );
     expect(byId.get("mechanical-pupil-clipping")?.status).toBe(
       "implemented-framework"

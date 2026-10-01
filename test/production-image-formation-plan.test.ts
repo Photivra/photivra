@@ -768,7 +768,7 @@ describe("ready physical production plan", () => {
       "ready"
     );
     expect(plan.versions).toMatchObject({
-      engineApi: "0.94.0",
+      engineApi: "0.97.0",
       imageFormationContract:
         "0.4.0",
       plan: "0.5.0",
@@ -2549,4 +2549,3 @@ describe("production plan consumer manifests", () => {
     );
   });
 });
-

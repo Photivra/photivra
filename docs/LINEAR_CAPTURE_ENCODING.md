@@ -1,0 +1,23 @@
+# Deterministic linear capture encoding: #15C
+
+`calculateLinearCaptureEncoding()` produces format-neutral unsigned 16-bit linear codes from one bounded inline `SimulatedCapture` plane. The exact plane/image-state identity is mandatory. The master stays unchanged; color, WB application, source reference value and upstream capture-saturation history accompany the encoded data. It neither chooses a file format nor invents a color conversion.
+
+Encoding schema `0.1.0` uses one uniform channel mapping. Let B be `blackValue`, b be `blackCode`, R be the source plane's `referenceWhiteValue`, and r be `referenceWhiteCode`. R must exceed B, codes satisfy 0 ≤ b < r ≤ 65535, and all derived ranges/scales must be finite and representable. The continuous code is `b + (sample-B)/(R-B)*(r-b)`; scale is `(r-b)/(R-B)` codes per relative source unit. Same normalization/scale on every channel preserves linear color ratios after subtracting the declared black baseline.
+
+| Contract | Meaning |
+| --- | --- |
+| blackValue / blackCode | Relative source baseline and its integer code; blackCode can reserve room for negative samples. |
+| referenceWhiteValue / referenceWhiteCode | Source normalization and its code; reference white can be below the code maximum to preserve headroom. |
+| representable limits | B − b/scale and B + (65535−b)/scale; these are encoded range limits, not physical capture saturation. |
+| headroomFactor | (65535−b)/(r−b), relative to the above-black reference-white interval. |
+| negativeValues | Explicit reject of any sample < 0, or preserve-if-representable. The latter still obeys the independently declared out-of-range policy. |
+| outOfRange | Explicit reject, or clip to 0/65535 with separate low/high source-sample counts. |
+| rounding | Nearest code; exact binary64 half ties toward the larger code. No dither or hidden stochastic state. |
+
+The implementation compares finite source values with representable limits before arithmetic, so extreme finite samples can clip without overflowing the mapping. Exact black/reference/endpoints return their declared codes; remaining in-range mapped values round with floor(code+0.5). Only endpoint arithmetic roundoff is bounded back to the code interval. Ideal in-range rounding error is at most 0.5/scale source units; this bound excludes clipping and binary64 arithmetic error. No promise of correctly rounded arbitrary-precision real arithmetic is made. NaN/Infinity/sparse source arrays and invalid or numerically unrepresentable ranges fail. Identical validated inputs produce identical codes across the supported JS runtimes.
+
+An encoded maximum or quantized sample at 65535 does not prove sensor saturation, and a sample rounded to an endpoint is not counted as source clipping. Source `captureSaturation` remains upstream history in its original capture domain. `defaultRenderingExposureEv:null` means the encoder selects no rendering exposure or display white. It performs no gain/WB/adaptation, gamma/transfer curve, tone/look/gamut mapping, resampling, RAW reconstruction or recovery of upstream LDR losses.
+
+Output is serializable numbers plus explicit metadata, in row-major interleaved source channel order. `captureMetadata` carries the sanitized source manifest without float planes: geometry/settings, resolved WB intent, adopted white, noise/source identities and model/evidence provenance remain available to serializers. `sourcePlane` carries color/WB/history/saturation and raster/channel identity without float storage. Packing bytes, endianness, checksums, TIFF/DNG tags and required format-specific range restrictions belong to #16; a serializer must honor the declared scientific meaning and reject mappings it cannot represent. XYZ, virtual channels and transformed RGB retain different identities, even if all can be quantized. Quantizing unresolved channels does not establish a usable sensor color profile or a DNG export-readiness claim. External float references remain manifests; this synchronous bounded executor rejects them rather than performing IO or trusting unverified bytes.
+
+Tests share #130 camera/seed metadata with the color tests. They check reference/headroom/clipping invariants, exact half ties and neighbors, offset-preserved negatives, independent negative/range rejection, extreme finite clipping, nonunit source reference/black, retained saturation, color→encoding consistency, deterministic results, state substitution, private/malformed policies and invalid samples/ranges. Implementation and arithmetic fixtures are independently authored, without third-party code/data or new runtime dependencies. Human science/provenance review and contributor DCO certification remain required before inclusion.
