@@ -1337,6 +1337,63 @@ The circle-of-confusion criterion used for depth-of-field is caller supplied. Th
 
 See [Physics Foundation](PHYSICS_FOUNDATION.md#thin-lens-focus-and-depth-of-field).
 
+## Real-lens PSF profiles and complex-pupil reference
+
+#113 adds two explicit real-lens primary-optical response paths while preserving the legacy defocus/Airy diagnostics.
+
+### Sampled 2D PSF profiles
+
+Use `parseLensSampledPsfProfile()` and `resolveLensSampledPsf()` for measured, simulated, or Photivra-owned unit-energy PSF kernels on a bounded regular grid.
+
+The grid axes are:
+
+- physical focal length;
+- focus in diopters, where `0` represents the explicit #103 infinity focus state;
+- f-number;
+- image-plane field X/Y in millimetres;
+- wavelength in nanometres;
+- signed image-plane defocus in micrometres.
+
+Resolution is either `exact-grid-sample` or `interpolated`. Extrapolation outside any declared axis fails closed.
+
+All nodes must use the same physical kernel sampling grid so multilinear interpolation does not silently resample different PSF coordinate systems. The returned full 2D kernel preserves +X right / +Y up orientation; no radial or sagittal/tangential averaging is forced.
+
+Every kernel is a **unit-energy PSF shape**. `relativePupilThroughputFactor` remains separate and belongs to the optical-throughput path. A mechanically clipped/cat-eye pupil may therefore change both PSF shape and throughput without multiplying throughput into the normalized PSF and then applying it again in #110.
+
+`bestFocusImagePlaneOffsetMicrometers` may vary across field and wavelength. This is the profile seam for field curvature and longitudinal/axial chromatic focus. It does not alter geometric distortion or perform lateral channel displacement.
+
+Signed defocus is preserved, so foreground and background defocus may use different profiled PSFs.
+
+### Complex pupil / wavefront reference
+
+Use `parseLensComplexPupilProfile()` and `calculateLensComplexPupilPsf()` when the primary optical response is supplied as:
+
+- relative pupil amplitude; plus
+- optical-path difference in micrometres.
+
+The reference evaluator performs deterministic scalar Fraunhofer propagation on the explicit pupil grid. Diffraction and aberration phase are evaluated **together** in that pupil calculation. Do not add another independent diffraction blur to the result.
+
+The resulting intensity PSF is normalized to unit energy. The profile's relative pupil throughput is preserved separately and is not multiplied into the kernel.
+
+The complex-pupil evaluator is a bounded scalar reference model. It does not include polarization/vector diffraction, ghosting/flare, sensor OLPF/microlenses/CFA, sampling, demosaic, sharpening, or display processing.
+
+### MTF magnitude is not a PSF
+
+`parseLensMtfDiagnosticProfile()` stores sagittal/tangential MTF magnitude diagnostics.
+
+`assessMtfOnlyPsfRenderability()` always reports that unique PSF reconstruction is unauthorized because MTF magnitude lacks phase information. MTF remains useful for validation, not as a magic blur-kernel generator.
+
+### Ownership boundaries
+
+- geometric distortion remains a field mapping;
+- lateral CA remains a wavelength/channel field mapping;
+- field curvature and longitudinal CA live in focus/PSF semantics;
+- pupil clipping can affect PSF shape while throughput remains separately owned;
+- #1 owns regular-polygon/non-circular diffraction generation;
+- #114 owns stray-light/ghosting/veiling glare;
+- sensor OLPF/CFA/reconstruction remain downstream;
+- no scalar `lensSharpness` or `bokehQuality` is a scientific primitive.
+
 ## PSF and pupil foundation
 
 Use `getPsfFoundationContract()` to inspect current/reserved PSF contribution ownership and `calculatePsfFoundationComponents()` to evaluate the currently implemented diagnostics in one explicit field/depth/spectral/pupil context.
