@@ -13,6 +13,11 @@ import { InvalidScientificInputError } from "../core/validation.js";
 import type {
   ResolvedCaptureModeColorSamplingContributors
 } from "./capture-color-sampling-binding.js";
+import {
+  parseSensorColorSamplingProfile,
+  resolveColorSamplingSite,
+  type SensorColorSamplingProfile
+} from "./color-sampling.js";
 import type {
   SensorRawCodeSample
 } from "./raw-readout.js";
@@ -114,6 +119,8 @@ export interface SensorRawReconstructionProfile {
 export interface ResolveSensorRawReconstructionInput {
   profile:
     SensorRawReconstructionProfile;
+  colorSamplingProfile:
+    SensorColorSamplingProfile;
   centerSite: {
     x: number;
     y: number;
@@ -555,6 +562,16 @@ export function createSensorRawCaptureSample(
 
   if (
     contributors
+      .colorSamplingProfileId !==
+      raw.colorSamplingProfileId
+  ) {
+    throw new InvalidScientificInputError(
+      "RAW readout color-sampling profile identity must match the capture-mode contributor binding."
+    );
+  }
+
+  if (
+    contributors
       .channelComposition.kind !==
       "single-channel" ||
     contributors
@@ -684,6 +701,18 @@ export function resolveSensorRawReconstruction(
     requireCenterSite(
       input.centerSite
     );
+  const colorSamplingProfile =
+    parseSensorColorSamplingProfile(
+      input.colorSamplingProfile
+    );
+  if (
+    colorSamplingProfile.profileId !==
+    profile.colorSamplingProfileId
+  ) {
+    throw new InvalidScientificInputError(
+      "Reconstruction color-sampling profile identity must match the reconstruction profile."
+    );
+  }
 
   if (
     !Array.isArray(input.samples) ||
@@ -708,6 +737,23 @@ export function resolveSensorRawReconstruction(
     ) {
       throw new InvalidScientificInputError(
         "Every RAW neighborhood sample must match the reconstruction profile capture-mode and color-sampling identities."
+      );
+    }
+    const resolvedSite =
+      resolveColorSamplingSite({
+        profile:
+          colorSamplingProfile,
+        site:
+          sample
+            .colorSamplingSite
+      });
+    if (
+      resolvedSite.mapping
+        .channelId !==
+      sample.channelId
+    ) {
+      throw new InvalidScientificInputError(
+        "RAW neighborhood sample channelId must match the declared color-sampling topology at its native site."
       );
     }
   }
