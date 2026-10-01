@@ -745,6 +745,37 @@ export {
 } from "./optics/scene-to-sensor-irradiance.js";
 
 export {
+  LENS_SAMPLED_PSF_PROFILE_SCHEMA_VERSION,
+  LENS_MTF_DIAGNOSTIC_PROFILE_SCHEMA_VERSION,
+  assessMtfOnlyPsfRenderability,
+  parseLensMtfDiagnosticProfile,
+  parseLensSampledPsfProfile,
+  resolveLensSampledPsf,
+  type LensMtfDiagnosticProfile,
+  type LensMtfDiagnosticSample,
+  type LensPsfGridAxes,
+  type LensPsfKernel,
+  type LensPsfScientificStatus,
+  type LensPsfUncertainty,
+  type LensSampledPsfGridCoordinate,
+  type LensSampledPsfGridNode,
+  type LensSampledPsfProfile,
+  type MtfOnlyPsfRenderabilityAssessment,
+  type ResolveLensSampledPsfInput,
+  type ResolvedLensSampledPsf
+} from "./optics/lens-psf-profile.js";
+
+export {
+  LENS_COMPLEX_PUPIL_PROFILE_SCHEMA_VERSION,
+  calculateLensComplexPupilPsf,
+  parseLensComplexPupilProfile,
+  type CalculateLensComplexPupilPsfInput,
+  type LensComplexPupilGrid,
+  type LensComplexPupilProfile,
+  type LensComplexPupilPsf
+} from "./optics/complex-pupil-psf.js";
+
+export {
   PSF_FOUNDATION_VERSION,
   calculatePsfFoundationComponents,
   getPsfFoundationContract,
