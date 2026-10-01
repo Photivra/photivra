@@ -850,6 +850,16 @@ describe("ISO capability binding into #99", () => {
         }
       });
 
+    expect(manual.status)
+      .toBe("resolved");
+    if (
+      manual.status !== "resolved" ||
+      manual.isoControl !== "manual"
+    ) {
+      throw new Error(
+        "Expected resolved manual ISO."
+      );
+    }
     expect(
       manual.resolvedSettings.iso
     ).toBe(6400);
