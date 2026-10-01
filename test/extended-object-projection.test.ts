@@ -771,3 +771,115 @@ describe("extended-object validation boundaries", () => {
     );
   });
 });
+
+
+describe("extended-object reference and relative-motion invariants", () => {
+  it("allows signed physical sample times around a caller-declared reference phase", () => {
+    const result =
+      calculateExtendedObjectProjectionTrajectory({
+        objectId: "signed-reference",
+        focalLengthMm: 50,
+        objectTranslationVelocityMps: {
+          x: 1,
+          y: 0,
+          z: 0
+        },
+        cameraTranslationVelocityMps: {
+          x: 0,
+          y: 0,
+          z: 0
+        },
+        sampleTimesSecondsFromReference: [
+          -0.01,
+          0,
+          0.01
+        ],
+        points: [{
+          pointId: "point",
+          positionCameraM: {
+            x: 0,
+            y: 0,
+            z: 5
+          }
+        }]
+      }).value;
+
+    expect(
+      result
+        .pointTrajectories[0]
+        ?.nodes.map(
+          (node) =>
+            node
+              .timeSecondsFromReference
+        )
+    ).toEqual([
+      -0.01,
+      0,
+      0.01
+    ]);
+    expect(result.timeReference)
+      .toBe(
+        "caller-declared-common-reference-phase"
+      );
+  });
+
+  it("cancels equal camera and object rigid translation without reclassifying either input", () => {
+    const velocity = {
+      x: 1,
+      y: -0.25,
+      z: 0.5
+    };
+    const result =
+      calculateExtendedObjectProjectionTrajectory({
+        objectId: "co-moving",
+        focalLengthMm: 50,
+        objectTranslationVelocityMps:
+          velocity,
+        cameraTranslationVelocityMps:
+          velocity,
+        sampleTimesSecondsFromReference: [
+          0,
+          0.25
+        ],
+        points: [{
+          pointId: "point",
+          positionCameraM: {
+            x: 1,
+            y: 0.5,
+            z: 5
+          }
+        }]
+      }).value;
+
+    expect(
+      result
+        .objectTranslationVelocityMps
+    ).toEqual(velocity);
+    expect(
+      result
+        .cameraTranslationVelocityMps
+    ).toEqual(velocity);
+    expect(
+      result
+        .relativeTranslationVelocityMps
+    ).toEqual({
+      x: 0,
+      y: 0,
+      z: 0
+    });
+    expect(
+      result
+        .pointTrajectories[0]
+        ?.nodes[1]
+        ?.deltaFromReferenceImagePlaneMm
+    ).toEqual({
+      x: 0,
+      y: 0,
+      distance: 0
+    });
+    expect(
+      result
+        .timeVaryingDefocusMayBeRequired
+    ).toBe(false);
+  });
+});
