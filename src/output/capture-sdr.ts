@@ -61,7 +61,10 @@ export function parseCaptureSdrInput(value: unknown): CaptureSdrInput {
  * Bounded capture → explicit color/WB → SDR adapter. No resampling, correction,
  * physical exposure, metering, external IO or production-plan activation occurs.
  */
-export function calculateCaptureSdr(input: CaptureSdrInput): CalculationResult<CaptureSdrResult> {
+export function prepareCaptureSdrSource(input: CaptureSdrInput): {
+  value: CaptureSdrInput; source: CaptureLinearPlane; plane: CaptureLinearPlane;
+  color: CalculationResult<CaptureColorTransformResult> | null; applied: boolean;
+} {
   const value = parseCaptureSdrInput(input), source = value.capture.planes.find((p) => p.id === value.sourcePlaneId)!;
   if (source.storage.kind !== "inline-float64" || source.storage.samples.length > 262144 || source.channelIds.length !== 3) {
     throw new InvalidConfigurationError("Capture-SDR requires a bounded inline three-channel plane; no implicit loading or tiling.");
@@ -80,6 +83,12 @@ export function calculateCaptureSdr(input: CaptureSdrInput): CalculationResult<C
   // The derived color parser guarantees inline storage; no external source reaches this point.
   if (plane.storage.kind !== "inline-float64") throw new InvalidConfigurationError("Inline RGB required.");
   const applied = plane.whiteBalanceApplication !== "not-applicable";
+  return { value, source, plane, color, applied };
+}
+/** Renders the validated capture color state without correction or resampling. */
+export function calculateCaptureSdr(input: CaptureSdrInput): CalculationResult<CaptureSdrResult> {
+  const { value, source, plane, color, applied } = prepareCaptureSdrSource(input);
+  if (plane.storage.kind !== "inline-float64") throw new InvalidConfigurationError("Inline RGB required.");
   const rendering = calculateSdrRendering({ sourceImageStateId: plane.imageStateId,
     inputImageState: "color-transformed-linear-rgb", inputColorSpace: "linear-srgb-d65",
     whiteBalanceHandling: applied ? "already-applied-upstream" : "not-required",

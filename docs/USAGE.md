@@ -1,5 +1,9 @@
 # Usage Guide
 
+For bounded committed capture → correction → SDR output, see
+[Capture-bound corrected SDR](CAPTURE_CORRECTED_SDR.md). It returns a derived output
+view without changing physical capture geometry or activating production stages.
+
 For bounded same-RAW paired DNG/JPEG byte export, see
 [Photographic export](PHOTOGRAPHIC_EXPORT.md). It requires an explicit approximate
 sensor-color profile; external editor acceptance remains pending.

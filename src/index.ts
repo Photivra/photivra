@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+export { CAPTURE_CORRECTED_SDR_SCHEMA_VERSION, parseCaptureCorrectedSdrInput, calculateCaptureCorrectedSdr,
+  type CaptureCorrectedSdrInput, type CaptureCorrectedSdrResult } from "./output/capture-corrected-sdr.js";
 export { PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION, parseExportSensorColorProfile, parsePhotographicExportInput, createPhotographicExportPair,
   type ExportSensorColorProfile, type PhotographicExportInput, type PhotographicExportPair } from "./capture/photographic-export.js";
 export { CAPTURE_EXPORT_METADATA_SCHEMA_VERSION, parseCaptureExportMetadataInput, createCaptureExportMetadataPair,

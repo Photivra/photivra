@@ -192,6 +192,8 @@ export function calculateLensCorrectedCapture(input: {
   /** Intersection across all channel footprints, before crop; no missing colors fabricated. */
   validSourceMask: readonly boolean[];
   jointCrop: GeometricSamplingPlan["jointCrop"];
+  /** Gain-stage clipping events before joint support/crop; repeated stages count separately. */
+  illuminationClippingEventCount: number;
 }> {
   // Re-resolve untrusted/mutated plans; callers cannot forge enabled/mandatory state.
   const plan = resolveLensCorrectionPlan({ profile: input.plan.profile, state: input.plan.profile.state,
@@ -220,7 +222,7 @@ export function calculateLensCorrectedCapture(input: {
   if (plan.application === "metadata-only" || (!active.length && sameLattice)) {
     return approximationResult({ captureId: capture.captureId, noiseRealizationId: capture.noiseRealizationId,
       timeSeconds: capture.timeSeconds, application: plan.application, channels: capture.channels,
-      samplingPlans: {}, validSourceMask: Array<boolean>(count).fill(true),
+      samplingPlans: {}, validSourceMask: Array<boolean>(count).fill(true), illuminationClippingEventCount: 0,
       jointCrop: { x: 0, y: 0, width: capture.raster.width, height: capture.raster.height } },
     "generic-lens-correction-capture", "0.1.0", ["Original physical capture preserved"]);
   }
@@ -232,6 +234,7 @@ export function calculateLensCorrectedCapture(input: {
   }
   const channels = {} as Record<LensCorrectionChannel, readonly (number | null)[]>;
   const samplingPlans: Partial<Record<LensCorrectionChannel, GeometricSamplingPlan>> = {};
+  let illuminationClippingEventCount = 0;
   for (const channel of ["red", "green", "blue"] as const) {
     // Application order source->destination reverses for inverse sampling.
     const transforms = active.filter((c) => c.kind !== "peripheral-illumination").reverse().map((c) =>
@@ -246,10 +249,12 @@ export function calculateLensCorrectedCapture(input: {
       data = data.map((signal, index): number | null => {
         if (signal === null) return null;
         const raster = input.destinationRaster, x = index%raster.width, y = Math.floor(index/raster.width);
-        return calculatePeripheralIlluminationCorrection({ component: c,
+        const corrected = calculatePeripheralIlluminationCorrection({ component: c,
           imagePointMm: { x: raster.centerMm.x+(x+.5-raster.width/2)*raster.pitchMm,
             y: raster.centerMm.y-(y+.5-raster.height/2)*raster.pitchMm },
-          signal, noiseVariance: 0, clippingLevel: input.clippingLevel }).value.signal;
+          signal, noiseVariance: 0, clippingLevel: input.clippingLevel }).value;
+        if (corrected.clipped) illuminationClippingEventCount++;
+        return corrected.signal;
       });
     }
     channels[channel] = data;
@@ -258,6 +263,7 @@ export function calculateLensCorrectedCapture(input: {
   for (const channel of ["red", "green", "blue"] as const) channels[channel] = channels[channel].map((s, i) => mask[i] ? s : null);
   return approximationResult({ captureId: capture.captureId, noiseRealizationId: capture.noiseRealizationId,
     timeSeconds: capture.timeSeconds, application: plan.application, channels, samplingPlans, validSourceMask: mask,
+    illuminationClippingEventCount,
     jointCrop: calculateValidSourceCrop(mask, destination.width, destination.height) },
   "generic-lens-correction-capture", "0.1.0", ["Input capture/noise realization remains unchanged", "Channel support intersects before output; optical blur/noise is warped, not physically repaired",
     "No production-plan composition is enabled by this standalone executor"]);
