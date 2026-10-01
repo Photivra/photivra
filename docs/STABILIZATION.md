@@ -43,7 +43,130 @@ The two APIs do not share sign semantics:
 
 Do not substitute one result for the other without an explicit migration.
 
-The spatial primitive does not apply stabilization stops. Real IBIS/OIS behavior and translation/parallax remain separate future models.
+The spatial primitive does not apply stabilization stops. The separate time-domain stabilization system now provides generic synthetic rotational IBIS/OIS/coordinated correction; translation/parallax and mechanism-specific ray-geometry effects remain separate.
+
+## Time-domain physical stabilization system
+
+The #97 foundation adds a separate, versioned physical-stabilization model for time-varying rotational disturbance.
+
+It does **not** replace or reinterpret the legacy `estimateCameraShakeBlur()` API.
+
+### Disturbance trajectory
+
+`parseStabilizationDisturbanceTrajectory()` describes camera rotational displacement over the same capture-reference clock used by #12:
+
+`first-opening-boundary-phase`
+
+The first schema requires:
+
+- a zero-displacement sample at `t = 0`;
+- strictly increasing sample times;
+- explicit pitch/yaw/roll displacement in radians;
+- no embedded subject motion;
+- no embedded camera translation;
+- no embedded support/tripod state.
+
+This preserves the architecture:
+
+```text
+physical disturbance -> stabilization response -> residual rotation -> exposure-time image formation
+```
+
+Stable support remains simply an explicit zero disturbance trajectory. It does not automatically switch stabilization on or off.
+
+### Generic physical architectures
+
+`parseStabilizationSystemProfile()` supports generic synthetic:
+
+- `off`;
+- `sensor-shift`;
+- `lens-optical`;
+- `coordinated-physical`.
+
+Schema 0.1.0 deliberately does not claim branded camera/lens behavior.
+
+Each corrected axis can declare:
+
+- correction gain from 0 through 1;
+- response latency in seconds;
+- maximum image-equivalent angular correction in radians.
+
+The first dynamic response is:
+
+```text
+requested correction(t)
+  = gain × disturbance(t - latency)
+
+applied correction
+  = symmetric clamp(requested correction, angular limit)
+
+residual
+  = current disturbance(t) - applied correction
+```
+
+Before the latency interval has elapsed, the delayed measurement is zero.
+
+This is an explicit generic approximation. It is not a CIPA stop-rating conversion, control-loop identification, or commercial IBIS/OIS calibration.
+
+### Coordinated body + lens behavior
+
+A `coordinated-physical` profile includes explicit body/lens allocation fractions that sum to one.
+
+Those fractions describe ownership of **one total correction**. The engine does not apply body correction and lens correction independently and then add them again.
+
+This prevents coordinated stabilization from double-counting correction.
+
+### Panning
+
+The model never infers pan intent.
+
+A profile may explicitly use:
+
+`declared-axis-bypass`
+
+for one pitch/yaw/roll axis. Correction on that axis is then suppressed while the other declared axes continue to use the selected response.
+
+### Correction limits
+
+Angular travel/range limits are explicit.
+
+If requested correction exceeds an axis limit, the applied correction is clamped and the result reports `correctionLimitReached: true`.
+
+The engine does not produce unlimited correction merely because a profile has high gain.
+
+### Capture-time sampling
+
+`calculateStabilizedCaptureTemporalSamples()` evaluates stabilization at deterministic midpoint nodes inside each committed #12 local exposure window.
+
+This is especially important for rolling/local exposure timing: two native sensor positions may evaluate the same disturbance/stabilizer at different capture times.
+
+Sensor **data-readout timing is not used as exposure timing**.
+
+The result reports disturbance, applied correction and residual rotation at each node. It does not itself calculate:
+
+- image-plane mapping;
+- radiance;
+- blur kernels;
+- PSF;
+- final pixels.
+
+Those remain downstream image-formation responsibilities.
+
+### Explicit boundaries
+
+The first time-domain model does not include:
+
+- camera translation/parallax correction;
+- sensor-shift position within the lens image circle;
+- OIS lens-group ray-geometry changes;
+- spontaneous stabilizer drift;
+- settling/recentering transients beyond declared latency;
+- inferred panning;
+- support/tripod auto-detection;
+- shutter shock or wind/floor vibration generation;
+- digital/electronic stabilization.
+
+Digital stabilization remains downstream geometric warp/crop/resampling work and must preserve any field-of-view/crop consequences rather than being represented as physical residual camera motion.
 
 ## Ideal stable support boundary
 
@@ -102,19 +225,8 @@ Only the public standard identifier and high-level terminology are referenced he
 
 ## Not yet modeled
 
-The legacy stabilization-equivalent model intentionally omits:
+The legacy stabilization-equivalent model intentionally remains limited to its original teaching contract. The separate #97 system adds rotational roll-capable time-domain correction, latency, axis limits, explicit panning-axis bypass, coordination, and #12 local-exposure sampling without changing legacy results.
 
-- roll;
-- translational camera shake;
-- spatially varying rotational optical flow inside this compatibility API;
-- frequency-dependent shake spectra;
-- photographer-to-photographer variation;
-- shutter-button impulse;
-- tripod/support interactions;
-- sensor/lens stabilization axis limits;
-- IBIS/OIS coordination;
-- focal-length-dependent stabilization effectiveness beyond projection geometry;
-- rolling shutter;
-- panning detection/modes.
+Still outside the current stabilization foundations are translational camera-shake correction, frequency-domain control-loop calibration, photographer-specific empirical motion, shutter-button impulse generation, realistic tripod/support mechanics, focal-length-dependent real-equipment calibration, mechanism-specific IBIS/OIS ray geometry, automatic pan detection, and digital-stabilization crop/warp behavior.
 
-Those capabilities should be added as separate, documented models rather than being silently folded into the current approximation.
+Those capabilities should remain separate, documented models rather than being silently folded into either stabilization API.

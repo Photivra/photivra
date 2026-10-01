@@ -103,6 +103,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [temporal scene-radiance sampling](docs/USAGE.md#temporal-scene-radiance-sampling), generating deterministic provider-evaluation nodes on each point's authoritative local exposure clock and reducing only identity/time-matched radiance results;
 - [capture-local pure-rotation temporal quadrature](docs/USAGE.md#capture-rotation-temporal-quadrature), using deterministic midpoint nodes plus separate normalized-average and seconds-valued temporal measures without calculating radiance or blur;
 - [instantaneous inverse capture-scan mapping under pure rotation](docs/USAGE.md#instantaneous-capture-rotation-inverse-mapping), with an explicit local-exposure phase and analytic destination-to-reference ray inversion;
+- [time-domain physical stabilization system](docs/STABILIZATION.md#time-domain-physical-stabilization-system), with generic synthetic sensor-shift/OIS/coordinated rotational correction, explicit latency/gain/limits, declared panning-axis bypass, and #12 local-exposure sampling without consuming tripod/support state or stop ratings;
 - [the existing controlled yaw/pitch camera-shake and stabilization-equivalent approximation](docs/USAGE.md#camera-shake-and-stabilization-equivalent-approximation).
 
 ### Color controls
@@ -250,7 +251,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.90.0`
+- Engine API contract: `0.91.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
