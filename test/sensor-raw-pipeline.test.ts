@@ -868,7 +868,7 @@ const groupedModeProfile =
 const contributorsAt = (
   x: number,
   y: number
-) =>
+): ReturnType<typeof resolveCaptureModeColorSamplingContributors> =>
   resolveCaptureModeColorSamplingContributors({
     nativeRaster,
     captureModeProfile:
