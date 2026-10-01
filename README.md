@@ -76,6 +76,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [Gaussian thin-lens image distance and magnification](docs/USAGE.md#thin-lens-image-distance-and-magnification);
 - [geometric depth of field and defocus-circle diameter](docs/USAGE.md#depth-of-field-and-defocus);
 - [ideal circular-aperture first-zero Airy diameter](docs/USAGE.md#circular-aperture-diffraction);
+- [real-lens sampled PSF and complex-pupil framework](docs/USAGE.md#real-lens-psf-profiles-and-complex-pupil-reference), with full-2D directional kernels, bounded field/focus/aperture/wavelength/defocus interpolation, explicit field-curvature/longitudinal-focus offsets, unit-energy PSF shape, separate pupil throughput, and an MTF-only fail-closed boundary;
 - [separated PSF/pupil contribution foundation](docs/USAGE.md#psf-and-pupil-foundation);
 - [ideal regular-polygon aperture geometry and sunstar direction symmetry](docs/USAGE.md#aperture-geometry-and-sunstar-directions).
 
@@ -252,7 +253,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.92.0`
+- Engine API contract: `0.93.0`
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
 
@@ -282,7 +283,7 @@ Photivra deliberately avoids claiming more than the current models support.
 - Capture rotation trajectories evaluate a stationary reference ray at local exposure start/end under pure constant camera rotation. The endpoint chord is not an integrated blur kernel, and the API is not an inverse destination-to-source rolling-shutter warp; capture-location-dependent warp solving and exposure integration remain future work.
 - Capture rotation temporal quadrature supplies deterministic midpoint geometry samples across each local exposure. It does not sample scene radiance, output an averaged coordinate/blur radius, model shutter-transmission ramps, or claim a geometry-only error bound; downstream radiance integration remains separate.
 - Instantaneous capture-rotation inverse mapping now provides destination-to-reference geometry at an explicit phase within each local exposure window. Pure rotation is inverted analytically, not iteratively. The result is still not a finite-exposure image or blur model; reference rays may validly fall outside the active source frame and are not clamped.
-- The Airy diagnostic assumes an ideal circular pupil. The PSF foundation keeps circular diffraction and geometric defocus as separately named diagnostics; it does not calculate a combined PSF, and polygon aperture geometry does not produce a polygon diffraction PSF.
+- The Airy diagnostic remains an ideal circular-pupil size diagnostic. The real-lens PSF framework can resolve explicitly profiled combined primary-optical PSFs or calculate a unit-energy PSF from an explicit complex pupil/wavefront; polygon/non-circular aperture diffraction is still owned by #1 and is not inferred from blade geometry alone. The legacy defocus/Airy diagnostics remain separately named. not produce a polygon diffraction PSF.
 - Capture-mode profiles describe acquisition/sampling/reconstruction structure only. Grouped sampling does not imply charge-domain binning unless that domain is separately evidenced; processed-image resolution does not change FOV, physical sensor identity, or establish physical photosite count. Pixel-shift offsets are expressed in native effective-sampling-pitch units and do not claim photodiode pitch.
 - Color-sampling topology is independent from `NativeImageRaster`: periodic mosaic phase is anchored to absolute native sensor sampling-site indices, not crop-local coordinates. Channel IDs are semantic labels rather than spectral response curves. Layered color uses a separate unresolved spatial reference and remains structural-only until per-layer sampling density/registration is explicit; sparse non-periodic exceptions such as PDAF/masked/defect sites are not represented by schema 0.1.0.
 - Native-effective-raster/color-site binding requires its own evidence and is tied to one exact native raster; matching dimensions alone never prove 1:1 CFA correspondence. Grouped capture modes also require an evidenced full-frame top-left grouping phase. The bridge reports compact pre-reconstruction source rectangles and channel-site counts only—no sum/average weights, spectral response, downstream reconstructed-pixel dependency, or photodiode count. Pixel-shift offsets do not change CFA channel assignment because sensor and CFA move together.

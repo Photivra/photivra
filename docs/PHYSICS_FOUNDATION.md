@@ -264,6 +264,26 @@ Focus lock freezes the resolved optical state independently from AE, metering an
 
 Defocus is calculated geometrically by comparing the selected sensor plane for the focus distance with the ideal image plane for the subject distance and projecting an ideal circular entrance-pupil cone to the sensor.
 
+### Real-lens sampled PSF and complex-pupil propagation
+
+The #113 framework adds explicit combined primary-optical PSF representations without redefining the existing geometric-defocus or circular-Airy diagnostics.
+
+A sampled PSF is a full 2D unit-energy intensity distribution in image-plane metric coordinates. Regular-grid interpolation is bounded across focal length, focus state, aperture, field X/Y, wavelength and signed image-plane defocus. The engine never extrapolates beyond declared profile support.
+
+Field curvature and longitudinal chromatic focus are represented as field-/wavelength-dependent best-focus image-plane offsets. They do not modify distortion or lateral-CA coordinates.
+
+A complex pupil stores relative amplitude plus optical-path difference. The reference evaluator uses scalar Fraunhofer propagation:
+
+`PSF ∝ |FT{ A(x,y) exp(i 2π OPD(x,y)/λ) }|²`
+
+and then normalizes the sampled intensity to unit energy. Diffraction and aberration are therefore evaluated together in this path rather than composed as two unrelated image-space blur kernels.
+
+Mechanical pupil clipping may be represented in the pupil amplitude/PSF shape, but relative pupil throughput is an explicit separate factor. This prevents the normalized PSF from absorbing throughput that #110 would later apply again.
+
+MTF magnitude alone cannot uniquely determine a PSF because phase is absent. Photivra therefore accepts MTF magnitude as diagnostic/validation data but never reconstructs a unique PSF from it.
+
+Lens PSF remains upstream of the sensor optical stack, sensor sampling and reconstruction. Stray light is also separate because ghosts and veiling glare are not ordinary primary-image PSF blur.
+
 ### PSF/pupil foundation
 
 The engine now exposes a PSF/pupil foundation that evaluates existing geometric defocus and circular diffraction diagnostics in one explicit context while keeping the numerical contributions separate.

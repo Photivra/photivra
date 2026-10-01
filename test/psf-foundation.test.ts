@@ -8,7 +8,7 @@ import {
 } from "../src/index.js";
 
 describe("PSF/pupil foundation", () => {
-  it("publishes current diagnostics separately from reserved contributions", () => {
+  it("publishes current diagnostics, implemented framework contributions, and the reserved non-circular diffraction seam", () => {
     const contract = getPsfFoundationContract();
     const byId = new Map(
       contract.contributions.map((contribution) => [
@@ -17,11 +17,11 @@ describe("PSF/pupil foundation", () => {
       ])
     );
 
-    expect(contract.version).toBe("0.1.0");
+    expect(contract.version).toBe("0.2.0");
     expect(contract.coordinateSpace).toBe("image-plane-metric");
     expect(contract.fieldAxes).toBe("+X right, +Y up");
     expect(contract.compositionPolicy).toBe(
-      "separate-contributions-no-combined-psf"
+      "separate-diagnostics-plus-explicit-profiled-combined-psf"
     );
 
     expect(byId.get("geometric-defocus-circle")?.status).toBe(
@@ -34,16 +34,16 @@ describe("PSF/pupil foundation", () => {
       "reserved-contract"
     );
     expect(byId.get("mechanical-pupil-clipping")?.status).toBe(
-      "reserved-contract"
+      "implemented-framework"
     );
     expect(byId.get("field-curvature")?.status).toBe(
-      "reserved-contract"
+      "implemented-framework"
     );
     expect(byId.get("field-dependent-aberration")?.status).toBe(
-      "reserved-contract"
+      "implemented-framework"
     );
     expect(byId.get("field-dependent-bokeh")?.status).toBe(
-      "reserved-contract"
+      "implemented-framework"
     );
   });
 
