@@ -1,5 +1,9 @@
 # Usage Guide
 
+For bounded capture-owned charge/noise/ADC → native RAW generation, see
+[Sensor RAW producer](SENSOR_RAW_PRODUCER.md). Upstream EQE/dark exposure results
+remain declared; the returned frame can feed the same-RAW photographic exporter.
+
 For bounded committed capture → correction → SDR output, see
 [Capture-bound corrected SDR](CAPTURE_CORRECTED_SDR.md). It returns a derived output
 view without changing physical capture geometry or activating production stages.
