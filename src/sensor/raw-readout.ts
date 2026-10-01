@@ -898,17 +898,18 @@ export function resolveSensorReadoutRegime(
     parseSensorReadoutConversionProfile(
       input.profile
     );
-  const regimeId =
-    typeof input.regimeId ===
-      "string" &&
-    input.regimeId.trim().length >
+  if (
+    typeof input.regimeId !==
+      "string" ||
+    input.regimeId.trim().length ===
       0
-      ? input.regimeId.trim()
-      : (() => {
-          throw new InvalidScientificInputError(
-            "regimeId must be a non-empty string."
-          );
-        })();
+  ) {
+    throw new InvalidScientificInputError(
+      "regimeId must be a non-empty string."
+    );
+  }
+  const regimeId =
+    input.regimeId.trim();
   const regime =
     profile.regimes.find(
       (entry) =>
