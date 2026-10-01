@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+export { CAPTURE_SDR_SCHEMA_VERSION, parseCaptureSdrInput, calculateCaptureSdr,
+  type CaptureSdrInput, type CaptureSdrResult } from "./output/capture-sdr.js";
 
 export {
   parseOpticalProfileState,

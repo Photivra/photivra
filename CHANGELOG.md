@@ -1,5 +1,10 @@
 # Changelog
 
+## Capture-to-SDR adapter — unreleased
+
+- Added #112B bounded `calculateCaptureSdr()` and its runtime parser. Exact linear-sRGB/D65 profile, raster, RGB channels and resolved WB are required. Explicit color/WB conversion delegates to #15; intent-only/double WB, external storage and oversized execution fail closed. Source saturation/history and noise identity remain separate from SDR tone/gamut diagnostics. No correction execution, production activation, dependency or IO is introduced. See `docs/CAPTURE_SDR.md`.
+- Root API advances `0.97.0` to `0.98.0`; adapter schema `0.1.0`. Existing package, POC, capture/color/SDR and production contracts remain unchanged.
+
 Notable public changes to `@photivra/engine` are documented here.
 
 ## Unreleased
