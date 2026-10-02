@@ -1,0 +1,2190 @@
+{
+  "schemaVersion": "0.1.0",
+  "evidenceId": "geometric-preparation-reuse-2026-10-02",
+  "provenance": {
+    "sourceOrigin": "photivra",
+    "sourceReference": "photivra:geometric-consumer-performance",
+    "reuseStatus": "photivra-owned"
+  },
+  "measurementIsolation": "Final timing runs executed sequentially after release checks completed, with no concurrent task benchmarks/tests. Shared host activity is uncontrolled.",
+  "ordinaryRuns": [
+    {
+      "benchmark": "merged-geometric-consumers",
+      "benchmarkVersion": 1,
+      "referenceCommit": "c1374c31473f893310d1ce4f0d5a737aaba43ab5",
+      "candidateBaseCommit": "c1374c31473f893310d1ce4f0d5a737aaba43ab5",
+      "candidateSource": {
+        "path": "src/output/geometric-transforms.ts",
+        "sha256": "5d96773ccce87ac1eac7eda286f12b6aac48f1f91dc1aad6b6c2c6a7a022be46"
+      },
+      "engineApiVersion": "0.103.0",
+      "buildMethod": "tsc",
+      "nodeVersion": "v24.19.0",
+      "v8Version": "13.6.233.17-node.51",
+      "platform": "linux",
+      "arch": "x64",
+      "cpuModel": "AMD EPYC 9V74 80-Core Processor",
+      "logicalCpuCount": 9,
+      "forcedGc": false,
+      "results": [
+        {
+          "scenario": "sampling-plan-1x1",
+          "dimensions": {
+            "width": 1,
+            "height": 1
+          },
+          "callsPerRepeat": 100,
+          "repeats": 5,
+          "warmupCallsPerPath": 100,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 0.03522078,
+              "measurements": [
+                {
+                  "durationMs": 4.229461,
+                  "retainedHeapDeltaBytes": 8596064
+                },
+                {
+                  "durationMs": 4.015586,
+                  "retainedHeapDeltaBytes": 8505416
+                },
+                {
+                  "durationMs": 3.522078,
+                  "retainedHeapDeltaBytes": 8497744
+                },
+                {
+                  "durationMs": 3.36049,
+                  "retainedHeapDeltaBytes": 8497568
+                },
+                {
+                  "durationMs": 3.148479,
+                  "retainedHeapDeltaBytes": 8492272
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 0.02521064,
+              "measurements": [
+                {
+                  "durationMs": 2.521064,
+                  "retainedHeapDeltaBytes": 6961624
+                },
+                {
+                  "durationMs": 2.83671,
+                  "retainedHeapDeltaBytes": 6908648
+                },
+                {
+                  "durationMs": 2.602044,
+                  "retainedHeapDeltaBytes": 6985936
+                },
+                {
+                  "durationMs": 2.488847,
+                  "retainedHeapDeltaBytes": 6918904
+                },
+                {
+                  "durationMs": 2.402289,
+                  "retainedHeapDeltaBytes": 6912904
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.7157888042229615
+        },
+        {
+          "scenario": "corrected-capture-1x1",
+          "dimensions": {
+            "width": 1,
+            "height": 1
+          },
+          "callsPerRepeat": 100,
+          "repeats": 5,
+          "warmupCallsPerPath": 100,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 0.30255401,
+              "measurements": [
+                {
+                  "durationMs": 32.995097,
+                  "retainedHeapDeltaBytes": 7755024
+                },
+                {
+                  "durationMs": 30.255401,
+                  "retainedHeapDeltaBytes": 6670592
+                },
+                {
+                  "durationMs": 30.353748,
+                  "retainedHeapDeltaBytes": 6707824
+                },
+                {
+                  "durationMs": 29.978505,
+                  "retainedHeapDeltaBytes": 6472656
+                },
+                {
+                  "durationMs": 28.656367,
+                  "retainedHeapDeltaBytes": 6478624
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 0.26131678,
+              "measurements": [
+                {
+                  "durationMs": 27.946089,
+                  "retainedHeapDeltaBytes": -2514960
+                },
+                {
+                  "durationMs": 25.783793,
+                  "retainedHeapDeltaBytes": -2639400
+                },
+                {
+                  "durationMs": 25.786819,
+                  "retainedHeapDeltaBytes": -2433952
+                },
+                {
+                  "durationMs": 26.131678,
+                  "retainedHeapDeltaBytes": -2702344
+                },
+                {
+                  "durationMs": 28.348563,
+                  "retainedHeapDeltaBytes": -2776272
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.8637029137376167
+        },
+        {
+          "scenario": "sampling-plan-5x5",
+          "dimensions": {
+            "width": 5,
+            "height": 5
+          },
+          "callsPerRepeat": 100,
+          "repeats": 5,
+          "warmupCallsPerPath": 100,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 0.47622936000000005,
+              "measurements": [
+                {
+                  "durationMs": 47.622936,
+                  "retainedHeapDeltaBytes": -10350672
+                },
+                {
+                  "durationMs": 45.457356,
+                  "retainedHeapDeltaBytes": -11514544
+                },
+                {
+                  "durationMs": 49.707426,
+                  "retainedHeapDeltaBytes": -11677568
+                },
+                {
+                  "durationMs": 49.493834,
+                  "retainedHeapDeltaBytes": -11715592
+                },
+                {
+                  "durationMs": 47.065046,
+                  "retainedHeapDeltaBytes": -11656360
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 0.2665677,
+              "measurements": [
+                {
+                  "durationMs": 26.474831,
+                  "retainedHeapDeltaBytes": 14699232
+                },
+                {
+                  "durationMs": 26.65677,
+                  "retainedHeapDeltaBytes": 14729152
+                },
+                {
+                  "durationMs": 28.574435,
+                  "retainedHeapDeltaBytes": 14504336
+                },
+                {
+                  "durationMs": 27.69507,
+                  "retainedHeapDeltaBytes": 14498960
+                },
+                {
+                  "durationMs": 25.072887,
+                  "retainedHeapDeltaBytes": 14488816
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.5597464633427893
+        },
+        {
+          "scenario": "corrected-capture-5x5",
+          "dimensions": {
+            "width": 5,
+            "height": 5
+          },
+          "callsPerRepeat": 100,
+          "repeats": 5,
+          "warmupCallsPerPath": 100,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 3.36421072,
+              "measurements": [
+                {
+                  "durationMs": 344.853193,
+                  "retainedHeapDeltaBytes": -5167632
+                },
+                {
+                  "durationMs": 355.44062,
+                  "retainedHeapDeltaBytes": -7586104
+                },
+                {
+                  "durationMs": 336.421072,
+                  "retainedHeapDeltaBytes": -8408432
+                },
+                {
+                  "durationMs": 336.037761,
+                  "retainedHeapDeltaBytes": -6451528
+                },
+                {
+                  "durationMs": 334.849631,
+                  "retainedHeapDeltaBytes": -8485392
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 2.12435742,
+              "measurements": [
+                {
+                  "durationMs": 210.716989,
+                  "retainedHeapDeltaBytes": -51830440
+                },
+                {
+                  "durationMs": 212.538994,
+                  "retainedHeapDeltaBytes": 15089656
+                },
+                {
+                  "durationMs": 220.201611,
+                  "retainedHeapDeltaBytes": 23011328
+                },
+                {
+                  "durationMs": 208.990135,
+                  "retainedHeapDeltaBytes": 14488672
+                },
+                {
+                  "durationMs": 212.435742,
+                  "retainedHeapDeltaBytes": 15033008
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.6314578951225743
+        },
+        {
+          "scenario": "sampling-plan-17x17",
+          "dimensions": {
+            "width": 17,
+            "height": 17
+          },
+          "callsPerRepeat": 1,
+          "repeats": 5,
+          "warmupCallsPerPath": 2,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 5.565799,
+              "measurements": [
+                {
+                  "durationMs": 5.565799,
+                  "retainedHeapDeltaBytes": 13652832
+                },
+                {
+                  "durationMs": 5.149225,
+                  "retainedHeapDeltaBytes": 13687216
+                },
+                {
+                  "durationMs": 5.079563,
+                  "retainedHeapDeltaBytes": 13663664
+                },
+                {
+                  "durationMs": 6.302776,
+                  "retainedHeapDeltaBytes": 13651272
+                },
+                {
+                  "durationMs": 5.89213,
+                  "retainedHeapDeltaBytes": 13645648
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 2.9866,
+              "measurements": [
+                {
+                  "durationMs": 2.791532,
+                  "retainedHeapDeltaBytes": 8921976
+                },
+                {
+                  "durationMs": 2.9866,
+                  "retainedHeapDeltaBytes": 8912600
+                },
+                {
+                  "durationMs": 2.892131,
+                  "retainedHeapDeltaBytes": 8903808
+                },
+                {
+                  "durationMs": 3.482851,
+                  "retainedHeapDeltaBytes": 8912600
+                },
+                {
+                  "durationMs": 3.080498,
+                  "retainedHeapDeltaBytes": 8903152
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.5365986087532086
+        },
+        {
+          "scenario": "corrected-capture-17x17",
+          "dimensions": {
+            "width": 17,
+            "height": 17
+          },
+          "callsPerRepeat": 1,
+          "repeats": 5,
+          "warmupCallsPerPath": 2,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 39.25468,
+              "measurements": [
+                {
+                  "durationMs": 38.944912,
+                  "retainedHeapDeltaBytes": 28427416
+                },
+                {
+                  "durationMs": 41.812636,
+                  "retainedHeapDeltaBytes": -39796800
+                },
+                {
+                  "durationMs": 38.110624,
+                  "retainedHeapDeltaBytes": -38809920
+                },
+                {
+                  "durationMs": 39.25468,
+                  "retainedHeapDeltaBytes": -39421056
+                },
+                {
+                  "durationMs": 40.094308,
+                  "retainedHeapDeltaBytes": -38346064
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 24.332966,
+              "measurements": [
+                {
+                  "durationMs": 23.866569,
+                  "retainedHeapDeltaBytes": -1716920
+                },
+                {
+                  "durationMs": 24.02333,
+                  "retainedHeapDeltaBytes": -780280
+                },
+                {
+                  "durationMs": 24.332966,
+                  "retainedHeapDeltaBytes": -220656
+                },
+                {
+                  "durationMs": 25.804725,
+                  "retainedHeapDeltaBytes": -499384
+                },
+                {
+                  "durationMs": 29.654531,
+                  "retainedHeapDeltaBytes": -270040
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.6198742672211313
+        },
+        {
+          "scenario": "sampling-plan-33x33",
+          "dimensions": {
+            "width": 33,
+            "height": 33
+          },
+          "callsPerRepeat": 1,
+          "repeats": 5,
+          "warmupCallsPerPath": 2,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 22.460849,
+              "measurements": [
+                {
+                  "durationMs": 21.405604,
+                  "retainedHeapDeltaBytes": -16841096
+                },
+                {
+                  "durationMs": 22.460849,
+                  "retainedHeapDeltaBytes": -15977328
+                },
+                {
+                  "durationMs": 25.297106,
+                  "retainedHeapDeltaBytes": -15947256
+                },
+                {
+                  "durationMs": 21.383232,
+                  "retainedHeapDeltaBytes": -16445944
+                },
+                {
+                  "durationMs": 23.322799,
+                  "retainedHeapDeltaBytes": 51373880
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 11.941512,
+              "measurements": [
+                {
+                  "durationMs": 15.2666,
+                  "retainedHeapDeltaBytes": -33281144
+                },
+                {
+                  "durationMs": 11.712604,
+                  "retainedHeapDeltaBytes": 33535336
+                },
+                {
+                  "durationMs": 11.941512,
+                  "retainedHeapDeltaBytes": 33522600
+                },
+                {
+                  "durationMs": 11.641761,
+                  "retainedHeapDeltaBytes": 33513696
+                },
+                {
+                  "durationMs": 12.672714,
+                  "retainedHeapDeltaBytes": -35095072
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.531658976915788
+        },
+        {
+          "scenario": "corrected-capture-33x33",
+          "dimensions": {
+            "width": 33,
+            "height": 33
+          },
+          "callsPerRepeat": 1,
+          "repeats": 5,
+          "warmupCallsPerPath": 2,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 155.050791,
+              "measurements": [
+                {
+                  "durationMs": 157.411372,
+                  "retainedHeapDeltaBytes": 26838232
+                },
+                {
+                  "durationMs": 156.825844,
+                  "retainedHeapDeltaBytes": 25360632
+                },
+                {
+                  "durationMs": 152.221866,
+                  "retainedHeapDeltaBytes": 26351152
+                },
+                {
+                  "durationMs": 155.050791,
+                  "retainedHeapDeltaBytes": 26553032
+                },
+                {
+                  "durationMs": 153.139175,
+                  "retainedHeapDeltaBytes": 25079848
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 100.623755,
+              "measurements": [
+                {
+                  "durationMs": 101.349949,
+                  "retainedHeapDeltaBytes": -16772760
+                },
+                {
+                  "durationMs": 100.623755,
+                  "retainedHeapDeltaBytes": -18192896
+                },
+                {
+                  "durationMs": 95.150942,
+                  "retainedHeapDeltaBytes": -20707264
+                },
+                {
+                  "durationMs": 111.040245,
+                  "retainedHeapDeltaBytes": -16179344
+                },
+                {
+                  "durationMs": 100.141569,
+                  "retainedHeapDeltaBytes": -21370760
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.6489728581907074
+        },
+        {
+          "scenario": "sampling-plan-65x65",
+          "dimensions": {
+            "width": 65,
+            "height": 65
+          },
+          "callsPerRepeat": 1,
+          "repeats": 5,
+          "warmupCallsPerPath": 2,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 90.566272,
+              "measurements": [
+                {
+                  "durationMs": 83.357859,
+                  "retainedHeapDeltaBytes": 71403848
+                },
+                {
+                  "durationMs": 93.465649,
+                  "retainedHeapDeltaBytes": 7679896
+                },
+                {
+                  "durationMs": 85.17091,
+                  "retainedHeapDeltaBytes": 2563792
+                },
+                {
+                  "durationMs": 90.566272,
+                  "retainedHeapDeltaBytes": 7847376
+                },
+                {
+                  "durationMs": 110.316168,
+                  "retainedHeapDeltaBytes": -187256376
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 59.639051,
+              "measurements": [
+                {
+                  "durationMs": 55.277543,
+                  "retainedHeapDeltaBytes": -597160
+                },
+                {
+                  "durationMs": 60.059177,
+                  "retainedHeapDeltaBytes": 2401616
+                },
+                {
+                  "durationMs": 70.481655,
+                  "retainedHeapDeltaBytes": 4066328
+                },
+                {
+                  "durationMs": 56.871573,
+                  "retainedHeapDeltaBytes": 2096120
+                },
+                {
+                  "durationMs": 59.639051,
+                  "retainedHeapDeltaBytes": 2930752
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.6585128181051773
+        },
+        {
+          "scenario": "corrected-capture-65x65",
+          "dimensions": {
+            "width": 65,
+            "height": 65
+          },
+          "callsPerRepeat": 1,
+          "repeats": 5,
+          "warmupCallsPerPath": 2,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 640.164772,
+              "measurements": [
+                {
+                  "durationMs": 648.338374,
+                  "retainedHeapDeltaBytes": -123078096
+                },
+                {
+                  "durationMs": 641.541802,
+                  "retainedHeapDeltaBytes": 22676904
+                },
+                {
+                  "durationMs": 640.109483,
+                  "retainedHeapDeltaBytes": 85844232
+                },
+                {
+                  "durationMs": 640.164772,
+                  "retainedHeapDeltaBytes": 14005272
+                },
+                {
+                  "durationMs": 630.563769,
+                  "retainedHeapDeltaBytes": 90160272
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 468.194422,
+              "measurements": [
+                {
+                  "durationMs": 446.118434,
+                  "retainedHeapDeltaBytes": 1170800
+                },
+                {
+                  "durationMs": 480.583837,
+                  "retainedHeapDeltaBytes": -61443448
+                },
+                {
+                  "durationMs": 468.194422,
+                  "retainedHeapDeltaBytes": -177396512
+                },
+                {
+                  "durationMs": 477.344175,
+                  "retainedHeapDeltaBytes": 80604040
+                },
+                {
+                  "durationMs": 424.118062,
+                  "retainedHeapDeltaBytes": 4030472
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.7313654897586274
+        }
+      ],
+      "preparation": [
+        {
+          "path": "reference",
+          "preparationsPerRepeat": 1000,
+          "nanosecondsPerPreparation": [
+            7530.304,
+            7205.456,
+            8059.704,
+            7812.119,
+            7547.95,
+            7509.743,
+            8095.807
+          ],
+          "medianNanosecondsPerPreparation": 7547.95
+        },
+        {
+          "path": "candidate",
+          "preparationsPerRepeat": 1000,
+          "nanosecondsPerPreparation": [
+            7285.554,
+            7671.352,
+            7411.789,
+            8110.478,
+            7553.808,
+            7164.175,
+            7275.639
+          ],
+          "medianNanosecondsPerPreparation": 7411.789
+        }
+      ],
+      "profiles": [],
+      "sink": 261284,
+      "limitations": [
+        "Bounded real merged plan/correction consumers on owned synthetic sampled data; no full-production/browser frame-time claim",
+        "Alternating paired calls on shared host; workload shapes are not observed product traffic",
+        "Net retained heap is not allocation count; separate inspector sampling estimates are statistical",
+        "CPU inclusive categories overlap, and inlining/sampling limit attribution; do not sum them",
+        "No optical calibration, radiometry, actual prefilter or generic prepared API is introduced",
+        "Commit/build identity is operator-attested; candidate source fingerprint is recorded"
+      ]
+    },
+    {
+      "benchmark": "merged-geometric-consumers",
+      "benchmarkVersion": 1,
+      "referenceCommit": "c1374c31473f893310d1ce4f0d5a737aaba43ab5",
+      "candidateBaseCommit": "c1374c31473f893310d1ce4f0d5a737aaba43ab5",
+      "candidateSource": {
+        "path": "src/output/geometric-transforms.ts",
+        "sha256": "5d96773ccce87ac1eac7eda286f12b6aac48f1f91dc1aad6b6c2c6a7a022be46"
+      },
+      "engineApiVersion": "0.103.0",
+      "buildMethod": "tsc",
+      "nodeVersion": "v24.19.0",
+      "v8Version": "13.6.233.17-node.51",
+      "platform": "linux",
+      "arch": "x64",
+      "cpuModel": "AMD EPYC 9V74 80-Core Processor",
+      "logicalCpuCount": 9,
+      "forcedGc": false,
+      "results": [
+        {
+          "scenario": "sampling-plan-1x1",
+          "dimensions": {
+            "width": 1,
+            "height": 1
+          },
+          "callsPerRepeat": 100,
+          "repeats": 5,
+          "warmupCallsPerPath": 100,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 0.03561277,
+              "measurements": [
+                {
+                  "durationMs": 3.735503,
+                  "retainedHeapDeltaBytes": 8598768
+                },
+                {
+                  "durationMs": 3.211651,
+                  "retainedHeapDeltaBytes": 8504688
+                },
+                {
+                  "durationMs": 3.407821,
+                  "retainedHeapDeltaBytes": 8492256
+                },
+                {
+                  "durationMs": 11.695712,
+                  "retainedHeapDeltaBytes": -144434896
+                },
+                {
+                  "durationMs": 3.561277,
+                  "retainedHeapDeltaBytes": 8496768
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 0.025014349999999998,
+              "measurements": [
+                {
+                  "durationMs": 2.553391,
+                  "retainedHeapDeltaBytes": 6960552
+                },
+                {
+                  "durationMs": 2.501435,
+                  "retainedHeapDeltaBytes": 6908768
+                },
+                {
+                  "durationMs": 2.430482,
+                  "retainedHeapDeltaBytes": 6985152
+                },
+                {
+                  "durationMs": 2.695601,
+                  "retainedHeapDeltaBytes": 6918224
+                },
+                {
+                  "durationMs": 2.4911,
+                  "retainedHeapDeltaBytes": 6914808
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.7023983250951835
+        },
+        {
+          "scenario": "corrected-capture-1x1",
+          "dimensions": {
+            "width": 1,
+            "height": 1
+          },
+          "callsPerRepeat": 100,
+          "repeats": 5,
+          "warmupCallsPerPath": 100,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 0.30812306,
+              "measurements": [
+                {
+                  "durationMs": 30.468735,
+                  "retainedHeapDeltaBytes": 7743232
+                },
+                {
+                  "durationMs": 30.96063,
+                  "retainedHeapDeltaBytes": 6646504
+                },
+                {
+                  "durationMs": 33.576749,
+                  "retainedHeapDeltaBytes": 6558928
+                },
+                {
+                  "durationMs": 30.812306,
+                  "retainedHeapDeltaBytes": -60394176
+                },
+                {
+                  "durationMs": 30.627435,
+                  "retainedHeapDeltaBytes": -60279016
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 0.25652194,
+              "measurements": [
+                {
+                  "durationMs": 24.826153,
+                  "retainedHeapDeltaBytes": -2523552
+                },
+                {
+                  "durationMs": 25.443312,
+                  "retainedHeapDeltaBytes": -2617016
+                },
+                {
+                  "durationMs": 27.256397,
+                  "retainedHeapDeltaBytes": -2560736
+                },
+                {
+                  "durationMs": 26.3012,
+                  "retainedHeapDeltaBytes": 64464328
+                },
+                {
+                  "durationMs": 25.652194,
+                  "retainedHeapDeltaBytes": -2649968
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.8325308076584726
+        },
+        {
+          "scenario": "sampling-plan-5x5",
+          "dimensions": {
+            "width": 5,
+            "height": 5
+          },
+          "callsPerRepeat": 100,
+          "repeats": 5,
+          "warmupCallsPerPath": 100,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 0.45833838,
+              "measurements": [
+                {
+                  "durationMs": 46.425984,
+                  "retainedHeapDeltaBytes": -10398928
+                },
+                {
+                  "durationMs": 45.082645,
+                  "retainedHeapDeltaBytes": -11510720
+                },
+                {
+                  "durationMs": 47.373188,
+                  "retainedHeapDeltaBytes": -11657584
+                },
+                {
+                  "durationMs": 45.436833,
+                  "retainedHeapDeltaBytes": -11602232
+                },
+                {
+                  "durationMs": 45.833838,
+                  "retainedHeapDeltaBytes": 55330776
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 0.27196195,
+              "measurements": [
+                {
+                  "durationMs": 26.721985,
+                  "retainedHeapDeltaBytes": 14697336
+                },
+                {
+                  "durationMs": 27.196195,
+                  "retainedHeapDeltaBytes": 14740400
+                },
+                {
+                  "durationMs": 28.279601,
+                  "retainedHeapDeltaBytes": 14492120
+                },
+                {
+                  "durationMs": 27.27881,
+                  "retainedHeapDeltaBytes": 14545600
+                },
+                {
+                  "durationMs": 26.57273,
+                  "retainedHeapDeltaBytes": -52572568
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.593364993784723
+        },
+        {
+          "scenario": "corrected-capture-5x5",
+          "dimensions": {
+            "width": 5,
+            "height": 5
+          },
+          "callsPerRepeat": 100,
+          "repeats": 5,
+          "warmupCallsPerPath": 100,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 3.35279533,
+              "measurements": [
+                {
+                  "durationMs": 355.443816,
+                  "retainedHeapDeltaBytes": -5127232
+                },
+                {
+                  "durationMs": 335.279533,
+                  "retainedHeapDeltaBytes": -7619296
+                },
+                {
+                  "durationMs": 327.947862,
+                  "retainedHeapDeltaBytes": -8300264
+                },
+                {
+                  "durationMs": 349.0934,
+                  "retainedHeapDeltaBytes": -8548472
+                },
+                {
+                  "durationMs": 324.875806,
+                  "retainedHeapDeltaBytes": 59210104
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 2.12940496,
+              "measurements": [
+                {
+                  "durationMs": 224.151622,
+                  "retainedHeapDeltaBytes": 15505040
+                },
+                {
+                  "durationMs": 212.940496,
+                  "retainedHeapDeltaBytes": 14718952
+                },
+                {
+                  "durationMs": 206.643231,
+                  "retainedHeapDeltaBytes": 21508808
+                },
+                {
+                  "durationMs": 220.375923,
+                  "retainedHeapDeltaBytes": 14125224
+                },
+                {
+                  "durationMs": 209.890897,
+                  "retainedHeapDeltaBytes": -51057912
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.6351133160281514
+        },
+        {
+          "scenario": "sampling-plan-17x17",
+          "dimensions": {
+            "width": 17,
+            "height": 17
+          },
+          "callsPerRepeat": 1,
+          "repeats": 5,
+          "warmupCallsPerPath": 2,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 5.154233,
+              "measurements": [
+                {
+                  "durationMs": 5.833574,
+                  "retainedHeapDeltaBytes": 13652760
+                },
+                {
+                  "durationMs": 5.071511,
+                  "retainedHeapDeltaBytes": 13687216
+                },
+                {
+                  "durationMs": 5.152251,
+                  "retainedHeapDeltaBytes": 13636864
+                },
+                {
+                  "durationMs": 5.154233,
+                  "retainedHeapDeltaBytes": 13651272
+                },
+                {
+                  "durationMs": 5.318997,
+                  "retainedHeapDeltaBytes": 13649888
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 2.930076,
+              "measurements": [
+                {
+                  "durationMs": 2.930076,
+                  "retainedHeapDeltaBytes": 8946752
+                },
+                {
+                  "durationMs": 2.930067,
+                  "retainedHeapDeltaBytes": 8912600
+                },
+                {
+                  "durationMs": 2.922125,
+                  "retainedHeapDeltaBytes": 8903712
+                },
+                {
+                  "durationMs": 3.185864,
+                  "retainedHeapDeltaBytes": 8912600
+                },
+                {
+                  "durationMs": 3.361022,
+                  "retainedHeapDeltaBytes": 8940200
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.5684795390507181
+        },
+        {
+          "scenario": "corrected-capture-17x17",
+          "dimensions": {
+            "width": 17,
+            "height": 17
+          },
+          "callsPerRepeat": 1,
+          "repeats": 5,
+          "warmupCallsPerPath": 2,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 38.539991,
+              "measurements": [
+                {
+                  "durationMs": 40.65489,
+                  "retainedHeapDeltaBytes": -38783600
+                },
+                {
+                  "durationMs": 38.334002,
+                  "retainedHeapDeltaBytes": -39826488
+                },
+                {
+                  "durationMs": 36.999182,
+                  "retainedHeapDeltaBytes": -39029032
+                },
+                {
+                  "durationMs": 38.539991,
+                  "retainedHeapDeltaBytes": -40426352
+                },
+                {
+                  "durationMs": 41.461596,
+                  "retainedHeapDeltaBytes": 28246728
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 23.577383,
+              "measurements": [
+                {
+                  "durationMs": 22.93072,
+                  "retainedHeapDeltaBytes": -153488
+                },
+                {
+                  "durationMs": 23.577383,
+                  "retainedHeapDeltaBytes": -685432
+                },
+                {
+                  "durationMs": 23.354419,
+                  "retainedHeapDeltaBytes": -170552
+                },
+                {
+                  "durationMs": 25.285845,
+                  "retainedHeapDeltaBytes": -641832
+                },
+                {
+                  "durationMs": 25.865759,
+                  "retainedHeapDeltaBytes": -1359528
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.6117641023839367
+        },
+        {
+          "scenario": "sampling-plan-33x33",
+          "dimensions": {
+            "width": 33,
+            "height": 33
+          },
+          "callsPerRepeat": 1,
+          "repeats": 5,
+          "warmupCallsPerPath": 2,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 22.529874,
+              "measurements": [
+                {
+                  "durationMs": 24.902075,
+                  "retainedHeapDeltaBytes": -15732576
+                },
+                {
+                  "durationMs": 21.973251,
+                  "retainedHeapDeltaBytes": -16309336
+                },
+                {
+                  "durationMs": 23.8444,
+                  "retainedHeapDeltaBytes": -15852816
+                },
+                {
+                  "durationMs": 20.553692,
+                  "retainedHeapDeltaBytes": -16470480
+                },
+                {
+                  "durationMs": 22.529874,
+                  "retainedHeapDeltaBytes": -16951112
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 13.151234,
+              "measurements": [
+                {
+                  "durationMs": 12.373769,
+                  "retainedHeapDeltaBytes": 33584056
+                },
+                {
+                  "durationMs": 13.151234,
+                  "retainedHeapDeltaBytes": 33527176
+                },
+                {
+                  "durationMs": 12.414541,
+                  "retainedHeapDeltaBytes": 33518304
+                },
+                {
+                  "durationMs": 15.973314,
+                  "retainedHeapDeltaBytes": 33515136
+                },
+                {
+                  "durationMs": 14.991377,
+                  "retainedHeapDeltaBytes": -33301216
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.5837242587330937
+        },
+        {
+          "scenario": "corrected-capture-33x33",
+          "dimensions": {
+            "width": 33,
+            "height": 33
+          },
+          "callsPerRepeat": 1,
+          "repeats": 5,
+          "warmupCallsPerPath": 2,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 163.852477,
+              "measurements": [
+                {
+                  "durationMs": 166.181223,
+                  "retainedHeapDeltaBytes": 27007496
+                },
+                {
+                  "durationMs": 156.373104,
+                  "retainedHeapDeltaBytes": 26199440
+                },
+                {
+                  "durationMs": 155.213009,
+                  "retainedHeapDeltaBytes": 26120312
+                },
+                {
+                  "durationMs": 165.59888,
+                  "retainedHeapDeltaBytes": -96415856
+                },
+                {
+                  "durationMs": 163.852477,
+                  "retainedHeapDeltaBytes": 27056184
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 101.209524,
+              "measurements": [
+                {
+                  "durationMs": 107.534436,
+                  "retainedHeapDeltaBytes": -20884640
+                },
+                {
+                  "durationMs": 104.227374,
+                  "retainedHeapDeltaBytes": -16658168
+                },
+                {
+                  "durationMs": 94.899637,
+                  "retainedHeapDeltaBytes": -21245112
+                },
+                {
+                  "durationMs": 96.307612,
+                  "retainedHeapDeltaBytes": -17179560
+                },
+                {
+                  "durationMs": 101.209524,
+                  "retainedHeapDeltaBytes": -14614272
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.6176868720757881
+        },
+        {
+          "scenario": "sampling-plan-65x65",
+          "dimensions": {
+            "width": 65,
+            "height": 65
+          },
+          "callsPerRepeat": 1,
+          "repeats": 5,
+          "warmupCallsPerPath": 2,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 89.066704,
+              "measurements": [
+                {
+                  "durationMs": 88.9849,
+                  "retainedHeapDeltaBytes": 3171344
+                },
+                {
+                  "durationMs": 107.186173,
+                  "retainedHeapDeltaBytes": -246616088
+                },
+                {
+                  "durationMs": 86.897327,
+                  "retainedHeapDeltaBytes": 2922872
+                },
+                {
+                  "durationMs": 92.720136,
+                  "retainedHeapDeltaBytes": 8080704
+                },
+                {
+                  "durationMs": 89.066704,
+                  "retainedHeapDeltaBytes": 4966512
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 61.514732,
+              "measurements": [
+                {
+                  "durationMs": 61.514732,
+                  "retainedHeapDeltaBytes": 4166536
+                },
+                {
+                  "durationMs": 58.238035,
+                  "retainedHeapDeltaBytes": 2086024
+                },
+                {
+                  "durationMs": 69.003293,
+                  "retainedHeapDeltaBytes": -131018016
+                },
+                {
+                  "durationMs": 75.86322,
+                  "retainedHeapDeltaBytes": 2227560
+                },
+                {
+                  "durationMs": 48.519795,
+                  "retainedHeapDeltaBytes": 67477112
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.6906591266698272
+        },
+        {
+          "scenario": "corrected-capture-65x65",
+          "dimensions": {
+            "width": 65,
+            "height": 65
+          },
+          "callsPerRepeat": 1,
+          "repeats": 5,
+          "warmupCallsPerPath": 2,
+          "paths": [
+            {
+              "name": "reference",
+              "medianMillisecondsPerCall": 606.994678,
+              "measurements": [
+                {
+                  "durationMs": 620.212413,
+                  "retainedHeapDeltaBytes": 88882616
+                },
+                {
+                  "durationMs": 596.99175,
+                  "retainedHeapDeltaBytes": 14083544
+                },
+                {
+                  "durationMs": 606.286734,
+                  "retainedHeapDeltaBytes": 89074856
+                },
+                {
+                  "durationMs": 606.994678,
+                  "retainedHeapDeltaBytes": 14346216
+                },
+                {
+                  "durationMs": 656.129059,
+                  "retainedHeapDeltaBytes": 22649080
+                }
+              ]
+            },
+            {
+              "name": "candidate",
+              "medianMillisecondsPerCall": 449.007942,
+              "measurements": [
+                {
+                  "durationMs": 449.007942,
+                  "retainedHeapDeltaBytes": 9873576
+                },
+                {
+                  "durationMs": 464.157255,
+                  "retainedHeapDeltaBytes": 82016160
+                },
+                {
+                  "durationMs": 420.073153,
+                  "retainedHeapDeltaBytes": 8246752
+                },
+                {
+                  "durationMs": 451.564459,
+                  "retainedHeapDeltaBytes": 77575168
+                },
+                {
+                  "durationMs": 431.663849,
+                  "retainedHeapDeltaBytes": -33272696
+                }
+              ]
+            }
+          ],
+          "candidateToReferenceMedianRatio": 0.7397230293343692
+        }
+      ],
+      "preparation": [
+        {
+          "path": "reference",
+          "preparationsPerRepeat": 1000,
+          "nanosecondsPerPreparation": [
+            7716.409,
+            7451.268,
+            8351.805,
+            7999.835,
+            7891.717,
+            7514.091,
+            7534.922
+          ],
+          "medianNanosecondsPerPreparation": 7716.409
+        },
+        {
+          "path": "candidate",
+          "preparationsPerRepeat": 1000,
+          "nanosecondsPerPreparation": [
+            8462.018,
+            7283.581,
+            7652.324,
+            7370.96,
+            8389.43,
+            8227.221,
+            7605.846
+          ],
+          "medianNanosecondsPerPreparation": 7652.324
+        }
+      ],
+      "profiles": [],
+      "sink": 261284,
+      "limitations": [
+        "Bounded real merged plan/correction consumers on owned synthetic sampled data; no full-production/browser frame-time claim",
+        "Alternating paired calls on shared host; workload shapes are not observed product traffic",
+        "Net retained heap is not allocation count; separate inspector sampling estimates are statistical",
+        "CPU inclusive categories overlap, and inlining/sampling limit attribution; do not sum them",
+        "No optical calibration, radiometry, actual prefilter or generic prepared API is introduced",
+        "Commit/build identity is operator-attested; candidate source fingerprint is recorded"
+      ]
+    }
+  ],
+  "gcAssistedRun": {
+    "benchmark": "merged-geometric-consumers",
+    "benchmarkVersion": 1,
+    "referenceCommit": "c1374c31473f893310d1ce4f0d5a737aaba43ab5",
+    "candidateBaseCommit": "c1374c31473f893310d1ce4f0d5a737aaba43ab5",
+    "candidateSource": {
+      "path": "src/output/geometric-transforms.ts",
+      "sha256": "5d96773ccce87ac1eac7eda286f12b6aac48f1f91dc1aad6b6c2c6a7a022be46"
+    },
+    "engineApiVersion": "0.103.0",
+    "buildMethod": "tsc",
+    "nodeVersion": "v24.19.0",
+    "v8Version": "13.6.233.17-node.51",
+    "platform": "linux",
+    "arch": "x64",
+    "cpuModel": "AMD EPYC 9V74 80-Core Processor",
+    "logicalCpuCount": 9,
+    "forcedGc": true,
+    "results": [
+      {
+        "scenario": "sampling-plan-1x1",
+        "dimensions": {
+          "width": 1,
+          "height": 1
+        },
+        "callsPerRepeat": 100,
+        "repeats": 5,
+        "warmupCallsPerPath": 100,
+        "paths": [
+          {
+            "name": "reference",
+            "medianMillisecondsPerCall": 0.038481299999999996,
+            "measurements": [
+              {
+                "durationMs": 4.554701,
+                "retainedHeapDeltaBytes": 2312
+              },
+              {
+                "durationMs": 3.840869,
+                "retainedHeapDeltaBytes": 2016
+              },
+              {
+                "durationMs": 3.819938,
+                "retainedHeapDeltaBytes": 40
+              },
+              {
+                "durationMs": 3.84813,
+                "retainedHeapDeltaBytes": 736
+              },
+              {
+                "durationMs": 4.346623,
+                "retainedHeapDeltaBytes": 88
+              }
+            ]
+          },
+          {
+            "name": "candidate",
+            "medianMillisecondsPerCall": 0.03729004,
+            "measurements": [
+              {
+                "durationMs": 3.77429,
+                "retainedHeapDeltaBytes": -11296
+              },
+              {
+                "durationMs": 3.729004,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 3.756685,
+                "retainedHeapDeltaBytes": 27496
+              },
+              {
+                "durationMs": 3.049574,
+                "retainedHeapDeltaBytes": 88
+              },
+              {
+                "durationMs": 3.505604,
+                "retainedHeapDeltaBytes": 88
+              }
+            ]
+          }
+        ],
+        "candidateToReferenceMedianRatio": 0.9690431456317745
+      },
+      {
+        "scenario": "corrected-capture-1x1",
+        "dimensions": {
+          "width": 1,
+          "height": 1
+        },
+        "callsPerRepeat": 100,
+        "repeats": 5,
+        "warmupCallsPerPath": 100,
+        "paths": [
+          {
+            "name": "reference",
+            "medianMillisecondsPerCall": 0.32888126,
+            "measurements": [
+              {
+                "durationMs": 32.324031,
+                "retainedHeapDeltaBytes": -224
+              },
+              {
+                "durationMs": 34.071857,
+                "retainedHeapDeltaBytes": 42840
+              },
+              {
+                "durationMs": 32.888126,
+                "retainedHeapDeltaBytes": 568
+              },
+              {
+                "durationMs": 30.510292,
+                "retainedHeapDeltaBytes": 88
+              },
+              {
+                "durationMs": 32.906325,
+                "retainedHeapDeltaBytes": 88
+              }
+            ]
+          },
+          {
+            "name": "candidate",
+            "medianMillisecondsPerCall": 0.28586648,
+            "measurements": [
+              {
+                "durationMs": 28.959645,
+                "retainedHeapDeltaBytes": 53200
+              },
+              {
+                "durationMs": 29.672104,
+                "retainedHeapDeltaBytes": 72728
+              },
+              {
+                "durationMs": 27.310968,
+                "retainedHeapDeltaBytes": 18376
+              },
+              {
+                "durationMs": 28.586648,
+                "retainedHeapDeltaBytes": -872
+              },
+              {
+                "durationMs": 25.93822,
+                "retainedHeapDeltaBytes": 2976
+              }
+            ]
+          }
+        ],
+        "candidateToReferenceMedianRatio": 0.8692087837415851
+      },
+      {
+        "scenario": "sampling-plan-5x5",
+        "dimensions": {
+          "width": 5,
+          "height": 5
+        },
+        "callsPerRepeat": 100,
+        "repeats": 5,
+        "warmupCallsPerPath": 100,
+        "paths": [
+          {
+            "name": "reference",
+            "medianMillisecondsPerCall": 0.47284857,
+            "measurements": [
+              {
+                "durationMs": 47.097487,
+                "retainedHeapDeltaBytes": 30968
+              },
+              {
+                "durationMs": 45.915034,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 52.012293,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 47.284857,
+                "retainedHeapDeltaBytes": 88
+              },
+              {
+                "durationMs": 48.432838,
+                "retainedHeapDeltaBytes": 88
+              }
+            ]
+          },
+          {
+            "name": "candidate",
+            "medianMillisecondsPerCall": 0.28516973,
+            "measurements": [
+              {
+                "durationMs": 28.516973,
+                "retainedHeapDeltaBytes": 3648
+              },
+              {
+                "durationMs": 28.432919,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 29.339036,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 28.562462,
+                "retainedHeapDeltaBytes": 88
+              },
+              {
+                "durationMs": 28.128526,
+                "retainedHeapDeltaBytes": 88
+              }
+            ]
+          }
+        ],
+        "candidateToReferenceMedianRatio": 0.6030889127992921
+      },
+      {
+        "scenario": "corrected-capture-5x5",
+        "dimensions": {
+          "width": 5,
+          "height": 5
+        },
+        "callsPerRepeat": 100,
+        "repeats": 5,
+        "warmupCallsPerPath": 100,
+        "paths": [
+          {
+            "name": "reference",
+            "medianMillisecondsPerCall": 3.29697238,
+            "measurements": [
+              {
+                "durationMs": 329.697238,
+                "retainedHeapDeltaBytes": 52320
+              },
+              {
+                "durationMs": 344.826408,
+                "retainedHeapDeltaBytes": 30656
+              },
+              {
+                "durationMs": 342.221641,
+                "retainedHeapDeltaBytes": 688
+              },
+              {
+                "durationMs": 328.434487,
+                "retainedHeapDeltaBytes": 30656
+              },
+              {
+                "durationMs": 327.289627,
+                "retainedHeapDeltaBytes": 136
+              }
+            ]
+          },
+          {
+            "name": "candidate",
+            "medianMillisecondsPerCall": 2.14630064,
+            "measurements": [
+              {
+                "durationMs": 211.47741,
+                "retainedHeapDeltaBytes": 56
+              },
+              {
+                "durationMs": 215.145154,
+                "retainedHeapDeltaBytes": 33544
+              },
+              {
+                "durationMs": 214.630064,
+                "retainedHeapDeltaBytes": -67456
+              },
+              {
+                "durationMs": 214.598879,
+                "retainedHeapDeltaBytes": 66664
+              },
+              {
+                "durationMs": 216.151308,
+                "retainedHeapDeltaBytes": 3824
+              }
+            ]
+          }
+        ],
+        "candidateToReferenceMedianRatio": 0.6509913922906445
+      },
+      {
+        "scenario": "sampling-plan-17x17",
+        "dimensions": {
+          "width": 17,
+          "height": 17
+        },
+        "callsPerRepeat": 1,
+        "repeats": 5,
+        "warmupCallsPerPath": 2,
+        "paths": [
+          {
+            "name": "reference",
+            "medianMillisecondsPerCall": 6.500017,
+            "measurements": [
+              {
+                "durationMs": 6.264159,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 5.835306,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 6.500017,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 6.750616,
+                "retainedHeapDeltaBytes": 88
+              },
+              {
+                "durationMs": 7.014425,
+                "retainedHeapDeltaBytes": 88
+              }
+            ]
+          },
+          {
+            "name": "candidate",
+            "medianMillisecondsPerCall": 4.196382,
+            "measurements": [
+              {
+                "durationMs": 3.370716,
+                "retainedHeapDeltaBytes": 936
+              },
+              {
+                "durationMs": 4.504887,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 4.196382,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 4.08594,
+                "retainedHeapDeltaBytes": -72
+              },
+              {
+                "durationMs": 4.702127,
+                "retainedHeapDeltaBytes": 88
+              }
+            ]
+          }
+        ],
+        "candidateToReferenceMedianRatio": 0.6455955422885817
+      },
+      {
+        "scenario": "corrected-capture-17x17",
+        "dimensions": {
+          "width": 17,
+          "height": 17
+        },
+        "callsPerRepeat": 1,
+        "repeats": 5,
+        "warmupCallsPerPath": 2,
+        "paths": [
+          {
+            "name": "reference",
+            "medianMillisecondsPerCall": 41.111721,
+            "measurements": [
+              {
+                "durationMs": 38.447493,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 44.530544,
+                "retainedHeapDeltaBytes": 2664
+              },
+              {
+                "durationMs": 42.114759,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 38.308431,
+                "retainedHeapDeltaBytes": 88
+              },
+              {
+                "durationMs": 41.111721,
+                "retainedHeapDeltaBytes": 88
+              }
+            ]
+          },
+          {
+            "name": "candidate",
+            "medianMillisecondsPerCall": 24.895329,
+            "measurements": [
+              {
+                "durationMs": 24.758936,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 26.250564,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 25.908943,
+                "retainedHeapDeltaBytes": 328
+              },
+              {
+                "durationMs": 24.828521,
+                "retainedHeapDeltaBytes": 88
+              },
+              {
+                "durationMs": 24.895329,
+                "retainedHeapDeltaBytes": 88
+              }
+            ]
+          }
+        ],
+        "candidateToReferenceMedianRatio": 0.6055530732950829
+      },
+      {
+        "scenario": "sampling-plan-33x33",
+        "dimensions": {
+          "width": 33,
+          "height": 33
+        },
+        "callsPerRepeat": 1,
+        "repeats": 5,
+        "warmupCallsPerPath": 2,
+        "paths": [
+          {
+            "name": "reference",
+            "medianMillisecondsPerCall": 23.426526,
+            "measurements": [
+              {
+                "durationMs": 21.871202,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 24.443213,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 22.395637,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 23.779796,
+                "retainedHeapDeltaBytes": 88
+              },
+              {
+                "durationMs": 23.426526,
+                "retainedHeapDeltaBytes": 88
+              }
+            ]
+          },
+          {
+            "name": "candidate",
+            "medianMillisecondsPerCall": 14.645938,
+            "measurements": [
+              {
+                "durationMs": 16.627661,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 14.645938,
+                "retainedHeapDeltaBytes": 1272
+              },
+              {
+                "durationMs": 15.713111,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 13.945376,
+                "retainedHeapDeltaBytes": 88
+              },
+              {
+                "durationMs": 13.01818,
+                "retainedHeapDeltaBytes": 88
+              }
+            ]
+          }
+        ],
+        "candidateToReferenceMedianRatio": 0.6251860817946289
+      },
+      {
+        "scenario": "corrected-capture-33x33",
+        "dimensions": {
+          "width": 33,
+          "height": 33
+        },
+        "callsPerRepeat": 1,
+        "repeats": 5,
+        "warmupCallsPerPath": 2,
+        "paths": [
+          {
+            "name": "reference",
+            "medianMillisecondsPerCall": 163.507182,
+            "measurements": [
+              {
+                "durationMs": 171.971087,
+                "retainedHeapDeltaBytes": 584
+              },
+              {
+                "durationMs": 154.502025,
+                "retainedHeapDeltaBytes": 584
+              },
+              {
+                "durationMs": 163.507182,
+                "retainedHeapDeltaBytes": 2528
+              },
+              {
+                "durationMs": 172.549916,
+                "retainedHeapDeltaBytes": 600
+              },
+              {
+                "durationMs": 151.443509,
+                "retainedHeapDeltaBytes": 4488
+              }
+            ]
+          },
+          {
+            "name": "candidate",
+            "medianMillisecondsPerCall": 104.99223,
+            "measurements": [
+              {
+                "durationMs": 112.751171,
+                "retainedHeapDeltaBytes": 584
+              },
+              {
+                "durationMs": 104.99223,
+                "retainedHeapDeltaBytes": 560
+              },
+              {
+                "durationMs": 104.675112,
+                "retainedHeapDeltaBytes": 584
+              },
+              {
+                "durationMs": 103.453462,
+                "retainedHeapDeltaBytes": 600
+              },
+              {
+                "durationMs": 105.897254,
+                "retainedHeapDeltaBytes": 600
+              }
+            ]
+          }
+        ],
+        "candidateToReferenceMedianRatio": 0.6421261055064847
+      },
+      {
+        "scenario": "sampling-plan-65x65",
+        "dimensions": {
+          "width": 65,
+          "height": 65
+        },
+        "callsPerRepeat": 1,
+        "repeats": 5,
+        "warmupCallsPerPath": 2,
+        "paths": [
+          {
+            "name": "reference",
+            "medianMillisecondsPerCall": 84.847851,
+            "measurements": [
+              {
+                "durationMs": 86.171953,
+                "retainedHeapDeltaBytes": 1464
+              },
+              {
+                "durationMs": 84.847851,
+                "retainedHeapDeltaBytes": 168
+              },
+              {
+                "durationMs": 84.465958,
+                "retainedHeapDeltaBytes": 528
+              },
+              {
+                "durationMs": 84.893067,
+                "retainedHeapDeltaBytes": 184
+              },
+              {
+                "durationMs": 83.474016,
+                "retainedHeapDeltaBytes": 184
+              }
+            ]
+          },
+          {
+            "name": "candidate",
+            "medianMillisecondsPerCall": 50.807798,
+            "measurements": [
+              {
+                "durationMs": 50.233777,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 51.234385,
+                "retainedHeapDeltaBytes": 72
+              },
+              {
+                "durationMs": 50.807798,
+                "retainedHeapDeltaBytes": 360
+              },
+              {
+                "durationMs": 53.922616,
+                "retainedHeapDeltaBytes": 88
+              },
+              {
+                "durationMs": 48.707152,
+                "retainedHeapDeltaBytes": 29608
+              }
+            ]
+          }
+        ],
+        "candidateToReferenceMedianRatio": 0.598810664043807
+      },
+      {
+        "scenario": "corrected-capture-65x65",
+        "dimensions": {
+          "width": 65,
+          "height": 65
+        },
+        "callsPerRepeat": 1,
+        "repeats": 5,
+        "warmupCallsPerPath": 2,
+        "paths": [
+          {
+            "name": "reference",
+            "medianMillisecondsPerCall": 617.036458,
+            "measurements": [
+              {
+                "durationMs": 612.610911,
+                "retainedHeapDeltaBytes": 584
+              },
+              {
+                "durationMs": 655.102682,
+                "retainedHeapDeltaBytes": 584
+              },
+              {
+                "durationMs": 617.036458,
+                "retainedHeapDeltaBytes": 1160
+              },
+              {
+                "durationMs": 623.833352,
+                "retainedHeapDeltaBytes": 600
+              },
+              {
+                "durationMs": 616.135516,
+                "retainedHeapDeltaBytes": 31088
+              }
+            ]
+          },
+          {
+            "name": "candidate",
+            "medianMillisecondsPerCall": 462.066573,
+            "measurements": [
+              {
+                "durationMs": 450.636993,
+                "retainedHeapDeltaBytes": 4472
+              },
+              {
+                "durationMs": 453.833263,
+                "retainedHeapDeltaBytes": -15944
+              },
+              {
+                "durationMs": 470.131056,
+                "retainedHeapDeltaBytes": 30368
+              },
+              {
+                "durationMs": 462.066573,
+                "retainedHeapDeltaBytes": 600
+              },
+              {
+                "durationMs": 469.099489,
+                "retainedHeapDeltaBytes": 480
+              }
+            ]
+          }
+        ],
+        "candidateToReferenceMedianRatio": 0.7488480899454404
+      }
+    ],
+    "preparation": [
+      {
+        "path": "reference",
+        "preparationsPerRepeat": 1000,
+        "nanosecondsPerPreparation": [
+          8395.218,
+          7395.594,
+          7233.276,
+          7435.252,
+          7746.932,
+          7153.227,
+          7213.897
+        ],
+        "medianNanosecondsPerPreparation": 7395.594
+      },
+      {
+        "path": "candidate",
+        "preparationsPerRepeat": 1000,
+        "nanosecondsPerPreparation": [
+          7588.789,
+          7875.412,
+          7908.139,
+          8117.077,
+          9335.743,
+          7892.577,
+          7639.033
+        ],
+        "medianNanosecondsPerPreparation": 7892.577
+      }
+    ],
+    "profiles": [
+      {
+        "path": "reference",
+        "scenario": "corrected-capture-65x65",
+        "cpu": {
+          "calls": 5,
+          "totalSamples": 2951,
+          "wholeConsumerSamples": 2657,
+          "inclusiveSampleCounts": {
+            "prepareGeometricMapping": 882,
+            "validateRadialDistortionProfile": 63,
+            "calculateRadialDistortionMapping": 361,
+            "calculateIlluminationVignetting": 46,
+            "assertFiniteNumbers": 1936
+          }
+        },
+        "allocation": {
+          "calls": 5,
+          "samplingIntervalBytes": 32768,
+          "sampledBytes": 6946184128,
+          "preparationInclusiveSampledBytes": 2075859720
+        }
+      },
+      {
+        "path": "candidate",
+        "scenario": "corrected-capture-65x65",
+        "cpu": {
+          "calls": 5,
+          "totalSamples": 2095,
+          "wholeConsumerSamples": 1779,
+          "inclusiveSampleCounts": {
+            "prepareGeometricMapping": 1,
+            "validateRadialDistortionProfile": 24,
+            "calculateRadialDistortionMapping": 344,
+            "calculateIlluminationVignetting": 48,
+            "assertFiniteNumbers": 1532
+          }
+        },
+        "allocation": {
+          "calls": 5,
+          "samplingIntervalBytes": 32768,
+          "sampledBytes": 4840744824,
+          "preparationInclusiveSampledBytes": 656240
+        }
+      }
+    ],
+    "sink": 345784,
+    "limitations": [
+      "Bounded real merged plan/correction consumers on owned synthetic sampled data; no full-production/browser frame-time claim",
+      "Alternating paired calls on shared host; workload shapes are not observed product traffic",
+      "Net retained heap is not allocation count; separate inspector sampling estimates are statistical",
+      "CPU inclusive categories overlap, and inlining/sampling limit attribution; do not sum them",
+      "No optical calibration, radiometry, actual prefilter or generic prepared API is introduced",
+      "Commit/build identity is operator-attested; candidate source fingerprint is recorded"
+    ]
+  }
+}
