@@ -41,9 +41,10 @@ These are reference safety limits, not production-resolution performance claims.
 The distinct kind `eqe-temporal-quadrature-expected-counts` reports integrated
 photo expectations with `timeStationarityEstablished: false` and
 `timeVaryingSignalIntegrated: true`. It is **not** the existing stationary
-`SensorEqeExposureIntegration`. Current dark/charge/RAW consumers reject it;
-do not cast it, synthesize stationarity fields or relabel its kind to bypass
-that boundary. An explicit versioned downstream handoff remains required.
+`SensorEqeExposureIntegration`. Dark/charge/RAW consumers reject this full diagnostic record;
+do not cast it, synthesize stationarity fields or relabel its kind. The explicit
+[temporal photo-signal handoff](TEMPORAL_PHOTO_RAW.md), added at root API 0.110.0,
+recomputes physical input and produces a distinct validated compact record.
 Dark current, completeness, physical capacity, noise, readout and RAW remain
 separate responsibilities. Production gates are unchanged.
 
@@ -60,12 +61,12 @@ Tests use owned synthetic fields and independent SI photon-energy/area/response
 arithmetic. Constant fields match stationary counts; a quadratic field shows
 expected midpoint convergence; rolling offsets and single-instant operating
 range failure are verified. These are mathematical regression evidence, not
-photographic calibration or nonstationary RAW/export acceptance.
+photographic calibration. Separate [handoff acceptance](../test/temporal-photo-raw.test.ts)
+now covers nonstationary RAW/export from owned synthetic inputs.
 
 This additive API advances root API 0.108.0 to **0.109.0**, with model 0.1.0.
 Package, POC, production, capture/RAW schemas and noise identities are unchanged.
 Historical replay retains its stored root stamp and pinned paired-file hashes;
 new capture identities may include the new API stamp. No dependency or cost is
 introduced. Remaining #16/#178/#112 work includes source execution, PSF,
-nonstationary charge/RAW integration, production activation and editor/resolution
-acceptance; this slice closes no umbrella ticket.
+production activation and editor/resolution acceptance; this slice closes no umbrella ticket.

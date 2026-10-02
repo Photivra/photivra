@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased — engine API 0.109.0
+## Unreleased — engine API 0.110.0
+
+- Add a validated compact temporal EQE photo signal and connect it to exact-event dark/accumulated charge and native RAW. Preserve stationary arithmetic and narrow-call types; share compensated integration sums. Producer result schema 0.3.0 and temporal dark/charge model 1.1.0 distinguish the additive path without changing noise/readout identities. Global/rolling tests verify independent SI counts, deterministic codes and exact paired DNG/JPEG lineage. Source transport/PSF, convergence and production activation remain unverified; no umbrella closure. See `docs/TEMPORAL_PHOTO_RAW.md`. Partial #16/#178 resolution.
+
+## Engine API 0.109.0
 
 - Add `calculateSensorEqeTemporalExposure()`: independently validate response/range/EQE at each explicitly supplied local shutter midpoint and integrate physical rates with seconds-valued measures. Share the existing instantaneous path without changing stationary behavior; retain child evidence, deterministic canonical ordering and bounded Cartesian work. No stationarity, source transport, PSF, convergence or RAW activation is inferred. This new nonstationary result deliberately cannot enter the stationary charge/RAW contract. See `docs/SENSOR_EQE_TEMPORAL_EXPOSURE.md`. Partial #16/#178 resolution.
 

@@ -43,6 +43,7 @@ export function withSamples(result: CalculateSensorEqeLocalExposureInput, intens
 export function producerSiteInput(raw: SensorRawProducerInput, site: SensorRawProducerInput["sites"][number]): CalculateSensorEqeLocalExposureInput {
   const duration = raw.frame.capture.exposure.shutterSeconds;
   const request = input(), photo = site.charge.photoSignal;
+  if (photo.kind !== "eqe-expected-counts") throw new Error("Fixture requires stationary source identity.");
   request.colorSamplingProfile = raw.frame.colorSamplingProfile;
   request.spectralResponseProfile.colorSamplingProfileId = "cfa";
   request.spectralResponseProfile.channels = request.spectralResponseProfile.channels.map(c => ({ ...c, channelId: photo.channelId }));

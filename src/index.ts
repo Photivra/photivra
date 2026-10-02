@@ -536,8 +536,10 @@ export {
   parseSensorAccumulatedChargeCompletenessProfile,
   parseSensorAdditionalStoredChargeComponent,
   type ComposeSensorAccumulatedChargeInput,
+  type ComposeSensorPhotoAccumulatedChargeInput,
   type SensorAccumulatedChargeCompletenessProfile,
   type SensorAccumulatedChargeComposition,
+  type SensorPhotoAccumulatedChargeComposition,
   type SensorAdditionalStoredChargeComponent,
   type SensorAdditionalStoredChargeKind
 } from "./sensor/accumulated-charge.js";
@@ -1373,3 +1375,8 @@ export { calculateSceneToSensorIrradianceQuadrature, type CalculateSceneToSensor
 
 export { calculateSensorEqeTemporalExposure, type CalculateSensorEqeTemporalExposureInput,
   type SensorEqeTemporalExposure } from "./sensor/eqe-temporal-exposure.js";
+
+export { createSensorEqeTemporalPhotoSignal, parseSensorEqeTemporalPhotoSignal,
+  type SensorEqeTemporalPhotoSignal, type SensorEqePhotoExposure } from "./sensor/temporal-photo-signal.js";
+
+export type { SensorTemporalDarkCurrentCharge, SensorPhotoDarkCurrentCharge } from "./sensor/dark-current.js";
