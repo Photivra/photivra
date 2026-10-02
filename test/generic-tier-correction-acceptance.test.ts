@@ -123,7 +123,8 @@ describe("tier correction residual and sampled-edge acceptance", () => {
         // Polynomial throughput is 1+r2*r^2; gain is its declared partial reciprocal.
         const gain = (1 + a.vignettingR2 * (p.x * p.x + p.y * p.y) / (radius * radius)) ** (-a.correctionGainStrength);
         expect(on.channels[channel][i]).toBeCloseTo(signal * gain, 12);
-        if (signal > .22 && signal < .78) mixedStep = true;
+        const highSideWeight = interpolate(samples.map((sample) => sample > .5 ? 1 : 0), q)!;
+        if (highSideWeight > 1e-8 && highSideWeight < 1 - 1e-8) mixedStep = true;
       }
     }
     expect(mixedStep).toBe(true); // Interpolation changes an already sampled edge/noise target.
