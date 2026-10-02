@@ -138,6 +138,15 @@ now connects independently validated midpoint expectations to dark/charge/RAW an
 paired files, with [global/rolling acceptance](../test/temporal-photo-raw.test.ts). No production activation or
 umbrella closure is claimed.
 
+[`calculateSceneSensorEqeTemporalExposure()`](../src/sensor/scene-eqe-temporal-exposure.ts)
+now composes the declared scene/optical bridge at each local shutter midpoint
+with the existing temporal EQE path. Sensor-owned plans remove caller plan drift;
+the explicit package plane and opening-boundary time reference remain enforced.
+[Acceptance](../test/scene-eqe-temporal-exposure.test.ts) checks SI counts, rolling
+offsets, instantaneous validity and exact RAW/file handoff. See
+[SCENE_SENSOR_TEMPORAL_EXPOSURE.md](SCENE_SENSOR_TEMPORAL_EXPOSURE.md).
+Provider/projection/PSF execution and production activation remain open; 25/32 is unchanged.
+
 ## Remaining upstream handoff into the existing producer
 
 The missing handoff belongs to #16/#178, with processed output and plan
@@ -145,7 +154,7 @@ activation coordinated with #112. It should produce the existing per-site
 producer inputs through the scientific APIs below, retaining child envelopes;
 it must not accept an independently rendered RGB plane and relabel it sensor
 signal. The table retains the full origin/production acceptance requirements; the bounded
-adapters above implement declared static scene/optics nodes and stationary sensor exposure.
+adapters above implement declared scene/optics nodes and stationary/nonstationary sensor exposure.
 
 | Handoff | Reuse / authoritative owner | Binding and acceptance requirement |
 | --- | --- | --- |

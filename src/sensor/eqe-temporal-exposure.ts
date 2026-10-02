@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { sumTemporalEqeRateExpectations } from "./temporal-eqe-sum.js";
+import { bindSensorTemporalSamples } from "./temporal-sample-binding.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import { calculateSensorEqeLocalRate, type CalculateSensorEqeLocalExposureInput } from "./eqe-local-exposure.js";
@@ -59,29 +60,12 @@ export interface SensorEqeTemporalExposure {
 export function calculateSensorEqeTemporalExposure(
   input: CalculateSensorEqeTemporalExposureInput
 ): CalculationResult<SensorEqeTemporalExposure> {
-  const count = input.samples?.length;
-  if (!Array.isArray(input.samples) || !Number.isSafeInteger(count) || count < 1 || count > 256) {
-    throw new InvalidScientificInputError("Temporal quadrature requires 1 through 256 samples.");
-  }
-  const byIndex = new Map<number, CalculateSensorEqeTemporalExposureInput["samples"][number]>();
-  let nodeCount = 0;
-  for (const sample of input.samples) {
-    if (sample === undefined || sample === null || !Number.isSafeInteger(sample.temporalSampleIndex) ||
-      sample.temporalSampleIndex < 0 || sample.temporalSampleIndex >= count ||
-      byIndex.has(sample.temporalSampleIndex) || !Number.isFinite(sample.timeSecondsFromOpeningReference) ||
-      !Array.isArray(sample.irradianceSamples)) {
-      throw new InvalidScientificInputError("Temporal samples require unique in-range indices, finite times and irradiance arrays.");
-    }
-    nodeCount += sample.irradianceSamples.length;
-    if (nodeCount > 100000) {
-      throw new InvalidScientificInputError("Temporal Cartesian irradiance coverage exceeds the 100000-node budget.");
-    }
-    byIndex.set(sample.temporalSampleIndex, sample);
-  }
+  const ordered = bindSensorTemporalSamples(input.samples, sample => sample.irradianceSamples);
+  const count = ordered.length;
   const samples: SensorEqeTemporalExposure["samples"][number][] = [];
   let previousTime = -Infinity;
   for (let index = 0; index < count; index++) {
-    const sample = byIndex.get(index)!;
+    const sample = ordered[index]!;
     const stages = calculateSensorEqeLocalRate({ ...input, irradianceSamples: sample.irradianceSamples });
     const binding = stages.exposureBinding.value;
     const start = binding.localExposureWindow.startOffsetSecondsFromOpeningReference;
