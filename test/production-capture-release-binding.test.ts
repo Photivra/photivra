@@ -389,7 +389,7 @@ describe("production capture binding from release frame", () => {
       .toBe("0.5.0");
     expect(plan.versions)
       .toMatchObject({
-        engineApi: "0.103.0",
+        engineApi: "0.104.0",
         captureSnapshot: "0.3.0",
         plan: "0.5.0"
       });

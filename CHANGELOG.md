@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased — engine API 0.103.0
+## Unreleased — engine API 0.104.0
+
+- Add exact-version Consumer, Prosumer and Professional generic body/lens reference assets, cross-tier selection and strict saved-manifest validation. A finite 50 mm, f/4, focus 5 m optical slice resolves explicit profiles rather than a tier quality multiplier. Matched pupil and same-capture correction fixtures expose field/defocus character and gain/noise tradeoffs. See `docs/GENERIC_TIER_PRESETS.md`.
+- Synthetic educational approximations only; no calibration, universal ranking, sensor-format default, production/POC activation or complete #116/#119 acceptance claim. Preset assets are version 1.0.0; saved selection schema 0.1.0. Proposed additive root version must be reconciled with parallel RAW-local-exposure draft #173 before merge.
+
+## RAW-derived JPEG corrections — engine API 0.103.0
 
 - Add optional RAW-derived JPEG correction to paired photographic export, reusing the capture correction executor after explicit color/WB. Preserve DNG codes and native crop; expose the processed crop, clipping diagnostics and separate informational RAW intent. Require full active reconstruction and reject unprovided prefiltering. No production-stage activation or external-editor validation claim.
 

@@ -1,4 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
+
+export { GENERIC_EQUIPMENT_TIER_PRESET_VERSION, GENERIC_EQUIPMENT_TIERS, resolveGenericEquipmentTierCatalog,
+  createGenericEquipmentTierSelection, parseGenericEquipmentTierSelection, resolveGenericEquipmentTierLensProfiles,
+  type GenericEquipmentTierProfileReference, type GenericEquipmentTierSelection, type ResolvedGenericTierLensProfiles } from "./equipment/generic-tier-presets.js";
+export type { GenericEquipmentTier, GenericEquipmentTierPreset, GenericVersionedAsset, GenericTierBodyAssets, GenericTierLensAssets } from "./equipment/generic-tier-assets.js";
 export { SENSOR_RAW_PRODUCER_SCHEMA_VERSION, SENSOR_RAW_PRODUCER_NOISE_MODEL, parseSensorRawProducerInput, simulateSensorRawFrame,
   type SensorRawProducerSiteInput, type SensorRawProducerInput, type SensorRawProducerResult } from "./capture/sensor-raw-producer.js";
 export { CAPTURE_CORRECTED_SDR_SCHEMA_VERSION, parseCaptureCorrectedSdrInput, calculateCaptureCorrectedSdr,
