@@ -145,13 +145,22 @@ export function calculateComposedGeometricMapping(input: {
   mapping: PreparedGeometricMapping; destinationPointMm: LensFieldPointMm;
 }): CalculationResult<GeometricMappingPoint> {
   const mapping = prepareGeometricMapping(input.mapping).value;
-  let p = point(input.destinationPointMm);
+  return calculatePreparedGeometricMappingPoint(mapping, input.destinationPointMm);
+}
+
+/** Call-local parsed/copy-owned mapping only; never accepts external prepared state. */
+function calculatePreparedGeometricMappingPoint(
+  mapping: PreparedGeometricMapping,
+  destinationPointMm: LensFieldPointMm
+): CalculationResult<GeometricMappingPoint> {
+  let p = point(destinationPointMm);
   let j: GeometricJacobian = [1, 0, 0, 1];
   const components: GeometricMappingPoint["components"][number][] = [];
   for (const t of mapping.transforms) {
     let local: GeometricJacobian;
     if (t.kind === "affine") {
-      local = t.matrix;
+      // Preserve independent result arrays when one mapping serves many points.
+      local = [...t.matrix];
       p = affine(p, local, t.offsetMm);
     } else {
       const { k1, k2, k3 } = t.profile.coefficients;
@@ -245,7 +254,7 @@ export function calculateGeometricSamplingPlan(input: {
   const projection = positive(input.physicalProjectionDistanceMm, "physicalProjectionDistanceMm");
   const points: GeometricMappingPoint[] = [], mask: boolean[] = [];
   for (let y = 0; y < destination.height; y++) for (let x = 0; x < destination.width; x++) {
-    const mapped = calculateComposedGeometricMapping({ mapping, destinationPointMm: pixelPoint(destination, x, y) }).value;
+    const mapped = calculatePreparedGeometricMappingPoint(mapping, pixelPoint(destination, x, y)).value;
     points.push(mapped); mask.push(supported(source, mapped.sourcePointMm, resampler.filter));
   }
   const requiresPrefilter = points.some((p) => p.principalStretches[0]*destination.pitchMm/source.pitchMm > 1+1e-12);

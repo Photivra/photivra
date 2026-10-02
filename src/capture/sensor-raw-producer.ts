@@ -15,8 +15,9 @@ import { createSensorRawCaptureSample } from "../sensor/raw-reconstruction.js";
 import { parseSensorColorSamplingProfile } from "../sensor/color-sampling.js";
 import { parseCaptureModeProfile } from "../sensor/capture-mode.js";
 import { parseNativeEffectiveRasterColorSamplingBindingProfile, resolveCaptureModeColorSamplingContributors } from "../sensor/capture-color-sampling-binding.js";
+import { calculateCaptureExposureWindows, type CalculateCaptureExposureWindowsInput, type CaptureExposureWindows } from "../sensor/exposure-window.js";
 
-export const SENSOR_RAW_PRODUCER_SCHEMA_VERSION = "0.1.0" as const;
+export const SENSOR_RAW_PRODUCER_SCHEMA_VERSION = "0.2.0" as const;
 /** Capture noise model identity required by this producer's versioned per-site seed schedule. */
 export const SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.1.0" } as const);
 /** One declared EQE/dark/completeness event and explicit readout state per native site. */
@@ -28,10 +29,15 @@ export interface SensorRawProducerSiteInput {
   readoutProfile: SensorReadoutConversionProfile;
   regimeId: string;
 }
-/** Bounded single-frame global-exposure handoff, never a conversion from independent RGB pixels. */
+/** Full-native exposure schedule; sampling coordinates belong to the producer. */
+export type SensorRawProducerExposureWindowInput = Omit<CalculateCaptureExposureWindowsInput,
+  "nativeRaster" | "activeCaptureRect" | "samplePointsNative">;
+/** Bounded single-frame handoff, never a conversion from independent RGB pixels. */
 export interface SensorRawProducerInput {
   frame: Omit<SensorRawFrameInput, "samples">;
   sites: readonly SensorRawProducerSiteInput[];
+  /** Omission preserves the existing global 0..shutterSeconds event contract. */
+  exposureWindow?: SensorRawProducerExposureWindowInput;
 }
 /** Engine-produced codes and child diagnostics; upstream radiance/response truth remains declared. */
 export interface SensorRawProducerResult {
@@ -41,6 +47,7 @@ export interface SensorRawProducerResult {
   upstreamRadiometryVerified: false;
   seedSchedule: "capture-seed-plus-two-native-index-modulo-2-to-32-v1";
   frame: SensorRawFrame;
+  localExposureWindows?: CalculationResult<CaptureExposureWindows>;
   sites: readonly {
     accumulatedCharge: ReturnType<typeof composeSensorAccumulatedCharge>;
     capacity: ReturnType<typeof assessSensorPhysicalChargeCapacity>;
@@ -136,9 +143,36 @@ function chargeInput(value: unknown): ComposeSensorAccumulatedChargeInput {
   composeSensorAccumulatedCharge(charge);
   return charge;
 }
-/** Validates complete native global-exposure inputs; no charge/noise/RAW code is accepted as a shortcut. */
+function localWindows(frame: SensorRawProducerInput["frame"], value: unknown): CalculationResult<CaptureExposureWindows> {
+  const r = fields(value, ["shutterMechanism", "nominalExposureDurationSeconds", "opening", "closing"]);
+  fields(r.nominalExposureDurationSeconds, ["value", "unit", "evidence"]);
+  for (const boundary of [r.opening, r.closing]) {
+    const b = fields(boundary, ["kind", "directionNative", "traversalDurationSeconds"]);
+    if (b.directionNative !== undefined) fields(b.directionNative, ["value", "evidence"]);
+    if (b.traversalDurationSeconds !== undefined) fields(b.traversalDurationSeconds, ["value", "unit", "evidence"]);
+  }
+  const native = frame.capture.geometry.nativeRaster;
+  const timing = calculateCaptureExposureWindows({
+    ...r as unknown as SensorRawProducerExposureWindowInput,
+    nativeRaster: native,
+    samplePointsNative: Array.from({ length: native.pixelWidth*native.pixelHeight }, (_, i) => ({
+      x: i%native.pixelWidth+0.5, y: Math.floor(i/native.pixelWidth)+0.5
+    }))
+  });
+  if (timing.value.nominalExposureDurationSeconds.value !== frame.capture.exposure.shutterSeconds) {
+    throw new InvalidConfigurationError("Exposure schedule nominal duration differs from committed capture.");
+  }
+  return timing;
+}
+function sourceBoundary(schedule: CaptureExposureWindows["opening"]["schedule"]): SensorRawProducerExposureWindowInput["opening"] {
+  return schedule.kind === "simultaneous" ? { kind: "simultaneous" } : {
+    kind: "uniform-linear-native-scan", directionNative: schedule.directionNative,
+    traversalDurationSeconds: schedule.traversalDurationSeconds
+  };
+}
+/** Validates complete native exposure inputs; no charge/noise/RAW code is accepted as a shortcut. */
 export function parseSensorRawProducerInput(value: unknown): SensorRawProducerInput {
-  const r = fields(value, ["frame", "sites"]), f = fields(r.frame, ["frameId", "capture", "modeId", "captureModeProfile", "colorSamplingProfile", "bindingProfile", "containerBitDepth"]);
+  const r = fields(value, ["frame", "sites", "exposureWindow"]), f = fields(r.frame, ["frameId", "capture", "modeId", "captureModeProfile", "colorSamplingProfile", "bindingProfile", "containerBitDepth"]);
   const capture = parseSimulatedCapture(f.capture), native = capture.geometry.nativeRaster, count = native.pixelWidth*native.pixelHeight;
   const sites = dense(r.sites, 4096);
   const frame = { frameId: publicId(f.frameId), capture, modeId: publicId(f.modeId), containerBitDepth: 16 as const,
@@ -151,18 +185,21 @@ export function parseSensorRawProducerInput(value: unknown): SensorRawProducerIn
       mode.perFrameSampling.kind !== "native-effective-raster" || (mode.reconstructionStages?.length ?? 0) !== 0) {
     throw new InvalidConfigurationError("Producer requires exact noise identity and bounded single-frame native CFA coverage.");
   }
+  const timing = r.exposureWindow === undefined ? undefined : localWindows(frame, r.exposureWindow);
   const parsed = sites.map((site, i): SensorRawProducerSiteInput => {
     const s = fields(site, ["charge", "samplingProfile", "capacityProfile", "operatingStateId", "readoutProfile", "regimeId"]);
     const charge = chargeInput(s.charge), p = charge.photoSignal;
     const contributors = resolveCaptureModeColorSamplingContributors({ nativeRaster: native, captureModeProfile: frame.captureModeProfile,
       modeId: frame.modeId, colorSamplingProfile: frame.colorSamplingProfile, bindingProfile: frame.bindingProfile,
       modeSampleIndexFullFrame: { x: i%native.pixelWidth, y: Math.floor(i/native.pixelWidth) } });
+    const window = timing?.value.samples[i];
     if (contributors.totalContributorSites !== 1 || contributors.channelComposition.kind !== "single-channel" ||
         p.colorSamplingProfileId !== frame.colorSamplingProfile.profileId || p.channelId !== contributors.channelComposition.channelId ||
         p.site.x !== contributors.colorSamplingSiteRect.x || p.site.y !== contributors.colorSamplingSiteRect.y ||
-        p.bindingId !== frame.bindingProfile.bindingId || p.startOffsetSecondsFromOpeningReference !== 0 ||
-        p.endOffsetSecondsFromOpeningReference !== capture.exposure.shutterSeconds || p.localExposureDurationSeconds !== capture.exposure.shutterSeconds) {
-      throw new InvalidConfigurationError("Charge site/channel/binding/global exposure differs from committed capture.");
+        p.bindingId !== frame.bindingProfile.bindingId || p.startOffsetSecondsFromOpeningReference !== (window?.startOffsetSecondsFromOpeningReference ?? 0) ||
+        p.endOffsetSecondsFromOpeningReference !== (window?.endOffsetSecondsFromOpeningReference ?? capture.exposure.shutterSeconds) ||
+        p.localExposureDurationSeconds !== (window?.localExposureDurationSeconds ?? capture.exposure.shutterSeconds)) {
+      throw new InvalidConfigurationError("Charge site/channel/binding/local exposure differs from committed capture.");
     }
     return { charge, samplingProfile: parseSensorChargeSamplingProfile(s.samplingProfile), capacityProfile: parseSensorPhysicalChargeCapacityProfile(s.capacityProfile),
       operatingStateId: publicId(s.operatingStateId), readoutProfile: parseSensorReadoutConversionProfile(s.readoutProfile), regimeId: publicId(s.regimeId) };
@@ -178,7 +215,11 @@ export function parseSensorRawProducerInput(value: unknown): SensorRawProducerIn
     }
   }
   publicIdentities(frame);
-  return { frame, sites: parsed };
+  return { frame, sites: parsed, ...(timing === undefined ? {} : { exposureWindow: {
+    shutterMechanism: timing.value.shutterMechanism,
+    nominalExposureDurationSeconds: timing.value.nominalExposureDurationSeconds,
+    opening: sourceBoundary(timing.value.opening.schedule), closing: sourceBoundary(timing.value.closing.schedule)
+  } }) };
 }
 /** Composes existing accumulated-charge → capacity → Poisson → read noise/ADC → native sample → immutable frame contracts. */
 export function simulateSensorRawFrame(input: SensorRawProducerInput): CalculationResult<SensorRawProducerResult> {
@@ -200,11 +241,12 @@ export function simulateSensorRawFrame(input: SensorRawProducerInput): Calculati
       modeSampleIndexFullFrame: { x: i%native.pixelWidth, y: Math.floor(i/native.pixelWidth) } }) }));
   return approximationResult({ schemaVersion: SENSOR_RAW_PRODUCER_SCHEMA_VERSION, codeProducer: "engine-charge-capacity-noise-adc",
     upstreamOrigin: "declared-eqe-and-dark-exposure-results", upstreamRadiometryVerified: false,
-    seedSchedule: "capture-seed-plus-two-native-index-modulo-2-to-32-v1", frame: createSensorRawFrame({ ...v.frame, samples }), sites },
+    seedSchedule: "capture-seed-plus-two-native-index-modulo-2-to-32-v1", frame: createSensorRawFrame({ ...v.frame, samples }), sites,
+    ...(v.exposureWindow === undefined ? {} : { localExposureWindows: localWindows(v.frame, v.exposureWindow) }) },
   "native-sensor-raw-frame-producer", SENSOR_RAW_PRODUCER_SCHEMA_VERSION, [
     "Untreated EQE/dark exposure results and completeness evidence are upstream declarations; source radiometry is not independently verified",
     "Native row-major site seeds are capture seed plus 2*index / 2*index+1 modulo 2^32; schedule identity is not an independence proof",
     "Existing scalar capacity/noise/readout approximations retain distinct physical/pre-ADC/digital saturation diagnostics; no blooming",
-    "Global stationary exposure only; no rolling/local timing, multi-frame acquisition, RGB-to-RAW conversion or production-stage activation",
+    "Stationarity applies separately to every exact local window; no time-varying radiance integration, multi-frame acquisition, RGB-to-RAW conversion or production-stage activation",
     "Stored capture float planes remain independent; same-RAW export must use the returned frame's reconstruction handoff"]);
 }

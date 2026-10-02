@@ -135,7 +135,7 @@ There is no separate tier-specific browser approximation to compare here; the
 public implementation remains browser-safe and uses the ordinary reference APIs.
 No private application acceptance is invented.
 
-Root API 0.104.0 is proposed from main 0.103.0 and must be reconciled with parallel
-PR #173 before merge. Selection schema 0.1.0, asset version 1.0.0, npm package,
+Root API 0.105.0 follows the local-shutter 0.104.0 contract in PR #173.
+This PR is stacked on #173 until that prerequisite is merged. Selection schema 0.1.0, asset version 1.0.0, npm package,
 POC and production contracts remain independent. Human scientific/provenance
 review and contribution-specific DCO certification are still required.
