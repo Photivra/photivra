@@ -2,6 +2,8 @@
 
 ## Unreleased — engine API 0.106.0
 
+- Move reusable sensor-channel color development and conditioned inversion into an internal color-layer adapter. Preserve explicit profile evidence/basis binding, one-time WB order, exact RAW lineage and paired file identities; export retains validation and container policy. Partial defect #178 resolution; no public API or version change.
+
 - Share sorted-key finite-JSON serialization mechanics across planner fingerprints, capture-derived comparisons and export hashing. Preserve domain-specific undefined-property policies/errors, existing identity algorithms and all version surfaces; pinned historical export/file hashes detect byte drift. Partial defect #178 resolution.
 
 - Consolidate equivalent child-first immutable-data freezing across capture, RAW attachment/reconstruction, export metadata and generic equipment presets into one internal helper. Domain validation/copy ownership and planner/focus/release freeze semantics are preserved; no public API, schema, numerical or identity change. Partial defect #178 resolution.

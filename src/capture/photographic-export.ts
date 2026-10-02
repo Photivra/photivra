@@ -4,7 +4,8 @@
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
-import { resolveCaptureColorModel, LINEAR_CAPTURE_RGB_PROFILE } from "../color/capture-color.js";
+import { LINEAR_CAPTURE_RGB_PROFILE } from "../color/capture-color.js";
+import { invertSensorColorMatrix, prepareSensorColorDevelopment, sensorColorReferenceWhite } from "../color/sensor-color-development.js";
 import { calculateSdrRendering, parseSdrRenderingProfile, type SdrRenderingProfile, type SdrRenderingResult } from "../output/sdr-rendering.js";
 import { transformOrientedRasterPointToNative, transformOrientedRasterRectToNative, type RasterRect } from "../output/capture-geometry.js";
 import { resolveRawFrameReconstruction, parseRawFrameReconstructionInput, type RawFrameReconstructionInput, type RawFrameReconstruction } from "./raw-frame-reconstruction.js";
@@ -75,16 +76,6 @@ function id(value: unknown): string {
   if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)) throw new InvalidConfigurationError("Invalid public export profile identity.");
   return value;
 }
-function multiply(m: Matrix, values: readonly number[]): number[] {
-  return m.map((row) => row.reduce((sum, v, i) => sum+v*values[i]!, 0));
-}
-function inverse(m: Matrix): number[][] {
-  const [a,b,c,d,e,f,g,h,i]=m.flat() as number[], det=a!*(e!*i!-f!*h!)-b!*(d!*i!-f!*g!)+c!*(d!*h!-e!*g!);
-  if (!Number.isFinite(det) || Math.abs(det)<1e-9) throw new InvalidConfigurationError("Export color matrix is singular or outside supported conditioning.");
-  const result=[[e!*i!-f!*h!,c!*h!-b!*i!,b!*f!-c!*e!],[f!*g!-d!*i!,a!*i!-c!*g!,c!*d!-a!*f!],[d!*h!-e!*g!,b!*g!-a!*h!,a!*e!-b!*d!]].map((r) => r.map((v) => v/det));
-  if (result.flat().some((v) => !Number.isFinite(v) || Math.abs(v)>100)) throw new InvalidConfigurationError("Export inverse color matrix exceeds supported range.");
-  return result;
-}
 /** Validates independently supplied numeric profile evidence and binds the approximation to the exact CFA profile. */
 export function parseExportSensorColorProfile(value: unknown): ExportSensorColorProfile {
   const r=object(value,["schemaVersion","profileId","profileVersion","colorSamplingProfileId","channelIds","scientificStatus","referenceIlluminant","normalizedCameraChannelsToXyz","evidence","limitations"]);
@@ -92,7 +83,7 @@ export function parseExportSensorColorProfile(value: unknown): ExportSensorColor
   if (r.schemaVersion!=="0.1.0" || r.scientificStatus!=="approximation" || r.referenceIlluminant!=="D65" || JSON.stringify(r.channelIds)!=='["red","green","blue"]' ||
       !Array.isArray(m) || m.length!==3 || m.some((row) => !Array.isArray(row) || row.length!==3 || Array.from(row).some((v) => typeof v!=="number" || !Number.isFinite(v) || Math.abs(v)>100)) ||
       !Array.isArray(r.limitations) || r.limitations.length===0 || r.limitations.length>16 || Array.from(r.limitations).some((s) => typeof s!=="string" || s.length===0 || s.length>512)) throw new InvalidConfigurationError("Unsupported sensor color interpretation.");
-  const matrix=(m as number[][]).map((row) => [...row]); inverse(matrix);
+  const matrix=(m as number[][]).map((row) => [...row]); invertSensorColorMatrix(matrix);
   const evidence=parseEvidenceList(r.evidence,"exportColor.evidence");
   if (evidence.some((e) => e.reuseStatus==="factual-reference-only")) throw new InvalidConfigurationError("Embedded numeric color profiles require reusable or owned evidence.");
   return { schemaVersion:"0.1.0",profileId:id(r.profileId),profileVersion:id(r.profileVersion),colorSamplingProfileId:id(r.colorSamplingProfileId),
@@ -184,9 +175,10 @@ export async function createPhotographicExportPair(input: PhotographicExportInpu
   const nativeDefaultCrop={ ...local,x:local.x+active.x,y:local.y+active.y }, region=source.value.region;
   if (nativeDefaultCrop.x<region.x || nativeDefaultCrop.y<region.y || nativeDefaultCrop.x+nativeDefaultCrop.width>region.x+region.width ||
       nativeDefaultCrop.y+nativeDefaultCrop.height>region.y+region.height) throw new InvalidConfigurationError("Reconstruction does not cover the exact declared final native crop.");
-  const colorMatrix=inverse(v.colorProfile.normalizedCameraChannelsToXyz), model=resolveCaptureColorModel(), white=model.referenceWhiteXyz,
-    cameraWhite=multiply(colorMatrix,[white.x,1,white.z]), intent=capture.whiteBalanceIntent,
+  const colorMatrix=invertSensorColorMatrix(v.colorProfile.normalizedCameraChannelsToXyz),
+    cameraWhite=sensorColorReferenceWhite(colorMatrix), intent=capture.whiteBalanceIntent,
     gains=intent ? [intent.channelGains.red,intent.channelGains.green,intent.channelGains.blue] : [1,1,1];
+  const development=prepareSensorColorDevelopment(v.colorProfile.normalizedCameraChannelsToXyz,gains), white=development.referenceWhiteXyz;
   if (cameraWhite.some((x) => x<=0 || !Number.isFinite(x))) throw new InvalidConfigurationError("DNG reference white must map to positive camera-neutral coordinates.");
   const neutral=cameraWhite.map((x,i) => x/gains[i]!), scale=neutral[1]!;
   if (v.correction && (active.x<region.x || active.y<region.y || active.x+active.width>region.x+region.width ||
@@ -197,8 +189,8 @@ export async function createPhotographicExportPair(input: PhotographicExportInpu
   for (let y=0;y<developedRaster.pixelHeight;y++) for (let x=0;x<developedRaster.pixelWidth;x++) {
     const p=transformOrientedRasterPointToNative({ point:{x:developedRect.x+x+.5,y:developedRect.y+y+.5},nativeRaster:g.activeCapture.raster,orientation:capture.geometry.orientation });
     const index=((Math.floor(p.y)+active.y-region.y)*region.width+Math.floor(p.x)+active.x-region.x)*3;
-    const values=source.value.linearPlane.samples.slice(index,index+3).map((n,i) => n*gains[i]!);
-    rgb.push(...multiply(model.xyzToCameraRgb,multiply(v.colorProfile.normalizedCameraChannelsToXyz,values)));
+    const values=source.value.linearPlane.samples.slice(index,index+3);
+    rgb.push(...development.develop(values));
   }
   // Only exact attached RAW reconstruction supplies this private processing plane. Original float planes are discarded.
   const correction=v.correction ? calculateCaptureCorrectedSdr({capture:parseSimulatedCapture({...capture,planes:[{

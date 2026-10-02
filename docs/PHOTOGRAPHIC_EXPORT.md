@@ -191,3 +191,11 @@ API explicitly reports editor validation pending. Issue #16 remains open.
 
 Format references and DNG patent-license notice are recorded in `THIRD_PARTY.md`
 and `NOTICE`. No Adobe SDK or external encoder source is incorporated.
+
+Internal ownership: `src/color/sensor-color-development.ts` owns the declared
+sensor-channel gain → camera-to-XYZ → linear-sRGB calculation and conditioned
+inversion. Export retains profile/evidence validation, CFA binding, one-time WB
+authorization, geometry and DNG/JPEG container mapping. The adapter consumes
+validated data and does not infer sensor calibration or reuse the distinct ideal
+virtual-camera input contract. Existing arithmetic order and error policies are
+preserved; no public API or schema change is introduced.
