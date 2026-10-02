@@ -81,4 +81,3 @@ export function frameInput(rolling = false, sampledPsf = false): SimulateEnviron
         darkCurrentCompensationIncluded: false, spatialDarkCurrentNonuniformityModeled: true } };
     }) };
 }
-
