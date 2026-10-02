@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { freezeOwnedData } from "../core/owned-data.js";
 import { calculatedResult, type CalculationResult, type ProvenanceKind } from "../core/calculation-result.js";
@@ -80,9 +81,7 @@ export interface SimulatedCapture extends SimulatedCaptureInput {
 }
 
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value) ||
-      Object.keys(value).some((key) => !keys.includes(key))) throw new InvalidConfigurationError("Invalid or non-allowlisted capture metadata.");
-  return value as Record<string, unknown>;
+  return requireAllowlistedRecord(value, keys, "Invalid or non-allowlisted capture metadata.");
 }
 function enumValue<T extends string>(value: unknown, values: readonly T[]): T {
   if (!values.includes(value as T)) throw new InvalidConfigurationError("Unknown capture state.");
@@ -103,8 +102,7 @@ function array(value: unknown, maximum: number): unknown[] {
   return value;
 }
 function id(value: unknown): string {
-  if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)) throw new InvalidConfigurationError("Expected a public opaque ID, not a path or URL.");
-  return value;
+  return requirePublicOpaqueId(value, "Expected a public opaque ID, not a path or URL.");
 }
 function digest(value: unknown): string {
   if (typeof value !== "string" || !/^[a-f0-9]{64}$/.test(value)) throw new InvalidConfigurationError("Expected a lowercase SHA-256 digest.");

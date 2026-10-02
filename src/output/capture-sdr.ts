@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { requireAllowlistedRecord } from "../core/record-validation.js";
 import { calculatedResult, approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseSimulatedCapture, type SimulatedCapture, type CaptureLinearPlane } from "../capture/simulated-capture.js";
@@ -35,9 +36,7 @@ export interface CaptureSdrResult {
   rendering: CalculationResult<SdrRenderingResult>;
 }
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value) ||
-      Object.keys(value).some((key) => !keys.includes(key))) throw new InvalidConfigurationError("Invalid capture-SDR fields.");
-  return value as Record<string, unknown>;
+  return requireAllowlistedRecord(value, keys, "Invalid capture-SDR fields.");
 }
 /** Validates the capture and explicit color/render choices at an untrusted boundary. */
 export function parseCaptureSdrInput(value: unknown): CaptureSdrInput {

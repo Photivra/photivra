@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // This product includes DNG technology under license by Adobe.
 
+import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
+
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
@@ -69,12 +71,10 @@ export interface PhotographicExportPair {
   interoperability: "independent-decode-required-editor-validation-pending";
 }
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !keys.includes(k))) throw new InvalidConfigurationError("Invalid photographic export fields.");
-  return value as Record<string, unknown>;
+  return requireAllowlistedRecord(value, keys, "Invalid photographic export fields.");
 }
 function id(value: unknown): string {
-  if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)) throw new InvalidConfigurationError("Invalid public export profile identity.");
-  return value;
+  return requirePublicOpaqueId(value, "Invalid public export profile identity.");
 }
 /** Validates independently supplied numeric profile evidence and binds the approximation to the exact CFA profile. */
 export function parseExportSensorColorProfile(value: unknown): ExportSensorColorProfile {

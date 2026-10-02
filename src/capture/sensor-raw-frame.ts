@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { RAW_ATTACHMENT_MAX_NATIVE_SITES } from "./raw-frame-limits.js";
 
 import { freezeOwnedData } from "../core/owned-data.js";
@@ -36,13 +37,10 @@ export interface SensorRawFrame extends SensorRawFrameInput {
   nativePixelHeight: number;
 }
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value) ||
-      Object.keys(value).some((key) => !keys.includes(key))) throw new InvalidConfigurationError("Invalid RAW-frame fields.");
-  return value as Record<string, unknown>;
+  return requireAllowlistedRecord(value, keys, "Invalid RAW-frame fields.");
 }
 function id(value: unknown): string {
-  if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)) throw new InvalidConfigurationError("Invalid public RAW-frame ID.");
-  return value;
+  return requirePublicOpaqueId(value, "Invalid public RAW-frame ID.");
 }
 function integer(value: unknown, maximum: number): number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0 || value > maximum) {

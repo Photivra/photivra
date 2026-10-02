@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { requireAllowlistedRecord, isPublicOpaqueId } from "../core/record-validation.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { calculateFieldOfView } from "../camera/field-of-view.js";
@@ -42,9 +43,7 @@ export interface CaptureCorrectedSdrResult extends Omit<CaptureSdrResult, "schem
   outputView: { imageStateId: string; rect: RasterRect; pixelWidth: number; pixelHeight: number; samples: readonly number[] };
 }
 function fields(value: unknown, allowed: readonly string[]): Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value) ||
-      Object.keys(value).some((k) => !allowed.includes(k))) throw new InvalidConfigurationError("Invalid capture correction fields.");
-  return value as Record<string, unknown>;
+  return requireAllowlistedRecord(value, allowed, "Invalid capture correction fields.");
 }
 /** Strict boundary; execution also checks capture optics, native raster binding and source history. */
 export function parseCaptureCorrectedSdrInput(input: unknown): CaptureCorrectedSdrInput {
@@ -66,7 +65,7 @@ export function parseCaptureCorrectionChoice(input: unknown, capture: CaptureSdr
       (c.invalidSupport !== "reject" && c.invalidSupport !== "joint-valid-crop") ||
       typeof c.frameTimeSeconds !== "number" || !Number.isFinite(c.frameTimeSeconds) || c.frameTimeSeconds < 0 ||
       typeof c.clippingLevel !== "number" || !Number.isFinite(c.clippingLevel) || c.clippingLevel <= 0 ||
-      typeof c.outputImageStateId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(c.outputImageStateId) ||
+      !isPublicOpaqueId(c.outputImageStateId) ||
       capture.planes.some((p) => p.imageStateId === c.outputImageStateId) ||
       forbiddenImageStateIds.includes(c.outputImageStateId)) {
     throw new InvalidConfigurationError("Invalid correction choice, clock, threshold or derived state identity.");
