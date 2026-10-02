@@ -126,7 +126,9 @@ review; accepted retuning must introduce a new preset/profile version while
 retaining historical definitions required by saved simulations. This initial
 resolver recognizes only 1.0.0 and rejects unavailable history without fallback.
 
-This is an initial asset/validation slice of #116/#119, not full ticket closure.
+Initial acceptance was partial; the current #116 disposition is documented in
+[TIER_PRESET_ACCEPTANCE.md](TIER_PRESET_ACCEPTANCE.md). #119 remains the broader
+cross-tier validation ticket. The following inventory describes the initial slice.
 Remaining acceptance includes composed physical scene/corrected-image reports,
 residual CA/distortion and retained-FOV/stretch/edge-response envelopes, controlled
 bokeh/textured backgrounds and spectral effects where modeled, broader body
@@ -135,7 +137,7 @@ There is no separate tier-specific browser approximation to compare here; the
 public implementation remains browser-safe and uses the ordinary reference APIs.
 No private application acceptance is invented.
 
-Initial tier assets landed at root API 0.105.0; the current root API is 0.110.0.
+Initial tier assets landed at root API 0.105.0; the current root API is 0.116.0.
 This acceptance-only extension does not change runtime/API or asset definitions. Selection schema 0.1.0, asset version 1.0.0, npm package,
 POC and production contracts remain independent. Human scientific/provenance
 review and contribution-specific DCO certification are still required.
@@ -217,3 +219,39 @@ origin verification still explicitly unasserted. They do not establish tier lens
 PSF/scene composition, calibrated color, full production activation or external
 editor/high-resolution interoperability. Runtime, API/schema and asset versions
 remain unchanged.
+
+
+## Supported production and finite pupil scene acceptance
+
+`test/generic-tier-production-acceptance.test.ts` runs every body/lens pairing
+through the authoritative plan 0.7.0 environment route using the exact preset
+transmission values and body readout/ISO profiles. A separately identified fixture
+bridge explicitly binds the selected lens's transmission to its exposure-capability
+profile ID; those two IDs represent different contracts. The test does not retune
+or overwrite the saved 1.0.0 assets.
+
+The owned 2×2 sensor registration, 540–560 nm flat EQE, charge capacity, dark
+current and ideal output color are independent approximations, never facts inferred
+from body tier. All three body selections produce the same expected photo charge
+for a given lens. The lens transmission ratios independently predict photo-count
+ratios; ISO regime changes preserve photo charge. Executed RAW is preserved through
+processing and deterministic paired export. Both consumer manifests retain the same
+immutable executed result. Unsupported wavelength support and stale commitments
+reject before provider callbacks.
+
+Production explicitly omits PSF and declares unity field throughput. It does not
+claim to compose the assets' discrete 550 nm pupil data across a continuous spectrum,
+combine pupil clipping with illumination falloff, or execute every lens effect.
+That omission remains recorded as modeled-zero with evidence and limitations.
+
+A separate finite monochromatic sampled scene evaluates all 27 exact field/defocus
+pupil responses. An independent direct phase sum predicts each normalized PSF tap;
+controlled texture/highlight samples are summed at every tap with metric pitch and
++Y-up/native +Y-down signs. The same sampled physical response feeds correction
+Off/On, retaining capture/noise identity, full Jacobians and retained ray coverage.
+This coarse sampled scene is neither measured MTF nor a continuous optical model,
+color-fringing prediction or a perceptual bokeh score. No interpolation, sharpen
+pass, hidden quality multiplier or external data is introduced.
+
+See the acceptance disposition for #116 ownership, remaining #119 validation and
+scientific limits. Runtime/API/schema/asset/package/POC versions stay unchanged.
