@@ -279,6 +279,13 @@ Both manifests retain the same:
 
 The consumer role changes execution responsibility only. It does not authorize changing scientific inputs, reordering stages, replacing seeds, or reducing committed temporal samples.
 
+## V1 integration map
+
+[V1 composition and consumer map](V1_COMPOSITION_MAP.md) links all 32 scoped
+items to their implemented primitives/consumers and representative tests, and
+records the missing upstream RAW handoff and existing ticket ownership. Bounded
+RAW/output adapter execution does not activate production-plan stages.
+
 ## Unsupported stages remain visible
 
 Current plan schema `0.5.0` deliberately does not claim full downstream sensor
@@ -290,7 +297,7 @@ yet integrated, the plan reports `engine-stage-not-composed`.
 Examples include the still-uncomposed portions of:
 
 - PSF evaluation;
-- temporal exposure/readout composition;
+- temporal radiance accumulation beyond the implemented timing/rotation diagnostics;
 - sensor optical stack;
 - CFA/photosite sampling;
 - charge/noise/ADC/reconstruction;

@@ -2,6 +2,8 @@
 
 ## Unreleased — engine API 0.106.0
 
+- Map all 32 V1 features to primitives, implemented consumers, representative evidence and remaining ticket ownership. Document the missing typed scene/optics/sensor-response-to-exposure RAW handoff and correct adjacent production-boundary descriptions. Documentation only; no stage activation, runtime/version change, approved deferral or feature closure. Partial defect #178 resolution.
+
 - Define the RAW reference compatibility envelope and share full-native producer/reconstruction limits while retaining the larger structural attachment budget. Export parsing rejects unsupported crop sampling, uncovered output/active reconstruction and non-Bayer topology before pixel execution. Supported execution, hashes, bytes and versions remain unchanged; invalid-request diagnostic precedence may change. Partial defect #178 resolution.
 
 - Move reusable sensor-channel color development and conditioned inversion into an internal color-layer adapter. Preserve explicit profile evidence/basis binding, one-time WB order, exact RAW lineage and paired file identities; export retains validation and container policy. Partial defect #178 resolution; no public API or version change.

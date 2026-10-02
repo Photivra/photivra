@@ -40,7 +40,7 @@ Examples:
 
 `scene-radiance-evaluation` is a partial foundation between `scene-ray-projection` and `lens-field-pupil-evaluation`.
 
-Its authoritative future output is **outgoing scene spectral radiance** produced from illumination, scene geometry/visibility, material response, emission, indirect transport, and physical time. The current implementation establishes ownership plus renderer-independent illumination-source metadata; it does not yet evaluate that radiance field.
+Its authoritative quantity is **outgoing scene spectral radiance** produced from illumination, scene geometry/visibility, material response, emission, indirect transport, and physical time. The renderer-neutral scene request/result boundary supplies declared radiance samples; the production composer validates a bound sample and consumes #110 optical throughput. It does not execute a complete scene renderer or establish a measured radiance field.
 
 The existing `SceneRadiometry` metadata remains separate. `absolute-luminance` is a photometric luminance anchor, not a wavelength-resolved radiance field. Likewise, a light-source SPD, RGB HDR environment, source irradiance, and sensor-plane spectral irradiance are different quantities and must not be substituted for one another.
 
@@ -139,7 +139,7 @@ The production planner:
 - records modeled-zero, omitted, unsupported, and blocked states explicitly;
 - keeps renderer capability declaration separate from scientific stage ownership.
 
-Plan schema `0.1.0` deliberately composes only the first #85 -> #110 physical sample path. Later stages remain visible blockers until they are intentionally integrated into the production composer.
+Current plan schema `0.5.0` supports the #85 → #110 physical sample path plus temporal timing/readout and optional rotation-quadrature diagnostics. The required PSF dependency and downstream sensor/output composition remain explicit blockers; temporal diagnostics alone do not integrate radiance. See [V1 composition and consumer map](V1_COMPOSITION_MAP.md) for current consumers and required handoffs.
 
 See [Production Image-Formation Plan](PRODUCTION_COMPOSITION.md).
 
