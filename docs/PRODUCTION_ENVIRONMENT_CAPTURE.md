@@ -1,8 +1,8 @@
 # Executed environment production capture
 
-Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+Release context: **package 1.0.1 candidate / root API 1.0.1**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0_1.md).
 
-Root API 0.116.0 and production plan 0.7.0 add a bounded source-to-RAW route
+Introduced at root API 0.116.0 and production plan 0.7.0, this adds a bounded source-to-RAW route
 inside the existing authoritative image-formation graph. Consumer manifest
 0.2.0 exposes the same immutable executed capture and processed-output results.
 At introduction, package 0.6.0, POC 0.20.0, capture snapshot 0.3.0 and the image-formation
@@ -118,7 +118,7 @@ audit is #180. #165 C2PA remains post-V1.
 
 Consumers of serialized plans must recognize plan 0.7.0 and consumer manifest
 0.2.0. New fields are optional; existing attached-RAW and sample-only callers
-need no input migration. Root API 0.116.0 exposes the additive
+need no input migration. The current root API retains the additive
 `ProductionEnvironmentCaptureInput` type. The standalone environment producer
 and processed-output model versions, hashes and seed schedule are unchanged.
 

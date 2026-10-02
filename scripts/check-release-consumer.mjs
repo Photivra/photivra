@@ -15,7 +15,10 @@ try {
   execFileSync("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--offline", "--cache", join(scratch,"cache"), join(scratch,pack.filename)], { cwd: scratch, stdio: "pipe" });
   const packageRoot = join(scratch,"node_modules/@photivra/engine");
   const manifest = JSON.parse(readFileSync(join(packageRoot,"package.json"),"utf8"));
-  if (manifest.version !== "1.0.0" || manifest.dependencies && Object.keys(manifest.dependencies).length) throw new Error("Release package identity/dependencies changed");
+  const sourceManifest = JSON.parse(readFileSync("package.json", "utf8"));
+  if (manifest.version !== sourceManifest.version || manifest.dependencies && Object.keys(manifest.dependencies).length) throw new Error("Release package identity/dependencies changed");
+  const packedApiVersion = execFileSync(process.execPath, ["--input-type=module", "-e", 'import { ENGINE_API_VERSION } from "@photivra/engine"; console.log(ENGINE_API_VERSION);'], { cwd: scratch, encoding: "utf8" }).trim();
+  if (packedApiVersion !== manifest.version) throw new Error("Packed package/root API version drift");
   const fragments = JSON.parse(readFileSync("docs/validation/documentation-fragments.json","utf8"));
   const docs = ["README.md", ...readdirSync("docs").filter(p => p.endsWith(".md") && p !== "API_REFERENCE.md").map(p => "docs/" + p)];
   const entries = [];

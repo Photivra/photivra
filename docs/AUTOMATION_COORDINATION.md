@@ -1,6 +1,6 @@
 # Public-engine automation coordination
 
-Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+Release context: **package 1.0.1 candidate / root API 1.0.1**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0_1.md).
 
 This document coordinates the two recurring automation lanes that work only in the public
 `Photivra/photivra` repository. It is process guidance, not a scientific roadmap. Open issues and

@@ -44,7 +44,7 @@ Treat this repository as a complete, standalone open-source scientific/business-
 
 - Scientific equations and behavior are defined by implementation plus tests; documentation must agree with them.
 - Public API shape and semantics are defined by exported TypeScript contracts, tests, and `docs/API_STYLE.md`.
-- Root engine compatibility is versioned by `ENGINE_API_VERSION`; the composed `simulatePocCamera()` request/response contract is separately versioned by `POC_SIMULATION_API_VERSION`. Never conflate either with the npm package version.
+- Root engine compatibility is versioned by `ENGINE_API_VERSION`; the composed `simulatePocCamera()` request/response contract is separately versioned by `POC_SIMULATION_API_VERSION`. From 1.0.1, ENGINE_API_VERSION must equal the npm package version; the POC contract stays independent.
 - If documentation, tests, and implementation disagree, do not guess. Determine the intended contract, fix the stale source, and add a regression test when behavior is involved.
 - UI or downstream clients are never authoritative sources for camera science.
 
@@ -418,7 +418,7 @@ Backward compatibility matters.
 - Prefer typed/config-object inputs for multi-parameter functions.
 - Follow the conventions in `docs/API_STYLE.md`.
 - Keep result/provenance structures consistent across modules.
-- Keep `ENGINE_API_VERSION`, `POC_SIMULATION_API_VERSION`, package version, and any schema version semantically distinct.
+- Keep `ENGINE_API_VERSION` aligned with the package version; keep `POC_SIMULATION_API_VERSION` and schema/model versions independent.
 - Runtime parsers must fail closed on unknown enum/string values; TypeScript unions are not validation.
 - Do not silently reinterpret an existing field or unit.
 - If behavior must change, add regression tests and document compatibility impact.
@@ -576,7 +576,7 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 - Preserve full destination-to-source Jacobians, compatible-domain groups, resampler identity, prefilter requirements and valid-source masks/joint crops. Invalid support remains unavailable.
 - Corrections warp already-sampled blur/noise; gain changes downstream signal/variance without rewriting photons. RAW metadata intent, camera mandatory settings and educational reference bypass are separate states.
 - The bounded RGB executor accepts reconstructed-linear geometry/CA followed by gain only. Reject incompatible-domain or geometry-across-gain execution rather than reorder it. Production #111/#112 require their own explicit composition.
-- Reconcile root API versions against other pending API branches before merge; schemas and package/POC versions remain independent.
+- Reconcile root API versions against other pending API branches before merge; the root API and package versions stay aligned while schemas and POC versions remain independent.
 ### Authoritative linear capture container
 
 - #15A `SimulatedCapture` is a standalone immutable data commitment, not a radiance generator, virtual-camera color transform, quantizer, file serializer or production-stage activation.

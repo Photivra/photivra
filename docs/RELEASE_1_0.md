@@ -1,5 +1,6 @@
 # 1.0.0 release contract and owner handoff
 
+**Historical 1.0.0 record.** The 1.0.0 release is published. This document preserves its preparation evidence and original policy snapshot. For current Node support, aligned package/root versions and the next owner release procedure, use [1.0.1 release preparation](RELEASE_1_0_1.md) and [NODE_SUPPORT.md](../NODE_SUPPORT.md).
 **Distribution:** `@photivra/engine@1.0.0` candidate. **Root API identity:** `0.116.0`. **Feature/science predecessor:** reviewed/signed main `34c6d9aca1c2e365b253c1562734d11bc8e0235f` (PR #206), tree `fa74373967843a1942206c26f5baa004e9a466fd`. Its post-merge CI 37032338620 passed Node 22.13.0/24 with 1,598 tests / 142 files. The release-preparation PR/CI identifies the exact new candidate; after signed squash merge, verify its tree equality and record final main SHA in the issue/PR handoff. A commit cannot contain its own cryptographic commit/tree identifier without a circular dependency.
 
 ## What 1.0 contains

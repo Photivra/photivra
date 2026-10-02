@@ -17,10 +17,10 @@ The standalone [SDR rendering foundation](https://github.com/Photivra/photivra/b
 
 ## Quick start
 
-After owner publication, install the ESM package below. During candidate review, use the verified tarball from the [release guide](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_0.md):
+After owner publication, install the ESM package below. During candidate review, use the verified tarball from the [release guide](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_0_1.md):
 
 ```sh
-npm install @photivra/engine@1.0.0
+npm install @photivra/engine@1.0.1
 ```
 
 Calculate horizontal field of view for a 36 mm sensor dimension and 50 mm focal length:
@@ -37,7 +37,7 @@ console.log(horizontal.value.degrees);
 console.log(horizontal.provenance);
 ```
 
-Start with the [Developer Guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md), then use the [Usage Guide](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md) and [export-derived API reference](https://github.com/Photivra/photivra/blob/main/docs/API_REFERENCE.md). These documents describe the 1.0.0 candidate; installation by version becomes available only after owner publication.
+Start with the [Developer Guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md), then use the [Usage Guide](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md) and [export-derived API reference](https://github.com/Photivra/photivra/blob/main/docs/API_REFERENCE.md). These documents describe the 1.0.1 candidate. The published 1.0.0 release remains available; installation of 1.0.1 becomes available after owner publication.
 
 ## Documentation
 
@@ -265,13 +265,13 @@ The calling application can then use those results while keeping the underlying 
 
 ## Status
 
-- Repository package version: `1.0.0` (release candidate; publication is separate)
-- Engine API contract: `0.116.0`
+- Repository package version: `1.0.1` (release candidate; publication is separate)
+- Engine API contract: `1.0.1`
 - Versioned generic tier reference assets: [GENERIC_TIER_PRESETS.md](https://github.com/Photivra/photivra/blob/main/docs/GENERIC_TIER_PRESETS.md).
 - Composed POC simulation API contract: `0.20.0`
 - Stability: 1.0 root-package compatibility policy; bounded scientific models and independent POC contract
 
-Package version and engine API version are intentionally separate. The 1.0 distribution retains root contract ID 0.116.0 to preserve serialized identity. Breaking root contracts now require a package major release; additive and corrective changes follow [compatibility and migration](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_0.md). A 1.0 package is not a claim of calibrated physical accuracy.
+From 1.0.1, package version and `ENGINE_API_VERSION` are equal. New captures/plans record 1.0.1; existing archives retain their original creator identities. Schema, model and POC contract versions remain independent. Breaking root contracts now require a package major release; additive and corrective changes follow [compatibility and migration](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_0_1.md). A 1.0 package is not a claim of calibrated physical accuracy.
 
 Creating a GitHub release/tag and publishing `@photivra/engine` are separate release actions. The tag-triggered publish workflow verifies that the `vX.Y.Z` tag matches the package version before publishing.
 
@@ -343,7 +343,7 @@ When the package is installed directly from a Git repository using normal npm li
 
 ## Development
 
-Development and Node-only tooling require Node.js 22.13 or newer. CI verifies Node.js 22.13 and Node.js 24; both are LTS release lines as of this documentation audit.
+Development and Node-only tooling support maintained Node.js 22 (minimum 22.13), maintained 24, and 26 Current. Prefer patched Node 24 for builds. CI verifies Node.js 22.13 (minimum), patched 22 and 24 LTS, and 26 Current under [the runtime policy](NODE_SUPPORT.md).
 
 The reproducible npm workflow uses the committed lockfile:
 

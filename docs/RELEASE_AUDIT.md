@@ -1,5 +1,6 @@
 # Final 1.0.0 preparation audit
 
+**Historical 1.0.0 record.** The 1.0.0 release is published. This document preserves its preparation evidence and original policy snapshot. For current Node support, aligned package/root versions and the next owner release procedure, use [1.0.1 release preparation](RELEASE_1_0_1.md) and [NODE_SUPPORT.md](../NODE_SUPPORT.md).
 Package **1.0.0 candidate**, root API **0.116.0**, based on reviewed/signed main **34c6d9aca1c2e365b253c1562734d11bc8e0235f**. No tag, npm publication or GitHub release is performed by this contribution. The review PR and exact-head CI identify the candidate; the final signed squash commit/tree and post-merge CI belong in the issue/PR handoff after owner approval. [Owner release steps](RELEASE_1_0.md) specify that boundary.
 
 ## Inventory and corrections

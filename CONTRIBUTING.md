@@ -4,7 +4,7 @@ Contributions are welcome when they preserve scientific integrity, source proven
 
 ## Development setup
 
-Node.js 22.13 or newer is required for the repository's development/tooling workflow. The reproducible npm path is:
+Use a supported Node.js release: maintained 22 (minimum 22.13), maintained 24, or 26 Current. Prefer patched Node 24 for development/build tooling. The reproducible npm path is:
 
 ```sh
 npm ci
@@ -14,7 +14,7 @@ npm run build
 npm run pack:check
 ```
 
-CI verifies maintained Node.js 22 (including minimum 22.13) and 24; prefer patched Node 24 under [the runtime policy](NODE_SUPPORT.md). For release preparation also run `npm run docs:check` and `npm run release:consumer-check` after build. The generated API reference must match root exports; regenerate with `node scripts/generate-api-reference.mjs` when public contracts change.
+CI verifies maintained Node.js 22 (including minimum 22.13), 24, and Node.js 26 Current; prefer patched Node 24 under [the runtime policy](NODE_SUPPORT.md). See [1.0.1 migration and release preparation](docs/RELEASE_1_0_1.md). For release preparation also run `npm run docs:check` and `npm run release:consumer-check` after build. The generated API reference must match root exports; regenerate with `node scripts/generate-api-reference.mjs` when public contracts change.
 
 ## Before submitting
 
@@ -24,7 +24,7 @@ CI verifies maintained Node.js 22 (including minimum 22.13) and 24; prefer patch
 - Add meaningful analytical/regression tests.
 - Update concise documentation when behavior, assumptions, limitations, schemas, version surfaces, or public APIs change.
 - Preserve the browser-safe published-package boundary; Node-only transport code is repository-only contributor tooling and must not become a public package export.
-- Keep npm/package version, `ENGINE_API_VERSION`, `POC_SIMULATION_API_VERSION`, and schema-specific versions distinct.
+- Keep npm/package version and `ENGINE_API_VERSION` equal; keep `POC_SIMULATION_API_VERSION` and schema/model versions independent.
 - For sensor/capture work, preserve native coordinate conventions, active-capture vs output-crop separation, optical-axis offsets, and independent X/Y sampling.
 - For provenance/calibration work, keep evidence origin separate from reuse rights and never treat geometric sample pitch as photon-collection area.
 - Do not submit copied or adapted third-party code/data unless its license and provenance are explicitly compatible and recorded.

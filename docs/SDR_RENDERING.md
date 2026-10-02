@@ -1,6 +1,6 @@
 # Standalone SDR rendering primitives: #112A
 
-Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+Release context: **package 1.0.1 candidate / root API 1.0.1**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0_1.md).
 
 Current integration: [processed camera output](PROCESSED_OUTPUT.md) documents
 the shared preview/export path and explicit plan 0.6.0 post-RAW activation.
@@ -28,6 +28,6 @@ Output declares output-referred SDR sRGB, RGB primary xy coordinates (0.64,0.33)
 
 The function touches no capture settings, physical radiometry/noise/saturation, metering, CFA/reconstruction, geometry, WB estimator, denoise/sharpen or resampling. It serves a common preview/processed-export rendering intent; it does not require screenshot/canvas reuse or promise byte-identical file/display backends. It does not replace #15C's authoritative **linear** export encoding: this primitive quantizes **transfer-encoded processed SDR** and does not replace the capture encoding API.
 
-Compatibility: root API main `0.96.0` → `0.97.0`; package/POC/production schemas unchanged. This is the historical introduction version, not the current release version. Current package 1.0.0 retains root API 0.116.0; #112 is merged. Schema/profile changes preserve explicit domains and independent version identities.
+Compatibility: root API main `0.96.0` → `0.97.0`; package/POC/production schemas unchanged. This is the historical introduction version, not the current release version. Current package/root API 1.0.1 uses aligned release identity; #112 is merged. Schema/profile changes preserve explicit domains and independent version identities.
 
 Research: [ICC sRGB encoding registry](https://registry.color.org/rgb-registry/srgb) defines the standard primaries, white/reference assumptions and component transfer equations. These public numerical facts/equations inform independently authored code/tests; no third-party implementation, ICC profile binaries, protected prose, calibration data or color tables are incorporated. Calculation provenance refers to deterministic rendering arithmetic, not physical/perceptual accuracy or commercial-camera calibration. Human science/provenance review and DCO contributor certification remain required before inclusion.

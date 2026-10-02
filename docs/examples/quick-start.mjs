@@ -2,7 +2,7 @@
 
 import console from "node:console";
 
-// Node 22/24 executable example; the scientific imports are also browser-safe.
+// Node 22/24/26 executable example; the scientific imports are also browser-safe.
 import { calculateFieldOfView, calculateExposureValue100, ENGINE_API_VERSION } from "@photivra/engine";
 const fov = calculateFieldOfView({ focalLengthMm: 50, sensorDimensionMm: 36 });
 const expectedDegrees = 2 * Math.atan(36 / (2 * 50)) * 180 / Math.PI;

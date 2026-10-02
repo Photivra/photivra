@@ -1,6 +1,6 @@
 # Generic equipment tier reference assets
 
-Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+Release context: **package 1.0.1 candidate / root API 1.0.1**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0_1.md).
 
 `resolveGenericEquipmentTierCatalog({ presetVersion: "1.0.0" })` returns immutable
 Consumer, Prosumer and Professional body/lens reference bundles. These are
@@ -139,7 +139,7 @@ There is no separate tier-specific browser approximation to compare here; the
 public implementation remains browser-safe and uses the ordinary reference APIs.
 No private application acceptance is invented.
 
-Initial tier assets landed at root API 0.105.0; the current root API is 0.116.0.
+Initial tier assets landed at root API 0.105.0; the current root API is 1.0.1.
 This acceptance-only extension does not change runtime/API or asset definitions. Selection schema 0.1.0, asset version 1.0.0, npm package,
 POC and production contracts remain independent. Human scientific/provenance
 review and contribution-specific DCO certification are still required.

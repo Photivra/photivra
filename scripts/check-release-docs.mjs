@@ -11,9 +11,11 @@ execFileSync(process.execPath, ["scripts/generate-api-reference.mjs", "--check"]
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const lock = JSON.parse(readFileSync("package-lock.json", "utf8"));
 const citation = readFileSync("CITATION.cff", "utf8");
-if (pkg.version !== "1.0.0" || lock.version !== pkg.version || lock.packages[""].version !== pkg.version || !citation.includes(`version: "${pkg.version}"`)) throw new Error("Distribution/lock/citation version drift");
+if (lock.version !== pkg.version || lock.packages[""].version !== pkg.version || !citation.includes(`version: "${pkg.version}"`)) throw new Error("Distribution/lock/citation version drift");
+const sourceVersion = readFileSync("src/core/version.ts", "utf8").match(/ENGINE_API_VERSION = "([^"]+)"/u)?.[1];
+if (sourceVersion !== pkg.version) throw new Error("Package/root API version drift");
 const manifest = JSON.parse(readFileSync("docs/api/exports.json", "utf8"));
-if (manifest.packageVersion !== pkg.version || manifest.engineApiVersion !== "0.116.0") throw new Error("Independent release/API identity drift");
+if (manifest.packageVersion !== pkg.version || manifest.engineApiVersion !== pkg.version) throw new Error("Aligned release/API identity drift");
 const tracked = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { encoding: "utf8" }).trim().split("\n");
 const docs = tracked.filter(p => p.endsWith(".md") && !p.startsWith(".release-"));
 function anchors(text) {

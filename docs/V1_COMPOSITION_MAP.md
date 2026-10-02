@@ -1,8 +1,8 @@
 # OpenSource V1 composition and consumer map
 
-Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+Release context: **package 1.0.1 candidate / root API 1.0.1**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0_1.md).
 
-Release candidate: package 1.0.0, root API 0.116.0, production plan 0.7.0. Feature/science main is `34c6d9aca1c2e365b253c1562734d11bc8e0235f` (#206). [V1 #129](https://github.com/Photivra/photivra/issues/129) is **32/32**; #178 and #131 are closed. This audit reconciles current consumer boundaries below; #180 is the release-preparation contribution and publication remains owner-only.
+Current candidate: package/root API 1.0.1, production plan 0.7.0. The following V1 audit records the original 1.0.0 preparation. Feature/science main is `34c6d9aca1c2e365b253c1562734d11bc8e0235f` (#206). [V1 #129](https://github.com/Photivra/photivra/issues/129) is **32/32**; #178 and #131 are closed. This audit reconciles current consumer boundaries below; #180 is the release-preparation contribution and publication remains owner-only.
 
 A closed foundation ticket establishes its primitive scope, not automatic
 availability of every optional model in every production route. Direct consumers,

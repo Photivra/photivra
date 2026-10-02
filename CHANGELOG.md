@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1 candidate — publication pending
+
+- Expand Node support to maintained 22/24 LTS plus 26 Current, with patched-major CI and the existing 22.13 minimum job, reviewed lifecycle windows and updated tooling guidance. Keep Node 24 build/typings baseline.
+- Align the npm package and `ENGINE_API_VERSION` at 1.0.1 and enforce equality in source metadata, generated references and isolated packed consumers. Schema/model/POC/plan versions and scientific calculations are unchanged. New capture/plan creator identities and hashes can differ; archived records and acceptance artifacts retain their original versions. See `docs/RELEASE_1_0_1.md`.
+
 ## 1.0.0 candidate — publication pending owner tag
 
 - Prepare the stable public distribution after all 32 V1 feature/science items and defect #178 are reviewed and merged. Package/lock/citation become 1.0.0; root contract 0.116.0 and every independent model/schema/POC/plan identity remain unchanged. No scientific arithmetic, seed, fixture hash, exported signature or accepted execution envelope changes.

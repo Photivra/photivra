@@ -778,7 +778,7 @@ describe("ready physical production plan", () => {
       "ready"
     );
     expect(plan.versions).toMatchObject({
-      engineApi: "0.116.0",
+      engineApi: "1.0.1",
       imageFormationContract:
         "0.4.0",
       plan: "0.7.0",
