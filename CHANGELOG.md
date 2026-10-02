@@ -2,6 +2,8 @@
 
 ## Unreleased — engine API 0.106.0
 
+- Correct production-plan diagnostics to report the current plan contract version instead of a stale hard-coded version, and document the existing `distribute*` public verb family. Diagnostic text changes only; blocker codes, validation, scientific behavior and all version surfaces remain unchanged. Partial defect #178 resolution.
+
 - Add matched generic tier body execution acceptance for release cadence/timer/limits, AF availability/hold/loss and release gating, independent metering/AWB arithmetic, and global readout timing. Synthetic policy evidence only; runtime/API/assets unchanged. See `docs/GENERIC_TIER_PRESETS.md`.
 
 - Extend generic tier correction acceptance with independent residual CA/distortion, full Jacobian/stretch, same-capture slanted-step interpolation/gain and support/retained-ray checks. Synthetic sampled regression evidence only; runtime/API/assets unchanged. See `docs/GENERIC_TIER_PRESETS.md`.
