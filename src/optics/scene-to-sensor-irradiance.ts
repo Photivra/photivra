@@ -1,5 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. The optical bridge
+ * maps outgoing W/m²/sr/nm radiance to pre-sensor-stack W/m²/nm irradiance. Circular paraxial
+ * acceptance is pi/(4*Nworking²); finite-focus unity-pupil geometry uses N*(1+m). Spectral
+ * transmission and effective working T-stop are alternative paths, and field throughput is applied
+ * exactly once. Sensor response and PSF redistribution are downstream.
+ * Apply declared pupil acceptance and exactly one transmission/field-throughput path to spectral scene
+ * radiance, returning pre-stack irradiance with conservative evidence. The optical bridge maps
+ * outgoing W/m²/sr/nm radiance to pre-sensor-stack W/m²/nm irradiance. Circular paraxial acceptance is
+ * pi/(4*Nworking²); finite-focus unity-pupil geometry uses N*(1+m). Spectral transmission and
+ * effective working T-stop are alternative paths, and field throughput is applied exactly once. Sensor
+ * response and PSF redistribution are downstream.
+ * @see docs/SCENE_SENSOR_QUADRATURE.md for equations, coordinate/unit conventions, blockers and
+ * support limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult
@@ -772,6 +790,19 @@ function parseFocusApplicability(
   );
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * The optical bridge maps outgoing W/m²/sr/nm radiance to pre-sensor-stack W/m²/nm irradiance.
+ * Circular paraxial acceptance is pi/(4*Nworking²); finite-focus unity-pupil geometry uses N*(1+m).
+ * Spectral transmission and effective working T-stop are alternative paths, and field throughput is
+ * applied exactly once. Sensor response and PSF redistribution are downstream.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns SceneToSensorIrradianceProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseSceneToSensorIrradianceProfile(
   value: unknown
 ): SceneToSensorIrradianceProfile {
@@ -1190,6 +1221,21 @@ function validateSceneIdentity(
   }
 }
 
+/**
+ * Apply declared pupil acceptance and exactly one transmission/field-throughput path to spectral scene
+ * radiance, returning pre-stack irradiance with conservative evidence.
+ *
+ * The optical bridge maps outgoing W/m²/sr/nm radiance to pre-sensor-stack W/m²/nm irradiance.
+ * Circular paraxial acceptance is pi/(4*Nworking²); finite-focus unity-pupil geometry uses N*(1+m).
+ * Spectral transmission and effective working T-stop are alternative paths, and field throughput is
+ * applied exactly once. Sensor response and PSF redistribution are downstream.
+ * @param input - CalculateSceneRadianceToSensorIrradianceInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<
+  SceneToSensorIrradianceResult
+>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function calculateSceneRadianceToSensorIrradiance(
   input:
     CalculateSceneRadianceToSensorIrradianceInput

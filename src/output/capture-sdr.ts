@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validates the capture and explicit color/render choices at an untrusted boundary.
+ * Bounded capture → explicit color/WB → SDR adapter. No resampling, correction, physical exposure,
+ * metering, external IO or production-plan activation occurs.
+ * @see docs/PROCESSED_OUTPUT.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { requireAllowlistedRecord } from "../core/record-validation.js";
 import { calculatedResult, approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";

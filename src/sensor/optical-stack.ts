@@ -1,5 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses descriptive sensor optical-stack metadata plus an optional explicitly declared effective
+ * anti-aliasing spatial response. Unknown facts are omitted instead of inferred. Physical component
+ * presence is intentionally separate from effective anti-aliasing response so the schema can represent
+ * cancellation/neutralization designs without claiming the physical assembly is absent.
+ * Cover/filter-stack and microlens presence do not create optical effects in schema 0.1.0. Thickness,
+ * refractive index, spectral transmission, angular acceptance, focus shift and microlens collection
+ * behavior require later explicit models/calibration.
+ * Resolves only the effective anti-aliasing spatial kernel. This is not a whole optical-stack PSF.
+ * Cover/filter transmission, refraction, microlens behavior, field/wavelength/polarization dependence,
+ * and total throughput remain excluded. A documented absent effective anti-aliasing response resolves
+ * to an identity component at zero offset. An unknown response (field omitted) or a
+ * present-but-unresolved response fails closed.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

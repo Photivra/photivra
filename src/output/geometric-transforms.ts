@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses strict transform data, rejecting unknown semantics and noninvertible profiles.
+ * Prepares deterministic still/frame geometry; time changes require another preparation.
+ * @see docs/DIGITAL_OPTICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and
+ * support limits.
+ */
+
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import {

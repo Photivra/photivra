@@ -1,5 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Maps one stationary-world ray to its image-plane location after pure camera rotation at an arbitrary
+ * physical time from exposure start. The initial image point defines the world ray in the camera frame
+ * at t=0. Constant angular velocity is integrated as one axis-angle rotation vector, avoiding
+ * Euler-order dependence. The stationary world ray is then expressed in the rotated camera frame using
+ * the inverse camera rotation and projected rectilinearly back onto the image plane. This function
+ * models rotation only. It deliberately excludes camera translation because translational optical flow
+ * depends on scene depth.
+ * Maps a captured stationary-world ray at one non-negative capture time back to its image-plane
+ * location at exposure start. For the existing constant-axis pure-rotation model this inverse is
+ * analytic: the captured ray is transformed by the forward camera rotation before rectilinear
+ * projection. No iterative solver is required.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult

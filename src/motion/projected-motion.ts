@@ -1,5 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Calculates sensor-plane motion during an exposure using ideal rectilinear projection and constant
+ * linear object velocity. Without focusDistanceM, nominal focal length is the backwards-compatible
+ * pinhole projection distance. With focusDistanceM, the selected thin-lens sensor-plane image distance
+ * is used. The calculation projects the object's shutter-open and shutter-close positions onto the
+ * image plane and measures the displacement between them. It therefore handles lateral and
+ * depth-direction motion without relying on a generic "subject speed" category.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult

@@ -1,5 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Generic
+ * stabilization evaluates declared angular disturbance with per-axis response, latency, limits and
+ * panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
+ * calibration, arbitrary stop rating or inferred coordination is supplied.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Generic
+ * stabilization evaluates declared angular disturbance with per-axis response, latency, limits and
+ * panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
+ * calibration, arbitrary stop rating or inferred coordination is supplied.
+ * @see docs/STABILIZATION.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult
@@ -618,6 +633,18 @@ function parseCoordinatedAllocation(
   };
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Generic stabilization evaluates declared angular disturbance with per-axis response, latency, limits
+ * and panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
+ * calibration, arbitrary stop rating or inferred coordination is supplied.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns StabilizationSystemProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseStabilizationSystemProfile(
   value: unknown
 ): StabilizationSystemProfile {
@@ -878,6 +905,18 @@ function parseAngularState(
   };
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Generic stabilization evaluates declared angular disturbance with per-axis response, latency, limits
+ * and panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
+ * calibration, arbitrary stop rating or inferred coordination is supplied.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns StabilizationDisturbanceTrajectory. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseStabilizationDisturbanceTrajectory(
   value: unknown
 ): StabilizationDisturbanceTrajectory {
@@ -1321,6 +1360,18 @@ function evaluateAtTime(
   };
 }
 
+/**
+ * Evaluate the declared generic per-axis controller against an explicit angular disturbance trajectory
+ * and return residual motion with latency/limit diagnostics.
+ *
+ * Generic stabilization evaluates declared angular disturbance with per-axis response, latency, limits
+ * and panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
+ * calibration, arbitrary stop rating or inferred coordination is supplied.
+ * @param input - CalculateStabilizedRotationTrajectoryInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<StabilizedRotationTrajectory>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function calculateStabilizedRotationTrajectory(
   input:
     CalculateStabilizedRotationTrajectoryInput
@@ -1438,6 +1489,18 @@ function localExposureForPoint(
   };
 }
 
+/**
+ * Feed the residual stabilized rotation into the existing local-exposure temporal mapping without
+ * changing shutter timing or inventing a blur radius.
+ *
+ * Generic stabilization evaluates declared angular disturbance with per-axis response, latency, limits
+ * and panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
+ * calibration, arbitrary stop rating or inferred coordination is supplied.
+ * @param input - CalculateStabilizedCaptureTemporalSamplesInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<StabilizedCaptureTemporalSamples>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function calculateStabilizedCaptureTemporalSamples(
   input:
     CalculateStabilizedCaptureTemporalSamplesInput

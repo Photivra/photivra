@@ -1,5 +1,7 @@
 # Executed environment capture to native RAW
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 `calculateEnvironmentSensorPhotoSignal()` executes one destination site's
 bounded environment exposure. `simulateEnvironmentSensorRawFrame()` applies that
 path to a complete reference native frame and hands its photo/dark expectations

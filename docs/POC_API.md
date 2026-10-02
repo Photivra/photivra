@@ -1,5 +1,7 @@
 # Local POC Simulation API
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 Photivra includes a minimal Node HTTP transport for proof-of-concept development and integration testing.
 
 It is **not** the recommended production runtime. Browser applications can consume the root `@photivra/engine` scientific surface directly; the production Photivra architecture is intended to keep the simulation math client-side rather than expose this unauthenticated POC server to the public internet.

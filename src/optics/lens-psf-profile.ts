@@ -1,5 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Sampled lens PSF
+ * shapes bind exact generic optical state, field, wavelength and signed defocus support. Interpolation
+ * stays within declared applicability and preserves normalized shape separately from throughput.
+ * MTF-only data lacks phase/spatial information and does not authorize rendering a unique PSF.
+ * Resolve the bounded sampled PSF for a declared optical state and support point without extrapolation
+ * or silently inventing missing dimensions. Sampled lens PSF shapes bind exact generic optical state,
+ * field, wavelength and signed defocus support. Interpolation stays within declared applicability and
+ * preserves normalized shape separately from throughput. MTF-only data lacks phase/spatial information
+ * and does not authorize rendering a unique PSF.
+ * @see docs/PSF_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult
@@ -925,6 +940,19 @@ function sameKernelGeometry(
   );
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Sampled lens PSF shapes bind exact generic optical state, field, wavelength and signed defocus
+ * support. Interpolation stays within declared applicability and preserves normalized shape separately
+ * from throughput. MTF-only data lacks phase/spatial information and does not authorize rendering a
+ * unique PSF.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns LensSampledPsfProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseLensSampledPsfProfile(
   value: unknown
 ): LensSampledPsfProfile {
@@ -1613,6 +1641,19 @@ function weightedScalar(
   );
 }
 
+/**
+ * Resolve the bounded sampled PSF for a declared optical state and support point without extrapolation
+ * or silently inventing missing dimensions.
+ *
+ * Sampled lens PSF shapes bind exact generic optical state, field, wavelength and signed defocus
+ * support. Interpolation stays within declared applicability and preserves normalized shape separately
+ * from throughput. MTF-only data lacks phase/spatial information and does not authorize rendering a
+ * unique PSF.
+ * @param input - ResolveLensSampledPsfInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<ResolvedLensSampledPsf>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function resolveLensSampledPsf(
   input:
     ResolveLensSampledPsfInput
@@ -1744,6 +1785,19 @@ export function resolveLensSampledPsf(
   );
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Sampled lens PSF shapes bind exact generic optical state, field, wavelength and signed defocus
+ * support. Interpolation stays within declared applicability and preserves normalized shape separately
+ * from throughput. MTF-only data lacks phase/spatial information and does not authorize rendering a
+ * unique PSF.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns LensMtfDiagnosticProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseLensMtfDiagnosticProfile(
   value: unknown
 ): LensMtfDiagnosticProfile {
@@ -1911,6 +1965,19 @@ export function parseLensMtfDiagnosticProfile(
   };
 }
 
+/**
+ * Explain why MTF-only evidence cannot determine a unique renderable PSF; return blockers instead of
+ * fabricating phase information.
+ *
+ * Sampled lens PSF shapes bind exact generic optical state, field, wavelength and signed defocus
+ * support. Interpolation stays within declared applicability and preserves normalized shape separately
+ * from throughput. MTF-only data lacks phase/spatial information and does not authorize rendering a
+ * unique PSF.
+ * @param profile - LensMtfDiagnosticProfile. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns MtfOnlyPsfRenderabilityAssessment. Read structured blockers before consuming an authorization.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function assessMtfOnlyPsfRenderability(
   profile:
     LensMtfDiagnosticProfile

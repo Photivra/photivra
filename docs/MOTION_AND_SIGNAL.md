@@ -1,5 +1,7 @@
 # Motion and Signal Foundation
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 ## Projected subject motion
 
 Subject-motion blur is modeled from image-plane displacement rather than broad labels such as "fast sport" or "slow subject."
@@ -113,7 +115,7 @@ Mechanical, EFCS, and electronic shutter mechanisms determine only which concept
 
 The complete active rectangle is validated so a zero/negative local exposure duration cannot hide in an unsampled region.
 
-This contract remains deliberately separate from `calculateSensorReadoutTiming()`. Sensor readout phase is not automatically an exposure boundary. It also remains separate from `calculateCameraRotationImageMapping()`: that API still accepts seconds from its existing exposure-start reference, and a later integration layer must define how local capture-window times bind to that motion time basis.
+This contract remains deliberately separate from `calculateSensorReadoutTiming()`. Sensor readout phase is not automatically an exposure boundary. It also remains separate from `calculateCameraRotationImageMapping()`: that API still accepts seconds from its existing exposure-start reference, and the capture rotation and production adapters explicitly bind local capture-window times to that motion basis.
 
 The first exposure-window model does not include curtain acceleration, nonlinear or segmented electronic scheduling, flash/flicker interaction, shutter shock, EFCS-specific pupil/bokeh behavior, or rolling-shutter image distortion.
 
@@ -160,7 +162,7 @@ These are intentionally separate. The seconds-valued measure is not shutter tran
 
 The local exposure interval remains destination-dependent. A scanned opening/closing schedule can therefore shift node times between sensor locations, and different opening/closing traversal schedules can produce different local durations and therefore different `timeMeasureSeconds` values.
 
-The first temporal-response model is `uniform-over-local-exposure`. That is an explicit approximation. Photivra does not yet model shutter-transmission ramps, exposure-dependent sensor response, scene flicker, flash pulses, or other time-varying radiometric weighting.
+The first temporal-response model is `uniform-over-local-exposure`. That is an explicit approximation. This geometric primitive does not model shutter-transmission ramps or exposure-dependent sensor response. Registered temporal illumination/manual flash and explicit scene/EQE exposure APIs separately integrate declared changing light; geometry nodes alone provide no radiometric weighting.
 
 The API returns **nodes and weights only**. It does not average reference coordinates, compute a blur radius/kernel, sample scene radiance, resolve visibility/occlusion, or write output pixels. Averaging geometric coordinates is not a substitute for integrating the radiance seen along the time-varying rays.
 
@@ -197,7 +199,7 @@ The current inverse does not claim that an arbitrary rolling/capture-scan camera
 
 The image-formation contract defines physical time in **seconds from exposure start**.
 
-A future spatial camera-rotation model should be evaluable at arbitrary physical times rather than returning only one finished full-frame displacement. That allows global exposure and later rolling readout to consume the same camera-motion model.
+The separate spatial camera-rotation model is evaluable at arbitrary supported physical times rather than returning only one finished full-frame displacement. That allows global exposure and later rolling readout to consume the same camera-motion model.
 
 Exposure duration and sensor readout timing are independent concepts:
 

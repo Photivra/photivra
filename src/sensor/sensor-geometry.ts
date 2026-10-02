@@ -1,5 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Calculates physical imaging-area metrics independently from native raster density. Crop factor uses
+ * the diagonal ratio to a 36 × 24 mm reference frame. Digital/output crops are not part of this
+ * physical imaging-area quantity.
+ * Calculates physical imaging-area, native-raster, and geometric sampling metrics without coupling
+ * sensor size to resolution. The supplied raster is assumed to span the supplied imaging area. Derived
+ * sampling pitch is geometric sample spacing only and must not be interpreted as photosite fill factor
+ * or photon-collection area.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult

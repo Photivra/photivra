@@ -1,5 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Physical storage
+ * capacity is a source-specific total stored-electron limit tied to site, operating state and
+ * temperature. The assessment compares complete expected charge; it does not clamp realizations or
+ * infer overflow/blooming. Camera saturation and ADC/readout thresholds remain distinct.
+ * Compare complete expected stored electrons to the explicitly applicable physical capacity and report
+ * expectation-domain headroom without nonlinear storage simulation. Physical storage capacity is a
+ * source-specific total stored-electron limit tied to site, operating state and temperature. The
+ * assessment compares complete expected charge; it does not clamp realizations or infer
+ * overflow/blooming. Camera saturation and ADC/readout thresholds remain distinct.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult
@@ -374,6 +390,19 @@ function parseTemperatureApplicability(
   );
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Physical storage capacity is a source-specific total stored-electron limit tied to site, operating
+ * state and temperature. The assessment compares complete expected charge; it does not clamp
+ * realizations or infer overflow/blooming. Camera saturation and ADC/readout thresholds remain
+ * distinct.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns SensorPhysicalChargeCapacityProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseSensorPhysicalChargeCapacityProfile(
   value: unknown
 ): SensorPhysicalChargeCapacityProfile {
@@ -537,6 +566,19 @@ function validateCharge(
   );
 }
 
+/**
+ * Compare complete expected stored electrons to the explicitly applicable physical capacity and report
+ * expectation-domain headroom without nonlinear storage simulation.
+ *
+ * Physical storage capacity is a source-specific total stored-electron limit tied to site, operating
+ * state and temperature. The assessment compares complete expected charge; it does not clamp
+ * realizations or infer overflow/blooming. Camera saturation and ADC/readout thresholds remain
+ * distinct.
+ * @param input - AssessSensorPhysicalChargeCapacityInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<SensorPhysicalChargeCapacityAssessment>. Read structured blockers before consuming an authorization.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function assessSensorPhysicalChargeCapacity(
   input:
     AssessSensorPhysicalChargeCapacityInput

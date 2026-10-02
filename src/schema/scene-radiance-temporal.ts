@@ -1,5 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Creates renderer/provider-neutral scene-radiance evaluation nodes over one authoritative local
+ * exposure window. The plan deliberately carries capture time separately from the legacy #85 request
+ * field name. Providers/renderers must evaluate scene/source radiance at
+ * node.captureTimeSecondsFromReference on the first-opening-boundary clock.
+ * Reduces provider-returned wavelength-resolved scene radiance over the authoritative local exposure
+ * window. Every sample must bind to the exact plan node/time/result identity. Numeric uncertainty is
+ * retained per node and explicitly not combined because no correlation/independence assumption is
+ * introduced.
+ * @see docs/SCENE_RADIANCE_AND_ILLUMINATION.md for equations, coordinate/unit conventions, blockers
+ * and support limits.
+ */
+
 import { InvalidScientificInputError, requirePositiveInteger } from "../core/validation.js";
 import type { RasterPoint } from "../output/capture-geometry.js";
 import {

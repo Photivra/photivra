@@ -1,5 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Dark current is an
+ * independently declared pre-compensation thermal electron rate. Exact-temperature or sampled linear
+ * interpolation is supported only within declared applicability; no universal doubling-temperature law
+ * is inferred. Population means remain approximations and do not model hot-pixel/DCNU structure.
+ * Evaluate the declared temperature-dependent dark electron rate and integrate over the exact
+ * photo-signal local exposure event. Dark current is an independently declared pre-compensation
+ * thermal electron rate. Exact-temperature or sampled linear interpolation is supported only within
+ * declared applicability; no universal doubling-temperature law is inferred. Population means remain
+ * approximations and do not model hot-pixel/DCNU structure.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   calculatedResult,
@@ -439,6 +455,19 @@ function parseTemperatureModel(
   };
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
+ * or sampled linear interpolation is supported only within declared applicability; no universal
+ * doubling-temperature law is inferred. Population means remain approximations and do not model
+ * hot-pixel/DCNU structure.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns SensorDarkCurrentProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseSensorDarkCurrentProfile(
   value: unknown
 ): SensorDarkCurrentProfile {
@@ -722,15 +751,67 @@ function validateExposure(
   }
 }
 
+/**
+ * Evaluate the declared temperature-dependent dark electron rate and integrate over the exact
+ * photo-signal local exposure event.
+ *
+ * Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
+ * or sampled linear interpolation is supported only within declared applicability; no universal
+ * doubling-temperature law is inferred. Population means remain approximations and do not model
+ * hot-pixel/DCNU structure.
+ * @param input - Omit<CalculateSensorDarkCurrentChargeInput, "exposure"> & { exposure: SensorEqeExposureIntegration }. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<SensorDarkCurrentCharge>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function calculateSensorDarkCurrentCharge(
   input: Omit<CalculateSensorDarkCurrentChargeInput, "exposure"> & { exposure: SensorEqeExposureIntegration }
 ): CalculationResult<SensorDarkCurrentCharge>;
+/**
+ * Evaluate the declared temperature-dependent dark electron rate and integrate over the exact
+ * photo-signal local exposure event.
+ *
+ * Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
+ * or sampled linear interpolation is supported only within declared applicability; no universal
+ * doubling-temperature law is inferred. Population means remain approximations and do not model
+ * hot-pixel/DCNU structure.
+ * @param input - Omit<CalculateSensorDarkCurrentChargeInput, "exposure"> & { exposure: SensorEqeTemporalPhotoSignal }. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<SensorTemporalDarkCurrentCharge>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function calculateSensorDarkCurrentCharge(
   input: Omit<CalculateSensorDarkCurrentChargeInput, "exposure"> & { exposure: SensorEqeTemporalPhotoSignal }
 ): CalculationResult<SensorTemporalDarkCurrentCharge>;
+/**
+ * Evaluate the declared temperature-dependent dark electron rate and integrate over the exact
+ * photo-signal local exposure event.
+ *
+ * Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
+ * or sampled linear interpolation is supported only within declared applicability; no universal
+ * doubling-temperature law is inferred. Population means remain approximations and do not model
+ * hot-pixel/DCNU structure.
+ * @param input - CalculateSensorDarkCurrentChargeInput<SensorEqePhotoExposure>. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<SensorPhotoDarkCurrentCharge>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function calculateSensorDarkCurrentCharge(
   input: CalculateSensorDarkCurrentChargeInput<SensorEqePhotoExposure>
 ): CalculationResult<SensorPhotoDarkCurrentCharge>;
+/**
+ * Evaluate the declared temperature-dependent dark electron rate and integrate over the exact
+ * photo-signal local exposure event.
+ *
+ * Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
+ * or sampled linear interpolation is supported only within declared applicability; no universal
+ * doubling-temperature law is inferred. Population means remain approximations and do not model
+ * hot-pixel/DCNU structure.
+ * @param input - CalculateSensorDarkCurrentChargeInput<SensorEqePhotoExposure>. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<SensorPhotoDarkCurrentCharge>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function calculateSensorDarkCurrentCharge(
   input:
     CalculateSensorDarkCurrentChargeInput<SensorEqePhotoExposure>

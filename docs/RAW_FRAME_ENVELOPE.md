@@ -1,5 +1,7 @@
 # Reference RAW frame compatibility
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 A valid RAW attachment does not establish readiness for reconstruction or paired
 export. The limits below apply to the current browser-safe reference adapters,
 not a typical-camera-resolution production implementation. Count full native
@@ -51,6 +53,4 @@ faults coexist, error precedence can change. Existing diagnostic text is kept.
 No serialized field, schema or root API version changes, and no saved-data
 migration is required. Package and POC versions remain independent and unchanged.
 
-Larger/streaming execution, resolution/memory/performance measurement, external
-editor acceptance and authoritative upstream origin remain tracked by #16/#112
-and defect #178. This envelope work does not close those production gates.
+Larger/streaming execution remains unsupported. #16/#112/#178 are closed for their reviewed bounded scope; current execution/editor evidence is in [production capture](PRODUCTION_ENVIRONMENT_CAPTURE.md) and [export acceptance](EXPORT_ACCEPTANCE.md). Structural attachment alone does not establish that evidence for a new frame.

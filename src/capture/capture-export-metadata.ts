@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Fail-closed parser; no default workflow, time, creator, physical-device or file lineage claims.
+ * Projects known capture metadata once for both future writers; never encodes or verifies image data.
+ * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { requireAllowlistedRecord } from "../core/record-validation.js";
 import { freezeOwnedData } from "../core/owned-data.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";

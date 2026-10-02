@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * The single browser-safe ESM root aggregates explicit scientific contracts. No deep import, transport
+ * server or renderer backend is a supported package surface.
+ * @see docs/DEVELOPERS.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 export { GENERIC_EQUIPMENT_TIER_PRESET_VERSION, GENERIC_EQUIPMENT_TIERS, resolveGenericEquipmentTierCatalog,
   createGenericEquipmentTierSelection, parseGenericEquipmentTierSelection, resolveGenericEquipmentTierLensProfiles,
   type GenericEquipmentTierProfileReference, type GenericEquipmentTierSelection, type ResolvedGenericTierLensProfiles } from "./equipment/generic-tier-presets.js";

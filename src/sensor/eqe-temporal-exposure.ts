@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Evaluate response validity and EQE independently at each declared shutter midpoint, then sum rates
+ * times seconds. This is quadrature, not a stationarity claim or convergence proof. Shared
+ * profile/geometry state prevents combining rates from different sites or shutter events. No renderer
+ * executes here.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { sumTemporalEqeRateExpectations } from "./temporal-eqe-sum.js";
 import { bindSensorTemporalSamples } from "./temporal-sample-binding.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";

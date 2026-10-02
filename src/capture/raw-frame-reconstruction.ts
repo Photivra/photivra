@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Revalidates committed RAW codes/geometry and complete phase dispatch; no external plane may supply
+ * output values.
+ * Delegates each pixel to #14's explicit linear reconstruction using only the attached native RAW
+ * samples.
+ * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { requireAllowlistedRecord } from "../core/record-validation.js";
 import { RAW_REFERENCE_MAX_NATIVE_SITES } from "./raw-frame-limits.js";
 

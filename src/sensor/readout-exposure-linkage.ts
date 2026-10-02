@@ -1,5 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Assesses an explicitly declared relationship between rolling sensor readout spatial phase and one or
+ * more electronic exposure-boundary scans. This contract is deliberately weaker than temporal
+ * synchronization. It can establish that two schedules traverse the same native spatial phase ordering
+ * (or its reverse), but it does not establish when sensor data readout occurs relative to exposure
+ * start/end. The total capture data-readout duration is preserved diagnostically and is never used to
+ * validate the relationship. Different rolling-readout spatial skew and exposure-boundary traversal
+ * durations are allowed; their ratio is reported without implying a shared clock origin.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationProvenance,

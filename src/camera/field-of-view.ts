@@ -1,5 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Calculates rectilinear angular field of view as 2 * atan(sensorDimension / (2 *
+ * projectionDistance)). Without focusDistanceM, projectionDistance is nominal focal length for
+ * backwards-compatible infinity-focus/pinhole behavior. With focusDistanceM, projectionDistance is the
+ * ideal Gaussian thin-lens image distance for that focus plane. Neither mode models real-lens focus
+ * breathing or distortion.
+ * Calculates an asymmetric rectilinear FOV span from signed sensor-plane bounds relative to the
+ * optical axis. This is required for off-center active sensor crops where the optical axis is not at
+ * the center of the retained rectangle.
+ * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult

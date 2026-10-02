@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses generic logical-release/drive capabilities. The first schema deliberately models
+ * non-overlapping ordinary still exposures only. Buffer/media/thermal slowdown and pre-release capture
+ * remain outside this profile.
+ * @see docs/GENERIC_TIER_PRESETS.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

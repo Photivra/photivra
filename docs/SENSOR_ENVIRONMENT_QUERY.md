@@ -1,5 +1,7 @@
 # Sensor support to environment radiance query
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 `calculateSensorEnvironmentRadianceQuery()` derives a renderer-neutral environment
 radiance request from an explicitly supplied physical sensor support point. It
 reuses the existing focus-aware ideal projection and analytic inverse camera
@@ -81,4 +83,4 @@ without mutating caller state.
 Root API **0.112.0 → 0.113.0**, model 0.1.0. Existing public contracts and other
 version surfaces stay unchanged; historical capture/file replay retains its API
 stamp. No dependency, external asset, network access or cost is introduced.
-#16/#178/#112 remain open and V1 stays 25/32.
+At this introduction checkpoint, #16/#178/#112 were open and V1 was 25/32. They are now reviewed/merged; final conformance is complete.

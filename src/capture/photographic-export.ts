@@ -1,4 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
+
+/**
+ * Module boundary and integration notes.
+ * Validates independently supplied numeric profile evidence and binds the approximation to the exact
+ * CFA profile.
+ * Cheap geometry/topology preflight after RAW revalidation, before pixel execution.
+ * @see docs/PHOTOGRAPHIC_EXPORT.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
 // This product includes DNG technology under license by Adobe.
 
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
@@ -53,6 +62,13 @@ export interface PhotographicExportInput {
 /** Explicit post-ADC RAW development policy shared by preview and file output. */
 export type ProcessedSensorRawInput = Pick<PhotographicExportInput,
   "reconstruction" | "colorProfile" | "whiteBalance" | "rendering" | "correction">;
+/**
+ * Owned derived preview/JPEG processing record for the exact attached native RAW.
+ * Child reconstruction/color/WB/correction/rendering results expose their input
+ * and output domains and independent clipping/cost diagnostics. The output view is
+ * oriented/cropped SDR, while the native default crop and physical capture history
+ * remain unchanged. Returned arrays are pre-file pixels, not a lossy JPEG decode.
+ */
 export interface ProcessedSensorRawResult {
   inputDomain: "post-adc-native-sensor-raw";
   colorProfile: ExportSensorColorProfile;
@@ -261,6 +277,20 @@ export function calculateProcessedSensorRaw(input: ProcessedSensorRawInput): Cal
   ]);
 }
 
+/**
+ * Serialize one authoritative RAW capture to a lossless uncompressed CFA DNG and an independently
+ * packed baseline JPEG. Shared metadata comes from the committed capture; orientation/WB/rendering
+ * never rewrite native RAW codes.
+ *
+ * Paired export preserves one revalidated native post-ADC RAW frame for DNG and develops that same
+ * frame through explicit reconstruction, approximate sensor-channel color/WB and SDR policy for JPEG.
+ * File identity and RAW data identity are distinct. Hashing is asynchronous; input data is copied
+ * before the first await. Full-native execution is limited to 4096 sites.
+ * @param input - PhotographicExportInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns Promise<PhotographicExportPair>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export async function createPhotographicExportPair(input: PhotographicExportInput): Promise<PhotographicExportPair> {
   // Copy validated inputs into private owned values before the first async boundary to prevent hash/encoding races.
   const v=JSON.parse(JSON.stringify(parsePhotographicExportInput(input))) as PhotographicExportInput;

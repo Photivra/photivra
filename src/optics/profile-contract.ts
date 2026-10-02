@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Generic optical state binds one body/lens/version/acquisition/output configuration to explicit
+ * approximation evidence. These identities do not certify manufacturer calibration.
+ * Correction/stray-light consumers validate exact state equality before applying declared
+ * coefficients.
+ * @see docs/RELEASE_1_0.md and the corresponding domain guide.
+ */
+
 import { InvalidScientificInputError } from "../core/validation.js";
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
 

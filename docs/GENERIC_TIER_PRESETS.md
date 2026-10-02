@@ -1,5 +1,7 @@
 # Generic equipment tier reference assets
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 `resolveGenericEquipmentTierCatalog({ presetVersion: "1.0.0" })` returns immutable
 Consumer, Prosumer and Professional body/lens reference bundles. These are
 Photivra-owned synthetic educational approximations, with unquantified physical
@@ -253,13 +255,13 @@ This coarse sampled scene is neither measured MTF nor a continuous optical model
 color-fringing prediction or a perceptual bokeh score. No interpolation, sharpen
 pass, hidden quality multiplier or external data is introduced.
 
-See the acceptance disposition for #116 ownership, remaining #119 validation and
+See the acceptance disposition for #116 ownership, merged #119 validation and
 scientific limits. Runtime/API/schema/asset/package/POC versions stay unchanged.
 
 
 ## Versioned cross-tier reports
 
-The final proposed #119 acceptance layer is [TIER_ACCEPTANCE.md](TIER_ACCEPTANCE.md).
+The reviewed/merged #119 acceptance layer is [TIER_ACCEPTANCE.md](TIER_ACCEPTANCE.md).
 It links a reproducible three-domain report, normative finite regression envelopes,
 explicit multidimensional pupil/texture and crop/gain tradeoffs, and matched signed
 stabilization/ordinary-flash checks. Existing body, correction and producer-to-file

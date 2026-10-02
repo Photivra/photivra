@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Evaluates depth-dependent translational parallax at deterministic midpoint nodes over each scene
+ * point's authoritative local exposure window. The model is deliberately per point. Camera translation
+ * and optional subject translation coexist through relative linear motion; neither is redefined as the
+ * other. Camera rotation and visibility/occlusion remain separate models.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult

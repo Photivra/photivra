@@ -1,5 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses reusable wavelength-dependent response data for semantic sensor channels without inferring
+ * response from channel names or CFA family. Embedded multi-point curves require reusable-data or
+ * Photivra-owned evidence. Public/factual references without reuse permission may support metadata but
+ * cannot by themselves authorize copying numeric curve data into the engine.
+ * Create an exact canonical-data binding to one parsed response channel so numeric curve substitution
+ * cannot hide behind unchanged profile IDs. Channel IDs bind an explicit effective EQE or A/W curve,
+ * or a separately evidenced filter-times-detector EQE representation. Support/interpolation/wavelength
+ * basis and exact canonical channel data remain part of identity. Do not infer response from RGB
+ * labels or extrapolate outside sampled support.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult
@@ -126,6 +141,13 @@ export interface SensorSpectralResponseChannelBinding {
   canonicalJson: string;
 }
 
+/**
+ * Versioned channel-response data linked to one exact color-sampling profile.
+ * Each channel declares effective EQE, effective A/W response or separable filter
+ * and detector EQE, sampled support/interpolation and an explicit wavelength basis.
+ * Reference conditions, evidence and uncertainty retain their own validity. Names
+ * such as red/green/blue never supply missing curves or justify extrapolation.
+ */
 export interface SensorSpectralResponseProfile {
   schemaVersion: "0.1.0";
   profileId: string;
@@ -986,6 +1008,19 @@ export function parseSensorSpectralResponseProfile(
   };
 }
 
+/**
+ * Create an exact canonical-data binding to one parsed response channel so numeric curve substitution
+ * cannot hide behind unchanged profile IDs.
+ *
+ * Channel IDs bind an explicit effective EQE or A/W curve, or a separately evidenced
+ * filter-times-detector EQE representation. Support/interpolation/wavelength basis and exact canonical
+ * channel data remain part of identity. Do not infer response from RGB labels or extrapolate outside
+ * sampled support.
+ * @param response - SensorSpectralChannelResponse. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns SensorSpectralResponseChannelBinding. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function createSensorSpectralResponseChannelBinding(
   response: SensorSpectralChannelResponse
 ): SensorSpectralResponseChannelBinding {

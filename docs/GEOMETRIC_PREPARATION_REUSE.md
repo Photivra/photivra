@@ -1,5 +1,7 @@
 # Call-local geometry preparation reuse: #43
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 `calculateGeometricSamplingPlan()` already parses and copies a complete transform
 list at its public boundary. It previously called the public scalar mapping API
 for every destination pixel, reparsing/copying that same list and rebuilding its
@@ -136,4 +138,4 @@ are not scientific or legal certification.
 
 ## Final V1 remeasurement
 
-[Final V1 performance disposition](V1_PERFORMANCE_DISPOSITION.md) records current main #204, fresh paired timing/equivalence, preparation/memory profiles and dense executed environment-to-RAW evidence. It proposes retaining the merged bounded optimizations with no further abstraction, pending owner review/DCO and merge. Earlier candidate and pending-remeasurement statements above are historical.
+[Final V1 performance disposition](V1_PERFORMANCE_DISPOSITION.md) records current main #204, fresh paired timing/equivalence, preparation/memory profiles and dense executed environment-to-RAW evidence. PR #205 merged the final reviewed/signed no-further-change disposition; PR #206 merged final conformance. The measured engine commit remains the historical benchmark identity. Earlier candidate and pending-remeasurement statements above are historical.

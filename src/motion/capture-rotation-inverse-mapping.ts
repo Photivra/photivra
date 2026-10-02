@@ -1,5 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Calculates an instantaneous inverse capture-scan mapping for stationary world rays under pure camera
+ * rotation. The destination native sensor location is authoritative for local exposure timing. At an
+ * explicit phase within that local window, the captured image-plane ray is analytically mapped back to
+ * the reference image plane at the first opening-boundary phase. No fixed-point/iterative solve is
+ * used because pure rotation under the existing constant-axis model has an analytic inverse once
+ * destination location and local capture time are known. This function is not a finite-exposure
+ * renderer and does not integrate blur. Sensor data-readout timing is deliberately absent; exposure
+ * boundaries are the only timing source.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationProvenance,

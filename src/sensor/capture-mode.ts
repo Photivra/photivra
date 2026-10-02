@@ -1,5 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses a capture-mode profile without inferring sensor physics from output resolution or marketing
+ * mode names. The profile is intentionally orthogonal: acquisition frame sequence, per-frame sampling,
+ * optional inter-frame sensor shift, reconstruction stages, processed raster and downstream
+ * dependencies are independent axes.
+ * Resolves one capture mode against the selected sensor's native effective image-sampling raster.
+ * Resolution changes do not mutate physical sensor geometry. The returned processed raster is
+ * pre-output geometry and must not be used to infer crop factor, field of view or physical photosite
+ * count.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

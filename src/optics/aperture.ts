@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Calculates ideal regular-polygon aperture geometry and the corresponding straight-edge
+ * diffraction-ray directions. This models only geometry/symmetry. It does not calculate diffraction
+ * intensity, wavelength-dependent star length, blade curvature, lens aberrations, coatings, or sensor
+ * blooming.
+ * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult

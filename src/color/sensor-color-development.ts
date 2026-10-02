@@ -1,9 +1,27 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validated 3×3 matrices only; retains the declared determinant/inverse bounds.
+ * Internal adapter for validated normalized sensor RGB and declared D65 profile. The caller owns
+ * profile evidence, CFA/basis binding and one-time WB authorization. This is distinct from the ideal
+ * virtual-camera transform: gains act in sensor channels before camera-to-XYZ, followed by
+ * XYZ-to-linear-sRGB. No clipping, adaptation, calibration inference, geometry or container metadata
+ * is performed.
+ * @see docs/PHOTOGRAPHIC_EXPORT.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { resolveCaptureColorModel } from "./capture-color.js";
 
 type Matrix = readonly (readonly number[])[];
+/**
+ * Multiply the validated channel vector in its declared basis. Preserve operation
+ * order: sensor gains precede camera-to-XYZ, then XYZ-to-linear-sRGB. This internal
+ * path accepts neither arbitrary spectral channels nor the ideal virtual-camera
+ * basis by implication, and performs no clipping or chromatic adaptation.
+ */
 function multiply(m: Matrix, values: readonly number[]): number[] {
   return m.map((row) => row.reduce((sum, v, i) => sum+v*values[i]!, 0));
 }

@@ -1,5 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses an exact color-sampling topology declaration without binding it to NativeImageRaster,
+ * physical photodiodes, spectral response, or a manufacturer-specific family enum. Periodic mosaics
+ * use an abstract native sensor color-sampling-site lattice with zero-based integer indices, top-left
+ * origin, +X right and +Y down. The repeat phase is anchored to the sensor lattice, so later active
+ * crops or orientation transforms must preserve the original native site indices. Layered layouts are
+ * structural-only in this first contract because real layered sensors may use unequal spatial sampling
+ * density/registration across layers. No per-site layered resolver is exposed until that relationship
+ * is modeled explicitly.
+ * Resolves the semantic measurement-channel assignment at one abstract native sensor
+ * color-sampling-site index for monochrome or periodic-mosaic layouts. This API intentionally has no
+ * NativeImageRaster input. A later explicit binding must establish how a selected capture mode's
+ * effective raster maps to this color-sampling-site lattice before RAW/CFA sampling can be simulated.
+ * Layered layouts fail closed because their per-layer spatial relationship is not resolved by the
+ * first structural contract.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Compose validated irradiance reduction, response applicability/range, EQE conversion and stationary
+ * local integration. The exposure value is suitable for accumulated-charge photoSignal;
+ * dark/completeness/capacity/readout remain explicit downstream inputs. Invalid or unsupported
+ * evidence fails closed.
+ * Internal shared instantaneous path; no stationarity or exposure accumulation.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import { calculateSensorSpatialSamplingQuadrature, type CalculateSensorSpatialSamplingQuadratureInput } from "./spatial-sampling-quadrature.js";

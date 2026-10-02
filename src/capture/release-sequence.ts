@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Resolves one deterministic logical still-release sequence. Sensor capture-mode internals remain
+ * separate. This function schedules logical exposures only and never uses render speed/frame rate as
+ * capture timing.
+ * Produces an explicit cancelled sequence state without mutating the scheduled source sequence or
+ * leaving the completed/omitted frame boundary ambiguous.
+ * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidScientificInputError } from "../core/validation.js";
 import {
   parseGenericReleaseCapabilityProfile,

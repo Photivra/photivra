@@ -1,5 +1,7 @@
 # Scientific conformance: final V1 disposition (#131)
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 The cross-stage conformance layer complements, rather than replaces, narrow unit tests. `test/cross-stage-conformance.test.ts` consumes #130's canonical owned fixture and merged public APIs only. It checks a coherent ideal-focus/projection→FOV/object-size→pixel-motion/defocus path, then controlled one-stop shutter and aperture variants across exposure, motion and diffraction.
 
 Expectations follow independent Gaussian thin-lens reciprocal distance, angular span reconstruction, millimetre/micrometre pixel conversion, shutter-proportional lateral displacement, t/N² relative optical exposure, and wavelength/f-number Airy scaling. Neutral stationary/in-focus states and non-neutral variants preserve calculated provenance. Relative exposure is not photon-count evidence; no source/sensor calibration is inferred.
@@ -32,7 +34,7 @@ The shadow check exposed a readout ordering defect: clamping negative electronic
 
 ## Final integrated acceptance
 
-The final contribution is based on merged main `712c031689f5413003a1d15c2d0dfa9466bbbfb8` (#205): #16/#112 export/processing, #178 authoritative integration, #116/#119 tier acceptance and #43/#45 performance dispositions are merged. `test/final-scientific-conformance.test.ts` adds 16 normal-CI tests over those final public paths. It proposes completing #131 after substantive owner review, contribution-specific DCO and merge; the issue remains open until then. V1 is currently 31/32, with #180 final documentation/source audit and release preparation still separate.
+The final contribution is based on merged main `712c031689f5413003a1d15c2d0dfa9466bbbfb8` (#205): #16/#112 export/processing, #178 authoritative integration, #116/#119 tier acceptance and #43/#45 performance dispositions are merged. `test/final-scientific-conformance.test.ts` adds 16 normal-CI tests over those final public paths. PR #206 merged after owner review and contribution-specific DCO certification as `34c6d9aca1c2e365b253c1562734d11bc8e0235f`; post-merge CI 37032338620 passed Node 22.13/24. #131 is closed and the feature/science checklist is 32/32. #180 prepares the 1.0 distribution; tagging/publication remains owner-only.
 
 The suite extracts the existing bounded tier-production request into `test/helpers/tier-production-fixture.ts` and reuses it from both tier acceptance and final conformance. The existing nine-pair/27-pupil suite retains its expectations. No runtime/API/schema/asset/dependency change or reference-golden regeneration occurs.
 

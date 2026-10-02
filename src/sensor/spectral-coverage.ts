@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Adapts one parsed sensor response channel into the shared continuous spectral-coverage contract.
+ * This exposes support and interpolation knots only. It does not apply QE or A/W responsivity and does
+ * not establish scene/optics coverage.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import type {
   SpectralCoverageParticipant
 } from "../core/spectral-composition.js";

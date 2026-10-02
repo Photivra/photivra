@@ -1,5 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Adapts a continuous scene-illumination spectrum into the shared spectral coverage contract.
+ * Discrete-line spectra intentionally use their own measure path and are never broadened into
+ * continuous breakpoints.
+ * Resolves a discrete illumination spectrum into integrated per-line source quantities. Relative line
+ * weights are fractions of the declared wavelength-integrated source magnitude. A disabled source
+ * resolves to zero contribution. This helper does not evaluate visibility, material response,
+ * transport, outgoing scene radiance, optics, or sensor response.
+ * @see docs/SCENE_RADIANCE_AND_ILLUMINATION.md for equations, coordinate/unit conventions, blockers
+ * and support limits.
+ */
+
 import {
   distributeIntegratedQuantityAcrossDiscreteSpectralLines,
   type DiscreteSpectralLineMeasure,

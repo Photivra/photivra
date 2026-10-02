@@ -1,5 +1,7 @@
 # Virtual-camera linear color: #15B
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 `resolveCaptureColorModel()` defines an ideal CIE 1931 2-degree colorimetric camera: co-sited red/green/blue channels are an invertible encoding of XYZ in the linear-sRGB primary basis, with D65 reference white. They are relative linear values, not electrons, spectral response measurements or commercial-camera RGB. Choosing this profile is an upstream producer assertion about sample meaning; naming arbitrary sensor data with its ID does not establish validity.
 
 The primary chromaticities are red (0.64,0.33), green (0.30,0.60), blue (0.15,0.06), and D65 (0.3127,0.3290). Matrices are independently derived: form each primary column `(x/y,1,(1-x-y)/y)`, solve its scale against normalized D65 XYZ, scale columns, then invert the resulting 3x3 matrix. Model `0.1.0` exposes both row-major matrices, observer, reference illuminant/white, evidence identity and valid conditions. No transfer curve, gamut mapping or nominal [0,1] clamp is applied. Mathematical conversion is calculated, not calibrated.

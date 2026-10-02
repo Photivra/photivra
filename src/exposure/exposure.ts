@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Calculates EV100 from aperture and shutter duration.
+ * Compares image-plane optical exposure using the proportional relation shutterSeconds / aperture^2.
+ * This does not include scene light, lens transmission, vignetting, or sensor response and therefore
+ * must not be interpreted as a photon-count result.
+ * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult

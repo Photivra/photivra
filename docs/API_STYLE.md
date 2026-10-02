@@ -1,5 +1,7 @@
 # Public API Style
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 The open engine should feel like one coherent library.
 
 ## Rules
@@ -223,3 +225,7 @@ Audit rule:
 - do not perform broad cosmetic refactors solely for symmetry;
 - record/document any intentional exception;
 - keep private-app conventions from becoming public-engine contracts by accident.
+
+## Stable 1.0 distribution transition
+
+Package 1.0.0 intentionally retains `ENGINE_API_VERSION = "0.116.0"`: this independent root contract identity is already embedded in serialized captures and does not itself signal a published distribution. The package 1.0 policy now governs breaking changes despite that historical root ID. No schema/model/POC/plan version is reset. See [migration and release procedure](RELEASE_1_0.md).

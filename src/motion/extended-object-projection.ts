@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Evaluates multiple explicit metric points on one rigidly translating object at deterministic
+ * physical times. This is geometry only. It does not synthesize a blur kernel, visibility, radiance
+ * integration, deformation, camera rotation or a universal scale.
+ * Evaluates extended-object projection at deterministic midpoint nodes inside each point's
+ * authoritative #12 local exposure window.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult

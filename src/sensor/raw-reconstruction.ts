@@ -1,5 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Reconstruction
+ * consumes explicitly bound native post-ADC samples and declared normalized channel kernels. Native
+ * CFA phase is absolute and orientation/crop remain downstream. This structural linear reconstruction
+ * does not infer spectral sensor primaries, calibrated color or a complete arbitrary demosaic
+ * algorithm.
+ * Commit one validated native RAW sample with exact site/channel/event identity for declared
+ * reconstruction. Reconstruction consumes explicitly bound native post-ADC samples and declared
+ * normalized channel kernels. Native CFA phase is absolute and orientation/crop remain downstream.
+ * This structural linear reconstruction does not infer spectral sensor primaries, calibrated color or
+ * a complete arbitrary demosaic algorithm.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult
@@ -404,6 +421,19 @@ function parseKernel(
   };
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Reconstruction consumes explicitly bound native post-ADC samples and declared normalized channel
+ * kernels. Native CFA phase is absolute and orientation/crop remain downstream. This structural linear
+ * reconstruction does not infer spectral sensor primaries, calibrated color or a complete arbitrary
+ * demosaic algorithm.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns SensorRawReconstructionProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseSensorRawReconstructionProfile(
   value: unknown
 ): SensorRawReconstructionProfile {
@@ -530,6 +560,19 @@ export function parseSensorRawReconstructionProfile(
   };
 }
 
+/**
+ * Commit one validated native RAW sample with exact site/channel/event identity for declared
+ * reconstruction.
+ *
+ * Reconstruction consumes explicitly bound native post-ADC samples and declared normalized channel
+ * kernels. Native CFA phase is absolute and orientation/crop remain downstream. This structural linear
+ * reconstruction does not infer spectral sensor primaries, calibrated color or a complete arbitrary
+ * demosaic algorithm.
+ * @param input - CreateSensorRawCaptureSampleInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns SensorRawCaptureSample. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function createSensorRawCaptureSample(
   input:
     CreateSensorRawCaptureSampleInput
@@ -689,6 +732,19 @@ function requireCenterSite(
   };
 }
 
+/**
+ * Gather exactly supplied native channel contributions through explicit normalized kernels while
+ * preserving CFA identity and signed black-subtracted values.
+ *
+ * Reconstruction consumes explicitly bound native post-ADC samples and declared normalized channel
+ * kernels. Native CFA phase is absolute and orientation/crop remain downstream. This structural linear
+ * reconstruction does not infer spectral sensor primaries, calibrated color or a complete arbitrary
+ * demosaic algorithm.
+ * @param input - ResolveSensorRawReconstructionInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<SensorRawReconstructedPixel>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function resolveSensorRawReconstruction(
   input:
     ResolveSensorRawReconstructionInput

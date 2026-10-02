@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Calculates the same-aspect-ratio crop needed for a subject to occupy a requested fraction of frame
+ * height. This calculation assumes a centered/positionable crop with enough spatial margin around the
+ * subject. It does not validate subject position against image edges.
+ * @see docs/PROCESSED_OUTPUT.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult

@@ -1,10 +1,12 @@
 # Generic tier acceptance suite
 
-Fixture/report version **1.0.0** completes the proposed #119 acceptance disposition
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
+Fixture/report version **1.0.0** records the reviewed/merged #119 acceptance disposition
 for the exact Consumer, Prosumer and Professional preset assets **1.0.0**. This is
 Photivra-owned synthetic regression evidence with unquantified physical uncertainty,
 not measured equipment calibration, a perceptual bokeh score or a universal ranking.
-Substantive owner review/DCO and merge remain inclusion gates.
+PR #204 merged after substantive owner review/DCO; final science conformance merged in PR #206.
 
 ## Reproduce and review
 
@@ -15,7 +17,7 @@ TypeScript build, removes it afterwards, and has no published package surface.
 It does not change runtime profiles or dependency/version contracts.
 
 Run `npx vitest run test/generic-tier-report-acceptance.test.ts` for the report gates.
-The normative [versioned envelopes](../test/fixtures/tier-acceptance-envelopes-v1.json)
+The normative [versioned envelopes](https://github.com/Photivra/photivra/blob/main/test/fixtures/tier-acceptance-envelopes-v1.json)
 are finite regression limits, not physical error bars. Report JSON rounds displayed
 numbers to twelve significant digits; CI uses full-precision calculations and
 numeric tolerances. The report is a review artifact rather than a brittle exact
@@ -124,6 +126,4 @@ bound. Any future approximation must add its own same-input fidelity comparisons
 | Identical correction A/B state | Frozen source and fixed noise; independently predicted interpolation/gain; no remetering/re-noising |
 | Applicable browser fidelity | Same root implementation; shared immutable consumer results; no distinct approximation exists |
 
-No runtime/API/schema/asset/package/POC version changes. Final performance #43/#45,
-final engine-wide conformance #131 and final documentation/release audit #180 retain
-their own acceptance gates. This proposed #119 closure approves no new V1 deferral.
+This historical acceptance contribution changed no runtime/API/schema/asset/package/POC versions. Final performance #43/#45 and conformance #131 are now merged; #180 prepares the distribution without changing independent model IDs. No new V1 deferral is approved.

@@ -1,5 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Resolves a capture-specific native sensor readout scan schedule. Rolling readout uses a
+ * uniform-linear single-axis approximation across the declared active capture. The caller supplies the
+ * spatial timing span explicitly; it is never inferred from total data-readout duration, active crop
+ * dimensions, native raster density, output resolution, sensor architecture metadata, or shutter
+ * mechanism. Global readout has no spatial phase skew in this model even when a non-zero data-readout
+ * duration is declared. This foundation does not define local exposure start/end times, mechanical
+ * curtain travel, EFCS curtain behavior, rolling-shutter image distortion, flash/flicker interactions,
+ * or motion integration.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import {
   parseEvidenceList,

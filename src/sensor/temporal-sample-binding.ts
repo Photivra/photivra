@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Internal temporal identity/aggregate-work preflight shared by optical and irradiance inputs.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidScientificInputError } from "../core/validation.js";
 
 /** Internal temporal identity/aggregate-work preflight shared by optical and irradiance inputs. */

@@ -220,7 +220,7 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - When local exposure start varies spatially, use the exposure-window contract's explicit first-opening-boundary reference rather than silently redefining the existing camera-rotation `timeSecondsFromExposureStart` semantic.
 - Camera rotation should be time-parameterized before rolling-readout integration; do not fold depth-dependent translation into a depth-independent screen flow.
 - Geometric renderer warps use inverse sampling, premultiplied alpha, and must preserve scene occlusion order.
-- Reserved sensor/ADC/reconstruction stages are not implemented capabilities and must not be advertised as such.
+- Static reserved-stage metadata alone is not an implemented capability. Plan 0.7.0 explicitly executes bounded declared environment sampling/charge/noise/ADC/reconstruction; preserve its per-route blockers rather than widening support from a registry label.
 
 ## Scene-radiance provider boundary
 
@@ -356,7 +356,7 @@ Cross-cutting optics, motion, sensor, and output work must follow `getImageForma
 - Full Auto **exposure** means automatic aperture+shutter+ISO only. It must not imply or report autofocus, white balance, flash, drive, scene recognition, or stabilization resolution.
 - Program/Full Auto must consume the already-compensated #100 target and must not re-meter or reapply exposure compensation.
 - Identical resolved aperture/shutter/ISO values must feed identical downstream physics regardless of whether they came from Program or Full Auto.
-- Flash-aware program shifts, safety shift, Bulb/Time, and broader private-app Full Auto behavior remain separate.
+- Flash-aware program shifts, safety shift, and broader application Full Auto behavior remain separate.
 
 ## Bulb / Time and long-exposure boundary
 
@@ -443,7 +443,7 @@ Backward compatibility matters.
 
 ## Production processed-output boundary
 
-- Plan 0.6.0 may execute reconstruction, physical orientation, output crop and display processing only from explicit `processedOutput` attachment/state and declared renderer support. See `docs/PROCESSED_OUTPUT.md`.
+- Plan 0.7.0 may execute reconstruction, physical orientation, output crop and display processing only from explicit `processedOutput` attachment/state and declared renderer support. See `docs/PROCESSED_OUTPUT.md`.
 - Share `calculateProcessedSensorRaw()` between RAW preview and paired JPEG; file metadata/packing and platform viewing adaptation remain separate.
 - Retain the authoritative RAW, explicit color/WB/tone/gamut/transfer/quantization identities, child correction costs and distinct clipping domains. Rendering changes cannot mutate capture, noise or upstream metering.
 - An attached RAW identity is not verification of its physical origin. Preserve every missing upstream-stage blocker; downstream execution does not make the full production plan ready.
@@ -583,16 +583,16 @@ Any further foundation composition still requires an explicit `POC_SIMULATION_AP
 - Follow `docs/SIMULATED_CAPTURE.md`. Preserve distinct image states, float headroom/negative values, source dynamic-range history, capture saturation, reference white, adopted white and resolved WB intent/application.
 - Reuse geometry/focal/focus/WB contracts. Digital/output crop never changes active-capture focal equivalence. External plane references are public IDs plus SHA-256 and declared IEEE float layout; no runtime file/network access is introduced.
 - Allowlist public metadata; reject paths, URLs, private/debug fields and LDR/tonemapped state declarations. Producer IDs must remain public and non-personal. An ID grammar is not a provenance/privacy audit.
-- #15B owns actual color transforms/validity; #15C owns total quantization behavior; #112 owns rendering and #16 file mapping. Do not infer serializer readiness from container validity. #15 remains open until its remaining acceptance is implemented/reviewed.
+- #15B owns actual color transforms/validity; #15C owns total quantization behavior; #112 owns rendering and #16 file mapping. Do not infer serializer readiness from container validity. #15 and its prerequisites are merged. Container validity alone still does not establish serializer or calibration readiness.
 - Follow `docs/CAPTURE_COLOR.md` for #15B. The ideal colorimetric virtual RGB profile is an explicit XYZ encoding, never inferred for arbitrary spectral/commercial sensor channels. Resolved RGB gains require the exact camera-basis binding; adopted-white XYZ scaling is a separately selected approximation. Preserve float range and source capture history; reject double application and do not claim a physically unique global white under mixed illumination.
 - Follow `docs/LINEAR_CAPTURE_ENCODING.md` for #15C. Linear uint16 encoding requires explicit black/reference codes, negative and range policies and nearest-ties-up rounding. Use the plane's reference value; preserve float source data and color/WB/capture-saturation identity. Integer code limits never redefine capture saturation or display white. No serializer tags, gamma/tone mapping or implicit color conversion belongs here.
 
 ### Standalone SDR rendering primitives
 
-- Follow `docs/SDR_RENDERING.md` for #112A. Accept only explicitly color-transformed linear-sRGB/D65 input with completed/not-required WB; unresolved scene/sensor/WB states fail closed. This independent slice does not consume pending #15/#118/#117 branches or activate production display-processing.
+- Follow `docs/SDR_RENDERING.md` for #112A. Accept only explicitly color-transformed linear-sRGB/D65 input with completed/not-required WB; unresolved scene/sensor/WB states fail closed. This low-level primitive does not itself activate production display-processing. The merged capture/RAW adapters and plan 0.7.0 own explicit integration.
 - Rendering exposure is post-capture relative scaling. Keep tone, gamut handling, transfer encoding, quantization and external display adaptation separately inspectable; no processing result rewrites metering, noise, physical exposure or upstream saturation.
 - Positive per-channel Reinhard is a named generic rendering choice that can change chromaticity. Component clipping is explicit, not perceptual gamut mapping. SDR source headroom never establishes HDR output or actual display capability.
-- #112 integration remains pending merged authoritative capture/color/correction contracts and must reuse #111 ordering and #108/#15 WB rather than introduce a second estimator/composer.
+- #112 integration is merged. Preserve its shared processed-RAW/paired-JPEG path, #111 ordering and #108/#15 WB; do not introduce a second estimator/composer.
 
 - The root package must remain browser-safe and ESM-only.
 - Node-only code must not become reachable from the root public export.

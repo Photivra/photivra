@@ -1,5 +1,7 @@
 # Scene Radiance and Illumination
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 Photivra separates **illumination-source metadata** from **outgoing scene spectral radiance**.
 
 The public image-formation contract owns a `scene-radiance-evaluation` stage between scene projection and lens/pupil evaluation:

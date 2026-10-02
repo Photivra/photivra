@@ -1,9 +1,11 @@
 # Native sensor RAW frame attachment
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 See [Reference RAW frame compatibility](RAW_FRAME_ENVELOPE.md) for stage-specific
 limits, full-native counting and parser preflight behavior.
 
-`createSensorRawFrame()` commits #14 `SensorRawCaptureSample` values alongside one immutable #15 capture. `parseSensorRawFrameInput()` validates the untrusted attachment boundary. Schema `0.1.0`, proposed root API `0.98.0`; package/POC/capture/production contracts stay unchanged. Reconcile independent additive root API bumps in actual merge order.
+`createSensorRawFrame()` commits #14 `SensorRawCaptureSample` values alongside one immutable #15 capture. `parseSensorRawFrameInput()` validates the untrusted attachment boundary. Schema `0.1.0`, historical introduction root API `0.98.0`; package/POC/capture/production contracts stay unchanged. The attachment is merged and current root API is 0.116.0.
 
 The first slice accepts single-frame native-effective capture modes with an explicitly evidenced one-site-per-native-sample binding and periodic mosaic topology. The entire native frame must be provided in native row-major order, one sample per site. Absolute CFA phase, site/channel assignment, capture-mode/profile/readout identity and every per-site seed are preserved. RAW samples are never rotated, cropped, demosaiced, balanced or tone-mapped. Active capture/output geometry stays in the attached metadata; it never resets CFA phase.
 

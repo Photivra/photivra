@@ -12,7 +12,7 @@ Use the official lifecycle, not "latest", a version-number parity rule, or an op
 - https://github.com/nodejs/Release
 - https://github.com/nodejs/Release/blob/main/schedule.json
 
-As reviewed on 2026-09-26, Node 24 is Active LTS and Node 22 is Maintenance LTS. Node 26 is Current and is not eligible yet. Future dates must be reverified; entering LTS makes a line eligible for review, not automatically supported by every repository.
+As reverified against the official schedule on 2026-10-02 (original policy review 2026-09-26), Node 24 is Active LTS and Node 22 is Maintenance LTS. Node 26 is Current and is not eligible yet. Future dates must be reverified; entering LTS makes a line eligible for review, not automatically supported by every repository.
 
 ## Repository baselines
 

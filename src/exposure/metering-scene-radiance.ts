@@ -1,5 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses the declared approximation used to reduce renderer/provider scene information into the scalar
+ * relative-linear domain consumed by metering. This profile explicitly does not authorize a calibrated
+ * luminance or spectral-to-photometric conversion claim.
+ * Creates a relative pre-exposure meter sample set bound to one validated #85 provider context. The
+ * caller/renderer still supplies the scalar relative samples. This bridge validates identity and
+ * timing semantics only; it does not convert spectral radiance into luminance or define a calibrated
+ * meter spectral response.
+ * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

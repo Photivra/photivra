@@ -1,5 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses one continuous spectral-coverage participant. This contract describes support and
+ * interpolation breakpoints only. It does not carry spectral values, transmission, response, radiance,
+ * or uncertainty.
+ * Intersects continuous spectral support and unions all interpolation breakpoints inside the common
+ * range. Air/vacuum conversion is never implicit. Discrete lines are deliberately excluded because
+ * delta-like line measures require a different integration path from continuous per-nanometre
+ * densities.
+ * @see docs/SCENE_RADIANCE_AND_ILLUMINATION.md for equations, coordinate/unit conventions, blockers
+ * and support limits.
+ */
+
 import { InvalidConfigurationError } from "./configuration-error.js";
 import {
   parseSpectralWavelengthBasis,

@@ -1,5 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Complex pupil
+ * evaluation sums declared amplitude and phase on a bounded regular pupil grid. PSF shape is
+ * normalized separately from pupil throughput; coherent phase, pupil energy and spectral/field
+ * applicability cannot be replaced by a scalar blur radius. Numeric profiles require owned or
+ * reusable-data provenance.
+ * Evaluate a declared complex pupil with explicit amplitude/phase and sampling support; normalize PSF
+ * shape and retain pupil throughput as a separate quantity. Complex pupil evaluation sums declared
+ * amplitude and phase on a bounded regular pupil grid. PSF shape is normalized separately from pupil
+ * throughput; coherent phase, pupil energy and spectral/field applicability cannot be replaced by a
+ * scalar blur radius. Numeric profiles require owned or reusable-data provenance.
+ * @see docs/PSF_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult
@@ -483,6 +499,19 @@ function parseGrid(
   };
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Complex pupil evaluation sums declared amplitude and phase on a bounded regular pupil grid. PSF
+ * shape is normalized separately from pupil throughput; coherent phase, pupil energy and
+ * spectral/field applicability cannot be replaced by a scalar blur radius. Numeric profiles require
+ * owned or reusable-data provenance.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns LensComplexPupilProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseLensComplexPupilProfile(
   value: unknown
 ): LensComplexPupilProfile {
@@ -911,6 +940,19 @@ function calculateDiscreteFraunhoferKernel(
   };
 }
 
+/**
+ * Evaluate a declared complex pupil with explicit amplitude/phase and sampling support; normalize PSF
+ * shape and retain pupil throughput as a separate quantity.
+ *
+ * Complex pupil evaluation sums declared amplitude and phase on a bounded regular pupil grid. PSF
+ * shape is normalized separately from pupil throughput; coherent phase, pupil energy and
+ * spectral/field applicability cannot be replaced by a scalar blur radius. Numeric profiles require
+ * owned or reusable-data provenance.
+ * @param input - CalculateLensComplexPupilPsfInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<LensComplexPupilPsf>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function calculateLensComplexPupilPsf(
   input:
     CalculateLensComplexPupilPsfInput

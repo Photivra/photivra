@@ -1,5 +1,7 @@
 # Production Image-Formation Plan
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 Photivra's production composition layer is separate from the legacy
 `simulatePocCamera()` proof-of-concept API.
 
@@ -240,7 +242,7 @@ Requested rolling-readout distinguishes:
 
 A renderer whose declared temporal-sampling capacity is below the committed quadrature count receives a structured `renderer-temporal-sampling-insufficient` blocker.
 
-The image-formation graph is still authoritative. Because `temporal-exposure-readout` depends on `field-wavelength-psf`, useful temporal results may exist while the whole requested fidelity plan remains blocked until PSF composition lands.
+The image-formation graph is still authoritative. Because `temporal-exposure-readout` depends on `field-wavelength-psf`, useful temporal results may exist while the whole requested fidelity plan remains blocked on the sample-only route. Plan 0.7.0 separately supports [bounded environment execution](PRODUCTION_ENVIRONMENT_CAPTURE.md), including explicit modeled-zero or supported local PSF disposition.
 
 ## Scientific assurance composition
 

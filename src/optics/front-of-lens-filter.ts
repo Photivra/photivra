@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses one generic front-of-lens transmission filter. Schema 0.1.0 is explicitly unbranded and
+ * unpolarized. It models only passive transmission placed before the lens. Reflections between stacked
+ * filters, polarization, flare/ghosting and wavelength-changing behavior are outside this contract.
+ * Resolves one passive filter at one wavelength.
+ * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

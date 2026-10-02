@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Creates a deterministic renderer/reference consumption view over one finalized semantic production
+ * plan. The consumer role changes execution responsibility only. It does not alter scientific
+ * stage/effect identity, temporal sample count, seeds, or physical results.
+ * @see docs/PRODUCTION_COMPOSITION.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import type {
   ImageFormationEffectId,

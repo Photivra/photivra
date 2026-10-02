@@ -1,0 +1,212 @@
+[
+  {
+    "file": "docs/USAGE.md",
+    "block": 5,
+    "bindings": [
+      "evidence"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 14,
+    "bindings": [
+      "caProfile",
+      "points",
+      "radialProfile"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 16,
+    "bindings": [
+      "equipmentCapabilities",
+      "opticalBridgeProfile"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 17,
+    "bindings": [
+      "sceneRadianceRequest",
+      "sceneRadianceResult"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 18,
+    "bindings": [
+      "lockedWhiteBalance",
+      "physicalSceneSample",
+      "sequence"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 19,
+    "bindings": [
+      "capture",
+      "prepared"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 23,
+    "bindings": [
+      "evidence"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 24,
+    "bindings": [
+      "sceneRadianceRequest",
+      "sceneRadianceResult"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 34,
+    "bindings": [
+      "evidence"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 41,
+    "bindings": [
+      "topology"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 42,
+    "bindings": [
+      "binding",
+      "modes",
+      "topology"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 44,
+    "bindings": [
+      "binding",
+      "topology"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 45,
+    "bindings": [
+      "binding",
+      "sampling",
+      "stack",
+      "topology"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 46,
+    "bindings": [
+      "colorSamplingProfile",
+      "spectralResponseProfile"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 47,
+    "bindings": [
+      "sampleValues",
+      "spatialPlan",
+      "spectralPlan"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 59,
+    "bindings": [
+      "evidence",
+      "profile"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 60,
+    "bindings": [
+      "captureGeometry",
+      "illuminationProfile",
+      "materialResponseProfile",
+      "profile",
+      "providerProfile"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 61,
+    "bindings": [
+      "profile",
+      "sampleAtTime0",
+      "sampleAtTime1"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 62,
+    "bindings": [
+      "evidence",
+      "exposureCapabilities"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 64,
+    "bindings": [
+      "meterResult"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 66,
+    "bindings": [
+      "capabilities",
+      "target"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 68,
+    "bindings": [
+      "capabilities",
+      "target"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 96,
+    "bindings": [
+      "spectralResponseProfile"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 97,
+    "bindings": [
+      "illumination"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 98,
+    "bindings": [
+      "illuminationProfile"
+    ]
+  },
+  {
+    "file": "docs/USAGE.md",
+    "block": 99,
+    "bindings": [
+      "cameraJson",
+      "sceneJson"
+    ]
+  }
+]

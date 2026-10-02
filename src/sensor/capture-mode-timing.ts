@@ -1,5 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses timing facts that are explicitly bound to one exact capture mode. Schema 0.1.0 intentionally
+ * admits only the timing schedule families already owned by #12: simultaneous/global or uniform-linear
+ * native scans. Unsupported non-uniform/segmented schedules fail closed instead of being approximated.
+ * Resolves the authoritative exposure/readout timing for one exact capture mode and timing-profile
+ * identity. Readout timing remains distinct from exposure-boundary timing. No absolute
+ * readout/exposure synchronization is inferred.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

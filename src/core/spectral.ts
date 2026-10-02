@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses a wavelength basis without inferring air/vacuum conversion.
+ * Parses one positive wavelength coordinate in nanometres.
+ * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import { InvalidConfigurationError } from "./configuration-error.js";
 
 type UnknownRecord = Record<string, unknown>;

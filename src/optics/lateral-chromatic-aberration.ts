@@ -1,5 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Calculates generic lateral chromatic-aberration field separation by mapping one ideal image-plane
+ * point through a shared green-reference base distortion and red/blue radial coefficient offsets. This
+ * is channel-dependent field mapping, not a blur kernel.
+ * Inverse-maps one distorted output destination independently for the representative red/green/blue
+ * channels. Renderers can use the returned per-channel ideal source coordinates for inverse sampling
+ * without inventing chromatic-aberration equations.
+ * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult

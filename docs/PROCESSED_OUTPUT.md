@@ -1,7 +1,9 @@
 # Processed camera output
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 Root API 0.115.0 completes the bounded SDR post-capture handoff for #112.
-Production plan 0.6.0 adds explicit committed RAW processing. Package 0.6.0,
+Production plan 0.6.0 adds explicit committed RAW processing. At introduction, package 0.6.0,
 POC 0.20.0, capture, RAW, color, correction and SDR schemas remain unchanged.
 This is the engine boundary used by preview and file consumers; integrating
 commercial UI controls and browser presentation belongs to the apps repository.

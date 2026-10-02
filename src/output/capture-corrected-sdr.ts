@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Strict boundary; execution also checks capture optics, native raster binding and source history.
+ * Internal shared validation for capture-derived exporters; does not create or validate pixel values.
+ * @see docs/PROCESSED_OUTPUT.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { requireAllowlistedRecord, isPublicOpaqueId } from "../core/record-validation.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";

@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validates every explicit rendering/encoding policy; unknown HDR/display modes fail.
+ * Validates declared image state and a bounded finite inline raster; never resolves WB/color.
+ * @see docs/SDR_RENDERING.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { calculatedResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";

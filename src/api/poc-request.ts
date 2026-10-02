@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validates decoded HTTP JSON before it enters the scientific simulation. This parser checks request
+ * structure and JSON value types only. Domain/range rules remain owned by the scientific calculation
+ * modules.
+ * @see docs/POC_API.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import type { PocSimulationRequest } from "../simulation/poc-simulation.js";
 
 type UnknownRecord = Record<string, unknown>;

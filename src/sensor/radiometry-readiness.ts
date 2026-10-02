@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses untrusted radiometry-prerequisite metadata. This validates structure and provenance; it
+ * cannot prove that a cited calibration/evidence claim is scientifically true.
+ * Assesses whether the declared prerequisites are sufficient for a nominal photon estimate and,
+ * separately, for a calibrated photon claim. This assessment does not enable composed photon/noise
+ * output.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   parseEvidenceList,
   type EvidenceProvenance

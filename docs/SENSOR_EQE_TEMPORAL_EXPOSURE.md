@@ -1,5 +1,7 @@
 # Nonstationary EQE exposure quadrature
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 `calculateSensorEqeTemporalExposure()` evaluates physical spectral irradiance at
 explicit local shutter midpoints, validates sensor response at every instant,
 and accumulates expected photons and photoelectrons. It reuses the instantaneous
@@ -61,7 +63,7 @@ Tests use owned synthetic fields and independent SI photon-energy/area/response
 arithmetic. Constant fields match stationary counts; a quadratic field shows
 expected midpoint convergence; rolling offsets and single-instant operating
 range failure are verified. These are mathematical regression evidence, not
-photographic calibration. Separate [handoff acceptance](../test/temporal-photo-raw.test.ts)
+photographic calibration. Separate [handoff acceptance](https://github.com/Photivra/photivra/blob/main/test/temporal-photo-raw.test.ts)
 now covers nonstationary RAW/export from owned synthetic inputs.
 
 This additive API advances root API 0.108.0 to **0.109.0**, with model 0.1.0.

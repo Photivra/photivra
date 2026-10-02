@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validates dense bounded native coverage and exact CFA/mode/site/code identity, without IO.
+ * Commits native RAW samples and capture metadata; no demosaic, WB, tone or format packing.
+ * @see docs/SENSOR_RAW_FRAME.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { RAW_ATTACHMENT_MAX_NATIVE_SITES } from "./raw-frame-limits.js";
 

@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Strict generic profile parser; bounds passivity across the whole angular envelope.
+ * Adds off-path spectral irradiance before sensor/exposure integration, never after tone mapping.
+ * Source powers are integrated over profile.referenceEntranceAreaMm2 at this instant/wavelength.
+ * Gaussian templates are independently parameterized approximations, not lens prescription ray
+ * tracing.
+ * @see docs/DIGITAL_OPTICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and
+ * support limits.
+ */
+
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import {

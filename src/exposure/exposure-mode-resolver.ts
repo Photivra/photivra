@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Resolves Manual exposure with either manual ISO or Auto ISO. Aperture and shutter are always
+ * caller-owned and are never changed. The relative meter target is normalized by an explicit reference
+ * exposure anchor; no ISO-100 or other hidden absolute calibration is assumed.
+ * Resolves Aperture Priority with manual ISO. Aperture and ISO remain caller-owned. Shutter is the
+ * only automatic axis. The target/reference relationship is the same relative exposure model used by
+ * Manual + Auto ISO; no new mode-specific exposure equation is introduced.
+ * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import { InvalidScientificInputError } from "../core/validation.js";
 import type {
   ResolvedGenericEquipmentExposureCapabilities,
@@ -3085,6 +3096,19 @@ function buildPriorityAutoIsoBlocked<
   };
 }
 
+/**
+ * Hold aperture fixed, follow the declared minimum-shutter policy and use bounded Auto ISO to absorb
+ * remaining target residual.
+ *
+ * Exposure modes apply control policy to one shared relative exposure equation and an explicit
+ * reference anchor. Compensation is already included in the immutable meter target. Manual axes remain
+ * unchanged; automatic axes use declared setting grids and expose signed residual stops and limit
+ * diagnostics. A zero-signal target cannot authorize an invented exposure.
+ * @param input - ResolveAperturePriorityAutoIsoExposureModeInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns AperturePriorityAutoIsoExposureModeResolution. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function resolveAperturePriorityAutoIsoExposureMode(
   input:
     ResolveAperturePriorityAutoIsoExposureModeInput
@@ -3423,6 +3447,19 @@ export function resolveAperturePriorityAutoIsoExposureMode(
   };
 }
 
+/**
+ * Hold shutter fixed and resolve aperture plus optional Auto ISO against the exact capability
+ * envelope.
+ *
+ * Exposure modes apply control policy to one shared relative exposure equation and an explicit
+ * reference anchor. Compensation is already included in the immutable meter target. Manual axes remain
+ * unchanged; automatic axes use declared setting grids and expose signed residual stops and limit
+ * diagnostics. A zero-signal target cannot authorize an invented exposure.
+ * @param input - ResolveShutterPriorityExposureModeInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns ShutterPriorityExposureModeResolution. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function resolveShutterPriorityExposureMode(
   input:
     ResolveShutterPriorityExposureModeInput
@@ -3729,6 +3766,19 @@ export function resolveShutterPriorityExposureMode(
   };
 }
 
+/**
+ * Evaluate the declared generic program line in log2 exposure space, quantize aperture/shutter and
+ * optionally use Auto ISO for residual exposure.
+ *
+ * Exposure modes apply control policy to one shared relative exposure equation and an explicit
+ * reference anchor. Compensation is already included in the immutable meter target. Manual axes remain
+ * unchanged; automatic axes use declared setting grids and expose signed residual stops and limit
+ * diagnostics. A zero-signal target cannot authorize an invented exposure.
+ * @param input - ResolveProgramAutoExposureModeInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns ProgramAutoExposureModeResolution. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function resolveProgramAutoExposureMode(
   input:
     ResolveProgramAutoExposureModeInput
@@ -4019,6 +4069,19 @@ export function resolveProgramAutoExposureMode(
   };
 }
 
+/**
+ * Resolve aperture, shutter and ISO under an explicit generic Full Auto exposure policy. Autofocus,
+ * WB, flash, drive and scene recognition remain unresolved.
+ *
+ * Exposure modes apply control policy to one shared relative exposure equation and an explicit
+ * reference anchor. Compensation is already included in the immutable meter target. Manual axes remain
+ * unchanged; automatic axes use declared setting grids and expose signed residual stops and limit
+ * diagnostics. A zero-signal target cannot authorize an invented exposure.
+ * @param input - ResolveFullAutoExposureModeInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns FullAutoExposureModeResolution. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function resolveFullAutoExposureMode(
   input:
     ResolveFullAutoExposureModeInput

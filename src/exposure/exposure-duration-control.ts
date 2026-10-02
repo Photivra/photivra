@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Resolves shutter-duration control semantics to a concrete positive elapsed duration before physical
+ * exposure integration. Bulb and Time are control behaviors only. Neither implies a shutter mechanism,
+ * exposure-boundary topology, tripod, stabilization state, long exposure NR, or temperature model.
+ * Binds a resolved duration into the authoritative #12 exposure-window input. The existing shutter
+ * mechanism/opening/closing schedules remain untouched. Only the seconds-valued nominal duration is
+ * supplied here.
+ * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import {
   parseEvidenceList,
   type EvidenceProvenance

@@ -1,5 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses physical registration of the color-site lattice plus a first geometric
+ * photosensitive-aperture model. Site-center pitch/origin are explicit facts and are never derived
+ * from NativeImageRaster. The rectangle, when resolved, is a geometric sensitive region only. It does
+ * not include microlens redirection, charge diffusion, electrical crosstalk, QE, throughput, spectral
+ * response, or an effective radiometric collection area.
+ * Resolves one geometric sampling aperture in native sensor physical space. The result provides a
+ * normalized uniform-area spatial averaging footprint for future image sampling, plus its geometric
+ * physical area/fill-fraction diagnostics. It deliberately does not promote that geometric area into
+ * radiometric collection efficiency or physical photodiode truth.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

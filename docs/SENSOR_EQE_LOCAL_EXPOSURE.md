@@ -1,5 +1,7 @@
 # Irradiance to stationary EQE local exposure
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 `calculateSensorEqeLocalExposure()` is a bounded sensor-layer composition. It
 accepts explicit physical spectral irradiance samples in **W/m²/nm**, not RGB,
 and returns a photoelectron expectation suitable for the existing accumulated

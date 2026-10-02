@@ -1,5 +1,7 @@
 # Declared temporal scene radiance to sensor EQE
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 `calculateSceneSensorEqeTemporalExposure()` composes the existing scene-to-sensor
 optical quadrature and temporal EQE calculation. It evaluates optics, response
 compatibility, per-bin operating range and EQE **at every local shutter midpoint**
@@ -74,7 +76,7 @@ energy here. `sourceTargetProjectionVerified`, `sceneProviderExecutionVerified`
 and `psfRedistributionApplied` remain false. No calibration, combined uncertainty,
 convergence bound, physical accuracy, full-resolution/editor acceptance or
 production-stage activation is inferred. Requested missing capabilities still
-block in the production graph. #16/#178/#112 and the V1 tracker remain open.
+block in the production graph. The historical introduction left #16/#178/#112 open. They are now merged for their bounded scope; the full feature/science checklist is 32/32.
 
 This additive public API advances root API **0.110.0 → 0.111.0**, model 0.1.0.
 Package, POC, production, capture/RAW and noise/readout versions stay unchanged.

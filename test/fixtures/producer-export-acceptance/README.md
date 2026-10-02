@@ -12,8 +12,7 @@ IDs identify separate declared events/resources, without conflating pair identit
 
 `manifest.json` records hashes, producer origin/model and bounded measurements.
 Each case's JSON contains expected native codes and processed RGB. The independent
-report records actual LibRaw/TIFF/JPEG/two-XML-reader checks. Adobe and browser
-are pending; no template boolean is an acceptance result.
+report records actual LibRaw/TIFF/JPEG/two-XML-reader checks. Owner Adobe/browser evidence is recorded in PR #201 and the full acceptance guide with its limits; this independent report remains the earlier automated-only checkpoint. No template boolean is an acceptance result.
 
 See [full acceptance record](../../../docs/EXPORT_ACCEPTANCE.md) for commands,
 limits, provenance, closure map and the short external application checklist.

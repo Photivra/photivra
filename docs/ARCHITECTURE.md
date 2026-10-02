@@ -1,5 +1,7 @@
 # Architecture
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 Photivra separates a reusable scientific core from optional composition and transport layers.
 
 ## Current root package
@@ -17,7 +19,7 @@ The browser-safe root package currently owns:
 
 The root package has no runtime npm dependencies. CI walks the root import graph and fails if Node-only modules or the `src/api` transport layer become reachable from it.
 
-Comparison, optimization, real-camera calibration databases, renderer effects, and full optical simulation are **not** current root-package capabilities.
+A complete optical renderer, real-camera calibration database and hosted comparison/optimization service are outside the root package. Measured private reuse and explicit generic correction/PSF primitives are implemented within their documented envelopes.
 
 The sensor foundation intentionally keeps physical image-formation geometry separate from digital sampling. `SensorImagingArea` represents the photosensitive imaging dimensions used for image formation; `NativeImageRaster` represents effective image samples and does not imply one image sample equals one physical photodiode. Derived sampling pitch is geometric spacing only, not fill factor or photon-collection area.
 
@@ -45,7 +47,7 @@ Equivalent focal length is also layered on top of physical capture geometry rath
 
 Sensor architecture is a separate descriptive layer. Illumination (FSI/BSI), integration/stacking, readout capabilities, and color-sampling family are independent evidence-backed facts. Their presence alone has no image-quality effect in the engine. Evidence origin is modeled independently from reuse rights, scalar facts may cite multiple evidence records, and multi-valued capabilities carry evidence per value. Omitted facts remain unknown rather than being inferred. Capture-mode semantics, readout timing, reconstruction, and calibrated radiometry consume these facts only through later explicit models.
 
-Exact color-sampling topology is a separate layer again. `SensorColorSamplingProfile` can describe monochrome or an arbitrary periodic mosaic on an abstract native sensor sampling-site lattice, while layered color uses a separate unresolved spatial reference and remains structural-only until per-layer spatial sampling is modeled. This lattice is intentionally not `NativeImageRaster`; a future binding must establish how capture-mode effective samples relate to color-sampling sites. Active crop/orientation/output transforms therefore cannot reset periodic CFA phase, and architecture-family metadata cannot synthesize an exact tile.
+Exact color-sampling topology is a separate layer again. `SensorColorSamplingProfile` can describe monochrome or an arbitrary periodic mosaic on an abstract native sensor sampling-site lattice, while layered color uses a separate unresolved spatial reference and remains structural-only until per-layer spatial sampling is modeled. This lattice is intentionally not `NativeImageRaster`; the separate evidence-backed binding establishes how capture-mode effective samples relate to color-sampling sites. Active crop/orientation/output transforms therefore cannot reset periodic CFA phase, and architecture-family metadata cannot synthesize an exact tile.
 
 That binding is now explicit through the native-effective-raster/color-site foundation. One evidence-backed profile ties one exact canonical native effective raster to regular sensor-anchored color-site blocks; a second resolver composes that relationship with a selected capture mode. Grouped modes require separately evidenced full-frame grouping phase, use absolute full-frame mode indices, and return compact pre-reconstruction source rectangles plus channel-site counts. Matching dimensions alone never create a binding. Pixel-shift metadata does not re-phase the CFA because the sensor/filter structure moves together; its optical-registration effect remains a later spatial-sampling concern. Declared-effective capture modes and unresolved layered layouts fail closed rather than receiving inferred mappings.
 
@@ -57,7 +59,7 @@ The spatial-quadrature foundation now performs that first explicit composition o
 
 The spatial-sample reducer now evaluates those quadrature weights against explicitly supplied nonnegative linear values. It supports either a dimensionless relative irradiance proxy or physical sensor-plane irradiance in W/m², matches values by node identity rather than position, and preserves both average and area-integral semantics. CFA channel labeling remains metadata until a later spectral response model; temporal exposure, photons/electrons, noise, ADC and RAW/reconstruction remain downstream.
 
-The spectral-response foundation now supplies that next channel-specific metadata layer. It binds exact topology channel IDs to reusable wavelength-dependent effective EQE, A/W responsivity, or explicitly separable channel-filter×detector-EQE data. Wavelength basis/range/interpolation and response scope remain explicit, direct effective response is not decomposed without evidence, and condition dependence plus wavelength/temporal/photon integration remain unimplemented.
+The spectral-response foundation now supplies that next channel-specific metadata layer. It binds exact topology channel IDs to reusable wavelength-dependent effective EQE, A/W responsivity, or explicitly separable channel-filter×detector-EQE data. Wavelength basis/range/interpolation and response scope remain explicit, direct effective response is not decomposed without evidence, and condition-dependent response remains unmodeled. Separate spectral/EQE/temporal APIs perform explicit integration without widening this profile resolver.
 
 The spectral-quadrature foundation now plans the next wavelength dimension without performing signal integration. It partitions an explicitly requested response-supported interval at sensor-response knots plus optional caller-supplied continuous-spectrum/optics breakpoints, then uses bounded equal-width midpoint subintervals with dλ expressed in nanometres. The result preserves response kind, scope, uncertainty and evidence but does not apply response values, establish common scene/optics/sensor spectral coverage, or calculate photons, electrons, current or RAW values. QE and A/W therefore remain separate downstream signal paths, response scope must later match the source plane, and discrete line spectra remain outside the continuous-density quadrature contract.
 
@@ -116,7 +118,7 @@ Important consequences:
 - diffraction belongs to the pupil/PSF domain;
 - camera rotation should be time-parameterized so global and rolling readout consume one motion model;
 - exposure duration and readout timing remain independent;
-- future sensor ordering is reserved from optical stack/CFA sampling through charge/noise/ADC/reconstruction before oriented/output transforms.
+- sensor ordering runs from optical stack/CFA sampling through charge/noise/ADC/reconstruction before oriented/output transforms; plan 0.7.0 executes this bounded declared environment route, while unsupported effects still block.
 
 Renderer implementations may optimize or approximate only when they preserve the engine-owned semantics. Geometric warps use inverse destination-to-source sampling, premultiplied alpha, and stable depth/occlusion order.
 
@@ -337,23 +339,11 @@ It wraps `simulatePocCamera()` with an unauthenticated localhost server. The HTT
 
 This transport is intentionally **not** part of the public `@photivra/engine` package surface and is excluded from the npm tarball. The POC server is not the intended production architecture.
 
-## Optional/future capability modules
+## Boundaries beyond the 1.0 route
 
-Future capabilities should compose onto the scientific core rather than silently widening unrelated models. Examples include:
+The root package already has direct extended-object motion, depth-aware translation/parallax quadrature, manual flash/sync, generic stabilization, spectral response/color and polygon/complex-pupil PSF primitives. Their existence does not make every combination available to the production composer.
 
-- composed use of the standalone spatial camera-rotation model plus future depth-aware camera translation;
-- panning and rolling/global shutter;
-- flash;
-- spectral/color modeling;
-- macro/high-magnification calibration;
-- non-circular diffraction PSFs;
-- computational capture;
-- lens calibration profiles;
-- advanced/calibrated sensor profiles;
-- comparison and optimization systems;
-- renderer-specific effects.
-
-Capabilities should remain discoverable and explicitly versioned rather than being assumed present for every scene or runtime.
+The bounded production environment route uses declared environment radiance, ideal projection, constant-axis rotation, explicit spatial/spectral/temporal EQE and seeded native RAW with optional output. General surface intersection/visibility, world translation, calibrated commercial profiles, computational multi-frame image combination, full field-dependent PSF transport and megapixel execution remain outside that route. See [production envelope](PRODUCTION_ENVIRONMENT_CAPTURE.md) and [composition map](V1_COMPOSITION_MAP.md).
 
 ## Repository scope
 

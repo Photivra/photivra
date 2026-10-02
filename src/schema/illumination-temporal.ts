@@ -1,5 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses time-varying illumination metadata as an additive overlay on one existing illumination
+ * profile. The base source magnitude/spectrum remain authoritative. Each binding applies one relative
+ * temporal multiplier waveform to one source. Unbound sources remain time-invariant.
+ * Evaluates one explicitly registered time-varying source multiplier at one physical capture time.
+ * Capture time is seconds from the first opening-boundary phase. Sensor data readout timing is not
+ * used as a time surrogate.
+ * @see docs/SCENE_RADIANCE_AND_ILLUMINATION.md for equations, coordinate/unit conventions, blockers
+ * and support limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

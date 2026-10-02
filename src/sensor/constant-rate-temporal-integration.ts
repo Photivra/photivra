@@ -1,5 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Rate times duration
+ * is allowed only by explicit stationarity bound to the exact site and local shutter interval. EQE
+ * integrates to expected photons/electrons; A/W integrates current magnitude to coulombs without an
+ * implicit carrier mapping. Counts remain fractional expectations before stochastic sampling.
+ * Integrates one explicitly stationary response-rate result over its exact bound local exposure
+ * window. This function is intentionally limited to the constant-rate approximation. It does not
+ * sample or integrate a time-varying signal.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   calculatedResult,
@@ -212,6 +226,19 @@ function requireFinite(
   return value;
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Rate times duration is allowed only by explicit stationarity bound to the exact site and local
+ * shutter interval. EQE integrates to expected photons/electrons; A/W integrates current magnitude to
+ * coulombs without an implicit carrier mapping. Counts remain fractional expectations before
+ * stochastic sampling.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns SensorRateTemporalStationarityProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseSensorRateTemporalStationarityProfile(
   value: unknown
 ): SensorRateTemporalStationarityProfile {

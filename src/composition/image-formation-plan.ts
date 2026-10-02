@@ -1,5 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. The planner owns
+ * scientific stage ordering, immutable capture identity and reproducibility. Well-formed unsupported
+ * combinations produce structured blockers; malformed declarations throw. The bounded environment
+ * route executes supplied radiance through native RAW and optional output, while sample-only and
+ * attached-RAW routes retain missing upstream blockers. FNV fingerprints are reproducibility keys, not
+ * cryptographic integrity proofs.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. The planner owns
+ * scientific stage ordering, immutable capture identity and reproducibility. Well-formed unsupported
+ * combinations produce structured blockers; malformed declarations throw. The bounded environment
+ * route executes supplied radiance through native RAW and optional output, while sample-only and
+ * attached-RAW routes retain missing upstream blockers. FNV fingerprints are reproducibility keys, not
+ * cryptographic integrity proofs.
+ * @see docs/PRODUCTION_ENVIRONMENT_CAPTURE.md for equations, coordinate/unit conventions, blockers and
+ * support limits.
+ */
+
 import { simulateEnvironmentSensorRawFrame, type SimulateEnvironmentSensorRawFrameInput } from "../capture/environment-raw-producer.js";
 import { parseSimulatedCapture, type SimulatedCapture } from "../capture/simulated-capture.js";
 import { calculateProcessedSensorRaw, validateProcessedSensorRawEnvelope, type ProcessedSensorRawInput } from "../capture/photographic-export.js";
@@ -102,6 +122,13 @@ export type RendererConsumerKind =
   | "interactive-optimized"
   | "reference";
 
+/**
+ * Plain-data declaration of one consumer backend's supported scientific domains,
+ * stages/effects and temporal budget. It is validated metadata, not executable
+ * renderer code or proof of physical correctness. Unknown/insufficient capability
+ * must block requested fidelity before trusted provider execution. Interactive and
+ * reference roles keep the same committed science even when backend fidelity differs.
+ */
 export interface RendererCapabilityDeclaration {
   schemaVersion:
     typeof RENDERER_CAPABILITY_SCHEMA_VERSION;
@@ -315,6 +342,13 @@ export interface CreateProductionCaptureSnapshotInput {
     ProductionTemporalCaptureInput;
 }
 
+/**
+ * Owned frozen per-event state linking capture/release/scene/output IDs, physical
+ * aperture/shutter/ISO, seconds-valued scene time and an explicit uint32 seed.
+ * Optional focus/WB/temporal bindings commit their exact resolved state. This is a
+ * semantic snapshot, not the generated image; changing a later UI value requires a
+ * new snapshot rather than mutating a previously planned capture.
+ */
 export interface ProductionCaptureSnapshot {
   version:
     typeof PRODUCTION_CAPTURE_SNAPSHOT_VERSION;
@@ -433,6 +467,15 @@ export interface ProductionImageFormationBlocker {
   effectId?: ImageFormationEffectId;
 }
 
+/**
+ * Immutable engine-owned scientific execution record. Inspect status and blockers
+ * before treating requested stages as usable; each stage distinguishes execution,
+ * modeled-zero, fidelity omission and unsupported inputs. Optional environment and
+ * processed results carry exact child lineage, while sample-only routes retain
+ * upstream blockers. Versions identify independent contracts. The fingerprint is
+ * canonical FNV reproducibility identity, not adversarial integrity. Replay also
+ * requires identical provider responses; no renderer callback is serialized.
+ */
 export interface ProductionImageFormationPlan {
   version:
     typeof PRODUCTION_IMAGE_FORMATION_PLAN_VERSION;
@@ -531,6 +574,14 @@ export interface ProductionEnvironmentCaptureInput {
   };
 }
 
+/**
+ * Join one validated prepared context and immutable capture snapshot with exactly
+ * one supported physical input route: supplied sample, attached RAW processing or
+ * executed environment capture. The environment route owns its synchronous
+ * provider callback and may supply a processing policy with RAW omitted; execution
+ * provides the exact realized frame. Incompatible route combinations fail closed.
+ * A complete record does not authorize effects outside the supported envelope.
+ */
 export interface CreateProductionImageFormationPlanInput {
   environmentCapture?: ProductionEnvironmentCaptureInput;
   /** Explicit authoritative post-ADC RAW input; output processing cannot synthesize upstream scene truth. */
@@ -753,6 +804,20 @@ function parseUniqueEffectIds(
     );
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
+ * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
+ * bounded environment route executes supplied radiance through native RAW and optional output, while
+ * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
+ * reproducibility keys, not cryptographic integrity proofs.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns RendererCapabilityDeclaration. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseRendererCapabilityDeclaration(
   value: unknown
 ): RendererCapabilityDeclaration {
@@ -923,6 +988,20 @@ export function parseRendererCapabilityDeclaration(
   };
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
+ * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
+ * bounded environment route executes supplied radiance through native RAW and optional output, while
+ * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
+ * reproducibility keys, not cryptographic integrity proofs.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns ImageFormationFidelityProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseImageFormationFidelityProfile(
   value: unknown
 ): ImageFormationFidelityProfile {
@@ -1276,6 +1355,20 @@ function fingerprintValue(
   );
 }
 
+/**
+ * Return deterministic canonical JSON of a validated production plan. Sorted object keys preserve
+ * array order; the representation contains data and excludes executable provider callbacks.
+ *
+ * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
+ * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
+ * bounded environment route executes supplied radiance through native RAW and optional output, while
+ * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
+ * reproducibility keys, not cryptographic integrity proofs.
+ * @param plan - ProductionImageFormationPlan. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns string. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function serializeProductionImageFormationPlan(
   plan:
     ProductionImageFormationPlan
@@ -1283,6 +1376,20 @@ export function serializeProductionImageFormationPlan(
   return canonicalStringify(plan);
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
+ * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
+ * bounded environment route executes supplied radiance through native RAW and optional output, while
+ * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
+ * reproducibility keys, not cryptographic integrity proofs.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns PreparedImageFormationContext. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parsePreparedImageFormationContext(
   value: unknown
 ): PreparedImageFormationContext {
@@ -1357,6 +1464,20 @@ export function parsePreparedImageFormationContext(
   return parsed;
 }
 
+/**
+ * Parse, own and freeze relatively static equipment, scene, renderer and fidelity declarations for
+ * reuse by later immutable captures. This prepares semantic state and does not render a frame.
+ *
+ * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
+ * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
+ * bounded environment route executes supplied radiance through native RAW and optional output, while
+ * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
+ * reproducibility keys, not cryptographic integrity proofs.
+ * @param input - PrepareImageFormationContextInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns PreparedImageFormationContext. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function prepareImageFormationContext(
   input:
     PrepareImageFormationContextInput
@@ -2069,6 +2190,20 @@ function validateCommittedWhiteBalanceState(
   return parsed;
 }
 
+/**
+ * Commit resolved capture settings, scene time/identity, stochastic seed and optional
+ * temporal/focus/WB state by value. Later application mutations cannot alter this scientific event.
+ *
+ * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
+ * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
+ * bounded environment route executes supplied radiance through native RAW and optional output, while
+ * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
+ * reproducibility keys, not cryptographic integrity proofs.
+ * @param input - CreateProductionCaptureSnapshotInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns ProductionCaptureSnapshot. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function createProductionCaptureSnapshot(
   input:
     CreateProductionCaptureSnapshotInput
@@ -2329,6 +2464,20 @@ export function createProductionCaptureSnapshotFromReleaseFrame(
   });
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
+ * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
+ * bounded environment route executes supplied radiance through native RAW and optional output, while
+ * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
+ * reproducibility keys, not cryptographic integrity proofs.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns ProductionCaptureSnapshot. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseProductionCaptureSnapshot(
   value: unknown
 ): ProductionCaptureSnapshot {
@@ -2424,6 +2573,12 @@ export function parseProductionCaptureSnapshot(
   return parsed;
 }
 
+/**
+ * Expand the requested graph through hard upstream dependencies in the engine
+ * contract. Shared/coupled effects remain distinct from serialization order.
+ * Dependency presence is not execution: deriveStagePlan still assesses declared
+ * inputs, renderer capabilities and scientific support for every expanded stage.
+ */
 function expandRequiredStages(
   fidelity:
     ImageFormationFidelityProfile
@@ -4254,6 +4409,12 @@ function temporalAssuranceComponent(
   };
 }
 
+/**
+ * Compose evidence/status from actual child stages without averaging uncertainty
+ * or upgrading declared approximation to calibration. Requested blockers and
+ * executed lineage are part of assurance; a complete graph alone cannot establish
+ * physical accuracy or validate an external provider's numerical transport.
+ */
 function composeProductionScientificAssurance(
   prepared:
     PreparedImageFormationContext,
@@ -4364,6 +4525,13 @@ function computeProcessedOutput(input: ProductionProcessedOutputInput | undefine
  * preflight returns a structured blocker and never invokes that code. The existing
  * environment producer owns all node budgets, response validity and seeded RAW.
  */
+/**
+ * Validate shared capture/context, renderer and supported-envelope commitments
+ * before any trusted provider callback runs. Snapshot owned scientific and output
+ * policy data first, then delegate to the one existing environment RAW producer.
+ * Callback failure propagates; a successful call proves invocation and data binding,
+ * not physical transport, visibility, calibration or a fallback renderer.
+ */
 function computeEnvironmentCapture(input: ProductionEnvironmentCaptureInput | undefined,
   externalOutput: ProductionProcessedOutputInput | undefined, prepared: PreparedImageFormationContext,
   snapshot: ProductionCaptureSnapshot, required: ReadonlySet<ImageFormationStageId>,
@@ -4427,6 +4595,22 @@ function computeEnvironmentCapture(input: ProductionEnvironmentCaptureInput | un
   }
 }
 
+/**
+ * Expand requested stages through the authoritative graph, validate shared commitments and capability
+ * limits, then execute only supported declared input routes. Return explicit
+ * active/zero/omitted/blocked dispositions and child evidence rather than silently skipping a
+ * requested effect.
+ *
+ * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
+ * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
+ * bounded environment route executes supplied radiance through native RAW and optional output, while
+ * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
+ * reproducibility keys, not cryptographic integrity proofs.
+ * @param input - CreateProductionImageFormationPlanInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns ProductionImageFormationPlan. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function createProductionImageFormationPlan(
   input:
     CreateProductionImageFormationPlanInput

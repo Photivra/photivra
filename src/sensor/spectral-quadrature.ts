@@ -1,5 +1,27 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Revalidate continuous spectral node identity, support and nanometre measures before reducing a
+ * supplied wavelength plan. Continuous spectral midpoint planning uses explicit nanometre measures and
+ * response-supported intervals. Knot/breakpoint alignment does not prove convergence. Discrete/delta
+ * lines require their own integrated measure and cannot be silently widened into continuous bins.
+ * Builds deterministic wavelength quadrature nodes for one exact sensor response channel without
+ * applying the response to a source spectrum. The requested wavelength range must lie fully inside the
+ * response channel's declared usable range. Response-curve knots and optional caller-provided
+ * continuous-spectrum/optics breakpoints partition that range. Each segment is then subdivided so no
+ * midpoint subinterval exceeds maximumSubintervalWidthNanometers. wavelengthMeasureNanometers is
+ * d-lambda in nanometres. It is not a dimensionless response weight. Future integration must use a
+ * source spectral density expressed per nanometre or explicitly convert units before multiplying by
+ * this measure. This function deliberately does not apply QE or A/W responsivity. Those
+ * representations have different compatible downstream signal domains: QE is photon-to-electron
+ * efficiency, while A/W responsivity relates incident radiant power to electrical current. A later
+ * versioned composition must also match responseScope to the source plane and collection-area
+ * semantics before integrating any signal.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult
@@ -513,6 +535,18 @@ function approximatelyEqual(
   );
 }
 
+/**
+ * Revalidate continuous spectral node identity, support and nanometre measures before reducing a
+ * supplied wavelength plan.
+ *
+ * Continuous spectral midpoint planning uses explicit nanometre measures and response-supported
+ * intervals. Knot/breakpoint alignment does not prove convergence. Discrete/delta lines require their
+ * own integrated measure and cannot be silently widened into continuous bins.
+ * @param quadrature - SensorSpectralQuadrature. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns Map<number, SensorSpectralQuadratureNode>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function validateSensorSpectralQuadrature(
   quadrature: SensorSpectralQuadrature
 ): Map<number, SensorSpectralQuadratureNode> {

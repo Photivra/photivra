@@ -1,0 +1,1306 @@
+{
+  "baseCommit": "34c6d9aca1c2e365b253c1562734d11bc8e0235f",
+  "distributionVersion": "1.0.0",
+  "engineApiVersion": "0.116.0",
+  "source": [
+    {
+      "path": "src/api/poc-api-cli.ts",
+      "normalizedSyntaxSha256": "5f3295ac5d4fb8f36f5573c555ca62ad8a2127fc1bc58ad563421cd8408ab33b",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 0,
+      "jsdocBlocksAfter": 1
+    },
+    {
+      "path": "src/api/poc-request.ts",
+      "normalizedSyntaxSha256": "583db48d72d46ee2c91922d9cee7d00b5fa742d037276416c34ac9c647d57bad",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/api/server.ts",
+      "normalizedSyntaxSha256": "f7a3d35c98fe3ec58d35019b9fa49c2e79c9fde145b30847560e1b02d8416140",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/camera/equivalent-focal-length.ts",
+      "normalizedSyntaxSha256": "0a21b7df285f37851fed4d58f061fd17c6540f1bfbeace6fc0880082164677f7",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 8,
+      "jsdocBlocksAfter": 9
+    },
+    {
+      "path": "src/camera/field-of-view.ts",
+      "normalizedSyntaxSha256": "fdcc70df08e7f5f38e8afc62d558fad90c12b3973e2608373a2dcac4f298e9c9",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 19,
+      "jsdocBlocksAfter": 20
+    },
+    {
+      "path": "src/camera/projected-object-size.ts",
+      "normalizedSyntaxSha256": "c531e017ef928991251e6f08d221964311a36d52577eec921e94dfe7f0325efe",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 7,
+      "jsdocBlocksAfter": 8
+    },
+    {
+      "path": "src/capture/capture-export-metadata.ts",
+      "normalizedSyntaxSha256": "78cd9b73e1acc0d64033a84f83b04e66fcf9d9390f1fe00fda800c260934a4e4",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 9,
+      "jsdocBlocksAfter": 10
+    },
+    {
+      "path": "src/capture/environment-raw-producer.ts",
+      "normalizedSyntaxSha256": "7ab318327f22eaabaed8c3c1b66b63d20375a2e3c10089881f2c0cb49d20cd70",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 3,
+      "jsdocBlocksAfter": 5
+    },
+    {
+      "path": "src/capture/export-jpeg.ts",
+      "normalizedSyntaxSha256": "e66ea7573aef282afdb4b780e3f0c2262b12167e170d308d9d6a107ed19900d6",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 4
+    },
+    {
+      "path": "src/capture/export-tiff.ts",
+      "normalizedSyntaxSha256": "89248a570cfde31d20f2db7aa5faccc3e6be56a6017028b2c2d8fb16ebea798b",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 3,
+      "jsdocBlocksAfter": 8
+    },
+    {
+      "path": "src/capture/focus-control.ts",
+      "normalizedSyntaxSha256": "64f036aae8947467cd7f4dbaab5d83e3275c7243822d37b9077cd10f2675f6b6",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 9
+    },
+    {
+      "path": "src/capture/linear-encoding.ts",
+      "normalizedSyntaxSha256": "951861aa7d79263f65f1c57d0595a3016b5ff0260a1f98b1182d152d5ee3028d",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 13,
+      "jsdocBlocksAfter": 14
+    },
+    {
+      "path": "src/capture/photographic-export.ts",
+      "normalizedSyntaxSha256": "b3ec9916863142c4e71a548942513b331e4673bd8e908109a4af1fce2723dfd1",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 13,
+      "jsdocBlocksAfter": 16
+    },
+    {
+      "path": "src/capture/raw-frame-limits.ts",
+      "normalizedSyntaxSha256": "ea0e9186058dda428a1c7bc197c5ec2ff3ad8dc6653752d0a5e5a00c7629fed0",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/capture/raw-frame-reconstruction.ts",
+      "normalizedSyntaxSha256": "6215fda35c8eae0d0c2f0365b8abe455e98225d772fcfa1b5c6b299dc549a0fd",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 7,
+      "jsdocBlocksAfter": 8
+    },
+    {
+      "path": "src/capture/release-sequence.ts",
+      "normalizedSyntaxSha256": "56510b9e3f7ad68f5cb96248f60ea49493ec3a75b9b0d189165ab71de848974a",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/capture/sensor-raw-frame.ts",
+      "normalizedSyntaxSha256": "912bc3b756ed9d40b0d8ff8b95dbbf361bf5684d0619e6b8ae654dbae97432ca",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 5,
+      "jsdocBlocksAfter": 6
+    },
+    {
+      "path": "src/capture/sensor-raw-producer.ts",
+      "normalizedSyntaxSha256": "d9d6380c821ee59829148f6e6e2973b35e532709737a01b03d57ff56444a8db9",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 8,
+      "jsdocBlocksAfter": 9
+    },
+    {
+      "path": "src/capture/simulated-capture.ts",
+      "normalizedSyntaxSha256": "a4c26d87c94d46e1e60af5af04c63fdb42a78e88f5cb28e9f57f89acf41c11c7",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 16,
+      "jsdocBlocksAfter": 17
+    },
+    {
+      "path": "src/color/capture-color.ts",
+      "normalizedSyntaxSha256": "6ac079c3ac968137cf67a08e08e75c90cecda8fe77bc98dffcd40fce4671613f",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 10,
+      "jsdocBlocksAfter": 11
+    },
+    {
+      "path": "src/color/sensor-color-development.ts",
+      "normalizedSyntaxSha256": "64328bc8776d101370dd14a72531d8b652cbcc395eb6cf47b28b3add794e5410",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 3,
+      "jsdocBlocksAfter": 5
+    },
+    {
+      "path": "src/color/white-balance.ts",
+      "normalizedSyntaxSha256": "09156e71bf28d54615be4920cb5835102258b3c1b11bab1d116d877aa428feab",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 9,
+      "jsdocBlocksAfter": 10
+    },
+    {
+      "path": "src/composition/image-formation-plan.ts",
+      "normalizedSyntaxSha256": "944dae721c646d18f81f2b2e0afcac70c6b90782c7254c513374fa353af31b18",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 10,
+      "jsdocBlocksAfter": 26
+    },
+    {
+      "path": "src/composition/plan-consumer.ts",
+      "normalizedSyntaxSha256": "ad517fba869e0f385a9ef488d8b1e15429fc4e2f7511fbb51b276b4873d793eb",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/core/calculation-result.ts",
+      "normalizedSyntaxSha256": "01eef1c1415bed99d5f51f87be69c752b699dabfbe8146d00efdfb780d078655",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 29,
+      "jsdocBlocksAfter": 30
+    },
+    {
+      "path": "src/core/canonical-json.ts",
+      "normalizedSyntaxSha256": "96664aeaaa2df93d9229d2168eebb0c0507132df4ad5107fc0d2fc2b8a4571bc",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/core/configuration-error.ts",
+      "normalizedSyntaxSha256": "b17e978d8b46b7d7e818ddde42575d06ce868f4db06dd2fd7f465713ed484a93",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 2
+    },
+    {
+      "path": "src/core/evidence-provenance.ts",
+      "normalizedSyntaxSha256": "b78e8e7d8d18ec2f4d0b8c36c93db2dba9c0495e4a48c986ae6a9c3d82930d1d",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 7,
+      "jsdocBlocksAfter": 9
+    },
+    {
+      "path": "src/core/image-formation.ts",
+      "normalizedSyntaxSha256": "7ca722c2f817bb63b1273b6d46b1c2562b9193e7fe077318c59fa20b9c35c520",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/core/owned-data.ts",
+      "normalizedSyntaxSha256": "0efad8640d6f6737dda7c3d5f3aecb3d31262c2e931de821ea74bf4ab53b75be",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 2
+    },
+    {
+      "path": "src/core/record-validation.ts",
+      "normalizedSyntaxSha256": "453707afd0a5c237e6c89533d0f517f0a1c7a7cbd9d0f1c0ab1ece4523af09b5",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 3,
+      "jsdocBlocksAfter": 4
+    },
+    {
+      "path": "src/core/scientific-assurance.ts",
+      "normalizedSyntaxSha256": "19175d2d62db0e677a1dd5fd8807bfab9469ac052bb167e851d3d89c7e3be8f3",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/core/spectral-composition.ts",
+      "normalizedSyntaxSha256": "1bcafa4d8b7be67fee31c8fd876d45509d30e903a779ad4297203ff177644b2d",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 7,
+      "jsdocBlocksAfter": 8
+    },
+    {
+      "path": "src/core/spectral.ts",
+      "normalizedSyntaxSha256": "b8b0c0bd32ef8a4c6da826f170217cc9a459359f5a1a089c7f1c709714a96e0c",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 6,
+      "jsdocBlocksAfter": 7
+    },
+    {
+      "path": "src/core/validation.ts",
+      "normalizedSyntaxSha256": "0906974abfd1d3ee8a82c3c62392af0e26c030ab398f81649e418d08f0586be4",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 4,
+      "jsdocBlocksAfter": 5
+    },
+    {
+      "path": "src/core/version.ts",
+      "normalizedSyntaxSha256": "e6da4036b307e4aeac8fb89bdac1e8e1199fdc2706155ed12c5548c22a32eb21",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 2
+    },
+    {
+      "path": "src/equipment/exposure-capabilities.ts",
+      "normalizedSyntaxSha256": "5b14696fb75f22532f5be9b55c0b791fef270fc8892e817a52eb5796da6e7a42",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 4,
+      "jsdocBlocksAfter": 5
+    },
+    {
+      "path": "src/equipment/generic-tier-assets.ts",
+      "normalizedSyntaxSha256": "b458269bd058f2a3e88f3f0136d595ae48095369bc9033ba3e34d1130fb3925c",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/equipment/generic-tier-presets.ts",
+      "normalizedSyntaxSha256": "1aedb5c3e6b948608357be31a7a8bbf9f5f54bd3cb8c26e5cd25f7b87d892847",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 4,
+      "jsdocBlocksAfter": 5
+    },
+    {
+      "path": "src/equipment/iso-capabilities.ts",
+      "normalizedSyntaxSha256": "9e81360c2b4fbd7105579aa68f4cd87fd172e0e999f4edb5572effba00313327",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 4
+    },
+    {
+      "path": "src/equipment/metering-capabilities.ts",
+      "normalizedSyntaxSha256": "ff10c0167efb604d6ddd9795ed5778dd66798fb6ba0b0d8e519a04c44008b66f",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/equipment/release-capabilities.ts",
+      "normalizedSyntaxSha256": "59695455fce2fdf5e0d679aa5e6572cfa537480fcc32439376e029581aca28ae",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 2
+    },
+    {
+      "path": "src/exposure/exposure-duration-control.ts",
+      "normalizedSyntaxSha256": "d798f05a166f41d1864f74eb6090f4e2bcf9a38dac02cac2c8d9a4a9abebaa72",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/exposure/exposure-mode-resolver.ts",
+      "normalizedSyntaxSha256": "a505b144a7b74d8560996c9a6f27f7c2e5cc24d4e7d10b58772e33a6d3fbc817",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 7
+    },
+    {
+      "path": "src/exposure/exposure.ts",
+      "normalizedSyntaxSha256": "3840ed5dc5fcb8c1d65ceb9492d5f3f7f0e5676fd0f94b40efb8376d555b95fa",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 12,
+      "jsdocBlocksAfter": 13
+    },
+    {
+      "path": "src/exposure/flash.ts",
+      "normalizedSyntaxSha256": "2a18bb205b1bcd72822323a93d950caecae1686d46666edd2621de1a307106a5",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 0,
+      "jsdocBlocksAfter": 5
+    },
+    {
+      "path": "src/exposure/metering-scene-radiance.ts",
+      "normalizedSyntaxSha256": "c3af9195a3a80b66dd92ff92b3e2a0a3fe3536e334b826c70c5cda073795f2da",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/exposure/metering-target.ts",
+      "normalizedSyntaxSha256": "a3ca89ff7c7b963c72189c70cd0a2eeb622265c04c2f30e038a85742e0a7e1b8",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/exposure/metering-temporal.ts",
+      "normalizedSyntaxSha256": "cdb4c65ae93320e893fff93d4af8b90bcace04fb956056afd383b36e4237e708",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 2
+    },
+    {
+      "path": "src/exposure/metering.ts",
+      "normalizedSyntaxSha256": "1638dc0938480d61c069a82ee19a52a58b6b810c7376559f81dca9f82a30010e",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/exposure/program-line.ts",
+      "normalizedSyntaxSha256": "004f0fa823434e31956afb1fe3b41d2f6020a637d962f9e47691a9d7cb323d61",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 2
+    },
+    {
+      "path": "src/index.ts",
+      "normalizedSyntaxSha256": "967e1742dcbc04ca095352e0e4ddcc35279a3cdec55139595c456572eee96b58",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 0,
+      "jsdocBlocksAfter": 1
+    },
+    {
+      "path": "src/motion/camera-rotation.ts",
+      "normalizedSyntaxSha256": "9c55044313c610f903fbdeb23c3d7b6e267d48c4608698af4433b1220b226c3e",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 21,
+      "jsdocBlocksAfter": 22
+    },
+    {
+      "path": "src/motion/capture-rotation-inverse-mapping.ts",
+      "normalizedSyntaxSha256": "834b1d314772e382b771a945231b59fa56f5495fc1831c9cb0d33452409290ba",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 6,
+      "jsdocBlocksAfter": 7
+    },
+    {
+      "path": "src/motion/capture-rotation-temporal-quadrature.ts",
+      "normalizedSyntaxSha256": "dc5f9670327b608cfd190ca85209fd1a5483a3d059e9e11924b0442698564245",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 6,
+      "jsdocBlocksAfter": 7
+    },
+    {
+      "path": "src/motion/capture-rotation-trajectory.ts",
+      "normalizedSyntaxSha256": "2b47bdfe7c06b1f5f23648b5ec0e4bb24bd722546a14013ed6d3d6a895a52ee1",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 8,
+      "jsdocBlocksAfter": 9
+    },
+    {
+      "path": "src/motion/capture-translation-parallax-temporal-quadrature.ts",
+      "normalizedSyntaxSha256": "f6751c01c9c82c43977b852448e0dd10da8fd7a1ae016966c097ed2946d610c0",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 5,
+      "jsdocBlocksAfter": 6
+    },
+    {
+      "path": "src/motion/extended-object-projection.ts",
+      "normalizedSyntaxSha256": "b728913e2ab9f22c504a5a7d8f5f0541337bd400546c7a01f46c4d81e8d478f5",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 4,
+      "jsdocBlocksAfter": 5
+    },
+    {
+      "path": "src/motion/projected-motion.ts",
+      "normalizedSyntaxSha256": "8db574c27ab138edcfabbf0fa92d1cdbf8eb3bf62253b9d34a46823032d5bc20",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 7,
+      "jsdocBlocksAfter": 8
+    },
+    {
+      "path": "src/optics/aperture.ts",
+      "normalizedSyntaxSha256": "f9e86ed2e9dda6bb38e60e3590ae2ae3f172929174b621de4d0becb04c408d7d",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 6,
+      "jsdocBlocksAfter": 7
+    },
+    {
+      "path": "src/optics/circle-of-confusion.ts",
+      "normalizedSyntaxSha256": "9e9a9807a2dad5fc0f54cde4b54f5e234cecb29050badddb7e1fe7fb14ad90bf",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 2
+    },
+    {
+      "path": "src/optics/complex-pupil-psf.ts",
+      "normalizedSyntaxSha256": "e95e3e22ad8e6d99c0b5e972f96bbb714b0913bb965d5dc6449089d1ca9170d9",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 0,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/optics/depth-of-field.ts",
+      "normalizedSyntaxSha256": "2379964aec31c0fd1c2df3611ae89b17548509d5daa0352c01620ea1f95ff875",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 15,
+      "jsdocBlocksAfter": 16
+    },
+    {
+      "path": "src/optics/diffraction.ts",
+      "normalizedSyntaxSha256": "9b1229ec3cd27fba5d20f63f62299ef5b57bbe76bb48edbf419df7925c1b0825",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 4,
+      "jsdocBlocksAfter": 5
+    },
+    {
+      "path": "src/optics/focus-breathing.ts",
+      "normalizedSyntaxSha256": "3c69dfde611eca88a6be2e103e0c3a1ec30de1e9e7d460042b60e98d7c10bf8e",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 12,
+      "jsdocBlocksAfter": 13
+    },
+    {
+      "path": "src/optics/focus-state.ts",
+      "normalizedSyntaxSha256": "676b821c2ca2acdacb4376c1dbb6ec5496e3649456e48b4ed232f407af9c257b",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 5,
+      "jsdocBlocksAfter": 6
+    },
+    {
+      "path": "src/optics/front-of-lens-filter.ts",
+      "normalizedSyntaxSha256": "311c0bbb456b3ebc1b943b9ec884a2e9746d6cb9650a2499aa0ebbd2b59e44b0",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 3,
+      "jsdocBlocksAfter": 4
+    },
+    {
+      "path": "src/optics/illumination-vignetting.ts",
+      "normalizedSyntaxSha256": "79d7eff702cb1361bd4aa237f2accf27ac3c39137cbbbb6d0312d61a3af6093d",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 10,
+      "jsdocBlocksAfter": 11
+    },
+    {
+      "path": "src/optics/lateral-chromatic-aberration.ts",
+      "normalizedSyntaxSha256": "9c4efa8058ce8dc388c4917134a0dde22aa3fce0d9de98083db85408a21dcbf5",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 11,
+      "jsdocBlocksAfter": 12
+    },
+    {
+      "path": "src/optics/lens-psf-profile.ts",
+      "normalizedSyntaxSha256": "7665bc75ce79be3abc60bb34658259493712c0cf521e7e2725c3a87fb09230ea",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 0,
+      "jsdocBlocksAfter": 5
+    },
+    {
+      "path": "src/optics/polygon-diffraction.ts",
+      "normalizedSyntaxSha256": "25de7ec9c05e07413c5f151228ff1a31e8001bc248c244ddcdfed497d8f5535b",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 11,
+      "jsdocBlocksAfter": 12
+    },
+    {
+      "path": "src/optics/profile-contract.ts",
+      "normalizedSyntaxSha256": "f61cbe3137bda7767aef123714119eefbc1838537174eea9b5e5a1d64b30500c",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 11,
+      "jsdocBlocksAfter": 12
+    },
+    {
+      "path": "src/optics/psf-foundation.ts",
+      "normalizedSyntaxSha256": "3eff1e9ba778533516040645ee04f4fa7dc12ff464f240b6921c9659e0be8cbd",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 4,
+      "jsdocBlocksAfter": 5
+    },
+    {
+      "path": "src/optics/radial-distortion.ts",
+      "normalizedSyntaxSha256": "cd83222e68ee27a4890cfdf6724c51916874da4318dd4fee8d535707ff914117",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 16,
+      "jsdocBlocksAfter": 18
+    },
+    {
+      "path": "src/optics/scene-to-sensor-irradiance.ts",
+      "normalizedSyntaxSha256": "da8e2f6c843699fe0c672820e1139ac5a12b6b8f6334dc7db09468b545f91918",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 0,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/optics/scene-to-sensor-quadrature.ts",
+      "normalizedSyntaxSha256": "7fc4084aa67ea57112707d21661310fcf68ebe409d0b28cfa04c6759124a7d6b",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 9,
+      "jsdocBlocksAfter": 10
+    },
+    {
+      "path": "src/optics/sensor-environment-query.ts",
+      "normalizedSyntaxSha256": "b8fd432582ed5fab9ae47b4d15623a1b5f2911f56dcaf2b8a7b93046a62ae40a",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 4,
+      "jsdocBlocksAfter": 5
+    },
+    {
+      "path": "src/optics/sensor-psf-quadrature.ts",
+      "normalizedSyntaxSha256": "ffdb3ea8b7e1e62d23b1e541d5c33aa61793d9d2a77e1daf11bfa2b08a45ad31",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 8,
+      "jsdocBlocksAfter": 9
+    },
+    {
+      "path": "src/optics/sensor-psf-support.ts",
+      "normalizedSyntaxSha256": "9a70dde75c8a436eb62bebc7d7a25d477285ced04882abbef069655e5e5547ca",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 2
+    },
+    {
+      "path": "src/optics/stray-light.ts",
+      "normalizedSyntaxSha256": "bdf0f355042e148d4a7364ecb722879bb705e26b70c7b067111af63948cdf0c6",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 11,
+      "jsdocBlocksAfter": 12
+    },
+    {
+      "path": "src/optics/thin-lens.ts",
+      "normalizedSyntaxSha256": "6aac3dcf3d95cc4e3492922a23a9f2debbf588b9eb7a915ccb611041ddf5442e",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 6,
+      "jsdocBlocksAfter": 7
+    },
+    {
+      "path": "src/output/capture-corrected-sdr.ts",
+      "normalizedSyntaxSha256": "774015104af76fbf5ec8d4a3a560434eb96cb327d1872a1f5fe8b1184a44a4ed",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 9,
+      "jsdocBlocksAfter": 10
+    },
+    {
+      "path": "src/output/capture-geometry.ts",
+      "normalizedSyntaxSha256": "a9ed3003c7f0a66d69fd72b6ae090859e5eb7c4fe339a68e404462b7d47a8c9a",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 29,
+      "jsdocBlocksAfter": 30
+    },
+    {
+      "path": "src/output/capture-sdr.ts",
+      "normalizedSyntaxSha256": "f613884ee5bd1da25524ecf536c918b6329094ba246f8ce4d0c4f67163c0aa1b",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 5,
+      "jsdocBlocksAfter": 6
+    },
+    {
+      "path": "src/output/crop.ts",
+      "normalizedSyntaxSha256": "d808f79a97301387765a563201965ec5faa8c4256f81ac05901510be7e37d114",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 5,
+      "jsdocBlocksAfter": 6
+    },
+    {
+      "path": "src/output/geometric-transforms.ts",
+      "normalizedSyntaxSha256": "0fd2141e1334b756976a37d95ff513f64a64800d79b049cc3c77949919cd5fa1",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 19,
+      "jsdocBlocksAfter": 20
+    },
+    {
+      "path": "src/output/lens-corrections.ts",
+      "normalizedSyntaxSha256": "db88662f1a7f4aab6d9f750364f750bf66d3625fb5beb59c1d7ada89d2dff2ba",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 13,
+      "jsdocBlocksAfter": 14
+    },
+    {
+      "path": "src/output/sdr-rendering.ts",
+      "normalizedSyntaxSha256": "ebae116cabadd11255f3e5e8084643ce5a6f4c9520c51c93045bdb7107d835c3",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 9,
+      "jsdocBlocksAfter": 10
+    },
+    {
+      "path": "src/output/subject-framing-crop.ts",
+      "normalizedSyntaxSha256": "7c19b420cd658f0d77fa59f25bd39034e7c13cfbf3a8e0a1f53cb9d189116f6b",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 8,
+      "jsdocBlocksAfter": 9
+    },
+    {
+      "path": "src/schema/camera.ts",
+      "normalizedSyntaxSha256": "0717f00941826305da6f71de3a47cb6c23a70eed544e274e1c41cdf40a6c551a",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 2
+    },
+    {
+      "path": "src/schema/illumination-spectral.ts",
+      "normalizedSyntaxSha256": "fa9fbb42746371e127e38a81033f698c60e9e7bae141a145e11ee0531f0be0ba",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/schema/illumination-temporal.ts",
+      "normalizedSyntaxSha256": "b02b6bd7e6ba2419602fc3fdb585f527fa7aaf5881caeeba588093816c2f9f5a",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 4,
+      "jsdocBlocksAfter": 5
+    },
+    {
+      "path": "src/schema/illumination.ts",
+      "normalizedSyntaxSha256": "d217da1a7a2559fb1fd47db5affe1816a70c756fc546753fb4622385d1f4b1ad",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 2
+    },
+    {
+      "path": "src/schema/scene-radiance-temporal.ts",
+      "normalizedSyntaxSha256": "038c6ecf4c7e5424db419f88d0684218f8aa97179a5dfa35dc8b80e526093f65",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/schema/scene-radiance.ts",
+      "normalizedSyntaxSha256": "0fdf606f768904fb48d3d5724032feed671b46ff79cb421e4b1d0e619c3bae29",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 6,
+      "jsdocBlocksAfter": 7
+    },
+    {
+      "path": "src/schema/scene.ts",
+      "normalizedSyntaxSha256": "94d7c1403a6c3149aa25687c3ca3cb46f64c0a51703ef69906ed3f95eef4ed19",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 11,
+      "jsdocBlocksAfter": 12
+    },
+    {
+      "path": "src/schema/validation.ts",
+      "normalizedSyntaxSha256": "4ecc76e9fc4458223c61f645ae71d21cd81010a8b5b6ea2a8f0b062b411b4a6e",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/sensor/accumulated-charge.ts",
+      "normalizedSyntaxSha256": "8103766d5de8b75f35d6fc5964d7290fb449f6cbdf019d67a4fc22aed5bb150e",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 0,
+      "jsdocBlocksAfter": 7
+    },
+    {
+      "path": "src/sensor/architecture.ts",
+      "normalizedSyntaxSha256": "9c131813d3d7fb92e98ce27f26f4585b6c5aa8f2872fa14e14bcd611cbc36003",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 5,
+      "jsdocBlocksAfter": 6
+    },
+    {
+      "path": "src/sensor/camera-saturation-capacity.ts",
+      "normalizedSyntaxSha256": "bb8d369b817117aa0a90d9d04d7338f753add1424b4d11481a7e71c4577705e2",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 0,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/sensor/capture-color-sampling-binding.ts",
+      "normalizedSyntaxSha256": "60eb6ef2bf0ecc4a5183026ace341de495e03060d53227eb7a8d1092451c9dcc",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 12,
+      "jsdocBlocksAfter": 13
+    },
+    {
+      "path": "src/sensor/capture-mode-timing.ts",
+      "normalizedSyntaxSha256": "4262129c997a606e73df84b98efc58baa0f004633e0ca4b99291a25d0c02508e",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/sensor/capture-mode.ts",
+      "normalizedSyntaxSha256": "e9f2e17b6c49784619060d4f1b858fc5ec1f099656b1278b1ef78160d65dc384",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 12,
+      "jsdocBlocksAfter": 13
+    },
+    {
+      "path": "src/sensor/color-sampling.ts",
+      "normalizedSyntaxSha256": "aebfd488eeb7d722ecb7b94177a256b06d0f9afcadfec440f55eeb00c5050aa6",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 13,
+      "jsdocBlocksAfter": 14
+    },
+    {
+      "path": "src/sensor/constant-rate-temporal-integration.ts",
+      "normalizedSyntaxSha256": "7275d80a4834033147cbf6c1eed10afc2dcc8bb01fab4f9bbae00c293b0e7289",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/sensor/dark-current.ts",
+      "normalizedSyntaxSha256": "6b3095d758d4d859d2345134dc79e87db7e65a845ca19ae9e224b9ca25f27edf",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 7
+    },
+    {
+      "path": "src/sensor/environment-photo-signal.ts",
+      "normalizedSyntaxSha256": "aa115b0d5df7bda8cb82ffb2b4b5091e4c459f6f1ebcbcc94ca67b7147705329",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 5,
+      "jsdocBlocksAfter": 7
+    },
+    {
+      "path": "src/sensor/eqe-electron-rate.ts",
+      "normalizedSyntaxSha256": "cdcb40a3155c0a3f37dc40dfab489d7cfebdc74f5ed9e892a22e9cf3d3f19667",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/sensor/eqe-local-exposure.ts",
+      "normalizedSyntaxSha256": "baf79ea861e5df0bdf5f93e20ef829d2a7b0aed4f753f4db2218fe79a2bbfdb8",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 14,
+      "jsdocBlocksAfter": 15
+    },
+    {
+      "path": "src/sensor/eqe-temporal-exposure.ts",
+      "normalizedSyntaxSha256": "cfd9054305aa5ff0c5b98d3bd6758a1eeccb67036e2df6962444d21008f43345",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 7,
+      "jsdocBlocksAfter": 8
+    },
+    {
+      "path": "src/sensor/exposure-window.ts",
+      "normalizedSyntaxSha256": "77e265fb436e90e7bf82e265df3f016d1ada976a3d67668d2d790df95f563aeb",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 6,
+      "jsdocBlocksAfter": 7
+    },
+    {
+      "path": "src/sensor/iso-signal-chain.ts",
+      "normalizedSyntaxSha256": "48c12f742138aa544b07f2c036a06e235cab58ea0a01ef88d51026903e9784d7",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 0,
+      "jsdocBlocksAfter": 5
+    },
+    {
+      "path": "src/sensor/local-exposure-binding.ts",
+      "normalizedSyntaxSha256": "e39c5ae3aed5bbe4b1692ae49d706f12a1e192485efe22eef11362402076ef3d",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/sensor/optical-stack.ts",
+      "normalizedSyntaxSha256": "e20c2edcee36a048a90d1ad70d91de8c12fdebc3ad9efedfd7e16b513a645584",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 12,
+      "jsdocBlocksAfter": 13
+    },
+    {
+      "path": "src/sensor/photon-energy.ts",
+      "normalizedSyntaxSha256": "ac1dc52d61fc7df320596e59ed7cd02e64a66681820a7cffd673b0bd5120587b",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 0,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/sensor/physical-charge-capacity.ts",
+      "normalizedSyntaxSha256": "77e05bc1bcce7996da83f7f4e908c3808ec4fe39be7e43677c3d7b5f959e4458",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 0,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/sensor/pixel-pitch.ts",
+      "normalizedSyntaxSha256": "d842f29eae0554673e2f5e949bfcfd8d6383a3be3a298deb3fa556666d7b869f",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 5,
+      "jsdocBlocksAfter": 6
+    },
+    {
+      "path": "src/sensor/radiometry-readiness.ts",
+      "normalizedSyntaxSha256": "4f5b0b1b23329a40806bb2e0c2782c6bd86172f4e52a4c4b97dabf745530c871",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 3,
+      "jsdocBlocksAfter": 4
+    },
+    {
+      "path": "src/sensor/raw-readout.ts",
+      "normalizedSyntaxSha256": "395fd573b5f92d8b446c3cf23be8f9eab7cd7a657daf08fc98225fd8411700d4",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 13
+    },
+    {
+      "path": "src/sensor/raw-reconstruction.ts",
+      "normalizedSyntaxSha256": "3a06f1117af80bec296890ac5c40b7382c4faa12f65598dc44d0860cce9a0311",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 0,
+      "jsdocBlocksAfter": 4
+    },
+    {
+      "path": "src/sensor/readout-exposure-linkage.ts",
+      "normalizedSyntaxSha256": "4faced13ef380a558e74f74a89fa6a64a14a8305bc33d366fc46aef423a95002",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 9,
+      "jsdocBlocksAfter": 10
+    },
+    {
+      "path": "src/sensor/readout-timing.ts",
+      "normalizedSyntaxSha256": "9e5888e2fd5e3f6441aad148bd6136212ea88a837a02de3d97c9ffd48824a5e3",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 11,
+      "jsdocBlocksAfter": 12
+    },
+    {
+      "path": "src/sensor/response-application-compatibility.ts",
+      "normalizedSyntaxSha256": "5f1b55ffc45dd90a43dc53f1bc2d3747c16d79531497f76e449e6f0dbf150810",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 0,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/sensor/response-operating-range.ts",
+      "normalizedSyntaxSha256": "78256403c57d643af6febbd343beefc73164b1453f8cd2e0fd099b0d134a2896",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 5
+    },
+    {
+      "path": "src/sensor/responsivity-photocurrent.ts",
+      "normalizedSyntaxSha256": "8ece6eb0152ae81028bbf78396772a12f2869451fb7895c97822451db78f80af",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 4
+    },
+    {
+      "path": "src/sensor/sampling-aperture.ts",
+      "normalizedSyntaxSha256": "50fb949f43e12a861e674ee7cb1fd30fecf0dbd41133cc7039012a2e9e053c94",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 8,
+      "jsdocBlocksAfter": 9
+    },
+    {
+      "path": "src/sensor/scene-eqe-temporal-exposure.ts",
+      "normalizedSyntaxSha256": "84ab77fa164d821aca6a7729c4721618a5aca1a0fa5d8080824187fb8f7c03e7",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 5,
+      "jsdocBlocksAfter": 6
+    },
+    {
+      "path": "src/sensor/sensor-geometry.ts",
+      "normalizedSyntaxSha256": "1377b31a833bcb5de41fb12e347b315fddc8521088362c94ed862775614fe3c0",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 18,
+      "jsdocBlocksAfter": 19
+    },
+    {
+      "path": "src/sensor/signal-noise.ts",
+      "normalizedSyntaxSha256": "fa5302bf387277453be03c9f836495936b32705161287f794238e01e827ccdcb",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 7,
+      "jsdocBlocksAfter": 8
+    },
+    {
+      "path": "src/sensor/spatial-sample-reduction.ts",
+      "normalizedSyntaxSha256": "490326729960bd502fbf78bbfd7ac0867ea3dfe3cbc9acf8f86ea5a915550a37",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 8,
+      "jsdocBlocksAfter": 11
+    },
+    {
+      "path": "src/sensor/spatial-sampling-quadrature.ts",
+      "normalizedSyntaxSha256": "372cd0d3520b6625b4a3384935e7ca95b333a9db2faef075fb4c72fcbcff3ceb",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 13,
+      "jsdocBlocksAfter": 14
+    },
+    {
+      "path": "src/sensor/spatio-spectral-reduction.ts",
+      "normalizedSyntaxSha256": "72cc327041e5b2cbab3ad758b680b9baf9f77c6a6da7752b1b0fa1b5d7f73efd",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 10,
+      "jsdocBlocksAfter": 11
+    },
+    {
+      "path": "src/sensor/spectral-coverage.ts",
+      "normalizedSyntaxSha256": "1353167d15e0f4820a0f049ceadd4f6e7ff814d5115002cd758eb9b4d3e885cb",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 2
+    },
+    {
+      "path": "src/sensor/spectral-quadrature.ts",
+      "normalizedSyntaxSha256": "edbfbd883808abfa6c9b07d975a893c7b4cda3c067f7f058fb1f5cc8be60fd77",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 9,
+      "jsdocBlocksAfter": 11
+    },
+    {
+      "path": "src/sensor/spectral-response.ts",
+      "normalizedSyntaxSha256": "589528e581c2803be3067e8539e5aa0f24fe1b83a2b5c649437072a2e9a1df38",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 3,
+      "jsdocBlocksAfter": 6
+    },
+    {
+      "path": "src/sensor/temporal-eqe-sum.ts",
+      "normalizedSyntaxSha256": "de821fa6d95571acbd5589c4e084ef18b387fa199dc318adb2e7024cd5382d41",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/sensor/temporal-photo-signal.ts",
+      "normalizedSyntaxSha256": "e5df391c9f11395c2e8a6a6695b5abf58bf0e0df2369fd13c16b6d39eaa09b70",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 3,
+      "jsdocBlocksAfter": 4
+    },
+    {
+      "path": "src/sensor/temporal-sample-binding.ts",
+      "normalizedSyntaxSha256": "5ffa3a70adc90de9cc7a6a2322d48d9e51977f0e3242a3b33dfc30df57d5edb7",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 1,
+      "jsdocBlocksAfter": 2
+    },
+    {
+      "path": "src/simulation/poc-simulation.ts",
+      "normalizedSyntaxSha256": "5b3a8b380cc24f6235604cc663c769c91cbce6589e575f3edf2ad9f7769af2a5",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 10,
+      "jsdocBlocksAfter": 11
+    },
+    {
+      "path": "src/stabilization/camera-shake.ts",
+      "normalizedSyntaxSha256": "05bc8ba85671b97694c9b90c436119598c4b7882b83b450424e09bf8448f00ff",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 2,
+      "jsdocBlocksAfter": 3
+    },
+    {
+      "path": "src/stabilization/system.ts",
+      "normalizedSyntaxSha256": "cf94badc26a73d08096da8f7e9551e0730212e15d37c05d641a45f29826183f6",
+      "runtimeSyntaxIdentical": true,
+      "jsdocBlocksBefore": 0,
+      "jsdocBlocksAfter": 5
+    }
+  ],
+  "humanAndAgentDocuments": [
+    {
+      "path": ".github/AGENTS.md",
+      "sha256": "015b091fb274b94f016cfc2731b55ef44de8dbfbd23f9eda7dfdfd750a0a1eda",
+      "scope": "Human onboarding, policy, transport or fixture evidence and public/package navigation reviewed."
+    },
+    {
+      "path": ".github/pull_request_template.md",
+      "sha256": "6482483ed637a6cbfb50643883fe439111442da77d8894a64aa24bc0b66c0e7c",
+      "scope": "Human onboarding, policy, transport or fixture evidence and public/package navigation reviewed."
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "7d7e0c27fb47b38836895345f99b17d4747cf374b27e1293099cf553f5a81324",
+      "scope": "Agent ownership, scientific/review/DCO/package boundaries reconciled against final integration."
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "014b82575a36ea54715b24275485bfde283ff8565c8d2ab98938ac0bace6ebc1",
+      "scope": "Human onboarding, policy, transport or fixture evidence and public/package navigation reviewed."
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "a272c622978f20a659265df9119d4a638e04a6c5b91be780f65b0348eaa22002",
+      "scope": "Human onboarding, policy, transport or fixture evidence and public/package navigation reviewed."
+    },
+    {
+      "path": "NODE_SUPPORT.md",
+      "sha256": "3c703b6c0d97df65440ae247535f931f00e87fc044b1a2b93b6fbfb67dbb39cb",
+      "scope": "Human onboarding, policy, transport or fixture evidence and public/package navigation reviewed."
+    },
+    {
+      "path": "README.md",
+      "sha256": "caa7e0f950b7a5e3c11afcf5cc6fd383f72eb1237b8c4432320080358869d550",
+      "scope": "Human onboarding, policy, transport or fixture evidence and public/package navigation reviewed."
+    },
+    {
+      "path": "SECURITY.md",
+      "sha256": "cbc51b788ca9c14dc8ed9884ccf1c2f7d15859991a739c5c06881d3a5cd60e72",
+      "scope": "Human onboarding, policy, transport or fixture evidence and public/package navigation reviewed."
+    },
+    {
+      "path": "THIRD_PARTY.md",
+      "sha256": "573e43a279750e6edcc179756c0a6507a9cf4f74173f07a96909a31be88b1ad1",
+      "scope": "Human onboarding, policy, transport or fixture evidence and public/package navigation reviewed."
+    },
+    {
+      "path": "docs/API_STYLE.md",
+      "sha256": "62156eb0189b280df263415796fdadad49168d6e8fe0825a5c2d0e0ded6e00ab",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "sha256": "26d8ff65f8b980752c3b69fbb32339f22447ab582aa889bc654520f2069e6dca",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/AUTOMATION_COORDINATION.md",
+      "sha256": "080727f42cade6ceaa6c2ef1f0ed1036abe1b062eb63d0587c67347d899c9f8b",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/CAPTURE_COLOR.md",
+      "sha256": "e81ac4659edf0dbdf011948b2825fb8a4d903798dfec10f7c0f28e5d59f4a9cb",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/CAPTURE_CORRECTED_SDR.md",
+      "sha256": "07a6866f6272a66e162f3470917c612c86b882c927014849933a2d7c0dd0cd81",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/CAPTURE_EXPORT_METADATA.md",
+      "sha256": "924f72d4d2b6111b972d632edbd6616bc1776252b0f566e5bae8f31948ff4c18",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/CAPTURE_SDR.md",
+      "sha256": "36d697e689e52df10cea1197b4b39f16d57328dcf86f8b7ea5402f79b7eaac3e",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/DIGITAL_OPTICS_FOUNDATION.md",
+      "sha256": "5413b5667341985eeacf4e224405101fa5776cb17813fc25ed8c4b5552eff098",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/ENVIRONMENT_RAW_CAPTURE.md",
+      "sha256": "2e1d2ea8381a9029bf73db6db730d9af0fef68e71c3e8b61a31c601060e8b537",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/EXPORT_ACCEPTANCE.md",
+      "sha256": "b17767de8dd45302dfdaa7dc9dd47b39ade2b244631b316b1dfe07a37b94e69a",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/GENERIC_TIER_PRESETS.md",
+      "sha256": "0f74ac12d45f9d1ade4d0315d582349a5ab846260de1c1730b889b286b2def60",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/GEOMETRIC_PREPARATION_REUSE.md",
+      "sha256": "f2ae73472096e72a57ad1f679560882eaa14764ce6130842bf1e7c8dc4e2fd37",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/IMAGE_FORMATION.md",
+      "sha256": "c52fbc10e6152554779155f0ea3f23dbf8f121c4b77b516cd07f7b79b087050a",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/LINEAR_CAPTURE_ENCODING.md",
+      "sha256": "07ff42886c1769bf9cda5a788f677edd3555203c8e224bfd93dbbd6203bb43b4",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/MOTION_AND_SIGNAL.md",
+      "sha256": "fedf8a3033966a84f60ec613cca9f8674db88d2b1e9d3531379b3906964c0227",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/NUMERICAL_CORRECTNESS.md",
+      "sha256": "420e5b209ca53e951757b832589634f8ea46ec6115e8169ead2ae11370e1f84c",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/PERFORMANCE_BASELINE.md",
+      "sha256": "8a1a5bad9e71dfc6820d9c1e1ad3d3a28c7e606fc963ec39d9d04b2d3c8c6548",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/PHOTOGRAPHIC_EXPORT.md",
+      "sha256": "e6141da86976c294477c0356af4c0f161aa446df66054fe5ebbd583508c8c971",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/PHYSICS_FOUNDATION.md",
+      "sha256": "4d78b478cac0716b8ca816fbba2ee1953369606502921e646f96597f5b3bc305",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/POC_API.md",
+      "sha256": "204ca740d833a47aec2601105df67272bdc930d0185292201779d09a605c3b45",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/POC_PROJECTION_REUSE.md",
+      "sha256": "1d8a4f81d533ce02bd70417fca798f3ba5db3bda4a8f95a18f18cb5e29a3bda3",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/PROCESSED_OUTPUT.md",
+      "sha256": "fa8e7e43e3ddd3eb91550647da3e6163eede00bfba999a2bc594538f01fb64a8",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/PRODUCTION_COMPOSITION.md",
+      "sha256": "66a89ae1081c43404dd91dae9b0356d9cec4cd5f7047e80e167dc53b81315392",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/PRODUCTION_ENVIRONMENT_CAPTURE.md",
+      "sha256": "eb56a293baca24f4092f73547d4a426d30f88fe60fb0b15b0b8073526a31b8f7",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/PROVENANCE.md",
+      "sha256": "298cf87d4415ef4341da77177a7f43821603ef6c99a8cf9280bf09fb879c510b",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/PSF_FOUNDATION.md",
+      "sha256": "7e8eb896f5a695db7de3334af79e61921925ebb5a8a137e0d586a3da6e08dbce",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/RAW_FRAME_ENVELOPE.md",
+      "sha256": "de4f31e89f4963630236297065baf91213751d83652d4af2d14ae44803ad1880",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/RAW_FRAME_RECONSTRUCTION.md",
+      "sha256": "d439a2427af4c77820f3df5f0e94690242a27939d2615a150472e362a728ae01",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/SCENE_RADIANCE_AND_ILLUMINATION.md",
+      "sha256": "63f37d556e1dece085ec13485c0746d0d9ebad088ef0738464f9578a7c139c26",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/SCENE_SENSOR_QUADRATURE.md",
+      "sha256": "375f7f08b306e122254a843b960ef4f013731aa712428fb7b13654c70cd68e56",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/SCENE_SENSOR_TEMPORAL_EXPOSURE.md",
+      "sha256": "8f74ab20bb3bc566ada052a35dec44db6adcb6ba304be2fcfd70e1992fc2d3f7",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/SCIENTIFIC_ASSURANCE.md",
+      "sha256": "f93a1355b0f11935692eceb285a249d72f6c1abf07bb0b9240aa7a0223897ce2",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/SCIENTIFIC_CONFORMANCE.md",
+      "sha256": "b3ce4814eff791bdb86e49f8f7f823ef6bac9e549d6ab8e076556d09bcfd506f",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/SDR_RENDERING.md",
+      "sha256": "4e46229a4bd76190ad57986e2e4d3338bba6b5dfcbda2c7556e38b939fac34f5",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/SENSOR_ENVIRONMENT_QUERY.md",
+      "sha256": "9911236d00aafb75288da941d83c2e6e1e1e03b5a23b17d6335aa204a7d03c9f",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/SENSOR_EQE_LOCAL_EXPOSURE.md",
+      "sha256": "cdb0c24568c902cb4524734f162fe6cca7fbc265415c7c5da56c2e81018144b2",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/SENSOR_EQE_TEMPORAL_EXPOSURE.md",
+      "sha256": "2b0086f2e77a580b0cdef401b4f8b40a7bea15df38d46b3176da07ddefdc6a6c",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/SENSOR_PSF_QUADRATURE.md",
+      "sha256": "802d58b733d0d4d05ab4e3a761ddd4c408cc4b5e3725cfb4dd6a728efdc1ad04",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/SENSOR_RAW_FRAME.md",
+      "sha256": "ada480797606019ef388b1cd2e9f50938b29c33f142279817a400397e76e74bb",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/SENSOR_RAW_PRODUCER.md",
+      "sha256": "2d29dad58c8ce223f02e8a0fea523a2445aac1635d21a57b90c460357c0f2ce4",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/SIGNAL_CONFORMANCE.md",
+      "sha256": "0f126e966378f7599dfca9b16244930118afac44fa62974f6ec2d6d52dbf4d4d",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/SIMULATED_CAPTURE.md",
+      "sha256": "0c1c29499706bc3d9b0fe875975bd03d171fa2450f18eceb8147a91c58a620a3",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/STABILIZATION.md",
+      "sha256": "603f421fae0fd417827ffc1ac9d365c83270606c4c39303d6c6f9f4d51a97909",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/TEMPORAL_PHOTO_RAW.md",
+      "sha256": "1218b9c6cac34024502e4babe003c1298e21d79b86cbd216cf25339d48d7e6ee",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/TIER_ACCEPTANCE.md",
+      "sha256": "05987c086aaa74181fa59ac83433c72d1857ea48b72765d10ae1ea2e538f11d3",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/TIER_PRESET_ACCEPTANCE.md",
+      "sha256": "6429ede0cbfa15daa49c6506331c57276cb4490dcc9abffe33c6fbf109be6ee4",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/USAGE.md",
+      "sha256": "4201469236f0ba8d5b45ad55db532c79cbfbf5cc6d7087cea51ea2e663cec997",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/V1_COMPOSITION_MAP.md",
+      "sha256": "ddb8d9a2b71c01c76ebbcba57d7d2d0233bc8e55aa3eef1074d00101c9de954a",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/V1_HELPER_REUSE_REVIEW.md",
+      "sha256": "0e81088d93f96661e8b93777eb30c7782d1cf7ed4d9785e12c9fd4e6d83b7ecd",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "docs/V1_PERFORMANCE_DISPOSITION.md",
+      "sha256": "29ba025f909543181418b832da11419a1e229268e38436be62f35f95ad9799b5",
+      "scope": "Domain equations/contracts, versions, boundary and active-versus-historical status; examples/imports and navigation checked."
+    },
+    {
+      "path": "src/api/README.md",
+      "sha256": "a73c90f2d946612ffe56c2835e949980d4e5794386df114e58948e243bb0025c",
+      "scope": "Human onboarding, policy, transport or fixture evidence and public/package navigation reviewed."
+    },
+    {
+      "path": "test/fixtures/paired-export-acceptance/README.md",
+      "sha256": "022d0a543472096a0c6f9d63b2e13a56e344982eaf249963dc19f03837c44958",
+      "scope": "Human onboarding, policy, transport or fixture evidence and public/package navigation reviewed."
+    },
+    {
+      "path": "test/fixtures/producer-export-acceptance/README.md",
+      "sha256": "b7e4f06ffd435245009e99c4b1aa025b34a6b1865a99cc85d1400caa36295c0a",
+      "scope": "Human onboarding, policy, transport or fixture evidence and public/package navigation reviewed."
+    }
+  ]
+}

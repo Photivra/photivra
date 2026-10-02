@@ -1,5 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Photo, dark and
+ * explicitly incremental stored-electron components must share the exact site/channel/local shutter
+ * event. Completeness is an evidence-backed declaration, not the consequence of an empty component
+ * array. Expected stored charge remains distinct from a stochastic realization or nonlinear full-well
+ * clamp.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Photo, dark and
+ * explicitly incremental stored-electron components must share the exact site/channel/local shutter
+ * event. Completeness is an evidence-backed declaration, not the consequence of an empty component
+ * array. Expected stored charge remains distinct from a stochastic realization or nonlinear full-well
+ * clamp.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   calculatedResult,
@@ -382,6 +400,19 @@ function parseWindowIdentity(
   };
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Photo, dark and explicitly incremental stored-electron components must share the exact
+ * site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
+ * consequence of an empty component array. Expected stored charge remains distinct from a stochastic
+ * realization or nonlinear full-well clamp.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns SensorAdditionalStoredChargeComponent. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseSensorAdditionalStoredChargeComponent(
   value: unknown
 ): SensorAdditionalStoredChargeComponent {
@@ -499,6 +530,19 @@ export function parseSensorAdditionalStoredChargeComponent(
   };
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Photo, dark and explicitly incremental stored-electron components must share the exact
+ * site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
+ * consequence of an empty component array. Expected stored charge remains distinct from a stochastic
+ * realization or nonlinear full-well clamp.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns SensorAccumulatedChargeCompletenessProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseSensorAccumulatedChargeCompletenessProfile(
   value: unknown
 ): SensorAccumulatedChargeCompletenessProfile {
@@ -768,19 +812,75 @@ function validateComponentBinding(
   }
 }
 
+/**
+ * Compose photo, independently evaluated dark and explicitly incremental charge by exact local
+ * exposure identity, retaining completeness assessment before capacity/noise.
+ *
+ * Photo, dark and explicitly incremental stored-electron components must share the exact
+ * site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
+ * consequence of an empty component array. Expected stored charge remains distinct from a stochastic
+ * realization or nonlinear full-well clamp.
+ * @param input - Omit<ComposeSensorAccumulatedChargeInput, "photoSignal" | "darkCharge"> & {
+    photoSignal: SensorEqeExposureIntegration; darkCharge: SensorDarkCurrentCharge;
+  }. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<SensorAccumulatedChargeComposition>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function composeSensorAccumulatedCharge(
   input: Omit<ComposeSensorAccumulatedChargeInput, "photoSignal" | "darkCharge"> & {
     photoSignal: SensorEqeExposureIntegration; darkCharge: SensorDarkCurrentCharge;
   }
 ): CalculationResult<SensorAccumulatedChargeComposition>;
+/**
+ * Compose photo, independently evaluated dark and explicitly incremental charge by exact local
+ * exposure identity, retaining completeness assessment before capacity/noise.
+ *
+ * Photo, dark and explicitly incremental stored-electron components must share the exact
+ * site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
+ * consequence of an empty component array. Expected stored charge remains distinct from a stochastic
+ * realization or nonlinear full-well clamp.
+ * @param input - Omit<ComposeSensorAccumulatedChargeInput, "photoSignal" | "darkCharge"> & {
+    photoSignal: SensorEqeTemporalPhotoSignal; darkCharge: SensorTemporalDarkCurrentCharge;
+  }. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<SensorAccumulatedChargeComposition<SensorEqeTemporalPhotoSignal, SensorTemporalDarkCurrentCharge>>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function composeSensorAccumulatedCharge(
   input: Omit<ComposeSensorAccumulatedChargeInput, "photoSignal" | "darkCharge"> & {
     photoSignal: SensorEqeTemporalPhotoSignal; darkCharge: SensorTemporalDarkCurrentCharge;
   }
 ): CalculationResult<SensorAccumulatedChargeComposition<SensorEqeTemporalPhotoSignal, SensorTemporalDarkCurrentCharge>>;
+/**
+ * Compose photo, independently evaluated dark and explicitly incremental charge by exact local
+ * exposure identity, retaining completeness assessment before capacity/noise.
+ *
+ * Photo, dark and explicitly incremental stored-electron components must share the exact
+ * site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
+ * consequence of an empty component array. Expected stored charge remains distinct from a stochastic
+ * realization or nonlinear full-well clamp.
+ * @param input - ComposeSensorPhotoAccumulatedChargeInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<SensorPhotoAccumulatedChargeComposition>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function composeSensorAccumulatedCharge(
   input: ComposeSensorPhotoAccumulatedChargeInput
 ): CalculationResult<SensorPhotoAccumulatedChargeComposition>;
+/**
+ * Compose photo, independently evaluated dark and explicitly incremental charge by exact local
+ * exposure identity, retaining completeness assessment before capacity/noise.
+ *
+ * Photo, dark and explicitly incremental stored-electron components must share the exact
+ * site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
+ * consequence of an empty component array. Expected stored charge remains distinct from a stochastic
+ * realization or nonlinear full-well clamp.
+ * @param input - ComposeSensorPhotoAccumulatedChargeInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<SensorPhotoAccumulatedChargeComposition>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function composeSensorAccumulatedCharge(
   input: ComposeSensorPhotoAccumulatedChargeInput
 ): CalculationResult<SensorPhotoAccumulatedChargeComposition> {

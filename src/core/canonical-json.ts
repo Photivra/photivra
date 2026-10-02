@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Serializes a parsed, acyclic plain-data tree with sorted enumerable object keys, original array
+ * order and finite JSON numbers. JSON escaping and negative zero representation follow JSON.stringify.
+ * The source is never mutated. Undefined object properties follow the explicit domain policy;
+ * undefined array entries and unsupported scalar types always fail. Callers own dense-array,
+ * plain-record and cycle validation. This is serialization mechanics, not a general input parser,
+ * cryptographic hash or standardized canonical-JSON claim.
+ * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import { InvalidConfigurationError } from "./configuration-error.js";
 
 /** Domain-specific omissions and diagnostics are part of serialized identity. */

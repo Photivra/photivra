@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
+ * Module boundary and integration notes.
+ * Requires a finite number greater than zero.
+ * Requires a positive safe integer.
+ * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
+/**
  * Error thrown when a public scientific calculation receives invalid input.
  */
 export class InvalidScientificInputError extends RangeError {

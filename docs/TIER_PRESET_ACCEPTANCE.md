@@ -1,6 +1,8 @@
 # Generic tier preset acceptance disposition
 
-This is the final proposed #116 asset/catalog disposition against engine API
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
+This is the reviewed/merged #116 asset/catalog disposition against engine API
 0.116.0 and production plan 0.7.0. The reviewed/merged release gate still applies.
 #119 owns broader calibration and acceptance fixtures; #131 owns final conformance.
 This document does not certify calibrated performance or silently approve a V1
@@ -43,9 +45,8 @@ cannot silently interpolate them over spectrum/field/defocus, so its separate
 continuous-spectrum test explicitly omits PSF. Pupil throughput and illumination
 falloff retain separate ownership. No simultaneous composition is asserted.
 
-#119 now has its final proposed matched report/envelope and stabilization/flash
-acceptance disposition in [TIER_ACCEPTANCE.md](TIER_ACCEPTANCE.md), pending review
-and merge. LoCA/spectral bokeh, measured MTF,
+#119 has its reviewed/merged matched report/envelope and stabilization/flash
+acceptance disposition in [TIER_ACCEPTANCE.md](TIER_ACCEPTANCE.md), merged in PR #204. LoCA/spectral bokeh, measured MTF,
 manufacturer AF performance, arbitrary lens-state optical interpolation and external
 calibration are outside these initial assets' implemented representation; none is
 invented by catalog labels. Unsupported required effects continue to block under

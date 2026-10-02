@@ -103,6 +103,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Documentation and packed consumer acceptance
+        run: |
+          npm run docs:check
+          npm run release:consumer-check
+
       - name: Package dry run
         run: npm run pack:check
 
