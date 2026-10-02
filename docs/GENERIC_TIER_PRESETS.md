@@ -162,3 +162,31 @@ pixel-edge FOV; the joint RGB crop cannot expand a channel's ray coverage.
 No runtime, root API, schema, preset manifest, package or POC behavior changes.
 This does not complete #116/#119: physical PSF/scene composition, broader body
 execution and applicable export acceptance remain separately tracked.
+
+## Body execution acceptance
+
+`test/generic-tier-body-acceptance.test.ts` executes the exact 1.0.0 body
+assets through existing public APIs using #130's matched optical/exposure state.
+Fifteen cases cover all three tiers:
+
+- Burst times follow the maximum of explicit cadence and exposure duration;
+  a slow shutter cannot overlap ordinary still exposures. Self-timer delay is
+  applied once. Frame seeds are reproducible/distinct within the tested sequence;
+  frame-count limits and unsupported focus bracketing reject.
+- Single AF acquires and holds; focus/release priority gates remain separate.
+  Consumer rejects continuous AF; Prosumer/Professional follow the same known
+  target and require explicit reacquisition after loss. The common ideal actuator
+  does not establish real tracking speed or recognition performance.
+- Uniform/highlight metering uses independently calculated weighted means and
+  target ratios, stays invariant to output crop, and rejects tone-mapped input.
+- Observable pre-WB weighted patches yield independent logarithmic-strength AWB
+  gains. Clipped samples are excluded/reported, unsupported policies reject,
+  and a locked state preserves resolved gains without altering RAW/exposure.
+- Global data-readout declarations retain nonzero duration with zero spatial
+  phase skew under all three shutter mechanisms. These tests do not establish
+  exposure-boundary scans, flash compatibility or rolling-motion behavior.
+
+Assets, runtime contracts and all versions remain unchanged. These are bounded
+synthetic body-policy execution checks, not measured camera calibration or full
+capture/production/output acceptance. Physical scene/PSF composition, applicable
+export wiring and broader stabilization/flash acceptance remain separate work.
