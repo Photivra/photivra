@@ -115,6 +115,21 @@ export interface DefocusCircle {
 export function calculateDefocusCircle(
   input: CalculateDefocusCircleInput
 ): CalculationResult<DefocusCircle> {
+  return calculateDefocusCircleUsingFocusProjection(input);
+}
+
+/** @internal Immutable request-local identity; never a root public cache/API. */
+export interface ResolvedDefocusFocusProjection {
+  readonly focalLengthMm: number;
+  readonly focusDistanceM: number;
+  readonly imageDistanceMm: number;
+}
+
+/** @internal Reuses a projection already calculated for this exact POC request. */
+export function calculateDefocusCircleUsingFocusProjection(
+  input: CalculateDefocusCircleInput,
+  projection?: ResolvedDefocusFocusProjection
+): CalculationResult<DefocusCircle> {
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("aperture", input.aperture);
   requirePositiveFinite("focusDistanceM", input.focusDistanceM);
@@ -123,10 +138,20 @@ export function calculateDefocusCircle(
   let focusImageDistanceMm: number;
   let subjectImageDistanceMm: number;
   try {
-    focusImageDistanceMm = calculateThinLensImageDistance({
-      focalLengthMm: input.focalLengthMm,
-      objectDistanceM: input.focusDistanceM
-    }).value.imageDistanceMm;
+    if (projection !== undefined) {
+      if (projection.focalLengthMm !== input.focalLengthMm ||
+          projection.focusDistanceM !== input.focusDistanceM ||
+          input.focusDistanceM * 1000 <= input.focalLengthMm) {
+        throw new InvalidScientificInputError("Resolved focus projection identity differs from the request.");
+      }
+      requirePositiveFinite("resolvedFocusImageDistanceMm", projection.imageDistanceMm);
+      focusImageDistanceMm = projection.imageDistanceMm;
+    } else {
+      focusImageDistanceMm = calculateThinLensImageDistance({
+        focalLengthMm: input.focalLengthMm,
+        objectDistanceM: input.focusDistanceM
+      }).value.imageDistanceMm;
+    }
     subjectImageDistanceMm = calculateThinLensImageDistance({
       focalLengthMm: input.focalLengthMm,
       objectDistanceM: input.subjectDistanceM
