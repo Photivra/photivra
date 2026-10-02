@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: Apache-2.0
+
+import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
+import { InvalidScientificInputError } from "../core/validation.js";
+import { calculateSensorEqeLocalRate, type CalculateSensorEqeLocalExposureInput } from "./eqe-local-exposure.js";
+
+/** Shared response/site/shutter state, with separately evaluated physical light at each time. */
+export interface CalculateSensorEqeTemporalExposureInput
+  extends Omit<CalculateSensorEqeLocalExposureInput, "irradianceSamples" | "stationarityProfile"> {
+  /** Complete uniform-midpoint coverage; array order is not temporal identity. */
+  samples: readonly {
+    temporalSampleIndex: number;
+    /** Seconds on the shutter's first-opening-boundary-phase reference. */
+    timeSecondsFromOpeningReference: number;
+    /** Complete W/m²/nm Cartesian irradiance coverage for this instant. */
+    irradianceSamples: CalculateSensorEqeLocalExposureInput["irradianceSamples"];
+  }[];
+}
+
+/** Nonstationary photo expectation, deliberately distinct from stationary RAW producer inputs. */
+export interface SensorEqeTemporalExposure {
+  kind: "eqe-temporal-quadrature-expected-counts";
+  colorSamplingProfileId: string;
+  channelId: string;
+  site: { x: number; y: number };
+  bindingId: string;
+  timeReference: "first-opening-boundary-phase";
+  startOffsetSecondsFromOpeningReference: number;
+  endOffsetSecondsFromOpeningReference: number;
+  localExposureDurationSeconds: number;
+  expectedIncidentPhotonCount: number;
+  expectedGeneratedElectronCount: number;
+  integrationMethod: "uniform-midpoint-rate-quadrature";
+  timeStationarityEstablished: false;
+  timeVaryingSignalIntegrated: true;
+  temporalIntegrationApplied: true;
+  upstreamSceneAndOpticsVerified: false;
+  accumulatedSignalCompleteness: "photo-signal-only";
+  physicalFullWellAssessmentAuthorized: false;
+  shotNoiseApplied: false;
+  rawCodeValueProduced: false;
+  /** Canonical order, seconds-valued integration measures and independent child evidence. */
+  samples: readonly {
+    temporalSampleIndex: number;
+    timeSecondsFromOpeningReference: number;
+    integrationMeasureSeconds: number;
+    timeAverageWeight: number;
+    stages: ReturnType<typeof calculateSensorEqeLocalRate>;
+  }[];
+}
+
+/**
+ * Evaluate response validity and EQE independently at each declared shutter
+ * midpoint, then sum rates times seconds. This is quadrature, not a stationarity
+ * claim or convergence proof. Shared profile/geometry state prevents combining
+ * rates from different sites or shutter events. No renderer executes here.
+ */
+export function calculateSensorEqeTemporalExposure(
+  input: CalculateSensorEqeTemporalExposureInput
+): CalculationResult<SensorEqeTemporalExposure> {
+  const count = input.samples?.length;
+  if (!Array.isArray(input.samples) || !Number.isSafeInteger(count) || count < 1 || count > 256) {
+    throw new InvalidScientificInputError("Temporal quadrature requires 1 through 256 samples.");
+  }
+  const byIndex = new Map<number, CalculateSensorEqeTemporalExposureInput["samples"][number]>();
+  let nodeCount = 0;
+  for (const sample of input.samples) {
+    if (sample === undefined || sample === null || !Number.isSafeInteger(sample.temporalSampleIndex) ||
+      sample.temporalSampleIndex < 0 || sample.temporalSampleIndex >= count ||
+      byIndex.has(sample.temporalSampleIndex) || !Number.isFinite(sample.timeSecondsFromOpeningReference) ||
+      !Array.isArray(sample.irradianceSamples)) {
+      throw new InvalidScientificInputError("Temporal samples require unique in-range indices, finite times and irradiance arrays.");
+    }
+    nodeCount += sample.irradianceSamples.length;
+    if (nodeCount > 100000) {
+      throw new InvalidScientificInputError("Temporal Cartesian irradiance coverage exceeds the 100000-node budget.");
+    }
+    byIndex.set(sample.temporalSampleIndex, sample);
+  }
+  const samples: SensorEqeTemporalExposure["samples"][number][] = [];
+  let photonCount = 0, electronCount = 0;
+  let photonCorrection = 0, electronCorrection = 0;
+  let previousTime = -Infinity;
+  for (let index = 0; index < count; index++) {
+    const sample = byIndex.get(index)!;
+    const stages = calculateSensorEqeLocalRate({ ...input, irradianceSamples: sample.irradianceSamples });
+    const binding = stages.exposureBinding.value;
+    const start = binding.localExposureWindow.startOffsetSecondsFromOpeningReference;
+    const measure = binding.localExposureDurationSeconds / count;
+    const time = start + (index + 0.5) * measure;
+    // Exact shared construction rejects stale/global-clock samples without an implicit tolerance.
+    if (sample.timeSecondsFromOpeningReference !== time || !Number.isFinite(measure) || measure <= 0 ||
+      !(time > start && time > previousTime && time < binding.localExposureWindow.endOffsetSecondsFromOpeningReference)) {
+      throw new InvalidScientificInputError("Temporal sample must match its representable local shutter midpoint exactly.");
+    }
+    previousTime = time;
+    const photons = stages.electronRate.value.incidentPhotonRatePerSecond * measure;
+    const electrons = stages.electronRate.value.expectedGeneratedElectronRatePerSecond * measure;
+    const adjustedPhotons = photons - photonCorrection;
+    const nextPhotons = photonCount + adjustedPhotons;
+    photonCorrection = (nextPhotons - photonCount) - adjustedPhotons;
+    photonCount = nextPhotons;
+    const adjustedElectrons = electrons - electronCorrection;
+    const nextElectrons = electronCount + adjustedElectrons;
+    electronCorrection = (nextElectrons - electronCount) - adjustedElectrons;
+    electronCount = nextElectrons;
+    samples.push({ temporalSampleIndex: index, timeSecondsFromOpeningReference: time,
+      integrationMeasureSeconds: measure, timeAverageWeight: 1 / count, stages });
+  }
+  const binding = samples[0]!.stages.exposureBinding.value;
+  return approximationResult({ kind: "eqe-temporal-quadrature-expected-counts",
+    colorSamplingProfileId: binding.colorSamplingProfileId, channelId: binding.channelId, site: { ...binding.site },
+    bindingId: binding.bindingId, timeReference: "first-opening-boundary-phase",
+    startOffsetSecondsFromOpeningReference: binding.localExposureWindow.startOffsetSecondsFromOpeningReference,
+    endOffsetSecondsFromOpeningReference: binding.localExposureWindow.endOffsetSecondsFromOpeningReference,
+    localExposureDurationSeconds: binding.localExposureDurationSeconds,
+    expectedIncidentPhotonCount: photonCount, expectedGeneratedElectronCount: electronCount,
+    integrationMethod: "uniform-midpoint-rate-quadrature", timeStationarityEstablished: false,
+    timeVaryingSignalIntegrated: true, temporalIntegrationApplied: true, upstreamSceneAndOpticsVerified: false,
+    accumulatedSignalCompleteness: "photo-signal-only", physicalFullWellAssessmentAuthorized: false,
+    shotNoiseApplied: false, rawCodeValueProduced: false, samples
+  }, "sensor-eqe-temporal-exposure", "0.1.0", [
+    "Irradiance at each time is declared; scene transport, projection and PSF execution are not verified.",
+    "Uniform midpoint quadrature has no asserted convergence bound or combined uncertainty.",
+    "Nonstationary counts are not the existing stationary charge/RAW producer contract; downstream integration remains required."
+  ]);
+}
