@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "0.1.0",
+  "presetVersion": "1.0.0",
+  "provenance": {
+    "sourceOrigin": "photivra",
+    "reuseStatus": "photivra-owned",
+    "sourceReference": "photivra:generic-tier-assets-v1"
+  },
+  "catalogSha256": "118805a23640593d77920e17d8ff2d43c1b31816acf018c6ed97e8e43f29e885",
+  "limitation": "Synthetic finite reference assets, not measured camera/lens calibration."
+}
