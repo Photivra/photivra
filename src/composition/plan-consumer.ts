@@ -13,7 +13,7 @@ import {
 } from "./image-formation-plan.js";
 
 export const PRODUCTION_PLAN_CONSUMER_MANIFEST_VERSION =
-  "0.1.0" as const;
+  "0.2.0" as const;
 
 export interface CreateProductionPlanConsumerManifestInput {
   plan: ProductionImageFormationPlan;
@@ -46,6 +46,9 @@ export interface ProductionPlanConsumerManifest {
     }[];
   blockers:
     readonly ProductionImageFormationBlocker[];
+  /** Same immutable executed RAW and output results; consumers cannot re-render a different source. */
+  environmentCaptureResult?: ProductionImageFormationPlan["environmentCaptureResult"];
+  processedOutputResult?: ProductionImageFormationPlan["processedOutputResult"];
   physicalSceneToSensorResult:
     ProductionImageFormationPlan["physicalSceneToSensorResult"];
   temporalCaptureResult:
@@ -203,6 +206,8 @@ export function createProductionPlanConsumerManifest(
       input.plan.status,
     activeOrModeledStages,
     activeOrModeledEffects,
+    ...(input.plan.environmentCaptureResult === undefined ? {} : { environmentCaptureResult: input.plan.environmentCaptureResult }),
+    ...(input.plan.processedOutputResult === undefined ? {} : { processedOutputResult: input.plan.processedOutputResult }),
     blockers:
       input.plan.blockers,
     physicalSceneToSensorResult:

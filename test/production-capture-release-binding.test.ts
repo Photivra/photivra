@@ -386,12 +386,12 @@ describe("production capture binding from release frame", () => {
     expect(plan.status)
       .toBe("ready");
     expect(plan.version)
-      .toBe("0.6.0");
+      .toBe("0.7.0");
     expect(plan.versions)
       .toMatchObject({
-        engineApi: "0.115.0",
+        engineApi: "0.116.0",
         captureSnapshot: "0.3.0",
-        plan: "0.6.0"
+        plan: "0.7.0"
       });
     expect(plan.captureIdentity)
       .toMatchObject({

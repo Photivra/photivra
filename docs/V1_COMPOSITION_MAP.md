@@ -1,16 +1,17 @@
 # OpenSource V1 composition and consumer map
 
-Source review baseline: main `99db04fa980cc35577ebb8c556f58182d0f69822`,
-2026-10-01. Scope/status comes from [V1 #129](https://github.com/Photivra/photivra/issues/129).
-This map addresses [defect #178](https://github.com/Photivra/photivra/issues/178)
-findings 1 and 2. It records implemented consumers and missing handoffs; it does
-not activate a production stage, close a feature ticket or approve a deferral.
+Current implementation: root API 0.116.0, production plan 0.7.0, based on main
+`8f5259c4d6b40746173d7842554d416f0138ee27` plus the #178 production integration
+change. Scope/status comes from [V1 #129](https://github.com/Photivra/photivra/issues/129).
+The tracker is **27/32**: #16 and #112 are closed; #116, #119, #43, #45 and #131
+remain feature/science gates. #178 is a separate required defect; #180 follows
+final conformance. This proposed implementation does not close GitHub issues
+or authorize a release.
 
-The tracker has 25 closed and seven open feature/science items. A closed
-foundation ticket establishes its approved primitive scope, not automatic
-availability in every production composition. Test links below are representative
-regression evidence for the named consumer; a unit/adapter test is not a claim
-of complete scene-to-file integration.
+A closed foundation ticket establishes its primitive scope, not automatic
+availability of every optional model in every production route. Direct consumers,
+bounded executed composition and unsupported combinations are distinguished
+below; no unsupported combination is an approved V1 deferral.
 
 ## All 32 scoped items
 
@@ -28,7 +29,7 @@ needed.
 | [#12](https://github.com/Photivra/photivra/issues/12) Readout and shutter | closed | [exposure-window.ts](../src/sensor/exposure-window.ts) | Production temporal diagnostics; RAW local-window handoff | [sensor-raw-local-exposure.test.ts](../test/sensor-raw-local-exposure.test.ts) | #16: integrate scene signal over those windows; no inferred synchronization |
 | [#14](https://github.com/Photivra/photivra/issues/14) Sensor pipeline | closed | [eqe-electron-rate.ts](../src/sensor/eqe-electron-rate.ts) | Bounded irradiance→EQE local exposure composition; charge-to-RAW adapter | [sensor-raw-pipeline.test.ts](../test/sensor-raw-pipeline.test.ts) | #16/#178: bind committed scene/optics/PSF origin to physical irradiance nodes |
 | [#15](https://github.com/Photivra/photivra/issues/15) Linear capture and color | closed | [simulated-capture.ts](../src/capture/simulated-capture.ts) | Immutable capture; ideal XYZ color and linear encoding; sensor adapter distinct | [capture-color.test.ts](../test/capture-color.test.ts) | #112/#16: bind physical capture origin; preserve color-channel basis |
-| [#16](https://github.com/Photivra/photivra/issues/16) Paired RAW DNG/JPEG | open | [photographic-export.ts](../src/capture/photographic-export.ts) | Exact attached-RAW reconstruction → development → correction/SDR → files | [raw-output-conformance.test.ts](../test/raw-output-conformance.test.ts) | Authoritative upstream origin, production activation, editor/resolution acceptance |
+| [#16](https://github.com/Photivra/photivra/issues/16) Paired RAW DNG/JPEG | closed | [photographic-export.ts](../src/capture/photographic-export.ts) | Exact attached-RAW reconstruction → development → correction/SDR → files | [raw-output-conformance.test.ts](../test/raw-output-conformance.test.ts) | Producer-derived independent/Adobe/editor evidence merged in #201; 4,096-site bound remains explicit |
 | [#43](https://github.com/Photivra/photivra/issues/43) Prepared/batch performance | open | [geometric-transforms.ts](../src/output/geometric-transforms.ts) | Call-owned prepared geometric mapping reused by sampling execution | [geometric-preparation-reuse.test.ts](../test/geometric-preparation-reuse.test.ts) | Relevant remeasurement after V1 processing stabilizes; do not invent a cache |
 | [#45](https://github.com/Photivra/photivra/issues/45) POC projection reuse | open | [poc-simulation.ts](../src/simulation/poc-simulation.ts) | Private prepared projection in legacy POC defocus sweeps | [poc-projection-reuse.test.ts](../test/poc-projection-reuse.test.ts) | Relevant final remeasurement; POC remains a separate compatibility surface |
 | [#95](https://github.com/Photivra/photivra/issues/95) Stable support | closed | [camera-shake.ts](../src/stabilization/camera-shake.ts) | Direct ideal stable-support boundary, independent of correction | [camera-shake.test.ts](../test/camera-shake.test.ts) | #16/#178: requested shake/stabilization must preserve physical ownership |
@@ -41,7 +42,7 @@ needed.
 | [#106](https://github.com/Photivra/photivra/issues/106) Manual flash/sync | closed | [flash.ts](../src/exposure/flash.ts) | Declared sync and illumination overlay; no full production radiance integration | [flash.test.ts](../test/flash.test.ts) | #16/#178: apply physical-time light transport when selected; no exposure-duration shortcut |
 | [#108](https://github.com/Photivra/photivra/issues/108) WB/custom/AWB | closed | [white-balance.ts](../src/color/white-balance.ts) | Resolved WB → release/production binding; RAW intent and one-time sensor development | [photographic-export.test.ts](../test/photographic-export.test.ts) | #112/#16: preserve matching basis; never re-estimate from rendered output |
 | [#111](https://github.com/Photivra/photivra/issues/111) Production plan | closed | [image-formation-plan.ts](../src/composition/image-formation-plan.ts) | Authoritative graph expansion; physical sample/temporal results and blockers | [production-image-formation-plan.test.ts](../test/production-image-formation-plan.test.ts) | #178/#16/#112: intentionally add downstream stages with contract/version review |
-| [#112](https://github.com/Photivra/photivra/issues/112) Processed camera output | open | [capture-corrected-sdr.ts](../src/output/capture-corrected-sdr.ts) | Capture-bound color/correction → oriented view/SDR; paired RAW consumer | [photographic-export-correction.test.ts](../test/photographic-export-correction.test.ts) | Plan 0.6.0 implements committed RAW downstream handoff; pending owner review/DCO and merge; upstream activation remains #16/#178 |
+| [#112](https://github.com/Photivra/photivra/issues/112) Processed camera output | closed | [capture-corrected-sdr.ts](../src/output/capture-corrected-sdr.ts) | Capture-bound color/correction → oriented view/SDR; paired RAW consumer | [photographic-export-correction.test.ts](../test/photographic-export-correction.test.ts) | Shared processed RAW/preview/JPEG merged in #200; executed upstream route in plan 0.7.0; final tier/conformance acceptance remains |
 | [#113](https://github.com/Photivra/photivra/issues/113) Lens PSF/bokeh | closed | [lens-psf-profile.ts](../src/optics/lens-psf-profile.ts) | Declared sampled PSF/MTF; separate complex-pupil model | [lens-psf-framework.test.ts](../test/lens-psf-framework.test.ts) | #16/#178: wavelength/field/depth sampling and finite support; MTF-only is not renderable PSF |
 | [#114](https://github.com/Photivra/photivra/issues/114) Stray light | closed | [stray-light.ts](../src/optics/stray-light.ts) | Separate declared ghost/veiling irradiance foundation | [stray-light.test.ts](../test/stray-light.test.ts) | #16/#178: add only explicitly selected incremental light; never fold into primary PSF |
 | [#116](https://github.com/Photivra/photivra/issues/116) Generic tiers | open | [generic-tier-presets.ts](../src/equipment/generic-tier-presets.ts) | Exact-version selection; body and lens profile resolution | [generic-tier-presets.test.ts](../test/generic-tier-presets.test.ts) | Broader coherent scene/PSF/body/output acceptance; no calibrated tier ranking |
@@ -55,190 +56,78 @@ needed.
 | [#134](https://github.com/Photivra/photivra/issues/134) Evidence/uncertainty | closed | [scientific-assurance.ts](../src/core/scientific-assurance.ts) | Production assurance composition retains weakest required status and unpropagated uncertainty | [scientific-assurance.test.ts](../test/scientific-assurance.test.ts) | #16/#112: preserve child evidence/status; no invented combined uncertainty |
 | [#135](https://github.com/Photivra/photivra/issues/135) Front filters | closed | [front-of-lens-filter.ts](../src/optics/front-of-lens-filter.ts) | Capture snapshot → #110 throughput exactly once | [front-of-lens-filter.test.ts](../test/front-of-lens-filter.test.ts) | #16/#178: distinguish lens/filter/sensor response scope to avoid double transmission |
 
-## Actual production-plan boundary
+## Authoritative production execution
 
-[`getImageFormationContract()`](../src/core/image-formation.ts) owns required
-upstream dependencies and coupling. The production composer must expand that
-graph, not invent a parallel renderer/app ordering. The present
-[`COMPOSER_SUPPORTED_STAGES`](../src/composition/image-formation-plan.ts) contains
-exactly these four stages:
-
-| Stage | Implemented plan behavior | Remaining distinction |
-| --- | --- | --- |
-| `scene-ray-projection` | Projection/geometry ownership in the semantic plan | Does not execute a renderer or a full irradiance field |
-| `scene-radiance-evaluation` | Validates the bound physical scene sample request/result | Provider declaration/result identity is not proof of measured source truth |
-| `lens-field-pupil-evaluation` | Reuses #110 for the declared physical sample, including selected filters/field throughput | Pre-sensor-stack irradiance sample is not a full PSF-convolved sensor exposure |
-| `temporal-exposure-readout` | Exposure-window/readout diagnostics and optional pure-rotation quadrature | PSF dependency can still block the whole plan; useful timing is not completed temporal radiance integration |
-
-Requested `field-wavelength-psf`, `sensor-optical-stack`,
-`photosite-cfa-sampling`, `sensor-charge-statistics`, `read-noise-conversion`,
-`adc-quantization` remain uncomposed by this planner. Plan 0.6.0 composes
-`reconstruction`, `physical-orientation-transform`, `output-crop-resample` and
-`display-processing` only from an explicitly committed RAW processing attachment
-and declared renderer support. Without it they retain their unsupported state.
-See [processed output](PROCESSED_OUTPUT.md); upstream origin is still unverified.
-They report `engine-stage-not-composed` rather than becoming active because a
-standalone function exists. Omitted-by-fidelity and explicitly modeled-zero
-states keep their current separate meanings.
-
-[`createProductionPlanConsumerManifest()`](../src/composition/image-formation-plan.ts)
-projects the same committed plan into interactive/reference roles. It does not
-execute these absent stages or authorize changing inputs, samples or seeds.
-
-## Existing RAW and output execution to retain
-
-[`simulateSensorRawFrame()`](../src/capture/sensor-raw-producer.ts) already owns
-charge completeness/capacity → seeded charge/noise → ADC → native CFA attachment.
-It consumes declared per-site EQE photo and dark exposure results, including the
-optional engine timing binding. `upstreamRadiometryVerified` remains false.
-
-[`resolveRawFrameReconstruction()`](../src/capture/raw-frame-reconstruction.ts)
-uses only attached RAW codes and explicit phase kernels. Its
-`producerOriginVerified` remains false: structural attachment validation cannot
-prove a caller's execution history. Independent captured float planes are never
-an alternative source of the paired JPEG.
-
-[`createPhotographicExportPair()`](../src/capture/photographic-export.ts) already
-connects that reconstruction to the internal sensor-color adapter, one-time WB,
-optional capture-bound native correction, oriented output and SDR/JPEG. The DNG
-preserves exact native codes; correction intent does not rewrite RAW. These
-adapters are reusable execution, but do not activate the corresponding reserved
-production-plan stages.
-
-[`raw-output-conformance.test.ts`](../test/raw-output-conformance.test.ts),
-[`sensor-raw-producer.test.ts`](../test/sensor-raw-producer.test.ts) and tier output
-acceptance establish this bounded path. They supply synthetic upstream exposure
-expectations. They are not a scene/spectral-response-to-exposure origin test.
-See [RAW frame envelope](RAW_FRAME_ENVELOPE.md): 4,096 full native sites remain
-the reference execution limit, independently of the larger attachment budget.
-
-## Implemented bounded sensor handoff
-
-[`calculateSensorEqeLocalExposure()`](../src/sensor/eqe-local-exposure.ts) now
-composes explicit irradiance nodes, response application/range, EQE and stationary
-local exposure. [Acceptance](../test/eqe-local-exposure.test.ts) reaches the existing
-RAW and paired-file path with owned synthetic fields. See
-[SENSOR_EQE_LOCAL_EXPOSURE.md](SENSOR_EQE_LOCAL_EXPOSURE.md). Scene/optics origin
-remains declared; nonstationary RAW handoff remains absent; production gates
-and the 25/32 tracker count are unchanged.
-
-[`calculateSceneToSensorIrradianceQuadrature()`](../src/optics/scene-to-sensor-quadrature.ts)
-now evaluates the existing #85/#110 bridge at each exact pre-AA node, retaining
-provider/profile/wavelength/time bindings. [Acceptance](../test/scene-to-sensor-quadrature.test.ts)
-reaches package-incident EQE, RAW and paired files with declared synthetic radiance.
-See [SCENE_SENSOR_QUADRATURE.md](SCENE_SENSOR_QUADRATURE.md). Target projection,
-provider execution, PSF and temporal integration remain unverified/unapplied;
-this adapter does not activate production stages.
-
-[`calculateSensorEqeTemporalExposure()`](../src/sensor/eqe-temporal-exposure.ts)
-adds bounded nonstationary sensor-rate quadrature with response validity checked
-at every local shutter midpoint. [Acceptance](../test/eqe-temporal-exposure.test.ts)
-checks SI counts, stationary equivalence, quadratic convergence, rolling offsets
-and rejection of an out-of-range bright instant even when its average is valid.
-See [SENSOR_EQE_TEMPORAL_EXPOSURE.md](SENSOR_EQE_TEMPORAL_EXPOSURE.md). Source
-transport/PSF remain declared. The explicit [temporal photo-signal handoff](TEMPORAL_PHOTO_RAW.md)
-now connects independently validated midpoint expectations to dark/charge/RAW and
-paired files, with [global/rolling acceptance](../test/temporal-photo-raw.test.ts). No production activation or
-umbrella closure is claimed.
-
-[`calculateSceneSensorEqeTemporalExposure()`](../src/sensor/scene-eqe-temporal-exposure.ts)
-now composes the declared scene/optical bridge at each local shutter midpoint
-with the existing temporal EQE path. Sensor-owned plans remove caller plan drift;
-the explicit package plane and opening-boundary time reference remain enforced.
-[Acceptance](../test/scene-eqe-temporal-exposure.test.ts) checks SI counts, rolling
-offsets, instantaneous validity and exact RAW/file handoff. See
-[SCENE_SENSOR_TEMPORAL_EXPOSURE.md](SCENE_SENSOR_TEMPORAL_EXPOSURE.md).
-Provider/projection/PSF execution and production activation remain open; 25/32 is unchanged.
-
-## Remaining upstream handoff into the existing producer
-
+[`getImageFormationContract()`](../src/core/image-formation.ts) owns the stage
+dependencies. Plan 0.7.0 expands that graph and can invoke the existing
 [`simulateEnvironmentSensorRawFrame()`](../src/capture/environment-raw-producer.ts)
-now joins generated environment queries and actual supplied provider calls through
-optional local PSF, temporal EQE/photo/dark and the existing native RAW producer.
-[`calculateEnvironmentSensorPhotoSignal()`](../src/sensor/environment-photo-signal.ts)
-exposes the site path independently. [Execution contract](ENVIRONMENT_RAW_CAPTURE.md)
-and [acceptance](../test/environment-raw-integration.test.ts) retain bounded native
-coverage, exact frame/event commitments and paired export from actual realized
-codes. Provider invocation is established, but physical scene transport,
-visibility, general production activation and full-resolution/editor acceptance
-remain open. V1 stays 25/32.
+through `environmentCapture`. It binds exact context/event/scene/provider/optics,
+geometry/shutter/rotation/seed/WB identities before provider code executes.
+Optional processing consumes only its realized native RAW frame. No second
+writer, scientific graph or seed schedule is introduced.
 
-[`calculateSensorEnvironmentRadianceQuery()`](../src/optics/sensor-environment-query.ts)
-derives an environment query from physical native sensor support using ideal
-focus-aware projection and analytic inverse camera rotation. Its explicit
-opening-boundary clock and outgoing-toward-camera conventions prevent hidden
-coordinate/time reinterpretation. See [SENSOR_ENVIRONMENT_QUERY.md](SENSOR_ENVIRONMENT_QUERY.md)
-and [acceptance](../test/sensor-environment-query.test.ts). This calculates the
-geometric reference ray, not scene intersections, visibility or provider transport;
-production stages remain unchanged and V1 stays 25/32.
-
-[`calculateSensorPsfIrradianceQuadrature()`](../src/optics/sensor-psf-quadrature.ts)
-now consumes #113 sampled PSF shapes with an explicitly limited destination-local
-shift-invariance approximation and complete pre-PSF irradiance support. Native
-sensor/image-plane axes are converted explicitly; pupil throughput stays separate.
-Its post-PSF package-incident samples feed the existing temporal sensor input.
-See [SENSOR_PSF_QUADRATURE.md](SENSOR_PSF_QUADRATURE.md) and
-[acceptance](../test/sensor-psf-quadrature.test.ts). Full field-dependent forward
-energy transport, provider/projection execution and production activation remain
-open. This does not close any V1 feature or change 25/32.
-
-The missing handoff belongs to #16/#178, with processed output and plan
-activation coordinated with #112. It should produce the existing per-site
-producer inputs through the scientific APIs below, retaining child envelopes;
-it must not accept an independently rendered RGB plane and relabel it sensor
-signal. The table retains the full origin/production acceptance requirements; the bounded
-adapters above implement declared scene/optics nodes and stationary/nonstationary sensor exposure.
-
-| Handoff | Reuse / authoritative owner | Binding and acceptance requirement |
+| Stage family | Executed consumer | Independent acceptance |
 | --- | --- | --- |
-| Committed execution request | Production prepared context/capture snapshot and authoritative graph | Exact scene/release/capture/profile/fidelity/time/seed identities; immutable owned state; requested missing capabilities block |
-| Per-node pre-sensor irradiance | #85 scene radiance + #110 optical throughput, selected #113 PSF/pupil and temporal contributions | Evaluate every requested field/depth/wavelength/time node with declared geometry/support; no copying one scalar sample across a raster without an explicit uniform-field model |
-| Sensor stack and photosite support | `sensor/optical-stack.ts`, `sampling-aperture.ts`, `spatial-sampling-quadrature.ts`, `spectral-quadrature.ts` | Destination CFA channel stays fixed across spatial nodes; area and response scope are explicit; AA redistributes support without silently applying response twice |
-| Spatial/spectral reduction | `reduceSensorSpatioSpectralIrradiance()` | Exactly identified Cartesian-product node values in W/m²/nm, declared wavelength basis/measure and geometric aperture area; coverage alone is not detector validity |
-| Validity and EQE rate | `assessSensorResponseApplicationCompatibility()`, `assessSensorResponseOperatingRange()`, `calculateSensorEqeElectronRate()` | Match source plane, profile/channel/site/area/reference conditions; preserve per-bin operating validity before rate conversion; an A/W current result cannot be substituted for EQE electrons |
-| Local exposure expectation | `bindSensorRateToLocalExposure()` and `integrateStationarySensorRateOverLocalExposure()` | Bind the correct local opening/closing window and establish stationarity separately before using rate × duration; nonstationary light/motion uses the bounded explicit temporal photo-signal handoff |
-| Dark and incremental charge | Existing dark-current, accumulated-charge completeness and capacity primitives | Preserve operating temperature/window; dark and other stored charge remain separate; no total-charge/full-well authorization from photo-only expectation |
-| RAW realization | Existing `simulateSensorRawFrame()` | Feed engine-computed photo/dark exposure inputs without changing the native per-site seed schedule, noise/readout model or code semantics; retain origin limitations honestly |
-| Processed/file consumers | Existing reconstruction, sensor-color, corrected-SDR and paired exporter | Same attached RAW supplies JPEG; basis/WB once, crop/orientation/support and physical-versus-display clipping stay inspectable |
+| Source projection, provider, optical throughput and temporal sampling | Generated inverse environment rays, exact local shutter midpoints and supplied synchronous provider through existing optical bridge | `environment-raw-integration.test.ts`, `sensor-environment-query.test.ts`, `scene-eqe-temporal-exposure.test.ts` |
+| Wavelength/field PSF | Existing sampled local PSF support per wavelength/destination; omitted PSF is an explicit point-optics model with evidence/limitation | `sensor-psf-quadrature.test.ts`, sampled/omitted PSF plan acceptance |
+| Optical stack, CFA/spatial/spectral response | Existing AA/aperture plans, exact destination channel, package-plane response compatibility/range and instantaneous EQE | `spatial-sampling-quadrature.test.ts`, `eqe-local-exposure.test.ts`, `eqe-temporal-exposure.test.ts` |
+| Charge, noise, signed readout and ADC | Existing temporal photo/dark, completeness/capacity and native seeded RAW producer | `temporal-photo-raw.test.ts`, `sensor-raw-producer.test.ts`, plan replay acceptance |
+| Reconstruction, color/WB, selected correction, orientation/crop and display | Shared processed-RAW executor consumes the exact executed frame; output changes retain native codes and upstream noise | `processed-sensor-raw.test.ts`, `photographic-export-correction.test.ts`, all-orientation/WB/correction plan acceptance |
+| Files | Existing paired exporter consumes that same frame; no file IO in the plan | `environment-raw-integration.test.ts`, committed #201 independent LibRaw/XML/TIFF/JPEG records and owner application evidence |
+| Renderer/reference consumers | Consumer manifest 0.2.0 exposes the same immutable execution/output results and plan identity | `production-image-formation-plan.test.ts` |
 
-Engine-computed execution lineage must remain distinct from measured source
-truth and calibrated response accuracy. A future origin manifest/field requires
-its own reviewed contract and replay evidence; never flip the existing false
-origin flags merely because a wrapper called several APIs.
+See [production environment capture](PRODUCTION_ENVIRONMENT_CAPTURE.md) for the
+complete binding and migration contract. Successful bounded execution can reach
+all fourteen requested stages. Missing execution inputs, unsupported required
+effects and insufficient renderer capabilities retain explicit blockers. The
+sample-only and independently attached-RAW routes keep their conservative
+limitations; standalone child flags are not rewritten by the parent composer.
 
-The implemented bounded sensor composition uses explicit stationary continuous
-spectral inputs and supported single-frame native CFA geometry. Such a slice
-must state its assumptions and reject requests outside its implemented envelope;
-it cannot close a broader approved V1 acceptance criterion by quietly declaring
-flash, motion, unsupported response domains or required resolution work deferred.
-Discrete spectral lines retain their separate integrated-measure semantics and
-must not be converted to continuous densities merely to fit this path.
+## Scientific boundaries and ownership
 
-## Ordered implementation and final gates
+The implemented execution envelope remains the existing bounded ideal
+continuous-spectrum environment route: opening-reference scene time zero,
+complete one-to-one native CFA registration, explicit unity field throughput,
+constant-axis motion, optional destination-local sampled PSF and valid response
+scope/area/range. The native/reference budget is 4,096 sites and aggregate
+provider evaluations are limited to 100,000. Shared output-envelope checks reject
+unsupported resampling/coverage before provider calls; pixel-dependent kernel
+and correction support remain execution checks.
 
-1. #16/#178: implement bounded PSF/field/time/sensor sampling and the typed
-   irradiance → response validity → EQE rate → local exposure handoff. Bind node
-   identities/provenance and preserve explicit blockers instead of claiming all
-   models are integrated.
-2. #16/#112/#178: compose those results into the existing RAW/output adapters
-   through the authoritative graph. Review relevant plan/capture/root contract
-   versions and compatibility when activation or new public fields change.
-3. #116/#119: extend matched tier acceptance through that merged physical path,
-   preserving same-scene inputs and declared generic-profile limitations.
-4. #16: finish applicable high-resolution/memory/performance and independent
-   external-editor acceptance. Existing LibRaw reference evidence is useful but
-   does not fulfill all editor gates. Do not raise limits without measured work.
-5. #43/#45: remeasure relevant completed execution paths; preserve equivalent
-   output/identity and record evidence-backed dispositions.
-6. #131: final scientific conformance after integration/tier/performance work.
-   Require independent unit/arithmetic/ordering oracles, replay, rejected stale
-   node/profile/time bindings, response scope/area correctness, RAW preservation
-   and physically separate capture/rendering clipping.
-7. #180: final documentation/source-comment audit and package 1.0 repository
-   preparation after required defects and feature/science gates. The owner tags
-   and releases; this map authorizes no publication. #165 remains post-V1.
+Executed source queries establish invocation and numerical lineage, not measured
+transport, visibility, calibration, convergence, arbitrary world pose or global
+field-energy conservation. Renderer implementation remains external under the
+existing provider contract. A closed direct foundation does not license the
+composer to mark an unsupported optional model active. The table above retains
+feature-specific direct consumers and remaining integration ownership. No
+broader capability or unsupported scientific combination has been approved for
+deferral by this change.
 
-None of these outstanding requirements is an approved deferral. Existing
-issue acceptance and provenance/DCO review requirements remain authoritative.
-The private app/Blue Wall fixture is a separate consumer; it must not become the
-owner of missing public-engine scientific ordering.
+## Defect disposition and final gates
+
+- #178 finding 1: the 32-item primitive/consumer/evidence/ownership map is present;
+  the executed bounded environment route now composes the previously blocked
+  sensor stages through the authoritative graph. Unsupported requested effects
+  remain explicit; stale version diagnostics were fixed in #183.
+- Finding 2: the plan invokes the engine-owned environment/optics/PSF/response/
+  temporal path into the existing RAW producer, rather than accepting a caller
+  exposure result as evidence that source execution ran. Provider truth remains
+  separate from executed origin.
+- Finding 3: equivalent freeze/canonical JSON/allowlist/public-ID mechanics were
+  consolidated in #184/#185/#193. Current production capture bindings and output
+  envelope checks reuse the existing owners. Meaningful domain differences are
+  documented in [helper reuse review](V1_HELPER_REUSE_REVIEW.md).
+- Finding 4: reusable sensor-color development is owned by the internal color
+  adapter from #186; WB basis/application and export/container ownership remain
+  distinct.
+- Finding 5: shared producer/reconstruction bounds and early output compatibility
+  are documented/tested in #187 and this executed plan preflight; #201 records
+  the supported-size decision without claiming megapixel measurements. See
+  [RAW frame envelope](RAW_FRAME_ENVELOPE.md).
+- Finding 6: `distribute*` was documented in #183; the compatibility guard remains.
+
+Final ordering remains #116/#119 matched tier acceptance, #43/#45 relevant
+remeasurement, #131 final scientific conformance, then #180 exhaustive human/
+agent/source documentation and 1.0 preparation. #178 implementation still needs
+substantive owner review, contribution-specific DCO and merge. #165 remains
+post-V1. This map is not the final #180 audit or authorization to tag/release.

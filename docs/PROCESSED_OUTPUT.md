@@ -143,3 +143,13 @@ no new scientific equation, third-party code/data, look assets or dependency.
 AI-assisted draft requires substantive owner review and contribution-specific
 DCO certification before merge. External editor/high-resolution acceptance and
 upstream physical activation retain their existing issue owners.
+
+## Executed upstream production handoff
+
+Plan 0.7.0 additionally supports `environmentCapture.processing`. Its
+reconstruction policy omits `rawFrame`: the plan supplies only the exact RAW
+returned by its executed source-to-ADC pipeline. This route cannot be combined
+with `processedOutput` or an independent physical scene sample. Existing
+attached-RAW plan inputs and their conservative origin limitations remain valid.
+See [production environment capture](PRODUCTION_ENVIRONMENT_CAPTURE.md) for
+binding, replay, stage activation and migration details.

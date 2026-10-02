@@ -3,9 +3,8 @@
 This review addresses the remaining repeated validation mechanics in defect
 #178. It does not close production integration, performance, editor acceptance
 or final release preparation. The review follows main `e5a6ce2` and the earlier
-freeze, canonical JSON and sensor-color ownership changes. It also includes
-the temporal photo-signal handoff from draft PR #192, on which this draft is
-stacked for combined acceptance.
+freeze, canonical JSON and sensor-color ownership changes. The temporal photo-signal handoff and shared validators were merged in
+PRs #192/#193. This is a current reuse assessment, not an unmerged stack.
 
 ## Shared mechanics
 
@@ -52,3 +51,8 @@ The shared helpers stay internal to the package's root export contract.
 
 The final #180 audit must revisit this assessment against the integrated release
 candidate; this document is not that exhaustive final documentation audit.
+
+Production environment integration reuses the existing output-envelope check
+before invoking provider code. Capture identity/exposure/seed/WB/focus validation
+is shared between executed and attached-RAW plan routes; domain-specific scene,
+geometry, timing and provider bindings remain separate.
