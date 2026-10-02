@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { requireAllowlistedRecord, isPublicOpaqueId } from "../core/record-validation.js";
 import { calculatedResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseSimulatedCapture, type SimulatedCapture, type CaptureLinearPlane, type CaptureLinearImageState } from "./simulated-capture.js";
@@ -19,10 +20,7 @@ export interface LinearCaptureEncoding {
   rounding: "nearest-ties-up";
 }
 function record(value: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !keys.includes(k))) {
-    throw new InvalidConfigurationError("Invalid linear encoding fields.");
-  }
-  return value as Record<string, unknown>;
+  return requireAllowlistedRecord(value, keys, "Invalid linear encoding fields.");
 }
 /** Strict allowlisted encoding parser; no default clipping/rounding policy is invented. */
 export function parseLinearCaptureEncoding(value: unknown): LinearCaptureEncoding {
@@ -80,7 +78,7 @@ export interface EncodedLinearCapture {
 export function calculateLinearCaptureEncoding(input: LinearCaptureEncodingInput): CalculationResult<EncodedLinearCapture> {
   const r = record(input, ["capture", "planeId", "requiredImageState", "encoding"]);
   const capture = parseSimulatedCapture(r.capture), encoding = parseLinearCaptureEncoding(r.encoding);
-  if (typeof r.planeId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(r.planeId) ||
+  if (!isPublicOpaqueId(r.planeId) ||
       !["scene-referred-xyz", "virtual-sensor-channels", "color-transformed-linear-rgb"].includes(r.requiredImageState as string)) {
     throw new InvalidConfigurationError("Invalid encoding plane/state identity.");
   }

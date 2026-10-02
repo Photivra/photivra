@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { sumTemporalEqeRateExpectations } from "./temporal-eqe-sum.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -37,16 +38,10 @@ const falseFields = ["timeStationarityEstablished", "multiFrameSequenceIntegrate
   "readNoiseApplied", "adcQuantizationApplied", "rawCodeValueProduced", "integerPhotonCountSampled", "integerElectronCountSampled",
   "chargeCalculated", "currentCalculated"] as const;
 function record(value: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some(k => !keys.includes(k))) {
-    throw new InvalidConfigurationError("Invalid temporal photo-signal fields.");
-  }
-  return value as Record<string, unknown>;
+  return requireAllowlistedRecord(value, keys, "Invalid temporal photo-signal fields.");
 }
 function identity(value: unknown): string {
-  if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value)) {
-    throw new InvalidConfigurationError("Temporal photo signal requires public identities.");
-  }
-  return value;
+  return requirePublicOpaqueId(value, "Temporal photo signal requires public identities.");
 }
 function finite(value: unknown, nonnegative = true): number {
   if (typeof value !== "number" || !Number.isFinite(value) || (nonnegative && value < 0)) {

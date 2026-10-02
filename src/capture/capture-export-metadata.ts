@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { requireAllowlistedRecord } from "../core/record-validation.js";
 import { freezeOwnedData } from "../core/owned-data.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseSimulatedCapture, type SimulatedCapture } from "./simulated-capture.js";
@@ -52,11 +53,7 @@ export interface CaptureExportMetadataPair {
   imageDataPairing: "not-verified";
 }
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value) ||
-      Object.keys(value).some((key) => !keys.includes(key))) {
-    throw new InvalidConfigurationError("Export metadata must contain only allowlisted fields.");
-  }
-  return value as Record<string, unknown>;
+  return requireAllowlistedRecord(value, keys, "Export metadata must contain only allowlisted fields.");
 }
 function uuid(value: unknown): string {
   if (typeof value !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {

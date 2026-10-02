@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { calculatedResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { InvalidScientificResultError } from "../core/validation.js";
@@ -33,14 +34,10 @@ export interface SdrRenderingInput {
   profile: SdrRenderingProfile;
 }
 function object(v: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (v === null || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some((k) => !keys.includes(k))) {
-    throw new InvalidConfigurationError("Invalid SDR fields.");
-  }
-  return v as Record<string, unknown>;
+  return requireAllowlistedRecord(v, keys, "Invalid SDR fields.");
 }
 function publicId(v: unknown): string {
-  if (typeof v !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(v)) throw new InvalidConfigurationError("Invalid public SDR identity.");
-  return v;
+  return requirePublicOpaqueId(v, "Invalid public SDR identity.");
 }
 /** Validates every explicit rendering/encoding policy; unknown HDR/display modes fail. */
 export function parseSdrRenderingProfile(value: unknown): SdrRenderingProfile {

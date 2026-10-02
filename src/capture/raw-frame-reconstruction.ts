@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { requireAllowlistedRecord } from "../core/record-validation.js";
 import { RAW_REFERENCE_MAX_NATIVE_SITES } from "./raw-frame-limits.js";
 
 import { freezeOwnedData } from "../core/owned-data.js";
@@ -50,10 +51,7 @@ export interface RawFrameReconstruction {
   denoisingApplied: false;
 }
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value) || Object.keys(value).some((k) => !keys.includes(k))) {
-    throw new InvalidConfigurationError("Invalid or non-allowlisted RAW reconstruction fields.");
-  }
-  return value as Record<string, unknown>;
+  return requireAllowlistedRecord(value, keys, "Invalid or non-allowlisted RAW reconstruction fields.");
 }
 function integer(value: unknown, positive = false): number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < (positive ? 1 : 0)) {
