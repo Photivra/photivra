@@ -190,3 +190,30 @@ Assets, runtime contracts and all versions remain unchanged. These are bounded
 synthetic body-policy execution checks, not measured camera calibration or full
 capture/production/output acceptance. Physical scene/PSF composition, applicable
 export wiring and broader stabilization/flash acceptance remain separate work.
+
+## Readout-to-file acceptance
+
+`test/generic-tier-output-acceptance.test.ts` binds the exact body 1.0.0
+readout/signal-chain profiles to an explicitly declared owned 2×2 Bayer/native-still
+test topology. The topology IDs are registered to those required by the assets;
+matching channel names alone is not the binding. Charge expectations, physical
+storage capacity and ideal test-color interpretation remain independent synthetic
+fixture contracts. This tiny raster is structural regression evidence and is not
+an external-editor acceptance file or a realistic pixel sampling model.
+
+Nine cases verify that ISO 100/400 resolve the same base regime and ISO 800 selects
+the explicitly declared high regime. Expected photons/charge and the realized
+stored charge remain unchanged while electronic noise and conversion gain change.
+Independent signed-signal/pedestal/quantization arithmetic predicts each RAW code.
+The producer itself still consumes an explicit regime: changing ISO metadata
+without changing that regime cannot alter its samples. Unsupported ISO settings
+reject in the upstream capability resolver.
+
+Both regimes export through all four orientations. Stored DNG codes match every
+native produced sample; downstream +1 EV preserves codes, capture/noise and RAW
+image identity while changing processed pixels. Repeated JPEG export is deterministic.
+These are genuine producer-to-file checks, with upstream radiometry and producer
+origin verification still explicitly unasserted. They do not establish tier lens
+PSF/scene composition, calibrated color, full production activation or external
+editor/high-resolution interoperability. Runtime, API/schema and asset versions
+remain unchanged.
