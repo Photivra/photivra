@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { calculateProcessedSensorRaw, type ProcessedSensorRawInput } from "../capture/photographic-export.js";
+import { simulateEnvironmentSensorRawFrame, type SimulateEnvironmentSensorRawFrameInput } from "../capture/environment-raw-producer.js";
+import { parseSimulatedCapture, type SimulatedCapture } from "../capture/simulated-capture.js";
+import { calculateProcessedSensorRaw, validateProcessedSensorRawEnvelope, type ProcessedSensorRawInput } from "../capture/photographic-export.js";
 
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import {
@@ -86,7 +88,7 @@ import {
 type UnknownRecord = Record<string, unknown>;
 
 export const PRODUCTION_IMAGE_FORMATION_PLAN_VERSION =
-  "0.6.0" as const;
+  "0.7.0" as const;
 export const PREPARED_IMAGE_FORMATION_CONTEXT_VERSION =
   "0.1.0" as const;
 export const PRODUCTION_CAPTURE_SNAPSHOT_VERSION =
@@ -401,6 +403,7 @@ export interface PlannedImageFormationEffect {
 }
 
 export type ProductionImageFormationBlockerCode =
+  | "environment-capture-evaluation-blocked"
   | "processed-output-evaluation-blocked"
   | "engine-stage-not-composed"
   | "engine-effect-not-composed"
@@ -482,6 +485,10 @@ export interface ProductionImageFormationPlan {
     readonly PlannedImageFormationEffect[];
   blockers:
     readonly ProductionImageFormationBlocker[];
+  /** Noncryptographic commitment of execution data, excluding executable callback identity. */
+  environmentCaptureRequestFingerprint?: string;
+  /** Executed bounded source-to-ADC lineage; provider transport remains unverified. */
+  environmentCaptureResult?: ReturnType<typeof simulateEnvironmentSensorRawFrame>;
   processedOutputResult?: ReturnType<typeof calculateProcessedSensorRaw>;
   physicalSceneToSensorResult?:
     SceneToSensorIrradianceResult;
@@ -511,7 +518,21 @@ export interface ProductionProcessedOutputInput {
   processing: ProcessedSensorRawInput;
 }
 
+/**
+ * Executes the existing bounded environment capture inside the authoritative plan.
+ * The callback is synchronous local provider code; it is never serialized. Returned
+ * provider samples and realized RAW, rather than function identity, bind replay.
+ */
+export interface ProductionEnvironmentCaptureInput {
+  capture: SimulateEnvironmentSensorRawFrameInput;
+  /** Optional post-capture policy. The RAW source is supplied only by execution. */
+  processing?: Omit<ProcessedSensorRawInput, "reconstruction"> & {
+    reconstruction: Omit<ProcessedSensorRawInput["reconstruction"], "rawFrame">;
+  };
+}
+
 export interface CreateProductionImageFormationPlanInput {
+  environmentCapture?: ProductionEnvironmentCaptureInput;
   /** Explicit authoritative post-ADC RAW input; output processing cannot synthesize upstream scene truth. */
   processedOutput?: ProductionProcessedOutputInput;
   preparedContext:
@@ -3518,7 +3539,9 @@ function deriveStagePlan(
     ProductionTemporalCaptureResult | undefined,
   blockers:
     ProductionImageFormationBlocker[],
-  processedResult?: ReturnType<typeof calculateProcessedSensorRaw>
+  processedResult?: ReturnType<typeof calculateProcessedSensorRaw>,
+  environmentResult?: ReturnType<typeof simulateEnvironmentSensorRawFrame>,
+  environmentRequested = false
 ): readonly PlannedImageFormationStage[] {
   const contract =
     getImageFormationContract();
@@ -3559,6 +3582,28 @@ function deriveStagePlan(
       const stageBlockers:
         ProductionImageFormationBlockerCode[] =
           [];
+
+      if (environmentRequested && environmentResult === undefined) {
+        return { stageId: stage.id, contractStatus: stage.status, state: "blocked" as const,
+          scientificStatus: "not-applicable" as const, requiredByFidelity: true,
+          requiredUpstreamStages: [...stage.requiredUpstreamStages], coupledStages: [...stage.coupledStages],
+          blockerCodes: ["environment-capture-evaluation-blocked" as const] };
+      }
+
+      if (environmentResult !== undefined && !PROCESSED_OUTPUT_STAGES.has(stage.id)) {
+        const supported = rendererStages.has(stage.id);
+        const psfOmitted = stage.id === "field-wavelength-psf" &&
+          environmentResult.value.sites.every(site => !site.value.psfRedistributionApplied);
+        if (!supported) addBlocker(blockers, { code: "renderer-stage-unsupported", stageId: stage.id,
+          message: "Renderer does not declare the executed environment stage " + stage.id + "." });
+        return { stageId: stage.id, contractStatus: stage.status,
+          state: !supported ? "blocked" as const : psfOmitted ? "modeled-zero" as const : "active" as const,
+          scientificStatus: supported ? "approximation" as const : "not-applicable" as const,
+          requiredByFidelity: true, requiredUpstreamStages: [...stage.requiredUpstreamStages],
+          coupledStages: [...stage.coupledStages], modelId: "environment-native-raw-producer", modelVersion: "0.1.0",
+          resultIdentity: environmentResult.value.raw.value.frame.frameId,
+          blockerCodes: supported ? [] : ["renderer-stage-unsupported" as const] };
+      }
 
       if (processedResult !== undefined && PROCESSED_OUTPUT_STAGES.has(stage.id)) {
         const supported = rendererStages.has(stage.id);
@@ -4218,7 +4263,8 @@ function composeProductionScientificAssurance(
     SceneToSensorIrradianceResult | undefined,
   temporalResult:
     ProductionTemporalCaptureResult | undefined,
-  processedResult?: ReturnType<typeof calculateProcessedSensorRaw>
+  processedResult?: ReturnType<typeof calculateProcessedSensorRaw>,
+  environmentResult?: ReturnType<typeof simulateEnvironmentSensorRawFrame>
 ): ComposedScientificAssurance | undefined {
   const components:
     ScientificAssuranceComponent[] =
@@ -4246,13 +4292,23 @@ function composeProductionScientificAssurance(
     );
   }
 
+  if (environmentResult !== undefined) {
+    components.push({ componentId: "environment-native-raw-producer", role: "bounded executed environment-to-ADC capture", required: true,
+      sourceIdentity: { kind: "model", id: "environment-native-raw-producer", version: "0.1.0" },
+      basisKind: "photivra-model-assumption", scientificStatus: "approximation", evidenceRequirement: "required",
+      evidence: environmentResult.value.sceneBinding.evidence,
+      uncertainty: { kind: "not-quantified", limitation: "Child source, optical, response and readout uncertainty is not propagated into a combined capture uncertainty." },
+      limitations: ["Provider code executes, but transport, visibility and calibrated source truth remain unverified.",
+        "Destination-local PSF and explicitly bounded native sampling do not establish global energy conservation or high-resolution performance."] });
+  }
   if (processedResult !== undefined) {
     components.push({componentId:"processed-sensor-raw-sdr",role:"committed post-capture SDR development",required:true,
       sourceIdentity:{kind:"model",id:"processed-sensor-raw-sdr",version:"0.1.0"},basisKind:"photivra-model-assumption",
       scientificStatus:"approximation",evidenceRequirement:"required",evidence:processedResult.value.colorProfile.evidence,
       uncertainty:{kind:"not-quantified",limitation:"Reconstruction, color interpretation and optional correction uncertainty are not propagated into a combined output uncertainty."},
       limitations:[...processedResult.value.colorProfile.limitations,
-        "Attached RAW origin is declared; downstream execution does not verify missing upstream production stages.",
+        environmentResult === undefined ? "Attached RAW origin is declared; downstream execution does not verify missing upstream production stages." :
+          "RAW origin is executed by this bounded plan; provider transport and calibrated accuracy remain unverified.",
         "SDR rendering is a deterministic rendering choice; platform viewing adaptation is external."]});
   }
   if (components.length === 0) {
@@ -4262,6 +4318,26 @@ function composeProductionScientificAssurance(
   return composeScientificAssurance({
     components
   });
+}
+
+/** Check immutable event ownership before source code or downstream pixel work. */
+function validateProductionRawCapture(capture: SimulatedCapture, snapshot: ProductionCaptureSnapshot, label = "Processed RAW"): void {
+    if (capture.captureId!==snapshot.captureId || capture.sceneStateId!==snapshot.sceneStateId ||
+      capture.sceneTimeSeconds!==snapshot.sceneTimeSecondsFromExposureStart || capture.noise.seedUint32!==snapshot.stochasticSeedUint32 ||
+      capture.exposure.aperture!==snapshot.exposure.aperture || capture.exposure.shutterSeconds!==snapshot.exposure.shutterSeconds || capture.exposure.iso!==snapshot.exposure.iso ||
+      (capture.whiteBalanceIntent?.stateId !== snapshot.whiteBalanceState?.stateId) ||
+      (capture.whiteBalanceIntent !== null && ["red","green","blue"].some((channel) =>
+        capture.whiteBalanceIntent!.channelGains[channel as "red" | "green" | "blue"] !== snapshot.whiteBalanceState?.channelGains[channel as "red" | "green" | "blue"]))) {
+      throw new InvalidConfigurationError(label + " capture identity, scene clock, seed, exposure or WB differs from the immutable production snapshot.");
+    }
+    const releaseFocus=snapshot.releaseFrameBinding?.focus;
+    if (releaseFocus !== undefined && (releaseFocus.kind !== capture.focus.kind ||
+      (releaseFocus.kind === "finite" && capture.focus.kind === "finite" && releaseFocus.distanceM !== capture.focus.distanceM))) {
+      throw new InvalidConfigurationError(label + " focus differs from the committed release frame.");
+    }
+    if (snapshot.physicalSceneSample !== undefined && !releaseFocusMatchesOpticalFocus(capture.focus,snapshot.physicalSceneSample.focus)) {
+      throw new InvalidConfigurationError(label + " focus differs from the committed optical sample.");
+    }
 }
 
 /** Execute the committed post-capture boundary without blessing absent upstream stages. */
@@ -4274,26 +4350,79 @@ function computeProcessedOutput(input: ProductionProcessedOutputInput | undefine
     if (!required.has("display-processing") || !prepared.renderer.sensorDomainProcessing) throw new InvalidConfigurationError("Processed RAW requires requested display processing and renderer sensor-domain support.");
     if (input.outputStateId!==snapshot.outputStateId) throw new InvalidConfigurationError("Processed RAW output state differs from the immutable production snapshot.");
     const result=calculateProcessedSensorRaw(input.processing), capture=result.value.source.value.rawFrame.capture;
-    if (capture.captureId!==snapshot.captureId || capture.sceneStateId!==snapshot.sceneStateId ||
-      capture.sceneTimeSeconds!==snapshot.sceneTimeSecondsFromExposureStart || capture.noise.seedUint32!==snapshot.stochasticSeedUint32 ||
-      capture.exposure.aperture!==snapshot.exposure.aperture || capture.exposure.shutterSeconds!==snapshot.exposure.shutterSeconds || capture.exposure.iso!==snapshot.exposure.iso ||
-      (capture.whiteBalanceIntent?.stateId !== snapshot.whiteBalanceState?.stateId) ||
-      (capture.whiteBalanceIntent !== null && ["red","green","blue"].some((channel) =>
-        capture.whiteBalanceIntent!.channelGains[channel as "red" | "green" | "blue"] !== snapshot.whiteBalanceState?.channelGains[channel as "red" | "green" | "blue"]))) {
-      throw new InvalidConfigurationError("Processed RAW capture identity, scene clock, seed, exposure or WB differs from the immutable production snapshot.");
-    }
-    const releaseFocus=snapshot.releaseFrameBinding?.focus;
-    if (releaseFocus !== undefined && (releaseFocus.kind !== capture.focus.kind ||
-      (releaseFocus.kind === "finite" && capture.focus.kind === "finite" && releaseFocus.distanceM !== capture.focus.distanceM))) {
-      throw new InvalidConfigurationError("Processed RAW focus differs from the committed release frame.");
-    }
-    if (snapshot.physicalSceneSample !== undefined && !releaseFocusMatchesOpticalFocus(capture.focus,snapshot.physicalSceneSample.focus)) {
-      throw new InvalidConfigurationError("Processed RAW focus differs from the committed optical sample.");
-    }
+    validateProductionRawCapture(capture, snapshot);
     return result;
   } catch (error) {
     if (!(error instanceof InvalidConfigurationError || error instanceof InvalidScientificInputError)) throw error;
     addBlocker(blockers,{code:"processed-output-evaluation-blocked",stageId:"display-processing",message:error.message});
+    return undefined;
+  }
+}
+
+/**
+ * Commit the execution envelope before invoking supplied provider code. A failed
+ * preflight returns a structured blocker and never invokes that code. The existing
+ * environment producer owns all node budgets, response validity and seeded RAW.
+ */
+function computeEnvironmentCapture(input: ProductionEnvironmentCaptureInput | undefined,
+  externalOutput: ProductionProcessedOutputInput | undefined, prepared: PreparedImageFormationContext,
+  snapshot: ProductionCaptureSnapshot, required: ReadonlySet<ImageFormationStageId>,
+  blockers: ProductionImageFormationBlocker[]): { result: ReturnType<typeof simulateEnvironmentSensorRawFrame>; requestFingerprint: string } | undefined {
+  if (input === undefined) return undefined;
+  try {
+    const declaration = requireRecord(input, "environmentCapture");
+    if (Object.keys(declaration).some(key => key !== "capture" && key !== "processing")) {
+      throw new InvalidConfigurationError("Unknown environment capture declaration fields.");
+    }
+    if (externalOutput !== undefined || snapshot.physicalSceneSample !== undefined) {
+      throw new InvalidConfigurationError("Executed environment capture cannot mix declared scene samples or external RAW output sources.");
+    }
+    const { evaluateRadiance, ...data } = input.capture;
+    const owned = structuredClone(data);
+    const capture = parseSimulatedCapture(owned.frame.capture);
+    validateProductionRawCapture(capture, snapshot, "Production RAW");
+    if (!required.has("adc-quantization") || !prepared.renderer.sensorDomainProcessing ||
+      prepared.renderer.spectralCapability !== "wavelength-resolved" ||
+      [...required].some(stage => !prepared.renderer.supportedStages.includes(stage))) {
+      throw new InvalidConfigurationError("Executed environment capture requires the complete requested ADC graph and renderer stage/spectral/sensor support.");
+    }
+    if (blockers.length !== 0) throw new InvalidConfigurationError("Environment execution is blocked by production renderer or temporal preflight.");
+    if (input.processing !== undefined) {
+      validateProcessedSensorRawEnvelope({ rawFrame: { capture }, region: input.processing.reconstruction.region },
+        input.processing.correction !== undefined);
+    }
+    const temporal = snapshot.temporalCapture;
+    if (temporal === undefined) throw new InvalidConfigurationError("Environment execution requires committed temporal capture input.");
+    const { nativeRaster, samplePointsNative: _, activeCaptureRect, ...schedule } = temporal.exposureWindowInput;
+    void _;
+    if (canonicalStringify(schedule) !== canonicalStringify(owned.exposureWindow) ||
+      canonicalStringify(nativeRaster) !== canonicalStringify(capture.geometry.nativeRaster) ||
+      canonicalStringify(temporal.imagingArea) !== canonicalStringify(capture.geometry.imagingArea) ||
+      temporal.orientation !== capture.geometry.orientation ||
+      (activeCaptureRect !== undefined && canonicalStringify(activeCaptureRect) !== canonicalStringify({ x: 0, y: 0,
+        width: capture.geometry.nativeRaster.pixelWidth, height: capture.geometry.nativeRaster.pixelHeight })) ||
+      capture.exposure.focalLengthMm !== prepared.equipmentCapabilities.selectedFocalLengthMm ||
+      owned.sceneBinding.providerSceneId !== prepared.sceneId) {
+      throw new InvalidConfigurationError("Environment geometry, scene, focal length and shutter schedule differ from the committed production context.");
+    }
+    const rendererTemporal = prepared.renderer.temporalSampling;
+    for (const site of owned.sites) {
+      const e = site.environment;
+      if (e.sceneBindings.providerProfile.profileId !== prepared.sceneRadianceProviderProfileId ||
+        canonicalStringify(e.optics.profile) !== canonicalStringify(prepared.opticalBridgeProfile) ||
+        rendererTemporal.kind !== "bounded" || e.temporalSampleCount > rendererTemporal.maximumSamples ||
+        (temporal.rotation === undefined && !angularVelocityIsZero(e.motion.angularVelocityRadPerSec)) ||
+        (temporal.rotation !== undefined && (canonicalStringify(e.motion.angularVelocityRadPerSec) !== canonicalStringify(temporal.rotation.angularVelocityRadPerSec) ||
+          e.temporalSampleCount !== temporal.rotation.temporalSampleCount ||
+          (capture.focus.kind === "finite" ? capture.focus.distanceM : undefined) !== temporal.rotation.focusDistanceM))) {
+        throw new InvalidConfigurationError("Environment provider, optics, motion or temporal sampling differs from the committed production context.");
+      }
+    }
+    const requestFingerprint = fingerprintValue(owned);
+    return { result: simulateEnvironmentSensorRawFrame({ ...owned, evaluateRadiance }), requestFingerprint };
+  } catch (error) {
+    if (!(error instanceof InvalidConfigurationError || error instanceof InvalidScientificInputError)) throw error;
+    addBlocker(blockers, { code: "environment-capture-evaluation-blocked", stageId: "adc-quantization", message: error.message });
     return undefined;
   }
 }
@@ -4330,7 +4459,7 @@ export function createProductionImageFormationPlan(
     blockers
   );
 
-  const physicalResult =
+  const physicalResult = input.environmentCapture !== undefined ? undefined :
     computePhysicalResult(
       prepared,
       snapshot,
@@ -4346,16 +4475,6 @@ export function createProductionImageFormationPlan(
       blockers
     );
 
-  const processedOutputResult = computeProcessedOutput(input.processedOutput, prepared, snapshot, requiredStages, blockers);
-  const scientificAssurance =
-    composeProductionScientificAssurance(
-      prepared,
-      snapshot,
-      physicalResult,
-      temporalResult,
-      processedOutputResult
-    );
-
   const effectPlan =
     deriveEffectPlan(
       prepared,
@@ -4363,6 +4482,30 @@ export function createProductionImageFormationPlan(
       temporalResult,
       blockers
     );
+
+  // Snapshot post-capture policy before a provider can mutate caller-owned state.
+  const environmentProcessing = input.environmentCapture?.processing === undefined ? undefined :
+    structuredClone(input.environmentCapture.processing);
+  const environmentExecution = computeEnvironmentCapture(input.environmentCapture, input.processedOutput,
+    prepared, snapshot, requiredStages, blockers);
+  const environmentCaptureResult = environmentExecution?.result;
+  const executedOutput = environmentCaptureResult === undefined || environmentProcessing === undefined ? undefined : {
+    outputStateId: snapshot.outputStateId,
+    processing: { ...environmentProcessing, reconstruction: { ...environmentProcessing.reconstruction,
+      rawFrame: environmentCaptureResult.value.raw.value.frame } }
+  };
+  const processedOutputResult = computeProcessedOutput(input.environmentCapture === undefined ? input.processedOutput : executedOutput,
+    prepared, snapshot, requiredStages, blockers);
+  const scientificAssurance =
+    composeProductionScientificAssurance(
+      prepared,
+      snapshot,
+      physicalResult,
+      temporalResult,
+      processedOutputResult,
+      environmentCaptureResult
+    );
+
   const stagePlan =
     deriveStagePlan(
       prepared,
@@ -4371,7 +4514,9 @@ export function createProductionImageFormationPlan(
       physicalResult,
       temporalResult,
       blockers,
-      processedOutputResult
+      processedOutputResult,
+      environmentCaptureResult,
+      input.environmentCapture !== undefined
     );
 
   const core = {
@@ -4461,6 +4606,8 @@ export function createProductionImageFormationPlan(
           .profileVersion
     },
     stagePlan,
+    ...(environmentExecution === undefined ? {} : { environmentCaptureResult: environmentExecution.result,
+      environmentCaptureRequestFingerprint: environmentExecution.requestFingerprint }),
     ...(processedOutputResult === undefined ? {} : { processedOutputResult }),
     effectPlan,
     blockers,

@@ -174,3 +174,12 @@ Root engine API **0.114.0**, new model envelopes **0.1.0**. npm/POC/schema versi
 remain independent. This is partial #16/#178 integration coordinated with #112;
 V1 remains **25/32**. #131 final science conformance and #180 documentation/1.0
 preparation remain separate closure work.
+
+## Authoritative production consumer
+
+Plan 0.7.0 can now invoke this existing adapter through an explicitly committed
+`environmentCapture` declaration. See [production environment capture](PRODUCTION_ENVIRONMENT_CAPTURE.md).
+The standalone adapter retains its conservative `productionPlanActivated: false`
+field: it cannot know whether a parent composer called it. The parent plan's
+actual stage results and executed lineage establish the bounded activation;
+no child source-truth flag is overwritten.

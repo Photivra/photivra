@@ -284,34 +284,30 @@ The consumer role changes execution responsibility only. It does not authorize c
 [V1 composition and consumer map](V1_COMPOSITION_MAP.md) links all 32 scoped
 items to their implemented primitives/consumers and representative tests, and
 records the missing upstream RAW handoff and existing ticket ownership. Bounded
-RAW/output adapter execution does not activate production-plan stages.
+Standalone RAW/output adapter execution does not activate production-plan stages.
+The explicitly bound plan 0.7.0 environment route below does.
 
-## Unsupported stages remain visible
+## Executed environment capture and explicit unsupported capabilities
 
-Current plan schema `0.6.0` deliberately does not claim full downstream sensor
-composition.
+Plan 0.7.0 accepts an optional `environmentCapture` declaration. It executes
+`simulateEnvironmentSensorRawFrame()` inside the authoritative graph, rather
+than treating a caller's RAW attachment as proof that upstream work ran. With
+all required renderer declarations and optional processing policy, the bounded
+route reaches all fourteen stages. The earlier sample-based and attached-RAW
+routes remain available and retain their missing-stage blockers.
 
-If a fidelity profile requests a stage that the production composer has not
-yet integrated, the plan reports `engine-stage-not-composed`.
+See [executed production capture](PRODUCTION_ENVIRONMENT_CAPTURE.md) for input
+ownership, exact event/profile binding, optional output policy, replay and the
+current supported scientific envelope. Stage activation refers to the executed
+bounded algorithms; it does not establish calibrated provider transport or
+physical visibility. An explicitly omitted PSF is a declared point-optics
+model, with its evidence and limitation, not proof of a physically perfect lens.
 
-Examples include the still-uncomposed portions of:
-
-- PSF evaluation;
-- temporal radiance accumulation beyond the implemented timing/rotation diagnostics;
-- sensor optical stack;
-- CFA/photosite sampling;
-- charge/noise/ADC;
-- reconstruction/orientation/crop/display when no committed RAW processing policy is attached.
-
-Plan 0.6.0 explicitly composes those four post-RAW stages from `processedOutput`,
-without removing missing upstream blockers. See [processed output](PROCESSED_OUTPUT.md)
-for exact binding, rendering intent, domain/order and migration requirements.
-
-The existence of standalone primitives does not mean the production composer
-may silently mark those stages active.
-
-This is how #111 can grow incrementally without turning the application into
-the de facto scientific integration layer.
+Required effects outside a route's actual implementation continue to report
+`engine-effect-not-composed`. The plan cannot silently reinterpret a requested
+surface, depth, stabilization, breathing or field-transport model as an ideal
+environment ray. Existing foundation APIs and their direct consumers remain
+valid; unsupported combinations are not approved V1 deferrals.
 
 ## Structured blockers vs malformed input
 

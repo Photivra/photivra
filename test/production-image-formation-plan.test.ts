@@ -1,3 +1,6 @@
+import { correctionProfile as executedCorrectionProfile, state as executedCorrectionState } from "./optics-group-fixtures.js";
+import { frameInput as environmentFrameInput, evaluator as environmentEvaluator } from "./helpers/environment-raw-fixture.js";
+import { simulateEnvironmentSensorRawFrame } from "../src/index.js";
 import { loadSensorRawFrameInput } from "./helpers/sensor-raw-frame-fixture.js";
 import { loadPhotographicExportInput } from "./helpers/photographic-export-fixture.js";
 import { describe, expect, it } from "vitest";
@@ -775,10 +778,10 @@ describe("ready physical production plan", () => {
       "ready"
     );
     expect(plan.versions).toMatchObject({
-      engineApi: "0.115.0",
+      engineApi: "0.116.0",
       imageFormationContract:
         "0.4.0",
-      plan: "0.6.0",
+      plan: "0.7.0",
       scientificAssurance:
         "0.1.0"
     });
@@ -2666,5 +2669,148 @@ describe("committed processed RAW production stages", () => {
     const blocked=createProductionImageFormationPlan(v);
     expect(blocked.processedOutputResult).toBeUndefined();
     expect(blocked.blockers.some(b=>b.code==="processed-output-evaluation-blocked")).toBe(true);
+  });
+});
+
+
+describe("executed environment production graph", () => {
+  function request(rolling = false, psf = true): Parameters<typeof createProductionImageFormationPlan>[0] & { environmentCapture: Required<NonNullable<Parameters<typeof createProductionImageFormationPlan>[0]["environmentCapture"]>> } {
+    const {evaluateRadiance,...captureData} = environmentFrameInput(rolling, psf);
+    const capture = {...structuredClone(captureData),evaluateRadiance}, c = capture.frame.capture, e = capture.sites[0]!.environment;
+    const base = prepared({rendererOverride:{supportedStages:getImageFormationContract().stages.map(s=>s.id),
+      temporalSampling:{kind:"bounded",maximumSamples:256}},
+      fidelityOverride:{requiredStages:["display-processing"],requiredEffects:[]}});
+    const preparedContext = prepareImageFormationContext({...base, sceneId:e.sceneBindings.providerProfile.sceneId,
+      sceneRadianceProviderProfileId:e.sceneBindings.providerProfile.profileId,opticalBridgeProfile:e.optics.profile});
+    const captureSnapshot = createProductionCaptureSnapshot({captureId:c.captureId,releaseFrameId:"release-environment",
+      sceneStateId:c.sceneStateId,sceneTimeSecondsFromExposureStart:c.sceneTimeSeconds,outputStateId:"output-v1",
+      exposure:c.exposure,stochasticSeedUint32:c.noise.seedUint32,
+      temporalCapture:{exposureWindowInput:{...capture.exposureWindow,nativeRaster:c.geometry.nativeRaster,
+        samplePointsNative:capture.sites.map((_,i)=>({x:i%2+.5,y:Math.floor(i/2)+.5}))},
+        imagingArea:c.geometry.imagingArea,orientation:c.geometry.orientation,
+        rotation:{angularVelocityRadPerSec:e.motion.angularVelocityRadPerSec,temporalSampleCount:e.temporalSampleCount,
+          ...(c.focus.kind === "finite" ? {focusDistanceM:c.focus.distanceM} : {})}}});
+    const {reconstruction,colorProfile,whiteBalance,rendering}=loadPhotographicExportInput();
+    const {rawFrame:_,...policy}=reconstruction;void _;
+    return {preparedContext,captureSnapshot,environmentCapture:{capture,
+      processing:{reconstruction:policy,colorProfile,whiteBalance,rendering}}};
+  }
+  it.each([[false,false],[false,true],[true,false],[true,true]])("executes the complete authoritative graph and preserves replay (rolling=%s psf=%s)",(rolling,psf)=>{
+    const v=request(rolling,psf), raw=simulateEnvironmentSensorRawFrame(v.environmentCapture.capture);
+    const plan=createProductionImageFormationPlan(v);
+    expect(plan.blockers).toEqual([]);
+    expect(plan.status).toBe("ready");
+    expect(plan.stagePlan.filter(s=>s.state==="active" || s.state==="modeled-zero")).toHaveLength(14);
+    expect(plan.stagePlan.find(s=>s.stageId==="field-wavelength-psf")?.state).toBe(psf ? "active" : "modeled-zero");
+    expect(plan.environmentCaptureResult).toEqual(raw);
+    expect(plan.processedOutputResult?.value.source.value.rawFrame).toEqual(raw.value.raw.value.frame);
+    expect(plan.environmentCaptureResult?.value.providerTransportVerified).toBe(false);
+    expect(plan.environmentCaptureResult?.value.raw.value.upstreamRadiometryVerified).toBe(false);
+    expect(Object.isFrozen(plan.environmentCaptureResult?.value.sites)).toBe(true);
+    expect(createProductionImageFormationPlan(v)).toEqual(plan);
+    expect(plan.scientificAssurance).toBeDefined();
+    for(const kind of ["reference","interactive-optimized"] as const){
+      const manifest=createProductionPlanConsumerManifest({plan,consumerKind:kind});
+      expect(manifest.activeOrModeledStages).toHaveLength(14);
+      expect(manifest.environmentCaptureResult).toBe(plan.environmentCaptureResult);
+      expect(manifest.processedOutputResult).toBe(plan.processedOutputResult);
+      expect(manifest.planFingerprint).toBe(plan.fingerprint.value);
+    }
+    v.environmentCapture.capture.evaluateRadiance=(q): SceneRadianceEvaluationResult=>environmentEvaluator(q,2e-9);
+    expect(createProductionImageFormationPlan(v).fingerprint.value).not.toBe(plan.fingerprint.value);
+  });
+  it.each(["scene","provider","optics","seed","capture","exposure","motion","time-count","renderer-stage","renderer-temporal","geometry","schedule","focus","external-raw","effect"])("rejects mismatched %s before source callbacks",fault=>{
+    const v=request(), e=v.environmentCapture.capture.sites[0]!.environment;
+    let calls=0;v.environmentCapture.capture.evaluateRadiance=(q): SceneRadianceEvaluationResult=>{calls++;return environmentEvaluator(q,1e-9);};
+    if(fault==="scene")v.preparedContext=prepareImageFormationContext({...v.preparedContext,sceneId:"other"});
+    if(fault==="provider")v.preparedContext=prepareImageFormationContext({...v.preparedContext,sceneRadianceProviderProfileId:"other"});
+    if(fault==="optics")e.optics.profile.profileVersion="stale";
+    if(fault==="seed")v.environmentCapture.capture.frame.capture.noise.seedUint32++;
+    if(fault==="capture")v.environmentCapture.capture.frame.capture.captureId="other";
+    if(fault==="exposure")v.environmentCapture.capture.frame.capture.exposure.iso=200;
+    if(fault==="motion")e.motion.angularVelocityRadPerSec.yaw=9;
+    if(fault==="time-count")e.temporalSampleCount=1;
+    if(fault==="renderer-stage")v.preparedContext=prepareImageFormationContext({...v.preparedContext,renderer:{...v.preparedContext.renderer,
+      supportedStages:v.preparedContext.renderer.supportedStages.filter(s=>s!=="adc-quantization")}});
+    if(fault==="renderer-temporal")v.preparedContext=prepareImageFormationContext({...v.preparedContext,renderer:{...v.preparedContext.renderer,temporalSampling:{kind:"bounded",maximumSamples:1}}});
+    if(fault==="geometry")v.captureSnapshot=createProductionCaptureSnapshot({...v.captureSnapshot,temporalCapture:{...v.captureSnapshot.temporalCapture!,orientation:"portrait-clockwise"}});
+    if(fault==="schedule")v.captureSnapshot=createProductionCaptureSnapshot({...v.captureSnapshot,temporalCapture:{...v.captureSnapshot.temporalCapture!,exposureWindowInput:{...v.captureSnapshot.temporalCapture!.exposureWindowInput,shutterMechanism:"mechanical"}}});
+    if(fault==="focus")v.captureSnapshot=createProductionCaptureSnapshot({...v.captureSnapshot,temporalCapture:{...v.captureSnapshot.temporalCapture!,rotation:{...v.captureSnapshot.temporalCapture!.rotation!,focusDistanceM:10}}});
+    if(fault==="effect")v.preparedContext=prepareImageFormationContext({...v.preparedContext,fidelity:{...v.preparedContext.fidelity,requiredEffects:[{effectId:"field-curvature",modelId:"unimplemented",modelVersion:"1"}]}});
+    const supplied=fault==="external-raw" ? {...v,processedOutput:{outputStateId:"output-v1",processing:loadPhotographicExportInput()}} : v;
+    const plan=createProductionImageFormationPlan(supplied);
+    expect(plan.status).toBe("blocked");expect(plan.environmentCaptureResult).toBeUndefined();expect(calls).toBe(0);
+    expect(plan.blockers.some(b=>b.code==="environment-capture-evaluation-blocked")).toBe(true);
+  });
+  it.each(["landscape","portrait-clockwise","landscape-inverted","portrait-counter-clockwise"] as const)("keeps exact realized native codes through %s and an output crop",orientation=>{
+    const v=request(), old=v.environmentCapture.capture.frame.capture;
+    const {schemaVersion:_s,engineApiVersion:_e,resolvedGeometry:_g,equivalentFocalLength35Mm:_f,...captureInput}=old;
+    void _s;void _e;void _g;void _f;
+    const capture=createSimulatedCapture({...captureInput,geometry:{...old.geometry,orientation,
+      outputCropRect:{x:0,y:0,width:1,height:2},outputRaster:{pixelWidth:1,pixelHeight:2}},
+      planes:old.planes.map(p=>({...p,rasterBinding:"oriented-active-capture" as const}))}).value;
+    v.environmentCapture.capture.frame.capture=capture;
+    v.captureSnapshot=createProductionCaptureSnapshot({...v.captureSnapshot,temporalCapture:{...v.captureSnapshot.temporalCapture!,orientation}});
+    const plan=createProductionImageFormationPlan(v);
+    expect(plan.blockers).toEqual([]);
+    expect(plan.processedOutputResult?.value.source.value.rawFrame.samples).toEqual(plan.environmentCaptureResult?.value.raw.value.frame.samples);
+    expect(plan.processedOutputResult?.value.rendering.value.integerSamples).toHaveLength(6);
+    expect(plan.processedOutputResult?.value.processedOutputView).toMatchObject({pixelWidth:1,pixelHeight:2});
+  });
+  it("rejects incompatible output resampling without claiming a ready graph",()=>{
+    const v=request(), old=v.environmentCapture.capture.frame.capture;
+    const {schemaVersion:_s,engineApiVersion:_e,resolvedGeometry:_g,equivalentFocalLength35Mm:_f,...captureInput}=old;
+    void _s;void _e;void _g;void _f;
+    v.environmentCapture.capture.frame.capture=createSimulatedCapture({...captureInput,geometry:{...old.geometry,
+      outputRaster:{pixelWidth:4,pixelHeight:4}},planes:old.planes.map(p=>({...p,rasterBinding:"oriented-active-capture" as const}))}).value;
+    const plan=createProductionImageFormationPlan(v);
+    expect(plan.status).toBe("blocked");
+    expect(plan.processedOutputResult).toBeUndefined();
+    expect(plan.blockers.some(b=>b.code==="environment-capture-evaluation-blocked")).toBe(true);
+  });
+  it("applies committed WB once and selected native correction without changing realized RAW",()=>{
+    const v=request(), old=v.environmentCapture.capture.frame.capture;
+    const {schemaVersion:_s,engineApiVersion:_e,resolvedGeometry:_g,equivalentFocalLength35Mm:_f,...captureInput}=old;
+    void _s;void _e;void _g;void _f;
+    const wb=resolveManualWhiteBalance({stateId:"executed-wb",channelGains:{red:2,green:1,blue:.5}});
+    const capture=createSimulatedCapture({...captureInput,geometry:{...old.geometry,imagingArea:{widthMm:36,heightMm:36}},whiteBalanceIntent:{stateId:wb.stateId,source:wb.source,locked:wb.locked,
+      channelGains:wb.channelGains,sourceProfile:null},planes:old.planes.map(p=>({...p,whiteBalanceApplication:"intent-only"}))}).value;
+    v.environmentCapture.capture.frame.capture=capture;
+    for (const site of v.environmentCapture.capture.sites) {
+      const spatial=site.environment.sensor.spatialSampling;
+      spatial.imagingArea=capture.geometry.imagingArea;
+      spatial.samplingApertureProfile.siteCenterLattice={...spatial.samplingApertureProfile.siteCenterLattice,
+        pitchYMicrometers:18000,firstSiteCenterFromImagingAreaTopLeftMicrometers:{x:9000,y:9000}};
+    }
+    v.captureSnapshot=createProductionCaptureSnapshot({...v.captureSnapshot,whiteBalanceState:wb,
+      temporalCapture:{...v.captureSnapshot.temporalCapture!,imagingArea:capture.geometry.imagingArea}});
+    v.environmentCapture.processing.whiteBalance="apply-resolved-sensor-gains";
+    const plain=createProductionImageFormationPlan(v);
+    const state={...executedCorrectionState,focalLengthMm:capture.exposure.focalLengthMm,aperture:capture.exposure.aperture,
+      focusDistanceM:capture.focus.kind === "finite" ? capture.focus.distanceM : 3,outputWidth:2,outputHeight:2};
+    v.environmentCapture.processing.correction={profile:{...executedCorrectionProfile,state,components:executedCorrectionProfile.components.map(c=>
+      c.kind === "peripheral-illumination" ? {...c,profile:{...c.profile,normalizationRadiusMm:30,maximumNormalizedRadius:1}} : c)},
+      state,coordinateFrame:"native-optical-linear-srgb-d65",selections:{geometry:"on",gain:"on"},selectionKind:"camera-selectable",frameTimeSeconds:0,
+      resampler:{id:"executed-linear",version:"1",filter:"bilinear",antialias:"none"},clippingLevel:10,invalidSupport:"reject",outputImageStateId:"executed-correction"};
+    const corrected=createProductionImageFormationPlan(v);
+    expect(plain.blockers).toEqual([]);expect(corrected.blockers).toEqual([]);
+    expect(corrected.environmentCaptureResult).toEqual(plain.environmentCaptureResult);
+    expect(corrected.processedOutputResult?.value.whiteBalance).toBe("applied-here");
+    expect(corrected.processedOutputResult?.value.correction).not.toBeNull();
+    expect(corrected.processedOutputResult?.value.source.value.rawFrame.samples).toEqual(plain.environmentCaptureResult?.value.raw.value.frame.samples);
+    expect(corrected.fingerprint.value).not.toBe(plain.fingerprint.value);
+  });
+  it("owns downstream policy against a provider mutating the caller and preserves RAW on rendering changes",()=>{
+    const v=request(), expected=createProductionImageFormationPlan(v);
+    v.environmentCapture.capture.evaluateRadiance=(q): SceneRadianceEvaluationResult=>{
+      v.environmentCapture.processing.rendering.renderingExposureEv=9;
+      v.environmentCapture.capture.sites[0]!.environment.optics.focalLengthMm=999;
+      return environmentEvaluator(q,1e-9);
+    };
+    expect(createProductionImageFormationPlan(v)).toEqual(expected);
+    const brighter=request();brighter.environmentCapture.processing.rendering.renderingExposureEv=3;
+    const changed=createProductionImageFormationPlan(brighter);
+    expect(changed.environmentCaptureResult).toEqual(expected.environmentCaptureResult);
+    expect(changed.fingerprint.value).not.toBe(expected.fingerprint.value);
   });
 });

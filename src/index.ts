@@ -216,6 +216,7 @@ export {
   type CreateProductionCaptureSnapshotInput,
   type CreateProductionImageFormationPlanInput,
   type ProductionProcessedOutputInput,
+  type ProductionEnvironmentCaptureInput,
   type ImageFormationFidelityProfile,
   type PlannedImageFormationEffect,
   type PlannedImageFormationEffectState,

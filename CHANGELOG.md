@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased — engine API 0.115.0
+## Unreleased — engine API 0.116.0
+
+- Add the bounded executed environment-to-RAW handoff to the authoritative production graph. Plan 0.7.0 validates committed event, scene/provider/optics, geometry, shutter, rotation, renderer and seed bindings before source callbacks, fingerprints execution data/results, and supplies the exact realized RAW to optional shared processing. Consumer manifest 0.2.0 carries the same immutable execution/output results. Existing attached-RAW and physical-sample paths retain explicit unsupported boundaries. Share existing output-envelope validation without changing supported limits, scientific models, seed schedules or package/POC versions. See `docs/PRODUCTION_ENVIRONMENT_CAPTURE.md`.
+
+## Engine API 0.115.0
 
 - Prepare producer-derived #16 interoperability acceptance: committed all-orientation/manual-WB DNG/JPEG pairs, reproducible repository-only generator, independent TIFF/JPEG/two-XML/LibRaw verification and explicit native-site/unsupported-size evidence. Preserve historical fixtures and shared existing algorithms. Adobe/editor/browser evidence and owner review/DCO remain required; no issue closure, new runtime dependency or API/version change. See `docs/EXPORT_ACCEPTANCE.md`.
 

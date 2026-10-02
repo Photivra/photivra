@@ -108,7 +108,7 @@ export function parseExportSensorColorProfile(value: unknown): ExportSensorColor
     channelIds:["red","green","blue"],scientificStatus:"approximation",referenceIlluminant:"D65",normalizedCameraChannelsToXyz:matrix,evidence,limitations:[...r.limitations] as string[] };
 }
 /** Cheap geometry/topology preflight after RAW revalidation, before pixel execution. */
-function exportEnvelope(reconstruction: RawFrameReconstructionInput, corrected: boolean): { local: RasterRect; nativeDefaultCrop: RasterRect } {
+export function validateProcessedSensorRawEnvelope(reconstruction: Pick<RawFrameReconstructionInput, "region"> & { rawFrame: Pick<RawFrameReconstructionInput["rawFrame"], "capture"> }, corrected: boolean): { local: RasterRect; nativeDefaultCrop: RasterRect } {
   const frame=reconstruction.rawFrame, capture=frame.capture, g=capture.resolvedGeometry,
     active=g.activeCapture.nativeRect, crop=g.output.cropRect, raster=g.output.raster, region=reconstruction.region;
   if (raster.pixelWidth!==crop.width || raster.pixelHeight!==crop.height) throw new InvalidConfigurationError("Initial paired export requires 1:1 output crop sampling; resampling is unsupported.");
@@ -146,7 +146,7 @@ export function parseProcessedSensorRawInput(value: unknown): ProcessedSensorRaw
   if (correction?.resampler.antialias!==undefined && correction.resampler.antialias!=="none") {
     throw new InvalidConfigurationError("RAW-derived processing has no source prefilter; prefiltered declarations are unsupported.");
   }
-  exportEnvelope(reconstruction,correction!==undefined);
+  validateProcessedSensorRawEnvelope(reconstruction,correction!==undefined);
   return { reconstruction,colorProfile,whiteBalance:r.whiteBalance,rendering,...(correction===undefined ? {} : {correction}) };
 }
 /** Adds file metadata/encoding validation to the shared processed RAW policy. */
@@ -222,7 +222,7 @@ export function calculateProcessedSensorRaw(input: ProcessedSensorRawInput): Cal
   const source=resolveRawFrameReconstruction(v.reconstruction), frame=source.value.rawFrame, capture=frame.capture,
     g=capture.resolvedGeometry,
     active=g.activeCapture.nativeRect,crop=g.output.cropRect, raster=g.output.raster, region=source.value.region;
-  const {nativeDefaultCrop}=exportEnvelope(v.reconstruction,v.correction!==undefined);
+  const {nativeDefaultCrop}=validateProcessedSensorRawEnvelope(v.reconstruction,v.correction!==undefined);
   const colorMatrix=invertSensorColorMatrix(v.colorProfile.normalizedCameraChannelsToXyz),
     cameraWhite=sensorColorReferenceWhite(colorMatrix), intent=capture.whiteBalanceIntent,
     gains=intent ? [intent.channelGains.red,intent.channelGains.green,intent.channelGains.blue] : [1,1,1];
@@ -269,7 +269,7 @@ export async function createPhotographicExportPair(input: PhotographicExportInpu
   const {source,rendering,nativeDefaultCrop,processedOutputView,correction,rawCorrectionIntent}=processed;
   const frame=source.value.rawFrame,capture=frame.capture,g=capture.resolvedGeometry,active=g.activeCapture.nativeRect,region=source.value.region;
   const metadata=createCaptureExportMetadataPair({...v.metadata,capture});
-  const {local}=exportEnvelope(v.reconstruction,v.correction!==undefined);
+  const {local}=validateProcessedSensorRawEnvelope(v.reconstruction,v.correction!==undefined);
   const colorMatrix=invertSensorColorMatrix(v.colorProfile.normalizedCameraChannelsToXyz),cameraWhite=sensorColorReferenceWhite(colorMatrix),intent=capture.whiteBalanceIntent;
   const gains=intent ? [intent.channelGains.red,intent.channelGains.green,intent.channelGains.blue] : [1,1,1];
   const neutral=cameraWhite.map((x,i)=>x/gains[i]!),scale=neutral[1]!;
