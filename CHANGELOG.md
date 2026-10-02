@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased — engine API 0.110.0
+## Unreleased — engine API 0.111.0
+
+- Add `calculateSceneSensorEqeTemporalExposure()`: compose declared physical scene radiance through paraxial optics and instantaneous response validity/EQE at every local shutter midpoint. Sensor inputs own spatial/spectral plans; explicit package-plane and first-opening-boundary time semantics prevent plane/clock reinterpretation. Shared internal temporal identity/work preflight preserves existing sensor diagnostics and budgets. No provider/projection/PSF execution, convergence bound or production activation is inferred. See `docs/SCENE_SENSOR_TEMPORAL_EXPOSURE.md`. Partial #16/#178 resolution.
+
+## Engine API 0.110.0
 
 - Add a validated compact temporal EQE photo signal and connect it to exact-event dark/accumulated charge and native RAW. Preserve stationary arithmetic and narrow-call types; share compensated integration sums. Producer result schema 0.3.0 and temporal dark/charge model 1.1.0 distinguish the additive path without changing noise/readout identities. Global/rolling tests verify independent SI counts, deterministic codes and exact paired DNG/JPEG lineage. Source transport/PSF, convergence and production activation remain unverified; no umbrella closure. See `docs/TEMPORAL_PHOTO_RAW.md`. Partial #16/#178 resolution.
 
