@@ -1,10 +1,18 @@
 # Changelog
 
-## Unreleased — engine API 0.104.0
+## Unreleased — engine API 0.106.0
 
 - Correct the electronic read-noise boundary: preserve negative read noise through the upper-only pre-ADC threshold, add the black pedestal, then quantize/clamp to the unsigned ADC range. Readout model 2.0.0 and capture RAW noise model 0.2.0 distinguish changed shadow codes from prior replay.
-
 - Add incremental #131 conformance for the merged global sensor RAW producer → reconstruction/color/WB → correction → SDR/paired export path. Independent numeric and lattice expectations cover exposure boundaries, four orientations, same-noise correction, signed shadows and display clipping; no final V1 closure.
+
+## Generic tier presets — engine API 0.105.0
+
+- Add exact-version Consumer, Prosumer and Professional generic body/lens reference assets, cross-tier selection and strict saved-manifest validation. A finite 50 mm, f/4, focus 5 m optical slice resolves explicit profiles rather than a tier quality multiplier. Matched pupil and same-capture correction fixtures expose field/defocus character and gain/noise tradeoffs. See `docs/GENERIC_TIER_PRESETS.md`.
+- Synthetic educational approximations only; no calibration, universal ranking, sensor-format default, production/POC activation or complete #116/#119 acceptance claim. Preset assets are version 1.0.0; saved selection schema 0.1.0. Root API 0.105.0 follows the local-shutter 0.104.0 contract in PR #173.
+
+## Local shutter RAW binding — engine API 0.104.0
+
+- Added optional full-native local shutter-window binding to the RAW producer (producer result schema 0.2.0). Exact per-site photo/dark/completeness windows must match the existing engine timing calculation. Omitted timing retains global behavior and unchanged native seed ownership; no rolling motion/radiance integration or production-stage activation is claimed.
 
 - Reuse call-owned geometric preparation across sampling-plan pixels through the existing scalar point evaluator. Preserve external revalidation, per-point radial/finite guards, provenance and independent derivative arrays. Whole correction/plan timing and separate CPU/allocation evidence are recorded in `docs/GEOMETRIC_PREPARATION_REUSE.md`; no public API/schema version change or generic prepared cache.
 
