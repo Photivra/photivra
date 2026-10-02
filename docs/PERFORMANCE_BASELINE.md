@@ -40,3 +40,11 @@ node scripts/summarize-composed-cpu-profile.mjs poc.cpuprofile
 To reproduce this historical engine baseline after the tooling lands, use the recorded engine checkout plus these tooling scripts, rather than labeling a newer engine build with the old SHA. Do not commit raw CPU profiles: they can contain private local paths. The summary emits fixed public function categories only. The archived artifact contains no raw profile/path or source-private metadata.
 
 Scripts and scenarios are independently authored using the owned canonical fixture and existing benchmark. No third-party code/data or dependency is incorporated. AI-assisted draft remains subject to human review and DCO certification; performance evidence is not scientific/provenance certification.
+
+## Subsequent bounded #45 experiment
+
+The baseline conclusions above are historical. [POC_PROJECTION_REUSE.md](POC_PROJECTION_REUSE.md) records the main 0.103.0 request-local defocus candidate, paired whole-request timing, preparation, separate allocation sampling and complete-response equivalence. It advances #45 independently; it does not change #43's disposition or establish browser performance.
+
+## Subsequent bounded #43 experiment
+
+The baseline conclusions above are historical. [GEOMETRIC_PREPARATION_REUSE.md](GEOMETRIC_PREPARATION_REUSE.md) records the main 0.103.0 call-local geometry-preparation candidate, real merged sampling/correction consumers, separate CPU/allocation evidence and scalar/copy-safety tests. It advances #43 independently and does not establish browser performance or #45's conclusion.
