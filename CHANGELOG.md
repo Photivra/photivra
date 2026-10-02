@@ -2,6 +2,8 @@
 
 ## Unreleased — engine API 0.116.0
 
+- Complete the proposed #119 generic tier acceptance layer with reproducible versioned physical/correction-cost/corrected reports, finite multidimensional pupil/texture envelopes, same-capture edge/noise comparisons and independently predicted signed stabilization/ordinary flash checks. Reuse existing body and production/output acceptance; no calibration claims, runtime/asset/version changes or new dependency. See `docs/TIER_ACCEPTANCE.md`.
+
 - Complete the proposed #116 generic preset acceptance disposition: all nine exact body/lens pairings through bounded authoritative environment capture, ISO/readout, exact RAW processing and paired output; independent phase-sum checks and controlled sampled scenes for all 27 finite pupil slices. Preserve synthetic limits, separate #119 validation ownership and unchanged 1.0.0 assets/runtime/version contracts. See `docs/TIER_PRESET_ACCEPTANCE.md`.
 
 - Add the bounded executed environment-to-RAW handoff to the authoritative production graph. Plan 0.7.0 validates committed event, scene/provider/optics, geometry, shutter, rotation, renderer and seed bindings before source callbacks, fingerprints execution data/results, and supplies the exact realized RAW to optional shared processing. Consumer manifest 0.2.0 carries the same immutable execution/output results. Existing attached-RAW and physical-sample paths retain explicit unsupported boundaries. Share existing output-envelope validation without changing supported limits, scientific models, seed schedules or package/POC versions. See `docs/PRODUCTION_ENVIRONMENT_CAPTURE.md`.
