@@ -16,10 +16,10 @@ const evidence = (sourceReference: string) =>
     reuseStatus: "photivra-owned" as const
   }] as const;
 
-const imagingArea = { widthMm: 4, heightMm: 2 };
-const nativeRaster = { pixelWidth: 4, pixelHeight: 2 };
+export const imagingArea = { widthMm: 4, heightMm: 2 };
+export const nativeRaster = { pixelWidth: 4, pixelHeight: 2 };
 
-const colorProfile = (): SensorColorSamplingProfile => ({
+export const colorProfile = (): SensorColorSamplingProfile => ({
   schemaVersion: "0.1.0",
   profileId: "bayer-like",
   evidence: evidence("test:color"),
@@ -33,7 +33,7 @@ const colorProfile = (): SensorColorSamplingProfile => ({
   }
 });
 
-const bindingProfile =
+export const bindingProfile =
 (): NativeEffectiveRasterColorSamplingBindingProfile => ({
   schemaVersion: "0.1.0",
   bindingId: "binding",
@@ -48,7 +48,7 @@ const bindingProfile =
   }
 });
 
-const samplingProfile = (): SensorSamplingApertureProfile => ({
+export const samplingProfile = (): SensorSamplingApertureProfile => ({
   schemaVersion: "0.1.0",
   profileId: "sampling",
   colorSamplingProfileId: "bayer-like",

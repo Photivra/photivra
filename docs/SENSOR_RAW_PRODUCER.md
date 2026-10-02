@@ -59,3 +59,7 @@ const result = simulateSensorRawFrame({
 ```
 
 The 1 ms traversal is an illustrative declared approximation, not camera calibration. Changing it requires corresponding per-site exposure results; this API does not rescale old charge counts.
+
+## Irradiance-to-photo-exposure composition
+
+[`calculateSensorEqeLocalExposure()`](SENSOR_EQE_LOCAL_EXPOSURE.md) now produces the existing `charge.photoSignal` value from explicit irradiance nodes through response validity, EQE and stationary local integration. It retains child envelopes and declares scene/optics origin unverified. Dark/completeness and readout inputs remain explicit; this does not activate production stages or change the producer schema.

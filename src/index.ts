@@ -1364,3 +1364,6 @@ export {
   parseCameraConfiguration,
   parseSceneDefinition
 } from "./schema/validation.js";
+
+export { calculateSensorEqeLocalExposure, type CalculateSensorEqeLocalExposureInput,
+  type SensorEqeLocalExposure } from "./sensor/eqe-local-exposure.js";
