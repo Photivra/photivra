@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { freezeOwnedData } from "../core/owned-data.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import type { RasterRect } from "../output/capture-geometry.js";
@@ -123,10 +124,6 @@ export function parseRawFrameReconstructionInput(value: unknown): RawFrameRecons
   phaseProfiles.sort((a, b) => a.phaseY - b.phaseY || a.phaseX - b.phaseX);
   return { rawFrame, region, phaseProfiles };
 }
-function freeze<T>(value: T): T {
-  if (value !== null && typeof value === "object") { Object.values(value).forEach(freeze); Object.freeze(value); }
-  return value;
-}
 /** Delegates each pixel to #14's explicit linear reconstruction using only the attached native RAW samples. */
 export function resolveRawFrameReconstruction(input: RawFrameReconstructionInput): CalculationResult<RawFrameReconstruction> {
   const v = parseRawFrameReconstructionInput(input), f = v.rawFrame, layout = f.colorSamplingProfile.layout;
@@ -160,7 +157,7 @@ export function resolveRawFrameReconstruction(input: RawFrameReconstructionInput
       channelIds: v.phaseProfiles[0]!.profile.kernels.map((k) => k.outputChannelId), samples }, pixels,
     lineage: "engine-reconstructed-from-attached-raw", producerOriginVerified: false, whiteBalanceApplied: false,
     colorTransformApplied: false, physicalOrientationApplied: false, outputCropApplied: false, sharpeningApplied: false, denoisingApplied: false };
-  return freeze(approximationResult(JSON.parse(JSON.stringify(value)) as RawFrameReconstruction,
+  return freezeOwnedData(approximationResult(JSON.parse(JSON.stringify(value)) as RawFrameReconstruction,
     "attached-raw-native-region-linear-reconstruction", "0.1.0", [
       "Pixel values come exclusively from exact attached RAW samples through the existing explicit linear-neighborhood resolver.",
       "The RAW producer/capture attachment remains caller-declared; this does not verify producer origin or calibrate sensor color.",

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { freezeOwnedData } from "../core/owned-data.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseSimulatedCapture, type SimulatedCapture } from "./simulated-capture.js";
 
@@ -83,10 +84,6 @@ export function parseCaptureExportMetadataInput(value: unknown): CaptureExportMe
   if (new Set(ids).size !== ids.length) throw new InvalidConfigurationError("Capture, resource and incarnation IDs must be distinct.");
   return { capture, workflow: r.workflow, capturedAtUtc: r.capturedAtUtc, raw, jpeg };
 }
-function freeze<T>(value: T): T {
-  if (value !== null && typeof value === "object") { Object.values(value).forEach(freeze); Object.freeze(value); }
-  return value;
-}
 /** Projects known capture metadata once for both future writers; never encodes or verifies image data. */
 export function createCaptureExportMetadataPair(input: CaptureExportMetadataInput): CaptureExportMetadataPair {
   const v = parseCaptureExportMetadataInput(input), c = v.capture;
@@ -103,5 +100,5 @@ export function createCaptureExportMetadataPair(input: CaptureExportMetadataInpu
   };
   const pair: CaptureExportMetadataPair = { schemaVersion: CAPTURE_EXPORT_METADATA_SCHEMA_VERSION, shared,
     raw: { ...v.raw, outputRole: "raw" }, jpeg: { ...v.jpeg, outputRole: "jpeg" }, imageDataPairing: "not-verified" };
-  return freeze(JSON.parse(JSON.stringify(pair)) as CaptureExportMetadataPair);
+  return freezeOwnedData(JSON.parse(JSON.stringify(pair)) as CaptureExportMetadataPair);
 }
