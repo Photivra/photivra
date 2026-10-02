@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // This product includes DNG technology under license by Adobe.
 
+import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
 import { resolveCaptureColorModel, LINEAR_CAPTURE_RGB_PROFILE } from "../color/capture-color.js";
@@ -121,12 +122,13 @@ export function parsePhotographicExportInput(value: unknown): PhotographicExport
     jpegQuantizationStep:r.jpegQuantizationStep as number };
 }
 function canonical(value: unknown): string {
-  if (value===null || typeof value==="string" || typeof value==="boolean") return JSON.stringify(value);
-  if (typeof value==="number" && Number.isFinite(value)) return JSON.stringify(value);
-  if (Array.isArray(value)) return "["+value.map(canonical).join(",")+"]";
-  if (typeof value==="object") { const r=value as Record<string,unknown>; return "{"+Object.keys(r).sort().map((k) => JSON.stringify(k)+":"+canonical(r[k])).join(",")+"}"; }
-  throw new InvalidConfigurationError("Export hash requires finite canonical JSON.");
+  return stringifyCanonicalJson(value, {
+    undefinedObjectProperties: "reject",
+    nonFiniteNumberMessage: "Export hash requires finite canonical JSON.",
+    unsupportedValueMessage: "Export hash requires finite canonical JSON."
+  });
 }
+
 async function hash(value: Uint8Array | string): Promise<string> {
   if (!globalThis.crypto?.subtle) throw new InvalidConfigurationError("Paired export requires Web Crypto SHA-256 in this execution context.");
   const data=typeof value==="string" ? new TextEncoder().encode(value) : new Uint8Array(value);

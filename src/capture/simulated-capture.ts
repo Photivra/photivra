@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { freezeOwnedData } from "../core/owned-data.js";
 import { calculatedResult, type CalculationResult, type ProvenanceKind } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -265,15 +266,13 @@ export function parseSimulatedCapture(value: unknown): SimulatedCapture {
   return result;
 }
 function canonical(value: unknown): string {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return JSON.stringify(value);
-  if (typeof value === "number") return JSON.stringify(number(value));
-  if (Array.isArray(value)) return "["+value.map(canonical).join(",")+"]";
-  if (typeof value === "object") {
-    const r = value as Record<string, unknown>;
-    return "{"+Object.keys(r).sort().map((key) => JSON.stringify(key)+":"+canonical(r[key])).join(",")+"}";
-  }
-  throw new InvalidConfigurationError("Derived capture metadata must be finite JSON.");
+  return stringifyCanonicalJson(value, {
+    undefinedObjectProperties: "reject",
+    nonFiniteNumberMessage: "Capture number must be finite with valid sign.",
+    unsupportedValueMessage: "Derived capture metadata must be finite JSON."
+  });
 }
+
 /** Canonical allowlisted JSON, including semantic samples/IDs, not private caches or file layout. */
 export function serializeSimulatedCapture(input: { capture: SimulatedCapture }): string {
   return JSON.stringify(parseSimulatedCapture(input.capture));

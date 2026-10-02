@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import {
   RELEASE_SEQUENCE_VERSION,
   type ReleaseTimingConstraint,
@@ -1203,73 +1204,12 @@ function deepFreeze<T>(
   return value;
 }
 
-function canonicalStringify(
-  value: unknown
-): string {
-  if (value === null) {
-    return "null";
-  }
-  if (
-    typeof value === "string" ||
-    typeof value === "boolean"
-  ) {
-    return JSON.stringify(value);
-  }
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) {
-      throw new InvalidConfigurationError(
-        "Canonical plan serialization does not permit non-finite numbers."
-      );
-    }
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return (
-      "[" +
-      value
-        .map(
-          (entry) =>
-            canonicalStringify(
-              entry
-            )
-        )
-        .join(",") +
-      "]"
-    );
-  }
-  if (
-    typeof value === "object" &&
-    value !== null
-  ) {
-    const record =
-      value as UnknownRecord;
-    const keys =
-      Object.keys(record)
-        .filter(
-          (key) =>
-            record[key] !==
-            undefined
-        )
-        .sort();
-    return (
-      "{" +
-      keys
-        .map(
-          (key) =>
-            JSON.stringify(key) +
-            ":" +
-            canonicalStringify(
-              record[key]
-            )
-        )
-        .join(",") +
-      "}"
-    );
-  }
-
-  throw new InvalidConfigurationError(
-    "Canonical plan serialization encountered an unsupported value type."
-  );
+function canonicalStringify(value: unknown): string {
+  return stringifyCanonicalJson(value, {
+    undefinedObjectProperties: "omit",
+    nonFiniteNumberMessage: "Canonical plan serialization does not permit non-finite numbers.",
+    unsupportedValueMessage: "Canonical plan serialization encountered an unsupported value type."
+  });
 }
 
 function fingerprintText(

@@ -2,6 +2,8 @@
 
 ## Unreleased — engine API 0.106.0
 
+- Share sorted-key finite-JSON serialization mechanics across planner fingerprints, capture-derived comparisons and export hashing. Preserve domain-specific undefined-property policies/errors, existing identity algorithms and all version surfaces; pinned historical export/file hashes detect byte drift. Partial defect #178 resolution.
+
 - Consolidate equivalent child-first immutable-data freezing across capture, RAW attachment/reconstruction, export metadata and generic equipment presets into one internal helper. Domain validation/copy ownership and planner/focus/release freeze semantics are preserved; no public API, schema, numerical or identity change. Partial defect #178 resolution.
 
 - Correct production-plan diagnostics to report the current plan contract version instead of a stale hard-coded version, and document the existing `distribute*` public verb family. Diagnostic text changes only; blocker codes, validation, scientific behavior and all version surfaces remain unchanged. Partial defect #178 resolution.
