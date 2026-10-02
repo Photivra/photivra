@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { sensorPsfSourcePoint } from "./sensor-psf-support.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError, InvalidScientificResultError } from "../core/validation.js";
@@ -109,8 +110,7 @@ export function calculateSensorPsfIrradianceQuadrature(
           throw new InvalidScientificInputError("PSF support requires valid unique tap indices and finite nonnegative irradiance.");
         }
         const index = source.kernelSampleY * kernel.widthSamples + source.kernelSampleX;
-        const x = destination.x - (source.kernelSampleX-kernel.centerSampleX)*kernel.samplePitchMicrometersX/1000;
-        const y = destination.y + (source.kernelSampleY-kernel.centerSampleY)*kernel.samplePitchMicrometersY/1000;
+        const { x, y } = sensorPsfSourcePoint(destination, kernel, source.kernelSampleX, source.kernelSampleY);
         if (byIndex.has(index) || source.sourcePointNativeSensorMm?.x !== x || source.sourcePointNativeSensorMm?.y !== y) {
           throw new InvalidScientificInputError("PSF source coordinate must match the exact inverse kernel offset in native sensor axes.");
         }
