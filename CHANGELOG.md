@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased — engine API 0.103.0
+## Unreleased — engine API 0.104.0
+
+- Correct the electronic read-noise boundary: preserve negative read noise through the upper-only pre-ADC threshold, add the black pedestal, then quantize/clamp to the unsigned ADC range. Readout model 2.0.0 and capture RAW noise model 0.2.0 distinguish changed shadow codes from prior replay.
+
+- Add incremental #131 conformance for the merged global sensor RAW producer → reconstruction/color/WB → correction → SDR/paired export path. Independent numeric and lattice expectations cover exposure boundaries, four orientations, same-noise correction, signed shadows and display clipping; no final V1 closure.
 
 - Add optional RAW-derived JPEG correction to paired photographic export, reusing the capture correction executor after explicit color/WB. Preserve DNG codes and native crop; expose the processed crop, clipping diagnostics and separate informational RAW intent. Require full active reconstruction and reject unprovided prefiltering. No production-stage activation or external-editor validation claim.
 

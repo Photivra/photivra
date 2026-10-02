@@ -267,6 +267,7 @@ export interface SensorRawCodeSample {
     number;
   preAdcSaturationElectronEquivalent:
     number;
+  /** Signed electronic signal after upper saturation, before conversion/pedestal. */
   electronEquivalentAfterPreAdcSaturation:
     number;
   preAdcSaturationApplied:
@@ -1701,13 +1702,12 @@ export function simulateSensorRawCode(
     readout.regime
       .preAdcSaturationElectronEquivalent
       .value;
+  // Stored charge is nonnegative; the downstream electronic signal is signed.
+  // Preserve negative read noise until the black pedestal and unsigned ADC boundary.
   const afterPreAdc =
-    Math.max(
-      0,
-      Math.min(
-        afterReadNoise,
-        preAdcThreshold
-      )
+    Math.min(
+      afterReadNoise,
+      preAdcThreshold
     );
   const preAdcSaturation =
     afterReadNoise >
@@ -1725,11 +1725,14 @@ export function simulateSensorRawCode(
       codeBeforeQuantization
     );
   const rawCode =
-    Math.min(
-      quantized,
-      readout.regime
-        .adc
-        .digitalSaturationCode
+    Math.max(
+      0,
+      Math.min(
+        quantized,
+        readout.regime
+          .adc
+          .digitalSaturationCode
+      )
     );
 
   return approximationResult(
@@ -1816,7 +1819,7 @@ export function simulateSensorRawCode(
           .adc
           .digitalSaturationCode,
       lowerCodeClampApplied:
-        false,
+        quantized < 0,
       adcTransfer:
         "uniform-round-half-up",
       physicalSaturationApplied:
@@ -1841,12 +1844,12 @@ export function simulateSensorRawCode(
         true
     },
     "sensor-raw-code-stochastic-readout",
-    "1.0.0",
+    "2.0.0",
     [
       "A stochastic stored-charge realization is scalar-clamped at the explicit physical storage capacity; this is a bounded saturation approximation and does not model blooming, neighbor transport or anti-blooming behavior.",
       "Independent input-referred Gaussian electronic read-noise components are sampled after physical charge saturation and before the explicit pre-ADC electron-equivalent saturation threshold.",
       "System conversion gain is expressed in electrons per digital-number code unit for the explicitly selected regime and is not inferred from ISO.",
-      "Black level is an explicit code offset. ADC quantization uses uniform round-half-up to an unsigned integer code, followed by explicit digital saturation.",
+      "Signed electronic read noise survives the upper-only pre-ADC saturation threshold. Black level is added before uniform round-half-up quantization and clamping to zero/digital saturation; valid below-black codes are retained.",
       "Physical storage capacity, pre-ADC saturation and digital/ADC saturation remain separate thresholds.",
       "The charge seed and read-noise seed are separate deterministic simulation identities; neither is cryptographically secure."
     ]

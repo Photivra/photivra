@@ -17,8 +17,8 @@ import { parseCaptureModeProfile } from "../sensor/capture-mode.js";
 import { parseNativeEffectiveRasterColorSamplingBindingProfile, resolveCaptureModeColorSamplingContributors } from "../sensor/capture-color-sampling-binding.js";
 
 export const SENSOR_RAW_PRODUCER_SCHEMA_VERSION = "0.1.0" as const;
-/** Capture noise model identity required by this producer's versioned per-site seed schedule. */
-export const SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.1.0" } as const);
+/** Capture noise model identity binds the seed schedule and signed electronic readout behavior. */
+export const SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.2.0" } as const);
 /** One declared EQE/dark/completeness event and explicit readout state per native site. */
 export interface SensorRawProducerSiteInput {
   charge: ComposeSensorAccumulatedChargeInput;
