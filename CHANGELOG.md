@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased — engine API 0.111.0
+## Unreleased — engine API 0.112.0
+
+- Add `calculateSensorPsfIrradianceQuadrature()`: resolve sampled lens PSFs at each pre-AA destination/wavelength and apply their normalized shape to explicitly supplied inverse kernel support. Convert native +Y-down support to image-plane +Y-up PSF axes; retain separate pupil throughput, wavelength-basis evidence, exact instantaneous times and local shift-invariance limitations. Complete support and bounded work fail closed. No full field-dependent forward transport, source projection/provider execution or production activation is inferred. See `docs/SENSOR_PSF_QUADRATURE.md`. Partial #16/#178 integration.
+
+## Engine API 0.111.0
 
 - Add `calculateSceneSensorEqeTemporalExposure()`: compose declared physical scene radiance through paraxial optics and instantaneous response validity/EQE at every local shutter midpoint. Sensor inputs own spatial/spectral plans; explicit package-plane and first-opening-boundary time semantics prevent plane/clock reinterpretation. Shared internal temporal identity/work preflight preserves existing sensor diagnostics and budgets. No provider/projection/PSF execution, convergence bound or production activation is inferred. See `docs/SCENE_SENSOR_TEMPORAL_EXPOSURE.md`. Partial #16/#178 resolution.
 

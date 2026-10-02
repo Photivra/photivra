@@ -149,6 +149,16 @@ Provider/projection/PSF execution and production activation remain open; 25/32 i
 
 ## Remaining upstream handoff into the existing producer
 
+[`calculateSensorPsfIrradianceQuadrature()`](../src/optics/sensor-psf-quadrature.ts)
+now consumes #113 sampled PSF shapes with an explicitly limited destination-local
+shift-invariance approximation and complete pre-PSF irradiance support. Native
+sensor/image-plane axes are converted explicitly; pupil throughput stays separate.
+Its post-PSF package-incident samples feed the existing temporal sensor input.
+See [SENSOR_PSF_QUADRATURE.md](SENSOR_PSF_QUADRATURE.md) and
+[acceptance](../test/sensor-psf-quadrature.test.ts). Full field-dependent forward
+energy transport, provider/projection execution and production activation remain
+open. This does not close any V1 feature or change 25/32.
+
 The missing handoff belongs to #16/#178, with processed output and plan
 activation coordinated with #112. It should produce the existing per-site
 producer inputs through the scientific APIs below, retaining child envelopes;
