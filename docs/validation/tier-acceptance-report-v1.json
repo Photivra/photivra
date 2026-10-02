@@ -1,0 +1,2538 @@
+{
+  "reportVersion": "1.0.0",
+  "sceneId": "photivra:tier-matched-reference-v1",
+  "scientificStatus": "approximation",
+  "presetVersion": "1.0.0",
+  "catalogSha256": "118805a23640593d77920e17d8ff2d43c1b31816acf018c6ed97e8e43f29e885",
+  "baseFixtureId": "basic-reference-scene",
+  "seedUint32": 12345,
+  "matchedOptics": {
+    "focalLengthMm": 50,
+    "aperture": 4,
+    "focusDistanceM": 5,
+    "wavelengthNm": 550
+  },
+  "sensorGeometry": {
+    "widthMm": 36,
+    "heightMm": 24
+  },
+  "sampledCorrectionRaster": {
+    "width": 9,
+    "height": 9,
+    "centerMm": {
+      "x": 0,
+      "y": 0
+    },
+    "pitchMm": 3
+  },
+  "limitations": [
+    "Owned synthetic regression evidence, not measured calibration or universal tier rank.",
+    "Discrete 550 nm pupil slices are not a continuous spectral or field-dependent optical model.",
+    "Representative RGB field maps do not establish LoCA or spectral sensor primaries.",
+    "Correction targets are sampled; interpolation/gain diagnostics are not measured MTF or restored photons.",
+    "No separate browser approximation exists; ordinary browser-safe APIs and same immutable consumer results are reused."
+  ],
+  "tiers": [
+    {
+      "tier": "consumer",
+      "selection": {
+        "schemaVersion": "0.1.0",
+        "presetVersion": "1.0.0",
+        "bodyTier": "consumer",
+        "lensTier": "consumer",
+        "bodyPresetId": "photivra-consumer:body",
+        "lensPresetId": "photivra-consumer:lens",
+        "profileReferences": [
+          {
+            "profileId": "photivra-consumer-body:exposure",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:iso",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:signal-chain",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:release",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:focus",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:stabilization",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:white-balance",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:metering-capabilities",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:flash-sync",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:readout:red",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:readout:green",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:readout:blue",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:data-readout",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:meter:multi-zone-uniform",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-prime:exposure",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-prime:radial",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-prime:lateral-ca",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-prime:vignetting",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-prime:breathing",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-prime:transmission",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-prime:pupil",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-prime:stray",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-prime:correction",
+            "profileVersion": "1.0.0"
+          }
+        ],
+        "sensorFormatSelectedByTier": false,
+        "scientificTierMultiplierApplied": false
+      },
+      "tradeoffs": [
+        "Limited continuous AF; heavier digital correction and edge pupil clipping in matched reference."
+      ],
+      "physical": {
+        "pupilResponses": [
+          {
+            "profileId": "photivra-consumer-prime:pupil:0:0",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 0,
+              "y": 0
+            },
+            "signedDefocusImagePlaneMicrometers": -20,
+            "energy": 1,
+            "peakFraction": 0.348826827303,
+            "outerSampleEnergyFraction": 0.211129388217,
+            "centroidMicrometers": {
+              "x": 6.93889390391e-17,
+              "y": -4.16333634234e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.92160895017,
+              "yy": 2.92160895017,
+              "xy": -5.55111512313e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.566050625937,
+              "vertical": 0.566050625937,
+              "diagonal": 0.624830588668
+            },
+            "relativePupilThroughputFactor": 1
+          },
+          {
+            "profileId": "photivra-consumer-prime:pupil:0:1",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 0,
+              "y": 0
+            },
+            "signedDefocusImagePlaneMicrometers": 0,
+            "energy": 1,
+            "peakFraction": 0.52,
+            "outerSampleEnergyFraction": 0.137866167677,
+            "centroidMicrometers": {
+              "x": -3.46944695195e-18,
+              "y": -1.73472347598e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 1.74340515381,
+              "yy": 1.74340515381,
+              "xy": 8.32667268469e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.741291160077,
+              "vertical": 0.741291160077,
+              "diagonal": 0.762322936678
+            },
+            "relativePupilThroughputFactor": 1
+          },
+          {
+            "profileId": "photivra-consumer-prime:pupil:0:2",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 0,
+              "y": 0
+            },
+            "signedDefocusImagePlaneMicrometers": 20,
+            "energy": 1,
+            "peakFraction": 0.348826827303,
+            "outerSampleEnergyFraction": 0.211129388217,
+            "centroidMicrometers": {
+              "x": -8.32667268469e-17,
+              "y": 6.93889390391e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.92160895017,
+              "yy": 2.92160895017,
+              "xy": -2.22044604925e-16
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.566050625937,
+              "vertical": 0.566050625937,
+              "diagonal": 0.624830588668
+            },
+            "relativePupilThroughputFactor": 1
+          },
+          {
+            "profileId": "photivra-consumer-prime:pupil:1:0",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 10,
+              "y": 6
+            },
+            "signedDefocusImagePlaneMicrometers": -20,
+            "energy": 1,
+            "peakFraction": 0.330317663079,
+            "outerSampleEnergyFraction": 0.234011144201,
+            "centroidMicrometers": {
+              "x": 0.246549226338,
+              "y": -5.55111512313e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 3.31742358385,
+              "yy": 2.64880969602,
+              "xy": 1.36862313892e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.518951629321,
+              "vertical": 0.601538903664,
+              "diagonal": 0.613935352365
+            },
+            "relativePupilThroughputFactor": 0.85
+          },
+          {
+            "profileId": "photivra-consumer-prime:pupil:1:1",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 10,
+              "y": 6
+            },
+            "signedDefocusImagePlaneMicrometers": 0,
+            "energy": 1,
+            "peakFraction": 0.48,
+            "outerSampleEnergyFraction": 0.149355014983,
+            "centroidMicrometers": {
+              "x": 1.38777878078e-17,
+              "y": 3.46944695195e-18
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.40495558329,
+              "yy": 1.37242224996,
+              "xy": 1.38777878078e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.648081364518,
+              "vertical": 0.791382815649,
+              "diagonal": 0.742516514735
+            },
+            "relativePupilThroughputFactor": 0.85
+          },
+          {
+            "profileId": "photivra-consumer-prime:pupil:1:2",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 10,
+              "y": 6
+            },
+            "signedDefocusImagePlaneMicrometers": 20,
+            "energy": 1,
+            "peakFraction": 0.330317663079,
+            "outerSampleEnergyFraction": 0.234011144201,
+            "centroidMicrometers": {
+              "x": -0.246549226338,
+              "y": -6.93889390391e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 3.31742358385,
+              "yy": 2.64880969602,
+              "xy": -1.00374516083e-16
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.518951629321,
+              "vertical": 0.601538903664,
+              "diagonal": 0.613935352365
+            },
+            "relativePupilThroughputFactor": 0.85
+          },
+          {
+            "profileId": "photivra-consumer-prime:pupil:2:0",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 18,
+              "y": 12
+            },
+            "signedDefocusImagePlaneMicrometers": -20,
+            "energy": 1,
+            "peakFraction": 0.226182739151,
+            "outerSampleEnergyFraction": 0.236050697007,
+            "centroidMicrometers": {
+              "x": 0.893838140213,
+              "y": 8.32667268469e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.61780052735,
+              "yy": 3.03343052032,
+              "xy": -1.85449278729e-16
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.612526603767,
+              "vertical": 0.558114117674,
+              "diagonal": 0.616112169188
+            },
+            "relativePupilThroughputFactor": 0.65
+          },
+          {
+            "profileId": "photivra-consumer-prime:pupil:2:1",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 18,
+              "y": 12
+            },
+            "signedDefocusImagePlaneMicrometers": 0,
+            "energy": 1,
+            "peakFraction": 0.28,
+            "outerSampleEnergyFraction": 0.125957556986,
+            "centroidMicrometers": {
+              "x": -1.38777878078e-17,
+              "y": -4.16333634234e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.20154292846,
+              "yy": 2.35272385707,
+              "xy": -5.77778983316e-34
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.647800534553,
+              "vertical": 0.642370541113,
+              "diagonal": 0.672577865783
+            },
+            "relativePupilThroughputFactor": 0.65
+          },
+          {
+            "profileId": "photivra-consumer-prime:pupil:2:2",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 18,
+              "y": 12
+            },
+            "signedDefocusImagePlaneMicrometers": 20,
+            "energy": 1,
+            "peakFraction": 0.226182739151,
+            "outerSampleEnergyFraction": 0.236050697007,
+            "centroidMicrometers": {
+              "x": -0.893838140213,
+              "y": -9.02056207508e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.61780052735,
+              "yy": 3.03343052032,
+              "xy": -9.45070120965e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.612526603767,
+              "vertical": 0.558114117674,
+              "diagonal": 0.616112169188
+            },
+            "relativePupilThroughputFactor": 0.65
+          }
+        ],
+        "cornerCaSeparationMm": 0.346132922445,
+        "cornerIllumination": 0.5,
+        "breathingProjectionScale": 1.03,
+        "flare": [
+          {
+            "sourceAngleDegrees": 0,
+            "ghost": 0.516942703244,
+            "veil": 0.019098593171,
+            "primaryOnlyMeter": 1,
+            "relativeModulationContrastForUnitMeanAfterVeil": 0.981259327312
+          },
+          {
+            "sourceAngleDegrees": 50,
+            "ghost": 6.47230101907,
+            "veil": 0.019098593171,
+            "primaryOnlyMeter": 1,
+            "relativeModulationContrastForUnitMeanAfterVeil": 0.981259327312
+          }
+        ],
+        "sampledEdgeRow": [
+          0.179230769231,
+          0.172692307692,
+          0.202307692308,
+          0.188076923077,
+          0.81,
+          0.782307692308,
+          0.779230769231,
+          0.720769230769,
+          0.686923076923
+        ],
+        "sampledCornerEdgeRow": [
+          0.148461538462,
+          0.141923076923,
+          0.171538461538,
+          0.157307692308,
+          0.179230769231,
+          0.157307692308,
+          0.656153846154,
+          0.597692307692,
+          0.563846153846
+        ]
+      },
+      "correctionCosts": {
+        "maximumPrincipalStretch": 1,
+        "maximumOutputMagnification": 1.13690020245,
+        "minimumJacobianDeterminant": 0.844025714736,
+        "cornerGain": 1.74110112659,
+        "cornerGainOnlyVarianceRatio": 3.03143313302,
+        "shiftedJointCrop": {
+          "x": 0,
+          "y": 0,
+          "width": 7,
+          "height": 9
+        },
+        "shiftedRetainedFraction": 0.777777777778,
+        "retainedSampleRayEnvelopeDegrees": {
+          "minX": -6.74400441197,
+          "maxX": 13.1275127909,
+          "minY": -13.1275127909,
+          "maxY": 13.1275127909
+        },
+        "capturedPixelEdgeFovDegrees": {
+          "horizontal": 29.9305800862,
+          "vertical": 29.9305800862
+        }
+      },
+      "corrected": {
+        "maximumResidualDisplacementMm": 0.027547875148,
+        "maximumResidualCaMm": 0.0542494535009,
+        "sampledEdgeRow": [
+          0.204306202921,
+          0.186652961016,
+          0.208620500569,
+          0.190259473726,
+          0.81,
+          0.788410192745,
+          0.804097281602,
+          0.776855159226,
+          0.787999564269
+        ],
+        "sampledCornerEdgeRow": [
+          0.197818137106,
+          0.184345519202,
+          0.202207136465,
+          0.184905204822,
+          0.204306202921,
+          0.233023512079,
+          0.757542747517,
+          0.761159676584,
+          0.771283773777
+        ],
+        "captureId": "photivra:tier-matched-reference-v1:edge",
+        "noiseRealizationId": "owned-alternating-12345",
+        "clippingEvents": 0
+      },
+      "body": {
+        "stabilization": [
+          {
+            "timeSecondsFromCaptureReference": 0,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          },
+          {
+            "timeSecondsFromCaptureReference": 0.0005,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0.00025,
+              "yaw": 0.000125,
+              "roll": 0.0000625
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0.00025,
+              "yaw": 0.000125,
+              "roll": 0.0000625
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0.00025,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.00025,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0.000125,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.000125,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0.0000625,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.0000625,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          },
+          {
+            "timeSecondsFromCaptureReference": 0.008,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0.004,
+              "yaw": 0.002,
+              "roll": 0.001
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0.001225,
+              "yaw": 0.0006125,
+              "roll": 0.00030625
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0.002775,
+              "yaw": 0.0013875,
+              "roll": 0.00069375
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0.004,
+                "delayedMeasuredAngleRad": 0.0035,
+                "requestedCorrectionAngleRad": 0.001225,
+                "appliedCorrectionAngleRad": 0.001225,
+                "residualAngleRad": 0.002775,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0.002,
+                "delayedMeasuredAngleRad": 0.00175,
+                "requestedCorrectionAngleRad": 0.0006125,
+                "appliedCorrectionAngleRad": 0.0006125,
+                "residualAngleRad": 0.0013875,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0.001,
+                "delayedMeasuredAngleRad": 0.000875,
+                "requestedCorrectionAngleRad": 0.00030625,
+                "appliedCorrectionAngleRad": 0.00030625,
+                "residualAngleRad": 0.00069375,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          }
+        ],
+        "saturatedStabilization": [
+          {
+            "timeSecondsFromCaptureReference": 0,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          },
+          {
+            "timeSecondsFromCaptureReference": 0.0005,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0.005,
+              "yaw": 0.0025,
+              "roll": 0.00125
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0.005,
+              "yaw": 0.0025,
+              "roll": 0.00125
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0.005,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.005,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0.0025,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.0025,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0.00125,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.00125,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          },
+          {
+            "timeSecondsFromCaptureReference": 0.008,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0.08,
+              "yaw": 0.04,
+              "roll": 0.02
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0.005,
+              "yaw": 0.005,
+              "roll": 0.005
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0.075,
+              "yaw": 0.035,
+              "roll": 0.015
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0.08,
+                "delayedMeasuredAngleRad": 0.07,
+                "requestedCorrectionAngleRad": 0.0245,
+                "appliedCorrectionAngleRad": 0.005,
+                "residualAngleRad": 0.075,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": true
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0.04,
+                "delayedMeasuredAngleRad": 0.035,
+                "requestedCorrectionAngleRad": 0.01225,
+                "appliedCorrectionAngleRad": 0.005,
+                "residualAngleRad": 0.035,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": true
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0.02,
+                "delayedMeasuredAngleRad": 0.0175,
+                "requestedCorrectionAngleRad": 0.006125,
+                "appliedCorrectionAngleRad": 0.005,
+                "residualAngleRad": 0.015,
+                "correctionGain": 0.35,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.005,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": true
+              }
+            ]
+          }
+        ],
+        "flash": {
+          "frontStartSeconds": 0.002,
+          "rearStartSeconds": 0.006,
+          "dataReadoutSeconds": {
+            "value": 0.03,
+            "unit": "s",
+            "evidence": [
+              {
+                "sourceOrigin": "photivra",
+                "sourceReference": "photivra:generic-tier-assets-v1",
+                "reuseStatus": "photivra-owned"
+              }
+            ]
+          },
+          "wholeFrameOpenInterval": {
+            "startSecondsFromCaptureReference": 0.002,
+            "endSecondsFromCaptureReference": 0.008,
+            "durationSeconds": 0.006
+          }
+        }
+      }
+    },
+    {
+      "tier": "prosumer",
+      "selection": {
+        "schemaVersion": "0.1.0",
+        "presetVersion": "1.0.0",
+        "bodyTier": "prosumer",
+        "lensTier": "prosumer",
+        "bodyPresetId": "photivra-prosumer:body",
+        "lensPresetId": "photivra-prosumer:lens",
+        "profileReferences": [
+          {
+            "profileId": "photivra-prosumer-body:exposure",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:iso",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:signal-chain",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:release",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:focus",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:stabilization",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:white-balance",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:metering-capabilities",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:flash-sync",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:readout:red",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:readout:green",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:readout:blue",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:data-readout",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:meter:multi-zone-uniform",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:meter:highlight-weighted",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-prime:exposure",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-prime:radial",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-prime:lateral-ca",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-prime:vignetting",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-prime:breathing",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-prime:transmission",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-prime:pupil",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-prime:stray",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-prime:correction",
+            "profileVersion": "1.0.0"
+          }
+        ],
+        "sensorFormatSelectedByTier": false,
+        "scientificTierMultiplierApplied": false
+      },
+      "tradeoffs": [
+        "Lower matched-reference peripheral gain/noise amplification than Professional; not universally inferior."
+      ],
+      "physical": {
+        "pupilResponses": [
+          {
+            "profileId": "photivra-prosumer-prime:pupil:0:0",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 0,
+              "y": 0
+            },
+            "signedDefocusImagePlaneMicrometers": -20,
+            "energy": 1,
+            "peakFraction": 0.429549295085,
+            "outerSampleEnergyFraction": 0.171835539304,
+            "centroidMicrometers": {
+              "x": 6.24500451352e-17,
+              "y": 1.11022302463e-16
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.34214896967,
+              "yy": 2.34214896967,
+              "xy": -6.93334779979e-33
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.650887604807,
+              "vertical": 0.650887604807,
+              "diagonal": 0.692127432369
+            },
+            "relativePupilThroughputFactor": 1
+          },
+          {
+            "profileId": "photivra-prosumer-prime:pupil:0:1",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 0,
+              "y": 0
+            },
+            "signedDefocusImagePlaneMicrometers": 0,
+            "energy": 1,
+            "peakFraction": 0.52,
+            "outerSampleEnergyFraction": 0.137866167677,
+            "centroidMicrometers": {
+              "x": -3.46944695195e-18,
+              "y": -1.73472347598e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 1.74340515381,
+              "yy": 1.74340515381,
+              "xy": 8.32667268469e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.741291160077,
+              "vertical": 0.741291160077,
+              "diagonal": 0.762322936678
+            },
+            "relativePupilThroughputFactor": 1
+          },
+          {
+            "profileId": "photivra-prosumer-prime:pupil:0:2",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 0,
+              "y": 0
+            },
+            "signedDefocusImagePlaneMicrometers": 20,
+            "energy": 1,
+            "peakFraction": 0.429549295085,
+            "outerSampleEnergyFraction": 0.171835539304,
+            "centroidMicrometers": {
+              "x": -4.16333634234e-17,
+              "y": -6.93889390391e-18
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.34214896967,
+              "yy": 2.34214896967,
+              "xy": -5.55111512313e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.650887604807,
+              "vertical": 0.650887604807,
+              "diagonal": 0.692127432369
+            },
+            "relativePupilThroughputFactor": 1
+          },
+          {
+            "profileId": "photivra-prosumer-prime:pupil:1:0",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 10,
+              "y": 6
+            },
+            "signedDefocusImagePlaneMicrometers": -20,
+            "energy": 1,
+            "peakFraction": 0.429549295085,
+            "outerSampleEnergyFraction": 0.171835539304,
+            "centroidMicrometers": {
+              "x": 6.24500451352e-17,
+              "y": 1.11022302463e-16
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.34214896967,
+              "yy": 2.34214896967,
+              "xy": -6.93334779979e-33
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.650887604807,
+              "vertical": 0.650887604807,
+              "diagonal": 0.692127432369
+            },
+            "relativePupilThroughputFactor": 0.95
+          },
+          {
+            "profileId": "photivra-prosumer-prime:pupil:1:1",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 10,
+              "y": 6
+            },
+            "signedDefocusImagePlaneMicrometers": 0,
+            "energy": 1,
+            "peakFraction": 0.52,
+            "outerSampleEnergyFraction": 0.137866167677,
+            "centroidMicrometers": {
+              "x": -3.46944695195e-18,
+              "y": -1.73472347598e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 1.74340515381,
+              "yy": 1.74340515381,
+              "xy": 8.32667268469e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.741291160077,
+              "vertical": 0.741291160077,
+              "diagonal": 0.762322936678
+            },
+            "relativePupilThroughputFactor": 0.95
+          },
+          {
+            "profileId": "photivra-prosumer-prime:pupil:1:2",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 10,
+              "y": 6
+            },
+            "signedDefocusImagePlaneMicrometers": 20,
+            "energy": 1,
+            "peakFraction": 0.429549295085,
+            "outerSampleEnergyFraction": 0.171835539304,
+            "centroidMicrometers": {
+              "x": -4.16333634234e-17,
+              "y": -6.93889390391e-18
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.34214896967,
+              "yy": 2.34214896967,
+              "xy": -5.55111512313e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.650887604807,
+              "vertical": 0.650887604807,
+              "diagonal": 0.692127432369
+            },
+            "relativePupilThroughputFactor": 0.95
+          },
+          {
+            "profileId": "photivra-prosumer-prime:pupil:2:0",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 18,
+              "y": 12
+            },
+            "signedDefocusImagePlaneMicrometers": -20,
+            "energy": 1,
+            "peakFraction": 0.401139134407,
+            "outerSampleEnergyFraction": 0.189688639721,
+            "centroidMicrometers": {
+              "x": 0.182932767938,
+              "y": 2.08166817117e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.86297650989,
+              "yy": 2.02106138381,
+              "xy": -3.8080532048e-18
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.582634788288,
+              "vertical": 0.693445630773,
+              "diagonal": 0.676824353111
+            },
+            "relativePupilThroughputFactor": 0.85
+          },
+          {
+            "profileId": "photivra-prosumer-prime:pupil:2:1",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 18,
+              "y": 12
+            },
+            "signedDefocusImagePlaneMicrometers": 0,
+            "energy": 1,
+            "peakFraction": 0.48,
+            "outerSampleEnergyFraction": 0.149355014983,
+            "centroidMicrometers": {
+              "x": 1.38777878078e-17,
+              "y": 3.46944695195e-18
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.40495558329,
+              "yy": 1.37242224996,
+              "xy": 1.38777878078e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.648081364518,
+              "vertical": 0.791382815649,
+              "diagonal": 0.742516514735
+            },
+            "relativePupilThroughputFactor": 0.85
+          },
+          {
+            "profileId": "photivra-prosumer-prime:pupil:2:2",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 18,
+              "y": 12
+            },
+            "signedDefocusImagePlaneMicrometers": 20,
+            "energy": 1,
+            "peakFraction": 0.401139134407,
+            "outerSampleEnergyFraction": 0.189688639721,
+            "centroidMicrometers": {
+              "x": -0.182932767938,
+              "y": -2.77555756156e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.86297650989,
+              "yy": 2.02106138381,
+              "xy": -5.07740427307e-18
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.582634788288,
+              "vertical": 0.693445630773,
+              "diagonal": 0.676824353111
+            },
+            "relativePupilThroughputFactor": 0.85
+          }
+        ],
+        "cornerCaSeparationMm": 0.173066461222,
+        "cornerIllumination": 0.75,
+        "breathingProjectionScale": 1.015,
+        "flare": [
+          {
+            "sourceAngleDegrees": 0,
+            "ghost": 0.258471351622,
+            "veil": 0.00954929658551,
+            "primaryOnlyMeter": 1,
+            "relativeModulationContrastForUnitMeanAfterVeil": 0.990541029925
+          },
+          {
+            "sourceAngleDegrees": 50,
+            "ghost": 3.23615050954,
+            "veil": 0.00954929658551,
+            "primaryOnlyMeter": 1,
+            "relativeModulationContrastForUnitMeanAfterVeil": 0.990541029925
+          }
+        ],
+        "sampledEdgeRow": [
+          0.194615384615,
+          0.181346153846,
+          0.206153846154,
+          0.189038461538,
+          0.81,
+          0.786153846154,
+          0.794615384615,
+          0.755384615385,
+          0.748461538462
+        ],
+        "sampledCornerEdgeRow": [
+          0.179230769231,
+          0.165961538462,
+          0.190769230769,
+          0.173653846154,
+          0.194615384615,
+          0.173653846154,
+          0.733076923077,
+          0.693846153846,
+          0.686923076923
+        ]
+      },
+      "correctionCosts": {
+        "maximumPrincipalStretch": 1,
+        "maximumOutputMagnification": 1.05441670908,
+        "minimumJacobianDeterminant": 0.932019432255,
+        "cornerGain": 1.18840163864,
+        "cornerGainOnlyVarianceRatio": 1.41229845473,
+        "shiftedJointCrop": {
+          "x": 0,
+          "y": 0,
+          "width": 7,
+          "height": 9
+        },
+        "shiftedRetainedFraction": 0.777777777778,
+        "retainedSampleRayEnvelopeDegrees": {
+          "minX": -6.76207684731,
+          "maxX": 13.266478131,
+          "minY": -13.266478131,
+          "maxY": 13.266478131
+        },
+        "capturedPixelEdgeFovDegrees": {
+          "horizontal": 29.9305800862,
+          "vertical": 29.9305800862
+        }
+      },
+      "corrected": {
+        "maximumResidualDisplacementMm": 0.0104541610413,
+        "maximumResidualCaMm": 0.0207534037013,
+        "sampledEdgeRow": [
+          0.20376161224,
+          0.186554192162,
+          0.208503160561,
+          0.189885274588,
+          0.81,
+          0.78844185395,
+          0.803894546244,
+          0.776223833433,
+          0.785507502828
+        ],
+        "sampledCornerEdgeRow": [
+          0.196488818442,
+          0.181494010175,
+          0.201838447306,
+          0.183857762615,
+          0.20376161224,
+          0.203349590016,
+          0.768236434451,
+          0.75314525568,
+          0.760453249594
+        ],
+        "captureId": "photivra:tier-matched-reference-v1:edge",
+        "noiseRealizationId": "owned-alternating-12345",
+        "clippingEvents": 0
+      },
+      "body": {
+        "stabilization": [
+          {
+            "timeSecondsFromCaptureReference": 0,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          },
+          {
+            "timeSecondsFromCaptureReference": 0.0005,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0.00025,
+              "yaw": 0.000125,
+              "roll": 0.0000625
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0.00025,
+              "yaw": 0.000125,
+              "roll": 0.0000625
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0.00025,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.00025,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0.000125,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.000125,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0.0000625,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.0000625,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          },
+          {
+            "timeSecondsFromCaptureReference": 0.008,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0.004,
+              "yaw": 0.002,
+              "roll": 0.001
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0.002275,
+              "yaw": 0.0011375,
+              "roll": 0.00056875
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0.001725,
+              "yaw": 0.0008625,
+              "roll": 0.00043125
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0.004,
+                "delayedMeasuredAngleRad": 0.0035,
+                "requestedCorrectionAngleRad": 0.002275,
+                "appliedCorrectionAngleRad": 0.002275,
+                "residualAngleRad": 0.001725,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0.002,
+                "delayedMeasuredAngleRad": 0.00175,
+                "requestedCorrectionAngleRad": 0.0011375,
+                "appliedCorrectionAngleRad": 0.0011375,
+                "residualAngleRad": 0.0008625,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0.001,
+                "delayedMeasuredAngleRad": 0.000875,
+                "requestedCorrectionAngleRad": 0.00056875,
+                "appliedCorrectionAngleRad": 0.00056875,
+                "residualAngleRad": 0.00043125,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          }
+        ],
+        "saturatedStabilization": [
+          {
+            "timeSecondsFromCaptureReference": 0,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          },
+          {
+            "timeSecondsFromCaptureReference": 0.0005,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0.005,
+              "yaw": 0.0025,
+              "roll": 0.00125
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0.005,
+              "yaw": 0.0025,
+              "roll": 0.00125
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0.005,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.005,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0.0025,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.0025,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0.00125,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.00125,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          },
+          {
+            "timeSecondsFromCaptureReference": 0.008,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0.08,
+              "yaw": 0.04,
+              "roll": 0.02
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0.01,
+              "yaw": 0.01,
+              "roll": 0.01
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0.07,
+              "yaw": 0.03,
+              "roll": 0.01
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0.08,
+                "delayedMeasuredAngleRad": 0.07,
+                "requestedCorrectionAngleRad": 0.0455,
+                "appliedCorrectionAngleRad": 0.01,
+                "residualAngleRad": 0.07,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": true
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0.04,
+                "delayedMeasuredAngleRad": 0.035,
+                "requestedCorrectionAngleRad": 0.02275,
+                "appliedCorrectionAngleRad": 0.01,
+                "residualAngleRad": 0.03,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": true
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0.02,
+                "delayedMeasuredAngleRad": 0.0175,
+                "requestedCorrectionAngleRad": 0.011375,
+                "appliedCorrectionAngleRad": 0.01,
+                "residualAngleRad": 0.01,
+                "correctionGain": 0.65,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.01,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": true
+              }
+            ]
+          }
+        ],
+        "flash": {
+          "frontStartSeconds": 0.002,
+          "rearStartSeconds": 0.006,
+          "dataReadoutSeconds": {
+            "value": 0.015,
+            "unit": "s",
+            "evidence": [
+              {
+                "sourceOrigin": "photivra",
+                "sourceReference": "photivra:generic-tier-assets-v1",
+                "reuseStatus": "photivra-owned"
+              }
+            ]
+          },
+          "wholeFrameOpenInterval": {
+            "startSecondsFromCaptureReference": 0.002,
+            "endSecondsFromCaptureReference": 0.008,
+            "durationSeconds": 0.006
+          }
+        }
+      }
+    },
+    {
+      "tier": "professional",
+      "selection": {
+        "schemaVersion": "0.1.0",
+        "presetVersion": "1.0.0",
+        "bodyTier": "professional",
+        "lensTier": "professional",
+        "bodyPresetId": "photivra-professional:body",
+        "lensPresetId": "photivra-professional:lens",
+        "profileReferences": [
+          {
+            "profileId": "photivra-professional-body:exposure",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:iso",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:signal-chain",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:release",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:focus",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:stabilization",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:white-balance",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:metering-capabilities",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:flash-sync",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:readout:red",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:readout:green",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:readout:blue",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:data-readout",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:meter:multi-zone-uniform",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:meter:highlight-weighted",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-prime:exposure",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-prime:radial",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-prime:lateral-ca",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-prime:vignetting",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-prime:breathing",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-prime:transmission",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-prime:pupil",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-prime:stray",
+            "profileVersion": "1.0.0"
+          },
+          {
+            "profileId": "photivra-professional-prime:correction",
+            "profileVersion": "1.0.0"
+          }
+        ],
+        "sensorFormatSelectedByTier": false,
+        "scientificTierMultiplierApplied": false
+      },
+      "tradeoffs": [
+        "Less edge clipping/stray light, with greater f/4 falloff/gain cost than Prosumer and asymmetric near/far wavefront character."
+      ],
+      "physical": {
+        "pupilResponses": [
+          {
+            "profileId": "photivra-professional-prime:pupil:0:0",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 0,
+              "y": 0
+            },
+            "signedDefocusImagePlaneMicrometers": -20,
+            "energy": 1,
+            "peakFraction": 0.377400966063,
+            "outerSampleEnergyFraction": 0.19610080132,
+            "centroidMicrometers": {
+              "x": 3.46944695195e-17,
+              "y": 2.77555756156e-16
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.71088901169,
+              "yy": 2.71088901169,
+              "xy": -1.38777878078e-16
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.596597626407,
+              "vertical": 0.596597626407,
+              "diagonal": 0.649232776938
+            },
+            "relativePupilThroughputFactor": 1
+          },
+          {
+            "profileId": "photivra-professional-prime:pupil:0:1",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 0,
+              "y": 0
+            },
+            "signedDefocusImagePlaneMicrometers": 0,
+            "energy": 1,
+            "peakFraction": 0.52,
+            "outerSampleEnergyFraction": 0.137866167677,
+            "centroidMicrometers": {
+              "x": -3.46944695195e-18,
+              "y": -1.73472347598e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 1.74340515381,
+              "yy": 1.74340515381,
+              "xy": 8.32667268469e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.741291160077,
+              "vertical": 0.741291160077,
+              "diagonal": 0.762322936678
+            },
+            "relativePupilThroughputFactor": 1
+          },
+          {
+            "profileId": "photivra-professional-prime:pupil:0:2",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 0,
+              "y": 0
+            },
+            "signedDefocusImagePlaneMicrometers": 20,
+            "energy": 1,
+            "peakFraction": 0.452252190347,
+            "outerSampleEnergyFraction": 0.162411817968,
+            "centroidMicrometers": {
+              "x": 1.38777878078e-17,
+              "y": 1.04083408559e-16
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.18734189454,
+              "yy": 2.18734189454,
+              "xy": -2.77555756156e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.673995375643,
+              "vertical": 0.673995375643,
+              "diagonal": 0.710210912096
+            },
+            "relativePupilThroughputFactor": 1
+          },
+          {
+            "profileId": "photivra-professional-prime:pupil:1:0",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 10,
+              "y": 6
+            },
+            "signedDefocusImagePlaneMicrometers": -20,
+            "energy": 1,
+            "peakFraction": 0.377400966063,
+            "outerSampleEnergyFraction": 0.19610080132,
+            "centroidMicrometers": {
+              "x": 3.46944695195e-17,
+              "y": 2.77555756156e-16
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.71088901169,
+              "yy": 2.71088901169,
+              "xy": -1.38777878078e-16
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.596597626407,
+              "vertical": 0.596597626407,
+              "diagonal": 0.649232776938
+            },
+            "relativePupilThroughputFactor": 0.98
+          },
+          {
+            "profileId": "photivra-professional-prime:pupil:1:1",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 10,
+              "y": 6
+            },
+            "signedDefocusImagePlaneMicrometers": 0,
+            "energy": 1,
+            "peakFraction": 0.52,
+            "outerSampleEnergyFraction": 0.137866167677,
+            "centroidMicrometers": {
+              "x": -3.46944695195e-18,
+              "y": -1.73472347598e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 1.74340515381,
+              "yy": 1.74340515381,
+              "xy": 8.32667268469e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.741291160077,
+              "vertical": 0.741291160077,
+              "diagonal": 0.762322936678
+            },
+            "relativePupilThroughputFactor": 0.98
+          },
+          {
+            "profileId": "photivra-professional-prime:pupil:1:2",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 10,
+              "y": 6
+            },
+            "signedDefocusImagePlaneMicrometers": 20,
+            "energy": 1,
+            "peakFraction": 0.452252190347,
+            "outerSampleEnergyFraction": 0.162411817968,
+            "centroidMicrometers": {
+              "x": 1.38777878078e-17,
+              "y": 1.04083408559e-16
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.18734189454,
+              "yy": 2.18734189454,
+              "xy": -2.77555756156e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.673995375643,
+              "vertical": 0.673995375643,
+              "diagonal": 0.710210912096
+            },
+            "relativePupilThroughputFactor": 0.98
+          },
+          {
+            "profileId": "photivra-professional-prime:pupil:2:0",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 18,
+              "y": 12
+            },
+            "signedDefocusImagePlaneMicrometers": -20,
+            "energy": 1,
+            "peakFraction": 0.377400966063,
+            "outerSampleEnergyFraction": 0.19610080132,
+            "centroidMicrometers": {
+              "x": 3.46944695195e-17,
+              "y": 2.77555756156e-16
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.71088901169,
+              "yy": 2.71088901169,
+              "xy": -1.38777878078e-16
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.596597626407,
+              "vertical": 0.596597626407,
+              "diagonal": 0.649232776938
+            },
+            "relativePupilThroughputFactor": 0.95
+          },
+          {
+            "profileId": "photivra-professional-prime:pupil:2:1",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 18,
+              "y": 12
+            },
+            "signedDefocusImagePlaneMicrometers": 0,
+            "energy": 1,
+            "peakFraction": 0.52,
+            "outerSampleEnergyFraction": 0.137866167677,
+            "centroidMicrometers": {
+              "x": -3.46944695195e-18,
+              "y": -1.73472347598e-17
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 1.74340515381,
+              "yy": 1.74340515381,
+              "xy": 8.32667268469e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.741291160077,
+              "vertical": 0.741291160077,
+              "diagonal": 0.762322936678
+            },
+            "relativePupilThroughputFactor": 0.95
+          },
+          {
+            "profileId": "photivra-professional-prime:pupil:2:2",
+            "profileVersion": "1.0.0",
+            "fieldPointMm": {
+              "x": 18,
+              "y": 12
+            },
+            "signedDefocusImagePlaneMicrometers": 20,
+            "energy": 1,
+            "peakFraction": 0.452252190347,
+            "outerSampleEnergyFraction": 0.162411817968,
+            "centroidMicrometers": {
+              "x": 1.38777878078e-17,
+              "y": 1.04083408559e-16
+            },
+            "covarianceSquareMicrometers": {
+              "xx": 2.18734189454,
+              "yy": 2.18734189454,
+              "xy": -2.77555756156e-17
+            },
+            "textureContrastAt100CyclesPerMm": {
+              "horizontal": 0.673995375643,
+              "vertical": 0.673995375643,
+              "diagonal": 0.710210912096
+            },
+            "relativePupilThroughputFactor": 0.95
+          }
+        ],
+        "cornerCaSeparationMm": 0.0865332306111,
+        "cornerIllumination": 0.65,
+        "breathingProjectionScale": 1.005,
+        "flare": [
+          {
+            "sourceAngleDegrees": 0,
+            "ghost": 0.0861571172074,
+            "veil": 0.00318309886184,
+            "primaryOnlyMeter": 1,
+            "relativeModulationContrastForUnitMeanAfterVeil": 0.996827001107
+          },
+          {
+            "sourceAngleDegrees": 50,
+            "ghost": 1.07871683651,
+            "veil": 0.00318309886184,
+            "primaryOnlyMeter": 1,
+            "relativeModulationContrastForUnitMeanAfterVeil": 0.996827001107
+          }
+        ],
+        "sampledEdgeRow": [
+          0.188461538462,
+          0.177884615385,
+          0.204615384615,
+          0.188653846154,
+          0.81,
+          0.784615384615,
+          0.788461538462,
+          0.741538461538,
+          0.723846153846
+        ],
+        "sampledCornerEdgeRow": [
+          0.166923076923,
+          0.156346153846,
+          0.183076923077,
+          0.167115384615,
+          0.188461538462,
+          0.167115384615,
+          0.702307692308,
+          0.655384615385,
+          0.637692307692
+        ]
+      },
+      "correctionCosts": {
+        "maximumPrincipalStretch": 1,
+        "maximumOutputMagnification": 1.02178927023,
+        "minimumJacobianDeterminant": 0.97170691356,
+        "cornerGain": 1.41146240402,
+        "cornerGainOnlyVarianceRatio": 1.99222611795,
+        "shiftedJointCrop": {
+          "x": 0,
+          "y": 0,
+          "width": 7,
+          "height": 9
+        },
+        "shiftedRetainedFraction": 0.777777777778,
+        "retainedSampleRayEnvelopeDegrees": {
+          "minX": -6.76982176314,
+          "maxX": 13.3259861873,
+          "minY": -13.3259861873,
+          "maxY": 13.3259861873
+        },
+        "capturedPixelEdgeFovDegrees": {
+          "horizontal": 29.9305800862,
+          "vertical": 29.9305800862
+        }
+      },
+      "corrected": {
+        "maximumResidualDisplacementMm": 0.004587199903,
+        "maximumResidualCaMm": 0.00914058767933,
+        "sampledEdgeRow": [
+          0.206305561299,
+          0.187149269161,
+          0.209106928213,
+          0.189796004011,
+          0.81,
+          0.788870899454,
+          0.805859843718,
+          0.779807431993,
+          0.793168007993
+        ],
+        "sampledCornerEdgeRow": [
+          0.202067884424,
+          0.18226573606,
+          0.205210565676,
+          0.184676073583,
+          0.206305561299,
+          0.192714888818,
+          0.784184258028,
+          0.76152602524,
+          0.775345002272
+        ],
+        "captureId": "photivra:tier-matched-reference-v1:edge",
+        "noiseRealizationId": "owned-alternating-12345",
+        "clippingEvents": 0
+      },
+      "body": {
+        "stabilization": [
+          {
+            "timeSecondsFromCaptureReference": 0,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          },
+          {
+            "timeSecondsFromCaptureReference": 0.0005,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0.00025,
+              "yaw": 0.000125,
+              "roll": 0.0000625
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0.00025,
+              "yaw": 0.000125,
+              "roll": 0.0000625
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0.00025,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.00025,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0.000125,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.000125,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0.0000625,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.0000625,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          },
+          {
+            "timeSecondsFromCaptureReference": 0.008,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0.004,
+              "yaw": 0.002,
+              "roll": 0.001
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0.002975,
+              "yaw": 0.0014875,
+              "roll": 0.00074375
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0.001025,
+              "yaw": 0.0005125,
+              "roll": 0.00025625
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0.004,
+                "delayedMeasuredAngleRad": 0.0035,
+                "requestedCorrectionAngleRad": 0.002975,
+                "appliedCorrectionAngleRad": 0.002975,
+                "residualAngleRad": 0.001025,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0.002,
+                "delayedMeasuredAngleRad": 0.00175,
+                "requestedCorrectionAngleRad": 0.0014875,
+                "appliedCorrectionAngleRad": 0.0014875,
+                "residualAngleRad": 0.0005125,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0.001,
+                "delayedMeasuredAngleRad": 0.000875,
+                "requestedCorrectionAngleRad": 0.00074375,
+                "appliedCorrectionAngleRad": 0.00074375,
+                "residualAngleRad": 0.00025625,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          }
+        ],
+        "saturatedStabilization": [
+          {
+            "timeSecondsFromCaptureReference": 0,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          },
+          {
+            "timeSecondsFromCaptureReference": 0.0005,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0.005,
+              "yaw": 0.0025,
+              "roll": 0.00125
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0,
+              "yaw": 0,
+              "roll": 0
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0.005,
+              "yaw": 0.0025,
+              "roll": 0.00125
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0.005,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.005,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0.0025,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.0025,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0.00125,
+                "delayedMeasuredAngleRad": 0,
+                "requestedCorrectionAngleRad": 0,
+                "appliedCorrectionAngleRad": 0,
+                "residualAngleRad": 0.00125,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          },
+          {
+            "timeSecondsFromCaptureReference": 0.008,
+            "disturbanceAngularDisplacementRad": {
+              "pitch": 0.08,
+              "yaw": 0.04,
+              "roll": 0.02
+            },
+            "appliedCorrectionAngularDisplacementRad": {
+              "pitch": 0.02,
+              "yaw": 0.02,
+              "roll": 0.014875
+            },
+            "residualAngularDisplacementRad": {
+              "pitch": 0.06,
+              "yaw": 0.02,
+              "roll": 0.005125
+            },
+            "axes": [
+              {
+                "axis": "pitch",
+                "disturbanceAngleRad": 0.08,
+                "delayedMeasuredAngleRad": 0.07,
+                "requestedCorrectionAngleRad": 0.0595,
+                "appliedCorrectionAngleRad": 0.02,
+                "residualAngleRad": 0.06,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": true
+              },
+              {
+                "axis": "yaw",
+                "disturbanceAngleRad": 0.04,
+                "delayedMeasuredAngleRad": 0.035,
+                "requestedCorrectionAngleRad": 0.02975,
+                "appliedCorrectionAngleRad": 0.02,
+                "residualAngleRad": 0.02,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": true
+              },
+              {
+                "axis": "roll",
+                "disturbanceAngleRad": 0.02,
+                "delayedMeasuredAngleRad": 0.0175,
+                "requestedCorrectionAngleRad": 0.014875,
+                "appliedCorrectionAngleRad": 0.014875,
+                "residualAngleRad": 0.005125,
+                "correctionGain": 0.85,
+                "latencySeconds": 0.001,
+                "maximumCorrectionAngleRad": 0.02,
+                "bypassedForDeclaredPan": false,
+                "correctionLimitReached": false
+              }
+            ]
+          }
+        ],
+        "flash": {
+          "frontStartSeconds": 0.002,
+          "rearStartSeconds": 0.006,
+          "dataReadoutSeconds": {
+            "value": 0.008,
+            "unit": "s",
+            "evidence": [
+              {
+                "sourceOrigin": "photivra",
+                "sourceReference": "photivra:generic-tier-assets-v1",
+                "reuseStatus": "photivra-owned"
+              }
+            ]
+          },
+          "wholeFrameOpenInterval": {
+            "startSecondsFromCaptureReference": 0.002,
+            "endSecondsFromCaptureReference": 0.008,
+            "durationSeconds": 0.006
+          }
+        }
+      }
+    }
+  ]
+}

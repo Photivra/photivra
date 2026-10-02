@@ -255,3 +255,13 @@ pass, hidden quality multiplier or external data is introduced.
 
 See the acceptance disposition for #116 ownership, remaining #119 validation and
 scientific limits. Runtime/API/schema/asset/package/POC versions stay unchanged.
+
+
+## Versioned cross-tier reports
+
+The final proposed #119 acceptance layer is [TIER_ACCEPTANCE.md](TIER_ACCEPTANCE.md).
+It links a reproducible three-domain report, normative finite regression envelopes,
+explicit multidimensional pupil/texture and crop/gain tradeoffs, and matched signed
+stabilization/ordinary-flash checks. Existing body, correction and producer-to-file
+acceptance remains part of that evidence. Measured calibration and unsupported
+optical metrics are not invented; runtime/assets and all versions are unchanged.

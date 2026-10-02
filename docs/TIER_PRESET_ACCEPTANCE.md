@@ -43,8 +43,9 @@ cannot silently interpolate them over spectrum/field/defocus, so its separate
 continuous-spectrum test explicitly omits PSF. Pupil throughput and illumination
 falloff retain separate ownership. No simultaneous composition is asserted.
 
-#119 remains open for the broader matched cross-tier report/envelope and applicable
-stabilization/flash/output validation inventory. LoCA/spectral bokeh, measured MTF,
+#119 now has its final proposed matched report/envelope and stabilization/flash
+acceptance disposition in [TIER_ACCEPTANCE.md](TIER_ACCEPTANCE.md), pending review
+and merge. LoCA/spectral bokeh, measured MTF,
 manufacturer AF performance, arbitrary lens-state optical interpolation and external
 calibration are outside these initial assets' implemented representation; none is
 invented by catalog labels. Unsupported required effects continue to block under

@@ -1,10 +1,10 @@
 # OpenSource V1 composition and consumer map
 
 Current implementation: root API 0.116.0, production plan 0.7.0, based on main
-`8f5259c4d6b40746173d7842554d416f0138ee27` plus the #178 production integration
-change. Scope/status comes from [V1 #129](https://github.com/Photivra/photivra/issues/129).
-The tracker is **27/32**: #16 and #112 are closed; #116, #119, #43, #45 and #131
-remain feature/science gates. #178 is a separate required defect; #180 follows
+`17c6c674e737a7b6d9a16d2da92bfcff673ba13c` (#203) plus the proposed #119
+acceptance report layer. Scope/status comes from [V1 #129](https://github.com/Photivra/photivra/issues/129).
+The tracker is **28/32**: #16, #112 and #116 are closed; #119, #43, #45 and #131
+remain feature/science gates. #178 is closed as a separate required defect; #180 follows
 final conformance. This proposed implementation does not close GitHub issues
 or authorize a release.
 
@@ -45,10 +45,10 @@ needed.
 | [#112](https://github.com/Photivra/photivra/issues/112) Processed camera output | closed | [capture-corrected-sdr.ts](../src/output/capture-corrected-sdr.ts) | Capture-bound color/correction → oriented view/SDR; paired RAW consumer | [photographic-export-correction.test.ts](../test/photographic-export-correction.test.ts) | Shared processed RAW/preview/JPEG merged in #200; executed upstream route in plan 0.7.0; final tier/conformance acceptance remains |
 | [#113](https://github.com/Photivra/photivra/issues/113) Lens PSF/bokeh | closed | [lens-psf-profile.ts](../src/optics/lens-psf-profile.ts) | Declared sampled PSF/MTF; separate complex-pupil model | [lens-psf-framework.test.ts](../test/lens-psf-framework.test.ts) | #16/#178: wavelength/field/depth sampling and finite support; MTF-only is not renderable PSF |
 | [#114](https://github.com/Photivra/photivra/issues/114) Stray light | closed | [stray-light.ts](../src/optics/stray-light.ts) | Separate declared ghost/veiling irradiance foundation | [stray-light.test.ts](../test/stray-light.test.ts) | #16/#178: add only explicitly selected incremental light; never fold into primary PSF |
-| [#116](https://github.com/Photivra/photivra/issues/116) Generic tiers | open | [generic-tier-presets.ts](../src/equipment/generic-tier-presets.ts) | Exact-version selection; body and lens profile resolution | [generic-tier-presets.test.ts](../test/generic-tier-presets.test.ts) | [Proposed catalog acceptance disposition](TIER_PRESET_ACCEPTANCE.md); nine-pair production/output and 27 exact pupil scenes; #119 broader validation remains; no calibrated ranking |
+| [#116](https://github.com/Photivra/photivra/issues/116) Generic tiers | closed | [generic-tier-presets.ts](../src/equipment/generic-tier-presets.ts) | Exact-version selection; body and lens profile resolution | [generic-tier-presets.test.ts](../test/generic-tier-presets.test.ts) | [Merged catalog acceptance disposition](TIER_PRESET_ACCEPTANCE.md); nine-pair production/output and 27 exact pupil scenes; #119 broader validation remains; no calibrated ranking |
 | [#117](https://github.com/Photivra/photivra/issues/117) Lens corrections | closed | [lens-corrections.ts](../src/output/lens-corrections.ts) | Capture-bound selected correction; RAW informational intent/JPEG processing | [generic-tier-correction-acceptance.test.ts](../test/generic-tier-correction-acceptance.test.ts) | #112/#16: connect authoritative upstream capture while preserving residual/crop/noise costs |
 | [#118](https://github.com/Photivra/photivra/issues/118) Composed geometry/resampling | closed | [geometric-transforms.ts](../src/output/geometric-transforms.ts) | Domain-compatible joint mapping/sampling → bounded correction executor | [geometric-transforms.test.ts](../test/geometric-transforms.test.ts) | #112/#16: preserve full Jacobian/filter/support and existing domain order |
-| [#119](https://github.com/Photivra/photivra/issues/119) Tier acceptance | open | [generic-tier-assets.ts](../src/equipment/generic-tier-assets.ts) | Matched synthetic body/correction/readout-to-file fixture consumers | [generic-tier-output-acceptance.test.ts](../test/generic-tier-output-acceptance.test.ts) | Physical scene/PSF acceptance and applicable final output evidence with same scenario |
+| [#119](https://github.com/Photivra/photivra/issues/119) Tier acceptance | open | [generic-tier-assets.ts](../src/equipment/generic-tier-assets.ts) | Matched synthetic body/correction/readout-to-file fixture consumers | [generic-tier-output-acceptance.test.ts](../test/generic-tier-output-acceptance.test.ts) | [Proposed final tier acceptance](TIER_ACCEPTANCE.md): versioned physical/cost/corrected report, multidimensional finite pupils and matched body execution; existing paired-output evidence reused |
 | [#130](https://github.com/Photivra/photivra/issues/130) Canonical fixture | closed | [basic-reference-fixture.ts](../test/helpers/basic-reference-fixture.ts) | Shared deterministic laboratory and minimal declared variants | [basic-reference-scene.test.ts](../test/basic-reference-scene.test.ts) | #131: reuse without treating tiny/synthetic raster as performance or calibration evidence |
 | [#131](https://github.com/Photivra/photivra/issues/131) Final conformance | open | [raw-output-conformance.test.ts](../test/raw-output-conformance.test.ts) | Incremental geometry/signal/capture-output suites; final gate remains open | [cross-stage-conformance.test.ts](../test/cross-stage-conformance.test.ts) | Final integrated path, tier and performance dispositions; last feature/science ticket |
 | [#132](https://github.com/Photivra/photivra/issues/132) Numerics/units | closed | [validation.ts](../src/core/validation.ts) | Typed input/result guards plus shared units/finite conventions | [numerical-correctness-contract.test.ts](../test/numerical-correctness-contract.test.ts) | Apply throughout new composition; existing guards do not establish physical validity |
@@ -128,6 +128,6 @@ deferral by this change.
 
 Final ordering remains #116/#119 matched tier acceptance, #43/#45 relevant
 remeasurement, #131 final scientific conformance, then #180 exhaustive human/
-agent/source documentation and 1.0 preparation. #178 implementation still needs
-substantive owner review, contribution-specific DCO and merge. #165 remains
+agent/source documentation and 1.0 preparation. #178 and #116 are reviewed and
+merged; this #119 contribution still requires review, DCO and merge. #165 remains
 post-V1. This map is not the final #180 audit or authorization to tag/release.
