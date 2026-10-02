@@ -149,6 +149,15 @@ Provider/projection/PSF execution and production activation remain open; 25/32 i
 
 ## Remaining upstream handoff into the existing producer
 
+[`calculateSensorEnvironmentRadianceQuery()`](../src/optics/sensor-environment-query.ts)
+derives an environment query from physical native sensor support using ideal
+focus-aware projection and analytic inverse camera rotation. Its explicit
+opening-boundary clock and outgoing-toward-camera conventions prevent hidden
+coordinate/time reinterpretation. See [SENSOR_ENVIRONMENT_QUERY.md](SENSOR_ENVIRONMENT_QUERY.md)
+and [acceptance](../test/sensor-environment-query.test.ts). This calculates the
+geometric reference ray, not scene intersections, visibility or provider transport;
+production stages remain unchanged and V1 stays 25/32.
+
 [`calculateSensorPsfIrradianceQuadrature()`](../src/optics/sensor-psf-quadrature.ts)
 now consumes #113 sampled PSF shapes with an explicitly limited destination-local
 shift-invariance approximation and complete pre-PSF irradiance support. Native

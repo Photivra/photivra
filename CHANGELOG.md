@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased — engine API 0.112.0
+## Unreleased — engine API 0.113.0
+
+- Add `calculateSensorEnvironmentRadianceQuery()`: derive an environment request from native sensor optical support with explicit +Y-down/+Y-up conversion, focus-aware ideal projection, existing analytic inverse camera rotation and outgoing-toward-camera direction convention. Explicit opening-boundary clock mapping preserves time semantics. Ray projection is calculated; intersections, visibility, provider transport and production activation remain absent. See `docs/SENSOR_ENVIRONMENT_QUERY.md`. Partial #16/#178 integration.
+
+## Engine API 0.112.0
 
 - Add `calculateSensorPsfIrradianceQuadrature()`: resolve sampled lens PSFs at each pre-AA destination/wavelength and apply their normalized shape to explicitly supplied inverse kernel support. Convert native +Y-down support to image-plane +Y-up PSF axes; retain separate pupil throughput, wavelength-basis evidence, exact instantaneous times and local shift-invariance limitations. Complete support and bounded work fail closed. No full field-dependent forward transport, source projection/provider execution or production activation is inferred. See `docs/SENSOR_PSF_QUADRATURE.md`. Partial #16/#178 integration.
 
