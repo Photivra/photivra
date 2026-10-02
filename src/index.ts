@@ -1375,6 +1375,8 @@ export { calculateSceneToSensorIrradianceQuadrature, type CalculateSceneToSensor
 
 export { calculateSceneSensorEqeTemporalExposure, type CalculateSceneSensorEqeTemporalExposureInput,
   type SceneSensorEqeTemporalExposure } from "./sensor/scene-eqe-temporal-exposure.js";
+export { calculateSensorPsfIrradianceQuadrature, type CalculateSensorPsfIrradianceQuadratureInput,
+  type SensorPsfSourceSample, type SensorPsfIrradianceQuadrature } from "./optics/sensor-psf-quadrature.js";
 export { calculateSensorEqeTemporalExposure, type CalculateSensorEqeTemporalExposureInput,
   type SensorEqeTemporalExposure } from "./sensor/eqe-temporal-exposure.js";
 
