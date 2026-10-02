@@ -1,6 +1,6 @@
 # Measured-performance baseline: #43 / #45
 
-Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+Release context: **package 1.0.1 candidate / root API 1.0.1**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0_1.md).
 
 This independent first slice records merged main `83a99a4c1ec525fd1add7cccff134fcee0f5159b`, root API 0.93.0, POC API 0.20.0, in `docs/benchmarks/2026-10-01-main-baseline.json`. No pending capture/output/correction/preset implementation is consumed. It does not close either issue or justify an optimization by itself.
 

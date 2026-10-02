@@ -4,7 +4,7 @@ Adopted: 2026-09-26. Applies to every Node.js repository in the Photivra organiz
 
 ## Maintained LTS plus Current
 
-"Actively maintained LTS" means an official Node.js release line in either **Active LTS** or **Maintenance LTS**, before its upstream end-of-life date. Following open-source v1, this repository also supports the official Current release line. Prerelease/nightly, end-of-life, and commercial extended-support-only releases are not supported.
+"Actively maintained LTS" means an official Node.js release line in either **Active LTS** or **Maintenance LTS**, before its upstream end-of-life date. Starting with the 1.0.1 candidate, this repository supports all upstream-supported Active/Maintenance LTS lines plus the official Current release line. Prerelease/nightly, end-of-life, and commercial extended-support-only releases are not supported.
 
 Use the official lifecycle, not "latest", a version-number parity rule, or an open-ended minimum version as evidence of support:
 
@@ -12,11 +12,11 @@ Use the official lifecycle, not "latest", a version-number parity rule, or an op
 - https://github.com/nodejs/Release
 - https://github.com/nodejs/Release/blob/main/schedule.json
 
-As reverified against the official schedule on 2026-10-02 (original policy review 2026-09-26), Node 24 is Active LTS and Node 22 is Maintenance LTS. Node 26 is Current and is included in the support set. Future dates must be reverified; entering LTS makes a line eligible for review, not automatically supported by every repository.
+As reverified against the official schedule on 2026-10-02 (original policy review 2026-09-26), Node 24 is Active LTS and Node 22 is Maintenance LTS. Node 26 is Current and is included in the support set. This is a dated snapshot: future lines must be reviewed and tested as the official lifecycle changes. Node 26 remains supported when it enters LTS, with its runtime LTS marker required from that date.
 
 ## Repository baselines
 
-An eligible upstream line is not an untested repository compatibility claim. Each repository must explicitly record and test its supported subset. Prefer the newest qualified Active LTS line for normal development and builds; retain a qualified Maintenance LTS line where compatibility is already supported.
+An eligible upstream line is not an untested repository compatibility claim. This repository must explicitly record and test every line covered by the maintained-LTS-plus-Current policy. Prefer the newest qualified Active LTS line for normal development and builds; retain a qualified Maintenance LTS line where compatibility is already supported.
 
 This repository tests Node 22, 24 and 26, including current patched releases of each line and the Node 22.13.0 minimum-version regression job. The normal tooling baseline and pinned `@types/node` major remain **24**. Use current patched releases for ordinary development/deployment; a historical minimum-version regression job is not a deployment recommendation.
 

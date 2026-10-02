@@ -1,6 +1,6 @@
 # Public API Style
 
-Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+Release context: **package 1.0.1 candidate / root API 1.0.1**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0_1.md).
 
 The open engine should feel like one coherent library.
 
@@ -89,14 +89,14 @@ Do **not** automatically sum, average, add in quadrature, or otherwise collapse 
 
 ## Versioning
 
-Photivra has multiple independent version surfaces:
+From 1.0.1, Photivra aligns its release and root API identities:
 
 - npm/package version: distribution/release version;
-- `ENGINE_API_VERSION`: root browser-safe engine/public-contract version;
+- `ENGINE_API_VERSION`: the same full version as the npm package;
 - `POC_SIMULATION_API_VERSION`: composed `simulatePocCamera()` request/response contract;
 - schema-specific versions such as sensor-architecture or radiometry-readiness schemas.
 
-Do not reuse one version as a proxy for another. A change to a parser/schema does not necessarily require changing the POC contract, and a POC response change does not necessarily mean the npm package has been released.
+The release checker enforces package/root equality. Subsystem, schema and POC versions remain independent. A change to a parser/schema does not necessarily require changing the POC contract, and a POC response change does not necessarily mean the npm package has been released.
 
 Before 1.0, public APIs may evolve with documented changes. Breaking or semantically meaningful contract changes must update the relevant version surface, tests, changelog, and migration/compatibility documentation. After 1.0, breaking public-contract changes require an appropriate major-version transition.
 
@@ -160,7 +160,7 @@ serialization keeps its existing validated JSON.stringify representation.
 
 ## Compatibility and deprecation policy
 
-Photivra has independent compatibility surfaces. Update only the surface whose observable contract changed.
+The package and root API share a release version. Update independent schema/model/POC versions only when their observable contracts change.
 
 ### Package version
 
@@ -168,7 +168,7 @@ The npm package version identifies a published distribution. It is not a proxy f
 
 ### `ENGINE_API_VERSION`
 
-Bump when the browser-safe root public engine contract changes materially, including a breaking or semantically meaningful exported API change.
+Set to the npm package version for every release, including patches. New records use this creator identity; parsers preserve historical archive identities.
 
 ### Subsystem/schema versions
 
@@ -228,4 +228,8 @@ Audit rule:
 
 ## Stable 1.0 distribution transition
 
-Package 1.0.0 intentionally retains `ENGINE_API_VERSION = "0.116.0"`: this independent root contract identity is already embedded in serialized captures and does not itself signal a published distribution. The package 1.0 policy now governs breaking changes despite that historical root ID. No schema/model/POC/plan version is reset. See [migration and release procedure](RELEASE_1_0.md).
+Historically, package 1.0.0 retained `ENGINE_API_VERSION = "0.116.0"`: this independent root contract identity is already embedded in serialized captures and does not itself signal a published distribution. The package 1.0 policy now governs breaking changes despite that historical root ID. No schema/model/POC/plan version is reset. See [migration and release procedure](RELEASE_1_0.md).
+
+## Aligned 1.0.1 release transition
+
+Starting with 1.0.1, `ENGINE_API_VERSION` equals the full npm package version. Package and root API follow one SemVer release sequence; schema/model/POC/plan versions remain independent. Archived capture identities and measured artifacts are preserved. Newly created capture/plan bytes and identity hashes can change because their creator API field now records 1.0.1. See [migration and release procedure](RELEASE_1_0_1.md).

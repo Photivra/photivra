@@ -4,7 +4,7 @@ Please do not open a public issue containing vulnerability details.
 
 ## Supported versions
 
-The 1.0.0 candidate establishes the 1.x root-package compatibility line. Security fixes target the current maintained development/release line; older snapshots and pre-1.0 releases should not be assumed to receive fixes. Candidate preparation does not establish npm publication or a new support service.
+The published 1.0.0 release established the 1.x root-package compatibility line. Security fixes target the current maintained development/release line; older snapshots and pre-1.0 releases should not be assumed to receive fixes. The current 1.0.1 candidate is not yet published. Node runtime support follows [NODE_SUPPORT.md](NODE_SUPPORT.md), covering maintained LTS lines plus Current; older/EOL runtimes are not qualified.
 
 ## Reporting a vulnerability
 
