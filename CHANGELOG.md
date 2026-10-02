@@ -2,6 +2,8 @@
 
 ## Unreleased — engine API 0.116.0
 
+- Complete the proposed final #131 scientific conformance disposition: shared-reference relative metering and exposure control through independently predicted photon/dark counts, committed production RAW/processing and paired output; controlled light/compensation/time/orientation/render variants, exact replay and fail-closed bindings. Reuse merged tier/performance evidence with explicit synthetic limits; no runtime/API/asset/dependency change. See `docs/SCIENTIFIC_CONFORMANCE.md`.
+
 - Complete the proposed final #43/#45 performance disposition on stabilized V1 main with paired whole-consumer equivalence/timing, preparation/memory profiles and dense executed environment-to-RAW evidence. Retain merged private reuse; no further public abstraction or runtime/API change. See `docs/V1_PERFORMANCE_DISPOSITION.md`.
 
 - Complete the proposed #119 generic tier acceptance layer with reproducible versioned physical/correction-cost/corrected reports, finite multidimensional pupil/texture envelopes, same-capture edge/noise comparisons and independently predicted signed stabilization/ordinary flash checks. Reuse existing body and production/output acceptance; no calibration claims, runtime/asset/version changes or new dependency. See `docs/TIER_ACCEPTANCE.md`.

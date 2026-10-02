@@ -1,9 +1,9 @@
 # OpenSource V1 composition and consumer map
 
 Current implementation: root API 0.116.0, production plan 0.7.0, based on main
-`edc20e61538152fa758f3cce4b41cc34d1e8ba03` (#204) plus the proposed final
-performance disposition. Scope/status comes from [V1 #129](https://github.com/Photivra/photivra/issues/129).
-The tracker is **29/32**: #16, #112, #116 and #119 are closed; #43, #45 and #131
+`712c031689f5413003a1d15c2d0dfa9466bbbfb8` (#205) plus the proposed final
+scientific conformance disposition. Scope/status comes from [V1 #129](https://github.com/Photivra/photivra/issues/129).
+The tracker is **31/32**: #16, #112, #116, #119, #43 and #45 are closed; #131
 remain feature/science gates. #178 is closed as a separate required defect; #180 follows
 final conformance. This proposed implementation does not close GitHub issues
 or authorize a release.
@@ -30,8 +30,8 @@ needed.
 | [#14](https://github.com/Photivra/photivra/issues/14) Sensor pipeline | closed | [eqe-electron-rate.ts](../src/sensor/eqe-electron-rate.ts) | Bounded irradiance→EQE local exposure composition; charge-to-RAW adapter | [sensor-raw-pipeline.test.ts](../test/sensor-raw-pipeline.test.ts) | #16/#178: bind committed scene/optics/PSF origin to physical irradiance nodes |
 | [#15](https://github.com/Photivra/photivra/issues/15) Linear capture and color | closed | [simulated-capture.ts](../src/capture/simulated-capture.ts) | Immutable capture; ideal XYZ color and linear encoding; sensor adapter distinct | [capture-color.test.ts](../test/capture-color.test.ts) | #112/#16: bind physical capture origin; preserve color-channel basis |
 | [#16](https://github.com/Photivra/photivra/issues/16) Paired RAW DNG/JPEG | closed | [photographic-export.ts](../src/capture/photographic-export.ts) | Exact attached-RAW reconstruction → development → correction/SDR → files | [raw-output-conformance.test.ts](../test/raw-output-conformance.test.ts) | Producer-derived independent/Adobe/editor evidence merged in #201; 4,096-site bound remains explicit |
-| [#43](https://github.com/Photivra/photivra/issues/43) Prepared/batch performance | open | [geometric-transforms.ts](../src/output/geometric-transforms.ts) | Call-owned prepared geometric mapping reused by sampling execution | [geometric-preparation-reuse.test.ts](../test/geometric-preparation-reuse.test.ts) | [Final proposed remeasurement](V1_PERFORMANCE_DISPOSITION.md); retain merged call-owned reuse; no further abstraction |
-| [#45](https://github.com/Photivra/photivra/issues/45) POC projection reuse | open | [poc-simulation.ts](../src/simulation/poc-simulation.ts) | Private prepared projection in legacy POC defocus sweeps | [poc-projection-reuse.test.ts](../test/poc-projection-reuse.test.ts) | [Final proposed remeasurement](V1_PERFORMANCE_DISPOSITION.md); retain request-local reuse; POC remains separate |
+| [#43](https://github.com/Photivra/photivra/issues/43) Prepared/batch performance | closed | [geometric-transforms.ts](../src/output/geometric-transforms.ts) | Call-owned prepared geometric mapping reused by sampling execution | [geometric-preparation-reuse.test.ts](../test/geometric-preparation-reuse.test.ts) | [Merged final remeasurement](V1_PERFORMANCE_DISPOSITION.md); retain merged call-owned reuse; no further abstraction |
+| [#45](https://github.com/Photivra/photivra/issues/45) POC projection reuse | closed | [poc-simulation.ts](../src/simulation/poc-simulation.ts) | Private prepared projection in legacy POC defocus sweeps | [poc-projection-reuse.test.ts](../test/poc-projection-reuse.test.ts) | [Merged final remeasurement](V1_PERFORMANCE_DISPOSITION.md); retain request-local reuse; POC remains separate |
 | [#95](https://github.com/Photivra/photivra/issues/95) Stable support | closed | [camera-shake.ts](../src/stabilization/camera-shake.ts) | Direct ideal stable-support boundary, independent of correction | [camera-shake.test.ts](../test/camera-shake.test.ts) | #16/#178: requested shake/stabilization must preserve physical ownership |
 | [#97](https://github.com/Photivra/photivra/issues/97) IBIS/OIS | closed | [system.ts](../src/stabilization/system.ts) | Explicit disturbance/trajectory temporal sampling | [stabilization-system.test.ts](../test/stabilization-system.test.ts) | #16/#178: consume selected trajectory in physical sampling, not a blur-quality scalar |
 | [#98](https://github.com/Photivra/photivra/issues/98) Sensor architecture | closed | [architecture.ts](../src/sensor/architecture.ts) | Declared technology metadata and related standalone profile boundaries | [sensor-architecture.test.ts](../test/sensor-architecture.test.ts) | #16: preserve selected architecture/bindings; metadata alone is not signal execution |
@@ -50,7 +50,7 @@ needed.
 | [#118](https://github.com/Photivra/photivra/issues/118) Composed geometry/resampling | closed | [geometric-transforms.ts](../src/output/geometric-transforms.ts) | Domain-compatible joint mapping/sampling → bounded correction executor | [geometric-transforms.test.ts](../test/geometric-transforms.test.ts) | #112/#16: preserve full Jacobian/filter/support and existing domain order |
 | [#119](https://github.com/Photivra/photivra/issues/119) Tier acceptance | closed | [generic-tier-assets.ts](../src/equipment/generic-tier-assets.ts) | Matched synthetic body/correction/readout-to-file fixture consumers | [generic-tier-output-acceptance.test.ts](../test/generic-tier-output-acceptance.test.ts) | [Merged final tier acceptance](TIER_ACCEPTANCE.md): versioned physical/cost/corrected report, multidimensional finite pupils and matched body execution; existing paired-output evidence reused |
 | [#130](https://github.com/Photivra/photivra/issues/130) Canonical fixture | closed | [basic-reference-fixture.ts](../test/helpers/basic-reference-fixture.ts) | Shared deterministic laboratory and minimal declared variants | [basic-reference-scene.test.ts](../test/basic-reference-scene.test.ts) | #131: reuse without treating tiny/synthetic raster as performance or calibration evidence |
-| [#131](https://github.com/Photivra/photivra/issues/131) Final conformance | open | [raw-output-conformance.test.ts](../test/raw-output-conformance.test.ts) | Incremental geometry/signal/capture-output suites; final gate remains open | [cross-stage-conformance.test.ts](../test/cross-stage-conformance.test.ts) | Final integrated path, tier and performance dispositions; last feature/science ticket |
+| [#131](https://github.com/Photivra/photivra/issues/131) Final conformance | open | [raw-output-conformance.test.ts](../test/raw-output-conformance.test.ts) | Final meter/capture/production/output path plus incremental geometry/signal suites | [cross-stage-conformance.test.ts](../test/cross-stage-conformance.test.ts) | [Proposed final conformance disposition](SCIENTIFIC_CONFORMANCE.md); all prerequisites merged; review/DCO/merge remain |
 | [#132](https://github.com/Photivra/photivra/issues/132) Numerics/units | closed | [validation.ts](../src/core/validation.ts) | Typed input/result guards plus shared units/finite conventions | [numerical-correctness-contract.test.ts](../test/numerical-correctness-contract.test.ts) | Apply throughout new composition; existing guards do not establish physical validity |
 | [#133](https://github.com/Photivra/photivra/issues/133) API conventions | closed | [API_STYLE.md](../docs/API_STYLE.md) | Root public naming/compatibility/version policy | [api-style-compatibility.test.ts](../test/api-style-compatibility.test.ts) | Review new public handoffs and relevant independent versions before activation |
 | [#134](https://github.com/Photivra/photivra/issues/134) Evidence/uncertainty | closed | [scientific-assurance.ts](../src/core/scientific-assurance.ts) | Production assurance composition retains weakest required status and unpropagated uncertainty | [scientific-assurance.test.ts](../test/scientific-assurance.test.ts) | #16/#112: preserve child evidence/status; no invented combined uncertainty |
@@ -126,8 +126,8 @@ deferral by this change.
   [RAW frame envelope](RAW_FRAME_ENVELOPE.md).
 - Finding 6: `distribute*` was documented in #183; the compatibility guard remains.
 
-Final ordering remains #43/#45 performance disposition, #131 final scientific
-conformance, then #180 exhaustive human/agent/source documentation and 1.0
-preparation. #178, #116 and #119 are reviewed and merged; this #43/#45 evidence
-contribution still requires review, DCO and merge. #165 remains
+Final ordering remains #131 scientific conformance, then #180 exhaustive human/
+agent/source documentation and 1.0 preparation. #178, #116/#119 and #43/#45 are
+reviewed and merged; this final #131 contribution still requires review, DCO
+and merge. #165 remains
 post-V1. This map is not the final #180 audit or authorization to tag/release.
