@@ -18,7 +18,7 @@ import { estimateEquivalentViewingCircleOfConfusion } from "../optics/circle-of-
 import { calculateAiryDisk } from "../optics/diffraction.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
 import {
-  calculateDefocusCircle,
+  calculateDefocusCircleUsingFocusProjection,
   calculateDepthOfField
 } from "../optics/depth-of-field.js";
 import {
@@ -686,6 +686,14 @@ export function simulatePocCamera(
     focalLengthMm: request.lens.focalLengthMm,
     objectDistanceM: request.focus.focusDistanceM
   });
+  // Allocate no reuse state for one-off requests; a sweep amortizes the context.
+  const defocusFocusProjection = request.defocusSamples?.length
+    ? Object.freeze({
+        focalLengthMm: request.lens.focalLengthMm,
+        focusDistanceM: request.focus.focusDistanceM,
+        imageDistanceMm: projection.value.imageDistanceMm
+      })
+    : undefined;
   const diagonalMm = Math.hypot(
     request.sensor.widthMm,
     request.sensor.heightMm
@@ -1012,12 +1020,12 @@ export function simulatePocCamera(
   const subjectDefocus =
     request.subject === undefined
       ? undefined
-      : calculateDefocusCircle({
+      : calculateDefocusCircleUsingFocusProjection({
           focalLengthMm: request.lens.focalLengthMm,
           aperture: request.lens.aperture,
           focusDistanceM: request.focus.focusDistanceM,
           subjectDistanceM: request.subject.distanceM
-        }).value;
+        }, defocusFocusProjection).value;
 
   const primarySubjectDiagnostics =
     request.subject === undefined ||
@@ -1064,12 +1072,12 @@ export function simulatePocCamera(
             sample.distanceM
           );
 
-          const defocus = calculateDefocusCircle({
+          const defocus = calculateDefocusCircleUsingFocusProjection({
             focalLengthMm: request.lens.focalLengthMm,
             aperture: request.lens.aperture,
             focusDistanceM: request.focus.focusDistanceM,
             subjectDistanceM: sample.distanceM
-          });
+          }, defocusFocusProjection);
 
           return {
             id: sample.id,
