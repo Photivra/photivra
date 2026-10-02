@@ -119,6 +119,14 @@ RAW and paired-file path with owned synthetic fields. See
 remains declared and time-varying integration remains absent; production gates
 and the 25/32 tracker count are unchanged.
 
+[`calculateSceneToSensorIrradianceQuadrature()`](../src/optics/scene-to-sensor-quadrature.ts)
+now evaluates the existing #85/#110 bridge at each exact pre-AA node, retaining
+provider/profile/wavelength/time bindings. [Acceptance](../test/scene-to-sensor-quadrature.test.ts)
+reaches package-incident EQE, RAW and paired files with declared synthetic radiance.
+See [SCENE_SENSOR_QUADRATURE.md](SCENE_SENSOR_QUADRATURE.md). Target projection,
+provider execution, PSF and temporal integration remain unverified/unapplied;
+this adapter does not activate production stages.
+
 ## Remaining upstream handoff into the existing producer
 
 The missing handoff belongs to #16/#178, with processed output and plan
@@ -126,7 +134,7 @@ activation coordinated with #112. It should produce the existing per-site
 producer inputs through the scientific APIs below, retaining child envelopes;
 it must not accept an independently rendered RGB plane and relabel it sensor
 signal. The table retains the full origin/production acceptance requirements; the bounded
-sensor handoff above implements only the declared stationary irradiance slice.
+adapters above implement declared static scene/optics nodes and stationary sensor exposure.
 
 | Handoff | Reuse / authoritative owner | Binding and acceptance requirement |
 | --- | --- | --- |

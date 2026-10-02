@@ -1367,3 +1367,6 @@ export {
 
 export { calculateSensorEqeLocalExposure, type CalculateSensorEqeLocalExposureInput,
   type SensorEqeLocalExposure } from "./sensor/eqe-local-exposure.js";
+
+export { calculateSceneToSensorIrradianceQuadrature, type CalculateSceneToSensorIrradianceQuadratureInput,
+  type SceneSensorQuadratureSample, type SceneToSensorIrradianceQuadrature } from "./optics/scene-to-sensor-quadrature.js";

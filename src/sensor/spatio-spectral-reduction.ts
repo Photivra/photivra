@@ -222,9 +222,9 @@ function sampleKey(
   );
 }
 
-function parseSamples(
+function parseSamples<T extends { node: SensorSpatioSpectralNodeIdentity }, V>(
   sampleValues:
-    readonly SensorSpatioSpectralIrradianceSample[],
+    readonly T[],
   spatialNodesByKey: ReadonlyMap<
     string,
     SensorSpatialSamplingQuadrature["nodes"][number]
@@ -233,8 +233,9 @@ function parseSamples(
     number,
     SensorSpectralQuadratureNode
   >,
-  combinedSampleCount: number
-): Map<string, number> {
+  combinedSampleCount: number,
+  valueForSample: (sample: T, sampleIndex: number) => V
+): Map<string, V> {
   if (!Array.isArray(sampleValues)) {
     throw new InvalidScientificInputError(
       "sampleValues must be an array."
@@ -250,7 +251,7 @@ function parseSamples(
   }
 
   const valuesByKey =
-    new Map<string, number>();
+    new Map<string, V>();
 
   sampleValues.forEach(
     (sample, sampleIndex) => {
@@ -355,45 +356,24 @@ function parseSamples(
 
       valuesByKey.set(
         key,
-        requireNonNegativeFinite(
-          sample
-            .spectralIrradianceWattsPerSquareMeterPerNanometer,
-          "sampleValues[" +
-            sampleIndex +
-            "].spectralIrradianceWattsPerSquareMeterPerNanometer"
-        )
+        valueForSample(sample, sampleIndex)
       );
     }
   );
 
+  if (valuesByKey.size !== combinedSampleCount) {
+    throw new InvalidScientificInputError("sampleValues must not contain sparse or missing node entries.");
+  }
   return valuesByKey;
 }
 
-/**
- * Reduces explicitly supplied sensor-plane spectral irradiance E_lambda(x,y)
- * over the Cartesian product of an existing spatial quadrature and spectral
- * quadrature.
- *
- * The supplied density unit is W/m^2/nm and wavelengthMeasureNanometers is
- * d-lambda in nm, so their direct product has units W/m^2. Do not convert
- * d-lambda to metres unless the spectral-density denominator is converted
- * consistently.
- *
- * Spatial area integration uses the spatial quadrature's geometric area
- * measures converted from square micrometres to square metres. The result is
- * geometric-aperture incident radiant flux only; geometric area is not upgraded
- * to an effective radiometric collection area.
- *
- * This reducer deliberately stops before sensor response. The spectral plan was
- * derived from a specific response channel so its support/knots are useful, but
- * QE, A/W responsivity and channel-filter transmission are not applied here.
- * Response-scope/source-plane matching therefore remains an explicit later
- * composition step.
- */
-export function reduceSensorSpatioSpectralIrradiance(
-  input:
-    ReduceSensorSpatioSpectralIrradianceInput
-): CalculationResult<SensorSpatioSpectralIrradianceReduction> {
+/** Internal shared node binding; domain callers retain value validation and equations. */
+export function bindSensorSpatioSpectralSamples<T extends { node: SensorSpatioSpectralNodeIdentity }, V>(
+  input: { spatialQuadrature: SensorSpatialSamplingQuadrature; spectralQuadrature: SensorSpectralQuadrature; sampleValues: readonly T[] },
+  valueForSample: (sample: T, sampleIndex: number) => V
+): { spatialNodesByKey: Map<string, SensorSpatialSamplingQuadrature["nodes"][number]>;
+  spectralNodesByIndex: Map<number, SensorSpectralQuadratureNode>; colorSamplingProfileId: string;
+  combinedSampleCount: number; valuesByKey: Map<string, V> } {
   const spatialNodesByKey =
     validateSensorSpatialSamplingQuadrature(
       input.spatialQuadrature
@@ -476,8 +456,43 @@ export function reduceSensorSpatioSpectralIrradiance(
       input.sampleValues,
       spatialNodesByKey,
       spectralNodesByIndex,
-      combinedSampleCount
+      combinedSampleCount,
+      valueForSample
     );
+
+  return { spatialNodesByKey, spectralNodesByIndex, colorSamplingProfileId, combinedSampleCount, valuesByKey };
+}
+
+/**
+ * Reduces explicitly supplied sensor-plane spectral irradiance E_lambda(x,y)
+ * over the Cartesian product of an existing spatial quadrature and spectral
+ * quadrature.
+ *
+ * The supplied density unit is W/m^2/nm and wavelengthMeasureNanometers is
+ * d-lambda in nm, so their direct product has units W/m^2. Do not convert
+ * d-lambda to metres unless the spectral-density denominator is converted
+ * consistently.
+ *
+ * Spatial area integration uses the spatial quadrature's geometric area
+ * measures converted from square micrometres to square metres. The result is
+ * geometric-aperture incident radiant flux only; geometric area is not upgraded
+ * to an effective radiometric collection area.
+ *
+ * This reducer deliberately stops before sensor response. The spectral plan was
+ * derived from a specific response channel so its support/knots are useful, but
+ * QE, A/W responsivity and channel-filter transmission are not applied here.
+ * Response-scope/source-plane matching therefore remains an explicit later
+ * composition step.
+ */
+export function reduceSensorSpatioSpectralIrradiance(
+  input:
+    ReduceSensorSpatioSpectralIrradianceInput
+): CalculationResult<SensorSpatioSpectralIrradianceReduction> {
+  const { spatialNodesByKey, spectralNodesByIndex, colorSamplingProfileId, combinedSampleCount, valuesByKey } =
+    bindSensorSpatioSpectralSamples(input, (sample, sampleIndex) => requireNonNegativeFinite(
+      sample.spectralIrradianceWattsPerSquareMeterPerNanometer,
+      "sampleValues[" + sampleIndex + "].spectralIrradianceWattsPerSquareMeterPerNanometer"
+    ));
 
   const perWavelength:
     SensorSpatioSpectralWavelengthReduction[] =
