@@ -2,6 +2,8 @@
 
 ## Unreleased — engine API 0.106.0
 
+- Add generic tier readout-to-file acceptance: explicit ISO regimes preserve expected/realized charge, independent ADC arithmetic predicts codes, and paired export preserves native RAW through orientation/rendering exposure. Synthetic topology/color/charge fixture; no runtime/API/assets change.
+
 - Add matched generic tier body execution acceptance for release cadence/timer/limits, AF availability/hold/loss and release gating, independent metering/AWB arithmetic, and global readout timing. Synthetic policy evidence only; runtime/API/assets unchanged. See `docs/GENERIC_TIER_PRESETS.md`.
 
 - Extend generic tier correction acceptance with independent residual CA/distortion, full Jacobian/stretch, same-capture slanted-step interpolation/gain and support/retained-ray checks. Synthetic sampled regression evidence only; runtime/API/assets unchanged. See `docs/GENERIC_TIER_PRESETS.md`.
