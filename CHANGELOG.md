@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — engine API 0.103.0
+## Unreleased — engine API 0.104.0
+
+- Added optional full-native local shutter-window binding to the RAW producer (producer result schema 0.2.0). Exact per-site photo/dark/completeness windows must match the existing engine timing calculation. Omitted timing retains global behavior and unchanged native seed ownership; no rolling motion/radiance integration or production-stage activation is claimed.
 
 - Reuse call-owned geometric preparation across sampling-plan pixels through the existing scalar point evaluator. Preserve external revalidation, per-point radial/finite guards, provenance and independent derivative arrays. Whole correction/plan timing and separate CPU/allocation evidence are recorded in `docs/GEOMETRIC_PREPARATION_REUSE.md`; no public API/schema version change or generic prepared cache.
 
