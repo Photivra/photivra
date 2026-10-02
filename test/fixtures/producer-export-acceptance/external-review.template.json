@@ -1,0 +1,14 @@
+{
+  "status": "pending-external-review",
+  "adobeApplicationAndVersion": null,
+  "imageEditorAndVersion": null,
+  "browserAndVersion": null,
+  "testedFileHashes": [],
+  "dngOpensWithoutError": null,
+  "dngOrientationAndDimensionsCorrect": null,
+  "manualWhiteBalanceInterpretationUsable": null,
+  "jpegEditorAndBrowserDecodeCorrect": null,
+  "reviewer": null,
+  "reviewedAt": null,
+  "notes": []
+}
