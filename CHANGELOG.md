@@ -2,6 +2,8 @@
 
 ## Unreleased — engine API 0.103.0
 
+- Reuse call-owned geometric preparation across sampling-plan pixels through the existing scalar point evaluator. Preserve external revalidation, per-point radial/finite guards, provenance and independent derivative arrays. Whole correction/plan timing and separate CPU/allocation evidence are recorded in `docs/GEOMETRIC_PREPARATION_REUSE.md`; no public API/schema version change or generic prepared cache.
+
 - Add optional RAW-derived JPEG correction to paired photographic export, reusing the capture correction executor after explicit color/WB. Preserve DNG codes and native crop; expose the processed crop, clipping diagnostics and separate informational RAW intent. Require full active reconstruction and reject unprovided prefiltering. No production-stage activation or external-editor validation claim.
 
 ## Capture-owned native RAW producer — unreleased
