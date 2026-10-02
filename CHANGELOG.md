@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased — engine API 0.107.0
+## Unreleased — engine API 0.108.0
+
+- Add `calculateSceneToSensorIrradianceQuadrature()`: bind wavelength-resolved scene-provider declarations to each exact spatial/wavelength/time node and evaluate the existing paraxial optical bridge at its pre-AA coordinate. Share Cartesian node validation with the existing irradiance reducer, preserving equations and prior diagnostics while rejecting sparse sample arrays explicitly. Pre-stack/package-incident output feeds matching effective EQE; source projection, provider execution, PSF and temporal integration remain unverified/unapplied, and production gates remain unchanged. See `docs/SCENE_SENSOR_QUADRATURE.md`. Partial #16/#178 resolution.
+
+## Engine API 0.107.0
 
 - Add `calculateSensorEqeLocalExposure`, composing existing spatial/spectral quadrature, explicitly supplied irradiance, response application/range checks, EQE rate, local shutter binding and stationary integration. Preserve child evidence and approximation boundaries; demonstrate the resulting photo expectation through RAW and paired files. Scene/optics origin remains declared, production stages remain gated, and time-varying irradiance is unsupported. See `docs/SENSOR_EQE_LOCAL_EXPOSURE.md`. Partial #16/#178 resolution.
 

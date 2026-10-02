@@ -88,3 +88,7 @@ no primitive equations, stochastic seeds or RAW readout arithmetic change.
 Remaining #16/#178/#112 work includes committed scene/optics/PSF-to-node origin,
 nonstationary temporal integration, production-stage activation and broader
 resolution/editor acceptance. This handoff does not close those tickets.
+
+## Optical-node producer
+
+[`calculateSceneToSensorIrradianceQuadrature()`](SCENE_SENSOR_QUADRATURE.md) produces the exact physical input node values from declared wavelength-resolved scene radiance through the existing optical bridge. Its output plane is sensor-package-incident; use matching effective package EQE and explicit source-plane evidence. Projection/PSF/source-truth and stationarity remain separate requirements.
