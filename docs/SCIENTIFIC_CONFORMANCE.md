@@ -1,4 +1,4 @@
-# Incremental scientific conformance: #131
+# Scientific conformance: final V1 disposition (#131)
 
 The cross-stage conformance layer complements, rather than replaces, narrow unit tests. `test/cross-stage-conformance.test.ts` consumes #130's canonical owned fixture and merged public APIs only. It checks a coherent ideal-focus/projection→FOV/object-size→pixel-motion/defocus path, then controlled one-stop shutter and aperture variants across exposure, motion and diffraction.
 
@@ -30,6 +30,52 @@ The producer's `upstreamRadiometryVerified: false`, reconstruction's `producerOr
 
 The shadow check exposed a readout ordering defect: clamping negative electronic noise to zero electrons before adding the pedestal erased valid below-black RAW values. The correction preserves signed electronic signal through the upper-only pre-ADC threshold, adds the black offset, quantizes and then clamps to unsigned code zero/common digital saturation. Physical stored charge remains nonnegative. Readout provenance advances to model **2.0.0** and the producer's required capture noise identity advances to **0.2.0**, rejecting old 0.1.0 producer replay instead of silently recomputing changed shadows. See `SENSOR_RAW_PRODUCER.md` for migration. Public input/output field shapes remain unchanged; root API advances to 0.106.0. Existing positive electronic-signal code math and RNG seed schedule are unchanged.
 
-## Remaining acceptance
+## Final integrated acceptance
 
-These incremental slices do not close #131. Scene radiance/throughput/metering and reserved production sensor/processing composition still require coherent cross-stage coverage. Final acceptance must also consume the merged equipment-tier and performance dispositions. Pending drafts are not imported as main APIs. No schema/package/POC version, network, Blender or private-app dependency is changed. Final closure remains last under #129 and preserves #16's independent external-file interoperability gate. AI-assisted contributions require substantive human review and contribution-specific DCO certification under `AGENTS.md` before merge.
+The final contribution is based on merged main `712c031689f5413003a1d15c2d0dfa9466bbbfb8` (#205): #16/#112 export/processing, #178 authoritative integration, #116/#119 tier acceptance and #43/#45 performance dispositions are merged. `test/final-scientific-conformance.test.ts` adds 16 normal-CI tests over those final public paths. It proposes completing #131 after substantive owner review, contribution-specific DCO and merge; the issue remains open until then. V1 is currently 31/32, with #180 final documentation/source audit and release preparation still separate.
+
+The suite extracts the existing bounded tier-production request into `test/helpers/tier-production-fixture.ts` and reuses it from both tier acceptance and final conformance. The existing nine-pair/27-pupil suite retains its expectations. No runtime/API/schema/asset/dependency change or reference-golden regeneration occurs.
+
+### Shared laboratory and explicit variants
+
+#130 remains unchanged and supplies the imaging area, optical/exposure/focus reference, wavelength, reflectance, light level and seed. The final path explicitly declares these minimal specialized variants:
+
+- The canonical planar monochromatic reference is extended to an owned **uniform angular environment with a flat 540–560 nm spectral-density band**, using its 550 nm centre, with incident spectral irradiance scaled by `1e-9`. This is not a delta-line spectrum or a measured environment. Lambertian reference radiance is independently `rho * E / pi`; provider values are explicitly supplied, not visibility/transport predictions.
+- Native geometry is the existing owned **2×2 Bayer regression lattice** with registered tier topology, an independently declared 800×600 µm rectangular sensitive aperture, effective package-incident EQE 0.4, and explicit synthetic response/linearity bindings. Geometric pitch does not infer photon-collection area, QE or real camera pixels. The 20 nm midpoint bin samples 550 nm. Its finite declared operating ranges remain enforced.
+- Exact generic 1.0.0 body/lens selections provide capability policies, finite-focus optical transmission and explicit readout regimes. Relative metering uses the same provider/illumination/material identities and registered time zero, with a supplied normalized scalar reduction. It remains uncalibrated; no physical radiance-to-luminance or manufacturer-specific meter is inferred.
+- Neutral constant light replaces the registered waveform with a constant. The controlled temporal variant uses the owned `1 + 200 t` ramp. Orientation and exposure/rendering variants preserve the same scientific stage ownership and seed.
+
+### Independent integrated expectations
+
+For the fixed focus distance `s` and physical focal length `f`, independently solve `v = 1 / (1/f - 1/s)` in millimetres. The declared ideal symmetric working f-number is `Nw = N(1 + v/s)` with explicit unity pupil magnification. With tier transmission `T`, the expected sensor spectral irradiance is `L * pi * T / (4 * Nw²)`.
+
+Expected generated electrons are independently:
+
+`E_sensor * (800 * 600 * 1e-12 m²) * (20 nm) * (550e-9 m) / (h*c) * 0.4 * integratedSeconds`.
+
+Here `h = 6.62607015e-34 J s`, `c = 299792458 m/s`. Constant light uses `integratedSeconds = duration`; the registered ramp integrates to `duration + 100 * duration²`. Uniform radiance makes normalized spatial weights integrate to unity. The chosen single spectral bin matches the declared midpoint rule; this is not a convergence/physical error bound.
+
+Uniform relative scene-light factors 0.5/1/2 drive aperture-priority shutter to `t/factor` at fixed aperture/ISO, preserving expected photo charge. The independently declared dark rate still adds `4 * resolvedDuration` electrons, so total charge is not incorrectly held fixed by the meter. Compensation −1/0/+1 EV changes physical duration by 0.5/1/2 before charge/noise, without mutating the meter snapshot. The ramp and its equal-mean constant-field variant agree before stochastic sampling; no monotonic statement is made about individual random draws.
+
+Post-capture +1 rendering EV doubles linear rendering values while preserving the complete physical result, capture serialization, native codes, noise seed and RAW data identity. The same realized RAW feeds production processing and paired export, with stored DNG codes independently read from the strip. Whole plan and file bytes replay deterministically. This structural strip check is not an external reader or independent TIFF implementation; #16's merged reader/editor acceptance remains its own evidence.
+
+### Acceptance and API-style disposition
+
+| #131 requirement / boundary | Final evidence and disposition |
+| --- | --- |
+| #130 across multiple domains | Existing `basic-reference-scene`, `cross-stage-conformance`, `signal-conformance`, `raw-output-conformance` suites plus the new shared-scene meter/optics/sensor/production/export path. Canonical fixture unchanged. |
+| Coherent end-to-end deterministic path | All three exact tiers: scene-derived relative meter → immutable target/compensation → capability-based aperture-priority resolution → committed capture → invoked scene queries → finite-focus optics → spatial/spectral/temporal EQE → dark/charge/capacity/seeded noise/ADC → native RAW → production processing → paired DNG/JPEG. Independent SI count arithmetic and exact file codes. |
+| Neutral and non-neutral variants | Constant neutral field; 0.5/1/2 scene light; −1/0/+1 compensation; registered temporal ramp/equal-mean field; four orientations; post-capture +1 EV. Existing suites cover focus, diffraction, motion, signed shadows, WB/tone, correction and spatially distinct orientation/crop patterns. |
+| Ordering/coupling failures | New stale scene/seed/exposure/tier commitments block processing before source invocation. A trusted callback exception propagates instead of producing fallback output. Existing production tests cover missing renderer/stage support, temporal count/motion/focus/geometry mismatch and double attached/executed RAW paths. |
+| Tier coherence and tradeoffs | Merged nine-pair production/output and 27 independently evaluated pupil cases in `generic-tier-production-acceptance`; versioned reports/envelopes, immutable correction A/B, stabilization/flash/flare in `generic-tier-report-acceptance`; no universal ranking or duplicate large fixture. |
+| Final performance disposition | Merged #205 [performance report](V1_PERFORMANCE_DISPOSITION.md), complete 64-case independent POC equivalence, scalar/batch mutation and numerical guards. No new timing threshold or tiny-raster throughput claim. Runtime sources unchanged, so no fresh performance implementation is implied here. |
+| API-style drift | Existing `api-style-compatibility` scans the entire root callable surface against documented verbs, compatibility sentinels and independent version surfaces. New path exercises input objects, calculation envelopes, versioned immutable records, exact identities and deterministic serialization. All checks must pass; no accidental convention change is introduced. |
+| CI cost and independence | 16 new bounded tests; no network, private app, Blender, proprietary data, new dependency or expensive photoreal renderer. Existing focused suites remain authoritative. |
+
+Scientifically meaningful API differences remain intentional under [API_STYLE.md](API_STYLE.md): parsers/targets/resolvers/plans/manifests return their semantic records, primitive calculations return `CalculationResult`, file export is asynchronous for encoding/hash work, and trusted caller-code exceptions may propagate while scientifically incomplete well-formed plans carry structured blockers. A physical approximation stays approximate even when its metadata/identity is valid. FNV plan fingerprints and SHA-256 capture/file/corpus commitments retain their separate contracts. No coercive wrapper or cosmetic public rename is warranted.
+
+### Limits and completion boundary
+
+The first physical route retains unity field throughput, optional destination-local PSF approximation and bounded sensor/provider-evaluation limits. The new neutral tier route explicitly omits PSF; existing executed environment/production tests cover declared sampled PSF and motion/rolling shutter, and tier pupil scenes independently validate finite profiles. No full field-dependent PSF transport, calibrated source visibility/radiometry/sensor color, generic arbitrary-optics integration, full-resolution throughput or private product fidelity is claimed. Upstream provider transport and radiometry verification remain false in the new complete path.
+
+This final conformance disposition consumes the finite approved V1 support and documented limitations. It neither invents a new V1 deferral nor certifies scientific accuracy merely from passing tests. #180 still owns the exhaustive human/agent/source documentation audit, 1.0 packaging/release preparation and final limitations review. No tag, package publication or release is authorized by this contribution. Human review and contribution-specific DCO remain required before #131 closes.
