@@ -1,5 +1,8 @@
 # Paired DNG/JPEG reference export
 
+See [Reference RAW frame compatibility](RAW_FRAME_ENVELOPE.md) for stage-specific
+limits, full-native counting and parser preflight behavior.
+
 `createPhotographicExportPair()` is an optional browser-safe asynchronous export
 boundary. Both owned byte arrays come from one revalidated, privately copied RAW
 input. The JPEG never uses the capture's independent float planes. Web Crypto

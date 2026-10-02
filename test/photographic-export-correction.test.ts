@@ -133,6 +133,7 @@ describe("RAW-paired corrected photographic export",()=>{
     narrow.reconstruction.region={x:0,y:0,width:1,height:2};
     narrow.correction!.state={...narrow.correction!.state,outputWidth:1};
     narrow.correction!.profile={...narrow.correction!.profile,state:narrow.correction!.state};
-    await expect(createPhotographicExportPair(narrow)).rejects.toThrow();
+    expect(()=>parsePhotographicExportInput(narrow)).toThrow("Corrected export requires reconstruction of the full active native RAW area.");
+    await expect(createPhotographicExportPair(narrow)).rejects.toThrow("Corrected export requires reconstruction of the full active native RAW area.");
   });
 });

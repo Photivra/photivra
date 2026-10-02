@@ -95,11 +95,15 @@ describe("paired sensor RAW DNG and standalone JPEG reference export",()=>{
     const raw=loadSensorRawFrameInput(),c=captureInput(v.reconstruction.rawFrame.capture);
     c.geometry={...c.geometry,outputRaster:{pixelWidth:1,pixelHeight:1}};c.planes=[{...c.planes[0]!,pixelWidth:1,pixelHeight:1,storage:{kind:"inline-float64",samples:[0,0,0]}}];
     raw.capture=createSimulatedCapture(c).value;
-    await expect(createPhotographicExportPair({...v,reconstruction:{...v.reconstruction,rawFrame:createSensorRawFrame(raw)}})).rejects.toThrow();
+    const resampled={...v,reconstruction:{...v.reconstruction,rawFrame:createSensorRawFrame(raw)}};
+    expect(()=>parsePhotographicExportInput(resampled)).toThrow("1:1 output crop sampling");
+    await expect(createPhotographicExportPair(resampled)).rejects.toThrow("1:1 output crop sampling");
   });
   it("fails on uncovered final crop and inconsistent RAW black/white metadata instead of guessing",async()=>{
     const v=loadPhotographicExportInput();
-    await expect(createPhotographicExportPair({...v,reconstruction:{...v.reconstruction,region:{x:1,y:1,width:1,height:1}}})).rejects.toThrow();
+    const uncovered={...v,reconstruction:{...v.reconstruction,region:{x:1,y:1,width:1,height:1}}};
+    expect(()=>parsePhotographicExportInput(uncovered)).toThrow("Reconstruction does not cover the exact declared final native crop.");
+    await expect(createPhotographicExportPair(uncovered)).rejects.toThrow("Reconstruction does not cover the exact declared final native crop.");
     const raw=loadSensorRawFrameInput();raw.capture=v.reconstruction.rawFrame.capture;
     raw.samples[0]!.digitalSaturationCode=2047;raw.samples[0]!.blackSubtractedNormalizedCode=(0-64)/(2047-64);
     await expect(createPhotographicExportPair({...v,reconstruction:{...v.reconstruction,rawFrame:createSensorRawFrame(raw)}})).rejects.toThrow();
