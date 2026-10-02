@@ -2549,7 +2549,9 @@ function validateSnapshotAgainstContext(
       snapshot.outputStateId
   ) {
     throw new InvalidScientificInputError(
-      "captureSnapshot.outputStateId must match the prepared outputGeometryProfileId in plan schema 0.1.0."
+      "captureSnapshot.outputStateId must match the prepared outputGeometryProfileId in plan schema " +
+      PRODUCTION_IMAGE_FORMATION_PLAN_VERSION +
+      "."
     );
   }
 
@@ -3090,7 +3092,9 @@ function deriveEffectPlan(
             effectId:
               placement.id,
             message:
-              "Production plan schema 0.1.0 does not yet compose required effect " +
+              "Production plan schema " +
+              PRODUCTION_IMAGE_FORMATION_PLAN_VERSION +
+              " does not yet compose required effect " +
               placement.id +
               "."
           };
@@ -3610,7 +3614,9 @@ function deriveStagePlan(
             "engine-stage-not-composed",
           stageId: stage.id,
           message:
-            "Production plan schema 0.1.0 does not yet compose required stage " +
+            "Production plan schema " +
+            PRODUCTION_IMAGE_FORMATION_PLAN_VERSION +
+            " does not yet compose required stage " +
             stage.id +
             "."
         };

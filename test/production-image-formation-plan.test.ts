@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   POC_SIMULATION_API_VERSION,
+  PRODUCTION_IMAGE_FORMATION_PLAN_VERSION,
   calculateIlluminationVignetting,
   createProductionCaptureSnapshot,
   createProductionImageFormationPlan,
@@ -1370,13 +1371,21 @@ describe("structured plan blockers", () => {
           code:
             "engine-stage-not-composed",
           stageId:
-            "field-wavelength-psf"
+            "field-wavelength-psf",
+          message:
+            "Production plan schema " +
+            PRODUCTION_IMAGE_FORMATION_PLAN_VERSION +
+            " does not yet compose required stage field-wavelength-psf."
         }),
         expect.objectContaining({
           code:
             "engine-effect-not-composed",
           effectId:
-            "non-circular-diffraction"
+            "non-circular-diffraction",
+          message:
+            "Production plan schema " +
+            PRODUCTION_IMAGE_FORMATION_PLAN_VERSION +
+            " does not yet compose required effect non-circular-diffraction."
         })
       ])
     );
@@ -1551,7 +1560,9 @@ describe("plan input fail-closed guards", () => {
           wrongOutput
       })
     ).toThrow(
-      "outputStateId must match"
+      "captureSnapshot.outputStateId must match the prepared outputGeometryProfileId in plan schema " +
+      PRODUCTION_IMAGE_FORMATION_PLAN_VERSION +
+      "."
     );
   });
 

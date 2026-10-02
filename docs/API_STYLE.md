@@ -114,6 +114,7 @@ Use the established verb family that matches the operation's semantics. Do not i
 - `serialize*` — convert an authoritative semantic value to its documented deterministic serialized representation.
 - `compose*` — combine multiple independently meaningful inputs/stages into a higher-level semantic result.
 - `integrate*` / `reduce*` — mathematically aggregate explicit measures/samples under a documented model.
+- `distribute*` — allocate an integrated quantity across explicitly normalized fractions while preserving its quantity domain; this does not create a continuous density from discrete spectral lines.
 - `evaluate*` / `meter*` — evaluate a declared model/policy against current scene/capture data.
 - `map*` / `transform*` — coordinate/domain transformation with explicit source/destination semantics.
 - `bind*` — attach one already-defined result/state to another authoritative context without re-solving it.
