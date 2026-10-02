@@ -441,6 +441,14 @@ Backward compatibility matters.
 - Capture stochastic seed ownership is explicit. Backend randomness must not silently change scientific results.
 - Performance caching/preparation (#43/#45) may optimize execution but must preserve exact semantic plan identity.
 
+## Production processed-output boundary
+
+- Plan 0.6.0 may execute reconstruction, physical orientation, output crop and display processing only from explicit `processedOutput` attachment/state and declared renderer support. See `docs/PROCESSED_OUTPUT.md`.
+- Share `calculateProcessedSensorRaw()` between RAW preview and paired JPEG; file metadata/packing and platform viewing adaptation remain separate.
+- Retain the authoritative RAW, explicit color/WB/tone/gamut/transfer/quantization identities, child correction costs and distinct clipping domains. Rendering changes cannot mutate capture, noise or upstream metering.
+- An attached RAW identity is not verification of its physical origin. Preserve every missing upstream-stage blocker; downstream execution does not make the full production plan ready.
+- Preserve legacy no-attachment unsupported behavior and fail closed on unsupported HDR/correction domains or source prefilter claims.
+
 ## Production temporal-composition boundary
 
 - Temporal capture input is immutable capture state, not renderer state. Preserve native raster, exposure boundaries, shutter mechanism, readout declaration, orientation, imaging area, rotation model and committed temporal sample count.

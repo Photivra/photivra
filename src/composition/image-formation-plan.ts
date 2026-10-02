@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { calculateProcessedSensorRaw, type ProcessedSensorRawInput } from "../capture/photographic-export.js";
+
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import {
   RELEASE_SEQUENCE_VERSION,
@@ -84,7 +86,7 @@ import {
 type UnknownRecord = Record<string, unknown>;
 
 export const PRODUCTION_IMAGE_FORMATION_PLAN_VERSION =
-  "0.5.0" as const;
+  "0.6.0" as const;
 export const PREPARED_IMAGE_FORMATION_CONTEXT_VERSION =
   "0.1.0" as const;
 export const PRODUCTION_CAPTURE_SNAPSHOT_VERSION =
@@ -399,6 +401,7 @@ export interface PlannedImageFormationEffect {
 }
 
 export type ProductionImageFormationBlockerCode =
+  | "processed-output-evaluation-blocked"
   | "engine-stage-not-composed"
   | "engine-effect-not-composed"
   | "renderer-stage-unsupported"
@@ -479,6 +482,7 @@ export interface ProductionImageFormationPlan {
     readonly PlannedImageFormationEffect[];
   blockers:
     readonly ProductionImageFormationBlocker[];
+  processedOutputResult?: ReturnType<typeof calculateProcessedSensorRaw>;
   physicalSceneToSensorResult?:
     SceneToSensorIrradianceResult;
   temporalCaptureResult?:
@@ -501,12 +505,24 @@ export interface ProductionImageFormationPlan {
   };
 }
 
+export interface ProductionProcessedOutputInput {
+  /** Explicit binding of numeric raster/crop policy to the committed output state. */
+  outputStateId: string;
+  processing: ProcessedSensorRawInput;
+}
+
 export interface CreateProductionImageFormationPlanInput {
+  /** Explicit authoritative post-ADC RAW input; output processing cannot synthesize upstream scene truth. */
+  processedOutput?: ProductionProcessedOutputInput;
   preparedContext:
     PreparedImageFormationContext;
   captureSnapshot:
     ProductionCaptureSnapshot;
 }
+
+const PROCESSED_OUTPUT_STAGES = new Set<ImageFormationStageId>([
+  "reconstruction", "physical-orientation-transform", "output-crop-resample", "display-processing"
+]);
 
 const COMPOSER_SUPPORTED_STAGES =
   new Set<ImageFormationStageId>([
@@ -3501,7 +3517,8 @@ function deriveStagePlan(
   temporalResult:
     ProductionTemporalCaptureResult | undefined,
   blockers:
-    ProductionImageFormationBlocker[]
+    ProductionImageFormationBlocker[],
+  processedResult?: ReturnType<typeof calculateProcessedSensorRaw>
 ): readonly PlannedImageFormationStage[] {
   const contract =
     getImageFormationContract();
@@ -3542,6 +3559,18 @@ function deriveStagePlan(
       const stageBlockers:
         ProductionImageFormationBlockerCode[] =
           [];
+
+      if (processedResult !== undefined && PROCESSED_OUTPUT_STAGES.has(stage.id)) {
+        const supported = rendererStages.has(stage.id);
+        if (!supported) addBlocker(blockers, { code:"renderer-stage-unsupported",stageId:stage.id,
+          message:"Renderer does not declare support for processed output stage " + stage.id + "." });
+        return { stageId:stage.id,contractStatus:stage.status,state:supported ? "active" as const : "blocked" as const,
+          scientificStatus:supported ? "approximation" as const : "not-applicable" as const,requiredByFidelity:true,
+          requiredUpstreamStages:[...stage.requiredUpstreamStages],coupledStages:[...stage.coupledStages],
+          modelId:"processed-sensor-raw-sdr",modelVersion:"0.1.0",
+          resultIdentity:processedResult.value.source.value.rawFrame.frameId,
+          blockerCodes:supported ? [] : ["renderer-stage-unsupported" as const] };
+      }
 
       if (
         !COMPOSER_SUPPORTED_STAGES.has(
@@ -4188,7 +4217,8 @@ function composeProductionScientificAssurance(
   physicalResult:
     SceneToSensorIrradianceResult | undefined,
   temporalResult:
-    ProductionTemporalCaptureResult | undefined
+    ProductionTemporalCaptureResult | undefined,
+  processedResult?: ReturnType<typeof calculateProcessedSensorRaw>
 ): ComposedScientificAssurance | undefined {
   const components:
     ScientificAssuranceComponent[] =
@@ -4216,6 +4246,15 @@ function composeProductionScientificAssurance(
     );
   }
 
+  if (processedResult !== undefined) {
+    components.push({componentId:"processed-sensor-raw-sdr",role:"committed post-capture SDR development",required:true,
+      sourceIdentity:{kind:"model",id:"processed-sensor-raw-sdr",version:"0.1.0"},basisKind:"photivra-model-assumption",
+      scientificStatus:"approximation",evidenceRequirement:"required",evidence:processedResult.value.colorProfile.evidence,
+      uncertainty:{kind:"not-quantified",limitation:"Reconstruction, color interpretation and optional correction uncertainty are not propagated into a combined output uncertainty."},
+      limitations:[...processedResult.value.colorProfile.limitations,
+        "Attached RAW origin is declared; downstream execution does not verify missing upstream production stages.",
+        "SDR rendering is a deterministic rendering choice; platform viewing adaptation is external."]});
+  }
   if (components.length === 0) {
     return undefined;
   }
@@ -4223,6 +4262,40 @@ function composeProductionScientificAssurance(
   return composeScientificAssurance({
     components
   });
+}
+
+/** Execute the committed post-capture boundary without blessing absent upstream stages. */
+function computeProcessedOutput(input: ProductionProcessedOutputInput | undefined, prepared: PreparedImageFormationContext,
+  snapshot: ProductionCaptureSnapshot, required: ReadonlySet<ImageFormationStageId>, blockers: ProductionImageFormationBlocker[]): ReturnType<typeof calculateProcessedSensorRaw> | undefined {
+  if (input === undefined) return undefined;
+  try {
+    const declaration=requireRecord(input,"processedOutput");
+    if (Object.keys(declaration).some(key=>key!=="outputStateId" && key!=="processing")) throw new InvalidConfigurationError("Unknown processed output declaration fields.");
+    if (!required.has("display-processing") || !prepared.renderer.sensorDomainProcessing) throw new InvalidConfigurationError("Processed RAW requires requested display processing and renderer sensor-domain support.");
+    if (input.outputStateId!==snapshot.outputStateId) throw new InvalidConfigurationError("Processed RAW output state differs from the immutable production snapshot.");
+    const result=calculateProcessedSensorRaw(input.processing), capture=result.value.source.value.rawFrame.capture;
+    if (capture.captureId!==snapshot.captureId || capture.sceneStateId!==snapshot.sceneStateId ||
+      capture.sceneTimeSeconds!==snapshot.sceneTimeSecondsFromExposureStart || capture.noise.seedUint32!==snapshot.stochasticSeedUint32 ||
+      capture.exposure.aperture!==snapshot.exposure.aperture || capture.exposure.shutterSeconds!==snapshot.exposure.shutterSeconds || capture.exposure.iso!==snapshot.exposure.iso ||
+      (capture.whiteBalanceIntent?.stateId !== snapshot.whiteBalanceState?.stateId) ||
+      (capture.whiteBalanceIntent !== null && ["red","green","blue"].some((channel) =>
+        capture.whiteBalanceIntent!.channelGains[channel as "red" | "green" | "blue"] !== snapshot.whiteBalanceState?.channelGains[channel as "red" | "green" | "blue"]))) {
+      throw new InvalidConfigurationError("Processed RAW capture identity, scene clock, seed, exposure or WB differs from the immutable production snapshot.");
+    }
+    const releaseFocus=snapshot.releaseFrameBinding?.focus;
+    if (releaseFocus !== undefined && (releaseFocus.kind !== capture.focus.kind ||
+      (releaseFocus.kind === "finite" && capture.focus.kind === "finite" && releaseFocus.distanceM !== capture.focus.distanceM))) {
+      throw new InvalidConfigurationError("Processed RAW focus differs from the committed release frame.");
+    }
+    if (snapshot.physicalSceneSample !== undefined && !releaseFocusMatchesOpticalFocus(capture.focus,snapshot.physicalSceneSample.focus)) {
+      throw new InvalidConfigurationError("Processed RAW focus differs from the committed optical sample.");
+    }
+    return result;
+  } catch (error) {
+    if (!(error instanceof InvalidConfigurationError || error instanceof InvalidScientificInputError)) throw error;
+    addBlocker(blockers,{code:"processed-output-evaluation-blocked",stageId:"display-processing",message:error.message});
+    return undefined;
+  }
 }
 
 export function createProductionImageFormationPlan(
@@ -4273,12 +4346,14 @@ export function createProductionImageFormationPlan(
       blockers
     );
 
+  const processedOutputResult = computeProcessedOutput(input.processedOutput, prepared, snapshot, requiredStages, blockers);
   const scientificAssurance =
     composeProductionScientificAssurance(
       prepared,
       snapshot,
       physicalResult,
-      temporalResult
+      temporalResult,
+      processedOutputResult
     );
 
   const effectPlan =
@@ -4295,7 +4370,8 @@ export function createProductionImageFormationPlan(
       requiredStages,
       physicalResult,
       temporalResult,
-      blockers
+      blockers,
+      processedOutputResult
     );
 
   const core = {
@@ -4385,6 +4461,7 @@ export function createProductionImageFormationPlan(
           .profileVersion
     },
     stagePlan,
+    ...(processedOutputResult === undefined ? {} : { processedOutputResult }),
     effectPlan,
     blockers,
     ...(physicalResult ===

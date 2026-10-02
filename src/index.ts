@@ -215,6 +215,7 @@ export {
   type CreateProductionCaptureSnapshotFromReleaseFrameInput,
   type CreateProductionCaptureSnapshotInput,
   type CreateProductionImageFormationPlanInput,
+  type ProductionProcessedOutputInput,
   type ImageFormationFidelityProfile,
   type PlannedImageFormationEffect,
   type PlannedImageFormationEffectState,
@@ -1391,3 +1392,6 @@ export { calculateEnvironmentSensorPhotoSignal, type CalculateEnvironmentSensorP
   type EnvironmentSensorPhotoSignal, type EnvironmentRadianceEvaluator } from "./sensor/environment-photo-signal.js";
 export { simulateEnvironmentSensorRawFrame, type SimulateEnvironmentSensorRawFrameInput,
   type EnvironmentSensorRawFrame } from "./capture/environment-raw-producer.js";
+
+export { calculateProcessedSensorRaw, parseProcessedSensorRawInput, type ProcessedSensorRawInput,
+  type ProcessedSensorRawResult } from "./capture/photographic-export.js";

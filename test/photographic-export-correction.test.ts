@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe,it,expect } from "vitest";
-import { createPhotographicExportPair,parsePhotographicExportInput,createSimulatedCapture,createSensorRawFrame,
+import { calculateProcessedSensorRaw,createPhotographicExportPair,parsePhotographicExportInput,createSimulatedCapture,createSensorRawFrame,
   type PhotographicExportInput,type CaptureOrientation,type SimulatedCaptureInput } from "../src/index.js";
 import { loadPhotographicExportInput } from "./helpers/photographic-export-fixture.js";
 import { loadSensorRawFrameInput } from "./helpers/sensor-raw-frame-fixture.js";
@@ -68,6 +68,8 @@ describe("RAW-paired corrected photographic export",()=>{
       {x:1,y:0,width:1,height:2},{x:0,y:1,width:2,height:1}];
     for(const [i,o] of (["landscape","portrait-clockwise","landscape-inverted","portrait-counter-clockwise"] as const).entries()) {
       const v=input(o,1),p=await createPhotographicExportPair(v);
+      const preview=calculateProcessedSensorRaw({reconstruction:v.reconstruction,colorProfile:v.colorProfile,whiteBalance:v.whiteBalance,rendering:v.rendering,correction:v.correction!}).value;
+      expect(preview.rendering).toEqual(p.rendering);expect(preview.correction).toEqual(p.correction);
       expect(p.processedOutputView.rect).toEqual(expected[i]);
       expect(jpegSize(p.jpeg.bytes)).toEqual([expected[i]!.width,expected[i]!.height]);
       expect(p.nativeDefaultCrop).toEqual({x:0,y:0,width:2,height:2});expect(rawCodes(p.dng.bytes)).toEqual([0,64,512,1023]);
@@ -98,7 +100,9 @@ describe("RAW-paired corrected photographic export",()=>{
     const {correction:_c,...plain}=v;void _c;
     const a=await createPhotographicExportPair(plain),b=await createPhotographicExportPair(v);
     expect(b.rendering.value.integerSamples).toEqual(a.rendering.value.integerSamples);
-    expect(b.correction!.value.whiteBalance).toBe("already-applied-upstream");expect(rawCodes(b.dng.bytes)).toEqual([0,64,512,1023]);
+    expect(b.correction!.value.whiteBalance).toBe("already-applied-upstream");
+    const preview=calculateProcessedSensorRaw({reconstruction:v.reconstruction,colorProfile:v.colorProfile,whiteBalance:v.whiteBalance,rendering:v.rendering,correction:v.correction!}).value;
+    expect(preview.whiteBalance).toBe("applied-here");expect(preview.rendering).toEqual(b.rendering);expect(rawCodes(b.dng.bytes)).toEqual([0,64,512,1023]);
   });
   it("uses full active RAW support for an off-center output and snapshots correction choices before async hashing",async()=>{
     const v=input("portrait-clockwise"),c=v.reconstruction.rawFrame.capture;

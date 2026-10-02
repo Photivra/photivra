@@ -288,7 +288,7 @@ RAW/output adapter execution does not activate production-plan stages.
 
 ## Unsupported stages remain visible
 
-Current plan schema `0.5.0` deliberately does not claim full downstream sensor
+Current plan schema `0.6.0` deliberately does not claim full downstream sensor
 composition.
 
 If a fidelity profile requests a stage that the production composer has not
@@ -300,8 +300,12 @@ Examples include the still-uncomposed portions of:
 - temporal radiance accumulation beyond the implemented timing/rotation diagnostics;
 - sensor optical stack;
 - CFA/photosite sampling;
-- charge/noise/ADC/reconstruction;
-- output/display pipeline.
+- charge/noise/ADC;
+- reconstruction/orientation/crop/display when no committed RAW processing policy is attached.
+
+Plan 0.6.0 explicitly composes those four post-RAW stages from `processedOutput`,
+without removing missing upstream blockers. See [processed output](PROCESSED_OUTPUT.md)
+for exact binding, rendering intent, domain/order and migration requirements.
 
 The existence of standalone primitives does not mean the production composer
 may silently mark those stages active.

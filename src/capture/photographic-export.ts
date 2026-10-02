@@ -19,7 +19,7 @@ import { calculateCaptureCorrectedSdr, parseCaptureCorrectionChoice,
   type CaptureCorrectedSdrInput, type CaptureCorrectedSdrResult } from "../output/capture-corrected-sdr.js";
 import { resolveLensCorrectionPlan, type ResolvedLensCorrectionPlan } from "../output/lens-corrections.js";
 import { parseSimulatedCapture } from "./simulated-capture.js";
-import type { CalculationResult } from "../core/calculation-result.js";
+import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 
 export const PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION = "0.1.0" as const;
 type Matrix = readonly (readonly number[])[];
@@ -49,6 +49,24 @@ export interface PhotographicExportInput {
   jpegQuantizationStep: number;
   /** Optional native-optical post-color correction; JPEG only, RAW records informational intent. */
   correction?: CaptureCorrectedSdrInput["correction"];
+}
+/** Explicit post-ADC RAW development policy shared by preview and file output. */
+export type ProcessedSensorRawInput = Pick<PhotographicExportInput,
+  "reconstruction" | "colorProfile" | "whiteBalance" | "rendering" | "correction">;
+export interface ProcessedSensorRawResult {
+  inputDomain: "post-adc-native-sensor-raw";
+  colorProfile: ExportSensorColorProfile;
+  whiteBalancePolicy: ProcessedSensorRawInput["whiteBalance"];
+  outputDomain: "output-referred-srgb-d65-sdr";
+  physicalCaptureModified: false;
+  displayAdaptationApplied: false;
+  whiteBalance: "applied-here" | "not-required";
+  source: CalculationResult<RawFrameReconstruction>;
+  rendering: CalculationResult<SdrRenderingResult>;
+  nativeDefaultCrop: RasterRect;
+  processedOutputView: PhotographicExportPair["processedOutputView"];
+  correction: CalculationResult<CaptureCorrectedSdrResult> | null;
+  rawCorrectionIntent: CalculationResult<ResolvedLensCorrectionPlan> | null;
 }
 /** Owned byte arrays are mutable; identities/hashes refer to the exact bytes returned at creation. */
 export interface PhotographicExportPair {
@@ -100,40 +118,51 @@ function exportEnvelope(reconstruction: RawFrameReconstructionInput, corrected: 
       nativeDefaultCrop.y+nativeDefaultCrop.height>region.y+region.height) throw new InvalidConfigurationError("Reconstruction does not cover the exact declared final native crop.");
   if (corrected && (active.x<region.x || active.y<region.y || active.x+active.width>region.x+region.width ||
       active.y+active.height>region.y+region.height)) throw new InvalidConfigurationError("Corrected export requires reconstruction of the full active native RAW area.");
+  return {local,nativeDefaultCrop};
+}
+function requireDngTopology(frame: RawFrameReconstructionInput["rawFrame"]): void {
   const layout=frame.colorSamplingProfile.layout;
   if (layout.kind!=="periodic-mosaic" || layout.repeatWidthSites!==2 || layout.repeatHeightSites!==2 || !["red","green","green","blue"].every((ch) => layout.siteChannelIds.includes(ch)) ||
       layout.siteChannelIds.filter((ch) => ch==="red").length!==1 || layout.siteChannelIds.filter((ch) => ch==="blue").length!==1 ||
       layout.siteChannelIds.filter((ch) => ch==="green").length!==2) throw new InvalidConfigurationError("Initial DNG profile supports explicitly registered 2x2 RGB Bayer topology only.");
-  return {local,nativeDefaultCrop};
 }
 /**
- * Revalidates one attached RAW snapshot and its explicit export policy.
- * Crop sampling, reconstruction coverage and Bayer topology fail here before
+ * Revalidates one attached RAW snapshot and explicit processing policy.
+ * Crop sampling and reconstruction coverage fail here before
  * per-pixel execution. Successful parsing does not establish kernel edge support,
  * correction support or container encoding readiness; those retain execution
- * checks. Validated metadata comes only from the attached capture.
+ * checks. Input is copied; no file or display backend runs.
  */
-export function parsePhotographicExportInput(value: unknown): PhotographicExportInput {
-  const r=object(value,["reconstruction","colorProfile","whiteBalance","rendering","metadata","sceneProfile","jpegQuantizationStep","correction"]);
+export function parseProcessedSensorRawInput(value: unknown): ProcessedSensorRawInput {
+  const r=object(value,["reconstruction","colorProfile","whiteBalance","rendering","correction"]);
   const reconstruction=parseRawFrameReconstructionInput(r.reconstruction), colorProfile=parseExportSensorColorProfile(r.colorProfile), rendering=parseSdrRenderingProfile(r.rendering);
-  const meta=object(r.metadata,["workflow","capturedAtUtc","raw","jpeg"]);
-  const metadata=createCaptureExportMetadataPair({ ...meta, capture:reconstruction.rawFrame.capture } as unknown as CaptureExportMetadataInput);
   const intent=reconstruction.rawFrame.capture.whiteBalanceIntent;
-  const scene=object(r.sceneProfile,["id","version","sceneStateId"]), sceneProfile={id:id(scene.id),version:id(scene.version),sceneStateId:id(scene.sceneStateId)};
   if (colorProfile.colorSamplingProfileId!==reconstruction.rawFrame.colorSamplingProfile.profileId ||
-      reconstruction.phaseProfiles.some((p) => JSON.stringify(p.profile.kernels.map((k) => k.outputChannelId))!==JSON.stringify(colorProfile.channelIds)) || sceneProfile.sceneStateId!==reconstruction.rawFrame.capture.sceneStateId ||
-      rendering.bitDepth!==8 || (r.whiteBalance!=="not-required" && r.whiteBalance!=="apply-resolved-sensor-gains") ||
-      ((r.whiteBalance==="not-required") !== (intent===null)) || !Number.isInteger(r.jpegQuantizationStep) || (r.jpegQuantizationStep as number)<1 || (r.jpegQuantizationStep as number)>255) throw new InvalidConfigurationError("Export color/WB/rendering identities or encoder settings are inconsistent.");
+      reconstruction.phaseProfiles.some((p) => JSON.stringify(p.profile.kernels.map((k) => k.outputChannelId))!==JSON.stringify(colorProfile.channelIds)) ||
+      (r.whiteBalance!=="not-required" && r.whiteBalance!=="apply-resolved-sensor-gains") ||
+      ((r.whiteBalance==="not-required") !== (intent===null))) throw new InvalidConfigurationError("Processed RAW color/WB/rendering identities are inconsistent.");
   const correction=r.correction===undefined ? undefined : parseCaptureCorrectionChoice(r.correction,
     reconstruction.rawFrame.capture,["photivra-export-developed"]);
   if (correction?.resampler.antialias!==undefined && correction.resampler.antialias!=="none") {
-    throw new InvalidConfigurationError("RAW-derived export has no source prefilter; prefiltered declarations are unsupported.");
+    throw new InvalidConfigurationError("RAW-derived processing has no source prefilter; prefiltered declarations are unsupported.");
   }
   exportEnvelope(reconstruction,correction!==undefined);
-  return { reconstruction,colorProfile,whiteBalance:r.whiteBalance,rendering,sceneProfile,
-    ...(correction===undefined ? {} : {correction}),
-    metadata:{ workflow:metadata.shared.workflow,capturedAtUtc:metadata.shared.capturedAtUtc,
-      raw:{ documentId:metadata.raw.documentId,instanceId:metadata.raw.instanceId }, jpeg:{ documentId:metadata.jpeg.documentId,instanceId:metadata.jpeg.instanceId } },
+  return { reconstruction,colorProfile,whiteBalance:r.whiteBalance,rendering,...(correction===undefined ? {} : {correction}) };
+}
+/** Adds file metadata/encoding validation to the shared processed RAW policy. */
+export function parsePhotographicExportInput(value: unknown): PhotographicExportInput {
+  const r=object(value,["reconstruction","colorProfile","whiteBalance","rendering","metadata","sceneProfile","jpegQuantizationStep","correction"]);
+  const processed=parseProcessedSensorRawInput({reconstruction:r.reconstruction,colorProfile:r.colorProfile,whiteBalance:r.whiteBalance,rendering:r.rendering,
+    ...(r.correction===undefined ? {} : {correction:r.correction})});
+  requireDngTopology(processed.reconstruction.rawFrame);
+  if (processed.rendering.bitDepth!==8) throw new InvalidConfigurationError("Initial JPEG export requires 8-bit SDR.");
+  const meta=object(r.metadata,["workflow","capturedAtUtc","raw","jpeg"]);
+  const metadata=createCaptureExportMetadataPair({ ...meta, capture:processed.reconstruction.rawFrame.capture } as unknown as CaptureExportMetadataInput);
+  const scene=object(r.sceneProfile,["id","version","sceneStateId"]), sceneProfile={id:id(scene.id),version:id(scene.version),sceneStateId:id(scene.sceneStateId)};
+  if (sceneProfile.sceneStateId!==processed.reconstruction.rawFrame.capture.sceneStateId || !Number.isInteger(r.jpegQuantizationStep) ||
+      (r.jpegQuantizationStep as number)<1 || (r.jpegQuantizationStep as number)>255) throw new InvalidConfigurationError("Export scene identity or encoder settings are inconsistent.");
+  return { ...processed,sceneProfile,metadata:{ workflow:metadata.shared.workflow,capturedAtUtc:metadata.shared.capturedAtUtc,
+    raw:{ documentId:metadata.raw.documentId,instanceId:metadata.raw.instanceId }, jpeg:{ documentId:metadata.jpeg.documentId,instanceId:metadata.jpeg.instanceId } },
     jpegQuantizationStep:r.jpegQuantizationStep as number };
 }
 function canonical(value: unknown): string {
@@ -187,20 +216,18 @@ function commonExif(pair: CaptureExportMetadataPair, role: "raw" | "jpeg", width
 function identity(pair: CaptureExportMetadataPair, orientation: number): ExportTiffTag[] {
   return [ascii(271,pair.shared.make),ascii(272,pair.shared.model),ascii(305,pair.shared.software),numbers(274,3,[orientation])];
 }
-/** Creates both files from one revalidated RAW snapshot. No standalone master/rerender can replace JPEG source values. */
-export async function createPhotographicExportPair(input: PhotographicExportInput): Promise<PhotographicExportPair> {
-  // Copy validated inputs into private owned values before the first async boundary to prevent hash/encoding races.
-  const v=JSON.parse(JSON.stringify(parsePhotographicExportInput(input))) as PhotographicExportInput;
+/** Reconstruct exact attached RAW, develop color/WB once, correct, orient/crop and encode SDR; no file/display IO. */
+export function calculateProcessedSensorRaw(input: ProcessedSensorRawInput): CalculationResult<ProcessedSensorRawResult> {
+  const v=structuredClone(parseProcessedSensorRawInput(input));
   const source=resolveRawFrameReconstruction(v.reconstruction), frame=source.value.rawFrame, capture=frame.capture,
-    metadata=createCaptureExportMetadataPair({ ...v.metadata,capture }), g=capture.resolvedGeometry,
+    g=capture.resolvedGeometry,
     active=g.activeCapture.nativeRect,crop=g.output.cropRect, raster=g.output.raster, region=source.value.region;
-  const {local,nativeDefaultCrop}=exportEnvelope(v.reconstruction,v.correction!==undefined);
+  const {nativeDefaultCrop}=exportEnvelope(v.reconstruction,v.correction!==undefined);
   const colorMatrix=invertSensorColorMatrix(v.colorProfile.normalizedCameraChannelsToXyz),
     cameraWhite=sensorColorReferenceWhite(colorMatrix), intent=capture.whiteBalanceIntent,
     gains=intent ? [intent.channelGains.red,intent.channelGains.green,intent.channelGains.blue] : [1,1,1];
   const development=prepareSensorColorDevelopment(v.colorProfile.normalizedCameraChannelsToXyz,gains), white=development.referenceWhiteXyz;
   if (cameraWhite.some((x) => x<=0 || !Number.isFinite(x))) throw new InvalidConfigurationError("DNG reference white must map to positive camera-neutral coordinates.");
-  const neutral=cameraWhite.map((x,i) => x/gains[i]!), scale=neutral[1]!;
   const developedRaster=v.correction ? g.orientedCapture.raster : raster,
     developedRect=v.correction ? {x:0,y:0,width:developedRaster.pixelWidth,height:developedRaster.pixelHeight} : crop;
   const rgb: number[]=[];
@@ -224,10 +251,30 @@ export async function createPhotographicExportPair(input: PhotographicExportInpu
   const processedOutputView=correction ? {rect:correction.value.outputView.rect,pixelWidth:correction.value.outputView.pixelWidth,
     pixelHeight:correction.value.outputView.pixelHeight} : {rect:{x:0,y:0,width:raster.pixelWidth,height:raster.pixelHeight},
     pixelWidth:raster.pixelWidth,pixelHeight:raster.pixelHeight};
-  const correctedMetadata=v.correction && correction ? {choice:v.correction,rect:processedOutputView.rect,
-    clippingEvents:correction.value.correction.value.illuminationClippingEventCount} : undefined;
   const rendering=correction?.value.rendering ?? calculateSdrRendering({ sourceImageStateId:frame.frameId+":developed",inputImageState:"color-transformed-linear-rgb",inputColorSpace:"linear-srgb-d65",
     whiteBalanceHandling:intent ? "already-applied-upstream" : "not-required",pixelWidth:raster.pixelWidth,pixelHeight:raster.pixelHeight,referenceWhiteValue:1,samples:rgb,profile:v.rendering });
+  return approximationResult({ inputDomain:"post-adc-native-sensor-raw",colorProfile:v.colorProfile,whiteBalancePolicy:v.whiteBalance,outputDomain:"output-referred-srgb-d65-sdr",physicalCaptureModified:false,
+    displayAdaptationApplied:false,whiteBalance:intent ? "applied-here" : "not-required",source,rendering,nativeDefaultCrop,processedOutputView,correction,rawCorrectionIntent }, "processed-sensor-raw-sdr", "0.1.0", [
+    "Exact attached RAW feeds explicit approximate sensor color development; WB is applied once before correction and SDR.",
+    "Output is encoded sRGB/D65 SDR; platform viewing adaptation and HDR encoding are not applied.",
+    "Bounded reference reconstruction, correction support and 1:1 output crop remain explicit; physical capture is unchanged."
+  ]);
+}
+
+export async function createPhotographicExportPair(input: PhotographicExportInput): Promise<PhotographicExportPair> {
+  // Copy validated inputs into private owned values before the first async boundary to prevent hash/encoding races.
+  const v=JSON.parse(JSON.stringify(parsePhotographicExportInput(input))) as PhotographicExportInput;
+  const processed=calculateProcessedSensorRaw({reconstruction:v.reconstruction,colorProfile:v.colorProfile,whiteBalance:v.whiteBalance,rendering:v.rendering,
+    ...(v.correction===undefined ? {} : {correction:v.correction})}).value;
+  const {source,rendering,nativeDefaultCrop,processedOutputView,correction,rawCorrectionIntent}=processed;
+  const frame=source.value.rawFrame,capture=frame.capture,g=capture.resolvedGeometry,active=g.activeCapture.nativeRect,region=source.value.region;
+  const metadata=createCaptureExportMetadataPair({...v.metadata,capture});
+  const {local}=exportEnvelope(v.reconstruction,v.correction!==undefined);
+  const colorMatrix=invertSensorColorMatrix(v.colorProfile.normalizedCameraChannelsToXyz),cameraWhite=sensorColorReferenceWhite(colorMatrix),intent=capture.whiteBalanceIntent;
+  const gains=intent ? [intent.channelGains.red,intent.channelGains.green,intent.channelGains.blue] : [1,1,1];
+  const neutral=cameraWhite.map((x,i)=>x/gains[i]!),scale=neutral[1]!;
+  const correctedMetadata=v.correction && correction ? {choice:v.correction,rect:processedOutputView.rect,
+    clippingEvents:correction.value.correction.value.illuminationClippingEventCount} : undefined;
   const layout=frame.colorSamplingProfile.layout;
   if (layout.kind!=="periodic-mosaic") throw new InvalidConfigurationError("Initial DNG profile supports explicitly registered 2x2 RGB Bayer topology only.");
   const whiteLevel=frame.samples[0]!.digitalSaturationCode, black:number[]=[];

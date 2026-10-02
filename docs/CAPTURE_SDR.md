@@ -1,5 +1,10 @@
 # Capture-to-SDR adapter
 
+Current integration: [processed camera output](PROCESSED_OUTPUT.md) documents
+the shared preview/export path and explicit plan 0.6.0 post-RAW activation.
+The historical slice descriptions below retain their original scope.
+
+
 `calculateCaptureSdr()` connects the authoritative SimulatedCapture/color contracts to the existing SDR renderer. Adapter schema is `0.1.0`; root API advances to `0.98.0`. Existing capture/color/SDR schemas, production plan, package and POC versions are unchanged.
 
 Choose `already-transformed` for an exact `linear-srgb-d65` profile/version, RGB channel order and D65 encoding white. Choose `transform` to delegate an explicitly selected XYZ/ideal-camera color and WB operation to `calculateCaptureColorTransform()`. Derived plane/state IDs must be new. No WB estimator runs. Intent-only WB is rejected; an already applied state cannot be transformed again. Applied RGB gains and adopted-white adaptation remain distinct; XYZ diagonal adaptation remains approximation, including the adapter envelope.
