@@ -2,6 +2,8 @@
 
 ## Unreleased — engine API 0.106.0
 
+- Extend generic tier correction acceptance with independent residual CA/distortion, full Jacobian/stretch, same-capture slanted-step interpolation/gain and support/retained-ray checks. Synthetic sampled regression evidence only; runtime/API/assets unchanged. See `docs/GENERIC_TIER_PRESETS.md`.
+
 - Correct the electronic read-noise boundary: preserve negative read noise through the upper-only pre-ADC threshold, add the black pedestal, then quantize/clamp to the unsigned ADC range. Readout model 2.0.0 and capture RAW noise model 0.2.0 distinguish changed shadow codes from prior replay.
 - Add incremental #131 conformance for the merged global sensor RAW producer → reconstruction/color/WB → correction → SDR/paired export path. Independent numeric and lattice expectations cover exposure boundaries, four orientations, same-noise correction, signed shadows and display clipping; no final V1 closure.
 

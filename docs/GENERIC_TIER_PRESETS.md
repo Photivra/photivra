@@ -135,7 +135,30 @@ There is no separate tier-specific browser approximation to compare here; the
 public implementation remains browser-safe and uses the ordinary reference APIs.
 No private application acceptance is invented.
 
-Root API 0.105.0 follows the local-shutter 0.104.0 contract in PR #173.
-This PR is stacked on #173 until that prerequisite is merged. Selection schema 0.1.0, asset version 1.0.0, npm package,
+Initial tier assets landed at root API 0.105.0; the merged baseline is 0.106.0.
+This acceptance-only extension does not change runtime/API or asset definitions. Selection schema 0.1.0, asset version 1.0.0, npm package,
 POC and production contracts remain independent. Human scientific/provenance
 review and contribution-specific DCO certification are still required.
+
+## Correction residual and sampled-edge acceptance
+
+`test/generic-tier-correction-acceptance.test.ts` extends #119 with the exact 1.0.0
+assets on a 9×9 synthetic slanted-step target and fixed alternating noise. Correction
+Off/On forks one sampled capture. Independent k1 radial arithmetic, finite-difference
+Jacobians, bilinear weights and polynomial partial-reciprocal gain predict every
+channel sample. These checks quantify sampled interpolation, not optical MTF or a
+radiometrically composed scene.
+
+Independent monotonic scalar bisection recovers ideal coordinates through each
+combined physical radial/CA map. Common green distortion is compensated, while
+sequential partial channel correction leaves a nonzero, reduced CA residual. The
+bounded sampled points require less than 0.1 mm residual displacement; this is a
+regression envelope for synthetic definitions, not measured accuracy or a continuous
+field guarantee. Full 2×2 Jacobians, determinants and principal stretches are checked
+independently. A shifted lattice checks exact missing-source support and the joint
+valid crop. Retained channel pixel-center ray envelopes remain distinct from captured
+pixel-edge FOV; the joint RGB crop cannot expand a channel's ray coverage.
+
+No runtime, root API, schema, preset manifest, package or POC behavior changes.
+This does not complete #116/#119: physical PSF/scene composition, broader body
+execution and applicable export acceptance remain separately tracked.
