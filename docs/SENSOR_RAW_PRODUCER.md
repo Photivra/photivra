@@ -1,5 +1,8 @@
 # Capture-owned native sensor RAW producer
 
+See [Reference RAW frame compatibility](RAW_FRAME_ENVELOPE.md) for stage-specific
+limits, full-native counting and parser preflight behavior.
+
 ## Signed electronic shadows — root API 0.106.0
 
 The required `photivra-native-raw-noise` capture model is now **0.2.0**, preserving the existing per-site seed schedule while binding corrected readout behavior. `simulateSensorRawCode()` provenance uses `sensor-raw-code-stochastic-readout` model **2.0.0**. Physical stored charge remains nonnegative; after Gaussian electronic read noise, the signal may be negative. Apply only the upper pre-ADC saturation threshold, then conversion gain and black pedestal, round-half-up quantization, and clamp to `[0, digitalSaturationCode]`. Below-black integer codes survive when they fit the unsigned ADC range. `lowerCodeClampApplied` is true only when the quantized code is below zero. A negative electronic signal is not negative stored charge or physical saturation.

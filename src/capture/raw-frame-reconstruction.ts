@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { RAW_REFERENCE_MAX_NATIVE_SITES } from "./raw-frame-limits.js";
+
 import { freezeOwnedData } from "../core/owned-data.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -65,7 +67,7 @@ function frame(value: unknown): SensorRawFrame {
     "renderingApplied", "nativePixelWidth", "nativePixelHeight"]);
   if (r.schemaVersion !== "0.1.0" || r.sampleDomain !== "native-cfa-raw-code" || r.sampleOrder !== "native-row-major" ||
       r.producerBinding !== "caller-declared-capture-attachment" || r.reconstructionApplied !== false || r.renderingApplied !== false ||
-      !Array.isArray(r.samples) || r.samples.length > 4096) {
+      !Array.isArray(r.samples) || r.samples.length > RAW_REFERENCE_MAX_NATIVE_SITES) {
     throw new InvalidConfigurationError("Reconstruction requires a committed native RAW frame of at most 4,096 samples.");
   }
   const { schemaVersion, sampleDomain, sampleOrder, producerBinding, reconstructionApplied, renderingApplied,

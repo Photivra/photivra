@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { RAW_ATTACHMENT_MAX_NATIVE_SITES } from "./raw-frame-limits.js";
+
 import { freezeOwnedData } from "../core/owned-data.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseSimulatedCapture, type SimulatedCapture } from "./simulated-capture.js";
@@ -93,7 +95,7 @@ export function parseSensorRawFrameInput(value: unknown): SensorRawFrameInput {
     bindingProfile = parseNativeEffectiveRasterColorSamplingBindingProfile(r.bindingProfile);
   const native = capture.geometry.nativeRaster, count = native.pixelWidth*native.pixelHeight;
   const mode = captureModeProfile.modes.find((m) => m.modeId === modeId);
-  if (r.containerBitDepth !== 16 || count > 65536 || !Array.isArray(r.samples) || r.samples.length !== count ||
+  if (r.containerBitDepth !== 16 || count > RAW_ATTACHMENT_MAX_NATIVE_SITES || !Array.isArray(r.samples) || r.samples.length !== count ||
       Array.from({ length: count }, (_, i) => i in (r.samples as unknown[])).includes(false) ||
       colorSamplingProfile.layout.kind !== "periodic-mosaic" || !mode || mode.acquisition.kind !== "single-frame" ||
       mode.perFrameSampling.kind !== "native-effective-raster" || (mode.reconstructionStages?.length ?? 0) !== 0) {

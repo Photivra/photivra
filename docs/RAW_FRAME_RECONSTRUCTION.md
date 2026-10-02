@@ -1,5 +1,8 @@
 # Same-RAW reconstruction handoff (#16C)
 
+See [Reference RAW frame compatibility](RAW_FRAME_ENVELOPE.md) for stage-specific
+limits, full-native counting and parser preflight behavior.
+
 `resolveRawFrameReconstruction()` derives a bounded contiguous native-region virtual-sensor-channel plane from a committed `SensorRawFrame`. It delegates every output pixel to the existing #14 `resolveSensorRawReconstruction()`, using only exact attached RAW samples. Independent float planes in the attached capture are retained as history/metadata and **never provide reconstructed values**.
 
 This is a dependent draft on #166, not a claim that #166 is merged. Handoff schema 0.1.0 and proposed root API 0.99.0 are additive; reconcile parallel root versions in actual merge order. Capture/production/POC/package semantics are unchanged.

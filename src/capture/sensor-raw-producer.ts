@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { RAW_REFERENCE_MAX_NATIVE_SITES } from "./raw-frame-limits.js";
+
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseEvidenceList } from "../core/evidence-provenance.js";
@@ -174,12 +176,12 @@ function sourceBoundary(schedule: CaptureExposureWindows["opening"]["schedule"])
 export function parseSensorRawProducerInput(value: unknown): SensorRawProducerInput {
   const r = fields(value, ["frame", "sites", "exposureWindow"]), f = fields(r.frame, ["frameId", "capture", "modeId", "captureModeProfile", "colorSamplingProfile", "bindingProfile", "containerBitDepth"]);
   const capture = parseSimulatedCapture(f.capture), native = capture.geometry.nativeRaster, count = native.pixelWidth*native.pixelHeight;
-  const sites = dense(r.sites, 4096);
+  const sites = dense(r.sites, RAW_REFERENCE_MAX_NATIVE_SITES);
   const frame = { frameId: publicId(f.frameId), capture, modeId: publicId(f.modeId), containerBitDepth: 16 as const,
     captureModeProfile: parseCaptureModeProfile(f.captureModeProfile), colorSamplingProfile: parseSensorColorSamplingProfile(f.colorSamplingProfile),
     bindingProfile: parseNativeEffectiveRasterColorSamplingBindingProfile(f.bindingProfile) };
   const mode = frame.captureModeProfile.modes.find((m) => m.modeId === frame.modeId);
-  if (f.containerBitDepth !== 16 || count > 4096 || sites.length !== count ||
+  if (f.containerBitDepth !== 16 || count > RAW_REFERENCE_MAX_NATIVE_SITES || sites.length !== count ||
       capture.noise.model.id !== SENSOR_RAW_PRODUCER_NOISE_MODEL.id || capture.noise.model.version !== SENSOR_RAW_PRODUCER_NOISE_MODEL.version ||
       frame.colorSamplingProfile.layout.kind !== "periodic-mosaic" || !mode || mode.acquisition.kind !== "single-frame" ||
       mode.perFrameSampling.kind !== "native-effective-raster" || (mode.reconstructionStages?.length ?? 0) !== 0) {

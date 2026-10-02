@@ -89,7 +89,30 @@ export function parseExportSensorColorProfile(value: unknown): ExportSensorColor
   return { schemaVersion:"0.1.0",profileId:id(r.profileId),profileVersion:id(r.profileVersion),colorSamplingProfileId:id(r.colorSamplingProfileId),
     channelIds:["red","green","blue"],scientificStatus:"approximation",referenceIlluminant:"D65",normalizedCameraChannelsToXyz:matrix,evidence,limitations:[...r.limitations] as string[] };
 }
-/** Strict boundary for an atomic paired export; validated metadata comes only from the attached capture. */
+/** Cheap geometry/topology preflight after RAW revalidation, before pixel execution. */
+function exportEnvelope(reconstruction: RawFrameReconstructionInput, corrected: boolean): { local: RasterRect; nativeDefaultCrop: RasterRect } {
+  const frame=reconstruction.rawFrame, capture=frame.capture, g=capture.resolvedGeometry,
+    active=g.activeCapture.nativeRect, crop=g.output.cropRect, raster=g.output.raster, region=reconstruction.region;
+  if (raster.pixelWidth!==crop.width || raster.pixelHeight!==crop.height) throw new InvalidConfigurationError("Initial paired export requires 1:1 output crop sampling; resampling is unsupported.");
+  const local=transformOrientedRasterRectToNative({ rect:crop,nativeRaster:g.activeCapture.raster,orientation:capture.geometry.orientation });
+  const nativeDefaultCrop={ ...local,x:local.x+active.x,y:local.y+active.y };
+  if (nativeDefaultCrop.x<region.x || nativeDefaultCrop.y<region.y || nativeDefaultCrop.x+nativeDefaultCrop.width>region.x+region.width ||
+      nativeDefaultCrop.y+nativeDefaultCrop.height>region.y+region.height) throw new InvalidConfigurationError("Reconstruction does not cover the exact declared final native crop.");
+  if (corrected && (active.x<region.x || active.y<region.y || active.x+active.width>region.x+region.width ||
+      active.y+active.height>region.y+region.height)) throw new InvalidConfigurationError("Corrected export requires reconstruction of the full active native RAW area.");
+  const layout=frame.colorSamplingProfile.layout;
+  if (layout.kind!=="periodic-mosaic" || layout.repeatWidthSites!==2 || layout.repeatHeightSites!==2 || !["red","green","green","blue"].every((ch) => layout.siteChannelIds.includes(ch)) ||
+      layout.siteChannelIds.filter((ch) => ch==="red").length!==1 || layout.siteChannelIds.filter((ch) => ch==="blue").length!==1 ||
+      layout.siteChannelIds.filter((ch) => ch==="green").length!==2) throw new InvalidConfigurationError("Initial DNG profile supports explicitly registered 2x2 RGB Bayer topology only.");
+  return {local,nativeDefaultCrop};
+}
+/**
+ * Revalidates one attached RAW snapshot and its explicit export policy.
+ * Crop sampling, reconstruction coverage and Bayer topology fail here before
+ * per-pixel execution. Successful parsing does not establish kernel edge support,
+ * correction support or container encoding readiness; those retain execution
+ * checks. Validated metadata comes only from the attached capture.
+ */
 export function parsePhotographicExportInput(value: unknown): PhotographicExportInput {
   const r=object(value,["reconstruction","colorProfile","whiteBalance","rendering","metadata","sceneProfile","jpegQuantizationStep","correction"]);
   const reconstruction=parseRawFrameReconstructionInput(r.reconstruction), colorProfile=parseExportSensorColorProfile(r.colorProfile), rendering=parseSdrRenderingProfile(r.rendering);
@@ -106,6 +129,7 @@ export function parsePhotographicExportInput(value: unknown): PhotographicExport
   if (correction?.resampler.antialias!==undefined && correction.resampler.antialias!=="none") {
     throw new InvalidConfigurationError("RAW-derived export has no source prefilter; prefiltered declarations are unsupported.");
   }
+  exportEnvelope(reconstruction,correction!==undefined);
   return { reconstruction,colorProfile,whiteBalance:r.whiteBalance,rendering,sceneProfile,
     ...(correction===undefined ? {} : {correction}),
     metadata:{ workflow:metadata.shared.workflow,capturedAtUtc:metadata.shared.capturedAtUtc,
@@ -169,20 +193,14 @@ export async function createPhotographicExportPair(input: PhotographicExportInpu
   const v=JSON.parse(JSON.stringify(parsePhotographicExportInput(input))) as PhotographicExportInput;
   const source=resolveRawFrameReconstruction(v.reconstruction), frame=source.value.rawFrame, capture=frame.capture,
     metadata=createCaptureExportMetadataPair({ ...v.metadata,capture }), g=capture.resolvedGeometry,
-    active=g.activeCapture.nativeRect,crop=g.output.cropRect, raster=g.output.raster;
-  if (raster.pixelWidth!==crop.width || raster.pixelHeight!==crop.height) throw new InvalidConfigurationError("Initial paired export requires 1:1 output crop sampling; resampling is unsupported.");
-  const local=transformOrientedRasterRectToNative({ rect:crop,nativeRaster:g.activeCapture.raster,orientation:capture.geometry.orientation });
-  const nativeDefaultCrop={ ...local,x:local.x+active.x,y:local.y+active.y }, region=source.value.region;
-  if (nativeDefaultCrop.x<region.x || nativeDefaultCrop.y<region.y || nativeDefaultCrop.x+nativeDefaultCrop.width>region.x+region.width ||
-      nativeDefaultCrop.y+nativeDefaultCrop.height>region.y+region.height) throw new InvalidConfigurationError("Reconstruction does not cover the exact declared final native crop.");
+    active=g.activeCapture.nativeRect,crop=g.output.cropRect, raster=g.output.raster, region=source.value.region;
+  const {local,nativeDefaultCrop}=exportEnvelope(v.reconstruction,v.correction!==undefined);
   const colorMatrix=invertSensorColorMatrix(v.colorProfile.normalizedCameraChannelsToXyz),
     cameraWhite=sensorColorReferenceWhite(colorMatrix), intent=capture.whiteBalanceIntent,
     gains=intent ? [intent.channelGains.red,intent.channelGains.green,intent.channelGains.blue] : [1,1,1];
   const development=prepareSensorColorDevelopment(v.colorProfile.normalizedCameraChannelsToXyz,gains), white=development.referenceWhiteXyz;
   if (cameraWhite.some((x) => x<=0 || !Number.isFinite(x))) throw new InvalidConfigurationError("DNG reference white must map to positive camera-neutral coordinates.");
   const neutral=cameraWhite.map((x,i) => x/gains[i]!), scale=neutral[1]!;
-  if (v.correction && (active.x<region.x || active.y<region.y || active.x+active.width>region.x+region.width ||
-      active.y+active.height>region.y+region.height)) throw new InvalidConfigurationError("Corrected export requires reconstruction of the full active native RAW area.");
   const developedRaster=v.correction ? g.orientedCapture.raster : raster,
     developedRect=v.correction ? {x:0,y:0,width:developedRaster.pixelWidth,height:developedRaster.pixelHeight} : crop;
   const rgb: number[]=[];
@@ -211,8 +229,7 @@ export async function createPhotographicExportPair(input: PhotographicExportInpu
   const rendering=correction?.value.rendering ?? calculateSdrRendering({ sourceImageStateId:frame.frameId+":developed",inputImageState:"color-transformed-linear-rgb",inputColorSpace:"linear-srgb-d65",
     whiteBalanceHandling:intent ? "already-applied-upstream" : "not-required",pixelWidth:raster.pixelWidth,pixelHeight:raster.pixelHeight,referenceWhiteValue:1,samples:rgb,profile:v.rendering });
   const layout=frame.colorSamplingProfile.layout;
-  if (layout.kind!=="periodic-mosaic" || layout.repeatWidthSites!==2 || layout.repeatHeightSites!==2 || !["red","green","green","blue"].every((ch) => layout.siteChannelIds.includes(ch)) ||
-      layout.siteChannelIds.filter((ch) => ch==="red").length!==1 || layout.siteChannelIds.filter((ch) => ch==="blue").length!==1) throw new InvalidConfigurationError("Initial DNG profile supports explicitly registered 2x2 RGB Bayer topology only.");
+  if (layout.kind!=="periodic-mosaic") throw new InvalidConfigurationError("Initial DNG profile supports explicitly registered 2x2 RGB Bayer topology only.");
   const whiteLevel=frame.samples[0]!.digitalSaturationCode, black:number[]=[];
   for (let py=0;py<2;py++) for (let px=0;px<2;px++) {
     const found=frame.samples.filter((s) => s.colorSamplingSite.x%2===px && s.colorSamplingSite.y%2===py), first=found[0];
