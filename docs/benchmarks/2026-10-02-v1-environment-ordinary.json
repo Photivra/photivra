@@ -1,0 +1,187 @@
+{
+  "benchmark": "final-v1-executed-environment-to-raw",
+  "benchmarkVersion": 1,
+  "sourceCommit": "edc20e61538152fa758f3cce4b41cc34d1e8ba03",
+  "sourceFingerprint": "f0ecf8b4df5c8426b194c8fda1b74c28027d7a8f4c78cbb6f86b8457d1bbb66e",
+  "engineApiVersion": "0.116.0",
+  "buildMethod": "tsc",
+  "nodeVersion": "v24.19.0",
+  "v8Version": "13.6.233.17-node.51",
+  "platform": "darwin",
+  "arch": "arm64",
+  "cpuModel": "Apple M5 Pro",
+  "logicalCpuCount": 18,
+  "forcedGc": false,
+  "results": [
+    {
+      "config": {
+        "temporal": 4,
+        "spatial": 2,
+        "psf": false
+      },
+      "nativeSites": 4,
+      "providerEvaluationsPerCall": 128,
+      "wholeResultSha256": "3dd33552b025fadf96cd932ba1970dab2b3a558b0d15f603865216602c36360b",
+      "warmupCalls": 2,
+      "repeats": 5,
+      "medianMillisecondsPerCall": 7.98675,
+      "measurements": [
+        {
+          "milliseconds": 7.747042,
+          "netHeapDeltaBytes": 35717824,
+          "netRssDeltaBytes": 425984
+        },
+        {
+          "milliseconds": 7.5655,
+          "netHeapDeltaBytes": 35630304,
+          "netRssDeltaBytes": 425984
+        },
+        {
+          "milliseconds": 8.088542,
+          "netHeapDeltaBytes": -30665336,
+          "netRssDeltaBytes": 425984
+        },
+        {
+          "milliseconds": 8.010833,
+          "netHeapDeltaBytes": -30620024,
+          "netRssDeltaBytes": 425984
+        },
+        {
+          "milliseconds": 7.98675,
+          "netHeapDeltaBytes": -30571976,
+          "netRssDeltaBytes": 425984
+        }
+      ]
+    },
+    {
+      "config": {
+        "temporal": 16,
+        "spatial": 4,
+        "psf": false
+      },
+      "nativeSites": 4,
+      "providerEvaluationsPerCall": 2048,
+      "wholeResultSha256": "188025a6c392c3ceadb60a1f0b8a6d77106cb314bdfde0f3f5c6b61c2bf52d02",
+      "warmupCalls": 2,
+      "repeats": 5,
+      "medianMillisecondsPerCall": 70.555208,
+      "measurements": [
+        {
+          "milliseconds": 70.555208,
+          "netHeapDeltaBytes": 17927536,
+          "netRssDeltaBytes": 8847360
+        },
+        {
+          "milliseconds": 70.597959,
+          "netHeapDeltaBytes": 16039512,
+          "netRssDeltaBytes": 7929856
+        },
+        {
+          "milliseconds": 70.089583,
+          "netHeapDeltaBytes": 17640632,
+          "netRssDeltaBytes": 9388032
+        },
+        {
+          "milliseconds": 70.221875,
+          "netHeapDeltaBytes": 17743056,
+          "netRssDeltaBytes": 9256960
+        },
+        {
+          "milliseconds": 70.639959,
+          "netHeapDeltaBytes": 17511528,
+          "netRssDeltaBytes": 9125888
+        }
+      ]
+    },
+    {
+      "config": {
+        "temporal": 16,
+        "spatial": 2,
+        "psf": true
+      },
+      "nativeSites": 4,
+      "providerEvaluationsPerCall": 4608,
+      "wholeResultSha256": "7035df75a3de8f4a3bcab6b235c0f2a721ccdac46ef4952f0eb1cf14a74e71a8",
+      "warmupCalls": 2,
+      "repeats": 5,
+      "medianMillisecondsPerCall": 183.633083,
+      "measurements": [
+        {
+          "milliseconds": 179.243208,
+          "netHeapDeltaBytes": 11242672,
+          "netRssDeltaBytes": 23756800
+        },
+        {
+          "milliseconds": 183.633083,
+          "netHeapDeltaBytes": 9516712,
+          "netRssDeltaBytes": 22331392
+        },
+        {
+          "milliseconds": 185.387542,
+          "netHeapDeltaBytes": 12495600,
+          "netRssDeltaBytes": 24395776
+        },
+        {
+          "milliseconds": 181.624041,
+          "netHeapDeltaBytes": 80632136,
+          "netRssDeltaBytes": 26411008
+        },
+        {
+          "milliseconds": 187.772458,
+          "netHeapDeltaBytes": -422209328,
+          "netRssDeltaBytes": -270647296
+        }
+      ]
+    },
+    {
+      "config": {
+        "temporal": 32,
+        "spatial": 4,
+        "psf": true
+      },
+      "nativeSites": 4,
+      "providerEvaluationsPerCall": 36864,
+      "wholeResultSha256": "c6dfdde496729896e53f74cca4bac202436c63ee7181e991645c15fae85ce6b3",
+      "warmupCalls": 2,
+      "repeats": 5,
+      "medianMillisecondsPerCall": 1448.311167,
+      "measurements": [
+        {
+          "milliseconds": 1453.251917,
+          "netHeapDeltaBytes": -11610408,
+          "netRssDeltaBytes": -10469376
+        },
+        {
+          "milliseconds": 1441.869708,
+          "netHeapDeltaBytes": -31013032,
+          "netRssDeltaBytes": -17301504
+        },
+        {
+          "milliseconds": 1448.311167,
+          "netHeapDeltaBytes": -34305208,
+          "netRssDeltaBytes": -31195136
+        },
+        {
+          "milliseconds": 1446.787833,
+          "netHeapDeltaBytes": 22762760,
+          "netRssDeltaBytes": 6979584
+        },
+        {
+          "milliseconds": 1460.976375,
+          "netHeapDeltaBytes": 315319304,
+          "netRssDeltaBytes": -543129600
+        }
+      ]
+    }
+  ],
+  "profiles": [],
+  "sink": 2184,
+  "limitations": [
+    "Current supported bounded production capture executor on owned synthetic rolling/temporal/spatial/spectral/PSF inputs; not calibrated provider transport or visibility",
+    "Four native sites with 128 to 36864 executed provider evaluations; workload density, not full-resolution throughput or tiny-raster frame-time evidence",
+    "No candidate optimization; descriptive current baseline, separate from #43/#45 paired equivalence and effect measurements",
+    "Shared Mac host; no observed product traffic or browser frame-time claim",
+    "Net heap/RSS deltas are not allocation counts or sampled peak memory; inspector estimates are statistical and separate from ordinary timing",
+    "Inclusive CPU categories overlap; sampling/inlining limits attribution; no safety/provenance gate may be removed based on this profile"
+  ]
+}

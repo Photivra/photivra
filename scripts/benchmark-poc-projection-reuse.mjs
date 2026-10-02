@@ -12,8 +12,15 @@ import { simulatePocCamera, ENGINE_API_VERSION, POC_SIMULATION_API_VERSION } fro
 const argument = (name) => process.argv.find((v) => v.startsWith(`--${name}=`))?.slice(name.length+3);
 const referenceRoot = argument("reference-root"), referenceCommit = argument("reference-commit");
 if (!referenceRoot || !/^[a-f0-9]{40}$/.test(referenceCommit ?? "")) throw new Error("Provide --reference-root and exact --reference-commit; build both with tsc first.");
+if (argument("candidate-commit") && !/^[a-f0-9]{40}$/.test(argument("candidate-commit"))) throw new Error("candidate-commit must be an exact SHA.");
 const reference = await import(pathToFileURL(resolve(referenceRoot, "dist/index.js")));
 if (reference.POC_SIMULATION_API_VERSION !== POC_SIMULATION_API_VERSION) throw new Error("POC versions differ.");
+const equivalenceCorpus = JSON.parse(readFileSync(new URL("../test/fixtures/poc-projection-reuse-reference.json", import.meta.url), "utf8"));
+const corpusHashes = equivalenceCorpus.cases.map(fixture => {
+  const current = JSON.stringify(simulatePocCamera(fixture.input));
+  if (current !== JSON.stringify(reference.simulatePocCamera(fixture.input))) throw new Error(`Independent whole-response mismatch: ${fixture.id}`);
+  return createHash("sha256").update(current).digest("hex");
+});
 const candidateSources = ["src/optics/depth-of-field.ts", "src/simulation/poc-simulation.ts"].map((path) => ({ path,
   sha256: createHash("sha256").update(readFileSync(new URL(`../${path}`, import.meta.url))).digest("hex") }));
 const base = { sensor: { widthMm: 36, heightMm: 24, pixelWidth: 6000, pixelHeight: 4000 },
@@ -90,8 +97,9 @@ if (argument("allocation") === "sample") {
   }
   session.disconnect();
 }
-process.stdout.write(JSON.stringify({ benchmark: "poc-request-local-defocus-projection-reuse", benchmarkVersion: 2,
-  referenceCommit, candidateBaseCommit: referenceCommit, candidateSources, buildMethod: "tsc", engineApiVersion: ENGINE_API_VERSION,
+process.stdout.write(JSON.stringify({ benchmark: "poc-request-local-defocus-projection-reuse", benchmarkVersion: 3,
+  independentCorpusEquivalence: { cases: corpusHashes.length, responseHashes: corpusHashes, referenceGoldenHashesChanged: false },
+  referenceCommit, candidateBaseCommit: argument("candidate-commit") ?? referenceCommit, candidateSources, buildMethod: "tsc", engineApiVersion: ENGINE_API_VERSION,
   pocApiVersion: POC_SIMULATION_API_VERSION, nodeVersion: process.version, v8Version: process.versions.v8,
   platform: platform(), arch: arch(), cpuModel: cpus()[0]?.model ?? "unknown", logicalCpuCount: cpus().length,
   forcedGc: typeof globalThis.gc === "function", results, allocationProfiles,

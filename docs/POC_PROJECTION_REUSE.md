@@ -116,3 +116,7 @@ node --expose-gc scripts/benchmark-poc-projection-reuse.mjs --reference-root=/pa
 Repeat ordinary runs separately. Build labels are not independently attested by
 the script. There is no timing CI threshold, paid service, runtime dependency or
 new third-party material. This tooling is Node-only and outside the public root.
+
+## Final V1 remeasurement
+
+[Final V1 performance disposition](V1_PERFORMANCE_DISPOSITION.md) records current main #204, fresh paired timing/equivalence, preparation/memory profiles and dense executed environment-to-RAW evidence. It proposes retaining the merged bounded optimizations with no further abstraction, pending owner review/DCO and merge. Earlier candidate and pending-remeasurement statements above are historical.

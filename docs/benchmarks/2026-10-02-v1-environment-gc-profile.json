@@ -1,0 +1,210 @@
+{
+  "benchmark": "final-v1-executed-environment-to-raw",
+  "benchmarkVersion": 1,
+  "sourceCommit": "edc20e61538152fa758f3cce4b41cc34d1e8ba03",
+  "sourceFingerprint": "f0ecf8b4df5c8426b194c8fda1b74c28027d7a8f4c78cbb6f86b8457d1bbb66e",
+  "engineApiVersion": "0.116.0",
+  "buildMethod": "tsc",
+  "nodeVersion": "v24.19.0",
+  "v8Version": "13.6.233.17-node.51",
+  "platform": "darwin",
+  "arch": "arm64",
+  "cpuModel": "Apple M5 Pro",
+  "logicalCpuCount": 18,
+  "forcedGc": true,
+  "results": [
+    {
+      "config": {
+        "temporal": 4,
+        "spatial": 2,
+        "psf": false
+      },
+      "nativeSites": 4,
+      "providerEvaluationsPerCall": 128,
+      "wholeResultSha256": "3dd33552b025fadf96cd932ba1970dab2b3a558b0d15f603865216602c36360b",
+      "warmupCalls": 2,
+      "repeats": 5,
+      "medianMillisecondsPerCall": 8.795209,
+      "measurements": [
+        {
+          "milliseconds": 8.34275,
+          "netHeapDeltaBytes": 6984,
+          "netRssDeltaBytes": 0
+        },
+        {
+          "milliseconds": 8.795209,
+          "netHeapDeltaBytes": -47656,
+          "netRssDeltaBytes": 0
+        },
+        {
+          "milliseconds": 8.425458,
+          "netHeapDeltaBytes": -95488,
+          "netRssDeltaBytes": 0
+        },
+        {
+          "milliseconds": 8.896416,
+          "netHeapDeltaBytes": -85560,
+          "netRssDeltaBytes": 0
+        },
+        {
+          "milliseconds": 8.798458,
+          "netHeapDeltaBytes": -35952,
+          "netRssDeltaBytes": 0
+        }
+      ]
+    },
+    {
+      "config": {
+        "temporal": 16,
+        "spatial": 4,
+        "psf": false
+      },
+      "nativeSites": 4,
+      "providerEvaluationsPerCall": 2048,
+      "wholeResultSha256": "188025a6c392c3ceadb60a1f0b8a6d77106cb314bdfde0f3f5c6b61c2bf52d02",
+      "warmupCalls": 2,
+      "repeats": 5,
+      "medianMillisecondsPerCall": 76.885375,
+      "measurements": [
+        {
+          "milliseconds": 76.051417,
+          "netHeapDeltaBytes": -597488,
+          "netRssDeltaBytes": 16384
+        },
+        {
+          "milliseconds": 75.532833,
+          "netHeapDeltaBytes": 14472,
+          "netRssDeltaBytes": 0
+        },
+        {
+          "milliseconds": 76.885375,
+          "netHeapDeltaBytes": 184800,
+          "netRssDeltaBytes": 0
+        },
+        {
+          "milliseconds": 78.43175,
+          "netHeapDeltaBytes": 154992,
+          "netRssDeltaBytes": 0
+        },
+        {
+          "milliseconds": 79.2595,
+          "netHeapDeltaBytes": 68304,
+          "netRssDeltaBytes": 0
+        }
+      ]
+    },
+    {
+      "config": {
+        "temporal": 16,
+        "spatial": 2,
+        "psf": true
+      },
+      "nativeSites": 4,
+      "providerEvaluationsPerCall": 4608,
+      "wholeResultSha256": "7035df75a3de8f4a3bcab6b235c0f2a721ccdac46ef4952f0eb1cf14a74e71a8",
+      "warmupCalls": 2,
+      "repeats": 5,
+      "medianMillisecondsPerCall": 195.540208,
+      "measurements": [
+        {
+          "milliseconds": 190.378125,
+          "netHeapDeltaBytes": 175296,
+          "netRssDeltaBytes": 65536
+        },
+        {
+          "milliseconds": 198.726959,
+          "netHeapDeltaBytes": 233904,
+          "netRssDeltaBytes": 737280
+        },
+        {
+          "milliseconds": 195.540208,
+          "netHeapDeltaBytes": 285240,
+          "netRssDeltaBytes": 524288
+        },
+        {
+          "milliseconds": 196.707833,
+          "netHeapDeltaBytes": 142608,
+          "netRssDeltaBytes": 32768
+        },
+        {
+          "milliseconds": 194.610625,
+          "netHeapDeltaBytes": 217056,
+          "netRssDeltaBytes": 16384
+        }
+      ]
+    },
+    {
+      "config": {
+        "temporal": 32,
+        "spatial": 4,
+        "psf": true
+      },
+      "nativeSites": 4,
+      "providerEvaluationsPerCall": 36864,
+      "wholeResultSha256": "c6dfdde496729896e53f74cca4bac202436c63ee7181e991645c15fae85ce6b3",
+      "warmupCalls": 2,
+      "repeats": 5,
+      "medianMillisecondsPerCall": 1478.751625,
+      "measurements": [
+        {
+          "milliseconds": 1478.751625,
+          "netHeapDeltaBytes": 224496,
+          "netRssDeltaBytes": -114688
+        },
+        {
+          "milliseconds": 1473.012459,
+          "netHeapDeltaBytes": 126696,
+          "netRssDeltaBytes": 212992
+        },
+        {
+          "milliseconds": 1485.57275,
+          "netHeapDeltaBytes": 114800,
+          "netRssDeltaBytes": 131072
+        },
+        {
+          "milliseconds": 1467.724792,
+          "netHeapDeltaBytes": 151224,
+          "netRssDeltaBytes": 49152
+        },
+        {
+          "milliseconds": 1497.377375,
+          "netHeapDeltaBytes": 152344,
+          "netRssDeltaBytes": 16384
+        }
+      ]
+    }
+  ],
+  "profiles": [
+    {
+      "scenario": {
+        "temporal": 32,
+        "spatial": 4,
+        "psf": true
+      },
+      "calls": 1,
+      "cpu": {
+        "totalSamples": 1186,
+        "wholeConsumerSamples": 1090,
+        "inclusiveSampleCounts": {
+          "prepareGeometricMapping": 0,
+          "calculateThinLensImageDistance": 10,
+          "calculateEnvironmentSensorPhotoSignal": 0,
+          "assertFiniteNumbers": 889
+        }
+      },
+      "allocation": {
+        "samplingIntervalBytes": 32768,
+        "sampledBytes": 6458745904
+      }
+    }
+  ],
+  "sink": 2340,
+  "limitations": [
+    "Current supported bounded production capture executor on owned synthetic rolling/temporal/spatial/spectral/PSF inputs; not calibrated provider transport or visibility",
+    "Four native sites with 128 to 36864 executed provider evaluations; workload density, not full-resolution throughput or tiny-raster frame-time evidence",
+    "No candidate optimization; descriptive current baseline, separate from #43/#45 paired equivalence and effect measurements",
+    "Shared Mac host; no observed product traffic or browser frame-time claim",
+    "Net heap/RSS deltas are not allocation counts or sampled peak memory; inspector estimates are statistical and separate from ordinary timing",
+    "Inclusive CPU categories overlap; sampling/inlining limits attribution; no safety/provenance gate may be removed based on this profile"
+  ]
+}

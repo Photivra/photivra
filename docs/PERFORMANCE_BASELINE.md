@@ -48,3 +48,7 @@ The baseline conclusions above are historical. [POC_PROJECTION_REUSE.md](POC_PRO
 ## Subsequent bounded #43 experiment
 
 The baseline conclusions above are historical. [GEOMETRIC_PREPARATION_REUSE.md](GEOMETRIC_PREPARATION_REUSE.md) records the main 0.103.0 call-local geometry-preparation candidate, real merged sampling/correction consumers, separate CPU/allocation evidence and scalar/copy-safety tests. It advances #43 independently and does not establish browser performance or #45's conclusion.
+
+## Final V1 remeasurement
+
+[Final V1 performance disposition](V1_PERFORMANCE_DISPOSITION.md) records current main #204, fresh paired timing/equivalence, preparation/memory profiles and dense executed environment-to-RAW evidence. It proposes retaining the merged bounded optimizations with no further abstraction, pending owner review/DCO and merge. Earlier candidate and pending-remeasurement statements above are historical.
