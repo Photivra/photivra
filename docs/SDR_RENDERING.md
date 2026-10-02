@@ -1,5 +1,10 @@
 # Standalone SDR rendering primitives: #112A
 
+Current integration: [processed camera output](PROCESSED_OUTPUT.md) documents
+the shared preview/export path and explicit plan 0.6.0 post-RAW activation.
+The historical slice descriptions below retain their original scope.
+
+
 This independent main-based slice defines bounded deterministic post-capture SDR rendering, without consuming pending #15/#118/#117 code. It does not complete #112. Capture/WB/correction adapters and #111 production-stage activation must wait for merged prerequisites, preserve their domain/order and reuse existing WB/color and composition semantics.
 
 `calculateSdrRendering()` accepts a declared `color-transformed-linear-rgb` image state, `linear-srgb-d65` color-space identity, source state ID, co-sited interleaved RGB raster and relative reference-white value. `whiteBalanceHandling` must be `already-applied-upstream` or `not-required`. Intent-only/unresolved WB is rejected; this primitive never estimates/applies WB, converts XYZ/spectral/sensor RGB or changes lens-correction order. These input identities are producer declarations, not verification of upstream pixel fidelity. The future adapter must verify them against the authoritative capture/profile history.

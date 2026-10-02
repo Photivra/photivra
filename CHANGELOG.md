@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased — engine API 0.114.0
+## Unreleased — engine API 0.115.0
+
+- Complete the bounded #112 SDR post-capture handoff: expose shared `calculateProcessedSensorRaw()`/parser for RAW preview and paired JPEG, retain explicit color/WB/rendering/correction states and capture diagnostics, support 8/16-bit preview while JPEG remains 8-bit. Production plan 0.6.0 accepts committed output-state/RAW policy, executes four downstream stages and fingerprints their immutable result/evidence. Upstream missing-stage blockers remain; no physical-provider, high-resolution or external-editor acceptance is inferred. See `docs/PROCESSED_OUTPUT.md`. Pending owner review/DCO and merge; tracker count remains unchanged.
+
+## Engine API 0.114.0
 
 - Add `calculateEnvironmentSensorPhotoSignal()` and `simulateEnvironmentSensorRawFrame()`: generate and execute bounded environment queries at each actual local shutter midpoint, wavelength and optional complete PSF support tap, then reuse optics, instantaneous EQE, temporal photo/dark, completeness, capacity, seeded noise and ADC. Bind full native frame geometry, optics, scene identity and event exactly. Frozen provider requests, owned parsed results and aggregate evaluation limits fail closed. Resulting RAW feeds existing paired DNG/JPEG export. Invocation is established without claiming physical provider transport/visibility, calibrated accuracy, full-resolution support or production-plan activation. See `docs/ENVIRONMENT_RAW_CAPTURE.md`. Partial #16/#178 integration; V1 remains 25/32.
 

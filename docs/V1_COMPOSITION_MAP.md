@@ -41,7 +41,7 @@ needed.
 | [#106](https://github.com/Photivra/photivra/issues/106) Manual flash/sync | closed | [flash.ts](../src/exposure/flash.ts) | Declared sync and illumination overlay; no full production radiance integration | [flash.test.ts](../test/flash.test.ts) | #16/#178: apply physical-time light transport when selected; no exposure-duration shortcut |
 | [#108](https://github.com/Photivra/photivra/issues/108) WB/custom/AWB | closed | [white-balance.ts](../src/color/white-balance.ts) | Resolved WB → release/production binding; RAW intent and one-time sensor development | [photographic-export.test.ts](../test/photographic-export.test.ts) | #112/#16: preserve matching basis; never re-estimate from rendered output |
 | [#111](https://github.com/Photivra/photivra/issues/111) Production plan | closed | [image-formation-plan.ts](../src/composition/image-formation-plan.ts) | Authoritative graph expansion; physical sample/temporal results and blockers | [production-image-formation-plan.test.ts](../test/production-image-formation-plan.test.ts) | #178/#16/#112: intentionally add downstream stages with contract/version review |
-| [#112](https://github.com/Photivra/photivra/issues/112) Processed camera output | open | [capture-corrected-sdr.ts](../src/output/capture-corrected-sdr.ts) | Capture-bound color/correction → oriented view/SDR; paired RAW consumer | [photographic-export-correction.test.ts](../test/photographic-export-correction.test.ts) | Complete production handoff/activation; preserve declared SDR semantics and HDR future seam |
+| [#112](https://github.com/Photivra/photivra/issues/112) Processed camera output | open | [capture-corrected-sdr.ts](../src/output/capture-corrected-sdr.ts) | Capture-bound color/correction → oriented view/SDR; paired RAW consumer | [photographic-export-correction.test.ts](../test/photographic-export-correction.test.ts) | Plan 0.6.0 implements committed RAW downstream handoff; pending owner review/DCO and merge; upstream activation remains #16/#178 |
 | [#113](https://github.com/Photivra/photivra/issues/113) Lens PSF/bokeh | closed | [lens-psf-profile.ts](../src/optics/lens-psf-profile.ts) | Declared sampled PSF/MTF; separate complex-pupil model | [lens-psf-framework.test.ts](../test/lens-psf-framework.test.ts) | #16/#178: wavelength/field/depth sampling and finite support; MTF-only is not renderable PSF |
 | [#114](https://github.com/Photivra/photivra/issues/114) Stray light | closed | [stray-light.ts](../src/optics/stray-light.ts) | Separate declared ghost/veiling irradiance foundation | [stray-light.test.ts](../test/stray-light.test.ts) | #16/#178: add only explicitly selected incremental light; never fold into primary PSF |
 | [#116](https://github.com/Photivra/photivra/issues/116) Generic tiers | open | [generic-tier-presets.ts](../src/equipment/generic-tier-presets.ts) | Exact-version selection; body and lens profile resolution | [generic-tier-presets.test.ts](../test/generic-tier-presets.test.ts) | Broader coherent scene/PSF/body/output acceptance; no calibrated tier ranking |
@@ -72,8 +72,11 @@ exactly these four stages:
 
 Requested `field-wavelength-psf`, `sensor-optical-stack`,
 `photosite-cfa-sampling`, `sensor-charge-statistics`, `read-noise-conversion`,
-`adc-quantization`, `reconstruction`, `physical-orientation-transform`,
-`output-crop-resample` and `display-processing` remain uncomposed by this planner.
+`adc-quantization` remain uncomposed by this planner. Plan 0.6.0 composes
+`reconstruction`, `physical-orientation-transform`, `output-crop-resample` and
+`display-processing` only from an explicitly committed RAW processing attachment
+and declared renderer support. Without it they retain their unsupported state.
+See [processed output](PROCESSED_OUTPUT.md); upstream origin is still unverified.
 They report `engine-stage-not-composed` rather than becoming active because a
 standalone function exists. Omitted-by-fidelity and explicitly modeled-zero
 states keep their current separate meanings.

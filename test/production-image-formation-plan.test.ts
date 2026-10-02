@@ -1,9 +1,15 @@
+import { loadSensorRawFrameInput } from "./helpers/sensor-raw-frame-fixture.js";
+import { loadPhotographicExportInput } from "./helpers/photographic-export-fixture.js";
 import { describe, expect, it } from "vitest";
 
 import {
   POC_SIMULATION_API_VERSION,
+  RELEASE_SEQUENCE_VERSION,
   PRODUCTION_IMAGE_FORMATION_PLAN_VERSION,
   calculateIlluminationVignetting,
+  createSimulatedCapture,
+  createSensorRawFrame,
+  resolveManualWhiteBalance,
   createProductionCaptureSnapshot,
   createProductionImageFormationPlan,
   createProductionPlanConsumerManifest,
@@ -769,10 +775,10 @@ describe("ready physical production plan", () => {
       "ready"
     );
     expect(plan.versions).toMatchObject({
-      engineApi: "0.114.0",
+      engineApi: "0.115.0",
       imageFormationContract:
         "0.4.0",
-      plan: "0.5.0",
+      plan: "0.6.0",
       scientificAssurance:
         "0.1.0"
     });
@@ -2558,5 +2564,107 @@ describe("production plan consumer manifests", () => {
     ).toThrow(
       "consumerKind is invalid"
     );
+  });
+});
+
+
+describe("committed processed RAW production stages", () => {
+  function request(): Parameters<typeof createProductionImageFormationPlan>[0] & {processedOutput: NonNullable<Parameters<typeof createProductionImageFormationPlan>[0]["processedOutput"]>} {
+    const {reconstruction,colorProfile,whiteBalance,rendering}=loadPhotographicExportInput(), c=reconstruction.rawFrame.capture;
+    const captureSnapshot=createProductionCaptureSnapshot({captureId:c.captureId,releaseFrameId:"release-raw",
+      sceneStateId:c.sceneStateId,sceneTimeSecondsFromExposureStart:c.sceneTimeSeconds,outputStateId:"output-v1",
+      exposure:{aperture:c.exposure.aperture,shutterSeconds:c.exposure.shutterSeconds,iso:c.exposure.iso},stochasticSeedUint32:c.noise.seedUint32});
+    return {preparedContext:prepared({rendererOverride:{supportedStages:getImageFormationContract().stages.map(s=>s.id)},
+      fidelityOverride:{requiredStages:["display-processing"],requiredEffects:[]}}),captureSnapshot,
+      processedOutput:{outputStateId:"output-v1",processing:{reconstruction,colorProfile,whiteBalance,rendering}}};
+  }
+  it("executes the authoritative four downstream stages and preserves missing upstream blockers", () => {
+    const v=request(), plan=createProductionImageFormationPlan(v);
+    for (const id of ["reconstruction","physical-orientation-transform","output-crop-resample","display-processing"]) {
+      expect(plan.stagePlan.find(s=>s.stageId===id)?.state).toBe("active");
+    }
+    expect(plan.processedOutputResult?.value.source.value.rawFrame).toEqual(v.processedOutput.processing.reconstruction.rawFrame);
+    expect(plan.blockers.some(b=>b.code==="engine-stage-not-composed" && b.stageId==="adc-quantization")).toBe(true);
+    expect(plan.processedOutputResult?.value.colorProfile.profileId).toBe("owned-ideal-rgb-test");
+    expect(plan.scientificAssurance?.components.some(c=>c.componentId==="processed-sensor-raw-sdr")).toBe(true);
+    expect(Object.isFrozen(plan.processedOutputResult?.value.rendering.value.integerSamples)).toBe(true);
+    const before=serializeProductionImageFormationPlan(plan);
+    v.processedOutput.processing.rendering.renderingExposureEv=3;
+    expect(serializeProductionImageFormationPlan(plan)).toBe(before);
+    expect(createProductionImageFormationPlan(v).fingerprint.value).not.toBe(plan.fingerprint.value);
+  });
+  it.each(["output","capture","scene","time","seed","exposure"])("blocks %s state drift rather than executing an unrelated capture", kind => {
+    const v=request();
+    if(kind==="output") v.processedOutput.outputStateId="other";
+    else {
+      const s=v.captureSnapshot;
+      v.captureSnapshot=createProductionCaptureSnapshot({captureId:kind==="capture" ? "other" : s.captureId,
+        releaseFrameId:s.releaseFrameId,sceneStateId:kind==="scene" ? "other" : s.sceneStateId,
+        sceneTimeSecondsFromExposureStart:s.sceneTimeSecondsFromExposureStart+(kind==="time" ? 1 : 0),
+        outputStateId:s.outputStateId,exposure:{...s.exposure,iso:kind==="exposure" ? 200 : s.exposure.iso},
+        stochasticSeedUint32:s.stochasticSeedUint32+(kind==="seed" ? 1 : 0)});
+    }
+    const plan=createProductionImageFormationPlan(v);
+    expect(plan.processedOutputResult).toBeUndefined();
+    expect(plan.blockers.some(b=>b.code==="processed-output-evaluation-blocked")).toBe(true);
+    expect(plan.stagePlan.find(s=>s.stageId==="display-processing")?.state).toBe("unsupported");
+  });
+  it("binds resolved WB gains and blocks a second state with the same identity but different gains", () => {
+    const v=request(), raw=loadSensorRawFrameInput(), c=v.processedOutput.processing.reconstruction.rawFrame.capture;
+    const {schemaVersion:_s,engineApiVersion:_e,resolvedGeometry:_g,equivalentFocalLength35Mm:_f,...ci}=c;
+    void _s;void _e;void _g;void _f;
+    const wb=resolveManualWhiteBalance({stateId:"wb",channelGains:{red:2,green:1,blue:.5}});
+    raw.capture=createSimulatedCapture({...ci,whiteBalanceIntent:{stateId:wb.stateId,source:wb.source,locked:wb.locked,
+      channelGains:wb.channelGains,sourceProfile:null},planes:ci.planes.map(p=>({...p,whiteBalanceApplication:"intent-only"}))}).value;
+    v.processedOutput.processing.reconstruction.rawFrame=createSensorRawFrame(raw);
+    v.processedOutput.processing.whiteBalance="apply-resolved-sensor-gains";
+    const s=v.captureSnapshot;
+    const snapshotInput={captureId:s.captureId,releaseFrameId:s.releaseFrameId,sceneStateId:s.sceneStateId,
+      sceneTimeSecondsFromExposureStart:s.sceneTimeSecondsFromExposureStart,outputStateId:s.outputStateId,
+      exposure:s.exposure,stochasticSeedUint32:s.stochasticSeedUint32};
+    v.captureSnapshot=createProductionCaptureSnapshot({...snapshotInput,whiteBalanceState:wb});
+    expect(createProductionImageFormationPlan(v).processedOutputResult?.value.whiteBalance).toBe("applied-here");
+    v.captureSnapshot=createProductionCaptureSnapshot({...snapshotInput,whiteBalanceState:
+      resolveManualWhiteBalance({stateId:"wb",channelGains:{red:1,green:1,blue:1}})});
+    const blocked=createProductionImageFormationPlan(v);
+    expect(blocked.processedOutputResult).toBeUndefined();
+    expect(blocked.blockers.some(b=>b.code==="processed-output-evaluation-blocked")).toBe(true);
+  });
+  it("binds attached RAW focus to an available committed release frame", () => {
+    const v=request(), s=v.captureSnapshot, focus=v.processedOutput.processing.reconstruction.rawFrame.capture.focus;
+    const snapshotInput={captureId:s.captureId,releaseFrameId:s.releaseFrameId,sceneStateId:s.sceneStateId,
+      sceneTimeSecondsFromExposureStart:s.sceneTimeSecondsFromExposureStart,outputStateId:s.outputStateId,
+      exposure:s.exposure,stochasticSeedUint32:s.stochasticSeedUint32,
+      releaseFrameBinding:{releaseSequenceVersion:RELEASE_SEQUENCE_VERSION,sequenceId:"sequence",releaseFrameId:s.releaseFrameId,
+        frameIndex:0,exposure:s.exposure,stochasticSeedUint32:s.stochasticSeedUint32,exposureStartTimeSeconds:0,
+        exposureEndTimeSeconds:s.exposure.shutterSeconds,sceneTimeSecondsFromSequenceStart:0,startIntervalFromPreviousSeconds:null,
+        timingConstraints:[],focus,automation:{ae:"locked" as const,af:"locked" as const,awb:"locked" as const}}};
+    v.captureSnapshot=createProductionCaptureSnapshot(snapshotInput);
+    expect(createProductionImageFormationPlan(v).processedOutputResult).toBeDefined();
+    v.captureSnapshot=createProductionCaptureSnapshot({...snapshotInput,
+      releaseFrameBinding:{...snapshotInput.releaseFrameBinding,focus:{kind:"infinity"}}});
+    const blocked=createProductionImageFormationPlan(v);
+    expect(blocked.processedOutputResult).toBeUndefined();
+    expect(blocked.blockers.some(b=>b.message.includes("focus differs"))).toBe(true);
+  });
+  it("blocks an undeclared renderer stage even when attached RAW processing succeeds", () => {
+    const v=request();
+    v.preparedContext=prepared({rendererOverride:{supportedStages:getImageFormationContract().stages.map(s=>s.id).filter(id=>id!=="display-processing")},
+      fidelityOverride:{requiredStages:["display-processing"],requiredEffects:[]}});
+    const plan=createProductionImageFormationPlan(v);
+    expect(plan.processedOutputResult).toBeDefined();
+    expect(plan.stagePlan.find(s=>s.stageId==="display-processing")?.state).toBe("blocked");
+    expect(plan.blockers.some(b=>b.code==="renderer-stage-unsupported" && b.stageId==="display-processing")).toBe(true);
+  });
+  it("requires renderer declarations and preserves the legacy no-attachment blocker", () => {
+    const v=request();
+    const legacy=createProductionImageFormationPlan({preparedContext:v.preparedContext,captureSnapshot:v.captureSnapshot});
+    expect(legacy.processedOutputResult).toBeUndefined();
+    expect(legacy.stagePlan.find(s=>s.stageId==="display-processing")?.state).toBe("unsupported");
+    v.preparedContext=prepared({rendererOverride:{sensorDomainProcessing:false},
+      fidelityOverride:{requiredStages:["display-processing"],requiredEffects:[]}});
+    const blocked=createProductionImageFormationPlan(v);
+    expect(blocked.processedOutputResult).toBeUndefined();
+    expect(blocked.blockers.some(b=>b.code==="processed-output-evaluation-blocked")).toBe(true);
   });
 });

@@ -139,7 +139,7 @@ The production planner:
 - records modeled-zero, omitted, unsupported, and blocked states explicitly;
 - keeps renderer capability declaration separate from scientific stage ownership.
 
-Current plan schema `0.5.0` supports the #85 → #110 physical sample path plus temporal timing/readout and optional rotation-quadrature diagnostics. The required PSF dependency and downstream sensor/output composition remain explicit blockers; temporal diagnostics alone do not integrate radiance. See [V1 composition and consumer map](V1_COMPOSITION_MAP.md) for current consumers and required handoffs.
+Current plan schema `0.6.0` supports the #85 → #110 physical sample path plus temporal timing/readout and optional rotation-quadrature diagnostics. An explicitly committed RAW processing attachment additionally executes reconstruction, orientation, crop and display processing. Required upstream PSF/sensor/charge/noise/ADC composition remains blocked; temporal diagnostics alone do not integrate radiance. See [processed output](PROCESSED_OUTPUT.md) for the attachment boundary. See [V1 composition and consumer map](V1_COMPOSITION_MAP.md) for current consumers and required handoffs.
 
 See [Production Image-Formation Plan](PRODUCTION_COMPOSITION.md).
 
