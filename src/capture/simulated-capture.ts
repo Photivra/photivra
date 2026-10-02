@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { freezeOwnedData } from "../core/owned-data.js";
 import { calculatedResult, type CalculationResult, type ProvenanceKind } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { ENGINE_API_VERSION } from "../core/version.js";
@@ -205,13 +206,6 @@ function plane(value: unknown, resolved: ResolvedCaptureGeometry, intent: Captur
     channelIds: channels, colorProfile, encodingReferenceWhiteXyz: referenceWhite, referenceWhiteValue: number(r.referenceWhiteValue, true),
     whiteBalanceApplication: application, captureSaturation, appliedTransforms: transforms, storage };
 }
-function freeze<T>(value: T): T {
-  if (value !== null && typeof value === "object") {
-    for (const child of Object.values(value)) if (typeof child === "object") freeze(child);
-    Object.freeze(value);
-  }
-  return value;
-}
 function normalize(value: unknown, apiVersion: string): SimulatedCapture {
   const r = object(value, ["captureId", "sceneStateId", "sceneTimeSeconds", "geometry", "exposure", "focus", "noise", "source",
     "whiteBalanceIntent", "adoptedWhiteXyz", "models", "planes"]);
@@ -240,7 +234,7 @@ function normalize(value: unknown, apiVersion: string): SimulatedCapture {
       planes.reduce((n, p) => n+(p.storage.kind === "inline-float64" ? p.storage.samples.length : 0), 0) > 1_000_000) {
     throw new InvalidConfigurationError("Capture needs unique models/planes/states and a bounded inline sample budget.");
   }
-  return freeze({ schemaVersion: SIMULATED_CAPTURE_SCHEMA_VERSION, engineApiVersion: id(apiVersion),
+  return freezeOwnedData({ schemaVersion: SIMULATED_CAPTURE_SCHEMA_VERSION, engineApiVersion: id(apiVersion),
     captureId: id(r.captureId), sceneStateId: id(r.sceneStateId), sceneTimeSeconds: time, geometry: g, resolvedGeometry: resolved,
     exposure, equivalentFocalLength35Mm: calculateEquivalentFocalLength35Mm({ focalLengthMm: exposure.focalLengthMm, activeImagingArea: resolved.activeCapture.imagingArea }).value.equivalentFocalLength35Mm,
     focus, noise: { seedUint32: seed, realizationId: id(noise.realizationId), model: profile(noise.model) },

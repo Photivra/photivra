@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { freezeOwnedData } from "../core/owned-data.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseSimulatedCapture, type SimulatedCapture } from "./simulated-capture.js";
 import { parseSensorColorSamplingProfile, type SensorColorSamplingProfile } from "../sensor/color-sampling.js";
@@ -114,10 +115,6 @@ export function parseSensorRawFrameInput(value: unknown): SensorRawFrameInput {
   }
   return { frameId, capture, modeId, captureModeProfile, colorSamplingProfile, bindingProfile, containerBitDepth: 16, samples };
 }
-function freeze<T>(value: T): T {
-  if (value !== null && typeof value === "object") { Object.values(value).forEach(freeze); Object.freeze(value); }
-  return value;
-}
 /** Commits native RAW samples and capture metadata; no demosaic, WB, tone or format packing. */
 export function createSensorRawFrame(input: SensorRawFrameInput): SensorRawFrame {
   const value = parseSensorRawFrameInput(input);
@@ -126,5 +123,5 @@ export function createSensorRawFrame(input: SensorRawFrameInput): SensorRawFrame
     renderingApplied: false, nativePixelWidth: value.capture.geometry.nativeRaster.pixelWidth,
     nativePixelHeight: value.capture.geometry.nativeRaster.pixelHeight };
   // Copy all profile/evidence arrays before freezing; never freeze caller-owned inputs.
-  return freeze(JSON.parse(JSON.stringify(frame)) as SensorRawFrame);
+  return freezeOwnedData(JSON.parse(JSON.stringify(frame)) as SensorRawFrame);
 }

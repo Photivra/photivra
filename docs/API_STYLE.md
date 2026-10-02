@@ -140,6 +140,14 @@ Choose API shape from semantic role, not module history.
 
 Consistency must never erase a meaningful scientific distinction.
 
+Internal immutable-data mechanics are shared through `src/core/owned-data.ts`.
+Capture, RAW attachment/reconstruction, export metadata and equipment presets use
+its child-first freeze helper only on their owned plain-data trees. Each domain
+keeps its own validation and copy boundary; freezing is not parsing or cloning.
+Already-frozen parents still require descendant traversal in this helper. The
+production planner, focus and release helpers retain their distinct early-return
+behavior for already-frozen objects. This internal module is not a root export.
+
 ## Compatibility and deprecation policy
 
 Photivra has independent compatibility surfaces. Update only the surface whose observable contract changed.

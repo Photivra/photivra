@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { freezeOwnedData } from "../core/owned-data.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { choice, record, parseOpticalProfileState, type OpticalProfileState, type GenericOpticalEvidence } from "../optics/profile-contract.js";
 import { GENERIC_TIER_ASSETS, type GenericEquipmentTier, type GenericEquipmentTierPreset } from "./generic-tier-assets.js";
@@ -35,11 +36,7 @@ export interface ResolvedGenericTierLensProfiles {
   correction: GenericLensCorrectionProfile;
   scientificStatus: "approximation";
 }
-function freeze<T>(value: T): T {
-  if (value !== null && typeof value === "object") { Object.values(value).forEach(freeze); Object.freeze(value); }
-  return value;
-}
-const catalog = freeze(GENERIC_TIER_ASSETS);
+const catalog = freezeOwnedData(GENERIC_TIER_ASSETS);
 function preset(tier: GenericEquipmentTier): GenericEquipmentTierPreset {
   return catalog.find((p) => p.tier === tier)!;
 }
@@ -63,7 +60,7 @@ export function createGenericEquipmentTierSelection(input: {
   resolveGenericEquipmentTierCatalog({ presetVersion: r.presetVersion as string });
   const bodyTier = choice(r.bodyTier, GENERIC_EQUIPMENT_TIERS), lensTier = choice(r.lensTier === undefined ? bodyTier : r.lensTier, GENERIC_EQUIPMENT_TIERS);
   const body = preset(bodyTier), lens = preset(lensTier);
-  return freeze({ schemaVersion: "0.1.0", presetVersion: GENERIC_EQUIPMENT_TIER_PRESET_VERSION, bodyTier, lensTier,
+  return freezeOwnedData({ schemaVersion: "0.1.0", presetVersion: GENERIC_EQUIPMENT_TIER_PRESET_VERSION, bodyTier, lensTier,
     bodyPresetId: body.presetId+":body", lensPresetId: lens.presetId+":lens",
     profileReferences: [...bodyReferences(body), { profileId: lens.lens.exposure.profileId, profileVersion: lens.lens.exposure.profileVersion }, ...lens.lens.profileReferences],
     sensorFormatSelectedByTier: false, scientificTierMultiplierApplied: false });
@@ -134,6 +131,6 @@ export function resolveGenericEquipmentTierLensProfiles(input: { selection: Gene
       centerSampleX: 2, centerSampleY: 2, relativeAmplitude: a.pupilAmplitudeByField[field], opticalPathDifferenceMicrometers: a.pupilOpdMicrometersByDefocus[index] },
     sensorOpticalStackIncluded: false, sensorSamplingIncluded: false, reconstructionIncluded: false, strayLightIncluded: false, evidence,
     uncertainty: { kind: "not-quantified", limitation: "Coarse independently designed pupil-grid reference only." }, limitations: l.lens.limitations })));
-  return freeze({ selection, state, radial, lateralCa, vignetting, breathingProjectionScale: a.breathingProjectionScale, transmission, pupils, stray, correction,
+  return freezeOwnedData({ selection, state, radial, lateralCa, vignetting, breathingProjectionScale: a.breathingProjectionScale, transmission, pupils, stray, correction,
     scientificStatus: "approximation" });
 }
