@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased — engine API 0.106.0
+## Unreleased — engine API 0.107.0
+
+- Add `calculateSensorEqeLocalExposure`, composing existing spatial/spectral quadrature, explicitly supplied irradiance, response application/range checks, EQE rate, local shutter binding and stationary integration. Preserve child evidence and approximation boundaries; demonstrate the resulting photo expectation through RAW and paired files. Scene/optics origin remains declared, production stages remain gated, and time-varying irradiance is unsupported. See `docs/SENSOR_EQE_LOCAL_EXPOSURE.md`. Partial #16/#178 resolution.
+
+## Engine API 0.106.0
 
 - Map all 32 V1 features to primitives, implemented consumers, representative evidence and remaining ticket ownership. Document the missing typed scene/optics/sensor-response-to-exposure RAW handoff and correct adjacent production-boundary descriptions. Documentation only; no stage activation, runtime/version change, approved deferral or feature closure. Partial defect #178 resolution.
 

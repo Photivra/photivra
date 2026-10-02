@@ -1,9 +1,13 @@
 import { expect, it } from "vitest";
-import { createPhotographicExportPair } from "../src/index.js";
+import { createPhotographicExportPair, parseSimulatedCapture } from "../src/index.js";
 import { loadPhotographicExportInput } from "./helpers/photographic-export-fixture.js";
 
 it("preserves the historical paired-export identity and complete file bytes", async () => {
-  const pair = await createPhotographicExportPair(loadPhotographicExportInput());
+  const input = loadPhotographicExportInput();
+  // Replay the historical capture version rather than stamp a newly created capture.
+  input.reconstruction.rawFrame = { ...input.reconstruction.rawFrame,
+    capture: parseSimulatedCapture({ ...input.reconstruction.rawFrame.capture, engineApiVersion: "0.106.0" }) };
+  const pair = await createPhotographicExportPair(input);
   const identities = { simulationHash: pair.simulationHash, rawDataUniqueId: pair.rawDataUniqueId,
     dngSha256: pair.dng.sha256, jpegSha256: pair.jpeg.sha256 };
   // Captured from main 412da46 before the serializer consolidation.

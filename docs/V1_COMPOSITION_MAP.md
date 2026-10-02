@@ -26,7 +26,7 @@ needed.
 | [#3](https://github.com/Photivra/photivra/issues/3) Extended-object motion | closed | [extended-object-projection.ts](../src/motion/extended-object-projection.ts) | Direct temporal projection; production radiance accumulation absent | [extended-object-projection.test.ts](../test/extended-object-projection.test.ts) | #16/#178: retain depth/visibility/time at requested nodes |
 | [#7](https://github.com/Photivra/photivra/issues/7) ISO and signal chain | closed | [iso-signal-chain.ts](../src/sensor/iso-signal-chain.ts) | Explicit regime bindings; RAW producer consumes readout profiles | [generic-tier-output-acceptance.test.ts](../test/generic-tier-output-acceptance.test.ts) | #16: bind committed ISO to explicit regime; preserve physical charge |
 | [#12](https://github.com/Photivra/photivra/issues/12) Readout and shutter | closed | [exposure-window.ts](../src/sensor/exposure-window.ts) | Production temporal diagnostics; RAW local-window handoff | [sensor-raw-local-exposure.test.ts](../test/sensor-raw-local-exposure.test.ts) | #16: integrate scene signal over those windows; no inferred synchronization |
-| [#14](https://github.com/Photivra/photivra/issues/14) Sensor pipeline | closed | [eqe-electron-rate.ts](../src/sensor/eqe-electron-rate.ts) | Standalone spatial/spectral/response pipeline; bounded charge-to-RAW adapter | [sensor-raw-pipeline.test.ts](../test/sensor-raw-pipeline.test.ts) | #16/#178: compose upstream irradiance/response to exposure, not supplied RGB |
+| [#14](https://github.com/Photivra/photivra/issues/14) Sensor pipeline | closed | [eqe-electron-rate.ts](../src/sensor/eqe-electron-rate.ts) | Bounded irradiance→EQE local exposure composition; charge-to-RAW adapter | [sensor-raw-pipeline.test.ts](../test/sensor-raw-pipeline.test.ts) | #16/#178: bind committed scene/optics/PSF origin to physical irradiance nodes |
 | [#15](https://github.com/Photivra/photivra/issues/15) Linear capture and color | closed | [simulated-capture.ts](../src/capture/simulated-capture.ts) | Immutable capture; ideal XYZ color and linear encoding; sensor adapter distinct | [capture-color.test.ts](../test/capture-color.test.ts) | #112/#16: bind physical capture origin; preserve color-channel basis |
 | [#16](https://github.com/Photivra/photivra/issues/16) Paired RAW DNG/JPEG | open | [photographic-export.ts](../src/capture/photographic-export.ts) | Exact attached-RAW reconstruction → development → correction/SDR → files | [raw-output-conformance.test.ts](../test/raw-output-conformance.test.ts) | Authoritative upstream origin, production activation, editor/resolution acceptance |
 | [#43](https://github.com/Photivra/photivra/issues/43) Prepared/batch performance | open | [geometric-transforms.ts](../src/output/geometric-transforms.ts) | Call-owned prepared geometric mapping reused by sampling execution | [geometric-preparation-reuse.test.ts](../test/geometric-preparation-reuse.test.ts) | Relevant remeasurement after V1 processing stabilizes; do not invent a cache |
@@ -109,14 +109,24 @@ expectations. They are not a scene/spectral-response-to-exposure origin test.
 See [RAW frame envelope](RAW_FRAME_ENVELOPE.md): 4,096 full native sites remain
 the reference execution limit, independently of the larger attachment budget.
 
-## Intended upstream handoff into the existing producer
+## Implemented bounded sensor handoff
+
+[`calculateSensorEqeLocalExposure()`](../src/sensor/eqe-local-exposure.ts) now
+composes explicit irradiance nodes, response application/range, EQE and stationary
+local exposure. [Acceptance](../test/eqe-local-exposure.test.ts) reaches the existing
+RAW and paired-file path with owned synthetic fields. See
+[SENSOR_EQE_LOCAL_EXPOSURE.md](SENSOR_EQE_LOCAL_EXPOSURE.md). Scene/optics origin
+remains declared and time-varying integration remains absent; production gates
+and the 25/32 tracker count are unchanged.
+
+## Remaining upstream handoff into the existing producer
 
 The missing handoff belongs to #16/#178, with processed output and plan
 activation coordinated with #112. It should produce the existing per-site
 producer inputs through the scientific APIs below, retaining child envelopes;
 it must not accept an independently rendered RGB plane and relabel it sensor
-signal. The following is implementation/acceptance work to do, not a new API or
-an assertion that it already exists.
+signal. The table retains the full origin/production acceptance requirements; the bounded
+sensor handoff above implements only the declared stationary irradiance slice.
 
 | Handoff | Reuse / authoritative owner | Binding and acceptance requirement |
 | --- | --- | --- |
@@ -135,7 +145,7 @@ truth and calibrated response accuracy. A future origin manifest/field requires
 its own reviewed contract and replay evidence; never flip the existing false
 origin flags merely because a wrapper called several APIs.
 
-The initial bounded implementation can use explicit stationary continuous
+The implemented bounded sensor composition uses explicit stationary continuous
 spectral inputs and supported single-frame native CFA geometry. Such a slice
 must state its assumptions and reject requests outside its implemented envelope;
 it cannot close a broader approved V1 acceptance criterion by quietly declaring

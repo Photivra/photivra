@@ -135,7 +135,7 @@ There is no separate tier-specific browser approximation to compare here; the
 public implementation remains browser-safe and uses the ordinary reference APIs.
 No private application acceptance is invented.
 
-Initial tier assets landed at root API 0.105.0; the merged baseline is 0.106.0.
+Initial tier assets landed at root API 0.105.0; the current root API is 0.107.0.
 This acceptance-only extension does not change runtime/API or asset definitions. Selection schema 0.1.0, asset version 1.0.0, npm package,
 POC and production contracts remain independent. Human scientific/provenance
 review and contribution-specific DCO certification are still required.

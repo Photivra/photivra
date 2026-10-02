@@ -87,6 +87,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 
 ### Exposure and motion
 
+- [irradiance-to-EQE local exposure composition](docs/SENSOR_EQE_LOCAL_EXPOSURE.md), validating explicit physical node samples through response applicability/range and stationary local integration before the existing RAW producer;
 - [generic equipment exposure capabilities](docs/USAGE.md#generic-equipment-exposure-capabilities), separating generic body/lens capability facts from selected camera state and resolving focal-length-specific aperture plus shutter/ISO envelopes for downstream #99 control policy;
 - [detailed ISO/exposure-index capabilities](docs/USAGE.md#isoexposure-index-capabilities-and-generic-high-iso-signal-chain), representing standard and expanded settings, Auto ISO bounds, and optional capture-mode restrictions without inferring physical gain/noise behavior;
 - [generic ISO/high-ISO signal-chain profiles](docs/USAGE.md#isoexposure-index-capabilities-and-generic-high-iso-signal-chain), mapping explicit ISO/capture-mode states to #14 readout regimes while preserving upstream photons/shot noise and keeping Good/Better/Best as convenience profile selectors rather than real-camera rankings;
@@ -258,7 +259,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.106.0`
+- Engine API contract: `0.107.0`
 - Versioned generic tier reference assets: [GENERIC_TIER_PRESETS.md](docs/GENERIC_TIER_PRESETS.md).
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept
