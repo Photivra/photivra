@@ -1,0 +1,41 @@
+[
+  {
+    "megapixels": 24,
+    "nativeRaster": {
+      "pixelWidth": 6000,
+      "pixelHeight": 4000
+    },
+    "providerCalls": 0,
+    "error": "Environment RAW requires complete bounded native coverage and the committed shutter duration.",
+    "elapsedMs": 1.4256570000070496,
+    "heapUsedBefore": 1237631096,
+    "heapUsedAfter": 1238146016,
+    "scope": "unsupported-size preflight with empty site payload; no megapixel image allocated or processed; not a peak-memory benchmark"
+  },
+  {
+    "megapixels": 45,
+    "nativeRaster": {
+      "pixelWidth": 9000,
+      "pixelHeight": 5000
+    },
+    "providerCalls": 0,
+    "error": "Environment RAW requires complete bounded native coverage and the committed shutter duration.",
+    "elapsedMs": 1.3017299999992247,
+    "heapUsedBefore": 293957024,
+    "heapUsedAfter": 294405824,
+    "scope": "unsupported-size preflight with empty site payload; no megapixel image allocated or processed; not a peak-memory benchmark"
+  },
+  {
+    "megapixels": 60,
+    "nativeRaster": {
+      "pixelWidth": 10000,
+      "pixelHeight": 6000
+    },
+    "providerCalls": 0,
+    "error": "Environment RAW requires complete bounded native coverage and the committed shutter duration.",
+    "elapsedMs": 1.266946999996435,
+    "heapUsedBefore": 376544800,
+    "heapUsedAfter": 376988040,
+    "scope": "unsupported-size preflight with empty site payload; no megapixel image allocated or processed; not a peak-memory benchmark"
+  }
+]

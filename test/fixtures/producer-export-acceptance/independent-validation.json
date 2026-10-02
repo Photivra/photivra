@@ -1,0 +1,48 @@
+{
+  "LibRaw": "0.21.2-Release",
+  "checks": [
+    {
+      "fixture": "landscape",
+      "exactRawCodes": true,
+      "metadataAndTwoXmlReaders": true,
+      "jpegDecode": true,
+      "librawUnpackAndRender": true,
+      "librawOrientationAndWb": true
+    },
+    {
+      "fixture": "portrait-clockwise",
+      "exactRawCodes": true,
+      "metadataAndTwoXmlReaders": true,
+      "jpegDecode": true,
+      "librawUnpackAndRender": true,
+      "librawOrientationAndWb": true
+    },
+    {
+      "fixture": "landscape-inverted",
+      "exactRawCodes": true,
+      "metadataAndTwoXmlReaders": true,
+      "jpegDecode": true,
+      "librawUnpackAndRender": true,
+      "librawOrientationAndWb": true
+    },
+    {
+      "fixture": "portrait-counter-clockwise",
+      "exactRawCodes": true,
+      "metadataAndTwoXmlReaders": true,
+      "jpegDecode": true,
+      "librawUnpackAndRender": true,
+      "librawOrientationAndWb": true
+    },
+    {
+      "fixture": "manual-wb",
+      "exactRawCodes": true,
+      "metadataAndTwoXmlReaders": true,
+      "jpegDecode": true,
+      "librawUnpackAndRender": true,
+      "librawOrientationAndWb": true
+    }
+  ],
+  "adobe": "pending-external-review",
+  "browser": "pending-external-review",
+  "editorPixelEqualityRequired": false
+}

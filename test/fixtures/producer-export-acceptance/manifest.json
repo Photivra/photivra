@@ -1,0 +1,156 @@
+[
+  {
+    "fixture": "landscape",
+    "engineApiVersion": "0.115.0",
+    "orientation": "landscape",
+    "nativeWidth": 72,
+    "nativeHeight": 48,
+    "outputWidth": 72,
+    "outputHeight": 48,
+    "hash": "10f8d375faa08f2b0596cee4c2ac89997584530a4dc58d5e4f9caba0570db89e",
+    "dngHash": "4bb62846d2cbf2e990dafaa0348e431ac430c3fbdc54c90ec6c8d9cd5e5c7f61",
+    "jpegHash": "3d1811c12162a6a650cc1fc98d64bf3337969209563dd64cb0e19835aac979d8",
+    "rawDataUniqueId": "71bc2e6c4d1d74631fbb6c242da11c86",
+    "asShotGains": null,
+    "producer": {
+      "model": "environment-native-raw-producer",
+      "version": "0.1.0",
+      "providerEvaluationCount": 6912,
+      "providerTransportVerified": false,
+      "productionPlanActivated": false,
+      "belowBlackCount": 528,
+      "adcClippedCount": 1248,
+      "physicalClippedCount": 1248
+    },
+    "measured": {
+      "elapsedMs": 6561.127117,
+      "heapUsedBefore": 111189864,
+      "heapUsedAfter": 569624992,
+      "scope": "single bounded reference frame; before/after heap values are not peak-memory measurements"
+    }
+  },
+  {
+    "fixture": "portrait-clockwise",
+    "engineApiVersion": "0.115.0",
+    "orientation": "portrait-clockwise",
+    "nativeWidth": 72,
+    "nativeHeight": 48,
+    "outputWidth": 48,
+    "outputHeight": 72,
+    "hash": "734cfbc907b207a1a47e6861253383b848277387e0569d637d976e31394c2c4a",
+    "dngHash": "b4a8d379771cf8ca085bb6a371947b3a6e19d77fb52c28fbb0257f46718b27a8",
+    "jpegHash": "892d5969f5b6a63a4a156c8e0e3d02b33870d78e7dbabcbbee2fac2b99b854f8",
+    "rawDataUniqueId": "71bc2e6c4d1d74631fbb6c242da11c86",
+    "asShotGains": null,
+    "producer": {
+      "model": "environment-native-raw-producer",
+      "version": "0.1.0",
+      "providerEvaluationCount": 6912,
+      "providerTransportVerified": false,
+      "productionPlanActivated": false,
+      "belowBlackCount": 528,
+      "adcClippedCount": 1248,
+      "physicalClippedCount": 1248
+    },
+    "measured": {
+      "elapsedMs": 7487.56558,
+      "heapUsedBefore": 597016272,
+      "heapUsedAfter": 632453064,
+      "scope": "single bounded reference frame; before/after heap values are not peak-memory measurements"
+    }
+  },
+  {
+    "fixture": "landscape-inverted",
+    "engineApiVersion": "0.115.0",
+    "orientation": "landscape-inverted",
+    "nativeWidth": 72,
+    "nativeHeight": 48,
+    "outputWidth": 72,
+    "outputHeight": 48,
+    "hash": "d7d6365781994b373744c2f678880b525d2aab7b39ce2ed09b047ee8b6aa1b37",
+    "dngHash": "98e302021ff8e4999f36b1ee4cd2450e1c090dc36d0e12d3e3d7f5319bc11999",
+    "jpegHash": "f7adcaaeaf4289e326f1d7c1604253fd960355bf27a900cb031a29f7314de1b6",
+    "rawDataUniqueId": "71bc2e6c4d1d74631fbb6c242da11c86",
+    "asShotGains": null,
+    "producer": {
+      "model": "environment-native-raw-producer",
+      "version": "0.1.0",
+      "providerEvaluationCount": 6912,
+      "providerTransportVerified": false,
+      "productionPlanActivated": false,
+      "belowBlackCount": 528,
+      "adcClippedCount": 1248,
+      "physicalClippedCount": 1248
+    },
+    "measured": {
+      "elapsedMs": 7487.445347999999,
+      "heapUsedBefore": 725196328,
+      "heapUsedAfter": 1134008520,
+      "scope": "single bounded reference frame; before/after heap values are not peak-memory measurements"
+    }
+  },
+  {
+    "fixture": "portrait-counter-clockwise",
+    "engineApiVersion": "0.115.0",
+    "orientation": "portrait-counter-clockwise",
+    "nativeWidth": 72,
+    "nativeHeight": 48,
+    "outputWidth": 48,
+    "outputHeight": 72,
+    "hash": "189bdefd525ce675290de946eb9b65e46b8fdd4a2bd5b9c7ac44cedaac7f1f75",
+    "dngHash": "ee188ab8a2bbb5c0e32f75db2b14f3f28f07448927bca64d07d528c47b753b96",
+    "jpegHash": "2144783650c308f86c8bca475526bdb81107169539d739b8f4852e199e510bde",
+    "rawDataUniqueId": "71bc2e6c4d1d74631fbb6c242da11c86",
+    "asShotGains": null,
+    "producer": {
+      "model": "environment-native-raw-producer",
+      "version": "0.1.0",
+      "providerEvaluationCount": 6912,
+      "providerTransportVerified": false,
+      "productionPlanActivated": false,
+      "belowBlackCount": 528,
+      "adcClippedCount": 1248,
+      "physicalClippedCount": 1248
+    },
+    "measured": {
+      "elapsedMs": 7776.809873999999,
+      "heapUsedBefore": 1225974280,
+      "heapUsedAfter": 661981672,
+      "scope": "single bounded reference frame; before/after heap values are not peak-memory measurements"
+    }
+  },
+  {
+    "fixture": "manual-wb",
+    "engineApiVersion": "0.115.0",
+    "orientation": "landscape",
+    "nativeWidth": 72,
+    "nativeHeight": 48,
+    "outputWidth": 72,
+    "outputHeight": 48,
+    "hash": "854c0922cc90ecdd6232a393b3c3900672c2914cf908642a95025f11191ecb5a",
+    "dngHash": "255e17efd681764347388290f6843bbb10bc10c9b92bc75aa957e7efb1946eae",
+    "jpegHash": "50b55b40d71f7138de83a9f8a7cf748046c8852895e06be65e40638c67dc582a",
+    "rawDataUniqueId": "71bc2e6c4d1d74631fbb6c242da11c86",
+    "asShotGains": {
+      "red": 2,
+      "green": 1,
+      "blue": 0.5
+    },
+    "producer": {
+      "model": "environment-native-raw-producer",
+      "version": "0.1.0",
+      "providerEvaluationCount": 6912,
+      "providerTransportVerified": false,
+      "productionPlanActivated": false,
+      "belowBlackCount": 528,
+      "adcClippedCount": 1248,
+      "physicalClippedCount": 1248
+    },
+    "measured": {
+      "elapsedMs": 6127.823672999999,
+      "heapUsedBefore": 714557848,
+      "heapUsedAfter": 1144372688,
+      "scope": "single bounded reference frame; before/after heap values are not peak-memory measurements"
+    }
+  }
+]

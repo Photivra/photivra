@@ -2,7 +2,9 @@
 
 ## Unreleased — engine API 0.115.0
 
-- Complete the bounded #112 SDR post-capture handoff: expose shared `calculateProcessedSensorRaw()`/parser for RAW preview and paired JPEG, retain explicit color/WB/rendering/correction states and capture diagnostics, support 8/16-bit preview while JPEG remains 8-bit. Production plan 0.6.0 accepts committed output-state/RAW policy, executes four downstream stages and fingerprints their immutable result/evidence. Upstream missing-stage blockers remain; no physical-provider, high-resolution or external-editor acceptance is inferred. See `docs/PROCESSED_OUTPUT.md`. Pending owner review/DCO and merge; tracker count remains unchanged.
+- Prepare producer-derived #16 interoperability acceptance: committed all-orientation/manual-WB DNG/JPEG pairs, reproducible repository-only generator, independent TIFF/JPEG/two-XML/LibRaw verification and explicit native-site/unsupported-size evidence. Preserve historical fixtures and shared existing algorithms. Adobe/editor/browser evidence and owner review/DCO remain required; no issue closure, new runtime dependency or API/version change. See `docs/EXPORT_ACCEPTANCE.md`.
+
+- Complete the bounded #112 SDR post-capture handoff: expose shared `calculateProcessedSensorRaw()`/parser for RAW preview and paired JPEG, retain explicit color/WB/rendering/correction states and capture diagnostics, support 8/16-bit preview while JPEG remains 8-bit. Production plan 0.6.0 accepts committed output-state/RAW policy, executes four downstream stages and fingerprints their immutable result/evidence. Upstream missing-stage blockers remain; no physical-provider, high-resolution or external-editor acceptance is inferred. See `docs/PROCESSED_OUTPUT.md`. Merged in #200 after owner review/DCO; V1 tracker stands at 26/32.
 
 ## Engine API 0.114.0
 

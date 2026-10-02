@@ -1,4 +1,8 @@
-# Paired DNG/JPEG reference export
+# Simulated Sensor RAW DNG / JPEG export
+
+Current producer-derived files and external closure gates are recorded in
+[Export acceptance](EXPORT_ACCEPTANCE.md). The new reproducible generator uses
+current typed fixtures; the earlier pinned serializer-only files remain historical.
 
 See [Reference RAW frame compatibility](RAW_FRAME_ENVELOPE.md) for stage-specific
 limits, full-native counting and parser preflight behavior.
@@ -189,7 +193,9 @@ remaining acceptance steps. No commercial-camera calibration is used.
 Before closing #16, validate outputs in Adobe Camera Raw/Lightroom and an open
 RAW processor; compare crop/orientation/WB/color and privacy/identity metadata;
 complete human provenance/DCO review; exercise the production RAW producer;
-and resolve typical-resolution memory/performance and resampling support. The
+and retain explicit supported-resolution/memory and resampling limits. #16 permits
+an explicit supported-size declaration; it does not authorize an unmeasured
+24/45/60 MP execution claim. The
 API explicitly reports editor validation pending. Issue #16 remains open.
 
 Format references and DNG patent-license notice are recorded in `THIRD_PARTY.md`
