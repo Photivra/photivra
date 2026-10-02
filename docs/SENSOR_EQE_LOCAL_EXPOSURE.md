@@ -92,3 +92,11 @@ resolution/editor acceptance. This handoff does not close those tickets.
 ## Optical-node producer
 
 [`calculateSceneToSensorIrradianceQuadrature()`](SCENE_SENSOR_QUADRATURE.md) produces the exact physical input node values from declared wavelength-resolved scene radiance through the existing optical bridge. Its output plane is sensor-package-incident; use matching effective package EQE and explicit source-plane evidence. Projection/PSF/source-truth and stationarity remain separate requirements.
+
+## Nonstationary sensor calculation
+
+[`calculateSensorEqeTemporalExposure()`](SENSOR_EQE_TEMPORAL_EXPOSURE.md) reuses
+this adapter's instantaneous steps at every explicit local shutter midpoint.
+It returns a distinct nonstationary photo expectation, with no stationarity
+claim. The existing stationary dark/charge/RAW consumers require a separate
+versioned handoff before they can consume that result.

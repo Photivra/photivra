@@ -116,7 +116,7 @@ composes explicit irradiance nodes, response application/range, EQE and stationa
 local exposure. [Acceptance](../test/eqe-local-exposure.test.ts) reaches the existing
 RAW and paired-file path with owned synthetic fields. See
 [SENSOR_EQE_LOCAL_EXPOSURE.md](SENSOR_EQE_LOCAL_EXPOSURE.md). Scene/optics origin
-remains declared and time-varying integration remains absent; production gates
+remains declared; nonstationary RAW handoff remains absent; production gates
 and the 25/32 tracker count are unchanged.
 
 [`calculateSceneToSensorIrradianceQuadrature()`](../src/optics/scene-to-sensor-quadrature.ts)
@@ -126,6 +126,16 @@ reaches package-incident EQE, RAW and paired files with declared synthetic radia
 See [SCENE_SENSOR_QUADRATURE.md](SCENE_SENSOR_QUADRATURE.md). Target projection,
 provider execution, PSF and temporal integration remain unverified/unapplied;
 this adapter does not activate production stages.
+
+[`calculateSensorEqeTemporalExposure()`](../src/sensor/eqe-temporal-exposure.ts)
+adds bounded nonstationary sensor-rate quadrature with response validity checked
+at every local shutter midpoint. [Acceptance](../test/eqe-temporal-exposure.test.ts)
+checks SI counts, stationary equivalence, quadratic convergence, rolling offsets
+and rejection of an out-of-range bright instant even when its average is valid.
+See [SENSOR_EQE_TEMPORAL_EXPOSURE.md](SENSOR_EQE_TEMPORAL_EXPOSURE.md). Source
+transport/PSF remain declared, and this distinct nonstationary result requires
+an explicit future charge/dark/RAW contract handoff. No production activation or
+umbrella closure is claimed.
 
 ## Remaining upstream handoff into the existing producer
 

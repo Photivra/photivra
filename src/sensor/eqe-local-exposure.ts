@@ -60,6 +60,31 @@ export interface SensorEqeLocalExposure {
 export function calculateSensorEqeLocalExposure(
   input: CalculateSensorEqeLocalExposureInput
 ): CalculationResult<SensorEqeLocalExposure> {
+  const stages = calculateSensorEqeLocalRate(input);
+  const { spatialQuadrature, spectralQuadrature, reduction, compatibility, operatingRange, electronRate, exposureBinding } = stages;
+  const exposure = integrateStationarySensorRateOverLocalExposure({
+    rate: electronRate.value, exposureBinding: exposureBinding.value,
+    stationarityProfile: input.stationarityProfile
+  });
+  if (exposure.value.kind !== "eqe-expected-counts") {
+    throw new InvalidScientificInputError("EQE local exposure requires expected electron counts.");
+  }
+  return approximationResult({
+    upstreamOrigin: "declared-spatio-spectral-irradiance-samples",
+    upstreamSceneAndOpticsVerified: false,
+    spatialQuadrature, spectralQuadrature, reduction, compatibility, operatingRange, electronRate, exposureBinding,
+    exposure: { ...exposure, value: exposure.value }
+  }, "sensor-eqe-local-exposure-composition", "0.1.0", [
+    "Irradiance node values and upstream scene/optics origin are declared, not verified.",
+    "Finite quadrature and explicit response/stationarity evidence retain their child limitations.",
+    "Uncertainty and quadrature convergence errors are not propagated or combined."
+  ]);
+}
+
+/** Internal shared instantaneous path; no stationarity or exposure accumulation. */
+export function calculateSensorEqeLocalRate(
+  input: Omit<CalculateSensorEqeLocalExposureInput, "stationarityProfile">
+): Omit<SensorEqeLocalExposure, "upstreamOrigin" | "upstreamSceneAndOpticsVerified" | "exposure"> {
   const spatialQuadrature = calculateSensorSpatialSamplingQuadrature({
     ...input.spatialSampling, colorSamplingProfile: input.colorSamplingProfile,
     colorSamplingBindingProfile: input.localExposure.bindingProfile,
@@ -91,21 +116,5 @@ export function calculateSensorEqeLocalExposure(
     ...input.localExposure, rate: electronRate.value,
     colorSamplingProfile: input.colorSamplingProfile
   });
-  const exposure = integrateStationarySensorRateOverLocalExposure({
-    rate: electronRate.value, exposureBinding: exposureBinding.value,
-    stationarityProfile: input.stationarityProfile
-  });
-  if (exposure.value.kind !== "eqe-expected-counts") {
-    throw new InvalidScientificInputError("EQE local exposure requires expected electron counts.");
-  }
-  return approximationResult({
-    upstreamOrigin: "declared-spatio-spectral-irradiance-samples",
-    upstreamSceneAndOpticsVerified: false,
-    spatialQuadrature, spectralQuadrature, reduction, compatibility, operatingRange, electronRate, exposureBinding,
-    exposure: { ...exposure, value: exposure.value }
-  }, "sensor-eqe-local-exposure-composition", "0.1.0", [
-    "Irradiance node values and upstream scene/optics origin are declared, not verified.",
-    "Finite quadrature and explicit response/stationarity evidence retain their child limitations.",
-    "Uncertainty and quadrature convergence errors are not propagated or combined."
-  ]);
+  return { spatialQuadrature, spectralQuadrature, reduction, compatibility, operatingRange, electronRate, exposureBinding };
 }

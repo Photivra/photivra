@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased — engine API 0.108.0
+## Unreleased — engine API 0.109.0
+
+- Add `calculateSensorEqeTemporalExposure()`: independently validate response/range/EQE at each explicitly supplied local shutter midpoint and integrate physical rates with seconds-valued measures. Share the existing instantaneous path without changing stationary behavior; retain child evidence, deterministic canonical ordering and bounded Cartesian work. No stationarity, source transport, PSF, convergence or RAW activation is inferred. This new nonstationary result deliberately cannot enter the stationary charge/RAW contract. See `docs/SENSOR_EQE_TEMPORAL_EXPOSURE.md`. Partial #16/#178 resolution.
+
+## Engine API 0.108.0
 
 - Add `calculateSceneToSensorIrradianceQuadrature()`: bind wavelength-resolved scene-provider declarations to each exact spatial/wavelength/time node and evaluate the existing paraxial optical bridge at its pre-AA coordinate. Share Cartesian node validation with the existing irradiance reducer, preserving equations and prior diagnostics while rejecting sparse sample arrays explicitly. Pre-stack/package-incident output feeds matching effective EQE; source projection, provider execution, PSF and temporal integration remain unverified/unapplied, and production gates remain unchanged. See `docs/SCENE_SENSOR_QUADRATURE.md`. Partial #16/#178 resolution.
 
