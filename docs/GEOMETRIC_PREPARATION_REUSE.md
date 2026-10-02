@@ -133,3 +133,7 @@ There is no timing CI threshold, new runtime dependency, third-party data, paid
 service or production-stage activation. Human scientific/provenance review and
 contribution-specific DCO certification remain required before merge; measurements
 are not scientific or legal certification.
+
+## Final V1 remeasurement
+
+[Final V1 performance disposition](V1_PERFORMANCE_DISPOSITION.md) records current main #204, fresh paired timing/equivalence, preparation/memory profiles and dense executed environment-to-RAW evidence. It proposes retaining the merged bounded optimizations with no further abstraction, pending owner review/DCO and merge. Earlier candidate and pending-remeasurement statements above are historical.

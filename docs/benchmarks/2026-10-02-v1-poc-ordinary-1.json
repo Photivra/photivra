@@ -1,0 +1,868 @@
+{
+  "benchmark": "poc-request-local-defocus-projection-reuse",
+  "benchmarkVersion": 3,
+  "independentCorpusEquivalence": {
+    "cases": 64,
+    "responseHashes": [
+      "d7d7cbbb9fc2fbe5c2c1008b2a9b9eda6142acefd7b73a0cbaa529a89e1b9a71",
+      "254c2f73031496744b95c1f01e70b7c791954063d4c9a4e9ae38d7c845c1fc07",
+      "498ac019127c040e6f3970f23c3bf71235bf10cb1457ce52bb0f0a9c2a3d6603",
+      "05e6efde575fed1d67a9fa5bd6024c9ec47c15355e3018be9d19c7a90f1a8e3b",
+      "ab4111cad61477c65b87e0c602bdfbc6a51087825d5fac5ec26b87fcc55b9ec3",
+      "1548cee8734aac2e9d3c98bebfecb24aecfc494587483a68bf7168eaaf335d2d",
+      "5cee84ceb263cccd9fc50b2efdaf4a3d6da0734ab7368d0275bd4a35e06c1cdc",
+      "bf971cba8648c9c82a8fe586327cbd64db527bf46bf7e71f47f9a41c6596a0b1",
+      "398eae5585ce00b102c3db4be8646240474d3365e91d1a9fdd570f360aaa8cef",
+      "9328e0a2d3ec59f7e948945d8822e0734ce0935a7184e258a91c97b40abbcd03",
+      "044a34984ef251c80ead56758dc4bd7b34a96d69380c7ef48a83c53ce0a0944c",
+      "34ded92cf656a6a2387327c3cf74718028efd3f89e1df9f68f4652fe6301d60a",
+      "da1574fedb9a60224f9f58b83537c849a34ba74b9a1b80dcff5e5a0e6d97ac9d",
+      "10ffa8561351a71fc0cd21a26563e5207e70913a2b876473fd40cd494c23c580",
+      "44eb4c3c7849afd53504541dc5ff31dc65f14ba9ae7e93499de865be2d43aa79",
+      "1ad04239ff5530e02ca2b146d52a8329f77a331bf0507880a4d4060fd10a727f",
+      "4c97e411d0cfb63f3874a6db1462ab2d3374baf86f28dd033eeebb2480690f62",
+      "47d455928800cf4ea026406b043a14e5331cc4121b713e5753cece22edf0fd9c",
+      "3bf2dd2082ea0c2bfb430a5b364785327bfa409ffe6741a7698278f5026d8bd2",
+      "c1caf39568c1646b991e7b94ae29ab14e3e12c2b001f6f1d63f0b20c3582c196",
+      "92542361c5d4438eade7ca653c4f0a2dd76d61d8dbb9c206bfcca6924b258a50",
+      "9b7ea89fdbdb0f2d5ce7c1d4437acf23a0d094929552230b545e34879917da48",
+      "1248db85be2a9c47905835bcc43a9bbad64badd3c1699f8c73d43439f8ec282d",
+      "b34971bdb48a0c17ccb25cf219bf1cd7dbf9c79c7eafdfc69fc979e3228f2dfc",
+      "5842b9de3e70d48d02c2f8d6aca6b7b255dd1b971b6f032384bb20c0483650ac",
+      "c5d73cf35a74b247d00353ffab1246362e0406c88f6a8d53f70a0f67a1ea5914",
+      "eda6496f67e3fdb7db6617494adba16e96bcdbda7177d842f6765fb0377cf0ff",
+      "d9f2e309d78f23c97f355652427f45ce212d09253e3970a4c5d5b6938992a5c2",
+      "6e59d658432412ddf43ef11755f3356472eb6ac911cd5496996cffb55cf2504f",
+      "04383bf2cbe6eaef74cece50aa51a379e30db4e403e528f9d65925eca437d49c",
+      "aafd19abedd115aa5ba9462208b3e5ce8fc5498e1478c0ec55febd96cbf3fbfa",
+      "240aa0c48e0dfa03726c7986a8d34936c7e934f329ed6abe1fb91001e7ced8b1",
+      "69e8c3605469ed717fb2463100b2969b3394ecb09a464532c46ef4f78938ff27",
+      "323b612771db958b5383c391fe9439b6a6dadbba93a6c6666a925e172420e83f",
+      "c94e828ba2ff9ee8ddc1f49f1f664c4775463a394d7899f1e9bd18f77166c936",
+      "6468045a860191d02de9935e03b21f69050c6ff1a08d7b468b93a912c4233457",
+      "88bdd4c95bedc8310d00ba73d587115aa82d5b2f593bc4c879666cfacfaf2dc7",
+      "439352d7e530616f7e0b4a63d5a183e7e02409095cef00e1f049d1d4856d332d",
+      "02688bd713afea5ae82da9d53675a4e63738aa45bb5f33abca1b2cfeade3d52c",
+      "a47969c85680b18160bd365e505ada16da74350cf38dd615a00eb2a5ae6b3f5f",
+      "6c34c14ddf055798dec95db6f44fe409225a893214ff5b89b1a61702a73c1d00",
+      "e2dc1f0df52bb0d81e9d7cbbc88eefcf6d5b74582132fed4bbeec15cb96042a9",
+      "590a1bf85b73958766893692bed5f56011a357231297fe427d8ad521ee6cc129",
+      "a4c57f6683d4200200190c6f6ad527b9f3b488d26126437b4b94ee935209d1b4",
+      "1c4a6b200bad1226dd47f25b6c76963109863d0110a68cd7bb2f1ab7e752610d",
+      "3bf5ffdd7288b1023b8cfc287b4250d564e5aecc0ca134626e7a57016bb63858",
+      "d9691f3e2ff9a718fd38739c9d83241fa49311b753e412372cb355ca7dcd63ac",
+      "8d1fff0d251d187d164103ef7679723a8a7665784a297a6a850d1f886a06c37d",
+      "dc1e6ac839711fa4ff769f91c76a7421deb58c3f10901b8a7fce5ede41688515",
+      "6dfec6f5c39ab83f8abaa76b5a45214910d9577e688b9d6688e1d913e2407a4b",
+      "213482d37312b3052bbd70e12e92b08d90db6d33540c82c1d2a39d8e370b024b",
+      "15530d8f7693c2a670b3598ed3989bb81d780562519184b95e966c6b80c6086d",
+      "b6e629290011d4856b2d16ff2d0aa5929d3aaa8c97a971a768de66a81395bccd",
+      "ff3923e629b5ed08cf0b654867d80dc6c41ba23dbf50470ba488d86b3132e17a",
+      "c61f7d9b641f623cb8bec78a48f7fbbdf664898922566cbcb32dcff44ed89de3",
+      "685db4ffc800cccd321fc0c9fa605bbe12dd8cfe74e382d3f38f47eee3fc6c67",
+      "0facea05d855a681233dcb69e7067d031fd6af990570894c31208a752482eb15",
+      "91cb8a7f5361e6b62a5a210176871dbf8523765917b1288ff708f959af5495df",
+      "b91d51def2162eb6bb549a9d87e25f49460f51fdc31e1567fef8f2c3e34a7447",
+      "9a5a62978dcb61676169a6edde4469285699a47fb715f8362f92caecf8c2a75c",
+      "b33274c79150af823c45e6604289df25f3b51d740274504aa21f94782ce0d9f7",
+      "25a5e871dd0c0b48336190c83e4297a70819e073eab5c155a3029e47757ff965",
+      "a35797dccfb7e8ea0518d1d6300130bf5fdc346ed76f5c042d09324b2b88ad70",
+      "a97564c4915e5f86566e4f693c36593f21824c2ba1e85b28129e3f2da5d968e6"
+    ],
+    "referenceGoldenHashesChanged": false
+  },
+  "referenceCommit": "c1374c31473f893310d1ce4f0d5a737aaba43ab5",
+  "candidateBaseCommit": "edc20e61538152fa758f3cce4b41cc34d1e8ba03",
+  "candidateSources": [
+    {
+      "path": "src/optics/depth-of-field.ts",
+      "sha256": "5a947cac46215281bde539333879f9411e2c8cdafaaae04b471a4b3bbe676f06"
+    },
+    {
+      "path": "src/simulation/poc-simulation.ts",
+      "sha256": "7d6f1a8bc7fe954744009965f53d9bf1ff39c08a184a13cc6983b59d99bd73cd"
+    }
+  ],
+  "buildMethod": "tsc",
+  "engineApiVersion": "0.116.0",
+  "pocApiVersion": "0.20.0",
+  "nodeVersion": "v24.19.0",
+  "v8Version": "13.6.233.17-node.51",
+  "platform": "darwin",
+  "arch": "arm64",
+  "cpuModel": "Apple M5 Pro",
+  "logicalCpuCount": 18,
+  "forcedGc": false,
+  "results": [
+    {
+      "scenario": "24mp-base",
+      "requestsPerRepeat": 1000,
+      "repeats": 9,
+      "warmupRequestsPerPath": 500,
+      "paths": [
+        {
+          "name": "reference",
+          "medianMicrosecondsPerRequest": 5.330167,
+          "measurements": [
+            {
+              "durationMs": 5.665916,
+              "retainedHeapDeltaBytes": -4992064
+            },
+            {
+              "durationMs": 5.254625,
+              "retainedHeapDeltaBytes": 3263784
+            },
+            {
+              "durationMs": 5.467459,
+              "retainedHeapDeltaBytes": 3265344
+            },
+            {
+              "durationMs": 5.414834,
+              "retainedHeapDeltaBytes": 3218816
+            },
+            {
+              "durationMs": 5.330167,
+              "retainedHeapDeltaBytes": 3219552
+            },
+            {
+              "durationMs": 5.346125,
+              "retainedHeapDeltaBytes": -13555776
+            },
+            {
+              "durationMs": 5.245875,
+              "retainedHeapDeltaBytes": 3219096
+            },
+            {
+              "durationMs": 5.29525,
+              "retainedHeapDeltaBytes": 3220064
+            },
+            {
+              "durationMs": 5.326833,
+              "retainedHeapDeltaBytes": 3218312
+            }
+          ]
+        },
+        {
+          "name": "candidate",
+          "medianMicrosecondsPerRequest": 5.388208,
+          "measurements": [
+            {
+              "durationMs": 5.540042,
+              "retainedHeapDeltaBytes": 3397416
+            },
+            {
+              "durationMs": 5.46025,
+              "retainedHeapDeltaBytes": 3274464
+            },
+            {
+              "durationMs": 5.367292,
+              "retainedHeapDeltaBytes": 3271776
+            },
+            {
+              "durationMs": 5.726292,
+              "retainedHeapDeltaBytes": 3226664
+            },
+            {
+              "durationMs": 5.458208,
+              "retainedHeapDeltaBytes": -13550648
+            },
+            {
+              "durationMs": 5.388208,
+              "retainedHeapDeltaBytes": 3226368
+            },
+            {
+              "durationMs": 5.280875,
+              "retainedHeapDeltaBytes": 3225000
+            },
+            {
+              "durationMs": 5.132708,
+              "retainedHeapDeltaBytes": 3226120
+            },
+            {
+              "durationMs": 5.316125,
+              "retainedHeapDeltaBytes": 3225104
+            }
+          ]
+        }
+      ],
+      "candidateToReferenceMedianRatio": 1.0108891522535783
+    },
+    {
+      "scenario": "24mp-defocus-1",
+      "requestsPerRepeat": 1000,
+      "repeats": 9,
+      "warmupRequestsPerPath": 500,
+      "paths": [
+        {
+          "name": "reference",
+          "medianMicrosecondsPerRequest": 5.813167,
+          "measurements": [
+            {
+              "durationMs": 6.188125,
+              "retainedHeapDeltaBytes": -1491456
+            },
+            {
+              "durationMs": 5.913458,
+              "retainedHeapDeltaBytes": 6779208
+            },
+            {
+              "durationMs": 5.813167,
+              "retainedHeapDeltaBytes": -9991400
+            },
+            {
+              "durationMs": 5.9925,
+              "retainedHeapDeltaBytes": 6730048
+            },
+            {
+              "durationMs": 5.71,
+              "retainedHeapDeltaBytes": 6731336
+            },
+            {
+              "durationMs": 5.835333,
+              "retainedHeapDeltaBytes": 6729000
+            },
+            {
+              "durationMs": 5.71925,
+              "retainedHeapDeltaBytes": 6730576
+            },
+            {
+              "durationMs": 5.741042,
+              "retainedHeapDeltaBytes": -10042032
+            },
+            {
+              "durationMs": 5.804125,
+              "retainedHeapDeltaBytes": -10045152
+            }
+          ]
+        },
+        {
+          "name": "candidate",
+          "medianMicrosecondsPerRequest": 5.547792,
+          "measurements": [
+            {
+              "durationMs": 5.823666,
+              "retainedHeapDeltaBytes": -3770416
+            },
+            {
+              "durationMs": 5.586417,
+              "retainedHeapDeltaBytes": 4499240
+            },
+            {
+              "durationMs": 5.581875,
+              "retainedHeapDeltaBytes": 4496912
+            },
+            {
+              "durationMs": 5.599917,
+              "retainedHeapDeltaBytes": -12323240
+            },
+            {
+              "durationMs": 5.337917,
+              "retainedHeapDeltaBytes": 4448576
+            },
+            {
+              "durationMs": 5.502875,
+              "retainedHeapDeltaBytes": 4448992
+            },
+            {
+              "durationMs": 5.547792,
+              "retainedHeapDeltaBytes": -12322984
+            },
+            {
+              "durationMs": 5.419333,
+              "retainedHeapDeltaBytes": 4449560
+            },
+            {
+              "durationMs": 5.494417,
+              "retainedHeapDeltaBytes": 4450584
+            }
+          ]
+        }
+      ],
+      "candidateToReferenceMedianRatio": 0.9543493245592292
+    },
+    {
+      "scenario": "24mp-defocus-2",
+      "requestsPerRepeat": 1000,
+      "repeats": 9,
+      "warmupRequestsPerPath": 500,
+      "paths": [
+        {
+          "name": "reference",
+          "medianMicrosecondsPerRequest": 6.316875,
+          "measurements": [
+            {
+              "durationMs": 6.535958,
+              "retainedHeapDeltaBytes": 1800808
+            },
+            {
+              "durationMs": 6.410459,
+              "retainedHeapDeltaBytes": 10059200
+            },
+            {
+              "durationMs": 6.416875,
+              "retainedHeapDeltaBytes": -6716472
+            },
+            {
+              "durationMs": 6.344084,
+              "retainedHeapDeltaBytes": -6747048
+            },
+            {
+              "durationMs": 6.233834,
+              "retainedHeapDeltaBytes": -6765568
+            },
+            {
+              "durationMs": 6.223709,
+              "retainedHeapDeltaBytes": 10010952
+            },
+            {
+              "durationMs": 6.184,
+              "retainedHeapDeltaBytes": 10011160
+            },
+            {
+              "durationMs": 6.316875,
+              "retainedHeapDeltaBytes": -6765528
+            },
+            {
+              "durationMs": 6.156334,
+              "retainedHeapDeltaBytes": 10008640
+            }
+          ]
+        },
+        {
+          "name": "candidate",
+          "medianMicrosecondsPerRequest": 5.801166,
+          "measurements": [
+            {
+              "durationMs": 6.142375,
+              "retainedHeapDeltaBytes": -1656184
+            },
+            {
+              "durationMs": 6.061083,
+              "retainedHeapDeltaBytes": -10180600
+            },
+            {
+              "durationMs": 5.872125,
+              "retainedHeapDeltaBytes": 6592888
+            },
+            {
+              "durationMs": 5.801166,
+              "retainedHeapDeltaBytes": 6544104
+            },
+            {
+              "durationMs": 5.708416,
+              "retainedHeapDeltaBytes": 6548136
+            },
+            {
+              "durationMs": 5.900042,
+              "retainedHeapDeltaBytes": -10227984
+            },
+            {
+              "durationMs": 5.743125,
+              "retainedHeapDeltaBytes": -10228272
+            },
+            {
+              "durationMs": 5.760458,
+              "retainedHeapDeltaBytes": 6544560
+            },
+            {
+              "durationMs": 5.545,
+              "retainedHeapDeltaBytes": -10226856
+            }
+          ]
+        }
+      ],
+      "candidateToReferenceMedianRatio": 0.9183601068566342
+    },
+    {
+      "scenario": "24mp-defocus-4",
+      "requestsPerRepeat": 1000,
+      "repeats": 9,
+      "warmupRequestsPerPath": 500,
+      "paths": [
+        {
+          "name": "reference",
+          "medianMicrosecondsPerRequest": 7.077083,
+          "measurements": [
+            {
+              "durationMs": 7.268166,
+              "retainedHeapDeltaBytes": -32976
+            },
+            {
+              "durationMs": 7.672833,
+              "retainedHeapDeltaBytes": 23976
+            },
+            {
+              "durationMs": 7.077083,
+              "retainedHeapDeltaBytes": -154648
+            },
+            {
+              "durationMs": 8.184917,
+              "retainedHeapDeltaBytes": -150552
+            },
+            {
+              "durationMs": 7.087584,
+              "retainedHeapDeltaBytes": -200680
+            },
+            {
+              "durationMs": 7.053959,
+              "retainedHeapDeltaBytes": -200432
+            },
+            {
+              "durationMs": 7.039333,
+              "retainedHeapDeltaBytes": -203280
+            },
+            {
+              "durationMs": 7.039542,
+              "retainedHeapDeltaBytes": -200400
+            },
+            {
+              "durationMs": 6.936625,
+              "retainedHeapDeltaBytes": -202136
+            }
+          ]
+        },
+        {
+          "name": "candidate",
+          "medianMicrosecondsPerRequest": 6.423416,
+          "measurements": [
+            {
+              "durationMs": 6.621542,
+              "retainedHeapDeltaBytes": 2519640
+            },
+            {
+              "durationMs": 6.869375,
+              "retainedHeapDeltaBytes": -5984064
+            },
+            {
+              "durationMs": 6.593791,
+              "retainedHeapDeltaBytes": -5984584
+            },
+            {
+              "durationMs": 6.449,
+              "retainedHeapDeltaBytes": -5987056
+            },
+            {
+              "durationMs": 6.307166,
+              "retainedHeapDeltaBytes": -6034624
+            },
+            {
+              "durationMs": 6.423416,
+              "retainedHeapDeltaBytes": -6033504
+            },
+            {
+              "durationMs": 6.256875,
+              "retainedHeapDeltaBytes": 10736744
+            },
+            {
+              "durationMs": 6.125375,
+              "retainedHeapDeltaBytes": 10737840
+            },
+            {
+              "durationMs": 6.35325,
+              "retainedHeapDeltaBytes": 10735544
+            }
+          ]
+        }
+      ],
+      "candidateToReferenceMedianRatio": 0.9076360980929572
+    },
+    {
+      "scenario": "24mp-defocus-8",
+      "requestsPerRepeat": 1000,
+      "repeats": 9,
+      "warmupRequestsPerPath": 500,
+      "paths": [
+        {
+          "name": "reference",
+          "medianMicrosecondsPerRequest": 8.877375,
+          "measurements": [
+            {
+              "durationMs": 8.9845,
+              "retainedHeapDeltaBytes": 4900184
+            },
+            {
+              "durationMs": 8.817041,
+              "retainedHeapDeltaBytes": -3648960
+            },
+            {
+              "durationMs": 8.96925,
+              "retainedHeapDeltaBytes": 13166216
+            },
+            {
+              "durationMs": 9.514416,
+              "retainedHeapDeltaBytes": -3228744
+            },
+            {
+              "durationMs": 8.877375,
+              "retainedHeapDeltaBytes": -3651552
+            },
+            {
+              "durationMs": 8.815125,
+              "retainedHeapDeltaBytes": -3646984
+            },
+            {
+              "durationMs": 8.789333,
+              "retainedHeapDeltaBytes": -3650392
+            },
+            {
+              "durationMs": 8.822542,
+              "retainedHeapDeltaBytes": 13120568
+            },
+            {
+              "durationMs": 8.91875,
+              "retainedHeapDeltaBytes": -3648480
+            }
+          ]
+        },
+        {
+          "name": "candidate",
+          "medianMicrosecondsPerRequest": 7.588708,
+          "measurements": [
+            {
+              "durationMs": 7.81,
+              "retainedHeapDeltaBytes": -5665064
+            },
+            {
+              "durationMs": 7.660541,
+              "retainedHeapDeltaBytes": 2820752
+            },
+            {
+              "durationMs": 7.592417,
+              "retainedHeapDeltaBytes": -14168472
+            },
+            {
+              "durationMs": 7.862084,
+              "retainedHeapDeltaBytes": 2594704
+            },
+            {
+              "durationMs": 7.588708,
+              "retainedHeapDeltaBytes": 2567752
+            },
+            {
+              "durationMs": 7.492709,
+              "retainedHeapDeltaBytes": 2549736
+            },
+            {
+              "durationMs": 7.416209,
+              "retainedHeapDeltaBytes": 2551632
+            },
+            {
+              "durationMs": 7.586291,
+              "retainedHeapDeltaBytes": -14221680
+            },
+            {
+              "durationMs": 7.481083,
+              "retainedHeapDeltaBytes": 2551224
+            }
+          ]
+        }
+      ],
+      "candidateToReferenceMedianRatio": 0.8548369309621368
+    },
+    {
+      "scenario": "24mp-defocus-16",
+      "requestsPerRepeat": 1000,
+      "repeats": 9,
+      "warmupRequestsPerPath": 500,
+      "paths": [
+        {
+          "name": "reference",
+          "medianMicrosecondsPerRequest": 12.361167,
+          "measurements": [
+            {
+              "durationMs": 12.504167,
+              "retainedHeapDeltaBytes": -2024464
+            },
+            {
+              "durationMs": 12.271917,
+              "retainedHeapDeltaBytes": -10593672
+            },
+            {
+              "durationMs": 12.692709,
+              "retainedHeapDeltaBytes": 6229440
+            },
+            {
+              "durationMs": 12.214791,
+              "retainedHeapDeltaBytes": 6181880
+            },
+            {
+              "durationMs": 12.438875,
+              "retainedHeapDeltaBytes": 6181272
+            },
+            {
+              "durationMs": 12.529166,
+              "retainedHeapDeltaBytes": 6180160
+            },
+            {
+              "durationMs": 11.980166,
+              "retainedHeapDeltaBytes": -10592944
+            },
+            {
+              "durationMs": 12.361167,
+              "retainedHeapDeltaBytes": 6183104
+            },
+            {
+              "durationMs": 12.343583,
+              "retainedHeapDeltaBytes": -10588944
+            }
+          ]
+        },
+        {
+          "name": "candidate",
+          "medianMicrosecondsPerRequest": 9.792417000000002,
+          "measurements": [
+            {
+              "durationMs": 10.0465,
+              "retainedHeapDeltaBytes": 3087920
+            },
+            {
+              "durationMs": 9.917625,
+              "retainedHeapDeltaBytes": 2911624
+            },
+            {
+              "durationMs": 9.792417,
+              "retainedHeapDeltaBytes": 2960624
+            },
+            {
+              "durationMs": 9.726958,
+              "retainedHeapDeltaBytes": 2962360
+            },
+            {
+              "durationMs": 9.84425,
+              "retainedHeapDeltaBytes": 2911912
+            },
+            {
+              "durationMs": 9.752291,
+              "retainedHeapDeltaBytes": 2910992
+            },
+            {
+              "durationMs": 9.697166,
+              "retainedHeapDeltaBytes": 2912992
+            },
+            {
+              "durationMs": 9.630292,
+              "retainedHeapDeltaBytes": -13862656
+            },
+            {
+              "durationMs": 9.907459,
+              "retainedHeapDeltaBytes": 2909192
+            }
+          ]
+        }
+      ],
+      "candidateToReferenceMedianRatio": 0.7921919508085281
+    },
+    {
+      "scenario": "24mp-mixed-16-per-kind",
+      "requestsPerRepeat": 1000,
+      "repeats": 9,
+      "warmupRequestsPerPath": 500,
+      "paths": [
+        {
+          "name": "reference",
+          "medianMicrosecondsPerRequest": 26.26675,
+          "measurements": [
+            {
+              "durationMs": 26.815792,
+              "retainedHeapDeltaBytes": 179728
+            },
+            {
+              "durationMs": 26.267917,
+              "retainedHeapDeltaBytes": 8976096
+            },
+            {
+              "durationMs": 26.22675,
+              "retainedHeapDeltaBytes": -8482832
+            },
+            {
+              "durationMs": 26.071583,
+              "retainedHeapDeltaBytes": -8449656
+            },
+            {
+              "durationMs": 26.26675,
+              "retainedHeapDeltaBytes": -8503832
+            },
+            {
+              "durationMs": 26.526417,
+              "retainedHeapDeltaBytes": 8263608
+            },
+            {
+              "durationMs": 26.310875,
+              "retainedHeapDeltaBytes": 8284040
+            },
+            {
+              "durationMs": 26.081542,
+              "retainedHeapDeltaBytes": -8449952
+            },
+            {
+              "durationMs": 25.845125,
+              "retainedHeapDeltaBytes": 8272600
+            }
+          ]
+        },
+        {
+          "name": "candidate",
+          "medianMicrosecondsPerRequest": 23.470042,
+          "measurements": [
+            {
+              "durationMs": 24.2085,
+              "retainedHeapDeltaBytes": -3103800
+            },
+            {
+              "durationMs": 23.276667,
+              "retainedHeapDeltaBytes": 5697992
+            },
+            {
+              "durationMs": 23.443667,
+              "retainedHeapDeltaBytes": 5099368
+            },
+            {
+              "durationMs": 23.327083,
+              "retainedHeapDeltaBytes": 5025008
+            },
+            {
+              "durationMs": 23.422833,
+              "retainedHeapDeltaBytes": 5024560
+            },
+            {
+              "durationMs": 23.549625,
+              "retainedHeapDeltaBytes": -11748304
+            },
+            {
+              "durationMs": 23.544625,
+              "retainedHeapDeltaBytes": -11742688
+            },
+            {
+              "durationMs": 23.48825,
+              "retainedHeapDeltaBytes": 5027584
+            },
+            {
+              "durationMs": 23.470042,
+              "retainedHeapDeltaBytes": -11749640
+            }
+          ]
+        }
+      ],
+      "candidateToReferenceMedianRatio": 0.8935266829737216
+    },
+    {
+      "scenario": "24mp-staged-portrait-mixed",
+      "requestsPerRepeat": 1000,
+      "repeats": 9,
+      "warmupRequestsPerPath": 500,
+      "paths": [
+        {
+          "name": "reference",
+          "medianMicrosecondsPerRequest": 44.815959,
+          "measurements": [
+            {
+              "durationMs": 45.653416,
+              "retainedHeapDeltaBytes": 3847480
+            },
+            {
+              "durationMs": 46.194292,
+              "retainedHeapDeltaBytes": -4830184
+            },
+            {
+              "durationMs": 44.662334,
+              "retainedHeapDeltaBytes": -6949768
+            },
+            {
+              "durationMs": 46.178792,
+              "retainedHeapDeltaBytes": -6330920
+            },
+            {
+              "durationMs": 44.815959,
+              "retainedHeapDeltaBytes": -6741968
+            },
+            {
+              "durationMs": 44.733458,
+              "retainedHeapDeltaBytes": 9392368
+            },
+            {
+              "durationMs": 44.611459,
+              "retainedHeapDeltaBytes": 9923288
+            },
+            {
+              "durationMs": 44.027709,
+              "retainedHeapDeltaBytes": -5680960
+            },
+            {
+              "durationMs": 45.243792,
+              "retainedHeapDeltaBytes": 11079016
+            }
+          ]
+        },
+        {
+          "name": "candidate",
+          "medianMicrosecondsPerRequest": 42.584042,
+          "measurements": [
+            {
+              "durationMs": 44.499167,
+              "retainedHeapDeltaBytes": 389944
+            },
+            {
+              "durationMs": 43.710417,
+              "retainedHeapDeltaBytes": -8120416
+            },
+            {
+              "durationMs": 42.067083,
+              "retainedHeapDeltaBytes": 6523056
+            },
+            {
+              "durationMs": 42.188667,
+              "retainedHeapDeltaBytes": 7143080
+            },
+            {
+              "durationMs": 42.584042,
+              "retainedHeapDeltaBytes": 6750864
+            },
+            {
+              "durationMs": 43.474833,
+              "retainedHeapDeltaBytes": -10610248
+            },
+            {
+              "durationMs": 41.759833,
+              "retainedHeapDeltaBytes": -10136112
+            },
+            {
+              "durationMs": 41.259458,
+              "retainedHeapDeltaBytes": 7780040
+            },
+            {
+              "durationMs": 44.287333,
+              "retainedHeapDeltaBytes": -8962760
+            }
+          ]
+        }
+      ],
+      "candidateToReferenceMedianRatio": 0.9501981648992494
+    }
+  ],
+  "allocationProfiles": [],
+  "preparationProbe": {
+    "kind": "isolated-three-scalar-object-freeze",
+    "preparationsPerRepeat": 100000,
+    "nanosecondsPerPreparation": [
+      23.80292,
+      29.39375,
+      21.71209,
+      23.07292,
+      20.74875,
+      19.44834,
+      18.55792,
+      19.15458,
+      18.085
+    ],
+    "medianNanosecondsPerPreparation": 20.74875,
+    "limitation": "Synthetic isolated probe; JIT/escape behavior can differ inside the whole request."
+  },
+  "sink": 53131313.13083108,
+  "limitations": [
+    "Paired developer POC request shapes on shared infrastructure; not observed product call frequency or browser latency",
+    "POC is analytical; 24 MP dimensions do not execute 24 million image samples",
+    "Net retained heap is not allocation count; separately instrumented heap sampling is statistical, not an exact allocation counter",
+    "Source SHA context is operator-attested; source fingerprints identify the candidate change",
+    "No full production radiometry/serialization or browser performance claim"
+  ]
+}

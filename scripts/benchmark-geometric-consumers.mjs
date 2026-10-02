@@ -12,6 +12,7 @@ import * as candidate from "../dist/index.js";
 const argument = (name) => process.argv.find((value) => value.startsWith(`--${name}=`))?.slice(name.length+3);
 const referenceRoot = argument("reference-root"), referenceCommit = argument("reference-commit");
 if (!referenceRoot || !/^[a-f0-9]{40}$/.test(referenceCommit ?? "")) throw new Error("Declare reference-root and exact reference-commit; build both checkouts with tsc.");
+if (argument("candidate-commit") && !/^[a-f0-9]{40}$/.test(argument("candidate-commit"))) throw new Error("candidate-commit must be an exact SHA.");
 const reference = await import(pathToFileURL(resolve(referenceRoot, "dist/index.js")));
 const evidence = { kind: "generic-parametric", basis: "Photivra-owned synthetic correction workload, not calibration.", residualNote: "No physical residual/error bound.",
   sources: [{ sourceOrigin: "photivra", sourceReference: "photivra:geometric-consumer-performance", reuseStatus: "photivra-owned" }] };
@@ -101,7 +102,7 @@ if(argument("profile")==="sample") {
   }
   session.disconnect();
 }
-process.stdout.write(JSON.stringify({ benchmark:"merged-geometric-consumers",benchmarkVersion:1,referenceCommit,candidateBaseCommit:referenceCommit,
+process.stdout.write(JSON.stringify({ benchmark:"merged-geometric-consumers",benchmarkVersion:1,referenceCommit,candidateBaseCommit:argument("candidate-commit") ?? referenceCommit,
   candidateSource:{path:"src/output/geometric-transforms.ts",sha256:createHash("sha256").update(readFileSync(new URL("../src/output/geometric-transforms.ts",import.meta.url))).digest("hex")},
   engineApiVersion:candidate.ENGINE_API_VERSION,buildMethod:"tsc",nodeVersion:process.version,v8Version:process.versions.v8,platform:platform(),arch:arch(),cpuModel:cpus()[0]?.model??"unknown",logicalCpuCount:cpus().length,
   forcedGc:typeof globalThis.gc==="function",results,preparation,profiles,sink,

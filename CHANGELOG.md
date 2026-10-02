@@ -2,6 +2,8 @@
 
 ## Unreleased — engine API 0.116.0
 
+- Complete the proposed final #43/#45 performance disposition on stabilized V1 main with paired whole-consumer equivalence/timing, preparation/memory profiles and dense executed environment-to-RAW evidence. Retain merged private reuse; no further public abstraction or runtime/API change. See `docs/V1_PERFORMANCE_DISPOSITION.md`.
+
 - Complete the proposed #119 generic tier acceptance layer with reproducible versioned physical/correction-cost/corrected reports, finite multidimensional pupil/texture envelopes, same-capture edge/noise comparisons and independently predicted signed stabilization/ordinary flash checks. Reuse existing body and production/output acceptance; no calibration claims, runtime/asset/version changes or new dependency. See `docs/TIER_ACCEPTANCE.md`.
 
 - Complete the proposed #116 generic preset acceptance disposition: all nine exact body/lens pairings through bounded authoritative environment capture, ISO/readout, exact RAW processing and paired output; independent phase-sum checks and controlled sampled scenes for all 27 finite pupil slices. Preserve synthetic limits, separate #119 validation ownership and unchanged 1.0.0 assets/runtime/version contracts. See `docs/TIER_PRESET_ACCEPTANCE.md`.
