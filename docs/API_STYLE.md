@@ -148,6 +148,14 @@ Already-frozen parents still require descendant traversal in this helper. The
 production planner, focus and release helpers retain their distinct early-return
 behavior for already-frozen objects. This internal module is not a root export.
 
+`src/core/canonical-json.ts` shares sorted-key finite-JSON mechanics while each
+caller supplies its existing omission and error policy. Production-plan records
+omit undefined object properties; capture comparison and export hashing reject
+them. Array order and JSON number/string representation are preserved. Planner
+FNV-1a fingerprints and export SHA-256 hashes remain separate identity contracts;
+the helper neither selects a hash nor changes either contract. Capture's public
+serialization keeps its existing validated JSON.stringify representation.
+
 ## Compatibility and deprecation policy
 
 Photivra has independent compatibility surfaces. Update only the surface whose observable contract changed.
