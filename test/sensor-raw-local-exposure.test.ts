@@ -18,6 +18,7 @@ function scheduled(direction: "top-to-bottom" | "bottom-to-top" | "left-to-right
     samplePointsNative: v.sites.map((_, i) => ({ x: i%native.pixelWidth+.5, y: Math.floor(i/native.pixelWidth)+.5 })) }).value;
   v.sites.forEach((s, i) => {
     const w = windows.samples[i]!, p = s.charge.photoSignal, d = s.charge.darkCharge;
+    if (p.kind !== "eqe-expected-counts") throw new Error("Fixture requires stationary rates.");
     for (const event of [p, d, s.charge.completenessProfile]) {
       event.startOffsetSecondsFromOpeningReference = w.startOffsetSecondsFromOpeningReference;
       event.endOffsetSecondsFromOpeningReference = w.endOffsetSecondsFromOpeningReference;

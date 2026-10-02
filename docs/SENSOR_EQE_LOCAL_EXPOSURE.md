@@ -86,7 +86,7 @@ capture replay preserves its stored root stamp and pinned paired-file hashes;
 no primitive equations, stochastic seeds or RAW readout arithmetic change.
 
 Remaining #16/#178/#112 work includes committed scene/optics/PSF-to-node origin,
-nonstationary temporal integration, production-stage activation and broader
+production-stage activation and broader
 resolution/editor acceptance. This handoff does not close those tickets.
 
 ## Optical-node producer
@@ -98,5 +98,5 @@ resolution/editor acceptance. This handoff does not close those tickets.
 [`calculateSensorEqeTemporalExposure()`](SENSOR_EQE_TEMPORAL_EXPOSURE.md) reuses
 this adapter's instantaneous steps at every explicit local shutter midpoint.
 It returns a distinct nonstationary photo expectation, with no stationarity
-claim. The existing stationary dark/charge/RAW consumers require a separate
-versioned handoff before they can consume that result.
+claim. The [temporal photo-signal handoff](TEMPORAL_PHOTO_RAW.md), added at API
+0.110.0, constructs a distinct compact record for dark/charge/RAW consumers.

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { parseSensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
 import { RAW_REFERENCE_MAX_NATIVE_SITES } from "./raw-frame-limits.js";
 
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
@@ -8,7 +9,7 @@ import { parseEvidenceList } from "../core/evidence-provenance.js";
 import { parseSimulatedCapture } from "./simulated-capture.js";
 import { createSensorRawFrame, type SensorRawFrameInput, type SensorRawFrame } from "./sensor-raw-frame.js";
 import { composeSensorAccumulatedCharge, parseSensorAccumulatedChargeCompletenessProfile, parseSensorAdditionalStoredChargeComponent,
-  type ComposeSensorAccumulatedChargeInput } from "../sensor/accumulated-charge.js";
+  type ComposeSensorPhotoAccumulatedChargeInput as ComposeSensorAccumulatedChargeInput } from "../sensor/accumulated-charge.js";
 import { assessSensorPhysicalChargeCapacity, parseSensorPhysicalChargeCapacityProfile,
   type SensorPhysicalChargeCapacityProfile } from "../sensor/physical-charge-capacity.js";
 import { simulateSensorChargeRealization, simulateSensorRawCode, parseSensorChargeSamplingProfile,
@@ -19,7 +20,7 @@ import { parseCaptureModeProfile } from "../sensor/capture-mode.js";
 import { parseNativeEffectiveRasterColorSamplingBindingProfile, resolveCaptureModeColorSamplingContributors } from "../sensor/capture-color-sampling-binding.js";
 import { calculateCaptureExposureWindows, type CalculateCaptureExposureWindowsInput, type CaptureExposureWindows } from "../sensor/exposure-window.js";
 
-export const SENSOR_RAW_PRODUCER_SCHEMA_VERSION = "0.2.0" as const;
+export const SENSOR_RAW_PRODUCER_SCHEMA_VERSION = "0.3.0" as const;
 /** Capture noise model identity binds the seed schedule and signed electronic readout behavior. */
 export const SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.2.0" } as const);
 /** One declared EQE/dark/completeness event and explicit readout state per native site. */
@@ -83,7 +84,8 @@ function dense(value: unknown, maximum: number): unknown[] {
 function optionalEvidence(value: unknown): ReturnType<typeof parseEvidenceList> {
   return dense(value, 256).length === 0 ? [] : parseEvidenceList(value, "optionalExposureEvidence");
 }
-function exposureEvidence(value: unknown): ComposeSensorAccumulatedChargeInput["photoSignal"]["componentEvidence"] {
+function exposureEvidence(value: unknown, temporalPhoto?: Record<string, unknown>): ComposeSensorAccumulatedChargeInput["photoSignal"]["componentEvidence"] {
+  if (temporalPhoto !== undefined) return parseSensorEqeTemporalPhotoSignal({ ...temporalPhoto, componentEvidence: value }).componentEvidence;
   const r = fields(value, ["stationarity", "exposureBinding"]);
   const b = fields(r.exposureBinding, ["binding", "colorSamplingProfile", "nominalExposureDuration", "openingBoundary", "closingBoundary"]);
   return { stationarity: parseEvidenceList(r.stationarity, "stationarity"), exposureBinding: {
@@ -99,15 +101,17 @@ const photoFalse = ["timeVaryingSignalIntegrated", "multiFrameSequenceIntegrated
   "readNoiseApplied", "adcQuantizationApplied", "rawCodeValueProduced", "integerPhotonCountSampled", "integerElectronCountSampled", "chargeCalculated", "currentCalculated"];
 function chargeInput(value: unknown): ComposeSensorAccumulatedChargeInput {
   const r = fields(value, ["photoSignal", "darkCharge", "additionalChargeComponents", "completenessProfile"]);
-  const p = fields(r.photoSignal, [...common, ...photoTrue, ...photoFalse, "kind", "stationarityStatus", "integrationMethod",
+  const temporal = r.photoSignal !== null && typeof r.photoSignal === "object" &&
+    (r.photoSignal as Record<string, unknown>).kind === "eqe-temporal-photo-signal";
+  const p = temporal ? parseSensorEqeTemporalPhotoSignal(r.photoSignal) as unknown as Record<string, unknown> : fields(r.photoSignal, [...common, ...photoTrue, ...photoFalse, "kind", "stationarityStatus", "integrationMethod",
     "accumulatedSignalCompleteness", "incidentPhotonRatePerSecond", "expectedGeneratedElectronRatePerSecond", "expectedIncidentPhotonCount", "expectedGeneratedElectronCount"]);
   const darkFalse = ["integerDarkElectronCountSampled", "darkShotNoiseApplied", "darkCurrentCompensationApplied", "photoSignalIncluded",
     "otherChargeIncluded", "physicalFullWellAssessmentAuthorized", "saturationAssessed"];
   const d = fields(r.darkCharge, [...common, ...darkFalse, "darkCurrentProfileId", "operatingTemperatureC", "temperatureModel",
-    "temperatureInterpolationUsed", "darkCurrentElectronsPerSecond", "expectedDarkElectronCount", "countMeaning", "expectationValueOnly", "spatialDarkCurrentNonuniformityModeled"]);
-  if (p.kind !== "eqe-expected-counts" || p.integrationMethod !== "constant-rate-times-local-exposure-duration" ||
+    "temperatureInterpolationUsed", "temporalIntegrationId", "darkCurrentElectronsPerSecond", "expectedDarkElectronCount", "countMeaning", "expectationValueOnly", "spatialDarkCurrentNonuniformityModeled"]);
+  if ((!temporal && (p.kind !== "eqe-expected-counts" || p.integrationMethod !== "constant-rate-times-local-exposure-duration" ||
       p.accumulatedSignalCompleteness !== "photo-signal-only" || (p.stationarityStatus !== "established" && p.stationarityStatus !== "approximation") ||
-      photoTrue.some((k) => p[k] !== true) || photoFalse.some((k) => p[k] !== false) || darkFalse.some((k) => d[k] !== false) ||
+      photoTrue.some((k) => p[k] !== true) || photoFalse.some((k) => p[k] !== false))) || darkFalse.some((k) => d[k] !== false) ||
       d.expectationValueOnly !== true || d.countMeaning !== "expected-thermally-generated-electrons" ||
       typeof d.spatialDarkCurrentNonuniformityModeled !== "boolean" || typeof d.temperatureInterpolationUsed !== "boolean" ||
       (d.temperatureModel !== "fixed-reference-temperature" && d.temperatureModel !== "piecewise-linear-temperature-table")) {
@@ -117,27 +121,27 @@ function chargeInput(value: unknown): ComposeSensorAccumulatedChargeInput {
     throw new InvalidConfigurationError("Fixed-temperature dark result cannot claim temperature interpolation.");
   }
   for (const record of [p, d]) {
-    for (const k of ["colorSamplingProfileId", "channelId", "bindingId", "stationarityProfileId"]) publicId(record[k]);
+    for (const k of ["colorSamplingProfileId", "channelId", "bindingId", temporal ? "temporalIntegrationId" : "stationarityProfileId"]) publicId(record[k]);
     fields(record.site, ["x", "y"]);
     if (record.timeReference !== "first-opening-boundary-phase") throw new InvalidConfigurationError("Unsupported producer time origin.");
   }
   publicId(d.darkCurrentProfileId);
   for (const [record, keys] of [[p, ["incidentPhotonRatePerSecond", "expectedGeneratedElectronRatePerSecond", "expectedIncidentPhotonCount", "expectedGeneratedElectronCount"]],
     [d, ["darkCurrentElectronsPerSecond", "expectedDarkElectronCount"]]] as const) {
-    for (const k of keys) if (typeof record[k] !== "number" || !Number.isFinite(record[k]) || record[k] < 0) throw new InvalidConfigurationError("Invalid expected rates/counts.");
+    for (const k of keys) if (!(temporal && record === p && k.endsWith("RatePerSecond")) && (typeof record[k] !== "number" || !Number.isFinite(record[k]) || record[k] < 0)) throw new InvalidConfigurationError("Invalid expected rates/counts.");
   }
   const duration = p.localExposureDurationSeconds;
   if (typeof duration !== "number" || !Number.isFinite(duration) || duration <= 0 ||
-      p.expectedIncidentPhotonCount !== (p.incidentPhotonRatePerSecond as number)*duration ||
-      p.expectedGeneratedElectronCount !== (p.expectedGeneratedElectronRatePerSecond as number)*duration ||
+      (!temporal && (p.expectedIncidentPhotonCount !== (p.incidentPhotonRatePerSecond as number)*duration ||
+      p.expectedGeneratedElectronCount !== (p.expectedGeneratedElectronRatePerSecond as number)*duration)) ||
       d.expectedDarkElectronCount !== (d.darkCurrentElectronsPerSecond as number)*duration ||
       (p.expectedGeneratedElectronCount as number) > (p.expectedIncidentPhotonCount as number)) {
-    throw new InvalidConfigurationError("Exposure expectations must match their exact constant-rate products and EQE domain.");
+    throw new InvalidConfigurationError("Exposure expectations must match their exact temporal integral or constant-rate products and EQE domain.");
   }
   const e = fields(d.componentEvidence, ["darkCurrent", "siteApproximation", "exposure"]);
-  const charge = { photoSignal: { ...p, componentEvidence: exposureEvidence(p.componentEvidence) },
+  const charge = { photoSignal: { ...p, componentEvidence: exposureEvidence(p.componentEvidence, temporal ? p : undefined) },
     darkCharge: { ...d, componentEvidence: { darkCurrent: parseEvidenceList(e.darkCurrent, "darkCurrent"),
-      siteApproximation: optionalEvidence(e.siteApproximation), exposure: exposureEvidence(e.exposure) } },
+      siteApproximation: optionalEvidence(e.siteApproximation), exposure: exposureEvidence(e.exposure, temporal ? p : undefined) } },
     completenessProfile: parseSensorAccumulatedChargeCompletenessProfile(r.completenessProfile),
     ...(r.additionalChargeComponents === undefined ? {} : { additionalChargeComponents:
       dense(r.additionalChargeComponents, 32).map(parseSensorAdditionalStoredChargeComponent) }) } as unknown as ComposeSensorAccumulatedChargeInput;
