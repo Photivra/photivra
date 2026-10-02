@@ -15,7 +15,11 @@ const channels = ["red", "green", "blue"] as const;
 type Point = { x: number; y: number };
 const radius = Math.hypot(18, 12);
 const raster = { width: 9, height: 9, centerMm: { x: 0, y: 0 }, pitchMm: 3 };
-function setup(tier: GenericEquipmentTier) {
+type CorrectionResult = ReturnType<typeof calculateLensCorrectedCapture>["value"];
+function setup(tier: GenericEquipmentTier): {
+  asset: (typeof catalog)[number]["lens"]["matchedReference"];
+  samples: number[]; render: (enabled: boolean, shift?: number) => CorrectionResult;
+} {
   const asset = catalog.find((p) => p.tier === tier)!;
   const state = { bodyId: `photivra-${tier}-body`, bodyVersion: "1.0.0",
     lensId: `photivra-${tier}-prime`, lensVersion: "1.0.0",
@@ -32,7 +36,7 @@ function setup(tier: GenericEquipmentTier) {
   const capture = { state, captureId: "tier-edge-reference",
     noiseRealizationId: "tier-fixed-noise", timeSeconds: base.exposure.shutterSeconds,
     raster, channels: { red: samples, green: samples, blue: samples } };
-  const render = (enabled: boolean, shift = 0) => calculateLensCorrectedCapture({
+  const render = (enabled: boolean, shift = 0): CorrectionResult => calculateLensCorrectedCapture({
     plan: resolveLensCorrectionPlan({ profile: profiles.correction, state,
       selections: { geometry: enabled ? "on" : "off", "lateral-ca": enabled ? "on" : "off", gain: enabled ? "on" : "off" },
       outputKind: "processed", selectionKind: "camera-selectable" }).value,
@@ -98,7 +102,7 @@ describe("tier correction residual and sampled-edge acceptance", () => {
     const offsets = [a.lateralCaK1Offset, 0, -a.lateralCaK1Offset];
     let mixedStep = false;
     for (const [c, channel] of channels.entries()) {
-      const map = (p: Point) => radial(radial(p, offsets[c]! * a.correctionCaFraction), a.distortionK1);
+      const map = (p: Point): Point => radial(radial(p, offsets[c]! * a.correctionCaFraction), a.distortionK1);
       const plan = on.samplingPlans[channel]!;
       expect(plan.requiresPrefilter).toBe(false);
       for (let i = 0; i < 81; i++) {
@@ -141,7 +145,7 @@ describe("tier correction residual and sampled-edge acceptance", () => {
       const plan = result.samplingPlans[channel]!, rays: Point[] = [];
       for (let y = crop.y; y < crop.y + crop.height; y++) for (let x = crop.x; x < crop.x + crop.width; x++)
         rays.push(radial(radial(pixel(y * 9 + x, 6), offsets[c]! * a.correctionCaFraction), a.distortionK1));
-      const angle = (mm: number) => Math.atan(mm / base.expected.projection.imageDistanceMm) * 180 / Math.PI;
+      const angle = (mm: number): number => Math.atan(mm / base.expected.projection.imageDistanceMm) * 180 / Math.PI;
       // Each channel's reported envelope uses its own valid crop; the joint RGB crop is narrower or equal.
       const envelope = plan.retainedSampleRayEnvelopeDegrees!;
       expect(Math.min(...rays.map((p) => angle(p.x)))).toBeGreaterThanOrEqual(envelope.minX - 1e-10);
