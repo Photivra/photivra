@@ -91,6 +91,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 - [temporal scene-to-sensor EQE composition](docs/SCENE_SENSOR_TEMPORAL_EXPOSURE.md), applying optics and response validity independently at every local shutter midpoint;
 - [local sampled-PSF sensor quadrature](docs/SENSOR_PSF_QUADRATURE.md), applying wavelength-resolved normalized PSF shape with explicit native/image axes and complete source support;
 - [sensor-to-environment projection queries](docs/SENSOR_ENVIRONMENT_QUERY.md), deriving scene request directions from physical optical support and analytic camera rotation;
+- [executed environment capture to native RAW](docs/ENVIRONMENT_RAW_CAPTURE.md), joining provider calls, optional local PSF, temporal EQE and existing seeded RAW generation with paired export handoff;
 - [temporal EQE photo signal to RAW](docs/TEMPORAL_PHOTO_RAW.md), carrying validated changing-light midpoint counts through exact-event dark/accumulated charge, native RAW and paired files;
 - [irradiance-to-EQE local exposure composition](docs/SENSOR_EQE_LOCAL_EXPOSURE.md), validating explicit physical node samples through response applicability/range and stationary local integration before the existing RAW producer;
 - [generic equipment exposure capabilities](docs/USAGE.md#generic-equipment-exposure-capabilities), separating generic body/lens capability facts from selected camera state and resolving focal-length-specific aperture plus shutter/ISO envelopes for downstream #99 control policy;
@@ -264,7 +265,7 @@ The calling application can then use those results while keeping the underlying 
 ## Status
 
 - Repository package version: `0.6.0`
-- Engine API contract: `0.113.0`
+- Engine API contract: `0.114.0`
 - Versioned generic tier reference assets: [GENERIC_TIER_PRESETS.md](docs/GENERIC_TIER_PRESETS.md).
 - Composed POC simulation API contract: `0.20.0`
 - Stability: pre-1.0 / proof of concept

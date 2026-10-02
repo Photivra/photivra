@@ -1386,3 +1386,8 @@ export { createSensorEqeTemporalPhotoSignal, parseSensorEqeTemporalPhotoSignal,
   type SensorEqeTemporalPhotoSignal, type SensorEqePhotoExposure } from "./sensor/temporal-photo-signal.js";
 
 export type { SensorTemporalDarkCurrentCharge, SensorPhotoDarkCurrentCharge } from "./sensor/dark-current.js";
+
+export { calculateEnvironmentSensorPhotoSignal, type CalculateEnvironmentSensorPhotoSignalInput,
+  type EnvironmentSensorPhotoSignal, type EnvironmentRadianceEvaluator } from "./sensor/environment-photo-signal.js";
+export { simulateEnvironmentSensorRawFrame, type SimulateEnvironmentSensorRawFrameInput,
+  type EnvironmentSensorRawFrame } from "./capture/environment-raw-producer.js";

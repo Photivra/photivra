@@ -149,6 +149,17 @@ Provider/projection/PSF execution and production activation remain open; 25/32 i
 
 ## Remaining upstream handoff into the existing producer
 
+[`simulateEnvironmentSensorRawFrame()`](../src/capture/environment-raw-producer.ts)
+now joins generated environment queries and actual supplied provider calls through
+optional local PSF, temporal EQE/photo/dark and the existing native RAW producer.
+[`calculateEnvironmentSensorPhotoSignal()`](../src/sensor/environment-photo-signal.ts)
+exposes the site path independently. [Execution contract](ENVIRONMENT_RAW_CAPTURE.md)
+and [acceptance](../test/environment-raw-integration.test.ts) retain bounded native
+coverage, exact frame/event commitments and paired export from actual realized
+codes. Provider invocation is established, but physical scene transport,
+visibility, general production activation and full-resolution/editor acceptance
+remain open. V1 stays 25/32.
+
 [`calculateSensorEnvironmentRadianceQuery()`](../src/optics/sensor-environment-query.ts)
 derives an environment query from physical native sensor support using ideal
 focus-aware projection and analytic inverse camera rotation. Its explicit

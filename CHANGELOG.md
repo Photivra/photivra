@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased — engine API 0.113.0
+## Unreleased — engine API 0.114.0
+
+- Add `calculateEnvironmentSensorPhotoSignal()` and `simulateEnvironmentSensorRawFrame()`: generate and execute bounded environment queries at each actual local shutter midpoint, wavelength and optional complete PSF support tap, then reuse optics, instantaneous EQE, temporal photo/dark, completeness, capacity, seeded noise and ADC. Bind full native frame geometry, optics, scene identity and event exactly. Frozen provider requests, owned parsed results and aggregate evaluation limits fail closed. Resulting RAW feeds existing paired DNG/JPEG export. Invocation is established without claiming physical provider transport/visibility, calibrated accuracy, full-resolution support or production-plan activation. See `docs/ENVIRONMENT_RAW_CAPTURE.md`. Partial #16/#178 integration; V1 remains 25/32.
+
+## Engine API 0.113.0
 
 - Add `calculateSensorEnvironmentRadianceQuery()`: derive an environment request from native sensor optical support with explicit +Y-down/+Y-up conversion, focus-aware ideal projection, existing analytic inverse camera rotation and outgoing-toward-camera direction convention. Explicit opening-boundary clock mapping preserves time semantics. Ray projection is calculated; intersections, visibility, provider transport and production activation remain absent. See `docs/SENSOR_ENVIRONMENT_QUERY.md`. Partial #16/#178 integration.
 
