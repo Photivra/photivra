@@ -343,7 +343,7 @@ When the package is installed directly from a Git repository using normal npm li
 
 ## Development
 
-Development and Node-only tooling require Node.js 22.13 or newer. CI verifies Node.js 22.13 and Node.js 24; both are LTS release lines as of this documentation audit.
+Development and Node-only tooling require Node.js 22.13 or newer. CI verifies Node.js 22.13 (minimum), patched 22 and 24 LTS, and 26 Current under [the runtime policy](NODE_SUPPORT.md).
 
 The reproducible npm workflow uses the committed lockfile:
 

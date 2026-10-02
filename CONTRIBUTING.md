@@ -14,7 +14,7 @@ npm run build
 npm run pack:check
 ```
 
-CI verifies maintained Node.js 22 (including minimum 22.13) and 24; prefer patched Node 24 under [the runtime policy](NODE_SUPPORT.md). For release preparation also run `npm run docs:check` and `npm run release:consumer-check` after build. The generated API reference must match root exports; regenerate with `node scripts/generate-api-reference.mjs` when public contracts change.
+CI verifies maintained Node.js 22 (including minimum 22.13), 24, and Node.js 26 Current; prefer patched Node 24 under [the runtime policy](NODE_SUPPORT.md). For release preparation also run `npm run docs:check` and `npm run release:consumer-check` after build. The generated API reference must match root exports; regenerate with `node scripts/generate-api-reference.mjs` when public contracts change.
 
 ## Before submitting
 

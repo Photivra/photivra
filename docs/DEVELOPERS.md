@@ -17,7 +17,7 @@ console.log(horizontal.value.degrees); // approximately 39.60, ideal infinity-fo
 console.log(horizontal.provenance); // read assumptions/status with the value
 ```
 
-The root is browser-safe. Supported Node execution/tooling is Node 22.13+ within the maintained 22 line and the maintained 24 line; prefer patched Node 24. The broad manifest minimum does not qualify Node Current/EOL lines. A browser backend must supply the documented ES APIs (including `structuredClone`, typed arrays and Web Crypto where used); a browser-safe import graph is not a promise about every browser version or rendering speed. See [runtime policy](../NODE_SUPPORT.md).
+The root is browser-safe. Supported Node execution/tooling is Node 22.13+ within the maintained 22 line, the maintained 24 line, and Node 26 Current; prefer patched Node 24. The broad manifest minimum does not qualify untested or EOL lines. A browser backend must supply the documented ES APIs (including `structuredClone`, typed arrays and Web Crypto where used); a browser-safe import graph is not a promise about every browser version or rendering speed. See [runtime policy](../NODE_SUPPORT.md).
 
 Primitive calculations normally return `CalculationResult<T>` with `value`, `provenance` and optional `quality`. Parsers return validated values; plans/snapshots return their independently versioned records; assessments return explicit blockers; paired export returns a Promise because hashing is asynchronous. Do not infer calibrated accuracy from successful parsing, a complete stage graph, a generic tier name or deterministic replay.
 
