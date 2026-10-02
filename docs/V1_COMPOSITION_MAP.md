@@ -133,8 +133,9 @@ at every local shutter midpoint. [Acceptance](../test/eqe-temporal-exposure.test
 checks SI counts, stationary equivalence, quadratic convergence, rolling offsets
 and rejection of an out-of-range bright instant even when its average is valid.
 See [SENSOR_EQE_TEMPORAL_EXPOSURE.md](SENSOR_EQE_TEMPORAL_EXPOSURE.md). Source
-transport/PSF remain declared, and this distinct nonstationary result requires
-an explicit future charge/dark/RAW contract handoff. No production activation or
+transport/PSF remain declared. The explicit [temporal photo-signal handoff](TEMPORAL_PHOTO_RAW.md)
+now connects independently validated midpoint expectations to dark/charge/RAW and
+paired files, with [global/rolling acceptance](../test/temporal-photo-raw.test.ts). No production activation or
 umbrella closure is claimed.
 
 ## Remaining upstream handoff into the existing producer
@@ -153,7 +154,7 @@ adapters above implement declared static scene/optics nodes and stationary senso
 | Sensor stack and photosite support | `sensor/optical-stack.ts`, `sampling-aperture.ts`, `spatial-sampling-quadrature.ts`, `spectral-quadrature.ts` | Destination CFA channel stays fixed across spatial nodes; area and response scope are explicit; AA redistributes support without silently applying response twice |
 | Spatial/spectral reduction | `reduceSensorSpatioSpectralIrradiance()` | Exactly identified Cartesian-product node values in W/m²/nm, declared wavelength basis/measure and geometric aperture area; coverage alone is not detector validity |
 | Validity and EQE rate | `assessSensorResponseApplicationCompatibility()`, `assessSensorResponseOperatingRange()`, `calculateSensorEqeElectronRate()` | Match source plane, profile/channel/site/area/reference conditions; preserve per-bin operating validity before rate conversion; an A/W current result cannot be substituted for EQE electrons |
-| Local exposure expectation | `bindSensorRateToLocalExposure()` and `integrateStationarySensorRateOverLocalExposure()` | Bind the correct local opening/closing window and establish stationarity separately before using rate × duration; nonstationary light/motion needs explicit temporal integration |
+| Local exposure expectation | `bindSensorRateToLocalExposure()` and `integrateStationarySensorRateOverLocalExposure()` | Bind the correct local opening/closing window and establish stationarity separately before using rate × duration; nonstationary light/motion uses the bounded explicit temporal photo-signal handoff |
 | Dark and incremental charge | Existing dark-current, accumulated-charge completeness and capacity primitives | Preserve operating temperature/window; dark and other stored charge remain separate; no total-charge/full-well authorization from photo-only expectation |
 | RAW realization | Existing `simulateSensorRawFrame()` | Feed engine-computed photo/dark exposure inputs without changing the native per-site seed schedule, noise/readout model or code semantics; retain origin limitations honestly |
 | Processed/file consumers | Existing reconstruction, sensor-color, corrected-SDR and paired exporter | Same attached RAW supplies JPEG; basis/WB once, crop/orientation/support and physical-versus-display clipping stay inspectable |

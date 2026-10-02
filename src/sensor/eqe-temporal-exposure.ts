@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { sumTemporalEqeRateExpectations } from "./temporal-eqe-sum.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import { calculateSensorEqeLocalRate, type CalculateSensorEqeLocalExposureInput } from "./eqe-local-exposure.js";
@@ -78,8 +79,6 @@ export function calculateSensorEqeTemporalExposure(
     byIndex.set(sample.temporalSampleIndex, sample);
   }
   const samples: SensorEqeTemporalExposure["samples"][number][] = [];
-  let photonCount = 0, electronCount = 0;
-  let photonCorrection = 0, electronCorrection = 0;
   let previousTime = -Infinity;
   for (let index = 0; index < count; index++) {
     const sample = byIndex.get(index)!;
@@ -94,19 +93,11 @@ export function calculateSensorEqeTemporalExposure(
       throw new InvalidScientificInputError("Temporal sample must match its representable local shutter midpoint exactly.");
     }
     previousTime = time;
-    const photons = stages.electronRate.value.incidentPhotonRatePerSecond * measure;
-    const electrons = stages.electronRate.value.expectedGeneratedElectronRatePerSecond * measure;
-    const adjustedPhotons = photons - photonCorrection;
-    const nextPhotons = photonCount + adjustedPhotons;
-    photonCorrection = (nextPhotons - photonCount) - adjustedPhotons;
-    photonCount = nextPhotons;
-    const adjustedElectrons = electrons - electronCorrection;
-    const nextElectrons = electronCount + adjustedElectrons;
-    electronCorrection = (nextElectrons - electronCount) - adjustedElectrons;
-    electronCount = nextElectrons;
     samples.push({ temporalSampleIndex: index, timeSecondsFromOpeningReference: time,
       integrationMeasureSeconds: measure, timeAverageWeight: 1 / count, stages });
   }
+  const { photonCount, electronCount } = sumTemporalEqeRateExpectations(
+    samples.map(s => s.stages.electronRate.value), samples[0]!.integrationMeasureSeconds);
   const binding = samples[0]!.stages.exposureBinding.value;
   return approximationResult({ kind: "eqe-temporal-quadrature-expected-counts",
     colorSamplingProfileId: binding.colorSamplingProfileId, channelId: binding.channelId, site: { ...binding.site },

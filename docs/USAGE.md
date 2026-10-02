@@ -2798,7 +2798,7 @@ Physical full-well capacity and camera saturation capacity must remain separate 
 
 ## Dark-current charge
 
-Use `calculateSensorDarkCurrentCharge()` only with an EQE expected-count exposure result. The current path models **pre-compensation thermally generated electrons** in e⁻/s and integrates that rate over the exact local exposure duration already established by the temporal pipeline.
+Use `calculateSensorDarkCurrentCharge()` with a stationary EQE expected-count exposure result or the validated compact [temporal photo signal](TEMPORAL_PHOTO_RAW.md). Temporal dark charge retains the exact temporal event identity without a stationarity ID. The current path models **pre-compensation thermally generated electrons** in e⁻/s and integrates that rate over the exact local exposure duration already established by the temporal pipeline.
 
 Photivra deliberately does not impose one universal dark-current temperature law. A dark-current profile may provide either:
 

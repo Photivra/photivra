@@ -11,7 +11,7 @@ import {
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import type {
-  SensorAccumulatedChargeComposition
+  SensorPhotoAccumulatedChargeComposition as SensorAccumulatedChargeComposition
 } from "./accumulated-charge.js";
 import type {
   SensorSpectralResponseScientificStatus,

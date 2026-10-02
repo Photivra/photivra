@@ -10,10 +10,12 @@ import {
   parseEvidenceList,
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
+import type { SensorEqeExposureIntegration } from "./constant-rate-temporal-integration.js";
+import { parseSensorEqeTemporalPhotoSignal } from "./temporal-photo-signal.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import type {
-  SensorEqeExposureIntegration
-} from "./constant-rate-temporal-integration.js";
+  SensorEqePhotoExposure, SensorEqeTemporalPhotoSignal
+} from "./temporal-photo-signal.js";
 import type {
   SensorSpectralResponseScientificStatus,
   SensorSpectralResponseUncertainty
@@ -79,9 +81,9 @@ export interface SensorDarkCurrentProfile {
     boolean;
 }
 
-export interface CalculateSensorDarkCurrentChargeInput {
+export interface CalculateSensorDarkCurrentChargeInput<Exposure extends SensorEqePhotoExposure = SensorEqeExposureIntegration> {
   exposure:
-    SensorEqeExposureIntegration;
+    Exposure;
   darkCurrentProfile:
     SensorDarkCurrentProfile;
   operatingTemperatureC: number;
@@ -97,6 +99,7 @@ export interface SensorDarkCurrentCharge {
   };
   bindingId: string;
   stationarityProfileId: string;
+  temporalIntegrationId?: never;
   timeReference:
     "first-opening-boundary-phase";
   startOffsetSecondsFromOpeningReference:
@@ -138,6 +141,14 @@ export interface SensorDarkCurrentCharge {
       SensorEqeExposureIntegration["componentEvidence"];
   };
 }
+
+/** Dark charge shares the exact temporal photo event, without a stationarity ID. */
+export type SensorTemporalDarkCurrentCharge = Omit<SensorDarkCurrentCharge, "stationarityProfileId" | "temporalIntegrationId" | "componentEvidence"> & {
+  stationarityProfileId?: never;
+  temporalIntegrationId: string;
+  componentEvidence: Omit<SensorDarkCurrentCharge["componentEvidence"], "exposure"> & { exposure: SensorEqeTemporalPhotoSignal["componentEvidence"] };
+};
+export type SensorPhotoDarkCurrentCharge = SensorDarkCurrentCharge | SensorTemporalDarkCurrentCharge;
 
 function requireRecord(
   value: unknown,
@@ -671,11 +682,11 @@ function resolveDarkCurrentRate(
 
 function validateExposure(
   exposure:
-    SensorEqeExposureIntegration
+    SensorEqePhotoExposure
 ): void {
+  if (exposure.kind === "eqe-temporal-photo-signal") parseSensorEqeTemporalPhotoSignal(exposure);
   if (
-    exposure.kind !==
-      "eqe-expected-counts" ||
+    (exposure.kind !== "eqe-expected-counts" && exposure.kind !== "eqe-temporal-photo-signal") ||
     exposure.temporalIntegrationApplied !==
       true ||
     exposure.exposureDurationApplied !==
@@ -712,9 +723,18 @@ function validateExposure(
 }
 
 export function calculateSensorDarkCurrentCharge(
+  input: Omit<CalculateSensorDarkCurrentChargeInput, "exposure"> & { exposure: SensorEqeExposureIntegration }
+): CalculationResult<SensorDarkCurrentCharge>;
+export function calculateSensorDarkCurrentCharge(
+  input: Omit<CalculateSensorDarkCurrentChargeInput, "exposure"> & { exposure: SensorEqeTemporalPhotoSignal }
+): CalculationResult<SensorTemporalDarkCurrentCharge>;
+export function calculateSensorDarkCurrentCharge(
+  input: CalculateSensorDarkCurrentChargeInput<SensorEqePhotoExposure>
+): CalculationResult<SensorPhotoDarkCurrentCharge>;
+export function calculateSensorDarkCurrentCharge(
   input:
-    CalculateSensorDarkCurrentChargeInput
-): CalculationResult<SensorDarkCurrentCharge> {
+    CalculateSensorDarkCurrentChargeInput<SensorEqePhotoExposure>
+): CalculationResult<SensorPhotoDarkCurrentCharge> {
   validateExposure(input.exposure);
   const profile =
     parseSensorDarkCurrentProfile(
@@ -770,7 +790,7 @@ export function calculateSensorDarkCurrentCharge(
   }
 
   const result:
-    SensorDarkCurrentCharge = {
+    SensorPhotoDarkCurrentCharge = {
       darkCurrentProfileId:
         profile.profileId,
       colorSamplingProfileId:
@@ -783,9 +803,9 @@ export function calculateSensorDarkCurrentCharge(
       },
       bindingId:
         input.exposure.bindingId,
-      stationarityProfileId:
-        input.exposure
-          .stationarityProfileId,
+      ...(input.exposure.kind === "eqe-temporal-photo-signal"
+        ? { temporalIntegrationId: input.exposure.temporalIntegrationId }
+        : { stationarityProfileId: input.exposure.stationarityProfileId }),
       timeReference:
         input.exposure.timeReference,
       startOffsetSecondsFromOpeningReference:
@@ -836,7 +856,7 @@ export function calculateSensorDarkCurrentCharge(
           input.exposure
             .componentEvidence
       }
-    };
+    } as SensorPhotoDarkCurrentCharge;
 
   const assumptions = [
     "Dark current is modeled as pre-compensation thermally generated electron rate in electrons per second.",
@@ -853,13 +873,13 @@ export function calculateSensorDarkCurrentCharge(
     ? calculatedResult(
         result,
         "sensor-dark-current-charge",
-        "1.0.0",
+        input.exposure.kind === "eqe-temporal-photo-signal" ? "1.1.0" : "1.0.0",
         assumptions
       )
     : approximationResult(
         result,
         "sensor-dark-current-charge",
-        "1.0.0",
+        input.exposure.kind === "eqe-temporal-photo-signal" ? "1.1.0" : "1.0.0",
         [
           ...assumptions,
           ...(profile

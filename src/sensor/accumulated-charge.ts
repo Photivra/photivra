@@ -10,12 +10,14 @@ import {
   parseEvidenceList,
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
+import { parseSensorEqeTemporalPhotoSignal } from "./temporal-photo-signal.js";
+import type { SensorEqeExposureIntegration } from "./constant-rate-temporal-integration.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import type {
-  SensorEqeExposureIntegration
-} from "./constant-rate-temporal-integration.js";
+  SensorEqePhotoExposure, SensorEqeTemporalPhotoSignal
+} from "./temporal-photo-signal.js";
 import type {
-  SensorDarkCurrentCharge
+  SensorPhotoDarkCurrentCharge, SensorDarkCurrentCharge, SensorTemporalDarkCurrentCharge
 } from "./dark-current.js";
 import type {
   SensorSpectralResponseScientificStatus,
@@ -87,18 +89,26 @@ export interface SensorAccumulatedChargeCompletenessProfile {
   limitation?: string;
 }
 
-export interface ComposeSensorAccumulatedChargeInput {
+export interface ComposeSensorAccumulatedChargeInput<
+  Photo extends SensorEqePhotoExposure = SensorEqeExposureIntegration,
+  Dark extends SensorPhotoDarkCurrentCharge = SensorDarkCurrentCharge
+> {
   photoSignal:
-    SensorEqeExposureIntegration;
+    Photo;
   darkCharge:
-    SensorDarkCurrentCharge;
+    Dark;
   additionalChargeComponents?:
     readonly SensorAdditionalStoredChargeComponent[];
   completenessProfile:
     SensorAccumulatedChargeCompletenessProfile;
 }
 
-export interface SensorAccumulatedChargeComposition {
+export type ComposeSensorPhotoAccumulatedChargeInput = ComposeSensorAccumulatedChargeInput<SensorEqePhotoExposure, SensorPhotoDarkCurrentCharge>;
+
+export interface SensorAccumulatedChargeComposition<
+  Photo extends SensorEqePhotoExposure = SensorEqeExposureIntegration,
+  Dark extends SensorPhotoDarkCurrentCharge = SensorDarkCurrentCharge
+> {
   completenessProfileId: string;
   colorSamplingProfileId: string;
   channelId: string;
@@ -160,11 +170,13 @@ export interface SensorAccumulatedChargeComposition {
     completeness:
       readonly EvidenceProvenance[];
     photoSignal:
-      SensorEqeExposureIntegration["componentEvidence"];
+      Photo["componentEvidence"];
     darkCurrent:
-      SensorDarkCurrentCharge["componentEvidence"];
+      Dark["componentEvidence"];
   };
 }
+
+export type SensorPhotoAccumulatedChargeComposition = SensorAccumulatedChargeComposition<SensorEqePhotoExposure, SensorPhotoDarkCurrentCharge>;
 
 interface CompensatedSum {
   sum: number;
@@ -642,11 +654,11 @@ function sameWindow(
 
 function validatePhoto(
   photo:
-    SensorEqeExposureIntegration
+    SensorEqePhotoExposure
 ): void {
+  if (photo.kind === "eqe-temporal-photo-signal") parseSensorEqeTemporalPhotoSignal(photo);
   if (
-    photo.kind !==
-      "eqe-expected-counts" ||
+    (photo.kind !== "eqe-expected-counts" && photo.kind !== "eqe-temporal-photo-signal") ||
     photo.temporalIntegrationApplied !==
       true ||
     photo.accumulatedSignalCompleteness !==
@@ -677,9 +689,9 @@ function validatePhoto(
 
 function validateDarkBinding(
   photo:
-    SensorEqeExposureIntegration,
+    SensorEqePhotoExposure,
   dark:
-    SensorDarkCurrentCharge
+    SensorPhotoDarkCurrentCharge
 ): void {
   if (
     dark.colorSamplingProfileId !==
@@ -689,8 +701,9 @@ function validateDarkBinding(
     !sameSite(dark.site, photo.site) ||
     dark.bindingId !==
       photo.bindingId ||
-    dark.stationarityProfileId !==
-      photo.stationarityProfileId ||
+    (photo.kind === "eqe-temporal-photo-signal"
+      ? dark.stationarityProfileId !== undefined || dark.temporalIntegrationId !== photo.temporalIntegrationId
+      : dark.temporalIntegrationId !== undefined || dark.stationarityProfileId !== photo.stationarityProfileId) ||
     dark.timeReference !==
       photo.timeReference ||
     !sameWindow(
@@ -727,7 +740,7 @@ function validateComponentBinding(
   component:
     SensorAdditionalStoredChargeComponent,
   photo:
-    SensorEqeExposureIntegration
+    SensorEqePhotoExposure
 ): void {
   if (
     component.colorSamplingProfileId !==
@@ -756,9 +769,21 @@ function validateComponentBinding(
 }
 
 export function composeSensorAccumulatedCharge(
-  input:
-    ComposeSensorAccumulatedChargeInput
-): CalculationResult<SensorAccumulatedChargeComposition> {
+  input: Omit<ComposeSensorAccumulatedChargeInput, "photoSignal" | "darkCharge"> & {
+    photoSignal: SensorEqeExposureIntegration; darkCharge: SensorDarkCurrentCharge;
+  }
+): CalculationResult<SensorAccumulatedChargeComposition>;
+export function composeSensorAccumulatedCharge(
+  input: Omit<ComposeSensorAccumulatedChargeInput, "photoSignal" | "darkCharge"> & {
+    photoSignal: SensorEqeTemporalPhotoSignal; darkCharge: SensorTemporalDarkCurrentCharge;
+  }
+): CalculationResult<SensorAccumulatedChargeComposition<SensorEqeTemporalPhotoSignal, SensorTemporalDarkCurrentCharge>>;
+export function composeSensorAccumulatedCharge(
+  input: ComposeSensorPhotoAccumulatedChargeInput
+): CalculationResult<SensorPhotoAccumulatedChargeComposition>;
+export function composeSensorAccumulatedCharge(
+  input: ComposeSensorPhotoAccumulatedChargeInput
+): CalculationResult<SensorPhotoAccumulatedChargeComposition> {
   validatePhoto(input.photoSignal);
   validateDarkBinding(
     input.photoSignal,
@@ -874,7 +899,7 @@ export function composeSensorAccumulatedCharge(
   }
 
   const result:
-    SensorAccumulatedChargeComposition = {
+    SensorPhotoAccumulatedChargeComposition = {
       completenessProfileId:
         profile.profileId,
       colorSamplingProfileId:
@@ -975,13 +1000,13 @@ export function composeSensorAccumulatedCharge(
     ? calculatedResult(
         result,
         "sensor-accumulated-charge-composition",
-        "1.0.0",
+        input.photoSignal.kind === "eqe-temporal-photo-signal" ? "1.1.0" : "1.0.0",
         assumptions
       )
     : approximationResult(
         result,
         "sensor-accumulated-charge-composition",
-        "1.0.0",
+        input.photoSignal.kind === "eqe-temporal-photo-signal" ? "1.1.0" : "1.0.0",
         [
           ...assumptions,
           profile.limitation!

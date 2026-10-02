@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  InvalidConfigurationError, parseSimulatedCapture, parseSensorRawFrameInput,
+  InvalidConfigurationError, parseSensorEqeTemporalPhotoSignal, parseSimulatedCapture, parseSensorRawFrameInput,
   parseRawFrameReconstructionInput, parseCaptureExportMetadataInput,
   parsePhotographicExportInput, parseSensorRawProducerInput, parseLinearCaptureEncoding,
   parseCaptureColorTransformInput, parseSdrRenderingProfile, parseCaptureSdrInput,
@@ -13,6 +13,7 @@ import { loadSensorRawFrameInput } from "./helpers/sensor-raw-frame-fixture.js";
 import { loadPhotographicExportInput } from "./helpers/photographic-export-fixture.js";
 
 const boundaries: [string, (value: unknown) => unknown, string][] = [
+  ["temporal photo", parseSensorEqeTemporalPhotoSignal, "Invalid temporal photo-signal fields."],
   ["capture", parseSimulatedCapture, "Invalid or non-allowlisted capture metadata."],
   ["RAW attachment", parseSensorRawFrameInput, "Invalid RAW-frame fields."],
   ["RAW reconstruction", parseRawFrameReconstructionInput, "Invalid or non-allowlisted RAW reconstruction fields."],

@@ -3,15 +3,17 @@
 This review addresses the remaining repeated validation mechanics in defect
 #178. It does not close production integration, performance, editor acceptance
 or final release preparation. The review follows main `e5a6ce2` and the earlier
-freeze, canonical JSON and sensor-color ownership changes.
+freeze, canonical JSON and sensor-color ownership changes. It also includes
+the temporal photo-signal handoff from draft PR #192, on which this draft is
+stacked for combined acceptance.
 
 ## Shared mechanics
 
 `src/core/record-validation.ts` now owns the equivalent record/own-enumerable-key
 allowlist check used by capture, RAW attachment/producer/reconstruction, export
 metadata, photographic export, linear encoding, capture color and SDR/correction
-boundaries. It also owns the identical 1–128 character ASCII public opaque ID
-grammar used by capture, RAW, exporter, producer, color and SDR boundaries.
+boundaries, plus the temporal photo-signal boundary. It also owns the identical 1–128 character ASCII public opaque ID
+grammar used by capture, RAW, exporter, producer, color, SDR and temporal photo-signal boundaries.
 
 Domain wrappers retain their original diagnostics. Domains still own field
 lists, required fields, enum choices, evidence, numerical validity, copying,
