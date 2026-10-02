@@ -6,4 +6,4 @@
  * This is distinct from the npm package version and all subsystem/schema
  * contract versions.
  */
-export const ENGINE_API_VERSION = "0.105.0" as const;
+export const ENGINE_API_VERSION = "0.106.0" as const;
