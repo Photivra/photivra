@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Strict allowlisted encoding parser; no default clipping/rounding policy is invented.
+ * Quantizes one immutable inline float plane without changing its capture data. Mapping: blackCode +
+ * (sample-blackValue)/(referenceWhiteValue-blackValue) * (referenceWhiteCode-blackCode). Clips only
+ * under explicit policy, then rounds.
+ * @see docs/LINEAR_CAPTURE_ENCODING.md for equations, coordinate/unit conventions, blockers and
+ * support limits.
+ */
+
 import { requireAllowlistedRecord, isPublicOpaqueId } from "../core/record-validation.js";
 import { calculatedResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";

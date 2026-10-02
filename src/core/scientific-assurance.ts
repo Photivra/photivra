@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Composes scientific-status, evidence and uncertainty semantics without inventing a numeric aggregate
+ * uncertainty. Required downstream status is bounded by the weakest required input. Component
+ * evidence/uncertainty is preserved verbatim after validation.
+ * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import {
   validateCalculationQuality,
   type CalculationQuality
@@ -111,6 +119,13 @@ export type ComposedScientificUncertaintyStatus =
       limitation: string;
     };
 
+/**
+ * Cross-stage status and retained evidence for one declared scientific result.
+ * Required incomplete/approximate children constrain the aggregate; deterministic
+ * processing cannot upgrade approximation to calibration. Uncertainty components
+ * remain independently identified unless an explicit mathematical propagation model
+ * justifies a combination. A count of successful stages is not an accuracy bound.
+ */
 export interface ComposedScientificAssurance {
   version:
     typeof SCIENTIFIC_ASSURANCE_CONTRACT_VERSION;

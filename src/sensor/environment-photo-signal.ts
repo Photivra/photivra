@@ -1,5 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Preflight all optical, spatial, spectral and temporal support into an internal owned execution plan
+ * without invoking provider code. Planning checks complete spatial/spectral/temporal support before
+ * invoking supplied synchronous radiance code. Queries use explicit environment directions, vacuum/air
+ * wavelength and opening-reference seconds. Optical throughput, optional local PSF and typed EQE
+ * produce photo expectations; callback invocation does not verify transport, visibility or
+ * calibration.
+ * Internal executor consumes a completed bounded geometric plan; returns no partial success on
+ * failure.
+ * @see docs/ENVIRONMENT_RAW_CAPTURE.md for equations, coordinate/unit conventions, blockers and
+ * support limits.
+ */
+
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { freezeOwnedData } from "../core/owned-data.js";
 import { requirePublicOpaqueId } from "../core/record-validation.js";
@@ -83,6 +97,19 @@ interface EnvironmentPhotoPlan {
       query: ReturnType<typeof calculateSensorEnvironmentRadianceQuery> }[];
   }[] }[];
 }
+/**
+ * Preflight all optical, spatial, spectral and temporal support into an internal owned execution plan
+ * without invoking provider code.
+ *
+ * Planning checks complete spatial/spectral/temporal support before invoking supplied synchronous
+ * radiance code. Queries use explicit environment directions, vacuum/air wavelength and
+ * opening-reference seconds. Optical throughput, optional local PSF and typed EQE produce photo
+ * expectations; callback invocation does not verify transport, visibility or calibration.
+ * @param input - Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance">. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns EnvironmentPhotoPlan. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance">): EnvironmentPhotoPlan {
   const owned = structuredClone(input);
   requirePublicOpaqueId(owned.temporalIntegrationId, "Environment integration requires a public identity.");

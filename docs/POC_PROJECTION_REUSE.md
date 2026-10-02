@@ -1,5 +1,7 @@
 # Request-local defocus projection reuse: #45
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 The measured candidate reuses the focus-plane image distance already calculated
 inside `simulatePocCamera()` for its subject and defocus sweep. It is a small
 private optimization against merged main
@@ -119,4 +121,4 @@ new third-party material. This tooling is Node-only and outside the public root.
 
 ## Final V1 remeasurement
 
-[Final V1 performance disposition](V1_PERFORMANCE_DISPOSITION.md) records current main #204, fresh paired timing/equivalence, preparation/memory profiles and dense executed environment-to-RAW evidence. It proposes retaining the merged bounded optimizations with no further abstraction, pending owner review/DCO and merge. Earlier candidate and pending-remeasurement statements above are historical.
+[Final V1 performance disposition](V1_PERFORMANCE_DISPOSITION.md) records current main #204, fresh paired timing/equivalence, preparation/memory profiles and dense executed environment-to-RAW evidence. PR #205 merged the final reviewed/signed no-further-change disposition; PR #206 merged final conformance. The measured engine commit remains the historical benchmark identity. Earlier candidate and pending-remeasurement statements above are historical.

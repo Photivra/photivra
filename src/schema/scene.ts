@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
+ * The legacy SceneConfiguration describes the POC subject and representative constant motion. It
+ * is not a spectral scene-radiance provider, surface visibility solver or physical illumination
+ * transport model. Keep that simpler request contract separate from production scene/provider
+ * bindings.
+ * @see docs/RELEASE_1_0.md and the corresponding domain guide.
+ */
+
+/**
  * Three-dimensional value in scene/world coordinates.
  */
 export interface Vector3 {

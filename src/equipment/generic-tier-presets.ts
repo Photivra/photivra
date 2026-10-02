@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Exact-version catalog; no hidden latest alias and no sensor-size default.
+ * Match lens tier by default; cross-tier combinations remain normal supported selections.
+ * @see docs/GENERIC_TIER_PRESETS.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { freezeOwnedData } from "../core/owned-data.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { choice, record, parseOpticalProfileState, type OpticalProfileState, type GenericOpticalEvidence } from "../optics/profile-contract.js";

@@ -1,5 +1,7 @@
 # Stray light and digital lens correction foundations
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 Issues #114, #118 and #117 add standalone browser-safe primitives. They do not enable a production-plan stage, change the POC, or supply a calibrated camera/lens preset. The public root API advances from 0.94.0 to 0.95.0; each new profile/prepared-map schema is 0.1.0. Package, POC, production-plan and PSF versions are unchanged. This branch incorporates merged polygon-diffraction PR #157 and reconciles the root API increment with that predecessor.
 
 ## Applicability and evidence

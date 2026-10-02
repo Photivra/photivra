@@ -1,5 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Resolves local capture exposure windows from independent opening and closing boundary schedules. The
+ * returned time basis is seconds from the first opening-boundary phase. This is intentionally not the
+ * existing camera-rotation API's global "exposure start" semantic; a later integration layer must bind
+ * those time bases explicitly. The mechanism identifies whether each boundary is mechanical or
+ * electronic, but does not supply any traversal duration or direction. Every non-simultaneous timing
+ * value and direction is caller-declared with evidence. The first model supports simultaneous
+ * boundaries and uniform-linear single-axis native-sensor scans only. It does not model curtain
+ * acceleration, segmented/nonlinear electronic schedules, flash/flicker, rolling-shutter image
+ * distortion, shutter shock, or EFCS-specific pupil/bokeh behavior.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult

@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses untrusted descriptive sensor-architecture metadata. Schema 0.2.0 remains accepted and returns
+ * a 0.2.0 profile unchanged in semantic identity. Schema 0.3.0 adds optional evidence-backed CMOS/CCD
+ * technology-family metadata. Unknown facts should be omitted instead of inferred. The parser
+ * validates structure, supported vocabulary, and field-level evidence only; it does not verify that a
+ * cited real-world claim is factually true and technology family does not activate hidden physics.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   parseEvidenceList,
   type EvidenceBackedFact,

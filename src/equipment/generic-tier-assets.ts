@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Owned synthetic catalog data defines separate body capabilities/readout and lens
+ * optical/correction profiles. Tier selection changes explicit profile values, never adds a
+ * universal quality multiplier. CFA/collection geometry and actual capture raster remain
+ * caller-owned; numeric data is not measured calibration.
+ * @see docs/RELEASE_1_0.md and the corresponding domain guide.
+ */
+
 import type { EvidenceBackedFact, EvidenceProvenance } from "../core/evidence-provenance.js";
 import { parseGenericBodyExposureCapabilityProfile, parseGenericLensExposureCapabilityProfile,
   type GenericBodyExposureCapabilityProfile, type GenericLensExposureCapabilityProfile } from "./exposure-capabilities.js";

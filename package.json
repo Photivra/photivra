@@ -1,6 +1,6 @@
 {
   "name": "@photivra/engine",
-  "version": "0.6.0",
+  "version": "1.0.0",
   "private": false,
   "description": "Scientific TypeScript engine for camera optics, exposure, focus, motion, sensor sampling, diffraction, and digital imaging calculations.",
   "type": "module",
@@ -38,7 +38,13 @@
     "CITATION.cff",
     "LICENSE",
     "NOTICE",
-    "docs"
+    "docs",
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "NODE_SUPPORT.md",
+    "DCO",
+    "THIRD_PARTY.md"
   ],
   "repository": {
     "type": "git",
@@ -70,7 +76,9 @@
     "check:license-headers": "node scripts/check-license-headers.mjs",
     "check:identity": "node scripts/check-project-identity.mjs",
     "bench:image-formation": "npm run build && npm run bench:image-formation:built",
-    "bench:image-formation:built": "node --expose-gc scripts/benchmark-image-formation.mjs"
+    "bench:image-formation:built": "node --expose-gc scripts/benchmark-image-formation.mjs",
+    "docs:check": "node scripts/check-release-docs.mjs",
+    "release:consumer-check": "node scripts/check-release-consumer.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

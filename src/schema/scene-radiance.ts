@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses material-response metadata consumed by a scene-radiance provider. RGB/PBR data is
+ * approximation-only. Spectral data describes a wavelength-preserving provider input and does not
+ * itself calculate a BSDF, scene radiance, fluorescence, emission, volumetrics, or polarization.
+ * Returns the conservative material fidelity represented by a profile.
+ * @see docs/SCENE_RADIANCE_AND_ILLUMINATION.md for equations, coordinate/unit conventions, blockers
+ * and support limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

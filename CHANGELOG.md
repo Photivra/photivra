@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased — engine API 0.116.0
+## 1.0.0 candidate — publication pending owner tag
+
+- Prepare the stable public distribution after all 32 V1 feature/science items and defect #178 are reviewed and merged. Package/lock/citation become 1.0.0; root contract 0.116.0 and every independent model/schema/POC/plan identity remain unchanged. No scientific arithmetic, seed, fixture hash, exported signature or accepted execution envelope changes.
+- Reconcile human/agent/source guidance, actual bounded production integration and closed tier/performance/export/conformance acceptance. Add developer capability navigation, exact root-export reference, packed executable examples, strict documentation/consumer checks and exact owner tag/publish procedure.
+- Preserve synthetic/calibration/visibility/PSF/resolution limits and the recorded external-editor/hash/build limitations. Review compatibility/migration and owner handoff in `docs/RELEASE_1_0.md`; this entry does not certify npm publication.
+
+## Historical development — engine API 0.116.0
+
+The following entries record introduction-time work and version identities. Older pending/draft/issue-count statements are historical checkpoints; the 1.0 release contract and current domain guides own present status.
 
 - Complete the proposed final #131 scientific conformance disposition: shared-reference relative metering and exposure control through independently predicted photon/dark counts, committed production RAW/processing and paired output; controlled light/compensation/time/orientation/render variants, exact replay and fail-closed bindings. Reuse merged tier/performance evidence with explicit synthetic limits; no runtime/API/asset/dependency change. See `docs/SCIENTIFIC_CONFORMANCE.md`.
 

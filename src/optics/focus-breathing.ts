@@ -1,5 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Applies a caller-declared focus-breathing projection scale to the ideal Gaussian thin-lens
+ * projection for one focus state. Photivra does not infer the scale from focal length, focus distance,
+ * lens identity, or marketing data. A value of 1 exactly preserves the current thin-lens projection.
+ * This is a generic approximation of focus-dependent projection/magnification, not a calibrated
+ * real-lens model. The physical focal length remains authoritative and unchanged.
+ * Calculates one-axis field of view for the generic declared-scale focus- breathing projection and
+ * reports the corresponding ideal thin-lens FOV. A breathingProjectionScale of 1 reproduces the
+ * current focus-aware thin-lens field-of-view result exactly.
+ * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult

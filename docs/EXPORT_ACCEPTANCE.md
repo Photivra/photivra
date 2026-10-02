@@ -1,5 +1,7 @@
 # Simulated Sensor RAW DNG / JPEG acceptance
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 This record separates implemented export behavior, reproducible independent
 checks and external application acceptance for #16. The files are synthetic
 Photivra captures, never photographs from a physical commercial camera.
@@ -16,9 +18,7 @@ not the evidence used here for producer-origin acceptance.
 
 Provider transport, visibility, calibration and complete production-stage
 activation are explicitly unverified. Source evaluation and authoritative
-sensor-code production are executed; these are different claims. Broader
-physical integration remains #178 and tier/science ownership, not an invented
-property of a DNG file. Child diagnostics remain accessible in the engine result.
+sensor-code production are executed; these are different claims. Bounded production integration is now merged in #178; provider transport and unsupported combinations remain explicit limits, not properties established by a DNG file. Child diagnostics remain accessible in the engine result.
 
 The public export API requires explicit profiles, WB/rendering policy, identity,
 workflow and event time. It copies validated data before asynchronous hashing.
@@ -119,27 +119,15 @@ claiming high-resolution processing or silently raising safety budgets.
 | As-shot WB metadata does not rewrite RAW; virtual color interpretation is explicit | `photographic-export-correction.test.ts`, same-code manual-WB case and LibRaw neutral-gain interpretation | Implemented / approximate color basis |
 | Deterministic fixture/code/critical metadata acceptance | Committed manifests, hashes and independent TIFF/JPEG/XML/LibRaw verification | Checked |
 | Size/memory boundary and optional runtime/package surface | Existing 4,096-native-site envelope, unsupported-size records, browser/package gates | Explicit supported limits |
-| Adobe RAW interpretation plus independent RAW reader | LibRaw passes; Adobe application unavailable in this environment | **External Adobe check pending** |
-| JPEG independent decoder/editor/browser acceptance | Pillow decoder passes; Adobe/editor and browser review not recorded | **External editor/browser check pending** |
-| Provenance/license review | Existing Apache/DNG notices, owned fixtures and no new dependency; AI-assisted contribution | **Owner review/DCO pending** |
-| Accurate simulated-RAW documentation | This record and existing metadata/export/frame documentation | Prepared for owner review |
+| Adobe RAW interpretation plus independent RAW reader | LibRaw all five pairs; owner Lightroom 9.6 screenshots cover four orientations/as-shot and usable exposure/WB | Reviewed bounded acceptance |
+| JPEG independent decoder/editor/browser acceptance | Pillow all five pairs; owner Photoshop 2026/Chrome landscape screenshots | Reviewed bounded acceptance |
+| Provenance/license review | Existing Apache/DNG notices, owned fixtures and no new dependency; AI-assisted contribution | Owner approved and signed PR #201 |
+| Accurate simulated-RAW documentation | This record and existing metadata/export/frame documentation | Reviewed and merged; reconciled for 1.0 |
 
-## External checklist
+## Recorded owner external acceptance — 2026-10-02
 
-Download the five pairs from the repository or use the generated directory.
-Record application/version and the tested file hashes in
-`external-review.template.json`. In Adobe Camera Raw/Lightroom:
+[Reviewed PR #201](https://github.com/Photivra/photivra/pull/201) records owner-supplied screenshots: Lightroom 9.6 (build 20260923-1659-a32d844) opens landscape DNG at 72×48, both portraits at 48×72 and inverted landscape at 72×48. Exposure +2.34 brightens the landscape; WB at 6500 K/Tint −78 visibly changes the midtone band. The manual-WB thumbnail uses As Shot and shows a distinct warm band; Adobe's displayed 50,000 K/Tint +28 is its interpretation of synthetic gains, not measured color-temperature accuracy. Photoshop 2026 and Chrome render the landscape JPEG at 72×48.
 
-1. Open the DNGs successfully. Verify Photivra identity, native 72×48 data and
-   displayed 72×48 landscape / 48×72 portrait frames without format errors.
-2. Verify manual-WB interpretation differs as declared, and exposure/WB controls
-   remain usable. Native codes must remain unmodified. Do not compare Adobe's
-   default pixels to Photivra's JPEG as if their processing algorithms were equal.
-3. Open the JPEGs in an image editor and browser. Verify decoding, dimensions and
-   orientation, readable Photivra metadata and no unsupported-image errors.
+Independent automated decoding covers all five pairs. User-Mac file hashes and exact Photoshop/Chrome builds were not supplied/reverified; editor/browser screenshots cover the landscape JPEG, not every JPEG variant. These limits are preserved. The committed independent report and `external-review.template.json` describe the earlier automated-only checkpoint; template booleans are not new acceptance evidence. PR #201 merged as `8f5259c4d6b40746173d7842554d416f0138ee27` after owner review/DCO and merge authorization, closing #16. The release audit does not regenerate scientific fixtures, claim additional editor tests or install/buy commercial tooling.
 
-This is a required external evidence gate, not a request to install/buy Adobe
-software. If no authorized Adobe environment is available, #16 stays open until
-that requirement is fulfilled or the owner explicitly revises its scope.
-Implementation work and available automated checks can proceed unattended;
-substantive review and contribution-specific DCO precede merge.
+For a future export/model change, rerun the independent reader and relevant Adobe/editor/browser checks against that exact candidate and record hashes/builds. Runtime arithmetic/export schemas remain unchanged in this release preparation.

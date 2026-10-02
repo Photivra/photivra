@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Transforms a continuous native raster edge-coordinate point into oriented capture coordinates. Pixel
+ * centers can be represented with +0.5 offsets.
+ * Transforms an oriented raster edge-coordinate point back to native coordinates.
+ * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculateFieldOfViewBounds
 } from "../camera/field-of-view.js";

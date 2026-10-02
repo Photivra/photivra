@@ -4,7 +4,7 @@ Please do not open a public issue containing vulnerability details.
 
 ## Supported versions
 
-Photivra is pre-1.0. Until a formal support policy exists, security fixes are made against the current development/release line; older snapshots should not be assumed to receive fixes.
+The 1.0.0 candidate establishes the 1.x root-package compatibility line. Security fixes target the current maintained development/release line; older snapshots and pre-1.0 releases should not be assumed to receive fixes. Candidate preparation does not establish npm publication or a new support service.
 
 ## Reporting a vulnerability
 

@@ -1,5 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Internal shared node binding; domain callers retain value validation and equations.
+ * Reduces explicitly supplied sensor-plane spectral irradiance E_lambda(x,y) over the Cartesian
+ * product of an existing spatial quadrature and spectral quadrature. The supplied density unit is
+ * W/m^2/nm and wavelengthMeasureNanometers is d-lambda in nm, so their direct product has units W/m^2.
+ * Do not convert d-lambda to metres unless the spectral-density denominator is converted consistently.
+ * Spatial area integration uses the spatial quadrature's geometric area measures converted from square
+ * micrometres to square metres. The result is geometric-aperture incident radiant flux only; geometric
+ * area is not upgraded to an effective radiometric collection area. This reducer deliberately stops
+ * before sensor response. The spectral plan was derived from a specific response channel so its
+ * support/knots are useful, but QE, A/W responsivity and channel-filter transmission are not applied
+ * here. Response-scope/source-plane matching therefore remains an explicit later composition step.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult

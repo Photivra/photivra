@@ -1,5 +1,7 @@
 # Image-Formation Contract
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 Photivra's image-formation contract defines **scientific ownership, coordinate semantics, and dependency/coupling boundaries** for current and future camera effects.
 
 It is not a claim that every stage is implemented, and it is not a requirement that renderers execute one literal serial filter chain.
@@ -139,7 +141,7 @@ The production planner:
 - records modeled-zero, omitted, unsupported, and blocked states explicitly;
 - keeps renderer capability declaration separate from scientific stage ownership.
 
-Current plan schema `0.6.0` supports the #85 → #110 physical sample path plus temporal timing/readout and optional rotation-quadrature diagnostics. An explicitly committed RAW processing attachment additionally executes reconstruction, orientation, crop and display processing. Required upstream PSF/sensor/charge/noise/ADC composition remains blocked; temporal diagnostics alone do not integrate radiance. See [processed output](PROCESSED_OUTPUT.md) for the attachment boundary. See [V1 composition and consumer map](V1_COMPOSITION_MAP.md) for current consumers and required handoffs.
+Current plan schema `0.7.0` supports the physical sample path, attached-RAW processing and the bounded [executed environment capture](PRODUCTION_ENVIRONMENT_CAPTURE.md). Complete declared environment input can execute all fourteen graph stages through RAW and optional output. Sample-only and attachment-only routes preserve their missing upstream blockers; temporal geometry alone does not integrate radiance. See [processed output](PROCESSED_OUTPUT.md) for the attachment boundary. See [V1 composition and consumer map](V1_COMPOSITION_MAP.md) for current consumers and required handoffs.
 
 See [Production Image-Formation Plan](PRODUCTION_COMPOSITION.md).
 
@@ -154,9 +156,11 @@ For geometric warps:
 - scene depth/occlusion order is preserved across warps;
 - renderer backend choice may change implementation/fidelity, not model semantics.
 
-## Reserved sensor ordering
+## Sensor ordering and standalone boundaries
 
-The contract reserves a future sensor path without claiming it is implemented:
+The static ordering registry 0.4.0 retains broad foundation/reserved maturity labels; these are not route-specific capability checks. Plan 0.7.0 records actual bounded execution and blockers. The standalone layers below explain each primitive’s ownership and do not negate the separate executed environment route.
+
+The contract owns this sensor ordering. Individual descriptive profiles do not execute the whole path; the bounded environment production route explicitly composes supported terms:
 
 ```text
 optical PSF
@@ -179,7 +183,7 @@ The standalone color-sampling topology profile now describes monochrome, arbitra
 
 The additive native-effective-raster/color-site binding now provides the missing structural bridge between capture-mode effective samples and monochrome/periodic topology. It requires evidence for the exact native raster relationship and grouped-mode phase, preserves full-frame absolute CFA phase, and reports compact pre-reconstruction source regions/channel counts. This still does **not** implement the reserved photosite/CFA sampling stage: no signal weights, spectral response, photons/electrons, RAW values, aliasing, or reconstruction are calculated.
 
-The standalone sensor optical-stack profile now makes the upstream stack boundary explicit without claiming a complete stack response. Ordered physical component roles and microlens presence are descriptive. Effective anti-aliasing response is separately modeled as unknown, absent, present-but-unresolved, or a normalized native-physical point-splitting approximation. The resolver exposes only that AA spatial term; cover/filter transmission/refraction, microlens angular/collection behavior, wavelength/field/polarization dependence, and convolution with the lens PSF remain future work. Consequently the `sensor-optical-stack` image-formation stage remains reserved rather than being promoted to a complete implementation.
+The standalone sensor optical-stack profile now makes the upstream stack boundary explicit without claiming a complete stack response. Ordered physical component roles and microlens presence are descriptive. Effective anti-aliasing response is separately modeled as unknown, absent, present-but-unresolved, or a normalized native-physical point-splitting approximation. The resolver exposes only that AA spatial term; cover/filter transmission/refraction, microlens angular/collection behavior, wavelength/field/polarization dependence, and convolution with the lens PSF remain future work. The profile alone is not a complete optical-stack simulation. The production environment route consumes the supported explicit spatial/response bindings and records approximation limits.
 
 The standalone sensor sampling-aperture profile now supplies explicit native-physical registration for the color-site center lattice and a first geometric sensitive-region footprint. The rectangle is a normalized spatial-area averaging support plus a separately reported geometric area/fraction; it is **not** QE or radiometric collection efficiency. AA point splitting, microlens redirection, diffusion/crosstalk, spectral response, photons/electrons, and RAW values are still absent. This advances the geometry needed by the reserved `photosite-cfa-sampling` stage without claiming that stage is fully implemented.
 
@@ -233,7 +237,7 @@ Do not infer capabilities from a stage merely because it is present in the contr
 
 ## Test Fixture relationship
 
-The private Test Fixture may provide deterministic browser regression targets, but it is not the scientific source of truth for the open engine.
+External consumer fixtures may provide browser regression targets; engine implementation and independent conformance remain the scientific source of truth.
 
 Engine analytical/invariant tests establish model correctness. Test Fixture images provide secondary integration and renderer evidence.
 

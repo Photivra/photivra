@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Freezes one metering result into the stable relative exposure target consumed by downstream
+ * camera-control policy. The target copies the meter snapshot by value. Future scene/light changes do
+ * not mutate this object, which is the engine seam needed for AE-lock behavior.
+ * Sets an absolute exposure-compensation value on a frozen meter target. Compensation is always
+ * re-derived from the uncompensated base target, so repeated UI updates cannot accidentally accumulate
+ * floating-point/control drift. Positive compensation requests more exposure.
+ * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import { InvalidScientificInputError } from "../core/validation.js";
 import type {
   ExposureMeteringResult

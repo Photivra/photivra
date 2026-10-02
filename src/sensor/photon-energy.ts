@@ -1,5 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Photon energy uses
+ * exact SI h and c with vacuum wavelength. Air wavelength requires an exact-wavelength sourced phase
+ * index and atmosphere compatibility; lambdaVacuum = n*lambdaAir. Retained refractive-index
+ * uncertainty is not an automatically propagated photon-energy uncertainty.
+ * Convert a valid vacuum wavelength, or explicitly atmosphere-bound air wavelength, into optical
+ * frequency and photon energy using exact SI constants. Photon energy uses exact SI h and c with
+ * vacuum wavelength. Air wavelength requires an exact-wavelength sourced phase index and atmosphere
+ * compatibility; lambdaVacuum = n*lambdaAir. Retained refractive-index uncertainty is not an
+ * automatically propagated photon-energy uncertainty.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult
@@ -361,6 +377,18 @@ function conditionsMatch(
   return true;
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Photon energy uses exact SI h and c with vacuum wavelength. Air wavelength requires an
+ * exact-wavelength sourced phase index and atmosphere compatibility; lambdaVacuum = n*lambdaAir.
+ * Retained refractive-index uncertainty is not an automatically propagated photon-energy uncertainty.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns SourcedAirPhaseRefractiveIndex. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseSourcedAirPhaseRefractiveIndex(
   value: unknown
 ): SourcedAirPhaseRefractiveIndex {
@@ -457,6 +485,18 @@ export function parseSourcedAirPhaseRefractiveIndex(
   };
 }
 
+/**
+ * Convert a valid vacuum wavelength, or explicitly atmosphere-bound air wavelength, into optical
+ * frequency and photon energy using exact SI constants.
+ *
+ * Photon energy uses exact SI h and c with vacuum wavelength. Air wavelength requires an
+ * exact-wavelength sourced phase index and atmosphere compatibility; lambdaVacuum = n*lambdaAir.
+ * Retained refractive-index uncertainty is not an automatically propagated photon-energy uncertainty.
+ * @param input - CalculatePhotonEnergyFromWavelengthInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<PhotonEnergyFromWavelength>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function calculatePhotonEnergyFromWavelength(
   input:
     CalculatePhotonEnergyFromWavelengthInput

@@ -1,11 +1,13 @@
 # Same-RAW reconstruction handoff (#16C)
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 See [Reference RAW frame compatibility](RAW_FRAME_ENVELOPE.md) for stage-specific
 limits, full-native counting and parser preflight behavior.
 
 `resolveRawFrameReconstruction()` derives a bounded contiguous native-region virtual-sensor-channel plane from a committed `SensorRawFrame`. It delegates every output pixel to the existing #14 `resolveSensorRawReconstruction()`, using only exact attached RAW samples. Independent float planes in the attached capture are retained as history/metadata and **never provide reconstructed values**.
 
-This is a dependent draft on #166, not a claim that #166 is merged. Handoff schema 0.1.0 and proposed root API 0.99.0 are additive; reconcile parallel root versions in actual merge order. Capture/production/POC/package semantics are unchanged.
+This adapter and its RAW attachment predecessor are merged. Handoff schema 0.1.0 is retained; root API 0.99.0 was its historical introduction identity. Package 1.0.0 retains current root 0.116.0 and independent capture/production/POC contracts.
 
 Inputs are `rawFrame`, `region: { x, y, width, height }`, and `phaseProfiles: [{ phaseX, phaseY, profile }]`. A region is a positive integer half-open rectangle in the full native raster, not crop-local or oriented output coordinates. RAW-frame flags, dimensions, full native coverage, exact site/channel/code normalization and IDs are revalidated through #166.
 

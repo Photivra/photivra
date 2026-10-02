@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Calculates the projected size of a fronto-parallel object plane. Without focusDistanceM, the
+ * function preserves ideal pinhole projection using nominal focal length. With focusDistanceM, it
+ * projects to the ideal thin-lens sensor plane selected by that focus distance.
+ * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult

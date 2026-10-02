@@ -1,5 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. A/W response
+ * converts per-bin radiant power to quasi-static detector-terminal current magnitude. Electrical
+ * bias/load applicability is explicit. This is not EQE, electron rate, transimpedance voltage or RAW;
+ * rapidly varying current requires a separate temporal detector-response model.
+ * Integrate per-wavelength A/W times radiant-power contributions to steady-state current magnitude
+ * with explicit electrical applicability. A/W response converts per-bin radiant power to quasi-static
+ * detector-terminal current magnitude. Electrical bias/load applicability is explicit. This is not
+ * EQE, electron rate, transimpedance voltage or RAW; rapidly varying current requires a separate
+ * temporal detector-response model.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult
@@ -495,6 +511,18 @@ function parseConditionPolicy(
   );
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * A/W response converts per-bin radiant power to quasi-static detector-terminal current magnitude.
+ * Electrical bias/load applicability is explicit. This is not EQE, electron rate, transimpedance
+ * voltage or RAW; rapidly varying current requires a separate temporal detector-response model.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns SensorResponsivityElectricalApplicabilityProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseSensorResponsivityElectricalApplicabilityProfile(
   value: unknown
 ): SensorResponsivityElectricalApplicabilityProfile {
@@ -1100,6 +1128,18 @@ function validateElectricalBinding(
   };
 }
 
+/**
+ * Integrate per-wavelength A/W times radiant-power contributions to steady-state current magnitude
+ * with explicit electrical applicability.
+ *
+ * A/W response converts per-bin radiant power to quasi-static detector-terminal current magnitude.
+ * Electrical bias/load applicability is explicit. This is not EQE, electron rate, transimpedance
+ * voltage or RAW; rapidly varying current requires a separate temporal detector-response model.
+ * @param input - CalculateSensorResponsivityPhotocurrentInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<SensorResponsivityPhotocurrent>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function calculateSensorResponsivityPhotocurrent(
   input:
     CalculateSensorResponsivityPhotocurrentInput

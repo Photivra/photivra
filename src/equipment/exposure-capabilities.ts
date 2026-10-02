@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses a generic Photivra body exposure-capability profile. This is capability metadata only. ISO
+ * values do not imply noise/gain topology, and shutter-duration capability does not imply one shutter
+ * mechanism or sensor-readout schedule.
+ * Parses a generic Photivra lens exposure-capability profile. "Widest" is expressed as the smallest
+ * available f-number, avoiding the ambiguous phrases minimum/maximum aperture.
+ * @see docs/GENERIC_TIER_PRESETS.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

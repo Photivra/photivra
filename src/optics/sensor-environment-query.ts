@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Generate an environment radiance request from physical sensor support using the existing focus-aware
+ * ideal projection and analytic inverse camera rotation. Native Y is explicitly inverted; the provider
+ * direction is opposite the exposure-start look ray. No scene intersection, radiance or renderer
+ * executes.
+ * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import { calculateInverseCameraRotationImageMapping,

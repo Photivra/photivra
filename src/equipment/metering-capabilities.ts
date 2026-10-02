@@ -1,5 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses generic body metering capability metadata. This profile declares which engine-owned metering
+ * profiles/modes a generic body can select. It deliberately does not duplicate target/calibration
+ * values from those metering profiles.
+ * Checks whether one engine metering profile is selectable on a generic body. Calibration/target
+ * policy remains authoritative in the metering profile and is never copied into equipment capability
+ * metadata.
+ * @see docs/GENERIC_TIER_PRESETS.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

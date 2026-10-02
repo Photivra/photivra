@@ -1,5 +1,7 @@
 # Temporal EQE photo signal to native RAW
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 Root API **0.110.0** adds `createSensorEqeTemporalPhotoSignal()` and
 `parseSensorEqeTemporalPhotoSignal()`. RAW producer result schema is **0.3.0**.
 The compact `eqe-temporal-photo-signal` record enters the existing dark-current,
@@ -73,7 +75,7 @@ model **2.0.0**, package/POC/production/RAW-frame schemas and stochastic seed
 schedule are unchanged. New capture provenance includes the new root stamp;
 historical capture replay and pinned paired-file hashes retain their stored stamp.
 
-[`test/temporal-photo-raw.test.ts`](../test/temporal-photo-raw.test.ts) independently
+[`test/temporal-photo-raw.test.ts`](https://github.com/Photivra/photivra/blob/main/test/temporal-photo-raw.test.ts) independently
 calculates SI photoelectron counts from two changing irradiance instants and
 checks dark/total counts, global/rolling events, deterministic RAW, exact DNG strip
 codes and JPEG lineage from the same frame. Malformed records and stale downstream

@@ -1,5 +1,7 @@
 # Capture export metadata foundation (#16B)
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 `createCaptureExportMetadataPair()` is a browser-safe, deterministic **semantic metadata projection**, not an image exporter or proof of RAW/JPEG pixel derivation. Both future writers consume its single shared object; each resource has a distinct caller-owned document UUID and saved-incarnation UUID. `imageDataPairing = "not-verified"` prevents metadata agreement being mistaken for image agreement.
 
 The existing committed capture must already have a non-nil RFC-variant UUID CaptureID. Existing opaque-ID captures remain valid for all earlier APIs, but must be created with a UUID to enter this new export boundary; the exporter does not silently replace their identity. UUIDs normalize to lowercase. All five IDs (capture, two resources, two incarnations) must differ, including after case normalization. The engine neither creates randomness nor proves global uniqueness. Preserve document IDs across reserialization of a resource; give a new saved incarnation its own instance ID. Reuse the capture's ID for the same shutter event. New shutter events require caller-owned new capture IDs.

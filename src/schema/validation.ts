@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses and validates an untrusted camera configuration.
+ * Parses and validates an untrusted renderer-independent scene definition.
+ * @see docs/SCENE_RADIANCE_AND_ILLUMINATION.md for equations, coordinate/unit conventions, blockers
+ * and support limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 export { InvalidConfigurationError } from "../core/configuration-error.js";
 

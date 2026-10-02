@@ -1,5 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Response application
+ * checks exact profile/channel, source plane, incident-area basis, spatial uniformity and reference
+ * conditions. Structural compatibility alone does not authorize signal conversion; per-bin
+ * operating-range validity and the typed EQE/A-W path are separate gates.
+ * Assess whether exact source-plane, area, profile/channel and reference-condition bindings permit the
+ * selected response application path. Response application checks exact profile/channel, source plane,
+ * incident-area basis, spatial uniformity and reference conditions. Structural compatibility alone
+ * does not authorize signal conversion; per-bin operating-range validity and the typed EQE/A-W path
+ * are separate gates.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult
@@ -369,6 +385,18 @@ function parseReferenceConditionPolicy(
   );
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Response application checks exact profile/channel, source plane, incident-area basis, spatial
+ * uniformity and reference conditions. Structural compatibility alone does not authorize signal
+ * conversion; per-bin operating-range validity and the typed EQE/A-W path are separate gates.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns SensorResponseApplicationProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseSensorResponseApplicationProfile(
   value: unknown
 ): SensorResponseApplicationProfile {
@@ -567,6 +595,18 @@ function validateReductionBoundary(
     .geometricApertureAreaSquareMicrometers;
 }
 
+/**
+ * Assess whether exact source-plane, area, profile/channel and reference-condition bindings permit the
+ * selected response application path.
+ *
+ * Response application checks exact profile/channel, source plane, incident-area basis, spatial
+ * uniformity and reference conditions. Structural compatibility alone does not authorize signal
+ * conversion; per-bin operating-range validity and the typed EQE/A-W path are separate gates.
+ * @param input - AssessSensorResponseApplicationCompatibilityInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<SensorResponseApplicationCompatibilityAssessment>. Read structured blockers before consuming an authorization.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function assessSensorResponseApplicationCompatibility(
   input:
     AssessSensorResponseApplicationCompatibilityInput

@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
+ * Module boundary and integration notes.
+ * Returns the public image-formation ownership/order contract. The result is descriptive metadata, not
+ * a renderer implementation or an assertion that every reserved stage is currently available.
+ * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
+/**
  * Version of the public image-formation ordering contract.
  *
  * This version is independent from package, root-engine, and composed-POC

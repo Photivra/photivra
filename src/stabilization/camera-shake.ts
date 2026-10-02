@@ -1,5 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Estimates sensor-plane blur from a controlled constant-angular-velocity handheld shake profile, with
+ * optional equivalent stabilization attenuation. With focusDistanceM supplied, angular motion is
+ * projected using the same ideal thin-lens sensor-plane distance as the other focus-aware projection
+ * primitives; otherwise nominal focal length preserves the prior approximation. The optical projection
+ * is physically calculated, but mapping a stabilization rating in stops to residual angular motion by
+ * 2^-stops is an educational approximation. It is not a CIPA DC-011 measurement or a real-camera
+ * rating.
+ * @see docs/STABILIZATION.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult

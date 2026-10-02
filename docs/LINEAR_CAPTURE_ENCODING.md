@@ -1,5 +1,7 @@
 # Deterministic linear capture encoding: #15C
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 `calculateLinearCaptureEncoding()` produces format-neutral unsigned 16-bit linear codes from one bounded inline `SimulatedCapture` plane. The exact plane/image-state identity is mandatory. The master stays unchanged; color, WB application, source reference value and upstream capture-saturation history accompany the encoded data. It neither chooses a file format nor invents a color conversion.
 
 Encoding schema `0.1.0` uses one uniform channel mapping. Let B be `blackValue`, b be `blackCode`, R be the source plane's `referenceWhiteValue`, and r be `referenceWhiteCode`. R must exceed B, codes satisfy 0 ≤ b < r ≤ 65535, and all derived ranges/scales must be finite and representable. The continuous code is `b + (sample-B)/(R-B)*(r-b)`; scale is `(r-b)/(R-B)` codes per relative source unit. Same normalization/scale on every channel preserves linear color ratios after subtracting the declared black baseline.

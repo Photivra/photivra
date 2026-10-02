@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Calculates dimensions remaining after a centered, same-aspect-ratio crop.
+ * @see docs/PROCESSED_OUTPUT.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult

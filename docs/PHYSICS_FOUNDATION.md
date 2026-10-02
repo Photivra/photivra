@@ -1,5 +1,7 @@
 # Physics Foundation
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 Photivra starts with analytical models that can be independently tested and whose assumptions can be stated explicitly.
 
 ## Implemented models
@@ -377,7 +379,7 @@ Good/Better/Best labels are convenience mappings to full signal-chain profile id
 
 Absolute scene luminance or relative exposure alone is not enough to derive a defensible photon count.
 
-Before any future composed photon simulation, Photivra requires an explicit prerequisite package covering:
+Before a composed photon simulation, Photivra requires an explicit prerequisite package covering:
 
 - scene spectral radiance or a documented spectral approximation;
 - optical transmission;
@@ -409,7 +411,7 @@ The contract intentionally avoids describing all image formation as independent 
 
 Current analytical primitives remain valid and separately named. Adding a broader stage must not silently reinterpret existing focal length, defocus, diffraction, motion, crop, or sensor-sampling outputs.
 
-Reserved sensor stages in the contract are ordering placeholders only; they do not establish OLPF, CFA, photon, ADC, or reconstruction capabilities.
+The static ordering contract retains broad foundation/reserved metadata. Those labels alone do not establish execution. Production plan 0.7.0 separately records actual bounded environment-route execution through sampling, photons, charge, ADC and reconstruction; broader unsupported models remain blocked.
 
 ## Source provenance
 

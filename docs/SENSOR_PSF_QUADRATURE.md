@@ -1,5 +1,7 @@
 # Local sampled-PSF sensor quadrature
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 `calculateSensorPsfIrradianceQuadrature()` applies the existing #113 sampled PSF
 resolver to incident spectral irradiance at each pre-AA sensor quadrature point.
 It is an explicitly declared **destination-local shift-invariant approximation**,
@@ -85,4 +87,4 @@ coordinate/time/basis/stage/model/evidence drift and work overflow reject.
 Root API **0.111.0 → 0.112.0**, model 0.1.0. No existing public contract is
 reinterpreted; package/POC/production/RAW/noise versions are unchanged. Historical
 capture/file replay keeps its stored API stamp. No dependency, third-party asset,
-network access or cost is introduced. #16/#178/#112 remain open; V1 stays 25/32.
+network access or cost is introduced. At this introduction checkpoint, #16/#178/#112 were open and V1 was 25/32. They are now reviewed/merged; final conformance is complete.

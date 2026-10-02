@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses a generic educational/product exposure program line. A program line is control policy, not
+ * physics. Nodes declare desired aperture/shutter pairs at explicit optical-exposure stops relative to
+ * the resolver's reference exposure. Resolution later verifies that every node is physically
+ * consistent with that reference and current equipment capability.
+ * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

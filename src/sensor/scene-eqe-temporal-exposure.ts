@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Compose declared scene radiance through paraxial optics and instantaneous EQE at every exact local
+ * shutter midpoint. Light is never averaged before response validity. No projection, renderer, PSF,
+ * charge/noise or production stage executes.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import { calculateSceneToSensorIrradianceQuadrature,

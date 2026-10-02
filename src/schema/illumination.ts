@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses a renderer-independent scene illumination profile. The result describes illumination sources
+ * only. It does not calculate outgoing scene radiance, apply material response, evaluate visibility or
+ * indirect transport, or authorize downstream photon/electron claims.
+ * @see docs/SCENE_RADIANCE_AND_ILLUMINATION.md for equations, coordinate/unit conventions, blockers
+ * and support limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

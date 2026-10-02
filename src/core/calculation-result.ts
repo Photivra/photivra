@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validates result-quality metadata before it enters a public result envelope.
+ * Creates a deterministic calculated-result envelope.
+ * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import { InvalidScientificResultError } from "./validation.js";
 
 /**

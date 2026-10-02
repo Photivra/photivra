@@ -1,9 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Pack validated unsigned integer tag values into little-endian BYTE, SHORT or LONG payloads; reject
+ * values outside the selected storage range.
+ * Describe an internal BYTE/UNDEFINED tag using the supplied byte array. The payload is borrowed here;
+ * the final TIFF packer copies it into its owned output buffer.
+ * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** Internal TIFF field packing; pointers are resolved only inside the returned owned buffer. */
 export interface ExportTiffTag { id: number; type: number; count: number; data: Uint8Array; pointer?: "exif" | "pixels" }
+/**
+ * Pack validated unsigned integer tag values into little-endian BYTE, SHORT or LONG payloads; reject
+ * values outside the selected storage range.
+ * @param id - number. See the linked contract for coordinate, unit and profile binding semantics.
+ * @param type - 1 | 3 | 4. See the linked contract for coordinate, unit and profile binding semantics.
+ * @param values - readonly number[]. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns ExportTiffTag. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function exportTiffNumbers(id: number, type: 1 | 3 | 4, values: readonly number[]): ExportTiffTag {
   const size = type === 1 ? 1 : type === 3 ? 2 : 4, data = new Uint8Array(values.length*size), view = new DataView(data.buffer);
   values.forEach((v, i) => {
@@ -12,9 +32,28 @@ export function exportTiffNumbers(id: number, type: 1 | 3 | 4, values: readonly 
   });
   return { id, type, count: values.length, data };
 }
+/**
+ * Describe an internal BYTE/UNDEFINED tag using the supplied byte array. The payload is borrowed here;
+ * the final TIFF packer copies it into its owned output buffer.
+ * @param id - number. See the linked contract for coordinate, unit and profile binding semantics.
+ * @param type - 1 | 7. See the linked contract for coordinate, unit and profile binding semantics.
+ * @param data - Uint8Array. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns ExportTiffTag. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function exportTiffBytes(id: number, type: 1 | 7, data: Uint8Array): ExportTiffTag {
   return { id, type, count: data.length, data };
 }
+/**
+ * Encode printable ASCII with the required NUL terminator; reject unsupported characters instead of
+ * silent lossy replacement.
+ * @param id - number. See the linked contract for coordinate, unit and profile binding semantics.
+ * @param value - string. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns ExportTiffTag. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function exportTiffAscii(id: number, value: string): ExportTiffTag {
   if (!/^[\x20-\x7e]*$/.test(value)) throw new InvalidConfigurationError("TIFF text requires printable ASCII.");
   const data = new TextEncoder().encode(value+"\0"); return { id, type: 2, count: data.length, data };
@@ -39,6 +78,12 @@ export function packExportTiff(main: readonly ExportTiffTag[], exif: readonly Ex
   for (const tags of lists) {
     if (tags.length > 128 || new Set(tags.map((t) => t.id)).size !== tags.length) throw new InvalidConfigurationError("Duplicate/oversized TIFF directory.");
   }
+/**
+ * Directories precede their out-of-line payloads. Four-byte alignment applies to
+ * payload addresses; values up to four bytes stay in the directory slot. Pointer
+ * placeholders are resolved only against this newly owned buffer, preventing a
+ * caller-supplied address from becoming an external file/memory reference.
+ */
   const exifOffset = 8+2+lists[0]!.length*12+4;
   let cursor = exifOffset+2+lists[1]!.length*12+4;
   const offsets = new Map<ExportTiffTag, number>();

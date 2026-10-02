@@ -1,5 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Operating-range
+ * assessment preserves incident power versus irradiance, wavelength support, reference conditions and
+ * declared nonlinearity criterion. Per-bin conversion requires spectral-bin applicability and spatial
+ * linear superposition. Valid mean input must not conceal an invalid bright local sub-aperture.
+ * Assess every declared spectral-bin input against operating applicability and superposition before
+ * authorizing instantaneous response conversion. Operating-range assessment preserves incident power
+ * versus irradiance, wavelength support, reference conditions and declared nonlinearity criterion.
+ * Per-bin conversion requires spectral-bin applicability and spatial linear superposition. Valid mean
+ * input must not conceal an invalid bright local sub-aperture.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult
@@ -775,6 +791,19 @@ function parseSpatialLinearityModel(
   };
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Operating-range assessment preserves incident power versus irradiance, wavelength support, reference
+ * conditions and declared nonlinearity criterion. Per-bin conversion requires spectral-bin
+ * applicability and spatial linear superposition. Valid mean input must not conceal an invalid bright
+ * local sub-aperture.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns SensorResponseOperatingRangeProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseSensorResponseOperatingRangeProfile(
   value: unknown
 ): SensorResponseOperatingRangeProfile {
@@ -1020,6 +1049,19 @@ function validateReductionIdentity(
   }
 }
 
+/**
+ * Assess every declared spectral-bin input against operating applicability and superposition before
+ * authorizing instantaneous response conversion.
+ *
+ * Operating-range assessment preserves incident power versus irradiance, wavelength support, reference
+ * conditions and declared nonlinearity criterion. Per-bin conversion requires spectral-bin
+ * applicability and spatial linear superposition. Valid mean input must not conceal an invalid bright
+ * local sub-aperture.
+ * @param input - AssessSensorResponseOperatingRangeInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns CalculationResult<SensorResponseOperatingRangeAssessment>. Read structured blockers before consuming an authorization.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function assessSensorResponseOperatingRange(
   input:
     AssessSensorResponseOperatingRangeInput

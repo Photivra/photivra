@@ -1,5 +1,7 @@
 # Usage Guide
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 For bounded capture-owned charge/noise/ADC → native RAW generation, see
 [Sensor RAW producer](SENSOR_RAW_PRODUCER.md). Upstream EQE/dark exposure results
 remain declared; the returned frame can feed the same-RAW photographic exporter.
@@ -10,7 +12,7 @@ view without changing physical capture geometry or activating production stages.
 
 For bounded same-RAW paired DNG/JPEG byte export, see
 [Photographic export](PHOTOGRAPHIC_EXPORT.md). It requires an explicit approximate
-sensor-color profile; external editor acceptance remains pending.
+sensor-color profile; bounded external acceptance and its evidence limits are recorded in [Export acceptance](EXPORT_ACCEPTANCE.md).
 
 This guide shows how to call the capabilities exported by the root `@photivra/engine` package.
 
@@ -157,6 +159,8 @@ It deliberately separates:
 3. **resolved optical focus** — the finite/infinity `FocusPlane` passed into downstream optics.
 
 Use a generic profile:
+
+Composition fragment: requires previously validated bindings `evidence`. This is an integration sketch, not a standalone runnable program.
 
 ```ts
 import {
@@ -540,6 +544,8 @@ A renderer should inverse-map each destination channel to the source coordinate 
 For renderer grids or other multi-point evaluation, use the batch inverse APIs so
 one profile validation/provenance boundary serves the full point set:
 
+Composition fragment: requires previously validated bindings `caProfile`, `points`, `radialProfile`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   calculateInverseLateralChromaticAberrationMappings,
@@ -622,6 +628,8 @@ The production composition API is separate from `simulatePocCamera()`.
 
 Prepare static context once:
 
+Composition fragment: requires previously validated bindings `equipmentCapabilities`, `opticalBridgeProfile`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   prepareImageFormationContext
@@ -696,6 +704,8 @@ const prepared =
 
 Then commit one immutable capture snapshot:
 
+Composition fragment: requires previously validated bindings `sceneRadianceRequest`, `sceneRadianceResult`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   createProductionCaptureSnapshot
@@ -739,6 +749,8 @@ const capture =
 
 When #105 has already resolved a logical frame, prefer the dedicated handoff instead of copying exposure/seed values manually:
 
+Composition fragment: requires previously validated bindings `lockedWhiteBalance`, `physicalSceneSample`, `sequence`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   createProductionCaptureSnapshotFromReleaseFrame
@@ -759,6 +771,8 @@ const capture =
 The helper binds the release frame's exposure, focus, automation policy, timing, release identity and stochastic seed. If the frame names a WB state, the complete committed #108 state must match that ID. Both are frozen into the capture fingerprint and later surfaced in `plan.captureIdentity`.
 
 Finally create the semantic plan:
+
+Composition fragment: requires previously validated bindings `capture`, `prepared`. This is an integration sketch, not a standalone runnable program.
 
 ```ts
 import {
@@ -963,6 +977,8 @@ All schema 0.1.0 filter profiles are explicitly:
 - unpolarized;
 - non-wavelength-changing.
 
+Composition fragment: requires previously validated bindings `evidence`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   parseFrontOfLensFilterProfile
@@ -1059,6 +1075,8 @@ Schema 0.1.0 therefore rejects filter profiles that claim `polarizationModeled: 
 Use `calculateSceneRadianceToSensorIrradiance()` when you need the first physical primary-optics bridge from one validated #85 outgoing spectral-radiance sample to **pre-sensor-stack sensor-plane spectral irradiance**.
 
 The bridge operates on one explicit wavelength/time/field sample at a time.
+
+Composition fragment: requires previously validated bindings `sceneRadianceRequest`, `sceneRadianceResult`. This is an integration sketch, not a standalone runnable program.
 
 ```ts
 import {
@@ -1581,6 +1599,8 @@ It does not inspect authoritative scene-illuminant metadata as an AWB oracle, mo
 
 Preset labels are resolved through a declared profile rather than universal hard-coded Kelvin aliases:
 
+Composition fragment: requires previously validated bindings `evidence`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   parseWhiteBalanceProfile,
@@ -1961,6 +1981,8 @@ Use `parseNativeEffectiveRasterColorSamplingBindingProfile()` when evidence esta
 
 The first binding is deliberately regular and sensor-anchored:
 
+Composition fragment: requires previously validated bindings `topology`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   parseNativeEffectiveRasterColorSamplingBindingProfile,
@@ -2006,6 +2028,8 @@ A `1 × 1` relationship is still an **asserted/evidenced binding**. Matching dim
 The binding applies only to the exact native raster dimensions recorded in the profile. The first schema supports one native effective sample mapping to a regular rectangular block of color-sampling sites with a shared native top-left anchor. Irregular site relationships require a later explicit mapping.
 
 To compose that sensor-level relationship with a capture mode, use `resolveCaptureModeColorSamplingContributors()`:
+
+Composition fragment: requires previously validated bindings `binding`, `modes`, `topology`. This is an integration sketch, not a standalone runnable program.
 
 ```ts
 import {
@@ -2176,6 +2200,8 @@ The resolver therefore returns only the **effective AA spatial kernel** and expl
 
 Use `parseSensorSamplingApertureProfile()` and `resolveSensorSamplingAperture()` when the physical color-site lattice registration and a geometric photosensitive-region approximation are known:
 
+Composition fragment: requires previously validated bindings `binding`, `topology`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   parseSensorSamplingApertureProfile,
@@ -2303,6 +2329,8 @@ Use `calculateSensorSpatialSamplingQuadrature()` to build deterministic renderer
 1. the geometric sensitive aperture from `SensorSamplingApertureProfile`; and
 2. the effective anti-aliasing point-splitting response from `SensorOpticalStackProfile`.
 
+Composition fragment: requires previously validated bindings `binding`, `sampling`, `stack`, `topology`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   calculateSensorSpatialSamplingQuadrature
@@ -2420,6 +2448,8 @@ Those remain explicit downstream steps.
 
 Use `calculateSensorSpectralQuadrature()` to build a deterministic wavelength-sampling plan for one exact sensor-response channel before any source spectrum or sensor response is integrated.
 
+Composition fragment: requires previously validated bindings `colorSamplingProfile`, `spectralResponseProfile`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import { calculateSensorSpectralQuadrature } from "@photivra/engine";
 
@@ -2479,6 +2509,8 @@ Use `reduceSensorSpatioSpectralIrradiance()` after a renderer or optical model h
 
 The required source value is (E_λ(x,y)) in **W/m²/nm**.
 
+Composition fragment: requires previously validated bindings `sampleValues`, `spatialPlan`, `spectralPlan`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   reduceSensorSpatioSpectralIrradiance
@@ -2536,7 +2568,7 @@ As with the spatial and spectral planners individually, no source-independent co
 
 ## Sensor response application compatibility
 
-Use `assessSensorResponseApplicationCompatibility()` before any future sensor-response conversion. The assessment is deliberately a **structural gate**, not a response application function.
+Use `assessSensorResponseApplicationCompatibility()` before the typed sensor-response conversion paths. The assessment is deliberately a **structural gate**, not a response application function.
 
 It requires an evidence-backed `SensorResponseApplicationProfile` that binds one exact spectral-response profile/channel to the sampling-aperture and optical-stack identities used by the spatial plan. It also declares:
 
@@ -2561,7 +2593,7 @@ Reference conditions are also fail-closed. With `exact-match-required`, the resp
 
 An unresolved wavelength basis blocks the gate.
 
-A successful assessment reports the future signal path:
+A successful assessment reports the authorized signal path:
 
 - EQE and filter×EQE → `photon-rate-to-electrons`;
 - A/W responsivity → `radiant-power-to-current`.
@@ -2594,7 +2626,7 @@ The operating-range profile also distinguishes **broadband-only** validation fro
 
 For `per-spectral-bin` applicability, the profile declares a maximum supported bin width. Every wavelength node's own integrated power or irradiance contribution must remain inside the calibrated range, and no quadrature bin may exceed that width. This prevents one over-range wavelength band from hiding inside an acceptable broadband total and prevents a broad numerical bin from masquerading as a narrowband calibration point.
 
-Only a non-blocked per-bin assessment can set `responseRateConversionAuthorized: true`. That authorization is deliberately limited to a future **instantaneous rate-domain conversion**.
+Only a non-blocked per-bin assessment can set `responseRateConversionAuthorized: true`. That authorization is deliberately limited to an **instantaneous rate-domain conversion**.
 
 It does **not** establish:
 
@@ -2794,7 +2826,7 @@ The result is explicitly **photo-signal-only** accumulation. It does not include
 - no clamp is applied;
 - shot/read noise, conversion gain, ADC/RAW and reconstruction remain downstream.
 
-Physical full-well capacity and camera saturation capacity must remain separate future contracts; they are not interchangeable thresholds.
+Physical full-well capacity and camera saturation capacity remain separate implemented assessment contracts; they are not interchangeable thresholds.
 
 ## Dark-current charge
 
@@ -3170,7 +3202,7 @@ The rolling schedule is a `uniform-linear-single-axis` approximation in invarian
 
 Physical camera orientation is deliberately excluded from the timing input. Use the existing native↔oriented vector transform when a downstream renderer needs the scan direction in oriented capture coordinates. Output crop/resolution is also excluded and therefore cannot silently change native readout timing.
 
-Active-crop/capture-mode timing must be supplied explicitly; the engine never scales full-frame timing from crop dimensions. Shutter mechanism is recorded independently and does not modify the schedule. Mechanical-curtain travel, EFCS timing, local exposure windows, rolling-shutter geometric distortion, flash/flicker interaction and motion integration remain future work.
+Active-crop/capture-mode timing must be supplied explicitly; the engine never scales full-frame timing from crop dimensions. Shutter mechanism is recorded independently and does not modify the schedule. The separate exposure-window, inverse-rotation/temporal, flash and illumination contracts supply bounded timing and integration. This readout primitive does not execute them or infer curtain acceleration, segmented timing or synchronization.
 
 ## Readout/exposure spatial linkage
 
@@ -3937,7 +3969,7 @@ if (metered.value.status === "resolved") {
 }
 ```
 
-For a controlled uniform fixture, halving every relative-linear sample from `1.0` to `0.5` produces a **+1 stop** shift to the same declared target. That is the intended educational invariant used by future Manual + Auto ISO tests.
+For a controlled uniform fixture, halving every relative-linear sample from `1.0` to `0.5` produces a **+1 stop** shift to the same declared target. That is the intended educational invariant used by Manual + Auto ISO tests.
 
 ### Metering policies
 
@@ -3964,7 +3996,7 @@ The intended flow is:
 pre-exposure relative scene signal
   -> meterRelativeExposure()
   -> base meter result / stop offset
-  -> future exposure compensation
+  -> immutable exposure target / compensation
   -> #99 exposure-mode resolver
   -> aperture / shutter / ISO
 ```
@@ -3982,6 +4014,8 @@ This path is ambient/relative metering only. Flash/TTL metering and calibrated c
 Use `parseGenericBodyMeteringCapabilityProfile()` plus `assessExposureMeteringProfileCompatibility()` to declare which engine-owned metering profiles/modes a generic camera body may select.
 
 The equipment profile does **not** duplicate the meter target/calibration values. Those remain authoritative in the selected `ExposureMeteringProfile`.
+
+Composition fragment: requires previously validated bindings `evidence`, `profile`. This is an integration sketch, not a standalone runnable program.
 
 ```ts
 import {
@@ -4053,6 +4087,8 @@ The bridge validates:
 
 The scalar reduction remains renderer/provider supplied. Photivra does **not** turn one or more spectral-radiance samples into luminance or a camera meter signal automatically.
 
+Composition fragment: requires previously validated bindings `captureGeometry`, `illuminationProfile`, `materialResponseProfile`, `profile`, `providerProfile`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   createSceneRadianceDerivedExposureMeteringSampleSet,
@@ -4120,6 +4156,8 @@ One such sample set is an explicit instantaneous meter snapshot at that time.
 
 To average multiple snapshots, use `meterSceneRadianceTemporalExposure()` with an explicit `weighted-time-average` policy:
 
+Composition fragment: requires previously validated bindings `profile`, `sampleAtTime0`, `sampleAtTime1`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   meterSceneRadianceTemporalExposure
@@ -4159,6 +4197,8 @@ This policy is explicit ambient temporal metering. It does not infer time weight
 Use `parseGenericReleaseCapabilityProfile()` and `resolveReleaseSequence()` for deterministic logical camera releases such as single-frame capture, bursts, self-timer sequences, exposure bracketing, and focus bracketing.
 
 This is deliberately separate from sensor capture modes: a burst of several photographs is several logical captures, not one multi-frame sensor reconstruction.
+
+Composition fragment: requires previously validated bindings `evidence`, `exposureCapabilities`. This is an integration sketch, not a standalone runnable program.
 
 ```ts
 import {
@@ -4518,6 +4558,8 @@ Likewise, shutter-duration capability does not imply shutter mechanism, rolling/
 
 Use `createExposureMeterTargetFromMeteringResult()` to freeze a spatial or temporal metering result into the stable target consumed by #99.
 
+Composition fragment: requires previously validated bindings `meterResult`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   createExposureMeterTargetFromMeteringResult,
@@ -4686,6 +4728,8 @@ It is explicit input, not a universal ISO-100 or gray-card rule. All three ancho
 
 ### Manual + Auto ISO
 
+Composition fragment: requires previously validated bindings `capabilities`, `target`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   resolveManualExposureMode
@@ -4802,6 +4846,8 @@ The following remain intentionally separate rather than hidden inside shooting-m
 ## Aperture Priority with manual ISO
 
 Use `resolveAperturePriorityExposureMode()` when aperture and ISO are caller-selected and shutter is the only automatic exposure axis.
+
+Composition fragment: requires previously validated bindings `capabilities`, `target`. This is an integration sketch, not a standalone runnable program.
 
 ```ts
 import {
@@ -5144,7 +5190,7 @@ It explicitly does **not** resolve:
 - scene recognition;
 - stabilization policy.
 
-Those fields remain false in the result so the private app cannot accidentally treat this engine mode as whole-camera automation.
+Those fields remain false in the result so a calling application cannot accidentally treat this engine mode as whole-camera automation.
 
 ### Program/Full Auto consistency
 
@@ -5814,7 +5860,7 @@ Geometric sample pitch is **not** accepted as photon-collection area by itself. 
 
 Data-bearing spectral/spatial calibration inputs are represented by an artifact ID plus SHA-256 checksum. Photivra does not infer reuse rights from public availability; reusable calibration data requires explicit licensing or Photivra ownership.
 
-The readiness API does not calculate photons, does not change the existing `calculatePhotoelectrons()` primitive, and does not add photon/noise output to `simulatePocCamera()`. Enabling any composed photon model remains a separate future scientific/integration step.
+The readiness API does not calculate photons, does not change the existing `calculatePhotoelectrons()` primitive, and does not add photon/noise output to `simulatePocCamera()`. The bounded [executed environment route](PRODUCTION_ENVIRONMENT_CAPTURE.md) performs explicitly declared EQE photon/electron integration; this readiness gate alone does not activate it or verify calibration.
 
 ## Photoelectron and SNR primitives
 
@@ -6033,6 +6079,8 @@ See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md#scene-r
 
 Use `composeSpectralCoverage()` when multiple **continuous** wavelength-dependent factors need one common coverage/breakpoint plan.
 
+Composition fragment: requires previously validated bindings `spectralResponseProfile`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   composeSpectralCoverage,
@@ -6103,6 +6151,8 @@ Continuous illumination spectra can be converted to the same participant shape w
 
 Discrete lines use a different integration path.
 
+Composition fragment: requires previously validated bindings `illumination`. This is an integration sketch, not a standalone runnable program.
+
 ```ts
 import {
   integrateDiscreteSpectralLineMeasure,
@@ -6153,6 +6203,8 @@ See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md#shared-
 ## Temporal illumination
 
 Use `parseSceneIlluminationTemporalProfile()` to add explicit flash/flicker-style modulation to sources without changing the base illumination schema.
+
+Composition fragment: requires previously validated bindings `illuminationProfile`. This is an integration sketch, not a standalone runnable program.
 
 ```ts
 import {
@@ -6257,6 +6309,8 @@ See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md#tempora
 ## Camera and scene schema validation
 
 Use the runtime parsers when camera or scene data crosses an untrusted JSON boundary.
+
+Composition fragment: requires previously validated bindings `cameraJson`, `sceneJson`. This is an integration sketch, not a standalone runnable program.
 
 ```ts
 import {

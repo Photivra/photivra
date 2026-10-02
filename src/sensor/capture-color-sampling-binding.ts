@@ -1,5 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses the explicit relationship between the canonical native effective image raster and the
+ * separate native sensor color-sampling-site lattice. This first binding supports only regular
+ * rectangular site blocks with a shared native top-left anchor. Irregular mappings, sparse exceptions
+ * and mode-specific declared-effective rasters require later explicit contracts.
+ * Validates and resolves the sensor-level binding between NativeImageRaster and an exact
+ * monochrome/periodic color-sampling topology. Matching dimensions are never treated as proof of a 1:1
+ * relationship. The relationship exists only because the caller supplied this evidence-backed binding
+ * profile.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,

@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses an explicit focus-plane state from an untrusted JSON boundary. Missing/unknown focus is
+ * rejected rather than being interpreted as infinity.
+ * Calculates the ideal image-plane distance for an explicit focus state. Finite focus delegates to the
+ * existing Gaussian thin-lens calculation, so its numerical result and provenance are unchanged.
+ * Infinity focus resolves exactly to the nominal focal length with zero limiting magnification.
+ * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult

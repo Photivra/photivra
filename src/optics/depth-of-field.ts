@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Calculates thin-lens depth-of-field limits using the conventional hyperfocal-distance formulation.
+ * The model is geometric and does not include diffraction, aberrations, focus breathing, pupil
+ * magnification, or macro/high-magnification effects.
+ * Calculates the geometric defocus-circle diameter at the sensor plane for a subject plane away from
+ * the selected focus plane.
+ * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationResult

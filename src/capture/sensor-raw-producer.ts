@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validates complete native exposure inputs; no charge/noise/RAW code is accepted as a shortcut.
+ * Composes existing accumulated-charge → capacity → Poisson → read noise/ADC → native sample →
+ * immutable frame contracts.
+ * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 
 import { parseSensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";

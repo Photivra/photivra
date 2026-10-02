@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Converts pre-response geometric-aperture spectral radiant power into incident-photon rate and
+ * expected generated-electron rate. This function applies response per wavelength node. It never
+ * applies one broadband-average QE to total radiant power. Temporal exposure integration remains
+ * downstream, so all outputs are rates (per second), not photon/electron counts.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult

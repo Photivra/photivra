@@ -1,5 +1,7 @@
 # Scientific and Source Provenance
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 Every scientific or calculation module in this repository must have a traceable, legally clean origin.
 
 ## Allowed foundations

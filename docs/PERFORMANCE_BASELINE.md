@@ -1,5 +1,7 @@
 # Measured-performance baseline: #43 / #45
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 This independent first slice records merged main `83a99a4c1ec525fd1add7cccff134fcee0f5159b`, root API 0.93.0, POC API 0.20.0, in `docs/benchmarks/2026-10-01-main-baseline.json`. No pending capture/output/correction/preset implementation is consumed. It does not close either issue or justify an optimization by itself.
 
 ## Context and method
@@ -51,4 +53,4 @@ The baseline conclusions above are historical. [GEOMETRIC_PREPARATION_REUSE.md](
 
 ## Final V1 remeasurement
 
-[Final V1 performance disposition](V1_PERFORMANCE_DISPOSITION.md) records current main #204, fresh paired timing/equivalence, preparation/memory profiles and dense executed environment-to-RAW evidence. It proposes retaining the merged bounded optimizations with no further abstraction, pending owner review/DCO and merge. Earlier candidate and pending-remeasurement statements above are historical.
+[Final V1 performance disposition](V1_PERFORMANCE_DISPOSITION.md) records current main #204, fresh paired timing/equivalence, preparation/memory profiles and dense executed environment-to-RAW evidence. PR #205 merged the final reviewed/signed no-further-change disposition; PR #206 merged final conformance. The measured engine commit remains the historical benchmark identity. Earlier candidate and pending-remeasurement statements above are historical.

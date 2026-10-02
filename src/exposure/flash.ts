@@ -1,5 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Manual flash is a
+ * registered relative pulse/source overlay on the capture opening-reference clock. Ordinary front/rear
+ * sync requires a real whole-frame opening interval. HSS/TTL and flash metering are unsupported here;
+ * source magnitude, optical transport and sensor integration retain their own contracts.
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary. Manual flash is a
+ * registered relative pulse/source overlay on the capture opening-reference clock. Ordinary front/rear
+ * sync requires a real whole-frame opening interval. HSS/TTL and flash metering are unsupported here;
+ * source magnitude, optical transport and sensor integration retain their own contracts.
+ * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,
@@ -493,6 +508,19 @@ function validateSourceTemplate(
   };
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Manual flash is a registered relative pulse/source overlay on the capture opening-reference clock.
+ * Ordinary front/rear sync requires a real whole-frame opening interval. HSS/TTL and flash metering
+ * are unsupported here; source magnitude, optical transport and sensor integration retain their own
+ * contracts.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns ManualFlashProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseManualFlashProfile(
   value: unknown
 ): ManualFlashProfile {
@@ -651,6 +679,19 @@ export function parseManualFlashProfile(
   };
 }
 
+/**
+ * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data fail at this boundary.
+ *
+ * Manual flash is a registered relative pulse/source overlay on the capture opening-reference clock.
+ * Ordinary front/rear sync requires a real whole-frame opening interval. HSS/TTL and flash metering
+ * are unsupported here; source magnitude, optical transport and sensor integration retain their own
+ * contracts.
+ * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @returns FlashSyncCapabilityProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function parseFlashSyncCapabilityProfile(
   value: unknown
 ): FlashSyncCapabilityProfile {
@@ -835,6 +876,19 @@ function validateReleaseBinding(
   }
 }
 
+/**
+ * Place a declared ordinary flash pulse into the actual whole-frame exposure opening interval for
+ * front or rear sync, or return structured incompatibility.
+ *
+ * Manual flash is a registered relative pulse/source overlay on the capture opening-reference clock.
+ * Ordinary front/rear sync requires a real whole-frame opening interval. HSS/TTL and flash metering
+ * are unsupported here; source magnitude, optical transport and sensor integration retain their own
+ * contracts.
+ * @param input - ResolveManualFlashSyncInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns ResolvedManualFlashSync. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function resolveManualFlashSync(
   input:
     ResolveManualFlashSyncInput
@@ -1061,6 +1115,19 @@ function scaledFlashSource(
   };
 }
 
+/**
+ * Construct an owned registered temporal illumination overlay from the resolved manual pulse while
+ * preserving base ambient source identity.
+ *
+ * Manual flash is a registered relative pulse/source overlay on the capture opening-reference clock.
+ * Ordinary front/rear sync requires a real whole-frame opening interval. HSS/TTL and flash metering
+ * are unsupported here; source magnitude, optical transport and sensor integration retain their own
+ * contracts.
+ * @param input - CreateManualFlashIlluminationOverlayInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns ManualFlashIlluminationOverlay. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function createManualFlashIlluminationOverlay(
   input:
     CreateManualFlashIlluminationOverlayInput

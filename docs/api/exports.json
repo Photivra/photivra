@@ -1,0 +1,5656 @@
+{
+  "packageVersion": "1.0.0",
+  "engineApiVersion": "0.116.0",
+  "exports": [
+    {
+      "name": "AbsoluteUncertaintyEstimate",
+      "source": "src/core/calculation-result.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ActiveCaptureFieldOfView",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AffineGeometricTransform",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AirRefractiveIndexConditionPolicy",
+      "source": "src/sensor/photon-energy.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AirRefractiveIndexReferenceConditions",
+      "source": "src/sensor/photon-energy.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AiryDisk",
+      "source": "src/optics/diffraction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AntiAliasingPointSplitComponent",
+      "source": "src/sensor/optical-stack.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AperturePriorityAutoIsoExposureModeResolution",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AperturePriorityAutoIsoPolicy",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AperturePriorityExposureModeResolution",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ApertureVertex",
+      "source": "src/optics/aperture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "approximationResult",
+      "source": "src/core/calculation-result.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "assessExposureMeteringProfileCompatibility",
+      "source": "src/equipment/metering-capabilities.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "AssessExposureMeteringProfileCompatibilityInput",
+      "source": "src/equipment/metering-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "assessFocusReleaseGate",
+      "source": "src/capture/focus-control.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "AssessFocusReleaseGateInput",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "assessMtfOnlyPsfRenderability",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "assessRadiometryReadiness",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "assessReadoutExposureTimingLinkage",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "AssessReadoutExposureTimingLinkageInput",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "type"
+    },
+    {
+      "name": "assessSceneMaterialResponseFidelity",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "assessSensorCameraSaturationCapacity",
+      "source": "src/sensor/camera-saturation-capacity.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "AssessSensorCameraSaturationCapacityInput",
+      "source": "src/sensor/camera-saturation-capacity.ts",
+      "kind": "type"
+    },
+    {
+      "name": "assessSensorPhysicalChargeCapacity",
+      "source": "src/sensor/physical-charge-capacity.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "AssessSensorPhysicalChargeCapacityInput",
+      "source": "src/sensor/physical-charge-capacity.ts",
+      "kind": "type"
+    },
+    {
+      "name": "assessSensorResponseApplicationCompatibility",
+      "source": "src/sensor/response-application-compatibility.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "AssessSensorResponseApplicationCompatibilityInput",
+      "source": "src/sensor/response-application-compatibility.ts",
+      "kind": "type"
+    },
+    {
+      "name": "assessSensorResponseOperatingRange",
+      "source": "src/sensor/response-operating-range.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "AssessSensorResponseOperatingRangeInput",
+      "source": "src/sensor/response-operating-range.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AutoIsoBaselinePolicy",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AxisSamplingPitchMicrometers",
+      "source": "src/motion/camera-rotation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "bindIsoCapabilityToExposureCapabilities",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "BindIsoCapabilityToExposureCapabilitiesInput",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "bindResolvedExposureDurationToCaptureExposureInput",
+      "source": "src/exposure/exposure-duration-control.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "BindResolvedExposureDurationToCaptureExposureInput",
+      "source": "src/exposure/exposure-duration-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "bindSensorRateToLocalExposure",
+      "source": "src/sensor/local-exposure-binding.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "BindSensorRateToLocalExposureInput",
+      "source": "src/sensor/local-exposure-binding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "BoundIsoExposureCapabilities",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateActiveCaptureFieldOfView",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateActiveCaptureFieldOfViewInput",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateAiryDisk",
+      "source": "src/optics/diffraction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateAiryDiskInput",
+      "source": "src/optics/diffraction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateCameraRotationImageMapping",
+      "source": "src/motion/camera-rotation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateCameraRotationImageMappingInput",
+      "source": "src/motion/camera-rotation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateCaptureColorTransform",
+      "source": "src/color/capture-color.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCaptureCorrectedSdr",
+      "source": "src/output/capture-corrected-sdr.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCaptureExposureWindows",
+      "source": "src/sensor/exposure-window.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateCaptureExposureWindowsInput",
+      "source": "src/sensor/exposure-window.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateCaptureExtendedObjectTemporalProjection",
+      "source": "src/motion/extended-object-projection.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateCaptureExtendedObjectTemporalProjectionInput",
+      "source": "src/motion/extended-object-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateCaptureRotationInverseMappings",
+      "source": "src/motion/capture-rotation-inverse-mapping.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateCaptureRotationInverseMappingsInput",
+      "source": "src/motion/capture-rotation-inverse-mapping.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateCaptureRotationTemporalQuadrature",
+      "source": "src/motion/capture-rotation-temporal-quadrature.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateCaptureRotationTemporalQuadratureInput",
+      "source": "src/motion/capture-rotation-temporal-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateCaptureRotationTrajectories",
+      "source": "src/motion/capture-rotation-trajectory.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateCaptureRotationTrajectoriesInput",
+      "source": "src/motion/capture-rotation-trajectory.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateCaptureSdr",
+      "source": "src/output/capture-sdr.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCaptureTranslationParallaxTemporalQuadrature",
+      "source": "src/motion/capture-translation-parallax-temporal-quadrature.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateCaptureTranslationParallaxTemporalQuadratureInput",
+      "source": "src/motion/capture-translation-parallax-temporal-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateCenteredCrop",
+      "source": "src/output/crop.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateCenteredCropInput",
+      "source": "src/output/crop.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateComposedGeometricMapping",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateDefocusCircle",
+      "source": "src/optics/depth-of-field.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateDefocusCircleInput",
+      "source": "src/optics/depth-of-field.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateDepthOfField",
+      "source": "src/optics/depth-of-field.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateDepthOfFieldInput",
+      "source": "src/optics/depth-of-field.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculatedResult",
+      "source": "src/core/calculation-result.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateEnvironmentSensorPhotoSignal",
+      "source": "src/sensor/environment-photo-signal.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateEnvironmentSensorPhotoSignalInput",
+      "source": "src/sensor/environment-photo-signal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateEquivalentFocalLength35Mm",
+      "source": "src/camera/equivalent-focal-length.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateEquivalentFocalLength35MmInput",
+      "source": "src/camera/equivalent-focal-length.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateEquivalentIso",
+      "source": "src/exposure/exposure.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateEquivalentIsoInput",
+      "source": "src/exposure/exposure.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateExpectedSensorReadout",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateExpectedSensorReadoutInput",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateExposureValue100",
+      "source": "src/exposure/exposure.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateExposureValue100Input",
+      "source": "src/exposure/exposure.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateExtendedObjectProjectionTrajectory",
+      "source": "src/motion/extended-object-projection.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateExtendedObjectProjectionTrajectoryInput",
+      "source": "src/motion/extended-object-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateFieldOfView",
+      "source": "src/camera/field-of-view.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateFieldOfViewBounds",
+      "source": "src/camera/field-of-view.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateFieldOfViewBoundsInput",
+      "source": "src/camera/field-of-view.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CalculateFieldOfViewInput",
+      "source": "src/camera/field-of-view.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateFocusBreathingFieldOfView",
+      "source": "src/optics/focus-breathing.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateFocusBreathingFieldOfViewInput",
+      "source": "src/optics/focus-breathing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateFocusBreathingProjection",
+      "source": "src/optics/focus-breathing.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateFocusBreathingProjectionInput",
+      "source": "src/optics/focus-breathing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateFocusPlaneImageDistance",
+      "source": "src/optics/focus-state.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateFocusPlaneImageDistanceInput",
+      "source": "src/optics/focus-state.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateForwardGeometricMapping",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateGeometricResampling",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateGeometricSamplingPlan",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateIdealApertureGeometry",
+      "source": "src/optics/aperture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateIdealApertureInput",
+      "source": "src/optics/aperture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CalculateIdealPolygonDiffractionInput",
+      "source": "src/optics/polygon-diffraction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateIdealPolygonDiffractionPsf",
+      "source": "src/optics/polygon-diffraction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateIlluminationVignetting",
+      "source": "src/optics/illumination-vignetting.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateIlluminationVignettingInput",
+      "source": "src/optics/illumination-vignetting.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateImagingAreaMetrics",
+      "source": "src/sensor/sensor-geometry.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateInverseCameraRotationImageMapping",
+      "source": "src/motion/camera-rotation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateInverseCameraRotationImageMappingInput",
+      "source": "src/motion/camera-rotation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateInverseLateralChromaticAberrationMapping",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateInverseLateralChromaticAberrationMappingInput",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateInverseLateralChromaticAberrationMappings",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateInverseLateralChromaticAberrationMappingsInput",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateInverseRadialDistortionMapping",
+      "source": "src/optics/radial-distortion.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateInverseRadialDistortionMappingInput",
+      "source": "src/optics/radial-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateInverseRadialDistortionMappings",
+      "source": "src/optics/radial-distortion.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateInverseRadialDistortionMappingsInput",
+      "source": "src/optics/radial-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateLateralChromaticAberrationMapping",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateLateralChromaticAberrationMappingInput",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateLensComplexPupilPsf",
+      "source": "src/optics/complex-pupil-psf.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateLensComplexPupilPsfInput",
+      "source": "src/optics/complex-pupil-psf.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateLensCorrectedCapture",
+      "source": "src/output/lens-corrections.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateLensStrayLightIrradiance",
+      "source": "src/optics/stray-light.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateLinearCaptureEncoding",
+      "source": "src/capture/linear-encoding.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateOutputFieldOfView",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateOutputFieldOfViewInput",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculatePeripheralIlluminationCorrection",
+      "source": "src/output/lens-corrections.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculatePhotoelectrons",
+      "source": "src/sensor/signal-noise.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculatePhotoelectronsInput",
+      "source": "src/sensor/signal-noise.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculatePhotonEnergyFromWavelength",
+      "source": "src/sensor/photon-energy.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculatePhotonEnergyFromWavelengthInput",
+      "source": "src/sensor/photon-energy.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculatePixelPitch",
+      "source": "src/sensor/pixel-pitch.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculatePixelPitchInput",
+      "source": "src/sensor/pixel-pitch.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateProcessedSensorRaw",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateProjectedMotionBlur",
+      "source": "src/motion/projected-motion.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateProjectedMotionBlurInput",
+      "source": "src/motion/projected-motion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateProjectedObjectSize",
+      "source": "src/camera/projected-object-size.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateProjectedObjectSizeInput",
+      "source": "src/camera/projected-object-size.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculatePsfFoundationComponents",
+      "source": "src/optics/psf-foundation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculatePsfFoundationComponentsInput",
+      "source": "src/optics/psf-foundation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateRadialDistortionMapping",
+      "source": "src/optics/radial-distortion.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateRadialDistortionMappingInput",
+      "source": "src/optics/radial-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateRelativeOpticalExposure",
+      "source": "src/exposure/exposure.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateRelativeOpticalExposureInput",
+      "source": "src/exposure/exposure.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateRelativeRenderedExposure",
+      "source": "src/exposure/exposure.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateRelativeRenderedExposureInput",
+      "source": "src/exposure/exposure.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSceneRadianceToSensorIrradiance",
+      "source": "src/optics/scene-to-sensor-irradiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSceneRadianceToSensorIrradianceInput",
+      "source": "src/optics/scene-to-sensor-irradiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSceneSensorEqeTemporalExposure",
+      "source": "src/sensor/scene-eqe-temporal-exposure.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSceneSensorEqeTemporalExposureInput",
+      "source": "src/sensor/scene-eqe-temporal-exposure.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSceneToSensorIrradianceQuadrature",
+      "source": "src/optics/scene-to-sensor-quadrature.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSceneToSensorIrradianceQuadratureInput",
+      "source": "src/optics/scene-to-sensor-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSdrRendering",
+      "source": "src/output/sdr-rendering.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateSensorDarkCurrentCharge",
+      "source": "src/sensor/dark-current.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSensorDarkCurrentChargeInput",
+      "source": "src/sensor/dark-current.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSensorEnvironmentRadianceQuery",
+      "source": "src/optics/sensor-environment-query.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSensorEnvironmentRadianceQueryInput",
+      "source": "src/optics/sensor-environment-query.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSensorEqeElectronRate",
+      "source": "src/sensor/eqe-electron-rate.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSensorEqeElectronRateInput",
+      "source": "src/sensor/eqe-electron-rate.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSensorEqeLocalExposure",
+      "source": "src/sensor/eqe-local-exposure.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSensorEqeLocalExposureInput",
+      "source": "src/sensor/eqe-local-exposure.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSensorEqeTemporalExposure",
+      "source": "src/sensor/eqe-temporal-exposure.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSensorEqeTemporalExposureInput",
+      "source": "src/sensor/eqe-temporal-exposure.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSensorGeometryMetrics",
+      "source": "src/sensor/sensor-geometry.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSensorGeometryMetricsInput",
+      "source": "src/sensor/sensor-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSensorPsfIrradianceQuadrature",
+      "source": "src/optics/sensor-psf-quadrature.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSensorPsfIrradianceQuadratureInput",
+      "source": "src/optics/sensor-psf-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSensorReadoutTiming",
+      "source": "src/sensor/readout-timing.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSensorReadoutTimingInput",
+      "source": "src/sensor/readout-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSensorResponsivityPhotocurrent",
+      "source": "src/sensor/responsivity-photocurrent.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSensorResponsivityPhotocurrentInput",
+      "source": "src/sensor/responsivity-photocurrent.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSensorSpatialSamplingQuadrature",
+      "source": "src/sensor/spatial-sampling-quadrature.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSensorSpatialSamplingQuadratureInput",
+      "source": "src/sensor/spatial-sampling-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSensorSpectralQuadrature",
+      "source": "src/sensor/spectral-quadrature.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSensorSpectralQuadratureInput",
+      "source": "src/sensor/spectral-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSignalToNoise",
+      "source": "src/sensor/signal-noise.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSignalToNoiseInput",
+      "source": "src/sensor/signal-noise.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateStabilizedCaptureTemporalSamples",
+      "source": "src/stabilization/system.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateStabilizedCaptureTemporalSamplesInput",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateStabilizedRotationTrajectory",
+      "source": "src/stabilization/system.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateStabilizedRotationTrajectoryInput",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateSubjectFramingCrop",
+      "source": "src/output/subject-framing-crop.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSubjectFramingCropInput",
+      "source": "src/output/subject-framing-crop.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateThinLensImageDistance",
+      "source": "src/optics/thin-lens.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateThinLensImageDistanceInput",
+      "source": "src/optics/thin-lens.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CalculationProvenance",
+      "source": "src/core/calculation-result.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CalculationQuality",
+      "source": "src/core/calculation-result.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CalculationResult",
+      "source": "src/core/calculation-result.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CalculationValidRange",
+      "source": "src/core/calculation-result.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calibratedResult",
+      "source": "src/core/calculation-result.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalibrationArtifactReference",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CameraAngularVelocityRadPerSec",
+      "source": "src/motion/camera-rotation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CameraConfiguration",
+      "source": "src/schema/camera.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CameraRotationImageMapping",
+      "source": "src/motion/camera-rotation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CameraShakeBlurSample",
+      "source": "src/stabilization/camera-shake.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CameraShakeEstimate",
+      "source": "src/stabilization/camera-shake.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CameraSupport",
+      "source": "src/schema/camera.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CancelledReleaseSequence",
+      "source": "src/capture/release-sequence.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CancelReleaseSequenceInput",
+      "source": "src/capture/release-sequence.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CAPTURE_COLOR_MODEL_VERSION",
+      "source": "src/color/capture-color.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CAPTURE_CORRECTED_SDR_SCHEMA_VERSION",
+      "source": "src/output/capture-corrected-sdr.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CAPTURE_EXPORT_METADATA_SCHEMA_VERSION",
+      "source": "src/capture/capture-export-metadata.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CAPTURE_MODE_TIMING_PROFILE_SCHEMA_VERSION",
+      "source": "src/sensor/capture-mode-timing.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CAPTURE_SDR_SCHEMA_VERSION",
+      "source": "src/output/capture-sdr.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CaptureColorModel",
+      "source": "src/color/capture-color.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureColorTransformInput",
+      "source": "src/color/capture-color.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureColorTransformResult",
+      "source": "src/color/capture-color.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureColorWhiteBalance",
+      "source": "src/color/capture-color.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureCorrectedSdrInput",
+      "source": "src/output/capture-corrected-sdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureCorrectedSdrResult",
+      "source": "src/output/capture-corrected-sdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureExportArtifactIdentity",
+      "source": "src/capture/capture-export-metadata.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureExportMetadataInput",
+      "source": "src/capture/capture-export-metadata.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureExportMetadataPair",
+      "source": "src/capture/capture-export-metadata.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureExportSharedMetadata",
+      "source": "src/capture/capture-export-metadata.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureExportWorkflow",
+      "source": "src/capture/capture-export-metadata.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureExposureBoundaryActuator",
+      "source": "src/sensor/exposure-window.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureExposureWindows",
+      "source": "src/sensor/exposure-window.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureExposureWindowSample",
+      "source": "src/sensor/exposure-window.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureExtendedObjectMetricPoint",
+      "source": "src/motion/extended-object-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureExtendedObjectPointTrajectory",
+      "source": "src/motion/extended-object-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureExtendedObjectTemporalNode",
+      "source": "src/motion/extended-object-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureExtendedObjectTemporalProjection",
+      "source": "src/motion/extended-object-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureFloatStorage",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureLinearImageState",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureLinearPlane",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureModeAcquisition",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureModeDefinition",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureModeDependency",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureModeFullFrameSampleIndex",
+      "source": "src/sensor/capture-color-sampling-binding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureModePerFrameSampling",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureModeProfile",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureModeReconstructionStage",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureModeSampleCombinationDomain",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureModeSensorOffsetNativeSamples",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureModeTimingProfile",
+      "source": "src/sensor/capture-mode-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureOrientation",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CapturePublicProfileReference",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureRotationInverseMappings",
+      "source": "src/motion/capture-rotation-inverse-mapping.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureRotationInverseMappingSample",
+      "source": "src/motion/capture-rotation-inverse-mapping.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureRotationTemporalQuadrature",
+      "source": "src/motion/capture-rotation-temporal-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureRotationTemporalQuadratureNode",
+      "source": "src/motion/capture-rotation-temporal-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureRotationTemporalQuadraturePoint",
+      "source": "src/motion/capture-rotation-temporal-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureRotationTrajectories",
+      "source": "src/motion/capture-rotation-trajectory.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureRotationTrajectoryEndpoint",
+      "source": "src/motion/capture-rotation-trajectory.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureRotationTrajectorySample",
+      "source": "src/motion/capture-rotation-trajectory.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureSdrInput",
+      "source": "src/output/capture-sdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureSdrResult",
+      "source": "src/output/capture-sdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureShutterMechanism",
+      "source": "src/sensor/readout-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureTranslationParallaxSceneSample",
+      "source": "src/motion/capture-translation-parallax-temporal-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureTranslationParallaxTemporalNode",
+      "source": "src/motion/capture-translation-parallax-temporal-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureTranslationParallaxTemporalQuadrature",
+      "source": "src/motion/capture-translation-parallax-temporal-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureTranslationParallaxTemporalSample",
+      "source": "src/motion/capture-translation-parallax-temporal-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureWhiteBalanceIntent",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureWhiteXyz",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CenteredCrop",
+      "source": "src/output/crop.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChannelSeparationVectorMm",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "COLOR_TEMPERATURE_WHITE_BALANCE_INTENT_VERSION",
+      "source": "src/color/white-balance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ColorSamplingChannelComposition",
+      "source": "src/sensor/capture-color-sampling-binding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorSamplingChannelSiteCount",
+      "source": "src/sensor/capture-color-sampling-binding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorSamplingSiteGridDimensions",
+      "source": "src/sensor/capture-color-sampling-binding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorSamplingSiteRect",
+      "source": "src/sensor/capture-color-sampling-binding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorTemperatureWhiteBalanceIntent",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ComposedFrontOfLensFilterTransmission",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ComposedScientificAssurance",
+      "source": "src/core/scientific-assurance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ComposedScientificUncertaintyStatus",
+      "source": "src/core/scientific-assurance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "composeFrontOfLensFilterTransmission",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ComposeFrontOfLensFilterTransmissionInput",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "composeScientificAssurance",
+      "source": "src/core/scientific-assurance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ComposeScientificAssuranceInput",
+      "source": "src/core/scientific-assurance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "composeSensorAccumulatedCharge",
+      "source": "src/sensor/accumulated-charge.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ComposeSensorAccumulatedChargeInput",
+      "source": "src/sensor/accumulated-charge.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ComposeSensorPhotoAccumulatedChargeInput",
+      "source": "src/sensor/accumulated-charge.ts",
+      "kind": "type"
+    },
+    {
+      "name": "composeSpectralCoverage",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ComposeSpectralCoverageInput",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createCancelledReleaseSequence",
+      "source": "src/capture/release-sequence.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createCaptureExportMetadataPair",
+      "source": "src/capture/capture-export-metadata.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createCaptureWhiteBalanceIntent",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createColorTemperatureWhiteBalanceIntent",
+      "source": "src/color/white-balance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateColorTemperatureWhiteBalanceIntentInput",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createExposureMeterTargetFromMeteringResult",
+      "source": "src/exposure/metering-target.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateExposureMeterTargetInput",
+      "source": "src/exposure/metering-target.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createFocusControlState",
+      "source": "src/capture/focus-control.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateFocusControlStateInput",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createGenericEquipmentTierSelection",
+      "source": "src/equipment/generic-tier-presets.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createLockedWhiteBalanceState",
+      "source": "src/color/white-balance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateLockedWhiteBalanceStateInput",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createManualFlashIlluminationOverlay",
+      "source": "src/exposure/flash.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateManualFlashIlluminationOverlayInput",
+      "source": "src/exposure/flash.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createPhotographicExportPair",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createProductionCaptureSnapshot",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createProductionCaptureSnapshotFromReleaseFrame",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateProductionCaptureSnapshotFromReleaseFrameInput",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CreateProductionCaptureSnapshotInput",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createProductionImageFormationPlan",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateProductionImageFormationPlanInput",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createProductionPlanConsumerManifest",
+      "source": "src/composition/plan-consumer.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateProductionPlanConsumerManifestInput",
+      "source": "src/composition/plan-consumer.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createSceneIlluminationSpectralCoverageParticipant",
+      "source": "src/schema/illumination-spectral.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateSceneIlluminationSpectralCoverageParticipantInput",
+      "source": "src/schema/illumination-spectral.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createSceneRadianceDerivedExposureMeteringSampleSet",
+      "source": "src/exposure/metering-scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateSceneRadianceDerivedExposureMeteringSampleSetInput",
+      "source": "src/exposure/metering-scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createSceneRadianceTemporalSamplingPlan",
+      "source": "src/schema/scene-radiance-temporal.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateSceneRadianceTemporalSamplingPlanInput",
+      "source": "src/schema/scene-radiance-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createSensorEqeTemporalPhotoSignal",
+      "source": "src/sensor/temporal-photo-signal.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createSensorRawCaptureSample",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateSensorRawCaptureSampleInput",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createSensorRawFrame",
+      "source": "src/capture/sensor-raw-frame.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createSensorSpectralCoverageParticipant",
+      "source": "src/sensor/spectral-coverage.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateSensorSpectralCoverageParticipantInput",
+      "source": "src/sensor/spectral-coverage.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createSimulatedCapture",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "DeclaredEffectiveCaptureSampling",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DefocusCircle",
+      "source": "src/optics/depth-of-field.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DepthOfField",
+      "source": "src/optics/depth-of-field.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DigitalGeometricTransform",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DiscreteSpectralLineMeasure",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DiscreteSpectralLineMeasureEntry",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DiscreteSpectralLineQuantityUnit",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DistributeIntegratedQuantityAcrossDiscreteLinesInput",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "distributeIntegratedQuantityAcrossDiscreteSpectralLines",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EffectiveSensorResponseScope",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "EncodedLinearCapture",
+      "source": "src/capture/linear-encoding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ENGINE_API_VERSION",
+      "source": "src/core/version.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EnvironmentRadianceEvaluator",
+      "source": "src/sensor/environment-photo-signal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "EnvironmentSensorPhotoSignal",
+      "source": "src/sensor/environment-photo-signal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "EnvironmentSensorRawFrame",
+      "source": "src/capture/environment-raw-producer.ts",
+      "kind": "type"
+    },
+    {
+      "name": "EquivalentFocalLength35Mm",
+      "source": "src/camera/equivalent-focal-length.ts",
+      "kind": "type"
+    },
+    {
+      "name": "EquivalentViewingCircleOfConfusion",
+      "source": "src/optics/circle-of-confusion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "estimateAutoWhiteBalance",
+      "source": "src/color/white-balance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EstimateAutoWhiteBalanceInput",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "estimateCameraShakeBlur",
+      "source": "src/stabilization/camera-shake.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EstimateCameraShakeBlurInput",
+      "source": "src/stabilization/camera-shake.ts",
+      "kind": "type"
+    },
+    {
+      "name": "estimatedResult",
+      "source": "src/core/calculation-result.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "estimateEquivalentViewingCircleOfConfusion",
+      "source": "src/optics/circle-of-confusion.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EstimateEquivalentViewingCircleOfConfusionInput",
+      "source": "src/optics/circle-of-confusion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "evaluateSceneIlluminationTemporalMultiplier",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EvaluateSceneIlluminationTemporalMultiplierInput",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExportSensorColorProfile",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "type"
+    },
+    {
+      "name": "EXPOSURE_DURATION_CONTROL_VERSION",
+      "source": "src/exposure/exposure-duration-control.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EXPOSURE_METER_TARGET_SCHEMA_VERSION",
+      "source": "src/exposure/metering-target.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EXPOSURE_METERING_PROFILE_SCHEMA_VERSION",
+      "source": "src/exposure/metering.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EXPOSURE_MODE_RESOLVER_VERSION",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EXPOSURE_PROGRAM_LINE_SCHEMA_VERSION",
+      "source": "src/exposure/program-line.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ExposureBoundarySchedule",
+      "source": "src/sensor/exposure-window.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureConfiguration",
+      "source": "src/schema/camera.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureDurationControl",
+      "source": "src/exposure/exposure-duration-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureDurationControlResolution",
+      "source": "src/exposure/exposure-duration-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureIntegrationRequirement",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureMeteringPolicy",
+      "source": "src/exposure/metering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureMeteringProfile",
+      "source": "src/exposure/metering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureMeteringResult",
+      "source": "src/exposure/metering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureMeteringSampleSet",
+      "source": "src/exposure/metering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureMeteringZoneSample",
+      "source": "src/exposure/metering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureMeterSnapshotIdentity",
+      "source": "src/exposure/metering-target.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureMeterTarget",
+      "source": "src/exposure/metering-target.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureMeterTargetSourceKind",
+      "source": "src/exposure/metering-target.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureMeterTargetSourceResult",
+      "source": "src/exposure/metering-target.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureProgramLineNode",
+      "source": "src/exposure/program-line.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureProgramLineProfile",
+      "source": "src/exposure/program-line.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureResolutionConstraint",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureTargetResidual",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureTargetResidualState",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExtendedObjectFrontoparallelPlaneDeclaration",
+      "source": "src/motion/extended-object-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExtendedObjectMetricPoint",
+      "source": "src/motion/extended-object-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExtendedObjectPlanarMagnificationDiagnostic",
+      "source": "src/motion/extended-object-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExtendedObjectPointProjectionTrajectory",
+      "source": "src/motion/extended-object-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExtendedObjectProjectionNode",
+      "source": "src/motion/extended-object-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExtendedObjectProjectionTrajectory",
+      "source": "src/motion/extended-object-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FieldOfView",
+      "source": "src/camera/field-of-view.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FieldOfViewBounds",
+      "source": "src/camera/field-of-view.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FixedMultiFrameCaptureAcquisition",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FLASH_SYNC_CAPABILITY_SCHEMA_VERSION",
+      "source": "src/exposure/flash.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "FlashSyncCapabilityProfile",
+      "source": "src/exposure/flash.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocalLengthFNumberSample",
+      "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FOCUS_CONTROL_PROFILE_SCHEMA_VERSION",
+      "source": "src/capture/focus-control.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "FOCUS_CONTROL_STATE_VERSION",
+      "source": "src/capture/focus-control.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "FocusAcquisitionState",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusBreathingFieldOfView",
+      "source": "src/optics/focus-breathing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusBreathingProjection",
+      "source": "src/optics/focus-breathing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusConfiguration",
+      "source": "src/schema/camera.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusControlMode",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusControlProfile",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusControlState",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusPlane",
+      "source": "src/optics/focus-state.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusReleaseGateAssessment",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusReleasePriority",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusTargetControlEvent",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusTargetLossReason",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusTargetObservation",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusTargetResolution",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "FrontOfLensFilterProfile",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FrontOfLensFilterScientificStatus",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FrontOfLensFilterSpectralSample",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FrontOfLensFilterTransmissionModel",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FrontOfLensFilterUncertainty",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FullAutoExposureModeResolution",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FullAutoExposurePolicy",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GENERIC_BODY_METERING_CAPABILITY_SCHEMA_VERSION",
+      "source": "src/equipment/metering-capabilities.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GENERIC_EQUIPMENT_EXPOSURE_CAPABILITY_SCHEMA_VERSION",
+      "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GENERIC_EQUIPMENT_TIER_PRESET_VERSION",
+      "source": "src/equipment/generic-tier-presets.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GENERIC_EQUIPMENT_TIERS",
+      "source": "src/equipment/generic-tier-presets.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GENERIC_ISO_SIGNAL_CHAIN_PRESET_CATALOG_SCHEMA_VERSION",
+      "source": "src/sensor/iso-signal-chain.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GENERIC_ISO_SIGNAL_CHAIN_PROFILE_SCHEMA_VERSION",
+      "source": "src/sensor/iso-signal-chain.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GENERIC_RELEASE_CAPABILITY_SCHEMA_VERSION",
+      "source": "src/equipment/release-capabilities.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GenericBodyExposureCapabilityProfile",
+      "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericBodyMeteringCapabilityProfile",
+      "source": "src/equipment/metering-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericCapabilityAvailability",
+      "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericEquipmentTier",
+      "source": "src/equipment/generic-tier-assets.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericEquipmentTierPreset",
+      "source": "src/equipment/generic-tier-assets.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericEquipmentTierProfileReference",
+      "source": "src/equipment/generic-tier-presets.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericEquipmentTierSelection",
+      "source": "src/equipment/generic-tier-presets.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericExposureBracketAxis",
+      "source": "src/equipment/release-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericIsoCaptureModeSignalChainBinding",
+      "source": "src/sensor/iso-signal-chain.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericIsoExpandedRegimeBinding",
+      "source": "src/sensor/iso-signal-chain.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericIsoSignalChainPreset",
+      "source": "src/sensor/iso-signal-chain.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericIsoSignalChainPresetCatalog",
+      "source": "src/sensor/iso-signal-chain.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericIsoSignalChainProfile",
+      "source": "src/sensor/iso-signal-chain.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericIsoStandardRegimeBand",
+      "source": "src/sensor/iso-signal-chain.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericLensCorrectionProfile",
+      "source": "src/output/lens-corrections.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericLensExposureCapabilityProfile",
+      "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericOpticalEvidence",
+      "source": "src/optics/profile-contract.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericReleaseCapabilityProfile",
+      "source": "src/equipment/release-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericReleaseDriveMode",
+      "source": "src/equipment/release-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericSupportedMeteringProfile",
+      "source": "src/equipment/metering-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericTierBodyAssets",
+      "source": "src/equipment/generic-tier-assets.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericTierLensAssets",
+      "source": "src/equipment/generic-tier-assets.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GenericVersionedAsset",
+      "source": "src/equipment/generic-tier-assets.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GeometricImageDomain",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GeometricJacobian",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GeometricLensCorrection",
+      "source": "src/output/lens-corrections.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GeometricMappingPoint",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GeometricRaster",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GeometricResampler",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GeometricSamplingPlan",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "getImageFormationContract",
+      "source": "src/core/image-formation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "getPsfFoundationContract",
+      "source": "src/optics/psf-foundation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "GlobalSensorReadoutTimingDeclaration",
+      "source": "src/sensor/readout-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GroupedCaptureModeSamplingAnchorDeclaration",
+      "source": "src/sensor/capture-color-sampling-binding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GroupedNativeCaptureSampling",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IdealApertureGeometry",
+      "source": "src/optics/aperture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IdealPolygonDiffraction",
+      "source": "src/optics/polygon-diffraction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IlluminationLensCorrection",
+      "source": "src/output/lens-corrections.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IlluminationVignetting",
+      "source": "src/optics/illumination-vignetting.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IlluminationVignettingCoefficients",
+      "source": "src/optics/illumination-vignetting.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IlluminationVignettingProfile",
+      "source": "src/optics/illumination-vignetting.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IMAGE_FORMATION_CONTRACT_VERSION",
+      "source": "src/core/image-formation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "IMAGE_FORMATION_FIDELITY_PROFILE_SCHEMA_VERSION",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ImageFormationContract",
+      "source": "src/core/image-formation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageFormationCoordinateSpaceContract",
+      "source": "src/core/image-formation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageFormationCoordinateSpaceId",
+      "source": "src/core/image-formation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageFormationDomainId",
+      "source": "src/core/image-formation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageFormationEffectId",
+      "source": "src/core/image-formation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageFormationEffectPlacement",
+      "source": "src/core/image-formation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageFormationFidelityProfile",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageFormationImplementationStatus",
+      "source": "src/core/image-formation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageFormationRendererContract",
+      "source": "src/core/image-formation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageFormationStageContract",
+      "source": "src/core/image-formation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageFormationStageId",
+      "source": "src/core/image-formation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageFormationTemporalContract",
+      "source": "src/core/image-formation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImagePlaneMetricPointMm",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImagePlanePointMm",
+      "source": "src/motion/camera-rotation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImagingAreaMetrics",
+      "source": "src/sensor/sensor-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IntegratedDiscreteSpectralLineMeasure",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "integrateDiscreteSpectralLineMeasure",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "IntegrateSceneIlluminationTemporalMultiplierInput",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "integrateSceneIlluminationTemporalMultiplierOverExposureWindow",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "IntegrateStationarySensorRateInput",
+      "source": "src/sensor/constant-rate-temporal-integration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "integrateStationarySensorRateOverLocalExposure",
+      "source": "src/sensor/constant-rate-temporal-integration.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "InvalidConfigurationError",
+      "source": "src/core/configuration-error.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "InvalidScientificInputError",
+      "source": "src/core/validation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "InvalidScientificResultError",
+      "source": "src/core/validation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "InverseCameraRotationImageMapping",
+      "source": "src/motion/camera-rotation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "InverseLateralChromaticAberrationChannelMapping",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "InverseLateralChromaticAberrationMapping",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "InverseLateralChromaticAberrationMappings",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "InverseRadialDistortionMapping",
+      "source": "src/optics/radial-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "InverseRadialDistortionMappings",
+      "source": "src/optics/radial-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ISO_CAPABILITY_PROFILE_SCHEMA_VERSION",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "IsoAutoIsoCapability",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IsoCapabilityAvailability",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IsoCapabilityProfile",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IsoCaptureModePolicy",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IsoExpandedSetting",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IsoExposureIndexRange",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IsoStandardSettingGrid",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LateralCaLensCorrection",
+      "source": "src/output/lens-corrections.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LateralChromaticAberrationChannel",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LateralChromaticAberrationChannelMapping",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LateralChromaticAberrationMapping",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LateralChromaticAberrationProfile",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LateralChromaticAberrationSeparation",
+      "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LayeredColorSamplingLayout",
+      "source": "src/sensor/color-sampling.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LENS_COMPLEX_PUPIL_PROFILE_SCHEMA_VERSION",
+      "source": "src/optics/complex-pupil-psf.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "LENS_MTF_DIAGNOSTIC_PROFILE_SCHEMA_VERSION",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "LENS_SAMPLED_PSF_PROFILE_SCHEMA_VERSION",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "LensComplexPupilGrid",
+      "source": "src/optics/complex-pupil-psf.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensComplexPupilProfile",
+      "source": "src/optics/complex-pupil-psf.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensComplexPupilPsf",
+      "source": "src/optics/complex-pupil-psf.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensConfiguration",
+      "source": "src/schema/camera.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensCorrectionCapture",
+      "source": "src/output/lens-corrections.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensCorrectionChannel",
+      "source": "src/output/lens-corrections.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensCorrectionComponent",
+      "source": "src/output/lens-corrections.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensFieldPointMm",
+      "source": "src/optics/radial-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensMtfDiagnosticProfile",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensMtfDiagnosticSample",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensPsfGridAxes",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensPsfKernel",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensPsfScientificStatus",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensPsfUncertainty",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensSampledPsfGridCoordinate",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensSampledPsfGridNode",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensSampledPsfProfile",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensStrayLightProfile",
+      "source": "src/optics/stray-light.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION",
+      "source": "src/capture/linear-encoding.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "LINEAR_CAPTURE_RGB_PROFILE",
+      "source": "src/color/capture-color.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "LinearCaptureEncoding",
+      "source": "src/capture/linear-encoding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LinearCaptureEncodingInput",
+      "source": "src/capture/linear-encoding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "MANUAL_FLASH_PROFILE_SCHEMA_VERSION",
+      "source": "src/exposure/flash.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ManualExposureModeResolution",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ManualFlashIlluminationOverlay",
+      "source": "src/exposure/flash.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ManualFlashProfile",
+      "source": "src/exposure/flash.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ManualFlashPulseProfile",
+      "source": "src/exposure/flash.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ManualFlashSyncMode",
+      "source": "src/exposure/flash.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ManualIsoControl",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "mapImagePlanePointToOrientedPhysicalUv",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "MapImagePlanePointToOrientedPhysicalUvInput",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "MapOrientedPhysicalUvToImagePlaneInput",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "mapOrientedPhysicalUvToImagePlanePoint",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "MeteringCapabilityCompatibilityAssessment",
+      "source": "src/equipment/metering-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "MeteringCapabilityCompatibilityBlocker",
+      "source": "src/equipment/metering-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "meterRelativeExposure",
+      "source": "src/exposure/metering.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "MeterRelativeExposureInput",
+      "source": "src/exposure/metering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "meterSceneRadianceTemporalExposure",
+      "source": "src/exposure/metering-temporal.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "MeterSceneRadianceTemporalExposureInput",
+      "source": "src/exposure/metering-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "MonochromeColorSamplingLayout",
+      "source": "src/sensor/color-sampling.ts",
+      "kind": "type"
+    },
+    {
+      "name": "MtfOnlyPsfRenderabilityAssessment",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeColorSamplingSiteCoordinateSystem",
+      "source": "src/sensor/color-sampling.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeColorSamplingSiteIndex",
+      "source": "src/sensor/color-sampling.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEffectiveCaptureSampling",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEffectiveRasterColorSamplingBindingProfile",
+      "source": "src/sensor/capture-color-sampling-binding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEffectiveSampleRect",
+      "source": "src/sensor/capture-color-sampling-binding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeImageRaster",
+      "source": "src/sensor/sensor-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeSensorPhysicalBoundsMm",
+      "source": "src/sensor/sampling-aperture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeSensorPhysicalPointMm",
+      "source": "src/sensor/sampling-aperture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeSensorReadoutScanDirection",
+      "source": "src/sensor/readout-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NormalizedDiscreteSpectralLine",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NormalizedDiscreteSpectralLineDistribution",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NormalizedRasterUv",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NumericCapabilityRange",
+      "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NumericRange",
+      "source": "src/optics/scene-to-sensor-irradiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NumericSettingGrid",
+      "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "OpticalBridgeFieldThroughput",
+      "source": "src/optics/scene-to-sensor-irradiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "OpticalBridgeFocusApplicability",
+      "source": "src/optics/scene-to-sensor-irradiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "OpticalBridgeFocusContext",
+      "source": "src/optics/scene-to-sensor-irradiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "OpticalBridgeScientificStatus",
+      "source": "src/optics/scene-to-sensor-irradiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "OpticalBridgeUncertainty",
+      "source": "src/optics/scene-to-sensor-irradiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "OpticalProfileState",
+      "source": "src/optics/profile-contract.ts",
+      "kind": "type"
+    },
+    {
+      "name": "OpticalTransmissionModel",
+      "source": "src/optics/scene-to-sensor-irradiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "OpticalTransmissionRequirement",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "type"
+    },
+    {
+      "name": "OutputFieldOfView",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ParametricStrayLightResponse",
+      "source": "src/optics/stray-light.ts",
+      "kind": "type"
+    },
+    {
+      "name": "parseCameraConfiguration",
+      "source": "src/schema/validation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseCaptureColorTransformInput",
+      "source": "src/color/capture-color.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseCaptureCorrectedSdrInput",
+      "source": "src/output/capture-corrected-sdr.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseCaptureExportMetadataInput",
+      "source": "src/capture/capture-export-metadata.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseCaptureModeProfile",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseCaptureModeTimingProfile",
+      "source": "src/sensor/capture-mode-timing.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseCaptureSdrInput",
+      "source": "src/output/capture-sdr.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseDigitalGeometricTransform",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseExportSensorColorProfile",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseExposureMeteringProfile",
+      "source": "src/exposure/metering.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseExposureProgramLineProfile",
+      "source": "src/exposure/program-line.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseFlashSyncCapabilityProfile",
+      "source": "src/exposure/flash.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseFocusControlProfile",
+      "source": "src/capture/focus-control.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseFocusPlane",
+      "source": "src/optics/focus-state.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseFrontOfLensFilterProfile",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseGenericBodyExposureCapabilityProfile",
+      "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseGenericBodyMeteringCapabilityProfile",
+      "source": "src/equipment/metering-capabilities.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseGenericEquipmentTierSelection",
+      "source": "src/equipment/generic-tier-presets.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseGenericIsoSignalChainPresetCatalog",
+      "source": "src/sensor/iso-signal-chain.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseGenericIsoSignalChainProfile",
+      "source": "src/sensor/iso-signal-chain.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseGenericLensCorrectionProfile",
+      "source": "src/output/lens-corrections.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseGenericLensExposureCapabilityProfile",
+      "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseGenericReleaseCapabilityProfile",
+      "source": "src/equipment/release-capabilities.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseImageFormationFidelityProfile",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseIsoCapabilityProfile",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseLensComplexPupilProfile",
+      "source": "src/optics/complex-pupil-psf.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseLensMtfDiagnosticProfile",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseLensSampledPsfProfile",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseLensStrayLightProfile",
+      "source": "src/optics/stray-light.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseLinearCaptureEncoding",
+      "source": "src/capture/linear-encoding.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseManualFlashProfile",
+      "source": "src/exposure/flash.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseNativeEffectiveRasterColorSamplingBindingProfile",
+      "source": "src/sensor/capture-color-sampling-binding.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseNormalizedDiscreteSpectralLineDistribution",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseOpticalProfileState",
+      "source": "src/optics/profile-contract.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parsePhotographicExportInput",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parsePreparedImageFormationContext",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseProcessedSensorRawInput",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseProductionCaptureSnapshot",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseRadiometryReadinessProfile",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseRawFrameReconstructionInput",
+      "source": "src/capture/raw-frame-reconstruction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseRendererCapabilityDeclaration",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseResolvedWhiteBalanceState",
+      "source": "src/color/white-balance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSceneDefinition",
+      "source": "src/schema/validation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSceneIlluminationProfile",
+      "source": "src/schema/illumination.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSceneIlluminationTemporalProfile",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSceneMaterialResponseProfile",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSceneRadianceEvaluationRequest",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSceneRadianceEvaluationResult",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSceneRadianceMeteringDerivationProfile",
+      "source": "src/exposure/metering-scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSceneRadianceProviderProfile",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSceneToSensorIrradianceProfile",
+      "source": "src/optics/scene-to-sensor-irradiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSdrRenderingInput",
+      "source": "src/output/sdr-rendering.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSdrRenderingProfile",
+      "source": "src/output/sdr-rendering.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorAccumulatedChargeCompletenessProfile",
+      "source": "src/sensor/accumulated-charge.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorAdditionalStoredChargeComponent",
+      "source": "src/sensor/accumulated-charge.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorArchitectureProfile",
+      "source": "src/sensor/architecture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorCameraSaturationCapacityProfile",
+      "source": "src/sensor/camera-saturation-capacity.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorChargeSamplingProfile",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorColorSamplingProfile",
+      "source": "src/sensor/color-sampling.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorDarkCurrentProfile",
+      "source": "src/sensor/dark-current.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorEqeTemporalPhotoSignal",
+      "source": "src/sensor/temporal-photo-signal.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorOpticalStackProfile",
+      "source": "src/sensor/optical-stack.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorPhysicalChargeCapacityProfile",
+      "source": "src/sensor/physical-charge-capacity.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorRateTemporalStationarityProfile",
+      "source": "src/sensor/constant-rate-temporal-integration.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorRawFrameInput",
+      "source": "src/capture/sensor-raw-frame.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorRawProducerInput",
+      "source": "src/capture/sensor-raw-producer.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorRawReconstructionProfile",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorReadoutConversionProfile",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorResponseApplicationProfile",
+      "source": "src/sensor/response-application-compatibility.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorResponseOperatingRangeProfile",
+      "source": "src/sensor/response-operating-range.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorResponsivityElectricalApplicabilityProfile",
+      "source": "src/sensor/responsivity-photocurrent.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorSamplingApertureProfile",
+      "source": "src/sensor/sampling-aperture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorSpectralResponseProfile",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSimulatedCapture",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSourcedAirPhaseRefractiveIndex",
+      "source": "src/sensor/photon-energy.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSpectralCoverageParticipant",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSpectralWavelengthBasis",
+      "source": "src/core/spectral.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSpectralWavelengthRangeNanometers",
+      "source": "src/core/spectral.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSpectralWavelengthSample",
+      "source": "src/core/spectral.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseStabilizationDisturbanceTrajectory",
+      "source": "src/stabilization/system.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseStabilizationSystemProfile",
+      "source": "src/stabilization/system.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseWhiteBalanceProfile",
+      "source": "src/color/white-balance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PeriodicMosaicColorSamplingLayout",
+      "source": "src/sensor/color-sampling.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PhotographicExportInput",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PhotographicExportPair",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PhotonEnergyFromWavelength",
+      "source": "src/sensor/photon-energy.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PhotositeCollectionAreaRequirement",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PhysicalBoundsFromOpticalAxisMm",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PhysicalStabilizationArchitecture",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PixelPitch",
+      "source": "src/sensor/pixel-pitch.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PlannedImageFormationEffect",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PlannedImageFormationEffectState",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PlannedImageFormationStage",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PlannedImageFormationStageState",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PlannedScientificStatus",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "POC_SIMULATION_API_VERSION",
+      "source": "src/simulation/poc-simulation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PocSimulationRequest",
+      "source": "src/simulation/poc-simulation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PocSimulationResponse",
+      "source": "src/simulation/poc-simulation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PREPARED_IMAGE_FORMATION_CONTEXT_VERSION",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PreparedGeometricMapping",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PreparedImageFormationContext",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "prepareGeometricMapping",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "prepareImageFormationContext",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PrepareImageFormationContextInput",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PreWhiteBalanceRgbSample",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PreWhiteBalanceRgbSampleSet",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProcessedSensorRawInput",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProcessedSensorRawResult",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PRODUCTION_CAPTURE_SNAPSHOT_VERSION",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PRODUCTION_IMAGE_FORMATION_PLAN_VERSION",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PRODUCTION_PLAN_CONSUMER_MANIFEST_VERSION",
+      "source": "src/composition/plan-consumer.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ProductionCaptureSnapshot",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProductionEnvironmentCaptureInput",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProductionImageFormationBlocker",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProductionImageFormationBlockerCode",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProductionImageFormationPlan",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProductionPhysicalSceneSample",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProductionPlanConsumerManifest",
+      "source": "src/composition/plan-consumer.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProductionProcessedOutputInput",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProductionReleaseFrameBinding",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProductionTemporalCaptureInput",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProductionTemporalCaptureResult",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProgramAutoExposureModeResolution",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProgramAutoIsoControl",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProgramLineSelectionDiagnostics",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProjectedMotionBlur",
+      "source": "src/motion/projected-motion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProjectedObjectSize",
+      "source": "src/camera/projected-object-size.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProvenanceKind",
+      "source": "src/core/calculation-result.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PSF_FOUNDATION_VERSION",
+      "source": "src/optics/psf-foundation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PsfContributionContract",
+      "source": "src/optics/psf-foundation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PsfContributionId",
+      "source": "src/optics/psf-foundation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PsfContributionStatus",
+      "source": "src/optics/psf-foundation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PsfFoundationComponents",
+      "source": "src/optics/psf-foundation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PsfFoundationContract",
+      "source": "src/optics/psf-foundation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PupilVignettingRequirement",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RadialDistortionCoefficients",
+      "source": "src/optics/radial-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RadialDistortionMapping",
+      "source": "src/optics/radial-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RadialDistortionProfile",
+      "source": "src/optics/radial-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RadialGeometricTransform",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RadiometryReadinessAssessment",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RadiometryReadinessProfile",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RadiometryRequirement",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RadiometryRequirementId",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RadiometryScientificStatus",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RadiometryUncertaintyDeclaration",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RasterDimensions",
+      "source": "src/sensor/sensor-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RasterPoint",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RasterRect",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RasterVector",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RAW_FRAME_RECONSTRUCTION_SCHEMA_VERSION",
+      "source": "src/capture/raw-frame-reconstruction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "RawFrameReconstruction",
+      "source": "src/capture/raw-frame-reconstruction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RawFrameReconstructionInput",
+      "source": "src/capture/raw-frame-reconstruction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RawFrameReconstructionPhaseProfile",
+      "source": "src/capture/raw-frame-reconstruction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReadoutExposureBoundaryId",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReadoutExposureBoundarySpatialLink",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReadoutExposureBoundarySpatialLinkAssessment",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReadoutExposureSpatialPhaseOrientation",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReadoutExposureTimingLinkageAssessment",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReadoutExposureTimingLinkageDeclaration",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReducedSceneRadianceTemporalExposure",
+      "source": "src/schema/scene-radiance-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "reduceSceneRadianceTemporalSamples",
+      "source": "src/schema/scene-radiance-temporal.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ReduceSceneRadianceTemporalSamplesInput",
+      "source": "src/schema/scene-radiance-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "reduceSensorSpatialSamplingQuadrature",
+      "source": "src/sensor/spatial-sample-reduction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ReduceSensorSpatialSamplingQuadratureInput",
+      "source": "src/sensor/spatial-sample-reduction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "reduceSensorSpatioSpectralIrradiance",
+      "source": "src/sensor/spatio-spectral-reduction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ReduceSensorSpatioSpectralIrradianceInput",
+      "source": "src/sensor/spatio-spectral-reduction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RelativeExposureControlAnchor",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RelativeOpticalExposure",
+      "source": "src/exposure/exposure.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RelativeRenderedExposure",
+      "source": "src/exposure/exposure.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RelativeUncertaintyEstimate",
+      "source": "src/core/calculation-result.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RELEASE_SEQUENCE_VERSION",
+      "source": "src/capture/release-sequence.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ReleaseAutomationState",
+      "source": "src/capture/release-sequence.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReleaseBaseCaptureState",
+      "source": "src/capture/release-sequence.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReleaseBracketPolicy",
+      "source": "src/capture/release-sequence.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReleaseDrivePolicy",
+      "source": "src/capture/release-sequence.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReleaseTimingConstraint",
+      "source": "src/capture/release-sequence.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RENDERER_CAPABILITY_SCHEMA_VERSION",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "RendererCapabilityDeclaration",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RendererConsumerKind",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RequestedFlashSyncMode",
+      "source": "src/exposure/flash.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RequestedIsoSetting",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RequiredImageFormationEffect",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveAntiAliasingSpatialKernel",
+      "source": "src/sensor/optical-stack.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "resolveAperturePriorityAutoIsoExposureMode",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveAperturePriorityAutoIsoExposureModeInput",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveAperturePriorityExposureMode",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveAperturePriorityExposureModeInput",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveCaptureColorModel",
+      "source": "src/color/capture-color.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "resolveCaptureGeometry",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveCaptureGeometryInput",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveCaptureMode",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "resolveCaptureModeColorSamplingContributors",
+      "source": "src/sensor/capture-color-sampling-binding.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveCaptureModeColorSamplingContributorsInput",
+      "source": "src/sensor/capture-color-sampling-binding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolveCaptureModeInput",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveCaptureModeTiming",
+      "source": "src/sensor/capture-mode-timing.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveCaptureModeTimingInput",
+      "source": "src/sensor/capture-mode-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveColorSamplingSite",
+      "source": "src/sensor/color-sampling.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveColorSamplingSiteInput",
+      "source": "src/sensor/color-sampling.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveCustomWhiteBalance",
+      "source": "src/color/white-balance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveCustomWhiteBalanceInput",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedAntiAliasingSpatialKernel",
+      "source": "src/sensor/optical-stack.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedCaptureExposureBoundary",
+      "source": "src/sensor/exposure-window.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedCaptureGeometry",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedCaptureMode",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedCaptureModeColorSamplingContributors",
+      "source": "src/sensor/capture-color-sampling-binding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedCaptureModeTiming",
+      "source": "src/sensor/capture-mode-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedColorSamplingSite",
+      "source": "src/sensor/color-sampling.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedFrontOfLensFilterTransmission",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedGenericEquipmentExposureCapabilities",
+      "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedGenericIsoSignalChain",
+      "source": "src/sensor/iso-signal-chain.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedGenericTierLensProfiles",
+      "source": "src/equipment/generic-tier-presets.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedIsoCapability",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedLensCorrectionPlan",
+      "source": "src/output/lens-corrections.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedLensSampledPsf",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedManualFlashSync",
+      "source": "src/exposure/flash.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedNativeEffectiveRasterColorSamplingBinding",
+      "source": "src/sensor/capture-color-sampling-binding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedNumericSettingGrid",
+      "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedReleaseFrame",
+      "source": "src/capture/release-sequence.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedReleaseSequence",
+      "source": "src/capture/release-sequence.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedSensorReadoutRegime",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedSensorSamplingAperture",
+      "source": "src/sensor/sampling-aperture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedSensorSpectralResponse",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedSensorSpectralResponseValue",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedSpectralWavelengthBasis",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedWhiteBalanceState",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveExposureDurationControl",
+      "source": "src/exposure/exposure-duration-control.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "resolveFocusTargetObservation",
+      "source": "src/capture/focus-control.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveFocusTargetObservationInput",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveFrontOfLensFilterTransmission",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveFrontOfLensFilterTransmissionInput",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveFullAutoExposureMode",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveFullAutoExposureModeInput",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveGenericEquipmentExposureCapabilities",
+      "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveGenericEquipmentExposureCapabilitiesInput",
+      "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveGenericEquipmentTierCatalog",
+      "source": "src/equipment/generic-tier-presets.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "resolveGenericEquipmentTierLensProfiles",
+      "source": "src/equipment/generic-tier-presets.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "resolveGenericIsoSignalChain",
+      "source": "src/sensor/iso-signal-chain.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveGenericIsoSignalChainInput",
+      "source": "src/sensor/iso-signal-chain.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveGenericIsoSignalChainPreset",
+      "source": "src/sensor/iso-signal-chain.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "resolveIsoCapability",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveIsoCapabilityInput",
+      "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveLensCorrectionPlan",
+      "source": "src/output/lens-corrections.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "resolveLensSampledPsf",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveLensSampledPsfInput",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveManualExposureMode",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveManualExposureModeInput",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveManualFlashSync",
+      "source": "src/exposure/flash.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveManualFlashSyncInput",
+      "source": "src/exposure/flash.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveManualWhiteBalance",
+      "source": "src/color/white-balance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveManualWhiteBalanceInput",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveNativeEffectiveRasterColorSamplingBinding",
+      "source": "src/sensor/capture-color-sampling-binding.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "resolvePresetWhiteBalance",
+      "source": "src/color/white-balance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolvePresetWhiteBalanceInput",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveProgramAutoExposureMode",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveProgramAutoExposureModeInput",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveRawFrameReconstruction",
+      "source": "src/capture/raw-frame-reconstruction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "resolveReleaseSequence",
+      "source": "src/capture/release-sequence.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveReleaseSequenceInput",
+      "source": "src/capture/release-sequence.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveSceneIlluminationDiscreteLineMeasure",
+      "source": "src/schema/illumination-spectral.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "resolveSensorRawReconstruction",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveSensorRawReconstructionInput",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveSensorReadoutRegime",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveSensorReadoutRegimeInput",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveSensorSamplingAperture",
+      "source": "src/sensor/sampling-aperture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveSensorSamplingApertureInput",
+      "source": "src/sensor/sampling-aperture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveSensorSpectralResponseAtWavelength",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveSensorSpectralResponseAtWavelengthInput",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveShutterPriorityExposureMode",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveShutterPriorityExposureModeInput",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveSimulatedCapturePlane",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "RollingSensorReadoutTimingDeclaration",
+      "source": "src/sensor/readout-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SCENE_ILLUMINATION_PROFILE_SCHEMA_VERSION",
+      "source": "src/schema/illumination.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SCENE_ILLUMINATION_TEMPORAL_PROFILE_SCHEMA_VERSION",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SCENE_MATERIAL_RESPONSE_PROFILE_SCHEMA_VERSION",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SCENE_RADIANCE_EVALUATION_SCHEMA_VERSION",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SCENE_RADIANCE_METERING_DERIVATION_SCHEMA_VERSION",
+      "source": "src/exposure/metering-scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SCENE_RADIANCE_PROVIDER_PROFILE_SCHEMA_VERSION",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SCENE_RADIANCE_TEMPORAL_SAMPLING_PLAN_VERSION",
+      "source": "src/schema/scene-radiance-temporal.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SCENE_TO_SENSOR_IRRADIANCE_PROFILE_SCHEMA_VERSION",
+      "source": "src/optics/scene-to-sensor-irradiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SceneCapability",
+      "source": "src/schema/scene.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneDefinition",
+      "source": "src/schema/scene.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationDiscreteLineMeasure",
+      "source": "src/schema/illumination-spectral.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationMagnitude",
+      "source": "src/schema/illumination.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationProfile",
+      "source": "src/schema/illumination.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationRelativeSpectrumSample",
+      "source": "src/schema/illumination.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationScientificStatus",
+      "source": "src/schema/illumination.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationSource",
+      "source": "src/schema/illumination.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationSourceFamily",
+      "source": "src/schema/illumination.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationSourceGeometry",
+      "source": "src/schema/illumination.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationSpectrum",
+      "source": "src/schema/illumination.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationTemporalExposureIntegration",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationTemporalIntegrationNode",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationTemporalMultiplierEvaluation",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationTemporalProfile",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationTemporalRegistrationUncertainty",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationTemporalScientificStatus",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationTemporalSourceBinding",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationTemporalWaveform",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationTemporalWaveformSample",
+      "source": "src/schema/illumination-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneIlluminationUncertainty",
+      "source": "src/schema/illumination.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneMaterialResponseDefinition",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneMaterialResponseFidelity",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneMaterialResponseProfile",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneMaterialResponseRepresentation",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneMotion",
+      "source": "src/schema/scene.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneObject",
+      "source": "src/schema/scene.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceDataArtifactReference",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceDerivedExposureMeteringSampleSet",
+      "source": "src/exposure/metering-scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceEvaluationBindingAssessment",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceEvaluationRequest",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceEvaluationResult",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceEvaluationTarget",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceMeteringDerivationProfile",
+      "source": "src/exposure/metering-scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceMeteringSourceContext",
+      "source": "src/exposure/metering-scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceMeteringTemporalContext",
+      "source": "src/exposure/metering-scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceProviderProfile",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceProviderSpectralFidelity",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceProviderTransportFidelity",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceProviderVisibilityFidelity",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceScientificStatus",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceTemporalEvaluatedSample",
+      "source": "src/schema/scene-radiance-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceTemporalExposureMeteringResult",
+      "source": "src/exposure/metering-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceTemporalMeteringSample",
+      "source": "src/exposure/metering-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceTemporalQuery",
+      "source": "src/schema/scene-radiance-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceTemporalSamplingNode",
+      "source": "src/schema/scene-radiance-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceTemporalSamplingPlan",
+      "source": "src/schema/scene-radiance-temporal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadianceUncertainty",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneRadiometry",
+      "source": "src/schema/scene.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneSensorEqeTemporalExposure",
+      "source": "src/sensor/scene-eqe-temporal-exposure.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneSensorQuadratureSample",
+      "source": "src/optics/scene-to-sensor-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneSpectralRadianceRequirement",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneToSensorIrradianceProfile",
+      "source": "src/optics/scene-to-sensor-irradiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneToSensorIrradianceQuadrature",
+      "source": "src/optics/scene-to-sensor-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SceneToSensorIrradianceResult",
+      "source": "src/optics/scene-to-sensor-irradiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SCIENTIFIC_ASSURANCE_CONTRACT_VERSION",
+      "source": "src/core/scientific-assurance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ScientificAssuranceBasisKind",
+      "source": "src/core/scientific-assurance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ScientificAssuranceComponent",
+      "source": "src/core/scientific-assurance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ScientificAssuranceComponentUncertainty",
+      "source": "src/core/scientific-assurance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ScientificAssuranceSourceIdentity",
+      "source": "src/core/scientific-assurance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ScientificAssuranceSourceKind",
+      "source": "src/core/scientific-assurance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ScientificAssuranceStatus",
+      "source": "src/core/scientific-assurance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SDR_RENDERING_SCHEMA_VERSION",
+      "source": "src/output/sdr-rendering.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SdrRenderingInput",
+      "source": "src/output/sdr-rendering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SdrRenderingProfile",
+      "source": "src/output/sdr-rendering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SdrRenderingResult",
+      "source": "src/output/sdr-rendering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION",
+      "source": "src/sensor/architecture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SENSOR_CHARGE_SAMPLING_PROFILE_SCHEMA_VERSION",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SENSOR_RAW_CAPTURE_SAMPLE_VERSION",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SENSOR_RAW_FRAME_SCHEMA_VERSION",
+      "source": "src/capture/sensor-raw-frame.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SENSOR_RAW_PRODUCER_NOISE_MODEL",
+      "source": "src/capture/sensor-raw-producer.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SENSOR_RAW_PRODUCER_SCHEMA_VERSION",
+      "source": "src/capture/sensor-raw-producer.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SENSOR_RAW_RECONSTRUCTION_PROFILE_SCHEMA_VERSION",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SENSOR_READOUT_CONVERSION_PROFILE_SCHEMA_VERSION",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SensorAccumulatedChargeCompletenessProfile",
+      "source": "src/sensor/accumulated-charge.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorAccumulatedChargeComposition",
+      "source": "src/sensor/accumulated-charge.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorAdditionalChargeSamplingModel",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorAdditionalChargeSamplingPolicy",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorAdditionalStoredChargeComponent",
+      "source": "src/sensor/accumulated-charge.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorAdditionalStoredChargeKind",
+      "source": "src/sensor/accumulated-charge.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorArchitectureFactProvenance",
+      "source": "src/sensor/architecture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorArchitectureProfile",
+      "source": "src/sensor/architecture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorArchitectureProfileV0_2",
+      "source": "src/sensor/architecture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorArchitectureProfileV0_3",
+      "source": "src/sensor/architecture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorArchitectureReuseStatus",
+      "source": "src/sensor/architecture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorArchitectureSourceKind",
+      "source": "src/sensor/architecture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorCameraSaturationCapacityAssessment",
+      "source": "src/sensor/camera-saturation-capacity.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorCameraSaturationCapacityProfile",
+      "source": "src/sensor/camera-saturation-capacity.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorCameraSaturationSiteApplicability",
+      "source": "src/sensor/camera-saturation-capacity.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorCameraSaturationTemperatureApplicability",
+      "source": "src/sensor/camera-saturation-capacity.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorChargeRealization",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorChargeSamplingProfile",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorColorSamplingFamily",
+      "source": "src/sensor/architecture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorColorSamplingLayout",
+      "source": "src/sensor/color-sampling.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorColorSamplingProfile",
+      "source": "src/sensor/color-sampling.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorColorSamplingProfileCoordinateSystem",
+      "source": "src/sensor/color-sampling.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorConfiguration",
+      "source": "src/schema/camera.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorDarkCurrentCharge",
+      "source": "src/sensor/dark-current.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorDarkCurrentProfile",
+      "source": "src/sensor/dark-current.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorDarkCurrentSiteApplicability",
+      "source": "src/sensor/dark-current.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorDarkCurrentTemperatureModel",
+      "source": "src/sensor/dark-current.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorEffectiveAntiAliasingSpatialResponse",
+      "source": "src/sensor/optical-stack.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorElectronicReadNoiseComponent",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorEnvironmentRadianceQuery",
+      "source": "src/optics/sensor-environment-query.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorEqeAirPhotonEnergyContext",
+      "source": "src/sensor/eqe-electron-rate.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorEqeAirRefractiveIndexSample",
+      "source": "src/sensor/eqe-electron-rate.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorEqeElectronRate",
+      "source": "src/sensor/eqe-electron-rate.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorEqeExposureIntegration",
+      "source": "src/sensor/constant-rate-temporal-integration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorEqeLocalExposure",
+      "source": "src/sensor/eqe-local-exposure.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorEqePhotoExposure",
+      "source": "src/sensor/temporal-photo-signal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorEqeTemporalExposure",
+      "source": "src/sensor/eqe-temporal-exposure.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorEqeTemporalPhotoSignal",
+      "source": "src/sensor/temporal-photo-signal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorEqeWavelengthRateContribution",
+      "source": "src/sensor/eqe-electron-rate.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorExpectedReadoutSignal",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorGeometricSensitiveAperture",
+      "source": "src/sensor/sampling-aperture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorGeometryMetrics",
+      "source": "src/sensor/sensor-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorIlluminationArchitecture",
+      "source": "src/sensor/architecture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorImagingArea",
+      "source": "src/sensor/sensor-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorInstantaneousRateResult",
+      "source": "src/sensor/local-exposure-binding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorIntegrationArchitecture",
+      "source": "src/sensor/architecture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorMicrolensDeclaration",
+      "source": "src/sensor/optical-stack.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorOpticalStackComponent",
+      "source": "src/sensor/optical-stack.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorOpticalStackComponentRole",
+      "source": "src/sensor/optical-stack.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorOpticalStackProfile",
+      "source": "src/sensor/optical-stack.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorPhotoAccumulatedChargeComposition",
+      "source": "src/sensor/accumulated-charge.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorPhotoDarkCurrentCharge",
+      "source": "src/sensor/dark-current.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorPhysicalChargeCapacityAssessment",
+      "source": "src/sensor/physical-charge-capacity.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorPhysicalChargeCapacityProfile",
+      "source": "src/sensor/physical-charge-capacity.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorPhysicalChargeCapacitySiteApplicability",
+      "source": "src/sensor/physical-charge-capacity.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorPhysicalChargeCapacityTemperatureApplicability",
+      "source": "src/sensor/physical-charge-capacity.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorPsfIrradianceQuadrature",
+      "source": "src/optics/sensor-psf-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorPsfSourceSample",
+      "source": "src/optics/sensor-psf-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRateLocalExposureBinding",
+      "source": "src/sensor/local-exposure-binding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRateStationarityStatus",
+      "source": "src/sensor/constant-rate-temporal-integration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRateTemporalStationarityProfile",
+      "source": "src/sensor/constant-rate-temporal-integration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRawCaptureSample",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRawCodeSample",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRawFrame",
+      "source": "src/capture/sensor-raw-frame.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRawFrameInput",
+      "source": "src/capture/sensor-raw-frame.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRawProducerExposureWindowInput",
+      "source": "src/capture/sensor-raw-producer.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRawProducerInput",
+      "source": "src/capture/sensor-raw-producer.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRawProducerResult",
+      "source": "src/capture/sensor-raw-producer.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRawProducerSiteInput",
+      "source": "src/capture/sensor-raw-producer.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRawReconstructedPixel",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRawReconstructionChannelKernel",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRawReconstructionKernelContribution",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorRawReconstructionProfile",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorReadoutArchitecture",
+      "source": "src/sensor/architecture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorReadoutConversionProfile",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorReadoutConversionRegime",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorReadoutMode",
+      "source": "src/sensor/readout-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorReadoutTiming",
+      "source": "src/sensor/readout-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorReadoutTimingDeclaration",
+      "source": "src/sensor/readout-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorReadoutTimingSample",
+      "source": "src/sensor/readout-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseApplicationCompatibilityAssessment",
+      "source": "src/sensor/response-application-compatibility.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseApplicationCompatibilityBlocker",
+      "source": "src/sensor/response-application-compatibility.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseApplicationProfile",
+      "source": "src/sensor/response-application-compatibility.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseIncidentAreaBasis",
+      "source": "src/sensor/response-application-compatibility.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseLinearityCriterion",
+      "source": "src/sensor/response-operating-range.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseOperatingInputRange",
+      "source": "src/sensor/response-operating-range.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseOperatingRangeAssessment",
+      "source": "src/sensor/response-operating-range.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseOperatingRangeBlocker",
+      "source": "src/sensor/response-operating-range.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseOperatingRangeProfile",
+      "source": "src/sensor/response-operating-range.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseOperatingSpatialLinearityModel",
+      "source": "src/sensor/response-operating-range.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseOperatingSpectralInputModel",
+      "source": "src/sensor/response-operating-range.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseOperatingWavelengthApplicability",
+      "source": "src/sensor/response-operating-range.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseReferenceConditionPolicy",
+      "source": "src/sensor/response-application-compatibility.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseRequirement",
+      "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseSignalPath",
+      "source": "src/sensor/response-application-compatibility.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseSourcePlane",
+      "source": "src/sensor/response-application-compatibility.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponseSpatialModel",
+      "source": "src/sensor/response-application-compatibility.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponsivityBiasCondition",
+      "source": "src/sensor/responsivity-photocurrent.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponsivityElectricalApplicabilityProfile",
+      "source": "src/sensor/responsivity-photocurrent.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponsivityElectricalConditionPolicy",
+      "source": "src/sensor/responsivity-photocurrent.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponsivityElectricalConditions",
+      "source": "src/sensor/responsivity-photocurrent.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponsivityExposureIntegration",
+      "source": "src/sensor/constant-rate-temporal-integration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponsivityPhotocurrent",
+      "source": "src/sensor/responsivity-photocurrent.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponsivityReadoutLoadCondition",
+      "source": "src/sensor/responsivity-photocurrent.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorResponsivityWavelengthCurrentContribution",
+      "source": "src/sensor/responsivity-photocurrent.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSamplingApertureProfile",
+      "source": "src/sensor/sampling-aperture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSiteCenterLatticeRegistration",
+      "source": "src/sensor/sampling-aperture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpatialQuadratureNodeIdentity",
+      "source": "src/sensor/spatial-sample-reduction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpatialQuadratureNodeValue",
+      "source": "src/sensor/spatial-sample-reduction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpatialSampleReduction",
+      "source": "src/sensor/spatial-sample-reduction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpatialSampleReductionValue",
+      "source": "src/sensor/spatial-sample-reduction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpatialSampleValueDomain",
+      "source": "src/sensor/spatial-sample-reduction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpatialSamplingQuadrature",
+      "source": "src/sensor/spatial-sampling-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpatialSamplingQuadratureNode",
+      "source": "src/sensor/spatial-sampling-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpatioSpectralIrradianceReduction",
+      "source": "src/sensor/spatio-spectral-reduction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpatioSpectralIrradianceSample",
+      "source": "src/sensor/spatio-spectral-reduction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpatioSpectralNodeIdentity",
+      "source": "src/sensor/spatio-spectral-reduction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpatioSpectralWavelengthReduction",
+      "source": "src/sensor/spatio-spectral-reduction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpectralChannelResponse",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpectralQuadrature",
+      "source": "src/sensor/spectral-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpectralQuadratureNode",
+      "source": "src/sensor/spectral-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpectralReferenceConditions",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpectralResponseChannelBinding",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpectralResponseProfile",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpectralResponseScientificStatus",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpectralResponseUncertainty",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorSpectralWavelengthRangeNanometers",
+      "source": "src/sensor/spectral-quadrature.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorStationaryRateExposureIntegration",
+      "source": "src/sensor/constant-rate-temporal-integration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorTechnologyFamily",
+      "source": "src/sensor/architecture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorTemporalDarkCurrentCharge",
+      "source": "src/sensor/dark-current.ts",
+      "kind": "type"
+    },
+    {
+      "name": "serializeProductionImageFormationPlan",
+      "source": "src/composition/image-formation-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "serializeSimulatedCapture",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "setExposureCompensationOnMeterTarget",
+      "source": "src/exposure/metering-target.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SetExposureCompensationOnMeterTargetInput",
+      "source": "src/exposure/metering-target.ts",
+      "kind": "type"
+    },
+    {
+      "name": "setFocusLock",
+      "source": "src/capture/focus-control.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SetFocusLockInput",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "setManualFocusState",
+      "source": "src/capture/focus-control.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SetManualFocusStateInput",
+      "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ShutterPriorityAutoIsoPolicy",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ShutterPriorityExposureModeResolution",
+      "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SignalToNoise",
+      "source": "src/sensor/signal-noise.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SIMULATED_CAPTURE_SCHEMA_VERSION",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SimulatedCapture",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulatedCaptureInput",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "simulateEnvironmentSensorRawFrame",
+      "source": "src/capture/environment-raw-producer.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SimulateEnvironmentSensorRawFrameInput",
+      "source": "src/capture/environment-raw-producer.ts",
+      "kind": "type"
+    },
+    {
+      "name": "simulatePocCamera",
+      "source": "src/simulation/poc-simulation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "simulateSensorChargeRealization",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SimulateSensorChargeRealizationInput",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "simulateSensorRawCode",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SimulateSensorRawCodeInput",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "simulateSensorRawFrame",
+      "source": "src/capture/sensor-raw-producer.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SimultaneousExposureBoundarySchedule",
+      "source": "src/sensor/exposure-window.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SingleFrameCaptureAcquisition",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SourcedAirPhaseRefractiveIndex",
+      "source": "src/sensor/photon-energy.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SourcedCaptureBoundaryDirection",
+      "source": "src/sensor/exposure-window.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SourcedCaptureModeFact",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SourcedCaptureTimingSeconds",
+      "source": "src/sensor/exposure-window.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SourcedSensorArchitectureFact",
+      "source": "src/sensor/architecture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SourcedSensorReadoutFact",
+      "source": "src/sensor/readout-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SourcedSensorResponseSourcePlane",
+      "source": "src/sensor/response-application-compatibility.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SourcedSensorTimingSeconds",
+      "source": "src/sensor/readout-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SpectralCoverageComposition",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SpectralCoverageParticipant",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SpectralCoverageParticipantRole",
+      "source": "src/core/spectral-composition.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SpectralFractionCurve",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SpectralFractionSample",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SpectralResponsivityCurve",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SpectralResponsivitySample",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SpectralTransmissionSample",
+      "source": "src/optics/scene-to-sensor-irradiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SpectralWavelengthBasis",
+      "source": "src/core/spectral.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SpectralWavelengthRangeNanometers",
+      "source": "src/core/spectral.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SpectralWavelengthSample",
+      "source": "src/core/spectral.ts",
+      "kind": "type"
+    },
+    {
+      "name": "STABILIZATION_DISTURBANCE_TRAJECTORY_VERSION",
+      "source": "src/stabilization/system.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "STABILIZATION_SYSTEM_PROFILE_SCHEMA_VERSION",
+      "source": "src/stabilization/system.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "StabilizationAngularStateRad",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizationAxisResolution",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizationAxisResponseProfile",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizationCaptureKind",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizationConfiguration",
+      "source": "src/schema/camera.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizationCoordinatedAllocation",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizationDisturbanceSample",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizationDisturbanceTrajectory",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizationPanningPolicy",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizationRotationAxis",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizationSystemProfile",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizedCaptureTemporalNode",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizedCaptureTemporalPoint",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizedCaptureTemporalSamples",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizedRotationSample",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StabilizedRotationTrajectory",
+      "source": "src/stabilization/system.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StrayLightIrradiance",
+      "source": "src/optics/stray-light.ts",
+      "kind": "type"
+    },
+    {
+      "name": "StrayLightSource",
+      "source": "src/optics/stray-light.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SubjectFramingCrop",
+      "source": "src/output/subject-framing-crop.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ThinLensImageDistance",
+      "source": "src/optics/thin-lens.ts",
+      "kind": "type"
+    },
+    {
+      "name": "transformNativeRasterPointToOriented",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "transformNativeRasterRectToOriented",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "transformNativeRasterVectorToOriented",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "transformOrientedRasterPointToNative",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "transformOrientedRasterRectToNative",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "transformOrientedRasterVectorToNative",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "TransformRasterPointInput",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "TransformRasterRectInput",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "TransformRasterVectorInput",
+      "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "UncertaintyConfidence",
+      "source": "src/core/calculation-result.ts",
+      "kind": "type"
+    },
+    {
+      "name": "UncertaintyEstimate",
+      "source": "src/core/calculation-result.ts",
+      "kind": "type"
+    },
+    {
+      "name": "UncertaintySource",
+      "source": "src/core/calculation-result.ts",
+      "kind": "type"
+    },
+    {
+      "name": "UniformLinearExposureBoundarySchedule",
+      "source": "src/sensor/exposure-window.ts",
+      "kind": "type"
+    },
+    {
+      "name": "validateCalculationQuality",
+      "source": "src/core/calculation-result.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "validateSceneRadianceEvaluationBindings",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ValidateSceneRadianceEvaluationBindingsInput",
+      "source": "src/schema/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "VariableMultiFrameCaptureAcquisition",
+      "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "Vector3",
+      "source": "src/schema/scene.ts",
+      "kind": "type"
+    },
+    {
+      "name": "VIRTUAL_COLOR_CAMERA_PROFILE",
+      "source": "src/color/capture-color.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "WHITE_BALANCE_PROFILE_SCHEMA_VERSION",
+      "source": "src/color/white-balance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "WHITE_BALANCE_STATE_VERSION",
+      "source": "src/color/white-balance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "WhiteBalanceAwbIntent",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "WhiteBalanceAwbPolicy",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "WhiteBalanceChannelGains",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "WhiteBalanceInputDomain",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "WhiteBalancePresetDefinition",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "WhiteBalanceProfile",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "WidestAvailableFNumberCapability",
+      "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "type"
+    }
+  ]
+}

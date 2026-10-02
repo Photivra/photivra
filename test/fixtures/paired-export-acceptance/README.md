@@ -31,5 +31,4 @@ External acceptance:
    certification. The full frame is limited to 4,096 sites; no resampling or
    typical-resolution/production-origin claim is made.
 
-Adobe acceptance, authoritative production producer integration and human
-review/DCO remain open. This fixture does not close ticket #16.
+This is the historical serializer-only acceptance checkpoint. Reviewed producer-derived acceptance and owner Adobe/editor/browser evidence later merged in PR #201 and closed #16; see the current export acceptance guide. These original ramp files do not by themselves establish producer origin or additional Adobe tests.

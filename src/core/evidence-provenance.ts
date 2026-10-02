@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Parses one provenance/evidence record. Source origin and reuse status are intentionally orthogonal.
+ * The parser only rejects combinations that are intrinsically contradictory.
+ * Parses a non-empty evidence array.
+ * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import { InvalidConfigurationError } from "./configuration-error.js";
 
 type UnknownRecord = Record<string, unknown>;
@@ -14,6 +22,12 @@ export type EvidenceReuseStatus =
   | "reusable-data"
   | "photivra-owned";
 
+/**
+ * Reference to the origin and reuse rights of one scientific fact or numeric data
+ * artifact. Public availability does not establish permission to copy it. A source
+ * reference is retained as metadata and never fetched by the engine. Evidence is a
+ * declaration for review, not automatic verification of calibration or a license.
+ */
 export interface EvidenceProvenance {
   /** Who originated the underlying fact/data. */
   sourceOrigin: EvidenceSourceOrigin;

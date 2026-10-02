@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Recompute exact midpoint count sums; declarations do not prove source truth.
+ * Re-evaluate physical input at every time before committing an owned compact photo signal. Detailed
+ * child evidence/uncertainty stays in the returned exposure diagnostics. This does not establish
+ * renderer/source execution.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { sumTemporalEqeRateExpectations } from "./temporal-eqe-sum.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";

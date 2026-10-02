@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Independent analytical DCT implementation; no third-party encoder, source, default quantization or
+ * Huffman tables.
+ * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** Internal baseline JPEG profile: 8-bit YCbCr444, explicit constant quantization step and original uniform Huffman tables. */
@@ -47,6 +55,12 @@ export function encodeExportJpeg(input: ExportJpegInput): Uint8Array {
     for (let y=0;y<8;y++) { const x=diagonal-y; if (x>=0 && x<8) points.push(y*8+x); }
     zigzag.push(...(diagonal%2===0 ? points.reverse() : points));
   }
+/**
+ * The separable 8×8 analytical DCT uses orthonormal DC factors and one explicitly
+ * selected scalar quantization step. This deliberately simple 4:4:4 reference
+ * encoder preserves no exact RGB pixels after lossy quantization; JPEG decode
+ * agreement is an interoperability check, not an exact scientific pixel oracle.
+ */
   const cosine=Array.from({length:8},(_,u) => Array.from({length:8},(_,x) => Math.cos((2*x+1)*u*Math.PI/16)));
   const previous=[0,0,0];
   for (let by=0;by<height;by+=8) for (let bx=0;bx<width;bx+=8) {

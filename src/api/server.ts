@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Creates the minimal POC HTTP server without binding a network port. This separation keeps imports
+ * side-effect free and allows integration tests or trusted development hosts to choose their own
+ * listening strategy.
+ * Starts the minimal POC HTTP API using environment-configured local settings. The server is
+ * intentionally dependency-free and is not a production hosting recommendation. It exists for local
+ * integration testing during POC development.
+ * @see docs/POC_API.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import {
   createServer,
   type IncomingMessage,

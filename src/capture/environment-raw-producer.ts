@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Preflight complete native coverage and aggregate support before invoking supplied provider code,
+ * then reuse dark/completeness/capacity/noise/ADC ownership. The returned RAW frame feeds the existing
+ * reconstruction and paired export APIs.
+ * @see docs/ENVIRONMENT_RAW_CAPTURE.md for equations, coordinate/unit conventions, blockers and
+ * support limits.
+ */
+
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
 import { requirePublicOpaqueId } from "../core/record-validation.js";
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
@@ -32,6 +41,13 @@ export interface SimulateEnvironmentSensorRawFrameInput {
   }[];
   evaluateRadiance: EnvironmentRadianceEvaluator;
 }
+/**
+ * Approximate executed provider-to-RAW lineage. sites retain per-site optical/EQE
+ * results; raw retains charge, capacity, seeded-noise/readout diagnostics and exact
+ * native frame. providerEvaluationCount is actual bounded work, not a quality score.
+ * Conservative verification/activation flags belong to this standalone adapter;
+ * a parent production plan records its own graph execution without upgrading them.
+ */
 export interface EnvironmentSensorRawFrame {
   upstreamOrigin: "executed-environment-query-provider-optics-psf-eqe";
   providerTransportVerified: false;

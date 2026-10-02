@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * The legacy CameraConfiguration is a finite unit-bearing POC setting record, not a complete
+ * equipment capability profile. Its parser lives in schema/validation; newer ISO/exposure
+ * capabilities remain separate so adding a control policy does not reinterpret saved POC data.
+ * @see docs/RELEASE_1_0.md and the corresponding domain guide.
+ */
+
 export interface SensorConfiguration {
   widthMm: number;
   heightMm: number;

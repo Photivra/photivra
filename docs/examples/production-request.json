@@ -1,0 +1,4613 @@
+{
+  "preparedContext": {
+    "version": "0.1.0",
+    "contextId": "tier-reference",
+    "sceneId": "room",
+    "sceneRadianceProviderProfileId": "provider",
+    "outputGeometryProfileId": "tier-output",
+    "equipmentCapabilities": {
+      "schemaVersion": "0.1.0",
+      "scientificStatus": "approximation",
+      "bodyProfile": {
+        "profileId": "photivra-consumer-body:exposure",
+        "profileVersion": "1.0.0"
+      },
+      "lensProfile": {
+        "profileId": "photivra-consumer-prime:exposure",
+        "profileVersion": "1.0.0"
+      },
+      "selectedFocalLengthMm": 50,
+      "aperture": {
+        "widestAvailableFNumber": 4,
+        "narrowestAvailableFNumber": 16,
+        "settingGrid": {
+          "kind": "continuous-within-range"
+        }
+      },
+      "shutter": {
+        "minimumSeconds": 0.000125,
+        "maximumSeconds": 30,
+        "settingGrid": {
+          "kind": "continuous-within-range"
+        }
+      },
+      "iso": {
+        "minimum": 100,
+        "maximum": 6400,
+        "settingGrid": {
+          "kind": "discrete-values",
+          "values": [
+            100,
+            200,
+            400,
+            800,
+            1600,
+            3200,
+            6400
+          ]
+        },
+        "autoIsoAvailability": "supported"
+      },
+      "sourceProfilesMutated": false,
+      "exactNamedEquipmentEmulationClaimed": false
+    },
+    "opticalBridgeProfile": {
+      "schemaVersion": "0.1.0",
+      "profileId": "photivra-consumer-prime:transmission:production-fixture",
+      "profileVersion": "1",
+      "lensProfileId": "photivra-consumer-prime:exposure",
+      "scientificStatus": "approximation",
+      "applicability": {
+        "focalLengthMm": {
+          "minimum": 50,
+          "maximum": 50
+        },
+        "nominalFNumber": {
+          "minimum": 4,
+          "maximum": 4
+        },
+        "focus": {
+          "kind": "finite-distance-range",
+          "objectDistanceM": {
+            "minimum": 5,
+            "maximum": 5
+          }
+        }
+      },
+      "transmission": {
+        "kind": "spectral-transmission",
+        "scientificStatus": "approximation",
+        "wavelengthBasis": "vacuum",
+        "samples": {
+          "value": [
+            {
+              "wavelengthNanometers": 540,
+              "linearTransmissionFactor": 0.75
+            },
+            {
+              "wavelengthNanometers": 560,
+              "linearTransmissionFactor": 0.75
+            }
+          ],
+          "evidence": [
+            {
+              "sourceOrigin": "photivra",
+              "sourceReference": "photivra:generic-tier-assets-v1",
+              "reuseStatus": "photivra-owned"
+            }
+          ]
+        },
+        "uncertainty": {
+          "kind": "not-quantified",
+          "limitation": "Synthetic flat narrow-band reference."
+        }
+      },
+      "distortionAreaMappingOwnership": "not-applied-by-bridge",
+      "psfRedistributionOwnership": "downstream-normalized-energy-redistribution",
+      "sensorOpticalStackIncluded": false,
+      "strayLightIncluded": false,
+      "polarizationModeled": false,
+      "wavelengthChangingBehaviorModeled": false,
+      "volumetricScatteringModeled": false,
+      "evidence": [
+        {
+          "sourceOrigin": "photivra",
+          "sourceReference": "photivra:generic-tier-assets-v1",
+          "reuseStatus": "photivra-owned"
+        }
+      ],
+      "limitations": [
+        "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+        "Optical reference response is limited to 50 mm, f/4, focus 5 m and explicit field/defocus/wavelength slices; capabilities do not authorize extrapolation.",
+        "The initial prime has no OIS; body stabilization is separate."
+      ]
+    },
+    "renderer": {
+      "schemaVersion": "0.1.0",
+      "rendererId": "tier-reference",
+      "rendererVersion": "1",
+      "consumerKind": "reference",
+      "supportedStages": [
+        "scene-ray-projection",
+        "scene-radiance-evaluation",
+        "lens-field-pupil-evaluation",
+        "field-wavelength-psf",
+        "temporal-exposure-readout",
+        "sensor-optical-stack",
+        "photosite-cfa-sampling",
+        "sensor-charge-statistics",
+        "read-noise-conversion",
+        "adc-quantization",
+        "reconstruction",
+        "physical-orientation-transform",
+        "output-crop-resample",
+        "display-processing"
+      ],
+      "supportedEffects": [],
+      "spectralCapability": "wavelength-resolved",
+      "temporalSampling": {
+        "kind": "bounded",
+        "maximumSamples": 256
+      },
+      "depthCapability": "none",
+      "inverseFieldMapping": true,
+      "alphaRepresentation": "premultiplied",
+      "preservesDepthOrderAcrossWarps": true,
+      "sensorDomainProcessing": true
+    },
+    "fidelity": {
+      "schemaVersion": "0.1.0",
+      "profileId": "tier-bounded",
+      "profileVersion": "1",
+      "requiredStages": [
+        "display-processing"
+      ],
+      "requiredEffects": [],
+      "rendererRequirements": {
+        "spectral": "wavelength-resolved",
+        "sensorDomainProcessing": true,
+        "depth": "none"
+      }
+    },
+    "fingerprint": {
+      "algorithm": "fnv1a-32-non-cryptographic",
+      "value": "785e09d0"
+    }
+  },
+  "captureSnapshot": {
+    "version": "0.3.0",
+    "captureId": "00000000-0000-4000-8000-000000000001",
+    "releaseFrameId": "tier-release",
+    "sceneStateId": "fixture-scene",
+    "sceneTimeSecondsFromExposureStart": 0,
+    "outputStateId": "tier-output",
+    "exposure": {
+      "aperture": 4,
+      "shutterSeconds": 0.008,
+      "iso": 100
+    },
+    "stochasticSeedUint32": 12345,
+    "temporalCapture": {
+      "exposureWindowInput": {
+        "shutterMechanism": "electronic",
+        "nominalExposureDurationSeconds": {
+          "value": 0.008,
+          "unit": "s",
+          "evidence": [
+            {
+              "sourceOrigin": "photivra",
+              "sourceReference": "synthetic-frame-test",
+              "reuseStatus": "photivra-owned"
+            }
+          ]
+        },
+        "opening": {
+          "kind": "simultaneous"
+        },
+        "closing": {
+          "kind": "simultaneous"
+        },
+        "nativeRaster": {
+          "pixelWidth": 2,
+          "pixelHeight": 2
+        },
+        "samplePointsNative": [
+          {
+            "x": 0.5,
+            "y": 0.5
+          },
+          {
+            "x": 1.5,
+            "y": 0.5
+          },
+          {
+            "x": 0.5,
+            "y": 1.5
+          },
+          {
+            "x": 1.5,
+            "y": 1.5
+          }
+        ]
+      },
+      "imagingArea": {
+        "widthMm": 36,
+        "heightMm": 24
+      },
+      "orientation": "landscape",
+      "rotation": {
+        "angularVelocityRadPerSec": {
+          "pitch": 0,
+          "yaw": 0,
+          "roll": 0
+        },
+        "temporalSampleCount": 2,
+        "focusDistanceM": 5
+      }
+    },
+    "fingerprint": {
+      "algorithm": "fnv1a-32-non-cryptographic",
+      "value": "15e68685"
+    }
+  },
+  "environmentCapture": {
+    "capture": {
+      "frame": {
+        "frameId": "raw-frame",
+        "capture": {
+          "schemaVersion": "0.2.0",
+          "engineApiVersion": "0.116.0",
+          "captureId": "00000000-0000-4000-8000-000000000001",
+          "sceneStateId": "fixture-scene",
+          "sceneTimeSeconds": 0,
+          "geometry": {
+            "imagingArea": {
+              "widthMm": 36,
+              "heightMm": 24
+            },
+            "nativeRaster": {
+              "pixelWidth": 2,
+              "pixelHeight": 2
+            },
+            "orientation": "landscape",
+            "outputRaster": {
+              "pixelWidth": 2,
+              "pixelHeight": 2
+            }
+          },
+          "resolvedGeometry": {
+            "native": {
+              "imagingArea": {
+                "widthMm": 36,
+                "heightMm": 24
+              },
+              "raster": {
+                "pixelWidth": 2,
+                "pixelHeight": 2
+              }
+            },
+            "activeCapture": {
+              "nativeRect": {
+                "x": 0,
+                "y": 0,
+                "width": 2,
+                "height": 2
+              },
+              "imagingArea": {
+                "widthMm": 36,
+                "heightMm": 24
+              },
+              "physicalOffsetMm": {
+                "x": 0,
+                "y": 0
+              },
+              "centerOffsetFromOpticalAxisMm": {
+                "x": 0,
+                "y": 0
+              },
+              "physicalBoundsFromOpticalAxisMm": {
+                "left": -18,
+                "right": 18,
+                "top": -12,
+                "bottom": 12
+              },
+              "imagingAreaDerivation": "uniform-native-raster",
+              "raster": {
+                "pixelWidth": 2,
+                "pixelHeight": 2
+              }
+            },
+            "orientedCapture": {
+              "orientation": "landscape",
+              "imagingArea": {
+                "widthMm": 36,
+                "heightMm": 24
+              },
+              "physicalBoundsFromOpticalAxisMm": {
+                "left": -18,
+                "right": 18,
+                "top": -12,
+                "bottom": 12
+              },
+              "raster": {
+                "pixelWidth": 2,
+                "pixelHeight": 2
+              }
+            },
+            "output": {
+              "cropRect": {
+                "x": 0,
+                "y": 0,
+                "width": 2,
+                "height": 2
+              },
+              "raster": {
+                "pixelWidth": 2,
+                "pixelHeight": 2
+              },
+              "imagingArea": {
+                "widthMm": 36,
+                "heightMm": 24
+              },
+              "physicalBoundsFromOpticalAxisMm": {
+                "left": -18,
+                "right": 18,
+                "top": -12,
+                "bottom": 12
+              },
+              "centerOffsetFromOpticalAxisMm": {
+                "x": 0,
+                "y": 0
+              },
+              "sourceRetainedAreaFraction": 1,
+              "orientedCaptureToOutputScale": {
+                "x": 1,
+                "y": 1,
+                "axisRelativeDifference": 0
+              }
+            }
+          },
+          "exposure": {
+            "focalLengthMm": 50,
+            "aperture": 4,
+            "shutterSeconds": 0.008,
+            "iso": 100
+          },
+          "equivalentFocalLength35Mm": 50,
+          "focus": {
+            "kind": "finite",
+            "distanceM": 5
+          },
+          "noise": {
+            "seedUint32": 12345,
+            "realizationId": "noise",
+            "model": {
+              "id": "photivra-native-raw-noise",
+              "version": "0.2.0"
+            }
+          },
+          "source": {
+            "kind": "scene-linear-master",
+            "artifactId": "fixture-master",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "dynamicRangeHistory": "unknown"
+          },
+          "whiteBalanceIntent": null,
+          "adoptedWhiteXyz": null,
+          "models": [
+            {
+              "profile": {
+                "id": "photivra-colorimetric-rgb-d65",
+                "version": "0.1.0"
+              },
+              "scientificStatus": "calculated",
+              "publicEvidenceIds": [
+                "w3c:css-color-4:srgb-primaries-d65"
+              ]
+            }
+          ],
+          "planes": [
+            {
+              "id": "source",
+              "imageStateId": "source-state",
+              "imageState": "scene-referred-xyz",
+              "rasterBinding": "output",
+              "pixelWidth": 2,
+              "pixelHeight": 2,
+              "channelIds": [
+                "X",
+                "Y",
+                "Z"
+              ],
+              "colorProfile": {
+                "id": "cie-1931-2-degree-xyz",
+                "version": "1.0.0"
+              },
+              "encodingReferenceWhiteXyz": {
+                "x": 0.9504559270516716,
+                "y": 1,
+                "z": 1.0890577507598784
+              },
+              "referenceWhiteValue": 1,
+              "whiteBalanceApplication": "not-applicable",
+              "captureSaturation": {
+                "kind": "not-modeled"
+              },
+              "appliedTransforms": [],
+              "storage": {
+                "kind": "inline-float64",
+                "samples": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        "modeId": "native-still",
+        "captureModeProfile": {
+          "schemaVersion": "0.1.0",
+          "modes": [
+            {
+              "modeId": "native-still",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "acquisition": {
+                "kind": "single-frame"
+              },
+              "perFrameSampling": {
+                "kind": "native-effective-raster"
+              },
+              "reconstructionStages": [],
+              "processedImageRaster": {
+                "value": {
+                  "pixelWidth": 2,
+                  "pixelHeight": 2
+                },
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "synthetic-frame-test",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ]
+              },
+              "dependencies": [
+                "color-sampling-model"
+              ]
+            }
+          ]
+        },
+        "colorSamplingProfile": {
+          "schemaVersion": "0.1.0",
+          "profileId": "photivra-generic-bayer",
+          "evidence": [
+            {
+              "sourceOrigin": "photivra",
+              "sourceReference": "synthetic-frame-test",
+              "reuseStatus": "photivra-owned"
+            }
+          ],
+          "coordinateSystem": "native-sensor-color-sampling-site-index",
+          "layout": {
+            "kind": "periodic-mosaic",
+            "repeatWidthSites": 2,
+            "repeatHeightSites": 2,
+            "siteChannelIds": [
+              "red",
+              "green",
+              "green",
+              "blue"
+            ],
+            "anchor": "native-sensor-top-left-site"
+          }
+        },
+        "bindingProfile": {
+          "schemaVersion": "0.1.0",
+          "bindingId": "native-cfa",
+          "colorSamplingProfileId": "photivra-generic-bayer",
+          "nativeRaster": {
+            "pixelWidth": 2,
+            "pixelHeight": 2
+          },
+          "evidence": [
+            {
+              "sourceOrigin": "photivra",
+              "sourceReference": "synthetic-frame-test",
+              "reuseStatus": "photivra-owned"
+            }
+          ],
+          "relationship": {
+            "kind": "regular-native-effective-sample-blocks",
+            "sitesPerNativeSampleX": 1,
+            "sitesPerNativeSampleY": 1,
+            "anchor": "shared-native-top-left"
+          }
+        },
+        "containerBitDepth": 16
+      },
+      "sceneBinding": {
+        "sceneStateId": "fixture-scene",
+        "providerSceneId": "room",
+        "evidence": [
+          {
+            "sourceOrigin": "photivra",
+            "sourceReference": "synthetic-frame-test",
+            "reuseStatus": "photivra-owned"
+          }
+        ]
+      },
+      "exposureWindow": {
+        "shutterMechanism": "electronic",
+        "nominalExposureDurationSeconds": {
+          "value": 0.008,
+          "unit": "s",
+          "evidence": [
+            {
+              "sourceOrigin": "photivra",
+              "sourceReference": "synthetic-frame-test",
+              "reuseStatus": "photivra-owned"
+            }
+          ]
+        },
+        "opening": {
+          "kind": "simultaneous"
+        },
+        "closing": {
+          "kind": "simultaneous"
+        }
+      },
+      "sites": [
+        {
+          "environment": {
+            "temporalIntegrationId": "environment-site-0",
+            "sensor": {
+              "spatialSampling": {
+                "imagingArea": {
+                  "widthMm": 36,
+                  "heightMm": 24
+                },
+                "samplingApertureProfile": {
+                  "schemaVersion": "0.1.0",
+                  "profileId": "sampling",
+                  "colorSamplingProfileId": "photivra-generic-bayer",
+                  "colorSamplingBindingId": "native-cfa",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:sampling",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "siteCenterLattice": {
+                    "kind": "regular-rectangular-site-center-lattice",
+                    "coordinateSystem": "native-sensor-physical",
+                    "pitchXMicrometers": 18000,
+                    "pitchYMicrometers": 12000,
+                    "firstSiteCenterFromImagingAreaTopLeftMicrometers": {
+                      "x": 9000,
+                      "y": 6000
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:lattice",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "geometricSensitiveAperture": {
+                    "kind": "uniform-axis-aligned-rectangle",
+                    "widthMicrometers": 800,
+                    "heightMicrometers": 600,
+                    "centerOffsetFromSiteCenterMicrometers": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:aperture",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                },
+                "opticalStackProfile": {
+                  "schemaVersion": "0.1.0",
+                  "profileId": "absent-aa",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:stack",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "effectiveAntiAliasingSpatialResponse": {
+                    "kind": "absent",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:no-aa",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                },
+                "site": {
+                  "x": 0,
+                  "y": 0
+                },
+                "spatialSampleCountX": 2,
+                "spatialSampleCountY": 2
+              },
+              "spectralSampling": {
+                "channelId": "red",
+                "wavelengthBasis": "vacuum",
+                "wavelengthRangeNanometers": {
+                  "minimum": 540,
+                  "maximum": 560
+                },
+                "maximumSubintervalWidthNanometers": 20
+              },
+              "colorSamplingProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "photivra-generic-bayer",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "synthetic-frame-test",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "coordinateSystem": "native-sensor-color-sampling-site-index",
+                "layout": {
+                  "kind": "periodic-mosaic",
+                  "repeatWidthSites": 2,
+                  "repeatHeightSites": 2,
+                  "siteChannelIds": [
+                    "red",
+                    "green",
+                    "green",
+                    "blue"
+                  ],
+                  "anchor": "native-sensor-top-left-site"
+                }
+              },
+              "spectralResponseProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "spectral",
+                "colorSamplingProfileId": "photivra-generic-bayer",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:response-profile",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "channels": [
+                  {
+                    "channelId": "red",
+                    "scientificStatus": "approximation",
+                    "uncertainty": {
+                      "kind": "not-quantified",
+                      "limitation": "Owned narrow-band test response, not tier calibration."
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:response-channel",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "referenceConditions": {
+                      "temperatureC": 25,
+                      "incidenceAngleDegreesFromNormal": 0,
+                      "polarization": "unpolarized"
+                    },
+                    "conditionDependence": "not-modeled",
+                    "kind": "effective-external-quantum-efficiency",
+                    "responseScope": "sensor-package-incident-effective-channel-response",
+                    "externalQuantumEfficiency": {
+                      "wavelengthUnit": "nm",
+                      "wavelengthBasis": "vacuum",
+                      "interpolation": "piecewise-linear",
+                      "outsideRangeBehavior": "fail-closed",
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "test:response-curve",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ],
+                      "samples": [
+                        {
+                          "wavelengthNanometers": 540,
+                          "value": 0.4
+                        },
+                        {
+                          "wavelengthNanometers": 560,
+                          "value": 0.4
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "responseApplication": {
+                "applicationProfile": {
+                  "schemaVersion": "0.1.0",
+                  "profileId": "application",
+                  "spectralResponseProfileId": "spectral",
+                  "colorSamplingProfileId": "photivra-generic-bayer",
+                  "channelId": "red",
+                  "samplingApertureProfileId": "sampling",
+                  "opticalStackProfileId": "absent-aa",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:application",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "incidentAreaBasis": {
+                    "kind": "geometric-sensitive-aperture",
+                    "areaSquareMicrometers": 480000
+                  },
+                  "spatialResponseModel": {
+                    "kind": "uniform-over-geometric-sensitive-aperture",
+                    "scientificStatus": "approximation",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "synthetic-frame-test",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                  },
+                  "referenceConditionPolicy": {
+                    "kind": "exact-match-required"
+                  }
+                },
+                "sourcePlane": {
+                  "value": "sensor-package-incident",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:plane",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ]
+                },
+                "operatingConditions": {
+                  "temperatureC": 25,
+                  "incidenceAngleDegreesFromNormal": 0,
+                  "polarization": "unpolarized"
+                }
+              },
+              "operatingRangeProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "linearity",
+                "responseApplicationProfileId": "application",
+                "spectralResponseProfileId": "spectral",
+                "colorSamplingProfileId": "photivra-generic-bayer",
+                "channelId": "red",
+                "scientificStatus": "approximation",
+                "uncertainty": {
+                  "kind": "not-quantified",
+                  "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                },
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:linearity",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "inputRange": {
+                  "kind": "wavelength-integrated-geometric-aperture-radiant-power",
+                  "unit": "W",
+                  "minimumInclusive": 0,
+                  "maximumInclusive": 0.001
+                },
+                "wavelengthApplicability": {
+                  "wavelengthBasis": "vacuum",
+                  "minimumNanometers": 380,
+                  "maximumNanometers": 720,
+                  "containment": "requested-range-must-be-contained"
+                },
+                "linearityCriterion": {
+                  "maximumAbsoluteRelativeDeviation": 0.01
+                },
+                "spatialLinearityModel": {
+                  "kind": "linear-superposition-over-geometric-aperture",
+                  "scientificStatus": "approximation",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "synthetic-frame-test",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                },
+                "spectralInputModel": {
+                  "kind": "per-spectral-bin",
+                  "maximumBinWidthNanometers": 20,
+                  "scientificStatus": "approximation",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "synthetic-frame-test",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                },
+                "referenceConditions": {
+                  "temperatureC": 25,
+                  "incidenceAngleDegreesFromNormal": 0,
+                  "polarization": "unpolarized"
+                },
+                "referenceConditionPolicy": {
+                  "kind": "exact-match-required"
+                }
+              },
+              "localExposure": {
+                "bindingProfile": {
+                  "schemaVersion": "0.1.0",
+                  "bindingId": "native-cfa",
+                  "colorSamplingProfileId": "photivra-generic-bayer",
+                  "nativeRaster": {
+                    "pixelWidth": 2,
+                    "pixelHeight": 2
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "synthetic-frame-test",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "relationship": {
+                    "kind": "regular-native-effective-sample-blocks",
+                    "sitesPerNativeSampleX": 1,
+                    "sitesPerNativeSampleY": 1,
+                    "anchor": "shared-native-top-left"
+                  }
+                },
+                "exposureWindowInput": {
+                  "shutterMechanism": "electronic",
+                  "nominalExposureDurationSeconds": {
+                    "value": 0.008,
+                    "unit": "s",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "synthetic-frame-test",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "opening": {
+                    "kind": "simultaneous"
+                  },
+                  "closing": {
+                    "kind": "simultaneous"
+                  },
+                  "nativeRaster": {
+                    "pixelWidth": 2,
+                    "pixelHeight": 2
+                  }
+                }
+              }
+            },
+            "sceneBindings": {
+              "illuminationProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "lights",
+                "sceneId": "room",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:lights",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "sources": [
+                  {
+                    "sourceId": "sky",
+                    "family": "environment",
+                    "enabled": true,
+                    "geometry": {
+                      "kind": "environment"
+                    },
+                    "magnitude": {
+                      "kind": "relative-linear-scale",
+                      "scale": 1,
+                      "scientificStatus": "approximation",
+                      "limitation": "Owned synthetic scene declaration."
+                    },
+                    "spectrum": {
+                      "kind": "unresolved",
+                      "limitation": "Numeric provider radiance is separately declared."
+                    },
+                    "temporalBehavior": {
+                      "kind": "time-invariant"
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:sky",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                ],
+                "sceneRadianceCalculated": false,
+                "materialResponseApplied": false,
+                "visibilityEvaluated": false,
+                "indirectTransportEvaluated": false,
+                "fluorescenceModeled": false,
+                "volumetricTransportModeled": false,
+                "polarizationModeled": false
+              },
+              "materialResponseProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "materials",
+                "sceneId": "room",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:materials",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "materials": [
+                  {
+                    "materialResponseId": "surface",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:surface",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "representation": {
+                      "kind": "spectral-wavelength-preserving-data",
+                      "dataArtifact": {
+                        "id": "owned-spectrum",
+                        "checksumSha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                      },
+                      "wavelengthBasis": "vacuum",
+                      "wavelengthRangeNanometers": {
+                        "minimum": 400,
+                        "maximum": 500
+                      },
+                      "scatteringModel": "provider-defined-wavelength-preserving",
+                      "scientificStatus": "approximation",
+                      "uncertainty": {
+                        "kind": "not-quantified",
+                        "limitation": "Synthetic provider metadata only."
+                      },
+                      "wavelengthChangingBehaviorModeled": false,
+                      "emissionModeled": false
+                    }
+                  }
+                ],
+                "fluorescenceModeled": false,
+                "volumetricMaterialTransportModeled": false,
+                "polarizationModeled": false
+              },
+              "providerProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "provider",
+                "sceneId": "room",
+                "illuminationProfileId": "lights",
+                "materialResponseProfileId": "materials",
+                "outputQuantity": "outgoing-spectral-radiance",
+                "outputUnit": "W/m^2/sr/nm",
+                "scientificStatus": "approximation",
+                "uncertainty": {
+                  "kind": "not-quantified",
+                  "limitation": "Synthetic field."
+                },
+                "fidelity": {
+                  "spectral": "wavelength-resolved",
+                  "material": "spectral-data",
+                  "visibility": "resolved",
+                  "directTransport": "approximation",
+                  "indirectTransport": "not-modeled"
+                },
+                "wavelengthChangingTransportModeled": false,
+                "volumetricTransportModeled": false,
+                "polarizationModeled": false,
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:provider",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "limitations": [
+                  "Owned fixture declarations."
+                ],
+                "illuminationTemporalProfileId": "time-lights"
+              },
+              "illuminationTemporalProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "time-lights",
+                "sceneId": "room",
+                "illuminationProfileId": "lights",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:time-lights",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "waveforms": [
+                  {
+                    "kind": "aperiodic-relative-multiplier",
+                    "waveformId": "ramp",
+                    "timeUnit": "s",
+                    "scientificStatus": "approximation",
+                    "uncertainty": {
+                      "kind": "not-quantified",
+                      "limitation": "Synthetic linear light ramp."
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:ramp",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "interpolation": "piecewise-linear",
+                    "samples": [
+                      {
+                        "timeSecondsFromWaveformReference": 0,
+                        "relativeMagnitudeMultiplier": 1
+                      },
+                      {
+                        "timeSecondsFromWaveformReference": 1,
+                        "relativeMagnitudeMultiplier": 201
+                      }
+                    ],
+                    "outsideSupportBehavior": "zero"
+                  }
+                ],
+                "sourceBindings": [
+                  {
+                    "bindingId": "sky-time",
+                    "sourceId": "sky",
+                    "waveformId": "ramp",
+                    "captureTimeReference": "first-opening-boundary-phase",
+                    "waveformTimeZeroSecondsFromCaptureReference": 0,
+                    "scientificStatus": "approximation",
+                    "timingUncertainty": {
+                      "kind": "not-quantified",
+                      "limitation": "Owned exact synthetic clock."
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:sky-time",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                ],
+                "baseIlluminationProfileRemainsAuthoritative": true,
+                "sensorReadoutTimingUsedAsExposureTiming": false,
+                "automaticExposurePolicyIncluded": false
+              }
+            },
+            "optics": {
+              "profile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "photivra-consumer-prime:transmission:production-fixture",
+                "profileVersion": "1",
+                "lensProfileId": "photivra-consumer-prime:exposure",
+                "scientificStatus": "approximation",
+                "applicability": {
+                  "focalLengthMm": {
+                    "minimum": 50,
+                    "maximum": 50
+                  },
+                  "nominalFNumber": {
+                    "minimum": 4,
+                    "maximum": 4
+                  },
+                  "focus": {
+                    "kind": "finite-distance-range",
+                    "objectDistanceM": {
+                      "minimum": 5,
+                      "maximum": 5
+                    }
+                  }
+                },
+                "transmission": {
+                  "kind": "spectral-transmission",
+                  "scientificStatus": "approximation",
+                  "wavelengthBasis": "vacuum",
+                  "samples": {
+                    "value": [
+                      {
+                        "wavelengthNanometers": 540,
+                        "linearTransmissionFactor": 0.75
+                      },
+                      {
+                        "wavelengthNanometers": 560,
+                        "linearTransmissionFactor": 0.75
+                      }
+                    ],
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "uncertainty": {
+                    "kind": "not-quantified",
+                    "limitation": "Synthetic flat narrow-band reference."
+                  }
+                },
+                "distortionAreaMappingOwnership": "not-applied-by-bridge",
+                "psfRedistributionOwnership": "downstream-normalized-energy-redistribution",
+                "sensorOpticalStackIncluded": false,
+                "strayLightIncluded": false,
+                "polarizationModeled": false,
+                "wavelengthChangingBehaviorModeled": false,
+                "volumetricScatteringModeled": false,
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "photivra:generic-tier-assets-v1",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "limitations": [
+                  "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                  "Optical reference response is limited to 50 mm, f/4, focus 5 m and explicit field/defocus/wavelength slices; capabilities do not authorize extrapolation.",
+                  "The initial prime has no OIS; body stabilization is separate."
+                ]
+              },
+              "focalLengthMm": 50,
+              "nominalFNumber": 4,
+              "focus": {
+                "kind": "ideal-symmetric-thin-lens",
+                "objectDistanceM": 5,
+                "pupilMagnificationAssumption": "unity"
+              }
+            },
+            "motion": {
+              "angularVelocityRadPerSec": {
+                "pitch": 0,
+                "yaw": 0,
+                "roll": 0
+              },
+              "timeReference": "first-opening-boundary-phase",
+              "environmentDirectionConvention": "outgoing-radiance-toward-camera"
+            },
+            "temporalSampleCount": 2,
+            "fieldThroughput": {
+              "kind": "unity",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "test:unity",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitation": "Declared unity field throughput."
+            },
+            "psf": {
+              "kind": "not-applied",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "test:no-psf",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitation": "Point optics only; no lens blur."
+            }
+          },
+          "readout": {
+            "samplingProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "charge-test",
+              "completenessProfileId": "complete-test",
+              "scientificStatus": "approximation",
+              "photoShotNoiseModel": "poisson",
+              "darkShotNoiseModel": "poisson",
+              "additionalComponentPolicies": [],
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitations": [
+                "Owned fixture sampling."
+              ]
+            },
+            "capacityProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "capacity-test",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "channelId": "red",
+              "capacityMeaning": "physical-charge-storage-capacity-electrons",
+              "capacityElectrons": 1000,
+              "scientificStatus": "approximation",
+              "uncertainty": {
+                "kind": "not-quantified",
+                "limitation": "Synthetic fixture only."
+              },
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "siteApplicability": {
+                "kind": "exact-site",
+                "site": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              "operatingState": {
+                "stateId": "state-test",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "synthetic-frame-test",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ]
+              },
+              "temperatureApplicability": {
+                "kind": "exact-reference-temperature",
+                "temperatureC": 20
+              }
+            },
+            "operatingStateId": "state-test",
+            "readoutProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "photivra-consumer-body:readout",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "channelId": "red",
+              "regimes": [
+                {
+                  "regimeId": "base",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 1,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 20000,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 6,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 16,
+                    "blackLevelCode": 512,
+                    "digitalSaturationCode": 65535,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                  ]
+                },
+                {
+                  "regimeId": "high",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.25,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 12000,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 4.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 16,
+                    "blackLevelCode": 512,
+                    "digitalSaturationCode": 65535,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                  ]
+                }
+              ],
+              "regimeSelectionOwnedBy": "explicit-upstream-camera-state-not-inferred-from-iso",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "photivra:generic-tier-assets-v1",
+                  "reuseStatus": "photivra-owned"
+                }
+              ]
+            },
+            "regimeId": "base"
+          },
+          "charge": {
+            "completenessProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "complete-test",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "channelId": "red",
+              "site": {
+                "x": 0,
+                "y": 0
+              },
+              "bindingId": "native-cfa",
+              "timeReference": "first-opening-boundary-phase",
+              "startOffsetSecondsFromOpeningReference": 0,
+              "endOffsetSecondsFromOpeningReference": 0.008,
+              "darkCurrentProfileId": "dark-test",
+              "includedAdditionalComponentIds": [],
+              "coverageMeaning": "all-material-stored-electron-contributors-accounted-for",
+              "scientificStatus": "approximation",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitation": "Declared owned fixture expectations, no calibration."
+            }
+          },
+          "operatingTemperatureC": 20,
+          "darkCurrentProfile": {
+            "schemaVersion": "0.1.0",
+            "profileId": "dark-test",
+            "colorSamplingProfileId": "photivra-generic-bayer",
+            "channelId": "red",
+            "scientificStatus": "approximation",
+            "evidence": [
+              {
+                "sourceOrigin": "photivra",
+                "sourceReference": "synthetic-frame-test",
+                "reuseStatus": "photivra-owned"
+              }
+            ],
+            "uncertainty": {
+              "kind": "not-quantified",
+              "limitation": "Synthetic dark fixture."
+            },
+            "chargeMeaning": "pre-compensation-thermally-generated-electrons",
+            "siteApplicability": {
+              "kind": "exact-site",
+              "site": {
+                "x": 0,
+                "y": 0
+              }
+            },
+            "temperatureModel": {
+              "kind": "fixed-reference-temperature",
+              "referenceTemperatureC": 20,
+              "darkCurrentElectronsPerSecond": 4
+            },
+            "darkCurrentCompensationIncluded": false,
+            "spatialDarkCurrentNonuniformityModeled": true
+          }
+        },
+        {
+          "environment": {
+            "temporalIntegrationId": "environment-site-1",
+            "sensor": {
+              "spatialSampling": {
+                "imagingArea": {
+                  "widthMm": 36,
+                  "heightMm": 24
+                },
+                "samplingApertureProfile": {
+                  "schemaVersion": "0.1.0",
+                  "profileId": "sampling",
+                  "colorSamplingProfileId": "photivra-generic-bayer",
+                  "colorSamplingBindingId": "native-cfa",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:sampling",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "siteCenterLattice": {
+                    "kind": "regular-rectangular-site-center-lattice",
+                    "coordinateSystem": "native-sensor-physical",
+                    "pitchXMicrometers": 18000,
+                    "pitchYMicrometers": 12000,
+                    "firstSiteCenterFromImagingAreaTopLeftMicrometers": {
+                      "x": 9000,
+                      "y": 6000
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:lattice",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "geometricSensitiveAperture": {
+                    "kind": "uniform-axis-aligned-rectangle",
+                    "widthMicrometers": 800,
+                    "heightMicrometers": 600,
+                    "centerOffsetFromSiteCenterMicrometers": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:aperture",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                },
+                "opticalStackProfile": {
+                  "schemaVersion": "0.1.0",
+                  "profileId": "absent-aa",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:stack",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "effectiveAntiAliasingSpatialResponse": {
+                    "kind": "absent",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:no-aa",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                },
+                "site": {
+                  "x": 1,
+                  "y": 0
+                },
+                "spatialSampleCountX": 2,
+                "spatialSampleCountY": 2
+              },
+              "spectralSampling": {
+                "channelId": "green",
+                "wavelengthBasis": "vacuum",
+                "wavelengthRangeNanometers": {
+                  "minimum": 540,
+                  "maximum": 560
+                },
+                "maximumSubintervalWidthNanometers": 20
+              },
+              "colorSamplingProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "photivra-generic-bayer",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "synthetic-frame-test",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "coordinateSystem": "native-sensor-color-sampling-site-index",
+                "layout": {
+                  "kind": "periodic-mosaic",
+                  "repeatWidthSites": 2,
+                  "repeatHeightSites": 2,
+                  "siteChannelIds": [
+                    "red",
+                    "green",
+                    "green",
+                    "blue"
+                  ],
+                  "anchor": "native-sensor-top-left-site"
+                }
+              },
+              "spectralResponseProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "spectral",
+                "colorSamplingProfileId": "photivra-generic-bayer",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:response-profile",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "channels": [
+                  {
+                    "channelId": "green",
+                    "scientificStatus": "approximation",
+                    "uncertainty": {
+                      "kind": "not-quantified",
+                      "limitation": "Owned narrow-band test response, not tier calibration."
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:response-channel",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "referenceConditions": {
+                      "temperatureC": 25,
+                      "incidenceAngleDegreesFromNormal": 0,
+                      "polarization": "unpolarized"
+                    },
+                    "conditionDependence": "not-modeled",
+                    "kind": "effective-external-quantum-efficiency",
+                    "responseScope": "sensor-package-incident-effective-channel-response",
+                    "externalQuantumEfficiency": {
+                      "wavelengthUnit": "nm",
+                      "wavelengthBasis": "vacuum",
+                      "interpolation": "piecewise-linear",
+                      "outsideRangeBehavior": "fail-closed",
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "test:response-curve",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ],
+                      "samples": [
+                        {
+                          "wavelengthNanometers": 540,
+                          "value": 0.4
+                        },
+                        {
+                          "wavelengthNanometers": 560,
+                          "value": 0.4
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "responseApplication": {
+                "applicationProfile": {
+                  "schemaVersion": "0.1.0",
+                  "profileId": "application",
+                  "spectralResponseProfileId": "spectral",
+                  "colorSamplingProfileId": "photivra-generic-bayer",
+                  "channelId": "green",
+                  "samplingApertureProfileId": "sampling",
+                  "opticalStackProfileId": "absent-aa",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:application",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "incidentAreaBasis": {
+                    "kind": "geometric-sensitive-aperture",
+                    "areaSquareMicrometers": 480000
+                  },
+                  "spatialResponseModel": {
+                    "kind": "uniform-over-geometric-sensitive-aperture",
+                    "scientificStatus": "approximation",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "synthetic-frame-test",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                  },
+                  "referenceConditionPolicy": {
+                    "kind": "exact-match-required"
+                  }
+                },
+                "sourcePlane": {
+                  "value": "sensor-package-incident",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:plane",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ]
+                },
+                "operatingConditions": {
+                  "temperatureC": 25,
+                  "incidenceAngleDegreesFromNormal": 0,
+                  "polarization": "unpolarized"
+                }
+              },
+              "operatingRangeProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "linearity",
+                "responseApplicationProfileId": "application",
+                "spectralResponseProfileId": "spectral",
+                "colorSamplingProfileId": "photivra-generic-bayer",
+                "channelId": "green",
+                "scientificStatus": "approximation",
+                "uncertainty": {
+                  "kind": "not-quantified",
+                  "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                },
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:linearity",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "inputRange": {
+                  "kind": "wavelength-integrated-geometric-aperture-radiant-power",
+                  "unit": "W",
+                  "minimumInclusive": 0,
+                  "maximumInclusive": 0.001
+                },
+                "wavelengthApplicability": {
+                  "wavelengthBasis": "vacuum",
+                  "minimumNanometers": 380,
+                  "maximumNanometers": 720,
+                  "containment": "requested-range-must-be-contained"
+                },
+                "linearityCriterion": {
+                  "maximumAbsoluteRelativeDeviation": 0.01
+                },
+                "spatialLinearityModel": {
+                  "kind": "linear-superposition-over-geometric-aperture",
+                  "scientificStatus": "approximation",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "synthetic-frame-test",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                },
+                "spectralInputModel": {
+                  "kind": "per-spectral-bin",
+                  "maximumBinWidthNanometers": 20,
+                  "scientificStatus": "approximation",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "synthetic-frame-test",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                },
+                "referenceConditions": {
+                  "temperatureC": 25,
+                  "incidenceAngleDegreesFromNormal": 0,
+                  "polarization": "unpolarized"
+                },
+                "referenceConditionPolicy": {
+                  "kind": "exact-match-required"
+                }
+              },
+              "localExposure": {
+                "bindingProfile": {
+                  "schemaVersion": "0.1.0",
+                  "bindingId": "native-cfa",
+                  "colorSamplingProfileId": "photivra-generic-bayer",
+                  "nativeRaster": {
+                    "pixelWidth": 2,
+                    "pixelHeight": 2
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "synthetic-frame-test",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "relationship": {
+                    "kind": "regular-native-effective-sample-blocks",
+                    "sitesPerNativeSampleX": 1,
+                    "sitesPerNativeSampleY": 1,
+                    "anchor": "shared-native-top-left"
+                  }
+                },
+                "exposureWindowInput": {
+                  "shutterMechanism": "electronic",
+                  "nominalExposureDurationSeconds": {
+                    "value": 0.008,
+                    "unit": "s",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "synthetic-frame-test",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "opening": {
+                    "kind": "simultaneous"
+                  },
+                  "closing": {
+                    "kind": "simultaneous"
+                  },
+                  "nativeRaster": {
+                    "pixelWidth": 2,
+                    "pixelHeight": 2
+                  }
+                }
+              }
+            },
+            "sceneBindings": {
+              "illuminationProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "lights",
+                "sceneId": "room",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:lights",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "sources": [
+                  {
+                    "sourceId": "sky",
+                    "family": "environment",
+                    "enabled": true,
+                    "geometry": {
+                      "kind": "environment"
+                    },
+                    "magnitude": {
+                      "kind": "relative-linear-scale",
+                      "scale": 1,
+                      "scientificStatus": "approximation",
+                      "limitation": "Owned synthetic scene declaration."
+                    },
+                    "spectrum": {
+                      "kind": "unresolved",
+                      "limitation": "Numeric provider radiance is separately declared."
+                    },
+                    "temporalBehavior": {
+                      "kind": "time-invariant"
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:sky",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                ],
+                "sceneRadianceCalculated": false,
+                "materialResponseApplied": false,
+                "visibilityEvaluated": false,
+                "indirectTransportEvaluated": false,
+                "fluorescenceModeled": false,
+                "volumetricTransportModeled": false,
+                "polarizationModeled": false
+              },
+              "materialResponseProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "materials",
+                "sceneId": "room",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:materials",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "materials": [
+                  {
+                    "materialResponseId": "surface",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:surface",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "representation": {
+                      "kind": "spectral-wavelength-preserving-data",
+                      "dataArtifact": {
+                        "id": "owned-spectrum",
+                        "checksumSha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                      },
+                      "wavelengthBasis": "vacuum",
+                      "wavelengthRangeNanometers": {
+                        "minimum": 400,
+                        "maximum": 500
+                      },
+                      "scatteringModel": "provider-defined-wavelength-preserving",
+                      "scientificStatus": "approximation",
+                      "uncertainty": {
+                        "kind": "not-quantified",
+                        "limitation": "Synthetic provider metadata only."
+                      },
+                      "wavelengthChangingBehaviorModeled": false,
+                      "emissionModeled": false
+                    }
+                  }
+                ],
+                "fluorescenceModeled": false,
+                "volumetricMaterialTransportModeled": false,
+                "polarizationModeled": false
+              },
+              "providerProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "provider",
+                "sceneId": "room",
+                "illuminationProfileId": "lights",
+                "materialResponseProfileId": "materials",
+                "outputQuantity": "outgoing-spectral-radiance",
+                "outputUnit": "W/m^2/sr/nm",
+                "scientificStatus": "approximation",
+                "uncertainty": {
+                  "kind": "not-quantified",
+                  "limitation": "Synthetic field."
+                },
+                "fidelity": {
+                  "spectral": "wavelength-resolved",
+                  "material": "spectral-data",
+                  "visibility": "resolved",
+                  "directTransport": "approximation",
+                  "indirectTransport": "not-modeled"
+                },
+                "wavelengthChangingTransportModeled": false,
+                "volumetricTransportModeled": false,
+                "polarizationModeled": false,
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:provider",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "limitations": [
+                  "Owned fixture declarations."
+                ],
+                "illuminationTemporalProfileId": "time-lights"
+              },
+              "illuminationTemporalProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "time-lights",
+                "sceneId": "room",
+                "illuminationProfileId": "lights",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:time-lights",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "waveforms": [
+                  {
+                    "kind": "aperiodic-relative-multiplier",
+                    "waveformId": "ramp",
+                    "timeUnit": "s",
+                    "scientificStatus": "approximation",
+                    "uncertainty": {
+                      "kind": "not-quantified",
+                      "limitation": "Synthetic linear light ramp."
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:ramp",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "interpolation": "piecewise-linear",
+                    "samples": [
+                      {
+                        "timeSecondsFromWaveformReference": 0,
+                        "relativeMagnitudeMultiplier": 1
+                      },
+                      {
+                        "timeSecondsFromWaveformReference": 1,
+                        "relativeMagnitudeMultiplier": 201
+                      }
+                    ],
+                    "outsideSupportBehavior": "zero"
+                  }
+                ],
+                "sourceBindings": [
+                  {
+                    "bindingId": "sky-time",
+                    "sourceId": "sky",
+                    "waveformId": "ramp",
+                    "captureTimeReference": "first-opening-boundary-phase",
+                    "waveformTimeZeroSecondsFromCaptureReference": 0,
+                    "scientificStatus": "approximation",
+                    "timingUncertainty": {
+                      "kind": "not-quantified",
+                      "limitation": "Owned exact synthetic clock."
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:sky-time",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                ],
+                "baseIlluminationProfileRemainsAuthoritative": true,
+                "sensorReadoutTimingUsedAsExposureTiming": false,
+                "automaticExposurePolicyIncluded": false
+              }
+            },
+            "optics": {
+              "profile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "photivra-consumer-prime:transmission:production-fixture",
+                "profileVersion": "1",
+                "lensProfileId": "photivra-consumer-prime:exposure",
+                "scientificStatus": "approximation",
+                "applicability": {
+                  "focalLengthMm": {
+                    "minimum": 50,
+                    "maximum": 50
+                  },
+                  "nominalFNumber": {
+                    "minimum": 4,
+                    "maximum": 4
+                  },
+                  "focus": {
+                    "kind": "finite-distance-range",
+                    "objectDistanceM": {
+                      "minimum": 5,
+                      "maximum": 5
+                    }
+                  }
+                },
+                "transmission": {
+                  "kind": "spectral-transmission",
+                  "scientificStatus": "approximation",
+                  "wavelengthBasis": "vacuum",
+                  "samples": {
+                    "value": [
+                      {
+                        "wavelengthNanometers": 540,
+                        "linearTransmissionFactor": 0.75
+                      },
+                      {
+                        "wavelengthNanometers": 560,
+                        "linearTransmissionFactor": 0.75
+                      }
+                    ],
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "uncertainty": {
+                    "kind": "not-quantified",
+                    "limitation": "Synthetic flat narrow-band reference."
+                  }
+                },
+                "distortionAreaMappingOwnership": "not-applied-by-bridge",
+                "psfRedistributionOwnership": "downstream-normalized-energy-redistribution",
+                "sensorOpticalStackIncluded": false,
+                "strayLightIncluded": false,
+                "polarizationModeled": false,
+                "wavelengthChangingBehaviorModeled": false,
+                "volumetricScatteringModeled": false,
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "photivra:generic-tier-assets-v1",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "limitations": [
+                  "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                  "Optical reference response is limited to 50 mm, f/4, focus 5 m and explicit field/defocus/wavelength slices; capabilities do not authorize extrapolation.",
+                  "The initial prime has no OIS; body stabilization is separate."
+                ]
+              },
+              "focalLengthMm": 50,
+              "nominalFNumber": 4,
+              "focus": {
+                "kind": "ideal-symmetric-thin-lens",
+                "objectDistanceM": 5,
+                "pupilMagnificationAssumption": "unity"
+              }
+            },
+            "motion": {
+              "angularVelocityRadPerSec": {
+                "pitch": 0,
+                "yaw": 0,
+                "roll": 0
+              },
+              "timeReference": "first-opening-boundary-phase",
+              "environmentDirectionConvention": "outgoing-radiance-toward-camera"
+            },
+            "temporalSampleCount": 2,
+            "fieldThroughput": {
+              "kind": "unity",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "test:unity",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitation": "Declared unity field throughput."
+            },
+            "psf": {
+              "kind": "not-applied",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "test:no-psf",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitation": "Point optics only; no lens blur."
+            }
+          },
+          "readout": {
+            "samplingProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "charge-test",
+              "completenessProfileId": "complete-test",
+              "scientificStatus": "approximation",
+              "photoShotNoiseModel": "poisson",
+              "darkShotNoiseModel": "poisson",
+              "additionalComponentPolicies": [],
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitations": [
+                "Owned fixture sampling."
+              ]
+            },
+            "capacityProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "capacity-test",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "channelId": "green",
+              "capacityMeaning": "physical-charge-storage-capacity-electrons",
+              "capacityElectrons": 1000,
+              "scientificStatus": "approximation",
+              "uncertainty": {
+                "kind": "not-quantified",
+                "limitation": "Synthetic fixture only."
+              },
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "siteApplicability": {
+                "kind": "exact-site",
+                "site": {
+                  "x": 1,
+                  "y": 0
+                }
+              },
+              "operatingState": {
+                "stateId": "state-test",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "synthetic-frame-test",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ]
+              },
+              "temperatureApplicability": {
+                "kind": "exact-reference-temperature",
+                "temperatureC": 20
+              }
+            },
+            "operatingStateId": "state-test",
+            "readoutProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "photivra-consumer-body:readout",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "channelId": "green",
+              "regimes": [
+                {
+                  "regimeId": "base",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 1,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 20000,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 6,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 16,
+                    "blackLevelCode": 512,
+                    "digitalSaturationCode": 65535,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                  ]
+                },
+                {
+                  "regimeId": "high",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.25,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 12000,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 4.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 16,
+                    "blackLevelCode": 512,
+                    "digitalSaturationCode": 65535,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                  ]
+                }
+              ],
+              "regimeSelectionOwnedBy": "explicit-upstream-camera-state-not-inferred-from-iso",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "photivra:generic-tier-assets-v1",
+                  "reuseStatus": "photivra-owned"
+                }
+              ]
+            },
+            "regimeId": "base"
+          },
+          "charge": {
+            "completenessProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "complete-test",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "channelId": "green",
+              "site": {
+                "x": 1,
+                "y": 0
+              },
+              "bindingId": "native-cfa",
+              "timeReference": "first-opening-boundary-phase",
+              "startOffsetSecondsFromOpeningReference": 0,
+              "endOffsetSecondsFromOpeningReference": 0.008,
+              "darkCurrentProfileId": "dark-test",
+              "includedAdditionalComponentIds": [],
+              "coverageMeaning": "all-material-stored-electron-contributors-accounted-for",
+              "scientificStatus": "approximation",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitation": "Declared owned fixture expectations, no calibration."
+            }
+          },
+          "operatingTemperatureC": 20,
+          "darkCurrentProfile": {
+            "schemaVersion": "0.1.0",
+            "profileId": "dark-test",
+            "colorSamplingProfileId": "photivra-generic-bayer",
+            "channelId": "green",
+            "scientificStatus": "approximation",
+            "evidence": [
+              {
+                "sourceOrigin": "photivra",
+                "sourceReference": "synthetic-frame-test",
+                "reuseStatus": "photivra-owned"
+              }
+            ],
+            "uncertainty": {
+              "kind": "not-quantified",
+              "limitation": "Synthetic dark fixture."
+            },
+            "chargeMeaning": "pre-compensation-thermally-generated-electrons",
+            "siteApplicability": {
+              "kind": "exact-site",
+              "site": {
+                "x": 1,
+                "y": 0
+              }
+            },
+            "temperatureModel": {
+              "kind": "fixed-reference-temperature",
+              "referenceTemperatureC": 20,
+              "darkCurrentElectronsPerSecond": 4
+            },
+            "darkCurrentCompensationIncluded": false,
+            "spatialDarkCurrentNonuniformityModeled": true
+          }
+        },
+        {
+          "environment": {
+            "temporalIntegrationId": "environment-site-2",
+            "sensor": {
+              "spatialSampling": {
+                "imagingArea": {
+                  "widthMm": 36,
+                  "heightMm": 24
+                },
+                "samplingApertureProfile": {
+                  "schemaVersion": "0.1.0",
+                  "profileId": "sampling",
+                  "colorSamplingProfileId": "photivra-generic-bayer",
+                  "colorSamplingBindingId": "native-cfa",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:sampling",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "siteCenterLattice": {
+                    "kind": "regular-rectangular-site-center-lattice",
+                    "coordinateSystem": "native-sensor-physical",
+                    "pitchXMicrometers": 18000,
+                    "pitchYMicrometers": 12000,
+                    "firstSiteCenterFromImagingAreaTopLeftMicrometers": {
+                      "x": 9000,
+                      "y": 6000
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:lattice",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "geometricSensitiveAperture": {
+                    "kind": "uniform-axis-aligned-rectangle",
+                    "widthMicrometers": 800,
+                    "heightMicrometers": 600,
+                    "centerOffsetFromSiteCenterMicrometers": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:aperture",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                },
+                "opticalStackProfile": {
+                  "schemaVersion": "0.1.0",
+                  "profileId": "absent-aa",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:stack",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "effectiveAntiAliasingSpatialResponse": {
+                    "kind": "absent",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:no-aa",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                },
+                "site": {
+                  "x": 0,
+                  "y": 1
+                },
+                "spatialSampleCountX": 2,
+                "spatialSampleCountY": 2
+              },
+              "spectralSampling": {
+                "channelId": "green",
+                "wavelengthBasis": "vacuum",
+                "wavelengthRangeNanometers": {
+                  "minimum": 540,
+                  "maximum": 560
+                },
+                "maximumSubintervalWidthNanometers": 20
+              },
+              "colorSamplingProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "photivra-generic-bayer",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "synthetic-frame-test",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "coordinateSystem": "native-sensor-color-sampling-site-index",
+                "layout": {
+                  "kind": "periodic-mosaic",
+                  "repeatWidthSites": 2,
+                  "repeatHeightSites": 2,
+                  "siteChannelIds": [
+                    "red",
+                    "green",
+                    "green",
+                    "blue"
+                  ],
+                  "anchor": "native-sensor-top-left-site"
+                }
+              },
+              "spectralResponseProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "spectral",
+                "colorSamplingProfileId": "photivra-generic-bayer",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:response-profile",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "channels": [
+                  {
+                    "channelId": "green",
+                    "scientificStatus": "approximation",
+                    "uncertainty": {
+                      "kind": "not-quantified",
+                      "limitation": "Owned narrow-band test response, not tier calibration."
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:response-channel",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "referenceConditions": {
+                      "temperatureC": 25,
+                      "incidenceAngleDegreesFromNormal": 0,
+                      "polarization": "unpolarized"
+                    },
+                    "conditionDependence": "not-modeled",
+                    "kind": "effective-external-quantum-efficiency",
+                    "responseScope": "sensor-package-incident-effective-channel-response",
+                    "externalQuantumEfficiency": {
+                      "wavelengthUnit": "nm",
+                      "wavelengthBasis": "vacuum",
+                      "interpolation": "piecewise-linear",
+                      "outsideRangeBehavior": "fail-closed",
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "test:response-curve",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ],
+                      "samples": [
+                        {
+                          "wavelengthNanometers": 540,
+                          "value": 0.4
+                        },
+                        {
+                          "wavelengthNanometers": 560,
+                          "value": 0.4
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "responseApplication": {
+                "applicationProfile": {
+                  "schemaVersion": "0.1.0",
+                  "profileId": "application",
+                  "spectralResponseProfileId": "spectral",
+                  "colorSamplingProfileId": "photivra-generic-bayer",
+                  "channelId": "green",
+                  "samplingApertureProfileId": "sampling",
+                  "opticalStackProfileId": "absent-aa",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:application",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "incidentAreaBasis": {
+                    "kind": "geometric-sensitive-aperture",
+                    "areaSquareMicrometers": 480000
+                  },
+                  "spatialResponseModel": {
+                    "kind": "uniform-over-geometric-sensitive-aperture",
+                    "scientificStatus": "approximation",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "synthetic-frame-test",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                  },
+                  "referenceConditionPolicy": {
+                    "kind": "exact-match-required"
+                  }
+                },
+                "sourcePlane": {
+                  "value": "sensor-package-incident",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:plane",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ]
+                },
+                "operatingConditions": {
+                  "temperatureC": 25,
+                  "incidenceAngleDegreesFromNormal": 0,
+                  "polarization": "unpolarized"
+                }
+              },
+              "operatingRangeProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "linearity",
+                "responseApplicationProfileId": "application",
+                "spectralResponseProfileId": "spectral",
+                "colorSamplingProfileId": "photivra-generic-bayer",
+                "channelId": "green",
+                "scientificStatus": "approximation",
+                "uncertainty": {
+                  "kind": "not-quantified",
+                  "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                },
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:linearity",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "inputRange": {
+                  "kind": "wavelength-integrated-geometric-aperture-radiant-power",
+                  "unit": "W",
+                  "minimumInclusive": 0,
+                  "maximumInclusive": 0.001
+                },
+                "wavelengthApplicability": {
+                  "wavelengthBasis": "vacuum",
+                  "minimumNanometers": 380,
+                  "maximumNanometers": 720,
+                  "containment": "requested-range-must-be-contained"
+                },
+                "linearityCriterion": {
+                  "maximumAbsoluteRelativeDeviation": 0.01
+                },
+                "spatialLinearityModel": {
+                  "kind": "linear-superposition-over-geometric-aperture",
+                  "scientificStatus": "approximation",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "synthetic-frame-test",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                },
+                "spectralInputModel": {
+                  "kind": "per-spectral-bin",
+                  "maximumBinWidthNanometers": 20,
+                  "scientificStatus": "approximation",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "synthetic-frame-test",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                },
+                "referenceConditions": {
+                  "temperatureC": 25,
+                  "incidenceAngleDegreesFromNormal": 0,
+                  "polarization": "unpolarized"
+                },
+                "referenceConditionPolicy": {
+                  "kind": "exact-match-required"
+                }
+              },
+              "localExposure": {
+                "bindingProfile": {
+                  "schemaVersion": "0.1.0",
+                  "bindingId": "native-cfa",
+                  "colorSamplingProfileId": "photivra-generic-bayer",
+                  "nativeRaster": {
+                    "pixelWidth": 2,
+                    "pixelHeight": 2
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "synthetic-frame-test",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "relationship": {
+                    "kind": "regular-native-effective-sample-blocks",
+                    "sitesPerNativeSampleX": 1,
+                    "sitesPerNativeSampleY": 1,
+                    "anchor": "shared-native-top-left"
+                  }
+                },
+                "exposureWindowInput": {
+                  "shutterMechanism": "electronic",
+                  "nominalExposureDurationSeconds": {
+                    "value": 0.008,
+                    "unit": "s",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "synthetic-frame-test",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "opening": {
+                    "kind": "simultaneous"
+                  },
+                  "closing": {
+                    "kind": "simultaneous"
+                  },
+                  "nativeRaster": {
+                    "pixelWidth": 2,
+                    "pixelHeight": 2
+                  }
+                }
+              }
+            },
+            "sceneBindings": {
+              "illuminationProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "lights",
+                "sceneId": "room",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:lights",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "sources": [
+                  {
+                    "sourceId": "sky",
+                    "family": "environment",
+                    "enabled": true,
+                    "geometry": {
+                      "kind": "environment"
+                    },
+                    "magnitude": {
+                      "kind": "relative-linear-scale",
+                      "scale": 1,
+                      "scientificStatus": "approximation",
+                      "limitation": "Owned synthetic scene declaration."
+                    },
+                    "spectrum": {
+                      "kind": "unresolved",
+                      "limitation": "Numeric provider radiance is separately declared."
+                    },
+                    "temporalBehavior": {
+                      "kind": "time-invariant"
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:sky",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                ],
+                "sceneRadianceCalculated": false,
+                "materialResponseApplied": false,
+                "visibilityEvaluated": false,
+                "indirectTransportEvaluated": false,
+                "fluorescenceModeled": false,
+                "volumetricTransportModeled": false,
+                "polarizationModeled": false
+              },
+              "materialResponseProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "materials",
+                "sceneId": "room",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:materials",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "materials": [
+                  {
+                    "materialResponseId": "surface",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:surface",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "representation": {
+                      "kind": "spectral-wavelength-preserving-data",
+                      "dataArtifact": {
+                        "id": "owned-spectrum",
+                        "checksumSha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                      },
+                      "wavelengthBasis": "vacuum",
+                      "wavelengthRangeNanometers": {
+                        "minimum": 400,
+                        "maximum": 500
+                      },
+                      "scatteringModel": "provider-defined-wavelength-preserving",
+                      "scientificStatus": "approximation",
+                      "uncertainty": {
+                        "kind": "not-quantified",
+                        "limitation": "Synthetic provider metadata only."
+                      },
+                      "wavelengthChangingBehaviorModeled": false,
+                      "emissionModeled": false
+                    }
+                  }
+                ],
+                "fluorescenceModeled": false,
+                "volumetricMaterialTransportModeled": false,
+                "polarizationModeled": false
+              },
+              "providerProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "provider",
+                "sceneId": "room",
+                "illuminationProfileId": "lights",
+                "materialResponseProfileId": "materials",
+                "outputQuantity": "outgoing-spectral-radiance",
+                "outputUnit": "W/m^2/sr/nm",
+                "scientificStatus": "approximation",
+                "uncertainty": {
+                  "kind": "not-quantified",
+                  "limitation": "Synthetic field."
+                },
+                "fidelity": {
+                  "spectral": "wavelength-resolved",
+                  "material": "spectral-data",
+                  "visibility": "resolved",
+                  "directTransport": "approximation",
+                  "indirectTransport": "not-modeled"
+                },
+                "wavelengthChangingTransportModeled": false,
+                "volumetricTransportModeled": false,
+                "polarizationModeled": false,
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:provider",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "limitations": [
+                  "Owned fixture declarations."
+                ],
+                "illuminationTemporalProfileId": "time-lights"
+              },
+              "illuminationTemporalProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "time-lights",
+                "sceneId": "room",
+                "illuminationProfileId": "lights",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:time-lights",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "waveforms": [
+                  {
+                    "kind": "aperiodic-relative-multiplier",
+                    "waveformId": "ramp",
+                    "timeUnit": "s",
+                    "scientificStatus": "approximation",
+                    "uncertainty": {
+                      "kind": "not-quantified",
+                      "limitation": "Synthetic linear light ramp."
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:ramp",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "interpolation": "piecewise-linear",
+                    "samples": [
+                      {
+                        "timeSecondsFromWaveformReference": 0,
+                        "relativeMagnitudeMultiplier": 1
+                      },
+                      {
+                        "timeSecondsFromWaveformReference": 1,
+                        "relativeMagnitudeMultiplier": 201
+                      }
+                    ],
+                    "outsideSupportBehavior": "zero"
+                  }
+                ],
+                "sourceBindings": [
+                  {
+                    "bindingId": "sky-time",
+                    "sourceId": "sky",
+                    "waveformId": "ramp",
+                    "captureTimeReference": "first-opening-boundary-phase",
+                    "waveformTimeZeroSecondsFromCaptureReference": 0,
+                    "scientificStatus": "approximation",
+                    "timingUncertainty": {
+                      "kind": "not-quantified",
+                      "limitation": "Owned exact synthetic clock."
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:sky-time",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                ],
+                "baseIlluminationProfileRemainsAuthoritative": true,
+                "sensorReadoutTimingUsedAsExposureTiming": false,
+                "automaticExposurePolicyIncluded": false
+              }
+            },
+            "optics": {
+              "profile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "photivra-consumer-prime:transmission:production-fixture",
+                "profileVersion": "1",
+                "lensProfileId": "photivra-consumer-prime:exposure",
+                "scientificStatus": "approximation",
+                "applicability": {
+                  "focalLengthMm": {
+                    "minimum": 50,
+                    "maximum": 50
+                  },
+                  "nominalFNumber": {
+                    "minimum": 4,
+                    "maximum": 4
+                  },
+                  "focus": {
+                    "kind": "finite-distance-range",
+                    "objectDistanceM": {
+                      "minimum": 5,
+                      "maximum": 5
+                    }
+                  }
+                },
+                "transmission": {
+                  "kind": "spectral-transmission",
+                  "scientificStatus": "approximation",
+                  "wavelengthBasis": "vacuum",
+                  "samples": {
+                    "value": [
+                      {
+                        "wavelengthNanometers": 540,
+                        "linearTransmissionFactor": 0.75
+                      },
+                      {
+                        "wavelengthNanometers": 560,
+                        "linearTransmissionFactor": 0.75
+                      }
+                    ],
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "uncertainty": {
+                    "kind": "not-quantified",
+                    "limitation": "Synthetic flat narrow-band reference."
+                  }
+                },
+                "distortionAreaMappingOwnership": "not-applied-by-bridge",
+                "psfRedistributionOwnership": "downstream-normalized-energy-redistribution",
+                "sensorOpticalStackIncluded": false,
+                "strayLightIncluded": false,
+                "polarizationModeled": false,
+                "wavelengthChangingBehaviorModeled": false,
+                "volumetricScatteringModeled": false,
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "photivra:generic-tier-assets-v1",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "limitations": [
+                  "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                  "Optical reference response is limited to 50 mm, f/4, focus 5 m and explicit field/defocus/wavelength slices; capabilities do not authorize extrapolation.",
+                  "The initial prime has no OIS; body stabilization is separate."
+                ]
+              },
+              "focalLengthMm": 50,
+              "nominalFNumber": 4,
+              "focus": {
+                "kind": "ideal-symmetric-thin-lens",
+                "objectDistanceM": 5,
+                "pupilMagnificationAssumption": "unity"
+              }
+            },
+            "motion": {
+              "angularVelocityRadPerSec": {
+                "pitch": 0,
+                "yaw": 0,
+                "roll": 0
+              },
+              "timeReference": "first-opening-boundary-phase",
+              "environmentDirectionConvention": "outgoing-radiance-toward-camera"
+            },
+            "temporalSampleCount": 2,
+            "fieldThroughput": {
+              "kind": "unity",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "test:unity",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitation": "Declared unity field throughput."
+            },
+            "psf": {
+              "kind": "not-applied",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "test:no-psf",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitation": "Point optics only; no lens blur."
+            }
+          },
+          "readout": {
+            "samplingProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "charge-test",
+              "completenessProfileId": "complete-test",
+              "scientificStatus": "approximation",
+              "photoShotNoiseModel": "poisson",
+              "darkShotNoiseModel": "poisson",
+              "additionalComponentPolicies": [],
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitations": [
+                "Owned fixture sampling."
+              ]
+            },
+            "capacityProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "capacity-test",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "channelId": "green",
+              "capacityMeaning": "physical-charge-storage-capacity-electrons",
+              "capacityElectrons": 1000,
+              "scientificStatus": "approximation",
+              "uncertainty": {
+                "kind": "not-quantified",
+                "limitation": "Synthetic fixture only."
+              },
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "siteApplicability": {
+                "kind": "exact-site",
+                "site": {
+                  "x": 0,
+                  "y": 1
+                }
+              },
+              "operatingState": {
+                "stateId": "state-test",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "synthetic-frame-test",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ]
+              },
+              "temperatureApplicability": {
+                "kind": "exact-reference-temperature",
+                "temperatureC": 20
+              }
+            },
+            "operatingStateId": "state-test",
+            "readoutProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "photivra-consumer-body:readout",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "channelId": "green",
+              "regimes": [
+                {
+                  "regimeId": "base",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 1,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 20000,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 6,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 16,
+                    "blackLevelCode": 512,
+                    "digitalSaturationCode": 65535,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                  ]
+                },
+                {
+                  "regimeId": "high",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.25,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 12000,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 4.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 16,
+                    "blackLevelCode": 512,
+                    "digitalSaturationCode": 65535,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                  ]
+                }
+              ],
+              "regimeSelectionOwnedBy": "explicit-upstream-camera-state-not-inferred-from-iso",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "photivra:generic-tier-assets-v1",
+                  "reuseStatus": "photivra-owned"
+                }
+              ]
+            },
+            "regimeId": "base"
+          },
+          "charge": {
+            "completenessProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "complete-test",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "channelId": "green",
+              "site": {
+                "x": 0,
+                "y": 1
+              },
+              "bindingId": "native-cfa",
+              "timeReference": "first-opening-boundary-phase",
+              "startOffsetSecondsFromOpeningReference": 0,
+              "endOffsetSecondsFromOpeningReference": 0.008,
+              "darkCurrentProfileId": "dark-test",
+              "includedAdditionalComponentIds": [],
+              "coverageMeaning": "all-material-stored-electron-contributors-accounted-for",
+              "scientificStatus": "approximation",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitation": "Declared owned fixture expectations, no calibration."
+            }
+          },
+          "operatingTemperatureC": 20,
+          "darkCurrentProfile": {
+            "schemaVersion": "0.1.0",
+            "profileId": "dark-test",
+            "colorSamplingProfileId": "photivra-generic-bayer",
+            "channelId": "green",
+            "scientificStatus": "approximation",
+            "evidence": [
+              {
+                "sourceOrigin": "photivra",
+                "sourceReference": "synthetic-frame-test",
+                "reuseStatus": "photivra-owned"
+              }
+            ],
+            "uncertainty": {
+              "kind": "not-quantified",
+              "limitation": "Synthetic dark fixture."
+            },
+            "chargeMeaning": "pre-compensation-thermally-generated-electrons",
+            "siteApplicability": {
+              "kind": "exact-site",
+              "site": {
+                "x": 0,
+                "y": 1
+              }
+            },
+            "temperatureModel": {
+              "kind": "fixed-reference-temperature",
+              "referenceTemperatureC": 20,
+              "darkCurrentElectronsPerSecond": 4
+            },
+            "darkCurrentCompensationIncluded": false,
+            "spatialDarkCurrentNonuniformityModeled": true
+          }
+        },
+        {
+          "environment": {
+            "temporalIntegrationId": "environment-site-3",
+            "sensor": {
+              "spatialSampling": {
+                "imagingArea": {
+                  "widthMm": 36,
+                  "heightMm": 24
+                },
+                "samplingApertureProfile": {
+                  "schemaVersion": "0.1.0",
+                  "profileId": "sampling",
+                  "colorSamplingProfileId": "photivra-generic-bayer",
+                  "colorSamplingBindingId": "native-cfa",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:sampling",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "siteCenterLattice": {
+                    "kind": "regular-rectangular-site-center-lattice",
+                    "coordinateSystem": "native-sensor-physical",
+                    "pitchXMicrometers": 18000,
+                    "pitchYMicrometers": 12000,
+                    "firstSiteCenterFromImagingAreaTopLeftMicrometers": {
+                      "x": 9000,
+                      "y": 6000
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:lattice",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "geometricSensitiveAperture": {
+                    "kind": "uniform-axis-aligned-rectangle",
+                    "widthMicrometers": 800,
+                    "heightMicrometers": 600,
+                    "centerOffsetFromSiteCenterMicrometers": {
+                      "x": 0,
+                      "y": 0
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:aperture",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                },
+                "opticalStackProfile": {
+                  "schemaVersion": "0.1.0",
+                  "profileId": "absent-aa",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:stack",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "effectiveAntiAliasingSpatialResponse": {
+                    "kind": "absent",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:no-aa",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                },
+                "site": {
+                  "x": 1,
+                  "y": 1
+                },
+                "spatialSampleCountX": 2,
+                "spatialSampleCountY": 2
+              },
+              "spectralSampling": {
+                "channelId": "blue",
+                "wavelengthBasis": "vacuum",
+                "wavelengthRangeNanometers": {
+                  "minimum": 540,
+                  "maximum": 560
+                },
+                "maximumSubintervalWidthNanometers": 20
+              },
+              "colorSamplingProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "photivra-generic-bayer",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "synthetic-frame-test",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "coordinateSystem": "native-sensor-color-sampling-site-index",
+                "layout": {
+                  "kind": "periodic-mosaic",
+                  "repeatWidthSites": 2,
+                  "repeatHeightSites": 2,
+                  "siteChannelIds": [
+                    "red",
+                    "green",
+                    "green",
+                    "blue"
+                  ],
+                  "anchor": "native-sensor-top-left-site"
+                }
+              },
+              "spectralResponseProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "spectral",
+                "colorSamplingProfileId": "photivra-generic-bayer",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:response-profile",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "channels": [
+                  {
+                    "channelId": "blue",
+                    "scientificStatus": "approximation",
+                    "uncertainty": {
+                      "kind": "not-quantified",
+                      "limitation": "Owned narrow-band test response, not tier calibration."
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:response-channel",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "referenceConditions": {
+                      "temperatureC": 25,
+                      "incidenceAngleDegreesFromNormal": 0,
+                      "polarization": "unpolarized"
+                    },
+                    "conditionDependence": "not-modeled",
+                    "kind": "effective-external-quantum-efficiency",
+                    "responseScope": "sensor-package-incident-effective-channel-response",
+                    "externalQuantumEfficiency": {
+                      "wavelengthUnit": "nm",
+                      "wavelengthBasis": "vacuum",
+                      "interpolation": "piecewise-linear",
+                      "outsideRangeBehavior": "fail-closed",
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "test:response-curve",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ],
+                      "samples": [
+                        {
+                          "wavelengthNanometers": 540,
+                          "value": 0.4
+                        },
+                        {
+                          "wavelengthNanometers": 560,
+                          "value": 0.4
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "responseApplication": {
+                "applicationProfile": {
+                  "schemaVersion": "0.1.0",
+                  "profileId": "application",
+                  "spectralResponseProfileId": "spectral",
+                  "colorSamplingProfileId": "photivra-generic-bayer",
+                  "channelId": "blue",
+                  "samplingApertureProfileId": "sampling",
+                  "opticalStackProfileId": "absent-aa",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:application",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "incidentAreaBasis": {
+                    "kind": "geometric-sensitive-aperture",
+                    "areaSquareMicrometers": 480000
+                  },
+                  "spatialResponseModel": {
+                    "kind": "uniform-over-geometric-sensitive-aperture",
+                    "scientificStatus": "approximation",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "synthetic-frame-test",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                  },
+                  "referenceConditionPolicy": {
+                    "kind": "exact-match-required"
+                  }
+                },
+                "sourcePlane": {
+                  "value": "sensor-package-incident",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "test:plane",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ]
+                },
+                "operatingConditions": {
+                  "temperatureC": 25,
+                  "incidenceAngleDegreesFromNormal": 0,
+                  "polarization": "unpolarized"
+                }
+              },
+              "operatingRangeProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "linearity",
+                "responseApplicationProfileId": "application",
+                "spectralResponseProfileId": "spectral",
+                "colorSamplingProfileId": "photivra-generic-bayer",
+                "channelId": "blue",
+                "scientificStatus": "approximation",
+                "uncertainty": {
+                  "kind": "not-quantified",
+                  "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                },
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:linearity",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "inputRange": {
+                  "kind": "wavelength-integrated-geometric-aperture-radiant-power",
+                  "unit": "W",
+                  "minimumInclusive": 0,
+                  "maximumInclusive": 0.001
+                },
+                "wavelengthApplicability": {
+                  "wavelengthBasis": "vacuum",
+                  "minimumNanometers": 380,
+                  "maximumNanometers": 720,
+                  "containment": "requested-range-must-be-contained"
+                },
+                "linearityCriterion": {
+                  "maximumAbsoluteRelativeDeviation": 0.01
+                },
+                "spatialLinearityModel": {
+                  "kind": "linear-superposition-over-geometric-aperture",
+                  "scientificStatus": "approximation",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "synthetic-frame-test",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                },
+                "spectralInputModel": {
+                  "kind": "per-spectral-bin",
+                  "maximumBinWidthNanometers": 20,
+                  "scientificStatus": "approximation",
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "synthetic-frame-test",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitation": "Owned synthetic response for integration, not measured tier calibration."
+                },
+                "referenceConditions": {
+                  "temperatureC": 25,
+                  "incidenceAngleDegreesFromNormal": 0,
+                  "polarization": "unpolarized"
+                },
+                "referenceConditionPolicy": {
+                  "kind": "exact-match-required"
+                }
+              },
+              "localExposure": {
+                "bindingProfile": {
+                  "schemaVersion": "0.1.0",
+                  "bindingId": "native-cfa",
+                  "colorSamplingProfileId": "photivra-generic-bayer",
+                  "nativeRaster": {
+                    "pixelWidth": 2,
+                    "pixelHeight": 2
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "synthetic-frame-test",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "relationship": {
+                    "kind": "regular-native-effective-sample-blocks",
+                    "sitesPerNativeSampleX": 1,
+                    "sitesPerNativeSampleY": 1,
+                    "anchor": "shared-native-top-left"
+                  }
+                },
+                "exposureWindowInput": {
+                  "shutterMechanism": "electronic",
+                  "nominalExposureDurationSeconds": {
+                    "value": 0.008,
+                    "unit": "s",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "synthetic-frame-test",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "opening": {
+                    "kind": "simultaneous"
+                  },
+                  "closing": {
+                    "kind": "simultaneous"
+                  },
+                  "nativeRaster": {
+                    "pixelWidth": 2,
+                    "pixelHeight": 2
+                  }
+                }
+              }
+            },
+            "sceneBindings": {
+              "illuminationProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "lights",
+                "sceneId": "room",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:lights",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "sources": [
+                  {
+                    "sourceId": "sky",
+                    "family": "environment",
+                    "enabled": true,
+                    "geometry": {
+                      "kind": "environment"
+                    },
+                    "magnitude": {
+                      "kind": "relative-linear-scale",
+                      "scale": 1,
+                      "scientificStatus": "approximation",
+                      "limitation": "Owned synthetic scene declaration."
+                    },
+                    "spectrum": {
+                      "kind": "unresolved",
+                      "limitation": "Numeric provider radiance is separately declared."
+                    },
+                    "temporalBehavior": {
+                      "kind": "time-invariant"
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:sky",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                ],
+                "sceneRadianceCalculated": false,
+                "materialResponseApplied": false,
+                "visibilityEvaluated": false,
+                "indirectTransportEvaluated": false,
+                "fluorescenceModeled": false,
+                "volumetricTransportModeled": false,
+                "polarizationModeled": false
+              },
+              "materialResponseProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "materials",
+                "sceneId": "room",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:materials",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "materials": [
+                  {
+                    "materialResponseId": "surface",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:surface",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "representation": {
+                      "kind": "spectral-wavelength-preserving-data",
+                      "dataArtifact": {
+                        "id": "owned-spectrum",
+                        "checksumSha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                      },
+                      "wavelengthBasis": "vacuum",
+                      "wavelengthRangeNanometers": {
+                        "minimum": 400,
+                        "maximum": 500
+                      },
+                      "scatteringModel": "provider-defined-wavelength-preserving",
+                      "scientificStatus": "approximation",
+                      "uncertainty": {
+                        "kind": "not-quantified",
+                        "limitation": "Synthetic provider metadata only."
+                      },
+                      "wavelengthChangingBehaviorModeled": false,
+                      "emissionModeled": false
+                    }
+                  }
+                ],
+                "fluorescenceModeled": false,
+                "volumetricMaterialTransportModeled": false,
+                "polarizationModeled": false
+              },
+              "providerProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "provider",
+                "sceneId": "room",
+                "illuminationProfileId": "lights",
+                "materialResponseProfileId": "materials",
+                "outputQuantity": "outgoing-spectral-radiance",
+                "outputUnit": "W/m^2/sr/nm",
+                "scientificStatus": "approximation",
+                "uncertainty": {
+                  "kind": "not-quantified",
+                  "limitation": "Synthetic field."
+                },
+                "fidelity": {
+                  "spectral": "wavelength-resolved",
+                  "material": "spectral-data",
+                  "visibility": "resolved",
+                  "directTransport": "approximation",
+                  "indirectTransport": "not-modeled"
+                },
+                "wavelengthChangingTransportModeled": false,
+                "volumetricTransportModeled": false,
+                "polarizationModeled": false,
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:provider",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "limitations": [
+                  "Owned fixture declarations."
+                ],
+                "illuminationTemporalProfileId": "time-lights"
+              },
+              "illuminationTemporalProfile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "time-lights",
+                "sceneId": "room",
+                "illuminationProfileId": "lights",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "test:time-lights",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "waveforms": [
+                  {
+                    "kind": "aperiodic-relative-multiplier",
+                    "waveformId": "ramp",
+                    "timeUnit": "s",
+                    "scientificStatus": "approximation",
+                    "uncertainty": {
+                      "kind": "not-quantified",
+                      "limitation": "Synthetic linear light ramp."
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:ramp",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ],
+                    "interpolation": "piecewise-linear",
+                    "samples": [
+                      {
+                        "timeSecondsFromWaveformReference": 0,
+                        "relativeMagnitudeMultiplier": 1
+                      },
+                      {
+                        "timeSecondsFromWaveformReference": 1,
+                        "relativeMagnitudeMultiplier": 201
+                      }
+                    ],
+                    "outsideSupportBehavior": "zero"
+                  }
+                ],
+                "sourceBindings": [
+                  {
+                    "bindingId": "sky-time",
+                    "sourceId": "sky",
+                    "waveformId": "ramp",
+                    "captureTimeReference": "first-opening-boundary-phase",
+                    "waveformTimeZeroSecondsFromCaptureReference": 0,
+                    "scientificStatus": "approximation",
+                    "timingUncertainty": {
+                      "kind": "not-quantified",
+                      "limitation": "Owned exact synthetic clock."
+                    },
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "test:sky-time",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  }
+                ],
+                "baseIlluminationProfileRemainsAuthoritative": true,
+                "sensorReadoutTimingUsedAsExposureTiming": false,
+                "automaticExposurePolicyIncluded": false
+              }
+            },
+            "optics": {
+              "profile": {
+                "schemaVersion": "0.1.0",
+                "profileId": "photivra-consumer-prime:transmission:production-fixture",
+                "profileVersion": "1",
+                "lensProfileId": "photivra-consumer-prime:exposure",
+                "scientificStatus": "approximation",
+                "applicability": {
+                  "focalLengthMm": {
+                    "minimum": 50,
+                    "maximum": 50
+                  },
+                  "nominalFNumber": {
+                    "minimum": 4,
+                    "maximum": 4
+                  },
+                  "focus": {
+                    "kind": "finite-distance-range",
+                    "objectDistanceM": {
+                      "minimum": 5,
+                      "maximum": 5
+                    }
+                  }
+                },
+                "transmission": {
+                  "kind": "spectral-transmission",
+                  "scientificStatus": "approximation",
+                  "wavelengthBasis": "vacuum",
+                  "samples": {
+                    "value": [
+                      {
+                        "wavelengthNanometers": 540,
+                        "linearTransmissionFactor": 0.75
+                      },
+                      {
+                        "wavelengthNanometers": 560,
+                        "linearTransmissionFactor": 0.75
+                      }
+                    ],
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "uncertainty": {
+                    "kind": "not-quantified",
+                    "limitation": "Synthetic flat narrow-band reference."
+                  }
+                },
+                "distortionAreaMappingOwnership": "not-applied-by-bridge",
+                "psfRedistributionOwnership": "downstream-normalized-energy-redistribution",
+                "sensorOpticalStackIncluded": false,
+                "strayLightIncluded": false,
+                "polarizationModeled": false,
+                "wavelengthChangingBehaviorModeled": false,
+                "volumetricScatteringModeled": false,
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "photivra:generic-tier-assets-v1",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ],
+                "limitations": [
+                  "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                  "Optical reference response is limited to 50 mm, f/4, focus 5 m and explicit field/defocus/wavelength slices; capabilities do not authorize extrapolation.",
+                  "The initial prime has no OIS; body stabilization is separate."
+                ]
+              },
+              "focalLengthMm": 50,
+              "nominalFNumber": 4,
+              "focus": {
+                "kind": "ideal-symmetric-thin-lens",
+                "objectDistanceM": 5,
+                "pupilMagnificationAssumption": "unity"
+              }
+            },
+            "motion": {
+              "angularVelocityRadPerSec": {
+                "pitch": 0,
+                "yaw": 0,
+                "roll": 0
+              },
+              "timeReference": "first-opening-boundary-phase",
+              "environmentDirectionConvention": "outgoing-radiance-toward-camera"
+            },
+            "temporalSampleCount": 2,
+            "fieldThroughput": {
+              "kind": "unity",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "test:unity",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitation": "Declared unity field throughput."
+            },
+            "psf": {
+              "kind": "not-applied",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "test:no-psf",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitation": "Point optics only; no lens blur."
+            }
+          },
+          "readout": {
+            "samplingProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "charge-test",
+              "completenessProfileId": "complete-test",
+              "scientificStatus": "approximation",
+              "photoShotNoiseModel": "poisson",
+              "darkShotNoiseModel": "poisson",
+              "additionalComponentPolicies": [],
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitations": [
+                "Owned fixture sampling."
+              ]
+            },
+            "capacityProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "capacity-test",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "channelId": "blue",
+              "capacityMeaning": "physical-charge-storage-capacity-electrons",
+              "capacityElectrons": 1000,
+              "scientificStatus": "approximation",
+              "uncertainty": {
+                "kind": "not-quantified",
+                "limitation": "Synthetic fixture only."
+              },
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "siteApplicability": {
+                "kind": "exact-site",
+                "site": {
+                  "x": 1,
+                  "y": 1
+                }
+              },
+              "operatingState": {
+                "stateId": "state-test",
+                "evidence": [
+                  {
+                    "sourceOrigin": "photivra",
+                    "sourceReference": "synthetic-frame-test",
+                    "reuseStatus": "photivra-owned"
+                  }
+                ]
+              },
+              "temperatureApplicability": {
+                "kind": "exact-reference-temperature",
+                "temperatureC": 20
+              }
+            },
+            "operatingStateId": "state-test",
+            "readoutProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "photivra-consumer-body:readout",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "channelId": "blue",
+              "regimes": [
+                {
+                  "regimeId": "base",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 1,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 20000,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 6,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 16,
+                    "blackLevelCode": 512,
+                    "digitalSaturationCode": 65535,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                  ]
+                },
+                {
+                  "regimeId": "high",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.25,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 12000,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 4.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 16,
+                    "blackLevelCode": 512,
+                    "digitalSaturationCode": 65535,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                  ]
+                }
+              ],
+              "regimeSelectionOwnedBy": "explicit-upstream-camera-state-not-inferred-from-iso",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "photivra:generic-tier-assets-v1",
+                  "reuseStatus": "photivra-owned"
+                }
+              ]
+            },
+            "regimeId": "base"
+          },
+          "charge": {
+            "completenessProfile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "complete-test",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "channelId": "blue",
+              "site": {
+                "x": 1,
+                "y": 1
+              },
+              "bindingId": "native-cfa",
+              "timeReference": "first-opening-boundary-phase",
+              "startOffsetSecondsFromOpeningReference": 0,
+              "endOffsetSecondsFromOpeningReference": 0.008,
+              "darkCurrentProfileId": "dark-test",
+              "includedAdditionalComponentIds": [],
+              "coverageMeaning": "all-material-stored-electron-contributors-accounted-for",
+              "scientificStatus": "approximation",
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitation": "Declared owned fixture expectations, no calibration."
+            }
+          },
+          "operatingTemperatureC": 20,
+          "darkCurrentProfile": {
+            "schemaVersion": "0.1.0",
+            "profileId": "dark-test",
+            "colorSamplingProfileId": "photivra-generic-bayer",
+            "channelId": "blue",
+            "scientificStatus": "approximation",
+            "evidence": [
+              {
+                "sourceOrigin": "photivra",
+                "sourceReference": "synthetic-frame-test",
+                "reuseStatus": "photivra-owned"
+              }
+            ],
+            "uncertainty": {
+              "kind": "not-quantified",
+              "limitation": "Synthetic dark fixture."
+            },
+            "chargeMeaning": "pre-compensation-thermally-generated-electrons",
+            "siteApplicability": {
+              "kind": "exact-site",
+              "site": {
+                "x": 1,
+                "y": 1
+              }
+            },
+            "temperatureModel": {
+              "kind": "fixed-reference-temperature",
+              "referenceTemperatureC": 20,
+              "darkCurrentElectronsPerSecond": 4
+            },
+            "darkCurrentCompensationIncluded": false,
+            "spatialDarkCurrentNonuniformityModeled": true
+          }
+        }
+      ]
+    },
+    "processing": {
+      "reconstruction": {
+        "phaseProfiles": [
+          {
+            "phaseX": 0,
+            "phaseY": 0,
+            "profile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "phase-0",
+              "profileVersion": "1",
+              "captureModeId": "native-still",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "scientificStatus": "approximation",
+              "method": "explicit-linear-native-neighborhood",
+              "normalization": "weights-sum-to-one-per-output-channel",
+              "negativeBlackSubtractedValuesAllowed": true,
+              "kernels": [
+                {
+                  "outputChannelId": "red",
+                  "contributions": [
+                    {
+                      "offsetX": 0,
+                      "offsetY": 0,
+                      "sourceChannelId": "red",
+                      "weight": 1
+                    }
+                  ]
+                },
+                {
+                  "outputChannelId": "green",
+                  "contributions": [
+                    {
+                      "offsetX": 1,
+                      "offsetY": 0,
+                      "sourceChannelId": "green",
+                      "weight": 0.5
+                    },
+                    {
+                      "offsetX": 0,
+                      "offsetY": 1,
+                      "sourceChannelId": "green",
+                      "weight": 0.5
+                    }
+                  ]
+                },
+                {
+                  "outputChannelId": "blue",
+                  "contributions": [
+                    {
+                      "offsetX": 1,
+                      "offsetY": 1,
+                      "sourceChannelId": "blue",
+                      "weight": 1
+                    }
+                  ]
+                }
+              ],
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitations": [
+                "Synthetic tile-average regression policy, not calibrated demosaic."
+              ]
+            }
+          },
+          {
+            "phaseX": 1,
+            "phaseY": 0,
+            "profile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "phase-1",
+              "profileVersion": "1",
+              "captureModeId": "native-still",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "scientificStatus": "approximation",
+              "method": "explicit-linear-native-neighborhood",
+              "normalization": "weights-sum-to-one-per-output-channel",
+              "negativeBlackSubtractedValuesAllowed": true,
+              "kernels": [
+                {
+                  "outputChannelId": "red",
+                  "contributions": [
+                    {
+                      "offsetX": -1,
+                      "offsetY": 0,
+                      "sourceChannelId": "red",
+                      "weight": 1
+                    }
+                  ]
+                },
+                {
+                  "outputChannelId": "green",
+                  "contributions": [
+                    {
+                      "offsetX": 0,
+                      "offsetY": 0,
+                      "sourceChannelId": "green",
+                      "weight": 0.5
+                    },
+                    {
+                      "offsetX": -1,
+                      "offsetY": 1,
+                      "sourceChannelId": "green",
+                      "weight": 0.5
+                    }
+                  ]
+                },
+                {
+                  "outputChannelId": "blue",
+                  "contributions": [
+                    {
+                      "offsetX": 0,
+                      "offsetY": 1,
+                      "sourceChannelId": "blue",
+                      "weight": 1
+                    }
+                  ]
+                }
+              ],
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitations": [
+                "Synthetic tile-average regression policy, not calibrated demosaic."
+              ]
+            }
+          },
+          {
+            "phaseX": 0,
+            "phaseY": 1,
+            "profile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "phase-2",
+              "profileVersion": "1",
+              "captureModeId": "native-still",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "scientificStatus": "approximation",
+              "method": "explicit-linear-native-neighborhood",
+              "normalization": "weights-sum-to-one-per-output-channel",
+              "negativeBlackSubtractedValuesAllowed": true,
+              "kernels": [
+                {
+                  "outputChannelId": "red",
+                  "contributions": [
+                    {
+                      "offsetX": 0,
+                      "offsetY": -1,
+                      "sourceChannelId": "red",
+                      "weight": 1
+                    }
+                  ]
+                },
+                {
+                  "outputChannelId": "green",
+                  "contributions": [
+                    {
+                      "offsetX": 1,
+                      "offsetY": -1,
+                      "sourceChannelId": "green",
+                      "weight": 0.5
+                    },
+                    {
+                      "offsetX": 0,
+                      "offsetY": 0,
+                      "sourceChannelId": "green",
+                      "weight": 0.5
+                    }
+                  ]
+                },
+                {
+                  "outputChannelId": "blue",
+                  "contributions": [
+                    {
+                      "offsetX": 1,
+                      "offsetY": 0,
+                      "sourceChannelId": "blue",
+                      "weight": 1
+                    }
+                  ]
+                }
+              ],
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitations": [
+                "Synthetic tile-average regression policy, not calibrated demosaic."
+              ]
+            }
+          },
+          {
+            "phaseX": 1,
+            "phaseY": 1,
+            "profile": {
+              "schemaVersion": "0.1.0",
+              "profileId": "phase-3",
+              "profileVersion": "1",
+              "captureModeId": "native-still",
+              "colorSamplingProfileId": "photivra-generic-bayer",
+              "scientificStatus": "approximation",
+              "method": "explicit-linear-native-neighborhood",
+              "normalization": "weights-sum-to-one-per-output-channel",
+              "negativeBlackSubtractedValuesAllowed": true,
+              "kernels": [
+                {
+                  "outputChannelId": "red",
+                  "contributions": [
+                    {
+                      "offsetX": -1,
+                      "offsetY": -1,
+                      "sourceChannelId": "red",
+                      "weight": 1
+                    }
+                  ]
+                },
+                {
+                  "outputChannelId": "green",
+                  "contributions": [
+                    {
+                      "offsetX": 0,
+                      "offsetY": -1,
+                      "sourceChannelId": "green",
+                      "weight": 0.5
+                    },
+                    {
+                      "offsetX": -1,
+                      "offsetY": 0,
+                      "sourceChannelId": "green",
+                      "weight": 0.5
+                    }
+                  ]
+                },
+                {
+                  "outputChannelId": "blue",
+                  "contributions": [
+                    {
+                      "offsetX": 0,
+                      "offsetY": 0,
+                      "sourceChannelId": "blue",
+                      "weight": 1
+                    }
+                  ]
+                }
+              ],
+              "evidence": [
+                {
+                  "sourceOrigin": "photivra",
+                  "sourceReference": "synthetic-frame-test",
+                  "reuseStatus": "photivra-owned"
+                }
+              ],
+              "limitations": [
+                "Synthetic tile-average regression policy, not calibrated demosaic."
+              ]
+            }
+          }
+        ],
+        "region": {
+          "x": 0,
+          "y": 0,
+          "width": 2,
+          "height": 2
+        }
+      },
+      "colorProfile": {
+        "schemaVersion": "0.1.0",
+        "profileId": "owned-ideal-rgb-test",
+        "profileVersion": "1",
+        "colorSamplingProfileId": "photivra-generic-bayer",
+        "channelIds": [
+          "red",
+          "green",
+          "blue"
+        ],
+        "scientificStatus": "approximation",
+        "referenceIlluminant": "D65",
+        "normalizedCameraChannelsToXyz": [
+          [
+            0.4123907992659593,
+            0.357584339383878,
+            0.1804807884018343
+          ],
+          [
+            0.21263900587151024,
+            0.715168678767756,
+            0.07219231536073371
+          ],
+          [
+            0.01933081871559182,
+            0.11919477979462598,
+            0.9505321522496607
+          ]
+        ],
+        "evidence": [
+          {
+            "sourceOrigin": "photivra",
+            "sourceReference": "synthetic-frame-test",
+            "reuseStatus": "photivra-owned"
+          }
+        ],
+        "limitations": [
+          "Synthetic ideal test-color declaration, not physical sensor calibration."
+        ]
+      },
+      "whiteBalance": "not-required",
+      "rendering": {
+        "schemaVersion": "0.1.0",
+        "profileId": "neutral",
+        "profileVersion": "1",
+        "renderingExposureEv": 0,
+        "toneCurve": "identity",
+        "gamutHandling": "clip-components",
+        "outputDynamicRange": "sdr",
+        "transferFunction": "srgb",
+        "bitDepth": 8,
+        "rounding": "nearest-ties-up",
+        "dither": "none"
+      }
+    }
+  }
+}

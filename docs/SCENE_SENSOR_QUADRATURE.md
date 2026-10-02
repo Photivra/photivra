@@ -1,5 +1,7 @@
 # Declared scene radiance to sensor irradiance nodes
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 `calculateSceneToSensorIrradianceQuadrature()` connects the existing #85 scene
 request/result boundary and #110 paraxial optical bridge to the Cartesian nodes
 of sensor spatial/spectral quadrature. Its output is physical **W/m²/nm** at the

@@ -1,5 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Create the deterministic matching key for a spatial quadrature node; this is sample identity, not a
+ * cryptographic checksum. Spatial node identity binds supplied values to deterministic AA/aperture
+ * quadrature. Average weights and square-micrometre geometric area measures are separate.
+ * Negative/non-finite irradiance or incomplete/duplicate coverage fail; geometry does not establish
+ * QE, radiometric collection area or calibrated transport.
+ * Revalidate node coordinates, weights, geometric measures and coverage before using a spatial plan as
+ * a trusted scientific input. Spatial node identity binds supplied values to deterministic AA/aperture
+ * quadrature. Average weights and square-micrometre geometric area measures are separate.
+ * Negative/non-finite irradiance or incomplete/duplicate coverage fail; geometry does not establish
+ * QE, radiometric collection area or calibrated transport.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult
@@ -241,6 +257,19 @@ function parseValueDomain(
   );
 }
 
+/**
+ * Create the deterministic matching key for a spatial quadrature node; this is sample identity, not a
+ * cryptographic checksum.
+ *
+ * Spatial node identity binds supplied values to deterministic AA/aperture quadrature. Average weights
+ * and square-micrometre geometric area measures are separate. Negative/non-finite irradiance or
+ * incomplete/duplicate coverage fail; geometry does not establish QE, radiometric collection area or
+ * calibrated transport.
+ * @param identity - SensorSpatialQuadratureNodeIdentity. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns string. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function sensorSpatialQuadratureNodeIdentityKey(
   identity: SensorSpatialQuadratureNodeIdentity
 ): string {
@@ -313,6 +342,19 @@ function approximatelyEqual(
   );
 }
 
+/**
+ * Revalidate node coordinates, weights, geometric measures and coverage before using a spatial plan as
+ * a trusted scientific input.
+ *
+ * Spatial node identity binds supplied values to deterministic AA/aperture quadrature. Average weights
+ * and square-micrometre geometric area measures are separate. Negative/non-finite irradiance or
+ * incomplete/duplicate coverage fail; geometry does not establish QE, radiometric collection area or
+ * calibrated transport.
+ * @param quadrature - SensorSpatialSamplingQuadrature. See the linked contract for coordinate, unit and profile binding semantics.
+ * @returns Map<string, SensorSpatialSamplingQuadratureNode>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ *
+ * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ */
 export function validateSensorSpatialSamplingQuadrature(
   quadrature: SensorSpatialSamplingQuadrature
 ): Map<string, SensorSpatialSamplingQuadratureNode> {

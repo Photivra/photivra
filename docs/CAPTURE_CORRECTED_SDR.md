@@ -1,5 +1,7 @@
 # Capture-bound corrections and SDR: #112 integration slice
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 `calculateCaptureCorrectedSdr()` consumes the same immutable `SimulatedCapture` and explicit source/color/WB choice as `calculateCaptureSdr()`, then executes existing #117/#118 corrections before the existing SDR renderer. This bounded reference bridge does not replace the #111 composer, activate production stages, or complete #112/V1.
 
 Order: validated inline source → existing color/WB → native-optical reconstructed-linear geometry/CA → illumination gain → exact orientation permutation → explicit support crop → SDR. Profiles must be authored for **post-color/WB linear-sRGB/D65**, not assumed interchangeable with sensor-channel CA calibration. Raw-domain components and geometry across gain fail through the existing executor. No WB estimator, optical equation, noise generator or tier-based strength is introduced.

@@ -1,5 +1,7 @@
 # Scientific Assurance and Uncertainty Composition
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 Photivra keeps **scientific status**, **source evidence**, **uncertainty**, **limitations**, and **reproducibility identity** as related but distinct concepts.
 
 This document defines the cross-engine composition contract used when independently valid scientific modules are combined into a higher-level result.
@@ -242,9 +244,9 @@ Where the source is an educational/generic approximation, composed consumers sho
 
 ### Processed output (#112)
 
-The processed-camera/output pipeline is not yet fully implemented.
+The bounded processed-camera/output pipeline is merged. It retains reconstruction/rendering/correction child envelopes and conservative upstream assurance; it does not infer calibrated color from deterministic processing.
 
-When #112 composes source scientific results, it must:
+When the processed output path composes source scientific results, it must:
 
 - carry upstream assurance/evidence/uncertainty forward;
 - add its own processing-model components;
@@ -252,7 +254,7 @@ When #112 composes source scientific results, it must:
 - distinguish calibrated color/output transforms from generic approximations;
 - keep display/encoding choices from erasing upstream limitations.
 
-This is an explicit implementation requirement for #112, not a claim that processed-output assurance is already complete.
+These requirements govern the merged shared processed-RAW/paired-JPEG path. Unsupported wider output/color combinations remain explicit; see [processed output](PROCESSED_OUTPUT.md).
 
 ## Relationship to provenance
 

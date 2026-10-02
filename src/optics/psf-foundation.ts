@@ -1,5 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Returns the public PSF/pupil foundation contract. The contract describes current diagnostics plus
+ * reserved future contribution ownership. It does not imply that reserved contributions are
+ * implemented.
+ * Evaluates the currently implemented PSF-related diagnostics in one explicit
+ * field/depth/spectral/pupil context without combining them into a synthetic PSF or blur radius. Field
+ * position is recorded even though the current defocus-circle and circular-Airy diagnostics are not
+ * field dependent. Future field-dependent contributions can consume the same context without changing
+ * these existing primitives.
+ * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   calculatedResult,
   type CalculationProvenance,

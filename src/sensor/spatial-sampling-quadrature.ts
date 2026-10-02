@@ -1,5 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Builds deterministic spatial quadrature nodes for one CFA/color-sampling site. The quadrature
+ * composes: 1. the resolved geometric sensitive aperture from the sampling-aperture foundation; and 2.
+ * the resolved effective AA point-splitting kernel from the optical-stack foundation. The first
+ * aperture integration uses a tensor-product uniform midpoint rule. For an AA component that moves
+ * optical energy by +delta on the sensor plane, a destination aperture point samples the pre-AA
+ * optical field at destination - delta. This inverse-source convention prevents applying the AA shift
+ * twice. The destination sensor site's CFA channel applies to every node. The pre-AA source coordinate
+ * is an optical-field location, not another CFA site; therefore shifted source coordinates never
+ * reassign the destination channel. Nodes whose pre-AA source coordinates fall outside the active
+ * imaging area are retained. They are neither clamped nor dropped/renormalized. A renderer or
+ * optical-field provider owns source-coverage policy. normalized weights approximate a spatial
+ * average. Square-micrometre measures approximate a geometric area integral. Neither includes
+ * radiometric throughput, QE, photon conversion, microlenses, diffusion/crosstalk, or temporal
+ * integration.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationResult

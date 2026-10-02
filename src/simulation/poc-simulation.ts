@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Composes the validated POC calculations into a single renderer/agent-facing response without
+ * introducing any new photographic model.
+ * @see docs/POC_API.md for equations, coordinate/unit conventions, blockers and support limits.
+ */
+
 import { calculateEquivalentFocalLength35Mm } from "../camera/equivalent-focal-length.js";
 import {
   calculateFieldOfView,

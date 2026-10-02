@@ -1,5 +1,7 @@
 # PSF and Pupil Foundation
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 Photivra has two complementary PSF layers.
 
 The legacy foundation keeps the ideal **geometric defocus-circle** and **circular Airy first-zero** diagnostics separately named and independently testable. The #113 real-lens framework adds explicitly profiled or pupil-derived **combined primary-optical PSFs** without converting those older diagnostics into a synthetic blur score.

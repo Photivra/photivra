@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Strict parser for generic system corrections; no extrapolation or restoration claim.
+ * Resolves independent camera states, explicit dependencies, RAW intent and educational bypass.
+ * @see docs/DIGITAL_OPTICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and
+ * support limits.
+ */
+
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import { calculateIlluminationVignetting, type IlluminationVignettingProfile } from "../optics/illumination-vignetting.js";

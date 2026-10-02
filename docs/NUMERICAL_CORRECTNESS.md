@@ -1,5 +1,7 @@
 # Numerical Correctness and Physical Units
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 Photivra is a scientific engine. Numerical behavior and physical-unit meaning are public-contract concerns, not implementation details.
 
 This document defines the repository-wide numerical policy used by public calculations, parsers, schemas, tests, and composed image-formation work.

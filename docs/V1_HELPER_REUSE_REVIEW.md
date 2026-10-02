@@ -1,5 +1,7 @@
 # V1 internal helper reuse review
 
+Release context: **package 1.0.0 candidate / root API 0.116.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0.md).
+
 This review addresses the remaining repeated validation mechanics in defect
 #178. It does not close production integration, performance, editor acceptance
 or final release preparation. The review follows main `e5a6ce2` and the earlier

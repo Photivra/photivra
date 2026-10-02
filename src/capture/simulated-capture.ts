@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Converts validated shooting WB into a public metadata allowlist, discarding private extras.
+ * Commits a format-neutral float master manifest; no radiance generation, clamp, WB or export
+ * encoding.
+ * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { freezeOwnedData } from "../core/owned-data.js";

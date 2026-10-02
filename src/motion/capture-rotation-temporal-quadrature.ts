@@ -1,5 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Builds deterministic temporal quadrature nodes for pure-camera-rotation capture geometry over each
+ * destination point's local exposure interval. The first model uses an equal-width midpoint rule.
+ * Every node reuses calculateCaptureRotationInverseMappings(), so the instantaneous geometry has one
+ * authoritative implementation. No radiance is evaluated here. normalizedTimeWeight is suitable for a
+ * downstream time-average under a uniform temporal-response assumption, while timeMeasureSeconds is
+ * the local dt measure for a downstream time integral. Neither weight includes shutter transmission,
+ * scene flicker, sensor response, radiometric calibration or any other throughput term. The function
+ * intentionally reports no numerical integration error estimate: geometry alone cannot determine the
+ * error in a scene-radiance integral. Downstream renderers may compare increasing temporal sample
+ * counts in their own radiance domain when convergence evidence is required.
+ * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import {
   approximationResult,
   type CalculationProvenance,

@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
+/**
+ * Module boundary and integration notes.
+ * Apply each resolved unit-energy PSF as a destination-local inverse sample sum. Native +Y-down
+ * support converts explicitly to optical +Y-up kernel orientation. No boundary extension,
+ * missing-support renormalization or extra throughput is applied. This approximation is not a
+ * field-dependent forward energy transport.
+ * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
+ * limits.
+ */
+
 import { sensorPsfSourcePoint } from "./sensor-psf-support.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
