@@ -1,0 +1,116 @@
+{
+  "evidenceVersion": "0.1.0",
+  "metricVersion": "0.1.0",
+  "engineCandidate": "1.1.0",
+  "parentCommit": "12f304f087d5cbe41266e2a81be2d6a1d521e692",
+  "humanReview": "pending",
+  "fullAssessmentAcceptance": "blocked",
+  "capability": "bounded-neutral-paired-export-jpeg-regional-diagnostic",
+  "status": "passed-bounded-paired-export-jpeg-execution-only",
+  "sourceQualification": "owned-post-adc-code-target-not-physical-acquisition",
+  "backend": "public-paired-export-plus-recorded-independent-Pillow-readback",
+  "decoder": {
+    "Pillow": "12.3.0",
+    "libjpegApiVersion": "6.2",
+    "libjpegTurboVersion": "3.1.4.1",
+    "Python": "3.12.14"
+  },
+  "nodeCI": "regenerates-exact-JPEG-bytes-and-consumes-committed-independent-decode; does-not-execute-Pillow",
+  "runtime": "v24.19.0",
+  "focusedTests": 13,
+  "sourceFilesSha256": {
+    "test/helpers/print-detail-jpeg-fixture.ts": "a1294537251c4feba4ae2c462a040730778fb7e776258d8d2cbc66c501a68b82",
+    "test/print-detail-jpeg-integration.test.ts": "b9c946560a2ae5e39a30c88cbea2b4422b4712b02e98f0a8ee0133102d847a34",
+    "scripts/generate-print-detail-jpeg.ts": "eb112d5259e558826691737770b08819b2128782f6a3434393416c90d12871aa",
+    "scripts/generate-print-detail-jpeg.mjs": "c4eeb2c124ec082c4007eeebc74e74c17a42c9225bf944596bd95777a886aa8c",
+    "scripts/tsconfig.print-jpeg.json": "116c879efe79b8b870bfa407ba3bcdffaefb37ab33755c436a7c3eca77260fcd",
+    "scripts/verify-print-detail-jpeg.py": "38afb7daf89859e5e68fe38850a12a0c1899a891dc9fe4acb296c5d6acd65927",
+    "src/capture/photographic-export.ts": "3c0ea2bfd5081447c42e6ffa6f0c9d0f2ea63b0bf170580f4ff739b594d1088e",
+    "src/capture/export-jpeg.ts": "04228e0ee48a07ce04f5d1fbc4836825a384932c5c9c25a96d432e3971a0c866",
+    "src/capture/raw-frame-reconstruction.ts": "de0734375b00dbb375e98dd9aabae88d36f1cec1adfc3812949ff1c27fd13a3d",
+    "src/color/sensor-color-development.ts": "a7b315b44c6b61942a0818ab1b5ea9d2232b720f83339a2307052d222b914897",
+    "src/output/sdr-rendering.ts": "38abc70438d3abf7a05cb50a2fe5a688d04f94b843fff4ba4d4cea760d0d1f47",
+    "src/output/print-detail.ts": "1bf1c6032fabd944806eddad79c560c266bd7776b48b3c0964056c9da451be81",
+    "docs/PRINT_DETAIL_JPEG_EVIDENCE.md": "d6f9bd340011f063d7e9d2de26073fbb02015ebe8878274c355dbf157035c6f9",
+    "test/fixtures/print-detail/jpeg/export-manifest.json": "2ab550758af1217cec245b22104f2f157fc1b5b98023e11b983cd8b51b6f99cc",
+    "test/fixtures/print-detail/jpeg/independent-reference.json": "fbde5ef5cb776cf41e199553961cf174caec2a7fb768dad0743722e21e8f9571",
+    "test/fixtures/print-detail/jpeg/landscape-inverted-q1.jpg": "6facaed0b2346ad2d1bb7836edb2243954a2590f4c245c524da9b5fd483dee1c",
+    "test/fixtures/print-detail/jpeg/landscape-inverted-q32.jpg": "17304b75010277d30aac7df86bef8b9a87d7c0ad709fe7f8cd81f66c0e43a3b3",
+    "test/fixtures/print-detail/jpeg/landscape-q1.jpg": "10675e622d2ff5e5a389d90205eeaf94c9c41b546d138457900b1acd215570d7",
+    "test/fixtures/print-detail/jpeg/landscape-q32.jpg": "7fa1a655a8278b0da95c0c03201dba8a3d7d2c1bca4a1e199ec1def205eaafe9",
+    "test/fixtures/print-detail/jpeg/portrait-clockwise-q1.jpg": "6505e7e1fdcd33801cffebbfcde24de4dcc15f7972279198f6c73b9649060de7",
+    "test/fixtures/print-detail/jpeg/portrait-clockwise-q32.jpg": "fed3a716eb5c5ace307b571fbc78cfdc0ca7fdc4055c3e1c8c7fe7fcded01b8a",
+    "test/fixtures/print-detail/jpeg/portrait-counter-clockwise-q1.jpg": "7f1aa1dfc9f0ba1ecec8db2f22b15c9b1362f3d00b28aa082e440d47dfe5f887",
+    "test/fixtures/print-detail/jpeg/portrait-counter-clockwise-q32.jpg": "38af5cfadb9b88c38c2072963f529db24a4672edf92d60e64b80d86dcefa8889"
+  },
+  "envelope": {
+    "nativeRaster": [
+      20,
+      16
+    ],
+    "orientations": 4,
+    "quantizationSteps": [
+      1,
+      32
+    ],
+    "subsampling": "444",
+    "roiOrigin": [
+      2,
+      2
+    ],
+    "roiLandscape": [
+      16,
+      8
+    ],
+    "roiPortrait": [
+      8,
+      16
+    ],
+    "source": "neutral-post-ADC-two-sample-held-quarter-grating",
+    "decoderPolicy": "RGB-neutral-only-sRGB-inverse-transfer",
+    "referenceModulation": ".5*cos(pi/8)",
+    "sourceMean": "384/959",
+    "sampleToleranceAbsolute": 1e-12,
+    "measurementToleranceAbsolute": 1e-10,
+    "pixelAndArtifactIdentity": "exact-bytes-and-sha256"
+  },
+  "unqualified": [
+    "human-scientific-source-review",
+    "optical-source-acquisition-and-calibration",
+    "actual-UI-GPU-and-device",
+    "native-resolution-production",
+    "warp-resampling",
+    "colored-luminance-and-ICC",
+    "other-codecs-and-decoder-variants",
+    "captured-system-MTF",
+    "depth-and-occlusion",
+    "noise-aliasing-halos-compression-quality-metrics",
+    "observer-perception",
+    "printer-substrate"
+  ],
+  "fullSuite": {
+    "files": 146,
+    "tests": 1723
+  },
+  "coverage": {
+    "lines": 91.84,
+    "statements": 91.87,
+    "functions": 99.62,
+    "branches": 88.27
+  },
+  "independentChecks": [
+    "Pillow-exact-JPEG-decode",
+    "neutral-source-preencode-and-registration-truth",
+    "source-fundamental-identity",
+    "Python-independent-decoded-coefficients",
+    "separate-directory-byte-for-byte-reproduction"
+  ],
+  "localReleaseGates": [
+    "check",
+    "coverage",
+    "build",
+    "pack:check",
+    "docs:check",
+    "release:consumer-check"
+  ]
+}

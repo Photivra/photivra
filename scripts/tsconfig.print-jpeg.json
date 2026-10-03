@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.export-acceptance.json",
+  "include": ["generate-print-detail-jpeg.ts"]
+}
