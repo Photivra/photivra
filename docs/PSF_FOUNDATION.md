@@ -98,6 +98,8 @@ It is a focus/PSF quantity. It does not modify geometric distortion, lateral CA,
 
 `calculateLensComplexPupilPsf()` performs deterministic scalar Fraunhofer propagation of that complex pupil.
 
+The optional `propagationDistanceMm` explicitly sets the physical image sample pitch `wavelengthMm * propagationDistanceMm / (pupilSampleCount * pupilPitchMm)` per axis. The result returns the resolved distance and whether it was explicit. Omission preserves the existing nominal focal-plane reference using `focalLengthMm`; finite-focus profile metadata alone does not replace that scale. For an owned ideal thin-lens principal-plane fixture, resolve the finite image distance with `calculateThinLensImageDistance()` and pass it explicitly. A real exit-pupil geometry requires its own qualified distance and applicability evidence. Model 1.1.0 adds this input/result binding without changing the legacy kernel values. Pupil schema remains 0.1.0.
+
 This path evaluates diffraction and aberration in one pupil calculation. Do not stack another independent Airy or diffraction blur over its output.
 
 The output intensity PSF is normalized to unit energy.

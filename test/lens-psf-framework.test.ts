@@ -596,6 +596,21 @@ function complexPupil(
 }
 
 describe("complex-pupil PSF reference propagation", () => {
+  it("binds explicit propagation scale without changing normalized pupil shape or the legacy focal-plane result", () => {
+    const profile = complexPupil();
+    const legacy = calculateLensComplexPupilPsf({ profile }).value;
+    const explicit = calculateLensComplexPupilPsf({ profile, propagationDistanceMm: 75 }).value;
+    expect(legacy.propagationDistanceMm).toBe(50);
+    expect(legacy.propagationDistanceSource).toBe("nominal-focal-plane-reference");
+    expect(explicit.propagationDistanceMm).toBe(75);
+    expect(explicit.propagationDistanceSource).toBe("explicit");
+    expect(explicit.kernel.normalizedIntensity).toEqual(legacy.kernel.normalizedIntensity);
+    expect(explicit.kernel.samplePitchMicrometersX).toBeCloseTo(legacy.kernel.samplePitchMicrometersX * 1.5, 14);
+    expect(explicit.kernel.samplePitchMicrometersY).toBeCloseTo(legacy.kernel.samplePitchMicrometersY * 1.5, 14);
+    for (const value of [0, -1, NaN, Infinity, null, "75"]) {
+      expect(() => calculateLensComplexPupilPsf({ profile, propagationDistanceMm: value as number })).toThrow();
+    }
+  });
   it("maps a uniform unaberrated pupil to a unit-energy central discrete Fraunhofer peak", () => {
     const result =
       calculateLensComplexPupilPsf({

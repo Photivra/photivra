@@ -118,9 +118,15 @@ export interface LensComplexPupilProfile {
 export interface CalculateLensComplexPupilPsfInput {
   profile:
     LensComplexPupilProfile;
+  /** Physical pupil-to-image propagation scale in mm. Omission preserves the
+   * nominal focal-plane reference. Finite-focus callers must explicitly resolve
+   * the supported principal-plane geometry; profile metadata does not do so. */
+  propagationDistanceMm?: number;
 }
 
 export interface LensComplexPupilPsf {
+  propagationDistanceMm: number;
+  propagationDistanceSource: "explicit" | "nominal-focal-plane-reference";
   profileId: string;
   profileVersion: string;
   scientificStatus:
@@ -757,7 +763,8 @@ function pupilComplexValue(
 
 function calculateDiscreteFraunhoferKernel(
   profile:
-    LensComplexPupilProfile
+    LensComplexPupilProfile,
+  propagationDistanceMm: number
 ): LensPsfKernel {
   const grid =
     profile.grid;
@@ -888,8 +895,7 @@ function calculateDiscreteFraunhoferKernel(
 
   const samplePitchMmX =
     wavelengthMm *
-    profile.context
-      .focalLengthMm /
+    propagationDistanceMm /
     (
       width *
       grid
@@ -897,8 +903,7 @@ function calculateDiscreteFraunhoferKernel(
     );
   const samplePitchMmY =
     wavelengthMm *
-    profile.context
-      .focalLengthMm /
+    propagationDistanceMm /
     (
       height *
       grid
@@ -961,13 +966,18 @@ export function calculateLensComplexPupilPsf(
     parseLensComplexPupilProfile(
       input.profile
     );
+  const propagationDistanceMm = input.propagationDistanceMm === undefined ? profile.context.focalLengthMm : input.propagationDistanceMm;
+  requirePositiveFinite(propagationDistanceMm, "propagationDistanceMm");
   const kernel =
     calculateDiscreteFraunhoferKernel(
-      profile
+      profile,
+      propagationDistanceMm
     );
 
   return approximationResult(
     {
+      propagationDistanceMm,
+      propagationDistanceSource: input.propagationDistanceMm === undefined ? "nominal-focal-plane-reference" : "explicit",
       profileId:
         profile.profileId,
       profileVersion:
@@ -1024,9 +1034,10 @@ export function calculateLensComplexPupilPsf(
         profile.uncertainty
     },
     "lens-complex-pupil-fraunhofer-psf",
-    "1.0.0",
+    "1.1.0",
     [
       "The reference evaluator performs deterministic scalar Fraunhofer propagation of one explicit complex pupil amplitude plus optical-path-difference grid.",
+      "Physical sample pitch uses the explicit propagation distance when supplied; omission preserves the nominal focal-plane reference. Finite focus metadata does not resolve the pupil-to-image geometry automatically.",
       "Diffraction and aberration phase are evaluated together in the same pupil propagation; callers must not stack an independent diffraction blur over this result.",
       "The output PSF is unit-energy normalized. The explicit relativePupilThroughputFactor is not multiplied into the kernel and remains owned by the separate optical-throughput path.",
       "Pupil amplitude shape can represent mechanical clipping/cat-eye geometry without silently encoding unknown transmission loss.",

@@ -1407,6 +1407,13 @@ export { calculatePrintPlan, calculatePrintSizeLimit, parsePrintPlanInput } from
 export type { PrintLength, PrintedImageSize, PrintSamplingCriterion, PrintNativeSource, PrintProviderConstraints, PrintPlanInput, PrintRasterSampling, PrintPlan, PrintSizeLimitInput, PrintSizeLimit } from "./output/print-plan.js";
 export { PRINT_REGION_DETAIL_MODEL_VERSION, MAX_PRINT_DETAIL_REGION_SAMPLES, calculatePrintRegionDetail, parsePrintRegionDetailInput } from "./output/print-detail.js";
 export type { PrintDetailSource, PrintDetailRegion, PrintSinusoidalTarget, PrintRegionDetailInput, PrintSinusoidalMeasurement, PrintRegionDetailAssessment } from "./output/print-detail.js";
+export { PRINT_REGION_STATISTICS_MODEL_VERSION, MAX_PRINT_REGION_STATISTICS_SAMPLES,
+  calculatePrintRegionDifference, calculatePrintRegionNoise, parsePrintRegionDifferenceInput, parsePrintRegionNoiseInput } from "./output/print-region-statistics.js";
+export type { PrintRegionRaster, PrintRegionDifferenceInput, PrintRegionNoiseInput, PrintRegionDifferenceMeasurement,
+  PrintRegionNoiseMeasurement, PrintRegionStatisticsAssessment } from "./output/print-region-statistics.js";
+export { PRINT_CONTRAST_REFERENCE_MODEL_VERSION, PRINT_CONTRAST_REFERENCE_UPSTREAM_REVISION,
+  calculatePrintContrastReference, parsePrintContrastReferenceInput } from "./output/print-contrast-reference.js";
+export type { PrintContrastReferenceInput, PrintContrastReference } from "./output/print-contrast-reference.js";
 export { NATIVE_CAPTURE_SDR_SCHEMA_VERSION, NATIVE_CAPTURE_SDR_LIMITS, calculateNativeCaptureSdrPlan, createNativeCaptureSdrTask } from "./output/native-capture-sdr.js";
 export type { NativeCaptureSdrInput, NativeCaptureSdrTileRequest, NativeCaptureSdrTile, NativeCaptureSdrProvider, NativeCaptureSdrPlan,
   NativeCaptureSdrOutput, NativeCaptureSdrTaskState, NativeCaptureSdrTask } from "./output/native-capture-sdr.js";

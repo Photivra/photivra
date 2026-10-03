@@ -1,0 +1,225 @@
+{
+  "protocolVersion": "0.1.0",
+  "upstreamRevision": "f4b0b722af83001d7af979281e06ca642d36e4e8",
+  "referenceBackend": "Python standard-library Decimal, precision 80, independently evaluated scalar model equations",
+  "source": "castleCSF numerical model under MIT; original adapter/reference under Apache-2.0",
+  "conditions": {
+    "stimulus": "static D65 equal-fraction LMS Gabor",
+    "gaussianEnvelopeSigmaDegrees": 1.5,
+    "temporalFrequencyHz": 0,
+    "eccentricityDegrees": 0
+  },
+  "qualification": "numerical model conformance only; no new empirical or individual observer qualification",
+  "cases": [
+    {
+      "meanLuminanceCdPerSquareMeter": 1,
+      "spatialFrequencyCyclesPerDegree": 0.25,
+      "contrastSensitivity": 24.174104186878935,
+      "thresholdModulationMichelson": 0.04136657938881448
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 1,
+      "spatialFrequencyCyclesPerDegree": 0.5,
+      "contrastSensitivity": 53.029573710401365,
+      "thresholdModulationMichelson": 0.018857402200912983
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 1,
+      "spatialFrequencyCyclesPerDegree": 1,
+      "contrastSensitivity": 89.07110587328295,
+      "thresholdModulationMichelson": 0.011226985341606183
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 1,
+      "spatialFrequencyCyclesPerDegree": 2,
+      "contrastSensitivity": 91.27947957542429,
+      "thresholdModulationMichelson": 0.010955364827356397
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 1,
+      "spatialFrequencyCyclesPerDegree": 4,
+      "contrastSensitivity": 51.509827935383754,
+      "thresholdModulationMichelson": 0.019413770926481156
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 1,
+      "spatialFrequencyCyclesPerDegree": 8,
+      "contrastSensitivity": 15.397154392076484,
+      "thresholdModulationMichelson": 0.0649470658366983
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 1,
+      "spatialFrequencyCyclesPerDegree": 16,
+      "contrastSensitivity": 2.670320434813126,
+      "thresholdModulationMichelson": 0.3744868918961711
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 10,
+      "spatialFrequencyCyclesPerDegree": 0.25,
+      "contrastSensitivity": 30.39290752963751,
+      "thresholdModulationMichelson": 0.03290241313783008
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 10,
+      "spatialFrequencyCyclesPerDegree": 0.5,
+      "contrastSensitivity": 60.293374880591166,
+      "thresholdModulationMichelson": 0.01658557017218664
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 10,
+      "spatialFrequencyCyclesPerDegree": 1,
+      "contrastSensitivity": 129.89617805948794,
+      "thresholdModulationMichelson": 0.007698455912552214
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 10,
+      "spatialFrequencyCyclesPerDegree": 2,
+      "contrastSensitivity": 187.2915090252839,
+      "thresholdModulationMichelson": 0.005339270344951957
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 10,
+      "spatialFrequencyCyclesPerDegree": 4,
+      "contrastSensitivity": 148.70407698084665,
+      "thresholdModulationMichelson": 0.006724765186692237
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 10,
+      "spatialFrequencyCyclesPerDegree": 8,
+      "contrastSensitivity": 62.540195099743265,
+      "thresholdModulationMichelson": 0.015989716667898675
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 10,
+      "spatialFrequencyCyclesPerDegree": 16,
+      "contrastSensitivity": 15.259424623470416,
+      "thresholdModulationMichelson": 0.06553327040011107
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 50,
+      "spatialFrequencyCyclesPerDegree": 0.25,
+      "contrastSensitivity": 32.30798955504368,
+      "thresholdModulationMichelson": 0.03095209617720975
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 50,
+      "spatialFrequencyCyclesPerDegree": 0.5,
+      "contrastSensitivity": 64.0873332849352,
+      "thresholdModulationMichelson": 0.015603707452671724
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 50,
+      "spatialFrequencyCyclesPerDegree": 1,
+      "contrastSensitivity": 132.43391239349816,
+      "thresholdModulationMichelson": 0.007550936024820595
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 50,
+      "spatialFrequencyCyclesPerDegree": 2,
+      "contrastSensitivity": 232.6121685804855,
+      "thresholdModulationMichelson": 0.004299001234984802
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 50,
+      "spatialFrequencyCyclesPerDegree": 4,
+      "contrastSensitivity": 224.9860683825594,
+      "thresholdModulationMichelson": 0.004444719653928219
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 50,
+      "spatialFrequencyCyclesPerDegree": 8,
+      "contrastSensitivity": 115.26858522848494,
+      "thresholdModulationMichelson": 0.00867539059335034
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 50,
+      "spatialFrequencyCyclesPerDegree": 16,
+      "contrastSensitivity": 34.261408220801194,
+      "thresholdModulationMichelson": 0.02918735836995947
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 100,
+      "spatialFrequencyCyclesPerDegree": 0.25,
+      "contrastSensitivity": 32.628369425609996,
+      "thresholdModulationMichelson": 0.030648175731855614
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 100,
+      "spatialFrequencyCyclesPerDegree": 0.5,
+      "contrastSensitivity": 64.7206106246198,
+      "thresholdModulationMichelson": 0.015451028510840391
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 100,
+      "spatialFrequencyCyclesPerDegree": 1,
+      "contrastSensitivity": 129.6089222115001,
+      "thresholdModulationMichelson": 0.00771551821384771
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 100,
+      "spatialFrequencyCyclesPerDegree": 2,
+      "contrastSensitivity": 241.8136846345224,
+      "thresholdModulationMichelson": 0.004135415253737198
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 100,
+      "spatialFrequencyCyclesPerDegree": 4,
+      "contrastSensitivity": 248.4396129558316,
+      "thresholdModulationMichelson": 0.00402512299911602
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 100,
+      "spatialFrequencyCyclesPerDegree": 8,
+      "contrastSensitivity": 135.20518042098573,
+      "thresholdModulationMichelson": 0.007396166307284377
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 100,
+      "spatialFrequencyCyclesPerDegree": 16,
+      "contrastSensitivity": 42.6878326448316,
+      "thresholdModulationMichelson": 0.02342587894588446
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 1000,
+      "spatialFrequencyCyclesPerDegree": 0.25,
+      "contrastSensitivity": 32.7918954819308,
+      "thresholdModulationMichelson": 0.030495339940047876
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 1000,
+      "spatialFrequencyCyclesPerDegree": 0.5,
+      "contrastSensitivity": 65.04136304090153,
+      "thresholdModulationMichelson": 0.015374831541755143
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 1000,
+      "spatialFrequencyCyclesPerDegree": 1,
+      "contrastSensitivity": 126.08902173762297,
+      "thresholdModulationMichelson": 0.007930904580106007
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 1000,
+      "spatialFrequencyCyclesPerDegree": 2,
+      "contrastSensitivity": 249.50142698958564,
+      "thresholdModulationMichelson": 0.004007993108759818
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 1000,
+      "spatialFrequencyCyclesPerDegree": 4,
+      "contrastSensitivity": 279.6126469253856,
+      "thresholdModulationMichelson": 0.0035763761439118634
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 1000,
+      "spatialFrequencyCyclesPerDegree": 8,
+      "contrastSensitivity": 165.98690756907357,
+      "thresholdModulationMichelson": 0.006024571543896385
+    },
+    {
+      "meanLuminanceCdPerSquareMeter": 1000,
+      "spatialFrequencyCyclesPerDegree": 16,
+      "contrastSensitivity": 57.16477510321011,
+      "thresholdModulationMichelson": 0.017493290198282344
+    }
+  ]
+}

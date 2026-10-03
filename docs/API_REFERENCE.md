@@ -1208,6 +1208,19 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`NativeCaptureSdrTile`](api/output-native-capture-sdr.md#nativecapturesdrtile) | Type |
 | [`NativeCaptureSdrTileRequest`](api/output-native-capture-sdr.md#nativecapturesdrtilerequest) | Type |
 
+## output/print-contrast-reference.ts
+
+[Detailed contracts](api/output-print-contrast-reference.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/output/print-contrast-reference.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculatePrintContrastReference`](api/output-print-contrast-reference.md#calculateprintcontrastreference) | Runtime |
+| [`parsePrintContrastReferenceInput`](api/output-print-contrast-reference.md#parseprintcontrastreferenceinput) | Runtime |
+| [`PRINT_CONTRAST_REFERENCE_MODEL_VERSION`](api/output-print-contrast-reference.md#print_contrast_reference_model_version) | Runtime |
+| [`PRINT_CONTRAST_REFERENCE_UPSTREAM_REVISION`](api/output-print-contrast-reference.md#print_contrast_reference_upstream_revision) | Runtime |
+| [`PrintContrastReference`](api/output-print-contrast-reference.md#printcontrastreference) | Type |
+| [`PrintContrastReferenceInput`](api/output-print-contrast-reference.md#printcontrastreferenceinput) | Type |
+
 ## output/print-detail.ts
 
 [Detailed contracts](api/output-print-detail.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/output/print-detail.ts)
@@ -1244,6 +1257,25 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`PrintSamplingCriterion`](api/output-print-plan.md#printsamplingcriterion) | Type |
 | [`PrintSizeLimit`](api/output-print-plan.md#printsizelimit) | Type |
 | [`PrintSizeLimitInput`](api/output-print-plan.md#printsizelimitinput) | Type |
+
+## output/print-region-statistics.ts
+
+[Detailed contracts](api/output-print-region-statistics.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/output/print-region-statistics.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculatePrintRegionDifference`](api/output-print-region-statistics.md#calculateprintregiondifference) | Runtime |
+| [`calculatePrintRegionNoise`](api/output-print-region-statistics.md#calculateprintregionnoise) | Runtime |
+| [`MAX_PRINT_REGION_STATISTICS_SAMPLES`](api/output-print-region-statistics.md#max_print_region_statistics_samples) | Runtime |
+| [`parsePrintRegionDifferenceInput`](api/output-print-region-statistics.md#parseprintregiondifferenceinput) | Runtime |
+| [`parsePrintRegionNoiseInput`](api/output-print-region-statistics.md#parseprintregionnoiseinput) | Runtime |
+| [`PRINT_REGION_STATISTICS_MODEL_VERSION`](api/output-print-region-statistics.md#print_region_statistics_model_version) | Runtime |
+| [`PrintRegionDifferenceInput`](api/output-print-region-statistics.md#printregiondifferenceinput) | Type |
+| [`PrintRegionDifferenceMeasurement`](api/output-print-region-statistics.md#printregiondifferencemeasurement) | Type |
+| [`PrintRegionNoiseInput`](api/output-print-region-statistics.md#printregionnoiseinput) | Type |
+| [`PrintRegionNoiseMeasurement`](api/output-print-region-statistics.md#printregionnoisemeasurement) | Type |
+| [`PrintRegionRaster`](api/output-print-region-statistics.md#printregionraster) | Type |
+| [`PrintRegionStatisticsAssessment`](api/output-print-region-statistics.md#printregionstatisticsassessment) | Type |
 
 ## output/sdr-rendering.ts
 

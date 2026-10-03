@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "0.1.0",
+  "engineCandidate": "1.2.0",
+  "humanScientificSourceReview": "pending",
+  "upstream": {
+    "repository": "https://github.com/gfxdisp/castleCSF",
+    "revision": "f4b0b722af83001d7af979281e06ca642d36e4e8",
+    "license": "MIT",
+    "reviewedFiles": [
+      {
+        "path": "LICENSE",
+        "sha256": "9e84ed21575ef6e40165a58ee5a30860723ce8a4a4e548c2b91328a9ae1c86d0"
+      },
+      {
+        "path": "matlab/CSF_base.m",
+        "sha256": "f5fd8185004c23be16fdd3af46e543cb9ab54b7c40150f247fd940f0703de904"
+      },
+      {
+        "path": "matlab/CSF_castleCSF.m",
+        "sha256": "8fb5b55bc1643ace2a92d84613c84b299e9c9252e7c1e04e2eb86844963f4a81"
+      },
+      {
+        "path": "matlab/CSF_stelaCSF_lum_peak.m",
+        "sha256": "66a941b5fe938c8eb4aed52a82e29ceb0aacb4fe947b0c91418e1d6308bd5520"
+      },
+      {
+        "path": "matlab/CSF_castleCSF_chrom.m",
+        "sha256": "09c49ccb2ccc2430a11c72825ea92d16fc00a6383f62a5017e73e3559d87bf38"
+      }
+    ]
+  },
+  "referenceArtifacts": [
+    {
+      "path": "test/fixtures/print-detail/contrast-reference.json",
+      "sha256": "0fb9cd0f6e3e7f9eaff59fdfe6b570285c566f4da15ed55d19a1de9d0df88a8b"
+    },
+    {
+      "path": "test/fixtures/print-detail/depth-backend-reference.json",
+      "sha256": "d1bca3ad17e6730ad3861bd267d60f4601df7c7d50480d31af306e6eea46296f"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_contrast_reference.py",
+      "sha256": "29ffed237c8936bad7541eb71b5e3fc579bc59637733a613107462e7492a4563"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_depth_reference.py",
+      "sha256": "155cc00a3875786330177a766de1e2b95e0a323bd465338d107d33c93af574e5"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_motion_reference.py",
+      "sha256": "09233fe0b61ea6cc1e4d1b26cf94d01a2ade71c59ed952936d71cf68b2f35a19"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_processing_reference.py",
+      "sha256": "3fc7af6118f6d9ec454e56167df5bc3ff3a7c6632f44237eb9031d18abeda337"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_psf_reference.py",
+      "sha256": "05f1ce4248d48a322d05d12ed7bc494cbb1d8a06eae55d3a84e27932943632a1"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_reference.py",
+      "sha256": "75571a248d1ff091017546547179de4087e49391d8318f290ff301703c2f8e37"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_statistics_reference.py",
+      "sha256": "8d12470787dd45f679cba7236ed76df11340b3dc73e23f24e77bdf4a54ed890b"
+    },
+    {
+      "path": "test/fixtures/print-detail/motion-backend-reference.json",
+      "sha256": "f26ea45676d3123be1bae6a8b288151c25c0db199c453a8f97c9ded9578b3b51"
+    },
+    {
+      "path": "test/fixtures/print-detail/processing-reference.json",
+      "sha256": "bf327ca94cb936642a420be401e2f944662d86aa95da04d58f51f83ef0b62c71"
+    },
+    {
+      "path": "test/fixtures/print-detail/psf-backend-reference.json",
+      "sha256": "acafebedfed3ce2837cde6db121c80ac652de44a54c3ae2b2516b7369aa921fd"
+    },
+    {
+      "path": "test/fixtures/print-detail/sdr-reference.json",
+      "sha256": "b65f1a8c2ce0b8f3b799946a0ec94110fe9623c6348d156e31d6e41729208c30"
+    },
+    {
+      "path": "test/fixtures/print-detail/statistics-reference.json",
+      "sha256": "f7599612838f18ccc4eaa6e1876e5ea0fc1c5b2c59651531f10e29fda8df1f5b"
+    }
+  ],
+  "validation": {
+    "node": "26.8.1",
+    "tests": 1986,
+    "testFiles": 154,
+    "coveragePercent": {
+      "statements": 92.04,
+      "branches": 88.54,
+      "functions": 99.63,
+      "lines": 92.04
+    },
+    "strictPackedDocExamples": 67,
+    "packageFileCount": 809,
+    "qualified": "bounded numerical and named public backend conformance only",
+    "unqualified": "full #196 acceptance, capture/device/backend calibration, actual proof/UI scale, natural-image perception, human source/DCO review"
+  }
+}

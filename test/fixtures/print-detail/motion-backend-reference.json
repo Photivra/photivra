@@ -1,0 +1,377 @@
+{
+  "schemaVersion": "0.1.0",
+  "ownership": "photivra-owned",
+  "source": "generate_motion_reference.py",
+  "domain": {
+    "exposureSeconds": 0.02,
+    "focalLengthMm": 50,
+    "focusDistanceM": 5,
+    "frequencyCyclesPerMm": 0.25,
+    "visibility": "constant-visible-plane-interior",
+    "depth": "constant per selected plane",
+    "signal": "neutral relative linear"
+  },
+  "qualification": "independent finite quadrature and continuous-exposure reference; no device calibration or occlusion qualification",
+  "cases": [
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 2,
+      "expectedModulation": 0.49019821170937855,
+      "continuousExposureModulation": 0.48699079302868664
+    },
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 4,
+      "expectedModulation": 0.4877898861567091,
+      "continuousExposureModulation": 0.48699079302868664
+    },
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 8,
+      "expectedModulation": 0.48719039438550715,
+      "continuousExposureModulation": 0.48699079302868664
+    },
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 16,
+      "expectedModulation": 0.4870406826330136,
+      "continuousExposureModulation": 0.48699079302868664
+    },
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 32,
+      "expectedModulation": 0.4870032647590016,
+      "continuousExposureModulation": 0.48699079302868664
+    },
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 2,
+      "expectedModulation": 0.49019821170937855,
+      "continuousExposureModulation": 0.48699079302868664
+    },
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 4,
+      "expectedModulation": 0.4877898861567091,
+      "continuousExposureModulation": 0.48699079302868664
+    },
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 8,
+      "expectedModulation": 0.48719039438550715,
+      "continuousExposureModulation": 0.48699079302868664
+    },
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 16,
+      "expectedModulation": 0.4870406826330136,
+      "continuousExposureModulation": 0.48699079302868664
+    },
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 32,
+      "expectedModulation": 0.4870032647590016,
+      "continuousExposureModulation": 0.48699079302868664
+    },
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 2,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    },
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 4,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    },
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 8,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    },
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 16,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    },
+    {
+      "depthM": 2,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 32,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 2,
+      "expectedModulation": 0.49842738797597114,
+      "continuousExposureModulation": 0.4979047230546548
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 4,
+      "expectedModulation": 0.4980353173198462,
+      "continuousExposureModulation": 0.4979047230546548
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 8,
+      "expectedModulation": 0.4979373671259299,
+      "continuousExposureModulation": 0.4979047230546548
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 16,
+      "expectedModulation": 0.4979128837915784,
+      "continuousExposureModulation": 0.4979047230546548
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 32,
+      "expectedModulation": 0.4979067632213304,
+      "continuousExposureModulation": 0.4979047230546548
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 2,
+      "expectedModulation": 0.49842738797597114,
+      "continuousExposureModulation": 0.4979047230546548
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 4,
+      "expectedModulation": 0.4980353173198462,
+      "continuousExposureModulation": 0.4979047230546548
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 8,
+      "expectedModulation": 0.4979373671259299,
+      "continuousExposureModulation": 0.4979047230546548
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 16,
+      "expectedModulation": 0.4979128837915784,
+      "continuousExposureModulation": 0.4979047230546548
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 32,
+      "expectedModulation": 0.4979067632213304,
+      "continuousExposureModulation": 0.4979047230546548
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 2,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 4,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 8,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 16,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    },
+    {
+      "depthM": 5,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 32,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 2,
+      "expectedModulation": 0.4996066923030483,
+      "continuousExposureModulation": 0.49947568599366216
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 4,
+      "expectedModulation": 0.49950843306180354,
+      "continuousExposureModulation": 0.49947568599366216
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 8,
+      "expectedModulation": 0.49948387247891607,
+      "continuousExposureModulation": 0.49947568599366216
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 16,
+      "expectedModulation": 0.499477732597365,
+      "continuousExposureModulation": 0.49947568599366216
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 0,
+      "temporalSampleCount": 32,
+      "expectedModulation": 0.4994761976434872,
+      "continuousExposureModulation": 0.49947568599366216
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 2,
+      "expectedModulation": 0.4996066923030483,
+      "continuousExposureModulation": 0.49947568599366216
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 4,
+      "expectedModulation": 0.49950843306180354,
+      "continuousExposureModulation": 0.49947568599366216
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 8,
+      "expectedModulation": 0.49948387247891607,
+      "continuousExposureModulation": 0.49947568599366216
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 16,
+      "expectedModulation": 0.499477732597365,
+      "continuousExposureModulation": 0.49947568599366216
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 0,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 32,
+      "expectedModulation": 0.4994761976434872,
+      "continuousExposureModulation": 0.49947568599366216
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 2,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 4,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 8,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 16,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    },
+    {
+      "depthM": 10,
+      "cameraVelocityMps": 1,
+      "subjectVelocityMps": 1,
+      "temporalSampleCount": 32,
+      "expectedModulation": 0.5,
+      "continuousExposureModulation": 0.5
+    }
+  ]
+}

@@ -12,7 +12,9 @@ Package version, lock root, citation and `ENGINE_API_VERSION` are aligned at 1.2
 
 Substantive human scientific/source review must cover supported color/WB states, source authentication/provider restrictions, geometry identity, typed-buffer ownership, cancellation/draining, measured resource limits, unchanged reference arithmetic and compatibility. Review contribution-specific DCO certification. An AI draft does not certify reusable source rights, device performance or calibration.
 
-The [technical review record](NATIVE_CAPTURE_SDR_REVIEW.md) records the follow-up evidence and exact outstanding gates. Both original PR commits lack DCO sign-offs; contributor certification and substantive human review remain prerequisites before marking this draft ready for merge. The follow-up strengthens float32/float64 policy parity, orientation pixels, pending WB/shared-buffer rejection, host-yield cancellation and maximum 24 MP/16-bit measurements. Current release-context headers now agree with the candidate; historical records remain unchanged.
+PR #216 received human scientific/source and contribution-specific DCO approval and was squash merged as `5dfb9a24c683dad5529cbd579ffecf2baeec2c27`. Its reviewed tree and supported Node CI were verified. The [technical review record](NATIVE_CAPTURE_SDR_REVIEW.md) preserves the evidence history. The follow-up strengthened float32/float64 policy parity, orientation pixels, pending WB/shared-buffer rejection, host-yield cancellation and maximum 24 MP/16-bit measurements. No tag or package was published.
+
+The subsequent combined #195/#196 work has its own [review record and remaining full acceptance gates](PRINT_195_196_REVIEW.md). Approval of #216 does not approve the new statistics, perceptual numeric model material or owned backend experiments. Full #196 acceptance, substantive human scientific/source review and contribution-specific DCO certification remain pending; the user's requested release after both issues is blocked until those gates pass.
 
 Run from the exact candidate tree, then require green supported Node 22.13/22/24/26 CI:
 

@@ -1,0 +1,22 @@
+{
+  "ledgerVersion": "0.2.0",
+  "engineCandidate": "1.2.0",
+  "humanReview": "pending",
+  "fullAssessmentAcceptance": "blocked",
+  "releaseAfterFull196Acceptance": "blocked",
+  "evidenceDomain": "owned-bounded-public-backend-computational-conformance",
+  "capabilities": [
+    { "id": "native-print-planning-195", "status": "acceptance-tested", "test": "test/print-plan-acceptance.test.ts", "sourceQualityQualified": false },
+    { "id": "linear-paired-differences-and-repeat-statistics", "status": "arithmetic-conformance-tested", "test": "test/print-region-statistics.test.ts", "reference": "statistics-reference.json", "acquisitionQualification": "unassessed" },
+    { "id": "local-psf-aperture-detail", "status": "bounded-public-backend-conformance-tested", "test": "test/print-detail-psf-backend.test.ts", "reference": "psf-backend-reference.json", "deviceQualification": "unassessed" },
+    { "id": "ideal-photocharge-repeat-noise", "status": "bounded-public-backend-moment-conformance-tested", "test": "test/print-region-noise-backend.test.ts", "physicalNoiseCalibration": "unassessed", "clipping": "unassessed" },
+    { "id": "exact-jpeg-decoded-processing-change", "status": "preserved-independent-decoder-conformance-tested", "test": "test/print-detail-jpeg-integration.test.ts", "reference": "processing-reference.json", "compressionArtifactClassification": "unassessed" },
+    { "id": "static-visible-depth-and-intentional-defocus", "status": "finite-public-pupil-and-owned-plane-conformance-tested", "test": "test/print-detail-depth-backend.test.ts", "reference": "depth-backend-reference.json", "continuumConvergence": "unassessed", "depthEdgeComposition": "unsupported", "actualCaptureBackendQualification": "unassessed" },
+    { "id": "constant-visible-depth-translation-motion", "status": "bounded-public-backend-and-exposure-convergence-tested", "test": "test/print-detail-motion-backend.test.ts", "reference": "motion-backend-reference.json", "changingVisibility": "unsupported", "actualCaptureBackendQualification": "unassessed" },
+    { "id": "static-neutral-d65-gabor-contrast-reference", "status": "numerical-model-conformance-tested", "test": "test/print-contrast-reference.test.ts", "reference": "contrast-reference.json", "upstreamRevision": "f4b0b722af83001d7af979281e06ca642d36e4e8", "naturalImageStimulusMatch": "unassessed", "individualObserver": "unassessed" },
+    { "id": "aliasing-halos-color-and-tonal-clipping", "status": "unassessed", "reason": "separate-source-stage-qualified-protocol-and-reference-required" },
+    { "id": "physical-proof-and-private-product-acceptance", "status": "blocked", "reason": "actual-immutable-capture-region-output-and-physical-scale-integration-evidence-required" },
+    { "id": "printer-substrate-icc", "status": "out-of-scope" },
+    { "id": "overall-print-pass", "status": "not-offered" }
+  ]
+}

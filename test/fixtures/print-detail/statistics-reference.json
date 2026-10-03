@@ -1,0 +1,471 @@
+{
+  "protocolVersion": "0.1.0",
+  "referenceBackend": "Python standard-library exact Fraction arithmetic and 100-digit Decimal square root",
+  "rights": "Photivra-owned Apache-2.0 draft finite signals and reference",
+  "difference": [
+    {
+      "name": "identity",
+      "before": [
+        0,
+        0.2,
+        0.8,
+        1
+      ],
+      "after": [
+        0,
+        0.2,
+        0.8,
+        1
+      ],
+      "bounds": [
+        0,
+        1
+      ],
+      "expected": {
+        "meanSignedDifferenceRelativeLuminance": 0.0,
+        "rmsDifferenceRelativeLuminance": 0,
+        "maximumAbsoluteDifferenceRelativeLuminance": 0.0,
+        "rangeExcursions": {
+          "beforeBelowRangeCount": 0,
+          "beforeAboveRangeCount": 0,
+          "beforeMaximumUndershootRelativeLuminance": 0.0,
+          "beforeMaximumOvershootRelativeLuminance": 0.0,
+          "afterBelowRangeCount": 0,
+          "afterAboveRangeCount": 0,
+          "afterMaximumUndershootRelativeLuminance": 0.0,
+          "afterMaximumOvershootRelativeLuminance": 0.0
+        }
+      }
+    },
+    {
+      "name": "step-overshoot",
+      "before": [
+        0.2,
+        0.2,
+        0.8,
+        0.8
+      ],
+      "after": [
+        0.2,
+        0.1,
+        0.9,
+        0.8
+      ],
+      "bounds": [
+        0.2,
+        0.8
+      ],
+      "expected": {
+        "meanSignedDifferenceRelativeLuminance": -6.938893903907228e-18,
+        "rmsDifferenceRelativeLuminance": 0.07071067811865475,
+        "maximumAbsoluteDifferenceRelativeLuminance": 0.1,
+        "rangeExcursions": {
+          "beforeBelowRangeCount": 0,
+          "beforeAboveRangeCount": 0,
+          "beforeMaximumUndershootRelativeLuminance": 0.0,
+          "beforeMaximumOvershootRelativeLuminance": 0.0,
+          "afterBelowRangeCount": 1,
+          "afterAboveRangeCount": 1,
+          "afterMaximumUndershootRelativeLuminance": 0.1,
+          "afterMaximumOvershootRelativeLuminance": 0.09999999999999998
+        }
+      }
+    },
+    {
+      "name": "existing-source-excursions",
+      "before": [
+        -0.2,
+        0.1,
+        1.2,
+        0.8
+      ],
+      "after": [
+        -0.1,
+        0.1,
+        1.1,
+        0.8
+      ],
+      "bounds": [
+        0,
+        1
+      ],
+      "expected": {
+        "meanSignedDifferenceRelativeLuminance": 3.469446951953614e-17,
+        "rmsDifferenceRelativeLuminance": 0.07071067811865471,
+        "maximumAbsoluteDifferenceRelativeLuminance": 0.1,
+        "rangeExcursions": {
+          "beforeBelowRangeCount": 1,
+          "beforeAboveRangeCount": 1,
+          "beforeMaximumUndershootRelativeLuminance": 0.2,
+          "beforeMaximumOvershootRelativeLuminance": 0.19999999999999996,
+          "afterBelowRangeCount": 1,
+          "afterAboveRangeCount": 1,
+          "afterMaximumUndershootRelativeLuminance": 0.1,
+          "afterMaximumOvershootRelativeLuminance": 0.10000000000000009
+        }
+      }
+    },
+    {
+      "name": "signed-cancellation",
+      "before": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        1e+16,
+        1,
+        -1e+16,
+        1
+      ],
+      "bounds": null,
+      "expected": {
+        "meanSignedDifferenceRelativeLuminance": 0.5,
+        "rmsDifferenceRelativeLuminance": 7071067811865475.0,
+        "maximumAbsoluteDifferenceRelativeLuminance": 1e+16,
+        "rangeExcursions": null
+      }
+    },
+    {
+      "name": "tiny-rms",
+      "before": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        1e-300,
+        -1e-300,
+        1e-300,
+        -1e-300
+      ],
+      "bounds": null,
+      "expected": {
+        "meanSignedDifferenceRelativeLuminance": 0.0,
+        "rmsDifferenceRelativeLuminance": 1e-300,
+        "maximumAbsoluteDifferenceRelativeLuminance": 1e-300,
+        "rangeExcursions": null
+      }
+    },
+    {
+      "name": "small-change-large-dc",
+      "before": [
+        1e+16,
+        1e+16,
+        1e+16,
+        1e+16
+      ],
+      "after": [
+        1.0000000000000002e+16,
+        1.0000000000000004e+16,
+        9999999999999998.0,
+        9999999999999996.0
+      ],
+      "bounds": null,
+      "expected": {
+        "meanSignedDifferenceRelativeLuminance": 0.0,
+        "rmsDifferenceRelativeLuminance": 3.1622776601683795,
+        "maximumAbsoluteDifferenceRelativeLuminance": 4.0,
+        "rangeExcursions": null
+      }
+    }
+  ],
+  "noise": [
+    {
+      "name": "zero",
+      "frames": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "expected": {
+        "frameCount": 3,
+        "siteCount": 4,
+        "meanRelativeLuminance": 0.0,
+        "meanTemporalSampleVarianceRelativeLuminanceSquared": 0.0,
+        "temporalRmsRelativeLuminance": 0.0,
+        "perSiteMeansRelativeLuminance": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "perSiteSampleVariancesRelativeLuminanceSquared": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "name": "spatial-texture-is-not-temporal-noise",
+      "frames": [
+        [
+          0.1,
+          0.2,
+          0.8,
+          0.9
+        ],
+        [
+          0.1,
+          0.2,
+          0.8,
+          0.9
+        ],
+        [
+          0.1,
+          0.2,
+          0.8,
+          0.9
+        ]
+      ],
+      "expected": {
+        "frameCount": 3,
+        "siteCount": 4,
+        "meanRelativeLuminance": 0.5,
+        "meanTemporalSampleVarianceRelativeLuminanceSquared": 0.0,
+        "temporalRmsRelativeLuminance": 0.0,
+        "perSiteMeansRelativeLuminance": [
+          0.1,
+          0.2,
+          0.8,
+          0.9
+        ],
+        "perSiteSampleVariancesRelativeLuminanceSquared": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "name": "signed-independent-repeats",
+      "frames": [
+        [
+          -2,
+          2,
+          5,
+          0
+        ],
+        [
+          -1,
+          3,
+          3,
+          2
+        ],
+        [
+          0,
+          4,
+          4,
+          1
+        ],
+        [
+          1,
+          5,
+          2,
+          -1
+        ]
+      ],
+      "expected": {
+        "frameCount": 4,
+        "siteCount": 4,
+        "meanRelativeLuminance": 1.75,
+        "meanTemporalSampleVarianceRelativeLuminanceSquared": 1.6666666666666667,
+        "temporalRmsRelativeLuminance": 1.2909944487358056,
+        "perSiteMeansRelativeLuminance": [
+          -0.5,
+          3.5,
+          3.5,
+          0.5
+        ],
+        "perSiteSampleVariancesRelativeLuminanceSquared": [
+          1.6666666666666667,
+          1.6666666666666667,
+          1.6666666666666667,
+          1.6666666666666667
+        ]
+      }
+    },
+    {
+      "name": "large-dc-nonrepresentable-mean",
+      "frames": [
+        [
+          1.0000000000000002e+16,
+          1.0000000000000002e+16,
+          1.0000000000000002e+16,
+          1.0000000000000002e+16
+        ],
+        [
+          1.0000000000000004e+16,
+          1.0000000000000004e+16,
+          1.0000000000000004e+16,
+          1.0000000000000004e+16
+        ]
+      ],
+      "expected": {
+        "frameCount": 2,
+        "siteCount": 4,
+        "meanRelativeLuminance": 1.0000000000000004e+16,
+        "meanTemporalSampleVarianceRelativeLuminanceSquared": 2.0,
+        "temporalRmsRelativeLuminance": 1.4142135623730951,
+        "perSiteMeansRelativeLuminance": [
+          1.0000000000000004e+16,
+          1.0000000000000004e+16,
+          1.0000000000000004e+16,
+          1.0000000000000004e+16
+        ],
+        "perSiteSampleVariancesRelativeLuminanceSquared": [
+          2.0,
+          2.0,
+          2.0,
+          2.0
+        ]
+      }
+    },
+    {
+      "name": "signed-large-cancellation-mean",
+      "frames": [
+        [
+          1e+16,
+          1e+16,
+          1e+16,
+          1e+16
+        ],
+        [
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          -1e+16,
+          -1e+16,
+          -1e+16,
+          -1e+16
+        ],
+        [
+          1,
+          1,
+          1,
+          1
+        ]
+      ],
+      "expected": {
+        "frameCount": 4,
+        "siteCount": 4,
+        "meanRelativeLuminance": 0.5,
+        "meanTemporalSampleVarianceRelativeLuminanceSquared": 6.666666666666667e+31,
+        "temporalRmsRelativeLuminance": 8164965809277260.0,
+        "perSiteMeansRelativeLuminance": [
+          0.5,
+          0.5,
+          0.5,
+          0.5
+        ],
+        "perSiteSampleVariancesRelativeLuminanceSquared": [
+          6.666666666666667e+31,
+          6.666666666666667e+31,
+          6.666666666666667e+31,
+          6.666666666666667e+31
+        ]
+      }
+    },
+    {
+      "name": "tiny-variance",
+      "frames": [
+        [
+          1e-150,
+          1e-150,
+          1e-150,
+          1e-150
+        ],
+        [
+          -1e-150,
+          -1e-150,
+          -1e-150,
+          -1e-150
+        ]
+      ],
+      "expected": {
+        "frameCount": 2,
+        "siteCount": 4,
+        "meanRelativeLuminance": 0.0,
+        "meanTemporalSampleVarianceRelativeLuminanceSquared": 2e-300,
+        "temporalRmsRelativeLuminance": 1.4142135623730952e-150,
+        "perSiteMeansRelativeLuminance": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "perSiteSampleVariancesRelativeLuminanceSquared": [
+          2e-300,
+          2e-300,
+          2e-300,
+          2e-300
+        ]
+      }
+    },
+    {
+      "name": "asymmetric-site-variances",
+      "frames": [
+        [
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          1,
+          2,
+          4
+        ],
+        [
+          1,
+          2,
+          4,
+          8
+        ]
+      ],
+      "expected": {
+        "frameCount": 3,
+        "siteCount": 4,
+        "meanRelativeLuminance": 2.0,
+        "meanTemporalSampleVarianceRelativeLuminanceSquared": 5.25,
+        "temporalRmsRelativeLuminance": 2.29128784747792,
+        "perSiteMeansRelativeLuminance": [
+          1.0,
+          1.0,
+          2.0,
+          4.0
+        ],
+        "perSiteSampleVariancesRelativeLuminanceSquared": [
+          0.0,
+          1.0,
+          4.0,
+          16.0
+        ]
+      }
+    }
+  ]
+}

@@ -29,6 +29,10 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface CalculateLensComplexPupilPsfInput {
   profile:
     LensComplexPupilProfile;
+  /** Physical pupil-to-image propagation scale in mm. Omission preserves the
+   * nominal focal-plane reference. Finite-focus callers must explicitly resolve
+   * the supported principal-plane geometry; profile metadata does not do so. */
+  propagationDistanceMm?: number;
 }
 ```
 
@@ -133,6 +137,8 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 export interface LensComplexPupilPsf {
+  propagationDistanceMm: number;
+  propagationDistanceSource: "explicit" | "nominal-focal-plane-reference";
   profileId: string;
   profileVersion: string;
   scientificStatus:

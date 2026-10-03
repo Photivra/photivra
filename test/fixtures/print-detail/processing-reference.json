@@ -1,0 +1,72 @@
+{
+  "protocolVersion": "0.1.0",
+  "referenceBackend": "Python exact rational paired differences on independently decoded neutral linear samples",
+  "sourceManifestSha256": "2ab550758af1217cec245b22104f2f157fc1b5b98023e11b983cd8b51b6f99cc",
+  "sourceDecoderRecordSha256": "fbde5ef5cb776cf41e199553961cf174caec2a7fb768dad0743722e21e8f9571",
+  "cases": [
+    {
+      "name": "landscape-q1",
+      "jpegSha256": "10675e622d2ff5e5a389d90205eeaf94c9c41b546d138457900b1acd215570d7",
+      "sampleCount": 128,
+      "meanSignedDifferenceRelativeLuminance": 0.0,
+      "rmsDifferenceRelativeLuminance": 0.0,
+      "maximumAbsoluteDifferenceRelativeLuminance": 0.0
+    },
+    {
+      "name": "landscape-q32",
+      "jpegSha256": "7fa1a655a8278b0da95c0c03201dba8a3d7d2c1bca4a1e199ec1def205eaafe9",
+      "sampleCount": 128,
+      "meanSignedDifferenceRelativeLuminance": 0.007374715369588863,
+      "rmsDifferenceRelativeLuminance": 0.019006699577901277,
+      "maximumAbsoluteDifferenceRelativeLuminance": 0.047578298564486365
+    },
+    {
+      "name": "portrait-clockwise-q1",
+      "jpegSha256": "6505e7e1fdcd33801cffebbfcde24de4dcc15f7972279198f6c73b9649060de7",
+      "sampleCount": 128,
+      "meanSignedDifferenceRelativeLuminance": 0.0,
+      "rmsDifferenceRelativeLuminance": 0.0,
+      "maximumAbsoluteDifferenceRelativeLuminance": 0.0
+    },
+    {
+      "name": "portrait-clockwise-q32",
+      "jpegSha256": "fed3a716eb5c5ace307b571fbc78cfdc0ca7fdc4055c3e1c8c7fe7fcded01b8a",
+      "sampleCount": 128,
+      "meanSignedDifferenceRelativeLuminance": 0.007374715369588863,
+      "rmsDifferenceRelativeLuminance": 0.019006699577901277,
+      "maximumAbsoluteDifferenceRelativeLuminance": 0.047578298564486365
+    },
+    {
+      "name": "landscape-inverted-q1",
+      "jpegSha256": "6facaed0b2346ad2d1bb7836edb2243954a2590f4c245c524da9b5fd483dee1c",
+      "sampleCount": 128,
+      "meanSignedDifferenceRelativeLuminance": 0.0,
+      "rmsDifferenceRelativeLuminance": 0.0,
+      "maximumAbsoluteDifferenceRelativeLuminance": 0.0
+    },
+    {
+      "name": "landscape-inverted-q32",
+      "jpegSha256": "17304b75010277d30aac7df86bef8b9a87d7c0ad709fe7f8cd81f66c0e43a3b3",
+      "sampleCount": 128,
+      "meanSignedDifferenceRelativeLuminance": 0.006586386789701002,
+      "rmsDifferenceRelativeLuminance": 0.016494822863192215,
+      "maximumAbsoluteDifferenceRelativeLuminance": 0.03376953513869485
+    },
+    {
+      "name": "portrait-counter-clockwise-q1",
+      "jpegSha256": "7f1aa1dfc9f0ba1ecec8db2f22b15c9b1362f3d00b28aa082e440d47dfe5f887",
+      "sampleCount": 128,
+      "meanSignedDifferenceRelativeLuminance": 0.0,
+      "rmsDifferenceRelativeLuminance": 0.0,
+      "maximumAbsoluteDifferenceRelativeLuminance": 0.0
+    },
+    {
+      "name": "portrait-counter-clockwise-q32",
+      "jpegSha256": "38af5cfadb9b88c38c2072963f529db24a4672edf92d60e64b80d86dcefa8889",
+      "sampleCount": 128,
+      "meanSignedDifferenceRelativeLuminance": 0.006586386789701002,
+      "rmsDifferenceRelativeLuminance": 0.016494822863192215,
+      "maximumAbsoluteDifferenceRelativeLuminance": 0.03376953513869485
+    }
+  ]
+}

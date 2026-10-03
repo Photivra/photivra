@@ -1,22 +1,3 @@
-Photivra
-Copyright 2026 William Shackelford
-
-This repository contains the Photivra scientific/business-logic engine.
-
-Source code in this repository is made available under the Apache License,
-Version 2.0. The Apache License does not grant permission to use Photivra
-trade names, trademarks, service marks, product names, logos, or branding
-except as allowed by applicable law and the license itself.
-
-This product includes DNG technology under license by Adobe.
-
-Print contrast numerical model material
----------------------------------------
-castleCSF revision f4b0b722af83001d7af979281e06ca642d36e4e8
-Source: https://github.com/gfxdisp/castleCSF
-Restricted scalar adapter: src/output/print-contrast-reference.ts
-Upstream numerical material is used under the following retained terms.
-
 MIT License
 
 Copyright (c) 2023 Graphics and Displays group - University of Cambridge

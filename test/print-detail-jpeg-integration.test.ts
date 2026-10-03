@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { expect, it } from "vitest";
-import { calculatePrintRegionDetail, createPhotographicExportPair, ENGINE_API_VERSION, type PrintRegionDetailInput } from "../src/index.js";
+import { calculatePrintRegionDetail, calculatePrintRegionDifference, createPhotographicExportPair, ENGINE_API_VERSION, type PrintRegionDetailInput } from "../src/index.js";
 import { PRINT_DETAIL_JPEG_CASES, printDetailJpegInput } from "./helpers/print-detail-jpeg-fixture.js";
 
 const root = new URL("./fixtures/print-detail/jpeg/", import.meta.url);
@@ -25,6 +25,10 @@ const inverseTransfer = (code: number): number => {
   const s = code / 255;
   return s <= .04045 ? s / 12.92 : ((s + .055) / 1.055) ** 2.4;
 };
+const processingBytes = readFileSync(new URL("../processing-reference.json", root));
+const processingReference = JSON.parse(processingBytes.toString()) as { sourceManifestSha256: string; sourceDecoderRecordSha256: string; cases: {
+  name: string; jpegSha256: string; sampleCount: number; meanSignedDifferenceRelativeLuminance: number;
+  rmsDifferenceRelativeLuminance: number; maximumAbsoluteDifferenceRelativeLuminance: number }[] };
 
 it("binds the independent decoder record to the exact manifest and complete case family", () => {
   expect(sha(manifestBytes)).toBe(reference.manifestSha256);
@@ -32,6 +36,9 @@ it("binds the independent decoder record to the exact manifest and complete case
   expect(reference.cases.map(c => c.name)).toEqual(PRINT_DETAIL_JPEG_CASES.map(c => c.name));
   expect(new Set(manifest.cases.flatMap(c => c.documentIds)).size).toBe(32);
   expect(new Set(manifest.cases.map(c => c.captureId)).size).toBe(4);
+  expect(sha(processingBytes)).toBe("bf327ca94cb936642a420be401e2f944662d86aa95da04d58f51f83ef0b62c71");
+  expect(processingReference.sourceManifestSha256).toBe(sha(manifestBytes));
+  expect(processingReference.sourceDecoderRecordSha256).toBe(sha(readFileSync(new URL("independent-reference.json", root))));
 });
 
 it.each(PRINT_DETAIL_JPEG_CASES)("measures exact independently decoded public JPEG in $name", async scenario => {
@@ -83,6 +90,21 @@ it.each(PRINT_DETAIL_JPEG_CASES)("measures exact independently decoded public JP
   expect(result.sourceArtifactVerification).toBe("caller-declared-unverified");
   expect(result.unassessed).toEqual(expect.arrayContaining(["compression", "perceived-quality", "noise", "captured-system-mtf"]));
   expect(result.overallPrintVerdict).toBe("not-offered"); expect(result.assurance.scientificStatus).toBe("unknown");
+  const preLuminance = Array.from({ length: m.preEncodeRgb.length / 3 }, (_, i) => inverseTransfer(m.preEncodeRgb[i * 3]!));
+  const preSamples = Array.from({ length: m.roi.width * m.roi.height }, (_, i) =>
+    preLuminance[(m.roi.y + Math.floor(i / m.roi.width)) * m.raster.pixelWidth + m.roi.x + i % m.roi.width]!);
+  const difference = calculatePrintRegionDifference({ assessmentId: "file-change-" + scenario.name,
+    purpose: "decoded-file-change", realizationPolicy: "deterministic-reference", referenceRange: null,
+    before: { print: assessment.print, region: assessment.region, source: { ...assessment.source, representationId: "pre-jpeg-" + scenario.name,
+      contentSha256: floatHash(preLuminance), stage: "post-resampling-linear", processing: { id: "owned-neutral-pre-jpeg-srgb-readback", version: "0.1.0" } }, samples: preSamples },
+    after: { print: assessment.print, region: assessment.region, source: assessment.source, samples } }).value;
+  const expectedDifference = processingReference.cases.find(c => c.name === scenario.name)!;
+  expect(difference.status).toBe("diagnostic-only"); expect(expectedDifference.jpegSha256).toBe(pair.jpeg.sha256);
+  expect(expectedDifference.sampleCount).toBe(samples.length);
+  for (const key of ["meanSignedDifferenceRelativeLuminance", "rmsDifferenceRelativeLuminance", "maximumAbsoluteDifferenceRelativeLuminance"] as const) {
+    expect(Math.abs(difference.measurement![key] - expectedDifference[key])).toBeLessThan(1e-12);
+  }
+  expect(difference.sourceArtifactVerification).toBe("caller-declared-unverified");
   expect(JSON.stringify(input)).toBe(before);
 });
 
