@@ -1,6 +1,6 @@
 {
-  "packageVersion": "1.1.0",
-  "engineApiVersion": "1.1.0",
+  "packageVersion": "1.2.0",
+  "engineApiVersion": "1.2.0",
   "exports": [
     {
       "name": "AbsoluteUncertaintyEstimate",
@@ -580,6 +580,11 @@
     {
       "name": "calculateLinearCaptureEncoding",
       "source": "src/capture/linear-encoding.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateNativeCaptureSdrPlan",
+      "source": "src/output/native-capture-sdr.ts",
       "kind": "runtime"
     },
     {
@@ -1416,6 +1421,11 @@
       "name": "CreateManualFlashIlluminationOverlayInput",
       "source": "src/exposure/flash.ts",
       "kind": "type"
+    },
+    {
+      "name": "createNativeCaptureSdrTask",
+      "source": "src/output/native-capture-sdr.ts",
+      "kind": "runtime"
     },
     {
       "name": "createPhotographicExportPair",
@@ -2660,6 +2670,56 @@
     {
       "name": "MtfOnlyPsfRenderabilityAssessment",
       "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NATIVE_CAPTURE_SDR_LIMITS",
+      "source": "src/output/native-capture-sdr.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "NATIVE_CAPTURE_SDR_SCHEMA_VERSION",
+      "source": "src/output/native-capture-sdr.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "NativeCaptureSdrInput",
+      "source": "src/output/native-capture-sdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeCaptureSdrOutput",
+      "source": "src/output/native-capture-sdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeCaptureSdrPlan",
+      "source": "src/output/native-capture-sdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeCaptureSdrProvider",
+      "source": "src/output/native-capture-sdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeCaptureSdrTask",
+      "source": "src/output/native-capture-sdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeCaptureSdrTaskState",
+      "source": "src/output/native-capture-sdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeCaptureSdrTile",
+      "source": "src/output/native-capture-sdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeCaptureSdrTileRequest",
+      "source": "src/output/native-capture-sdr.ts",
       "kind": "type"
     },
     {

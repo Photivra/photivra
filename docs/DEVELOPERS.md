@@ -1,18 +1,18 @@
 # Developer guide
 
-This is the entry point for **@photivra/engine 1.1.0 candidate**, root API contract **1.1.0**. The candidate becomes an installable 1.1.0 distribution only after the owner tags and publishes it. Repository `main` may later describe newer development; use a published release's packaged docs or its exact tag for the stable contract. [Release notes and migration](RELEASE_1_1_0.md) explain the transition to aligned package/root versions.
+This is the entry point for **@photivra/engine 1.2.0 candidate**, root API contract **1.2.0**. The candidate becomes an installable 1.2.0 distribution only after the owner tags and publishes it. Repository `main` may later describe newer development; use a published release's packaged docs or its exact tag for the stable contract. [Release notes and migration](RELEASE_1_2_0.md) explain the transition to aligned package/root versions.
 
 Photivra is an Apache-2.0 ESM TypeScript calculation library with no runtime npm dependencies. It exposes explicit units, deterministic data, provenance and bounded scientific approximations. The package supplies no hosted API, renderer installation, UI, commercial camera calibration or automatic agent service. [Photivra's public site](https://photivra.com) is separate from the engine's license; public engine documentation is available here without an application account.
 
 ## Install and calculate
 
-After publication, install `npm install @photivra/engine@1.1.0`. During candidate review, use the verified tarball described in [release preparation](RELEASE_1_1_0.md).
+After publication, install `npm install @photivra/engine@1.2.0`. During candidate review, use the verified tarball described in [release preparation](RELEASE_1_2_0.md).
 
 ```ts
 import { calculateFieldOfView, ENGINE_API_VERSION } from "@photivra/engine";
 
 const horizontal = calculateFieldOfView({ focalLengthMm: 50, sensorDimensionMm: 36 });
-console.log(ENGINE_API_VERSION); // 1.1.0: matches the package version
+console.log(ENGINE_API_VERSION); // 1.2.0: matches the package version
 console.log(horizontal.value.degrees); // approximately 39.60, ideal infinity-focus geometry
 console.log(horizontal.provenance); // read assumptions/status with the value
 ```
@@ -23,7 +23,7 @@ Primitive calculations normally return `CalculationResult<T>` with `value`, `pro
 
 ## Find the operation by scientific task
 
-Every row applies to package/root API 1.1.0. Direct calculations are synchronous/browser-safe unless the row says otherwise. A listed primitive is not automatically an app feature or supported in every production combination. The [API reference](API_REFERENCE.md) resolves all root exports and exact signatures; the linked guides own equations, inputs, defaults, errors and limits.
+Every row applies to package/root API 1.2.0. Direct calculations are synchronous/browser-safe unless the row says otherwise. A listed primitive is not automatically an app feature or supported in every production combination. The [API reference](API_REFERENCE.md) resolves all root exports and exact signatures; the linked guides own equations, inputs, defaults, errors and limits.
 
 | Task | Start here / executable evidence | Qualified boundary |
 | --- | --- | --- |

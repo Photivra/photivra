@@ -1,6 +1,6 @@
 # Public API reference
 
-Generated from the exact root exports for **@photivra/engine 1.1.0 / root contract 1.1.0** by `node scripts/generate-api-reference.mjs`. No module deep import is supported.
+Generated from the exact root exports for **@photivra/engine 1.2.0 / root contract 1.2.0** by `node scripts/generate-api-reference.mjs`. No module deep import is supported.
 
 Use [the developer guide](DEVELOPERS.md) for executable paths and scientific boundaries. Types are contracts, not runtime validation: parse untrusted data, preserve units/reference frames, read assessment blockers, and retain evidence/limitations. Optional properties do not imply a universal default. Model/schema IDs remain independent of the distribution.
 
@@ -1188,6 +1188,25 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`parseGenericLensCorrectionProfile`](api/output-lens-corrections.md#parsegenericlenscorrectionprofile) | Runtime |
 | [`ResolvedLensCorrectionPlan`](api/output-lens-corrections.md#resolvedlenscorrectionplan) | Type |
 | [`resolveLensCorrectionPlan`](api/output-lens-corrections.md#resolvelenscorrectionplan) | Runtime |
+
+## output/native-capture-sdr.ts
+
+[Detailed contracts](api/output-native-capture-sdr.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/output/native-capture-sdr.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateNativeCaptureSdrPlan`](api/output-native-capture-sdr.md#calculatenativecapturesdrplan) | Runtime |
+| [`createNativeCaptureSdrTask`](api/output-native-capture-sdr.md#createnativecapturesdrtask) | Runtime |
+| [`NATIVE_CAPTURE_SDR_LIMITS`](api/output-native-capture-sdr.md#native_capture_sdr_limits) | Runtime |
+| [`NATIVE_CAPTURE_SDR_SCHEMA_VERSION`](api/output-native-capture-sdr.md#native_capture_sdr_schema_version) | Runtime |
+| [`NativeCaptureSdrInput`](api/output-native-capture-sdr.md#nativecapturesdrinput) | Type |
+| [`NativeCaptureSdrOutput`](api/output-native-capture-sdr.md#nativecapturesdroutput) | Type |
+| [`NativeCaptureSdrPlan`](api/output-native-capture-sdr.md#nativecapturesdrplan) | Type |
+| [`NativeCaptureSdrProvider`](api/output-native-capture-sdr.md#nativecapturesdrprovider) | Type |
+| [`NativeCaptureSdrTask`](api/output-native-capture-sdr.md#nativecapturesdrtask) | Type |
+| [`NativeCaptureSdrTaskState`](api/output-native-capture-sdr.md#nativecapturesdrtaskstate) | Type |
+| [`NativeCaptureSdrTile`](api/output-native-capture-sdr.md#nativecapturesdrtile) | Type |
+| [`NativeCaptureSdrTileRequest`](api/output-native-capture-sdr.md#nativecapturesdrtilerequest) | Type |
 
 ## output/print-detail.ts
 

@@ -1,6 +1,6 @@
 # Simulated Sensor RAW DNG / JPEG export
 
-Release context: **package 1.1.0 candidate / root API 1.1.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_1_0.md).
+Release context: **package 1.2.0 candidate / root API 1.2.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
 
 Current producer-derived files and external closure gates are recorded in
 [Export acceptance](EXPORT_ACCEPTANCE.md). The new reproducible generator uses

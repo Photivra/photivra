@@ -55,3 +55,7 @@ jobs:
       - name: Benchmark image formation
         if: matrix.node-version == '24'
         run: npm run bench:image-formation:built
+
+      - name: Measure bounded native SDR execution
+        if: matrix.node-version == '24'
+        run: node --expose-gc scripts/benchmark-native-capture-sdr.mjs

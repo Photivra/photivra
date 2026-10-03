@@ -1,6 +1,10 @@
 # Changelog
 
-## 1.1.0 candidate — review and publication pending
+## 1.2.0 candidate — review and publication pending
+
+- Add metadata-only external RGB tile execution with explicit 24 MP/resource limits, whole-capture identity, unchanged reference arithmetic, cancellation/disposal and single-transfer output ownership. See `docs/NATIVE_CAPTURE_SDR.md`; review/version/publication and native-producer/device qualification remain separate.
+
+## 1.1.0 — historical preparation notes
 
 - Add a bounded regional coherent-sinusoid diagnostic and explicit stage/region/source identity. Independently validate Fourier modulation and angular projection using owned analytic references; preserve acquisition, system MTF, noise/artifact/perception qualification as unassessed. Full #196 acceptance remains blocked. See `docs/PRINT_DETAIL_ASSESSMENT.md` and `docs/PRINT_DETAIL_VALIDATION.md`.
 

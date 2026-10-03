@@ -1,6 +1,6 @@
 # Generic tier preset acceptance disposition
 
-Release context: **package 1.1.0 candidate / root API 1.1.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_1_0.md).
+Release context: **package 1.2.0 candidate / root API 1.2.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
 
 This is the reviewed/merged #116 asset/catalog disposition against engine API
 0.116.0 and production plan 0.7.0. The reviewed/merged release gate still applies.

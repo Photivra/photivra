@@ -2,14 +2,14 @@
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { expect, it } from "vitest";
-import { calculatePrintRegionDetail, createPhotographicExportPair, type PrintRegionDetailInput } from "../src/index.js";
+import { calculatePrintRegionDetail, createPhotographicExportPair, ENGINE_API_VERSION, type PrintRegionDetailInput } from "../src/index.js";
 import { PRINT_DETAIL_JPEG_CASES, printDetailJpegInput } from "./helpers/print-detail-jpeg-fixture.js";
 
 const root = new URL("./fixtures/print-detail/jpeg/", import.meta.url);
 const manifestBytes = readFileSync(new URL("export-manifest.json", root));
 interface Measurement { mean: number; amplitude: number; modulation: number; residual: number }
 const manifest = JSON.parse(manifestBytes.toString()) as { cases: {
-  name: string; captureId: string; documentIds: string[]; raster: { pixelWidth: number; pixelHeight: number }; jpegSha256: string; preEncodeRgb: number[];
+  name: string; engineCandidate: string; captureId: string; documentIds: string[]; raster: { pixelWidth: number; pixelHeight: number }; jpegSha256: string; preEncodeRgb: number[];
   nativeRawCodes: number[]; referenceModulation: number; roi: { x: number; y: number; width: number; height: number };
   cyclesAcrossRegion: { x: number; y: number } }[] };
 const reference = JSON.parse(readFileSync(new URL("independent-reference.json", root), "utf8")) as {
@@ -36,7 +36,7 @@ it("binds the independent decoder record to the exact manifest and complete case
 
 it.each(PRINT_DETAIL_JPEG_CASES)("measures exact independently decoded public JPEG in $name", async scenario => {
   const m = manifest.cases.find(c => c.name === scenario.name)!, r = reference.cases.find(c => c.name === scenario.name)!;
-  const input = printDetailJpegInput(scenario.orientation, scenario.quantizationStep), before = JSON.stringify(input);
+  const input = printDetailJpegInput(scenario.orientation, scenario.quantizationStep, m.engineCandidate), before = JSON.stringify(input);
   const pair = await createPhotographicExportPair(input), jpeg = readFileSync(new URL(scenario.name + ".jpg", root));
   expect(pair.jpeg.bytes).toEqual(new Uint8Array(jpeg));
   expect(sha(jpeg)).toBe(m.jpegSha256); expect(r.jpegSha256).toBe(pair.jpeg.sha256);
@@ -93,4 +93,15 @@ it.each(["landscape", "portrait-clockwise", "landscape-inverted", "portrait-coun
   expect(a.captureId).toBe(b.captureId);
   expect(a.raster).toEqual(b.raster); expect(a.jpegSha256).not.toBe(b.jpegSha256);
   expect(ar.preEncode).toEqual(br.preEncode); expect(ar.decoded.modulation).not.toBe(br.decoded.modulation);
+});
+
+
+it("preserves archived creator replay while current exports record their actual engine", async () => {
+  const scenario = PRINT_DETAIL_JPEG_CASES[0]!, m = manifest.cases[0]!;
+  const archived = await createPhotographicExportPair(printDetailJpegInput(scenario.orientation, scenario.quantizationStep, m.engineCandidate));
+  const current = await createPhotographicExportPair(printDetailJpegInput(scenario.orientation, scenario.quantizationStep));
+  expect(archived.source.value.rawFrame.capture.engineApiVersion).toBe(m.engineCandidate);
+  expect(current.source.value.rawFrame.capture.engineApiVersion).toBe(ENGINE_API_VERSION);
+  expect(current.rendering.value.integerSamples).toEqual(archived.rendering.value.integerSamples);
+  if (ENGINE_API_VERSION !== m.engineCandidate) expect(current.jpeg.sha256).not.toBe(archived.jpeg.sha256);
 });
