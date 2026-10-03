@@ -1403,3 +1403,5 @@ export { simulateEnvironmentSensorRawFrame, type SimulateEnvironmentSensorRawFra
 
 export { calculateProcessedSensorRaw, parseProcessedSensorRawInput, type ProcessedSensorRawInput,
   type ProcessedSensorRawResult } from "./capture/photographic-export.js";
+export { calculatePrintPlan, calculatePrintSizeLimit, parsePrintPlanInput } from "./output/print-plan.js";
+export type { PrintLength, PrintedImageSize, PrintSamplingCriterion, PrintNativeSource, PrintProviderConstraints, PrintPlanInput, PrintRasterSampling, PrintPlan, PrintSizeLimitInput, PrintSizeLimit } from "./output/print-plan.js";

@@ -15,12 +15,14 @@ The standalone [SimulatedCapture contract](https://github.com/Photivra/photivra/
 
 The standalone [SDR rendering foundation](https://github.com/Photivra/photivra/blob/main/docs/SDR_RENDERING.md) separates post-capture rendering, output encoding and external display adaptation. Capture/WB/correction integration is available through the [processed output contract](https://github.com/Photivra/photivra/blob/main/docs/PROCESSED_OUTPUT.md), with explicit input domains and bounded support.
 
+The standalone [Print planner](https://github.com/Photivra/photivra/blob/main/docs/PRINT_PLANNING.md) derives native-only printer-file geometry from physical image size, independent viewing distance and explicit sampling conventions. Captured detail and print quality remain unassessed.
+
 ## Quick start
 
-After owner publication, install the ESM package below. During candidate review, use the verified tarball from the [release guide](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_0_1.md):
+After owner publication, install the ESM package below. During candidate review, use the verified tarball from the [release guide](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_1_0.md):
 
 ```sh
-npm install @photivra/engine@1.0.1
+npm install @photivra/engine@1.1.0
 ```
 
 Calculate horizontal field of view for a 36 mm sensor dimension and 50 mm focal length:
@@ -37,7 +39,7 @@ console.log(horizontal.value.degrees);
 console.log(horizontal.provenance);
 ```
 
-Start with the [Developer Guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md), then use the [Usage Guide](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md) and [export-derived API reference](https://github.com/Photivra/photivra/blob/main/docs/API_REFERENCE.md). These documents describe the 1.0.1 candidate. The published 1.0.0 release remains available; installation of 1.0.1 becomes available after owner publication.
+Start with the [Developer Guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md), then use the [Usage Guide](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md) and [export-derived API reference](https://github.com/Photivra/photivra/blob/main/docs/API_REFERENCE.md). These documents describe the unpublished 1.1.0 candidate; use the published 1.0.1 baseline until owner publication.
 
 ## Documentation
 
@@ -265,13 +267,13 @@ The calling application can then use those results while keeping the underlying 
 
 ## Status
 
-- Repository package version: `1.0.1` (release candidate; publication is separate)
-- Engine API contract: `1.0.1`
+- Repository package version: `1.1.0` (release candidate; publication is separate)
+- Engine API contract: `1.1.0`
 - Versioned generic tier reference assets: [GENERIC_TIER_PRESETS.md](https://github.com/Photivra/photivra/blob/main/docs/GENERIC_TIER_PRESETS.md).
 - Composed POC simulation API contract: `0.20.0`
 - Stability: 1.0 root-package compatibility policy; bounded scientific models and independent POC contract
 
-From 1.0.1, package version and `ENGINE_API_VERSION` are equal. New captures/plans record 1.0.1; existing archives retain their original creator identities. Schema, model and POC contract versions remain independent. Breaking root contracts now require a package major release; additive and corrective changes follow [compatibility and migration](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_0_1.md). A 1.0 package is not a claim of calibrated physical accuracy.
+From 1.0.1, package version and `ENGINE_API_VERSION` are equal. New captures/plans record 1.1.0; existing archives retain their original creator identities. Schema, model and POC contract versions remain independent. Breaking root contracts now require a package major release; additive and corrective changes follow [compatibility and migration](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_1_0.md). A 1.0 package is not a claim of calibrated physical accuracy.
 
 Creating a GitHub release/tag and publishing `@photivra/engine` are separate release actions. The tag-triggered publish workflow verifies that the `vX.Y.Z` tag matches the package version before publishing.
 

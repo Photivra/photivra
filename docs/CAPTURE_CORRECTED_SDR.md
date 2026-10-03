@@ -1,6 +1,6 @@
 # Capture-bound corrections and SDR: #112 integration slice
 
-Release context: **package 1.0.1 candidate / root API 1.0.1**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0_1.md).
+Release context: **package 1.1.0 candidate / root API 1.1.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_1_0.md).
 
 `calculateCaptureCorrectedSdr()` consumes the same immutable `SimulatedCapture` and explicit source/color/WB choice as `calculateCaptureSdr()`, then executes existing #117/#118 corrections before the existing SDR renderer. This bounded reference bridge does not replace the #111 composer, activate production stages, or complete #112/V1.
 

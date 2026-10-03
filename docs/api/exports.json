@@ -1,6 +1,6 @@
 {
-  "packageVersion": "1.0.1",
-  "engineApiVersion": "1.0.1",
+  "packageVersion": "1.1.0",
+  "engineApiVersion": "1.1.0",
   "exports": [
     {
       "name": "AbsoluteUncertaintyEstimate",
@@ -626,6 +626,16 @@
       "name": "CalculatePixelPitchInput",
       "source": "src/sensor/pixel-pitch.ts",
       "kind": "type"
+    },
+    {
+      "name": "calculatePrintPlan",
+      "source": "src/output/print-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculatePrintSizeLimit",
+      "source": "src/output/print-plan.ts",
+      "kind": "runtime"
     },
     {
       "name": "calculateProcessedSensorRaw",
@@ -2948,6 +2958,11 @@
       "kind": "runtime"
     },
     {
+      "name": "parsePrintPlanInput",
+      "source": "src/output/print-plan.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "parseProcessedSensorRawInput",
       "source": "src/capture/photographic-export.ts",
       "kind": "runtime"
@@ -3300,6 +3315,56 @@
     {
       "name": "PreWhiteBalanceRgbSampleSet",
       "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintedImageSize",
+      "source": "src/output/print-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintLength",
+      "source": "src/output/print-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintNativeSource",
+      "source": "src/output/print-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintPlan",
+      "source": "src/output/print-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintPlanInput",
+      "source": "src/output/print-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintProviderConstraints",
+      "source": "src/output/print-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintRasterSampling",
+      "source": "src/output/print-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintSamplingCriterion",
+      "source": "src/output/print-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintSizeLimit",
+      "source": "src/output/print-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintSizeLimitInput",
+      "source": "src/output/print-plan.ts",
       "kind": "type"
     },
     {
