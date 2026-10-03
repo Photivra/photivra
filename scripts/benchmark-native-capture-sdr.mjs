@@ -6,7 +6,7 @@ import console from "node:console";
 import { performance } from "node:perf_hooks";
 import { setImmediate } from "node:timers";
 import { createHash } from "node:crypto";
-import { createSimulatedCapture, createNativeCaptureSdrTask, LINEAR_CAPTURE_RGB_PROFILE, resolveCaptureColorModel } from "../dist/index.js";
+import { ENGINE_API_VERSION, createSimulatedCapture, createNativeCaptureSdrTask, LINEAR_CAPTURE_RGB_PROFILE, resolveCaptureColorModel } from "../dist/index.js";
 async function measure(width, height, bitDepth) {
 const baseline = process.memoryUsage();
 let peakRss = baseline.rss, peakHeap = baseline.heapUsed, peakArrayBuffers = baseline.arrayBuffers, largestTile = 0;
@@ -48,7 +48,7 @@ const output = task.takeOutput();
 if (output.integerSamples[0] !== 0 || output.integerSamples[1] !== (bitDepth === 8 ? 188 : 48192) || output.integerSamples.at(-1) !== (2 ** bitDepth - 1)) throw new Error("Benchmark pixel identity failed");
 const hash = createHash("sha256").update(output.integerSamples).digest("hex");
 sampleMemory();
-console.log(JSON.stringify({ width, height, bitDepth, milliseconds, hash, outputBytes: output.integerSamples.byteLength,
+console.log(JSON.stringify({ engineApiVersion: ENGINE_API_VERSION, width, height, bitDepth, milliseconds, hash, outputBytes: output.integerSamples.byteLength,
   largestTileBytes: largestTile, maximumScratchPayloadBytes: task.plan.maximumScratchPayloadBytes,
   baseline, sampledPeak: { rss: peakRss, heapUsed: peakHeap, arrayBuffers: peakArrayBuffers }, runtime: process.version, platform: process.platform, arch: process.arch }));
 }

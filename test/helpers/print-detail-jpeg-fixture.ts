@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-import { createSimulatedCapture, createSensorRawFrame, type CaptureOrientation, type PhotographicExportInput } from "../../src/index.js";
+import { createSimulatedCapture, parseSimulatedCapture, createSensorRawFrame, type CaptureOrientation, type PhotographicExportInput } from "../../src/index.js";
 import { loadPhotographicExportInput } from "./photographic-export-fixture.js";
 import { loadSensorRawFrameInput } from "./sensor-raw-frame-fixture.js";
 
 /** Owned post-ADC tile grating. No optical/radiometric/noise acquisition claim. */
-export function printDetailJpegInput(orientation: CaptureOrientation, quantizationStep: number): PhotographicExportInput {
+export function printDetailJpegInput(orientation: CaptureOrientation, quantizationStep: number, archivedCreatorVersion?: string): PhotographicExportInput {
   const input = loadPhotographicExportInput(), raw = loadSensorRawFrameInput(), c = input.reconstruction.rawFrame.capture;
   const { schemaVersion: _s, engineApiVersion: _e, resolvedGeometry: _g, equivalentFocalLength35Mm: _f, ...capture } = c;
   void _s; void _e; void _g; void _f;
@@ -17,6 +17,8 @@ export function printDetailJpegInput(orientation: CaptureOrientation, quantizati
   raw.capture = createSimulatedCapture({ ...capture, captureId: uuid(0x300 + orientationIndex), geometry: { imagingArea: { widthMm: 40, heightMm: 32 },
     nativeRaster: native, outputRaster: output, orientation },
     planes: [{ ...capture.planes[0]!, ...output, storage: { kind: "inline-float64", samples: Array<number>(20 * 16 * 3).fill(0) } }] }).value;
+  // Explicit archival replay preserves the recorded creator; ordinary fixture generation uses the current engine.
+  if (archivedCreatorVersion !== undefined) raw.capture = parseSimulatedCapture({ ...raw.capture, engineApiVersion: archivedCreatorVersion });
   raw.bindingProfile.nativeRaster = native;
   raw.captureModeProfile.modes = raw.captureModeProfile.modes.map(m => ({ ...m, processedImageRaster: { ...m.processedImageRaster, value: native } }));
   const templates = raw.samples;
