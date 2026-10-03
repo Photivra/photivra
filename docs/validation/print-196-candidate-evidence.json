@@ -83,6 +83,10 @@
       "sha256": "8d12470787dd45f679cba7236ed76df11340b3dc73e23f24e77bdf4a54ed890b"
     },
     {
+      "path": "test/fixtures/print-detail/generate_visibility_reference.py",
+      "sha256": "2df5a0fda275c6ad5082324752f1f117ac7c8dcb1bb878ad785ad9a182377beb"
+    },
+    {
       "path": "test/fixtures/print-detail/motion-backend-reference.json",
       "sha256": "f26ea45676d3123be1bae6a8b288151c25c0db199c453a8f97c9ded9578b3b51"
     },
@@ -109,12 +113,16 @@
     {
       "path": "test/fixtures/print-detail/statistics-reference.json",
       "sha256": "f7599612838f18ccc4eaa6e1876e5ea0fc1c5b2c59651531f10e29fda8df1f5b"
+    },
+    {
+      "path": "test/fixtures/print-detail/visibility-backend-reference.json",
+      "sha256": "228c2a50c4661612c93c2c316ebdd26eacd0c3cc8eb234f0dd9110748b753cb8"
     }
   ],
   "validation": {
     "node": "26.8.1",
-    "tests": 2045,
-    "testFiles": 157,
+    "tests": 2060,
+    "testFiles": 158,
     "coveragePercent": {
       "statements": 92.04,
       "branches": 88.55,
@@ -252,6 +260,45 @@
       {
         "path": "test/print-depth-pupil-convergence.test.ts",
         "sha256": "754192f320688c2f314b682b8dc086556706eb3050fe31972496087cf26e04a3"
+      }
+    ]
+  },
+  "movingVisibilityProtocol": {
+    "version": "0.1.0",
+    "reference": "visibility-backend-reference.json",
+    "backend": "actual public production environment capture and native RAW/processed output",
+    "nearDepthM": 2,
+    "farDepthM": 10,
+    "foregroundVelocityMps": 125,
+    "motionAxes": [
+      "x",
+      "y"
+    ],
+    "exposureSeconds": 0.008,
+    "temporalSampleCounts": [
+      2,
+      4,
+      8,
+      16,
+      32,
+      64,
+      128
+    ],
+    "maximumAbsoluteSourceScaleError": "1 / temporalSampleCount",
+    "engineSceneVisibilityCalculated": false,
+    "providerTransportVerified": false,
+    "sourceRadiometryVerified": false,
+    "psf": "explicitly omitted",
+    "movingDepthEdgePsf": "unsupported",
+    "humanReview": "pending",
+    "implementationFiles": [
+      {
+        "path": "test/helpers/tier-production-fixture.ts",
+        "sha256": "b8b0beda3907fe63190cdc1ce1d8bed0197901ba3f76802e3b2dea12f0e4f176"
+      },
+      {
+        "path": "test/print-region-visibility-backend.test.ts",
+        "sha256": "399f1a6073075a3743e2513e9b42812da19ea6930419b3b722063ede53879a15"
       }
     ]
   }

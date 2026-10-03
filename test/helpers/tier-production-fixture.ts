@@ -19,7 +19,7 @@ export function tierProductionLensProfiles(bodyTier: GenericEquipmentTier, lensT
 export function registerTierFixture<T>(v:T):T {
   return JSON.parse(JSON.stringify(v).replaceAll('"cfa"','"photivra-generic-bayer"').replaceAll('"native"','"native-still"')) as T;
 }
-export function tierProductionRequest(bodyTier:GenericEquipmentTier,lensTier=bodyTier,iso=100): CreateProductionImageFormationPlanInput & {environmentCapture: Required<NonNullable<CreateProductionImageFormationPlanInput["environmentCapture"]>>} {
+export function tierProductionRequest(bodyTier:GenericEquipmentTier,lensTier=bodyTier,iso=100,temporalSampleCount=2): CreateProductionImageFormationPlanInput & {environmentCapture: Required<NonNullable<CreateProductionImageFormationPlanInput["environmentCapture"]>>} {
   const original=frameInput(false,false), capture=registerTierFixture(original), p=tierProductionLensProfiles(bodyTier,lensTier), body=catalog.find(p=>p.tier===bodyTier)!.body;
   // Exposure capability IDs and selected lens IDs are different contracts.
   // Explicit fixture bridge retains the exact transmission values and provenance.
@@ -31,6 +31,7 @@ export function tierProductionRequest(bodyTier:GenericEquipmentTier,lensTier=bod
   void _s;void _e;void _g;void _f;
   capture.frame.capture=createSimulatedCapture({...data,exposure:{...c.exposure,iso}}).value;
   for(const site of capture.sites){
+    site.environment.temporalSampleCount=temporalSampleCount;
     site.environment.optics.profile=structuredClone(bridge);
     site.environment.motion.angularVelocityRadPerSec={pitch:0,yaw:0,roll:0};
     const sensor=site.environment.sensor;
@@ -69,7 +70,7 @@ export function tierProductionRequest(bodyTier:GenericEquipmentTier,lensTier=bod
     exposure:current.exposure,stochasticSeedUint32:current.noise.seedUint32,
     temporalCapture:{exposureWindowInput:{...capture.exposureWindow,nativeRaster:current.geometry.nativeRaster,
       samplePointsNative:capture.sites.map((_,i)=>({x:i%2+.5,y:Math.floor(i/2)+.5}))},imagingArea:current.geometry.imagingArea,
-      orientation:current.geometry.orientation,rotation:{angularVelocityRadPerSec:{pitch:0,yaw:0,roll:0},temporalSampleCount:2,focusDistanceM:base.focus.distanceM}}});
+      orientation:current.geometry.orientation,rotation:{angularVelocityRadPerSec:{pitch:0,yaw:0,roll:0},temporalSampleCount,focusDistanceM:base.focus.distanceM}}});
   const output=registerTierFixture(loadPhotographicExportInput()), {rawFrame:_,...reconstruction}=output.reconstruction;void _;
   return {preparedContext,captureSnapshot,environmentCapture:{capture,processing:{reconstruction,colorProfile:output.colorProfile,
     whiteBalance:output.whiteBalance,rendering:output.rendering}}};
