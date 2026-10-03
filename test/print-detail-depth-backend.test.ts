@@ -2,13 +2,13 @@
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { expect, it } from "vitest";
-import { calculateLensComplexPupilPsf, calculateThinLensImageDistance, calculatePrintRegionDetail, parseLensComplexPupilProfile } from "../src/index.js";
+import { calculateThinLensImageDistance, calculatePrintRegionDetail } from "../src/index.js";
+import { ownedDepthPupilKernel } from "./helpers/print-depth-pupil-fixture.js";
 import { statisticsFrame, scalarRasterSha256 } from "./helpers/print-region-statistics-fixture.js";
 
 const bytes = readFileSync(new URL("./fixtures/print-detail/depth-backend-reference.json", import.meta.url));
 const reference = JSON.parse(bytes.toString()) as { cases: { subjectDistanceM: number; apertureFNumber: number;
   expectedKernel: number[]; imageSamplePitchMm: number; expectedModulation: number }[] };
-const evidence = [{ sourceOrigin: "photivra" as const, sourceReference: "owned finite pupil and visible metric planes", reuseStatus: "photivra-owned" as const }];
 const focusImageMm = calculateThinLensImageDistance({ focalLengthMm: 50, objectDistanceM: 5 }).value.imageDistanceMm;
 // Three bounded frontoparallel surfaces overlap the viewing field. A nearer
 // surface has priority. Coordinates use real metric ray-plane intersections,
@@ -26,27 +26,7 @@ it("binds the independent depth/pupil reference", () => {
   expect(visiblePlane(.329999).depthM).toBe(5); expect(visiblePlane(.330001).depthM).toBe(10);
 });
 it.each(reference.cases)("propagates a visible $subjectDistanceM m plane at f/$apertureFNumber, focused at 5m", c => {
-  const objectImageMm = calculateThinLensImageDistance({ focalLengthMm: 50, objectDistanceM: c.subjectDistanceM }).value.imageDistanceMm;
-  const fieldXmm = { 2: -.66, 5: 0, 10: .66 }[c.subjectDistanceM]!;
-  const n = 9, center = 4, radius = 50 / (2 * c.apertureFNumber), pitch = radius / center;
-  const amplitude = Array.from({ length: 81 }, (_, i) => ((i % n - center) * pitch)**2 + ((Math.floor(i/n) - center) * pitch)**2 <= radius**2 ? 1 : 0);
-  // Explicit paraxial wavefront path difference in an owned ideal pupil. Shared
-  // thin-lens distances supply focus geometry; no scalar blur radius is converted
-  // into a kernel. The finite pupil backend jointly propagates diffraction/defocus.
-  const opd = amplitude.map((_, i) => (((i % n - center) * pitch)**2 + ((Math.floor(i/n) - center) * pitch)**2) / 2 *
-    (1 / focusImageMm - 1 / objectImageMm) * 1000);
-  const kernel = calculateLensComplexPupilPsf({ propagationDistanceMm: focusImageMm, profile: parseLensComplexPupilProfile({ schemaVersion: "0.1.0", profileId: "owned-depth-pupil",
-    profileVersion: "0.1.0", scientificStatus: "approximation", opticalDomain: "lens-primary-optical-path-only", representation: "complex-pupil-amplitude-plus-opd",
-    pupilCoordinateSystem: "pupil-plane-metric-aligned-to-image-plane", imageFieldAxes: "+X right, +Y up", amplitudeMeaning: "relative-complex-pupil-amplitude-shape",
-    wavefrontMeaning: "optical-path-difference-micrometers", throughputOwnership: "separate-relative-pupil-throughput-factor", kernelEnergyNormalization: "unit-energy-shape",
-    propagationModel: "scalar-fraunhofer-discrete-reference", context: { focalLengthMm: 50, focus: { kind: "finite", distanceM: 5 },
-      apertureFNumber: c.apertureFNumber, fieldPointMm: { x: fieldXmm, y: 0 }, wavelengthNm: 500,
-      signedDefocusImagePlaneMicrometers: (focusImageMm - objectImageMm) * 1000 },
-    responseIncludes: { diffraction: true, aberration: false, defocus: true, pupilClippingShape: true }, relativePupilThroughputFactor: 1,
-    grid: { widthSamples: n, heightSamples: n, pupilSamplePitchMmX: pitch, pupilSamplePitchMmY: pitch, centerSampleX: center, centerSampleY: center,
-      relativeAmplitude: amplitude, opticalPathDifferenceMicrometers: opd }, sensorOpticalStackIncluded: false, sensorSamplingIncluded: false,
-    reconstructionIncluded: false, strayLightIncluded: false, evidence, uncertainty: { kind: "not-quantified", limitation: "Owned finite pupil; no lens calibration." },
-    limitations: ["Owned paraxial field-invariant ideal pupil. Finite discrete scalar pupil; no continuum optics certificate or depth-edge PSF composition."] }) }).value.kernel;
+  const n = 9, center = 4, kernel = ownedDepthPupilKernel(c.subjectDistanceM, c.apertureFNumber);
   expect(Math.abs(kernel.samplePitchMicrometersX / 1000 - c.imageSamplePitchMm)).toBeLessThan(1e-14);
   kernel.normalizedIntensity.forEach((v, i) => expect(Math.abs(v - c.expectedKernel[i]!)).toBeLessThan(1e-12));
   const rect = { x: { 2: 32, 5: 98, 10: 164 }[c.subjectDistanceM]!, y: 98, width: 4, height: 4 };

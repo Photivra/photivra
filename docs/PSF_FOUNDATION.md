@@ -150,6 +150,14 @@ The sampled-profile contract can be consumed by both preview and reference paths
 
 The complex-pupil scalar Fraunhofer evaluator is a deterministic reference calculation. A preview implementation may use a validated approximation, but it must preserve the same profile semantics, field orientation, throughput ownership and limitations.
 
+## Independent pupil sampling pilot
+
+The candidate Print qualification includes `test/print-depth-pupil-convergence.test.ts`. A separately authored factored finite DFT and continuous shifted-complex-pupil overlap integral compare the actual public backend at 25 cycles/mm, 500 nm, focus 5 m, subject distances 2/5/10 m and f/8,16,32. The focused continuous integral also agrees with the analytic ideal circular-pupil transfer. Independent Simpson evaluations at 4,096 and 16,384 intervals differ by less than `1e-11` for this domain.
+
+An unpadded pupil grid can sample intensity too coarsely even when amplitude propagation is numerically correct. Increasing pupil resolution without expanding the zero-padded grid does not necessarily converge to continuous intensity transfer. The historical 9×9 finite reference has absolute transfer errors exceeding 0.14 in the f/32 cases. Those finite reference outputs remain unchanged and are not physical convergence evidence.
+
+The pilot separately varies pupil resolution and padding: padded grids 9/17/33/61 with pupil-radius samples 2/4/8/15. Errors need not decrease monotonically at each finite circular-boundary raster. The final 61×61 grid has absolute transfer error below 0.01 at the tested frequency for all nine combinations. This is a candidate computational criterion informed by the pilot, not a predeclared physical calibration tolerance, quality threshold, all-frequency certificate, support-truncation guarantee for other stimuli, or real-lens validation. The declared finite pupil contract and its bounds remain unchanged. New frequencies, source support, fields, profiles or imaging domains require their own independent evidence.
+
 ## No scalar lens quality
 
 Photivra does not produce a universal lens sharpness or bokeh-quality score.
