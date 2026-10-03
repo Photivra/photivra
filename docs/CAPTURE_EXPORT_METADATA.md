@@ -1,6 +1,6 @@
 # Capture export metadata foundation (#16B)
 
-Release context: **package 1.0.1 candidate / root API 1.0.1**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0_1.md).
+Release context: **package 1.1.0 candidate / root API 1.1.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_1_0.md).
 
 `createCaptureExportMetadataPair()` is a browser-safe, deterministic **semantic metadata projection**, not an image exporter or proof of RAW/JPEG pixel derivation. Both future writers consume its single shared object; each resource has a distinct caller-owned document UUID and saved-incarnation UUID. `imageDataPairing = "not-verified"` prevents metadata agreement being mistaken for image agreement.
 

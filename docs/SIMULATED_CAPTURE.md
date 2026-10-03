@@ -1,6 +1,6 @@
 # Authoritative simulated capture: #15A/#15B
 
-Release context: **package 1.0.1 candidate / root API 1.0.1**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0_1.md).
+Release context: **package 1.1.0 candidate / root API 1.1.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_1_0.md).
 
 The container commits a format-neutral float master manifest before tone mapping/LDR conversion. It does not itself generate or convert pixels. The separate [#15B color API](CAPTURE_COLOR.md) converts supported planes and [#15C encoding API](LINEAR_CAPTURE_ENCODING.md) quantizes them without mutating the master. TIFF/DNG serialization and production-stage activation remain separate. #15, #112 and #16 are merged. Their explicit adapters own rendering and paired export; the container alone performs neither.
 

@@ -1,6 +1,6 @@
 # Usage Guide
 
-Release context: **package 1.0.1 candidate / root API 1.0.1**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0_1.md).
+Release context: **package 1.1.0 candidate / root API 1.1.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_1_0.md).
 
 For bounded capture-owned charge/noise/ADC → native RAW generation, see
 [Sensor RAW producer](SENSOR_RAW_PRODUCER.md). Upstream EQE/dark exposure results
@@ -6542,3 +6542,7 @@ The focus request must supply exactly one circle-of-confusion criterion: either 
 Additional named defocus, sampling, and motion samples can be supplied when a renderer or analysis client needs per-object outputs.
 
 See [Local POC Simulation API](POC_API.md#simulate) for the complete composed request/response semantics. That HTTP transport is repository-only contributor tooling and is not shipped as a package subpath; `simulatePocCamera()` itself is part of the browser-safe root package.
+
+## Native-only Print planning
+
+See [Print planning](PRINT_PLANNING.md) for a complete strict packed example and the exact-ratio integer policy. `calculatePrintPlan()` answers native sampling sufficiency and a compatible minimum file raster; `calculatePrintSizeLimit()` distinguishes finite, unbounded and unavailable sampling bounds. Quality and delivery are separately unassessed.

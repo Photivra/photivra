@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.0 candidate — review and publication pending
+
+- Add native-only Print planning and conditional size queries. Independent viewing distance and explicit pixel/stroke/line-pair conventions derive density; advanced manual PPI creates a distinct plan. Preserve confirmed native crop/orientation and exact-ratio integer output, reconcile declared lab constraints, and return no recommendation for upscale or conflicts. Captured detail and delivery remain unassessed. See `docs/PRINT_PLANNING.md`.
+- Align package/root creator identity at 1.1.0 for this additive release. Existing APIs, archived records, fixtures and all independent schema/POC/production-plan versions remain unchanged. See `docs/RELEASE_1_1_0.md`.
+
 ## 1.0.1 candidate — publication pending
 
 - Expand Node support to maintained 22/24 LTS plus 26 Current, with patched-major CI and the existing 22.13 minimum job, reviewed lifecycle windows and updated tooling guidance. Keep Node 24 build/typings baseline.

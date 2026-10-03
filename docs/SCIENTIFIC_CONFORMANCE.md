@@ -1,6 +1,6 @@
 # Scientific conformance: final V1 disposition (#131)
 
-Release context: **package 1.0.1 candidate / root API 1.0.1**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_0_1.md).
+Release context: **package 1.1.0 candidate / root API 1.1.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_1_0.md).
 
 The cross-stage conformance layer complements, rather than replaces, narrow unit tests. `test/cross-stage-conformance.test.ts` consumes #130's canonical owned fixture and merged public APIs only. It checks a coherent ideal-focus/projection→FOV/object-size→pixel-motion/defocus path, then controlled one-stop shutter and aperture variants across exposure, motion and diffraction.
 

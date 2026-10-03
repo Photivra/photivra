@@ -1,6 +1,6 @@
 # Public API reference
 
-Generated from the exact root exports for **@photivra/engine 1.0.1 / root contract 1.0.1** by `node scripts/generate-api-reference.mjs`. No module deep import is supported.
+Generated from the exact root exports for **@photivra/engine 1.1.0 / root contract 1.1.0** by `node scripts/generate-api-reference.mjs`. No module deep import is supported.
 
 Use [the developer guide](DEVELOPERS.md) for executable paths and scientific boundaries. Types are contracts, not runtime validation: parse untrusted data, preserve units/reference frames, read assessment blockers, and retain evidence/limitations. Optional properties do not imply a universal default. Model/schema IDs remain independent of the distribution.
 
@@ -1188,6 +1188,26 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`parseGenericLensCorrectionProfile`](api/output-lens-corrections.md#parsegenericlenscorrectionprofile) | Runtime |
 | [`ResolvedLensCorrectionPlan`](api/output-lens-corrections.md#resolvedlenscorrectionplan) | Type |
 | [`resolveLensCorrectionPlan`](api/output-lens-corrections.md#resolvelenscorrectionplan) | Runtime |
+
+## output/print-plan.ts
+
+[Detailed contracts](api/output-print-plan.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/output/print-plan.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculatePrintPlan`](api/output-print-plan.md#calculateprintplan) | Runtime |
+| [`calculatePrintSizeLimit`](api/output-print-plan.md#calculateprintsizelimit) | Runtime |
+| [`parsePrintPlanInput`](api/output-print-plan.md#parseprintplaninput) | Runtime |
+| [`PrintedImageSize`](api/output-print-plan.md#printedimagesize) | Type |
+| [`PrintLength`](api/output-print-plan.md#printlength) | Type |
+| [`PrintNativeSource`](api/output-print-plan.md#printnativesource) | Type |
+| [`PrintPlan`](api/output-print-plan.md#printplan) | Type |
+| [`PrintPlanInput`](api/output-print-plan.md#printplaninput) | Type |
+| [`PrintProviderConstraints`](api/output-print-plan.md#printproviderconstraints) | Type |
+| [`PrintRasterSampling`](api/output-print-plan.md#printrastersampling) | Type |
+| [`PrintSamplingCriterion`](api/output-print-plan.md#printsamplingcriterion) | Type |
+| [`PrintSizeLimit`](api/output-print-plan.md#printsizelimit) | Type |
+| [`PrintSizeLimitInput`](api/output-print-plan.md#printsizelimitinput) | Type |
 
 ## output/sdr-rendering.ts
 
