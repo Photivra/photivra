@@ -9,13 +9,22 @@ import { calculateDefocusCircleUsingFocusProjection } from "../src/optics/depth-
 const reference = JSON.parse(readFileSync(new URL("./fixtures/poc-projection-reuse-reference.json", import.meta.url), "utf8")) as {
   referenceCommit: string; cases: { id: string; input: PocSimulationRequest; responseSha256: string }[];
 };
+// Independently executed pre-optimization source; preserve the historical corpus.
+const darwinReference = JSON.parse(readFileSync(new URL("./fixtures/poc-projection-reuse-darwin-arm64-reference.json", import.meta.url), "utf8")) as {
+  referenceCommit: string; platform: string; architecture: string; verifiedNodeMajors: number[];
+  responseSha256Overrides: Record<string, string>;
+};
 describe("request-local defocus focus projection", () => {
   it("preserves complete pre-change POC response/provenance across the fixed 64-case corpus", () => {
     expect(reference.referenceCommit).toBe("c1374c31473f893310d1ce4f0d5a737aaba43ab5");
     expect(reference.cases).toHaveLength(64);
+    expect(darwinReference.referenceCommit).toBe(reference.referenceCommit);
+    const useDarwinReference = process.platform === darwinReference.platform && process.arch === darwinReference.architecture
+      && darwinReference.verifiedNodeMajors.includes(Number(process.versions.node.split(".")[0]));
     for (const fixture of reference.cases) {
       const response = simulatePocCamera(fixture.input);
-      expect(createHash("sha256").update(JSON.stringify(response)).digest("hex"), fixture.id).toBe(fixture.responseSha256);
+      const expected = (useDarwinReference ? darwinReference.responseSha256Overrides[fixture.id] : undefined) ?? fixture.responseSha256;
+      expect(createHash("sha256").update(JSON.stringify(response)).digest("hex"), fixture.id).toBe(expected);
     }
   });
   it("keeps the scalar calculation and provenance as the defocus oracle", () => {
