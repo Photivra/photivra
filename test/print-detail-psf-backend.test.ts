@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { expect, it } from "vitest";
 import { calculatePrintRegionDetail, type PrintRegionDetailInput, type CaptureOrientation } from "../src/index.js";
 import { renderPrintPsfExperiment, type PrintPsfExperiment } from "./helpers/print-psf-backend-fixture.js";
-import { statisticsFrame } from "./helpers/print-region-statistics-fixture.js";
+import { statisticsFrame, scalarRasterSha256 } from "./helpers/print-region-statistics-fixture.js";
 
 const bytes = readFileSync(new URL("./fixtures/print-detail/psf-backend-reference.json", import.meta.url));
 const reference = JSON.parse(bytes.toString()) as { cases: (PrintPsfExperiment & { expectedMean: number; expectedModulation: number; continuousApertureModulation: number })[] };
@@ -41,6 +41,8 @@ it.each(reference.cases)("executes $kernel $frequencyCyclesPerMm with $spatialSa
         "landscape-inverted": [7 - x, 7 - y], "portrait-counter-clockwise": [7 - y, x] }[orientation];
       return native[ny! * 8 + nx!]!;
     });
+    q.source.contentSha256 = scalarRasterSha256(oriented);
+    q.source.representationId = `owned-psf-${orientation}`;
     // Off-center selected region remains on the known target and excludes other
     // field/background regions; orientation does not reset source phase.
     q.region.rect = { x: 1, y: 2, width: 4, height: 4 };

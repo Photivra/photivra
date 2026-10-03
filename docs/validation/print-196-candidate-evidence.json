@@ -31,12 +31,20 @@
   },
   "referenceArtifacts": [
     {
+      "path": "test/fixtures/print-detail/capture-backend-reference.json",
+      "sha256": "fd43590d5ca0359da2d6bd575e9fe7d4b695bc57ba1ac02de80fa33ebf252355"
+    },
+    {
       "path": "test/fixtures/print-detail/contrast-reference.json",
       "sha256": "0fb9cd0f6e3e7f9eaff59fdfe6b570285c566f4da15ed55d19a1de9d0df88a8b"
     },
     {
       "path": "test/fixtures/print-detail/depth-backend-reference.json",
       "sha256": "d1bca3ad17e6730ad3861bd267d60f4601df7c7d50480d31af306e6eea46296f"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_capture_reference.py",
+      "sha256": "88ebc759768120aeca66114baddd0425c806b17a6ae86bc31b5b21c4ad9fadc5"
     },
     {
       "path": "test/fixtures/print-detail/generate_contrast_reference.py",
@@ -97,8 +105,8 @@
   ],
   "validation": {
     "node": "26.8.1",
-    "tests": 1994,
-    "testFiles": 155,
+    "tests": 1999,
+    "testFiles": 156,
     "coveragePercent": {
       "statements": 92.04,
       "branches": 88.55,
@@ -106,7 +114,7 @@
       "lines": 92.04
     },
     "strictPackedDocExamples": 67,
-    "packageFileCount": 809,
+    "packageFileCount": 810,
     "qualified": "bounded numerical and named public backend conformance only",
     "unqualified": "full #196 acceptance, capture/device/backend calibration, actual proof/UI scale, natural-image perception, human source/DCO review"
   },
@@ -156,6 +164,52 @@
       {
         "path": "test/print-region-readout-backend.test.ts",
         "sha256": "c9a1b006eeeebf1b1812790f415e31ea91bf550605be4289535ca1caa89b635f"
+      }
+    ]
+  },
+  "sourceCaptureProtocol": {
+    "version": "0.1.0",
+    "backend": "createProductionImageFormationPlan / environment capture / native RAW / processed output",
+    "nativeRaster": {
+      "pixelWidth": 2,
+      "pixelHeight": 2
+    },
+    "reference": "capture-backend-reference.json",
+    "source": "owned uniform flat-band environment",
+    "radianceScales": [
+      0.5,
+      1,
+      2,
+      4
+    ],
+    "wavelengthRangeNanometers": [
+      540,
+      560
+    ],
+    "exposureSeconds": 0.008,
+    "qe": 0.4,
+    "opticalTransmission": 0.85,
+    "providerQueriesPerCapture": 32,
+    "sourceRadiometryVerified": false,
+    "providerTransportVerified": false,
+    "physicalCalibration": "unassessed",
+    "humanReview": "pending",
+    "implementationFiles": [
+      {
+        "path": "test/print-region-capture-backend.test.ts",
+        "sha256": "1d4b4121e2b5b0bab82f56171fcf52b71a0eaad16e5a0304df75c5c665c9119d"
+      },
+      {
+        "path": "test/helpers/print-region-statistics-fixture.ts",
+        "sha256": "e1937d01204bcbbf7a7af32f0b3be4faa29af34b807ba399e6720a324fd8e117"
+      },
+      {
+        "path": "test/print-detail-depth-backend.test.ts",
+        "sha256": "7ff0b58d449a8c0989e55a798207d291fd3b936316c4775946239d0ebaa62f00"
+      },
+      {
+        "path": "test/print-detail-psf-backend.test.ts",
+        "sha256": "9f6e7a1640df34972f66f678423ed75a468a8ad6a2d98966dc15c933c4e7f88e"
       }
     ]
   }

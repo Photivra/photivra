@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "0.1.0",
+  "ownership": "photivra-owned",
+  "source": "generate_capture_reference.py",
+  "stimulus": "bounded flat-band uniform-radiance variant of the existing basic reference; no additional chart family",
+  "domain": {
+    "sourceRadianceWattsPerSquareMeterSteradianNanometer": 1e-08,
+    "wavelengthRangeNanometers": [
+      540,
+      560
+    ],
+    "midpointWavelengthNanometers": 550,
+    "sensorApertureMicrometers": [
+      800,
+      600
+    ],
+    "qe": 0.4,
+    "exposureSeconds": 0.008,
+    "focalLengthMm": 50,
+    "focusDistanceM": 5,
+    "apertureFNumber": 4,
+    "opticalTransmission": 0.85,
+    "darkCurrentElectronsPerSecond": 4,
+    "nativeRaster": [
+      2,
+      2
+    ],
+    "psf": "explicitly omitted",
+    "visibility": "uniform environment with no occlusion",
+    "backend": "public production environment-capture and processed-output path",
+    "qualification": "bounded computational SI conformance, no real scene/device calibration"
+  },
+  "cases": [
+    {
+      "radianceScale": 0.5,
+      "expectedPhotoElectrons": 17.391473784416952,
+      "expectedDarkElectrons": 0.032
+    },
+    {
+      "radianceScale": 1.0,
+      "expectedPhotoElectrons": 34.782947568833904,
+      "expectedDarkElectrons": 0.032
+    },
+    {
+      "radianceScale": 2.0,
+      "expectedPhotoElectrons": 69.56589513766781,
+      "expectedDarkElectrons": 0.032
+    },
+    {
+      "radianceScale": 4.0,
+      "expectedPhotoElectrons": 139.13179027533562,
+      "expectedDarkElectrons": 0.032
+    }
+  ]
+}
