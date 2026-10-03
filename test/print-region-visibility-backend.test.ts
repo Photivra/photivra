@@ -97,4 +97,7 @@ it.each(reference.cases)("executes actual production capture with a foreground m
   const digest = (value: typeof plan): string => createHash("sha256").update(JSON.stringify(value)).digest("hex");
   expect(digest(replay)).toBe(digest(plan));
   expect(queries - beforeReplay).toBe(16 * c.temporalSampleCount);
-});
+// Two complete 128-node production captures exceed the default five-second
+// deadline under Node 24 CI coverage (~6.5–6.7 s). This is a numerical
+// qualification fixture, not a performance gate; retain all nodes and replay.
+}, 15_000);

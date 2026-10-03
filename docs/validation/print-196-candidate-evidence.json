@@ -9,7 +9,7 @@
     "reviewedFiles": [
       {
         "path": "LICENSE",
-        "sha256": "9e84ed21575ef6e40165a58ee5a30860723ce8a4a4e548c2b91328a9ae1c86d0"
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
       },
       {
         "path": "matlab/CSF_base.m",
@@ -319,7 +319,7 @@
       },
       {
         "path": "test/print-region-visibility-backend.test.ts",
-        "sha256": "7d523983aa371150b40ae2124516eba5ec0743d1e17f5f7126f4cf4138c4ca81"
+        "sha256": "67e165dfe9c1d406df9a3559e5ae3299ddfcb0f64c725a26e2a8462a47cb137f"
       }
     ]
   },

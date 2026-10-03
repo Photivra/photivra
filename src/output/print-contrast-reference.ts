@@ -23,11 +23,13 @@ export interface PrintContrastReferenceInput {
   referenceId: string;
   stimulus: "static-neutral-d65-gabor";
   observer: "published-binocular-natural-pupil-reference";
+  /** Uniform D65 background/carrier mean; not the average of a finite photographic ROI. */
   meanLuminanceCdPerSquareMeter: number;
   spatialFrequencyCyclesPerDegree: number;
   gaussianEnvelopeSigmaDegrees: number;
   temporalFrequencyHz: number;
   eccentricityDegrees: number;
+  /** Neutral carrier fractional amplitude before the Gaussian envelope; not arbitrary ROI extrema. */
   modulationMichelson: number;
 }
 export interface PrintContrastReference {
