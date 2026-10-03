@@ -1,0 +1,183 @@
+{
+  "evidenceVersion": "0.1.0",
+  "referenceBackend": "Python standard-library binary64 independent transfer and discrete-level identities",
+  "sourceArtifactSha256": "0270a44168e574157067615c957a199355ac600be7a536663ab4769f59f860b9",
+  "cases": [
+    {
+      "orientation": "landscape",
+      "bitDepth": 8,
+      "raster": {
+        "pixelWidth": 16,
+        "pixelHeight": 12
+      },
+      "rgbFloat64LeSha256": "7b2a7f90dcd1d4b4ec903bb39f4a9113566426d9df1badff23bbcaa1bd2e3805",
+      "codesUint16LeSha256": "e86c753b2462d399a69b39d8653f621df2fe89728e508a8ff5bcf94b4fcce3cd",
+      "levelCodes": [
+        203,
+        170,
+        124
+      ],
+      "decodedLevels": [
+        0.5972017883637634,
+        0.4019777798321958,
+        0.20155625379439707
+      ],
+      "expectedMean": 0.400678400455638,
+      "expectedModulation": 0.49371956925984967
+    },
+    {
+      "orientation": "landscape",
+      "bitDepth": 16,
+      "raster": {
+        "pixelWidth": 16,
+        "pixelHeight": 12
+      },
+      "rgbFloat64LeSha256": "7b2a7f90dcd1d4b4ec903bb39f4a9113566426d9df1badff23bbcaa1bd2e3805",
+      "codesUint16LeSha256": "99ce354a60a946bc3cbe760613de6c054d560b8018793ee3f9823435b6d106f5",
+      "levelCodes": [
+        52280,
+        43593,
+        31754
+      ],
+      "decodedLevels": [
+        0.6000066394465915,
+        0.40000194205265727,
+        0.20000513947574203
+      ],
+      "expectedMean": 0.400003915756912,
+      "expectedModulation": 0.4999969802969828
+    },
+    {
+      "orientation": "portrait-clockwise",
+      "bitDepth": 8,
+      "raster": {
+        "pixelWidth": 12,
+        "pixelHeight": 16
+      },
+      "rgbFloat64LeSha256": "e6cf254dd05a1153ce1c2c47782e795696e26ecf6a8c5b6ec1636dc3a465e671",
+      "codesUint16LeSha256": "44269941b82f8d3e5009fae79ca1b41a4dced8a14f28962bf489b2c38f630ad6",
+      "levelCodes": [
+        203,
+        170,
+        124
+      ],
+      "decodedLevels": [
+        0.5972017883637634,
+        0.4019777798321958,
+        0.20155625379439707
+      ],
+      "expectedMean": 0.400678400455638,
+      "expectedModulation": 0.49371956925984967
+    },
+    {
+      "orientation": "portrait-clockwise",
+      "bitDepth": 16,
+      "raster": {
+        "pixelWidth": 12,
+        "pixelHeight": 16
+      },
+      "rgbFloat64LeSha256": "e6cf254dd05a1153ce1c2c47782e795696e26ecf6a8c5b6ec1636dc3a465e671",
+      "codesUint16LeSha256": "ff4a38253946876b6a04bd647d820ad41539fce75a6f248bd92d9c0283d38012",
+      "levelCodes": [
+        52280,
+        43593,
+        31754
+      ],
+      "decodedLevels": [
+        0.6000066394465915,
+        0.40000194205265727,
+        0.20000513947574203
+      ],
+      "expectedMean": 0.400003915756912,
+      "expectedModulation": 0.4999969802969828
+    },
+    {
+      "orientation": "landscape-inverted",
+      "bitDepth": 8,
+      "raster": {
+        "pixelWidth": 16,
+        "pixelHeight": 12
+      },
+      "rgbFloat64LeSha256": "e67327825fc34ea27a8293e4f72a01bee8982f9c6e89851884950e9bb4cec7de",
+      "codesUint16LeSha256": "ede9a715866667b41b5775102e60b981ff4448d79c96af3ce3995818d7cfe8e3",
+      "levelCodes": [
+        203,
+        170,
+        124
+      ],
+      "decodedLevels": [
+        0.5972017883637634,
+        0.4019777798321958,
+        0.20155625379439707
+      ],
+      "expectedMean": 0.400678400455638,
+      "expectedModulation": 0.49371956925984967
+    },
+    {
+      "orientation": "landscape-inverted",
+      "bitDepth": 16,
+      "raster": {
+        "pixelWidth": 16,
+        "pixelHeight": 12
+      },
+      "rgbFloat64LeSha256": "e67327825fc34ea27a8293e4f72a01bee8982f9c6e89851884950e9bb4cec7de",
+      "codesUint16LeSha256": "fe762078ebaafa302b332fa5dfd5061a7dcc1b7a03c87ae96a1294ef2ab7c703",
+      "levelCodes": [
+        52280,
+        43593,
+        31754
+      ],
+      "decodedLevels": [
+        0.6000066394465915,
+        0.40000194205265727,
+        0.20000513947574203
+      ],
+      "expectedMean": 0.400003915756912,
+      "expectedModulation": 0.4999969802969828
+    },
+    {
+      "orientation": "portrait-counter-clockwise",
+      "bitDepth": 8,
+      "raster": {
+        "pixelWidth": 12,
+        "pixelHeight": 16
+      },
+      "rgbFloat64LeSha256": "3a172937d0036560cfa17f981221ac99407a825570acd2a074beb7dca85af7b0",
+      "codesUint16LeSha256": "c3c8f8ca033f0dab6467a5579759a4ab43ab1d9eec080720362cab8ee15d1b01",
+      "levelCodes": [
+        203,
+        170,
+        124
+      ],
+      "decodedLevels": [
+        0.5972017883637634,
+        0.4019777798321958,
+        0.20155625379439707
+      ],
+      "expectedMean": 0.400678400455638,
+      "expectedModulation": 0.49371956925984967
+    },
+    {
+      "orientation": "portrait-counter-clockwise",
+      "bitDepth": 16,
+      "raster": {
+        "pixelWidth": 12,
+        "pixelHeight": 16
+      },
+      "rgbFloat64LeSha256": "3a172937d0036560cfa17f981221ac99407a825570acd2a074beb7dca85af7b0",
+      "codesUint16LeSha256": "5247180e207fc0976a63ddcc0058614e17301f983c432813eeb71a9447cf6239",
+      "levelCodes": [
+        52280,
+        43593,
+        31754
+      ],
+      "decodedLevels": [
+        0.6000066394465915,
+        0.40000194205265727,
+        0.20000513947574203
+      ],
+      "expectedMean": 0.400003915756912,
+      "expectedModulation": 0.4999969802969828
+    }
+  ]
+}
