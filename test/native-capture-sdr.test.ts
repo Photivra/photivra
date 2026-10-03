@@ -51,6 +51,38 @@ describe("bounded native capture SDR", () => {
     expect(actual.outputEncoding).toEqual(expected.rendering.value.outputEncoding);
     expect(actual.plan.capture).toEqual(v.capture); expect(actual.plan.tileCount).toBe(4);
   });
+  it.each([32, 64] as const)("matches reference pixels and diagnostics for float%i across tone/gamut policies", async (precision) => {
+    for (const bitDepth of [8, 16] as const) for (const toneCurve of ["identity", "positive-reinhard-per-channel"] as const) {
+      for (const gamutHandling of ["clip-components", "reject-out-of-range"] as const) {
+        const r = raw(259, 33);
+        r.planes = [{ ...r.planes[0]!, referenceWhiteValue: 2,
+          storage: { kind: precision === 32 ? "external-float32" : "external-float64", artifactId: "rgb-master",
+            sha256: "b".repeat(64), sampleCount: 259 * 33 * 3, byteOrder: "little-endian" } }];
+        const v = { ...input(259, 33), capture: createSimulatedCapture(r).value };
+        v.profile = { ...v.profile, bitDepth, toneCurve, gamutHandling, renderingExposureEv: -.25 };
+        const readTile = async (request: NativeCaptureSdrTileRequest): Promise<NativeCaptureSdrTile> => {
+          const t = tile(request, precision);
+          if (gamutHandling === "reject-out-of-range") {
+            for (let y = 0; y < request.height; y++) for (let x = 0; x < request.width * 3; x++) {
+              const i = y * t.rowStrideSamples + x;
+              t.samples[i] = Math.max(0, t.samples[i]!);
+            }
+          }
+          return t;
+        };
+        const full = await readTile({ captureId: "ignored", sourcePlaneId: "ignored", artifactId: "ignored", sha256: "ignored",
+          x: 0, y: 0, width: 259, height: 33 });
+        const packed = Array.from({ length: 259 * 33 * 3 }, (_, i) => full.samples[Math.floor(i / (259 * 3)) * full.rowStrideSamples + i % (259 * 3)]!);
+        const reference = createSimulatedCapture({ ...r, planes: [{ ...r.planes[0]!, storage: { kind: "inline-float64", samples: packed } }] }).value;
+        const expected = calculateCaptureSdr({ capture: reference, sourcePlaneId: "source", color: { kind: "already-transformed" }, profile: v.profile }).value.rendering.value;
+        const actual = await execute(v, { readTile, yieldControl: provider().yieldControl });
+        expect(Array.from(actual.integerSamples)).toEqual(expected.integerSamples);
+        expect(actual.diagnostics).toEqual(expected.diagnostics);
+        expect(actual.outputEncoding).toEqual(expected.outputEncoding);
+        expect(actual.displayAdaptation).toEqual(expected.displayAdaptation);
+      }
+    }
+  });
   it("keeps upstream color/WB, saturation and crop/orientation commitments intact", async () => {
     const source = loadLinearCaptureInput(); source.whiteBalanceIntent = { stateId: "wb", source: "manual-gains", locked: true,
       channelGains: { red: 2, green: 1, blue: .5 }, sourceProfile: null };
@@ -76,6 +108,12 @@ describe("bounded native capture SDR", () => {
       const c = createSimulatedCapture(r).value;
       const result = await execute({ ...input(), capture: c, maximumOutputBytes: 144 });
       expect(result.plan.capture).toEqual(c); expect(result.integerSamples.length).toBe(72);
+      const width = c.planes[0]!.pixelWidth, height = c.planes[0]!.pixelHeight;
+      const t = tile({ captureId: c.captureId, sourcePlaneId: "source", artifactId: "rgb-master", sha256: "b".repeat(64), x: 0, y: 0, width, height });
+      const samples = Array.from({ length: width * height * 3 }, (_, i) => t.samples[Math.floor(i / (width * 3)) * t.rowStrideSamples + i % (width * 3)]!);
+      const reference = createSimulatedCapture({ ...r, planes: [{ ...r.planes[0]!, storage: { kind: "inline-float64", samples } }] }).value;
+      expect(Array.from(result.integerSamples)).toEqual(calculateCaptureSdr({ capture: reference, sourcePlaneId: "source",
+        color: { kind: "already-transformed" }, profile: input().profile }).value.rendering.value.integerSamples);
     }
   });
   it("supports float32 precision and positive Reinhard without changing producer samples", async () => {
@@ -105,6 +143,7 @@ describe("bounded native capture SDR", () => {
       (t: NativeCaptureSdrTile): NativeCaptureSdrTile => ({ ...t, rowStrideSamples: 1 }),
       (t: NativeCaptureSdrTile): NativeCaptureSdrTile => ({ ...t, samples: new Float32Array(t.samples) }),
       (t: NativeCaptureSdrTile): NativeCaptureSdrTile => ({ ...t, samples: new Float64Array(new ArrayBuffer(300000), 0, t.samples.length) }),
+      (t: NativeCaptureSdrTile): NativeCaptureSdrTile => ({ ...t, samples: new Float64Array(new SharedArrayBuffer(t.samples.byteLength)) }),
       (t: NativeCaptureSdrTile): NativeCaptureSdrTile => { t.samples[0] = Infinity; return t; } ];
     for (const patch of patches) {
       const task = createNativeCaptureSdrTask(input(), { ...provider(), readTile: async (r): Promise<NativeCaptureSdrTile> => patch(tile(r)) });
@@ -112,6 +151,17 @@ describe("bounded native capture SDR", () => {
     }
     const v = input(); v.profile.gamutHandling = "reject-out-of-range";
     await expect(execute(v)).rejects.toThrow();
+  });
+  it("rejects resolved WB intent without application before provider work", () => {
+    for (const whiteBalanceApplication of ["intent-only", "not-applicable"] as const) {
+      const r = raw();
+      r.whiteBalanceIntent = { stateId: "wb", source: "manual-gains", locked: true,
+        channelGains: { red: 2, green: 1, blue: .5 }, sourceProfile: null };
+      r.planes = [{ ...r.planes[0]!, whiteBalanceApplication }];
+      const capture = createSimulatedCapture(r).value;
+      // This is a valid container, but it is not a render-ready WB state.
+      expect(() => createNativeCaptureSdrTask({ ...input(), capture }, provider())).toThrow("resolved linear-sRGB/D65");
+    }
   });
   it("cancels/disposes pending reads and rejects late completion; a fresh task recovers", async () => {
     for (const action of ["cancel", "dispose"] as const) {
@@ -140,6 +190,20 @@ describe("bounded native capture SDR", () => {
     const v = input(), p = provider(), task = createNativeCaptureSdrTask(v, p);
     v.profile.renderingExposureEv = 32; p.readTile = async (): Promise<NativeCaptureSdrTile> => { throw new Error("replacement"); };
     await task.run(); expect(task.takeOutput().plan.profile.renderingExposureEv).toBe(0);
+  });
+  it("rejects late host-yield settlement after disposal and allows actual timer cancellation", async () => {
+    let settle: (() => void) | undefined;
+    const pending = createNativeCaptureSdrTask(input(), { ...provider(), yieldControl: (): Promise<void> => new Promise(resolve => { settle = resolve; }) });
+    const running = pending.run();
+    await Promise.resolve();
+    expect(pending.completedTileCount).toBe(1);
+    pending.dispose(); settle!();
+    await expect(running).rejects.toThrow(); expect(pending.state).toBe("disposed"); expect(() => pending.takeOutput()).toThrow();
+    const task = createNativeCaptureSdrTask(input(300, 33), { ...provider(), yieldControl: async (): Promise<void> => {
+      await new Promise<void>(resolve => setTimeout(() => { task.cancel(); resolve(); }, 0));
+    } });
+    await expect(task.run()).rejects.toThrow(); expect(task.completedTileCount).toBe(1); expect(task.state).toBe("cancelled");
+    expect(() => task.takeOutput()).toThrow();
   });
   it("rejects unrepresentable scale before acquisition and clears failures in host yielding", async () => {
     const r = raw(); r.planes = [{ ...r.planes[0]!, referenceWhiteValue: Number.MIN_VALUE }];

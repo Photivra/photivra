@@ -52,4 +52,4 @@ console.log(JSON.stringify({ engineApiVersion: ENGINE_API_VERSION, width, height
   largestTileBytes: largestTile, maximumScratchPayloadBytes: task.plan.maximumScratchPayloadBytes,
   baseline, sampledPeak: { rss: peakRss, heapUsed: peakHeap, arrayBuffers: peakArrayBuffers }, runtime: process.version, platform: process.platform, arch: process.arch }));
 }
-for (const [width, height, bitDepth] of [[3000, 2000, 8], [6000, 4000, 8], [3000, 2000, 16]]) { globalThis.gc?.(); await measure(width, height, bitDepth); }
+for (const [width, height, bitDepth] of [[3000, 2000, 8], [6000, 4000, 8], [3000, 2000, 16], [6000, 4000, 16]]) { globalThis.gc?.(); await measure(width, height, bitDepth); }

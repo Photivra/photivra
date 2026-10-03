@@ -36,7 +36,7 @@ The provider's required `yieldControl(signal)` must yield to the host event loop
 
 `test/native-capture-sdr.test.ts` compares the unchanged capture reference across tile edges, row padding, 8/16-bit encoding, upstream WB and all four committed orientations/off-center crops. It checks invalid/stale/oversized domains, finite image data, float precision, pending-read cancellation, between-tile cancellation, disposal, ownership transfer and recovery, plus independently predicted pixels in a 1.2 MP synthetic raster.
 
-See [the validation record](NATIVE_CAPTURE_SDR_VALIDATION.md) for measured host-specific evidence. Run `node --expose-gc scripts/benchmark-native-capture-sdr.mjs` after build for deterministic 6 MP/24 MP timing and sampled process memory. Measurements are host-specific and use owned analytic samples, not licensed photographs or calibration. The packed example below runs through the real root package during consumer acceptance.
+See [the validation record](NATIVE_CAPTURE_SDR_VALIDATION.md) for measured host-specific evidence and [the technical review](NATIVE_CAPTURE_SDR_REVIEW.md) for the remaining human/source certification gates. Run `node --expose-gc scripts/benchmark-native-capture-sdr.mjs` after build for deterministic 6 MP/24 MP timing and sampled process memory at both 8 and 16 bits. Measurements are host-specific and use owned analytic samples, not licensed photographs or calibration. The packed example below runs through the real root package during consumer acceptance.
 
 ```ts
 import { createSimulatedCapture, createNativeCaptureSdrTask, LINEAR_CAPTURE_RGB_PROFILE, resolveCaptureColorModel } from "@photivra/engine";

@@ -12,6 +12,8 @@ Package version, lock root, citation and `ENGINE_API_VERSION` are aligned at 1.2
 
 Substantive human scientific/source review must cover supported color/WB states, source authentication/provider restrictions, geometry identity, typed-buffer ownership, cancellation/draining, measured resource limits, unchanged reference arithmetic and compatibility. Review contribution-specific DCO certification. An AI draft does not certify reusable source rights, device performance or calibration.
 
+The [technical review record](NATIVE_CAPTURE_SDR_REVIEW.md) records the follow-up evidence and exact outstanding gates. Both original PR commits lack DCO sign-offs; contributor certification and substantive human review remain prerequisites before marking this draft ready for merge. The follow-up strengthens float32/float64 policy parity, orientation pixels, pending WB/shared-buffer rejection, host-yield cancellation and maximum 24 MP/16-bit measurements. Current release-context headers now agree with the candidate; historical records remain unchanged.
+
 Run from the exact candidate tree, then require green supported Node 22.13/22/24/26 CI:
 
 ```sh
