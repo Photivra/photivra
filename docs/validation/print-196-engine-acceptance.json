@@ -1,0 +1,81 @@
+{
+  "recordVersion": "0.1.0",
+  "engineCandidate": "1.2.0",
+  "parentApprovedMerge": "c58d9eb9dcba807f020df45be1ed5ec4f6c081e4",
+  "parentReviewedHead": "43e4e9e4baac90f7b16c6e068b7964c0546a8134",
+  "parentTree": "0b9013746d1deddc0d3cf31d432f011ac5bf2ee8",
+  "newScientificSourceReview": "pending",
+  "newDcoCertification": "pending",
+  "engineAcceptance": "review-ready-bounded-computational-domain",
+  "fullNewUiAcceptance": "outstanding-in-app-owners",
+  "taggingAndPublicationApproved": false,
+  "backend": "simulateEnvironmentSensorRawFrame",
+  "sourceDomain": "owned-angular-neutral-grating-point-optics-540-560-nm",
+  "nativeRaster": [
+    4,
+    4
+  ],
+  "roi": [
+    0,
+    0,
+    4,
+    4
+  ],
+  "motion": "static",
+  "sourceRadiometryVerified": false,
+  "providerTransportVerified": false,
+  "deviceCalibration": "unassessed",
+  "observerAndNaturalImageVisibility": "unassessed",
+  "actualPrinterAndProductProofScale": "unassessed",
+  "axes": [
+    "x",
+    "y"
+  ],
+  "phasesRadians": [
+    0,
+    0.37
+  ],
+  "spatialMidpointCounts": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "maximumProviderCallbacksPerCapture": 2048,
+  "independentMethod": "80-digit Decimal Taylor cosine, analytic midpoint bound, previously independent SI photoelectron reference",
+  "maximumAbsoluteScalarError": 1e-12,
+  "adcErrorBound": "half the actual declared conversion gain per source photo reference, with same noise realization and all clipping flags false",
+  "qualifiedMeaning": "conditional neutral photo expectation and separately bound noisy/readout scalar diagnostics; no MTF/visibility/overall print verdict",
+  "localChecks": {
+    "node": "26.8.1",
+    "coverageNode": "24.19.0",
+    "tests": 2082,
+    "testFiles": 160,
+    "coveragePercent": {
+      "statements": 92.04,
+      "branches": 88.55,
+      "functions": 99.63,
+      "lines": 92.04
+    },
+    "strictPackedExamples": 67,
+    "packageFileCount": 812
+  },
+  "newArtifacts": [
+    {
+      "path": "test/fixtures/print-detail/generate_native_detail_reference.py",
+      "sha256": "dcf29815bd6736356bd2e487aa56689710c43879f2daa4728084bd4095f5bf11"
+    },
+    {
+      "path": "test/fixtures/print-detail/native-detail-reference.json",
+      "sha256": "112d188997ee421b5a3b969522263a07ed427e0f16f75e394feeae4ba20c6117"
+    },
+    {
+      "path": "test/print-detail-native-capture.test.ts",
+      "sha256": "31b28c10ff49abdba33353b84da4360f03b4f3100732dbcd657c4b6f1766c961"
+    },
+    {
+      "path": "docs/PRINT_196_ENGINE_ACCEPTANCE.md",
+      "sha256": "a3f6a9a48db3f0a8b89c63f14f3681c06a3f4aca7c9074a53c0d46ef8807362c"
+    }
+  ]
+}
