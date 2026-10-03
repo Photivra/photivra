@@ -633,6 +633,11 @@
       "kind": "type"
     },
     {
+      "name": "calculatePrintContrastReference",
+      "source": "src/output/print-contrast-reference.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculatePrintPlan",
       "source": "src/output/print-plan.ts",
       "kind": "runtime"
@@ -640,6 +645,16 @@
     {
       "name": "calculatePrintRegionDetail",
       "source": "src/output/print-detail.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculatePrintRegionDifference",
+      "source": "src/output/print-region-statistics.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculatePrintRegionNoise",
+      "source": "src/output/print-region-statistics.ts",
       "kind": "runtime"
     },
     {
@@ -2633,6 +2648,11 @@
       "kind": "runtime"
     },
     {
+      "name": "MAX_PRINT_REGION_STATISTICS_SAMPLES",
+      "source": "src/output/print-region-statistics.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "MeteringCapabilityCompatibilityAssessment",
       "source": "src/equipment/metering-capabilities.ts",
       "kind": "type"
@@ -3028,6 +3048,11 @@
       "kind": "runtime"
     },
     {
+      "name": "parsePrintContrastReferenceInput",
+      "source": "src/output/print-contrast-reference.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "parsePrintPlanInput",
       "source": "src/output/print-plan.ts",
       "kind": "runtime"
@@ -3035,6 +3060,16 @@
     {
       "name": "parsePrintRegionDetailInput",
       "source": "src/output/print-detail.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parsePrintRegionDifferenceInput",
+      "source": "src/output/print-region-statistics.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parsePrintRegionNoiseInput",
+      "source": "src/output/print-region-statistics.ts",
       "kind": "runtime"
     },
     {
@@ -3393,9 +3428,34 @@
       "kind": "type"
     },
     {
+      "name": "PRINT_CONTRAST_REFERENCE_MODEL_VERSION",
+      "source": "src/output/print-contrast-reference.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PRINT_CONTRAST_REFERENCE_UPSTREAM_REVISION",
+      "source": "src/output/print-contrast-reference.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "PRINT_REGION_DETAIL_MODEL_VERSION",
       "source": "src/output/print-detail.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "PRINT_REGION_STATISTICS_MODEL_VERSION",
+      "source": "src/output/print-region-statistics.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PrintContrastReference",
+      "source": "src/output/print-contrast-reference.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintContrastReferenceInput",
+      "source": "src/output/print-contrast-reference.ts",
+      "kind": "type"
     },
     {
       "name": "PrintDetailRegion",
@@ -3450,6 +3510,36 @@
     {
       "name": "PrintRegionDetailInput",
       "source": "src/output/print-detail.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintRegionDifferenceInput",
+      "source": "src/output/print-region-statistics.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintRegionDifferenceMeasurement",
+      "source": "src/output/print-region-statistics.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintRegionNoiseInput",
+      "source": "src/output/print-region-statistics.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintRegionNoiseMeasurement",
+      "source": "src/output/print-region-statistics.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintRegionRaster",
+      "source": "src/output/print-region-statistics.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintRegionStatisticsAssessment",
+      "source": "src/output/print-region-statistics.ts",
       "kind": "type"
     },
     {

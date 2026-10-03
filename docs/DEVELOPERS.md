@@ -61,6 +61,8 @@ Website navigation/documentation hosting belongs to [the app-side discovery tick
 
 ## Print planning
 
+The 1.2.0 candidate adds [registered linear statistics](PRINT_REGION_STATISTICS.md) and a separate [static contrast model reference](PRINT_CONTRAST_REFERENCE.md). The [combined #195/#196 review](PRINT_195_196_REVIEW.md) and [candidate ledger](validation/print-196-candidate-capabilities.json) list executed public-backend experiments and the remaining full release gates. None of these diagnostics supplies a universal quality score.
+
 Use [native-only Print planning](PRINT_PLANNING.md) for independently specified image size/viewing distance, explicit angular conventions, confirmed native crop and lab constraints. It returns no upscale recommendation and does not certify perceived quality or activate an exporter.
 
 The [regional Print detail diagnostic](PRINT_DETAIL_ASSESSMENT.md) measures one declared coherent sinusoidal fundamental in a selected linear-luminance ROI and records its exact source stage. Its [validation protocol](PRINT_DETAIL_VALIDATION.md) and [capability ledger](validation/print-detail-capabilities.json) distinguish mathematical conformance from blocked acquired-image, renderer and perceived-quality qualification.

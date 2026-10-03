@@ -1,0 +1,640 @@
+{
+  "schemaVersion": "0.1.0",
+  "ownership": "photivra-owned",
+  "reference": "exact rational ray-plane intersection, visibility interval and midpoint occupancy",
+  "domain": {
+    "nativeRaster": [
+      2,
+      2
+    ],
+    "imagingAreaMm": [
+      36,
+      24
+    ],
+    "focalLengthMm": 50,
+    "focusDistanceM": 5,
+    "nearPlaneDepthM": 2,
+    "farPlaneDepthM": 10,
+    "foregroundEdgeStartM": -0.5,
+    "foregroundMotionAxes": [
+      "x",
+      "y"
+    ],
+    "foregroundVelocityMps": 125,
+    "exposureSeconds": 0.008,
+    "nearRadianceScale": 0.5,
+    "farRadianceScale": 1.5,
+    "apertureMicrometers": [
+      800,
+      600
+    ],
+    "apertureSamplesPerAxis": 2,
+    "coordinateConvention": "native X right; outgoing ray points toward camera; near edge occupies world declared-axis coordinate <= edge(time)",
+    "optics": "explicit point optics with geometric aperture, no PSF/defocus/correction",
+    "calibration": "owned computational provider only; no private renderer or physical device"
+  },
+  "cases": [
+    {
+      "motionAxis": "x",
+      "temporalSampleCount": 2,
+      "sites": [
+        {
+          "siteIndex": 0,
+          "finiteRadianceScale": 0.5,
+          "continuousRadianceScale": 0.6436,
+          "foregroundCountsByAxis": [
+            2,
+            2
+          ]
+        },
+        {
+          "siteIndex": 1,
+          "finiteRadianceScale": 1.5,
+          "continuousRadianceScale": 1.3564,
+          "foregroundCountsByAxis": [
+            0,
+            0
+          ]
+        },
+        {
+          "siteIndex": 2,
+          "finiteRadianceScale": 0.5,
+          "continuousRadianceScale": 0.6436,
+          "foregroundCountsByAxis": [
+            2,
+            2
+          ]
+        },
+        {
+          "siteIndex": 3,
+          "finiteRadianceScale": 1.5,
+          "continuousRadianceScale": 1.3564,
+          "foregroundCountsByAxis": [
+            0,
+            0
+          ]
+        }
+      ],
+      "maximumAbsoluteRadianceScaleError": 0.5
+    },
+    {
+      "motionAxis": "x",
+      "temporalSampleCount": 4,
+      "sites": [
+        {
+          "siteIndex": 0,
+          "finiteRadianceScale": 0.75,
+          "continuousRadianceScale": 0.6436,
+          "foregroundCountsByAxis": [
+            3,
+            3
+          ]
+        },
+        {
+          "siteIndex": 1,
+          "finiteRadianceScale": 1.25,
+          "continuousRadianceScale": 1.3564,
+          "foregroundCountsByAxis": [
+            1,
+            1
+          ]
+        },
+        {
+          "siteIndex": 2,
+          "finiteRadianceScale": 0.75,
+          "continuousRadianceScale": 0.6436,
+          "foregroundCountsByAxis": [
+            3,
+            3
+          ]
+        },
+        {
+          "siteIndex": 3,
+          "finiteRadianceScale": 1.25,
+          "continuousRadianceScale": 1.3564,
+          "foregroundCountsByAxis": [
+            1,
+            1
+          ]
+        }
+      ],
+      "maximumAbsoluteRadianceScaleError": 0.25
+    },
+    {
+      "motionAxis": "x",
+      "temporalSampleCount": 8,
+      "sites": [
+        {
+          "siteIndex": 0,
+          "finiteRadianceScale": 0.625,
+          "continuousRadianceScale": 0.6436,
+          "foregroundCountsByAxis": [
+            7,
+            7
+          ]
+        },
+        {
+          "siteIndex": 1,
+          "finiteRadianceScale": 1.375,
+          "continuousRadianceScale": 1.3564,
+          "foregroundCountsByAxis": [
+            1,
+            1
+          ]
+        },
+        {
+          "siteIndex": 2,
+          "finiteRadianceScale": 0.625,
+          "continuousRadianceScale": 0.6436,
+          "foregroundCountsByAxis": [
+            7,
+            7
+          ]
+        },
+        {
+          "siteIndex": 3,
+          "finiteRadianceScale": 1.375,
+          "continuousRadianceScale": 1.3564,
+          "foregroundCountsByAxis": [
+            1,
+            1
+          ]
+        }
+      ],
+      "maximumAbsoluteRadianceScaleError": 0.125
+    },
+    {
+      "motionAxis": "x",
+      "temporalSampleCount": 16,
+      "sites": [
+        {
+          "siteIndex": 0,
+          "finiteRadianceScale": 0.625,
+          "continuousRadianceScale": 0.6436,
+          "foregroundCountsByAxis": [
+            14,
+            14
+          ]
+        },
+        {
+          "siteIndex": 1,
+          "finiteRadianceScale": 1.375,
+          "continuousRadianceScale": 1.3564,
+          "foregroundCountsByAxis": [
+            2,
+            2
+          ]
+        },
+        {
+          "siteIndex": 2,
+          "finiteRadianceScale": 0.625,
+          "continuousRadianceScale": 0.6436,
+          "foregroundCountsByAxis": [
+            14,
+            14
+          ]
+        },
+        {
+          "siteIndex": 3,
+          "finiteRadianceScale": 1.375,
+          "continuousRadianceScale": 1.3564,
+          "foregroundCountsByAxis": [
+            2,
+            2
+          ]
+        }
+      ],
+      "maximumAbsoluteRadianceScaleError": 0.0625
+    },
+    {
+      "motionAxis": "x",
+      "temporalSampleCount": 32,
+      "sites": [
+        {
+          "siteIndex": 0,
+          "finiteRadianceScale": 0.640625,
+          "continuousRadianceScale": 0.6436,
+          "foregroundCountsByAxis": [
+            28,
+            27
+          ]
+        },
+        {
+          "siteIndex": 1,
+          "finiteRadianceScale": 1.359375,
+          "continuousRadianceScale": 1.3564,
+          "foregroundCountsByAxis": [
+            5,
+            4
+          ]
+        },
+        {
+          "siteIndex": 2,
+          "finiteRadianceScale": 0.640625,
+          "continuousRadianceScale": 0.6436,
+          "foregroundCountsByAxis": [
+            28,
+            27
+          ]
+        },
+        {
+          "siteIndex": 3,
+          "finiteRadianceScale": 1.359375,
+          "continuousRadianceScale": 1.3564,
+          "foregroundCountsByAxis": [
+            5,
+            4
+          ]
+        }
+      ],
+      "maximumAbsoluteRadianceScaleError": 0.03125
+    },
+    {
+      "motionAxis": "x",
+      "temporalSampleCount": 64,
+      "sites": [
+        {
+          "siteIndex": 0,
+          "finiteRadianceScale": 0.6484375,
+          "continuousRadianceScale": 0.6436,
+          "foregroundCountsByAxis": [
+            55,
+            54
+          ]
+        },
+        {
+          "siteIndex": 1,
+          "finiteRadianceScale": 1.3515625,
+          "continuousRadianceScale": 1.3564,
+          "foregroundCountsByAxis": [
+            10,
+            9
+          ]
+        },
+        {
+          "siteIndex": 2,
+          "finiteRadianceScale": 0.6484375,
+          "continuousRadianceScale": 0.6436,
+          "foregroundCountsByAxis": [
+            55,
+            54
+          ]
+        },
+        {
+          "siteIndex": 3,
+          "finiteRadianceScale": 1.3515625,
+          "continuousRadianceScale": 1.3564,
+          "foregroundCountsByAxis": [
+            10,
+            9
+          ]
+        }
+      ],
+      "maximumAbsoluteRadianceScaleError": 0.015625
+    },
+    {
+      "motionAxis": "x",
+      "temporalSampleCount": 128,
+      "sites": [
+        {
+          "siteIndex": 0,
+          "finiteRadianceScale": 0.640625,
+          "continuousRadianceScale": 0.6436,
+          "foregroundCountsByAxis": [
+            111,
+            109
+          ]
+        },
+        {
+          "siteIndex": 1,
+          "finiteRadianceScale": 1.359375,
+          "continuousRadianceScale": 1.3564,
+          "foregroundCountsByAxis": [
+            19,
+            17
+          ]
+        },
+        {
+          "siteIndex": 2,
+          "finiteRadianceScale": 0.640625,
+          "continuousRadianceScale": 0.6436,
+          "foregroundCountsByAxis": [
+            111,
+            109
+          ]
+        },
+        {
+          "siteIndex": 3,
+          "finiteRadianceScale": 1.359375,
+          "continuousRadianceScale": 1.3564,
+          "foregroundCountsByAxis": [
+            19,
+            17
+          ]
+        }
+      ],
+      "maximumAbsoluteRadianceScaleError": 0.0078125
+    },
+    {
+      "motionAxis": "y",
+      "temporalSampleCount": 2,
+      "sites": [
+        {
+          "siteIndex": 0,
+          "finiteRadianceScale": 1.0,
+          "continuousRadianceScale": 1.2376,
+          "foregroundCountsByAxis": [
+            1,
+            1
+          ]
+        },
+        {
+          "siteIndex": 1,
+          "finiteRadianceScale": 1.0,
+          "continuousRadianceScale": 1.2376,
+          "foregroundCountsByAxis": [
+            1,
+            1
+          ]
+        },
+        {
+          "siteIndex": 2,
+          "finiteRadianceScale": 1.0,
+          "continuousRadianceScale": 0.7624,
+          "foregroundCountsByAxis": [
+            1,
+            1
+          ]
+        },
+        {
+          "siteIndex": 3,
+          "finiteRadianceScale": 1.0,
+          "continuousRadianceScale": 0.7624,
+          "foregroundCountsByAxis": [
+            1,
+            1
+          ]
+        }
+      ],
+      "maximumAbsoluteRadianceScaleError": 0.5
+    },
+    {
+      "motionAxis": "y",
+      "temporalSampleCount": 4,
+      "sites": [
+        {
+          "siteIndex": 0,
+          "finiteRadianceScale": 1.25,
+          "continuousRadianceScale": 1.2376,
+          "foregroundCountsByAxis": [
+            1,
+            1
+          ]
+        },
+        {
+          "siteIndex": 1,
+          "finiteRadianceScale": 1.25,
+          "continuousRadianceScale": 1.2376,
+          "foregroundCountsByAxis": [
+            1,
+            1
+          ]
+        },
+        {
+          "siteIndex": 2,
+          "finiteRadianceScale": 0.75,
+          "continuousRadianceScale": 0.7624,
+          "foregroundCountsByAxis": [
+            3,
+            3
+          ]
+        },
+        {
+          "siteIndex": 3,
+          "finiteRadianceScale": 0.75,
+          "continuousRadianceScale": 0.7624,
+          "foregroundCountsByAxis": [
+            3,
+            3
+          ]
+        }
+      ],
+      "maximumAbsoluteRadianceScaleError": 0.25
+    },
+    {
+      "motionAxis": "y",
+      "temporalSampleCount": 8,
+      "sites": [
+        {
+          "siteIndex": 0,
+          "finiteRadianceScale": 1.25,
+          "continuousRadianceScale": 1.2376,
+          "foregroundCountsByAxis": [
+            2,
+            2
+          ]
+        },
+        {
+          "siteIndex": 1,
+          "finiteRadianceScale": 1.25,
+          "continuousRadianceScale": 1.2376,
+          "foregroundCountsByAxis": [
+            2,
+            2
+          ]
+        },
+        {
+          "siteIndex": 2,
+          "finiteRadianceScale": 0.75,
+          "continuousRadianceScale": 0.7624,
+          "foregroundCountsByAxis": [
+            6,
+            6
+          ]
+        },
+        {
+          "siteIndex": 3,
+          "finiteRadianceScale": 0.75,
+          "continuousRadianceScale": 0.7624,
+          "foregroundCountsByAxis": [
+            6,
+            6
+          ]
+        }
+      ],
+      "maximumAbsoluteRadianceScaleError": 0.125
+    },
+    {
+      "motionAxis": "y",
+      "temporalSampleCount": 16,
+      "sites": [
+        {
+          "siteIndex": 0,
+          "finiteRadianceScale": 1.25,
+          "continuousRadianceScale": 1.2376,
+          "foregroundCountsByAxis": [
+            4,
+            4
+          ]
+        },
+        {
+          "siteIndex": 1,
+          "finiteRadianceScale": 1.25,
+          "continuousRadianceScale": 1.2376,
+          "foregroundCountsByAxis": [
+            4,
+            4
+          ]
+        },
+        {
+          "siteIndex": 2,
+          "finiteRadianceScale": 0.75,
+          "continuousRadianceScale": 0.7624,
+          "foregroundCountsByAxis": [
+            12,
+            12
+          ]
+        },
+        {
+          "siteIndex": 3,
+          "finiteRadianceScale": 0.75,
+          "continuousRadianceScale": 0.7624,
+          "foregroundCountsByAxis": [
+            12,
+            12
+          ]
+        }
+      ],
+      "maximumAbsoluteRadianceScaleError": 0.0625
+    },
+    {
+      "motionAxis": "y",
+      "temporalSampleCount": 32,
+      "sites": [
+        {
+          "siteIndex": 0,
+          "finiteRadianceScale": 1.234375,
+          "continuousRadianceScale": 1.2376,
+          "foregroundCountsByAxis": [
+            8,
+            9
+          ]
+        },
+        {
+          "siteIndex": 1,
+          "finiteRadianceScale": 1.234375,
+          "continuousRadianceScale": 1.2376,
+          "foregroundCountsByAxis": [
+            8,
+            9
+          ]
+        },
+        {
+          "siteIndex": 2,
+          "finiteRadianceScale": 0.765625,
+          "continuousRadianceScale": 0.7624,
+          "foregroundCountsByAxis": [
+            23,
+            24
+          ]
+        },
+        {
+          "siteIndex": 3,
+          "finiteRadianceScale": 0.765625,
+          "continuousRadianceScale": 0.7624,
+          "foregroundCountsByAxis": [
+            23,
+            24
+          ]
+        }
+      ],
+      "maximumAbsoluteRadianceScaleError": 0.03125
+    },
+    {
+      "motionAxis": "y",
+      "temporalSampleCount": 64,
+      "sites": [
+        {
+          "siteIndex": 0,
+          "finiteRadianceScale": 1.2421875,
+          "continuousRadianceScale": 1.2376,
+          "foregroundCountsByAxis": [
+            16,
+            17
+          ]
+        },
+        {
+          "siteIndex": 1,
+          "finiteRadianceScale": 1.2421875,
+          "continuousRadianceScale": 1.2376,
+          "foregroundCountsByAxis": [
+            16,
+            17
+          ]
+        },
+        {
+          "siteIndex": 2,
+          "finiteRadianceScale": 0.7578125,
+          "continuousRadianceScale": 0.7624,
+          "foregroundCountsByAxis": [
+            47,
+            48
+          ]
+        },
+        {
+          "siteIndex": 3,
+          "finiteRadianceScale": 0.7578125,
+          "continuousRadianceScale": 0.7624,
+          "foregroundCountsByAxis": [
+            47,
+            48
+          ]
+        }
+      ],
+      "maximumAbsoluteRadianceScaleError": 0.015625
+    },
+    {
+      "motionAxis": "y",
+      "temporalSampleCount": 128,
+      "sites": [
+        {
+          "siteIndex": 0,
+          "finiteRadianceScale": 1.23828125,
+          "continuousRadianceScale": 1.2376,
+          "foregroundCountsByAxis": [
+            33,
+            34
+          ]
+        },
+        {
+          "siteIndex": 1,
+          "finiteRadianceScale": 1.23828125,
+          "continuousRadianceScale": 1.2376,
+          "foregroundCountsByAxis": [
+            33,
+            34
+          ]
+        },
+        {
+          "siteIndex": 2,
+          "finiteRadianceScale": 0.76171875,
+          "continuousRadianceScale": 0.7624,
+          "foregroundCountsByAxis": [
+            94,
+            95
+          ]
+        },
+        {
+          "siteIndex": 3,
+          "finiteRadianceScale": 0.76171875,
+          "continuousRadianceScale": 0.7624,
+          "foregroundCountsByAxis": [
+            94,
+            95
+          ]
+        }
+      ],
+      "maximumAbsoluteRadianceScaleError": 0.0078125
+    }
+  ]
+}

@@ -96,5 +96,8 @@
       "post-resampling-linear",
       "post-encoding-decoded-linear"
     ]
-  }
+  },
+  "recordScope": "historical mathematical-only qualification snapshot; retained values and source hashes describe that snapshot, not current candidate",
+  "supersededBy": "print-196-candidate-capabilities.json",
+  "currentEvidenceInventory": "print-196-candidate-evidence.json"
 }

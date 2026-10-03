@@ -1,0 +1,1175 @@
+{
+  "protocolVersion": "0.1.0",
+  "rights": "Photivra-owned Apache-2.0 draft kernels/target/reference",
+  "sourceDomain": "wavelength-constant nonnegative spectral irradiance over 400..500 vacuum nm; normalized by 100 nm",
+  "raster": {
+    "pixelWidth": 8,
+    "pixelHeight": 8
+  },
+  "imagingAreaMm": {
+    "width": 8,
+    "height": 8
+  },
+  "sitePitchMm": 1,
+  "apertureMm": {
+    "width": 0.8,
+    "height": 0.6
+  },
+  "kernelPitchMm": 1,
+  "referenceBackend": "Python complex finite-kernel frequency response and closed-form midpoint/continuous aperture transfer",
+  "domainLimitation": "known finite local kernels, full analytic source support, no real lens/diffraction/defocus or scene/provider qualification",
+  "cases": [
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.5,
+      "continuousApertureModulation": 0.4677446418943195
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.4755282581475768,
+      "continuousApertureModulation": 0.4677446418943195
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.4696737161958764,
+      "continuousApertureModulation": 0.4677446418943195
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.46822586887452294,
+      "continuousApertureModulation": 0.4677446418943195
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.5,
+      "continuousApertureModulation": 0.4677446418943195
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.4755282581475768,
+      "continuousApertureModulation": 0.4677446418943195
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.4696737161958764,
+      "continuousApertureModulation": 0.4677446418943195
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.46822586887452294,
+      "continuousApertureModulation": 0.4677446418943195
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.5,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.48618496019883833,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.4828149482193526,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.4819775588904941,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.5,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.48618496019883833,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.4828149482193526,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.4819775588904941,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.5,
+      "continuousApertureModulation": 0.4506241411904041
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.4623893745218051,
+      "continuousApertureModulation": 0.4506241411904041
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.45353098193020597,
+      "continuousApertureModulation": 0.4506241411904041
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.4513487225790463,
+      "continuousApertureModulation": 0.4506241411904041
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.5,
+      "continuousApertureModulation": 0.4506241411904041
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.4623893745218051,
+      "continuousApertureModulation": 0.4506241411904041
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.45353098193020597,
+      "continuousApertureModulation": 0.4506241411904041
+    },
+    {
+      "kernel": "identity",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.4513487225790463,
+      "continuousApertureModulation": 0.4506241411904041
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.25,
+      "continuousApertureModulation": 0.23387232094715976
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.2377641290737884,
+      "continuousApertureModulation": 0.23387232094715976
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.2348368580979382,
+      "continuousApertureModulation": 0.23387232094715976
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.23411293443726147,
+      "continuousApertureModulation": 0.23387232094715976
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.25,
+      "continuousApertureModulation": 0.23387232094715976
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.2377641290737884,
+      "continuousApertureModulation": 0.23387232094715976
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.2348368580979382,
+      "continuousApertureModulation": 0.23387232094715976
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.23411293443726147,
+      "continuousApertureModulation": 0.23387232094715976
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.5,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.48618496019883833,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.4828149482193526,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.4819775588904941,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.5,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.48618496019883833,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.4828149482193526,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.4819775588904941,
+      "continuousApertureModulation": 0.481698881002058
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.25,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.23119468726090256,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.22676549096510298,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.22567436128952315,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.25,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.23119468726090256,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.22676549096510298,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "horizontal",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.22567436128952315,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.375,
+      "continuousApertureModulation": 0.3508084814207396
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.3566461936106826,
+      "continuousApertureModulation": 0.3508084814207396
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.3522552871469073,
+      "continuousApertureModulation": 0.3508084814207396
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.3511694016558922,
+      "continuousApertureModulation": 0.3508084814207396
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.375,
+      "continuousApertureModulation": 0.3508084814207396
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.3566461936106826,
+      "continuousApertureModulation": 0.3508084814207396
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.3522552871469073,
+      "continuousApertureModulation": 0.3508084814207396
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.3511694016558922,
+      "continuousApertureModulation": 0.3508084814207396
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.375,
+      "continuousApertureModulation": 0.3612741607515435
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.36463872014912874,
+      "continuousApertureModulation": 0.3612741607515435
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.36211121116451445,
+      "continuousApertureModulation": 0.3612741607515435
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.3614831691678706,
+      "continuousApertureModulation": 0.3612741607515435
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.375,
+      "continuousApertureModulation": 0.3612741607515435
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.36463872014912874,
+      "continuousApertureModulation": 0.3612741607515435
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.36211121116451445,
+      "continuousApertureModulation": 0.3612741607515435
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.3614831691678706,
+      "continuousApertureModulation": 0.3612741607515435
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.25,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.23119468726090256,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.22676549096510298,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.22567436128952315,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.25,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.23119468726090256,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.22676549096510298,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "isotropic",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.22567436128952315,
+      "continuousApertureModulation": 0.22531207059520206
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.39528470752104744,
+      "continuousApertureModulation": 0.36978460793146634
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.3759380968797161,
+      "continuousApertureModulation": 0.36978460793146634
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.3713096750736209,
+      "continuousApertureModulation": 0.36978460793146634
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.37016505126370824,
+      "continuousApertureModulation": 0.36978460793146634
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.39528470752104744,
+      "continuousApertureModulation": 0.36978460793146634
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.3759380968797161,
+      "continuousApertureModulation": 0.36978460793146634
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.3713096750736209,
+      "continuousApertureModulation": 0.36978460793146634
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.37016505126370824,
+      "continuousApertureModulation": 0.36978460793146634
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.3535533905932738,
+      "continuousApertureModulation": 0.340612545246527
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.3437846822675103,
+      "continuousApertureModulation": 0.340612545246527
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.34140172394413604,
+      "continuousApertureModulation": 0.340612545246527
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.34080960027120694,
+      "continuousApertureModulation": 0.340612545246527
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.3535533905932738,
+      "continuousApertureModulation": 0.340612545246527
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.3437846822675103,
+      "continuousApertureModulation": 0.340612545246527
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.34140172394413604,
+      "continuousApertureModulation": 0.340612545246527
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.34080960027120694,
+      "continuousApertureModulation": 0.340612545246527
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.1767766952966369,
+      "continuousApertureModulation": 0.1593196930010495
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.16347933113648733,
+      "continuousApertureModulation": 0.1593196930010495
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.1603474164005211,
+      "continuousApertureModulation": 0.1593196930010495
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.15957587120776473,
+      "continuousApertureModulation": 0.1593196930010495
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 1,
+      "expectedMean": 1,
+      "expectedModulation": 0.1767766952966369,
+      "continuousApertureModulation": 0.1593196930010495
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 2,
+      "expectedMean": 1,
+      "expectedModulation": 0.16347933113648733,
+      "continuousApertureModulation": 0.1593196930010495
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 4,
+      "expectedMean": 1,
+      "expectedModulation": 0.1603474164005211,
+      "continuousApertureModulation": 0.1593196930010495
+    },
+    {
+      "kernel": "asymmetric",
+      "frequencyCyclesPerMm": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "phaseRadians": 0.37,
+      "spatialSampleCount": 8,
+      "expectedMean": 1,
+      "expectedModulation": 0.15957587120776473,
+      "continuousApertureModulation": 0.1593196930010495
+    }
+  ]
+}

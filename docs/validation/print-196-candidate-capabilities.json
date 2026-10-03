@@ -1,0 +1,28 @@
+{
+  "ledgerVersion": "0.3.0",
+  "engineCandidate": "1.2.0",
+  "humanReview": "pending",
+  "fullAssessmentAcceptance": "blocked",
+  "releaseAfterFull196Acceptance": "blocked",
+  "integrationOrder": "reviewed engine contract publication precedes app integration; full new-UI acceptance remains required",
+  "evidenceDomain": "owned-bounded-public-backend-computational-conformance",
+  "capabilities": [
+    { "id": "native-print-planning-195", "status": "acceptance-tested", "test": "test/print-plan-acceptance.test.ts", "sourceQualityQualified": false },
+    { "id": "linear-paired-differences-and-repeat-statistics", "status": "arithmetic-conformance-tested", "test": "test/print-region-statistics.test.ts", "reference": "statistics-reference.json", "acquisitionQualification": "unassessed" },
+    { "id": "local-psf-aperture-detail", "status": "bounded-public-backend-conformance-tested", "test": "test/print-detail-psf-backend.test.ts", "reference": "psf-backend-reference.json", "deviceQualification": "unassessed" },
+    { "id": "ideal-photocharge-repeat-noise", "status": "bounded-public-backend-moment-conformance-tested", "test": "test/print-region-noise-backend.test.ts", "physicalNoiseCalibration": "unassessed", "clipping": "unassessed" },
+    { "id": "linear-high-bit-electronic-noise-and-clipping-stages", "status": "bounded-native-raw-producer-conformance-tested", "test": "test/print-region-readout-backend.test.ts", "reference": "readout-backend-reference.json", "nativeRaster": { "pixelWidth": 2, "pixelHeight": 2 }, "adcBitDepth": 12, "repeatCounts": [32, 64, 128, 256], "signalDomain": "conditional-neutral-electronic-reference", "sourceRadiometryVerified": false, "physicalNoiseCalibration": "unassessed", "displayRenderClipping": "unassessed" },
+    {"id": "owned-uniform-source-to-production-capture", "status": "bounded-public-production-capture-conformance-tested", "test": "test/print-region-capture-backend.test.ts", "reference": "capture-backend-reference.json", "nativeRaster": {"pixelWidth": 2, "pixelHeight": 2}, "sourceRadiometryVerified": false, "physicalCalibration": "unassessed", "visibilityTransport": "unassessed", "megapixelProducer": "unassessed"},
+    { "id": "exact-jpeg-decoded-processing-change", "status": "preserved-independent-decoder-conformance-tested", "test": "test/print-detail-jpeg-integration.test.ts", "reference": "processing-reference.json", "compressionArtifactClassification": "unassessed" },
+    { "id": "static-visible-depth-and-intentional-defocus", "status": "finite-public-pupil-and-owned-plane-conformance-tested", "test": "test/print-detail-depth-backend.test.ts", "reference": "depth-backend-reference.json", "continuumConvergence": "unassessed", "depthEdgeComposition": "unsupported", "actualCaptureBackendQualification": "unassessed" },
+    {"id": "ideal-padded-pupil-single-frequency-pilot", "status": "bounded-continuous-reference-conformance-tested", "test": "test/print-depth-pupil-convergence.test.ts", "reference": "pupil-convergence-reference.json", "frequencyCyclesPerMm": 25, "finalGridSamples": 61, "pupilRadiusSamples": 15, "maximumAbsoluteTransferError": 0.01, "criterion": "candidate-informed-by-pilot-not-physical-calibration", "historical9x9Qualified": false, "allFrequencies": "unassessed", "deviceQualification": "unassessed"},
+    { "id": "constant-visible-depth-translation-motion", "status": "bounded-public-backend-and-exposure-convergence-tested", "test": "test/print-detail-motion-backend.test.ts", "reference": "motion-backend-reference.json", "changingVisibility": "unsupported", "actualCaptureBackendQualification": "unassessed" },
+    {"id": "owned-moving-two-plane-source-visibility", "status": "bounded-public-production-capture-conformance-tested", "test": "test/print-region-visibility-backend.test.ts", "reference": "visibility-backend-reference.json", "nativeRaster": {"pixelWidth": 2, "pixelHeight": 2}, "temporalSampleCounts": [2, 4, 8, 16, 32, 64, 128], "motionAxes": ["x", "y"], "pointOptics": true, "nearDepthM": 2, "farDepthM": 10, "sceneVisibilityCalculatedByEngine": false, "providerTransportVerified": false, "movingDepthEdgePsf": "unsupported", "deviceQualification": "unassessed"},
+    { "id": "static-neutral-d65-gabor-contrast-reference", "status": "numerical-model-conformance-tested", "test": "test/print-contrast-reference.test.ts", "reference": "contrast-reference.json", "upstreamRevision": "f4b0b722af83001d7af979281e06ca642d36e4e8", "naturalImageStimulusMatch": "unassessed", "individualObserver": "unassessed" },
+    { "id": "aliasing-halos-color-and-tonal-clipping", "status": "unassessed", "reason": "separate-source-stage-qualified-protocol-and-reference-required" },
+    {"id": "owned-pdf-crop-enlargement-and-same-scale-reference", "status": "independently-inspected-public-artifact-and-engine-geometry-tested", "test": "test/print-proof-reference.test.ts", "reference": "proof-inspection-reference.json", "pdf": "output/pdf/print-proof-reference.pdf", "nativeCrop": [16, 8], "exactArchivedJpegStreams": true, "actualPrinterScale": "unassessed", "colorLuminance": "unassessed", "perception": "unassessed", "privateProductIntegration": "unassessed"},
+    { "id": "physical-proof-and-private-product-acceptance", "status": "blocked", "reason": "actual-immutable-capture-region-output-and-physical-scale-integration-evidence-required" },
+    { "id": "printer-substrate-icc", "status": "out-of-scope" },
+    { "id": "overall-print-pass", "status": "not-offered" }
+  ]
+}

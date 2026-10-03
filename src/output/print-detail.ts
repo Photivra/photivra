@@ -121,19 +121,16 @@ function raster(value: unknown): RasterDimensions {
 }
 function nullableDistance(value: unknown): number | null { return value === null ? null : positive(value); }
 
-/** Parse/copy bounded, untrusted region/source/target data and existing Print geometry.
- * Unknowns, sparse arrays and factual-reference-only numeric samples fail closed.
- */
-export function parsePrintRegionDetailInput(value: unknown): PrintRegionDetailInput {
-  const r = record(value, ["assessmentId", "print", "source", "region", "target", "samples"]);
-  const s = record(r.source, ["captureId", "representationId", "contentSha256", "raster", "stage", "domain", "registration", "processing", "noiseRealizationId", "evidence"]);
+/** Internal shared source boundary for the regional measurement protocols. */
+export function parsePrintDetailSource(value: unknown): PrintDetailSource {
+  const s = record(value, ["captureId", "representationId", "contentSha256", "raster", "stage", "domain", "registration", "processing", "noiseRealizationId", "evidence"]);
   if (typeof s.contentSha256 !== "string" || !/^[a-f0-9]{64}$/.test(s.contentSha256)) throw new InvalidConfigurationError("Print detail source requires a lowercase SHA-256 declaration.");
   const processing = record(s.processing, ["id", "version"]);
   if (!Array.isArray(s.evidence) || s.evidence.length > 16) throw new InvalidConfigurationError("Print detail evidence must be a bounded nonempty array.");
   for (const entry of s.evidence) record(entry, ["sourceOrigin", "sourceReference", "reuseStatus", "license", "note"]);
   const evidence = parseEvidenceList(s.evidence, "printDetail.source.evidence");
   if (evidence.some(e => e.reuseStatus === "factual-reference-only")) throw new InvalidConfigurationError("Numeric sample data require owned/reusable provenance.");
-  const source: PrintDetailSource = {
+  return {
     captureId: id(s.captureId), representationId: id(s.representationId), contentSha256: s.contentSha256,
     raster: raster(s.raster), stage: choice(s.stage, ["native-retained-linear", "post-resampling-linear", "post-encoding-decoded-linear"]),
     domain: choice(s.domain, ["relative-linear-luminance", "transfer-encoded-luma", "unknown"]),
@@ -141,19 +138,33 @@ export function parsePrintRegionDetailInput(value: unknown): PrintRegionDetailIn
     processing: { id: id(processing.id), version: id(processing.version) },
     noiseRealizationId: s.noiseRealizationId === null ? null : id(s.noiseRealizationId), evidence
   };
-  const regionRecord = record(r.region, ["id", "rect", "role", "subjectDistanceM", "focusDistanceM"]);
+}
+
+/** Internal shared ROI boundary; no target or signal interpretation is inferred. */
+export function parsePrintDetailRegion(value: unknown, source: PrintDetailSource, sampleValues: unknown): { region: PrintDetailRegion; samples: number[] } {
+  const regionRecord = record(value, ["id", "rect", "role", "subjectDistanceM", "focusDistanceM"]);
   const rr = record(regionRecord.rect, ["x", "y", "width", "height"]);
   const rect = { x: integer(rr.x, true), y: integer(rr.y, true), width: integer(rr.width), height: integer(rr.height) };
   requirePositiveInteger("region.width", rect.width); requirePositiveInteger("region.height", rect.height);
   // Subtraction avoids overflowing a safe-integer edge sum.
   if (rect.x > source.raster.pixelWidth - rect.width || rect.y > source.raster.pixelHeight - rect.height) throw new InvalidConfigurationError("Print region must fit the represented raster.");
   const sampleCount = rect.width * rect.height;
-  if (!Number.isSafeInteger(sampleCount) || sampleCount > MAX_PRINT_DETAIL_REGION_SAMPLES || !Array.isArray(r.samples) || r.samples.length !== sampleCount) throw new InvalidConfigurationError("Print detail requires a bounded exact row-major ROI array.");
+  if (!Number.isSafeInteger(sampleCount) || sampleCount > MAX_PRINT_DETAIL_REGION_SAMPLES || !Array.isArray(sampleValues) || sampleValues.length !== sampleCount) throw new InvalidConfigurationError("Print detail requires a bounded exact row-major ROI array.");
   const samples = Array.from({ length: sampleCount }, (_, i) => {
-    if (!Object.hasOwn(r.samples as object, i)) throw new InvalidConfigurationError("Sparse Print detail sample arrays are unsupported.");
-    return finite((r.samples as unknown[])[i]);
+    if (!Object.hasOwn(sampleValues as object, i)) throw new InvalidConfigurationError("Sparse Print detail sample arrays are unsupported.");
+    return finite((sampleValues as unknown[])[i]);
   });
   const region: PrintDetailRegion = { id: id(regionRecord.id), rect, role: choice(regionRecord.role, ["selected-subject", "field-diagnostic", "intentional-defocus"]), subjectDistanceM: nullableDistance(regionRecord.subjectDistanceM), focusDistanceM: nullableDistance(regionRecord.focusDistanceM) };
+  return { region, samples };
+}
+
+/** Parse/copy bounded, untrusted region/source/target data and existing Print geometry.
+ * Unknowns, sparse arrays and factual-reference-only numeric samples fail closed.
+ */
+export function parsePrintRegionDetailInput(value: unknown): PrintRegionDetailInput {
+  const r = record(value, ["assessmentId", "print", "source", "region", "target", "samples"]);
+  const source = parsePrintDetailSource(r.source);
+  const { region, samples } = parsePrintDetailRegion(r.region, source, r.samples);
   const t = record(r.target, ["id", "version", "kind", "cyclesAcrossRegion", "referenceModulation"]);
   const cycles = record(t.cyclesAcrossRegion, ["x", "y"]);
   const referenceModulation = positive(t.referenceModulation);

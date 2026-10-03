@@ -3,6 +3,9 @@
 ## 1.2.0 candidate — review and publication pending
 
 - Add metadata-only external RGB tile execution with explicit 24 MP/resource limits, whole-capture identity, unchanged reference arithmetic, cancellation/disposal and single-transfer output ownership. See `docs/NATIVE_CAPTURE_SDR.md`; review/version/publication and native-producer/device qualification remain separate.
+- Add bounded paired linear processing differences and repeat-capture temporal statistics, plus a restricted MIT-licensed castleCSF static neutral Gabor contrast reference. Independently test arithmetic and owned public PSF, photocharge, JPEG, depth/defocus and motion paths. Full #196 source/backend/perception/product acceptance remains blocked; see `docs/PRINT_195_196_REVIEW.md`.
+- Add explicit complex-pupil propagation distance and result binding (model 1.1.0), preserving omitted-input nominal focal-plane kernel values. Finite-focus callers can pass the shared resolved image distance without implying qualified exit-pupil geometry.
+- Audit #195 planning acceptance across print/viewing scales, retained crops, invalid-input recovery and exact integer alternatives.
 
 ## 1.1.0 — historical preparation notes
 

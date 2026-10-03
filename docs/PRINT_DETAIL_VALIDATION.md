@@ -1,6 +1,6 @@
 # Regional Print detail independent validation protocol 0.1.0
 
-This protocol tests the mathematical domain in [the model specification](PRINT_DETAIL_ASSESSMENT.md). Passing does not qualify arbitrary photographed targets, renderers, lenses, printers or perceptual decisions. [The capability ledger](validation/print-detail-capabilities.json) must retain these limits.
+This protocol tests the mathematical domain in [the model specification](PRINT_DETAIL_ASSESSMENT.md). Passing does not qualify arbitrary photographed targets, renderers, lenses, printers or perceptual decisions. [The capability ledger](validation/print-196-candidate-capabilities.json) must retain these limits.
 
 ## Public analytic evidence
 

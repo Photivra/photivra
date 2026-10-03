@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "0.1.0",
+  "pypdfVersion": "6.10.0",
+  "pdfSha256": "4b1bba8a3e6a44b8b41d9fddcbd0c3e404a4b2d3f455aab1d813d068aa141428",
+  "inspectedPages": 2,
+  "placements": [
+    {
+      "page": 1,
+      "sourceName": "landscape-q1",
+      "jpegSha256": "10675e622d2ff5e5a389d90205eeaf94c9c41b546d138457900b1acd215570d7",
+      "actualImageMatrixPoints": [
+        72.0,
+        0.0,
+        0.0,
+        57.6,
+        63.66614,
+        627.5339
+      ],
+      "actualClipPoints": [
+        70.86614,
+        649.1339,
+        57.6,
+        28.8
+      ],
+      "sourceRaster": [
+        20,
+        16
+      ],
+      "interpolationRequested": false,
+      "printedCropMm": [
+        20.32,
+        10.16
+      ]
+    },
+    {
+      "page": 1,
+      "sourceName": "landscape-q1",
+      "jpegSha256": "10675e622d2ff5e5a389d90205eeaf94c9c41b546d138457900b1acd215570d7",
+      "actualImageMatrixPoints": [
+        288.0,
+        0.0,
+        0.0,
+        230.4,
+        42.06614,
+        316.1197
+      ],
+      "actualClipPoints": [
+        70.86614,
+        402.5197,
+        230.4,
+        115.2
+      ],
+      "sourceRaster": [
+        20,
+        16
+      ],
+      "interpolationRequested": false,
+      "printedCropMm": [
+        81.28,
+        40.64
+      ]
+    },
+    {
+      "page": 2,
+      "sourceName": "landscape-q1",
+      "jpegSha256": "10675e622d2ff5e5a389d90205eeaf94c9c41b546d138457900b1acd215570d7",
+      "actualImageMatrixPoints": [
+        144.0,
+        0.0,
+        0.0,
+        115.2,
+        56.46614,
+        498.2173
+      ],
+      "actualClipPoints": [
+        70.86614,
+        541.4173,
+        115.2,
+        57.6
+      ],
+      "sourceRaster": [
+        20,
+        16
+      ],
+      "interpolationRequested": false,
+      "printedCropMm": [
+        40.64,
+        20.32
+      ]
+    },
+    {
+      "page": 2,
+      "sourceName": "landscape-q32",
+      "jpegSha256": "7fa1a655a8278b0da95c0c03201dba8a3d7d2c1bca4a1e199ec1def205eaafe9",
+      "actualImageMatrixPoints": [
+        144.0,
+        0.0,
+        0.0,
+        115.2,
+        300.2457,
+        498.2173
+      ],
+      "actualClipPoints": [
+        314.6457,
+        541.4173,
+        115.2,
+        57.6
+      ],
+      "sourceRaster": [
+        20,
+        16
+      ],
+      "interpolationRequested": false,
+      "printedCropMm": [
+        40.64,
+        20.32
+      ]
+    }
+  ],
+  "qualification": "actual PDF layout and DCT identity only; actual printer/device/color/perception unqualified"
+}

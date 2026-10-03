@@ -1,6 +1,6 @@
 # Native-only Print planning
 
-Release candidate: package/root API **1.1.0**, Print model **0.1.0**. This standalone browser-safe API answers native sampling sufficiency and the minimum compatible printer-file raster. It generates no pixels or files. See [API conventions](API_STYLE.md), [staged geometry](PHYSICS_FOUNDATION.md), [processed output](PROCESSED_OUTPUT.md) and [release review](RELEASE_1_1_0.md).
+Published in package/root API **1.1.0**, Print model **0.1.0**; retained in the **1.2.0** candidate. This standalone browser-safe API answers native sampling sufficiency and the minimum compatible printer-file raster. It generates no pixels or files. See [API conventions](API_STYLE.md), [staged geometry](PHYSICS_FOUNDATION.md), [processed output](PROCESSED_OUTPUT.md) and the [historical 1.1.0 release review](RELEASE_1_1_0.md).
 
 ## Authority and units
 
@@ -71,3 +71,5 @@ For untrusted requests use `parsePrintPlanInput()`. Calculation functions also p
 - [University of Iowa acuity testing](https://webeye.ophth.uiowa.edu/eyeforum/video/Refraction/Visual-Acuity-Testing/index.htm): optotype critical stroke detail is distinct from a whole optotype. This motivates explicitly declared conventions; it supplies no universal print sampling/quality guarantee.
 
 Implementation, prose and tests are original. References informed terminology and equations; no source tables, calibration, datasets or protected expression were incorporated. Independent tests cover the 160-PPI identity, high-precision angular reference, all orientations/off-center crop, ignored preview enlargement, unit and one-pixel boundaries, exact-ratio minimum search with fixed seed, lab conflicts, manual overrides, semantic bounds and invalid/extreme finite JSON. Human scientific/source/DCO review remains required before release. Advanced captured-detail/quality assessment remains separate (#196).
+
+The 1.2.0 acceptance audit additionally exercises stamp, book, home, gallery, billboard and half-mile dimensions/distances through the same source and explicit criterion, plus a heavy retained crop and recovery after invalid edits. These are geometric examples, not claims about eyesight, text readability, substrate or file-export readiness. The core #195 contract was delivered in PR #210 and published in 1.1.0; historical references to an unpublished geometry candidate are superseded. Actual UI/task/device and JPEG-delivery acceptance belongs to the consuming product and its exporter evidence, rather than this pixel-free planning API.

@@ -1,6 +1,6 @@
 # Regional Print detail diagnostic — model specification 0.1.0
 
-This is the bounded mathematical first slice of #196, stacked on the unpublished [Print geometry candidate](PRINT_PLANNING.md). Geometry must be reviewed and published before downstream integration. This diagnostic is not full #196 acceptance, a natural-image sharpness evaluator, a visibility threshold or an overall print pass. The [validation protocol](PRINT_DETAIL_VALIDATION.md) and [capability ledger](validation/print-detail-capabilities.json) identify what is tested and what remains blocked.
+This is the bounded mathematical first slice of #196, using the [Print geometry contract published in 1.1.0](PRINT_PLANNING.md). This diagnostic is not full #196 acceptance, a natural-image sharpness evaluator, a visibility threshold or an overall print pass. The [validation protocol](PRINT_DETAIL_VALIDATION.md) and [capability ledger](validation/print-196-candidate-capabilities.json) identify what is tested and what remains blocked. The additive [regional statistics protocols](PRINT_REGION_STATISTICS.md) separately measure processing differences and repeat-capture sample variance; they do not change this diagnostic's qualification or exclusions.
 
 ## Supported model and domain
 

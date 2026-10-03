@@ -1,0 +1,356 @@
+{
+  "schemaVersion": "0.1.0",
+  "engineCandidate": "1.2.0",
+  "humanScientificSourceReview": "pending",
+  "upstream": {
+    "repository": "https://github.com/gfxdisp/castleCSF",
+    "revision": "f4b0b722af83001d7af979281e06ca642d36e4e8",
+    "license": "MIT",
+    "reviewedFiles": [
+      {
+        "path": "LICENSE",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      {
+        "path": "matlab/CSF_base.m",
+        "sha256": "f5fd8185004c23be16fdd3af46e543cb9ab54b7c40150f247fd940f0703de904"
+      },
+      {
+        "path": "matlab/CSF_castleCSF.m",
+        "sha256": "8fb5b55bc1643ace2a92d84613c84b299e9c9252e7c1e04e2eb86844963f4a81"
+      },
+      {
+        "path": "matlab/CSF_stelaCSF_lum_peak.m",
+        "sha256": "66a941b5fe938c8eb4aed52a82e29ceb0aacb4fe947b0c91418e1d6308bd5520"
+      },
+      {
+        "path": "matlab/CSF_castleCSF_chrom.m",
+        "sha256": "09c49ccb2ccc2430a11c72825ea92d16fc00a6383f62a5017e73e3559d87bf38"
+      }
+    ]
+  },
+  "referenceArtifacts": [
+    {
+      "path": "output/pdf/print-proof-reference.pdf",
+      "sha256": "4b1bba8a3e6a44b8b41d9fddcbd0c3e404a4b2d3f455aab1d813d068aa141428"
+    },
+    {
+      "path": "test/fixtures/print-detail/capture-backend-reference.json",
+      "sha256": "fd43590d5ca0359da2d6bd575e9fe7d4b695bc57ba1ac02de80fa33ebf252355"
+    },
+    {
+      "path": "test/fixtures/print-detail/contrast-reference.json",
+      "sha256": "0fb9cd0f6e3e7f9eaff59fdfe6b570285c566f4da15ed55d19a1de9d0df88a8b"
+    },
+    {
+      "path": "test/fixtures/print-detail/depth-backend-reference.json",
+      "sha256": "d1bca3ad17e6730ad3861bd267d60f4601df7c7d50480d31af306e6eea46296f"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_capture_reference.py",
+      "sha256": "88ebc759768120aeca66114baddd0425c806b17a6ae86bc31b5b21c4ad9fadc5"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_contrast_reference.py",
+      "sha256": "29ffed237c8936bad7541eb71b5e3fc579bc59637733a613107462e7492a4563"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_depth_reference.py",
+      "sha256": "155cc00a3875786330177a766de1e2b95e0a323bd465338d107d33c93af574e5"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_motion_reference.py",
+      "sha256": "09233fe0b61ea6cc1e4d1b26cf94d01a2ade71c59ed952936d71cf68b2f35a19"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_processing_reference.py",
+      "sha256": "3fc7af6118f6d9ec454e56167df5bc3ff3a7c6632f44237eb9031d18abeda337"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_proof_reference.py",
+      "sha256": "5bd9c34ac4a625ff1c784e20b085fbb816e6c282869c0ba453f68ba82bd17fd4"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_psf_reference.py",
+      "sha256": "05f1ce4248d48a322d05d12ed7bc494cbb1d8a06eae55d3a84e27932943632a1"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_pupil_convergence_reference.py",
+      "sha256": "0d070a0ff2f7f7aedcc4720f27c0f303f0c693aa6c9e59332a327a9f488566ec"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_readout_reference.py",
+      "sha256": "8bee4c1b779ab0568c54631dca0f5222046f4f5add90c1fb8bcf4f5fbdbaa5d6"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_reference.py",
+      "sha256": "75571a248d1ff091017546547179de4087e49391d8318f290ff301703c2f8e37"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_statistics_reference.py",
+      "sha256": "8d12470787dd45f679cba7236ed76df11340b3dc73e23f24e77bdf4a54ed890b"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_visibility_reference.py",
+      "sha256": "2df5a0fda275c6ad5082324752f1f117ac7c8dcb1bb878ad785ad9a182377beb"
+    },
+    {
+      "path": "test/fixtures/print-detail/motion-backend-reference.json",
+      "sha256": "f26ea45676d3123be1bae6a8b288151c25c0db199c453a8f97c9ded9578b3b51"
+    },
+    {
+      "path": "test/fixtures/print-detail/processing-reference.json",
+      "sha256": "bf327ca94cb936642a420be401e2f944662d86aa95da04d58f51f83ef0b62c71"
+    },
+    {
+      "path": "test/fixtures/print-detail/proof-inspection-reference.json",
+      "sha256": "7595e8ec64145db879b42384c6f440b03b4eb3edde6ba89fb7d40a01fad47b7e"
+    },
+    {
+      "path": "test/fixtures/print-detail/proof-layout-reference.json",
+      "sha256": "a226c12708d0bff77023dcb57578492bd018314985ff850ba6086fa29fb2cb3d"
+    },
+    {
+      "path": "test/fixtures/print-detail/psf-backend-reference.json",
+      "sha256": "acafebedfed3ce2837cde6db121c80ac652de44a54c3ae2b2516b7369aa921fd"
+    },
+    {
+      "path": "test/fixtures/print-detail/pupil-convergence-reference.json",
+      "sha256": "f643078ead1c3375a73306bad033d40465241ed70a7c83e09c50ae5da815014e"
+    },
+    {
+      "path": "test/fixtures/print-detail/readout-backend-reference.json",
+      "sha256": "e2ac2a2cc6dbc84307184c54d2dc2f2bf1ba7eb28ac0b097a07e3bf3557c366c"
+    },
+    {
+      "path": "test/fixtures/print-detail/sdr-reference.json",
+      "sha256": "b65f1a8c2ce0b8f3b799946a0ec94110fe9623c6348d156e31d6e41729208c30"
+    },
+    {
+      "path": "test/fixtures/print-detail/statistics-reference.json",
+      "sha256": "f7599612838f18ccc4eaa6e1876e5ea0fc1c5b2c59651531f10e29fda8df1f5b"
+    },
+    {
+      "path": "test/fixtures/print-detail/verify_proof_reference.py",
+      "sha256": "c199a248033d7d7b0003239dba5efc4adfdfbb37ac8198497bf1b4eab4492aa1"
+    },
+    {
+      "path": "test/fixtures/print-detail/visibility-backend-reference.json",
+      "sha256": "228c2a50c4661612c93c2c316ebdd26eacd0c3cc8eb234f0dd9110748b753cb8"
+    }
+  ],
+  "validation": {
+    "node": "26.8.1",
+    "tests": 2065,
+    "testFiles": 159,
+    "coveragePercent": {
+      "statements": 92.04,
+      "branches": 88.55,
+      "functions": 99.63,
+      "lines": 92.04
+    },
+    "strictPackedDocExamples": 67,
+    "packageFileCount": 810,
+    "qualified": "bounded numerical and named public backend conformance only",
+    "unqualified": "full #196 acceptance, capture/device/backend calibration, actual proof/UI scale, natural-image perception, human source/DCO review",
+    "additionalFullCoverageNode": "24.19.0"
+  },
+  "electronicReadoutProtocol": {
+    "version": "0.1.0",
+    "backend": "simulateSensorRawFrame",
+    "producerSchemaVersion": "0.3.0",
+    "captureNoiseModelVersion": "0.2.0",
+    "nativeRaster": {
+      "pixelWidth": 2,
+      "pixelHeight": 2
+    },
+    "containerBitDepth": 16,
+    "adcBitDepth": 12,
+    "sourceRadiometryVerified": false,
+    "scalarInterpretation": "declared conditional ideal neutral encoding, not photometric calibration",
+    "stageIsolation": "deterministic charge injection, zero photo/dark means and zero read noise",
+    "repeatCounts": [
+      32,
+      64,
+      128,
+      256
+    ],
+    "repeatModel": {
+      "photoMeanElectrons": 200,
+      "darkMeanElectrons": 8,
+      "readNoiseRmsElectrons": [
+        0,
+        2
+      ],
+      "referenceElectronsPerRelativeUnit": 200
+    },
+    "signedDarkModel": {
+      "photoMeanElectrons": 0,
+      "darkMeanElectrons": 0,
+      "readNoiseRmsElectrons": 8,
+      "blackLevelCode": 0,
+      "referenceElectronsPerRelativeUnit": 100
+    },
+    "uncertainty": "not-quantified; broad conformance bands are not confidence for a photograph",
+    "humanReview": "pending",
+    "implementationFiles": [
+      {
+        "path": "test/helpers/print-readout-backend-fixture.ts",
+        "sha256": "8582e513a6fba97035095a335e110a050d2116b701a504502f5dbf52bbc09c0f"
+      },
+      {
+        "path": "test/print-region-readout-backend.test.ts",
+        "sha256": "c9a1b006eeeebf1b1812790f415e31ea91bf550605be4289535ca1caa89b635f"
+      }
+    ]
+  },
+  "sourceCaptureProtocol": {
+    "version": "0.1.0",
+    "backend": "createProductionImageFormationPlan / environment capture / native RAW / processed output",
+    "nativeRaster": {
+      "pixelWidth": 2,
+      "pixelHeight": 2
+    },
+    "reference": "capture-backend-reference.json",
+    "source": "owned uniform flat-band environment",
+    "radianceScales": [
+      0.5,
+      1,
+      2,
+      4
+    ],
+    "wavelengthRangeNanometers": [
+      540,
+      560
+    ],
+    "exposureSeconds": 0.008,
+    "qe": 0.4,
+    "opticalTransmission": 0.85,
+    "providerQueriesPerCapture": 32,
+    "sourceRadiometryVerified": false,
+    "providerTransportVerified": false,
+    "physicalCalibration": "unassessed",
+    "humanReview": "pending",
+    "implementationFiles": [
+      {
+        "path": "test/print-region-capture-backend.test.ts",
+        "sha256": "1d4b4121e2b5b0bab82f56171fcf52b71a0eaad16e5a0304df75c5c665c9119d"
+      },
+      {
+        "path": "test/helpers/print-region-statistics-fixture.ts",
+        "sha256": "e1937d01204bcbbf7a7af32f0b3be4faa29af34b807ba399e6720a324fd8e117"
+      },
+      {
+        "path": "test/print-detail-depth-backend.test.ts",
+        "sha256": "3378d62426b40fda012cdfeb6caa7b02bdf81e7931bc501a3e1a2b90d5ecb6ca"
+      },
+      {
+        "path": "test/print-detail-psf-backend.test.ts",
+        "sha256": "9f6e7a1640df34972f66f678423ed75a468a8ad6a2d98966dc15c933c4e7f88e"
+      }
+    ]
+  },
+  "pupilSamplingPilot": {
+    "version": "0.1.0",
+    "reference": "pupil-convergence-reference.json",
+    "frequencyCyclesPerMm": 25,
+    "subjectDistancesM": [
+      2,
+      5,
+      10
+    ],
+    "apertureFNumbers": [
+      8,
+      16,
+      32
+    ],
+    "focusDistanceM": 5,
+    "wavelengthNm": 500,
+    "finalGridSamples": 61,
+    "pupilRadiusSamples": 15,
+    "maximumAbsoluteTransferError": 0.01,
+    "criterion": "candidate-informed-by-pilot-not-predeclared-physical-calibration",
+    "historical9x9Qualified": false,
+    "allFrequencies": "unassessed",
+    "humanReview": "pending",
+    "implementationFiles": [
+      {
+        "path": "test/helpers/print-depth-pupil-fixture.ts",
+        "sha256": "338dc84fdfa24f18bb5ae0c88918a9d5f8b33c66eef629ea01d061a780aaba94"
+      },
+      {
+        "path": "test/print-depth-pupil-convergence.test.ts",
+        "sha256": "754192f320688c2f314b682b8dc086556706eb3050fe31972496087cf26e04a3"
+      }
+    ]
+  },
+  "movingVisibilityProtocol": {
+    "version": "0.1.0",
+    "reference": "visibility-backend-reference.json",
+    "backend": "actual public production environment capture and native RAW/processed output",
+    "nearDepthM": 2,
+    "farDepthM": 10,
+    "foregroundVelocityMps": 125,
+    "motionAxes": [
+      "x",
+      "y"
+    ],
+    "exposureSeconds": 0.008,
+    "temporalSampleCounts": [
+      2,
+      4,
+      8,
+      16,
+      32,
+      64,
+      128
+    ],
+    "maximumAbsoluteSourceScaleError": "1 / temporalSampleCount",
+    "engineSceneVisibilityCalculated": false,
+    "providerTransportVerified": false,
+    "sourceRadiometryVerified": false,
+    "psf": "explicitly omitted",
+    "movingDepthEdgePsf": "unsupported",
+    "humanReview": "pending",
+    "implementationFiles": [
+      {
+        "path": "test/helpers/tier-production-fixture.ts",
+        "sha256": "b8b0beda3907fe63190cdc1ce1d8bed0197901ba3f76802e3b2dea12f0e4f176"
+      },
+      {
+        "path": "test/print-region-visibility-backend.test.ts",
+        "sha256": "67e165dfe9c1d406df9a3559e5ae3299ddfcb0f64c725a26e2a8462a47cb137f"
+      }
+    ]
+  },
+  "physicalProofReference": {
+    "version": "0.1.0",
+    "reference": "proof-layout-reference.json",
+    "inspection": "proof-inspection-reference.json",
+    "pdf": "output/pdf/print-proof-reference.pdf",
+    "reportlabVersion": "4.4.9",
+    "pypdfVersion": "6.10.0",
+    "pageSizeMm": [
+      210,
+      297
+    ],
+    "pdfOperatorTolerancePoints": 0.0001,
+    "nativeRetainedCrop": [
+      16,
+      8
+    ],
+    "generatorReproduction": "byte-identical",
+    "finalPagesVisuallyInspected": 2,
+    "embeddedFontPrograms": false,
+    "actualPrinterScale": "unassessed",
+    "privateProductIntegration": "unassessed",
+    "colorLuminancePerception": "unassessed",
+    "humanReview": "pending",
+    "implementationFiles": [
+      {
+        "path": "test/print-proof-reference.test.ts",
+        "sha256": "29c6f28141830bfc926257c41558c54f1d73ffc06783360c5900dcfbcbfbd7b1"
+      }
+    ]
+  }
+}

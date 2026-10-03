@@ -1,0 +1,169 @@
+{
+  "schemaVersion": "0.1.0",
+  "ownership": "photivra-owned",
+  "humanReview": "pending",
+  "generator": "generate_proof_reference.py",
+  "reportlabVersion": "4.4.9",
+  "sourceManifestSha256": "2ab550758af1217cec245b22104f2f157fc1b5b98023e11b983cd8b51b6f99cc",
+  "pdfPath": "output/pdf/print-proof-reference.pdf",
+  "pdfSha256": "4b1bba8a3e6a44b8b41d9fddcbd0c3e404a4b2d3f455aab1d813d068aa141428",
+  "pageSizeMm": [
+    210,
+    297
+  ],
+  "placements": [
+    {
+      "page": 1,
+      "sourceName": "landscape-q1",
+      "captureId": "00000000-0000-4000-8000-000000000300",
+      "jpegSha256": "10675e622d2ff5e5a389d90205eeaf94c9c41b546d138457900b1acd215570d7",
+      "archivedCreatorVersion": "1.1.0",
+      "sourceRaster": {
+        "pixelWidth": 20,
+        "pixelHeight": 16
+      },
+      "roi": {
+        "x": 2,
+        "y": 2,
+        "width": 16,
+        "height": 8
+      },
+      "fullWidthInches": 1.0,
+      "printedFullImageMm": [
+        25.4,
+        20.32
+      ],
+      "printedCropMm": [
+        20.32,
+        10.16
+      ],
+      "cropOriginMm": [
+        25.0,
+        229.0
+      ],
+      "fullImageMatrixPoints": [
+        72.0,
+        0,
+        0,
+        57.6,
+        63.666141732283464,
+        627.5338582677165
+      ]
+    },
+    {
+      "page": 1,
+      "sourceName": "landscape-q1",
+      "captureId": "00000000-0000-4000-8000-000000000300",
+      "jpegSha256": "10675e622d2ff5e5a389d90205eeaf94c9c41b546d138457900b1acd215570d7",
+      "archivedCreatorVersion": "1.1.0",
+      "sourceRaster": {
+        "pixelWidth": 20,
+        "pixelHeight": 16
+      },
+      "roi": {
+        "x": 2,
+        "y": 2,
+        "width": 16,
+        "height": 8
+      },
+      "fullWidthInches": 4.0,
+      "printedFullImageMm": [
+        101.6,
+        81.28
+      ],
+      "printedCropMm": [
+        81.28,
+        40.64
+      ],
+      "cropOriginMm": [
+        25.0,
+        142.0
+      ],
+      "fullImageMatrixPoints": [
+        288.0,
+        0,
+        0,
+        230.4,
+        42.06614173228346,
+        316.1196850393701
+      ]
+    },
+    {
+      "page": 2,
+      "sourceName": "landscape-q1",
+      "captureId": "00000000-0000-4000-8000-000000000300",
+      "jpegSha256": "10675e622d2ff5e5a389d90205eeaf94c9c41b546d138457900b1acd215570d7",
+      "archivedCreatorVersion": "1.1.0",
+      "sourceRaster": {
+        "pixelWidth": 20,
+        "pixelHeight": 16
+      },
+      "roi": {
+        "x": 2,
+        "y": 2,
+        "width": 16,
+        "height": 8
+      },
+      "fullWidthInches": 2.0,
+      "printedFullImageMm": [
+        50.8,
+        40.64
+      ],
+      "printedCropMm": [
+        40.64,
+        20.32
+      ],
+      "cropOriginMm": [
+        25.0,
+        191.0
+      ],
+      "fullImageMatrixPoints": [
+        144.0,
+        0,
+        0,
+        115.2,
+        56.46614173228347,
+        498.21732283464564
+      ]
+    },
+    {
+      "page": 2,
+      "sourceName": "landscape-q32",
+      "captureId": "00000000-0000-4000-8000-000000000300",
+      "jpegSha256": "7fa1a655a8278b0da95c0c03201dba8a3d7d2c1bca4a1e199ec1def205eaafe9",
+      "archivedCreatorVersion": "1.1.0",
+      "sourceRaster": {
+        "pixelWidth": 20,
+        "pixelHeight": 16
+      },
+      "roi": {
+        "x": 2,
+        "y": 2,
+        "width": 16,
+        "height": 8
+      },
+      "fullWidthInches": 2.0,
+      "printedFullImageMm": [
+        50.8,
+        40.64
+      ],
+      "printedCropMm": [
+        40.64,
+        20.32
+      ],
+      "cropOriginMm": [
+        111.0,
+        191.0
+      ],
+      "fullImageMatrixPoints": [
+        144.0,
+        0,
+        0,
+        115.2,
+        300.2456692913386,
+        498.21732283464564
+      ]
+    }
+  ],
+  "qualification": "reference geometry and immutable byte/crop identity only; actual print/device/perception unqualified"
+}
