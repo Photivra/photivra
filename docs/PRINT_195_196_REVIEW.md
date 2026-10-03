@@ -1,5 +1,7 @@
 # Print #195 / #196 candidate evidence and release review
 
+Historical candidate record, retained without relabeling its original evidence. PR #217 subsequently received owner approval and was merged; see the [current engine acceptance audit](PRINT_196_ENGINE_ACCEPTANCE.md) for approval identity, additional native-capture evidence and engine/app gate ownership.
+
 This record accompanies the 1.2.0 candidate. It preserves the full #196 acceptance gate: bounded computational conformance does not close the device/backend, proof UI or natural-image perception obligations of the full new-UI release. Engine publication precedes dependent app integration; app acceptance is not treated as an engine dependency cycle. No tag or distribution is created. Historical 1.1.0 diagnostic ledgers and JPEG artifacts remain unchanged.
 
 ## Planning acceptance (#195)
