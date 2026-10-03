@@ -31,6 +31,10 @@
   },
   "referenceArtifacts": [
     {
+      "path": "output/pdf/print-proof-reference.pdf",
+      "sha256": "4b1bba8a3e6a44b8b41d9fddcbd0c3e404a4b2d3f455aab1d813d068aa141428"
+    },
+    {
       "path": "test/fixtures/print-detail/capture-backend-reference.json",
       "sha256": "fd43590d5ca0359da2d6bd575e9fe7d4b695bc57ba1ac02de80fa33ebf252355"
     },
@@ -61,6 +65,10 @@
     {
       "path": "test/fixtures/print-detail/generate_processing_reference.py",
       "sha256": "3fc7af6118f6d9ec454e56167df5bc3ff3a7c6632f44237eb9031d18abeda337"
+    },
+    {
+      "path": "test/fixtures/print-detail/generate_proof_reference.py",
+      "sha256": "5bd9c34ac4a625ff1c784e20b085fbb816e6c282869c0ba453f68ba82bd17fd4"
     },
     {
       "path": "test/fixtures/print-detail/generate_psf_reference.py",
@@ -95,6 +103,14 @@
       "sha256": "bf327ca94cb936642a420be401e2f944662d86aa95da04d58f51f83ef0b62c71"
     },
     {
+      "path": "test/fixtures/print-detail/proof-inspection-reference.json",
+      "sha256": "7595e8ec64145db879b42384c6f440b03b4eb3edde6ba89fb7d40a01fad47b7e"
+    },
+    {
+      "path": "test/fixtures/print-detail/proof-layout-reference.json",
+      "sha256": "a226c12708d0bff77023dcb57578492bd018314985ff850ba6086fa29fb2cb3d"
+    },
+    {
       "path": "test/fixtures/print-detail/psf-backend-reference.json",
       "sha256": "acafebedfed3ce2837cde6db121c80ac652de44a54c3ae2b2516b7369aa921fd"
     },
@@ -115,14 +131,18 @@
       "sha256": "f7599612838f18ccc4eaa6e1876e5ea0fc1c5b2c59651531f10e29fda8df1f5b"
     },
     {
+      "path": "test/fixtures/print-detail/verify_proof_reference.py",
+      "sha256": "c199a248033d7d7b0003239dba5efc4adfdfbb37ac8198497bf1b4eab4492aa1"
+    },
+    {
       "path": "test/fixtures/print-detail/visibility-backend-reference.json",
       "sha256": "228c2a50c4661612c93c2c316ebdd26eacd0c3cc8eb234f0dd9110748b753cb8"
     }
   ],
   "validation": {
     "node": "26.8.1",
-    "tests": 2060,
-    "testFiles": 158,
+    "tests": 2065,
+    "testFiles": 159,
     "coveragePercent": {
       "statements": 92.04,
       "branches": 88.55,
@@ -132,7 +152,8 @@
     "strictPackedDocExamples": 67,
     "packageFileCount": 810,
     "qualified": "bounded numerical and named public backend conformance only",
-    "unqualified": "full #196 acceptance, capture/device/backend calibration, actual proof/UI scale, natural-image perception, human source/DCO review"
+    "unqualified": "full #196 acceptance, capture/device/backend calibration, actual proof/UI scale, natural-image perception, human source/DCO review",
+    "additionalFullCoverageNode": "24.19.0"
   },
   "electronicReadoutProtocol": {
     "version": "0.1.0",
@@ -298,7 +319,37 @@
       },
       {
         "path": "test/print-region-visibility-backend.test.ts",
-        "sha256": "399f1a6073075a3743e2513e9b42812da19ea6930419b3b722063ede53879a15"
+        "sha256": "7d523983aa371150b40ae2124516eba5ec0743d1e17f5f7126f4cf4138c4ca81"
+      }
+    ]
+  },
+  "physicalProofReference": {
+    "version": "0.1.0",
+    "reference": "proof-layout-reference.json",
+    "inspection": "proof-inspection-reference.json",
+    "pdf": "output/pdf/print-proof-reference.pdf",
+    "reportlabVersion": "4.4.9",
+    "pypdfVersion": "6.10.0",
+    "pageSizeMm": [
+      210,
+      297
+    ],
+    "pdfOperatorTolerancePoints": 0.0001,
+    "nativeRetainedCrop": [
+      16,
+      8
+    ],
+    "generatorReproduction": "byte-identical",
+    "finalPagesVisuallyInspected": 2,
+    "embeddedFontPrograms": false,
+    "actualPrinterScale": "unassessed",
+    "privateProductIntegration": "unassessed",
+    "colorLuminancePerception": "unassessed",
+    "humanReview": "pending",
+    "implementationFiles": [
+      {
+        "path": "test/print-proof-reference.test.ts",
+        "sha256": "29c6f28141830bfc926257c41558c54f1d73ffc06783360c5900dcfbcbfbd7b1"
       }
     ]
   }

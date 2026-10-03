@@ -47,11 +47,13 @@ it.each(reference.cases)("executes actual production capture with a foreground m
   const foreground = Array.from({ length: 4 }, () => [0, 0]);
   capture.evaluateRadiance = (q): SceneRadianceEvaluationResult => {
     queries++;
-    expect(Object.isFrozen(q)).toBe(true);
-    if (q.target.kind !== "environment-direction") throw Error("owned ray query");
-    expect(q.wavelengthNanometers).toBe(550);
+    // Validate every provider query without thousands of assertion-library
+    // invocations inside the scientific accumulation loop.
+    if (!Object.isFrozen(q) || q.target.kind !== "environment-direction" || q.wavelengthNanometers !== 550) {
+      throw Error("Unexpected owned ray query or mutability");
+    }
     const d = q.target.outgoingDirectionUnitVector;
-    expect(d.z).toBeLessThan(0);
+    if (!(d.z < 0)) throw Error("Owned outgoing ray must point toward camera");
     // Provider ray intersection, not a second camera projection. Engine-owned
     // outgoing direction supplies the exact look-ray slope toward two planes.
     const nearX = 2 * d.x / d.z, column = nearX < 0 ? 0 : 1;
@@ -76,6 +78,9 @@ it.each(reference.cases)("executes actual production capture with a foreground m
   expect(executed.raw.value.upstreamRadiometryVerified).toBe(false);
   executed.sites.forEach((site, i) => {
     expect(site.value.sceneVisibilityCalculated).toBe(false);
+    expect(site.value.psfRedistributionApplied).toBe(false);
+    expect(site.value.instants).toHaveLength(c.temporalSampleCount);
+    expect(site.value.photo.value.photoSignal.timeVaryingSignalIntegrated).toBe(true);
     // Two equal orthogonal aperture nodes for every moving-axis/time node. These independent
     // exact occupancy counts validate which metric surface actually supplied L.
     expect(foreground[i]).toEqual(c.sites[i]!.foregroundCountsByAxis.map(n => 2 * n));
@@ -85,6 +90,11 @@ it.each(reference.cases)("executes actual production capture with a foreground m
   });
   expect(plan.processedOutputResult!.value.source.value.rawFrame).toEqual(executed.raw.value.frame);
   const beforeReplay = queries;
-  expect(createProductionImageFormationPlan(v)).toEqual(plan);
+  const replay = createProductionImageFormationPlan(v);
+  // Compare every serializable scientific result and identity. A byte digest
+  // avoids recursive assertion-library traversal of thousands of ray records;
+  // schema-validated result values are finite and contain no provider functions.
+  const digest = (value: typeof plan): string => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  expect(digest(replay)).toBe(digest(plan));
   expect(queries - beforeReplay).toBe(16 * c.temporalSampleCount);
 });

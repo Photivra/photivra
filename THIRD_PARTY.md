@@ -29,6 +29,10 @@ The original scalar adapter in `src/output/print-contrast-reference.ts` uses num
 No upstream observational CSV, paper text/figure/table, color-matching dataset or runtime dependency is incorporated. The model's presence does not certify camera, print, observer or natural-image visibility applicability. [The model/protocol](docs/PRINT_CONTRAST_REFERENCE.md) records the restricted envelope, independent numerical evaluation and pending human scientific/source/license review. The root still declares no runtime npm dependencies.
 
 
+## Optional offline physical-proof tools
+
+The owned PDF geometry reference is generated with ReportLab 4.4.9 and independently inspected with pypdf 6.10.0. Their installed distribution license files were reviewed as BSD-3-Clause-style terms (ReportLab metadata calls its license BSD; pypdf declares BSD-3-Clause). These are optional offline test-artifact tools, not runtime/npm dependencies. No library source, binary or embedded font program is vendored. The PDF preserves existing owned JPEG streams and uses the PDF standard Helvetica font declaration; its DeviceRGB appearance and actual printing remain unqualified. Generator/parser versions and artifact hashes are retained in the candidate evidence record. Substantive human source review remains pending.
+
 ## Automated license policy
 
 The bounded DNG/TIFF and baseline JPEG encoders are independently authored.
