@@ -1,0 +1,10 @@
+{
+  "referenceCommit": "c1374c31473f893310d1ce4f0d5a737aaba43ab5",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "verifiedNodeMajors": [24, 26],
+  "verifiedRuntimes": ["v24.19.0", "v26.8.1"],
+  "responseSha256Overrides": {
+    "equivalence-38": "02688bd713afea5ae82da9d53675a4e63738aa45bb5f33abca1b2cfeade3d52c"
+  }
+}
