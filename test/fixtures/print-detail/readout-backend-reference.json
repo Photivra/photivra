@@ -1,0 +1,431 @@
+{
+  "schemaVersion": "0.1.0",
+  "ownership": "photivra-owned",
+  "source": "generate_readout_reference.py",
+  "domain": {
+    "signal": "declared deterministic charge injection; conditional neutral scalar diagnostic scaled by 100 electrons per relative unit",
+    "noise": "zero photo/dark expectations and zero read noise for exact stage isolation",
+    "adcBitDepth": 12,
+    "blackLevelCode": 512,
+    "codeTransfer": "round-half-up, final unsigned clamp",
+    "scientificStatus": "owned electronic model conformance, not physical photometric calibration"
+  },
+  "cases": [
+    {
+      "name": "storage-limit",
+      "capacityElectrons": 64,
+      "preAdcElectronEquivalent": 2000,
+      "conversionGainElectronsPerCode": 0.25,
+      "injectedElectronEquivalents": [
+        63.875,
+        64.0,
+        64.125,
+        200.0
+      ],
+      "expectedStored": [
+        63.875,
+        64.0,
+        64.0,
+        64.0
+      ],
+      "expectedPreAdc": [
+        63.875,
+        64.0,
+        64.0,
+        64.0
+      ],
+      "expectedRawCodes": [
+        768,
+        768,
+        768,
+        768
+      ],
+      "expectedPhysicalClipping": [
+        false,
+        false,
+        true,
+        true
+      ],
+      "expectedPreAdcClipping": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "expectedDigitalClipping": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "pairs": [
+        {
+          "stage": "storage",
+          "before": [
+            0.63875,
+            0.64,
+            0.64125,
+            2.0
+          ],
+          "after": [
+            0.63875,
+            0.64,
+            0.64,
+            0.64
+          ],
+          "meanDifference": -0.3403125,
+          "rmsDifference": 0.680000287224204,
+          "maximumDifference": 1.36
+        },
+        {
+          "stage": "pre-adc",
+          "before": [
+            0.63875,
+            0.64,
+            0.64,
+            0.64
+          ],
+          "after": [
+            0.63875,
+            0.64,
+            0.64,
+            0.64
+          ],
+          "meanDifference": 0.0,
+          "rmsDifference": 0.0,
+          "maximumDifference": 0.0
+        },
+        {
+          "stage": "adc",
+          "before": [
+            0.63875,
+            0.64,
+            0.64,
+            0.64
+          ],
+          "after": [
+            0.64,
+            0.64,
+            0.64,
+            0.64
+          ],
+          "meanDifference": 0.0003125,
+          "rmsDifference": 0.000625,
+          "maximumDifference": 0.00125
+        }
+      ]
+    },
+    {
+      "name": "pre-adc-limit",
+      "capacityElectrons": 2000,
+      "preAdcElectronEquivalent": 64,
+      "conversionGainElectronsPerCode": 0.25,
+      "injectedElectronEquivalents": [
+        63.875,
+        64.0,
+        64.125,
+        200.0
+      ],
+      "expectedStored": [
+        63.875,
+        64.0,
+        64.125,
+        200.0
+      ],
+      "expectedPreAdc": [
+        63.875,
+        64.0,
+        64.0,
+        64.0
+      ],
+      "expectedRawCodes": [
+        768,
+        768,
+        768,
+        768
+      ],
+      "expectedPhysicalClipping": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "expectedPreAdcClipping": [
+        false,
+        false,
+        true,
+        true
+      ],
+      "expectedDigitalClipping": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "pairs": [
+        {
+          "stage": "storage",
+          "before": [
+            0.63875,
+            0.64,
+            0.64125,
+            2.0
+          ],
+          "after": [
+            0.63875,
+            0.64,
+            0.64125,
+            2.0
+          ],
+          "meanDifference": 0.0,
+          "rmsDifference": 0.0,
+          "maximumDifference": 0.0
+        },
+        {
+          "stage": "pre-adc",
+          "before": [
+            0.63875,
+            0.64,
+            0.64125,
+            2.0
+          ],
+          "after": [
+            0.63875,
+            0.64,
+            0.64,
+            0.64
+          ],
+          "meanDifference": -0.3403125,
+          "rmsDifference": 0.680000287224204,
+          "maximumDifference": 1.36
+        },
+        {
+          "stage": "adc",
+          "before": [
+            0.63875,
+            0.64,
+            0.64,
+            0.64
+          ],
+          "after": [
+            0.64,
+            0.64,
+            0.64,
+            0.64
+          ],
+          "meanDifference": 0.0003125,
+          "rmsDifference": 0.000625,
+          "maximumDifference": 0.00125
+        }
+      ]
+    },
+    {
+      "name": "digital-limit",
+      "capacityElectrons": 2000,
+      "preAdcElectronEquivalent": 2000,
+      "conversionGainElectronsPerCode": 0.25,
+      "injectedElectronEquivalents": [
+        895.625,
+        895.75,
+        895.875,
+        1000.0
+      ],
+      "expectedStored": [
+        895.625,
+        895.75,
+        895.875,
+        1000.0
+      ],
+      "expectedPreAdc": [
+        895.625,
+        895.75,
+        895.875,
+        1000.0
+      ],
+      "expectedRawCodes": [
+        4095,
+        4095,
+        4095,
+        4095
+      ],
+      "expectedPhysicalClipping": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "expectedPreAdcClipping": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "expectedDigitalClipping": [
+        false,
+        false,
+        true,
+        true
+      ],
+      "pairs": [
+        {
+          "stage": "storage",
+          "before": [
+            8.95625,
+            8.9575,
+            8.95875,
+            10.0
+          ],
+          "after": [
+            8.95625,
+            8.9575,
+            8.95875,
+            10.0
+          ],
+          "meanDifference": 0.0,
+          "rmsDifference": 0.0,
+          "maximumDifference": 0.0
+        },
+        {
+          "stage": "pre-adc",
+          "before": [
+            8.95625,
+            8.9575,
+            8.95875,
+            10.0
+          ],
+          "after": [
+            8.95625,
+            8.9575,
+            8.95875,
+            10.0
+          ],
+          "meanDifference": 0.0,
+          "rmsDifference": 0.0,
+          "maximumDifference": 0.0
+        },
+        {
+          "stage": "adc",
+          "before": [
+            8.95625,
+            8.9575,
+            8.95875,
+            10.0
+          ],
+          "after": [
+            8.9575,
+            8.9575,
+            8.9575,
+            8.9575
+          ],
+          "meanDifference": -0.260625,
+          "rmsDifference": 0.5212507493999409,
+          "maximumDifference": 1.0425
+        }
+      ]
+    },
+    {
+      "name": "quantization-without-clipping",
+      "capacityElectrons": 2000,
+      "preAdcElectronEquivalent": 2000,
+      "conversionGainElectronsPerCode": 0.25,
+      "injectedElectronEquivalents": [
+        0.0625,
+        0.125,
+        0.1875,
+        0.375
+      ],
+      "expectedStored": [
+        0.0625,
+        0.125,
+        0.1875,
+        0.375
+      ],
+      "expectedPreAdc": [
+        0.0625,
+        0.125,
+        0.1875,
+        0.375
+      ],
+      "expectedRawCodes": [
+        512,
+        513,
+        513,
+        514
+      ],
+      "expectedPhysicalClipping": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "expectedPreAdcClipping": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "expectedDigitalClipping": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "pairs": [
+        {
+          "stage": "storage",
+          "before": [
+            0.000625,
+            0.00125,
+            0.001875,
+            0.00375
+          ],
+          "after": [
+            0.000625,
+            0.00125,
+            0.001875,
+            0.00375
+          ],
+          "meanDifference": 0.0,
+          "rmsDifference": 0.0,
+          "maximumDifference": 0.0
+        },
+        {
+          "stage": "pre-adc",
+          "before": [
+            0.000625,
+            0.00125,
+            0.001875,
+            0.00375
+          ],
+          "after": [
+            0.000625,
+            0.00125,
+            0.001875,
+            0.00375
+          ],
+          "meanDifference": 0.0,
+          "rmsDifference": 0.0,
+          "maximumDifference": 0.0
+        },
+        {
+          "stage": "adc",
+          "before": [
+            0.000625,
+            0.00125,
+            0.001875,
+            0.00375
+          ],
+          "after": [
+            0.0,
+            0.0025,
+            0.0025,
+            0.005
+          ],
+          "meanDifference": 0.000625,
+          "rmsDifference": 0.0009882117688026185,
+          "maximumDifference": 0.00125
+        }
+      ]
+    }
+  ]
+}

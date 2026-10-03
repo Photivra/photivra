@@ -59,6 +59,10 @@
       "sha256": "05f1ce4248d48a322d05d12ed7bc494cbb1d8a06eae55d3a84e27932943632a1"
     },
     {
+      "path": "test/fixtures/print-detail/generate_readout_reference.py",
+      "sha256": "8bee4c1b779ab0568c54631dca0f5222046f4f5add90c1fb8bcf4f5fbdbaa5d6"
+    },
+    {
       "path": "test/fixtures/print-detail/generate_reference.py",
       "sha256": "75571a248d1ff091017546547179de4087e49391d8318f290ff301703c2f8e37"
     },
@@ -79,6 +83,10 @@
       "sha256": "acafebedfed3ce2837cde6db121c80ac652de44a54c3ae2b2516b7369aa921fd"
     },
     {
+      "path": "test/fixtures/print-detail/readout-backend-reference.json",
+      "sha256": "e2ac2a2cc6dbc84307184c54d2dc2f2bf1ba7eb28ac0b097a07e3bf3557c366c"
+    },
+    {
       "path": "test/fixtures/print-detail/sdr-reference.json",
       "sha256": "b65f1a8c2ce0b8f3b799946a0ec94110fe9623c6348d156e31d6e41729208c30"
     },
@@ -89,11 +97,11 @@
   ],
   "validation": {
     "node": "26.8.1",
-    "tests": 1986,
-    "testFiles": 154,
+    "tests": 1994,
+    "testFiles": 155,
     "coveragePercent": {
       "statements": 92.04,
-      "branches": 88.54,
+      "branches": 88.55,
       "functions": 99.63,
       "lines": 92.04
     },
@@ -101,5 +109,54 @@
     "packageFileCount": 809,
     "qualified": "bounded numerical and named public backend conformance only",
     "unqualified": "full #196 acceptance, capture/device/backend calibration, actual proof/UI scale, natural-image perception, human source/DCO review"
+  },
+  "electronicReadoutProtocol": {
+    "version": "0.1.0",
+    "backend": "simulateSensorRawFrame",
+    "producerSchemaVersion": "0.3.0",
+    "captureNoiseModelVersion": "0.2.0",
+    "nativeRaster": {
+      "pixelWidth": 2,
+      "pixelHeight": 2
+    },
+    "containerBitDepth": 16,
+    "adcBitDepth": 12,
+    "sourceRadiometryVerified": false,
+    "scalarInterpretation": "declared conditional ideal neutral encoding, not photometric calibration",
+    "stageIsolation": "deterministic charge injection, zero photo/dark means and zero read noise",
+    "repeatCounts": [
+      32,
+      64,
+      128,
+      256
+    ],
+    "repeatModel": {
+      "photoMeanElectrons": 200,
+      "darkMeanElectrons": 8,
+      "readNoiseRmsElectrons": [
+        0,
+        2
+      ],
+      "referenceElectronsPerRelativeUnit": 200
+    },
+    "signedDarkModel": {
+      "photoMeanElectrons": 0,
+      "darkMeanElectrons": 0,
+      "readNoiseRmsElectrons": 8,
+      "blackLevelCode": 0,
+      "referenceElectronsPerRelativeUnit": 100
+    },
+    "uncertainty": "not-quantified; broad conformance bands are not confidence for a photograph",
+    "humanReview": "pending",
+    "implementationFiles": [
+      {
+        "path": "test/helpers/print-readout-backend-fixture.ts",
+        "sha256": "8582e513a6fba97035095a335e110a050d2116b701a504502f5dbf52bbc09c0f"
+      },
+      {
+        "path": "test/print-region-readout-backend.test.ts",
+        "sha256": "c9a1b006eeeebf1b1812790f415e31ea91bf550605be4289535ca1caa89b635f"
+      }
+    ]
   }
 }
