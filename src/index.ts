@@ -1407,3 +1407,6 @@ export { calculatePrintPlan, calculatePrintSizeLimit, parsePrintPlanInput } from
 export type { PrintLength, PrintedImageSize, PrintSamplingCriterion, PrintNativeSource, PrintProviderConstraints, PrintPlanInput, PrintRasterSampling, PrintPlan, PrintSizeLimitInput, PrintSizeLimit } from "./output/print-plan.js";
 export { PRINT_REGION_DETAIL_MODEL_VERSION, MAX_PRINT_DETAIL_REGION_SAMPLES, calculatePrintRegionDetail, parsePrintRegionDetailInput } from "./output/print-detail.js";
 export type { PrintDetailSource, PrintDetailRegion, PrintSinusoidalTarget, PrintRegionDetailInput, PrintSinusoidalMeasurement, PrintRegionDetailAssessment } from "./output/print-detail.js";
+export { NATIVE_CAPTURE_SDR_SCHEMA_VERSION, NATIVE_CAPTURE_SDR_LIMITS, calculateNativeCaptureSdrPlan, createNativeCaptureSdrTask } from "./output/native-capture-sdr.js";
+export type { NativeCaptureSdrInput, NativeCaptureSdrTileRequest, NativeCaptureSdrTile, NativeCaptureSdrProvider, NativeCaptureSdrPlan,
+  NativeCaptureSdrOutput, NativeCaptureSdrTaskState, NativeCaptureSdrTask } from "./output/native-capture-sdr.js";

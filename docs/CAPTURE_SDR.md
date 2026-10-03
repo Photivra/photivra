@@ -18,3 +18,5 @@ The result exposes optional color and SDR calculation envelopes separately, with
 This is #112B, not full #112 closure. It does not execute correction profiles or activate production stages. Corrected planes may retain their explicit upstream transform history; no correction is inferred. #117/#118 execution and #111 ordered production integration require their own bound handoff. #16 remains the serializer owner and must not invent color/WB/quantization semantics.
 
 Implementation and fixtures are independently authored orchestration of existing Photivra APIs; no new equation, calibration, third-party material, dependency, service, IO or cost is introduced.
+
+For external megapixel masters already in resolved linear sRGB/D65, see the separate [bounded native SDR contract](NATIVE_CAPTURE_SDR.md). The reference limits above remain unchanged.
