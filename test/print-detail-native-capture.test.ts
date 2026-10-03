@@ -37,8 +37,11 @@ it.each(reference.cases)("qualifies native capture detail along $axis at phase $
   const { schemaVersion: _s, engineApiVersion: _e, resolvedGeometry: _g, equivalentFocalLength35Mm: _f, ...input } = old;
   void _s; void _e; void _g; void _f;
   capture.frame.capture = createSimulatedCapture({ ...input, captureId: `owned-native-grating-${c.axis}-${c.phaseRadians}-${c.spatialSampleCount}`,
+    sceneStateId: `owned-angular-grating-${c.axis}-${c.phaseRadians}`,
     geometry: { ...input.geometry, nativeRaster: { pixelWidth: 4, pixelHeight: 4 }, outputRaster: { pixelWidth: 4, pixelHeight: 4 } },
     planes: input.planes.map(p => ({ ...p, pixelWidth: 4, pixelHeight: 4, storage: { kind: "inline-float64", samples: Array<number>(48).fill(0) } })) }).value;
+  capture.sceneBinding.sceneStateId = capture.frame.capture.sceneStateId;
+  capture.frame.frameId = `${capture.frame.capture.captureId}.raw`;
   capture.frame.captureModeProfile.modes[0]!.processedImageRaster.value = { pixelWidth: 4, pixelHeight: 4 };
   const prototypes = capture.sites;
   capture.sites = Array.from({ length: 16 }, (_, i): (typeof prototypes)[number] => {
