@@ -1,0 +1,81 @@
+{
+  "evidenceVersion": "0.1.0",
+  "metricVersion": "0.1.0",
+  "engineCandidate": "1.1.0",
+  "parentCommit": "cfa179f054cdda92edd77dd51f98473cd6923b0c",
+  "humanReview": "pending",
+  "fullAssessmentAcceptance": "blocked",
+  "capability": "bounded-neutral-capture-sdr-regional-diagnostic-integration",
+  "status": "passed-bounded-execution-only",
+  "sourceQualification": "owned-committed-procedural-target-only",
+  "backend": "repository-node-capture-sdr-adapter-and-test-only-code-readback",
+  "referenceBackend": "Python 3.12.14 standard library; independent three-level identities",
+  "runtime": "v24.19.0",
+  "focusedTests": 9,
+  "sourceFilesSha256": {
+    "test/print-detail-sdr-integration.test.ts": "130160c9aa6b720030b49581a95c3d565e91a0aff99fa615123920fa1b7843f4",
+    "test/fixtures/print-detail/quarter-grating.json": "0270a44168e574157067615c957a199355ac600be7a536663ab4769f59f860b9",
+    "test/fixtures/print-detail/sdr-reference.json": "b65f1a8c2ce0b8f3b799946a0ec94110fe9623c6348d156e31d6e41729208c30",
+    "test/fixtures/print-detail/generate_reference.py": "75571a248d1ff091017546547179de4087e49391d8318f290ff301703c2f8e37",
+    "src/capture/simulated-capture.ts": "5777dd52b91aad794a8a8b03abea834218b96e845328e1ceae67fd6903fab52d",
+    "src/output/capture-sdr.ts": "ab3856286d670fef117a5925a78a7de5bf58f75349f2c2076c93597b6c10162c",
+    "src/output/sdr-rendering.ts": "38abc70438d3abf7a05cb50a2fe5a688d04f94b843fff4ba4d4cea760d0d1f47",
+    "src/output/print-detail.ts": "1bf1c6032fabd944806eddad79c560c266bd7776b48b3c0964056c9da451be81",
+    "docs/PRINT_DETAIL_SDR_EVIDENCE.md": "c95a7529b5864a81c3caed7041e0a4a27dd769bbadfa1eb3b97b03762a9525ea"
+  },
+  "envelope": {
+    "nativeRaster": [
+      16,
+      12
+    ],
+    "orientations": 4,
+    "bitDepths": [
+      8,
+      16
+    ],
+    "roi": {
+      "x": 2,
+      "y": 2,
+      "width": 8,
+      "height": 8
+    },
+    "tone": "identity",
+    "renderingExposureEv": 0,
+    "gamut": "reject-out-of-range",
+    "targetModulation": 0.5,
+    "absoluteDecodedAndCoefficientTolerance": 1e-12,
+    "artifactIdentity": "exact-source-json-rgb-float64-le-and-code-uint16-le-sha256"
+  },
+  "unqualified": [
+    "human-scientific-source-review",
+    "actual-ui-renderer-and-device",
+    "RAW-environment-acquisition",
+    "native-resolution-production",
+    "warp-resampling",
+    "color-transform-and-nonneutral-luminance",
+    "JPEG-and-other-file-codecs",
+    "capture-system-MTF",
+    "depth-and-occlusion",
+    "noise-clipping-and-artifact-metrics",
+    "perceived-quality",
+    "printer-substrate"
+  ],
+  "fullSuite": {
+    "files": 145,
+    "tests": 1710
+  },
+  "localReleaseGates": [
+    "check",
+    "coverage",
+    "build",
+    "pack:check",
+    "docs:check",
+    "release:consumer-check"
+  ],
+  "coverage": {
+    "lines": 91.84,
+    "statements": 91.87,
+    "functions": 99.62,
+    "branches": 88.27
+  }
+}
