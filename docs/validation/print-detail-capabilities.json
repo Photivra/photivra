@@ -1,0 +1,100 @@
+{
+  "ledgerVersion": "0.1.0",
+  "metricVersion": "0.1.0",
+  "protocolVersion": "0.1.0",
+  "engineCandidate": "1.1.0",
+  "humanReview": "pending",
+  "fullAssessmentAcceptance": "blocked",
+  "evidenceDomain": "owned-procedural-mathematical-reference-only",
+  "capabilities": [
+    {
+      "id": "regional-coherent-fundamental",
+      "status": "mathematically-validated",
+      "units": "relative-linear-luminance-and-dimensionless-modulation",
+      "reference": "finite-orthogonality-and-owned-discrete-convolution",
+      "test": "test/print-detail.test.ts",
+      "targetVersion": "analytic-sinusoid-0.1.0",
+      "backend": "repository-node-mathematics",
+      "acquisitionQualification": "unassessed",
+      "humanReview": "pending",
+      "actualBackendQualification": "unassessed"
+    },
+    {
+      "id": "print-region-angular-projection",
+      "status": "mathematically-validated",
+      "units": "mm-cycles-per-mm-and-reference-period-degrees",
+      "reference": "staged-capture-geometry-and-centered-period-angle",
+      "test": "test/print-detail.test.ts",
+      "acquisitionQualification": "unassessed",
+      "humanReview": "pending",
+      "actualBackendQualification": "unassessed"
+    },
+    {
+      "id": "captured-system-mtf-and-field-detail",
+      "status": "blocked",
+      "reason": "actual-target-acquisition-processing-registration-and-backend-evidence-required"
+    },
+    {
+      "id": "noise-tonal-clipping",
+      "status": "blocked",
+      "reason": "linear-source-ensemble-and-stage-qualified-protocol-required"
+    },
+    {
+      "id": "depth-occlusion-and-intentional-defocus",
+      "status": "blocked",
+      "reason": "visible-surface-depth-and-coordinate-registration-evidence-required"
+    },
+    {
+      "id": "directional-motion-attribution",
+      "status": "blocked",
+      "reason": "trajectory-and-temporal-accumulation-evidence-required"
+    },
+    {
+      "id": "aliasing-halos-compression-color",
+      "status": "blocked",
+      "reason": "independent-dimension-and-exact-source-stage-protocols-required"
+    },
+    {
+      "id": "perceived-quality-or-visibility",
+      "status": "blocked",
+      "reason": "qualified-perception-model-and-observer-luminance-contrast-domain-required"
+    },
+    {
+      "id": "printer-substrate-icc",
+      "status": "out-of-scope",
+      "reason": "separate-reviewed-contract-required"
+    },
+    {
+      "id": "overall-print-pass",
+      "status": "not-offered",
+      "reason": "no-universal-quality-score-or-verdict"
+    }
+  ],
+  "validation": {
+    "status": "passed-mathematical-domain-only",
+    "runtime": "v24.19.0",
+    "fullSuite": {
+      "files": 144,
+      "tests": 1701
+    },
+    "focusedTests": 48,
+    "sourceFilesSha256": {
+      "src/output/print-detail.ts": "1bf1c6032fabd944806eddad79c560c266bd7776b48b3c0964056c9da451be81",
+      "test/print-detail.test.ts": "c73b49bb6b3e1943ed7d0d3bfc443830ccab73aa0f34e88733293a555a58ce38",
+      "docs/PRINT_DETAIL_ASSESSMENT.md": "c0b7277f27a64d4b91205cc89161cb4e575229599ec4f4670631689592f101b5",
+      "docs/PRINT_DETAIL_VALIDATION.md": "6fdbaafd75a18608554702df8123c272d822a022239bcfce3881540503447fcb"
+    },
+    "numericTolerance": {
+      "absolute": 1e-10,
+      "domain": "owned-bounded-analytic-coefficients-and-relative-residuals"
+    },
+    "actualBackendQualification": "unassessed",
+    "acquiredSourceArtifact": "not-supplied",
+    "roi": "explicit-half-open-oriented-retained-region",
+    "sourceStages": [
+      "native-retained-linear",
+      "post-resampling-linear",
+      "post-encoding-decoded-linear"
+    ]
+  }
+}

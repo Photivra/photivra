@@ -1189,6 +1189,23 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`ResolvedLensCorrectionPlan`](api/output-lens-corrections.md#resolvedlenscorrectionplan) | Type |
 | [`resolveLensCorrectionPlan`](api/output-lens-corrections.md#resolvelenscorrectionplan) | Runtime |
 
+## output/print-detail.ts
+
+[Detailed contracts](api/output-print-detail.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/output/print-detail.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculatePrintRegionDetail`](api/output-print-detail.md#calculateprintregiondetail) | Runtime |
+| [`MAX_PRINT_DETAIL_REGION_SAMPLES`](api/output-print-detail.md#max_print_detail_region_samples) | Runtime |
+| [`parsePrintRegionDetailInput`](api/output-print-detail.md#parseprintregiondetailinput) | Runtime |
+| [`PRINT_REGION_DETAIL_MODEL_VERSION`](api/output-print-detail.md#print_region_detail_model_version) | Runtime |
+| [`PrintDetailRegion`](api/output-print-detail.md#printdetailregion) | Type |
+| [`PrintDetailSource`](api/output-print-detail.md#printdetailsource) | Type |
+| [`PrintRegionDetailAssessment`](api/output-print-detail.md#printregiondetailassessment) | Type |
+| [`PrintRegionDetailInput`](api/output-print-detail.md#printregiondetailinput) | Type |
+| [`PrintSinusoidalMeasurement`](api/output-print-detail.md#printsinusoidalmeasurement) | Type |
+| [`PrintSinusoidalTarget`](api/output-print-detail.md#printsinusoidaltarget) | Type |
+
 ## output/print-plan.ts
 
 [Detailed contracts](api/output-print-plan.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/output/print-plan.ts)

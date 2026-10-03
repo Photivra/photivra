@@ -62,3 +62,5 @@ Website navigation/documentation hosting belongs to [the app-side discovery tick
 ## Print planning
 
 Use [native-only Print planning](PRINT_PLANNING.md) for independently specified image size/viewing distance, explicit angular conventions, confirmed native crop and lab constraints. It returns no upscale recommendation and does not certify perceived quality or activate an exporter.
+
+The [regional Print detail diagnostic](PRINT_DETAIL_ASSESSMENT.md) measures one declared coherent sinusoidal fundamental in a selected linear-luminance ROI and records its exact source stage. Its [validation protocol](PRINT_DETAIL_VALIDATION.md) and [capability ledger](validation/print-detail-capabilities.json) distinguish mathematical conformance from blocked acquired-image, renderer and perceived-quality qualification.

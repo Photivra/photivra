@@ -633,6 +633,11 @@
       "kind": "runtime"
     },
     {
+      "name": "calculatePrintRegionDetail",
+      "source": "src/output/print-detail.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculatePrintSizeLimit",
       "source": "src/output/print-plan.ts",
       "kind": "runtime"
@@ -2613,6 +2618,11 @@
       "kind": "runtime"
     },
     {
+      "name": "MAX_PRINT_DETAIL_REGION_SAMPLES",
+      "source": "src/output/print-detail.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "MeteringCapabilityCompatibilityAssessment",
       "source": "src/equipment/metering-capabilities.ts",
       "kind": "type"
@@ -2960,6 +2970,11 @@
     {
       "name": "parsePrintPlanInput",
       "source": "src/output/print-plan.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parsePrintRegionDetailInput",
+      "source": "src/output/print-detail.ts",
       "kind": "runtime"
     },
     {
@@ -3318,6 +3333,21 @@
       "kind": "type"
     },
     {
+      "name": "PRINT_REGION_DETAIL_MODEL_VERSION",
+      "source": "src/output/print-detail.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PrintDetailRegion",
+      "source": "src/output/print-detail.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintDetailSource",
+      "source": "src/output/print-detail.ts",
+      "kind": "type"
+    },
+    {
       "name": "PrintedImageSize",
       "source": "src/output/print-plan.ts",
       "kind": "type"
@@ -3353,8 +3383,28 @@
       "kind": "type"
     },
     {
+      "name": "PrintRegionDetailAssessment",
+      "source": "src/output/print-detail.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintRegionDetailInput",
+      "source": "src/output/print-detail.ts",
+      "kind": "type"
+    },
+    {
       "name": "PrintSamplingCriterion",
       "source": "src/output/print-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintSinusoidalMeasurement",
+      "source": "src/output/print-detail.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintSinusoidalTarget",
+      "source": "src/output/print-detail.ts",
       "kind": "type"
     },
     {

@@ -2,6 +2,8 @@
 
 ## 1.1.0 candidate — review and publication pending
 
+- Add a bounded regional coherent-sinusoid diagnostic and explicit stage/region/source identity. Independently validate Fourier modulation and angular projection using owned analytic references; preserve acquisition, system MTF, noise/artifact/perception qualification as unassessed. Full #196 acceptance remains blocked. See `docs/PRINT_DETAIL_ASSESSMENT.md` and `docs/PRINT_DETAIL_VALIDATION.md`.
+
 - Add native-only Print planning and conditional size queries. Independent viewing distance and explicit pixel/stroke/line-pair conventions derive density; advanced manual PPI creates a distinct plan. Preserve confirmed native crop/orientation and exact-ratio integer output, reconcile declared lab constraints, and return no recommendation for upscale or conflicts. Captured detail and delivery remain unassessed. See `docs/PRINT_PLANNING.md`.
 - Align package/root creator identity at 1.1.0 for this additive release. Existing APIs, archived records, fixtures and all independent schema/POC/production-plan versions remain unchanged. See `docs/RELEASE_1_1_0.md`.
 
