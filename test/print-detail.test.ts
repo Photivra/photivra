@@ -63,6 +63,14 @@ describe("bounded regional Print diagnostic", () => {
     expect(result.measurement?.declaredGratingTransfer).toBeCloseTo(3, 12);
     expect(result.input.samples).toContain(-0.5); expect(result.unassessed).toContain("halos");
   });
+  it("preserves independent DC truth through large signed cancellation", () => {
+    const r = input(); r.samples = r.samples.map((_, i) => [1e300, 1, -1e300, 1][i % 4]!);
+    const m = calculatePrintRegionDetail(r).value.measurement!;
+    // Exact represented sample identity: (L + 1 - L + 1) / 4 = 1/2.
+    expect(m.meanRelativeLuminance).toBeCloseTo(0.5, 12);
+    expect(m.fundamentalAmplitudeRelativeLuminance / 1e300).toBeCloseTo(1, 12);
+    expect(m.fundamentalModulation / 1e300).toBeCloseTo(2, 12);
+  });
   it.each(["x", "y"] as const)("owned isotropic convolution gives equal axial response in %s", axis => {
     const r = input(); sinusoid(r, axis === "x" ? 2 : 0, axis === "y" ? 2 : 0);
     circularFilter(r, "x"); circularFilter(r, "y");

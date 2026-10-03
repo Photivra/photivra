@@ -75,14 +75,14 @@
     "runtime": "v24.19.0",
     "fullSuite": {
       "files": 144,
-      "tests": 1700
+      "tests": 1701
     },
-    "focusedTests": 47,
+    "focusedTests": 48,
     "sourceFilesSha256": {
-      "src/output/print-detail.ts": "3a8ec31dbb8cb5caaf3270c55f6ca7f8eda342ea8140b582115b14cad545cbe8",
-      "test/print-detail.test.ts": "b4e4e3f90abc51f19ae2c884d1e62e7f6be2ac92ac0705831af243f3faf6c9f0",
-      "docs/PRINT_DETAIL_ASSESSMENT.md": "3e82d3495a3d0286269fe48611fdbce5160b5afcfef48c4a9f5f948b6d2e7244",
-      "docs/PRINT_DETAIL_VALIDATION.md": "2cf39044bdef7063a2550a9fa6dd3dba1a69a2d85d6ad9640f177c300fc8072e"
+      "src/output/print-detail.ts": "1bf1c6032fabd944806eddad79c560c266bd7776b48b3c0964056c9da451be81",
+      "test/print-detail.test.ts": "c73b49bb6b3e1943ed7d0d3bfc443830ccab73aa0f34e88733293a555a58ce38",
+      "docs/PRINT_DETAIL_ASSESSMENT.md": "c0b7277f27a64d4b91205cc89161cb4e575229599ec4f4670631689592f101b5",
+      "docs/PRINT_DETAIL_VALIDATION.md": "6fdbaafd75a18608554702df8123c272d822a022239bcfce3881540503447fcb"
     },
     "numericTolerance": {
       "absolute": 1e-10,

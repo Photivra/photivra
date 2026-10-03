@@ -9,6 +9,7 @@ Procedural targets are owned test data, with known mean, modulation, integer spa
 | Case | Independent expected behavior |
 | --- | --- |
 | Exact quarter-cycle sequence | Mean 1 and declared fundamental modulation 0.5; derive from explicit repeated values, not engine output |
+| Large signed cancellation | Explicit `(L + 1 - L + 1)/4 = 1/2` DC and amplitude normalized by independently known `L`; no residual/noise accuracy claim under cancellation |
 | DC/gain/phase variants | Gain preserves modulation; changed mean changes relative modulation; arbitrary phase preserves amplitude |
 | Isotropic symmetric filtering | Known separable symmetric kernel attenuates axial x/y targets equally |
 | Directional filtering | Apply owned `[1/4,1/2,1/4]` in x only: response is `(1+cos(2 pi f_x))/2`; orthogonal target is unchanged |

@@ -164,9 +164,14 @@ export function parsePrintRegionDetailInput(value: unknown): PrintRegionDetailIn
 
 /** Compensated sum of normalized bounded values; no image transformation is applied. */
 class Sum {
-  value = 0;
+  private total = 0;
   correction = 0;
-  add(value: number): void { const adjusted = value - this.correction; const next = this.value + adjusted; this.correction = (next - this.value) - adjusted; this.value = next; }
+  get value(): number { return this.total + this.correction; }
+  add(value: number): void {
+    const next = this.total + value;
+    this.correction += Math.abs(this.total) >= Math.abs(value) ? (this.total - next) + value : (value - next) + this.total;
+    this.total = next;
+  }
 }
 function phase(x: number, y: number, width: number, height: number, kx: number, ky: number): number {
   return 2 * Math.PI * ((kx * x / width + ky * y / height) % 1);
