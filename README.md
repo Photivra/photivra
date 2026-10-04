@@ -19,10 +19,10 @@ The standalone [Print planner](https://github.com/Photivra/photivra/blob/main/do
 
 ## Quick start
 
-After owner publication, install the ESM package below. During candidate review, use the verified tarball from the [release guide](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_2_0.md):
+After owner publication, install the ESM package below. During candidate review, use the verified tarball from the [release guide](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_3_0.md):
 
 ```sh
-npm install @photivra/engine@1.2.0
+npm install @photivra/engine@1.3.0
 ```
 
 Calculate horizontal field of view for a 36 mm sensor dimension and 50 mm focal length:
@@ -39,7 +39,7 @@ console.log(horizontal.value.degrees);
 console.log(horizontal.provenance);
 ```
 
-Start with the [Developer Guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md), then use the [Usage Guide](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md) and [export-derived API reference](https://github.com/Photivra/photivra/blob/main/docs/API_REFERENCE.md). These documents describe the unpublished 1.2.0 candidate; use the published 1.1.0 baseline until owner publication.
+Start with the [Developer Guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md), then use the [Usage Guide](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md) and [export-derived API reference](https://github.com/Photivra/photivra/blob/main/docs/API_REFERENCE.md). These documents describe the unpublished 1.3.0 candidate; use the published 1.2.0 baseline until 1.3.0 publication.
 
 ## Documentation
 
@@ -267,13 +267,13 @@ The calling application can then use those results while keeping the underlying 
 
 ## Status
 
-- Repository package version: `1.2.0` (release candidate; publication is separate)
-- Engine API contract: `1.2.0`
+- Repository package version: `1.3.0` (release candidate; publication is separate)
+- Engine API contract: `1.3.0`
 - Versioned generic tier reference assets: [GENERIC_TIER_PRESETS.md](https://github.com/Photivra/photivra/blob/main/docs/GENERIC_TIER_PRESETS.md).
 - Composed POC simulation API contract: `0.20.0`
 - Stability: 1.0 root-package compatibility policy; bounded scientific models and independent POC contract
 
-From 1.0.1, package version and `ENGINE_API_VERSION` are equal. New captures/plans record 1.2.0; existing archives retain their original creator identities. Schema, model and POC contract versions remain independent. Breaking root contracts now require a package major release; additive and corrective changes follow [compatibility and migration](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_2_0.md). A 1.0 package is not a claim of calibrated physical accuracy.
+From 1.0.1, package version and `ENGINE_API_VERSION` are equal. New captures/plans record 1.3.0; existing archives retain their original creator identities. Schema, model and POC contract versions remain independent. Breaking root contracts now require a package major release; additive and corrective changes follow [compatibility and migration](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_3_0.md). A 1.0 package is not a claim of calibrated physical accuracy.
 
 Creating a GitHub release/tag and publishing `@photivra/engine` are separate release actions. The tag-triggered publish workflow verifies that the `vX.Y.Z` tag matches the package version before publishing.
 
