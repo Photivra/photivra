@@ -27,7 +27,7 @@ export interface NativeEnvironmentRawProvider {
   evaluateRadiance: SimulateEnvironmentSensorRawFrameInput["evaluateRadiance"];
   evaluateApertureRadiance?: SimulateEnvironmentSensorRawFrameInput["evaluateApertureRadiance"];
   /** Optional bounded diagnostic observer; counts are expectation values before any noise/clamp/ADC. */
-  observePhotoTile?(tile:Readonly<NativeEnvironmentPhotoTile>):void|Promise<void>;
+  observePhotoTile?(tile:Readonly<NativeEnvironmentPhotoTile>,signal:AbortSignal):void|Promise<void>;
   yieldControl(signal:AbortSignal):Promise<void>;
 }
 export interface NativeEnvironmentPhotoTile extends NativeRawTileRequest {
@@ -84,13 +84,14 @@ export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,p
         return p;
       });
       const rawSites=sites.map((site,j)=>{
-        const result=executeEnvironmentSensorPhotoSignal(plans[j]!,q=>{evaluations++;return evaluate(q);},aperture?(q,ray):ReturnType<typeof evaluate>=>{evaluations++;return aperture(q,ray);}:undefined);
+        const result=executeEnvironmentSensorPhotoSignal(plans[j]!,q=>{if(signal.aborted)throw new InvalidConfigurationError("Native source evaluation aborted.");evaluations++;return evaluate(q);},aperture?(q,ray):ReturnType<typeof evaluate>=>{if(signal.aborted)throw new InvalidConfigurationError("Native aperture evaluation aborted.");evaluations++;return aperture(q,ray);}:undefined);
         const photoSignal=result.value.photo.value.photoSignal;
         const darkCharge=calculateSensorDarkCurrentCharge({exposure:photoSignal,darkCurrentProfile:site.darkCurrentProfile,operatingTemperatureC:site.operatingTemperatureC}).value;
         return {...site.readout,charge:{...site.charge,photoSignal,darkCharge}};
       });
+      if(signal.aborted)throw new InvalidConfigurationError("Native photo observation aborted.");
       if(observe)await observe(freezeOwnedData({...request,sites:rawSites.map((s,j)=>({nativeIndex:request.y*plan.exposure.geometry.nativeRaster.pixelWidth+request.x+j,
-        expectedIncidentPhotonCount:s.charge.photoSignal.expectedIncidentPhotonCount,expectedGeneratedElectronCount:s.charge.photoSignal.expectedGeneratedElectronCount}))}));
+        expectedIncidentPhotonCount:s.charge.photoSignal.expectedIncidentPhotonCount,expectedGeneratedElectronCount:s.charge.photoSignal.expectedGeneratedElectronCount}))}),signal);
       return {...request,sites:rawSites};
     },yieldControl
   });

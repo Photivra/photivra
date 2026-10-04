@@ -61,7 +61,7 @@ export interface NativeEnvironmentRawProvider {
   evaluateRadiance: SimulateEnvironmentSensorRawFrameInput["evaluateRadiance"];
   evaluateApertureRadiance?: SimulateEnvironmentSensorRawFrameInput["evaluateApertureRadiance"];
   /** Optional bounded diagnostic observer; counts are expectation values before any noise/clamp/ADC. */
-  observePhotoTile?(tile:Readonly<NativeEnvironmentPhotoTile>):void|Promise<void>;
+  observePhotoTile?(tile:Readonly<NativeEnvironmentPhotoTile>,signal:AbortSignal):void|Promise<void>;
   yieldControl(signal:AbortSignal):Promise<void>;
 }
 ```

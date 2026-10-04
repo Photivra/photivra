@@ -49,6 +49,15 @@ describe("bounded native environment RAW",()=>{
     const bad=fixture();bad.provider.observePhotoTile=():void=>{throw Error("observer failed");};const failed=createNativeEnvironmentRawTask(bad.input,bad.provider);
     await expect(failed.run()).rejects.toThrow("observer failed");expect(failed.state).toBe("failed");expect(()=>failed.takeOutput()).toThrow();
   });
+  it("stops source callbacks immediately on cancellation and aborts pending photo observers",async()=>{
+    const f=fixture();const task:ReturnType<typeof createNativeEnvironmentRawTask>=createNativeEnvironmentRawTask(f.input,{...f.provider,evaluateRadiance:q=>{task.cancel();return f.provider.evaluateRadiance(q);}});
+    await expect(task.run()).rejects.toThrow();expect(task.providerEvaluationCount).toBe(1);expect(task.state).toBe("cancelled");expect(()=>task.takeOutput()).toThrow();
+    const observed=fixture();let signal:AbortSignal|undefined,entered:()=>void=()=>{};
+    const waiting=new Promise<void>(done=>{entered=done;});
+    observed.provider.observePhotoTile=(_tile,s):Promise<void>=>{signal=s;entered();return new Promise<void>(done=>s.addEventListener("abort",()=>done(),{once:true}));};
+    const pending=createNativeEnvironmentRawTask(observed.input,observed.provider),running=pending.run();await waiting;pending.dispose();
+    await expect(running).rejects.toThrow();expect(signal!.aborted).toBe(true);expect(pending.state).toBe("disposed");expect(()=>pending.takeOutput()).toThrow();
+  });
   it("rejects non-opening clocks, unbound scenes and unsupported whole-event budgets",()=>{
     const f=fixture();expect(()=>createNativeEnvironmentRawTask({...f.input,maximumProviderEvaluations:2_000_000_001},f.provider)).toThrow();
     expect(()=>createNativeEnvironmentRawTask({...f.input,sceneBinding:{...f.input.sceneBinding,sceneStateId:"wrong"}},f.provider)).toThrow();
