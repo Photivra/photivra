@@ -45,12 +45,13 @@ export interface SimulateEnvironmentSensorRawFrameInput {
   /** Shared shutter schedule is bound to the committed frame duration. */
   exposureWindow: NonNullable<SensorRawProducerInput["exposureWindow"]>;
   sites: readonly {
-    environment: Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance">;
+    environment: Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance" | "evaluateApertureRadiance">;
     darkCurrentProfile: SensorDarkCurrentProfile;
     operatingTemperatureC: number;
     charge: Omit<SensorRawProducerSiteInput["charge"], "photoSignal" | "darkCharge">;
     readout: Omit<SensorRawProducerSiteInput, "charge">;
   }[];
   evaluateRadiance: EnvironmentRadianceEvaluator;
+  evaluateApertureRadiance?: EnvironmentApertureRadianceEvaluator;
 }
 ```

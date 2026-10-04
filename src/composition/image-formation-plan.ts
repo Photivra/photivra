@@ -4546,7 +4546,10 @@ function computeEnvironmentCapture(input: ProductionEnvironmentCaptureInput | un
     if (externalOutput !== undefined || snapshot.physicalSceneSample !== undefined) {
       throw new InvalidConfigurationError("Executed environment capture cannot mix declared scene samples or external RAW output sources.");
     }
-    const { evaluateRadiance, ...data } = input.capture;
+    const { evaluateRadiance, evaluateApertureRadiance, ...data } = input.capture;
+    if (evaluateApertureRadiance !== undefined || data.sites.some(site => site.environment.pupil !== undefined)) {
+      throw new InvalidConfigurationError("Ideal pupil capture is standalone until production depth/visibility fidelity is explicitly composed.");
+    }
     const owned = structuredClone(data);
     const capture = parseSimulatedCapture(owned.frame.capture);
     validateProductionRawCapture(capture, snapshot, "Production RAW");

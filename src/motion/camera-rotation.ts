@@ -178,7 +178,8 @@ function requireNonNegativeFinite(name: string, value: number): void {
   }
 }
 
-function rotateVectorByAxisAngle(
+/** Internal shared geometric rotation; public callers use the validated camera mappings. */
+export function rotateVectorByAxisAngle(
   vector: Vector3,
   axis: Vector3,
   angleRad: number
