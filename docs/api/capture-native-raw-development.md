@@ -5,6 +5,10 @@ Package **1.4.0**, root API **1.4.0**. [Navigation](../API_REFERENCE.md) · [Dev
 ## createNativeRawDevelopmentTask
 
 Validates complete phase/halo support, snapshots RAW once, and yields between 256-pixel output tiles.
+Retains explicit acquisition tile width when reconstructing the exact packed plan. Omitted width
+preserves legacy plan shape; inconsistent tile counts or unsupported widths fail validation.
+Acquisition chunk width changes neither CFA/seed coordinates nor development pixels, and does
+not establish transport or device-resource qualification.
 
 ```ts
 export function createNativeRawDevelopmentTask(input: NativeRawDevelopmentInput,
