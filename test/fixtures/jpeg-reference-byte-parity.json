@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "0.1.0",
+  "referenceSourceSha256": "04228e0ee48a07ce04f5d1fbc4836825a384932c5c9c25a96d432e3971a0c866",
+  "cases": [
+    {
+      "width": 1,
+      "height": 1,
+      "quantizationStep": 1,
+      "metadata": false,
+      "sha256": "f3dc0b4b13dcf6266d87ac163447dc84bed1e4d501294207f0eca3218e666290"
+    },
+    {
+      "width": 1,
+      "height": 1,
+      "quantizationStep": 1,
+      "metadata": true,
+      "sha256": "6579f3f6cb7a1ee64e7dcd8a2eb0a174220bba02a7983188e6b7747db422e8ee"
+    },
+    {
+      "width": 1,
+      "height": 1,
+      "quantizationStep": 17,
+      "metadata": false,
+      "sha256": "d6f4a2b9b4872ebdbcaef1d735d5879b05826be10f2ff4bcfb70027e35dd6c26"
+    },
+    {
+      "width": 1,
+      "height": 1,
+      "quantizationStep": 17,
+      "metadata": true,
+      "sha256": "c3adb9e16cbf93a84eb1ad8877e8336453d958b37d276cff0dc367fcf211c470"
+    },
+    {
+      "width": 1,
+      "height": 1,
+      "quantizationStep": 255,
+      "metadata": false,
+      "sha256": "175bc272168baea86fa9262cf75f7e5af34e705c5408b414ae0eea0037b49ec8"
+    },
+    {
+      "width": 1,
+      "height": 1,
+      "quantizationStep": 255,
+      "metadata": true,
+      "sha256": "e2ba14b3fbe3c0a0cd54eca48d0f9e50b7958a6b270ff35f5cb9dd057479742c"
+    },
+    {
+      "width": 9,
+      "height": 7,
+      "quantizationStep": 1,
+      "metadata": false,
+      "sha256": "6cd1d6cc0601ed5a08869e95430371ebc50e1796b8a8d2052e98df5d84d8a2e4"
+    },
+    {
+      "width": 9,
+      "height": 7,
+      "quantizationStep": 1,
+      "metadata": true,
+      "sha256": "590b37287c001eb9eacec0cf6ad7be7c1fc0847d3ba179718e03de08e24e8c8a"
+    },
+    {
+      "width": 9,
+      "height": 7,
+      "quantizationStep": 17,
+      "metadata": false,
+      "sha256": "24e9ae6513da804163e993154e2b7a2f5bf5e4257ddd1c12878ee74c08d2dddf"
+    },
+    {
+      "width": 9,
+      "height": 7,
+      "quantizationStep": 17,
+      "metadata": true,
+      "sha256": "dc80387545de93fbd09e4d1450a977ce67d53e8aaa9a9b1c7d48d6704eec39e8"
+    },
+    {
+      "width": 9,
+      "height": 7,
+      "quantizationStep": 255,
+      "metadata": false,
+      "sha256": "10e2aa4a7b1cca70e6edc8243b02548cb50e4747e3460943fd57d13f692956a4"
+    },
+    {
+      "width": 9,
+      "height": 7,
+      "quantizationStep": 255,
+      "metadata": true,
+      "sha256": "4fa1c455d4c089755b69b8edfe37c6cd16a2515279c3f2259dec3c1c36586420"
+    },
+    {
+      "width": 63,
+      "height": 65,
+      "quantizationStep": 1,
+      "metadata": false,
+      "sha256": "711d1d382aede858d9c22eacafbc67d65b2286942fc2263a44dbfd4607082fb6"
+    },
+    {
+      "width": 63,
+      "height": 65,
+      "quantizationStep": 1,
+      "metadata": true,
+      "sha256": "e7473c78bc6b59053dc4f603237ca02f64cb8951ee220d13cd52eea0414685ec"
+    },
+    {
+      "width": 63,
+      "height": 65,
+      "quantizationStep": 17,
+      "metadata": false,
+      "sha256": "6736aac2712a6286b74ca626f79fef9e86545cb13f06881bb11433caaf9ddeb8"
+    },
+    {
+      "width": 63,
+      "height": 65,
+      "quantizationStep": 17,
+      "metadata": true,
+      "sha256": "cf690555f6a0dbbb3a210a6d6f314fa98f6b2cca6bd9478f3ac63ae13a43f281"
+    },
+    {
+      "width": 63,
+      "height": 65,
+      "quantizationStep": 255,
+      "metadata": false,
+      "sha256": "c231abd2a0dd567d7cc89d4f4510488b287b9a49f1754907ef710a304e2a1fc3"
+    },
+    {
+      "width": 63,
+      "height": 65,
+      "quantizationStep": 255,
+      "metadata": true,
+      "sha256": "b7860edf365f8fcc84fc7bdd82bf60bcaf559d307c977d9337112349c1477ae2"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Public API reference
 
-Generated from the exact root exports for **@photivra/engine 1.3.0 / root contract 1.3.0** by `node scripts/generate-api-reference.mjs`. No module deep import is supported.
+Generated from the exact root exports for **@photivra/engine 1.4.0 / root contract 1.4.0** by `node scripts/generate-api-reference.mjs`. No module deep import is supported.
 
 Use [the developer guide](DEVELOPERS.md) for executable paths and scientific boundaries. Types are contracts, not runtime validation: parse untrusted data, preserve units/reference frames, read assessment blockers, and retain evidence/limitations. Optional properties do not imply a universal default. Model/schema IDs remain independent of the distribution.
 
@@ -105,6 +105,52 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`LinearCaptureEncodingInput`](api/capture-linear-encoding.md#linearcaptureencodinginput) | Type |
 | [`parseLinearCaptureEncoding`](api/capture-linear-encoding.md#parselinearcaptureencoding) | Runtime |
 
+## capture/native-environment-raw.ts
+
+[Detailed contracts](api/capture-native-environment-raw.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/native-environment-raw.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`createNativeEnvironmentRawTask`](api/capture-native-environment-raw.md#createnativeenvironmentrawtask) | Runtime |
+| [`NativeEnvironmentPhotoTile`](api/capture-native-environment-raw.md#nativeenvironmentphototile) | Type |
+| [`NativeEnvironmentRawInput`](api/capture-native-environment-raw.md#nativeenvironmentrawinput) | Type |
+| [`NativeEnvironmentRawOutput`](api/capture-native-environment-raw.md#nativeenvironmentrawoutput) | Type |
+| [`NativeEnvironmentRawProvider`](api/capture-native-environment-raw.md#nativeenvironmentrawprovider) | Type |
+| [`NativeEnvironmentRawTask`](api/capture-native-environment-raw.md#nativeenvironmentrawtask) | Type |
+| [`NativeEnvironmentRawTile`](api/capture-native-environment-raw.md#nativeenvironmentrawtile) | Type |
+
+## capture/native-raw-development.ts
+
+[Detailed contracts](api/capture-native-raw-development.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/native-raw-development.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`createNativeRawDevelopmentTask`](api/capture-native-raw-development.md#createnativerawdevelopmenttask) | Runtime |
+| [`NativeRawDevelopmentInput`](api/capture-native-raw-development.md#nativerawdevelopmentinput) | Type |
+| [`NativeRawDevelopmentOutput`](api/capture-native-raw-development.md#nativerawdevelopmentoutput) | Type |
+| [`NativeRawDevelopmentTask`](api/capture-native-raw-development.md#nativerawdevelopmenttask) | Type |
+
+## capture/native-raw.ts
+
+[Detailed contracts](api/capture-native-raw.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/native-raw.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateNativeRawPlan`](api/capture-native-raw.md#calculatenativerawplan) | Runtime |
+| [`createNativeRawTask`](api/capture-native-raw.md#createnativerawtask) | Runtime |
+| [`NATIVE_RAW_LIMITS`](api/capture-native-raw.md#native_raw_limits) | Runtime |
+| [`NATIVE_RAW_SCHEMA_VERSION`](api/capture-native-raw.md#native_raw_schema_version) | Runtime |
+| [`NativeRawExposure`](api/capture-native-raw.md#nativerawexposure) | Type |
+| [`NativeRawExposureInput`](api/capture-native-raw.md#nativerawexposureinput) | Type |
+| [`NativeRawInput`](api/capture-native-raw.md#nativerawinput) | Type |
+| [`NativeRawOutput`](api/capture-native-raw.md#nativerawoutput) | Type |
+| [`NativeRawPlan`](api/capture-native-raw.md#nativerawplan) | Type |
+| [`NativeRawProvider`](api/capture-native-raw.md#nativerawprovider) | Type |
+| [`NativeRawTask`](api/capture-native-raw.md#nativerawtask) | Type |
+| [`NativeRawTaskState`](api/capture-native-raw.md#nativerawtaskstate) | Type |
+| [`NativeRawTile`](api/capture-native-raw.md#nativerawtile) | Type |
+| [`NativeRawTileRequest`](api/capture-native-raw.md#nativerawtilerequest) | Type |
+
 ## capture/photographic-export.ts
 
 [Detailed contracts](api/capture-photographic-export.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/photographic-export.ts)
@@ -189,6 +235,7 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 
 | Export | Kind |
 | --- | --- |
+| [`CaptureExposureSource`](api/capture-simulated-capture.md#captureexposuresource) | Type |
 | [`CaptureFloatStorage`](api/capture-simulated-capture.md#capturefloatstorage) | Type |
 | [`CaptureLinearImageState`](api/capture-simulated-capture.md#capturelinearimagestate) | Type |
 | [`CaptureLinearPlane`](api/capture-simulated-capture.md#capturelinearplane) | Type |
@@ -220,6 +267,15 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`parseCaptureColorTransformInput`](api/color-capture-color.md#parsecapturecolortransforminput) | Runtime |
 | [`resolveCaptureColorModel`](api/color-capture-color.md#resolvecapturecolormodel) | Runtime |
 | [`VIRTUAL_COLOR_CAMERA_PROFILE`](api/color-capture-color.md#virtual_color_camera_profile) | Runtime |
+
+## color/srgb-icc.ts
+
+[Detailed contracts](api/color-srgb-icc.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/color/srgb-icc.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`createSrgbIccProfile`](api/color-srgb-icc.md#createsrgbiccprofile) | Runtime |
+| [`SRGB_ICC_PROFILE_VERSION`](api/color-srgb-icc.md#srgb_icc_profile_version) | Runtime |
 
 ## color/white-balance.ts
 
@@ -1249,6 +1305,23 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`PrintRegionDetailInput`](api/output-print-detail.md#printregiondetailinput) | Type |
 | [`PrintSinusoidalMeasurement`](api/output-print-detail.md#printsinusoidalmeasurement) | Type |
 | [`PrintSinusoidalTarget`](api/output-print-detail.md#printsinusoidaltarget) | Type |
+
+## output/print-jpeg.ts
+
+[Detailed contracts](api/output-print-jpeg.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/output/print-jpeg.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`createPrintJpegTask`](api/output-print-jpeg.md#createprintjpegtask) | Runtime |
+| [`parsePrintJpegInput`](api/output-print-jpeg.md#parseprintjpeginput) | Runtime |
+| [`PRINT_JPEG_SCHEMA_VERSION`](api/output-print-jpeg.md#print_jpeg_schema_version) | Runtime |
+| [`PrintJpegInput`](api/output-print-jpeg.md#printjpeginput) | Type |
+| [`PrintJpegOutput`](api/output-print-jpeg.md#printjpegoutput) | Type |
+| [`PrintJpegProvider`](api/output-print-jpeg.md#printjpegprovider) | Type |
+| [`PrintJpegSource`](api/output-print-jpeg.md#printjpegsource) | Type |
+| [`PrintJpegTask`](api/output-print-jpeg.md#printjpegtask) | Type |
+| [`PrintJpegTile`](api/output-print-jpeg.md#printjpegtile) | Type |
+| [`PrintJpegTileRequest`](api/output-print-jpeg.md#printjpegtilerequest) | Type |
 
 ## output/print-plan.ts
 

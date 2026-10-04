@@ -1,6 +1,6 @@
 {
-  "packageVersion": "1.3.0",
-  "engineApiVersion": "1.3.0",
+  "packageVersion": "1.4.0",
+  "engineApiVersion": "1.4.0",
   "exports": [
     {
       "name": "AbsoluteUncertaintyEstimate",
@@ -588,6 +588,11 @@
       "kind": "runtime"
     },
     {
+      "name": "calculateNativeRawPlan",
+      "source": "src/capture/native-raw.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateOutputFieldOfView",
       "source": "src/output/capture-geometry.ts",
       "kind": "runtime"
@@ -1088,6 +1093,11 @@
       "kind": "type"
     },
     {
+      "name": "CaptureExposureSource",
+      "source": "src/capture/simulated-capture.ts",
+      "kind": "type"
+    },
+    {
       "name": "CaptureExposureWindows",
       "source": "src/sensor/exposure-window.ts",
       "kind": "type"
@@ -1453,8 +1463,28 @@
       "kind": "runtime"
     },
     {
+      "name": "createNativeEnvironmentRawTask",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createNativeRawDevelopmentTask",
+      "source": "src/capture/native-raw-development.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createNativeRawTask",
+      "source": "src/capture/native-raw.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "createPhotographicExportPair",
       "source": "src/capture/photographic-export.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createPrintJpegTask",
+      "source": "src/output/print-jpeg.ts",
       "kind": "runtime"
     },
     {
@@ -1560,6 +1590,11 @@
     {
       "name": "createSimulatedCapture",
       "source": "src/capture/simulated-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createSrgbIccProfile",
+      "source": "src/color/srgb-icc.ts",
       "kind": "runtime"
     },
     {
@@ -2723,6 +2758,16 @@
       "kind": "runtime"
     },
     {
+      "name": "NATIVE_RAW_LIMITS",
+      "source": "src/capture/native-raw.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "NATIVE_RAW_SCHEMA_VERSION",
+      "source": "src/capture/native-raw.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "NativeCaptureSdrInput",
       "source": "src/output/native-capture-sdr.ts",
       "kind": "type"
@@ -2788,8 +2833,103 @@
       "kind": "type"
     },
     {
+      "name": "NativeEnvironmentPhotoTile",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEnvironmentRawInput",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEnvironmentRawOutput",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEnvironmentRawProvider",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEnvironmentRawTask",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEnvironmentRawTile",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
       "name": "NativeImageRaster",
       "source": "src/sensor/sensor-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawDevelopmentInput",
+      "source": "src/capture/native-raw-development.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawDevelopmentOutput",
+      "source": "src/capture/native-raw-development.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawDevelopmentTask",
+      "source": "src/capture/native-raw-development.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawExposure",
+      "source": "src/capture/native-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawExposureInput",
+      "source": "src/capture/native-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawInput",
+      "source": "src/capture/native-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawOutput",
+      "source": "src/capture/native-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawPlan",
+      "source": "src/capture/native-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawProvider",
+      "source": "src/capture/native-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawTask",
+      "source": "src/capture/native-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawTaskState",
+      "source": "src/capture/native-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawTile",
+      "source": "src/capture/native-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawTileRequest",
+      "source": "src/capture/native-raw.ts",
       "kind": "type"
     },
     {
@@ -3070,6 +3210,11 @@
     {
       "name": "parsePrintContrastReferenceInput",
       "source": "src/output/print-contrast-reference.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parsePrintJpegInput",
+      "source": "src/output/print-jpeg.ts",
       "kind": "runtime"
     },
     {
@@ -3458,6 +3603,11 @@
       "kind": "runtime"
     },
     {
+      "name": "PRINT_JPEG_SCHEMA_VERSION",
+      "source": "src/output/print-jpeg.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "PRINT_REGION_DETAIL_MODEL_VERSION",
       "source": "src/output/print-detail.ts",
       "kind": "runtime"
@@ -3490,6 +3640,41 @@
     {
       "name": "PrintedImageSize",
       "source": "src/output/print-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintJpegInput",
+      "source": "src/output/print-jpeg.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintJpegOutput",
+      "source": "src/output/print-jpeg.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintJpegProvider",
+      "source": "src/output/print-jpeg.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintJpegSource",
+      "source": "src/output/print-jpeg.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintJpegTask",
+      "source": "src/output/print-jpeg.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintJpegTile",
+      "source": "src/output/print-jpeg.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PrintJpegTileRequest",
+      "source": "src/output/print-jpeg.ts",
       "kind": "type"
     },
     {
@@ -5696,6 +5881,11 @@
       "name": "SpectralWavelengthSample",
       "source": "src/core/spectral.ts",
       "kind": "type"
+    },
+    {
+      "name": "SRGB_ICC_PROFILE_VERSION",
+      "source": "src/color/srgb-icc.ts",
+      "kind": "runtime"
     },
     {
       "name": "STABILIZATION_DISTURBANCE_TRAJECTORY_VERSION",

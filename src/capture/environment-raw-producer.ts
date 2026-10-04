@@ -16,7 +16,7 @@ import { approximationResult, type CalculationResult } from "../core/calculation
 import { InvalidScientificInputError } from "../core/validation.js";
 import { parseSimulatedCapture } from "./simulated-capture.js";
 import { RAW_REFERENCE_MAX_NATIVE_SITES } from "./raw-frame-limits.js";
-import { simulateSensorRawFrame, type SensorRawProducerInput, type SensorRawProducerSiteInput } from "./sensor-raw-producer.js";
+import { simulateSensorRawFrame, type SensorRawProducerInput, type SensorRawProducerSiteInput, type NativeRawProducerFrameContext, type SensorRawProducerExposureWindowInput } from "./sensor-raw-producer.js";
 import { calculateSensorDarkCurrentCharge, type SensorDarkCurrentProfile } from "../sensor/dark-current.js";
 import { planEnvironmentSensorPhotoSignal, executeEnvironmentSensorPhotoSignal,
   type CalculateEnvironmentSensorPhotoSignalInput, type EnvironmentRadianceEvaluator, type EnvironmentApertureRadianceEvaluator } from "../sensor/environment-photo-signal.js";
@@ -59,6 +59,25 @@ export interface EnvironmentSensorRawFrame {
   raw: ReturnType<typeof simulateSensorRawFrame>;
 }
 
+/** Internal frame-binding and scalar optical/EQE planning shared with bounded native execution. */
+export function planEnvironmentRawSite(site: SimulateEnvironmentSensorRawFrameInput["sites"][number], i: number,
+  frame: NativeRawProducerFrameContext, sceneBinding: SimulateEnvironmentSensorRawFrameInput["sceneBinding"],
+  exposureWindow: SensorRawProducerExposureWindowInput): ReturnType<typeof planEnvironmentSensorPhotoSignal> {
+  const capture=frame.capture,native=capture.geometry.nativeRaster;
+    const e = site.environment, sensor = e.sensor;
+    if (sensor.spatialSampling.site.x !== i%native.pixelWidth || sensor.spatialSampling.site.y !== Math.floor(i/native.pixelWidth) ||
+      canonical(sensor.spatialSampling.imagingArea) !== canonical(capture.geometry.imagingArea) ||
+      canonical(sensor.colorSamplingProfile) !== canonical(frame.colorSamplingProfile) ||
+      canonical(sensor.localExposure.bindingProfile) !== canonical(frame.bindingProfile) ||
+      canonical(sensor.localExposure.exposureWindowInput) !== canonical({ ...exposureWindow, nativeRaster: native }) ||
+      e.optics.focalLengthMm !== capture.exposure.focalLengthMm || e.optics.nominalFNumber !== capture.exposure.aperture) {
+      throw new InvalidScientificInputError("Environment site, frame geometry/profiles, optics and exact shutter event must match the committed capture.");
+    }
+    const plan = planEnvironmentSensorPhotoSignal(e);
+    if (canonical(plan.focus) !== canonical(capture.focus) ||
+      e.sceneBindings.providerProfile.sceneId !== sceneBinding.providerSceneId) throw new InvalidScientificInputError("Environment optical focus and provider scene must match the committed capture binding.");
+  return plan;
+}
 /**
  * Preflight complete native coverage and aggregate support before invoking supplied
  * provider code, then reuse dark/completeness/capacity/noise/ADC ownership. The
@@ -83,19 +102,11 @@ export function simulateEnvironmentSensorRawFrame(input: SimulateEnvironmentSens
     sceneBindings: e.sceneBindings, optics: e.optics, motion: e.motion, psf: e.psf, pupil: e.pupil, fieldThroughput: e.fieldThroughput });
   const plans = Array.from(owned.sites, (site, i) => {
     if (!site) throw new InvalidScientificInputError("Environment RAW site array must be dense.");
-    const e = site.environment, sensor = e.sensor;
-    if (sensor.spatialSampling.site.x !== i%native.pixelWidth || sensor.spatialSampling.site.y !== Math.floor(i/native.pixelWidth) ||
-      canonical(sensor.spatialSampling.imagingArea) !== canonical(capture.geometry.imagingArea) ||
-      canonical(sensor.colorSamplingProfile) !== canonical(owned.frame.colorSamplingProfile) ||
-      canonical(sensor.localExposure.bindingProfile) !== canonical(owned.frame.bindingProfile) ||
-      canonical(sensor.localExposure.exposureWindowInput) !== canonical({ ...owned.exposureWindow, nativeRaster: native }) ||
-      e.optics.focalLengthMm !== capture.exposure.focalLengthMm || e.optics.nominalFNumber !== capture.exposure.aperture ||
-      ids.has(e.temporalIntegrationId) || sharedState(e) !== sharedState(owned.sites[0]!.environment)) {
+    const e = site.environment;
+    if (ids.has(e.temporalIntegrationId) || sharedState(e) !== sharedState(owned.sites[0]!.environment)) {
       throw new InvalidScientificInputError("Environment site, frame geometry/profiles, optics and exact shutter event must match the committed capture.");
     }
-    const plan = planEnvironmentSensorPhotoSignal(e);
-    if (canonical(plan.focus) !== canonical(capture.focus) ||
-      e.sceneBindings.providerProfile.sceneId !== owned.sceneBinding.providerSceneId) throw new InvalidScientificInputError("Environment optical focus and provider scene must match the committed capture binding.");
+    const plan = planEnvironmentRawSite(site,i,owned.frame,owned.sceneBinding,owned.exposureWindow);
     ids.add(e.temporalIntegrationId);
     evaluations += plan.count;
     if (evaluations > 100000) throw new InvalidScientificInputError("Environment RAW exceeds the aggregate 100000-provider-evaluation budget.");

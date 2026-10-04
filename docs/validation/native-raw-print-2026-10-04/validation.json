@@ -1,0 +1,41 @@
+{
+  "results": [
+    {
+      "id": "native-color",
+      "maximumCodeError": 2,
+      "meanCodeError": 0.31640625,
+      "jpegSha256": "efabdf08a88d99b5a890f400ab1ba334841354457e9895d27bce65894f5b0388"
+    },
+    {
+      "id": "linear-area-checker",
+      "maximumCodeError": 0,
+      "meanCodeError": 0.0,
+      "jpegSha256": "3b4c6d4dbd1287bb6bb5d3ee77a1eac4c5656bae351debd69228f52dd72859e5"
+    },
+    {
+      "id": "fractional-asymmetric-crop",
+      "maximumCodeError": 3,
+      "meanCodeError": 0.4675324675324675,
+      "jpegSha256": "30c2ec601eb1ccc71e24034316899b4b369de596b9cab76f01d0bbf4ec51fe07"
+    },
+    {
+      "id": "gray-ramp",
+      "maximumCodeError": 0,
+      "meanCodeError": 0.0,
+      "jpegSha256": "984597baaf9e7f3e9aff592ac6b2fd1f027f7d77b7b4023ea1a792ac71565c72"
+    },
+    {
+      "id": "megapixel-native",
+      "maximumCodeError": 2,
+      "meanCodeError": 0.327889,
+      "jpegSha256": "85d3198bc022e002a83408334cef1e4a5d19b478fd0bd829dfc87836ec3a9fe2"
+    }
+  ],
+  "jpegCodeTolerance": 4,
+  "iccCubeSamples": 4913,
+  "maximumIccCodeError": 0,
+  "manifestSha256": "faaf83601f651fb6150887e4c2f6c764c5f5932affd1db752708a2f512474fa0",
+  "validatorSha256": "8fb5ebdf2972c89a6be3ba87142d3cc87787a30d84481a13e4b85e635eeff48d",
+  "scope": "Original encoded sRGB controls through actual bounded area filter/JPEG/ICC bytes; not calibrated source capture, printer/substrate appearance or platform save/share.",
+  "pass": true
+}

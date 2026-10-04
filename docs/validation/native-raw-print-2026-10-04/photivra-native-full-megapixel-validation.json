@@ -1,0 +1,9 @@
+{
+  "maximumJpegCodeError": 3,
+  "outputPixels": 250000,
+  "sourceSamplesSha256": "beef9e915f87b74c3b38f18aab74b6ba466f453ced1cf4df307e654376311528",
+  "jpegSha256": "eb930644f138a7b70b45134e5bde3fd16ec8de6a0f300b3350c8ccc914224a5c",
+  "validatorSha256": "985d20f33ec28477c8dbcf8775280641a48fad53e94740e17dea509a0ec17cf0",
+  "scope": "Independent actual JPEG/EXIF/ICC and linear area filtering of retained same-RAW integer SDR; RAW generation and reconstruction are qualified separately.",
+  "pass": true
+}

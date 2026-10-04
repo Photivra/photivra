@@ -81,6 +81,7 @@ export {
   createCaptureWhiteBalanceIntent,
   type SimulatedCapture,
   type SimulatedCaptureInput,
+  type CaptureExposureSource,
   type CaptureLinearImageState,
   type CaptureLinearPlane,
   type CaptureFloatStorage,
@@ -1414,6 +1415,17 @@ export type { PrintRegionRaster, PrintRegionDifferenceInput, PrintRegionNoiseInp
 export { PRINT_CONTRAST_REFERENCE_MODEL_VERSION, PRINT_CONTRAST_REFERENCE_UPSTREAM_REVISION,
   calculatePrintContrastReference, parsePrintContrastReferenceInput } from "./output/print-contrast-reference.js";
 export type { PrintContrastReferenceInput, PrintContrastReference } from "./output/print-contrast-reference.js";
+export { NATIVE_RAW_SCHEMA_VERSION, NATIVE_RAW_LIMITS, calculateNativeRawPlan, createNativeRawTask } from "./capture/native-raw.js";
+export { PRINT_JPEG_SCHEMA_VERSION, parsePrintJpegInput, createPrintJpegTask } from "./output/print-jpeg.js";
+export type { PrintJpegSource, PrintJpegInput, PrintJpegTileRequest, PrintJpegTile, PrintJpegProvider, PrintJpegOutput, PrintJpegTask } from "./output/print-jpeg.js";
+export { SRGB_ICC_PROFILE_VERSION, createSrgbIccProfile } from "./color/srgb-icc.js";
+export { createNativeEnvironmentRawTask } from "./capture/native-environment-raw.js";
+export type { NativeEnvironmentRawInput, NativeEnvironmentRawTile, NativeEnvironmentPhotoTile, NativeEnvironmentRawProvider, NativeEnvironmentRawOutput,
+  NativeEnvironmentRawTask } from "./capture/native-environment-raw.js";
+export { createNativeRawDevelopmentTask } from "./capture/native-raw-development.js";
+export type { NativeRawDevelopmentInput, NativeRawDevelopmentOutput, NativeRawDevelopmentTask } from "./capture/native-raw-development.js";
+export type { NativeRawExposureInput, NativeRawExposure, NativeRawInput, NativeRawPlan, NativeRawTileRequest, NativeRawTile,
+  NativeRawProvider, NativeRawOutput, NativeRawTaskState, NativeRawTask } from "./capture/native-raw.js";
 export { NATIVE_CAPTURE_SDR_SCHEMA_VERSION, NATIVE_CAPTURE_SDR_LIMITS, calculateNativeCaptureSdrPlan, createNativeCaptureSdrTask } from "./output/native-capture-sdr.js";
 export type { NativeCaptureSdrInput, NativeCaptureSdrTileRequest, NativeCaptureSdrTile, NativeCaptureSdrProvider, NativeCaptureSdrPlan,
   NativeCaptureSdrOutput, NativeCaptureSdrTaskState, NativeCaptureSdrTask } from "./output/native-capture-sdr.js";

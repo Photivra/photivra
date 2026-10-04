@@ -1,0 +1,29 @@
+{
+  "engineVersion": "1.4.0",
+  "generatorSha256": "04e0215db74e182c88ac347b01278a8190c57a51d7522c2ba53d41e8d0595988",
+  "developmentElapsedMs": 843.1333750000049,
+  "printElapsedMs": 309.57416699999885,
+  "sdrSamplesSha256": "beef9e915f87b74c3b38f18aab74b6ba466f453ced1cf4df307e654376311528",
+  "jpegBytes": 622231,
+  "jpegSha256": "eb930644f138a7b70b45134e5bde3fd16ec8de6a0f300b3350c8ccc914224a5c",
+  "schemaVersion": "0.1.0",
+  "pass": true,
+  "width": 1000,
+  "height": 1000,
+  "sites": 1000000,
+  "maximumTileSites": 256,
+  "completedTiles": 4000,
+  "outputBytes": 7000000,
+  "elapsedMs": 52682.2215,
+  "codesSha256": "d7e4afebebf47a6bc0e5f85fee267d2b63c060c58023fb9bdfba1db8f0d461f4",
+  "sampleIndicesChecked": [
+    0,
+    255,
+    256,
+    999,
+    1000,
+    500500,
+    999999
+  ],
+  "scope": "Actual complete constructed EQE/dark native RAW execution; same packed RAW developed to integer SDR and cropped/downsampled ICC JPEG; not source radiometry, physical device or calibrated sensor qualification."
+}

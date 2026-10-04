@@ -184,6 +184,51 @@ function sourceBoundary(schedule: CaptureExposureWindows["opening"]["schedule"])
     traversalDurationSeconds: schedule.traversalDurationSeconds
   };
 }
+/** Internal scalar validation shared by reference and bounded packed execution. */
+export type NativeRawProducerFrameContext = Omit<SensorRawProducerInput["frame"], "capture"> & {
+  capture: Pick<SensorRawProducerInput["frame"]["capture"], "geometry" | "exposure" | "noise" | "focus" | "sceneStateId" | "sceneTimeSeconds">;
+};
+export function parseNativeRawProducerSite(site: unknown, i: number, frame: NativeRawProducerFrameContext,
+  window?: CaptureExposureWindows["samples"][number]): SensorRawProducerSiteInput {
+  const native = frame.capture.geometry.nativeRaster;
+    const s = fields(site, ["charge", "samplingProfile", "capacityProfile", "operatingStateId", "readoutProfile", "regimeId"]);
+    const charge = chargeInput(s.charge), p = charge.photoSignal;
+    const contributors = resolveCaptureModeColorSamplingContributors({ nativeRaster: native, captureModeProfile: frame.captureModeProfile,
+      modeId: frame.modeId, colorSamplingProfile: frame.colorSamplingProfile, bindingProfile: frame.bindingProfile,
+      modeSampleIndexFullFrame: { x: i%native.pixelWidth, y: Math.floor(i/native.pixelWidth) } });
+
+    if (contributors.totalContributorSites !== 1 || contributors.channelComposition.kind !== "single-channel" ||
+        p.colorSamplingProfileId !== frame.colorSamplingProfile.profileId || p.channelId !== contributors.channelComposition.channelId ||
+        p.site.x !== contributors.colorSamplingSiteRect.x || p.site.y !== contributors.colorSamplingSiteRect.y ||
+        p.bindingId !== frame.bindingProfile.bindingId || p.startOffsetSecondsFromOpeningReference !== (window?.startOffsetSecondsFromOpeningReference ?? 0) ||
+        p.endOffsetSecondsFromOpeningReference !== (window?.endOffsetSecondsFromOpeningReference ?? frame.capture.exposure.shutterSeconds) ||
+        p.localExposureDurationSeconds !== (window?.localExposureDurationSeconds ?? frame.capture.exposure.shutterSeconds)) {
+      throw new InvalidConfigurationError("Charge site/channel/binding/local exposure differs from committed capture.");
+    }
+    return { charge, samplingProfile: parseSensorChargeSamplingProfile(s.samplingProfile), capacityProfile: parseSensorPhysicalChargeCapacityProfile(s.capacityProfile),
+      operatingStateId: publicId(s.operatingStateId), readoutProfile: parseSensorReadoutConversionProfile(s.readoutProfile), regimeId: publicId(s.regimeId) };
+}
+export function validateNativeRawReadoutIdentity(s: SensorRawProducerSiteInput, first: SensorRawProducerSiteInput): void {
+    publicIdentities(s);
+    const readout = resolveSensorReadoutRegime({ profile: s.readoutProfile, regimeId: s.regimeId });
+    if (s.readoutProfile.profileId !== first.readoutProfile.profileId || s.regimeId !== first.regimeId ||
+        readout.regime.adc.bitDepth > 16 || readout.regime.adc.digitalSaturationCode <= readout.regime.adc.blackLevelCode ||
+        s.readoutProfile.colorSamplingProfileId !== s.charge.photoSignal.colorSamplingProfileId ||
+        s.readoutProfile.channelId !== s.charge.photoSignal.channelId || s.samplingProfile.completenessProfileId !== s.charge.completenessProfile.profileId) {
+      throw new InvalidConfigurationError("Frame requires one readout identity/regime and a positive uint16 RAW code span.");
+    }
+}
+/** The shared scalar pipeline owns all charge, capacity, stochastic and ADC equations. */
+export function calculateNativeRawSite(s: SensorRawProducerSiteInput, seed: number, i: number): SensorRawProducerResult["sites"][number] {
+  const accumulatedCharge = composeSensorAccumulatedCharge(s.charge);
+  const capacity = assessSensorPhysicalChargeCapacity({ accumulatedCharge: accumulatedCharge.value, capacityProfile: s.capacityProfile,
+    operatingStateId: s.operatingStateId, operatingTemperatureC: s.charge.darkCharge.operatingTemperatureC });
+  const realization = simulateSensorChargeRealization({ accumulatedCharge: accumulatedCharge.value, samplingProfile: s.samplingProfile,
+    seedUint32: (seed+2*i) >>> 0 });
+  const readout = simulateSensorRawCode({ chargeRealization: realization.value, physicalCapacityAssessment: capacity.value,
+    readoutProfile: s.readoutProfile, regimeId: s.regimeId, readNoiseSeedUint32: (seed+2*i+1) >>> 0 });
+  return { accumulatedCharge, capacity, realization, readout };
+}
 /** Validates complete native exposure inputs; no charge/noise/RAW code is accepted as a shortcut. */
 export function parseSensorRawProducerInput(value: unknown): SensorRawProducerInput {
   const r = fields(value, ["frame", "sites", "exposureWindow"]), f = fields(r.frame, ["frameId", "capture", "modeId", "captureModeProfile", "colorSamplingProfile", "bindingProfile", "containerBitDepth"]);
@@ -200,34 +245,8 @@ export function parseSensorRawProducerInput(value: unknown): SensorRawProducerIn
     throw new InvalidConfigurationError("Producer requires exact noise identity and bounded single-frame native CFA coverage.");
   }
   const timing = r.exposureWindow === undefined ? undefined : localWindows(frame, r.exposureWindow);
-  const parsed = sites.map((site, i): SensorRawProducerSiteInput => {
-    const s = fields(site, ["charge", "samplingProfile", "capacityProfile", "operatingStateId", "readoutProfile", "regimeId"]);
-    const charge = chargeInput(s.charge), p = charge.photoSignal;
-    const contributors = resolveCaptureModeColorSamplingContributors({ nativeRaster: native, captureModeProfile: frame.captureModeProfile,
-      modeId: frame.modeId, colorSamplingProfile: frame.colorSamplingProfile, bindingProfile: frame.bindingProfile,
-      modeSampleIndexFullFrame: { x: i%native.pixelWidth, y: Math.floor(i/native.pixelWidth) } });
-    const window = timing?.value.samples[i];
-    if (contributors.totalContributorSites !== 1 || contributors.channelComposition.kind !== "single-channel" ||
-        p.colorSamplingProfileId !== frame.colorSamplingProfile.profileId || p.channelId !== contributors.channelComposition.channelId ||
-        p.site.x !== contributors.colorSamplingSiteRect.x || p.site.y !== contributors.colorSamplingSiteRect.y ||
-        p.bindingId !== frame.bindingProfile.bindingId || p.startOffsetSecondsFromOpeningReference !== (window?.startOffsetSecondsFromOpeningReference ?? 0) ||
-        p.endOffsetSecondsFromOpeningReference !== (window?.endOffsetSecondsFromOpeningReference ?? capture.exposure.shutterSeconds) ||
-        p.localExposureDurationSeconds !== (window?.localExposureDurationSeconds ?? capture.exposure.shutterSeconds)) {
-      throw new InvalidConfigurationError("Charge site/channel/binding/local exposure differs from committed capture.");
-    }
-    return { charge, samplingProfile: parseSensorChargeSamplingProfile(s.samplingProfile), capacityProfile: parseSensorPhysicalChargeCapacityProfile(s.capacityProfile),
-      operatingStateId: publicId(s.operatingStateId), readoutProfile: parseSensorReadoutConversionProfile(s.readoutProfile), regimeId: publicId(s.regimeId) };
-  });
-  for (const s of parsed) {
-    publicIdentities(s);
-    const readout = resolveSensorReadoutRegime({ profile: s.readoutProfile, regimeId: s.regimeId });
-    if (s.readoutProfile.profileId !== parsed[0]!.readoutProfile.profileId || s.regimeId !== parsed[0]!.regimeId ||
-        readout.regime.adc.bitDepth > 16 || readout.regime.adc.digitalSaturationCode <= readout.regime.adc.blackLevelCode ||
-        s.readoutProfile.colorSamplingProfileId !== s.charge.photoSignal.colorSamplingProfileId ||
-        s.readoutProfile.channelId !== s.charge.photoSignal.channelId || s.samplingProfile.completenessProfileId !== s.charge.completenessProfile.profileId) {
-      throw new InvalidConfigurationError("Frame requires one readout identity/regime and a positive uint16 RAW code span.");
-    }
-  }
+  const parsed = sites.map((site, i) => parseNativeRawProducerSite(site, i, frame, timing?.value.samples[i]));
+  for (const site of parsed) validateNativeRawReadoutIdentity(site, parsed[0]!);
   publicIdentities(frame);
   return { frame, sites: parsed, ...(timing === undefined ? {} : { exposureWindow: {
     shutterMechanism: timing.value.shutterMechanism,
@@ -238,16 +257,7 @@ export function parseSensorRawProducerInput(value: unknown): SensorRawProducerIn
 /** Composes existing accumulated-charge → capacity → Poisson → read noise/ADC → native sample → immutable frame contracts. */
 export function simulateSensorRawFrame(input: SensorRawProducerInput): CalculationResult<SensorRawProducerResult> {
   const v = parseSensorRawProducerInput(input), seed = v.frame.capture.noise.seedUint32;
-  const sites = v.sites.map((s, i): SensorRawProducerResult["sites"][number] => {
-    const accumulatedCharge = composeSensorAccumulatedCharge(s.charge);
-    const capacity = assessSensorPhysicalChargeCapacity({ accumulatedCharge: accumulatedCharge.value, capacityProfile: s.capacityProfile,
-      operatingStateId: s.operatingStateId, operatingTemperatureC: s.charge.darkCharge.operatingTemperatureC });
-    const realization = simulateSensorChargeRealization({ accumulatedCharge: accumulatedCharge.value, samplingProfile: s.samplingProfile,
-      seedUint32: (seed+2*i) >>> 0 });
-    const readout = simulateSensorRawCode({ chargeRealization: realization.value, physicalCapacityAssessment: capacity.value,
-      readoutProfile: s.readoutProfile, regimeId: s.regimeId, readNoiseSeedUint32: (seed+2*i+1) >>> 0 });
-    return { accumulatedCharge, capacity, realization, readout };
-  });
+  const sites = v.sites.map((s, i) => calculateNativeRawSite(s, seed, i));
   const native = v.frame.capture.geometry.nativeRaster;
   const samples = sites.map((s, i) => createSensorRawCaptureSample({ rawCode: s.readout.value,
     contributors: resolveCaptureModeColorSamplingContributors({ nativeRaster: native, captureModeProfile: v.frame.captureModeProfile,

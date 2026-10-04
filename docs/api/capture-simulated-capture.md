@@ -1,6 +1,14 @@
 # capture/simulated-capture.ts public contracts
 
-Package **1.3.0**, root API **1.3.0**. [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+Package **1.4.0**, root API **1.4.0**. [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+
+## CaptureExposureSource
+
+A procedural/physical source identity without a manufactured linear-master plane.
+
+```ts
+export type CaptureExposureSource = SimulatedCaptureInput["source"] | (Omit<SimulatedCaptureInput["source"], "kind"> & {kind:"scene-radiance-source"});
+```
 
 ## CaptureFloatStorage
 

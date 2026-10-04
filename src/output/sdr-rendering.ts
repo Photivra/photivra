@@ -7,6 +7,7 @@
  * @see docs/SDR_RENDERING.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
+import { encodeSrgbComponent } from "../color/srgb-transfer.js";
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { calculatedResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -139,7 +140,7 @@ export function calculateSdrRendering(input: SdrRenderingInput): CalculationResu
     }
     return sample;
   });
-  const encoded = linear.map((sample) => sample === 1 ? 1 : sample <= .0031308 ? sample*12.92 : 1.055*sample**(1/2.4)-.055);
+  const encoded = linear.map(encodeSrgbComponent);
   const maximum = 2**p.bitDepth-1;
   const codes = encoded.map((sample) => Math.floor(sample*maximum+.5));
   return calculatedResult({ schemaVersion: SDR_RENDERING_SCHEMA_VERSION, sourceImageStateId: value.sourceImageStateId,
