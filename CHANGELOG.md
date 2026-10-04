@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add evidence-bound radial illumination throughput to bounded environment photo/RAW execution, validating every inverse PSF tap before provider callbacks and applying attenuation once in physical sensor coordinates. Production composition requires explicit vignetting fidelity. Preserve unity arithmetic, resource limits and unverified transport flags.
+
 ## 1.2.0 candidate — review and publication pending
 
 - Add metadata-only external RGB tile execution with explicit 24 MP/resource limits, whole-capture identity, unchanged reference arithmetic, cancellation/disposal and single-transfer output ownership. See `docs/NATIVE_CAPTURE_SDR.md`; review/version/publication and native-producer/device qualification remain separate.

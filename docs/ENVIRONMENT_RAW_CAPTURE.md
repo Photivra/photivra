@@ -50,9 +50,15 @@ the declared optical/provider envelope covers them.
   remains. Translation/parallax, world pose, breathing and distortion are absent.
 - Wavelength-resolved radiance with explicit air/vacuum basis. Any air photon
   energy context remains the existing sensor contract's responsibility.
-- Explicit unity field throughput with evidence and a limitation. Spatial
-  vignetting is not silently synthesized. Existing lens transmission/front-filter
-  inputs remain upstream of normalized PSF shape.
+- Explicit `unity` or `radial-illumination-vignetting` field throughput with evidence
+  and a limitation. The latter reuses the existing bounded radial profile and applies
+  attenuation once at every physical inverse-PSF source point, before normalized
+  PSF redistribution. Camera motion changes scene direction, not lens field position.
+  All taps, including zero-weight taps, must lie in the declared profile envelope
+  before any provider callback. Existing lens transmission/front-filter inputs remain
+  upstream of normalized PSF shape. This is an owned approximation, not calibrated
+  lens throughput or pupil vignetting. Production composition requires the explicit
+  `illumination-vignetting` fidelity effect, including a modeled-zero profile.
 - PSF is explicitly `not-applied` with evidence/limitation or `sampled-local`
   with the existing evidence-backed wavelength basis and local spatial model.
   Focal length, aperture and focus must match the optical bridge. The optional
@@ -185,3 +191,16 @@ The standalone adapter retains its conservative `productionPlanActivated: false`
 field: it cannot know whether a parent composer called it. The parent plan's
 actual stage results and executed lineage establish the bounded activation;
 no child source-truth flag is overwritten.
+
+## Additive field-throughput candidate
+
+Photo integration model 0.2.0 adds radial field-throughput input; unity arithmetic,
+provider/RAW resource limits and conservative verification flags remain unchanged.
+`test/environment-field-throughput.test.ts` independently integrates SI photon counts
+with radial attenuation, checks source-tap PSF weighting, exact unity-profile parity,
+physical field invariance under motion, profile ownership, full-frame preflight and
+replayable paired RAW/JPEG output. The production planner reports requested field
+attenuation as active or modeled-zero and blocks undeclared attenuation before callbacks.
+This candidate has not been tagged or published; the distribution version stays 1.2.0
+until the next release preparation. External chart/backend evidence belongs to its
+provider and does not become an engine calibration claim.

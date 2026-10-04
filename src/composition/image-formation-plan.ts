@@ -3172,7 +3172,8 @@ function deriveEffectPlan(
   temporalResult:
     ProductionTemporalCaptureResult | undefined,
   blockers:
-    ProductionImageFormationBlocker[]
+    ProductionImageFormationBlocker[],
+  environmentCapture?: ProductionEnvironmentCaptureInput
 ): readonly PlannedImageFormationEffect[] {
   const contract =
     getImageFormationContract();
@@ -3306,11 +3307,12 @@ function deriveEffectPlan(
           placement.id ===
           "illumination-vignetting"
         ) {
+          const environmentField = environmentCapture?.capture.sites[0]?.environment.fieldThroughput;
           const field =
             snapshot
               .physicalSceneSample
               ?.fieldThroughput;
-          if (field === undefined) {
+          if (field === undefined && environmentField === undefined) {
             const blocker:
               ProductionImageFormationBlocker = {
               code:
@@ -3347,11 +3349,10 @@ function deriveEffectPlan(
           }
 
           const modeledZero =
-            field.kind ===
-              "unity" ||
-            field.result
-              .linearThroughputFactor ===
-              1;
+            environmentField !== undefined
+              ? environmentField.kind === "unity" || (environmentField.kind === "radial-illumination-vignetting" &&
+                environmentField.profile?.coefficients != null && Object.values(environmentField.profile.coefficients).every(value => value === 0))
+              : field!.kind === "unity" || field!.result.linearThroughputFactor === 1;
           return {
             effectId:
               placement.id,
@@ -4576,6 +4577,10 @@ function computeEnvironmentCapture(input: ProductionEnvironmentCaptureInput | un
     const rendererTemporal = prepared.renderer.temporalSampling;
     for (const site of owned.sites) {
       const e = site.environment;
+      if (e.fieldThroughput.kind !== "unity" &&
+        !prepared.fidelity.requiredEffects.some(effect => effect.effectId === "illumination-vignetting")) {
+        throw new InvalidConfigurationError("Non-unity environment field throughput requires an explicitly requested illumination-vignetting effect.");
+      }
       if (e.sceneBindings.providerProfile.profileId !== prepared.sceneRadianceProviderProfileId ||
         canonicalStringify(e.optics.profile) !== canonicalStringify(prepared.opticalBridgeProfile) ||
         rendererTemporal.kind !== "bounded" || e.temporalSampleCount > rendererTemporal.maximumSamples ||
@@ -4659,12 +4664,13 @@ export function createProductionImageFormationPlan(
       blockers
     );
 
-  const effectPlan =
+  let effectPlan =
     deriveEffectPlan(
       prepared,
       snapshot,
       temporalResult,
-      blockers
+      blockers,
+      input.environmentCapture
     );
 
   // Snapshot post-capture policy before a provider can mutate caller-owned state.
@@ -4673,6 +4679,11 @@ export function createProductionImageFormationPlan(
   const environmentExecution = computeEnvironmentCapture(input.environmentCapture, input.processedOutput,
     prepared, snapshot, requiredStages, blockers);
   const environmentCaptureResult = environmentExecution?.result;
+  if (input.environmentCapture !== undefined && environmentCaptureResult === undefined) {
+    effectPlan = effectPlan.map(effect => effect.effectId === "illumination-vignetting" && effect.requiredByFidelity
+      ? { ...effect, state: "blocked" as const, scientificStatus: "not-applicable" as const,
+        blockerCodes: ["environment-capture-evaluation-blocked" as const] } : effect);
+  }
   const executedOutput = environmentCaptureResult === undefined || environmentProcessing === undefined ? undefined : {
     outputStateId: snapshot.outputStateId,
     processing: { ...environmentProcessing, reconstruction: { ...environmentProcessing.reconstruction,
