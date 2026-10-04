@@ -104,6 +104,31 @@ function profile(value: unknown): SensorRawReconstructionProfile {
   }
   return parseSensorRawReconstructionProfile(r);
 }
+/** Internal phase dispatch parser shared with packed native reconstruction. */
+export function parseRawReconstructionPhaseProfiles(value: unknown, modeId: string,
+  colorSamplingProfile: SensorRawFrame["colorSamplingProfile"]): RawFrameReconstructionPhaseProfile[] {
+  const layout = colorSamplingProfile.layout;
+  if (layout.kind !== "periodic-mosaic") throw new InvalidConfigurationError("Reconstruction requires periodic native CFA.");
+  const phaseCount = layout.repeatWidthSites * layout.repeatHeightSites;
+  if (phaseCount > 64 || !Array.isArray(value) || value.length !== phaseCount) {
+    throw new InvalidConfigurationError("Every CFA phase requires one profile, with a maximum of 64 phases.");
+  }
+  const phaseProfiles: RawFrameReconstructionPhaseProfile[] = [];
+  const phases = new Set<string>();
+  let channels: string[] | undefined;
+  for (const entry of value) {
+    const p = object(entry, ["phaseX", "phaseY", "profile"]), phaseX = integer(p.phaseX), phaseY = integer(p.phaseY), parsed = profile(p.profile);
+    const key = phaseX + ":" + phaseY, ids = parsed.kernels.map((k) => k.outputChannelId);
+    if (phaseX >= layout.repeatWidthSites || phaseY >= layout.repeatHeightSites || phases.has(key) ||
+        parsed.captureModeId !== modeId || parsed.colorSamplingProfileId !== colorSamplingProfile.profileId ||
+        (channels && JSON.stringify(ids) !== JSON.stringify(channels))) {
+      throw new InvalidConfigurationError("CFA phase/profile identity or output-channel order is inconsistent.");
+    }
+    channels = ids; phases.add(key); phaseProfiles.push({ phaseX, phaseY, profile: parsed });
+  }
+  phaseProfiles.sort((a, b) => a.phaseY - b.phaseY || a.phaseX - b.phaseX);
+  return phaseProfiles;
+}
 /** Revalidates committed RAW codes/geometry and complete phase dispatch; no external plane may supply output values. */
 export function parseRawFrameReconstructionInput(value: unknown): RawFrameReconstructionInput {
   const r = object(value, ["rawFrame", "region", "phaseProfiles"]), rawFrame = frame(r.rawFrame);
@@ -112,26 +137,7 @@ export function parseRawFrameReconstructionInput(value: unknown): RawFrameRecons
   if (region.x + region.width > rawFrame.nativePixelWidth || region.y + region.height > rawFrame.nativePixelHeight) {
     throw new InvalidConfigurationError("Reconstruction region must lie within the full native RAW frame.");
   }
-  const layout = rawFrame.colorSamplingProfile.layout;
-  if (layout.kind !== "periodic-mosaic") throw new InvalidConfigurationError("Reconstruction requires periodic native CFA.");
-  const phaseCount = layout.repeatWidthSites * layout.repeatHeightSites;
-  if (phaseCount > 64 || !Array.isArray(r.phaseProfiles) || r.phaseProfiles.length !== phaseCount) {
-    throw new InvalidConfigurationError("Every CFA phase requires one profile, with a maximum of 64 phases.");
-  }
-  const phaseProfiles: RawFrameReconstructionPhaseProfile[] = [];
-  const phases = new Set<string>();
-  let channels: string[] | undefined;
-  for (const value of r.phaseProfiles) {
-    const p = object(value, ["phaseX", "phaseY", "profile"]), phaseX = integer(p.phaseX), phaseY = integer(p.phaseY), parsed = profile(p.profile);
-    const key = phaseX + ":" + phaseY, ids = parsed.kernels.map((k) => k.outputChannelId);
-    if (phaseX >= layout.repeatWidthSites || phaseY >= layout.repeatHeightSites || phases.has(key) ||
-        parsed.captureModeId !== rawFrame.modeId || parsed.colorSamplingProfileId !== rawFrame.colorSamplingProfile.profileId ||
-        (channels && JSON.stringify(ids) !== JSON.stringify(channels))) {
-      throw new InvalidConfigurationError("CFA phase/profile identity or output-channel order is inconsistent.");
-    }
-    channels = ids; phases.add(key); phaseProfiles.push({ phaseX, phaseY, profile: parsed });
-  }
-  phaseProfiles.sort((a, b) => a.phaseY - b.phaseY || a.phaseX - b.phaseX);
+  const phaseProfiles = parseRawReconstructionPhaseProfiles(r.phaseProfiles, rawFrame.modeId, rawFrame.colorSamplingProfile);
   return { rawFrame, region, phaseProfiles };
 }
 /** Delegates each pixel to #14's explicit linear reconstruction using only the attached native RAW samples. */

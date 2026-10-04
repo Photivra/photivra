@@ -836,84 +836,11 @@ export function resolveSensorRawReconstruction(
     );
   }
 
-  const outputChannels =
-    profile.kernels.map(
-      (kernel) => {
-        let value = 0;
-        const sourceContributions =
-          kernel.contributions.map(
-            (contribution) => {
-              const x =
-                center.x +
-                contribution.offsetX;
-              const y =
-                center.y +
-                contribution.offsetY;
-              if (
-                x < 0 ||
-                y < 0
-              ) {
-                throw new InvalidScientificInputError(
-                  "RAW reconstruction kernel references a site outside the non-negative native sensor coordinate domain."
-                );
-              }
-              const key =
-                x +
-                ":" +
-                y +
-                ":" +
-                contribution
-                  .sourceChannelId;
-              const sample =
-                sampleMap.get(key);
-              if (
-                sample ===
-                undefined
-              ) {
-                throw new InvalidScientificInputError(
-                  "RAW reconstruction neighborhood is missing a required site/channel contribution."
-                );
-              }
-
-              value +=
-                sample
-                  .blackSubtractedNormalizedCode *
-                contribution.weight;
-
-              return {
-                site: {
-                  x,
-                  y
-                },
-                sourceChannelId:
-                  contribution
-                    .sourceChannelId,
-                weight:
-                  contribution.weight,
-                sourceValue:
-                  sample
-                    .blackSubtractedNormalizedCode
-              };
-            }
-          );
-
-        if (
-          !Number.isFinite(value)
-        ) {
-          throw new InvalidScientificInputError(
-            "Reconstructed linear channel value must remain finite."
-          );
-        }
-
-        return {
-          channelId:
-            kernel.outputChannelId,
-          linearBlackSubtractedNormalizedValue:
-            value,
-          sourceContributions
-        };
-      }
-    );
+  const outputChannels = profile.kernels.map(kernel => calculateRawReconstructionChannel(kernel, center, (x, y, channelId) => {
+    const sample = sampleMap.get(x + ":" + y + ":" + channelId);
+    if (sample === undefined) throw new InvalidScientificInputError("RAW reconstruction neighborhood is missing a required site/channel contribution.");
+    return sample.blackSubtractedNormalizedCode;
+  }));
 
   return approximationResult(
     {
@@ -959,4 +886,19 @@ export function resolveSensorRawReconstruction(
       "Aliasing and moire are explicitly not modeled because this reconstruction contract does not establish an adequate pre-sampling optical transfer/scene-frequency model."
     ]
   );
+}
+
+/** Internal prepared scalar accumulation; reference and packed execution share operation order. */
+export function calculateRawReconstructionChannel(kernel: SensorRawReconstructionChannelKernel,
+  center: {x:number;y:number}, read: (x:number,y:number,channelId:string)=>number): SensorRawReconstructedPixel["outputChannels"][number] {
+  let value = 0;
+  const sourceContributions = kernel.contributions.map(contribution => {
+    const x = center.x + contribution.offsetX, y = center.y + contribution.offsetY;
+    if (x < 0 || y < 0) throw new InvalidScientificInputError("RAW reconstruction kernel references a site outside the non-negative native sensor coordinate domain.");
+    const sourceValue = read(x,y,contribution.sourceChannelId);
+    value += sourceValue*contribution.weight;
+    return {site:{x,y},sourceChannelId:contribution.sourceChannelId,weight:contribution.weight,sourceValue};
+  });
+  if (!Number.isFinite(value)) throw new InvalidScientificInputError("Reconstructed linear channel value must remain finite.");
+  return {channelId:kernel.outputChannelId,linearBlackSubtractedNormalizedValue:value,sourceContributions};
 }

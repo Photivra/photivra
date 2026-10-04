@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.4.0 — candidate, not published
 
-- Add standalone evidence-bound ideal circular pupil rays and optional origin-aware bounded photo/RAW evaluation. Reuse shared focus and camera rotation, average normalized pupil irradiances before the existing sensor pipeline, and retain exact-once working-f-number throughput. Reject simultaneous sampled PSF, missing callbacks, invalid geometry and excessive budgets before provider work. Production depth/visibility composition and megapixel RAW remain unsupported. See `docs/SENSOR_APERTURE_RAYS.md`.
+- Add standalone evidence-bound ideal circular pupil rays and optional origin-aware bounded photo/RAW evaluation. Reuse shared focus and camera rotation, average normalized pupil irradiances before the existing sensor pipeline, and retain exact-once working-f-number throughput. Reject simultaneous sampled PSF, missing callbacks, invalid geometry and excessive budgets before provider work. Production depth/visibility composition remains unsupported. See `docs/SENSOR_APERTURE_RAYS.md`.
 
-## 1.3.0 — release preparation
+- Add separate metadata-only packed native RAW, physical source-to-RAW and same-RAW reconstruction/SDR tasks with explicit 24 MP admission, bounded tiles, absolute CFA/seed identities, cancellation and single-transfer ownership. Preserve the reference RAW caps and scalar mathematics.
+- Add bounded post-SDR Print crop/area downsampling and original baseline JPEG encoding with an original sRGB ICC profile. Explicit source hashes remain caller declarations; platform save/share, printer appearance and physical device acceptance are separate.
+- Record complete one-megapixel constructed RAW → SDR → downsampled JPEG execution and independently decoded JPEG/ICC/area-filter controls. See [native RAW and Print contracts](docs/NATIVE_RAW_AND_PRINT.md).
+
+## 1.3.0 — published
 
 - Add evidence-bound radial illumination throughput to bounded environment photo/RAW execution, validating every inverse PSF tap before provider callbacks and applying attenuation once in physical sensor coordinates. Production composition requires explicit vignetting fidelity. Preserve unity arithmetic, resource limits and unverified transport flags.
 

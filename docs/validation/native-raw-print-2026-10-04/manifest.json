@@ -1,0 +1,218 @@
+{
+  "schemaVersion": "0.1.0",
+  "cases": [
+    {
+      "spec": {
+        "id": "native-color",
+        "width": 32,
+        "height": 24,
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 24
+        },
+        "outputWidth": 32,
+        "outputHeight": 24,
+        "pattern": "color"
+      },
+      "input": {
+        "source": {
+          "captureId": "native-color",
+          "imageStateId": "owned-encoded-srgb-control",
+          "artifactId": "native-color-source",
+          "sha256": "27860d683ea5523f9c64a96078fbc0274b29589dfc5e236c0b2a07f7ecdfcca0",
+          "width": 32,
+          "height": 24,
+          "encoding": "encoded-srgb-8-rgb"
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 24
+        },
+        "outputWidth": 32,
+        "outputHeight": 24,
+        "quantizationStep": 1,
+        "maximumEncodedBytes": 16000000,
+        "maximumProviderReads": 1000000
+      },
+      "jpegSha256": "efabdf08a88d99b5a890f400ab1ba334841354457e9895d27bce65894f5b0388",
+      "encodedBytes": 3494,
+      "providerReads": 12,
+      "elapsedMs": 7.764833999999993
+    },
+    {
+      "spec": {
+        "id": "linear-area-checker",
+        "width": 16,
+        "height": 16,
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 16,
+          "height": 16
+        },
+        "outputWidth": 8,
+        "outputHeight": 8,
+        "pattern": "checker"
+      },
+      "input": {
+        "source": {
+          "captureId": "linear-area-checker",
+          "imageStateId": "owned-encoded-srgb-control",
+          "artifactId": "linear-area-checker-source",
+          "sha256": "2a75867172d5cbfd8a931f1f4f975144e44f3ab1f4e19240b3027cffff3188fe",
+          "width": 16,
+          "height": 16,
+          "encoding": "encoded-srgb-8-rgb"
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 16,
+          "height": 16
+        },
+        "outputWidth": 8,
+        "outputHeight": 8,
+        "quantizationStep": 1,
+        "maximumEncodedBytes": 16000000,
+        "maximumProviderReads": 1000000
+      },
+      "jpegSha256": "3b4c6d4dbd1287bb6bb5d3ee77a1eac4c5656bae351debd69228f52dd72859e5",
+      "encodedBytes": 2140,
+      "providerReads": 1,
+      "elapsedMs": 3.7267909999999915
+    },
+    {
+      "spec": {
+        "id": "fractional-asymmetric-crop",
+        "width": 33,
+        "height": 25,
+        "crop": {
+          "x": 1,
+          "y": 2,
+          "width": 31,
+          "height": 21
+        },
+        "outputWidth": 11,
+        "outputHeight": 7,
+        "pattern": "color"
+      },
+      "input": {
+        "source": {
+          "captureId": "fractional-asymmetric-crop",
+          "imageStateId": "owned-encoded-srgb-control",
+          "artifactId": "fractional-asymmetric-crop-source",
+          "sha256": "278ef79316e90b4b17450a038060d84e52294a227bcf5c0d1c7bd5ae43bdca96",
+          "width": 33,
+          "height": 25,
+          "encoding": "encoded-srgb-8-rgb"
+        },
+        "crop": {
+          "x": 1,
+          "y": 2,
+          "width": 31,
+          "height": 21
+        },
+        "outputWidth": 11,
+        "outputHeight": 7,
+        "quantizationStep": 1,
+        "maximumEncodedBytes": 16000000,
+        "maximumProviderReads": 1000000
+      },
+      "jpegSha256": "30c2ec601eb1ccc71e24034316899b4b369de596b9cab76f01d0bbf4ec51fe07",
+      "encodedBytes": 2412,
+      "providerReads": 2,
+      "elapsedMs": 12.065624999999997
+    },
+    {
+      "spec": {
+        "id": "gray-ramp",
+        "width": 256,
+        "height": 1,
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 256,
+          "height": 1
+        },
+        "outputWidth": 256,
+        "outputHeight": 1,
+        "pattern": "gray"
+      },
+      "input": {
+        "source": {
+          "captureId": "gray-ramp",
+          "imageStateId": "owned-encoded-srgb-control",
+          "artifactId": "gray-ramp-source",
+          "sha256": "72432263dbfe17abc40ed269f24c7a344e077e3671007dfc8a2f3851f8193dc2",
+          "width": 256,
+          "height": 1,
+          "encoding": "encoded-srgb-8-rgb"
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 256,
+          "height": 1
+        },
+        "outputWidth": 256,
+        "outputHeight": 1,
+        "quantizationStep": 1,
+        "maximumEncodedBytes": 16000000,
+        "maximumProviderReads": 1000000
+      },
+      "jpegSha256": "984597baaf9e7f3e9aff592ac6b2fd1f027f7d77b7b4023ea1a792ac71565c72",
+      "encodedBytes": 2417,
+      "providerReads": 32,
+      "elapsedMs": 8.222540999999993
+    },
+    {
+      "spec": {
+        "id": "megapixel-native",
+        "width": 1000,
+        "height": 1000,
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1000,
+          "height": 1000
+        },
+        "outputWidth": 1000,
+        "outputHeight": 1000,
+        "pattern": "color"
+      },
+      "input": {
+        "source": {
+          "captureId": "megapixel-native",
+          "imageStateId": "owned-encoded-srgb-control",
+          "artifactId": "megapixel-native-source",
+          "sha256": "bc7fdb031f85ef086611b07e30db6f22df7b575cd4418a89aff7b0e09670f800",
+          "width": 1000,
+          "height": 1000,
+          "encoding": "encoded-srgb-8-rgb"
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1000,
+          "height": 1000
+        },
+        "outputWidth": 1000,
+        "outputHeight": 1000,
+        "quantizationStep": 1,
+        "maximumEncodedBytes": 16000000,
+        "maximumProviderReads": 1000000
+      },
+      "jpegSha256": "85d3198bc022e002a83408334cef1e4a5d19b478fd0bd829dfc87836ec3a9fe2",
+      "encodedBytes": 1473254,
+      "providerReads": 15625,
+      "elapsedMs": 1566.533625
+    }
+  ],
+  "iccSha256": "e2fa668be69a91255d7f5b354fdc2e249b282fc6dab2f5f4a9b6ed600ed533e3",
+  "generatorSha256": "c1cba3b64f5e2c783027e0dd0fb0d43a12ec11ebf5e3acd12c709ba25832b48f",
+  "scope": "Original encoded sRGB controls through actual bounded area filter/JPEG/ICC bytes; not calibrated source capture, printer/substrate appearance or platform save/share."
+}

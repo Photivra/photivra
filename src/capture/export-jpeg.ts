@@ -19,14 +19,38 @@ export function encodeExportJpeg(input: ExportJpegInput): Uint8Array {
       q < 1 || q > 255 || samples.length !== width*height*3 || Array.from(samples).some((v) => !Number.isInteger(v) || v < 0 || v > 255)) {
     throw new InvalidConfigurationError("Unsupported baseline JPEG input.");
   }
-  const bytes: number[] = [255,216];
+  const encoder=createExportJpegEncoder({...input,maximumOutputBytes:1_000_000});
+  for(let by=0;by<height;by+=8)for(let bx=0;bx<width;bx+=8){
+    const block:number[]=[];
+    for(let y=0;y<8;y++)for(let x=0;x<8;x++){
+      const p=(Math.min(by+y,height-1)*width+Math.min(bx+x,width-1))*3;
+      block.push(samples[p]!,samples[p+1]!,samples[p+2]!);
+    }
+    encoder.writeRgbBlock(block);
+  }
+  return encoder.finish();
+}
+/** Internal bounded sink; reference and scalable exports share DCT/entropy equations exactly. */
+export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> & {maximumOutputBytes:number;icc?:Uint8Array}): {
+  writeRgbBlock(samples:readonly number[]):void; finish():Uint8Array; dispose():void;
+} {
+  const {width,height,quantizationStep:q}=input;
+  if(![width,height,q,input.maximumOutputBytes].every(Number.isSafeInteger)||width<1||height<1||width>65535||height>65535||q<1||q>255||input.maximumOutputBytes<1||input.maximumOutputBytes>256_000_000)
+    throw new InvalidConfigurationError("Invalid bounded JPEG encoding plan.");
+  const storage=new Uint8Array(input.maximumOutputBytes);let offset=0,disposed=false,blocks=0;
+  const push=(...values:number[]):void=>{if(disposed||offset+values.length>storage.length)throw new InvalidConfigurationError("JPEG output exceeds admitted byte budget or is disposed.");storage.set(values,offset);offset+=values.length;};
+  push(255,216);
   const marker = (id: number, payload: readonly number[]): void => {
     if (payload.length > 65533) throw new InvalidConfigurationError("JPEG metadata segment exceeds the standard APP limit.");
-    bytes.push(255,id,(payload.length+2)>>8,(payload.length+2)&255,...payload);
+    push(255,id,(payload.length+2)>>8,(payload.length+2)&255,...payload);
   };
   marker(224,[74,70,73,70,0,1,2,0,0,1,0,1,0,0]);
   marker(225,[69,120,105,102,0,0,...input.exif]);
   marker(225,[...new TextEncoder().encode("http://ns.adobe.com/xap/1.0/\0"),...input.xmp]);
+  if(input.icc){
+    if(input.icc.length>65519)throw new InvalidConfigurationError("ICC profile exceeds the single-segment encoding envelope.");
+    marker(226,[...new TextEncoder().encode("ICC_PROFILE\0"),1,1,...input.icc]);
+  }
   marker(219,[0,...Array<number>(64).fill(q)]);
   marker(192,[8,height>>8,height&255,width>>8,width&255,3,1,17,0,2,17,0,3,17,0]);
   // DC categories 0..11 use 4-bit codes; AC EOB/ZRL and all baseline run/category pairs use 8-bit codes.
@@ -40,7 +64,7 @@ export function encodeExportJpeg(input: ExportJpegInput): Uint8Array {
   const emit = (value: number, count: number): void => {
     for (let i=count-1;i>=0;i--) {
       accumulator=(accumulator<<1)|((value>>i)&1); bits++;
-      if (bits===8) { bytes.push(accumulator); if (accumulator===255) bytes.push(0); accumulator=0; bits=0; }
+      if (bits===8) { push(accumulator); if (accumulator===255) push(0); accumulator=0; bits=0; }
     }
   };
   const amplitude = (value: number, max: number): number => {
@@ -63,12 +87,14 @@ export function encodeExportJpeg(input: ExportJpegInput): Uint8Array {
  */
   const cosine=Array.from({length:8},(_,u) => Array.from({length:8},(_,x) => Math.cos((2*x+1)*u*Math.PI/16)));
   const previous=[0,0,0];
-  for (let by=0;by<height;by+=8) for (let bx=0;bx<width;bx+=8) {
+  return {
+    writeRgbBlock(samples:readonly number[]):void {
+      if(disposed||blocks>=Math.ceil(width/8)*Math.ceil(height/8)||samples.length!==192||Array.from(samples).some(v=>!Number.isInteger(v)||v<0||v>255))throw new InvalidConfigurationError("JPEG requires complete bounded RGB coding blocks.");
     for (let channel=0;channel<3;channel++) {
       const block: number[] = [];
       for (let y=0;y<8;y++) for (let x=0;x<8;x++) {
         // JPEG coding pads partial 8x8 MCUs only; this never changes the declared photograph/crop dimensions.
-        const p=(Math.min(by+y,height-1)*width+Math.min(bx+x,width-1))*3;
+        const p=(y*8+x)*3;
         const red=samples[p]!, green=samples[p+1]!, blue=samples[p+2]!, luminance=.299*red+.587*green+.114*blue;
         block.push(channel===0 ? luminance-128 : channel===1 ? (blue-luminance)/(2*(1-.114)) : (red-luminance)/(2*(1-.299)));
       }
@@ -87,7 +113,13 @@ export function encodeExportJpeg(input: ExportJpegInput): Uint8Array {
       }
       if (zeroes) emit(0,8);
     }
-  }
-  if (bits) emit((1<<(8-bits))-1,8-bits);
-  bytes.push(255,217); return Uint8Array.from(bytes);
+    blocks++;
+    },
+    finish():Uint8Array {
+      if(disposed||blocks!==Math.ceil(width/8)*Math.ceil(height/8))throw new InvalidConfigurationError("JPEG cannot finish incomplete or disposed encoding.");
+      if(bits)emit((1<<(8-bits))-1,8-bits);
+      push(255,217);const output=storage.slice(0,offset);storage.fill(0);disposed=true;return output;
+    },
+    dispose():void {storage.fill(0);disposed=true;}
+  };
 }

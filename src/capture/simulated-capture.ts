@@ -214,9 +214,12 @@ function plane(value: unknown, resolved: ResolvedCaptureGeometry, intent: Captur
     channelIds: channels, colorProfile, encodingReferenceWhiteXyz: referenceWhite, referenceWhiteValue: number(r.referenceWhiteValue, true),
     whiteBalanceApplication: application, captureSaturation, appliedTransforms: transforms, storage };
 }
-function normalize(value: unknown, apiVersion: string): SimulatedCapture {
+/** A procedural/physical source identity without a manufactured linear-master plane. */
+export type CaptureExposureSource = SimulatedCaptureInput["source"] | (Omit<SimulatedCaptureInput["source"], "kind"> & {kind:"scene-radiance-source"});
+/** Internal shared exposure metadata parser. It does not commit or invent float planes. */
+export function normalizeCaptureExposureMetadata(value: unknown, apiVersion: string, allowRadianceSource=false): Omit<SimulatedCapture, "schemaVersion" | "planes" | "source"> & {source:CaptureExposureSource} {
   const r = object(value, ["captureId", "sceneStateId", "sceneTimeSeconds", "geometry", "exposure", "focus", "noise", "source",
-    "whiteBalanceIntent", "adoptedWhiteXyz", "models", "planes"]);
+    "whiteBalanceIntent", "adoptedWhiteXyz", "models"]);
   const g = geometry(r.geometry), resolved = resolveCaptureGeometry(g).value;
   const e = object(r.exposure, ["focalLengthMm", "aperture", "shutterSeconds", "iso"]);
   const exposure = { focalLengthMm: number(e.focalLengthMm, true), aperture: number(e.aperture, true),
@@ -232,23 +235,33 @@ function normalize(value: unknown, apiVersion: string): SimulatedCapture {
     if (!evidence.length || new Set(evidence).size !== evidence.length) throw new InvalidConfigurationError("Public evidence IDs must be nonempty/unique.");
     return { profile: profile(m.profile), scientificStatus: enumValue(m.scientificStatus, ["calculated", "calibrated", "estimated", "approximation"]), publicEvidenceIds: evidence };
   });
-  const planes = array(r.planes, 32).map((p) => plane(p, resolved, intent));
   const adoptedWhite = white(r.adoptedWhiteXyz);
-  if (planes.some((p) => p.whiteBalanceApplication === "applied-chromatic-adaptation") && adoptedWhite === null) {
-    throw new InvalidConfigurationError("Applied adaptation requires an adopted white.");
+  if (!models.length || new Set(models.map((m) => m.profile.id)).size !== models.length) {
+    throw new InvalidConfigurationError("Capture needs unique nonempty models.");
   }
-  if (!models.length || !planes.length || new Set(models.map((m) => m.profile.id)).size !== models.length ||
-      new Set(planes.map((p) => p.id)).size !== planes.length || new Set(planes.map((p) => p.imageStateId)).size !== planes.length ||
-      planes.reduce((n, p) => n+(p.storage.kind === "inline-float64" ? p.storage.samples.length : 0), 0) > 1_000_000) {
-    throw new InvalidConfigurationError("Capture needs unique models/planes/states and a bounded inline sample budget.");
-  }
-  return freezeOwnedData({ schemaVersion: SIMULATED_CAPTURE_SCHEMA_VERSION, engineApiVersion: id(apiVersion),
+  return freezeOwnedData({ engineApiVersion: id(apiVersion),
     captureId: id(r.captureId), sceneStateId: id(r.sceneStateId), sceneTimeSeconds: time, geometry: g, resolvedGeometry: resolved,
     exposure, equivalentFocalLength35Mm: calculateEquivalentFocalLength35Mm({ focalLengthMm: exposure.focalLengthMm, activeImagingArea: resolved.activeCapture.imagingArea }).value.equivalentFocalLength35Mm,
     focus, noise: { seedUint32: seed, realizationId: id(noise.realizationId), model: profile(noise.model) },
-    source: { kind: enumValue(source.kind, ["scene-linear-master", "sensor-derived-linear", "color-transformed-linear-master"]),
+    source: { kind: enumValue(source.kind, allowRadianceSource ? ["scene-linear-master", "sensor-derived-linear", "color-transformed-linear-master", "scene-radiance-source"] : ["scene-linear-master", "sensor-derived-linear", "color-transformed-linear-master"]),
       artifactId: id(source.artifactId), sha256: digest(source.sha256), dynamicRangeHistory: enumValue(source.dynamicRangeHistory, ["unknown", "no-loss-declared", "upstream-clipped"]) },
-    whiteBalanceIntent: intent, adoptedWhiteXyz: adoptedWhite, models, planes });
+    whiteBalanceIntent: intent, adoptedWhiteXyz: adoptedWhite, models });
+}
+function normalize(value: unknown, apiVersion: string): SimulatedCapture {
+  const r = object(value, ["captureId", "sceneStateId", "sceneTimeSeconds", "geometry", "exposure", "focus", "noise", "source",
+    "whiteBalanceIntent", "adoptedWhiteXyz", "models", "planes"]);
+  const { planes: rawPlanes, ...metadataInput } = r;
+  const metadata = normalizeCaptureExposureMetadata(metadataInput, apiVersion);
+  const planes = array(rawPlanes, 32).map(p => plane(p, metadata.resolvedGeometry, metadata.whiteBalanceIntent));
+  if (planes.some(p => p.whiteBalanceApplication === "applied-chromatic-adaptation") && metadata.adoptedWhiteXyz === null) {
+    throw new InvalidConfigurationError("Applied adaptation requires an adopted white.");
+  }
+  if (!planes.length || new Set(planes.map(p => p.id)).size !== planes.length ||
+      new Set(planes.map(p => p.imageStateId)).size !== planes.length ||
+      planes.reduce((n,p) => n+(p.storage.kind === "inline-float64" ? p.storage.samples.length : 0),0) > 1_000_000) {
+    throw new InvalidConfigurationError("Capture needs unique models/planes/states and a bounded inline sample budget.");
+  }
+  return freezeOwnedData({ ...metadata, source:metadata.source as SimulatedCapture["source"], schemaVersion: SIMULATED_CAPTURE_SCHEMA_VERSION, planes });
 }
 /** Commits a format-neutral float master manifest; no radiance generation, clamp, WB or export encoding. */
 export function createSimulatedCapture(input: SimulatedCaptureInput): CalculationResult<SimulatedCapture> {
