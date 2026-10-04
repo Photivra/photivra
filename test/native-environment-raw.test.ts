@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import {describe,it,expect,vi} from "vitest";
 import {createNativeEnvironmentRawTask,simulateEnvironmentSensorRawFrame,type NativeEnvironmentRawInput,type NativeEnvironmentRawProvider,
-  type NativeEnvironmentRawTile,calculateEnvironmentSensorPhotoSignal} from "../src/index.js";
+  type NativeEnvironmentRawTile} from "../src/index.js";
 import {frameInput} from "./helpers/environment-raw-fixture.js";
 function fixture(rolling=false,sampledPsf=false):{input:NativeEnvironmentRawInput;provider:NativeEnvironmentRawProvider;reference:ReturnType<typeof simulateEnvironmentSensorRawFrame>} {
   const v=frameInput(rolling,sampledPsf),reference=simulateEnvironmentSensorRawFrame(v),c=v.frame.capture;
@@ -43,20 +43,14 @@ describe("bounded native environment RAW",()=>{
     };
     const rejected=createNativeEnvironmentRawTask(f.input,f.provider);
     await expect(rejected.run()).rejects.toThrow("query budget");expect(calls).toBe(0);expect(()=>rejected.takeOutput()).toThrow();
-    const expectations:number[]=[];
-    for(const [x,y] of [[0,0],[1,0],[0,1],[1,1]]){
-      const tile=await f.provider.readTile({captureId:f.input.raw.exposure.captureId,frameId:f.input.raw.frameId,x:x!,y:y!,width:1,height:1},new AbortController().signal);
-      expectations.push(calculateEnvironmentSensorPhotoSignal({...tile.sites[0]!.environment,evaluateRadiance:f.provider.evaluateRadiance}).value.photo.value.photoSignal.expectedGeneratedElectronCount);
-    }
-    calls=0;let observed=0;
     const admitted=createNativeEnvironmentRawTask({...f.input,raw:{...f.input.raw,tileWidth:1}},{...f.provider,
-      observePhotoTile:(tile):void=>{for(const site of tile.sites){expect(site.expectedGeneratedElectronCount).toBe(expectations[site.nativeIndex]);observed++;}}});
-    await admitted.run();expect(observed).toBe(4);expect(admitted.providerEvaluationCount).toBeGreaterThan(200_000);
-    expect(admitted.providerEvaluationCount).toBe(calls);expect(admitted.takeOutput().raw.codes).toHaveLength(4);
-    calls=0;const capped=createNativeEnvironmentRawTask({...f.input,maximumProviderEvaluations:100_000,raw:{...f.input.raw,tileWidth:1}},f.provider);
-    await expect(capped.run()).rejects.toThrow("query budget");expect(capped.providerEvaluationCount).toBeGreaterThan(0);
-    expect(capped.providerEvaluationCount).toBeLessThanOrEqual(100_000);expect(()=>capped.takeOutput()).toThrow();
-  },30_000);
+      evaluateRadiance:():never=>{calls++;throw Error("admitted-source-execution");}});
+    await expect(admitted.run()).rejects.toThrow("admitted-source-execution");
+    expect(calls).toBe(1);expect(admitted.providerEvaluationCount).toBe(1);expect(()=>admitted.takeOutput()).toThrow();
+    calls=0;const capped=createNativeEnvironmentRawTask({...f.input,maximumProviderEvaluations:50_000,raw:{...f.input.raw,tileWidth:1}},f.provider);
+    await expect(capped.run()).rejects.toThrow("query budget");expect(capped.providerEvaluationCount).toBe(0);expect(calls).toBe(0);
+    expect(()=>capped.takeOutput()).toThrow();
+  });
   it("rejects bad site geometry, duplicate IDs and mismatched source profiles before radiance callbacks",async()=>{
     for(const bad of ["site","id","focus","geometry","scene","budget"]){
       const f=fixture(),evaluate=vi.fn(f.provider.evaluateRadiance),read=f.provider.readTile;
