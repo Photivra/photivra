@@ -3,8 +3,8 @@ import {describe,it,expect,vi} from "vitest";
 import {createNativeEnvironmentRawTask,simulateEnvironmentSensorRawFrame,type NativeEnvironmentRawInput,type NativeEnvironmentRawProvider,
   type NativeEnvironmentRawTile} from "../src/index.js";
 import {frameInput} from "./helpers/environment-raw-fixture.js";
-function fixture(rolling=false,sampledPsf=false):{input:NativeEnvironmentRawInput;provider:NativeEnvironmentRawProvider;reference:ReturnType<typeof simulateEnvironmentSensorRawFrame>} {
-  const v=frameInput(rolling,sampledPsf),reference=simulateEnvironmentSensorRawFrame(v),c=v.frame.capture;
+function fixture(rolling=false):{input:NativeEnvironmentRawInput;provider:NativeEnvironmentRawProvider;reference:ReturnType<typeof simulateEnvironmentSensorRawFrame>} {
+  const v=frameInput(rolling),reference=simulateEnvironmentSensorRawFrame(v),c=v.frame.capture;
   const {schemaVersion,engineApiVersion,resolvedGeometry,equivalentFocalLength35Mm,planes,...exposure}=c;
   void schemaVersion;void engineApiVersion;void resolvedGeometry;void equivalentFocalLength35Mm;void planes;
   const {capture,containerBitDepth,...frame}=v.frame;void capture;void containerBitDepth;
@@ -33,18 +33,22 @@ describe("bounded native environment RAW",()=>{
     }
   });
   it("admits dense unchanged quadrature in smaller chunks while retaining tile and event caps",async()=>{
-    const f=fixture(false,true),read=f.provider.readTile,evaluate=f.provider.evaluateRadiance;let calls=0;
+    const f=fixture(),read=f.provider.readTile,evaluate=f.provider.evaluateRadiance;let calls=0;
     f.input.maximumProviderEvaluations=400_000;
     f.provider.evaluateRadiance=(q):ReturnType<typeof evaluate>=>{calls++;return evaluate(q);};
     f.provider.readTile=async(r,signal):Promise<NativeEnvironmentRawTile>=>{
-      const tile=await read(r,signal);for(const site of tile.sites){site.environment.temporalSampleCount=256;
-        site.environment.sensor.spatialSampling.spatialSampleCountX=4;site.environment.sensor.spatialSampling.spatialSampleCountY=3;}
+      const tile=await read(r,signal);for(const site of tile.sites){site.environment.temporalSampleCount=128;
+        site.environment.pupil={kind:"ideal-uniform-circular-pupil",radialSampleCount:4,angularSampleCount:16,
+          evidence:[{sourceOrigin:"photivra",sourceReference:"test:chunk-admission-pupil",reuseStatus:"photivra-owned"}],
+          limitation:"Constructed ideal pupil for admission only; no convergence or calibration claim."};}
       return tile;
     };
+    f.provider.evaluateApertureRadiance=f.provider.evaluateRadiance;
     const rejected=createNativeEnvironmentRawTask(f.input,f.provider);
     await expect(rejected.run()).rejects.toThrow("query budget");expect(calls).toBe(0);expect(()=>rejected.takeOutput()).toThrow();
+    const stopAtSource=():never=>{calls++;throw Error("admitted-source-execution");};
     const admitted=createNativeEnvironmentRawTask({...f.input,raw:{...f.input.raw,tileWidth:1}},{...f.provider,
-      evaluateRadiance:():never=>{calls++;throw Error("admitted-source-execution");}});
+      evaluateRadiance:stopAtSource,evaluateApertureRadiance:stopAtSource});
     await expect(admitted.run()).rejects.toThrow("admitted-source-execution");
     expect(calls).toBe(1);expect(admitted.providerEvaluationCount).toBe(1);expect(()=>admitted.takeOutput()).toThrow();
     calls=0;const capped=createNativeEnvironmentRawTask({...f.input,maximumProviderEvaluations:50_000,raw:{...f.input.raw,tileWidth:1}},f.provider);
