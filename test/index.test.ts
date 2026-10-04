@@ -9,7 +9,7 @@ import {
 
 describe("engine foundation", () => {
   it("aligns the root-engine release with the package while preserving the POC contract", () => {
-    expect(ENGINE_API_VERSION).toBe("1.2.0");
+    expect(ENGINE_API_VERSION).toBe("1.3.0");
     const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
     expect(ENGINE_API_VERSION).toBe(manifest.version);
     expect(POC_SIMULATION_API_VERSION).toBe("0.20.0");
