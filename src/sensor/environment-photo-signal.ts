@@ -27,6 +27,7 @@ import { parseSceneMaterialResponseProfile, parseSceneRadianceProviderProfile, p
 import { calculateSensorEnvironmentRadianceQuery, type CalculateSensorEnvironmentRadianceQueryInput } from "../optics/sensor-environment-query.js";
 import { calculateSceneRadianceToSensorIrradiance, type CalculateSceneRadianceToSensorIrradianceInput } from "../optics/scene-to-sensor-irradiance.js";
 import { calculateSensorPsfIrradianceQuadrature, type CalculateSensorPsfIrradianceQuadratureInput } from "../optics/sensor-psf-quadrature.js";
+import { calculateIlluminationVignetting, type IlluminationVignettingProfile } from "../optics/illumination-vignetting.js";
 import { sensorPsfSourcePoint } from "../optics/sensor-psf-support.js";
 import { resolveLensSampledPsf } from "../optics/lens-psf-profile.js";
 import { calculateSensorSpatialSamplingQuadrature } from "./spatial-sampling-quadrature.js";
@@ -48,8 +49,11 @@ export interface CalculateEnvironmentSensorPhotoSignalInput {
   motion: Pick<CalculateSensorEnvironmentRadianceQueryInput,
     "angularVelocityRadPerSec" | "timeReference" | "environmentDirectionConvention">;
   temporalSampleCount: number;
-  /** Explicit unity field throughput; spatial vignetting is not inferred or applied. */
-  fieldThroughput: { kind: "unity"; evidence: readonly EvidenceProvenance[]; limitation: string };
+  /** Explicit source-field attenuation, applied once before PSF redistribution. */
+  fieldThroughput: { kind: "unity"; evidence: readonly EvidenceProvenance[]; limitation: string } | {
+    kind: "radial-illumination-vignetting"; profile: IlluminationVignettingProfile;
+    evidence: readonly EvidenceProvenance[]; limitation: string;
+  };
   psf: { kind: "not-applied"; evidence: readonly EvidenceProvenance[]; limitation: string } | {
     kind: "sampled-local";
     configuration: Pick<CalculateSensorPsfIrradianceQuadratureInput, "psf" | "psfWavelengthBasis" | "spatialModel">;
@@ -94,7 +98,8 @@ interface EnvironmentPhotoPlan {
   instants: { temporalSampleIndex: number; time: number; groups: {
     node: CalculateSensorPsfIrradianceQuadratureInput["samples"][number]["node"];
     taps: { kernelSampleX: number; kernelSampleY: number; point: { x: number; y: number };
-      query: ReturnType<typeof calculateSensorEnvironmentRadianceQuery> }[];
+      query: ReturnType<typeof calculateSensorEnvironmentRadianceQuery>;
+      fieldThroughput: CalculateSceneRadianceToSensorIrradianceInput["fieldThroughput"] }[];
   }[] }[];
 }
 /**
@@ -115,8 +120,13 @@ export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmen
   requirePublicOpaqueId(owned.temporalIntegrationId, "Environment integration requires a public identity.");
   if (!Number.isSafeInteger(owned.temporalSampleCount) || owned.temporalSampleCount < 1 || owned.temporalSampleCount > 256 ||
     owned.sensor.responseApplication.sourcePlane.value !== "sensor-package-incident" ||
-    owned.fieldThroughput?.kind !== "unity" || typeof owned.fieldThroughput.limitation !== "string" || !owned.fieldThroughput.limitation.trim()) {
-    throw new InvalidScientificInputError("Environment exposure requires package-incident response, 1..256 midpoints and explicit unity throughput.");
+    (owned.fieldThroughput?.kind !== "unity" && owned.fieldThroughput?.kind !== "radial-illumination-vignetting") || typeof owned.fieldThroughput.limitation !== "string" || !owned.fieldThroughput.limitation.trim()) {
+    throw new InvalidScientificInputError("Environment exposure requires package-incident response, 1..256 midpoints and explicit supported field throughput.");
+  }
+  if (owned.fieldThroughput.kind === "radial-illumination-vignetting" &&
+    (typeof owned.fieldThroughput.profile !== "object" || owned.fieldThroughput.profile === null ||
+      typeof owned.fieldThroughput.profile.coefficients !== "object" || owned.fieldThroughput.profile.coefficients === null)) {
+    throw new InvalidScientificInputError("Radial throughput requires a declared profile and coefficients.");
   }
   const fieldThroughputEvidence = parseEvidenceList(owned.fieldThroughput.evidence, "environmentFieldThroughput.evidence");
   const sceneBindings = { providerProfile: parseSceneRadianceProviderProfile(owned.sceneBindings.providerProfile),
@@ -168,7 +178,10 @@ export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmen
     const points = Array.from({ length: taps }, (_, i) => ({ kernelSampleX: kernel ? i%kernel.widthSamples : 0,
       kernelSampleY: kernel ? Math.floor(i/kernel.widthSamples) : 0,
       point: kernel ? sensorPsfSourcePoint(destination, kernel, i%kernel.widthSamples, Math.floor(i/kernel.widthSamples)) : { ...destination } }));
-    return { node, points };
+    return { node, points: points.map(p => ({ ...p, fieldThroughput: owned.fieldThroughput.kind === "unity"
+      ? { kind: "unity" as const }
+      : { kind: "illumination-vignetting-result" as const, result: calculateIlluminationVignetting({
+        imagePointMm: { x: p.point.x, y: -p.point.y }, profile: owned.fieldThroughput.profile }).value } })) };
   }));
   const measure = window.localExposureDurationSeconds/owned.temporalSampleCount;
   let previous = -Infinity;
@@ -207,7 +220,7 @@ export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof plan
       const result = parseSceneRadianceEvaluationResult(evaluate(request));
       const bindings = validateSceneRadianceEvaluationBindings({ ...plan.sceneBindings, request, result });
       const optics = calculateSceneRadianceToSensorIrradiance({ ...owned.optics, sceneRadianceRequest: request,
-        sceneRadianceResult: result, imagePointMm: tap.query.value.sourcePointImagePlaneMm, fieldThroughput: { kind: "unity" } });
+        sceneRadianceResult: result, imagePointMm: tap.query.value.sourcePointImagePlaneMm, fieldThroughput: tap.fieldThroughput });
       evaluations.push({ query: tap.query, result, bindings, optics });
       return { kernelSampleX: tap.kernelSampleX, kernelSampleY: tap.kernelSampleY, sourcePointNativeSensorMm: tap.point,
         timeSecondsFromOpeningReference: instant.time,
@@ -229,9 +242,9 @@ export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof plan
     fieldThroughputLimitation: owned.fieldThroughput.limitation,
     psfOmission: owned.psf.kind === "not-applied" ? { evidence: parseEvidenceList(owned.psf.evidence, "psfOmission.evidence"), limitation: owned.psf.limitation } : null,
     psfRedistributionApplied: owned.psf.kind === "sampled-local", photo, instants
-  }, "environment-sensor-photo-signal", "0.1.0", [
+  }, "environment-sensor-photo-signal", "0.2.0", [
     "Supplied synchronous provider code was invoked at each generated environment query; physical transport and visibility are not verified.",
-    "Ideal focus-aware rotation/projection, explicit unity field throughput and optional destination-local sampled PSF are bounded approximations.",
+    "Ideal focus-aware rotation/projection, explicit evidence-bound field throughput and optional destination-local sampled PSF are bounded approximations.",
     "PSF pupil throughput is not applied; child uncertainty, finite-support and quadrature convergence are not combined or established."
   ]);
 }

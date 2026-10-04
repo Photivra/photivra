@@ -26,8 +26,11 @@ export interface CalculateEnvironmentSensorPhotoSignalInput {
   motion: Pick<CalculateSensorEnvironmentRadianceQueryInput,
     "angularVelocityRadPerSec" | "timeReference" | "environmentDirectionConvention">;
   temporalSampleCount: number;
-  /** Explicit unity field throughput; spatial vignetting is not inferred or applied. */
-  fieldThroughput: { kind: "unity"; evidence: readonly EvidenceProvenance[]; limitation: string };
+  /** Explicit source-field attenuation, applied once before PSF redistribution. */
+  fieldThroughput: { kind: "unity"; evidence: readonly EvidenceProvenance[]; limitation: string } | {
+    kind: "radial-illumination-vignetting"; profile: IlluminationVignettingProfile;
+    evidence: readonly EvidenceProvenance[]; limitation: string;
+  };
   psf: { kind: "not-applied"; evidence: readonly EvidenceProvenance[]; limitation: string } | {
     kind: "sampled-local";
     configuration: Pick<CalculateSensorPsfIrradianceQuadratureInput, "psf" | "psfWavelengthBasis" | "spatialModel">;
