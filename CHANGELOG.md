@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add standalone evidence-bound ideal circular pupil rays and optional origin-aware bounded photo/RAW evaluation. Reuse shared focus and camera rotation, average normalized pupil irradiances before the existing sensor pipeline, and retain exact-once working-f-number throughput. Reject simultaneous sampled PSF, missing callbacks, invalid geometry and excessive budgets before provider work. Production depth/visibility composition and megapixel RAW remain unsupported. See `docs/SENSOR_APERTURE_RAYS.md`.
+
 ## 1.3.0 — release preparation
 
 - Add evidence-bound radial illumination throughput to bounded environment photo/RAW execution, validating every inverse PSF tap before provider callbacks and applying attenuation once in physical sensor coordinates. Production composition requires explicit vignetting fidelity. Preserve unity arithmetic, resource limits and unverified transport flags.

@@ -26,6 +26,8 @@ export interface CalculateEnvironmentSensorPhotoSignalInput {
   motion: Pick<CalculateSensorEnvironmentRadianceQueryInput,
     "angularVelocityRadPerSec" | "timeReference" | "environmentDirectionConvention">;
   temporalSampleCount: number;
+  /** Optional ideal geometric DOF/visibility support; cannot combine with a sampled PSF. */
+  pupil?: IdealCircularPupil;
   /** Explicit source-field attenuation, applied once before PSF redistribution. */
   fieldThroughput: { kind: "unity"; evidence: readonly EvidenceProvenance[]; limitation: string } | {
     kind: "radial-illumination-vignetting"; profile: IlluminationVignettingProfile;
@@ -36,7 +38,17 @@ export interface CalculateEnvironmentSensorPhotoSignalInput {
     configuration: Pick<CalculateSensorPsfIrradianceQuadratureInput, "psf" | "psfWavelengthBasis" | "spatialModel">;
   };
   evaluateRadiance: EnvironmentRadianceEvaluator;
+  /** Required with pupil; origin-aware scene intersections cannot use direction-only code. */
+  evaluateApertureRadiance?: EnvironmentApertureRadianceEvaluator;
 }
+```
+
+## EnvironmentApertureRadianceEvaluator
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export type EnvironmentApertureRadianceEvaluator = (request: Readonly<SceneRadianceEvaluationRequest>, apertureRay: Readonly<SensorApertureRay>) => SceneRadianceEvaluationResult;
 ```
 
 ## EnvironmentRadianceEvaluator
@@ -64,6 +76,8 @@ export interface EnvironmentSensorPhotoSignal {
   fieldThroughputLimitation: string;
   psfOmission: { evidence: readonly EvidenceProvenance[]; limitation: string } | null;
   psfRedistributionApplied: boolean;
+  pupilIntegrationApplied: boolean;
+  pupilIntegrationProfile: IdealCircularPupil | null;
   photo: ReturnType<typeof createSensorEqeTemporalPhotoSignal>;
   instants: readonly {
     temporalSampleIndex: number;
@@ -74,6 +88,8 @@ export interface EnvironmentSensorPhotoSignal {
       result: SceneRadianceEvaluationResult;
       bindings: ReturnType<typeof validateSceneRadianceEvaluationBindings>;
       optics: ReturnType<typeof calculateSceneRadianceToSensorIrradiance>;
+      apertureRay?: SensorApertureRay;
+      apertureRequest?: SceneRadianceEvaluationRequest;
     }[];
   }[];
 }

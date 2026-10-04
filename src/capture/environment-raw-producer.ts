@@ -19,7 +19,7 @@ import { RAW_REFERENCE_MAX_NATIVE_SITES } from "./raw-frame-limits.js";
 import { simulateSensorRawFrame, type SensorRawProducerInput, type SensorRawProducerSiteInput } from "./sensor-raw-producer.js";
 import { calculateSensorDarkCurrentCharge, type SensorDarkCurrentProfile } from "../sensor/dark-current.js";
 import { planEnvironmentSensorPhotoSignal, executeEnvironmentSensorPhotoSignal,
-  type CalculateEnvironmentSensorPhotoSignalInput, type EnvironmentRadianceEvaluator } from "../sensor/environment-photo-signal.js";
+  type CalculateEnvironmentSensorPhotoSignalInput, type EnvironmentRadianceEvaluator, type EnvironmentApertureRadianceEvaluator } from "../sensor/environment-photo-signal.js";
 
 function canonical(value: unknown): string {
   return stringifyCanonicalJson(value, { undefinedObjectProperties: "omit",
@@ -33,13 +33,14 @@ export interface SimulateEnvironmentSensorRawFrameInput {
   /** Shared shutter schedule is bound to the committed frame duration. */
   exposureWindow: NonNullable<SensorRawProducerInput["exposureWindow"]>;
   sites: readonly {
-    environment: Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance">;
+    environment: Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance" | "evaluateApertureRadiance">;
     darkCurrentProfile: SensorDarkCurrentProfile;
     operatingTemperatureC: number;
     charge: Omit<SensorRawProducerSiteInput["charge"], "photoSignal" | "darkCharge">;
     readout: Omit<SensorRawProducerSiteInput, "charge">;
   }[];
   evaluateRadiance: EnvironmentRadianceEvaluator;
+  evaluateApertureRadiance?: EnvironmentApertureRadianceEvaluator;
 }
 /**
  * Approximate executed provider-to-RAW lineage. sites retain per-site optical/EQE
@@ -64,7 +65,7 @@ export interface EnvironmentSensorRawFrame {
  * returned RAW frame feeds the existing reconstruction and paired export APIs.
  */
 export function simulateEnvironmentSensorRawFrame(input: SimulateEnvironmentSensorRawFrameInput): CalculationResult<EnvironmentSensorRawFrame> {
-  const { evaluateRadiance, ...data } = input;
+  const { evaluateRadiance, evaluateApertureRadiance, ...data } = input;
   if (typeof evaluateRadiance !== "function") throw new InvalidScientificInputError("Environment RAW requires a synchronous evaluator.");
   const owned = structuredClone(data);
   const capture = parseSimulatedCapture(owned.frame.capture), native = capture.geometry.nativeRaster;
@@ -79,7 +80,7 @@ export function simulateEnvironmentSensorRawFrame(input: SimulateEnvironmentSens
   let evaluations = 0;
   const ids = new Set<string>();
   const sharedState = (e: SimulateEnvironmentSensorRawFrameInput["sites"][number]["environment"]): string => canonical({
-    sceneBindings: e.sceneBindings, optics: e.optics, motion: e.motion, psf: e.psf, fieldThroughput: e.fieldThroughput });
+    sceneBindings: e.sceneBindings, optics: e.optics, motion: e.motion, psf: e.psf, pupil: e.pupil, fieldThroughput: e.fieldThroughput });
   const plans = Array.from(owned.sites, (site, i) => {
     if (!site) throw new InvalidScientificInputError("Environment RAW site array must be dense.");
     const e = site.environment, sensor = e.sensor;
@@ -100,7 +101,8 @@ export function simulateEnvironmentSensorRawFrame(input: SimulateEnvironmentSens
     if (evaluations > 100000) throw new InvalidScientificInputError("Environment RAW exceeds the aggregate 100000-provider-evaluation budget.");
     return plan;
   });
-  const sites = plans.map(plan => executeEnvironmentSensorPhotoSignal(plan, evaluateRadiance));
+  if (plans.some(plan => plan.owned.pupil !== undefined) && typeof evaluateApertureRadiance !== "function") throw new InvalidScientificInputError("Pupil capture requires an origin-aware aperture evaluator before any callback.");
+  const sites = plans.map(plan => executeEnvironmentSensorPhotoSignal(plan, evaluateRadiance, evaluateApertureRadiance));
   const raw = simulateSensorRawFrame({ frame: owned.frame, exposureWindow: owned.exposureWindow,
     sites: owned.sites.map((s, i) => {
       const photoSignal = sites[i]!.value.photo.value.photoSignal;

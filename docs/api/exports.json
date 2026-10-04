@@ -763,6 +763,16 @@
       "kind": "runtime"
     },
     {
+      "name": "calculateSensorApertureRays",
+      "source": "src/optics/sensor-aperture-rays.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateSensorApertureRaysInput",
+      "source": "src/optics/sensor-aperture-rays.ts",
+      "kind": "type"
+    },
+    {
       "name": "calculateSensorDarkCurrentCharge",
       "source": "src/sensor/dark-current.ts",
       "kind": "runtime"
@@ -1613,6 +1623,11 @@
       "kind": "runtime"
     },
     {
+      "name": "EnvironmentApertureRadianceEvaluator",
+      "source": "src/sensor/environment-photo-signal.ts",
+      "kind": "type"
+    },
+    {
       "name": "EnvironmentRadianceEvaluator",
       "source": "src/sensor/environment-photo-signal.ts",
       "kind": "type"
@@ -2200,6 +2215,11 @@
     {
       "name": "IdealApertureGeometry",
       "source": "src/optics/aperture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IdealCircularPupil",
+      "source": "src/optics/sensor-aperture-rays.ts",
       "kind": "type"
     },
     {
@@ -4830,6 +4850,16 @@
     {
       "name": "SensorAdditionalStoredChargeKind",
       "source": "src/sensor/accumulated-charge.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorApertureRay",
+      "source": "src/optics/sensor-aperture-rays.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorApertureRays",
+      "source": "src/optics/sensor-aperture-rays.ts",
       "kind": "type"
     },
     {

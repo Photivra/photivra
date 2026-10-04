@@ -1033,6 +1033,18 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`SceneSensorQuadratureSample`](api/optics-scene-to-sensor-quadrature.md#scenesensorquadraturesample) | Type |
 | [`SceneToSensorIrradianceQuadrature`](api/optics-scene-to-sensor-quadrature.md#scenetosensorirradiancequadrature) | Type |
 
+## optics/sensor-aperture-rays.ts
+
+[Detailed contracts](api/optics-sensor-aperture-rays.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/optics/sensor-aperture-rays.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateSensorApertureRays`](api/optics-sensor-aperture-rays.md#calculatesensoraperturerays) | Runtime |
+| [`CalculateSensorApertureRaysInput`](api/optics-sensor-aperture-rays.md#calculatesensorapertureraysinput) | Type |
+| [`IdealCircularPupil`](api/optics-sensor-aperture-rays.md#idealcircularpupil) | Type |
+| [`SensorApertureRay`](api/optics-sensor-aperture-rays.md#sensorapertureray) | Type |
+| [`SensorApertureRays`](api/optics-sensor-aperture-rays.md#sensoraperturerays) | Type |
+
 ## optics/sensor-environment-query.ts
 
 [Detailed contracts](api/optics-sensor-environment-query.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/optics/sensor-environment-query.ts)
@@ -1607,6 +1619,7 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | --- | --- |
 | [`calculateEnvironmentSensorPhotoSignal`](api/sensor-environment-photo-signal.md#calculateenvironmentsensorphotosignal) | Runtime |
 | [`CalculateEnvironmentSensorPhotoSignalInput`](api/sensor-environment-photo-signal.md#calculateenvironmentsensorphotosignalinput) | Type |
+| [`EnvironmentApertureRadianceEvaluator`](api/sensor-environment-photo-signal.md#environmentapertureradianceevaluator) | Type |
 | [`EnvironmentRadianceEvaluator`](api/sensor-environment-photo-signal.md#environmentradianceevaluator) | Type |
 | [`EnvironmentSensorPhotoSignal`](api/sensor-environment-photo-signal.md#environmentsensorphotosignal) | Type |
 

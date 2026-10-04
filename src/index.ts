@@ -1397,7 +1397,7 @@ export { createSensorEqeTemporalPhotoSignal, parseSensorEqeTemporalPhotoSignal,
 export type { SensorTemporalDarkCurrentCharge, SensorPhotoDarkCurrentCharge } from "./sensor/dark-current.js";
 
 export { calculateEnvironmentSensorPhotoSignal, type CalculateEnvironmentSensorPhotoSignalInput,
-  type EnvironmentSensorPhotoSignal, type EnvironmentRadianceEvaluator } from "./sensor/environment-photo-signal.js";
+  type EnvironmentSensorPhotoSignal, type EnvironmentRadianceEvaluator, type EnvironmentApertureRadianceEvaluator } from "./sensor/environment-photo-signal.js";
 export { simulateEnvironmentSensorRawFrame, type SimulateEnvironmentSensorRawFrameInput,
   type EnvironmentSensorRawFrame } from "./capture/environment-raw-producer.js";
 
@@ -1417,3 +1417,5 @@ export type { PrintContrastReferenceInput, PrintContrastReference } from "./outp
 export { NATIVE_CAPTURE_SDR_SCHEMA_VERSION, NATIVE_CAPTURE_SDR_LIMITS, calculateNativeCaptureSdrPlan, createNativeCaptureSdrTask } from "./output/native-capture-sdr.js";
 export type { NativeCaptureSdrInput, NativeCaptureSdrTileRequest, NativeCaptureSdrTile, NativeCaptureSdrProvider, NativeCaptureSdrPlan,
   NativeCaptureSdrOutput, NativeCaptureSdrTaskState, NativeCaptureSdrTask } from "./output/native-capture-sdr.js";
+
+export { calculateSensorApertureRays, type CalculateSensorApertureRaysInput, type IdealCircularPupil, type SensorApertureRay, type SensorApertureRays } from "./optics/sensor-aperture-rays.js";
