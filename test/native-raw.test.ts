@@ -21,6 +21,35 @@ describe("bounded packed native RAW",()=>{
     }
     expect(task.completedTileCount).toBe(6);
   });
+  it("preserves every code, black level and saturation flag across explicit odd execution chunks",async()=>{
+    const f=nativeRawFixture(259,3);f.input.exposure.noise.seedUint32=0xffffffff;
+    const legacy=createNativeRawTask(f.input,f.provider);await legacy.run();const expected=legacy.takeOutput();
+    expect(legacy.plan).not.toHaveProperty("tileWidth");
+    for(const width of [1,3,64,256]){
+      const read=vi.fn(f.provider.readTile),yieldControl=vi.fn(f.provider.yieldControl);
+      const task=createNativeRawTask({...f.input,tileWidth:width},{readTile:read,yieldControl});
+      expect(task.plan.tileWidth).toBe(width);expect(task.plan.tileCount).toBe(Math.ceil(259/width)*3);
+      await task.run();const out=task.takeOutput();
+      for(const field of ["codes","blackLevels","digitalSaturationCodes","saturationFlags"] as const)expect(out[field]).toEqual(expected[field]);
+      expect(task.completedTileCount).toBe(task.plan.tileCount);expect(yieldControl).toHaveBeenCalledTimes(task.plan.tileCount);
+      expect(read.mock.calls.every(([r])=>r.width<=width&&r.height===1)).toBe(true);
+    }
+  });
+  it("rejects malformed chunk widths before output or source callbacks and snapshots explicit widths",()=>{
+    const f=nativeRawFixture(),read=vi.fn(f.provider.readTile);
+    for(const width of [0,-1,257,1.5,NaN,Infinity,null,"64",true])
+      expect(()=>createNativeRawTask({...f.input,tileWidth:width} as typeof f.input,{...f.provider,readTile:read})).toThrow("tile width");
+    expect(read).not.toHaveBeenCalled();
+    const input={...f.input,tileWidth:1},plan=calculateNativeRawPlan(input);input.tileWidth=64;
+    expect(plan.tileWidth).toBe(1);expect(Object.isFrozen(plan)).toBe(true);
+    expect(calculateNativeRawPlan({...f.input,tileWidth:undefined} as unknown as typeof f.input)).not.toHaveProperty("tileWidth");
+  });
+  it("withholds output and stops between smaller chunks when canceled",async()=>{
+    const f=nativeRawFixture(7,2),read=vi.fn(f.provider.readTile);
+    const task=createNativeRawTask({...f.input,tileWidth:3},{...f.provider,readTile:read,yieldControl:async():Promise<void>=>{task.cancel();}});
+    await expect(task.run()).rejects.toThrow();expect(task.completedTileCount).toBe(1);expect(read).toHaveBeenCalledTimes(1);
+    expect(task.state).toBe("cancelled");expect(()=>task.takeOutput()).toThrow();
+  });
   it("admits a real megapixel raster without allocating a float master or invoking a provider",()=>{
     const f=nativeRawFixture(1000,1000),read=vi.fn(f.provider.readTile),task=createNativeRawTask(f.input,{...f.provider,readTile:read});
     expect(task.plan.pixelCount).toBe(1_000_000);expect(task.plan.outputBytes).toBe(7_000_000);expect(read).not.toHaveBeenCalled();task.dispose();

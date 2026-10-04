@@ -1,6 +1,6 @@
 # Native RAW and Print candidate contracts
 
-Version 1.4.0 is a release candidate. It has not been published, tagged or adopted by a production application.
+These native RAW and Print contracts are part of version 1.4.0. The optional execution chunk control described below is an unreleased additive change and is not available in the published 1.4.0 package. Production adoption requires separate downstream qualification.
 
 The separate `createNativeRawTask` contract accepts metadata without an inline image plane, then produces exact owned native codes, black levels, digital saturation codes and independent physical/pre-ADC/digital flags. Admission is limited to 24 million sites, 16,384 pixels per dimension, 256 sites per tile, and an explicitly admitted seven-byte-per-site payload. The reference 4,096-site RAW path is unchanged. Absolute CFA coordinates and absolute-index charge/read-noise seeds preserve reference arithmetic across tile boundaries.
 
@@ -9,6 +9,13 @@ The separate `createNativeRawTask` contract accepts metadata without an inline i
 `createNativeRawDevelopmentTask` snapshots one exact packed RAW and applies the shared reconstruction kernels, declared camera RGB-to-XYZ approximation, white balance exactly once, and shared SDR rendering. Every used phase and kernel halo must lie inside actual native support: no padding or weight renormalization. Output crop and orientation are bound to the capture geometry; this stage supports 1:1 output sampling. Retained payload admission counts the owned RAW copy and integer output, not caller buffers, JavaScript heap or GPU storage.
 
 All tasks require host yields, publish only whole successful outputs, distinguish failure/cancellation/disposal, and transfer output ownership once. Typed storage must have an exact owned ArrayBuffer; shared buffers and hidden larger parent allocations are rejected. Metadata provenance and declared hashes do not establish producer authenticity.
+
+
+### Optional smaller execution chunks (unreleased)
+
+`NativeRawInput.tileWidth` may explicitly select an integer from 1 through 256 native sites. Omission retains the original 256-site execution and original plan shape. An explicit width is copied into the immutable plan and changes only tile count, provider request widths and yield frequency. Absolute native CFA coordinates, noise seeds, rolling exposure windows and all output codes/flags are unchanged. This control does not change physical sampling or quadrature.
+
+Smaller chunks can admit an unchanged high-query-per-site optical event under the existing 100,000-query tile cap. The two-billion whole-event cap and 24-million-site/output-byte limits remain unchanged; a smaller tile never establishes convergence, qualified source transport or production activation. For example, 64 sites with 1,024 source queries per site need 65,536 queries in a tile, while 256 sites would exceed the tile cap. The caller must still satisfy the full-event budget and qualify the source and result independently.
 
 ## Print stage
 

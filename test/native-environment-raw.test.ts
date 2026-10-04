@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import {describe,it,expect,vi} from "vitest";
 import {createNativeEnvironmentRawTask,simulateEnvironmentSensorRawFrame,type NativeEnvironmentRawInput,type NativeEnvironmentRawProvider,
-  type NativeEnvironmentRawTile} from "../src/index.js";
+  type NativeEnvironmentRawTile,calculateEnvironmentSensorPhotoSignal} from "../src/index.js";
 import {frameInput} from "./helpers/environment-raw-fixture.js";
-function fixture(rolling=false):{input:NativeEnvironmentRawInput;provider:NativeEnvironmentRawProvider;reference:ReturnType<typeof simulateEnvironmentSensorRawFrame>} {
-  const v=frameInput(rolling),reference=simulateEnvironmentSensorRawFrame(v),c=v.frame.capture;
+function fixture(rolling=false,sampledPsf=false):{input:NativeEnvironmentRawInput;provider:NativeEnvironmentRawProvider;reference:ReturnType<typeof simulateEnvironmentSensorRawFrame>} {
+  const v=frameInput(rolling,sampledPsf),reference=simulateEnvironmentSensorRawFrame(v),c=v.frame.capture;
   const {schemaVersion,engineApiVersion,resolvedGeometry,equivalentFocalLength35Mm,planes,...exposure}=c;
   void schemaVersion;void engineApiVersion;void resolvedGeometry;void equivalentFocalLength35Mm;void planes;
   const {capture,containerBitDepth,...frame}=v.frame;void capture;void containerBitDepth;
@@ -21,6 +21,42 @@ describe("bounded native environment RAW",()=>{
       expect(output.providerEvaluationCount).toBe(f.reference.value.providerEvaluationCount);expect(output.providerTransportVerified).toBe(false);expect(output.productionPlanActivated).toBe(false);
     }
   });
+  it("keeps exact global/rolling photon expectations, RAW codes and query counts with one-site chunks",async()=>{
+    for(const rolling of [false,true]){
+      const f=fixture(rolling),read=vi.fn(f.provider.readTile),observed:number[]=[];
+      const task=createNativeEnvironmentRawTask({...f.input,raw:{...f.input.raw,tileWidth:1}}, {...f.provider,readTile:read,
+        observePhotoTile:(tile):void=>{expect(tile.width).toBe(1);for(const site of tile.sites){observed.push(site.nativeIndex);
+          expect(site.expectedGeneratedElectronCount).toBe(f.reference.value.sites[site.nativeIndex]!.value.photo.value.photoSignal.expectedGeneratedElectronCount);}}});
+      await task.run();const output=task.takeOutput();expect(observed).toEqual([0,1,2,3]);expect(read).toHaveBeenCalledTimes(4);
+      expect(Array.from(output.raw.codes)).toEqual(f.reference.value.raw.value.frame.samples.map(s=>s.rawCode));
+      expect(output.providerEvaluationCount).toBe(f.reference.value.providerEvaluationCount);expect(output.productionPlanActivated).toBe(false);
+    }
+  });
+  it("admits dense unchanged quadrature in smaller chunks while retaining tile and event caps",async()=>{
+    const f=fixture(false,true),read=f.provider.readTile,evaluate=f.provider.evaluateRadiance;let calls=0;
+    f.input.maximumProviderEvaluations=400_000;
+    f.provider.evaluateRadiance=(q):ReturnType<typeof evaluate>=>{calls++;return evaluate(q);};
+    f.provider.readTile=async(r,signal):Promise<NativeEnvironmentRawTile>=>{
+      const tile=await read(r,signal);for(const site of tile.sites){site.environment.temporalSampleCount=256;
+        site.environment.sensor.spatialSampling.spatialSampleCountX=4;site.environment.sensor.spatialSampling.spatialSampleCountY=3;}
+      return tile;
+    };
+    const rejected=createNativeEnvironmentRawTask(f.input,f.provider);
+    await expect(rejected.run()).rejects.toThrow("query budget");expect(calls).toBe(0);expect(()=>rejected.takeOutput()).toThrow();
+    const expectations:number[]=[];
+    for(const [x,y] of [[0,0],[1,0],[0,1],[1,1]]){
+      const tile=await f.provider.readTile({captureId:f.input.raw.exposure.captureId,frameId:f.input.raw.frameId,x:x!,y:y!,width:1,height:1},new AbortController().signal);
+      expectations.push(calculateEnvironmentSensorPhotoSignal({...tile.sites[0]!.environment,evaluateRadiance:f.provider.evaluateRadiance}).value.photo.value.photoSignal.expectedGeneratedElectronCount);
+    }
+    calls=0;let observed=0;
+    const admitted=createNativeEnvironmentRawTask({...f.input,raw:{...f.input.raw,tileWidth:1}},{...f.provider,
+      observePhotoTile:(tile):void=>{for(const site of tile.sites){expect(site.expectedGeneratedElectronCount).toBe(expectations[site.nativeIndex]);observed++;}}});
+    await admitted.run();expect(observed).toBe(4);expect(admitted.providerEvaluationCount).toBeGreaterThan(200_000);
+    expect(admitted.providerEvaluationCount).toBe(calls);expect(admitted.takeOutput().raw.codes).toHaveLength(4);
+    calls=0;const capped=createNativeEnvironmentRawTask({...f.input,maximumProviderEvaluations:100_000,raw:{...f.input.raw,tileWidth:1}},f.provider);
+    await expect(capped.run()).rejects.toThrow("query budget");expect(capped.providerEvaluationCount).toBeGreaterThan(0);
+    expect(capped.providerEvaluationCount).toBeLessThanOrEqual(100_000);expect(()=>capped.takeOutput()).toThrow();
+  },30_000);
   it("rejects bad site geometry, duplicate IDs and mismatched source profiles before radiance callbacks",async()=>{
     for(const bad of ["site","id","focus","geometry","scene","budget"]){
       const f=fixture(),evaluate=vi.fn(f.provider.evaluateRadiance),read=f.provider.readTile;
