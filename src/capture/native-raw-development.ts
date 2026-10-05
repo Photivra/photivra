@@ -55,14 +55,20 @@ function validateRaw(raw: NativeRawOutput): NativeRawOutput["plan"] {
   const {engineApiVersion,resolvedGeometry,equivalentFocalLength35Mm,...exposure}=p.exposure;
   void engineApiVersion;void resolvedGeometry;void equivalentFocalLength35Mm;
   const {capture,containerBitDepth,...frame}=p.frame;void capture;void containerBitDepth;
-  const input: NativeRawInput={exposure,...frame,maximumOutputBytes:p.outputBytes,...(p.exposureWindow?{exposureWindow:p.exposureWindow}:{})};
+  const input: NativeRawInput={exposure,...frame,maximumOutputBytes:p.outputBytes,...(p.tileWidth===undefined?{}:{tileWidth:p.tileWidth}),...(p.exposureWindow?{exposureWindow:p.exposureWindow}:{})};
   const plan=calculateNativeRawPlan(input);
   if(canonical(p)!==canonical(plan))throw new InvalidConfigurationError("Packed RAW metadata is stale or inconsistent.");
   for(const [a,type] of [[raw.codes,Uint16Array],[raw.blackLevels,Uint16Array],[raw.digitalSaturationCodes,Uint16Array],[raw.saturationFlags,Uint8Array]] as const)
     if(!(a instanceof type)||!(a.buffer instanceof ArrayBuffer)||a.length!==plan.pixelCount||a.buffer.byteLength!==a.byteLength)throw new InvalidConfigurationError("Packed RAW storage must be exact owned native arrays.");
   return plan;
 }
-/** Validates complete phase/halo support, snapshots RAW once, and yields between 256-pixel output tiles. */
+/**
+ * Validates complete phase/halo support, snapshots RAW once, and yields between 256-pixel output tiles.
+ * Retains explicit acquisition tile width when reconstructing the exact packed plan. Omitted width
+ * preserves legacy plan shape; inconsistent tile counts or unsupported widths fail validation.
+ * Acquisition chunk width changes neither CFA/seed coordinates nor development pixels, and does
+ * not establish transport or device-resource qualification.
+ */
 export function createNativeRawDevelopmentTask(input: NativeRawDevelopmentInput,
   yieldControl: (signal:AbortSignal)=>Promise<void>): NativeRawDevelopmentTask {
   const r=requireAllowlistedRecord(input,["raw","phaseProfiles","colorProfile","whiteBalance","rendering","maximumRetainedPayloadBytes"],"Invalid native RAW development input.");

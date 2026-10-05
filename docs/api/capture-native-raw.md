@@ -69,6 +69,8 @@ export interface NativeRawInput {
   bindingProfile: NativeRawProducerFrameContext["bindingProfile"];
   exposureWindow?: SensorRawProducerExposureWindowInput;
   maximumOutputBytes: number;
+  /** Optional execution chunk width in native sites, 1–256; omission preserves 256. Not a sampling control. */
+  tileWidth?: number;
 }
 ```
 
@@ -100,6 +102,8 @@ export interface NativeRawPlan {
   pixelCount: number;
   outputBytes: number;
   tileCount: number;
+  /** Present only for an explicit execution chunk width. Omission preserves legacy plan shape. */
+  tileWidth?: number;
   upstreamRadiometryVerified: false;
   seedSchedule: "capture-seed-plus-two-native-index-modulo-2-to-32-v1";
 }

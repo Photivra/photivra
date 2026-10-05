@@ -29,6 +29,8 @@ export interface NativeRawInput {
   bindingProfile: NativeRawProducerFrameContext["bindingProfile"];
   exposureWindow?: SensorRawProducerExposureWindowInput;
   maximumOutputBytes: number;
+  /** Optional execution chunk width in native sites, 1–256; omission preserves 256. Not a sampling control. */
+  tileWidth?: number;
 }
 export interface NativeRawPlan {
   schemaVersion: typeof NATIVE_RAW_SCHEMA_VERSION;
@@ -38,6 +40,8 @@ export interface NativeRawPlan {
   pixelCount: number;
   outputBytes: number;
   tileCount: number;
+  /** Present only for an explicit execution chunk width. Omission preserves legacy plan shape. */
+  tileWidth?: number;
   upstreamRadiometryVerified: false;
   seedSchedule: "capture-seed-plus-two-native-index-modulo-2-to-32-v1";
 }
@@ -82,7 +86,10 @@ function windows(exposure: NativeRawExposure, schedule: SensorRawProducerExposur
 }
 /** Full raster/resource/profile admission before callbacks or output allocation; no placeholder plane. */
 export function calculateNativeRawPlan(input: NativeRawInput): NativeRawPlan {
-  const r=requireAllowlistedRecord(input,["exposure","frameId","modeId","captureModeProfile","colorSamplingProfile","bindingProfile","exposureWindow","maximumOutputBytes"],"Invalid native RAW input.");
+  const r=requireAllowlistedRecord(input,["exposure","frameId","modeId","captureModeProfile","colorSamplingProfile","bindingProfile","exposureWindow","maximumOutputBytes","tileWidth"],"Invalid native RAW input.");
+  if(r.tileWidth!==undefined&&(typeof r.tileWidth!=="number"||!Number.isSafeInteger(r.tileWidth)||r.tileWidth<1||r.tileWidth>NATIVE_RAW_LIMITS.tileWidth))
+    throw new InvalidConfigurationError("Native RAW tile width must be an integer from 1 to 256.");
+  const tileWidth=(r.tileWidth as number|undefined)??NATIVE_RAW_LIMITS.tileWidth;
   const exposure=normalizeCaptureExposureMetadata(r.exposure,ENGINE_API_VERSION,true),native=exposure.geometry.nativeRaster;
   const pixelCount=native.pixelWidth*native.pixelHeight,outputBytes=pixelCount*NATIVE_RAW_LIMITS.outputBytesPerPixel;
   if(pixelCount>NATIVE_RAW_LIMITS.maximumPixels||native.pixelWidth>NATIVE_RAW_LIMITS.maximumDimension||native.pixelHeight>NATIVE_RAW_LIMITS.maximumDimension||
@@ -104,7 +111,8 @@ export function calculateNativeRawPlan(input: NativeRawInput): NativeRawPlan {
   // Supported linear scan extrema occur at raster corners. Check them before acquisition.
   if(schedule)windows(exposure,schedule,[{x:.5,y:.5},{x:native.pixelWidth-.5,y:.5},{x:.5,y:native.pixelHeight-.5},{x:native.pixelWidth-.5,y:native.pixelHeight-.5}]);
   return freezeOwnedData({schemaVersion:NATIVE_RAW_SCHEMA_VERSION,exposure,frame,pixelCount,outputBytes,
-    tileCount:Math.ceil(native.pixelWidth/NATIVE_RAW_LIMITS.tileWidth)*native.pixelHeight,
+    tileCount:Math.ceil(native.pixelWidth/tileWidth)*native.pixelHeight,
+    ...(r.tileWidth===undefined?{}:{tileWidth}),
     ...(schedule?{exposureWindow:schedule}:{}),upstreamRadiometryVerified:false as const,
     seedSchedule:"capture-seed-plus-two-native-index-modulo-2-to-32-v1" as const});
 }
@@ -113,7 +121,7 @@ export function createNativeRawTask(input: NativeRawInput,provider: NativeRawPro
   const plan=calculateNativeRawPlan(input);
   if(!provider||typeof provider.readTile!=="function"||typeof provider.yieldControl!=="function")throw new InvalidConfigurationError("Native RAW requires reader and host event-loop yield.");
   const read=provider.readTile.bind(provider),yieldControl=provider.yieldControl.bind(provider),abort=new AbortController();
-  const native=plan.exposure.geometry.nativeRaster;
+  const native=plan.exposure.geometry.nativeRaster,tileWidth=plan.tileWidth??NATIVE_RAW_LIMITS.tileWidth;
   let state:NativeRawTaskState="ready",count=0,output:NativeRawOutput|null=null,first:SensorRawProducerSiteInput|undefined;
   function release(): void {if(output){output.codes.fill(0);output.blackLevels.fill(0);output.digitalSaturationCodes.fill(0);output.saturationFlags.fill(0);}output=null;first=undefined;}
   function active(): void {if(abort.signal.aborted)throw new InvalidConfigurationError("Native RAW execution aborted.");}
@@ -122,8 +130,8 @@ export function createNativeRawTask(input: NativeRawInput,provider: NativeRawPro
       if(state!=="ready")throw new InvalidConfigurationError("Native RAW task is single-use.");state="running";
       try{
         output={plan,codes:new Uint16Array(plan.pixelCount),blackLevels:new Uint16Array(plan.pixelCount),digitalSaturationCodes:new Uint16Array(plan.pixelCount),saturationFlags:new Uint8Array(plan.pixelCount)};
-        for(let y=0;y<native.pixelHeight;y++)for(let x=0;x<native.pixelWidth;x+=NATIVE_RAW_LIMITS.tileWidth){
-          active();const request=Object.freeze({captureId:plan.exposure.captureId,frameId:plan.frame.frameId,x,y,width:Math.min(NATIVE_RAW_LIMITS.tileWidth,native.pixelWidth-x),height:1});
+        for(let y=0;y<native.pixelHeight;y++)for(let x=0;x<native.pixelWidth;x+=tileWidth){
+          active();const request=Object.freeze({captureId:plan.exposure.captureId,frameId:plan.frame.frameId,x,y,width:Math.min(tileWidth,native.pixelWidth-x),height:1});
           {
             const supplied=await read(request,abort.signal);active();
             const tile=requireAllowlistedRecord(supplied,["captureId","frameId","x","y","width","height","sites"],"Invalid native RAW tile.");

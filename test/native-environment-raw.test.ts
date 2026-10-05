@@ -21,6 +21,40 @@ describe("bounded native environment RAW",()=>{
       expect(output.providerEvaluationCount).toBe(f.reference.value.providerEvaluationCount);expect(output.providerTransportVerified).toBe(false);expect(output.productionPlanActivated).toBe(false);
     }
   });
+  it("keeps exact global/rolling photon expectations, RAW codes and query counts with one-site chunks",async()=>{
+    for(const rolling of [false,true]){
+      const f=fixture(rolling),read=vi.fn(f.provider.readTile),observed:number[]=[];
+      const task=createNativeEnvironmentRawTask({...f.input,raw:{...f.input.raw,tileWidth:1}}, {...f.provider,readTile:read,
+        observePhotoTile:(tile):void=>{expect(tile.width).toBe(1);for(const site of tile.sites){observed.push(site.nativeIndex);
+          expect(site.expectedGeneratedElectronCount).toBe(f.reference.value.sites[site.nativeIndex]!.value.photo.value.photoSignal.expectedGeneratedElectronCount);}}});
+      await task.run();const output=task.takeOutput();expect(observed).toEqual([0,1,2,3]);expect(read).toHaveBeenCalledTimes(4);
+      expect(Array.from(output.raw.codes)).toEqual(f.reference.value.raw.value.frame.samples.map(s=>s.rawCode));
+      expect(output.providerEvaluationCount).toBe(f.reference.value.providerEvaluationCount);expect(output.productionPlanActivated).toBe(false);
+    }
+  });
+  it("admits dense unchanged quadrature in smaller chunks while retaining tile and event caps",async()=>{
+    const f=fixture(),read=f.provider.readTile,evaluate=f.provider.evaluateRadiance;let calls=0;
+    f.input.maximumProviderEvaluations=400_000;
+    f.provider.evaluateRadiance=(q):ReturnType<typeof evaluate>=>{calls++;return evaluate(q);};
+    f.provider.readTile=async(r,signal):Promise<NativeEnvironmentRawTile>=>{
+      const tile=await read(r,signal);for(const site of tile.sites){site.environment.temporalSampleCount=128;
+        site.environment.pupil={kind:"ideal-uniform-circular-pupil",radialSampleCount:4,angularSampleCount:16,
+          evidence:[{sourceOrigin:"photivra",sourceReference:"test:chunk-admission-pupil",reuseStatus:"photivra-owned"}],
+          limitation:"Constructed ideal pupil for admission only; no convergence or calibration claim."};}
+      return tile;
+    };
+    f.provider.evaluateApertureRadiance=f.provider.evaluateRadiance;
+    const rejected=createNativeEnvironmentRawTask(f.input,f.provider);
+    await expect(rejected.run()).rejects.toThrow("query budget");expect(calls).toBe(0);expect(()=>rejected.takeOutput()).toThrow();
+    const stopAtSource=():never=>{calls++;throw Error("admitted-source-execution");};
+    const admitted=createNativeEnvironmentRawTask({...f.input,raw:{...f.input.raw,tileWidth:1}},{...f.provider,
+      evaluateRadiance:stopAtSource,evaluateApertureRadiance:stopAtSource});
+    await expect(admitted.run()).rejects.toThrow("admitted-source-execution");
+    expect(calls).toBe(1);expect(admitted.providerEvaluationCount).toBe(1);expect(()=>admitted.takeOutput()).toThrow();
+    calls=0;const capped=createNativeEnvironmentRawTask({...f.input,maximumProviderEvaluations:50_000,raw:{...f.input.raw,tileWidth:1}},f.provider);
+    await expect(capped.run()).rejects.toThrow("query budget");expect(capped.providerEvaluationCount).toBe(0);expect(calls).toBe(0);
+    expect(()=>capped.takeOutput()).toThrow();
+  });
   it("rejects bad site geometry, duplicate IDs and mismatched source profiles before radiance callbacks",async()=>{
     for(const bad of ["site","id","focus","geometry","scene","budget"]){
       const f=fixture(),evaluate=vi.fn(f.provider.evaluateRadiance),read=f.provider.readTile;
