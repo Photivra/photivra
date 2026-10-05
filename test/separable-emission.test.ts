@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { expect, it } from "vitest";
-import { calculateSeparableEmissionPhotoSignal, type SeparableEmissionContract } from "../src/sensor/separable-emission.js";
+import { calculateSeparableEmissionPhotoSignal, type SeparableEmissionContract } from "../src/api/separable-emission-experimental.js";
 import { calculateEnvironmentSensorPhotoSignal, type CalculateEnvironmentSensorPhotoSignalInput, type SceneRadianceEvaluationResult } from "../src/index.js";
 import { siteInput, evaluator } from "./helpers/environment-raw-fixture.js";
 import { evidence } from "./helpers/eqe-response-fixture.js";

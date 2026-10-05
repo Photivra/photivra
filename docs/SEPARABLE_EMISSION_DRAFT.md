@@ -1,9 +1,11 @@
 # Explicit separable ideal emission — draft for issue #224
 
 This repository-only prototype is AI-assisted draft material requiring substantive
-human scientific/source review and contributor certification. It is not exported
-from the public root API or integrated into production plans. It includes an
-experimental native task, not a qualified release.
+human scientific/source review and contributor certification. Its implementation
+lives under `src/api/`, the repository-only boundary that is built for contributor
+checks but excluded from the npm package and unreachable from the public root API.
+The published `src/capture` and `src/sensor` modules are unchanged by this draft.
+It includes an experimental native task, not a qualified release or production plan.
 No private scene geometry, assets or provider implementation are included.
 
 `calculateSeparableEmissionPhotoSignal` composes the existing bounded single-site
@@ -74,9 +76,13 @@ visibility negative control deliberately disagrees with this separable source;
 it demonstrates why declaration is a scientific requirement rather than proof.
 It cannot detect a dishonest or mistaken caller declaration automatically.
 
+Package-boundary acceptance is explicit: `npm pack` must exclude `dist/api/`,
+and the browser/root reachability check must not traverse this prototype. Promotion
+out of `src/api/` would therefore be a separate reviewed public-contract change.
+
 Still required: independently decoded full-native depth/visibility/refinement,
-measured memory/time evidence,
-root API/version review and substantive human source/scientific review. No
+measured memory/time evidence, a deliberate public API/version decision if this
+prototype is ever promoted, and substantive human source/scientific review. No
 production admission flag, native fixture qualification or DCO is cleared here.
 
 Native regression tests additionally compare seeded RAW and independently computed

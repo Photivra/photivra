@@ -2,8 +2,8 @@
 
 /** Bounded source-radiance → optical/EQE → native packed RAW execution. */
 import { calculateNativeRawPlan, createNativeRawTask, type NativeRawInput, type NativeRawOutput,
-  type NativeRawTask, type NativeRawTileRequest, type NativeRawTaskState } from "./native-raw.js";
-import { planEnvironmentRawSite, type SimulateEnvironmentSensorRawFrameInput } from "./environment-raw-producer.js";
+  type NativeRawTask, type NativeRawTileRequest, type NativeRawTaskState } from "../capture/native-raw.js";
+import { planEnvironmentRawSite, type SimulateEnvironmentSensorRawFrameInput } from "../capture/environment-raw-producer.js";
 import { executeEnvironmentSensorPhotoSignal } from "../sensor/environment-photo-signal.js";
 import { calculateSensorDarkCurrentCharge } from "../sensor/dark-current.js";
 import { parseEvidenceList } from "../core/evidence-provenance.js";
@@ -11,6 +11,8 @@ import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { freezeOwnedData } from "../core/owned-data.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+
+import {planSeparableEmissionPhotoSignal,executeSeparableEmissionPhotoSignal,type SeparableEmissionContract,type SeparableEmissionGeometryRequest} from "./separable-emission-experimental.js";
 
 export interface NativeEnvironmentRawInput {
   raw: NativeRawInput;
@@ -48,8 +50,18 @@ export interface NativeEnvironmentRawTask extends Omit<NativeRawTask,"takeOutput
 function canonical(value:unknown):string {
   return stringifyCanonicalJson(value,{undefinedObjectProperties:"omit",nonFiniteNumberMessage:"Invalid native scene binding.",unsupportedValueMessage:"Invalid native scene binding."});
 }
-/** Every tile is planned and admission-checked before its radiance callbacks; no partial output escapes. */
+/** Repository-only prototype. Every tile is planned and admission-checked before its radiance callbacks; no partial output escapes. */
 export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,provider:NativeEnvironmentRawProvider):NativeEnvironmentRawTask {
+  return createNativeEnvironmentRawTaskInternal(input,provider);
+}
+interface ExperimentalEmission {
+ contract:SeparableEmissionContract;
+ maximumSpectralCompositions:number;
+ evaluateGeometry:(request:Readonly<SeparableEmissionGeometryRequest>)=>number;
+ geometryEvaluations:number;
+ spectralCompositions:number;
+}
+function createNativeEnvironmentRawTaskInternal(input:NativeEnvironmentRawInput,provider:NativeEnvironmentRawProvider,emission?:ExperimentalEmission):NativeEnvironmentRawTask {
   const r=requireAllowlistedRecord(input,["raw","sceneBinding","maximumProviderEvaluations"],"Invalid native environment input.");
   const plan=calculateNativeRawPlan(input.raw),binding=requireAllowlistedRecord(r.sceneBinding,["sceneStateId","providerSceneId","evidence"],"Invalid native scene binding.");
   const sceneBinding=freezeOwnedData({sceneStateId:requirePublicOpaqueId(binding.sceneStateId,"Invalid scene-state ID."),providerSceneId:requirePublicOpaqueId(binding.providerSceneId,"Invalid provider-scene ID."),evidence:parseEvidenceList(binding.evidence,"nativeEnvironmentSceneBinding.evidence")});
@@ -70,7 +82,8 @@ export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,p
       for(const key of Object.keys(request) as (keyof NativeRawTileRequest)[])if(tile[key]!==request[key])throw new InvalidConfigurationError("Physical source tile identity mismatch.");
       if(!Array.isArray(tile.sites)||tile.sites.length!==request.width||Array.from({length:request.width},(_,i)=>i in (tile.sites as unknown[])).includes(false))throw new InvalidConfigurationError("Physical source tile needs exact native coverage.");
       const sites=structuredClone(tile.sites) as SimulateEnvironmentSensorRawFrameInput["sites"];
-      let tileCount=0;
+      let tileCount=0,tileGeometryCount=0;
+      const emissionPlans:ReturnType<typeof planSeparableEmissionPhotoSignal>[]=[];
       const plans=sites.map((site,j)=>{
         requireAllowlistedRecord(site,["environment","darkCurrentProfile","operatingTemperatureC","charge","readout"],"Invalid physical site input.");
         const e=site.environment,index=request.y*plan.exposure.geometry.nativeRaster.pixelWidth+request.x+j;
@@ -80,11 +93,18 @@ export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,p
         const p=planEnvironmentRawSite(site,request.y*plan.exposure.geometry.nativeRaster.pixelWidth+request.x+j,plan.frame,sceneBinding,plan.exposureWindow!);
         if(p.owned.pupil&&!aperture)throw new InvalidConfigurationError("Pupil capture requires origin-aware source visibility.");
         tileCount+=p.count;
-        if(tileCount>100_000||evaluations+tileCount>maximum)throw new InvalidConfigurationError("Native environment exceeds tile or full-event query budget.");
+        if(emission){
+          const prepared=planSeparableEmissionPhotoSignal(p.owned,emission.contract);
+          emissionPlans.push(prepared);
+          tileGeometryCount+=p.count/p.spectralQuadrature.nodes.length;
+        }
+        if(tileCount>100_000||(emission ? emission.geometryEvaluations+tileGeometryCount>maximum||emission.spectralCompositions+tileCount>emission.maximumSpectralCompositions : evaluations+tileCount>maximum))throw new InvalidConfigurationError("Native environment exceeds tile or full-event query budget.");
         return p;
       });
       const rawSites=sites.map((site,j)=>{
-        const result=executeEnvironmentSensorPhotoSignal(plans[j]!,q=>{if(signal.aborted)throw new InvalidConfigurationError("Native source evaluation aborted.");evaluations++;return evaluate(q);},aperture?(q,ray):ReturnType<typeof evaluate>=>{if(signal.aborted)throw new InvalidConfigurationError("Native aperture evaluation aborted.");evaluations++;return aperture(q,ray);}:undefined);
+        const result=emission ? executeSeparableEmissionPhotoSignal(emissionPlans[j]!,emission.evaluateGeometry,signal,kind=>{
+          if(kind==="geometry")emission.geometryEvaluations++;else emission.spectralCompositions++;
+        }).photoSignal : executeEnvironmentSensorPhotoSignal(plans[j]!,q=>{if(signal.aborted)throw new InvalidConfigurationError("Native source evaluation aborted.");evaluations++;return evaluate(q);},aperture?(q,ray):ReturnType<typeof evaluate>=>{if(signal.aborted)throw new InvalidConfigurationError("Native aperture evaluation aborted.");evaluations++;return aperture(q,ray);}:undefined);
         const photoSignal=result.value.photo.value.photoSignal;
         const darkCharge=calculateSensorDarkCurrentCharge({exposure:photoSignal,darkCurrentProfile:site.darkCurrentProfile,operatingTemperatureC:site.operatingTemperatureC}).value;
         return {...site.readout,charge:{...site.charge,photoSignal,darkCharge}};
@@ -99,4 +119,49 @@ export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,p
     run:():Promise<void>=>task.run(),cancel:():void=>task.cancel(),dispose:():void=>task.dispose(),
     takeOutput():NativeEnvironmentRawOutput{return {raw:task.takeOutput(),sceneBinding,providerEvaluationCount:evaluations,upstreamOrigin:"executed-environment-query-provider-optics-psf-eqe",providerTransportVerified:false,productionPlanActivated:false};}
   };
+}
+
+/** Experimental additive source contract; legacy task/caps and production activation are unchanged. */
+export interface ExperimentalNativeSeparableEmissionInput {
+ raw:NativeRawInput;
+ sceneBinding:NativeEnvironmentRawInput["sceneBinding"];
+ contract:SeparableEmissionContract;
+ maximumGeometryEvaluations:number;
+ /** Explicit scalar spectral work, not hidden inside geometry callback count. Draft ceiling: 4 billion. */
+ maximumSpectralCompositions:number;
+}
+export interface ExperimentalNativeSeparableEmissionProvider extends Omit<NativeEnvironmentRawProvider,"evaluateRadiance"|"evaluateApertureRadiance"> {
+ evaluateGeometry:(request:Readonly<SeparableEmissionGeometryRequest>)=>number;
+}
+export interface ExperimentalNativeSeparableEmissionTask extends Omit<NativeEnvironmentRawTask,"takeOutput"|"providerEvaluationCount"> {
+ readonly geometryEvaluationCount:number;
+ readonly spectralCompositionCount:number;
+ takeOutput():Omit<NativeEnvironmentRawOutput,"providerEvaluationCount"|"upstreamOrigin"> & {
+  upstreamOrigin:"executed-explicit-separable-ideal-emission-optics-eqe";
+  geometryEvaluationCount:number;
+  spectralCompositionCount:number;
+  sourceSeparabilityVerified:false;
+  experimentalContract:true;
+ };
+}
+/**
+ * Repository-only draft native route. Reuses bounded tile scheduling, immutable RAW,
+ * host yields, cancellation and all existing optical/sensor reducers. Separate budgets
+ * are explicit; the 2-billion legacy provider and 100000 logical tile caps are unchanged.
+ */
+export function createExperimentalNativeSeparableEmissionTask(input:ExperimentalNativeSeparableEmissionInput,provider:ExperimentalNativeSeparableEmissionProvider):ExperimentalNativeSeparableEmissionTask {
+ requireAllowlistedRecord(input,["raw","sceneBinding","contract","maximumGeometryEvaluations","maximumSpectralCompositions"],"Invalid experimental native emission input.");
+ if(!provider||typeof provider.evaluateGeometry!=="function"||typeof provider.readTile!=="function"||typeof provider.yieldControl!=="function"||(provider.observePhotoTile!==undefined&&typeof provider.observePhotoTile!=="function")||!Number.isSafeInteger(input.maximumSpectralCompositions)||input.maximumSpectralCompositions<1||input.maximumSpectralCompositions>4_000_000_000)
+  throw new InvalidConfigurationError("Experimental emission requires explicit geometry and at most four-billion scalar spectral compositions.");
+ const emission:ExperimentalEmission={contract:structuredClone(input.contract),maximumSpectralCompositions:input.maximumSpectralCompositions,evaluateGeometry:provider.evaluateGeometry.bind(provider),geometryEvaluations:0,spectralCompositions:0};
+ const unsupported=():never=>{throw new InvalidConfigurationError("Experimental emission cannot consume arbitrary radiance callbacks.");};
+ const task=createNativeEnvironmentRawTaskInternal({raw:input.raw,sceneBinding:input.sceneBinding,maximumProviderEvaluations:input.maximumGeometryEvaluations},
+  {readTile:provider.readTile.bind(provider),yieldControl:provider.yieldControl.bind(provider),...(provider.observePhotoTile===undefined?{}:{observePhotoTile:provider.observePhotoTile.bind(provider)}),evaluateRadiance:unsupported,evaluateApertureRadiance:unsupported},emission);
+ return {plan:task.plan,get state():NativeRawTaskState{return task.state;},get completedTileCount():number{return task.completedTileCount;},
+  get geometryEvaluationCount():number{return emission.geometryEvaluations;},get spectralCompositionCount():number{return emission.spectralCompositions;},
+  run:():Promise<void>=>task.run(),cancel:():void=>task.cancel(),dispose:():void=>task.dispose(),takeOutput():ReturnType<ExperimentalNativeSeparableEmissionTask["takeOutput"]>{
+   const {providerEvaluationCount,upstreamOrigin,...output}=task.takeOutput();void providerEvaluationCount;void upstreamOrigin;
+   return {...output,upstreamOrigin:"executed-explicit-separable-ideal-emission-optics-eqe",geometryEvaluationCount:emission.geometryEvaluations,spectralCompositionCount:emission.spectralCompositions,sourceSeparabilityVerified:false,experimentalContract:true};
+  }
+ };
 }

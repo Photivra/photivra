@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-/** Explicit ideal-emission factorization; never inferred for an arbitrary provider. */
+/** Repository-only explicit ideal-emission factorization; never inferred for an arbitrary provider. */
 import { planEnvironmentSensorPhotoSignal, executeEnvironmentSensorPhotoSignal,
-  type CalculateEnvironmentSensorPhotoSignalInput } from "./environment-photo-signal.js";
+  type CalculateEnvironmentSensorPhotoSignalInput } from "../sensor/environment-photo-signal.js";
 import { parseSceneRadianceEvaluationRequest, type SceneRadianceEvaluationRequest } from "../schema/scene-radiance.js";
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";

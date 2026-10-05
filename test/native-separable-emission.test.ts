@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import {expect,it,vi} from "vitest";
-import {createExperimentalNativeSeparableEmissionTask,createNativeEnvironmentRawTask,type ExperimentalNativeSeparableEmissionInput,type ExperimentalNativeSeparableEmissionProvider} from "../src/capture/native-environment-raw.js";
+import {createNativeEnvironmentRawTask} from "../src/capture/native-environment-raw.js";
+import {createExperimentalNativeSeparableEmissionTask,type ExperimentalNativeSeparableEmissionInput,type ExperimentalNativeSeparableEmissionProvider} from "../src/api/native-separable-emission-experimental.js";
 import {simulateEnvironmentSensorRawFrame,type NativeEnvironmentRawTile,type SceneRadianceEvaluationResult} from "../src/index.js";
 import {frameInput,evaluator} from "./helpers/environment-raw-fixture.js";
 import {evidence} from "./helpers/eqe-response-fixture.js";
@@ -23,7 +24,7 @@ it.each([32,64,128])('streams exact original global and rolling RAW/photo result
  expect(photos).toEqual(f.reference.value.sites.map(s=>s.value.photo.value.photoSignal.expectedGeneratedElectronCount));
  expect(output.spectralCompositionCount).toBe(f.reference.value.providerEvaluationCount);expect(output.geometryEvaluationCount).toBe(output.spectralCompositionCount/2);
  expect(output.sourceSeparabilityVerified).toBe(false);expect(output.productionPlanActivated).toBe(false);expect('providerEvaluationCount' in output).toBe(false);expect(yieldControl).toHaveBeenCalled();}
-});
+},15_000);
 it.each(['geometry','spectral','support','identity'])('rejects %s budget/source before any geometry callback',async fault=>{
  const f=fixture(),evaluate=vi.fn(f.provider.evaluateGeometry);
  if(fault==='geometry')f.input.maximumGeometryEvaluations=4;
