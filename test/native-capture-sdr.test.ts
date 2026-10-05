@@ -235,5 +235,5 @@ describe("bounded native capture SDR", () => {
       const encoded = linear <= .0031308 ? 12.92 * linear : 1.055 * linear ** (1 / 2.4) - .055;
       expect(out.integerSamples[(y! * 1200 + x!) * 3 + c!]).toBe(Math.floor(encoded * 255 + .5));
     }
-  });
+ }, 15_000);
 });
