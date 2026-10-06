@@ -10,5 +10,5 @@ POC, schema and model contracts keep their independent versions.
 Release checks enforce equality with package.json and the packed distribution.
 
 ```ts
-ENGINE_API_VERSION = "1.4.0" as const
+ENGINE_API_VERSION = "1.5.0" as const
 ```
