@@ -1,10 +1,10 @@
-# 1.5.0 release preparation — review-ready draft
+# 1.5.0 release candidate
 
-Review snapshot: 2026-10-05. This document prepares the next engine release; it does not certify, merge, tag, publish or activate a downstream application.
+Review snapshot: 2026-10-05. This document records the 1.5.0 engine release candidate. It does not tag, publish or activate a downstream application.
 
 **Proposed version:** `@photivra/engine@1.5.0`, with `ENGINE_API_VERSION = "1.5.0"`. The backward-compatible public `NativeRawInput.tileWidth` option warrants a minor release rather than describing the entire change as a patch-only fix. This is an engine release identity, not the separate application's public Beta label.
 
-**Metadata has not yet been bumped.** The latest draft code and this preparation branch still identify as 1.4.0. Do not publish either with that already released version. Version alignment, regenerated references and final-candidate validation are outstanding gates below.
+**Candidate metadata is aligned to 1.5.0 on the release branch.** Generated references, exact-candidate CI/package validation, final review and owner publication authorization remain gates below.
 
 ## Published baseline and exact candidate inputs
 
@@ -60,11 +60,12 @@ Both input PRs are drafts and explicitly say their human review and contributor 
 ## Remaining release checklist
 
 - [x] Isolate the experimental implementation from the published package/root dependency graph; keep package/browser-surface checks green on the final candidate.
-- [ ] Explicitly settle source-model, separate-work-budget and qualification scope for any retained experimental work; keep unsupported full-native and production claims out of the release.
-- [ ] Complete substantive human review and contribution-specific DCO certification for every included contribution.
-- [ ] Reconcile the stacked PRs in dependency order. Retain branches while open dependent PRs need them; delete them only when their dependency ends.
-- [ ] Set `package.json`, both root version fields in `package-lock.json`, `src/core/version.ts` and `CITATION.cff` to the approved next version. Set citation release date only to the actual intended release date.
-- [ ] Add the final changelog entry, update live release-context prose and regenerate API documentation/`docs/api/exports.json`. Preserve historical release records, checksums and independently versioned POC/schema/model identities.
+- [x] Keep #225 experimental source/work-budget behavior repository-only and outside the public 1.5.0 package/API; #224 retains scientific qualification ownership.
+- [x] #223/#225/#226 inclusion, substantive human review and DCO are recorded complete on engine main before this candidate branch; release-candidate changes still require final owner review.
+- [x] Reconcile included stacked PRs in dependency order on engine main; retain any branches still needed by open work.
+- [x] Set `package.json`, both root version fields in `package-lock.json`, `src/core/version.ts` and `CITATION.cff` to 1.5.0. No citation release date is asserted before publication.
+- [x] Add the 1.5.0 changelog/release-context entry while preserving historical release records and independently versioned POC/schema/model identities.
+- [ ] Regenerate API documentation/`docs/api/exports.json` on the exact candidate and verify no unexpected generated drift.
 - [ ] Run the complete existing checks on the exact version-bumped candidate and inspect its actual npm tarball and root/declaration import graph.
 - [ ] Review the complete final diff; merge only approved, certified work. Require green final-main CI and an approved final SHA/tree.
 - [ ] Verify protected main/tag configuration and trusted publishing, confirm the next npm version is absent, then authorize the separate tag/publish step. Never move v1.4.0 or attempt to overwrite its package.
@@ -94,4 +95,4 @@ npm pack --ignore-scripts --json
 
 Inspect the resulting tarball, its emitted declarations/imports and its recorded hashes. Keep temporary archives/build evidence untracked unless an existing evidence policy explicitly requires them. Review current [Node support](../NODE_SUPPORT.md); do not reuse a dated runtime snapshot as proof of future support. Any source, version, documentation, exclusion or generated-file change requires checks against that changed candidate.
 
-**Stop before tagging or publishing while any release blocker remains.** No release tag, npm publication, GitHub release, application dependency change, automation or safety-cap change is performed by this preparation.
+**Stop before tagging or publishing until exact-candidate CI/package/tarball verification and owner authorization are complete.** No release tag, npm publication, GitHub release, application dependency change, automation or safety-cap change is performed by this preparation.
