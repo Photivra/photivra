@@ -59,3 +59,7 @@ jobs:
       - name: Measure bounded native SDR execution
         if: matrix.node-version == '24'
         run: node --expose-gc scripts/benchmark-native-capture-sdr.mjs
+
+      - name: Profile browser-native reference path
+        if: matrix.node-version == '24'
+        run: npm run profile:native-reference
