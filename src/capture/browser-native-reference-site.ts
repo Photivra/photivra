@@ -218,11 +218,13 @@ export function prepareBrowserNativeReferenceSite(
 
   if (
     darkCurrentProfile.siteApplicability.kind === "exact-site" &&
-    (darkCurrentProfile.siteApplicability.site.x !== expectedSite.x ||
-      darkCurrentProfile.siteApplicability.site.y !== expectedSite.y)
+    (darkCurrentProfile.siteApplicability.site.x !==
+      contributors.colorSamplingSiteRect.x ||
+      darkCurrentProfile.siteApplicability.site.y !==
+        contributors.colorSamplingSiteRect.y)
   ) {
     throw new InvalidConfigurationError(
-      "Browser-native prepared site dark-current exact-site applicability must match the absolute native site."
+      "Browser-native prepared site dark-current exact-site applicability must match the bound color-sampling site."
     );
   }
 
