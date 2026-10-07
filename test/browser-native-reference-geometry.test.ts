@@ -354,6 +354,33 @@ describe("repository-internal browser native reference geometry", () => {
     expect(Object.isFrozen(preparedOwned.worldFromLocal)).toBe(true);
   });
 
+  it("canonicalizes signed zero in prepared metric and quaternion state", () => {
+    const prepared = prepareBrowserNativeReferenceGeometry({
+      schemaVersion: BROWSER_NATIVE_REFERENCE_GEOMETRY_VERSION,
+      sourceStateId: "signed-zero-scene",
+      providerSceneId: "room",
+      sourceRevision: "fixture-v1",
+      primitives: [
+        {
+          kind: "axis-aligned-rectangle",
+          primitiveId: "zero",
+          minimumM: { x: -0, y: -1, z: 5 },
+          maximumM: { x: -0, y: 1, z: 6 },
+          worldFromLocal: {
+            translationM: { x: -0, y: 0, z: 0 },
+            rotationQuaternion: { x: -0, y: 0, z: 0, w: 1 }
+          }
+        }
+      ]
+    });
+    const primitive = prepared.primitives[0]!;
+    expect(Object.is(primitive.minimumM.x, -0)).toBe(false);
+    expect(Object.is(primitive.worldFromLocal!.translationM.x, -0)).toBe(false);
+    expect(
+      Object.is(primitive.worldFromLocal!.rotationQuaternion.x, -0)
+    ).toBe(false);
+  });
+
   it("rejects malformed geometry and invalid rays without inventing an epsilon", () => {
     expect(() => prepare([rectangle("same"), rectangle("same", 6)])).toThrow(
       "unique"
