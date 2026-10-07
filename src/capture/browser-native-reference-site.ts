@@ -10,7 +10,10 @@
  */
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { freezeOwnedData } from "../core/owned-data.js";
-import { requirePublicOpaqueId } from "../core/record-validation.js";
+import {
+  requireAllowlistedRecord,
+  requirePublicOpaqueId
+} from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import {
@@ -106,6 +109,46 @@ function validateDarkCurrentTemperature(
   }
 }
 
+function validateCapacityApplicability(
+  profile: ReturnType<typeof parseSensorPhysicalChargeCapacityProfile>,
+  operatingStateId: string,
+  operatingTemperatureC: number,
+  colorSamplingProfileId: string,
+  channelId: string,
+  colorSamplingSite: { x: number; y: number }
+): void {
+  if (
+    profile.colorSamplingProfileId !== colorSamplingProfileId ||
+    profile.channelId !== channelId
+  ) {
+    throw new InvalidConfigurationError(
+      "Browser-native prepared site capacity color/channel identity must match the bound CFA site."
+    );
+  }
+  if (
+    profile.siteApplicability.kind === "exact-site" &&
+    (profile.siteApplicability.site.x !== colorSamplingSite.x ||
+      profile.siteApplicability.site.y !== colorSamplingSite.y)
+  ) {
+    throw new InvalidConfigurationError(
+      "Browser-native prepared site exact-site capacity must match the bound color-sampling site."
+    );
+  }
+  if (profile.operatingState.stateId !== operatingStateId) {
+    throw new InvalidConfigurationError(
+      "Browser-native prepared site operating state must match the charge-capacity profile."
+    );
+  }
+  if (
+    profile.temperatureApplicability.kind === "exact-reference-temperature" &&
+    profile.temperatureApplicability.temperatureC !== operatingTemperatureC
+  ) {
+    throw new InvalidConfigurationError(
+      "Browser-native prepared site temperature must match the charge-capacity reference temperature."
+    );
+  }
+}
+
 /**
  * Prepare one native site without retaining the existing per-sample execution
  * graph. planEnvironmentRawSite() remains the authoritative environment parser
@@ -134,6 +177,28 @@ export function prepareBrowserNativeReferenceSite(
   }
 
   const site = structuredClone(siteInput);
+  requireAllowlistedRecord(
+    site,
+    ["environment", "darkCurrentProfile", "operatingTemperatureC", "charge", "readout"],
+    "Invalid browser-native prepared site fields."
+  );
+  requireAllowlistedRecord(
+    site.charge,
+    ["completenessProfile", "additionalChargeComponents"],
+    "Invalid browser-native prepared charge fields."
+  );
+  requireAllowlistedRecord(
+    site.readout,
+    [
+      "samplingProfile",
+      "capacityProfile",
+      "operatingStateId",
+      "readoutProfile",
+      "regimeId"
+    ],
+    "Invalid browser-native prepared readout fields."
+  );
+
   const environmentPlan = planEnvironmentRawSite(
     site,
     nativeIndex,
@@ -141,6 +206,12 @@ export function prepareBrowserNativeReferenceSite(
     eventPlan.sceneBinding,
     exposureWindow
   );
+
+  if (environmentPlan.count > 100_000) {
+    throw new InvalidConfigurationError(
+      "Browser-native prepared site alone exceeds the existing per-source-tile provider-evaluation bound."
+    );
+  }
 
   const darkCurrentProfile = parseSensorDarkCurrentProfile(
     site.darkCurrentProfile
@@ -209,6 +280,9 @@ export function prepareBrowserNativeReferenceSite(
     darkCurrentProfile.colorSamplingProfileId !==
       eventPlan.rawPlan.frame.colorSamplingProfile.profileId ||
     darkCurrentProfile.channelId !== channelId ||
+    capacityProfile.colorSamplingProfileId !==
+      eventPlan.rawPlan.frame.colorSamplingProfile.profileId ||
+    capacityProfile.channelId !== channelId ||
     completenessProfile.profileId !== samplingProfile.completenessProfileId
   ) {
     throw new InvalidConfigurationError(
@@ -227,6 +301,18 @@ export function prepareBrowserNativeReferenceSite(
       "Browser-native prepared site dark-current exact-site applicability must match the bound color-sampling site."
     );
   }
+
+  validateCapacityApplicability(
+    capacityProfile,
+    operatingStateId,
+    site.operatingTemperatureC,
+    eventPlan.rawPlan.frame.colorSamplingProfile.profileId,
+    channelId,
+    {
+      x: contributors.colorSamplingSiteRect.x,
+      y: contributors.colorSamplingSiteRect.y
+    }
+  );
 
   const readout = resolveSensorReadoutRegime({
     profile: readoutProfile,
