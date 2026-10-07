@@ -100,6 +100,8 @@ The release checker enforces package/root equality. Subsystem, schema and POC ve
 
 Before 1.0, public APIs may evolve with documented changes. Breaking or semantically meaningful contract changes must update the relevant version surface, tests, changelog, and migration/compatibility documentation. After 1.0, breaking public-contract changes require an appropriate major-version transition.
 
+For the browser-first dense-pupil qualification lane, a changed numerical method is governed by the [Path-B adoption and version gate](BROWSER_NATIVE_CAPTURE_PATH_B_ADOPTION.md). A scientifically meaningful method change can require version/migration treatment even when TypeScript signatures remain unchanged. Exact implementation optimization of the same committed Path-A discrete calculation does not become a new method merely because execution structure changes.
+
 
 ## Public function verb families
 
