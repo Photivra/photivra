@@ -9,10 +9,12 @@ import {
 import {
   BROWSER_NATIVE_REFERENCE_SOURCE_VERSION,
   evaluateBrowserNativeReferenceSource,
-  prepareBrowserNativeReferenceSource
+  prepareBrowserNativeReferenceSource,
+  type PreparedBrowserNativeReferenceSource
 } from "../src/capture/browser-native-reference-source.js";
+import type { SceneRadianceEvaluationRequest } from "../src/schema/scene-radiance.js";
 
-function geometry() {
+function geometry(): ReturnType<typeof prepareBrowserNativeReferenceGeometry> {
   return prepareBrowserNativeReferenceGeometry({
     schemaVersion: BROWSER_NATIVE_REFERENCE_GEOMETRY_VERSION,
     sourceStateId: "source-state",
@@ -29,7 +31,10 @@ function geometry() {
   });
 }
 
-function preparedSource() {
+function preparedSource(): {
+  preparedGeometry: ReturnType<typeof prepareBrowserNativeReferenceGeometry>;
+  source: PreparedBrowserNativeReferenceSource;
+} {
   const preparedGeometry = geometry();
   return {
     preparedGeometry,
@@ -60,7 +65,7 @@ function preparedSource() {
   };
 }
 
-function request(wavelengthNanometers = 425) {
+function request(wavelengthNanometers = 425): SceneRadianceEvaluationRequest {
   return {
     schemaVersion: "0.1.0" as const,
     sampleId: "sample",
