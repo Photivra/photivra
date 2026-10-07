@@ -38,12 +38,36 @@ function denseFixture(rolling: boolean): ReturnType<typeof frameInput> {
     evidence: evidence("test:249-pupil"),
     limitation: "Owned #249 exact-parity pupil."
   };
+  const staticEvaluator = (
+    request: Parameters<typeof evaluator>[0]
+  ): ReturnType<typeof evaluator> => ({
+    ...evaluator(request),
+    spectralRadianceWattsPerSquareMeterSteradianNanometer: 1e-9,
+    limitations: ["Owned static uniform spectral-radiance source."]
+  });
   for (const site of fixture.sites) {
     site.environment.pupil = structuredClone(pupil);
+    site.environment.motion.angularVelocityRadPerSec = {
+      pitch: 0,
+      yaw: 0,
+      roll: 0
+    };
+    const bindings = site.environment.sceneBindings;
+    const {
+      illuminationTemporalProfileId: ignoredTemporalProfileId,
+      ...providerProfile
+    } = bindings.providerProfile;
+    void ignoredTemporalProfileId;
+    site.environment.sceneBindings = {
+      providerProfile,
+      illuminationProfile: bindings.illuminationProfile,
+      materialResponseProfile: bindings.materialResponseProfile
+    };
   }
+  fixture.evaluateRadiance = staticEvaluator;
   fixture.evaluateApertureRadiance = (
     request
-  ): ReturnType<typeof evaluator> => evaluator(request, 1e-9);
+  ): ReturnType<typeof evaluator> => staticEvaluator(request);
   return fixture;
 }
 
@@ -265,7 +289,19 @@ describe("bounded prepared browser-native Path-A executor", () => {
     expect(four.work.actual.completedBatchCount).toBe(1);
   });
 
-  it("rejects the whole event before scientific source callbacks when logical dynamic work exceeds the unchanged budget", () => {
+  it("rejects time-varying illumination/camera motion outside the frozen qualification envelope", () => {
+    const dynamicFixture = frameInput(false);
+    const preparedInput = prepared(dynamicFixture);
+
+    expect(() =>
+      createBrowserNativeReferenceTask(
+        { ...preparedInput, batchSize: 1 },
+        provider()
+      )
+    ).toThrow("static-source, zero-camera-motion");
+  });
+
+  it("rejects the whole event before scientific execution when dynamic work exceeds the unchanged budget", () => {
     const fixture = denseFixture(false);
     const { eventPlan, source, sites } = prepared(fixture, 4);
     let yields = 0;
