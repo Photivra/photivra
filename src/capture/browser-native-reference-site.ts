@@ -42,6 +42,14 @@ export interface PreparedBrowserNativeReferenceSite {
   eventIdentityJson: string;
   environment: ReturnType<typeof planEnvironmentRawSite>["owned"];
   expectedProviderEvaluationCount: number;
+  logicalSupport: {
+    spatialNodeCount: number;
+    temporalNodeCount: number;
+    pupilSampleCount: number;
+    spectralNodeCount: number;
+    committedSourceSampleCount: number;
+    plannedUniqueGeometryCount: number;
+  };
   darkCurrentProfile: ReturnType<typeof parseSensorDarkCurrentProfile>;
   operatingTemperatureC: number;
   charge: {
@@ -213,6 +221,24 @@ export function prepareBrowserNativeReferenceSite(
     );
   }
 
+  const spatialNodeCount = environmentPlan.spatialQuadrature.nodes.length;
+  const temporalNodeCount = environmentPlan.instants.length;
+  const spectralNodeCount = environmentPlan.spectralQuadrature.nodes.length;
+  const firstTap = environmentPlan.instants[0]?.groups[0]?.taps[0];
+  const pupilSampleCount = firstTap?.apertureRays?.length ?? 1;
+  const plannedUniqueGeometryCount =
+    spatialNodeCount * temporalNodeCount * pupilSampleCount;
+  if (
+    !Number.isSafeInteger(plannedUniqueGeometryCount) ||
+    plannedUniqueGeometryCount < 1 ||
+    !Number.isSafeInteger(environmentPlan.count) ||
+    environmentPlan.count !== plannedUniqueGeometryCount * spectralNodeCount
+  ) {
+    throw new InvalidConfigurationError(
+      "Browser-native prepared site logical support cannot be reconciled with exact wavelength-independent geometry reuse."
+    );
+  }
+
   const darkCurrentProfile = parseSensorDarkCurrentProfile(
     site.darkCurrentProfile
   );
@@ -342,6 +368,14 @@ export function prepareBrowserNativeReferenceSite(
     eventIdentityJson: eventPlan.identityJson,
     environment: environmentPlan.owned,
     expectedProviderEvaluationCount: environmentPlan.count,
+    logicalSupport: {
+      spatialNodeCount,
+      temporalNodeCount,
+      pupilSampleCount,
+      spectralNodeCount,
+      committedSourceSampleCount: environmentPlan.count,
+      plannedUniqueGeometryCount
+    },
     darkCurrentProfile,
     operatingTemperatureC: site.operatingTemperatureC,
     charge: {
