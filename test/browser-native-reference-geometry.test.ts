@@ -161,6 +161,97 @@ describe("repository-internal browser native reference geometry", () => {
     }
   });
 
+  it("applies rigid translation while preserving physical distance", () => {
+    const translated = {
+      ...rectangle("translated", 0),
+      worldFromLocal: {
+        translationM: { x: 0, y: 0, z: 5 },
+        rotationQuaternion: { x: 0, y: 0, z: 0, w: 1 }
+      }
+    };
+    expect(
+      intersectBrowserNativeReferenceGeometry(prepare([translated]), {
+        originM: { x: 0, y: 0, z: 0 },
+        directionUnitVector: { x: 0, y: 0, z: 2 }
+      })
+    ).toEqual({
+      kind: "hit",
+      primitiveId: "translated",
+      rayParameter: 2.5,
+      distanceM: 5,
+      pointM: { x: 0, y: 0, z: 5 }
+    });
+  });
+
+  it("intersects a rectangle after a rigid 90-degree rotation", () => {
+    const rotated = {
+      ...rectangle("rotated", 0),
+      worldFromLocal: {
+        translationM: { x: 5, y: 0, z: 0 },
+        rotationQuaternion: {
+          x: 0,
+          y: Math.SQRT1_2,
+          z: 0,
+          w: Math.SQRT1_2
+        }
+      }
+    };
+    const result = intersectBrowserNativeReferenceGeometry(prepare([rotated]), {
+      originM: { x: 0, y: 0, z: 0 },
+      directionUnitVector: { x: 1, y: 0, z: 0 }
+    });
+    expect(result.kind).toBe("hit");
+    if (result.kind === "hit") {
+      expect(result.primitiveId).toBe("rotated");
+      expect(result.rayParameter).toBeCloseTo(5, 14);
+      expect(result.distanceM).toBeCloseTo(5, 14);
+      expect(result.pointM.x).toBeCloseTo(5, 14);
+      expect(result.pointM.y).toBeCloseTo(0, 14);
+      expect(result.pointM.z).toBeCloseTo(0, 14);
+    }
+  });
+
+  it("normalizes and sign-canonicalizes equivalent rigid quaternions", () => {
+    const positive = prepare([
+      {
+        ...rectangle("same", 0),
+        worldFromLocal: {
+          translationM: { x: 1, y: 2, z: 3 },
+          rotationQuaternion: {
+            x: 0,
+            y: 2 * Math.SQRT1_2,
+            z: 0,
+            w: 2 * Math.SQRT1_2
+          }
+        }
+      }
+    ]);
+    const negative = prepare([
+      {
+        ...rectangle("same", 0),
+        worldFromLocal: {
+          translationM: { x: 1, y: 2, z: 3 },
+          rotationQuaternion: {
+            x: -0,
+            y: -4 * Math.SQRT1_2,
+            z: -0,
+            w: -4 * Math.SQRT1_2
+          }
+        }
+      }
+    ]);
+
+    expect(positive.primitives[0]!.worldFromLocal).toEqual(
+      negative.primitives[0]!.worldFromLocal
+    );
+    expect(
+      Object.is(
+        negative.primitives[0]!.worldFromLocal!.rotationQuaternion.x,
+        -0
+      )
+    ).toBe(false);
+  });
+
   it("fails closed for exact distinct first-hit ties", () => {
     const prepared = prepare([
       rectangle("a", 5),
@@ -228,27 +319,39 @@ describe("repository-internal browser native reference geometry", () => {
   });
 
   it("owns, sorts, and freezes geometry independently of caller mutation", () => {
+    const owned = {
+      ...rectangle("z", 5),
+      worldFromLocal: {
+        translationM: { x: 1, y: 2, z: 3 },
+        rotationQuaternion: { x: 0, y: 0, z: 0, w: 2 }
+      }
+    };
     const input = {
       schemaVersion: BROWSER_NATIVE_REFERENCE_GEOMETRY_VERSION,
       sourceStateId: "owned-source",
       providerSceneId: "room",
       sourceRevision: "fixture-v1",
-      primitives: [rectangle("z", 5), rectangle("a", 6)]
+      primitives: [owned, rectangle("a", 6)]
     };
     const prepared = prepareBrowserNativeReferenceGeometry(input);
     input.primitives[0]!.minimumM.x = -99;
+    input.primitives[0]!.worldFromLocal!.translationM.x = 99;
+    input.primitives[0]!.worldFromLocal!.rotationQuaternion.w = -7;
 
     expect(prepared.primitives.map((primitive) => primitive.primitiveId)).toEqual([
       "a",
       "z"
     ]);
-    expect(
-      prepared.primitives.find((primitive) => primitive.primitiveId === "z")!
-        .minimumM.x
-    ).toBe(-1);
+    const preparedOwned = prepared.primitives.find(
+      (primitive) => primitive.primitiveId === "z"
+    )!;
+    expect(preparedOwned.minimumM.x).toBe(-1);
+    expect(preparedOwned.worldFromLocal!.translationM.x).toBe(1);
+    expect(preparedOwned.worldFromLocal!.rotationQuaternion.w).toBe(1);
     expect(Object.isFrozen(prepared)).toBe(true);
     expect(Object.isFrozen(prepared.primitives)).toBe(true);
-    expect(Object.isFrozen(prepared.primitives[0]!.minimumM)).toBe(true);
+    expect(Object.isFrozen(preparedOwned.minimumM)).toBe(true);
+    expect(Object.isFrozen(preparedOwned.worldFromLocal)).toBe(true);
   });
 
   it("rejects malformed geometry and invalid rays without inventing an epsilon", () => {
@@ -292,6 +395,29 @@ describe("repository-internal browser native reference geometry", () => {
         primitives: [rectangle()]
       })
     ).toThrow("revision");
+
+    expect(() =>
+      prepare([
+        {
+          ...rectangle("zero-quaternion"),
+          worldFromLocal: {
+            translationM: { x: 0, y: 0, z: 0 },
+            rotationQuaternion: { x: 0, y: 0, z: 0, w: 0 }
+          }
+        }
+      ])
+    ).toThrow("nonzero");
+    expect(() =>
+      prepare([
+        {
+          ...rectangle("bad-translation"),
+          worldFromLocal: {
+            translationM: { x: Number.POSITIVE_INFINITY, y: 0, z: 0 },
+            rotationQuaternion: { x: 0, y: 0, z: 0, w: 1 }
+          }
+        }
+      ])
+    ).toThrow("finite");
 
     const prepared = prepare([rectangle()]);
     expect(() =>
