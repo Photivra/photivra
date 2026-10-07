@@ -10,6 +10,7 @@
  *
  * It is intentionally not exported from the package root.
  */
+import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { freezeOwnedData } from "../core/owned-data.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { InvalidScientificInputError } from "../core/validation.js";
@@ -27,10 +28,8 @@ import {
   calculateSceneRadianceToSensorIrradiance
 } from "../optics/scene-to-sensor-irradiance.js";
 import {
-  parseSceneRadianceEvaluationResult,
   validateSceneRadianceEvaluationBindings,
-  type SceneRadianceEvaluationRequest,
-  type SceneRadianceEvaluationResult
+  type SceneRadianceEvaluationRequest
 } from "../schema/scene-radiance.js";
 import {
   intersectBrowserNativeReferenceGeometry,
@@ -40,19 +39,14 @@ import type { SensorApertureRay } from "../optics/sensor-aperture-rays.js";
 import type { NativeRawOutput, NativeRawTaskState } from "./native-raw.js";
 import type { PreparedBrowserNativeReferenceEventPlan } from "./browser-native-reference-plan.js";
 import type { PreparedBrowserNativeReferenceSite } from "./browser-native-reference-site.js";
+import {
+  evaluateBrowserNativeReferenceSource,
+  type PreparedBrowserNativeReferenceSource
+} from "./browser-native-reference-source.js";
 
 export const BROWSER_NATIVE_REFERENCE_EXECUTOR_VERSION = "0.1.0" as const;
 
-export interface BrowserNativeReferenceVisibleRadianceInput {
-  request: Readonly<SceneRadianceEvaluationRequest>;
-  visibility: Readonly<BrowserNativeReferenceHitResult>;
-  apertureRay: Readonly<SensorApertureRay>;
-}
-
 export interface BrowserNativeReferenceExecutorProvider {
-  evaluateVisibleRadiance(
-    input: BrowserNativeReferenceVisibleRadianceInput
-  ): SceneRadianceEvaluationResult;
   observePhotoBatch?(
     batch: Readonly<BrowserNativeReferencePhotoBatch>,
     signal: AbortSignal
@@ -73,6 +67,7 @@ export interface BrowserNativeReferencePhotoBatch {
 export interface BrowserNativeReferenceWorkAccounting {
   executorVersion: typeof BROWSER_NATIVE_REFERENCE_EXECUTOR_VERSION;
   eventIdentityJson: string;
+  sourceIdentityJson: string;
   batchSize: number;
   logical: {
     nativeSiteCount: number;
@@ -114,6 +109,7 @@ export interface BrowserNativeReferenceTask {
 
 export interface CreateBrowserNativeReferenceTaskInput {
   eventPlan: PreparedBrowserNativeReferenceEventPlan;
+  source: PreparedBrowserNativeReferenceSource;
   sites: readonly PreparedBrowserNativeReferenceSite[];
   /** Native sites per bounded execution batch, 1..256. */
   batchSize?: number;
@@ -153,8 +149,8 @@ function createRequest(
 
 function executePreparedPhotoSignal(
   eventPlan: PreparedBrowserNativeReferenceEventPlan,
+  source: PreparedBrowserNativeReferenceSource,
   site: PreparedBrowserNativeReferenceSite,
-  provider: BrowserNativeReferenceExecutorProvider,
   accounting: BrowserNativeReferenceWorkAccounting,
   signal: AbortSignal
 ): ReturnType<typeof createSensorEqeTemporalPhotoSignal>["value"]["photoSignal"] {
@@ -277,12 +273,10 @@ function executePreparedPhotoSignal(
         const baseRequest = tap.query.value.request;
         const request = createRequest(baseRequest, ray);
         accounting.actual.sourceRadianceAttempts += 1;
-        const result = parseSceneRadianceEvaluationResult(
-          provider.evaluateVisibleRadiance({
-            request,
-            visibility: cached.visibility,
-            apertureRay: ray
-          })
+        const result = evaluateBrowserNativeReferenceSource(
+          source,
+          request,
+          cached.visibility
         );
         if (signal.aborted) {
           throw new InvalidConfigurationError(
@@ -358,7 +352,24 @@ function prepareAccounting(
   input: CreateBrowserNativeReferenceTaskInput,
   batchSize: number
 ): BrowserNativeReferenceWorkAccounting {
-  const { eventPlan, sites } = input;
+  const { eventPlan, source, sites } = input;
+  const geometryIdentityJson = stringifyCanonicalJson(eventPlan.geometry, {
+    undefinedObjectProperties: "omit",
+    nonFiniteNumberMessage:
+      "Browser-native reference geometry identity requires finite numbers.",
+    unsupportedValueMessage:
+      "Browser-native reference geometry identity requires plain serializable data."
+  });
+  if (
+    source.sourceStateId !== eventPlan.geometry.sourceStateId ||
+    source.providerSceneId !== eventPlan.geometry.providerSceneId ||
+    source.sourceRevision !== eventPlan.geometry.sourceRevision ||
+    source.geometryIdentityJson !== geometryIdentityJson
+  ) {
+    throw new InvalidConfigurationError(
+      "Browser-native prepared source identity does not match the exact prepared event geometry."
+    );
+  }
   if (
     !Array.isArray(sites) ||
     sites.length !== eventPlan.rawPlan.pixelCount ||
@@ -463,6 +474,7 @@ function prepareAccounting(
   return {
     executorVersion: BROWSER_NATIVE_REFERENCE_EXECUTOR_VERSION,
     eventIdentityJson: eventPlan.identityJson,
+    sourceIdentityJson: source.identityJson,
     batchSize,
     logical: {
       nativeSiteCount: sites.length,
@@ -499,13 +511,12 @@ export function createBrowserNativeReferenceTask(
 ): BrowserNativeReferenceTask {
   if (
     !provider ||
-    typeof provider.evaluateVisibleRadiance !== "function" ||
     typeof provider.yieldControl !== "function" ||
     (provider.observePhotoBatch !== undefined &&
       typeof provider.observePhotoBatch !== "function")
   ) {
     throw new InvalidConfigurationError(
-      "Browser-native prepared reference executor requires source evaluation and host yield callbacks."
+      "Browser-native prepared reference executor requires a host yield callback and optional photo observer."
     );
   }
 
@@ -521,6 +532,7 @@ export function createBrowserNativeReferenceTask(
   }
 
   const eventPlan = input.eventPlan;
+  const source = input.source;
   const sites = input.sites;
   const work = prepareAccounting(input, batchSize);
   const abort = new AbortController();
@@ -589,8 +601,8 @@ export function createBrowserNativeReferenceTask(
             const site = sites[index]!;
             const photoSignal = executePreparedPhotoSignal(
               eventPlan,
+              source,
               site,
-              provider,
               work,
               abort.signal
             );
