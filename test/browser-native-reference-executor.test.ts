@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createBrowserNativeReferenceTask,
+  type BrowserNativeReferenceExecutorProvider,
   type BrowserNativeReferenceTask
 } from "../src/capture/browser-native-reference-executor.js";
 import {
@@ -22,7 +23,7 @@ import {
 } from "./helpers/environment-raw-fixture.js";
 import { evidence } from "./helpers/eqe-response-fixture.js";
 
-function denseFixture(rolling: boolean) {
+function denseFixture(rolling: boolean): ReturnType<typeof frameInput> {
   const fixture = frameInput(rolling);
   const pupil = {
     kind: "ideal-uniform-circular-pupil" as const,
@@ -34,7 +35,10 @@ function denseFixture(rolling: boolean) {
   for (const site of fixture.sites) {
     site.environment.pupil = structuredClone(pupil);
   }
-  fixture.evaluateApertureRadiance = (request, ray) =>
+  fixture.evaluateApertureRadiance = (
+    request,
+    ray
+  ): ReturnType<typeof evaluator> =>
     evaluator(request, (ray.originM.x > 0 ? 2 : 1) * 1e-9);
   return fixture;
 }
@@ -84,7 +88,10 @@ function prepared(
   fixture: ReturnType<typeof denseFixture>,
   maximumProviderEvaluations = 100_000,
   tileWidth?: number
-) {
+): {
+  eventPlan: ReturnType<typeof prepareBrowserNativeReferenceEventPlan>;
+  sites: ReturnType<typeof prepareBrowserNativeReferenceSite>[];
+} {
   const event = eventInput(
     fixture,
     maximumProviderEvaluations,
@@ -116,15 +123,13 @@ function prepared(
 function provider(
   fixture: ReturnType<typeof denseFixture>,
   observed: number[] = []
-) {
+): BrowserNativeReferenceExecutorProvider {
   return {
-    evaluateVisibleRadiance(input: Parameters<
-      NonNullable<
-        Parameters<typeof createBrowserNativeReferenceTask>[1][
-          "evaluateVisibleRadiance"
-        ]
-      >
-    >[0]) {
+    evaluateVisibleRadiance(
+      input: Parameters<
+        BrowserNativeReferenceExecutorProvider["evaluateVisibleRadiance"]
+      >[0]
+    ): ReturnType<typeof evaluator> {
       expect(input.visibility.kind).toBe("hit");
       return fixture.evaluateApertureRadiance!(
         input.request,
@@ -133,13 +138,9 @@ function provider(
     },
     observePhotoBatch(
       batch: Parameters<
-        NonNullable<
-          Parameters<typeof createBrowserNativeReferenceTask>[1][
-            "observePhotoBatch"
-          ]
-        >
+        NonNullable<BrowserNativeReferenceExecutorProvider["observePhotoBatch"]>
       >[0]
-    ) {
+    ): void {
       expect(Object.isFrozen(batch)).toBe(true);
       for (const site of batch.sites) observed.push(site.nativeIndex);
     },
@@ -241,7 +242,7 @@ describe("bounded prepared browser-native Path-A executor", () => {
         { eventPlan, sites, batchSize: 1 },
         {
           ...provider(fixture),
-          evaluateVisibleRadiance(input) {
+          evaluateVisibleRadiance(input): ReturnType<typeof evaluator> {
             calls += 1;
             return fixture.evaluateApertureRadiance!(
               input.request,
@@ -261,7 +262,7 @@ describe("bounded prepared browser-native Path-A executor", () => {
       { ...preparedInput, batchSize: 1 },
       {
         ...provider(fixture),
-        evaluateVisibleRadiance() {
+        evaluateVisibleRadiance(): never {
           throw new Error("source failed");
         }
       }
@@ -279,12 +280,11 @@ describe("bounded prepared browser-native Path-A executor", () => {
   it("stops new work on cancellation and keeps attempted counters visible", async () => {
     const fixture = denseFixture(false);
     const preparedInput = prepared(fixture);
-    let task: BrowserNativeReferenceTask;
-    task = createBrowserNativeReferenceTask(
+    const task: BrowserNativeReferenceTask = createBrowserNativeReferenceTask(
       { ...preparedInput, batchSize: 1 },
       {
         ...provider(fixture),
-        evaluateVisibleRadiance(input) {
+        evaluateVisibleRadiance(input): ReturnType<typeof evaluator> {
           task.cancel();
           return fixture.evaluateApertureRadiance!(
             input.request,
