@@ -14,9 +14,11 @@ the
 the
 [Browser-Native Capture Robust Geometry and Precision Fallback Contract](BROWSER_NATIVE_CAPTURE_ROBUST_GEOMETRY.md),
 the
-[Browser-Native Capture Whole-Event, Batch, Memory, and Failure Accounting Contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md), and the
-[Browser-Native Capture Path-B Adoption and Version Gate](BROWSER_NATIVE_CAPTURE_PATH_B_ADOPTION.md).
-The envelope owns supported source/camera/stage scope; the prepared-state contract owns reuse/invalidation semantics; the robust-geometry contract owns visible-surface ambiguity/fallback semantics; the resource-accounting contract owns logical/executed work and memory/failure accounting; the Path-B gate owns numerical-method change/adoption/version semantics; this document owns numerical acceptance and evidence classification.
+[Browser-Native Capture Whole-Event, Batch, Memory, and Failure Accounting Contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md),
+the
+[Browser-Native Capture Path-B Adoption and Version Gate](BROWSER_NATIVE_CAPTURE_PATH_B_ADOPTION.md), and the
+[Browser-Native Capture Path-A Reference Executor Handoff](BROWSER_NATIVE_CAPTURE_REFERENCE_EXECUTOR_HANDOFF.md).
+The envelope owns supported source/camera/stage scope; the prepared-state contract owns reuse/invalidation semantics; the robust-geometry contract owns visible-surface ambiguity/fallback semantics; the resource-accounting contract owns logical/executed work and memory/failure accounting; the Path-B gate owns numerical-method change/adoption/version semantics; this document owns numerical acceptance and evidence classification; the handoff reconciles those contracts for #234 implementation.
 
 It does not implement a backend, change equations, loosen existing tests, or
 claim that a full-native case currently passes.
@@ -264,11 +266,9 @@ matrix when reviewed and merged.
 It does not claim that all required evidence rows pass. Rows marked required are
 the stable acceptance targets for #234/#235/#224.
 
-The remaining #233 work after this deliverable is:
-
-1. preserve the prepared-state/source ownership/invalidation contract from #233 deliverable 3;
-2. preserve the robust-geometry/fallback contract once reviewed and merged;
-3. preserve the whole-event/batch/memory/failure accounting contract once reviewed and merged;
-4. preserve the versioned Path-B adoption gate once reviewed and merged.
+The merged prepared-state, robust-geometry, resource-accounting, and Path-B
+contracts now complete the governing stack around this matrix. The
+[reference-executor handoff](BROWSER_NATIVE_CAPTURE_REFERENCE_EXECUTOR_HANDOFF.md)
+reconciles that stack into the implementation and evidence target for #234.
 
 No successor may weaken this matrix merely to make an implementation pass.
