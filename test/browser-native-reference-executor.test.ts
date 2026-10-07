@@ -407,6 +407,22 @@ describe("bounded prepared browser-native Path-A executor", () => {
     expect(() => task.takeOutput()).toThrow("unavailable");
   });
 
+  it("rejects mixed source/optical prepared-site state before execution", () => {
+    const fixture = denseFixture(false);
+    fixture.sites[1]!.environment.fieldThroughput = {
+      ...fixture.sites[1]!.environment.fieldThroughput,
+      limitation: "Deliberately different event-wide throughput declaration."
+    };
+    const preparedInput = prepared(fixture);
+
+    expect(() =>
+      createBrowserNativeReferenceTask(
+        { ...preparedInput, batchSize: 1 },
+        provider()
+      )
+    ).toThrow("one shared source/optical/motion state");
+  });
+
   it("rejects mismatched prepared event/site identity before execution", () => {
     const fixtureA = denseFixture(false);
     const fixtureB = denseFixture(false);
