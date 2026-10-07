@@ -7,8 +7,9 @@
  * compact immutable geometry representation for the Path-A reference executor.
  *
  * Initial scope is deliberately narrower than the final frozen source envelope:
- * axis-aligned metric rectangles and boxes only. Arbitrary transforms/orientation
- * and a defensible near-coincident float64 ambiguity bound remain later #234 work.
+ * local-space axis-aligned metric rectangles/boxes with rigid translation/rotation.
+ * Scale/shear and a defensible near-coincident float64 ambiguity bound remain later
+ * #234 work.
  */
 import { freezeOwnedData } from "../core/owned-data.js";
 import { requirePublicOpaqueId } from "../core/record-validation.js";
