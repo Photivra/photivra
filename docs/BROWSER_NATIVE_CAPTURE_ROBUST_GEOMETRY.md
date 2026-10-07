@@ -13,6 +13,7 @@ It complements:
 - [Browser-Native Capture Prepared-State, Ownership, and Invalidation Contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md);
 - [Browser-Native Capture Whole-Event, Batch, Memory, and Failure Accounting Contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md);
 - [Browser-Native Capture Path-B Adoption and Version Gate](BROWSER_NATIVE_CAPTURE_PATH_B_ADOPTION.md);
+- [Browser-Native Capture Path-A Reference Executor Handoff](BROWSER_NATIVE_CAPTURE_REFERENCE_EXECUTOR_HANDOFF.md);
 - [Numerical Correctness and Physical Units](NUMERICAL_CORRECTNESS.md).
 
 This is a **governing implementation contract**, not a public API declaration.
@@ -435,7 +436,9 @@ visibility semantics remain identical.
 
 Geometry work must remain truthful.
 
-At minimum, later #233 accounting must be capable of distinguishing:
+At minimum, the merged
+[resource-accounting contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md)
+requires distinguishing:
 
 - candidate geometry attempts;
 - candidate ambiguity outcomes;
@@ -450,8 +453,8 @@ Fallback frequency is also qualification evidence: a backend that is formally
 correct but falls back on a material fraction of ordinary supported cases may be
 scientifically valid yet unsuitable for the intended performance role.
 
-The exact work/memory ceilings remain owned by the subsequent #233 accounting
-deliverable.
+The exact work/memory ceilings remain owned by the merged
+[resource-accounting contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md).
 
 ## Cancellation and failure
 
@@ -468,7 +471,9 @@ A candidate backend may fall back to CPU after a recoverable backend-specific
 failure only if the event/task contract permits that transition without changing
 scientific identity or violating its resource/cancellation contract.
 
-The later accounting contract must bound this behavior.
+The merged
+[resource-accounting contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md)
+bounds this behavior.
 
 ## Required geometry evidence cases
 
@@ -569,8 +574,7 @@ This governing slice is complete when reviewed and merged with:
 This checklist freezes governance only; it is not evidence that an implementation
 already satisfies the cases.
 
-After this slice, #233 still owns:
-
-1. preserve the whole-event/batch/memory/failure accounting contract once reviewed and merged;
-2. preserve the final Path-B adoption/version gate once reviewed and merged;
-3. final governing-contract reconciliation and #234 implementation handoff.
+The resource-accounting and Path-B governance contracts are now merged. The
+[reference-executor handoff](BROWSER_NATIVE_CAPTURE_REFERENCE_EXECUTOR_HANDOFF.md)
+reconciles their requirements with this robust-geometry contract and freezes the
+#234 implementation/evidence target.
