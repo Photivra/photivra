@@ -175,6 +175,8 @@ The canonical `test/fixtures/basic-reference-scene.json` fixture is the preferre
 
 Do not generate the only expected value by calling the same production function under test.
 
+For the browser-first dense-pupil native-capture qualification, the issue-specific [numerical acceptance and evidence matrix](BROWSER_NATIVE_CAPTURE_NUMERICAL_ACCEPTANCE.md) applies these repository-wide rules to stable evidence IDs. It does not replace this policy or define universal tolerances for unrelated engine calculations.
+
 ## Changes to numerical behavior
 
 A change that alters public numerical meaning must document:
