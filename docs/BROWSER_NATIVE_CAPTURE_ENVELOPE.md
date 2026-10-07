@@ -28,6 +28,8 @@ This envelope is subordinate to the existing engine contracts:
   coordinate spaces, and coupling.
 - [Numerical Correctness and Physical Units](NUMERICAL_CORRECTNESS.md) owns units,
   exactness/tolerance rules, deterministic behavior, and numerical-change policy.
+- [Browser-Native Capture Numerical Acceptance and Evidence Matrix](BROWSER_NATIVE_CAPTURE_NUMERICAL_ACCEPTANCE.md)
+  freezes #233 quantity-specific exactness/tolerance classes and stable evidence IDs.
 - [Scientific Assurance and Uncertainty Composition](SCIENTIFIC_ASSURANCE.md) owns
   scientific status, evidence, uncertainty, and limitation propagation.
 - [Executed environment capture to native RAW](ENVIRONMENT_RAW_CAPTURE.md) owns the
