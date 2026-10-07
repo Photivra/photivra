@@ -286,7 +286,7 @@ export function prepareBrowserNativeReferenceSite(
     completenessProfile.profileId !== samplingProfile.completenessProfileId
   ) {
     throw new InvalidConfigurationError(
-      "Browser-native prepared site readout, dark-current, sampling, and CFA identities must agree."
+      "Browser-native prepared site readout, dark-current, capacity, sampling, and CFA identities must agree."
     );
   }
 

@@ -177,6 +177,35 @@ describe("browser-native prepared site ownership", () => {
     ).toThrow("identities must agree");
   });
 
+  it("rejects unknown provider fields and static capacity drift during preparation", () => {
+    const fixture = frameInput(false);
+    const event = prepareEvent(fixture);
+
+    const unknownSite = structuredClone(fixture.sites[0]!);
+    Object.assign(unknownSite, { unexpected: true });
+    expect(() =>
+      prepareBrowserNativeReferenceSite(event, unknownSite, 0)
+    ).toThrow("prepared site fields");
+
+    const unknownReadout = structuredClone(fixture.sites[0]!);
+    Object.assign(unknownReadout.readout, { unexpected: true });
+    expect(() =>
+      prepareBrowserNativeReferenceSite(event, unknownReadout, 0)
+    ).toThrow("prepared readout fields");
+
+    const wrongCapacityChannel = structuredClone(fixture.sites[0]!);
+    wrongCapacityChannel.readout.capacityProfile.channelId = "wrong-channel";
+    expect(() =>
+      prepareBrowserNativeReferenceSite(event, wrongCapacityChannel, 0)
+    ).toThrow("capacity, sampling, and CFA identities");
+
+    const wrongOperatingState = structuredClone(fixture.sites[0]!);
+    wrongOperatingState.readout.operatingStateId = "wrong-state";
+    expect(() =>
+      prepareBrowserNativeReferenceSite(event, wrongOperatingState, 0)
+    ).toThrow("operating state");
+  });
+
   it("rejects fixed-temperature misuse during preparation", () => {
     const fixture = frameInput(false);
     const event = prepareEvent(fixture);
