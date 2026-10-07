@@ -36,6 +36,8 @@ This envelope is subordinate to the existing engine contracts:
   freezes #233 visible-surface identity, ambiguity, reference fallback, and unsupported-precision semantics.
 - [Browser-Native Capture Whole-Event, Batch, Memory, and Failure Accounting Contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md)
   freezes #233 logical/executed work, admission, memory ownership, and failure/cancellation accounting.
+- [Browser-Native Capture Path-B Adoption and Version Gate](BROWSER_NATIVE_CAPTURE_PATH_B_ADOPTION.md)
+  freezes #233 Path-A versus Path-B classification, alternative-method evidence, versioning, migration, and adoption approval.
 - [Scientific Assurance and Uncertainty Composition](SCIENTIFIC_ASSURANCE.md) owns
   scientific status, evidence, uncertainty, and limitation propagation.
 - [Executed environment capture to native RAW](ENVIRONMENT_RAW_CAPTURE.md) owns the

@@ -12,9 +12,11 @@ It complements
 the
 [Browser-Native Capture Prepared-State, Ownership, and Invalidation Contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md),
 the
-[Browser-Native Capture Robust Geometry and Precision Fallback Contract](BROWSER_NATIVE_CAPTURE_ROBUST_GEOMETRY.md), and the
-[Browser-Native Capture Whole-Event, Batch, Memory, and Failure Accounting Contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md).
-The envelope owns supported source/camera/stage scope; the prepared-state contract owns reuse/invalidation semantics; the robust-geometry contract owns visible-surface ambiguity/fallback semantics; the resource-accounting contract owns logical/executed work and memory/failure accounting; this document owns numerical acceptance and evidence classification.
+[Browser-Native Capture Robust Geometry and Precision Fallback Contract](BROWSER_NATIVE_CAPTURE_ROBUST_GEOMETRY.md),
+the
+[Browser-Native Capture Whole-Event, Batch, Memory, and Failure Accounting Contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md), and the
+[Browser-Native Capture Path-B Adoption and Version Gate](BROWSER_NATIVE_CAPTURE_PATH_B_ADOPTION.md).
+The envelope owns supported source/camera/stage scope; the prepared-state contract owns reuse/invalidation semantics; the robust-geometry contract owns visible-surface ambiguity/fallback semantics; the resource-accounting contract owns logical/executed work and memory/failure accounting; the Path-B gate owns numerical-method change/adoption/version semantics; this document owns numerical acceptance and evidence classification.
 
 It does not implement a backend, change equations, loosen existing tests, or
 claim that a full-native case currently passes.
@@ -138,7 +140,7 @@ backend/precision identity, and test/reference method.
 | **BNCE-MUTATE-001** | X | caller mutation after preparation / during callback | prepared owned state remains unchanged; result matches owned input, not mutated caller state | existing native/separable ownership tests; extend to prepared contract |
 | **BNCE-SERIAL-001** | X | deterministic identity/serialization fields owned by the capture contract | exact canonical/discriminant/ID behavior where existing contract requires it | existing canonical/plan/capture sentinels; bind new prepared-state version later |
 | **BNCE-BACKEND-001** | N/R/X/F | optional GPU backend versus float64 reference | expected physical quantities satisfy their approved N criteria; every required deterministic RAW/code identity still satisfies R/X criteria. A precision-sensitive mismatch requires reference fallback/rejection, not tolerance on integer RAW | required by #235 |
-| **BNCE-PATHB-001** | S/C/N/F | separately versioned stochastic/error-controlled integrator | not active for Path A. Requires #236 method contract, independent seeds/scrambles, bias/variance/convergence evidence, nonconvergence behavior and explicit versioning | conditional, not a #233 implementation dependency |
+| **BNCE-PATHB-001** | S/C/N/F | separately versioned changed numerical method | not active for Path A. Any changed sampling/coverage/weights/estimator/stopping/reproducibility semantics must follow the Path-B gate; stochastic methods additionally require independent seeds/scrambles, bias/variance/convergence evidence and nonconvergence behavior | BNCE-PATHB-001-A…J in the Path-B adoption contract; #236 remains conditional |
 
 ## Precision policy
 
@@ -267,6 +269,6 @@ The remaining #233 work after this deliverable is:
 1. preserve the prepared-state/source ownership/invalidation contract from #233 deliverable 3;
 2. preserve the robust-geometry/fallback contract once reviewed and merged;
 3. preserve the whole-event/batch/memory/failure accounting contract once reviewed and merged;
-4. define the versioned Path-B adoption gate in governing API/numerical terms.
+4. preserve the versioned Path-B adoption gate once reviewed and merged.
 
 No successor may weaken this matrix merely to make an implementation pass.

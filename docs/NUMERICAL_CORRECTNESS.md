@@ -191,3 +191,5 @@ A change that alters public numerical meaning must document:
 - migration implications when relevant.
 
 A pure implementation optimization must preserve the same scientific result semantics and provenance within the existing contract.
+
+For #224/#233 browser-native dense-pupil work, the [Path-B adoption and version gate](BROWSER_NATIVE_CAPTURE_PATH_B_ADOPTION.md) defines when a numerical change stops being a pure Path-A implementation optimization. Changed sampling, coverage/filtering, weights, estimator/stopping semantics, or reproducibility/exactness classes require Path-B governance rather than a retrospective tolerance relaxation.
