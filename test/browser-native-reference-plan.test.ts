@@ -131,6 +131,48 @@ describe("repository-internal browser native prepared event plan", () => {
     ]);
   });
 
+  it("gives equivalent rigid rotations the same prepared event identity", () => {
+    const firstEvent = eventInput();
+    const firstGeometry = geometry(firstEvent);
+    firstGeometry.primitives[0] = {
+      ...firstGeometry.primitives[0]!,
+      worldFromLocal: {
+        translationM: { x: -0, y: 2, z: 3 },
+        rotationQuaternion: {
+          x: 0,
+          y: 2 * Math.SQRT1_2,
+          z: 0,
+          w: 2 * Math.SQRT1_2
+        }
+      }
+    };
+    const secondEvent = eventInput();
+    const secondGeometry = geometry(secondEvent);
+    secondGeometry.primitives[0] = {
+      ...secondGeometry.primitives[0]!,
+      worldFromLocal: {
+        translationM: { x: 0, y: 2, z: 3 },
+        rotationQuaternion: {
+          x: -0,
+          y: -4 * Math.SQRT1_2,
+          z: -0,
+          w: -4 * Math.SQRT1_2
+        }
+      }
+    };
+
+    const first = prepareBrowserNativeReferenceEventPlan({
+      event: firstEvent,
+      geometry: firstGeometry
+    });
+    const second = prepareBrowserNativeReferenceEventPlan({
+      event: secondEvent,
+      geometry: secondGeometry
+    });
+
+    expect(second.identityJson).toBe(first.identityJson);
+  });
+
   it("changes prepared identity when an owned dependency changes", () => {
     const baselineEvent = eventInput();
     const baseline = prepareBrowserNativeReferenceEventPlan({
