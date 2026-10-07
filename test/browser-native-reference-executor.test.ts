@@ -15,6 +15,11 @@ import {
 import {
   prepareBrowserNativeReferenceSite
 } from "../src/capture/browser-native-reference-site.js";
+import {
+  BROWSER_NATIVE_REFERENCE_SOURCE_VERSION,
+  prepareBrowserNativeReferenceSource,
+  type PreparedBrowserNativeReferenceSource
+} from "../src/capture/browser-native-reference-source.js";
 import type { NativeEnvironmentRawInput } from "../src/capture/native-environment-raw.js";
 import { simulateEnvironmentSensorRawFrame } from "../src/capture/environment-raw-producer.js";
 import {
@@ -36,10 +41,8 @@ function denseFixture(rolling: boolean): ReturnType<typeof frameInput> {
     site.environment.pupil = structuredClone(pupil);
   }
   fixture.evaluateApertureRadiance = (
-    request,
-    ray
-  ): ReturnType<typeof evaluator> =>
-    evaluator(request, (ray.originM.x > 0 ? 2 : 1) * 1e-9);
+    request
+  ): ReturnType<typeof evaluator> => evaluator(request, 1e-9);
   return fixture;
 }
 
@@ -90,6 +93,7 @@ function prepared(
   tileWidth?: number
 ): {
   eventPlan: ReturnType<typeof prepareBrowserNativeReferenceEventPlan>;
+  source: PreparedBrowserNativeReferenceSource;
   sites: ReturnType<typeof prepareBrowserNativeReferenceSite>[];
 } {
   const event = eventInput(
@@ -114,28 +118,45 @@ function prepared(
       ]
     }
   });
+  const source = prepareBrowserNativeReferenceSource(
+    eventPlan.geometry,
+    {
+      version: BROWSER_NATIVE_REFERENCE_SOURCE_VERSION,
+      sourceStateId: eventPlan.geometry.sourceStateId,
+      providerSceneId: eventPlan.geometry.providerSceneId,
+      sourceRevision: eventPlan.geometry.sourceRevision,
+      wavelengthBasis: "vacuum",
+      primitives: [
+        {
+          primitiveId: "background",
+          evidence: evidence("test:249-source"),
+          limitation: "Owned constant spectral-radiance source for #249 parity.",
+          spectrum: [
+            {
+              wavelengthNanometers: 425,
+              spectralRadianceWattsPerSquareMeterSteradianNanometer: 1e-9
+            },
+            {
+              wavelengthNanometers: 475,
+              spectralRadianceWattsPerSquareMeterSteradianNanometer: 1e-9
+            }
+          ]
+        }
+      ]
+    }
+  );
   const sites = fixture.sites.map((site, index) =>
     prepareBrowserNativeReferenceSite(eventPlan, site, index)
   );
-  return { eventPlan, sites };
+  return { eventPlan, source, sites };
 }
 
 function provider(
   fixture: ReturnType<typeof denseFixture>,
   observed: number[] = []
 ): BrowserNativeReferenceExecutorProvider {
+  void fixture;
   return {
-    evaluateVisibleRadiance(
-      input: Parameters<
-        BrowserNativeReferenceExecutorProvider["evaluateVisibleRadiance"]
-      >[0]
-    ): ReturnType<typeof evaluator> {
-      expect(input.visibility.kind).toBe("hit");
-      return fixture.evaluateApertureRadiance!(
-        input.request,
-        input.apertureRay
-      );
-    },
     observePhotoBatch(
       batch: Parameters<
         NonNullable<BrowserNativeReferenceExecutorProvider["observePhotoBatch"]>
@@ -236,43 +257,65 @@ describe("bounded prepared browser-native Path-A executor", () => {
   it("rejects the whole event before scientific source callbacks when logical dynamic work exceeds the unchanged budget", () => {
     const fixture = denseFixture(false);
     const { eventPlan, sites } = prepared(fixture, 4);
-    let calls = 0;
+    let yields = 0;
     expect(() =>
       createBrowserNativeReferenceTask(
-        { eventPlan, sites, batchSize: 1 },
+        { eventPlan, source: prepared(fixture).source, sites, batchSize: 1 },
         {
-          ...provider(fixture),
-          evaluateVisibleRadiance(input): ReturnType<typeof evaluator> {
-            calls += 1;
-            return fixture.evaluateApertureRadiance!(
-              input.request,
-              input.apertureRay
-            );
+          async yieldControl(): Promise<void> {
+            yields += 1;
           }
         }
       )
     ).toThrow("whole-event dynamic scientific-work budget");
-    expect(calls).toBe(0);
+    expect(yields).toBe(0);
   });
 
   it("counts attempted source/geometry work and withholds output on source failure", async () => {
     const fixture = denseFixture(false);
     const preparedInput = prepared(fixture);
-    const task = createBrowserNativeReferenceTask(
-      { ...preparedInput, batchSize: 1 },
+    const incompleteSource = prepareBrowserNativeReferenceSource(
+      preparedInput.eventPlan.geometry,
       {
-        ...provider(fixture),
-        evaluateVisibleRadiance(): never {
-          throw new Error("source failed");
-        }
+        version: BROWSER_NATIVE_REFERENCE_SOURCE_VERSION,
+        sourceStateId: preparedInput.eventPlan.geometry.sourceStateId,
+        providerSceneId: preparedInput.eventPlan.geometry.providerSceneId,
+        sourceRevision: preparedInput.eventPlan.geometry.sourceRevision,
+        wavelengthBasis: "vacuum",
+        primitives: [
+          {
+            primitiveId: "background",
+            evidence: evidence("test:249-incomplete-source"),
+            limitation: "Deliberately missing one committed wavelength.",
+            spectrum: [
+              {
+                wavelengthNanometers: 425,
+                spectralRadianceWattsPerSquareMeterSteradianNanometer: 1e-9
+              }
+            ]
+          }
+        ]
       }
     );
+    const task = createBrowserNativeReferenceTask(
+      {
+        eventPlan: preparedInput.eventPlan,
+        source: incompleteSource,
+        sites: preparedInput.sites,
+        batchSize: 1
+      },
+      provider(fixture)
+    );
 
-    await expect(task.run()).rejects.toThrow("source failed");
+    await expect(task.run()).rejects.toThrow(
+      "exact radiance sample at every committed wavelength"
+    );
     expect(task.state).toBe("failed");
-    expect(task.work.actual.geometryAttempts).toBe(1);
-    expect(task.work.actual.sourceRadianceAttempts).toBe(1);
-    expect(task.work.actual.spectralOpticalCompositionAttempts).toBe(1);
+    expect(task.work.actual.geometryAttempts).toBeGreaterThan(0);
+    expect(task.work.actual.sourceRadianceAttempts).toBeGreaterThan(0);
+    expect(task.work.actual.spectralOpticalCompositionAttempts).toBe(
+      task.work.actual.sourceRadianceAttempts
+    );
     expect(task.work.actual.sensorSiteAttempts).toBe(0);
     expect(() => task.takeOutput()).toThrow("unavailable");
   });
@@ -280,24 +323,23 @@ describe("bounded prepared browser-native Path-A executor", () => {
   it("stops new work on cancellation and keeps attempted counters visible", async () => {
     const fixture = denseFixture(false);
     const preparedInput = prepared(fixture);
-    const task: BrowserNativeReferenceTask = createBrowserNativeReferenceTask(
+    const holder: { task?: BrowserNativeReferenceTask } = {};
+    const task = createBrowserNativeReferenceTask(
       { ...preparedInput, batchSize: 1 },
       {
-        ...provider(fixture),
-        evaluateVisibleRadiance(input): ReturnType<typeof evaluator> {
-          task.cancel();
-          return fixture.evaluateApertureRadiance!(
-            input.request,
-            input.apertureRay
-          );
-        }
+        observePhotoBatch(): void {
+          holder.task!.cancel();
+        },
+        async yieldControl(): Promise<void> {}
       }
     );
+    holder.task = task;
 
     await expect(task.run()).rejects.toThrow("aborted");
     expect(task.state).toBe("cancelled");
-    expect(task.work.actual.geometryAttempts).toBe(1);
-    expect(task.work.actual.sourceRadianceAttempts).toBe(1);
+    expect(task.work.actual.geometryAttempts).toBeGreaterThan(0);
+    expect(task.work.actual.sourceRadianceAttempts).toBeGreaterThan(0);
+    expect(task.work.actual.observerAttempts).toBe(1);
     expect(task.work.actual.sensorSiteAttempts).toBe(0);
     expect(() => task.takeOutput()).toThrow("unavailable");
   });
