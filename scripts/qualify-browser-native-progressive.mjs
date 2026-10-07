@@ -306,7 +306,7 @@ try {
       raw: {
         exposure,
         frameId:
-          base.frame.frameId + ":" + definition.evidenceId.toLowerCase(),
+          base.frame.frameId + "-" + definition.evidenceId.toLowerCase(),
         modeId: base.frame.modeId,
         captureModeProfile,
         colorSamplingProfile: clone(base.frame.colorSamplingProfile),
@@ -379,7 +379,7 @@ try {
         const site = clone(base.sites[phaseIndex]);
         const environment = site.environment;
         environment.temporalIntegrationId =
-          definition.evidenceId.toLowerCase() + ":site:" + index;
+          definition.evidenceId.toLowerCase() + "-site-" + index;
         environment.temporalSampleCount = 1;
         environment.pupil = {
           ...PUPIL,
@@ -817,7 +817,10 @@ try {
     };
   }
 
-  const baselineOracleAtUnitRadiance = oracleCounts(1, 4, 0.01);
+  const baseExposureSeconds =
+    frameInput(false).frame.capture.exposure.shutterSeconds;
+  const baselineOracleAtUnitRadiance =
+    oracleCounts(1, 4, baseExposureSeconds);
   const nearFullWellRadiance =
     1000 / baselineOracleAtUnitRadiance.expectedGeneratedElectronCount;
   const cases = [
