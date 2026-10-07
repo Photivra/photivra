@@ -29,7 +29,9 @@ const box = (
   maximumM: { x: 1, y: 1, z: maximumZ }
 });
 
-const prepare = (primitives: readonly BrowserNativeReferencePrimitive[]) =>
+const prepare = (
+  primitives: readonly BrowserNativeReferencePrimitive[]
+): ReturnType<typeof prepareBrowserNativeReferenceGeometry> =>
   prepareBrowserNativeReferenceGeometry({
     schemaVersion: BROWSER_NATIVE_REFERENCE_GEOMETRY_VERSION,
     sourceStateId: "owned-reference-scene",
