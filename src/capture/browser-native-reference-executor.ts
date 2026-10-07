@@ -15,9 +15,6 @@ import { freezeOwnedData } from "../core/owned-data.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import { calculateSensorDarkCurrentCharge } from "../sensor/dark-current.js";
-import {
-  planEnvironmentSensorPhotoSignal
-} from "../sensor/environment-photo-signal.js";
 import { createSensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
 import {
   calculateNativeRawSite,
@@ -154,25 +151,25 @@ function executePreparedPhotoSignal(
   accounting: BrowserNativeReferenceWorkAccounting,
   signal: AbortSignal
 ): ReturnType<typeof createSensorEqeTemporalPhotoSignal>["value"]["photoSignal"] {
-  const plan = freezeOwnedData(
-    planEnvironmentSensorPhotoSignal(site.environment)
-  );
-  if (plan.owned.psf.kind !== "not-applied" || plan.owned.pupil === undefined) {
+  const plan = site.executionPlan;
+  if (plan === null) {
     throw new InvalidConfigurationError(
-      "Browser-native prepared reference executor currently requires the frozen ideal-pupil/no-sampled-PSF envelope."
+      "Browser-native prepared reference executor requires compact ideal-pupil/no-sampled-PSF execution support prepared before runtime."
     );
   }
 
-  const spatialCount = plan.spatialQuadrature.nodes.length;
-  const spectralCount = plan.spectralQuadrature.nodes.length;
+  const spatialCount = site.logicalSupport.spatialNodeCount;
+  const spectralCount = site.logicalSupport.spectralNodeCount;
   if (
-    spatialCount !== site.logicalSupport.spatialNodeCount ||
-    spectralCount !== site.logicalSupport.spectralNodeCount ||
     plan.instants.length !== site.logicalSupport.temporalNodeCount ||
-    plan.count !== site.logicalSupport.committedSourceSampleCount
+    plan.instants.some(
+      (instant) =>
+        instant.groups.length !== spatialCount * spectralCount ||
+        instant.apertureRaysBySpatial.length !== spatialCount
+    )
   ) {
     throw new InvalidConfigurationError(
-      "Browser-native prepared site logical support changed after preparation."
+      "Browser-native compact execution support changed after preparation."
     );
   }
 
@@ -203,15 +200,8 @@ function executePreparedPhotoSignal(
       }[];
     }[] = [];
 
-    for (let groupIndex = 0; groupIndex < instant.groups.length; groupIndex++) {
-      const group = instant.groups[groupIndex]!;
-      if (group.taps.length !== 1) {
-        throw new InvalidConfigurationError(
-          "Browser-native prepared reference executor does not admit sampled-PSF tap expansion."
-        );
-      }
-      const tap = group.taps[0]!;
-      const support = tap.apertureRays;
+    for (const group of instant.groups) {
+      const support = instant.apertureRaysBySpatial[group.spatialOrdinal];
       if (
         support === undefined ||
         support.length !== site.logicalSupport.pupilSampleCount
@@ -221,7 +211,6 @@ function executePreparedPhotoSignal(
         );
       }
 
-      const spatialOrdinal = groupIndex % spatialCount;
       let integratedIrradiance = 0;
 
       for (const ray of support) {
@@ -232,7 +221,7 @@ function executePreparedPhotoSignal(
         }
 
         const geometryKey =
-          spatialOrdinal * site.logicalSupport.pupilSampleCount +
+          group.spatialOrdinal * site.logicalSupport.pupilSampleCount +
           ray.pupilSampleIndex;
         let cached = geometryCache.get(geometryKey);
         if (cached === undefined) {
@@ -270,8 +259,7 @@ function executePreparedPhotoSignal(
         }
 
         accounting.actual.spectralOpticalCompositionAttempts += 1;
-        const baseRequest = tap.query.value.request;
-        const request = createRequest(baseRequest, ray);
+        const request = createRequest(group.request, ray);
         accounting.actual.sourceRadianceAttempts += 1;
         const result = evaluateBrowserNativeReferenceSource(
           source,
@@ -289,11 +277,11 @@ function executePreparedPhotoSignal(
           result
         });
         const optics = calculateSceneRadianceToSensorIrradiance({
-          ...plan.owned.optics,
+          ...plan.optics,
           sceneRadianceRequest: request,
           sceneRadianceResult: result,
-          imagePointMm: tap.query.value.sourcePointImagePlaneMm,
-          fieldThroughput: tap.fieldThroughput
+          imagePointMm: group.sourcePointImagePlaneMm,
+          fieldThroughput: group.fieldThroughput
         });
         integratedIrradiance +=
           optics.value
@@ -305,9 +293,9 @@ function executePreparedPhotoSignal(
         node: group.node,
         sourceSamples: [
           {
-            kernelSampleX: tap.kernelSampleX,
-            kernelSampleY: tap.kernelSampleY,
-            sourcePointNativeSensorMm: tap.point,
+            kernelSampleX: group.kernelSampleX,
+            kernelSampleY: group.kernelSampleY,
+            sourcePointNativeSensorMm: group.point,
             timeSecondsFromOpeningReference: instant.time,
             spectralIrradianceWattsPerSquareMeterPerNanometer:
               integratedIrradiance
@@ -329,9 +317,9 @@ function executePreparedPhotoSignal(
   }
 
   const photo = createSensorEqeTemporalPhotoSignal({
-    temporalIntegrationId: plan.owned.temporalIntegrationId,
+    temporalIntegrationId: site.environment.temporalIntegrationId,
     exposure: {
-      ...plan.owned.sensor,
+      ...plan.sensor,
       samples: irradiance
     }
   });
@@ -399,6 +387,7 @@ function prepareAccounting(
   let plannedUniqueGeometryCount = 0;
   let maximumBatchGeometryRequests = 0;
   let maximumBatchSpectralOpticalCompositions = 0;
+  let sharedSourceOpticalStateIdentityJson: string | undefined;
 
   for (let start = 0; start < sites.length; start += batchSize) {
     let batchGeometry = 0;
@@ -415,6 +404,17 @@ function prepareAccounting(
       ) {
         throw new InvalidConfigurationError(
           "Browser-native prepared site identity does not match the exact event/native index."
+        );
+      }
+      sharedSourceOpticalStateIdentityJson ??=
+        site.sharedSourceOpticalStateIdentityJson;
+      if (
+        site.sharedSourceOpticalStateIdentityJson !==
+          sharedSourceOpticalStateIdentityJson ||
+        site.executionPlan === null
+      ) {
+        throw new InvalidConfigurationError(
+          "Browser-native prepared reference event requires one shared source/optical/motion state and compact execution support at every site."
         );
       }
       if (site.expectedProviderEvaluationCount > 100_000) {
