@@ -95,12 +95,14 @@ coded SI midpoint sum, not an engine reducer.
 
 For each exact wavelength node `lambda`:
 
-`E_lambda = L_lambda * pi/(4*N^2) * T_lambda`
+`E_lambda = L_lambda * pi/(4*Nworking^2) * T_lambda`
 
 with:
 
 - `L_lambda`: declared source spectral radiance;
-- `N`: f-number;
+- `Nworking`: the same paraxial working f-number used by the optical bridge. It
+  equals nominal `N` at infinity focus and `N*(1+m)` for the ideal symmetric
+  finite-focus case with unity pupil magnification;
 - `T_lambda`: owned synthetic lens transmission;
 - sensitive area: 480,000 µm²;
 - bin width: 50 nm;
