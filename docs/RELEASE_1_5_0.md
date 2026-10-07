@@ -6,6 +6,12 @@ Review snapshot: 2026-10-05. This document records the 1.5.0 engine release cand
 
 **Candidate metadata is aligned to 1.5.0 on the release branch.** Generated references, exact-candidate CI/package validation, final review and owner publication authorization remain gates below.
 
+## Current integration and owner review — 2026-10-06
+
+The owner substantively reviewed and approved PRs #230 and #232, certified DCO 1.1 for those contributions and authorized contributor sign-off and merge after remaining checks. #232 merged with authorized sign-off as `7106fb90d8351cb769c2c01b0f10ebf1a437aea8`; its reviewed head `0d414b3f942c65f42a1a86f26c073a83093cd004` passed exact-head CI. The 1.5.0 candidate includes that bounded qualification checkpoint and preserves the reviewed #230 release changes at `7f33e4e39f94893ee93f87d90e7153d80ebd6f08`.
+
+The checkpoint adds independent SI photon/electron tests and complete 2×2 resource pilots, not complete native Focus qualification or a public experimental API. #224 remains open. Historical draft/input-review statements below describe the October 5 preparation snapshot; they do not reopen completed contribution review/DCO. Generated API references were regenerated on the combined candidate with no file drift. Combined-candidate local validation passed: 2,184 tests / one existing skip, existing coverage thresholds, build, docs, packed consumers, package surface and configured image-formation benchmark. The actual 1.5.0 archive was inspected: 867 entries, root-only export, matching emitted version declarations and no repository-only API implementation/test/source/script/workflow tree. Final combined-candidate GitHub CI remains required before merge; publication remains separately authorized.
+
 ## Published baseline and exact candidate inputs
 
 - Published GitHub release: [v1.4.0](https://github.com/Photivra/photivra/releases/tag/v1.4.0), published on 2026-10-04.
@@ -48,7 +54,7 @@ Full-native depth/visibility/refinement results, independently checked output an
 
 ### 2. Substantive human review and contribution-specific DCO
 
-Both input PRs are drafts and explicitly say their human review and contributor certification are pending. This preparation request and automated CI do not substitute for either. Follow [CONTRIBUTING](../CONTRIBUTING.md). This preparation document is also AI-assisted draft material and must be reviewed and certified before inclusion; no human sign-off is asserted here.
+The input PRs #223/#225/#226 received substantive human review and DCO approval before candidate preparation. The owner subsequently reviewed and certified #230/#232 on 2026-10-06, as recorded above. Follow [CONTRIBUTING](../CONTRIBUTING.md); use the authorized contributor sign-off for inclusion. This review does not establish the unresolved full-native/source/resource qualification under #224 or authorize public promotion of the experimental API.
 
 ## Validation already available for the code snapshots
 
@@ -65,9 +71,10 @@ Both input PRs are drafts and explicitly say their human review and contributor 
 - [x] Reconcile included stacked PRs in dependency order on engine main; retain any branches still needed by open work.
 - [x] Set `package.json`, both root version fields in `package-lock.json`, `src/core/version.ts` and `CITATION.cff` to 1.5.0. No citation release date is asserted before publication.
 - [x] Add the 1.5.0 changelog/release-context entry while preserving historical release records and independently versioned POC/schema/model identities.
-- [ ] Regenerate API documentation/`docs/api/exports.json` on the exact candidate and verify no unexpected generated drift.
-- [ ] Run the complete existing checks on the exact version-bumped candidate and inspect its actual npm tarball and root/declaration import graph.
-- [ ] Review the complete final diff; merge only approved, certified work. Require green final-main CI and an approved final SHA/tree.
+- [x] Regenerate API documentation/`docs/api/exports.json` on the combined candidate; no generated drift.
+- [x] Run local checks/coverage/build/docs/packed consumers/package gate/image-formation benchmark on the combined candidate and inspect the actual npm tarball and emitted root/declaration import graph. Final remote CI and final-main CI remain separate gates.
+- [x] Owner scientific/source review and contribution-specific DCO certification cover the included contributions; final integration diff preserves the approved scope.
+- [ ] Require green final-candidate CI before the signed merge and verify final-main CI before separate publication authorization.
 - [ ] Verify protected main/tag configuration and trusted publishing, confirm the next npm version is absent, then authorize the separate tag/publish step. Never move v1.4.0 or attempt to overwrite its package.
 - [ ] After publication, independently verify the npm version, dist-tag, tarball integrity and provenance, and publish matching GitHub release notes. Downstream dependency adoption and application qualification remain separate.
 
