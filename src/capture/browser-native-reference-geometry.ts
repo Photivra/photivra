@@ -332,7 +332,11 @@ export function prepareBrowserNativeReferenceGeometry(
     return primitive;
   });
   primitives.sort((first, second) =>
-    first.primitiveId.localeCompare(second.primitiveId)
+    first.primitiveId < second.primitiveId
+      ? -1
+      : first.primitiveId > second.primitiveId
+        ? 1
+        : 0
   );
 
   return freezeOwnedData({
