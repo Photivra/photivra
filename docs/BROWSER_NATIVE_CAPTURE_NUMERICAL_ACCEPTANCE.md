@@ -8,9 +8,10 @@ exact contracts, which are tolerance-governed numerical quantities, which requir
 refinement/convergence evidence, and which must fail closed.
 
 It complements
-[Browser-First Dense-Pupil Native Capture Qualification Envelope](BROWSER_NATIVE_CAPTURE_ENVELOPE.md).
-That document owns the supported source/camera/stage scope. This document owns
-the numerical acceptance and evidence classification inside that scope.
+[Browser-First Dense-Pupil Native Capture Qualification Envelope](BROWSER_NATIVE_CAPTURE_ENVELOPE.md)
+and the
+[Browser-Native Capture Prepared-State, Ownership, and Invalidation Contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md).
+The envelope owns supported source/camera/stage scope; the prepared-state contract owns reuse/invalidation semantics; this document owns numerical acceptance and evidence classification.
 
 It does not implement a backend, change equations, loosen existing tests, or
 claim that a full-native case currently passes.
@@ -260,11 +261,9 @@ the stable acceptance targets for #234/#235/#224.
 
 The remaining #233 work after this deliverable is:
 
-1. freeze the compact prepared-state/source ownership/invalidation contract;
-2. freeze integration-versus-sensor-noise stage identities where not already
-   explicit in that interface;
-3. freeze robust-geometry/fallback mechanics consistent with BNCE-GEO-002;
-4. freeze detailed whole-event/batch/memory/failure accounting;
-5. define the versioned Path-B adoption gate in governing API/numerical terms.
+1. preserve the merged prepared-state/source ownership/invalidation contract;
+2. freeze robust-geometry/fallback mechanics consistent with BNCE-GEO-002;
+3. freeze detailed whole-event/batch/memory/failure accounting;
+4. define the versioned Path-B adoption gate in governing API/numerical terms.
 
 No successor may weaken this matrix merely to make an implementation pass.
