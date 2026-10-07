@@ -436,7 +436,9 @@ visibility semantics remain identical.
 
 Geometry work must remain truthful.
 
-At minimum, later #233 accounting must be capable of distinguishing:
+At minimum, the merged
+[resource-accounting contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md)
+requires distinguishing:
 
 - candidate geometry attempts;
 - candidate ambiguity outcomes;
@@ -451,8 +453,8 @@ Fallback frequency is also qualification evidence: a backend that is formally
 correct but falls back on a material fraction of ordinary supported cases may be
 scientifically valid yet unsuitable for the intended performance role.
 
-The exact work/memory ceilings remain owned by the subsequent #233 accounting
-deliverable.
+The exact work/memory ceilings remain owned by the merged
+[resource-accounting contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md).
 
 ## Cancellation and failure
 
@@ -469,7 +471,9 @@ A candidate backend may fall back to CPU after a recoverable backend-specific
 failure only if the event/task contract permits that transition without changing
 scientific identity or violating its resource/cancellation contract.
 
-The later accounting contract must bound this behavior.
+The merged
+[resource-accounting contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md)
+bounds this behavior.
 
 ## Required geometry evidence cases
 
