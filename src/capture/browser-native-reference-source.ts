@@ -58,6 +58,7 @@ export interface PreparedBrowserNativeReferenceSource {
   providerSceneId: string;
   sourceRevision: string;
   wavelengthBasis: "air" | "vacuum";
+  geometryIdentityJson: string;
   missBehavior: "unsupported-no-background-radiance-contract";
   primitives: readonly BrowserNativeReferencePrimitiveRadiance[];
   identityJson: string;
@@ -216,12 +217,14 @@ export function prepareBrowserNativeReferenceSource(
     );
   }
 
+  const geometryIdentityJson = canonical(geometry);
   const prepared = {
     version: BROWSER_NATIVE_REFERENCE_SOURCE_VERSION,
     sourceStateId,
     providerSceneId,
     sourceRevision,
     wavelengthBasis: input.wavelengthBasis,
+    geometryIdentityJson,
     missBehavior: "unsupported-no-background-radiance-contract" as const,
     primitives
   };
