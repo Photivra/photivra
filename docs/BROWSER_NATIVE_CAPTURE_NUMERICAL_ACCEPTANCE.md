@@ -10,9 +10,11 @@ refinement/convergence evidence, and which must fail closed.
 It complements
 [Browser-First Dense-Pupil Native Capture Qualification Envelope](BROWSER_NATIVE_CAPTURE_ENVELOPE.md),
 the
-[Browser-Native Capture Prepared-State, Ownership, and Invalidation Contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md), and the
-[Browser-Native Capture Robust Geometry and Precision Fallback Contract](BROWSER_NATIVE_CAPTURE_ROBUST_GEOMETRY.md).
-The envelope owns supported source/camera/stage scope; the prepared-state contract owns reuse/invalidation semantics; the robust-geometry contract owns visible-surface ambiguity/fallback semantics; this document owns numerical acceptance and evidence classification.
+[Browser-Native Capture Prepared-State, Ownership, and Invalidation Contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md),
+the
+[Browser-Native Capture Robust Geometry and Precision Fallback Contract](BROWSER_NATIVE_CAPTURE_ROBUST_GEOMETRY.md), and the
+[Browser-Native Capture Whole-Event, Batch, Memory, and Failure Accounting Contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md).
+The envelope owns supported source/camera/stage scope; the prepared-state contract owns reuse/invalidation semantics; the robust-geometry contract owns visible-surface ambiguity/fallback semantics; the resource-accounting contract owns logical/executed work and memory/failure accounting; this document owns numerical acceptance and evidence classification.
 
 It does not implement a backend, change equations, loosen existing tests, or
 claim that a full-native case currently passes.
@@ -264,7 +266,7 @@ The remaining #233 work after this deliverable is:
 
 1. preserve the prepared-state/source ownership/invalidation contract from #233 deliverable 3;
 2. preserve the robust-geometry/fallback contract once reviewed and merged;
-3. freeze detailed whole-event/batch/memory/failure accounting;
+3. preserve the whole-event/batch/memory/failure accounting contract once reviewed and merged;
 4. define the versioned Path-B adoption gate in governing API/numerical terms.
 
 No successor may weaken this matrix merely to make an implementation pass.

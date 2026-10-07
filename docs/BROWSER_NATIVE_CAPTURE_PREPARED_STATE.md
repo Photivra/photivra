@@ -11,6 +11,7 @@ It complements:
 - [Browser-First Dense-Pupil Native Capture Qualification Envelope](BROWSER_NATIVE_CAPTURE_ENVELOPE.md);
 - [Browser-Native Capture Numerical Acceptance and Evidence Matrix](BROWSER_NATIVE_CAPTURE_NUMERICAL_ACCEPTANCE.md);
 - [Browser-Native Capture Robust Geometry and Precision Fallback Contract](BROWSER_NATIVE_CAPTURE_ROBUST_GEOMETRY.md);
+- [Browser-Native Capture Whole-Event, Batch, Memory, and Failure Accounting Contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md);
 - [Numerical Correctness and Physical Units](NUMERICAL_CORRECTNESS.md);
 - [Image-Formation Contract](IMAGE_FORMATION.md);
 - [Executed environment capture to native RAW](ENVIRONMENT_RAW_CAPTURE.md).
@@ -477,7 +478,7 @@ implementation evidence.
 After this deliverable, #233 still owns:
 
 1. preserve the robust-geometry/precision fallback contract once reviewed and merged;
-2. detailed whole-event/batch/memory/failure accounting;
+2. preserve the whole-event/batch/memory/failure accounting contract once reviewed and merged;
 3. final Path-B method-adoption/version gate;
 4. final governing-contract reconciliation/review handoff to #234.
 

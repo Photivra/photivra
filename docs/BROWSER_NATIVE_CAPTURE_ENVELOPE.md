@@ -34,6 +34,8 @@ This envelope is subordinate to the existing engine contracts:
   freezes #233 preparation ownership, reuse, cache lifetime, and invalidation semantics.
 - [Browser-Native Capture Robust Geometry and Precision Fallback Contract](BROWSER_NATIVE_CAPTURE_ROBUST_GEOMETRY.md)
   freezes #233 visible-surface identity, ambiguity, reference fallback, and unsupported-precision semantics.
+- [Browser-Native Capture Whole-Event, Batch, Memory, and Failure Accounting Contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md)
+  freezes #233 logical/executed work, admission, memory ownership, and failure/cancellation accounting.
 - [Scientific Assurance and Uncertainty Composition](SCIENTIFIC_ASSURANCE.md) owns
   scientific status, evidence, uncertainty, and limitation propagation.
 - [Executed environment capture to native RAW](ENVIRONMENT_RAW_CAPTURE.md) owns the
