@@ -164,7 +164,8 @@ export function prepareBrowserNativeReferenceSource(
       );
     }
     let previous = Number.NEGATIVE_INFINITY;
-    const spectrum = value.spectrum.map((sample) => {
+    const spectrum = value.spectrum.map(
+      (sample: BrowserNativeReferenceSpectralRadianceSample) => {
       requireAllowlistedRecord(
         sample,
         [
@@ -186,12 +187,13 @@ export function prepareBrowserNativeReferenceSource(
         );
       }
       previous = sample.wavelengthNanometers;
-      return {
-        wavelengthNanometers: sample.wavelengthNanometers,
-        spectralRadianceWattsPerSquareMeterSteradianNanometer:
-          sample.spectralRadianceWattsPerSquareMeterSteradianNanometer
-      };
-    });
+        return {
+          wavelengthNanometers: sample.wavelengthNanometers,
+          spectralRadianceWattsPerSquareMeterSteradianNanometer:
+            sample.spectralRadianceWattsPerSquareMeterSteradianNanometer
+        };
+      }
+    );
     return {
       primitiveId,
       evidence,
