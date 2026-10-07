@@ -110,7 +110,7 @@ try {
       evidence: evidence("profile:234-owned-pupil"),
       limitation: "Owned synthetic profiler pupil; no convergence or calibration claim."
     };
-    for (const site of value.sites) site.environment.pupil = structuredClone(pupil);
+    for (const site of value.sites) site.environment.pupil = globalThis.structuredClone(pupil);
     value.evaluateApertureRadiance = (request, ray) =>
       evaluator(request, (ray.originM.x > 0 ? 2 : 0) * 1e-9);
     return value;
@@ -121,7 +121,7 @@ try {
 
     const memoryBefore = forceGcAndSnapshot();
     const prepareStart = performance.now();
-    const owned = structuredClone(data);
+    const owned = globalThis.structuredClone(data);
     const plans = owned.sites.map((site, index) =>
       planEnvironmentRawSite(
         site,
@@ -256,7 +256,7 @@ try {
             ...request,
             sites: Array.from({ length: request.width }, (_, offset) => {
               const index = request.y * native.pixelWidth + request.x + offset;
-              const site = structuredClone(input.sites[index]);
+              const site = globalThis.structuredClone(input.sites[index]);
               site.environment.temporalIntegrationId =
                 input.frame.frameId + ":native:" + index;
               return site;
