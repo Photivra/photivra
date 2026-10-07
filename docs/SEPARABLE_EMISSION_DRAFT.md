@@ -90,3 +90,14 @@ legacy per-site photons/electrons for global and rolling shutters at 32/64/128
 pupil support, test separate budgets, unchanged tile/legacy caps, attempted failing
 work counts, immutable contract ownership and cancellation at a host yield.
 No full native source/event results or physical-device memory evidence are claimed.
+
+## Qualification checkpoint — 2026-10-06
+
+[DENSE_PUPIL_QUALIFICATION.md](DENSE_PUPIL_QUALIFICATION.md) records independent
+SI photon/electron checks and complete-small-event resource pilots. It supersedes
+any inference that the proposed four-billion scalar ceiling alone resolves #224:
+base native spectral work remains above two billion, simple pupil/time refinement
+exceeds both prototype ceilings, and no complete native/depth/device event is
+qualified. The recorded elapsed-time extrapolation is not native measurement.
+The prototype remains repository-only; exact work reduction and full-native
+scientific/resource evidence are still required before public promotion.
