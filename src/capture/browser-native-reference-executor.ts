@@ -428,7 +428,7 @@ function prepareAccounting(
           source.wavelengthBasis ||
         sourceWavelengthsByPrimitive.some(({ wavelengths }) =>
           site.logicalSupport.spectralWavelengthsNanometers.some(
-            (wavelength) => !wavelengths.has(wavelength)
+            (wavelength: number) => !wavelengths.has(wavelength)
           )
         )
       ) {
