@@ -47,6 +47,7 @@ export interface PreparedBrowserNativeReferenceSite {
     temporalNodeCount: number;
     pupilSampleCount: number;
     spectralNodeCount: number;
+    spectralWavelengthsNanometers: readonly number[];
     committedSourceSampleCount: number;
     plannedUniqueGeometryCount: number;
   };
@@ -373,6 +374,9 @@ export function prepareBrowserNativeReferenceSite(
       temporalNodeCount,
       pupilSampleCount,
       spectralNodeCount,
+      spectralWavelengthsNanometers: environmentPlan.spectralQuadrature.nodes.map(
+        (node) => node.wavelengthNanometers
+      ),
       committedSourceSampleCount: environmentPlan.count,
       plannedUniqueGeometryCount
     },
