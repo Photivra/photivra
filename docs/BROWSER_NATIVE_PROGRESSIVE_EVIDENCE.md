@@ -154,6 +154,42 @@ preserve the frozen science/resource/exactness contracts.
 
 Full-native base/refinement measurement belongs exclusively to #251.
 
+## Measured CI 659 results
+
+Durable machine-readable evidence is retained at
+`docs/validation/browser-native-progressive-2026-10-07/ci-659.json`.
+
+The CI runner checked out GitHub's pull-request merge revision
+`ee756ff9df68229f5b44a9c82348bc88284ccbac` for PR #253. The corresponding PR branch head was
+`ad3d11876c1ca99f3feb64333f3161d6065dd122`. CI run **659** used Node **v24.21.0** on Linux x64 for the
+progressive qualification step.
+
+| Evidence | Result | Preparation cold / warm | Evidence-batch execution | Peak RSS / heap | Independent oracle max relative error | Output / control |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| BNCE-PROG-001 — 4×4 global f/4 ∞ | pass | 238.4 / 235.5 ms | 207.0 ms (batch 4) | 163.4 / 46.5 MB | photon 5.60e-16; electron 9.00e-16 | SHA-256 `4ebfafc5551b76fbda89b896a24b1337ed5a52993682c67b620d52def42d1509`; no saturation |
+| BNCE-PROG-002 — 8×8 global f/4 ∞ | pass | 806.5 / 757.8 ms | 766.0 ms (batch 8) | 288.2 / 134.0 MB | photon 5.60e-16; electron 9.00e-16 | SHA-256 `ff847494fd2230651dd5e8bfa0f4e2a0e37cc03ba84b0d2de2b46445d19d027d`; no saturation |
+| BNCE-PROG-003 — 16×16 global f/4 ∞ | pass | 2967.8 / 3012.3 ms | 3061.0 ms (batch 16) | 514.3 / 333.0 MB | photon 5.60e-16; electron 9.00e-16 | SHA-256 `59c575070818fd65c2d63cd376a0126178d691b40dad5731de97f029d35806b1`; no saturation |
+| BNCE-PROG-004 — 8×8 native scan f/4 ∞ | pass | 758.4 / 768.0 ms | 761.4 ms (batch 8) | 443.2 / 144.9 MB | photon 5.60e-16; electron 9.00e-16 | SHA-256 `ff847494fd2230651dd5e8bfa0f4e2a0e37cc03ba84b0d2de2b46445d19d027d`; no saturation |
+| BNCE-PROG-005 — 4×4 global f/8, 5 m | pass | 199.7 / 200.1 ms | 213.4 ms (batch 4) | 423.6 / 92.3 MB | photon 7.14e-16; electron 1.65e-15 | SHA-256 `9570e3248ab6997e0714ef69d1e723406e72d4c3a73c6590cd2d32bb8484d62e`; no saturation |
+| BNCE-PROG-006 — 4×4 near-full-well | pass | 197.8 / 199.1 ms | 200.7 ms (batch 4) | 424.1 / 76.1 MB | photon 3.54e-16; electron 0 | 1000 expected electrons/site; physical saturation 16/16, pre-ADC 5/16, digital saturation 16/16; exact batch parity |
+| BNCE-PROG-007 — exact first-hit tie | expected fail closed | — | — | — | — | one geometry attempt, zero spectral/source/sensor attempts; output unavailable |
+| BNCE-PROG-008 — cancellation | cancelled as expected | — | — | — | — | 2,048 geometry + 4,096 spectral/source attempts, zero sensor attempts; output unavailable |
+| BNCE-PROG-009 — observer failure | failed as expected | — | — | — | — | 2,048 geometry + 4,096 spectral/source attempts, one observer attempt, zero sensor attempts; output unavailable |
+
+For the largest positive event, BNCE-PROG-003, measured complete-event work was
+**131,072** geometry attempts, **131,072** geometry reuse hits,
+**262,144** spectral/optical and source-radiance attempts, and **256** sensor-site
+attempts. These exactly match the frozen 16×16 logical plan.
+
+All positive events had exact batch/chunk output parity. The independent expected
+photon/electron checks remained below the existing BNCE numerical bar by a wide
+margin. The near-full-well event exercised clipping/ADC boundaries while retaining
+exact seeded output parity.
+
+The measured ladder does **not** expose a #236 activation trigger. It provides
+progressive Path-A evidence only. It does not establish or project the 2048×1366
+full-native case; that remains #251.
+
 ## #250 completion gate
 
 #250 may close only after reviewed evidence shows:
