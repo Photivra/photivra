@@ -34,14 +34,54 @@ import {
 } from "./environment-raw-producer.js";
 import type { PreparedBrowserNativeReferenceEventPlan } from "./browser-native-reference-plan.js";
 
-export const BROWSER_NATIVE_REFERENCE_SITE_PLAN_VERSION = "0.1.0" as const;
+export const BROWSER_NATIVE_REFERENCE_SITE_PLAN_VERSION = "0.2.0" as const;
+
+type EnvironmentReferencePlan = ReturnType<typeof planEnvironmentRawSite>;
+type EnvironmentReferenceGroup =
+  EnvironmentReferencePlan["instants"][number]["groups"][number];
+type EnvironmentReferenceTap = EnvironmentReferenceGroup["taps"][number];
+type EnvironmentReferenceRay =
+  NonNullable<EnvironmentReferenceTap["apertureRays"]>[number];
+
+export interface PreparedBrowserNativeReferenceCompactExecutionPlan {
+  sceneBindings: EnvironmentReferencePlan["sceneBindings"];
+  sensor: EnvironmentReferencePlan["owned"]["sensor"];
+  optics: EnvironmentReferencePlan["owned"]["optics"];
+  instants: readonly {
+    temporalSampleIndex: number;
+    time: number;
+    apertureRaysBySpatial: readonly (readonly EnvironmentReferenceRay[])[];
+    groups: readonly {
+      node: EnvironmentReferenceGroup["node"];
+      spatialOrdinal: number;
+      kernelSampleX: number;
+      kernelSampleY: number;
+      point: EnvironmentReferenceTap["point"];
+      request: EnvironmentReferenceTap["query"]["value"]["request"];
+      sourcePointImagePlaneMm:
+        EnvironmentReferenceTap["query"]["value"]["sourcePointImagePlaneMm"];
+      fieldThroughput: EnvironmentReferenceTap["fieldThroughput"];
+    }[];
+  }[];
+}
 
 export interface PreparedBrowserNativeReferenceSite {
   version: typeof BROWSER_NATIVE_REFERENCE_SITE_PLAN_VERSION;
   nativeIndex: number;
   eventIdentityJson: string;
   environment: ReturnType<typeof planEnvironmentRawSite>["owned"];
+  sharedSourceOpticalStateIdentityJson: string;
+  executionPlan: PreparedBrowserNativeReferenceCompactExecutionPlan | null;
   expectedProviderEvaluationCount: number;
+  logicalSupport: {
+    spatialNodeCount: number;
+    temporalNodeCount: number;
+    pupilSampleCount: number;
+    spectralNodeCount: number;
+    spectralWavelengthsNanometers: readonly number[];
+    committedSourceSampleCount: number;
+    plannedUniqueGeometryCount: number;
+  };
   darkCurrentProfile: ReturnType<typeof parseSensorDarkCurrentProfile>;
   operatingTemperatureC: number;
   charge: {
@@ -77,6 +117,102 @@ function canonical(value: unknown): string {
     unsupportedValueMessage:
       "Browser-native prepared site identity requires plain serializable data."
   });
+}
+
+function prepareCompactExecutionPlan(
+  plan: EnvironmentReferencePlan
+): PreparedBrowserNativeReferenceCompactExecutionPlan | null {
+  if (plan.owned.psf.kind !== "not-applied" || plan.owned.pupil === undefined) {
+    return null;
+  }
+
+  const spatialCount = plan.spatialQuadrature.nodes.length;
+  const spectralCount = plan.spectralQuadrature.nodes.length;
+  const instants = plan.instants.map((instant) => {
+    const apertureRaysBySpatial = Array.from(
+      { length: spatialCount },
+      (_, spatialOrdinal) => {
+        const firstGroup = instant.groups[spatialOrdinal];
+        if (firstGroup === undefined || firstGroup.taps.length !== 1) {
+          throw new InvalidConfigurationError(
+            "Browser-native compact execution requires one tap per spatial/spectral group."
+          );
+        }
+        const firstTap = firstGroup.taps[0]!;
+        if (firstTap.apertureRays === undefined) {
+          throw new InvalidConfigurationError(
+            "Browser-native compact execution requires explicit ideal-pupil rays."
+          );
+        }
+
+        const rayIdentity = canonical(firstTap.apertureRays);
+        const pointIdentity = canonical({
+          point: firstTap.point,
+          fieldThroughput: firstTap.fieldThroughput
+        });
+        for (
+          let spectralOrdinal = 1;
+          spectralOrdinal < spectralCount;
+          spectralOrdinal++
+        ) {
+          const group =
+            instant.groups[spectralOrdinal * spatialCount + spatialOrdinal];
+          if (group === undefined || group.taps.length !== 1) {
+            throw new InvalidConfigurationError(
+              "Browser-native compact execution requires rectangular spectral/spatial support."
+            );
+          }
+          const tap = group.taps[0]!;
+          if (
+            tap.apertureRays === undefined ||
+            canonical(tap.apertureRays) !== rayIdentity ||
+            canonical({
+              point: tap.point,
+              fieldThroughput: tap.fieldThroughput
+            }) !== pointIdentity
+          ) {
+            throw new InvalidConfigurationError(
+              "Browser-native compact execution may reuse geometry only when every wavelength preserves the exact ray/spatial support."
+            );
+          }
+        }
+        return firstTap.apertureRays;
+      }
+    );
+
+    const groups = instant.groups.map((group, groupIndex) => {
+      if (group.taps.length !== 1) {
+        throw new InvalidConfigurationError(
+          "Browser-native compact execution does not retain sampled-PSF tap expansion."
+        );
+      }
+      const tap = group.taps[0]!;
+      return {
+        node: group.node,
+        spatialOrdinal: groupIndex % spatialCount,
+        kernelSampleX: tap.kernelSampleX,
+        kernelSampleY: tap.kernelSampleY,
+        point: tap.point,
+        request: tap.query.value.request,
+        sourcePointImagePlaneMm: tap.query.value.sourcePointImagePlaneMm,
+        fieldThroughput: tap.fieldThroughput
+      };
+    });
+
+    return {
+      temporalSampleIndex: instant.temporalSampleIndex,
+      time: instant.time,
+      apertureRaysBySpatial,
+      groups
+    };
+  });
+
+  return {
+    sceneBindings: plan.sceneBindings,
+    sensor: plan.owned.sensor,
+    optics: plan.owned.optics,
+    instants
+  };
 }
 
 function validateDarkCurrentTemperature(
@@ -213,6 +349,34 @@ export function prepareBrowserNativeReferenceSite(
     );
   }
 
+  const sharedSourceOpticalStateIdentityJson = canonical({
+    sceneBindings: environmentPlan.owned.sceneBindings,
+    optics: environmentPlan.owned.optics,
+    motion: environmentPlan.owned.motion,
+    psf: environmentPlan.owned.psf,
+    pupil: environmentPlan.owned.pupil,
+    fieldThroughput: environmentPlan.owned.fieldThroughput
+  });
+  const executionPlan = prepareCompactExecutionPlan(environmentPlan);
+
+  const spatialNodeCount = environmentPlan.spatialQuadrature.nodes.length;
+  const temporalNodeCount = environmentPlan.instants.length;
+  const spectralNodeCount = environmentPlan.spectralQuadrature.nodes.length;
+  const firstTap = environmentPlan.instants[0]?.groups[0]?.taps[0];
+  const pupilSampleCount = firstTap?.apertureRays?.length ?? 1;
+  const plannedUniqueGeometryCount =
+    spatialNodeCount * temporalNodeCount * pupilSampleCount;
+  if (
+    !Number.isSafeInteger(plannedUniqueGeometryCount) ||
+    plannedUniqueGeometryCount < 1 ||
+    !Number.isSafeInteger(environmentPlan.count) ||
+    environmentPlan.count !== plannedUniqueGeometryCount * spectralNodeCount
+  ) {
+    throw new InvalidConfigurationError(
+      "Browser-native prepared site logical support cannot be reconciled with exact wavelength-independent geometry reuse."
+    );
+  }
+
   const darkCurrentProfile = parseSensorDarkCurrentProfile(
     site.darkCurrentProfile
   );
@@ -341,7 +505,20 @@ export function prepareBrowserNativeReferenceSite(
     nativeIndex,
     eventIdentityJson: eventPlan.identityJson,
     environment: environmentPlan.owned,
+    sharedSourceOpticalStateIdentityJson,
+    executionPlan,
     expectedProviderEvaluationCount: environmentPlan.count,
+    logicalSupport: {
+      spatialNodeCount,
+      temporalNodeCount,
+      pupilSampleCount,
+      spectralNodeCount,
+      spectralWavelengthsNanometers: environmentPlan.spectralQuadrature.nodes.map(
+        (node) => node.wavelengthNanometers
+      ),
+      committedSourceSampleCount: environmentPlan.count,
+      plannedUniqueGeometryCount
+    },
     darkCurrentProfile,
     operatingTemperatureC: site.operatingTemperatureC,
     charge: {

@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { frameInput } from "./helpers/environment-raw-fixture.js";
+import { evidence } from "./helpers/eqe-response-fixture.js";
 import {
   BROWSER_NATIVE_REFERENCE_GEOMETRY_VERSION
 } from "../src/capture/browser-native-reference-geometry.js";
@@ -102,6 +103,50 @@ describe("browser-native prepared site ownership", () => {
     expect(Object.isFrozen(prepared)).toBe(true);
     expect(Object.isFrozen(prepared.environment)).toBe(true);
     expect(Object.isFrozen(prepared.readout.readoutProfile)).toBe(true);
+  });
+
+  it("compacts dense-pupil execution support during preparation instead of retaining spectral-duplicated ray graphs", () => {
+    const fixture = frameInput(false);
+    fixture.sites[0]!.environment.pupil = {
+      kind: "ideal-uniform-circular-pupil",
+      radialSampleCount: 2,
+      angularSampleCount: 16,
+      evidence: evidence("test:249-site-compact-pupil"),
+      limitation: "Owned dense-pupil compact-preparation fixture."
+    };
+    const event = prepareEvent(fixture);
+    const prepared = prepareBrowserNativeReferenceSite(
+      event,
+      fixture.sites[0]!,
+      0
+    );
+
+    expect(prepared.executionPlan).not.toBeNull();
+    const compact = prepared.executionPlan!;
+    expect(compact.instants.length).toBe(prepared.logicalSupport.temporalNodeCount);
+    for (const instant of compact.instants) {
+      expect(instant.apertureRaysBySpatial).toHaveLength(
+        prepared.logicalSupport.spatialNodeCount
+      );
+      expect(instant.groups).toHaveLength(
+        prepared.logicalSupport.spatialNodeCount *
+          prepared.logicalSupport.spectralNodeCount
+      );
+      expect(
+        instant.apertureRaysBySpatial.reduce(
+          (sum, rays) => sum + rays.length,
+          0
+        )
+      ).toBe(
+        prepared.logicalSupport.spatialNodeCount *
+          prepared.logicalSupport.pupilSampleCount
+      );
+    }
+    expect(
+      prepared.logicalSupport.plannedUniqueGeometryCount *
+        prepared.logicalSupport.spectralNodeCount
+    ).toBe(prepared.logicalSupport.committedSourceSampleCount);
+    expect(Object.isFrozen(compact)).toBe(true);
   });
 
   it("is immune to caller mutation after preparation", () => {
