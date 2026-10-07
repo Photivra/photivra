@@ -22,6 +22,23 @@ export interface BrowserNativeReferenceVector3 {
   z: number;
 }
 
+export interface BrowserNativeReferenceQuaternion {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+}
+
+export interface BrowserNativeReferenceRigidTransform {
+  /** World-space translation of the local primitive frame. */
+  translationM: BrowserNativeReferenceVector3;
+  /**
+   * Rotation from local to world coordinates. Preparation normalizes this
+   * quaternion, canonicalizes its sign, and removes signed-zero identity drift.
+   */
+  rotationQuaternion: BrowserNativeReferenceQuaternion;
+}
+
 export interface BrowserNativeAxisAlignedRectangle {
   kind: "axis-aligned-rectangle";
   primitiveId: string;
@@ -31,6 +48,8 @@ export interface BrowserNativeAxisAlignedRectangle {
    */
   minimumM: BrowserNativeReferenceVector3;
   maximumM: BrowserNativeReferenceVector3;
+  /** Optional rigid local-to-world transform; omission is identity. */
+  worldFromLocal?: BrowserNativeReferenceRigidTransform;
 }
 
 export interface BrowserNativeAxisAlignedBox {
@@ -39,6 +58,8 @@ export interface BrowserNativeAxisAlignedBox {
   /** Closed metric bounds; every maximum is strictly greater. */
   minimumM: BrowserNativeReferenceVector3;
   maximumM: BrowserNativeReferenceVector3;
+  /** Optional rigid local-to-world transform; omission is identity. */
+  worldFromLocal?: BrowserNativeReferenceRigidTransform;
 }
 
 export type BrowserNativeReferencePrimitive =
@@ -65,7 +86,7 @@ export interface PreparedBrowserNativeReferenceGeometry {
   primitiveOrderMeaning: "none";
   primitives: readonly BrowserNativeReferencePrimitive[];
   limitations: readonly [
-    "Axis-aligned rectangles and boxes only; arbitrary transforms/orientation are not implemented in this foundation.",
+    "Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.",
     "Float64 computation is a reference arithmetic choice, not exact real arithmetic.",
     "Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed."
   ];
@@ -120,6 +141,68 @@ function requireFiniteVector(
   return { x: value.x, y: value.y, z: value.z };
 }
 
+function prepareRigidTransform(
+  value: BrowserNativeReferenceRigidTransform | undefined
+): BrowserNativeReferenceRigidTransform | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "object" || value === null) {
+    throw new InvalidScientificInputError(
+      "Reference rigid transform must be an object."
+    );
+  }
+  const translationM = requireFiniteVector(
+    value.translationM,
+    "Reference rigid transform translation"
+  );
+  const q = value.rotationQuaternion;
+  if (
+    typeof q !== "object" ||
+    q === null ||
+    !Number.isFinite(q.x) ||
+    !Number.isFinite(q.y) ||
+    !Number.isFinite(q.z) ||
+    !Number.isFinite(q.w)
+  ) {
+    throw new InvalidScientificInputError(
+      "Reference rigid transform quaternion must contain finite values."
+    );
+  }
+  const length = Math.hypot(q.x, q.y, q.z, q.w);
+  if (!Number.isFinite(length) || length === 0) {
+    throw new InvalidScientificInputError(
+      "Reference rigid transform quaternion must be finite and nonzero."
+    );
+  }
+
+  let rotationQuaternion = {
+    x: q.x / length,
+    y: q.y / length,
+    z: q.z / length,
+    w: q.w / length
+  };
+  const firstNonzero = [
+    rotationQuaternion.w,
+    rotationQuaternion.x,
+    rotationQuaternion.y,
+    rotationQuaternion.z
+  ].find((component) => component !== 0);
+  if (firstNonzero !== undefined && firstNonzero < 0) {
+    rotationQuaternion = {
+      x: -rotationQuaternion.x,
+      y: -rotationQuaternion.y,
+      z: -rotationQuaternion.z,
+      w: -rotationQuaternion.w
+    };
+  }
+  rotationQuaternion = {
+    x: rotationQuaternion.x === 0 ? 0 : rotationQuaternion.x,
+    y: rotationQuaternion.y === 0 ? 0 : rotationQuaternion.y,
+    z: rotationQuaternion.z === 0 ? 0 : rotationQuaternion.z,
+    w: rotationQuaternion.w === 0 ? 0 : rotationQuaternion.w
+  };
+  return { translationM, rotationQuaternion };
+}
+
 function requireNonEmptyRevision(value: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new InvalidScientificInputError(
@@ -143,6 +226,7 @@ function validatePrimitive(
   );
   const minimumM = requireFiniteVector(primitive.minimumM, "Primitive minimum");
   const maximumM = requireFiniteVector(primitive.maximumM, "Primitive maximum");
+  const worldFromLocal = prepareRigidTransform(primitive.worldFromLocal);
 
   for (const axis of AXES) {
     if (minimumM[axis] > maximumM[axis]) {
@@ -169,7 +253,13 @@ function validatePrimitive(
         "Reference rectangle requires exactly one zero-thickness axis and two positive extents."
       );
     }
-    return { kind: primitive.kind, primitiveId, minimumM, maximumM };
+    return {
+      kind: primitive.kind,
+      primitiveId,
+      minimumM,
+      maximumM,
+      ...(worldFromLocal === undefined ? {} : { worldFromLocal })
+    };
   }
 
   if (primitive.kind === "axis-aligned-box") {
@@ -181,7 +271,13 @@ function validatePrimitive(
         "Reference box requires three strictly positive extents."
       );
     }
-    return { kind: primitive.kind, primitiveId, minimumM, maximumM };
+    return {
+      kind: primitive.kind,
+      primitiveId,
+      minimumM,
+      maximumM,
+      ...(worldFromLocal === undefined ? {} : { worldFromLocal })
+    };
   }
 
   throw new InvalidScientificInputError(
@@ -247,7 +343,7 @@ export function prepareBrowserNativeReferenceGeometry(
     primitiveOrderMeaning: "none" as const,
     primitives,
     limitations: [
-      "Axis-aligned rectangles and boxes only; arbitrary transforms/orientation are not implemented in this foundation.",
+      "Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.",
       "Float64 computation is a reference arithmetic choice, not exact real arithmetic.",
       "Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed."
     ] as const
@@ -280,6 +376,63 @@ function validateRay(ray: BrowserNativeReferenceRay): {
     ray: { originM, directionUnitVector },
     directionMagnitude
   };
+}
+
+function rotateVectorByUnitQuaternion(
+  vector: BrowserNativeReferenceVector3,
+  quaternion: BrowserNativeReferenceQuaternion
+): BrowserNativeReferenceVector3 {
+  const tx = 2 * (quaternion.y * vector.z - quaternion.z * vector.y);
+  const ty = 2 * (quaternion.z * vector.x - quaternion.x * vector.z);
+  const tz = 2 * (quaternion.x * vector.y - quaternion.y * vector.x);
+  return {
+    x:
+      vector.x +
+      quaternion.w * tx +
+      (quaternion.y * tz - quaternion.z * ty),
+    y:
+      vector.y +
+      quaternion.w * ty +
+      (quaternion.z * tx - quaternion.x * tz),
+    z:
+      vector.z +
+      quaternion.w * tz +
+      (quaternion.x * ty - quaternion.y * tx)
+  };
+}
+
+function rayInPrimitiveLocalSpace(
+  ray: BrowserNativeReferenceRay,
+  transform: BrowserNativeReferenceRigidTransform | undefined
+): BrowserNativeReferenceRay | null {
+  if (transform === undefined) return ray;
+  const inverse = {
+    x: -transform.rotationQuaternion.x,
+    y: -transform.rotationQuaternion.y,
+    z: -transform.rotationQuaternion.z,
+    w: transform.rotationQuaternion.w
+  };
+  const shiftedOrigin = {
+    x: ray.originM.x - transform.translationM.x,
+    y: ray.originM.y - transform.translationM.y,
+    z: ray.originM.z - transform.translationM.z
+  };
+  const originM = rotateVectorByUnitQuaternion(shiftedOrigin, inverse);
+  const directionUnitVector = rotateVectorByUnitQuaternion(
+    ray.directionUnitVector,
+    inverse
+  );
+  if (
+    !Number.isFinite(originM.x) ||
+    !Number.isFinite(originM.y) ||
+    !Number.isFinite(originM.z) ||
+    !Number.isFinite(directionUnitVector.x) ||
+    !Number.isFinite(directionUnitVector.y) ||
+    !Number.isFinite(directionUnitVector.z)
+  ) {
+    return null;
+  }
+  return { originM, directionUnitVector };
 }
 
 function pointAt(
@@ -496,13 +649,25 @@ export function intersectBrowserNativeReferenceGeometry(
     null;
 
   for (const primitive of prepared.primitives) {
-    const result =
+    const localRay = rayInPrimitiveLocalSpace(ray, primitive.worldFromLocal);
+    if (localRay === null) {
+      return { kind: "unsupported", reason: "non-finite-intersection" };
+    }
+    const localResult =
       primitive.kind === "axis-aligned-rectangle"
-        ? intersectRectangle(primitive, ray, directionMagnitude)
-        : intersectBox(primitive, ray, directionMagnitude);
+        ? intersectRectangle(primitive, localRay, directionMagnitude)
+        : intersectBox(primitive, localRay, directionMagnitude);
 
-    if (result.kind === "unsupported") return result;
-    if (result.kind === "miss") continue;
+    if (localResult.kind === "unsupported") return localResult;
+    if (localResult.kind === "miss") continue;
+
+    const result = hit(
+      localResult.primitiveId,
+      ray,
+      directionMagnitude,
+      localResult.rayParameter
+    );
+    if (result.kind !== "hit") return result;
 
     if (best === null || result.rayParameter < best.rayParameter) {
       best = result;
