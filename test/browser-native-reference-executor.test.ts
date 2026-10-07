@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   createBrowserNativeReferenceTask,
   type BrowserNativeReferenceExecutorProvider,
+  type BrowserNativeReferencePhotoBatch,
   type BrowserNativeReferenceTask
 } from "../src/capture/browser-native-reference-executor.js";
 import {
@@ -152,10 +153,8 @@ function prepared(
 }
 
 function provider(
-  fixture: ReturnType<typeof denseFixture>,
-  observed: number[] = []
+  observed: BrowserNativeReferencePhotoBatch["sites"][number][] = []
 ): BrowserNativeReferenceExecutorProvider {
-  void fixture;
   return {
     observePhotoBatch(
       batch: Parameters<
@@ -163,7 +162,7 @@ function provider(
       >[0]
     ): void {
       expect(Object.isFrozen(batch)).toBe(true);
-      for (const site of batch.sites) observed.push(site.nativeIndex);
+      for (const site of batch.sites) observed.push(site);
     },
     async yieldControl(): Promise<void> {}
   };
@@ -174,11 +173,11 @@ describe("bounded prepared browser-native Path-A executor", () => {
     for (const rolling of [false, true]) {
       const fixture = denseFixture(rolling);
       const reference = simulateEnvironmentSensorRawFrame(fixture);
-      const { eventPlan, sites } = prepared(fixture);
-      const observed: number[] = [];
+      const { eventPlan, source, sites } = prepared(fixture);
+      const observed: BrowserNativeReferencePhotoBatch["sites"][number][] = [];
       const task = createBrowserNativeReferenceTask(
-        { eventPlan, sites, batchSize: 2 },
-        provider(fixture, observed)
+        { eventPlan, source, sites, batchSize: 2 },
+        provider(observed)
       );
 
       await task.run();
@@ -187,7 +186,19 @@ describe("bounded prepared browser-native Path-A executor", () => {
       expect(Array.from(output.codes)).toEqual(
         reference.value.raw.value.frame.samples.map((sample) => sample.rawCode)
       );
-      expect(observed).toEqual([0, 1, 2, 3]);
+      expect(observed.map((site) => site.nativeIndex)).toEqual([0, 1, 2, 3]);
+      expect(
+        observed.map((site) => ({
+          photons: site.expectedIncidentPhotonCount,
+          electrons: site.expectedGeneratedElectronCount
+        }))
+      ).toEqual(
+        reference.value.sites.map((site) => ({
+          photons: site.value.photo.value.photoSignal.expectedIncidentPhotonCount,
+          electrons:
+            site.value.photo.value.photoSignal.expectedGeneratedElectronCount
+        }))
+      );
       expect(task.work.logical.committedSourceSampleCount).toBe(
         reference.value.providerEvaluationCount
       );
@@ -218,11 +229,11 @@ describe("bounded prepared browser-native Path-A executor", () => {
 
     const one = createBrowserNativeReferenceTask(
       { ...a, batchSize: 1 },
-      provider(fixtureA)
+      provider()
     );
     const four = createBrowserNativeReferenceTask(
       { ...b, batchSize: 4 },
-      provider(fixtureB)
+      provider()
     );
 
     await one.run();
@@ -256,11 +267,11 @@ describe("bounded prepared browser-native Path-A executor", () => {
 
   it("rejects the whole event before scientific source callbacks when logical dynamic work exceeds the unchanged budget", () => {
     const fixture = denseFixture(false);
-    const { eventPlan, sites } = prepared(fixture, 4);
+    const { eventPlan, source, sites } = prepared(fixture, 4);
     let yields = 0;
     expect(() =>
       createBrowserNativeReferenceTask(
-        { eventPlan, source: prepared(fixture).source, sites, batchSize: 1 },
+        { eventPlan, source, sites, batchSize: 1 },
         {
           async yieldControl(): Promise<void> {
             yields += 1;
@@ -271,7 +282,7 @@ describe("bounded prepared browser-native Path-A executor", () => {
     expect(yields).toBe(0);
   });
 
-  it("counts attempted source/geometry work and withholds output on source failure", async () => {
+  it("preflights exact source wavelength coverage before scientific execution", () => {
     const fixture = denseFixture(false);
     const preparedInput = prepared(fixture);
     const incompleteSource = prepareBrowserNativeReferenceSource(
@@ -297,25 +308,41 @@ describe("bounded prepared browser-native Path-A executor", () => {
         ]
       }
     );
+
+    expect(() =>
+      createBrowserNativeReferenceTask(
+        {
+          eventPlan: preparedInput.eventPlan,
+          source: incompleteSource,
+          sites: preparedInput.sites,
+          batchSize: 1
+        },
+        provider()
+      )
+    ).toThrow("cover every exact committed site wavelength");
+  });
+
+  it("counts attempted scientific work and withholds output on observer failure", async () => {
+    const fixture = denseFixture(false);
+    const preparedInput = prepared(fixture);
     const task = createBrowserNativeReferenceTask(
+      { ...preparedInput, batchSize: 1 },
       {
-        eventPlan: preparedInput.eventPlan,
-        source: incompleteSource,
-        sites: preparedInput.sites,
-        batchSize: 1
-      },
-      provider(fixture)
+        observePhotoBatch(): never {
+          throw new Error("observer failed");
+        },
+        async yieldControl(): Promise<void> {}
+      }
     );
 
-    await expect(task.run()).rejects.toThrow(
-      "exact radiance sample at every committed wavelength"
-    );
+    await expect(task.run()).rejects.toThrow("observer failed");
     expect(task.state).toBe("failed");
     expect(task.work.actual.geometryAttempts).toBeGreaterThan(0);
     expect(task.work.actual.sourceRadianceAttempts).toBeGreaterThan(0);
     expect(task.work.actual.spectralOpticalCompositionAttempts).toBe(
       task.work.actual.sourceRadianceAttempts
     );
+    expect(task.work.actual.observerAttempts).toBe(1);
     expect(task.work.actual.sensorSiteAttempts).toBe(0);
     expect(() => task.takeOutput()).toThrow("unavailable");
   });
@@ -356,10 +383,11 @@ describe("bounded prepared browser-native Path-A executor", () => {
       createBrowserNativeReferenceTask(
         {
           eventPlan: a.eventPlan,
+          source: a.source,
           sites: mismatched,
           batchSize: 1
         },
-        provider(fixtureA)
+        provider()
       )
     ).toThrow("event/native index");
   });
