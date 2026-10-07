@@ -382,6 +382,15 @@ function prepareAccounting(
     );
   }
 
+  const sourceWavelengthsByPrimitive = source.primitives.map(
+    (primitive) => ({
+      primitiveId: primitive.primitiveId,
+      wavelengths: new Set(
+        primitive.spectrum.map((sample) => sample.wavelengthNanometers)
+      )
+    })
+  );
+
   let spatialNodeTotal = 0;
   let temporalNodeTotal = 0;
   let pupilSampleTotal = 0;
@@ -411,6 +420,20 @@ function prepareAccounting(
       if (site.expectedProviderEvaluationCount > 100_000) {
         throw new InvalidConfigurationError(
           "Browser-native prepared site exceeds the existing per-source-tile provider-evaluation bound."
+        );
+      }
+
+      if (
+        site.environment.sensor.spectralSampling.wavelengthBasis !==
+          source.wavelengthBasis ||
+        sourceWavelengthsByPrimitive.some(({ wavelengths }) =>
+          site.logicalSupport.spectralWavelengthsNanometers.some(
+            (wavelength) => !wavelengths.has(wavelength)
+          )
+        )
+      ) {
+        throw new InvalidConfigurationError(
+          "Browser-native prepared source must cover every exact committed site wavelength before scientific execution."
         );
       }
 
