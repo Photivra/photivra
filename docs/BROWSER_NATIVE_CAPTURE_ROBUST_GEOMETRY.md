@@ -11,6 +11,7 @@ It complements:
 - [Browser-First Dense-Pupil Native Capture Qualification Envelope](BROWSER_NATIVE_CAPTURE_ENVELOPE.md);
 - [Browser-Native Capture Numerical Acceptance and Evidence Matrix](BROWSER_NATIVE_CAPTURE_NUMERICAL_ACCEPTANCE.md);
 - [Browser-Native Capture Prepared-State, Ownership, and Invalidation Contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md);
+- [Browser-Native Capture Whole-Event, Batch, Memory, and Failure Accounting Contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md);
 - [Numerical Correctness and Physical Units](NUMERICAL_CORRECTNESS.md).
 
 This is a **governing implementation contract**, not a public API declaration.
@@ -569,6 +570,6 @@ already satisfies the cases.
 
 After this slice, #233 still owns:
 
-1. whole-event/batch/memory/failure accounting;
+1. preserve the whole-event/batch/memory/failure accounting contract once reviewed and merged;
 2. final Path-B adoption/version gate;
 3. final governing-contract reconciliation and #234 implementation handoff.
