@@ -306,7 +306,7 @@ describe("bounded prepared browser-native Path-A executor", () => {
     const fixtureA = denseFixture(false);
     const fixtureB = denseFixture(false);
     const a = prepared(fixtureA);
-    const b = prepared(fixtureB);
+    const b = prepared(fixtureB, 100_000, 2);
     const mismatched = [...a.sites];
     mismatched[0] = b.sites[0]!;
 
