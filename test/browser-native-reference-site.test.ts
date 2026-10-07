@@ -159,7 +159,13 @@ describe("browser-native prepared site ownership", () => {
     if (wrongDarkSite.darkCurrentProfile.siteApplicability.kind !== "exact-site") {
       throw new Error("fixture must use exact-site dark current");
     }
-    wrongDarkSite.darkCurrentProfile.siteApplicability.site.x = 1;
+    wrongDarkSite.darkCurrentProfile.siteApplicability = {
+      kind: "exact-site",
+      site: {
+        ...wrongDarkSite.darkCurrentProfile.siteApplicability.site,
+        x: 1
+      }
+    };
     expect(() =>
       prepareBrowserNativeReferenceSite(event, wrongDarkSite, 0)
     ).toThrow("exact-site applicability");
