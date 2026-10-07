@@ -279,8 +279,10 @@ Do not raise or reinterpret:
 - 16,384 maximum native dimension;
 - 1–256 native-site execution tile width;
 - current packed RAW payload accounting;
-- 2,000,000,000 existing whole-event provider/scientific-work policy;
-- 100,000 existing per-source-tile logical query bound.
+- the existing **2,000,000,000 whole-event provider-evaluation ceiling**, together
+  with the resource contract's rule that decomposing/renaming that scientific
+  work does not authorize a larger replacement ceiling;
+- the existing **100,000 per-source-tile logical provider-evaluation bound**.
 
 The repository-only proposed four-billion spectral-composition ceiling remains
 **rejected** for #224.
