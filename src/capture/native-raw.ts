@@ -118,7 +118,14 @@ export function calculateNativeRawPlan(input: NativeRawInput): NativeRawPlan {
 }
 /** Executes validated EQE/dark/completeness events through the shared reference scalar physics. */
 export function createNativeRawTask(input: NativeRawInput,provider: NativeRawProvider): NativeRawTask {
-  const plan=calculateNativeRawPlan(input);
+  return createNativeRawTaskFromPlan(calculateNativeRawPlan(input),provider);
+}
+/**
+ * Internal prepared-plan execution entry. The plan must already be produced by
+ * calculateNativeRawPlan(); this avoids reparsing event-level state while retaining
+ * the exact native sensor/noise/readout implementation.
+ */
+export function createNativeRawTaskFromPlan(plan: NativeRawPlan,provider: NativeRawProvider): NativeRawTask {
   if(!provider||typeof provider.readTile!=="function"||typeof provider.yieldControl!=="function")throw new InvalidConfigurationError("Native RAW requires reader and host event-loop yield.");
   const read=provider.readTile.bind(provider),yieldControl=provider.yieldControl.bind(provider),abort=new AbortController();
   const native=plan.exposure.geometry.nativeRaster,tileWidth=plan.tileWidth??NATIVE_RAW_LIMITS.tileWidth;
