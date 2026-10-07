@@ -543,6 +543,7 @@ try {
     const cold = buildPreparedCase(definition);
     const coldPreparationMs = elapsed(start);
     const afterCold = forceGc();
+    void cold;
 
     start = performance.now();
     const warm = buildPreparedCase(definition);
