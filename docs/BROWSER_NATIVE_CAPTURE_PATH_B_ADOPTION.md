@@ -17,7 +17,8 @@ It complements:
 - [Browser-Native Capture Robust Geometry and Precision Fallback Contract](BROWSER_NATIVE_CAPTURE_ROBUST_GEOMETRY.md);
 - [Browser-Native Capture Whole-Event, Batch, Memory, and Failure Accounting Contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md);
 - [Public API Style](API_STYLE.md);
-- [Numerical Correctness and Physical Units](NUMERICAL_CORRECTNESS.md).
+- [Numerical Correctness and Physical Units](NUMERICAL_CORRECTNESS.md);
+- [Browser-Native Capture Path-A Reference Executor Handoff](BROWSER_NATIVE_CAPTURE_REFERENCE_EXECUTOR_HANDOFF.md).
 
 This is a **governing method/version contract**. It does not select a Path-B
 algorithm, activate #236, change the current scientific calculation, change a
@@ -604,7 +605,9 @@ This governing slice is complete when reviewed and merged with:
 
 This checklist freezes governance only.
 
-After this slice, #233 requires one final reconciliation pass to confirm that the
-merged source/camera, numerical, prepared-state, robust-geometry, resource, and
-Path-B contracts are internally consistent and sufficient to hand #234 an
-implementation target without inventing scientific policy in code.
+The
+[reference-executor handoff](BROWSER_NATIVE_CAPTURE_REFERENCE_EXECUTOR_HANDOFF.md)
+is that final reconciliation: it confirms the merged source/camera, numerical,
+prepared-state, robust-geometry, resource, and Path-B contracts are internally
+consistent and provides #234 an implementation target without inventing scientific
+policy in code.
