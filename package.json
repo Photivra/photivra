@@ -77,6 +77,7 @@
     "check:identity": "node scripts/check-project-identity.mjs",
     "bench:image-formation": "npm run build && npm run bench:image-formation:built",
     "bench:image-formation:built": "node --expose-gc scripts/benchmark-image-formation.mjs",
+    "profile:native-reference": "node --expose-gc scripts/profile-native-reference-path.mjs",
     "docs:check": "node scripts/check-release-docs.mjs",
     "release:consumer-check": "node scripts/check-release-consumer.mjs"
   },
