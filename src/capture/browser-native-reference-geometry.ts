@@ -138,7 +138,11 @@ function requireFiniteVector(
       `${label} must contain finite metric coordinates.`
     );
   }
-  return { x: value.x, y: value.y, z: value.z };
+  return {
+    x: value.x === 0 ? 0 : value.x,
+    y: value.y === 0 ? 0 : value.y,
+    z: value.z === 0 ? 0 : value.z
+  };
 }
 
 function prepareRigidTransform(
