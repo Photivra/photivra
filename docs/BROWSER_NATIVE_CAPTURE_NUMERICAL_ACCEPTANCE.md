@@ -261,7 +261,7 @@ the stable acceptance targets for #234/#235/#224.
 
 The remaining #233 work after this deliverable is:
 
-1. preserve the merged prepared-state/source ownership/invalidation contract;
+1. preserve the prepared-state/source ownership/invalidation contract from #233 deliverable 3 once reviewed and merged;
 2. freeze robust-geometry/fallback mechanics consistent with BNCE-GEO-002;
 3. freeze detailed whole-event/batch/memory/failure accounting;
 4. define the versioned Path-B adoption gate in governing API/numerical terms.
