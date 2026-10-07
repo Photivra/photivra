@@ -8,10 +8,11 @@ exact contracts, which are tolerance-governed numerical quantities, which requir
 refinement/convergence evidence, and which must fail closed.
 
 It complements
-[Browser-First Dense-Pupil Native Capture Qualification Envelope](BROWSER_NATIVE_CAPTURE_ENVELOPE.md)
-and the
-[Browser-Native Capture Prepared-State, Ownership, and Invalidation Contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md).
-The envelope owns supported source/camera/stage scope; the prepared-state contract owns reuse/invalidation semantics; this document owns numerical acceptance and evidence classification.
+[Browser-First Dense-Pupil Native Capture Qualification Envelope](BROWSER_NATIVE_CAPTURE_ENVELOPE.md),
+the
+[Browser-Native Capture Prepared-State, Ownership, and Invalidation Contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md), and the
+[Browser-Native Capture Robust Geometry and Precision Fallback Contract](BROWSER_NATIVE_CAPTURE_ROBUST_GEOMETRY.md).
+The envelope owns supported source/camera/stage scope; the prepared-state contract owns reuse/invalidation semantics; the robust-geometry contract owns visible-surface ambiguity/fallback semantics; this document owns numerical acceptance and evidence classification.
 
 It does not implement a backend, change equations, loosen existing tests, or
 claim that a full-native case currently passes.
@@ -122,8 +123,8 @@ backend/precision identity, and test/reference method.
 | **BNCE-ELECTRON-001** | N | expected generated electrons from constructed SI oracle | same current constructed-oracle regression floor as BNCE-PHOTON-001; preserve per-wavelength QE application | existing independent SI oracle; extend to full prepared path |
 | **BNCE-TIME-001** | N/X | shutter-node phases, local times and measures | exact rational midpoint/weight values where exactly representable; current time/geometry comparisons retain existing 12-decimal-place regression criterion; local schedule identity exact | existing temporal-quadrature and global/native-scan native RAW tests |
 | **BNCE-PUPIL-001** | N/X | circular-pupil quadrature weights and origin-aware visibility | pupil sample identities/counts exact; constructed symmetric visibility integral retains current high-precision regression floor; no post-RAW blur substitution | existing aperture/separable qualification tests; extend to metric occluders |
-| **BNCE-GEO-001** | X/N | visible primitive/surface identity and intersection geometry | visible primitive ID must match float64 reference exactly. Intersection position/distance is tolerance-governed; no numeric tolerance is frozen until BNCE-GEO-002 establishes conditioning/error bounds | new independent analytic plane/box oracle required |
-| **BNCE-GEO-002** | N/F | robust precision at sliver, translated/subpixel, grazing and near-coincident boundaries | backend must either select the same surface as the float64 reference under a justified ambiguity/error bound or reject/fallback. No guessed epsilon and no “closest-looking” acceptance | required before GPU backend qualification |
+| **BNCE-GEO-001** | X/N | visible primitive/surface identity and intersection geometry | visible primitive ID must match float64 reference exactly. Intersection position/distance is tolerance-governed under the robust-geometry contract; no universal epsilon is permitted | independent analytic plane/box oracle plus BNCE-GEO-001-A…E subcases in the robust-geometry contract |
+| **BNCE-GEO-002** | N/F | robust precision at sliver, translated/subpixel, grazing and near-coincident boundaries | backend must either certify the same surface under a justified operation/request-specific bound, mark the request ambiguous and use float64 fallback, or fail closed unsupported. A confident disagreement is a backend defect | BNCE-GEO-002-A…H subcases in the robust-geometry contract; required before lower-precision backend qualification |
 | **BNCE-FOCUS-001** | C/N/R | changed focus distance over fixed metric source | independent geometric reference + expected photon/electron acceptance + exact seeded RAW where Path-A authoritative output is claimed | required complete case |
 | **BNCE-APERTURE-001** | C/N/R | changed aperture/f-number over fixed metric source | independent pupil/throughput reference + expected photon/electron acceptance + exact seeded RAW where Path-A authoritative output is claimed | required complete case |
 | **BNCE-BASE-001** | N/R/X/F | complete 2048×1366, 4-spatial, 1-temporal, 128-pupil, 2-spectral event | complete event only; independent numerical checks, exact required RAW/identity/work accounting, bounded memory and successful completion within unchanged admission contract | required; historical count evidence is not completion |
@@ -261,8 +262,8 @@ the stable acceptance targets for #234/#235/#224.
 
 The remaining #233 work after this deliverable is:
 
-1. preserve the prepared-state/source ownership/invalidation contract from #233 deliverable 3 once reviewed and merged;
-2. freeze robust-geometry/fallback mechanics consistent with BNCE-GEO-002;
+1. preserve the prepared-state/source ownership/invalidation contract from #233 deliverable 3;
+2. preserve the robust-geometry/fallback contract once reviewed and merged;
 3. freeze detailed whole-event/batch/memory/failure accounting;
 4. define the versioned Path-B adoption gate in governing API/numerical terms.
 
