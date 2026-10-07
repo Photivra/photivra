@@ -122,8 +122,23 @@ function qeAt(wavelengthNm) {
   return 0.2 + 0.004 * (wavelengthNm - 400);
 }
 
-function oracleCounts(radiance, aperture, exposureSeconds) {
-  const acceptance = Math.PI / (4 * aperture ** 2);
+function oracleCounts(
+  radiance,
+  aperture,
+  exposureSeconds,
+  focus = { kind: "infinity" },
+  focalLengthMm = 50
+) {
+  let workingFNumber = aperture;
+  if (focus.kind === "finite") {
+    const objectDistanceMm = focus.distanceM * 1000;
+    const imageDistanceMm =
+      focalLengthMm * objectDistanceMm /
+      (objectDistanceMm - focalLengthMm);
+    const magnification = imageDistanceMm / objectDistanceMm;
+    workingFNumber = aperture * (1 + magnification);
+  }
+  const acceptance = Math.PI / (4 * workingFNumber ** 2);
   let photonRate = 0;
   let electronRate = 0;
   for (const wavelengthNm of WAVELENGTHS_NM) {
@@ -561,7 +576,9 @@ try {
     const oracle = oracleCounts(
       definition.radiance,
       definition.aperture,
-      warm.eventPlan.rawPlan.exposure.exposure.shutterSeconds
+      warm.eventPlan.rawPlan.exposure.exposure.shutterSeconds,
+      definition.focus,
+      warm.eventPlan.rawPlan.exposure.exposure.focalLengthMm
     );
     let maxPhotonRelativeError = 0;
     let maxElectronRelativeError = 0;
