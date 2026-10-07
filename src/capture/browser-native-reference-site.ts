@@ -34,7 +34,7 @@ import {
 } from "./environment-raw-producer.js";
 import type { PreparedBrowserNativeReferenceEventPlan } from "./browser-native-reference-plan.js";
 
-export const BROWSER_NATIVE_REFERENCE_SITE_PLAN_VERSION = "0.1.0" as const;
+export const BROWSER_NATIVE_REFERENCE_SITE_PLAN_VERSION = "0.2.0" as const;
 
 type EnvironmentReferencePlan = ReturnType<typeof planEnvironmentRawSite>;
 type EnvironmentReferenceGroup =
