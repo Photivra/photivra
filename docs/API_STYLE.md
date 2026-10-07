@@ -112,7 +112,7 @@ Use the established verb family that matches the operation's semantics. Do not i
 - `resolve*` — derive one deterministic semantic state from already-defined inputs/profiles.
 - `assess*` — produce a compatibility/readiness/applicability assessment, including structured blockers.
 - `create*` — construct a new semantic record/snapshot/manifest whose identity is part of the contract.
-- `prepare*` — validate/canonicalize relatively static context for repeated later evaluation.
+- `prepare*` — validate/canonicalize relatively static context for repeated later evaluation. Prepared state must own immutable validated dependencies and define reuse/invalidation; preparation is not permission to cache request-dependent scientific results. See the [browser-native prepared-state contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md) for the #224/#233 qualification lane.
 - `serialize*` — convert an authoritative semantic value to its documented deterministic serialized representation.
 - `compose*` — combine multiple independently meaningful inputs/stages into a higher-level semantic result.
 - `integrate*` / `reduce*` — mathematically aggregate explicit measures/samples under a documented model.

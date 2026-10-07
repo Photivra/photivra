@@ -30,6 +30,8 @@ This envelope is subordinate to the existing engine contracts:
   exactness/tolerance rules, deterministic behavior, and numerical-change policy.
 - [Browser-Native Capture Numerical Acceptance and Evidence Matrix](BROWSER_NATIVE_CAPTURE_NUMERICAL_ACCEPTANCE.md)
   freezes #233 quantity-specific exactness/tolerance classes and stable evidence IDs.
+- [Browser-Native Capture Prepared-State, Ownership, and Invalidation Contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md)
+  freezes #233 preparation ownership, reuse, cache lifetime, and invalidation semantics.
 - [Scientific Assurance and Uncertainty Composition](SCIENTIFIC_ASSURANCE.md) owns
   scientific status, evidence, uncertainty, and limitation propagation.
 - [Executed environment capture to native RAW](ENVIRONMENT_RAW_CAPTURE.md) owns the
