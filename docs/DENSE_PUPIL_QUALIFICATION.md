@@ -1,5 +1,11 @@
 # Dense-pupil qualification — issue #224
 
+> Forward-looking qualification scope is frozen in
+> [Browser-First Dense-Pupil Native Capture Qualification Envelope](BROWSER_NATIVE_CAPTURE_ENVELOPE.md).
+> This document preserves the #232 measurements and limitations as historical evidence;
+> those measurements do not widen the frozen source/camera/stage envelope or establish
+> full-native/browser qualification.
+
 ## Decision at this checkpoint
 
 The merged repository-only separable-emission prototype is **not qualified for
