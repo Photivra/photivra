@@ -38,6 +38,8 @@ This envelope is subordinate to the existing engine contracts:
   freezes #233 logical/executed work, admission, memory ownership, and failure/cancellation accounting.
 - [Browser-Native Capture Path-B Adoption and Version Gate](BROWSER_NATIVE_CAPTURE_PATH_B_ADOPTION.md)
   freezes #233 Path-A versus Path-B classification, alternative-method evidence, versioning, migration, and adoption approval.
+- [Browser-Native Capture Path-A Reference Executor Handoff](BROWSER_NATIVE_CAPTURE_REFERENCE_EXECUTOR_HANDOFF.md)
+  reconciles the merged #233 contracts into the implementation/evidence target for #234.
 - [Scientific Assurance and Uncertainty Composition](SCIENTIFIC_ASSURANCE.md) owns
   scientific status, evidence, uncertainty, and limitation propagation.
 - [Executed environment capture to native RAW](ENVIRONMENT_RAW_CAPTURE.md) owns the
@@ -230,9 +232,9 @@ At minimum, qualification must include complete-event evidence for:
    grazing/near-coincident intersections, and aperture-origin visibility changes.
 
 A combined 256-pupil × 2-temporal full-native case is required only if the
-subsequent #233 accuracy/convergence contract establishes that combined refinement
-is necessary for the supported scientific claim. It must not be omitted merely
-because it is expensive.
+merged numerical-acceptance/convergence contract establishes that combined
+refinement is necessary for the supported scientific claim. It must not be
+omitted merely because it is expensive.
 
 ## Resource and admission boundary
 
@@ -246,9 +248,9 @@ In particular:
 - a faster processor does not make logically unsupported work scientifically valid;
 - exact reuse/factorization may reduce executed work only when its invariants are
   independently justified and its accounting remains truthful;
-- the later #233 accounting deliverable must distinguish logical support from
-  actually executed geometry/intersection, optical/spectral arithmetic,
-  preparation, memory, and failed/attempted work.
+- the merged [resource-accounting contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md)
+  distinguishes logical support from actually executed geometry/intersection,
+  optical/spectral arithmetic, preparation, memory, and failed/attempted work.
 
 A case rejected by admission remains rejected. Rejection is not successful
 full-native qualification.
@@ -283,6 +285,9 @@ semantics, committed sample meaning, or authoritative output meaning is **not** 
 mere optimization. It requires a reviewed governing-contract change and the
 appropriate API/schema/model/version decision before adoption.
 
-The next #233 deliverables may add the quantity-specific accuracy/precision matrix,
-prepared-state interface, and detailed work accounting. They may not silently widen
-this source/camera/stage envelope.
+The merged companion #233 contracts freeze numerical acceptance, prepared-state
+ownership/reuse, robust geometry/fallback, resource accounting, and Path-B
+adoption/version governance. The reconciled
+[reference-executor handoff](BROWSER_NATIVE_CAPTURE_REFERENCE_EXECUTOR_HANDOFF.md)
+is the implementation entry point for #234. None of those contracts silently
+widens this source/camera/stage envelope.
