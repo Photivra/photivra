@@ -13,6 +13,7 @@ It complements:
 - [Browser-Native Capture Prepared-State, Ownership, and Invalidation Contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md);
 - [Browser-Native Capture Whole-Event, Batch, Memory, and Failure Accounting Contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md);
 - [Browser-Native Capture Path-B Adoption and Version Gate](BROWSER_NATIVE_CAPTURE_PATH_B_ADOPTION.md);
+- [Browser-Native Capture Path-A Reference Executor Handoff](BROWSER_NATIVE_CAPTURE_REFERENCE_EXECUTOR_HANDOFF.md);
 - [Numerical Correctness and Physical Units](NUMERICAL_CORRECTNESS.md).
 
 This is a **governing implementation contract**, not a public API declaration.
@@ -569,8 +570,7 @@ This governing slice is complete when reviewed and merged with:
 This checklist freezes governance only; it is not evidence that an implementation
 already satisfies the cases.
 
-After this slice, #233 still owns:
-
-1. preserve the whole-event/batch/memory/failure accounting contract once reviewed and merged;
-2. preserve the final Path-B adoption/version gate once reviewed and merged;
-3. final governing-contract reconciliation and #234 implementation handoff.
+The resource-accounting and Path-B governance contracts are now merged. The
+[reference-executor handoff](BROWSER_NATIVE_CAPTURE_REFERENCE_EXECUTOR_HANDOFF.md)
+reconciles their requirements with this robust-geometry contract and freezes the
+#234 implementation/evidence target.
