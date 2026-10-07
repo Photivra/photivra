@@ -1,6 +1,14 @@
 # Changelog
 
-## 1.4.0 — candidate, not published
+## 1.5.0 — release candidate
+
+- Add optional `NativeRawInput.tileWidth` (1–256 native sites) so bounded native RAW acquisition can use smaller execution chunks while preserving the existing 256-site default, physical sampling, absolute CFA coordinates, deterministic noise seeds, shutter timing, output payload and existing whole-event/resource caps.
+- Preserve the exact acquisition tile width through same-RAW validation and development. Reject invalid widths, inconsistent tile counts and stale plans instead of silently rebuilding a default-width plan.
+- Keep the separable ideal-emission experiment repository-only under `src/api/`; it is not part of the npm/root API and establishes no production Focus, source-separability, full-native or device-readiness claim. Dense-pupil qualification remains tracked separately in #224.
+- Include the test-only Node 24 timeout stabilization from #229; it changes no engine behavior or scientific assertions.
+- Include #232's repository-only independent photon/electron qualification tests and complete 2×2 resource pilots. These establish bounded checkpoint evidence, not full-native Focus, depth/refinement or device qualification; no experimental root export or resource-limit change.
+
+## 1.4.0 — published October 4, 2026
 
 - Add standalone evidence-bound ideal circular pupil rays and optional origin-aware bounded photo/RAW evaluation. Reuse shared focus and camera rotation, average normalized pupil irradiances before the existing sensor pipeline, and retain exact-once working-f-number throughput. Reject simultaneous sampled PSF, missing callbacks, invalid geometry and excessive budgets before provider work. Production depth/visibility composition remains unsupported. See `docs/SENSOR_APERTURE_RAYS.md`.
 

@@ -7,4 +7,4 @@
  * Release checks enforce equality with package.json and the packed distribution.
  * @see docs/RELEASE_1_0_1.md
  */
-export const ENGINE_API_VERSION = "1.4.0" as const;
+export const ENGINE_API_VERSION = "1.5.0" as const;
