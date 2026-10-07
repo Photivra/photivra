@@ -423,6 +423,21 @@ function prepareAccounting(
         );
       }
 
+      const angularVelocity =
+        site.environment.motion.angularVelocityRadPerSec;
+      if (
+        angularVelocity.pitch !== 0 ||
+        angularVelocity.yaw !== 0 ||
+        angularVelocity.roll !== 0 ||
+        site.environment.sceneBindings.providerProfile
+          .illuminationTemporalProfileId !== undefined ||
+        site.environment.sceneBindings.illuminationTemporalProfile !== undefined
+      ) {
+        throw new InvalidConfigurationError(
+          "Browser-native prepared reference executor requires the frozen static-source, zero-camera-motion qualification envelope."
+        );
+      }
+
       if (
         site.environment.sensor.spectralSampling.wavelengthBasis !==
           source.wavelengthBasis ||
