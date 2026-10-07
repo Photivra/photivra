@@ -184,6 +184,13 @@ function prepareRigidTransform(
       w: -rotationQuaternion.w
     };
   }
+  // Signed zero is not a semantic state; canonical prepared identity uses +0.
+  rotationQuaternion = {
+    x: rotationQuaternion.x === 0 ? 0 : rotationQuaternion.x,
+    y: rotationQuaternion.y === 0 ? 0 : rotationQuaternion.y,
+    z: rotationQuaternion.z === 0 ? 0 : rotationQuaternion.z,
+    w: rotationQuaternion.w === 0 ? 0 : rotationQuaternion.w
+  };
   return { translationM, rotationQuaternion };
 }
 
