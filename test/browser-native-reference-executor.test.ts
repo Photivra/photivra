@@ -289,8 +289,15 @@ describe("bounded prepared browser-native Path-A executor", () => {
     expect(four.work.actual.completedBatchCount).toBe(1);
   });
 
-  it("rejects time-varying illumination/camera motion outside the frozen qualification envelope", () => {
-    const dynamicFixture = frameInput(false);
+  it("rejects camera motion outside the frozen static qualification envelope", () => {
+    const dynamicFixture = denseFixture(false);
+    for (const site of dynamicFixture.sites) {
+      site.environment.motion.angularVelocityRadPerSec = {
+        pitch: 0.1,
+        yaw: 0,
+        roll: 0
+      };
+    }
     const preparedInput = prepared(dynamicFixture);
 
     expect(() =>
