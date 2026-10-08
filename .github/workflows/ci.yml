@@ -60,6 +60,10 @@ jobs:
         if: matrix.node-version == '24'
         run: node --expose-gc scripts/benchmark-native-capture-sdr.mjs
 
+      - name: Verify frozen full-native Path-A work obstruction without executing giant events
+        if: matrix.node-version == '24'
+        run: npm run assess:native-full-event
+
       - name: Profile browser-native reference path
         if: matrix.node-version == '24'
         run: npm run profile:native-reference
