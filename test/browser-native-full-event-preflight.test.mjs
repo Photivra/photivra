@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import {
   inspectFullNativeWork, frozenFullNativeWorkObstructions
@@ -100,6 +101,22 @@ describe('#224 full-native static Path-A work preflight (never qualified)', () =
       .toBe('count-screen-only-no-runtime-admission');
     expect(hypotheticallyReduced.fullNativeQualified).toBe(false);
     expect(frozenFullNativeWorkObstructions()[0].support.pupilRaysPerSite).toBe(128);
+  });
+
+  it('reports only outstanding #251/#235 gates after the DCO-certified #253 merge', () => {
+    const doc = readFileSync('docs/BROWSER_NATIVE_FULL_EVENT_PREFLIGHT.md', 'utf8');
+    expect(doc).toContain('#250 is closed');
+    expect(doc).toContain('7bc5ac67d8cbc01cdf97ab7e51756a8eb3a798b0');
+    expect(doc).not.toContain('DCO* has not been recorded');
+    const report = JSON.parse(execFileSync(
+      process.execPath, ['scripts/assess-browser-native-full-event.mjs'],
+      { encoding: 'utf8' }
+    ));
+    expect(report.nextRequiredGate.startsWith('#251 ')).toBe(true);
+    expect(report.nextRequiredGate).not.toContain('#250 DCO+merge');
+    expect(report.fullNativeQualified).toBe(false);
+    expect(report.measuredFullNativeRuntimeMilliseconds).toBeNull();
+    expect(report.cases).toHaveLength(4);
   });
 
   it('remains synchronized with the existing reference work ceilings and source execution check', () => {
