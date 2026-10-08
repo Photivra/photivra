@@ -26,6 +26,6 @@ process.stdout.write(JSON.stringify({
   measuredPeakResidentBytes: null,
   sourceOfAuthority: 'docs/BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md',
   fullNativeQualified: false,
-  nextRequiredGate: '#250 DCO+merge -> #251 exact Path-A work optimization or recorded obstruction -> #235 browser backend',
+  nextRequiredGate: '#251 exact Path-A work optimization or recorded obstruction -> #235 browser backend',
   cases
 }, null, 2) + '\n');
