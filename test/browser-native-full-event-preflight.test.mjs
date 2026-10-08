@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import process from 'node:process';
 import { describe, expect, it } from 'vitest';
 import {
   inspectFullNativeWork, frozenFullNativeWorkObstructions
