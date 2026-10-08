@@ -10,12 +10,14 @@ their science, or authorize a new Path B method.
 
 ## Objective and division of ownership
 
-The next numerical qualification is **#250 / PR #253** (progressive complete
-events). PR #253 is technically green and substantively owner-approved, but
-its *contribution-specific DCO* has not been recorded; its approved merge
-is a prerequisite to #251 final qualification. The independent preflight
-below can be authored and tested without merging #253 or running #251 final
-cases; it does **not** close #250, #251 or parent #224.
+The progressive complete-event qualification **#250 / PR #253** was
+contribution-specifically DCO-certified and merged into `main` as
+`7bc5ac67d8cbc01cdf97ab7e51756a8eb3a798b0`; #250 is closed.
+Its completed progressive ladder does **not** satisfy true full-native
+qualification. This independent static preflight does not execute #251
+final cases or close #251 or parent #224. PR #254 requires its **own**
+contribution-specific DCO certification before merge; #253's DCO
+attestation cannot be reused.
 
 The full #251 frozen base is 2048 × 1366 native sites with four spatial
 nodes/site, one temporal node, 128 committed pupil rays and two spectral
@@ -83,8 +85,10 @@ not proof that the full-native photographic model cannot ever qualify.
 
 ## Unblock the real full-native work, without weakening the model
 
-1. Explicit contribution-specific DCO certification for #253, then
-   merge its exact tested head, close #250, and confirm #251 prerequisite.
+1. **Completed prerequisite:** #253 is DCO-certified and merged;
+   #250 is closed. Preserve its tested progressive complete-event
+   evidence and continue #251 without treating that ladder as full-native
+   qualification.
 2. Engineer a **separately reviewed, exact Path-A factorization/reuse**
    of actual dynamic source/optical work under 2B **while preserving
    committed logical spectral/pupil/time support**, local operating-range
