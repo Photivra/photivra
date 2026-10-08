@@ -63,3 +63,7 @@ jobs:
       - name: Profile browser-native reference path
         if: matrix.node-version == '24'
         run: npm run profile:native-reference
+
+      - name: Qualify progressive browser-native complete events
+        if: matrix.node-version == '24'
+        run: npm run qualify:native-reference-progressive
