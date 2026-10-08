@@ -78,6 +78,7 @@
     "bench:image-formation": "npm run build && npm run bench:image-formation:built",
     "bench:image-formation:built": "node --expose-gc scripts/benchmark-image-formation.mjs",
     "profile:native-reference": "node --expose-gc scripts/profile-native-reference-path.mjs",
+    "assess:native-full-event": "node scripts/assess-browser-native-full-event.mjs",
     "qualify:native-reference-progressive": "node --expose-gc scripts/qualify-browser-native-progressive.mjs",
     "docs:check": "node scripts/check-release-docs.mjs",
     "release:consumer-check": "node scripts/check-release-consumer.mjs"
