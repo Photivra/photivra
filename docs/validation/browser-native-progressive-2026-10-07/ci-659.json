@@ -1,0 +1,875 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "photivra-ci-progressive-complete-event-evidence-record",
+  "recordedDate": "2026-10-07",
+  "pullRequest": 253,
+  "pullRequestHead": "ad3d11876c1ca99f3feb64333f3161d6065dd122",
+  "ciRun": 659,
+  "ciRunId": 37666861208,
+  "ciJobId": 112948205015,
+  "ciMergeRevision": "ee756ff9df68229f5b44a9c82348bc88284ccbac",
+  "note": "CI checks out GitHub's pull-request merge ref; pullRequestHead identifies the exact reviewed branch revision whose source is represented in this run.",
+  "qualification": {
+    "schemaVersion": "1.0.0",
+    "kind": "repository-only-250-progressive-complete-event-evidence",
+    "revision": "ee756ff9df68229f5b44a9c82348bc88284ccbac",
+    "workingTreeModified": false,
+    "sourceSha256": {
+      "src/capture/browser-native-reference-executor.ts": "a0e002b6b2bef875f57b337ebf221a19d8f200e0b90c280490f1955b9f74790c",
+      "src/capture/browser-native-reference-plan.ts": "e6c40b50f3936368d12a01125da3ada606e411ca5c0fa6e5e9bc8256162f3a24",
+      "src/capture/browser-native-reference-site.ts": "7a7f9473fdc058b81b4563651f27a49e419c536f1a3e42247209f76cc1154ef7",
+      "src/capture/browser-native-reference-source.ts": "0918ef03e1482d8830d1e0bce2aed8b8931a9e8a74618dfa5a10824fbc219065",
+      "src/capture/browser-native-reference-geometry.ts": "1dfcc913c96a1a36b09da603944e1975dec88be4d80f9a2003f602291af50247",
+      "scripts/qualify-browser-native-progressive.mjs": "5bdd55ac5f4a1579ca1caf85dbebfa872f70dcd5b66803a3502c60b379851ab6",
+      "docs/BROWSER_NATIVE_PROGRESSIVE_EVIDENCE.md": "80e86df97e4cedd99f189cd835d55158237b212b0db952905f842eda3ba8a158"
+    },
+    "runtime": "v24.21.0",
+    "platform": "linux",
+    "arch": "x64",
+    "forcedGcAvailable": true,
+    "versions": {
+      "eventPlan": "0.1.0",
+      "integrator": "0.1.0",
+      "sitePlan": "0.2.0",
+      "source": "0.1.0",
+      "executor": "0.1.0"
+    },
+    "ladderFrozenBy": "docs/BROWSER_NATIVE_PROGRESSIVE_EVIDENCE.md",
+    "evidence": [
+      {
+        "evidenceId": "BNCE-PROG-001",
+        "disposition": "pass",
+        "raster": {
+          "width": 4,
+          "height": 4
+        },
+        "shutter": "global",
+        "apertureFNumber": 4,
+        "focus": {
+          "kind": "infinity"
+        },
+        "sourceRadianceWattsPerSquareMeterSteradianNanometer": 1e-9,
+        "sampleSupport": {
+          "spatialNodesPerSite": 4,
+          "temporalNodesPerSite": 1,
+          "pupilRaysPerSite": 128,
+          "spectralNodesPerSite": 2
+        },
+        "preparation": {
+          "coldMilliseconds": 238.42432700000063,
+          "warmMilliseconds": 235.5322410000008,
+          "memoryBeforeCold": {
+            "rss": 84893696,
+            "heapUsed": 10534840,
+            "arrayBuffers": 143611
+          },
+          "memoryAfterCold": {
+            "rss": 114405376,
+            "heapUsed": 17617648,
+            "arrayBuffers": 143611
+          },
+          "memoryAfterWarm": {
+            "rss": 153223168,
+            "heapUsed": 24144600,
+            "arrayBuffers": 143611
+          }
+        },
+        "execution": {
+          "batchOneMilliseconds": 258.03010299999914,
+          "evidenceBatchSize": 4,
+          "evidenceBatchMilliseconds": 206.972455000001,
+          "batchOneYieldCount": 16,
+          "evidenceBatchYieldCount": 4
+        },
+        "work": {
+          "executorVersion": "0.1.0",
+          "eventIdentityJson": "{\"geometry\":{\"boxInsideOriginRule\":\"first-forward-exit-surface\",\"coordinateUnit\":\"m\",\"forwardHitRule\":\"strict-positive-ray-parameter\",\"limitations\":[\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\",\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\",\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\"],\"primitiveBoundaryRule\":\"closed\",\"primitiveOrderMeaning\":\"none\",\"primitives\":[{\"kind\":\"axis-aligned-rectangle\",\"maximumM\":{\"x\":1000000,\"y\":1000000,\"z\":10},\"minimumM\":{\"x\":-1000000,\"y\":-1000000,\"z\":10},\"primitiveId\":\"background\"}],\"providerSceneId\":\"room\",\"schemaVersion\":\"0.1.0\",\"sourceRevision\":\"bnce-prog-001:single-plane\",\"sourceStateId\":\"fixture-scene\"},\"integrator\":{\"arithmetic\":\"binary64\",\"lane\":\"path-a\",\"samplingMeaning\":\"existing-committed-discrete-support\",\"version\":\"0.1.0\"},\"maximumProviderEvaluations\":2000000000,\"rawPlan\":{\"exposure\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":25,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"native\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"exposureWindow\":{\"closing\":{\"kind\":\"simultaneous\"},\"nominalExposureDurationSeconds\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"unit\":\"s\",\"value\":0.008},\"opening\":{\"kind\":\"simultaneous\"},\"shutterMechanism\":\"electronic\"},\"frame\":{\"bindingProfile\":{\"bindingId\":\"native-cfa\",\"colorSamplingProfileId\":\"cfa\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"relationship\":{\"anchor\":\"shared-native-top-left\",\"kind\":\"regular-native-effective-sample-blocks\",\"sitesPerNativeSampleX\":1,\"sitesPerNativeSampleY\":1},\"schemaVersion\":\"0.1.0\"},\"capture\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":25,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"native\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"captureModeProfile\":{\"modes\":[{\"acquisition\":{\"kind\":\"single-frame\"},\"dependencies\":[\"color-sampling-model\"],\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"modeId\":\"native\",\"perFrameSampling\":{\"kind\":\"native-effective-raster\"},\"processedImageRaster\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"value\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"reconstructionStages\":[]}],\"schemaVersion\":\"0.1.0\"},\"colorSamplingProfile\":{\"coordinateSystem\":\"native-sensor-color-sampling-site-index\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"layout\":{\"anchor\":\"native-sensor-top-left-site\",\"kind\":\"periodic-mosaic\",\"repeatHeightSites\":2,\"repeatWidthSites\":2,\"siteChannelIds\":[\"red\",\"green\",\"green\",\"blue\"]},\"profileId\":\"cfa\",\"schemaVersion\":\"0.1.0\"},\"containerBitDepth\":16,\"frameId\":\"raw-frame-bnce-prog-001\",\"modeId\":\"native\"},\"outputBytes\":112,\"pixelCount\":16,\"schemaVersion\":\"0.1.0\",\"seedSchedule\":\"capture-seed-plus-two-native-index-modulo-2-to-32-v1\",\"tileCount\":4,\"tileWidth\":4,\"upstreamRadiometryVerified\":false},\"reuseScope\":\"event-envelope-and-geometry-only\",\"sceneBinding\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"providerSceneId\":\"room\",\"sceneStateId\":\"fixture-scene\"},\"unresolvedDynamicDependencies\":[\"site-environment-profile\",\"site-dark-current-profile\",\"site-charge-profile\",\"site-readout-profile\"],\"version\":\"0.1.0\"}",
+          "sourceIdentityJson": "{\"geometryIdentityJson\":\"{\\\"boxInsideOriginRule\\\":\\\"first-forward-exit-surface\\\",\\\"coordinateUnit\\\":\\\"m\\\",\\\"forwardHitRule\\\":\\\"strict-positive-ray-parameter\\\",\\\"limitations\\\":[\\\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\\\",\\\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\\\",\\\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\\\"],\\\"primitiveBoundaryRule\\\":\\\"closed\\\",\\\"primitiveOrderMeaning\\\":\\\"none\\\",\\\"primitives\\\":[{\\\"kind\\\":\\\"axis-aligned-rectangle\\\",\\\"maximumM\\\":{\\\"x\\\":1000000,\\\"y\\\":1000000,\\\"z\\\":10},\\\"minimumM\\\":{\\\"x\\\":-1000000,\\\"y\\\":-1000000,\\\"z\\\":10},\\\"primitiveId\\\":\\\"background\\\"}],\\\"providerSceneId\\\":\\\"room\\\",\\\"schemaVersion\\\":\\\"0.1.0\\\",\\\"sourceRevision\\\":\\\"bnce-prog-001:single-plane\\\",\\\"sourceStateId\\\":\\\"fixture-scene\\\"}\",\"missBehavior\":\"unsupported-no-background-radiance-contract\",\"primitives\":[{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"qualification:250-source\"}],\"limitation\":\"Owned static uniform spectral-radiance source for progressive reference evidence.\",\"primitiveId\":\"background\",\"spectrum\":[{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":425},{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":475}]}],\"providerSceneId\":\"room\",\"sourceRevision\":\"bnce-prog-001:single-plane\",\"sourceStateId\":\"fixture-scene\",\"version\":\"0.1.0\",\"wavelengthBasis\":\"vacuum\"}",
+          "batchSize": 4,
+          "logical": {
+            "nativeSiteCount": 16,
+            "spatialNodeTotal": 64,
+            "temporalNodeTotal": 16,
+            "pupilSampleTotal": 2048,
+            "spectralNodeTotal": 32,
+            "committedSourceSampleCount": 16384
+          },
+          "planned": {
+            "uniqueGeometryRequests": 8192,
+            "spectralOpticalCompositions": 16384,
+            "sensorSiteProcessing": 16,
+            "metadataReadAttempts": 0,
+            "batchCount": 4,
+            "maximumBatchGeometryRequests": 2048,
+            "maximumBatchSpectralOpticalCompositions": 4096
+          },
+          "actual": {
+            "geometryAttempts": 8192,
+            "geometryReuseHits": 8192,
+            "spectralOpticalCompositionAttempts": 16384,
+            "sourceRadianceAttempts": 16384,
+            "sensorSiteAttempts": 16,
+            "observerAttempts": 4,
+            "completedBatchCount": 4
+          }
+        },
+        "contractAccountedBytes": {
+          "outputPayloadBytes": 112,
+          "typedPreparedBytes": 0,
+          "typedScratchBytes": 0,
+          "limitation": "Prepared/scratch state is JavaScript object graph memory and is reported empirically, not fabricated as exact bytes."
+        },
+        "empiricalMemory": {
+          "before": {
+            "rss": 163057664,
+            "heapUsed": 25221000,
+            "arrayBuffers": 143611
+          },
+          "sampledPeak": {
+            "rss": 163352576,
+            "heapUsed": 46534952,
+            "arrayBuffers": 143611
+          },
+          "after": {
+            "rss": 163352576,
+            "heapUsed": 25233312,
+            "arrayBuffers": 143611
+          }
+        },
+        "oracle": {
+          "expectedIncidentPhotonCountPerSite": 25.383305519580478,
+          "expectedGeneratedElectronCountPerSite": 9.868649622565869,
+          "maximumPhotonRelativeError": 5.598504380857672e-16,
+          "maximumElectronRelativeError": 8.999999530525403e-16
+        },
+        "output": {
+          "sha256": "4ebfafc5551b76fbda89b896a24b1337ed5a52993682c67b620d52def42d1509",
+          "saturationCounts": {
+            "physical": 0,
+            "preAdc": 0,
+            "digital": 0
+          },
+          "exactBatchParity": true
+        },
+        "fullNativeQualified": false,
+        "fullNativeRuntimeProjection": null
+      },
+      {
+        "evidenceId": "BNCE-PROG-002",
+        "disposition": "pass",
+        "raster": {
+          "width": 8,
+          "height": 8
+        },
+        "shutter": "global",
+        "apertureFNumber": 4,
+        "focus": {
+          "kind": "infinity"
+        },
+        "sourceRadianceWattsPerSquareMeterSteradianNanometer": 1e-9,
+        "sampleSupport": {
+          "spatialNodesPerSite": 4,
+          "temporalNodesPerSite": 1,
+          "pupilRaysPerSite": 128,
+          "spectralNodesPerSite": 2
+        },
+        "preparation": {
+          "coldMilliseconds": 806.4775769999997,
+          "warmMilliseconds": 757.8489950000003,
+          "memoryBeforeCold": {
+            "rss": 157409280,
+            "heapUsed": 12344608,
+            "arrayBuffers": 143611
+          },
+          "memoryAfterCold": {
+            "rss": 243970048,
+            "heapUsed": 37956328,
+            "arrayBuffers": 143611
+          },
+          "memoryAfterWarm": {
+            "rss": 265330688,
+            "heapUsed": 63576048,
+            "arrayBuffers": 143611
+          }
+        },
+        "execution": {
+          "batchOneMilliseconds": 824.1599249999999,
+          "evidenceBatchSize": 8,
+          "evidenceBatchMilliseconds": 766.0257869999987,
+          "batchOneYieldCount": 64,
+          "evidenceBatchYieldCount": 8
+        },
+        "work": {
+          "executorVersion": "0.1.0",
+          "eventIdentityJson": "{\"geometry\":{\"boxInsideOriginRule\":\"first-forward-exit-surface\",\"coordinateUnit\":\"m\",\"forwardHitRule\":\"strict-positive-ray-parameter\",\"limitations\":[\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\",\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\",\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\"],\"primitiveBoundaryRule\":\"closed\",\"primitiveOrderMeaning\":\"none\",\"primitives\":[{\"kind\":\"axis-aligned-rectangle\",\"maximumM\":{\"x\":1000000,\"y\":1000000,\"z\":10},\"minimumM\":{\"x\":-1000000,\"y\":-1000000,\"z\":10},\"primitiveId\":\"background\"}],\"providerSceneId\":\"room\",\"schemaVersion\":\"0.1.0\",\"sourceRevision\":\"bnce-prog-002:single-plane\",\"sourceStateId\":\"fixture-scene\"},\"integrator\":{\"arithmetic\":\"binary64\",\"lane\":\"path-a\",\"samplingMeaning\":\"existing-committed-discrete-support\",\"version\":\"0.1.0\"},\"maximumProviderEvaluations\":2000000000,\"rawPlan\":{\"exposure\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":12.5,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"nativeRaster\":{\"pixelHeight\":8,\"pixelWidth\":8},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":8,\"width\":8,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":48,\"left\":-72,\"right\":72,\"top\":-48},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"native\":{\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":48,\"left\":-72,\"right\":72,\"top\":-48},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":8,\"width\":8,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":48,\"left\":-72,\"right\":72,\"top\":-48},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"exposureWindow\":{\"closing\":{\"kind\":\"simultaneous\"},\"nominalExposureDurationSeconds\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"unit\":\"s\",\"value\":0.008},\"opening\":{\"kind\":\"simultaneous\"},\"shutterMechanism\":\"electronic\"},\"frame\":{\"bindingProfile\":{\"bindingId\":\"native-cfa\",\"colorSamplingProfileId\":\"cfa\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"nativeRaster\":{\"pixelHeight\":8,\"pixelWidth\":8},\"relationship\":{\"anchor\":\"shared-native-top-left\",\"kind\":\"regular-native-effective-sample-blocks\",\"sitesPerNativeSampleX\":1,\"sitesPerNativeSampleY\":1},\"schemaVersion\":\"0.1.0\"},\"capture\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":12.5,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"nativeRaster\":{\"pixelHeight\":8,\"pixelWidth\":8},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":8,\"width\":8,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":48,\"left\":-72,\"right\":72,\"top\":-48},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"native\":{\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":48,\"left\":-72,\"right\":72,\"top\":-48},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":8,\"width\":8,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":48,\"left\":-72,\"right\":72,\"top\":-48},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"captureModeProfile\":{\"modes\":[{\"acquisition\":{\"kind\":\"single-frame\"},\"dependencies\":[\"color-sampling-model\"],\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"modeId\":\"native\",\"perFrameSampling\":{\"kind\":\"native-effective-raster\"},\"processedImageRaster\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"value\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"reconstructionStages\":[]}],\"schemaVersion\":\"0.1.0\"},\"colorSamplingProfile\":{\"coordinateSystem\":\"native-sensor-color-sampling-site-index\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"layout\":{\"anchor\":\"native-sensor-top-left-site\",\"kind\":\"periodic-mosaic\",\"repeatHeightSites\":2,\"repeatWidthSites\":2,\"siteChannelIds\":[\"red\",\"green\",\"green\",\"blue\"]},\"profileId\":\"cfa\",\"schemaVersion\":\"0.1.0\"},\"containerBitDepth\":16,\"frameId\":\"raw-frame-bnce-prog-002\",\"modeId\":\"native\"},\"outputBytes\":448,\"pixelCount\":64,\"schemaVersion\":\"0.1.0\",\"seedSchedule\":\"capture-seed-plus-two-native-index-modulo-2-to-32-v1\",\"tileCount\":8,\"tileWidth\":8,\"upstreamRadiometryVerified\":false},\"reuseScope\":\"event-envelope-and-geometry-only\",\"sceneBinding\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"providerSceneId\":\"room\",\"sceneStateId\":\"fixture-scene\"},\"unresolvedDynamicDependencies\":[\"site-environment-profile\",\"site-dark-current-profile\",\"site-charge-profile\",\"site-readout-profile\"],\"version\":\"0.1.0\"}",
+          "sourceIdentityJson": "{\"geometryIdentityJson\":\"{\\\"boxInsideOriginRule\\\":\\\"first-forward-exit-surface\\\",\\\"coordinateUnit\\\":\\\"m\\\",\\\"forwardHitRule\\\":\\\"strict-positive-ray-parameter\\\",\\\"limitations\\\":[\\\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\\\",\\\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\\\",\\\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\\\"],\\\"primitiveBoundaryRule\\\":\\\"closed\\\",\\\"primitiveOrderMeaning\\\":\\\"none\\\",\\\"primitives\\\":[{\\\"kind\\\":\\\"axis-aligned-rectangle\\\",\\\"maximumM\\\":{\\\"x\\\":1000000,\\\"y\\\":1000000,\\\"z\\\":10},\\\"minimumM\\\":{\\\"x\\\":-1000000,\\\"y\\\":-1000000,\\\"z\\\":10},\\\"primitiveId\\\":\\\"background\\\"}],\\\"providerSceneId\\\":\\\"room\\\",\\\"schemaVersion\\\":\\\"0.1.0\\\",\\\"sourceRevision\\\":\\\"bnce-prog-002:single-plane\\\",\\\"sourceStateId\\\":\\\"fixture-scene\\\"}\",\"missBehavior\":\"unsupported-no-background-radiance-contract\",\"primitives\":[{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"qualification:250-source\"}],\"limitation\":\"Owned static uniform spectral-radiance source for progressive reference evidence.\",\"primitiveId\":\"background\",\"spectrum\":[{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":425},{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":475}]}],\"providerSceneId\":\"room\",\"sourceRevision\":\"bnce-prog-002:single-plane\",\"sourceStateId\":\"fixture-scene\",\"version\":\"0.1.0\",\"wavelengthBasis\":\"vacuum\"}",
+          "batchSize": 8,
+          "logical": {
+            "nativeSiteCount": 64,
+            "spatialNodeTotal": 256,
+            "temporalNodeTotal": 64,
+            "pupilSampleTotal": 8192,
+            "spectralNodeTotal": 128,
+            "committedSourceSampleCount": 65536
+          },
+          "planned": {
+            "uniqueGeometryRequests": 32768,
+            "spectralOpticalCompositions": 65536,
+            "sensorSiteProcessing": 64,
+            "metadataReadAttempts": 0,
+            "batchCount": 8,
+            "maximumBatchGeometryRequests": 4096,
+            "maximumBatchSpectralOpticalCompositions": 8192
+          },
+          "actual": {
+            "geometryAttempts": 32768,
+            "geometryReuseHits": 32768,
+            "spectralOpticalCompositionAttempts": 65536,
+            "sourceRadianceAttempts": 65536,
+            "sensorSiteAttempts": 64,
+            "observerAttempts": 8,
+            "completedBatchCount": 8
+          }
+        },
+        "contractAccountedBytes": {
+          "outputPayloadBytes": 448,
+          "typedPreparedBytes": 0,
+          "typedScratchBytes": 0,
+          "limitation": "Prepared/scratch state is JavaScript object graph memory and is reported empirically, not fabricated as exact bytes."
+        },
+        "empiricalMemory": {
+          "before": {
+            "rss": 285687808,
+            "heapUsed": 63772944,
+            "arrayBuffers": 143995
+          },
+          "sampledPeak": {
+            "rss": 288235520,
+            "heapUsed": 134000200,
+            "arrayBuffers": 144379
+          },
+          "after": {
+            "rss": 288235520,
+            "heapUsed": 63818648,
+            "arrayBuffers": 144379
+          }
+        },
+        "oracle": {
+          "expectedIncidentPhotonCountPerSite": 25.383305519580478,
+          "expectedGeneratedElectronCountPerSite": 9.868649622565869,
+          "maximumPhotonRelativeError": 5.598504380857672e-16,
+          "maximumElectronRelativeError": 8.999999530525403e-16
+        },
+        "output": {
+          "sha256": "ff847494fd2230651dd5e8bfa0f4e2a0e37cc03ba84b0d2de2b46445d19d027d",
+          "saturationCounts": {
+            "physical": 0,
+            "preAdc": 0,
+            "digital": 0
+          },
+          "exactBatchParity": true
+        },
+        "fullNativeQualified": false,
+        "fullNativeRuntimeProjection": null
+      },
+      {
+        "evidenceId": "BNCE-PROG-003",
+        "disposition": "pass",
+        "raster": {
+          "width": 16,
+          "height": 16
+        },
+        "shutter": "global",
+        "apertureFNumber": 4,
+        "focus": {
+          "kind": "infinity"
+        },
+        "sourceRadianceWattsPerSquareMeterSteradianNanometer": 1e-9,
+        "sampleSupport": {
+          "spatialNodesPerSite": 4,
+          "temporalNodesPerSite": 1,
+          "pupilRaysPerSite": 128,
+          "spectralNodesPerSite": 2
+        },
+        "preparation": {
+          "coldMilliseconds": 2967.8317129999996,
+          "warmMilliseconds": 3012.2691019999984,
+          "memoryBeforeCold": {
+            "rss": 264450048,
+            "heapUsed": 12544504,
+            "arrayBuffers": 143611
+          },
+          "memoryAfterCold": {
+            "rss": 319950848,
+            "heapUsed": 114880496,
+            "arrayBuffers": 143611
+          },
+          "memoryAfterWarm": {
+            "rss": 425086976,
+            "heapUsed": 217373464,
+            "arrayBuffers": 143611
+          }
+        },
+        "execution": {
+          "batchOneMilliseconds": 3132.5720680000013,
+          "evidenceBatchSize": 16,
+          "evidenceBatchMilliseconds": 3061.0158760000013,
+          "batchOneYieldCount": 256,
+          "evidenceBatchYieldCount": 16
+        },
+        "work": {
+          "executorVersion": "0.1.0",
+          "eventIdentityJson": "{\"geometry\":{\"boxInsideOriginRule\":\"first-forward-exit-surface\",\"coordinateUnit\":\"m\",\"forwardHitRule\":\"strict-positive-ray-parameter\",\"limitations\":[\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\",\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\",\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\"],\"primitiveBoundaryRule\":\"closed\",\"primitiveOrderMeaning\":\"none\",\"primitives\":[{\"kind\":\"axis-aligned-rectangle\",\"maximumM\":{\"x\":1000000,\"y\":1000000,\"z\":10},\"minimumM\":{\"x\":-1000000,\"y\":-1000000,\"z\":10},\"primitiveId\":\"background\"}],\"providerSceneId\":\"room\",\"schemaVersion\":\"0.1.0\",\"sourceRevision\":\"bnce-prog-003:single-plane\",\"sourceStateId\":\"fixture-scene\"},\"integrator\":{\"arithmetic\":\"binary64\",\"lane\":\"path-a\",\"samplingMeaning\":\"existing-committed-discrete-support\",\"version\":\"0.1.0\"},\"maximumProviderEvaluations\":2000000000,\"rawPlan\":{\"exposure\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":6.25,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":192,\"widthMm\":288},\"nativeRaster\":{\"pixelHeight\":16,\"pixelWidth\":16},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":16,\"pixelWidth\":16}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":192,\"widthMm\":288},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":16,\"width\":16,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":96,\"left\":-144,\"right\":144,\"top\":-96},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":16,\"pixelWidth\":16}},\"native\":{\"imagingArea\":{\"heightMm\":192,\"widthMm\":288},\"raster\":{\"pixelHeight\":16,\"pixelWidth\":16}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":192,\"widthMm\":288},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":96,\"left\":-144,\"right\":144,\"top\":-96},\"raster\":{\"pixelHeight\":16,\"pixelWidth\":16}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":16,\"width\":16,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":192,\"widthMm\":288},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":96,\"left\":-144,\"right\":144,\"top\":-96},\"raster\":{\"pixelHeight\":16,\"pixelWidth\":16},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"exposureWindow\":{\"closing\":{\"kind\":\"simultaneous\"},\"nominalExposureDurationSeconds\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"unit\":\"s\",\"value\":0.008},\"opening\":{\"kind\":\"simultaneous\"},\"shutterMechanism\":\"electronic\"},\"frame\":{\"bindingProfile\":{\"bindingId\":\"native-cfa\",\"colorSamplingProfileId\":\"cfa\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"nativeRaster\":{\"pixelHeight\":16,\"pixelWidth\":16},\"relationship\":{\"anchor\":\"shared-native-top-left\",\"kind\":\"regular-native-effective-sample-blocks\",\"sitesPerNativeSampleX\":1,\"sitesPerNativeSampleY\":1},\"schemaVersion\":\"0.1.0\"},\"capture\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":6.25,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":192,\"widthMm\":288},\"nativeRaster\":{\"pixelHeight\":16,\"pixelWidth\":16},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":16,\"pixelWidth\":16}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":192,\"widthMm\":288},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":16,\"width\":16,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":96,\"left\":-144,\"right\":144,\"top\":-96},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":16,\"pixelWidth\":16}},\"native\":{\"imagingArea\":{\"heightMm\":192,\"widthMm\":288},\"raster\":{\"pixelHeight\":16,\"pixelWidth\":16}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":192,\"widthMm\":288},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":96,\"left\":-144,\"right\":144,\"top\":-96},\"raster\":{\"pixelHeight\":16,\"pixelWidth\":16}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":16,\"width\":16,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":192,\"widthMm\":288},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":96,\"left\":-144,\"right\":144,\"top\":-96},\"raster\":{\"pixelHeight\":16,\"pixelWidth\":16},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"captureModeProfile\":{\"modes\":[{\"acquisition\":{\"kind\":\"single-frame\"},\"dependencies\":[\"color-sampling-model\"],\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"modeId\":\"native\",\"perFrameSampling\":{\"kind\":\"native-effective-raster\"},\"processedImageRaster\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"value\":{\"pixelHeight\":16,\"pixelWidth\":16}},\"reconstructionStages\":[]}],\"schemaVersion\":\"0.1.0\"},\"colorSamplingProfile\":{\"coordinateSystem\":\"native-sensor-color-sampling-site-index\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"layout\":{\"anchor\":\"native-sensor-top-left-site\",\"kind\":\"periodic-mosaic\",\"repeatHeightSites\":2,\"repeatWidthSites\":2,\"siteChannelIds\":[\"red\",\"green\",\"green\",\"blue\"]},\"profileId\":\"cfa\",\"schemaVersion\":\"0.1.0\"},\"containerBitDepth\":16,\"frameId\":\"raw-frame-bnce-prog-003\",\"modeId\":\"native\"},\"outputBytes\":1792,\"pixelCount\":256,\"schemaVersion\":\"0.1.0\",\"seedSchedule\":\"capture-seed-plus-two-native-index-modulo-2-to-32-v1\",\"tileCount\":16,\"tileWidth\":16,\"upstreamRadiometryVerified\":false},\"reuseScope\":\"event-envelope-and-geometry-only\",\"sceneBinding\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"providerSceneId\":\"room\",\"sceneStateId\":\"fixture-scene\"},\"unresolvedDynamicDependencies\":[\"site-environment-profile\",\"site-dark-current-profile\",\"site-charge-profile\",\"site-readout-profile\"],\"version\":\"0.1.0\"}",
+          "sourceIdentityJson": "{\"geometryIdentityJson\":\"{\\\"boxInsideOriginRule\\\":\\\"first-forward-exit-surface\\\",\\\"coordinateUnit\\\":\\\"m\\\",\\\"forwardHitRule\\\":\\\"strict-positive-ray-parameter\\\",\\\"limitations\\\":[\\\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\\\",\\\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\\\",\\\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\\\"],\\\"primitiveBoundaryRule\\\":\\\"closed\\\",\\\"primitiveOrderMeaning\\\":\\\"none\\\",\\\"primitives\\\":[{\\\"kind\\\":\\\"axis-aligned-rectangle\\\",\\\"maximumM\\\":{\\\"x\\\":1000000,\\\"y\\\":1000000,\\\"z\\\":10},\\\"minimumM\\\":{\\\"x\\\":-1000000,\\\"y\\\":-1000000,\\\"z\\\":10},\\\"primitiveId\\\":\\\"background\\\"}],\\\"providerSceneId\\\":\\\"room\\\",\\\"schemaVersion\\\":\\\"0.1.0\\\",\\\"sourceRevision\\\":\\\"bnce-prog-003:single-plane\\\",\\\"sourceStateId\\\":\\\"fixture-scene\\\"}\",\"missBehavior\":\"unsupported-no-background-radiance-contract\",\"primitives\":[{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"qualification:250-source\"}],\"limitation\":\"Owned static uniform spectral-radiance source for progressive reference evidence.\",\"primitiveId\":\"background\",\"spectrum\":[{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":425},{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":475}]}],\"providerSceneId\":\"room\",\"sourceRevision\":\"bnce-prog-003:single-plane\",\"sourceStateId\":\"fixture-scene\",\"version\":\"0.1.0\",\"wavelengthBasis\":\"vacuum\"}",
+          "batchSize": 16,
+          "logical": {
+            "nativeSiteCount": 256,
+            "spatialNodeTotal": 1024,
+            "temporalNodeTotal": 256,
+            "pupilSampleTotal": 32768,
+            "spectralNodeTotal": 512,
+            "committedSourceSampleCount": 262144
+          },
+          "planned": {
+            "uniqueGeometryRequests": 131072,
+            "spectralOpticalCompositions": 262144,
+            "sensorSiteProcessing": 256,
+            "metadataReadAttempts": 0,
+            "batchCount": 16,
+            "maximumBatchGeometryRequests": 8192,
+            "maximumBatchSpectralOpticalCompositions": 16384
+          },
+          "actual": {
+            "geometryAttempts": 131072,
+            "geometryReuseHits": 131072,
+            "spectralOpticalCompositionAttempts": 262144,
+            "sourceRadianceAttempts": 262144,
+            "sensorSiteAttempts": 256,
+            "observerAttempts": 16,
+            "completedBatchCount": 16
+          }
+        },
+        "contractAccountedBytes": {
+          "outputPayloadBytes": 1792,
+          "typedPreparedBytes": 0,
+          "typedScratchBytes": 0,
+          "limitation": "Prepared/scratch state is JavaScript object graph memory and is reported empirically, not fabricated as exact bytes."
+        },
+        "empiricalMemory": {
+          "before": {
+            "rss": 513130496,
+            "heapUsed": 217541264,
+            "arrayBuffers": 145403
+          },
+          "sampledPeak": {
+            "rss": 514260992,
+            "heapUsed": 332974768,
+            "arrayBuffers": 147195
+          },
+          "after": {
+            "rss": 514260992,
+            "heapUsed": 217963992,
+            "arrayBuffers": 147195
+          }
+        },
+        "oracle": {
+          "expectedIncidentPhotonCountPerSite": 25.383305519580478,
+          "expectedGeneratedElectronCountPerSite": 9.868649622565869,
+          "maximumPhotonRelativeError": 5.598504380857672e-16,
+          "maximumElectronRelativeError": 8.999999530525403e-16
+        },
+        "output": {
+          "sha256": "59c575070818fd65c2d63cd376a0126178d691b40dad5731de97f029d35806b1",
+          "saturationCounts": {
+            "physical": 0,
+            "preAdc": 0,
+            "digital": 0
+          },
+          "exactBatchParity": true
+        },
+        "fullNativeQualified": false,
+        "fullNativeRuntimeProjection": null
+      },
+      {
+        "evidenceId": "BNCE-PROG-004",
+        "disposition": "pass",
+        "raster": {
+          "width": 8,
+          "height": 8
+        },
+        "shutter": "right-to-left-native-scan",
+        "apertureFNumber": 4,
+        "focus": {
+          "kind": "infinity"
+        },
+        "sourceRadianceWattsPerSquareMeterSteradianNanometer": 1e-9,
+        "sampleSupport": {
+          "spatialNodesPerSite": 4,
+          "temporalNodesPerSite": 1,
+          "pupilRaysPerSite": 128,
+          "spectralNodesPerSite": 2
+        },
+        "preparation": {
+          "coldMilliseconds": 758.3600830000032,
+          "warmMilliseconds": 767.9923249999993,
+          "memoryBeforeCold": {
+            "rss": 418848768,
+            "heapUsed": 13599456,
+            "arrayBuffers": 143611
+          },
+          "memoryAfterCold": {
+            "rss": 430911488,
+            "heapUsed": 39182496,
+            "arrayBuffers": 143611
+          },
+          "memoryAfterWarm": {
+            "rss": 442970112,
+            "heapUsed": 64905104,
+            "arrayBuffers": 143611
+          }
+        },
+        "execution": {
+          "batchOneMilliseconds": 809.2082090000004,
+          "evidenceBatchSize": 8,
+          "evidenceBatchMilliseconds": 761.3564679999981,
+          "batchOneYieldCount": 64,
+          "evidenceBatchYieldCount": 8
+        },
+        "work": {
+          "executorVersion": "0.1.0",
+          "eventIdentityJson": "{\"geometry\":{\"boxInsideOriginRule\":\"first-forward-exit-surface\",\"coordinateUnit\":\"m\",\"forwardHitRule\":\"strict-positive-ray-parameter\",\"limitations\":[\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\",\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\",\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\"],\"primitiveBoundaryRule\":\"closed\",\"primitiveOrderMeaning\":\"none\",\"primitives\":[{\"kind\":\"axis-aligned-rectangle\",\"maximumM\":{\"x\":1000000,\"y\":1000000,\"z\":10},\"minimumM\":{\"x\":-1000000,\"y\":-1000000,\"z\":10},\"primitiveId\":\"background\"}],\"providerSceneId\":\"room\",\"schemaVersion\":\"0.1.0\",\"sourceRevision\":\"bnce-prog-004:single-plane\",\"sourceStateId\":\"fixture-scene\"},\"integrator\":{\"arithmetic\":\"binary64\",\"lane\":\"path-a\",\"samplingMeaning\":\"existing-committed-discrete-support\",\"version\":\"0.1.0\"},\"maximumProviderEvaluations\":2000000000,\"rawPlan\":{\"exposure\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":12.5,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"nativeRaster\":{\"pixelHeight\":8,\"pixelWidth\":8},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":8,\"width\":8,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":48,\"left\":-72,\"right\":72,\"top\":-48},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"native\":{\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":48,\"left\":-72,\"right\":72,\"top\":-48},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":8,\"width\":8,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":48,\"left\":-72,\"right\":72,\"top\":-48},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"exposureWindow\":{\"closing\":{\"directionNative\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"value\":\"right-to-left\"},\"kind\":\"uniform-linear-native-scan\",\"traversalDurationSeconds\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"unit\":\"s\",\"value\":0.002}},\"nominalExposureDurationSeconds\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"unit\":\"s\",\"value\":0.008},\"opening\":{\"directionNative\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"value\":\"right-to-left\"},\"kind\":\"uniform-linear-native-scan\",\"traversalDurationSeconds\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"unit\":\"s\",\"value\":0.002}},\"shutterMechanism\":\"electronic\"},\"frame\":{\"bindingProfile\":{\"bindingId\":\"native-cfa\",\"colorSamplingProfileId\":\"cfa\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"nativeRaster\":{\"pixelHeight\":8,\"pixelWidth\":8},\"relationship\":{\"anchor\":\"shared-native-top-left\",\"kind\":\"regular-native-effective-sample-blocks\",\"sitesPerNativeSampleX\":1,\"sitesPerNativeSampleY\":1},\"schemaVersion\":\"0.1.0\"},\"capture\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":12.5,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"nativeRaster\":{\"pixelHeight\":8,\"pixelWidth\":8},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":8,\"width\":8,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":48,\"left\":-72,\"right\":72,\"top\":-48},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"native\":{\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":48,\"left\":-72,\"right\":72,\"top\":-48},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":8,\"width\":8,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":96,\"widthMm\":144},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":48,\"left\":-72,\"right\":72,\"top\":-48},\"raster\":{\"pixelHeight\":8,\"pixelWidth\":8},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"captureModeProfile\":{\"modes\":[{\"acquisition\":{\"kind\":\"single-frame\"},\"dependencies\":[\"color-sampling-model\"],\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"modeId\":\"native\",\"perFrameSampling\":{\"kind\":\"native-effective-raster\"},\"processedImageRaster\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"value\":{\"pixelHeight\":8,\"pixelWidth\":8}},\"reconstructionStages\":[]}],\"schemaVersion\":\"0.1.0\"},\"colorSamplingProfile\":{\"coordinateSystem\":\"native-sensor-color-sampling-site-index\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"layout\":{\"anchor\":\"native-sensor-top-left-site\",\"kind\":\"periodic-mosaic\",\"repeatHeightSites\":2,\"repeatWidthSites\":2,\"siteChannelIds\":[\"red\",\"green\",\"green\",\"blue\"]},\"profileId\":\"cfa\",\"schemaVersion\":\"0.1.0\"},\"containerBitDepth\":16,\"frameId\":\"raw-frame-bnce-prog-004\",\"modeId\":\"native\"},\"outputBytes\":448,\"pixelCount\":64,\"schemaVersion\":\"0.1.0\",\"seedSchedule\":\"capture-seed-plus-two-native-index-modulo-2-to-32-v1\",\"tileCount\":8,\"tileWidth\":8,\"upstreamRadiometryVerified\":false},\"reuseScope\":\"event-envelope-and-geometry-only\",\"sceneBinding\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"providerSceneId\":\"room\",\"sceneStateId\":\"fixture-scene\"},\"unresolvedDynamicDependencies\":[\"site-environment-profile\",\"site-dark-current-profile\",\"site-charge-profile\",\"site-readout-profile\"],\"version\":\"0.1.0\"}",
+          "sourceIdentityJson": "{\"geometryIdentityJson\":\"{\\\"boxInsideOriginRule\\\":\\\"first-forward-exit-surface\\\",\\\"coordinateUnit\\\":\\\"m\\\",\\\"forwardHitRule\\\":\\\"strict-positive-ray-parameter\\\",\\\"limitations\\\":[\\\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\\\",\\\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\\\",\\\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\\\"],\\\"primitiveBoundaryRule\\\":\\\"closed\\\",\\\"primitiveOrderMeaning\\\":\\\"none\\\",\\\"primitives\\\":[{\\\"kind\\\":\\\"axis-aligned-rectangle\\\",\\\"maximumM\\\":{\\\"x\\\":1000000,\\\"y\\\":1000000,\\\"z\\\":10},\\\"minimumM\\\":{\\\"x\\\":-1000000,\\\"y\\\":-1000000,\\\"z\\\":10},\\\"primitiveId\\\":\\\"background\\\"}],\\\"providerSceneId\\\":\\\"room\\\",\\\"schemaVersion\\\":\\\"0.1.0\\\",\\\"sourceRevision\\\":\\\"bnce-prog-004:single-plane\\\",\\\"sourceStateId\\\":\\\"fixture-scene\\\"}\",\"missBehavior\":\"unsupported-no-background-radiance-contract\",\"primitives\":[{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"qualification:250-source\"}],\"limitation\":\"Owned static uniform spectral-radiance source for progressive reference evidence.\",\"primitiveId\":\"background\",\"spectrum\":[{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":425},{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":475}]}],\"providerSceneId\":\"room\",\"sourceRevision\":\"bnce-prog-004:single-plane\",\"sourceStateId\":\"fixture-scene\",\"version\":\"0.1.0\",\"wavelengthBasis\":\"vacuum\"}",
+          "batchSize": 8,
+          "logical": {
+            "nativeSiteCount": 64,
+            "spatialNodeTotal": 256,
+            "temporalNodeTotal": 64,
+            "pupilSampleTotal": 8192,
+            "spectralNodeTotal": 128,
+            "committedSourceSampleCount": 65536
+          },
+          "planned": {
+            "uniqueGeometryRequests": 32768,
+            "spectralOpticalCompositions": 65536,
+            "sensorSiteProcessing": 64,
+            "metadataReadAttempts": 0,
+            "batchCount": 8,
+            "maximumBatchGeometryRequests": 4096,
+            "maximumBatchSpectralOpticalCompositions": 8192
+          },
+          "actual": {
+            "geometryAttempts": 32768,
+            "geometryReuseHits": 32768,
+            "spectralOpticalCompositionAttempts": 65536,
+            "sourceRadianceAttempts": 65536,
+            "sensorSiteAttempts": 64,
+            "observerAttempts": 8,
+            "completedBatchCount": 8
+          }
+        },
+        "contractAccountedBytes": {
+          "outputPayloadBytes": 448,
+          "typedPreparedBytes": 0,
+          "typedScratchBytes": 0,
+          "limitation": "Prepared/scratch state is JavaScript object graph memory and is reported empirically, not fabricated as exact bytes."
+        },
+        "empiricalMemory": {
+          "before": {
+            "rss": 443142144,
+            "heapUsed": 64743280,
+            "arrayBuffers": 143995
+          },
+          "sampledPeak": {
+            "rss": 443166720,
+            "heapUsed": 144890352,
+            "arrayBuffers": 144379
+          },
+          "after": {
+            "rss": 443166720,
+            "heapUsed": 64673528,
+            "arrayBuffers": 144379
+          }
+        },
+        "oracle": {
+          "expectedIncidentPhotonCountPerSite": 25.383305519580478,
+          "expectedGeneratedElectronCountPerSite": 9.868649622565869,
+          "maximumPhotonRelativeError": 5.598504380857672e-16,
+          "maximumElectronRelativeError": 8.999999530525403e-16
+        },
+        "output": {
+          "sha256": "ff847494fd2230651dd5e8bfa0f4e2a0e37cc03ba84b0d2de2b46445d19d027d",
+          "saturationCounts": {
+            "physical": 0,
+            "preAdc": 0,
+            "digital": 0
+          },
+          "exactBatchParity": true
+        },
+        "fullNativeQualified": false,
+        "fullNativeRuntimeProjection": null
+      },
+      {
+        "evidenceId": "BNCE-PROG-005",
+        "disposition": "pass",
+        "raster": {
+          "width": 4,
+          "height": 4
+        },
+        "shutter": "global",
+        "apertureFNumber": 8,
+        "focus": {
+          "kind": "finite",
+          "distanceM": 5
+        },
+        "sourceRadianceWattsPerSquareMeterSteradianNanometer": 1e-9,
+        "sampleSupport": {
+          "spatialNodesPerSite": 4,
+          "temporalNodesPerSite": 1,
+          "pupilRaysPerSite": 128,
+          "spectralNodesPerSite": 2
+        },
+        "preparation": {
+          "coldMilliseconds": 199.73924199999965,
+          "warmMilliseconds": 200.14548000000286,
+          "memoryBeforeCold": {
+            "rss": 419049472,
+            "heapUsed": 13189344,
+            "arrayBuffers": 143611
+          },
+          "memoryAfterCold": {
+            "rss": 421990400,
+            "heapUsed": 19356384,
+            "arrayBuffers": 143611
+          },
+          "memoryAfterWarm": {
+            "rss": 423936000,
+            "heapUsed": 25817560,
+            "arrayBuffers": 143611
+          }
+        },
+        "execution": {
+          "batchOneMilliseconds": 243.00226199999815,
+          "evidenceBatchSize": 4,
+          "evidenceBatchMilliseconds": 213.4192030000013,
+          "batchOneYieldCount": 16,
+          "evidenceBatchYieldCount": 4
+        },
+        "work": {
+          "executorVersion": "0.1.0",
+          "eventIdentityJson": "{\"geometry\":{\"boxInsideOriginRule\":\"first-forward-exit-surface\",\"coordinateUnit\":\"m\",\"forwardHitRule\":\"strict-positive-ray-parameter\",\"limitations\":[\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\",\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\",\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\"],\"primitiveBoundaryRule\":\"closed\",\"primitiveOrderMeaning\":\"none\",\"primitives\":[{\"kind\":\"axis-aligned-rectangle\",\"maximumM\":{\"x\":1000000,\"y\":1000000,\"z\":10},\"minimumM\":{\"x\":-1000000,\"y\":-1000000,\"z\":10},\"primitiveId\":\"background\"}],\"providerSceneId\":\"room\",\"schemaVersion\":\"0.1.0\",\"sourceRevision\":\"bnce-prog-005:single-plane\",\"sourceStateId\":\"fixture-scene\"},\"integrator\":{\"arithmetic\":\"binary64\",\"lane\":\"path-a\",\"samplingMeaning\":\"existing-committed-discrete-support\",\"version\":\"0.1.0\"},\"maximumProviderEvaluations\":2000000000,\"rawPlan\":{\"exposure\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":25,\"exposure\":{\"aperture\":8,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"distanceM\":5,\"kind\":\"finite\"},\"geometry\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"native\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"exposureWindow\":{\"closing\":{\"kind\":\"simultaneous\"},\"nominalExposureDurationSeconds\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"unit\":\"s\",\"value\":0.008},\"opening\":{\"kind\":\"simultaneous\"},\"shutterMechanism\":\"electronic\"},\"frame\":{\"bindingProfile\":{\"bindingId\":\"native-cfa\",\"colorSamplingProfileId\":\"cfa\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"relationship\":{\"anchor\":\"shared-native-top-left\",\"kind\":\"regular-native-effective-sample-blocks\",\"sitesPerNativeSampleX\":1,\"sitesPerNativeSampleY\":1},\"schemaVersion\":\"0.1.0\"},\"capture\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":25,\"exposure\":{\"aperture\":8,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"distanceM\":5,\"kind\":\"finite\"},\"geometry\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"native\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"captureModeProfile\":{\"modes\":[{\"acquisition\":{\"kind\":\"single-frame\"},\"dependencies\":[\"color-sampling-model\"],\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"modeId\":\"native\",\"perFrameSampling\":{\"kind\":\"native-effective-raster\"},\"processedImageRaster\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"value\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"reconstructionStages\":[]}],\"schemaVersion\":\"0.1.0\"},\"colorSamplingProfile\":{\"coordinateSystem\":\"native-sensor-color-sampling-site-index\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"layout\":{\"anchor\":\"native-sensor-top-left-site\",\"kind\":\"periodic-mosaic\",\"repeatHeightSites\":2,\"repeatWidthSites\":2,\"siteChannelIds\":[\"red\",\"green\",\"green\",\"blue\"]},\"profileId\":\"cfa\",\"schemaVersion\":\"0.1.0\"},\"containerBitDepth\":16,\"frameId\":\"raw-frame-bnce-prog-005\",\"modeId\":\"native\"},\"outputBytes\":112,\"pixelCount\":16,\"schemaVersion\":\"0.1.0\",\"seedSchedule\":\"capture-seed-plus-two-native-index-modulo-2-to-32-v1\",\"tileCount\":4,\"tileWidth\":4,\"upstreamRadiometryVerified\":false},\"reuseScope\":\"event-envelope-and-geometry-only\",\"sceneBinding\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"providerSceneId\":\"room\",\"sceneStateId\":\"fixture-scene\"},\"unresolvedDynamicDependencies\":[\"site-environment-profile\",\"site-dark-current-profile\",\"site-charge-profile\",\"site-readout-profile\"],\"version\":\"0.1.0\"}",
+          "sourceIdentityJson": "{\"geometryIdentityJson\":\"{\\\"boxInsideOriginRule\\\":\\\"first-forward-exit-surface\\\",\\\"coordinateUnit\\\":\\\"m\\\",\\\"forwardHitRule\\\":\\\"strict-positive-ray-parameter\\\",\\\"limitations\\\":[\\\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\\\",\\\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\\\",\\\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\\\"],\\\"primitiveBoundaryRule\\\":\\\"closed\\\",\\\"primitiveOrderMeaning\\\":\\\"none\\\",\\\"primitives\\\":[{\\\"kind\\\":\\\"axis-aligned-rectangle\\\",\\\"maximumM\\\":{\\\"x\\\":1000000,\\\"y\\\":1000000,\\\"z\\\":10},\\\"minimumM\\\":{\\\"x\\\":-1000000,\\\"y\\\":-1000000,\\\"z\\\":10},\\\"primitiveId\\\":\\\"background\\\"}],\\\"providerSceneId\\\":\\\"room\\\",\\\"schemaVersion\\\":\\\"0.1.0\\\",\\\"sourceRevision\\\":\\\"bnce-prog-005:single-plane\\\",\\\"sourceStateId\\\":\\\"fixture-scene\\\"}\",\"missBehavior\":\"unsupported-no-background-radiance-contract\",\"primitives\":[{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"qualification:250-source\"}],\"limitation\":\"Owned static uniform spectral-radiance source for progressive reference evidence.\",\"primitiveId\":\"background\",\"spectrum\":[{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":425},{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":475}]}],\"providerSceneId\":\"room\",\"sourceRevision\":\"bnce-prog-005:single-plane\",\"sourceStateId\":\"fixture-scene\",\"version\":\"0.1.0\",\"wavelengthBasis\":\"vacuum\"}",
+          "batchSize": 4,
+          "logical": {
+            "nativeSiteCount": 16,
+            "spatialNodeTotal": 64,
+            "temporalNodeTotal": 16,
+            "pupilSampleTotal": 2048,
+            "spectralNodeTotal": 32,
+            "committedSourceSampleCount": 16384
+          },
+          "planned": {
+            "uniqueGeometryRequests": 8192,
+            "spectralOpticalCompositions": 16384,
+            "sensorSiteProcessing": 16,
+            "metadataReadAttempts": 0,
+            "batchCount": 4,
+            "maximumBatchGeometryRequests": 2048,
+            "maximumBatchSpectralOpticalCompositions": 4096
+          },
+          "actual": {
+            "geometryAttempts": 8192,
+            "geometryReuseHits": 8192,
+            "spectralOpticalCompositionAttempts": 16384,
+            "sourceRadianceAttempts": 16384,
+            "sensorSiteAttempts": 16,
+            "observerAttempts": 4,
+            "completedBatchCount": 4
+          }
+        },
+        "contractAccountedBytes": {
+          "outputPayloadBytes": 112,
+          "typedPreparedBytes": 0,
+          "typedScratchBytes": 0,
+          "limitation": "Prepared/scratch state is JavaScript object graph memory and is reported empirically, not fabricated as exact bytes."
+        },
+        "empiricalMemory": {
+          "before": {
+            "rss": 423608320,
+            "heapUsed": 26032952,
+            "arrayBuffers": 143611
+          },
+          "sampledPeak": {
+            "rss": 423645184,
+            "heapUsed": 92259544,
+            "arrayBuffers": 143611
+          },
+          "after": {
+            "rss": 423645184,
+            "heapUsed": 26046352,
+            "arrayBuffers": 143611
+          }
+        },
+        "oracle": {
+          "expectedIncidentPhotonCountPerSite": 6.219544434935206,
+          "expectedGeneratedElectronCountPerSite": 2.4180658737692022,
+          "maximumPhotonRelativeError": 7.140220871413213e-16,
+          "maximumElectronRelativeError": 1.652892475762241e-15
+        },
+        "output": {
+          "sha256": "9570e3248ab6997e0714ef69d1e723406e72d4c3a73c6590cd2d32bb8484d62e",
+          "saturationCounts": {
+            "physical": 0,
+            "preAdc": 0,
+            "digital": 0
+          },
+          "exactBatchParity": true
+        },
+        "fullNativeQualified": false,
+        "fullNativeRuntimeProjection": null
+      },
+      {
+        "evidenceId": "BNCE-PROG-006",
+        "disposition": "pass",
+        "raster": {
+          "width": 4,
+          "height": 4
+        },
+        "shutter": "global",
+        "apertureFNumber": 4,
+        "focus": {
+          "kind": "infinity"
+        },
+        "sourceRadianceWattsPerSquareMeterSteradianNanometer": 1.0133098633002209e-7,
+        "sampleSupport": {
+          "spatialNodesPerSite": 4,
+          "temporalNodesPerSite": 1,
+          "pupilRaysPerSite": 128,
+          "spectralNodesPerSite": 2
+        },
+        "preparation": {
+          "coldMilliseconds": 197.7844019999975,
+          "warmMilliseconds": 199.07371299999795,
+          "memoryBeforeCold": {
+            "rss": 417599488,
+            "heapUsed": 13052504,
+            "arrayBuffers": 143611
+          },
+          "memoryAfterCold": {
+            "rss": 420700160,
+            "heapUsed": 19400192,
+            "arrayBuffers": 143611
+          },
+          "memoryAfterWarm": {
+            "rss": 423698432,
+            "heapUsed": 25804008,
+            "arrayBuffers": 143611
+          }
+        },
+        "execution": {
+          "batchOneMilliseconds": 232.96462200000315,
+          "evidenceBatchSize": 4,
+          "evidenceBatchMilliseconds": 200.68617599999925,
+          "batchOneYieldCount": 16,
+          "evidenceBatchYieldCount": 4
+        },
+        "work": {
+          "executorVersion": "0.1.0",
+          "eventIdentityJson": "{\"geometry\":{\"boxInsideOriginRule\":\"first-forward-exit-surface\",\"coordinateUnit\":\"m\",\"forwardHitRule\":\"strict-positive-ray-parameter\",\"limitations\":[\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\",\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\",\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\"],\"primitiveBoundaryRule\":\"closed\",\"primitiveOrderMeaning\":\"none\",\"primitives\":[{\"kind\":\"axis-aligned-rectangle\",\"maximumM\":{\"x\":1000000,\"y\":1000000,\"z\":10},\"minimumM\":{\"x\":-1000000,\"y\":-1000000,\"z\":10},\"primitiveId\":\"background\"}],\"providerSceneId\":\"room\",\"schemaVersion\":\"0.1.0\",\"sourceRevision\":\"bnce-prog-006:single-plane\",\"sourceStateId\":\"fixture-scene\"},\"integrator\":{\"arithmetic\":\"binary64\",\"lane\":\"path-a\",\"samplingMeaning\":\"existing-committed-discrete-support\",\"version\":\"0.1.0\"},\"maximumProviderEvaluations\":2000000000,\"rawPlan\":{\"exposure\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":25,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"native\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"exposureWindow\":{\"closing\":{\"kind\":\"simultaneous\"},\"nominalExposureDurationSeconds\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"unit\":\"s\",\"value\":0.008},\"opening\":{\"kind\":\"simultaneous\"},\"shutterMechanism\":\"electronic\"},\"frame\":{\"bindingProfile\":{\"bindingId\":\"native-cfa\",\"colorSamplingProfileId\":\"cfa\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"relationship\":{\"anchor\":\"shared-native-top-left\",\"kind\":\"regular-native-effective-sample-blocks\",\"sitesPerNativeSampleX\":1,\"sitesPerNativeSampleY\":1},\"schemaVersion\":\"0.1.0\"},\"capture\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":25,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"native\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"captureModeProfile\":{\"modes\":[{\"acquisition\":{\"kind\":\"single-frame\"},\"dependencies\":[\"color-sampling-model\"],\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"modeId\":\"native\",\"perFrameSampling\":{\"kind\":\"native-effective-raster\"},\"processedImageRaster\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"value\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"reconstructionStages\":[]}],\"schemaVersion\":\"0.1.0\"},\"colorSamplingProfile\":{\"coordinateSystem\":\"native-sensor-color-sampling-site-index\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"layout\":{\"anchor\":\"native-sensor-top-left-site\",\"kind\":\"periodic-mosaic\",\"repeatHeightSites\":2,\"repeatWidthSites\":2,\"siteChannelIds\":[\"red\",\"green\",\"green\",\"blue\"]},\"profileId\":\"cfa\",\"schemaVersion\":\"0.1.0\"},\"containerBitDepth\":16,\"frameId\":\"raw-frame-bnce-prog-006\",\"modeId\":\"native\"},\"outputBytes\":112,\"pixelCount\":16,\"schemaVersion\":\"0.1.0\",\"seedSchedule\":\"capture-seed-plus-two-native-index-modulo-2-to-32-v1\",\"tileCount\":4,\"tileWidth\":4,\"upstreamRadiometryVerified\":false},\"reuseScope\":\"event-envelope-and-geometry-only\",\"sceneBinding\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"providerSceneId\":\"room\",\"sceneStateId\":\"fixture-scene\"},\"unresolvedDynamicDependencies\":[\"site-environment-profile\",\"site-dark-current-profile\",\"site-charge-profile\",\"site-readout-profile\"],\"version\":\"0.1.0\"}",
+          "sourceIdentityJson": "{\"geometryIdentityJson\":\"{\\\"boxInsideOriginRule\\\":\\\"first-forward-exit-surface\\\",\\\"coordinateUnit\\\":\\\"m\\\",\\\"forwardHitRule\\\":\\\"strict-positive-ray-parameter\\\",\\\"limitations\\\":[\\\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\\\",\\\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\\\",\\\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\\\"],\\\"primitiveBoundaryRule\\\":\\\"closed\\\",\\\"primitiveOrderMeaning\\\":\\\"none\\\",\\\"primitives\\\":[{\\\"kind\\\":\\\"axis-aligned-rectangle\\\",\\\"maximumM\\\":{\\\"x\\\":1000000,\\\"y\\\":1000000,\\\"z\\\":10},\\\"minimumM\\\":{\\\"x\\\":-1000000,\\\"y\\\":-1000000,\\\"z\\\":10},\\\"primitiveId\\\":\\\"background\\\"}],\\\"providerSceneId\\\":\\\"room\\\",\\\"schemaVersion\\\":\\\"0.1.0\\\",\\\"sourceRevision\\\":\\\"bnce-prog-006:single-plane\\\",\\\"sourceStateId\\\":\\\"fixture-scene\\\"}\",\"missBehavior\":\"unsupported-no-background-radiance-contract\",\"primitives\":[{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"qualification:250-source\"}],\"limitation\":\"Owned static uniform spectral-radiance source for progressive reference evidence.\",\"primitiveId\":\"background\",\"spectrum\":[{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1.0133098633002209e-7,\"wavelengthNanometers\":425},{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1.0133098633002209e-7,\"wavelengthNanometers\":475}]}],\"providerSceneId\":\"room\",\"sourceRevision\":\"bnce-prog-006:single-plane\",\"sourceStateId\":\"fixture-scene\",\"version\":\"0.1.0\",\"wavelengthBasis\":\"vacuum\"}",
+          "batchSize": 4,
+          "logical": {
+            "nativeSiteCount": 16,
+            "spatialNodeTotal": 64,
+            "temporalNodeTotal": 16,
+            "pupilSampleTotal": 2048,
+            "spectralNodeTotal": 32,
+            "committedSourceSampleCount": 16384
+          },
+          "planned": {
+            "uniqueGeometryRequests": 8192,
+            "spectralOpticalCompositions": 16384,
+            "sensorSiteProcessing": 16,
+            "metadataReadAttempts": 0,
+            "batchCount": 4,
+            "maximumBatchGeometryRequests": 2048,
+            "maximumBatchSpectralOpticalCompositions": 4096
+          },
+          "actual": {
+            "geometryAttempts": 8192,
+            "geometryReuseHits": 8192,
+            "spectralOpticalCompositionAttempts": 16384,
+            "sourceRadianceAttempts": 16384,
+            "sensorSiteAttempts": 16,
+            "observerAttempts": 4,
+            "completedBatchCount": 4
+          }
+        },
+        "contractAccountedBytes": {
+          "outputPayloadBytes": 112,
+          "typedPreparedBytes": 0,
+          "typedScratchBytes": 0,
+          "limitation": "Prepared/scratch state is JavaScript object graph memory and is reported empirically, not fabricated as exact bytes."
+        },
+        "empiricalMemory": {
+          "before": {
+            "rss": 424091648,
+            "heapUsed": 25973312,
+            "arrayBuffers": 143611
+          },
+          "sampledPeak": {
+            "rss": 424091648,
+            "heapUsed": 76057688,
+            "arrayBuffers": 143611
+          },
+          "after": {
+            "rss": 424091648,
+            "heapUsed": 26017552,
+            "arrayBuffers": 143611
+          }
+        },
+        "oracle": {
+          "expectedIncidentPhotonCountPerSite": 2572.1153846153843,
+          "expectedGeneratedElectronCountPerSite": 999.9999999999998,
+          "maximumPhotonRelativeError": 3.535979401285404e-16,
+          "maximumElectronRelativeError": 0
+        },
+        "output": {
+          "sha256": "298cc8a1795c796c4ac4713d9c2e16ecfdb5ecc7d445e1b96926fc0cf5e0fe14",
+          "saturationCounts": {
+            "physical": 16,
+            "preAdc": 5,
+            "digital": 16
+          },
+          "exactBatchParity": true
+        },
+        "fullNativeQualified": false,
+        "fullNativeRuntimeProjection": null
+      },
+      {
+        "evidenceId": "BNCE-PROG-007",
+        "disposition": "expected-fail-closed",
+        "message": "Browser-native reference geometry is unsupported for this exact ray: coincident-distinct-first-hit",
+        "work": {
+          "executorVersion": "0.1.0",
+          "eventIdentityJson": "{\"geometry\":{\"boxInsideOriginRule\":\"first-forward-exit-surface\",\"coordinateUnit\":\"m\",\"forwardHitRule\":\"strict-positive-ray-parameter\",\"limitations\":[\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\",\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\",\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\"],\"primitiveBoundaryRule\":\"closed\",\"primitiveOrderMeaning\":\"none\",\"primitives\":[{\"kind\":\"axis-aligned-rectangle\",\"maximumM\":{\"x\":1000000,\"y\":1000000,\"z\":10},\"minimumM\":{\"x\":-1000000,\"y\":-1000000,\"z\":10},\"primitiveId\":\"tie-a\"},{\"kind\":\"axis-aligned-rectangle\",\"maximumM\":{\"x\":1000000,\"y\":1000000,\"z\":10},\"minimumM\":{\"x\":-1000000,\"y\":-1000000,\"z\":10},\"primitiveId\":\"tie-b\"}],\"providerSceneId\":\"room\",\"schemaVersion\":\"0.1.0\",\"sourceRevision\":\"bnce-prog-007:exact-tie\",\"sourceStateId\":\"fixture-scene\"},\"integrator\":{\"arithmetic\":\"binary64\",\"lane\":\"path-a\",\"samplingMeaning\":\"existing-committed-discrete-support\",\"version\":\"0.1.0\"},\"maximumProviderEvaluations\":2000000000,\"rawPlan\":{\"exposure\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":25,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"native\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"exposureWindow\":{\"closing\":{\"kind\":\"simultaneous\"},\"nominalExposureDurationSeconds\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"unit\":\"s\",\"value\":0.008},\"opening\":{\"kind\":\"simultaneous\"},\"shutterMechanism\":\"electronic\"},\"frame\":{\"bindingProfile\":{\"bindingId\":\"native-cfa\",\"colorSamplingProfileId\":\"cfa\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"relationship\":{\"anchor\":\"shared-native-top-left\",\"kind\":\"regular-native-effective-sample-blocks\",\"sitesPerNativeSampleX\":1,\"sitesPerNativeSampleY\":1},\"schemaVersion\":\"0.1.0\"},\"capture\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":25,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"native\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"captureModeProfile\":{\"modes\":[{\"acquisition\":{\"kind\":\"single-frame\"},\"dependencies\":[\"color-sampling-model\"],\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"modeId\":\"native\",\"perFrameSampling\":{\"kind\":\"native-effective-raster\"},\"processedImageRaster\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"value\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"reconstructionStages\":[]}],\"schemaVersion\":\"0.1.0\"},\"colorSamplingProfile\":{\"coordinateSystem\":\"native-sensor-color-sampling-site-index\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"layout\":{\"anchor\":\"native-sensor-top-left-site\",\"kind\":\"periodic-mosaic\",\"repeatHeightSites\":2,\"repeatWidthSites\":2,\"siteChannelIds\":[\"red\",\"green\",\"green\",\"blue\"]},\"profileId\":\"cfa\",\"schemaVersion\":\"0.1.0\"},\"containerBitDepth\":16,\"frameId\":\"raw-frame-bnce-prog-007\",\"modeId\":\"native\"},\"outputBytes\":112,\"pixelCount\":16,\"schemaVersion\":\"0.1.0\",\"seedSchedule\":\"capture-seed-plus-two-native-index-modulo-2-to-32-v1\",\"tileCount\":4,\"tileWidth\":4,\"upstreamRadiometryVerified\":false},\"reuseScope\":\"event-envelope-and-geometry-only\",\"sceneBinding\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"providerSceneId\":\"room\",\"sceneStateId\":\"fixture-scene\"},\"unresolvedDynamicDependencies\":[\"site-environment-profile\",\"site-dark-current-profile\",\"site-charge-profile\",\"site-readout-profile\"],\"version\":\"0.1.0\"}",
+          "sourceIdentityJson": "{\"geometryIdentityJson\":\"{\\\"boxInsideOriginRule\\\":\\\"first-forward-exit-surface\\\",\\\"coordinateUnit\\\":\\\"m\\\",\\\"forwardHitRule\\\":\\\"strict-positive-ray-parameter\\\",\\\"limitations\\\":[\\\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\\\",\\\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\\\",\\\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\\\"],\\\"primitiveBoundaryRule\\\":\\\"closed\\\",\\\"primitiveOrderMeaning\\\":\\\"none\\\",\\\"primitives\\\":[{\\\"kind\\\":\\\"axis-aligned-rectangle\\\",\\\"maximumM\\\":{\\\"x\\\":1000000,\\\"y\\\":1000000,\\\"z\\\":10},\\\"minimumM\\\":{\\\"x\\\":-1000000,\\\"y\\\":-1000000,\\\"z\\\":10},\\\"primitiveId\\\":\\\"tie-a\\\"},{\\\"kind\\\":\\\"axis-aligned-rectangle\\\",\\\"maximumM\\\":{\\\"x\\\":1000000,\\\"y\\\":1000000,\\\"z\\\":10},\\\"minimumM\\\":{\\\"x\\\":-1000000,\\\"y\\\":-1000000,\\\"z\\\":10},\\\"primitiveId\\\":\\\"tie-b\\\"}],\\\"providerSceneId\\\":\\\"room\\\",\\\"schemaVersion\\\":\\\"0.1.0\\\",\\\"sourceRevision\\\":\\\"bnce-prog-007:exact-tie\\\",\\\"sourceStateId\\\":\\\"fixture-scene\\\"}\",\"missBehavior\":\"unsupported-no-background-radiance-contract\",\"primitives\":[{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"qualification:250-source\"}],\"limitation\":\"Owned static uniform spectral-radiance source for progressive reference evidence.\",\"primitiveId\":\"tie-a\",\"spectrum\":[{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":425},{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":475}]},{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"qualification:250-source\"}],\"limitation\":\"Owned static uniform spectral-radiance source for progressive reference evidence.\",\"primitiveId\":\"tie-b\",\"spectrum\":[{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":425},{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":475}]}],\"providerSceneId\":\"room\",\"sourceRevision\":\"bnce-prog-007:exact-tie\",\"sourceStateId\":\"fixture-scene\",\"version\":\"0.1.0\",\"wavelengthBasis\":\"vacuum\"}",
+          "batchSize": 4,
+          "logical": {
+            "nativeSiteCount": 16,
+            "spatialNodeTotal": 64,
+            "temporalNodeTotal": 16,
+            "pupilSampleTotal": 2048,
+            "spectralNodeTotal": 32,
+            "committedSourceSampleCount": 16384
+          },
+          "planned": {
+            "uniqueGeometryRequests": 8192,
+            "spectralOpticalCompositions": 16384,
+            "sensorSiteProcessing": 16,
+            "metadataReadAttempts": 0,
+            "batchCount": 4,
+            "maximumBatchGeometryRequests": 2048,
+            "maximumBatchSpectralOpticalCompositions": 4096
+          },
+          "actual": {
+            "geometryAttempts": 1,
+            "geometryReuseHits": 0,
+            "spectralOpticalCompositionAttempts": 0,
+            "sourceRadianceAttempts": 0,
+            "sensorSiteAttempts": 0,
+            "observerAttempts": 0,
+            "completedBatchCount": 0
+          }
+        },
+        "outputUnavailable": true,
+        "fullNativeQualified": false
+      },
+      {
+        "evidenceId": "BNCE-PROG-008",
+        "disposition": "cancelled-as-expected",
+        "message": "Browser-native prepared reference execution aborted.",
+        "work": {
+          "executorVersion": "0.1.0",
+          "eventIdentityJson": "{\"geometry\":{\"boxInsideOriginRule\":\"first-forward-exit-surface\",\"coordinateUnit\":\"m\",\"forwardHitRule\":\"strict-positive-ray-parameter\",\"limitations\":[\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\",\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\",\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\"],\"primitiveBoundaryRule\":\"closed\",\"primitiveOrderMeaning\":\"none\",\"primitives\":[{\"kind\":\"axis-aligned-rectangle\",\"maximumM\":{\"x\":1000000,\"y\":1000000,\"z\":10},\"minimumM\":{\"x\":-1000000,\"y\":-1000000,\"z\":10},\"primitiveId\":\"background\"}],\"providerSceneId\":\"room\",\"schemaVersion\":\"0.1.0\",\"sourceRevision\":\"bnce-prog-008:single-plane\",\"sourceStateId\":\"fixture-scene\"},\"integrator\":{\"arithmetic\":\"binary64\",\"lane\":\"path-a\",\"samplingMeaning\":\"existing-committed-discrete-support\",\"version\":\"0.1.0\"},\"maximumProviderEvaluations\":2000000000,\"rawPlan\":{\"exposure\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":25,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"native\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"exposureWindow\":{\"closing\":{\"kind\":\"simultaneous\"},\"nominalExposureDurationSeconds\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"unit\":\"s\",\"value\":0.008},\"opening\":{\"kind\":\"simultaneous\"},\"shutterMechanism\":\"electronic\"},\"frame\":{\"bindingProfile\":{\"bindingId\":\"native-cfa\",\"colorSamplingProfileId\":\"cfa\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"relationship\":{\"anchor\":\"shared-native-top-left\",\"kind\":\"regular-native-effective-sample-blocks\",\"sitesPerNativeSampleX\":1,\"sitesPerNativeSampleY\":1},\"schemaVersion\":\"0.1.0\"},\"capture\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":25,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"native\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"captureModeProfile\":{\"modes\":[{\"acquisition\":{\"kind\":\"single-frame\"},\"dependencies\":[\"color-sampling-model\"],\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"modeId\":\"native\",\"perFrameSampling\":{\"kind\":\"native-effective-raster\"},\"processedImageRaster\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"value\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"reconstructionStages\":[]}],\"schemaVersion\":\"0.1.0\"},\"colorSamplingProfile\":{\"coordinateSystem\":\"native-sensor-color-sampling-site-index\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"layout\":{\"anchor\":\"native-sensor-top-left-site\",\"kind\":\"periodic-mosaic\",\"repeatHeightSites\":2,\"repeatWidthSites\":2,\"siteChannelIds\":[\"red\",\"green\",\"green\",\"blue\"]},\"profileId\":\"cfa\",\"schemaVersion\":\"0.1.0\"},\"containerBitDepth\":16,\"frameId\":\"raw-frame-bnce-prog-008\",\"modeId\":\"native\"},\"outputBytes\":112,\"pixelCount\":16,\"schemaVersion\":\"0.1.0\",\"seedSchedule\":\"capture-seed-plus-two-native-index-modulo-2-to-32-v1\",\"tileCount\":4,\"tileWidth\":4,\"upstreamRadiometryVerified\":false},\"reuseScope\":\"event-envelope-and-geometry-only\",\"sceneBinding\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"providerSceneId\":\"room\",\"sceneStateId\":\"fixture-scene\"},\"unresolvedDynamicDependencies\":[\"site-environment-profile\",\"site-dark-current-profile\",\"site-charge-profile\",\"site-readout-profile\"],\"version\":\"0.1.0\"}",
+          "sourceIdentityJson": "{\"geometryIdentityJson\":\"{\\\"boxInsideOriginRule\\\":\\\"first-forward-exit-surface\\\",\\\"coordinateUnit\\\":\\\"m\\\",\\\"forwardHitRule\\\":\\\"strict-positive-ray-parameter\\\",\\\"limitations\\\":[\\\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\\\",\\\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\\\",\\\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\\\"],\\\"primitiveBoundaryRule\\\":\\\"closed\\\",\\\"primitiveOrderMeaning\\\":\\\"none\\\",\\\"primitives\\\":[{\\\"kind\\\":\\\"axis-aligned-rectangle\\\",\\\"maximumM\\\":{\\\"x\\\":1000000,\\\"y\\\":1000000,\\\"z\\\":10},\\\"minimumM\\\":{\\\"x\\\":-1000000,\\\"y\\\":-1000000,\\\"z\\\":10},\\\"primitiveId\\\":\\\"background\\\"}],\\\"providerSceneId\\\":\\\"room\\\",\\\"schemaVersion\\\":\\\"0.1.0\\\",\\\"sourceRevision\\\":\\\"bnce-prog-008:single-plane\\\",\\\"sourceStateId\\\":\\\"fixture-scene\\\"}\",\"missBehavior\":\"unsupported-no-background-radiance-contract\",\"primitives\":[{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"qualification:250-source\"}],\"limitation\":\"Owned static uniform spectral-radiance source for progressive reference evidence.\",\"primitiveId\":\"background\",\"spectrum\":[{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":425},{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":475}]}],\"providerSceneId\":\"room\",\"sourceRevision\":\"bnce-prog-008:single-plane\",\"sourceStateId\":\"fixture-scene\",\"version\":\"0.1.0\",\"wavelengthBasis\":\"vacuum\"}",
+          "batchSize": 4,
+          "logical": {
+            "nativeSiteCount": 16,
+            "spatialNodeTotal": 64,
+            "temporalNodeTotal": 16,
+            "pupilSampleTotal": 2048,
+            "spectralNodeTotal": 32,
+            "committedSourceSampleCount": 16384
+          },
+          "planned": {
+            "uniqueGeometryRequests": 8192,
+            "spectralOpticalCompositions": 16384,
+            "sensorSiteProcessing": 16,
+            "metadataReadAttempts": 0,
+            "batchCount": 4,
+            "maximumBatchGeometryRequests": 2048,
+            "maximumBatchSpectralOpticalCompositions": 4096
+          },
+          "actual": {
+            "geometryAttempts": 2048,
+            "geometryReuseHits": 2048,
+            "spectralOpticalCompositionAttempts": 4096,
+            "sourceRadianceAttempts": 4096,
+            "sensorSiteAttempts": 0,
+            "observerAttempts": 1,
+            "completedBatchCount": 0
+          }
+        },
+        "outputUnavailable": true,
+        "fullNativeQualified": false
+      },
+      {
+        "evidenceId": "BNCE-PROG-009",
+        "disposition": "failed-as-expected",
+        "message": "qualification observer failure",
+        "work": {
+          "executorVersion": "0.1.0",
+          "eventIdentityJson": "{\"geometry\":{\"boxInsideOriginRule\":\"first-forward-exit-surface\",\"coordinateUnit\":\"m\",\"forwardHitRule\":\"strict-positive-ray-parameter\",\"limitations\":[\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\",\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\",\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\"],\"primitiveBoundaryRule\":\"closed\",\"primitiveOrderMeaning\":\"none\",\"primitives\":[{\"kind\":\"axis-aligned-rectangle\",\"maximumM\":{\"x\":1000000,\"y\":1000000,\"z\":10},\"minimumM\":{\"x\":-1000000,\"y\":-1000000,\"z\":10},\"primitiveId\":\"background\"}],\"providerSceneId\":\"room\",\"schemaVersion\":\"0.1.0\",\"sourceRevision\":\"bnce-prog-009:single-plane\",\"sourceStateId\":\"fixture-scene\"},\"integrator\":{\"arithmetic\":\"binary64\",\"lane\":\"path-a\",\"samplingMeaning\":\"existing-committed-discrete-support\",\"version\":\"0.1.0\"},\"maximumProviderEvaluations\":2000000000,\"rawPlan\":{\"exposure\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":25,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"native\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"exposureWindow\":{\"closing\":{\"kind\":\"simultaneous\"},\"nominalExposureDurationSeconds\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"unit\":\"s\",\"value\":0.008},\"opening\":{\"kind\":\"simultaneous\"},\"shutterMechanism\":\"electronic\"},\"frame\":{\"bindingProfile\":{\"bindingId\":\"native-cfa\",\"colorSamplingProfileId\":\"cfa\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"relationship\":{\"anchor\":\"shared-native-top-left\",\"kind\":\"regular-native-effective-sample-blocks\",\"sitesPerNativeSampleX\":1,\"sitesPerNativeSampleY\":1},\"schemaVersion\":\"0.1.0\"},\"capture\":{\"adoptedWhiteXyz\":null,\"captureId\":\"00000000-0000-4000-8000-000000000001\",\"engineApiVersion\":\"1.5.0\",\"equivalentFocalLength35Mm\":25,\"exposure\":{\"aperture\":4,\"focalLengthMm\":50,\"iso\":100,\"shutterSeconds\":0.008},\"focus\":{\"kind\":\"infinity\"},\"geometry\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"nativeRaster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"orientation\":\"landscape\",\"outputRaster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"models\":[{\"profile\":{\"id\":\"photivra-colorimetric-rgb-d65\",\"version\":\"0.1.0\"},\"publicEvidenceIds\":[\"w3c:css-color-4:srgb-primaries-d65\"],\"scientificStatus\":\"calculated\"}],\"noise\":{\"model\":{\"id\":\"photivra-native-raw-noise\",\"version\":\"0.2.0\"},\"realizationId\":\"noise\",\"seedUint32\":12345},\"resolvedGeometry\":{\"activeCapture\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"imagingAreaDerivation\":\"uniform-native-raster\",\"nativeRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"physicalOffsetMm\":{\"x\":0,\"y\":0},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"native\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"orientedCapture\":{\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientation\":\"landscape\",\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"output\":{\"centerOffsetFromOpticalAxisMm\":{\"x\":0,\"y\":0},\"cropRect\":{\"height\":4,\"width\":4,\"x\":0,\"y\":0},\"imagingArea\":{\"heightMm\":48,\"widthMm\":72},\"orientedCaptureToOutputScale\":{\"axisRelativeDifference\":0,\"x\":1,\"y\":1},\"physicalBoundsFromOpticalAxisMm\":{\"bottom\":24,\"left\":-36,\"right\":36,\"top\":-24},\"raster\":{\"pixelHeight\":4,\"pixelWidth\":4},\"sourceRetainedAreaFraction\":1}},\"sceneStateId\":\"fixture-scene\",\"sceneTimeSeconds\":0,\"source\":{\"artifactId\":\"fixture-master\",\"dynamicRangeHistory\":\"unknown\",\"kind\":\"scene-linear-master\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"whiteBalanceIntent\":null},\"captureModeProfile\":{\"modes\":[{\"acquisition\":{\"kind\":\"single-frame\"},\"dependencies\":[\"color-sampling-model\"],\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"modeId\":\"native\",\"perFrameSampling\":{\"kind\":\"native-effective-raster\"},\"processedImageRaster\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"value\":{\"pixelHeight\":4,\"pixelWidth\":4}},\"reconstructionStages\":[]}],\"schemaVersion\":\"0.1.0\"},\"colorSamplingProfile\":{\"coordinateSystem\":\"native-sensor-color-sampling-site-index\",\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"layout\":{\"anchor\":\"native-sensor-top-left-site\",\"kind\":\"periodic-mosaic\",\"repeatHeightSites\":2,\"repeatWidthSites\":2,\"siteChannelIds\":[\"red\",\"green\",\"green\",\"blue\"]},\"profileId\":\"cfa\",\"schemaVersion\":\"0.1.0\"},\"containerBitDepth\":16,\"frameId\":\"raw-frame-bnce-prog-009\",\"modeId\":\"native\"},\"outputBytes\":112,\"pixelCount\":16,\"schemaVersion\":\"0.1.0\",\"seedSchedule\":\"capture-seed-plus-two-native-index-modulo-2-to-32-v1\",\"tileCount\":4,\"tileWidth\":4,\"upstreamRadiometryVerified\":false},\"reuseScope\":\"event-envelope-and-geometry-only\",\"sceneBinding\":{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"synthetic-frame-test\"}],\"providerSceneId\":\"room\",\"sceneStateId\":\"fixture-scene\"},\"unresolvedDynamicDependencies\":[\"site-environment-profile\",\"site-dark-current-profile\",\"site-charge-profile\",\"site-readout-profile\"],\"version\":\"0.1.0\"}",
+          "sourceIdentityJson": "{\"geometryIdentityJson\":\"{\\\"boxInsideOriginRule\\\":\\\"first-forward-exit-surface\\\",\\\"coordinateUnit\\\":\\\"m\\\",\\\"forwardHitRule\\\":\\\"strict-positive-ray-parameter\\\",\\\"limitations\\\":[\\\"Local-space axis-aligned rectangles/boxes support rigid translation/rotation only; scale and shear are not implemented.\\\",\\\"Float64 computation is a reference arithmetic choice, not exact real arithmetic.\\\",\\\"Near-coincident distinct-hit ambiguity bounds are not yet qualified; exact distinct ties fail closed.\\\"],\\\"primitiveBoundaryRule\\\":\\\"closed\\\",\\\"primitiveOrderMeaning\\\":\\\"none\\\",\\\"primitives\\\":[{\\\"kind\\\":\\\"axis-aligned-rectangle\\\",\\\"maximumM\\\":{\\\"x\\\":1000000,\\\"y\\\":1000000,\\\"z\\\":10},\\\"minimumM\\\":{\\\"x\\\":-1000000,\\\"y\\\":-1000000,\\\"z\\\":10},\\\"primitiveId\\\":\\\"background\\\"}],\\\"providerSceneId\\\":\\\"room\\\",\\\"schemaVersion\\\":\\\"0.1.0\\\",\\\"sourceRevision\\\":\\\"bnce-prog-009:single-plane\\\",\\\"sourceStateId\\\":\\\"fixture-scene\\\"}\",\"missBehavior\":\"unsupported-no-background-radiance-contract\",\"primitives\":[{\"evidence\":[{\"reuseStatus\":\"photivra-owned\",\"sourceOrigin\":\"photivra\",\"sourceReference\":\"qualification:250-source\"}],\"limitation\":\"Owned static uniform spectral-radiance source for progressive reference evidence.\",\"primitiveId\":\"background\",\"spectrum\":[{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":425},{\"spectralRadianceWattsPerSquareMeterSteradianNanometer\":1e-9,\"wavelengthNanometers\":475}]}],\"providerSceneId\":\"room\",\"sourceRevision\":\"bnce-prog-009:single-plane\",\"sourceStateId\":\"fixture-scene\",\"version\":\"0.1.0\",\"wavelengthBasis\":\"vacuum\"}",
+          "batchSize": 4,
+          "logical": {
+            "nativeSiteCount": 16,
+            "spatialNodeTotal": 64,
+            "temporalNodeTotal": 16,
+            "pupilSampleTotal": 2048,
+            "spectralNodeTotal": 32,
+            "committedSourceSampleCount": 16384
+          },
+          "planned": {
+            "uniqueGeometryRequests": 8192,
+            "spectralOpticalCompositions": 16384,
+            "sensorSiteProcessing": 16,
+            "metadataReadAttempts": 0,
+            "batchCount": 4,
+            "maximumBatchGeometryRequests": 2048,
+            "maximumBatchSpectralOpticalCompositions": 4096
+          },
+          "actual": {
+            "geometryAttempts": 2048,
+            "geometryReuseHits": 2048,
+            "spectralOpticalCompositionAttempts": 4096,
+            "sourceRadianceAttempts": 4096,
+            "sensorSiteAttempts": 0,
+            "observerAttempts": 1,
+            "completedBatchCount": 0
+          }
+        },
+        "outputUnavailable": true,
+        "fullNativeQualified": false
+      }
+    ],
+    "interpretation": {
+      "completeEventsMeasured": true,
+      "fullNativeQualified": false,
+      "fullNativeRuntimeProjection": null,
+      "fullNativeOwnedByIssue": 251,
+      "changedMethodActivated": false,
+      "limitation": "Synthetic progressive resource/exactness ladder only. Physical imaging area grows with raster to hold per-site fixture physics constant; full-native product geometry is not inferred."
+    }
+  }
+}
