@@ -345,7 +345,7 @@ When the package is installed directly from a Git repository using normal npm li
 
 ## Development
 
-Development and Node-only tooling support maintained Node.js 22 (minimum 22.13), maintained 24, and 26 Current. Prefer patched Node 24 for builds. CI verifies Node.js 22.13 (minimum), patched 22 and 24 LTS, and 26 Current under [the runtime policy](NODE_SUPPORT.md).
+Development and Node-only tooling support maintained Node.js 22 (minimum 22.13), maintained 24, and 26 Current. Prefer patched Node 24 for builds. CI verifies the 22.13 minimum plus the newest maintained LTS lines and the newest Current release (today patched 22 and 24 LTS and 26 Current) under [the runtime policy](NODE_SUPPORT.md).
 
 The reproducible npm workflow uses the committed lockfile:
 

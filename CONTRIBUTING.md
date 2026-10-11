@@ -14,7 +14,7 @@ npm run build
 npm run pack:check
 ```
 
-CI verifies maintained Node.js 22 (including minimum 22.13), 24, and Node.js 26 Current; prefer patched Node 24 under [the runtime policy](NODE_SUPPORT.md). See [1.0.1 migration and release preparation](docs/RELEASE_1_0_1.md). For release preparation also run `npm run docs:check` and `npm run release:consumer-check` after build. The generated API reference must match root exports; regenerate with `node scripts/generate-api-reference.mjs` when public contracts change.
+CI tests the newest maintained LTS lines plus the newest Current release through moving setup-node aliases (`lts/-1`, `lts/*`, `node`; today 22, 24 and 26), and the `engines.node` minimum 22.13.0. The minimum rises when its line reaches end of life. Prefer patched Node 24 under [the runtime policy](NODE_SUPPORT.md). See [1.0.1 migration and release preparation](docs/RELEASE_1_0_1.md). For release preparation also run `npm run docs:check` and `npm run release:consumer-check` after build. The generated API reference must match root exports; regenerate with `node scripts/generate-api-reference.mjs` when public contracts change.
 
 ## Before submitting
 

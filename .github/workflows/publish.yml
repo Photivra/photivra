@@ -15,6 +15,8 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    # About 3 minutes normally.
+    timeout-minutes: 10
     outputs:
       package_name: ${{ steps.package.outputs.name }}
       package_version: ${{ steps.package.outputs.version }}
@@ -143,6 +145,8 @@ jobs:
   publish:
     needs: verify
     runs-on: ubuntu-latest
+    # About 1 minute normally.
+    timeout-minutes: 5
     permissions:
       contents: read
       id-token: write
