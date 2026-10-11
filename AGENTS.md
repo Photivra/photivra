@@ -22,6 +22,14 @@ Treat this repository as a complete, standalone open-source scientific/business-
 6. Never commit secrets, credentials, private keys, private datasets, or restricted material.
 7. Call out any new monetary cost before adopting a paid service, dependency, dataset, or infrastructure component.
 
+## Agent permissions
+
+This table summarizes the rules in this file; the detailed sections below control.
+
+| Agents may do without asking | Needs the owner's approval for that action | Never |
+| --- | --- | --- |
+| Read-only inspection; scoped tests; code, docs and test changes on a task branch; opening pull requests; ordinary implementation decisions inside an approved task | Merging a pull request; adding the owner's DCO `Signed-off-by` to a commit; an intentional breaking change to a public API or schema; a release or package publication; new monetary cost; persistence, telemetry, external network calls, uploads, accounts or hosted services (after a design/security review); incorporating third-party material | Introduce copied, restricted or ambiguously licensed code, data, calibration material or protected expression; fabricate accuracy, calibration, uncertainty or performance claims; weaken a CI, security, provenance, licensing, SPDX, identity, browser-surface or package-surface gate or a coverage threshold; put Node-only tooling in the published package; commit secrets or private datasets |
+
 ## Repository map
 
 - `src/` — scientific implementation, schemas, validation, and composed engine logic.
@@ -139,7 +147,7 @@ For any nontrivial work unit, first identify the governing implementation/API an
 - Run scoped tests during development and retain the existing exact-head full coverage, packaging, provenance, DCO, security and license gates for merges/releases. Avoid a second CI implementation or duplicate wrappers where one accepted check already covers the input.
 - Close with the actual tested SHA, genuine results, unsatisfied obligations and next existing owner. Skip blocked tasks for independent work, without inventing qualification or new umbrella tickets.
 
-- After a pull request is merged, delete its source branch promptly. Do not delete the default branch, protected/release branches, or a branch that is still required by another open PR or documented active dependency. Any retained merged-PR branch must have the reason documented and must be deleted when that dependency ends.
+- After a pull request is merged, delete its source branch promptly. If the environment cannot delete branches (the Claude Code cloud git proxy refuses it), say so and leave the deletion to the owner or the repository's automatic head-branch deletion. Do not delete the default branch, protected/release branches, or a branch that is still required by another open PR or documented active dependency. Any retained merged-PR branch must have the reason documented and must be deleted when that dependency ends.
 - Prefer the smallest change that fully solves the problem.
 - Avoid unrelated refactors, formatting churn, dependency upgrades, and file movement.
 - Preserve existing architecture unless there is evidence that changing it materially improves correctness, safety, maintainability, or performance.
