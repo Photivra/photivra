@@ -81,7 +81,8 @@
     "assess:native-full-event": "node scripts/assess-browser-native-full-event.mjs",
     "qualify:native-reference-progressive": "node --expose-gc scripts/qualify-browser-native-progressive.mjs",
     "docs:check": "node scripts/check-release-docs.mjs",
-    "release:consumer-check": "node scripts/check-release-consumer.mjs"
+    "release:consumer-check": "node scripts/check-release-consumer.mjs",
+    "release:prepare": "node scripts/release-prepare.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
