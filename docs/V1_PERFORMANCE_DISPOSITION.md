@@ -1,6 +1,6 @@
 # Final V1 performance disposition: #43 / #45
 
-Release context: **package 1.2.0 candidate / root API 1.2.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
 
 Final measured main is `edc20e61538152fa758f3cce4b41cc34d1e8ba03` (#204), root API 0.116.0, POC API 0.20.0. #175 and #176 already merged the justified private optimizations. PR #205 merged this final remeasurement after human review/DCO; both issues are closed. The recorded engine commit identifies the measured build, not the latest release candidate. It adds no runtime optimization, public abstraction, dependency, numerical tolerance change or timing CI gate.
 

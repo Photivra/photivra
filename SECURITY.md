@@ -4,13 +4,13 @@ Please do not open a public issue containing vulnerability details.
 
 ## Supported versions
 
-The published 1.0.0 release established the 1.x root-package compatibility line. Security fixes target the current maintained development/release line; older snapshots and pre-1.0 releases should not be assumed to receive fixes. The current 1.0.1 candidate is not yet published. Node runtime support follows [NODE_SUPPORT.md](NODE_SUPPORT.md), covering maintained LTS lines plus Current; older/EOL runtimes are not qualified.
+The published 1.0.0 release established the 1.x root-package compatibility line. The current release is **1.5.0**, published on October 7, 2026 (see [CHANGELOG.md](CHANGELOG.md)). Security fixes target the current maintained development/release line; older 1.x releases, snapshots and pre-1.0 releases should not be assumed to receive fixes. Node runtime support follows [NODE_SUPPORT.md](NODE_SUPPORT.md), covering maintained LTS lines plus Current; older/EOL runtimes are not qualified.
 
 ## Reporting a vulnerability
 
 For the public GitHub repository, use GitHub's private vulnerability reporting flow ("Report a vulnerability" on the Security tab) when available.
 
-Private vulnerability reporting must be enabled before the repository is made public. If that private reporting entry point is unavailable, contact the repository owner privately before disclosing exploit details.
+The repository is public. Private vulnerability reporting must be enabled for this policy to be complete; as of October 11, 2026 it is not yet enabled. If that private reporting entry point is unavailable, contact the repository owner privately before disclosing exploit details.
 
 Please include, when relevant:
 

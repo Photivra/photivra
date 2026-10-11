@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.5.0 — release candidate
+## 1.5.0 — published October 7, 2026
 
 - Add optional `NativeRawInput.tileWidth` (1–256 native sites) so bounded native RAW acquisition can use smaller execution chunks while preserving the existing 256-site default, physical sampling, absolute CFA coordinates, deterministic noise seeds, shutter timing, output payload and existing whole-event/resource caps.
 - Preserve the exact acquisition tile width through same-RAW validation and development. Reject invalid widths, inconsistent tile counts and stale plans instead of silently rebuilding a default-width plan.
@@ -16,7 +16,7 @@
 - Add bounded post-SDR Print crop/area downsampling and original baseline JPEG encoding with an original sRGB ICC profile. Explicit source hashes remain caller declarations; platform save/share, printer appearance and physical device acceptance are separate.
 - Record complete one-megapixel constructed RAW → SDR → downsampled JPEG execution and independently decoded JPEG/ICC/area-filter controls. See [native RAW and Print contracts](docs/NATIVE_RAW_AND_PRINT.md).
 
-## 1.3.0 — published
+## 1.3.0 — published October 4, 2026
 
 - Add evidence-bound radial illumination throughput to bounded environment photo/RAW execution, validating every inverse PSF tap before provider callbacks and applying attenuation once in physical sensor coordinates. Production composition requires explicit vignetting fidelity. Preserve unity arithmetic, resource limits and unverified transport flags.
 
@@ -27,19 +27,19 @@
 - Add explicit complex-pupil propagation distance and result binding (model 1.1.0), preserving omitted-input nominal focal-plane kernel values. Finite-focus callers can pass the shared resolved image distance without implying qualified exit-pupil geometry.
 - Audit #195 planning acceptance across print/viewing scales, retained crops, invalid-input recovery and exact integer alternatives.
 
-## 1.1.0 — historical preparation notes
+## 1.1.0 — published October 3, 2026 (historical preparation notes)
 
 - Add a bounded regional coherent-sinusoid diagnostic and explicit stage/region/source identity. Independently validate Fourier modulation and angular projection using owned analytic references; preserve acquisition, system MTF, noise/artifact/perception qualification as unassessed. Full #196 acceptance remains blocked. See `docs/PRINT_DETAIL_ASSESSMENT.md` and `docs/PRINT_DETAIL_VALIDATION.md`.
 
 - Add native-only Print planning and conditional size queries. Independent viewing distance and explicit pixel/stroke/line-pair conventions derive density; advanced manual PPI creates a distinct plan. Preserve confirmed native crop/orientation and exact-ratio integer output, reconcile declared lab constraints, and return no recommendation for upscale or conflicts. Captured detail and delivery remain unassessed. See `docs/PRINT_PLANNING.md`.
 - Align package/root creator identity at 1.1.0 for this additive release. Existing APIs, archived records, fixtures and all independent schema/POC/production-plan versions remain unchanged. See `docs/RELEASE_1_1_0.md`.
 
-## 1.0.1 candidate — publication pending
+## 1.0.1 — published October 2, 2026
 
 - Expand Node support to maintained 22/24 LTS plus 26 Current, with patched-major CI and the existing 22.13 minimum job, reviewed lifecycle windows and updated tooling guidance. Keep Node 24 build/typings baseline.
 - Align the npm package and `ENGINE_API_VERSION` at 1.0.1 and enforce equality in source metadata, generated references and isolated packed consumers. Schema/model/POC/plan versions and scientific calculations are unchanged. New capture/plan creator identities and hashes can differ; archived records and acceptance artifacts retain their original versions. See `docs/RELEASE_1_0_1.md`.
 
-## 1.0.0 candidate — publication pending owner tag
+## 1.0.0 — published October 2, 2026
 
 - Prepare the stable public distribution after all 32 V1 feature/science items and defect #178 are reviewed and merged. Package/lock/citation become 1.0.0; root contract 0.116.0 and every independent model/schema/POC/plan identity remain unchanged. No scientific arithmetic, seed, fixture hash, exported signature or accepted execution envelope changes.
 - Reconcile human/agent/source guidance, actual bounded production integration and closed tier/performance/export/conformance acceptance. Add developer capability navigation, exact root-export reference, packed executable examples, strict documentation/consumer checks and exact owner tag/publish procedure.

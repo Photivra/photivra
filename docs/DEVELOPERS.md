@@ -1,18 +1,18 @@
 # Developer guide
 
-This is the entry point for **@photivra/engine 1.3.0 candidate**, root API contract **1.3.0**. The candidate becomes an installable 1.3.0 distribution only after the owner tags and publishes it. Repository `main` may later describe newer development; use a published release's packaged docs or its exact tag for the stable contract. [Release notes and migration](RELEASE_1_3_0.md) explain the transition to aligned package/root versions.
+This is the entry point for **@photivra/engine 1.5.0** (published October 7, 2026), root API contract **1.5.0**. Repository `main` may later describe newer development; use a published release's packaged docs or its exact tag for the stable contract. [Release notes and migration](RELEASE_1_3_0.md) explain the transition to aligned package/root versions.
 
 Photivra is an Apache-2.0 ESM TypeScript calculation library with no runtime npm dependencies. It exposes explicit units, deterministic data, provenance and bounded scientific approximations. The package supplies no hosted API, renderer installation, UI, commercial camera calibration or automatic agent service. [Photivra's public site](https://photivra.com) is separate from the engine's license; public engine documentation is available here without an application account.
 
 ## Install and calculate
 
-After publication, install `npm install @photivra/engine@1.3.0`. During candidate review, use the verified tarball described in [release preparation](RELEASE_1_3_0.md).
+Install `npm install @photivra/engine@1.5.0`. The [1.5.0 release record](RELEASE_1_5_0.md) and [changelog](../CHANGELOG.md) describe the current release.
 
 ```ts
 import { calculateFieldOfView, ENGINE_API_VERSION } from "@photivra/engine";
 
 const horizontal = calculateFieldOfView({ focalLengthMm: 50, sensorDimensionMm: 36 });
-console.log(ENGINE_API_VERSION); // 1.3.0: matches the package version
+console.log(ENGINE_API_VERSION); // 1.5.0: matches the package version
 console.log(horizontal.value.degrees); // approximately 39.60, ideal infinity-focus geometry
 console.log(horizontal.provenance); // read assumptions/status with the value
 ```
@@ -23,7 +23,7 @@ Primitive calculations normally return `CalculationResult<T>` with `value`, `pro
 
 ## Find the operation by scientific task
 
-Every row applies to package/root API 1.3.0. Direct calculations are synchronous/browser-safe unless the row says otherwise. A listed primitive is not automatically an app feature or supported in every production combination. The [API reference](API_REFERENCE.md) resolves all root exports and exact signatures; the linked guides own equations, inputs, defaults, errors and limits.
+Rows were last reviewed for package/root API 1.3.0; the later 1.4.0 and 1.5.0 minor releases are summarized in the [changelog](../CHANGELOG.md) and their own guides. Direct calculations are synchronous/browser-safe unless the row says otherwise. A listed primitive is not automatically an app feature or supported in every production combination. The [API reference](API_REFERENCE.md) resolves all root exports and exact signatures; the linked guides own equations, inputs, defaults, errors and limits.
 
 | Task | Start here / executable evidence | Qualified boundary |
 | --- | --- | --- |
@@ -44,7 +44,7 @@ Every row applies to package/root API 1.3.0. Direct calculations are synchronous
 
 ## Complete packed examples
 
-The package includes `docs/examples/quick-start.mjs` and `production-capture.mjs`. In a Node ESM consumer directory with the candidate installed, copy these files and `production-request.json` from `node_modules/@photivra/engine/docs/examples/` into that directory and run them. The quick start asserts independent geometry/exposure invariants. The production example executes the same owned 2×2 narrow-band synthetic fixture used in final conformance through all fourteen production stages and paired byte export, retaining the exact RAW codes and deterministic replay. It writes no files and installs no renderer.
+The package includes `docs/examples/quick-start.mjs` and `production-capture.mjs`. In a Node ESM consumer directory with the package installed, copy these files and `production-request.json` from `node_modules/@photivra/engine/docs/examples/` into that directory and run them. The quick start asserts independent geometry/exposure invariants. The production example executes the same owned 2×2 narrow-band synthetic fixture used in final conformance through all fourteen production stages and paired byte export, retaining the exact RAW codes and deterministic replay. It writes no files and installs no renderer.
 
 The JSON data is explicitly synthetic: uniform angular radiance `1e-9 * (1 + 200t)` W/m²/sr/nm; 540–560 nm band; independently declared 800×600 µm sensitive aperture and package-incident EQE 0.4; registered opening-reference time; fixed seed and generic consumer profiles. This is a controlled regression laboratory, not a real scene, native camera pixel pitch, calibrated color/visibility, PSF transport proof or convergence bound. Production supports only the envelope linked above. The tiny DNG demonstrates byte serialization/lineage; external-reader acceptance uses separate larger fixtures.
 
