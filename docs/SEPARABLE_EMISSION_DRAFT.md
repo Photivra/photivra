@@ -65,8 +65,7 @@ this declaration; runtime typing cannot prove an external callback is truthful.
 This draft proposes different work domains for a new source model, rather than
 raising the existing legacy provider cap. Human review must decide whether this
 source assumption and the new spectral budget are appropriate before root API
-export, adoption or a full-native fixture qualification run. Current app source
-and acquisition queues continue using their recorded legacy/candidate paths.
+export, adoption or a full-native fixture qualification run.
 
 Tests compare original photon/electron results and every pupil ray at 32/64/128
 support using a synthetic origin-dependent occlusion edge. They reject malformed

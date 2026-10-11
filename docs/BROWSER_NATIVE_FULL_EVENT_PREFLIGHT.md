@@ -106,8 +106,7 @@ not proof that the full-native photographic model cannot ever qualify.
    difficult visibility evidence. Unsupported is a valid *reported*
    outcome, not a passing full-native qualification.
 5. Only after the durable #251 float64 reference handoff proceed to
-   #235 real browser WebGPU/raster candidates; parent #224 and app
-   Focus/Depth #305 stay open until full backend/device/source acceptance.
+   #235 real browser WebGPU/raster candidates; parent #224 stays open until full backend/device/source acceptance.
 
 Do **not** construct or execute a huge event just to rediscover a
 known pre-admission failure. A rejected work plan must prevent work from

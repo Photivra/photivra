@@ -124,4 +124,3 @@ is established by the matching small-event code hashes.
 
 Until those steps pass, the experimental route stays under `src/api/`, outside
 npm/root exports; #224 and downstream Focus/Depth remain blocked for production.
-UI implementation and authenticated staging can continue independently.

@@ -6,7 +6,7 @@ Root API 0.115.0 completes the bounded SDR post-capture handoff for #112.
 Production plan 0.6.0 adds explicit committed RAW processing. At introduction, package 0.6.0,
 POC 0.20.0, capture, RAW, color, correction and SDR schemas remain unchanged.
 This is the engine boundary used by preview and file consumers; integrating
-commercial UI controls and browser presentation belongs to the apps repository.
+commercial UI controls and browser presentation belongs to downstream applications.
 
 ## Entry points and domains
 

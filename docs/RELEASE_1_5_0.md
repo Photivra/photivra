@@ -2,7 +2,7 @@
 
 Review snapshot: 2026-10-05. This document records the 1.5.0 engine release candidate. It does not tag, publish or activate a downstream application.
 
-**Proposed version:** `@photivra/engine@1.5.0`, with `ENGINE_API_VERSION = "1.5.0"`. The backward-compatible public `NativeRawInput.tileWidth` option warrants a minor release rather than describing the entire change as a patch-only fix. This is an engine release identity, not the separate application's public Beta label.
+**Proposed version:** `@photivra/engine@1.5.0`, with `ENGINE_API_VERSION = "1.5.0"`. The backward-compatible public `NativeRawInput.tileWidth` option warrants a minor release rather than describing the entire change as a patch-only fix. This is an engine release identity only.
 
 **Candidate metadata is aligned to 1.5.0 on the release branch.** Generated references, exact-candidate CI/package validation, final review and owner publication authorization remain gates below.
 
