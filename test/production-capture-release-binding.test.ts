@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ENGINE_API_VERSION,
   createLockedWhiteBalanceState,
   createProductionCaptureSnapshot,
   createProductionCaptureSnapshotFromReleaseFrame,
@@ -389,7 +390,7 @@ describe("production capture binding from release frame", () => {
       .toBe("0.7.0");
     expect(plan.versions)
       .toMatchObject({
-        engineApi: "1.5.0",
+        engineApi: ENGINE_API_VERSION,
         captureSnapshot: "0.3.0",
         plan: "0.7.0"
       });

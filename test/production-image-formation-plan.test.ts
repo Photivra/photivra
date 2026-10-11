@@ -6,6 +6,7 @@ import { loadPhotographicExportInput } from "./helpers/photographic-export-fixtu
 import { describe, expect, it } from "vitest";
 
 import {
+  ENGINE_API_VERSION,
   POC_SIMULATION_API_VERSION,
   RELEASE_SEQUENCE_VERSION,
   PRODUCTION_IMAGE_FORMATION_PLAN_VERSION,
@@ -778,7 +779,7 @@ describe("ready physical production plan", () => {
       "ready"
     );
     expect(plan.versions).toMatchObject({
-      engineApi: "1.5.0",
+      engineApi: ENGINE_API_VERSION,
       imageFormationContract:
         "0.4.0",
       plan: "0.7.0",
