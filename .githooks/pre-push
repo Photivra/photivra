@@ -1,0 +1,8 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# Fast local gates before pushing. Installed by `npm install` through scripts/install-git-hooks.mjs.
+# Bypass once with `git push --no-verify`; CI still runs every gate.
+if [ -n "$CI" ]; then
+  exit 0
+fi
+exec npm run --silent prepush
