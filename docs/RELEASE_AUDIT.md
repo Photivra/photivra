@@ -18,7 +18,7 @@ Package **1.0.0 candidate**, root API **0.116.0**, based on reviewed/signed main
 | AGENTS/contributing/security/support | Removed obsolete pending integration ownership, aligned 1.0 compatibility and maintained Node policy, retained human review/DCO/science/provenance/private-data boundaries and loopback-only contributor transport. |
 | Distribution/legal/provenance | Coordinated package/lock/citation 1.0.0, retained every independent contract version, kept no runtime dependencies and Apache/DNG notices, completed pinned artifact-action inventory, shipped readable policies and npm-safe README links. Existing license/SPDX/package/browser gates remain unchanged. |
 | Automation/publishing/discovery | Added docs/packed-consumer verification to existing CI/publish verification jobs; retained separate minimal OIDC publish job, protected exact-main tag and tarball checksum controls. Confirmed public protected main and active v* tag ruleset. Account-side npm trusted publisher remains an owner publication prerequisite. |
-| Site handoff | Engine repository/package/docs are public navigation destinations. Site-side discovery #45/navigation #298/environments #300 own hosting and links; no unpublished route/deployment is invented. Site content was not verified after HTTP 403. |
+| Site handoff | Engine repository/package/docs are public navigation destinations. Site hosting and links are outside this repository; no unpublished route/deployment is invented. |
 
 ## Examples, paths and package verification
 

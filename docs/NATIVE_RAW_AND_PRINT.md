@@ -33,7 +33,7 @@ Run the optional actual megapixel test with `PHOTIVRA_VALIDATE_MEGAPIXEL_RAW=1 P
 
 Generate the separate original color, checker, asymmetric fractional crop, gray ramp and one-megapixel JPEG controls with `node scripts/generate-native-print-jpeg.mjs /tmp/native-print`. Validate actual bytes using `python scripts/verify-native-print-jpeg.py /tmp/native-print /tmp/native-print/validation.json` in an environment with NumPy and Pillow/LittleCMS. The independent area oracle expects 188 for a half-black/half-white sRGB checker reduction, rather than an encoded-value average. JPEG tolerance is four encoded codes; the original ICC is compared against LittleCMS sRGB over a 17³ color cube with a one-code budget.
 
-These controls do not qualify all product fixtures, calibrated sensor/lens behavior, diffraction, full production depth composition, physical phone/tablet resources, printer appearance, platform save/share or substantive human review. See the application qualification record for its separate source and deployment gates.
+These controls do not qualify all product fixtures, calibrated sensor/lens behavior, diffraction, full production depth composition, physical phone/tablet resources, printer appearance, platform save/share or substantive human review.
 
 ## Standalone bounded Print example
 

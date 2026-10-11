@@ -58,7 +58,7 @@ Malformed configurations/non-finite values throw the established domain errors. 
 
 See [provenance](PROVENANCE.md), [license](../LICENSE), [NOTICE](../NOTICE), [third-party inventory](../THIRD_PARTY.md), [contributing](../CONTRIBUTING.md) and [security reporting](../SECURITY.md). Engine code/docs do not license the commercial application or its private assets. Report reproducible engine defects through [public issues](https://github.com/Photivra/photivra/issues).
 
-Website navigation/documentation hosting belongs to [the app-side discovery ticket #45](https://github.com/Photivra/photivra-apps/issues/45), with navigation #298 and environments #300. Handoff: link the public engine repository, this developer guide, the verified npm release package and capability examples from the public site. No unpublished `/developers` destination is linked here. Website launch is not an engine release prerequisite; access to the site returned HTTP 403 during this audit, so its content/navigation was not verified.
+Website navigation and documentation hosting are outside this repository. Handoff: link the public engine repository, this developer guide, the verified npm release package and capability examples from the public site. No unpublished destination is linked here. Website launch is not an engine release prerequisite.
 
 ## Print planning
 
