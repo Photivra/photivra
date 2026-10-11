@@ -10,15 +10,27 @@ permissions:
 
 jobs:
   verify:
+    name: verify (${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    # The primary leg normally takes about 5 minutes, the others about 2.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
+        # Supported lines move on their own: lts/* is the newest LTS, lts/-1
+        # the one before it, node the newest Current. 22.13.0 is the
+        # engines.node minimum; raise it when its line reaches end of life.
+        # The policy guard below runs before install, so an alias that moves to
+        # an unreviewed or end-of-life major fails instead of being adopted.
         node-version:
           - "22.13.0"
-          - "22"
-          - "24"
-          - "26"
+          - "lts/-1"
+          - "lts/*"
+          - "node"
+        include:
+          # Exactly one primary leg runs the static, coverage and benchmark gates.
+          - node-version: "lts/*"
+            primary: true
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -35,13 +47,13 @@ jobs:
       - name: Install
         run: npm ci --ignore-scripts
       - name: Verify with ordinary tests
-        if: matrix.node-version != '24'
+        if: ${{ !matrix.primary }}
         run: npm run check
       - name: Verify static and policy gates
-        if: matrix.node-version == '24'
+        if: ${{ matrix.primary }}
         run: npm run check:static
       - name: Coverage gate
-        if: matrix.node-version == '24'
+        if: ${{ matrix.primary }}
         run: npm run coverage
       - name: Build
         run: npm run build
@@ -53,21 +65,21 @@ jobs:
       - name: Package dry run
         run: npm run pack:check
       - name: Benchmark image formation
-        if: matrix.node-version == '24'
+        if: ${{ matrix.primary }}
         run: npm run bench:image-formation:built
 
       - name: Measure bounded native SDR execution
-        if: matrix.node-version == '24'
+        if: ${{ matrix.primary }}
         run: node --expose-gc scripts/benchmark-native-capture-sdr.mjs
 
       - name: Verify frozen full-native Path-A work obstruction without executing giant events
-        if: matrix.node-version == '24'
+        if: ${{ matrix.primary }}
         run: npm run assess:native-full-event
 
       - name: Profile browser-native reference path
-        if: matrix.node-version == '24'
+        if: ${{ matrix.primary }}
         run: npm run profile:native-reference
 
       - name: Qualify progressive browser-native complete events
-        if: matrix.node-version == '24'
+        if: ${{ matrix.primary }}
         run: npm run qualify:native-reference-progressive
