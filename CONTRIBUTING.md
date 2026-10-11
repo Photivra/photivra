@@ -16,6 +16,12 @@ npm run pack:check
 
 CI tests the newest maintained LTS lines plus the newest Current release through moving setup-node aliases (`lts/-1`, `lts/*`, `node`; today 22, 24 and 26), and the `engines.node` minimum 22.13.0. The minimum rises when its line reaches end of life. Prefer patched Node 24 under [the runtime policy](NODE_SUPPORT.md). See [1.0.1 migration and release preparation](docs/RELEASE_1_0_1.md). For release preparation also run `npm run docs:check` and `npm run release:consumer-check` after build. The generated API reference must match root exports; regenerate with `node scripts/generate-api-reference.mjs` when public contracts change.
 
+`npm install`/`npm ci` (outside CI) points this checkout's Git hooks at `.githooks`, whose `pre-push` hook runs `npm run prepush`: lint, typecheck, licence, SPDX-header, identity, browser-surface and generated-docs gates, reporting every failure at the end. It leaves an existing custom `core.hooksPath` unchanged; `git push --no-verify` skips it once. The test suite, coverage, build and package checks remain the commands above and CI.
+
+CI runs the static, coverage, documentation and package-surface gates once on the primary `lts/*` leg; every Node leg runs the test suite and packed-consumer acceptance. Benchmark and browser-native profiling evidence runs in `native-performance.yml` when its measured source or scripts change, nightly, and on manual dispatch.
+
+To align a release candidate's version surfaces, run `npm run release:prepare -- <major.minor.patch>`. It updates `package.json` and the lockfile root, `ENGINE_API_VERSION`, `CITATION.cff` and the current-release mentions in `README.md` and `docs/DEVELOPERS.md`, then regenerates `docs/api`. It never changes `POC_SIMULATION_API_VERSION` or schema/model versions and never tags or publishes; the changelog, release record and publication dates stay manual. Tests derive the expected engine version from `package.json`/`ENGINE_API_VERSION`, so a version bump needs no test edits.
+
 ## Before submitting
 
 - Follow [docs/API_STYLE.md](docs/API_STYLE.md).
