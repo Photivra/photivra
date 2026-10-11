@@ -1,6 +1,6 @@
 # Public API Style
 
-Release context: **package 1.3.0 candidate / root API 1.3.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_3_0.md).
+Release context (dated historical note): written for the **package 1.3.0 candidate / root API 1.3.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_3_0.md).
 
 The open engine should feel like one coherent library.
 

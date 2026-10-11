@@ -1,6 +1,6 @@
 # Deterministic linear capture encoding: #15C
 
-Release context: **package 1.2.0 candidate / root API 1.2.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
 
 `calculateLinearCaptureEncoding()` produces format-neutral unsigned 16-bit linear codes from one bounded inline `SimulatedCapture` plane. The exact plane/image-state identity is mandatory. The master stays unchanged; color, WB application, source reference value and upstream capture-saturation history accompany the encoded data. It neither chooses a file format nor invents a color conversion.
 

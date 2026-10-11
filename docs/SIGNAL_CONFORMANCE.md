@@ -1,6 +1,6 @@
 # Signal cross-domain conformance (#131B)
 
-Release context: **package 1.2.0 candidate / root API 1.2.0**. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
 
 `test/signal-conformance.test.ts` independently covers merged public APIs without consuming unmerged capture, output, optics or tier work. It complements the geometric conformance draft rather than depending on it. The canonical #130 fixture supplies wavelength and reference aperture/shutter/ISO settings; its source irradiance is **not** silently treated as detector energy.
 

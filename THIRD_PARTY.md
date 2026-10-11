@@ -22,6 +22,15 @@ Node built-in modules are used only by development tooling and the repository-lo
 
 This inventory does not replace a transitive dependency/SBOM review before a release. New runtime dependencies, scientific datasets, model weights, or calibration material require explicit provenance and license review.
 
+## Pending licence and source reviews
+
+These human reviews are **pending**. This inventory records them; it does not complete them. Each is described in full in its section below.
+
+- castleCSF-derived contrast reference (`src/output/print-contrast-reference.ts`): human scientific/source/license review pending.
+- ReportLab/pypdf offline PDF test-artifact tools: substantive human source review pending.
+- DNG/TIFF and JPEG format references: human provenance/license review required before release.
+- Transitive dependency/SBOM review: required before each release; this inventory does not replace it.
+
 ## Print contrast numerical model material
 
 The original scalar adapter in `src/output/print-contrast-reference.ts` uses numerical equations/parameters from [castleCSF revision f4b0b722af83001d7af979281e06ca642d36e4e8](https://github.com/gfxdisp/castleCSF/tree/f4b0b722af83001d7af979281e06ca642d36e4e8): `matlab/CSF_castleCSF.m`, `CSF_stelaCSF_lum_peak.m`, `CSF_castleCSF_chrom.m` and `CSF_base.m`. The upstream code/model material is MIT-licensed, copyright (c) 2023 Graphics and Displays group - University of Cambridge. The exact license is preserved at `docs/licenses/castleCSF-MIT.txt` and its notice is retained in `NOTICE` and adapter source. New TypeScript/reference code is distributed under the project Apache-2.0 terms while retaining the MIT notice for upstream numerical material.
