@@ -16,7 +16,7 @@ Treat this repository as a complete, standalone open-source scientific/business-
 
 1. Never introduce copied, restricted, or ambiguously licensed source code, data, calibration material, model weights, or protected expression.
 2. Never fabricate scientific accuracy, calibration, uncertainty, confidence, or physical-performance claims.
-3. Preserve backward compatibility of public APIs and schemas unless an explicit breaking change is approved.
+3. Preserve backward compatibility of public APIs and schemas unless a deliberate, documented breaking change is made; a breaking change ships only through an owner-approved release.
 4. Keep the root public package browser-safe and keep Node-only tooling out of the published package surface.
 5. Never weaken CI, security, provenance, licensing, SPDX, identity, browser-surface, or package-surface gates to make a change pass.
 6. Never commit secrets, credentials, private keys, private datasets, or restricted material.
@@ -24,11 +24,21 @@ Treat this repository as a complete, standalone open-source scientific/business-
 
 ## Agent permissions
 
-This table summarizes the rules in this file; the detailed sections below control.
+The owner's approval policy (October 11, 2026) controls. Once the owner has asked for the work, everything outside the approval column needs no further approval.
 
 | Agents may do without asking | Needs the owner's approval for that action | Never |
 | --- | --- | --- |
-| Read-only inspection; scoped tests; code, docs and test changes on a task branch; opening pull requests; ordinary implementation decisions inside an approved task; squash-merging an agent-owned pull request once its CI passes (a merge to `main` publishes nothing; npm publishing runs only from a release tag); adding the owner's DCO `Signed-off-by` to commits in an owner-directed, agent-owned pull request (standing owner approval, 2026-10-11) | Adding the owner's DCO `Signed-off-by` to any other commit; an intentional breaking change to a public API or schema; a release or package publication; new monetary cost; persistence, telemetry, external network calls, uploads, accounts or hosted services (after a design/security review); incorporating third-party material | Introduce copied, restricted or ambiguously licensed code, data, calibration material or protected expression; fabricate accuracy, calibration, uncertainty or performance claims; weaken a CI, security, provenance, licensing, SPDX, identity, browser-surface or package-surface gate or a coverage threshold; put Node-only tooling in the published package; commit secrets or private datasets |
+| Read-only inspection; tests; code, docs and test changes; branches and pull requests; merging (a merge to `main` publishes nothing; npm publishing runs only from a release tag); CI; issues; migrations; refactors; dependency changes; public API or schema changes, including breaking ones, before release; persistence, telemetry, network, upload, account or hosted-service work that is not yet released; third-party material that is not yet released; adding the owner's DCO `Signed-off-by` to commits in owner-directed pull requests; deleting a merged pull request's branch | Changes to `AGENTS.md`, `CLAUDE.md` or shared agent rules; anything that goes to production: a release, a release tag (it triggers npm publishing), package publication, production data or infrastructure, production DNS/routing; spending: a new paid service or spending beyond an approved budget; credentials: creating, rotating, granting or deleting tokens, keys or secrets; destructive or irreversible actions: deleting data or resources, rewriting history, force-pushing, deleting protected or unmerged branches | Introduce copied, restricted or ambiguously licensed code, data, calibration material or protected expression; fabricate accuracy, calibration, uncertainty or performance claims; weaken a CI, security, provenance, licensing, SPDX, identity, browser-surface or package-surface gate or a coverage threshold; put Node-only tooling in the published package; commit secrets or private datasets |
+
+### Required evidence in the release request
+
+Scientific, legal, rights, privacy and design/security checks happen at the release gate, not before. Every release or publication request must document, with sources:
+
+- **Science:** each changed model, equation or assumption follows accepted science from reputable sources and is evidence-based; cite those sources in the request. The owner is not a scientist, so the request carries the evidence.
+- **Rights and licensing:** provenance and license compatibility for any incorporated third-party material, recorded in `THIRD_PARTY.md`, with SPDX and DCO gates green.
+- **Privacy and security:** a design/security review of any persistence, telemetry, external network call, upload, account, remote code or hosted-service dependency.
+- **Compatibility:** any breaking public API or schema change, its version bump and migration notes.
+- **Release gates:** the full release check results on the exact tagged commit.
 
 ## Repository map
 
@@ -89,7 +99,7 @@ Retain the root non-negotiable rules, compatibility, privacy, licensing, DCO, an
 - Never commit credentials, API keys, tokens, private keys, secrets, private datasets, or restricted calibration material.
 - Treat external JSON and other untrusted inputs as untrusted at runtime; TypeScript types are not validation.
 - Keep the local POC server loopback-oriented and unauthenticated-development-only.
-- Do not introduce persistence, telemetry, external network calls, uploads, accounts, remote code, or hosted-service dependencies without an explicit design/security review.
+- Persistence, telemetry, external network calls, uploads, accounts, remote code, or hosted-service dependencies may be developed freely; their design/security review is required evidence in the release request. A hosted or paid service still needs spending approval.
 - Fail safely on malformed or non-finite scientific inputs.
 
 ## Legal, IP, and provenance
@@ -141,7 +151,7 @@ Documentation must:
 For any nontrivial work unit, first identify the governing implementation/API and domain-specific rules, the existing issue/PR owner, matching merged or in-flight work, exact still-valid accepted evidence, and the smallest missing behavior/proof. Keep one short current state **in the existing owner ticket**, updated in place: accepted source/commit, exact missing result, next action, actual blocker and evidence links. Preserve history in issue edits/comments and immutable proof. This is not a new form, approval or mandatory CI gate.
 
 - Classify states precisely: source-complete, hosted-unverified, verified, blocked, invalidated or release-qualified. Reuse exact-source/engine/tool/asset/backend-bound passing evidence only while applicable and current. Re-run what changed; new scientific assumptions, source, runtime, lock, numeric tolerances, package behavior or revoked evidence invalidate their affected checks.
-- Follow task-scoped owner approval for its normal engineering substeps; do not repeatedly solicit the same settled scope decision. Separate public API break approval, rights/provenance, external costs, security/science assurance, and published release authority remain applicable. A prior consent does not establish independent verification.
+- Follow task-scoped owner approval for its normal engineering substeps; do not repeatedly solicit the same settled scope decision. External costs and published release authority remain separate approvals; rights/provenance, security/science assurance and any public API break are required evidence in the release request. A prior consent does not establish independent verification.
 - After repeated same-boundary failures, diagnose logs, relevant contracts and prior commits before another attempt. Use safe deterministic regression fixtures where useful; avoid speculative near-duplicate patches, uncontrolled gigantic numeric events, and a fake success achieved by weakening assertions. Do not use fixed retry counts instead of identifying the cause.
 - Keep one reusable engine model per physical phenomenon. Prefer existing API/helpers and deterministic tests, and parallelize only independent owners (e.g., existing #251 → #235 → #224 Focus reference chain, not simultaneous competing solvers). Distinguish local source/analytic proof from real browser/device-qualified capture.
 - Run scoped tests during development and retain the existing exact-head full coverage, packaging, provenance, DCO, security and license gates for merges/releases. Avoid a second CI implementation or duplicate wrappers where one accepted check already covers the input.
