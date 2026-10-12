@@ -2,6 +2,10 @@
 
 These instructions apply to the entire Photivra engine repository.
 
+## Response style
+
+The owner requires concise, neutral, evidence-based responses (October 12, 2026). Do not add personality, enthusiasm, flattery or filler.
+
 ## Project identity
 
 - Project: **Photivra**
