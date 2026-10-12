@@ -69,6 +69,7 @@ export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,p
       const tile=requireAllowlistedRecord(supplied,["captureId","frameId","x","y","width","height","sites"],"Invalid physical source tile.");
       for(const key of Object.keys(request) as (keyof NativeRawTileRequest)[])if(tile[key]!==request[key])throw new InvalidConfigurationError("Physical source tile identity mismatch.");
       if(!Array.isArray(tile.sites)||tile.sites.length!==request.width||Array.from({length:request.width},(_,i)=>i in (tile.sites as unknown[])).includes(false))throw new InvalidConfigurationError("Physical source tile needs exact native coverage.");
+      // Private clone: planning adopts each site environment as engine-owned plan data without a second clone.
       const sites=structuredClone(tile.sites) as SimulateEnvironmentSensorRawFrameInput["sites"];
       let tileCount=0;
       const plans=sites.map((site,j)=>{
@@ -77,14 +78,15 @@ export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,p
         if(e.temporalIntegrationId!==plan.frame.frameId+":native:"+index)throw new InvalidConfigurationError("Native environment IDs must bind the absolute native index.");
         const state=canonical({sceneBindings:e.sceneBindings,optics:e.optics,motion:e.motion,psf:e.psf,pupil:e.pupil,fieldThroughput:e.fieldThroughput});
         shared??=state;if(state!==shared)throw new InvalidConfigurationError("Native event requires one shared source/optical/motion state.");
-        const p=planEnvironmentRawSite(site,request.y*plan.exposure.geometry.nativeRaster.pixelWidth+request.x+j,plan.frame,sceneBinding,plan.exposureWindow!);
+        const p=planEnvironmentRawSite(site,request.y*plan.exposure.geometry.nativeRaster.pixelWidth+request.x+j,plan.frame,sceneBinding,plan.exposureWindow!,"engine-owned");
         if(p.owned.pupil&&!aperture)throw new InvalidConfigurationError("Pupil capture requires origin-aware source visibility.");
         tileCount+=p.count;
         if(tileCount>100_000||evaluations+tileCount>maximum)throw new InvalidConfigurationError("Native environment exceeds tile or full-event query budget.");
         return p;
       });
+      // Only value.photo is consumed, so per-evaluation diagnostics are not retained.
       const rawSites=sites.map((site,j)=>{
-        const result=executeEnvironmentSensorPhotoSignal(plans[j]!,q=>{if(signal.aborted)throw new InvalidConfigurationError("Native source evaluation aborted.");evaluations++;return evaluate(q);},aperture?(q,ray):ReturnType<typeof evaluate>=>{if(signal.aborted)throw new InvalidConfigurationError("Native aperture evaluation aborted.");evaluations++;return aperture(q,ray);}:undefined);
+        const result=executeEnvironmentSensorPhotoSignal(plans[j]!,q=>{if(signal.aborted)throw new InvalidConfigurationError("Native source evaluation aborted.");evaluations++;return evaluate(q);},aperture?(q,ray):ReturnType<typeof evaluate>=>{if(signal.aborted)throw new InvalidConfigurationError("Native aperture evaluation aborted.");evaluations++;return aperture(q,ray);}:undefined,"photo-only");
         const photoSignal=result.value.photo.value.photoSignal;
         const darkCharge=calculateSensorDarkCurrentCharge({exposure:photoSignal,darkCurrentProfile:site.darkCurrentProfile,operatingTemperatureC:site.operatingTemperatureC}).value;
         return {...site.readout,charge:{...site.charge,photoSignal,darkCharge}};
