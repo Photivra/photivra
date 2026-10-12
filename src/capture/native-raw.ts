@@ -43,7 +43,7 @@ export interface NativeRawPlan {
   /** Present only for an explicit execution chunk width. Omission preserves legacy plan shape. */
   tileWidth?: number;
   upstreamRadiometryVerified: false;
-  seedSchedule: "capture-seed-plus-two-native-index-modulo-2-to-32-v1";
+  seedSchedule: "murmur3-capture-seed-native-index-stream-v2";
 }
 /** Rectangle is absolute full-native CFA space, before orientation, active crop or output scaling. */
 export interface NativeRawTileRequest { captureId: string; frameId: string; x: number; y: number; width: number; height: number }
@@ -114,7 +114,7 @@ export function calculateNativeRawPlan(input: NativeRawInput): NativeRawPlan {
     tileCount:Math.ceil(native.pixelWidth/tileWidth)*native.pixelHeight,
     ...(r.tileWidth===undefined?{}:{tileWidth}),
     ...(schedule?{exposureWindow:schedule}:{}),upstreamRadiometryVerified:false as const,
-    seedSchedule:"capture-seed-plus-two-native-index-modulo-2-to-32-v1" as const});
+    seedSchedule:"murmur3-capture-seed-native-index-stream-v2" as const});
 }
 /** Executes validated EQE/dark/completeness events through the shared reference scalar physics. */
 export function createNativeRawTask(input: NativeRawInput,provider: NativeRawProvider): NativeRawTask {

@@ -105,7 +105,7 @@ export interface NativeRawPlan {
   /** Present only for an explicit execution chunk width. Omission preserves legacy plan shape. */
   tileWidth?: number;
   upstreamRadiometryVerified: false;
-  seedSchedule: "capture-seed-plus-two-native-index-modulo-2-to-32-v1";
+  seedSchedule: "murmur3-capture-seed-native-index-stream-v2";
 }
 ```
 
