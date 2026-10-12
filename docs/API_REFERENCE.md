@@ -105,6 +105,18 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`LinearCaptureEncodingInput`](api/capture-linear-encoding.md#linearcaptureencodinginput) | Type |
 | [`parseLinearCaptureEncoding`](api/capture-linear-encoding.md#parselinearcaptureencoding) | Runtime |
 
+## capture/native-environment-optical-stage.ts
+
+[Detailed contracts](api/capture-native-environment-optical-stage.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/native-environment-optical-stage.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`NATIVE_ENVIRONMENT_OPTICAL_STAGE_LIMITS`](api/capture-native-environment-optical-stage.md#native_environment_optical_stage_limits) | Runtime |
+| [`NativeEnvironmentOpticalStage`](api/capture-native-environment-optical-stage.md#nativeenvironmentopticalstage) | Type |
+| [`NativeEnvironmentOpticalStageRetention`](api/capture-native-environment-optical-stage.md#nativeenvironmentopticalstageretention) | Type |
+| [`NativeEnvironmentSensorStageInput`](api/capture-native-environment-optical-stage.md#nativeenvironmentsensorstageinput) | Type |
+| [`NativeEnvironmentSensorStageProvider`](api/capture-native-environment-optical-stage.md#nativeenvironmentsensorstageprovider) | Type |
+
 ## capture/native-environment-raw.ts
 
 [Detailed contracts](api/capture-native-environment-raw.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/native-environment-raw.ts)
@@ -112,6 +124,7 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | Export | Kind |
 | --- | --- |
 | [`createNativeEnvironmentRawTask`](api/capture-native-environment-raw.md#createnativeenvironmentrawtask) | Runtime |
+| [`createNativeEnvironmentSensorStageTask`](api/capture-native-environment-raw.md#createnativeenvironmentsensorstagetask) | Runtime |
 | [`NativeEnvironmentPhotoTile`](api/capture-native-environment-raw.md#nativeenvironmentphototile) | Type |
 | [`NativeEnvironmentRawInput`](api/capture-native-environment-raw.md#nativeenvironmentrawinput) | Type |
 | [`NativeEnvironmentRawOutput`](api/capture-native-environment-raw.md#nativeenvironmentrawoutput) | Type |

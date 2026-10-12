@@ -1468,6 +1468,11 @@
       "kind": "runtime"
     },
     {
+      "name": "createNativeEnvironmentSensorStageTask",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "createNativeRawDevelopmentTask",
       "source": "src/capture/native-raw-development.ts",
       "kind": "runtime"
@@ -2763,6 +2768,11 @@
       "kind": "runtime"
     },
     {
+      "name": "NATIVE_ENVIRONMENT_OPTICAL_STAGE_LIMITS",
+      "source": "src/capture/native-environment-optical-stage.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "NATIVE_RAW_LIMITS",
       "source": "src/capture/native-raw.ts",
       "kind": "runtime"
@@ -2838,6 +2848,16 @@
       "kind": "type"
     },
     {
+      "name": "NativeEnvironmentOpticalStage",
+      "source": "src/capture/native-environment-optical-stage.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEnvironmentOpticalStageRetention",
+      "source": "src/capture/native-environment-optical-stage.ts",
+      "kind": "type"
+    },
+    {
       "name": "NativeEnvironmentPhotoTile",
       "source": "src/capture/native-environment-raw.ts",
       "kind": "type"
@@ -2865,6 +2885,16 @@
     {
       "name": "NativeEnvironmentRawTile",
       "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEnvironmentSensorStageInput",
+      "source": "src/capture/native-environment-optical-stage.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEnvironmentSensorStageProvider",
+      "source": "src/capture/native-environment-optical-stage.ts",
       "kind": "type"
     },
     {
