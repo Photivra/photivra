@@ -33,25 +33,30 @@ for depth in (2, 5, 10):
 
         coarse, fine = continuous(4096), continuous(16384)
         analytic_focus = 2 / math.pi * (math.acos(nu) - nu * math.sqrt(1 - nu * nu))
-        grids = [(9, 4, "unpadded-historical-finite-reference")] + [
+        # The historical 9-grid declaration is now zero padded by the engine
+        # to 2S-1 = 17 samples, matching the explicit 17-grid pilot.
+        grids = [(9, 4, "historical-9-grid-engine-zero-padded")] + [
             (4 * r + 1, r, "padded-pupil-pilot") for r in (2, 4, 8, 15)]
         for n, radius_samples, role in grids:
             center = (n - 1) // 2
             pitch = radius / radius_samples
+            # Engine transform size: at least 2S-1 for an S = 2r+1 sample support.
+            m = max(n, 2 * (2 * radius_samples + 1) - 1)
+            out_center = center + (m - n) // 2
             pupil = [[cmath.exp(1j * alpha * ((x - center)**2 + (y - center)**2) * pitch**2)
                 if (x - center)**2 + (y - center)**2 <= radius_samples**2 else 0j
                 for x in range(n)] for y in range(n)]
             # Factored two-dimensional complex DFT, independently arranged from
             # the backend's direct two-dimensional sums.
-            roots = [[cmath.exp(-2j * math.pi * k * (x - center) / n) for x in range(n)] for k in range(-center, center + 1)]
+            roots = [[cmath.exp(-2j * math.pi * k * (x - center) / m) for x in range(n)] for k in range(-out_center, m - out_center)]
             horizontal = [[sum(a * b for a, b in zip(row, root)) for root in roots] for row in pupil]
             column_energy = [sum(abs(sum(horizontal[y][kx] * roots[ky][y] for y in range(n)))**2
-                for ky in range(n)) for kx in range(n)]
-            image_pitch = wavelength_mm * z / (n * pitch)
-            transfer = abs(sum(w * cmath.exp(-2j * math.pi * frequency * (i - center) * image_pitch)
+                for ky in range(m)) for kx in range(m)]
+            image_pitch = wavelength_mm * z / (m * pitch)
+            transfer = abs(sum(w * cmath.exp(-2j * math.pi * frequency * (i - out_center) * image_pitch)
                 for i, w in enumerate(column_energy)) / sum(column_energy))
             cases.append(dict(subjectDistanceM=depth, apertureFNumber=aperture, gridSamples=n,
-                pupilRadiusSamples=radius_samples, role=role, expectedFiniteTransfer=transfer,
+                transformSamples=m, pupilRadiusSamples=radius_samples, role=role, expectedFiniteTransfer=transfer,
                 expectedContinuousTransfer=abs(fine), continuousReferenceDelta=abs(coarse - fine),
                 analyticFocusedTransfer=analytic_focus if depth == 5 else None))
 

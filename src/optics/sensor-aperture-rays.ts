@@ -4,7 +4,7 @@ import { approximationResult, type CalculationResult } from "../core/calculation
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError, requirePositiveFinite } from "../core/validation.js";
 import { calculateFocusPlaneImageDistance, parseFocusPlane, type FocusPlane } from "./focus-state.js";
-import { calculateInverseCameraRotationImageMapping, rotateVectorByAxisAngle,
+import { applyPhysicalCameraRotation, calculateInverseCameraRotationImageMapping,
   type CameraAngularVelocityRadPerSec } from "../motion/camera-rotation.js";
 export interface IdealCircularPupil {
   kind: "ideal-uniform-circular-pupil";
@@ -58,8 +58,7 @@ export function calculateSensorApertureRays(input: CalculateSensorApertureRaysIn
     imagePointMm: { x: owned.sourcePointNativeSensorMm.x, y: -owned.sourcePointNativeSensorMm.y },
     angularVelocityRadPerSec: owned.angularVelocityRadPerSec, timeSecondsFromExposureStart: owned.timeSecondsFromOpeningReference,
     ...(focus.kind === "finite" ? { focusDistanceM: focus.distanceM } : {}) }).value;
-  const displacement = inverse.angularDisplacementRad, angle = displacement.magnitude;
-  const axis = angle === 0 ? { x: 0, y: 0, z: 1 } : { x: displacement.pitch/angle, y: displacement.yaw/angle, z: displacement.roll/angle };
+  const displacement = inverse.angularDisplacementRad;
   const radius = owned.focalLengthMm/(2*owned.nominalFNumber), count = pupil.radialSampleCount*pupil.angularSampleCount;
   if (!Number.isFinite(radius) || radius <= 0) throw new InvalidScientificInputError("Pupil radius must remain positive and finite.");
   const rays = Array.from({ length: count }, (_, i): SensorApertureRay => {
@@ -72,7 +71,9 @@ export function calculateSensorApertureRays(input: CalculateSensorApertureRaysIn
       : { x, y, z: 1 };
     const length = Math.hypot(direction.x,direction.y,direction.z);
     const unit = { x: direction.x/length, y: direction.y/length, z: direction.z/length };
-    const rotatedOrigin = rotateVectorByAxisAngle(origin, axis, angle), rotatedDirection = rotateVectorByAxisAngle(unit, axis, angle);
+    // Same physical right-hand camera rotation as the inverse mapping above.
+    const rotatedOrigin = applyPhysicalCameraRotation(origin, displacement, "camera-to-reference"),
+      rotatedDirection = applyPhysicalCameraRotation(unit, displacement, "camera-to-reference");
     if (![...Object.values(rotatedOrigin),...Object.values(rotatedDirection)].every(Number.isFinite) || rotatedDirection.z <= 0) {
       throw new InvalidScientificInputError("A pupil ray leaves the supported forward hemisphere or finite coordinate domain.");
     }

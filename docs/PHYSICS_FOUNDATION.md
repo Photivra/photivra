@@ -333,7 +333,7 @@ This is a geometry/orientation model only. It does not calculate diffraction int
 
 ### Controlled camera shake
 
-Yaw and pitch angular velocity are integrated over shutter duration. Their angular displacement is projected to the image plane using the selected projection distance.
+Yaw and pitch angular velocity are integrated over shutter duration. Their angular displacement is projected to the image plane using the selected projection distance d: Δx = +d·tan(yaw·t), Δy = −d·tan(pitch·t). Signs follow the physical right-hand rule about camera +Y/+X (positive yaw turns the camera left, positive pitch tilts it up), the same convention as `calculateCameraRotationImageMapping()`.
 
 The current model returns one global image-plane vector. It does not compute the spatially varying optical flow that a real camera rotation produces away from the optical axis.
 

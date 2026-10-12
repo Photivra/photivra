@@ -134,6 +134,8 @@ export interface LensComplexPupilPsf {
   context:
     LensComplexPupilProfile["context"];
   kernel: LensPsfKernel;
+  /** Nyquist sampling diagnostics and the applied zero padding. */
+  sampling: LensComplexPupilPsfSampling;
   relativePupilThroughputFactor:
     number;
   throughputOwnership:
@@ -761,115 +763,208 @@ function pupilComplexValue(
   };
 }
 
+export interface LensComplexPupilPsfSampling {
+  criterion: "discrete-intensity-alias-free-goodman-q-above-2";
+  /** Number of pupil samples spanned by non-zero amplitude, per axis. */
+  pupilSupportSamplesX: number;
+  pupilSupportSamplesY: number;
+  /**
+   * Sampled pupil diameter D = (support samples - 1) x pupil pitch: the
+   * centre-to-centre span of the outermost non-zero samples, in millimetres.
+   */
+  pupilSupportDiameterMmX: number;
+  pupilSupportDiameterMmY: number;
+  /** Declared aperture diameter focalLengthMm / apertureFNumber, in millimetres. */
+  declaredPupilDiameterMm: number;
+  /** Declared pupil grid size before zero padding. */
+  pupilGridWidthSamples: number;
+  pupilGridHeightSamples: number;
+  /** DFT size after zero padding; equals the output kernel size. */
+  transformWidthSamples: number;
+  transformHeightSamples: number;
+  zeroPaddingApplied: boolean;
+  /**
+   * Achieved Goodman sampling factor Q = lambda*(z/D)/imagePitch =
+   * transform samples / (support samples - 1). Always greater than 2; null
+   * when the support is a single sample on that axis (no finite diameter).
+   */
+  samplingFactorQX: number | null;
+  samplingFactorQY: number | null;
+}
+
+interface PupilSamplingPlan {
+  sampling: LensComplexPupilPsfSampling;
+  outputCenterX: number;
+  outputCenterY: number;
+}
+
+function supportSpan(
+  grid: LensComplexPupilGrid,
+  axis: "x" | "y"
+): number {
+  let minimum = Number.POSITIVE_INFINITY;
+  let maximum = Number.NEGATIVE_INFINITY;
+  grid.relativeAmplitude.forEach((amplitude, index) => {
+    if (amplitude > 0) {
+      const coordinate =
+        axis === "x"
+          ? index % grid.widthSamples
+          : Math.floor(index / grid.widthSamples);
+      minimum = Math.min(minimum, coordinate);
+      maximum = Math.max(maximum, coordinate);
+    }
+  });
+  return maximum - minimum + 1;
+}
+
+/**
+ * Sampling guard for the discrete Fraunhofer reference (Goodman, Introduction
+ * to Fourier Optics, sampling of DFT/FFT Fraunhofer propagation).
+ *
+ * A DFT of size M over pupil pitch dp gives image-plane pitch
+ * lambda*z/(M*dp). The intensity PSF is the transform of the pupil
+ * autocorrelation, whose support is twice the pupil diameter, so Nyquist
+ * sampling of intensity needs Q = lambda*(z/D)/pitch = M*dp/D >= 2. For a
+ * pupil spanning S samples the discrete autocorrelation has 2S-1 lags, so
+ * M >= 2S-1 is the exact condition for no circular wrap-around; it implies
+ * Q = M/(S-1) > 2. The declared grid is zero padded to reach that size. The
+ * non-zero support must also lie within the declared f/N aperture.
+ */
+function planPupilSampling(
+  profile: LensComplexPupilProfile
+): PupilSamplingPlan {
+  const grid = profile.grid;
+  const supportX = supportSpan(grid, "x");
+  const supportY = supportSpan(grid, "y");
+  const diameterX = (supportX - 1) * grid.pupilSamplePitchMmX;
+  const diameterY = (supportY - 1) * grid.pupilSamplePitchMmY;
+  const declaredDiameter =
+    profile.context.focalLengthMm / profile.context.apertureFNumber;
+  // Relative allowance for floating-point rounding only.
+  const limit = declaredDiameter * (1 + 1e-9);
+  if (diameterX > limit || diameterY > limit) {
+    throw new InvalidScientificInputError(
+      "Complex-pupil amplitude support spans " +
+        diameterX.toPrecision(6) +
+        " x " +
+        diameterY.toPrecision(6) +
+        " mm between outermost non-zero samples, wider than the declared f/N aperture diameter " +
+        declaredDiameter.toPrecision(6) +
+        " mm (focalLengthMm / apertureFNumber)."
+    );
+  }
+  const transformWidth = Math.max(grid.widthSamples, 2 * supportX - 1);
+  const transformHeight = Math.max(grid.heightSamples, 2 * supportY - 1);
+  return {
+    sampling: {
+      criterion: "discrete-intensity-alias-free-goodman-q-above-2",
+      pupilSupportSamplesX: supportX,
+      pupilSupportSamplesY: supportY,
+      pupilSupportDiameterMmX: diameterX,
+      pupilSupportDiameterMmY: diameterY,
+      declaredPupilDiameterMm: declaredDiameter,
+      pupilGridWidthSamples: grid.widthSamples,
+      pupilGridHeightSamples: grid.heightSamples,
+      transformWidthSamples: transformWidth,
+      transformHeightSamples: transformHeight,
+      zeroPaddingApplied:
+        transformWidth !== grid.widthSamples ||
+        transformHeight !== grid.heightSamples,
+      samplingFactorQX:
+        supportX > 1 ? transformWidth / (supportX - 1) : null,
+      samplingFactorQY:
+        supportY > 1 ? transformHeight / (supportY - 1) : null
+    },
+    // Symmetric padding keeps zero frequency at the declared centre, shifted
+    // by the leading padding.
+    outputCenterX:
+      grid.centerSampleX +
+      Math.floor((transformWidth - grid.widthSamples) / 2),
+    outputCenterY:
+      grid.centerSampleY +
+      Math.floor((transformHeight - grid.heightSamples) / 2)
+  };
+}
+
+function twiddleTable(size: number): { cos: number[]; sin: number[] } {
+  const cos: number[] = [];
+  const sin: number[] = [];
+  for (let index = 0; index < size; index += 1) {
+    const angle = (-2 * Math.PI * index) / size;
+    cos.push(Math.cos(angle));
+    sin.push(Math.sin(angle));
+  }
+  return { cos, sin };
+}
+
+function positiveModulo(value: number, size: number): number {
+  const remainder = value % size;
+  return remainder < 0 ? remainder + size : remainder;
+}
+
 function calculateDiscreteFraunhoferKernel(
   profile:
     LensComplexPupilProfile,
-  propagationDistanceMm: number
+  propagationDistanceMm: number,
+  plan: PupilSamplingPlan
 ): LensPsfKernel {
-  const grid =
-    profile.grid;
-  const width =
-    grid.widthSamples;
-  const height =
-    grid.heightSamples;
-  const wavelengthMicrometers =
-    profile.context
-      .wavelengthNm /
-    1000;
-  const wavelengthMm =
-    profile.context
-      .wavelengthNm /
-    1_000_000;
+  const grid = profile.grid;
+  const width = grid.widthSamples;
+  const height = grid.heightSamples;
+  const outWidth = plan.sampling.transformWidthSamples;
+  const outHeight = plan.sampling.transformHeightSamples;
+  const wavelengthMicrometers = profile.context.wavelengthNm / 1000;
+  const wavelengthMm = profile.context.wavelengthNm / 1_000_000;
   const pupil: ComplexValue[] =
     grid.relativeAmplitude.map(
       (amplitude, index) =>
         pupilComplexValue(
           amplitude,
-          grid
-            .opticalPathDifferenceMicrometers[
-              index
-            ]!,
+          grid.opticalPathDifferenceMicrometers[index]!,
           wavelengthMicrometers
         )
     );
 
-  const intensity =
-    new Array<number>(
-      width * height
-    ).fill(0);
-
-  for (
-    let outY = 0;
-    outY < height;
-    outY += 1
-  ) {
-    const ky =
-      outY -
-      grid.centerSampleY;
-    for (
-      let outX = 0;
-      outX < width;
-      outX += 1
-    ) {
-      const kx =
-        outX -
-        grid.centerSampleX;
+  // Separable zero-padded DFT: pupil rows to image kx first, then columns.
+  // Padding samples are zero, so only declared pupil samples are summed.
+  const twiddleX = twiddleTable(outWidth);
+  const twiddleY = twiddleTable(outHeight);
+  const rowRe = new Float64Array(height * outWidth);
+  const rowIm = new Float64Array(height * outWidth);
+  for (let y = 0; y < height; y += 1) {
+    for (let outX = 0; outX < outWidth; outX += 1) {
+      const kx = outX - plan.outputCenterX;
       let re = 0;
       let im = 0;
-
-      for (
-        let y = 0;
-        y < height;
-        y += 1
-      ) {
-        const py =
-          y -
-          grid.centerSampleY;
-        for (
-          let x = 0;
-          x < width;
-          x += 1
-        ) {
-          const px =
-            x -
-            grid.centerSampleX;
-          const source =
-            pupil[
-              y * width +
-              x
-            ]!;
-          const angle =
-            -2 *
-            Math.PI *
-            (
-              kx * px /
-                width +
-              ky * py /
-                height
-            );
-          const cos =
-            Math.cos(angle);
-          const sin =
-            Math.sin(angle);
-          re +=
-            source.re *
-              cos -
-            source.im *
-              sin;
-          im +=
-            source.re *
-              sin +
-            source.im *
-              cos;
-        }
+      for (let x = 0; x < width; x += 1) {
+        const source = pupil[y * width + x]!;
+        const t = positiveModulo(kx * (x - grid.centerSampleX), outWidth);
+        const cos = twiddleX.cos[t]!;
+        const sin = twiddleX.sin[t]!;
+        re += source.re * cos - source.im * sin;
+        im += source.re * sin + source.im * cos;
       }
+      rowRe[y * outWidth + outX] = re;
+      rowIm[y * outWidth + outX] = im;
+    }
+  }
 
-      intensity[
-        outY * width +
-        outX
-      ] =
-        re * re +
-        im * im;
+  const intensity = new Array<number>(outWidth * outHeight).fill(0);
+  for (let outY = 0; outY < outHeight; outY += 1) {
+    const ky = outY - plan.outputCenterY;
+    for (let outX = 0; outX < outWidth; outX += 1) {
+      let re = 0;
+      let im = 0;
+      for (let y = 0; y < height; y += 1) {
+        const sourceRe = rowRe[y * outWidth + outX]!;
+        const sourceIm = rowIm[y * outWidth + outX]!;
+        const t = positiveModulo(ky * (y - grid.centerSampleY), outHeight);
+        const cos = twiddleY.cos[t]!;
+        const sin = twiddleY.sin[t]!;
+        re += sourceRe * cos - sourceIm * sin;
+        im += sourceRe * sin + sourceIm * cos;
+      }
+      intensity[outY * outWidth + outX] = re * re + im * im;
     }
   }
 
@@ -894,21 +989,11 @@ function calculateDiscreteFraunhoferKernel(
     );
 
   const samplePitchMmX =
-    wavelengthMm *
-    propagationDistanceMm /
-    (
-      width *
-      grid
-        .pupilSamplePitchMmX
-    );
+    wavelengthMm * propagationDistanceMm /
+    (outWidth * grid.pupilSamplePitchMmX);
   const samplePitchMmY =
-    wavelengthMm *
-    propagationDistanceMm /
-    (
-      height *
-      grid
-        .pupilSamplePitchMmY
-    );
+    wavelengthMm * propagationDistanceMm /
+    (outHeight * grid.pupilSamplePitchMmY);
 
   if (
     !Number.isFinite(
@@ -926,20 +1011,16 @@ function calculateDiscreteFraunhoferKernel(
   }
 
   return {
-    widthSamples:
-      width,
-    heightSamples:
-      height,
+    widthSamples: outWidth,
+    heightSamples: outHeight,
     samplePitchMicrometersX:
       samplePitchMmX *
       1000,
     samplePitchMicrometersY:
       samplePitchMmY *
       1000,
-    centerSampleX:
-      grid.centerSampleX,
-    centerSampleY:
-      grid.centerSampleY,
+    centerSampleX: plan.outputCenterX,
+    centerSampleY: plan.outputCenterY,
     normalizedIntensity:
       normalized
   };
@@ -968,10 +1049,12 @@ export function calculateLensComplexPupilPsf(
     );
   const propagationDistanceMm = input.propagationDistanceMm === undefined ? profile.context.focalLengthMm : input.propagationDistanceMm;
   requirePositiveFinite(propagationDistanceMm, "propagationDistanceMm");
+  const plan = planPupilSampling(profile);
   const kernel =
     calculateDiscreteFraunhoferKernel(
       profile,
-      propagationDistanceMm
+      propagationDistanceMm,
+      plan
     );
 
   return approximationResult(
@@ -995,6 +1078,7 @@ export function calculateLensComplexPupilPsf(
         }
       },
       kernel,
+      sampling: plan.sampling,
       relativePupilThroughputFactor:
         profile
           .relativePupilThroughputFactor,
@@ -1034,9 +1118,10 @@ export function calculateLensComplexPupilPsf(
         profile.uncertainty
     },
     "lens-complex-pupil-fraunhofer-psf",
-    "1.1.0",
+    "2.0.0",
     [
       "The reference evaluator performs deterministic scalar Fraunhofer propagation of one explicit complex pupil amplitude plus optical-path-difference grid.",
+      "The pupil is zero padded so the DFT spans at least 2S-1 samples for a non-zero support of S samples per axis: the discrete intensity PSF then has no wrap-around aliasing and Goodman's sampling factor Q = lambda*N/pitch exceeds 2. Pupil support wider than the declared f/N aperture is rejected.",
       "Physical sample pitch uses the explicit propagation distance when supplied; omission preserves the nominal focal-plane reference. Finite focus metadata does not resolve the pupil-to-image geometry automatically.",
       "Diffraction and aberration phase are evaluated together in the same pupil propagation; callers must not stack an independent diffraction blur over this result.",
       "The output PSF is unit-energy normalized. The explicit relativePupilThroughputFactor is not multiplied into the kernel and remains owned by the separate optical-throughput path.",

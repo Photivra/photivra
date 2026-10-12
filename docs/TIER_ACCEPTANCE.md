@@ -32,8 +32,11 @@ corner representative-channel CA, illumination falloff, breathing scale, in-fram
 and off-frame ghost/veil, and sampled physical edge values. Pupil diagnostics retain
 unit shape energy, separate relative throughput, peak/outer-sample fractions,
 centroid, full 2D covariance and horizontal/vertical/diagonal sampled texture response.
-The outer fraction is the boundary of the finite 5×5 kernel, not a measured optical
-ring. The 100 cycles/mm texture response is discrete OTF magnitude of those taps,
+The outer fraction is the boundary of the finite kernel, not a measured optical
+ring. Since engine 2.0.0 the 5×5 declared pupils are zero padded to 2S−1 samples
+per axis for an S-sample support (9×9 for the full disk), so the kernel is
+alias-free and peak/outer fractions are per finer sample; the envelopes were
+re-baselined for that change. The 100 cycles/mm texture response is discrete OTF magnitude of those taps,
 not calibrated or continuous MTF. Existing #203 direct phase-sum tests independently
 validate every tap and execute controlled textured/highlight scenes for all 27 slices.
 

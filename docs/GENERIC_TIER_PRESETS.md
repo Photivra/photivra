@@ -67,7 +67,9 @@ outside f/4. Still stabilization must be off for this optical slice. It exposes:
 
 The 5×5 pupil grids and OPD arrays are independently authored discrete reference
 responses tagged to these exact contexts. They are not an inferred continuous
-lens model or a physically calibrated prediction at arbitrary defocus. No
+lens model or a physically calibrated prediction at arbitrary defocus. Since
+engine 2.0.0 the PSF evaluator zero pads each grid to 2S−1 samples per axis
+(9×9 for a full 5-sample disk), so the resulting kernels are alias-free. No
 interpolation is offered. Normalized PSF shape energy remains one; relative pupil
 throughput stays separate. Pupil clipping and illumination falloff are separate
 contributions with distinct ownership. Their simultaneous production composition

@@ -126,14 +126,15 @@ export function createTierAcceptanceReport():TierAcceptanceReport{
         const x=(i%k.widthSamples-k.centerSampleX)*k.samplePitchMicrometersX;
         const y=(Math.floor(i/k.widthSamples)-k.centerSampleY)*k.samplePitchMicrometersY;
         centroidX+=w*x;centroidY+=w*y;xx+=w*x*x;yy+=w*y*y;xy+=w*x*y;
-        if(i%5===0||i%5===4||Math.floor(i/5)===0||Math.floor(i/5)===4)outerEnergy+=w;
+        const column=i%k.widthSamples,row=Math.floor(i/k.widthSamples);
+        if(column===0||column===k.widthSamples-1||row===0||row===k.heightSamples-1)outerEnergy+=w;
       });
       // Finite sampled response to a controlled texture. This is discrete OTF magnitude,
       // never a measured or continuous optical MTF, nor a single bokeh quality score.
       const texture=(fx:number,fy:number):number=>{
         let re=0,im=0;
         k.normalizedIntensity.forEach((w,i)=>{
-          const phase=2*Math.PI*(fx*(i%5-2)*k.samplePitchMicrometersX/1000+fy*(Math.floor(i/5)-2)*k.samplePitchMicrometersY/1000);
+          const phase=2*Math.PI*(fx*(i%k.widthSamples-k.centerSampleX)*k.samplePitchMicrometersX/1000+fy*(Math.floor(i/k.widthSamples)-k.centerSampleY)*k.samplePitchMicrometersY/1000);
           re+=w*Math.cos(phase);im+=w*Math.sin(phase);
         });return Math.hypot(re,im);
       };

@@ -39,7 +39,9 @@ it("infinity rays are parallel, preserve native Y inversion and retain pupil ori
 it("pure yaw rotates origins and rays coherently using the opening-reference axes",()=>{
  const x=input();x.angularVelocityRadPerSec.yaw=.4;x.timeSecondsFromOpeningReference=.2;
  const rotated=calculateSensorApertureRays(x).value;x.angularVelocityRadPerSec.yaw=0;const original=calculateSensorApertureRays(x).value;
- const angle=.08;
+ // Physical right-hand yaw (+0.08 rad turns the camera left) in the left-handed
+ // camera basis is the component rotation about +Y by -0.08 rad.
+ const angle=-.08;
  for(let i=0;i<original.rays.length;i++)for(const key of ['originM','directionUnitVector'] as const){
   const a=original.rays[i]![key],b=rotated.rays[i]![key];
   expect(b.x).toBeCloseTo(a.x*Math.cos(angle)+a.z*Math.sin(angle),14);
