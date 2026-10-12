@@ -2935,7 +2935,7 @@ The first stochastic layer keeps expectation values separate from realizations:
 - photo-generated electrons use an explicit Poisson model;
 - dark-generated electrons use an explicit Poisson model;
 - each additional stored-charge component must declare its own Poisson or deterministic electron-equivalent policy;
-- the realization uses an explicit deterministic 32-bit seed;
+- the realization uses an explicit deterministic 32-bit seed, scrambled by the MurmurHash3 `fmix32` finalizer so nearby seeds give unrelated streams;
 - electronic read noise is still downstream.
 
 The stochastic realization does not change the upstream expected charge or its provenance.

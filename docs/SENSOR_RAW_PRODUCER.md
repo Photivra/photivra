@@ -5,6 +5,36 @@ Release context (dated historical note): written for the **package 1.2.0 candida
 See [Reference RAW frame compatibility](RAW_FRAME_ENVELOPE.md) for stage-specific
 limits, full-native counting and parser preflight behavior.
 
+## Independent per-site noise streams — issue #270 (2.0.0)
+
+The capture noise model `photivra-native-raw-noise` is now **0.3.0** and the producer and
+native RAW `seedSchedule` is `murmur3-capture-seed-native-index-stream-v2`. For absolute
+full-native row-major index n, the charge seed is
+`MurmurHash3_x86_32([capture.seedUint32, n, 0])` and the read-noise seed is
+`MurmurHash3_x86_32([capture.seedUint32, n, 1])`, each message being three little-endian
+uint32 words hashed with seed 0 (`src/sensor/stochastic-seed.ts`). The xorshift32 stream
+inside `simulateSensorChargeRealization()` and `simulateSensorRawCode()` now also scrambles
+its seed with the MurmurHash3 `fmix32` finalizer before the first step. Their provenance
+models are `sensor-charge-stochastic-realization` **2.0.0** and
+`sensor-raw-code-stochastic-readout` **3.0.0**.
+
+The previous schedule (`capture seed + 2n` and `+ 2n + 1`, fed to xorshift32 through an
+affine XOR) gave neighbouring sites almost identical first draws. Realized noise had lag-1
+correlation near 0.8 and shot-noise variance about a fifth of the Poisson value, and
+captures with seeds s and s+2 were index-shifted copies. That contradicted the Poisson
+photon-transfer model (EMVA 1288 §2; Janesick, *Photon Transfer*). Expected charge,
+Poisson/normal samplers, ADC arithmetic and every saturation rule are unchanged.
+
+**Breaking:** realized RAW codes and recorded per-site seed identities change for every
+seed. Replay requests carrying noise model 0.1.0 or 0.2.0 fail closed. To recompute,
+recreate the capture with model 0.3.0, keep its original seed and keep old artifacts as
+historical output. Seeds remain deterministic: the same seed, input and absolute site
+index reproduce the same codes regardless of execution chunk or tile width. The hash is
+non-cryptographic seed ownership. `test/sensor-raw-noise-independence.test.ts` checks
+per-phase Poisson and Gaussian moments, spatial and same-colour neighbour correlation, and
+independence between nearby capture seeds on the production native RAW path. These are
+fixed-seed regression checks on owned synthetic fixtures, not a calibration claim.
+
 ## Temporal photo signal — root API 0.110.0
 
 Producer result schema **0.3.0** accepts both the original stationary EQE result
@@ -33,7 +63,7 @@ An explicit `exposureWindow` supplies shutter mechanism, sourced nominal duratio
 
 This accepts stationary or explicitly integrated temporal per-site photo expectations under simultaneous or uniform-linear electronic/mechanical/EFCS boundaries; it does not execute moving/time-varying scene transport, predict rolling-shutter geometry, synchronize data readout, or activate reserved production stages. Multi-frame and non-one-to-one timing remain unsupported. The RAW-frame schema and export metadata remain unchanged: `shutterSeconds` is nominal, not a claim that every local site duration equals it. Persist the producer timing result separately when local-window replay evidence is required. Timing evidence and upstream charge origin remain caller declarations, not independently verified transport truth. Capacity uses the supplied dark-result temperature and explicit operating state, independently from ISO. The engine re-composes total photo/dark/additional expectations and checks evidence-backed completeness before assessing capacity.
 
-Capture noise model must equal `SENSOR_RAW_PRODUCER_NOISE_MODEL` (`photivra-native-raw-noise`, version 0.2.0). Noise realization ID stays unchanged. The versioned seed schedule is charge seed `(capture.seedUint32 + 2*n) mod 2^32`, read-noise seed `(capture.seedUint32 + 2*n + 1) mod 2^32`, for native row-major index n. Both identities are preserved per RAW site, including unsigned wrap. Seeds are distinct within a frame; this is deterministic ownership, **not proof of statistical stream independence**. Existing Poisson and normal sampling implementations are reused, with their existing numerical/model limitations. No backend/global randomness is used.
+Capture noise model must equal `SENSOR_RAW_PRODUCER_NOISE_MODEL` (`photivra-native-raw-noise`, version 0.3.0). Noise realization ID stays unchanged. The versioned seed schedule (`murmur3-capture-seed-native-index-stream-v2`) hashes the capture seed, absolute native row-major index n and stream ID (0 charge, 1 read noise) with MurmurHash3_x86_32; see the #270 section above. Both identities are preserved per RAW site. The hash is deterministic ownership; stream independence is checked statistically by the #270 regression tests, not implied by the hash. Existing Poisson and normal sampling implementations are reused, with their existing numerical/model limitations. No backend/global randomness is used.
 
 Order delegates to existing APIs: accumulated-charge completeness → physical-capacity assessment → stochastic charge realization → scalar physical saturation → read noise → pre-ADC saturation → conversion gain → ADC quantization/digital clamp → native CFA sample → immutable frame. Expected charge is never overwritten by realized/clipped charge. Physical scalar, pre-ADC, lower-code and digital saturation, overflow diagnostics and child provenance remain separate. Scalar saturation is the existing approximation, not a blooming/neighbor-transfer model. Capacity uncertainty is not propagated into stochastic saturation or output codes.
 
@@ -43,7 +73,7 @@ Result schema 0.3.0 declares `codeProducer: "engine-charge-capacity-noise-adc"`,
 
 Independent float capture planes are not RAW inputs, are not replaced, and are not claimed reconstructed from generated RAW. The same-RAW exporter must consume the returned frame, whose JPEG derives from those exact stored codes. Capture exposure/focus/source/noise/geometry remain intact; no prepared production context or physical scene radiance is claimed by this adapter.
 
-Tests independently compare every generated site with existing per-site primitives, verify deterministic unsigned seed wrap and native CFA through all orientations, separate saturation stages, reject stale/treated/missing inputs and inspect DNG strip bytes from generated RAW plus deterministic same-RAW JPEG. Synthetic fixture EQE/dark/count/capacity/readout data is independently authored, not a measured calibration or externally validated radiance pipeline. No runtime dependency, third-party code/data or new cost is added.
+Tests independently compare every generated site with existing per-site primitives, verify the deterministic hashed seed schedule at the uint32 seed limit and native CFA through all orientations, separate saturation stages, reject stale/treated/missing inputs and inspect DNG strip bytes from generated RAW plus deterministic same-RAW JPEG. Synthetic fixture EQE/dark/count/capacity/readout data is independently authored, not a measured calibration or externally validated radiance pipeline. No runtime dependency, third-party code/data or new cost is added.
 
 This additive timing handoff updates root API 0.103.0 → 0.104.0 and producer result schema 0.1.0 → 0.2.0. Existing input without timing remains valid with identical RAW codes/seed ownership. Package/POC/capture/RAW-frame/production and noise schedule versions are unchanged. Human science/provenance review and new contribution-specific DCO are required. Remaining work includes independently bound scene/spectral-response→exposure production input, source execution and PSF, reserved production-stage activation, broader output sampling support, high-resolution limits and Adobe/open-editor acceptance. None is marked complete here.
 

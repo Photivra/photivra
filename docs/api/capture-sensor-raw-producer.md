@@ -14,10 +14,10 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## SENSOR_RAW_PRODUCER_NOISE_MODEL
 
-Capture noise model identity binds the seed schedule and signed electronic readout behavior.
+Capture noise model identity binds the hashed per-site seed schedule and signed electronic readout behavior.
 
 ```ts
-SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.2.0" } as const)
+SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.3.0" } as const)
 ```
 
 ## SENSOR_RAW_PRODUCER_SCHEMA_VERSION
@@ -60,7 +60,7 @@ export interface SensorRawProducerResult {
   codeProducer: "engine-charge-capacity-noise-adc";
   upstreamOrigin: "declared-eqe-and-dark-exposure-results";
   upstreamRadiometryVerified: false;
-  seedSchedule: "capture-seed-plus-two-native-index-modulo-2-to-32-v1";
+  seedSchedule: "murmur3-capture-seed-native-index-stream-v2";
   frame: SensorRawFrame;
   localExposureWindows?: CalculationResult<CaptureExposureWindows>;
   sites: readonly {

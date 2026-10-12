@@ -20,6 +20,8 @@ This file records direct development and CI dependencies intentionally used by t
 
 Node built-in modules are used only by development tooling and the repository-local POC API; that API is excluded from the published package and the built-ins are not third-party dependencies.
 
+`src/sensor/stochastic-seed.ts` independently implements the MurmurHash3_x86_32 algorithm and its `fmix32` finalizer (Austin Appleby, SMHasher). The upstream `MurmurHash3.cpp` header states the algorithm "is placed in the public domain" and disclaims copyright. No upstream source file is vendored; the implementation is checked against published test vectors in `test/sensor-raw-noise-independence.test.ts`.
+
 This inventory does not replace a transitive dependency/SBOM review before a release. New runtime dependencies, scientific datasets, model weights, or calibration material require explicit provenance and license review.
 
 ## Pending licence and source reviews
