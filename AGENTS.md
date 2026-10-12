@@ -22,9 +22,47 @@ Treat this repository as a complete, standalone open-source scientific/business-
 6. Never commit secrets, credentials, private keys, private datasets, or restricted material.
 7. Call out any new monetary cost before adopting a paid service, dependency, dataset, or infrastructure component.
 
+<!-- BEGIN photivra-agent-core v1 sha256:ef330406c4124e55ba7ce7c278e763727629729d673c82e8bcb0cc003db5d4a6 -->
+<!-- Shared Photivra agent rules, copied unchanged from docs/agent-core.md in the public Photivra/photivra repository. Change the canonical file, then recopy this block; test/agent-core.test.mjs fails on in-place edits. -->
+## Shared Photivra agent rules
+
+These rules are the same in every Photivra repository that carries this block. The repository-specific rules elsewhere in this file add to them.
+
+### Owner approval policy
+
+The owner's approval policy (October 11, 2026) controls. Once the owner has asked for the work, everything outside the approval column of this repository's agent permissions table needs no further approval.
+
+In every Photivra repository, these need the owner's approval for that action:
+
+- changes to `AGENTS.md`, `CLAUDE.md` or shared agent rules, including this block and its canonical file;
+- anything that goes to production, as this repository's agent permissions table lists it, including production data or infrastructure and production DNS/routing;
+- spending: a new paid service or spending beyond an approved budget;
+- credentials: creating, rotating, granting or deleting tokens, keys or secrets;
+- destructive or irreversible actions: deleting data or resources, rewriting history, force-pushing, deleting protected or unmerged branches.
+
+### Shared change discipline
+
+- After a pull request is merged, delete its source branch promptly. If the environment cannot delete branches (the Claude Code cloud git proxy refuses it), say so and leave the deletion to the owner or the repository's automatic head-branch deletion. Do not delete the default branch, protected/release branches, or a branch that is still required by another open PR or documented active dependency. Any retained merged-PR branch must have the reason documented and must be deleted when that dependency ends.
+- Prefer the smallest change that fully solves the problem.
+- Avoid unrelated refactors, formatting churn, dependency upgrades, and file movement.
+- Investigate root causes rather than masking failing tests.
+
+### Cost control
+
+Cost is a project constraint.
+
+Before introducing anything that may cost money—paid APIs, hosted services, storage, CDN or Cloudflare features, SaaS, licensed assets or datasets, commercial dependencies or libraries, or recurring infrastructure—explicitly call out:
+
+- what would cost money;
+- expected fixed and usage-based cost at realistic usage;
+- a no-cost or lower-cost alternative when practical.
+
+Do not commit the project or product to a paid service without explicit approval.
+<!-- END photivra-agent-core -->
+
 ## Agent permissions
 
-The owner's approval policy (October 11, 2026) controls. Once the owner has asked for the work, everything outside the approval column needs no further approval.
+This table applies the shared owner approval policy above to this repository.
 
 | Agents may do without asking | Needs the owner's approval for that action | Never |
 | --- | --- | --- |
@@ -83,14 +121,14 @@ Do not weaken an existing release, provenance, licensing, browser-surface, or pa
 
 ## Detailed domain implementation rules — read by scope
 
-The full previously binding scientific, sensor, image-formation, optics, exposure, radiometry, temporal, capture, processing and runtime-boundary requirements now reside verbatim in [docs/AGENT_DOMAIN_RULES.md](docs/AGENT_DOMAIN_RULES.md). **They remain mandatory** for relevant changes; this edit does not relax any scientific model, unit, provenance, API, public package or release check. Before changing a domain, read its matching headings and their named canonical specification files; when changing multiple domains, read all affected sections.
+The full previously binding scientific, sensor, image-formation, optics, exposure, radiometry, temporal, capture, processing and runtime-boundary requirements now reside verbatim in [docs/AGENT_DOMAIN_RULES.md](docs/AGENT_DOMAIN_RULES.md) (an index plus the scientific-integrity rules that apply to every domain) and the per-domain files it lists. **They remain mandatory** for relevant changes; this edit does not relax any scientific model, unit, provenance, API, public package or release check. Before changing a domain, read its matching headings and their named canonical specification files; when changing multiple domains, read all affected sections.
 
-For efficient task-scoped retrieval, consult the relevant headings rather than reading unrelated rules:
-- **Sensor/coordinates/capture:** sensor/capture/coordinate-system rules; image-formation contract; production image-formation, linear capture, SDR output and composition.
-- **Scene light/exposure/radiometry:** scene radiance, shared spectral composition, temporal illumination, metering, mode-specific exposure and scene-to-sensor irradiance boundaries.
-- **Optics/focus:** PSF/pupil, diffraction-related image formation, vignetting, CA, radial distortion, focus breathing and related source coverage.
-- **Motion/timing:** temporal production composition, rotation, stabilization and moving-source boundaries.
-- **Public interfaces/tooling:** public API/compatibility, runtime and browser/package boundaries, version requirements and linked tests.
+For efficient task-scoped retrieval, read the index plus the relevant domain files rather than unrelated rules:
+- **Sensor/coordinates/capture** ([docs/AGENT_DOMAIN_RULES_SENSOR_CAPTURE.md](docs/AGENT_DOMAIN_RULES_SENSOR_CAPTURE.md)): sensor/capture/coordinate-system rules; image-formation contract; production image-formation, linear capture, SDR output and composition.
+- **Scene light/exposure/radiometry** ([docs/AGENT_DOMAIN_RULES_SCENE_LIGHT_EXPOSURE_RADIOMETRY.md](docs/AGENT_DOMAIN_RULES_SCENE_LIGHT_EXPOSURE_RADIOMETRY.md)): scene radiance, shared spectral composition, temporal illumination, metering, mode-specific exposure and scene-to-sensor irradiance boundaries; radiometry and sensor-metadata rules.
+- **Optics/focus** ([docs/AGENT_DOMAIN_RULES_OPTICS_FOCUS.md](docs/AGENT_DOMAIN_RULES_OPTICS_FOCUS.md)): PSF/pupil, diffraction-related image formation, vignetting, CA, radial distortion, focus breathing and related source coverage; standalone stray light and digital corrections.
+- **Motion/timing** ([docs/AGENT_DOMAIN_RULES_MOTION_TIMING.md](docs/AGENT_DOMAIN_RULES_MOTION_TIMING.md)): temporal production composition, rotation, stabilization and moving-source boundaries.
+- **Public interfaces/tooling** ([docs/AGENT_DOMAIN_RULES_PUBLIC_INTERFACES_TOOLING.md](docs/AGENT_DOMAIN_RULES_PUBLIC_INTERFACES_TOOLING.md)): public API/compatibility, runtime and browser/package boundaries, version requirements and linked tests.
 
 Retain the root non-negotiable rules, compatibility, privacy, licensing, DCO, and test requirements for every task. Do not treat a moved rule as historical, optional, superseded or satisfied merely because it is not in the root file.
 
@@ -157,22 +195,8 @@ For any nontrivial work unit, first identify the governing implementation/API an
 - Run scoped tests during development and retain the existing exact-head full coverage, packaging, provenance, DCO, security and license gates for merges/releases. Avoid a second CI implementation or duplicate wrappers where one accepted check already covers the input.
 - Close with the actual tested SHA, genuine results, unsatisfied obligations and next existing owner. Skip blocked tasks for independent work, without inventing qualification or new umbrella tickets.
 
-- After a pull request is merged, delete its source branch promptly. If the environment cannot delete branches (the Claude Code cloud git proxy refuses it), say so and leave the deletion to the owner or the repository's automatic head-branch deletion. Do not delete the default branch, protected/release branches, or a branch that is still required by another open PR or documented active dependency. Any retained merged-PR branch must have the reason documented and must be deleted when that dependency ends.
-- Prefer the smallest change that fully solves the problem.
-- Avoid unrelated refactors, formatting churn, dependency upgrades, and file movement.
+The shared change discipline in the shared Photivra agent rules above also applies.
+
 - Preserve existing architecture unless there is evidence that changing it materially improves correctness, safety, maintainability, or performance.
-- Investigate root causes rather than masking failing tests.
 - Review the final diff for accidental API, security, licensing, or package-surface changes.
 - Treat material scientific, security, licensing, provenance, trademark, package-boundary, and unsupported-claim findings as release blockers.
-
-## Cost control
-
-Cost is a project constraint.
-
-Before introducing anything that may cost money—paid APIs, hosted services, storage, CDN features, SaaS, licensed datasets, commercial dependencies, or recurring infrastructure—explicitly call out:
-
-- what would cost money;
-- expected fixed and usage-based cost at realistic usage;
-- a no-cost or lower-cost alternative when practical.
-
-Do not commit the project to a paid service without explicit approval.
