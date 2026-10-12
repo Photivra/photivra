@@ -1,18 +1,18 @@
 # Developer guide
 
-This is the entry point for **@photivra/engine 1.5.0** (published October 7, 2026), root API contract **1.5.0**. Repository `main` may later describe newer development; use a published release's packaged docs or its exact tag for the stable contract. [Release notes and migration](RELEASE_1_3_0.md) explain the transition to aligned package/root versions.
+This is the entry point for **@photivra/engine 2.0.0** (release candidate prepared October 12, 2026; publication is separate), root API contract **2.0.0**. Repository `main` may later describe newer development; use a published release's packaged docs or its exact tag for the stable contract. [Release notes and migration](RELEASE_1_3_0.md) explain the transition to aligned package/root versions.
 
 Photivra is an Apache-2.0 ESM TypeScript calculation library with no runtime npm dependencies. It exposes explicit units, deterministic data, provenance and bounded scientific approximations. The package supplies no hosted API, renderer installation, UI, commercial camera calibration or automatic agent service. [Photivra's public site](https://photivra.com) is separate from the engine's license; public engine documentation is available here without an application account.
 
 ## Install and calculate
 
-Install `npm install @photivra/engine@1.5.0`. The [1.5.0 release record](RELEASE_1_5_0.md) and [changelog](../CHANGELOG.md) describe the current release.
+Install `npm install @photivra/engine@2.0.0`. The [2.0.0 release record](RELEASE_2_0_0.md) and [changelog](../CHANGELOG.md) describe the current release.
 
 ```ts
 import { calculateFieldOfView, ENGINE_API_VERSION } from "@photivra/engine";
 
 const horizontal = calculateFieldOfView({ focalLengthMm: 50, sensorDimensionMm: 36 });
-console.log(ENGINE_API_VERSION); // 1.5.0: matches the package version
+console.log(ENGINE_API_VERSION); // 2.0.0: matches the package version
 console.log(horizontal.value.degrees); // approximately 39.60, ideal infinity-focus geometry
 console.log(horizontal.provenance); // read assumptions/status with the value
 ```
@@ -23,7 +23,7 @@ Primitive calculations normally return `CalculationResult<T>` with `value`, `pro
 
 ## Find the operation by scientific task
 
-Rows were last reviewed for package/root API 1.3.0; the later 1.4.0 and 1.5.0 minor releases are summarized in the [changelog](../CHANGELOG.md) and their own guides. Direct calculations are synchronous/browser-safe unless the row says otherwise. A listed primitive is not automatically an app feature or supported in every production combination. The [API reference](API_REFERENCE.md) resolves all root exports and exact signatures; the linked guides own equations, inputs, defaults, errors and limits.
+Rows were last reviewed for package/root API 1.3.0; the later 1.4.0 and 1.5.0 minor releases and the 2.0.0 major release are summarized in the [changelog](../CHANGELOG.md) and their own guides. Direct calculations are synchronous/browser-safe unless the row says otherwise. A listed primitive is not automatically an app feature or supported in every production combination. The [API reference](API_REFERENCE.md) resolves all root exports and exact signatures; the linked guides own equations, inputs, defaults, errors and limits.
 
 | Task | Start here / executable evidence | Qualified boundary |
 | --- | --- | --- |

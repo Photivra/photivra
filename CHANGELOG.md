@@ -1,5 +1,68 @@
 # Changelog
 
+## 2.0.0 — unreleased (prepared October 12, 2026)
+
+A major release with correctness fixes (#270–#274, #276) and performance work whose output is bit-identical (#275). Several fixes change numerical outputs or reject input that 1.x accepted, so the root package takes a major version under the 1.0 compatibility policy. `POC_SIMULATION_API_VERSION` stays `0.20.0` in this candidate while the owner decides whether it needs a bump. See [the 2.0.0 release record](docs/RELEASE_2_0_0.md).
+
+### Breaking changes
+
+- **Realized RAW noise for a given seed (#270, #283).** Native per-site charge and read-noise stream seeds are now `MurmurHash3_x86_32(captureSeed, absoluteNativeIndex, streamId)`, replacing `seed + 2i` and `seed + 2i + 1`. `createRandom` also scrambles its seed with the MurmurHash3 `fmix32` finalizer before xorshift32. The old schedule gave strongly correlated neighbouring pixels (lag-1 correlation about 0.84) and too little variance. Every realized RAW code and every recorded `sourceChargeSeedUint32`/`sourceReadNoiseSeedUint32` changes for every seed, and direct `simulateSensorChargeRealization`/`simulateSensorRawCode` calls change too. Identity bumps:
+  - `SENSOR_RAW_PRODUCER_NOISE_MODEL` (`photivra-native-raw-noise`): 0.2.0 → **0.3.0**;
+  - `seedSchedule`: `capture-seed-plus-two-native-index-modulo-2-to-32-v1` → **`murmur3-capture-seed-native-index-stream-v2`**;
+  - provenance `sensor-charge-stochastic-realization`: 1.0.0 → **2.0.0**;
+  - provenance `sensor-raw-code-stochastic-readout`: 2.0.0 → **3.0.0**.
+
+  *Migration:* results stay deterministic: the same seed, input and absolute index give identical codes at any tile width. Stored 1.x noise realizations cannot be reproduced, though. Plans and replays recorded under noise model 0.1.0 or 0.2.0 now fail closed. Re-capture with 2.0.0, and do not compare 1.x and 2.0 noise sample by sample. The schedule is documented in `docs/SENSOR_RAW_PRODUCER.md`.
+- **Depth-of-field limits (#271, #279).** `calculateDepthOfField`, and with it `simulatePocCamera().depthOfField`, now uses the exact thin-lens limits `near = s(H − f)/(H + s − 2f)` and `far = s(H − f)/(H − s)`. The far limit is infinite (`null`) when `s ≥ H`. The old `Hs/(H ± (s − f))` approximation misplaced both limits and returned a finite far limit at the hyperfocal distance. `hyperfocalDistanceM` is unchanged. Provenance `thin-lens-depth-of-field` goes from 1.0.0 to **1.1.0**. *Migration:* near limits move slightly closer and far limits move farther. For 50 mm f/8, c 0.03 mm, s 5 m, the near limit goes from 3.394595 to 3.389371 m and the far limit from 9.486405 to 9.527439 m. Focusing at the returned `hyperfocalDistanceM` now gives `farLimitM: null`. Update stored expectations; there is no option to restore the approximation.
+- **Camera rotation sign on all three axes, and shake pitch sign (#276, #284).** The code now follows the documented physical right-hand-rule convention about camera +X/+Y/+Z. Before, `calculateCameraRotationImageMapping()` and `calculateInverseCameraRotationImageMapping()` produced the mirror of a physical rotation on every axis. For the same input:
+  - positive yaw now gives `deltaMm.x = +d·tan(yaw·t)` (it was negative);
+  - positive pitch now gives `deltaMm.y = −d·tan(pitch·t)` (it was positive);
+  - positive roll now rotates content counter-clockwise, so a point at (x, 0) maps to (x·cos θ, +x·sin θ).
+
+  Everything built on these mappings changes with them: capture rotation inverse mappings, trajectories, temporal quadrature, rolling-shutter paths, sensor aperture rays, the environment radiance query, environment photo-signal and RAW capture, and production image formation with rotation. `estimateCameraShakeBlur()` keeps its yaw sign. For positive pitch, its `deltaYmm`/`deltaYPixels` change from +d·tan(pitch·t) to **−d·tan(pitch·t)** in both `unstabilized` and `stabilized`; the `distance*` values are unchanged. `simulatePocCamera().cameraShake.*.deltaYmm` flips sign with it. Provenance `spatial-camera-rotation-mapping`, `inverse-spatial-camera-rotation-mapping` and `constant-angular-velocity-stabilization-equivalent` (each with its focus-aware variants) go to **2.0.0**. *Migration:* to get the 1.x rotation-mapping results, negate all three angular-velocity components (pitch, yaw and roll) before the call. To get the 1.x shake values, negate the pitch rate, or negate `deltaYmm`/`deltaYPixels`. See `docs/MOTION_AND_SIGNAL.md`.
+- **Complex-pupil PSF kernel geometry and values, and a new rejection (#276, #284).** `calculateLensComplexPupilPsf()` now zero-pads each axis to `M = max(grid, 2S − 1)`, where S is the number of samples with non-zero support. That is the exact condition for the discrete intensity PSF not to wrap, and it gives Goodman sampling `Q = λN/pitch > 2`. A pupil whose support exceeds (grid + 1)/2 samples on an axis gets a different kernel: `kernel.widthSamples`/`heightSamples`, the centre indices, the sample pitch and the values all change, because the aliasing is gone. For example, a full 5×5 disk becomes a 9×9 kernel, which affects the 5×5 generic-tier pupils. A grid already padded to at least 2S − 1 returns the same kernel up to floating-point summation order. Profiles whose non-zero support is wider than the declared `focalLengthMm / apertureFNumber` diameter now throw `InvalidScientificInputError`. The model goes from 1.1.0 to **2.0.0**, and the tier acceptance envelopes and report were re-baselined. *Migration:* read the kernel geometry from the returned kernel instead of assuming the pupil grid size, and fix any profile whose support contradicts its declared f-number.
+- **Crop rounding (#276, #282).** `calculateCenteredCrop` floors the shorter axis and derives the longer axis as `round(short · L / S)`, capped at `floor(L / cropFactor)`; the floor tolerates floating-point noise. The longer axis can come out 1 px smaller than in 1.x, never larger, and `megapixels`/`retainedAreaFraction` follow. For example, 6000×4000 at 1.7× now gives 3528×2352, exactly 3:2, where 1.x gave 3529×2352. `calculateSubjectFramingCrop` computes the height directly from the requested crop height, never below `ceil(subjectHeightPixels)`, and derives the width from that integer height. It no longer reports `subjectClipped: true` for a subject that fits. `simulatePocCamera().crop` changes the same way. *Migration:* update stored crop dimensions. The subject-framing model string stays 1.0.0.
+- **Canonical JSON, result factories and responsivity validation (#276, #282).**
+  - Canonical JSON serialization now rejects non-plain objects (Map, Set, Date, typed arrays, ArrayBuffer, RegExp, boxed primitives, class instances, Array subclasses) and array holes. Public entry points that canonicalize caller data (native environment RAW, separable emission, plans and bindings) now reject such input instead of hashing it as `{}`. Output for valid plain JSON is byte-identical.
+  - `estimatedResult`/`calibratedResult` throw `InvalidScientificResultError` when `quality` is missing, and every result factory rejects an empty or non-string provenance `model`/`modelVersion`.
+  - `calculateSensorResponsivityPhotocurrent` always validates `operatingElectricalConditions`, throwing `InvalidConfigurationError` even under `assume-compatible`. It returns the parsed conditions (unknown keys dropped, canonical key order) instead of echoing the caller's object. Responsivity and EQE comparisons no longer depend on key order.
+
+  *Migration:* pass plain JSON data, give result factories a quality and provenance identities, and send well-formed electrical conditions.
+- **Spectral channel binding serialization (#276, #282).** `createSensorSpectralResponseChannelBinding().canonicalJson` is now sorted-key JSON of the parsed channel, so channels that are semantically equal bind identically. The format id `photivra-spectral-channel-response-canonical-json-v1` is unchanged, but a binding serialized by 1.x will not match a 2.0 binding and fails closed. *Migration:* recreate bindings with 2.0.0.
+- **POC server status codes (#276, #282).** This affects the repository-only POC HTTP server (`src/api/server.ts`), which is not a package export:
+  - oversized bodies get **413** `PAYLOAD_TOO_LARGE`, by declared `Content-Length` or while streaming, with `Connection: close`;
+  - internal errors get **500** `INTERNAL_ERROR` with the fixed message `Internal simulation error.`;
+  - malformed JSON gets **400** with a fixed message, and the parser text is no longer echoed;
+  - the **204** preflight response has no body and no Content-Type;
+  - request-shape, configuration and scientific-input errors still get 400.
+
+  *Migration:* clients that treated every failure as 400 should also handle 413 and 500. See `docs/POC_API.md`.
+
+### Fixes
+
+- Print JPEGs now carry ExifVersion `"0232"` (#274, #278). When `PrintJpegInput.pixelsPerInch` is set, they also carry XResolution, YResolution and ResolutionUnit = inches, plus JFIF density in dots per inch. Without it, the output still claims no physical size, as before.
+- A capacity assessment must now match the charge it is applied to, on both readout paths, by exact equality of `totalExpectedStoredElectronCount` (#273, #280). `expectedStoredChargeBelowOrAtPhysicalCapacity` is derived from the assessment's own numbers. The stochastic path reports `digitalSaturationApplied` once the quantized code reaches (`>=`) the digital saturation code, matching the expected path, and native RAW saturation bit 2 follows.
+- Shutter Priority and Aperture Priority with Auto ISO now pick a grid value that equals the computed ideal within `settingEquals` tolerance, instead of skipping a step because of floating-point error (#272, #281). Grid end points within tolerance are no longer reported as clamped.
+
+### Performance (bit-identical output)
+
+Every item here keeps output identical to the code before it, checked by committed SHA-256 and frozen-oracle bit-identity tests. The timings come from the source PRs. They were measured on small fixtures on a shared, loaded 4-vCPU Linux host under Node 24.21.0, so they are indicative only and say nothing about full-resolution throughput or browser frame time.
+
+- Native environment path (#285): one finite-number pre-walk before the path-building diagnostic, a cached parse of engine-owned sampled PSF profiles, no double cloning of tile sites, requests frozen once, and photo-only retention. Native acquisition is 2.2–3.0× faster on the four 2×2 workloads (PSF + radial field: 84.5 → 37.4 ms). The reference `simulateEnvironmentSensorRawFrame` path is 1.5–1.8× faster (32 temporal / 4 spatial / PSF: 5,975.8 → 3,890.5 ms).
+- Typed-array native SDR kernel, plus a faster JPEG DCT and entropy coder that keeps the exact summation order (#286). Native SDR is about 10–13× faster (24 MP 8-bit: 33.90 → 3.33 s), and the JPEG encoder about 1.6–2.2× (24 MP q=4: 19.97 → 9.23 s). A separable DCT was rejected because it changes quantized coefficients.
+- Stabilization trajectory evaluation is now linear-time, with a binary-search segment lookup and indexes built once per calculation (#287): 16,000 samples take 222 ms instead of 3,100 ms (14×). Native RAW acquisition and development yield to the host about every 8 ms instead of after every tile (1 MP development: 4,000 → 359 yields, 8.6 → 3.5 s total).
+- Optional optical-stage reuse (#288, see New API): re-running only the sensor stage after a post-optics edit was 5.0–11.4× faster than a full recompute on the 2×2 workloads.
+
+### New API
+
+- **Optical-stage reuse (#288).**
+  - Setting `NativeEnvironmentRawInput.opticalStage?: { maximumRetainedBytes }` makes the task also return an opaque `NativeEnvironmentRawOutput.opticalStage`.
+  - `createNativeEnvironmentSensorStageTask()` re-runs only dark charge → capacity → seeded noise → ADC. Noise seed, ISO/readout, dark current, white-balance intent and rendering EV may change. Any optical change, including shutter time, is refused with `InvalidConfigurationError`.
+  - Also new: `NATIVE_ENVIRONMENT_OPTICAL_STAGE_LIMITS` and the types `NativeEnvironmentOpticalStage`, `NativeEnvironmentOpticalStageRetention`, `NativeEnvironmentSensorStageInput` and `NativeEnvironmentSensorStageProvider`. See `docs/NATIVE_RAW_AND_PRINT.md`.
+- `PrintJpegInput.pixelsPerInch`: optional, finite, from 1 to 65535 (#278).
+- A `sampling` field on the `LensComplexPupilPsf` result, with the exported `LensComplexPupilPsfSampling` type (#284). It reports the support samples, the support and declared diameters, the transform size, whether padding was applied and the achieved Q per axis.
+- The package and `ENGINE_API_VERSION` are 2.0.0. Independent schema and model versions change only as listed above. `POC_SIMULATION_API_VERSION` stays 0.20.0 in this candidate.
+
 ## 1.5.0 — published October 7, 2026
 
 - Add optional `NativeRawInput.tileWidth` (1–256 native sites) so bounded native RAW acquisition can use smaller execution chunks while preserving the existing 256-site default, physical sampling, absolute CFA coordinates, deterministic noise seeds, shutter timing, output payload and existing whole-event/resource caps.
