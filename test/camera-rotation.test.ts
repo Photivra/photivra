@@ -6,7 +6,7 @@ import {
 } from "../src/motion/camera-rotation.js";
 
 describe("spatial camera-rotation image mapping", () => {
-  it("maps center yaw with the exact rectilinear tangent relation", () => {
+  it("maps positive (leftward, right-hand) yaw to +X content motion with the exact tangent relation", () => {
     const focalLengthMm = 50;
     const yaw = 0.02;
     const timeSecondsFromExposureStart = 0.5;
@@ -24,15 +24,15 @@ describe("spatial camera-rotation image mapping", () => {
     });
 
     expect(result.value.mappedImagePointMm.x).toBeCloseTo(
-      -focalLengthMm * Math.tan(angle),
+      focalLengthMm * Math.tan(angle),
       12
     );
     expect(result.value.mappedImagePointMm.y).toBeCloseTo(0, 12);
-    expect(result.value.deltaMm.x).toBeLessThan(0);
+    expect(result.value.deltaMm.x).toBeGreaterThan(0);
     expect(result.provenance.kind).toBe("calculated");
   });
 
-  it("maps center pitch with the exact rectilinear tangent relation", () => {
+  it("maps positive (upward, right-hand) pitch to -Y content motion with the exact tangent relation", () => {
     const focalLengthMm = 85;
     const pitch = 0.015;
     const timeSecondsFromExposureStart = 0.4;
@@ -51,10 +51,10 @@ describe("spatial camera-rotation image mapping", () => {
 
     expect(result.value.mappedImagePointMm.x).toBeCloseTo(0, 12);
     expect(result.value.mappedImagePointMm.y).toBeCloseTo(
-      focalLengthMm * Math.tan(angle),
+      -focalLengthMm * Math.tan(angle),
       12
     );
-    expect(result.value.deltaMm.y).toBeGreaterThan(0);
+    expect(result.value.deltaMm.y).toBeLessThan(0);
   });
 
   it("keeps the optical-axis center fixed under pure roll", () => {
@@ -74,7 +74,7 @@ describe("spatial camera-rotation image mapping", () => {
     expect(result.value.deltaMm.distance).toBeCloseTo(0, 12);
   });
 
-  it("rotates off-axis image points oppositely to positive camera roll", () => {
+  it("rotates off-axis content counter-clockwise for positive (clockwise-from-behind) camera roll", () => {
     const point = { x: 10, y: 0 };
     const timeSecondsFromExposureStart = 0.5;
     const roll = 0.2;
@@ -96,7 +96,7 @@ describe("spatial camera-rotation image mapping", () => {
       12
     );
     expect(result.value.mappedImagePointMm.y).toBeCloseTo(
-      -point.x * Math.sin(angle),
+      point.x * Math.sin(angle),
       12
     );
     expect(

@@ -1461,7 +1461,7 @@ Use `parseLensComplexPupilProfile()` and `calculateLensComplexPupilPsf()` when t
 - relative pupil amplitude; plus
 - optical-path difference in micrometres.
 
-The reference evaluator performs deterministic scalar Fraunhofer propagation on the explicit pupil grid. Diffraction and aberration phase are evaluated **together** in that pupil calculation. Do not add another independent diffraction blur to the result.
+The reference evaluator performs deterministic scalar Fraunhofer propagation on the explicit pupil grid, zero padded per axis to at least 2S − 1 samples for an S-sample non-zero support so the intensity PSF meets Goodman's sampling condition Q = λN/pitch > 2 (`result.value.sampling` reports the achieved Q and padding). A pupil support wider than the declared f/N aperture is rejected. Diffraction and aberration phase are evaluated **together** in that pupil calculation. Do not add another independent diffraction blur to the result.
 
 The resulting intensity PSF is normalized to unit energy. The profile's relative pupil throughput is preserved separately and is not multiplied into the kernel.
 
@@ -5755,17 +5755,18 @@ console.log(mapped.value.deltaImagePlaneSamples);
 
 Coordinate/sign convention:
 
-- camera axes at exposure start are +X right, +Y up, +Z forward;
-- positive pitch/yaw/roll follow the right-hand rule about +X/+Y/+Z;
+- camera axes at exposure start are +X right, +Y up, +Z forward (a left-handed basis);
+- positive pitch/yaw/roll follow the physical right-hand rule about +X/+Y/+Z: positive yaw turns the camera left and moves stationary content toward +X; positive pitch tilts it up and moves content toward −Y; positive roll is clockwise as seen from behind the camera and rotates content counter-clockwise;
 - the returned image-plane basis is +X right, +Y up;
-- a stationary world ray is transformed by the **inverse** camera rotation, so positive physical camera rotation generally moves scene imagery in the opposite screen direction;
+- a stationary world ray is transformed by the **inverse** camera rotation, so image content moves opposite to the camera's own turn;
+- `estimateCameraShakeBlur()` uses the same yaw/pitch signs (from 2.0.0); see [Motion and signal](MOTION_AND_SIGNAL.md#spatial-camera-rotation);
 - optional `deltaImagePlaneSamples` retains image-plane +Y-up semantics and is **not** a native-raster (+Y-down) vector.
 
 The angular-velocity vector is assumed constant and is integrated as one axis-angle rotation. This avoids arbitrary Euler ordering for simultaneous pitch/yaw/roll.
 
 The function is intentionally rotation-only. Camera translation is excluded because translational optical flow depends on scene depth/parallax.
 
-It is also separate from stabilization. `estimateCameraShakeBlur()` remains the older educational stabilization-equivalent approximation and keeps its existing global-vector semantics for compatibility.
+It is also separate from stabilization. `estimateCameraShakeBlur()` remains the older educational stabilization-equivalent approximation with one global vector; from 2.0.0 its yaw/pitch signs match this mapping at the optical axis.
 
 ## Camera shake and stabilization-equivalent approximation
 
@@ -5791,6 +5792,8 @@ console.log(shake.value.stabilized.distancePixels);
 console.log(shake.value.residualMotionFactor);
 console.log(shake.provenance.kind); // "approximation"
 ```
+
+`deltaXmm`/`deltaYmm` are the +X-right/+Y-up image displacement of a stationary on-axis point: positive yaw (camera turns left) gives positive `deltaXmm`; positive pitch (camera tilts up) gives negative `deltaYmm`. These signs match `calculateCameraRotationImageMapping()` at the optical axis.
 
 The `2^-stops` attenuation is an educational approximation, not a real IBIS/OIS or CIPA rating. The current output is one global image-plane vector rather than spatially varying rotational optical flow.
 

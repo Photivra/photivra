@@ -47,6 +47,17 @@ The function:
 - returns field-position-dependent image-plane displacement;
 - optionally reports axis-aware geometric sample displacement.
 
+Rotation sign convention (shared by every rotation API, 2.0.0):
+
+- camera axes at exposure start are +X right, +Y up, +Z forward along the optical axis; this basis is **left-handed**;
+- positive pitch/yaw/roll follow the **physical right-hand rule** about +X/+Y/+Z (curl the right-hand fingers with the thumb along the axis);
+- positive **yaw** turns the optical axis to the **left** (counter-clockwise seen from above), so stationary image content moves toward image **+X**: Δx = +d·tan(yaw·t) at the optical axis;
+- positive **pitch** tilts the optical axis **up**, so stationary image content moves toward image **−Y**: Δy = −d·tan(pitch·t) at the optical axis;
+- positive **roll** rotates the camera **clockwise as seen by the photographer** looking along +Z, so stationary image content rotates counter-clockwise in the +X-right/+Y-up image plane;
+- d is the projection distance (focal length, or the thin-lens image distance when focus is supplied).
+
+Because the basis is left-handed, the plain component Rodrigues/cross-product formula would produce the mirror-image rotation; the engine applies the physical rotation through one shared internal helper. Before 2.0.0, `calculateCameraRotationImageMapping()` and its inverse used that mirrored sense for all three axes, and `estimateCameraShakeBlur()` used the mirrored sense for pitch only.
+
 For pure yaw/pitch, image displacement varies with field position because the rectilinear projection denominator changes away from the optical axis. Pure roll leaves the optical-axis center fixed while rotating off-axis points.
 
 This is camera **rotation only**. Translation is excluded because parallax requires scene depth.

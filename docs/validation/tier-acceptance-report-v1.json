@@ -153,21 +153,21 @@
             },
             "signedDefocusImagePlaneMicrometers": -20,
             "energy": 1,
-            "peakFraction": 0.348826827303,
-            "outerSampleEnergyFraction": 0.211129388217,
+            "peakFraction": 0.10766260102,
+            "outerSampleEnergyFraction": 0.14512159367,
             "centroidMicrometers": {
-              "x": 6.93889390391e-17,
-              "y": -4.16333634234e-17
+              "x": -6.93889390391e-17,
+              "y": -1.11022302463e-16
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.92160895017,
-              "yy": 2.92160895017,
-              "xy": -5.55111512313e-17
+              "xx": 3.58276193635,
+              "yy": 3.58276193635,
+              "xy": -7.70371977755e-33
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.566050625937,
-              "vertical": 0.566050625937,
-              "diagonal": 0.624830588668
+              "horizontal": 0.494271913102,
+              "vertical": 0.494271913102,
+              "diagonal": 0.591425962745
             },
             "relativePupilThroughputFactor": 1
           },
@@ -180,21 +180,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 0,
             "energy": 1,
-            "peakFraction": 0.52,
-            "outerSampleEnergyFraction": 0.137866167677,
+            "peakFraction": 0.16049382716,
+            "outerSampleEnergyFraction": 0.0798767437342,
             "centroidMicrometers": {
-              "x": -3.46944695195e-18,
-              "y": -1.73472347598e-17
+              "x": 1.38777878078e-17,
+              "y": 1.38777878078e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 1.74340515381,
-              "yy": 1.74340515381,
-              "xy": 8.32667268469e-17
+              "xx": 2.24435425395,
+              "yy": 2.24435425395,
+              "xy": -1.92592994439e-34
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.741291160077,
-              "vertical": 0.741291160077,
-              "diagonal": 0.762322936678
+              "horizontal": 0.674968966463,
+              "vertical": 0.674968966463,
+              "diagonal": 0.735728389636
             },
             "relativePupilThroughputFactor": 1
           },
@@ -207,21 +207,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 20,
             "energy": 1,
-            "peakFraction": 0.348826827303,
-            "outerSampleEnergyFraction": 0.211129388217,
+            "peakFraction": 0.10766260102,
+            "outerSampleEnergyFraction": 0.14512159367,
             "centroidMicrometers": {
-              "x": -8.32667268469e-17,
-              "y": 6.93889390391e-17
+              "x": -2.77555756156e-17,
+              "y": 0
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.92160895017,
-              "yy": 2.92160895017,
-              "xy": -2.22044604925e-16
+              "xx": 3.58276193635,
+              "yy": 3.58276193635,
+              "xy": 0
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.566050625937,
-              "vertical": 0.566050625937,
-              "diagonal": 0.624830588668
+              "horizontal": 0.494271913102,
+              "vertical": 0.494271913102,
+              "diagonal": 0.591425962745
             },
             "relativePupilThroughputFactor": 1
           },
@@ -234,21 +234,21 @@
             },
             "signedDefocusImagePlaneMicrometers": -20,
             "energy": 1,
-            "peakFraction": 0.330317663079,
-            "outerSampleEnergyFraction": 0.234011144201,
+            "peakFraction": 0.13107843773,
+            "outerSampleEnergyFraction": 0.174065854298,
             "centroidMicrometers": {
-              "x": 0.246549226338,
-              "y": -5.55111512313e-17
+              "x": 0.212364932488,
+              "y": 2.77555756156e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 3.31742358385,
-              "yy": 2.64880969602,
-              "xy": 1.36862313892e-17
+              "xx": 3.43104131383,
+              "yy": 3.35018688509,
+              "xy": 4.96168402895e-17
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.518951629321,
-              "vertical": 0.601538903664,
-              "diagonal": 0.613935352365
+              "horizontal": 0.515494113137,
+              "vertical": 0.524188421439,
+              "diagonal": 0.595357715205
             },
             "relativePupilThroughputFactor": 0.85
           },
@@ -261,21 +261,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 0,
             "energy": 1,
-            "peakFraction": 0.48,
-            "outerSampleEnergyFraction": 0.149355014983,
+            "peakFraction": 0.190476190476,
+            "outerSampleEnergyFraction": 0.102067866378,
             "centroidMicrometers": {
               "x": 1.38777878078e-17,
-              "y": 3.46944695195e-18
+              "y": 0
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.40495558329,
-              "yy": 1.37242224996,
-              "xy": 1.38777878078e-17
+              "xx": 2.41600404806,
+              "yy": 1.90024522916,
+              "xy": 2.77555756156e-17
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.648081364518,
-              "vertical": 0.791382815649,
-              "diagonal": 0.742516514735
+              "horizontal": 0.64829055975,
+              "vertical": 0.71994356258,
+              "diagonal": 0.730191523321
             },
             "relativePupilThroughputFactor": 0.85
           },
@@ -288,21 +288,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 20,
             "energy": 1,
-            "peakFraction": 0.330317663079,
-            "outerSampleEnergyFraction": 0.234011144201,
+            "peakFraction": 0.13107843773,
+            "outerSampleEnergyFraction": 0.174065854298,
             "centroidMicrometers": {
-              "x": -0.246549226338,
-              "y": -6.93889390391e-17
+              "x": -0.212364932488,
+              "y": -4.16333634234e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 3.31742358385,
-              "yy": 2.64880969602,
-              "xy": -1.00374516083e-16
+              "xx": 3.43104131383,
+              "yy": 3.35018688509,
+              "xy": 1.0218083605e-16
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.518951629321,
-              "vertical": 0.601538903664,
-              "diagonal": 0.613935352365
+              "horizontal": 0.515494113137,
+              "vertical": 0.524188421439,
+              "diagonal": 0.595357715205
             },
             "relativePupilThroughputFactor": 0.85
           },
@@ -319,12 +319,12 @@
             "outerSampleEnergyFraction": 0.236050697007,
             "centroidMicrometers": {
               "x": 0.893838140213,
-              "y": 8.32667268469e-17
+              "y": -1.38777878078e-17
             },
             "covarianceSquareMicrometers": {
               "xx": 2.61780052735,
               "yy": 3.03343052032,
-              "xy": -1.85449278729e-16
+              "xy": 1.78937949738e-16
             },
             "textureContrastAt100CyclesPerMm": {
               "horizontal": 0.612526603767,
@@ -345,13 +345,13 @@
             "peakFraction": 0.28,
             "outerSampleEnergyFraction": 0.125957556986,
             "centroidMicrometers": {
-              "x": -1.38777878078e-17,
+              "x": 6.24500451352e-17,
               "y": -4.16333634234e-17
             },
             "covarianceSquareMicrometers": {
               "xx": 2.20154292846,
               "yy": 2.35272385707,
-              "xy": -5.77778983316e-34
+              "xy": 5.55111512313e-17
             },
             "textureContrastAt100CyclesPerMm": {
               "horizontal": 0.647800534553,
@@ -373,12 +373,12 @@
             "outerSampleEnergyFraction": 0.236050697007,
             "centroidMicrometers": {
               "x": -0.893838140213,
-              "y": -9.02056207508e-17
+              "y": -4.16333634234e-17
             },
             "covarianceSquareMicrometers": {
               "xx": 2.61780052735,
               "yy": 3.03343052032,
-              "xy": -9.45070120965e-17
+              "xy": -9.27246393645e-17
             },
             "textureContrastAt100CyclesPerMm": {
               "horizontal": 0.612526603767,
@@ -988,21 +988,21 @@
             },
             "signedDefocusImagePlaneMicrometers": -20,
             "energy": 1,
-            "peakFraction": 0.429549295085,
-            "outerSampleEnergyFraction": 0.171835539304,
+            "peakFraction": 0.132576942928,
+            "outerSampleEnergyFraction": 0.108530745582,
             "centroidMicrometers": {
-              "x": 6.24500451352e-17,
-              "y": 1.11022302463e-16
+              "x": 5.55111512313e-17,
+              "y": -6.93889390391e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.34214896967,
-              "yy": 2.34214896967,
-              "xy": -6.93334779979e-33
+              "xx": 2.9220568784,
+              "yy": 2.9220568784,
+              "xy": -5.55111512313e-17
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.650887604807,
-              "vertical": 0.650887604807,
-              "diagonal": 0.692127432369
+              "horizontal": 0.581844446554,
+              "vertical": 0.581844446554,
+              "diagonal": 0.662316630903
             },
             "relativePupilThroughputFactor": 1
           },
@@ -1015,21 +1015,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 0,
             "energy": 1,
-            "peakFraction": 0.52,
-            "outerSampleEnergyFraction": 0.137866167677,
+            "peakFraction": 0.16049382716,
+            "outerSampleEnergyFraction": 0.0798767437342,
             "centroidMicrometers": {
-              "x": -3.46944695195e-18,
-              "y": -1.73472347598e-17
+              "x": 1.38777878078e-17,
+              "y": 1.38777878078e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 1.74340515381,
-              "yy": 1.74340515381,
-              "xy": 8.32667268469e-17
+              "xx": 2.24435425395,
+              "yy": 2.24435425395,
+              "xy": -1.92592994439e-34
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.741291160077,
-              "vertical": 0.741291160077,
-              "diagonal": 0.762322936678
+              "horizontal": 0.674968966463,
+              "vertical": 0.674968966463,
+              "diagonal": 0.735728389636
             },
             "relativePupilThroughputFactor": 1
           },
@@ -1042,21 +1042,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 20,
             "energy": 1,
-            "peakFraction": 0.429549295085,
-            "outerSampleEnergyFraction": 0.171835539304,
+            "peakFraction": 0.132576942928,
+            "outerSampleEnergyFraction": 0.108530745582,
             "centroidMicrometers": {
-              "x": -4.16333634234e-17,
-              "y": -6.93889390391e-18
+              "x": 1.38777878078e-17,
+              "y": 0
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.34214896967,
-              "yy": 2.34214896967,
-              "xy": -5.55111512313e-17
+              "xx": 2.9220568784,
+              "yy": 2.9220568784,
+              "xy": -1.11022302463e-16
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.650887604807,
-              "vertical": 0.650887604807,
-              "diagonal": 0.692127432369
+              "horizontal": 0.581844446554,
+              "vertical": 0.581844446554,
+              "diagonal": 0.662316630903
             },
             "relativePupilThroughputFactor": 1
           },
@@ -1069,21 +1069,21 @@
             },
             "signedDefocusImagePlaneMicrometers": -20,
             "energy": 1,
-            "peakFraction": 0.429549295085,
-            "outerSampleEnergyFraction": 0.171835539304,
+            "peakFraction": 0.132576942928,
+            "outerSampleEnergyFraction": 0.108530745582,
             "centroidMicrometers": {
-              "x": 6.24500451352e-17,
-              "y": 1.11022302463e-16
+              "x": 5.55111512313e-17,
+              "y": -6.93889390391e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.34214896967,
-              "yy": 2.34214896967,
-              "xy": -6.93334779979e-33
+              "xx": 2.9220568784,
+              "yy": 2.9220568784,
+              "xy": -5.55111512313e-17
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.650887604807,
-              "vertical": 0.650887604807,
-              "diagonal": 0.692127432369
+              "horizontal": 0.581844446554,
+              "vertical": 0.581844446554,
+              "diagonal": 0.662316630903
             },
             "relativePupilThroughputFactor": 0.95
           },
@@ -1096,21 +1096,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 0,
             "energy": 1,
-            "peakFraction": 0.52,
-            "outerSampleEnergyFraction": 0.137866167677,
+            "peakFraction": 0.16049382716,
+            "outerSampleEnergyFraction": 0.0798767437342,
             "centroidMicrometers": {
-              "x": -3.46944695195e-18,
-              "y": -1.73472347598e-17
+              "x": 1.38777878078e-17,
+              "y": 1.38777878078e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 1.74340515381,
-              "yy": 1.74340515381,
-              "xy": 8.32667268469e-17
+              "xx": 2.24435425395,
+              "yy": 2.24435425395,
+              "xy": -1.92592994439e-34
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.741291160077,
-              "vertical": 0.741291160077,
-              "diagonal": 0.762322936678
+              "horizontal": 0.674968966463,
+              "vertical": 0.674968966463,
+              "diagonal": 0.735728389636
             },
             "relativePupilThroughputFactor": 0.95
           },
@@ -1123,21 +1123,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 20,
             "energy": 1,
-            "peakFraction": 0.429549295085,
-            "outerSampleEnergyFraction": 0.171835539304,
+            "peakFraction": 0.132576942928,
+            "outerSampleEnergyFraction": 0.108530745582,
             "centroidMicrometers": {
-              "x": -4.16333634234e-17,
-              "y": -6.93889390391e-18
+              "x": 1.38777878078e-17,
+              "y": 0
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.34214896967,
-              "yy": 2.34214896967,
-              "xy": -5.55111512313e-17
+              "xx": 2.9220568784,
+              "yy": 2.9220568784,
+              "xy": -1.11022302463e-16
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.650887604807,
-              "vertical": 0.650887604807,
-              "diagonal": 0.692127432369
+              "horizontal": 0.581844446554,
+              "vertical": 0.581844446554,
+              "diagonal": 0.662316630903
             },
             "relativePupilThroughputFactor": 0.95
           },
@@ -1150,21 +1150,21 @@
             },
             "signedDefocusImagePlaneMicrometers": -20,
             "energy": 1,
-            "peakFraction": 0.401139134407,
-            "outerSampleEnergyFraction": 0.189688639721,
+            "peakFraction": 0.159182196193,
+            "outerSampleEnergyFraction": 0.134870063286,
             "centroidMicrometers": {
-              "x": 0.182932767938,
-              "y": 2.08166817117e-17
+              "x": 0.157394844301,
+              "y": -1.52655665886e-16
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.86297650989,
-              "yy": 2.02106138381,
-              "xy": -3.8080532048e-18
+              "xx": 2.92586016567,
+              "yy": 2.63442307231,
+              "xy": -5.92395120832e-17
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.582634788288,
-              "vertical": 0.693445630773,
-              "diagonal": 0.676824353111
+              "horizontal": 0.580958686717,
+              "vertical": 0.619058666012,
+              "diagonal": 0.661506801834
             },
             "relativePupilThroughputFactor": 0.85
           },
@@ -1177,21 +1177,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 0,
             "energy": 1,
-            "peakFraction": 0.48,
-            "outerSampleEnergyFraction": 0.149355014983,
+            "peakFraction": 0.190476190476,
+            "outerSampleEnergyFraction": 0.102067866378,
             "centroidMicrometers": {
               "x": 1.38777878078e-17,
-              "y": 3.46944695195e-18
+              "y": 0
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.40495558329,
-              "yy": 1.37242224996,
-              "xy": 1.38777878078e-17
+              "xx": 2.41600404806,
+              "yy": 1.90024522916,
+              "xy": 2.77555756156e-17
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.648081364518,
-              "vertical": 0.791382815649,
-              "diagonal": 0.742516514735
+              "horizontal": 0.64829055975,
+              "vertical": 0.71994356258,
+              "diagonal": 0.730191523321
             },
             "relativePupilThroughputFactor": 0.85
           },
@@ -1204,21 +1204,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 20,
             "energy": 1,
-            "peakFraction": 0.401139134407,
-            "outerSampleEnergyFraction": 0.189688639721,
+            "peakFraction": 0.159182196193,
+            "outerSampleEnergyFraction": 0.134870063286,
             "centroidMicrometers": {
-              "x": -0.182932767938,
-              "y": -2.77555756156e-17
+              "x": -0.157394844301,
+              "y": 2.01227923213e-16
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.86297650989,
-              "yy": 2.02106138381,
-              "xy": -5.07740427307e-18
+              "xx": 2.92586016567,
+              "yy": 2.63442307231,
+              "xy": -5.15944892038e-17
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.582634788288,
-              "vertical": 0.693445630773,
-              "diagonal": 0.676824353111
+              "horizontal": 0.580958686717,
+              "vertical": 0.619058666012,
+              "diagonal": 0.661506801834
             },
             "relativePupilThroughputFactor": 0.85
           }
@@ -1823,21 +1823,21 @@
             },
             "signedDefocusImagePlaneMicrometers": -20,
             "energy": 1,
-            "peakFraction": 0.377400966063,
-            "outerSampleEnergyFraction": 0.19610080132,
+            "peakFraction": 0.116481779649,
+            "outerSampleEnergyFraction": 0.130812325765,
             "centroidMicrometers": {
-              "x": 3.46944695195e-17,
-              "y": 2.77555756156e-16
+              "x": -2.77555756156e-17,
+              "y": 5.55111512313e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.71088901169,
-              "yy": 2.71088901169,
-              "xy": -1.38777878078e-16
+              "xx": 3.34199177447,
+              "yy": 3.34199177447,
+              "xy": 1.54074395551e-33
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.596597626407,
-              "vertical": 0.596597626407,
-              "diagonal": 0.649232776938
+              "horizontal": 0.525823873958,
+              "vertical": 0.525823873958,
+              "diagonal": 0.617189248032
             },
             "relativePupilThroughputFactor": 1
           },
@@ -1850,21 +1850,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 0,
             "energy": 1,
-            "peakFraction": 0.52,
-            "outerSampleEnergyFraction": 0.137866167677,
+            "peakFraction": 0.16049382716,
+            "outerSampleEnergyFraction": 0.0798767437342,
             "centroidMicrometers": {
-              "x": -3.46944695195e-18,
-              "y": -1.73472347598e-17
+              "x": 1.38777878078e-17,
+              "y": 1.38777878078e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 1.74340515381,
-              "yy": 1.74340515381,
-              "xy": 8.32667268469e-17
+              "xx": 2.24435425395,
+              "yy": 2.24435425395,
+              "xy": -1.92592994439e-34
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.741291160077,
-              "vertical": 0.741291160077,
-              "diagonal": 0.762322936678
+              "horizontal": 0.674968966463,
+              "vertical": 0.674968966463,
+              "diagonal": 0.735728389636
             },
             "relativePupilThroughputFactor": 1
           },
@@ -1877,21 +1877,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 20,
             "energy": 1,
-            "peakFraction": 0.452252190347,
-            "outerSampleEnergyFraction": 0.162411817968,
+            "peakFraction": 0.139584009366,
+            "outerSampleEnergyFraction": 0.100226362326,
             "centroidMicrometers": {
-              "x": 1.38777878078e-17,
-              "y": 1.04083408559e-16
+              "x": -4.16333634234e-17,
+              "y": -4.16333634234e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.18734189454,
-              "yy": 2.18734189454,
-              "xy": -2.77555756156e-17
+              "xx": 2.74632022765,
+              "yy": 2.74632022765,
+              "xy": -5.55111512313e-17
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.673995375643,
-              "vertical": 0.673995375643,
-              "diagonal": 0.710210912096
+              "horizontal": 0.605666954932,
+              "vertical": 0.605666954932,
+              "diagonal": 0.681280501139
             },
             "relativePupilThroughputFactor": 1
           },
@@ -1904,21 +1904,21 @@
             },
             "signedDefocusImagePlaneMicrometers": -20,
             "energy": 1,
-            "peakFraction": 0.377400966063,
-            "outerSampleEnergyFraction": 0.19610080132,
+            "peakFraction": 0.116481779649,
+            "outerSampleEnergyFraction": 0.130812325765,
             "centroidMicrometers": {
-              "x": 3.46944695195e-17,
-              "y": 2.77555756156e-16
+              "x": -2.77555756156e-17,
+              "y": 5.55111512313e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.71088901169,
-              "yy": 2.71088901169,
-              "xy": -1.38777878078e-16
+              "xx": 3.34199177447,
+              "yy": 3.34199177447,
+              "xy": 1.54074395551e-33
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.596597626407,
-              "vertical": 0.596597626407,
-              "diagonal": 0.649232776938
+              "horizontal": 0.525823873958,
+              "vertical": 0.525823873958,
+              "diagonal": 0.617189248032
             },
             "relativePupilThroughputFactor": 0.98
           },
@@ -1931,21 +1931,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 0,
             "energy": 1,
-            "peakFraction": 0.52,
-            "outerSampleEnergyFraction": 0.137866167677,
+            "peakFraction": 0.16049382716,
+            "outerSampleEnergyFraction": 0.0798767437342,
             "centroidMicrometers": {
-              "x": -3.46944695195e-18,
-              "y": -1.73472347598e-17
+              "x": 1.38777878078e-17,
+              "y": 1.38777878078e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 1.74340515381,
-              "yy": 1.74340515381,
-              "xy": 8.32667268469e-17
+              "xx": 2.24435425395,
+              "yy": 2.24435425395,
+              "xy": -1.92592994439e-34
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.741291160077,
-              "vertical": 0.741291160077,
-              "diagonal": 0.762322936678
+              "horizontal": 0.674968966463,
+              "vertical": 0.674968966463,
+              "diagonal": 0.735728389636
             },
             "relativePupilThroughputFactor": 0.98
           },
@@ -1958,21 +1958,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 20,
             "energy": 1,
-            "peakFraction": 0.452252190347,
-            "outerSampleEnergyFraction": 0.162411817968,
+            "peakFraction": 0.139584009366,
+            "outerSampleEnergyFraction": 0.100226362326,
             "centroidMicrometers": {
-              "x": 1.38777878078e-17,
-              "y": 1.04083408559e-16
+              "x": -4.16333634234e-17,
+              "y": -4.16333634234e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.18734189454,
-              "yy": 2.18734189454,
-              "xy": -2.77555756156e-17
+              "xx": 2.74632022765,
+              "yy": 2.74632022765,
+              "xy": -5.55111512313e-17
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.673995375643,
-              "vertical": 0.673995375643,
-              "diagonal": 0.710210912096
+              "horizontal": 0.605666954932,
+              "vertical": 0.605666954932,
+              "diagonal": 0.681280501139
             },
             "relativePupilThroughputFactor": 0.98
           },
@@ -1985,21 +1985,21 @@
             },
             "signedDefocusImagePlaneMicrometers": -20,
             "energy": 1,
-            "peakFraction": 0.377400966063,
-            "outerSampleEnergyFraction": 0.19610080132,
+            "peakFraction": 0.116481779649,
+            "outerSampleEnergyFraction": 0.130812325765,
             "centroidMicrometers": {
-              "x": 3.46944695195e-17,
-              "y": 2.77555756156e-16
+              "x": -2.77555756156e-17,
+              "y": 5.55111512313e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.71088901169,
-              "yy": 2.71088901169,
-              "xy": -1.38777878078e-16
+              "xx": 3.34199177447,
+              "yy": 3.34199177447,
+              "xy": 1.54074395551e-33
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.596597626407,
-              "vertical": 0.596597626407,
-              "diagonal": 0.649232776938
+              "horizontal": 0.525823873958,
+              "vertical": 0.525823873958,
+              "diagonal": 0.617189248032
             },
             "relativePupilThroughputFactor": 0.95
           },
@@ -2012,21 +2012,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 0,
             "energy": 1,
-            "peakFraction": 0.52,
-            "outerSampleEnergyFraction": 0.137866167677,
+            "peakFraction": 0.16049382716,
+            "outerSampleEnergyFraction": 0.0798767437342,
             "centroidMicrometers": {
-              "x": -3.46944695195e-18,
-              "y": -1.73472347598e-17
+              "x": 1.38777878078e-17,
+              "y": 1.38777878078e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 1.74340515381,
-              "yy": 1.74340515381,
-              "xy": 8.32667268469e-17
+              "xx": 2.24435425395,
+              "yy": 2.24435425395,
+              "xy": -1.92592994439e-34
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.741291160077,
-              "vertical": 0.741291160077,
-              "diagonal": 0.762322936678
+              "horizontal": 0.674968966463,
+              "vertical": 0.674968966463,
+              "diagonal": 0.735728389636
             },
             "relativePupilThroughputFactor": 0.95
           },
@@ -2039,21 +2039,21 @@
             },
             "signedDefocusImagePlaneMicrometers": 20,
             "energy": 1,
-            "peakFraction": 0.452252190347,
-            "outerSampleEnergyFraction": 0.162411817968,
+            "peakFraction": 0.139584009366,
+            "outerSampleEnergyFraction": 0.100226362326,
             "centroidMicrometers": {
-              "x": 1.38777878078e-17,
-              "y": 1.04083408559e-16
+              "x": -4.16333634234e-17,
+              "y": -4.16333634234e-17
             },
             "covarianceSquareMicrometers": {
-              "xx": 2.18734189454,
-              "yy": 2.18734189454,
-              "xy": -2.77555756156e-17
+              "xx": 2.74632022765,
+              "yy": 2.74632022765,
+              "xy": -5.55111512313e-17
             },
             "textureContrastAt100CyclesPerMm": {
-              "horizontal": 0.673995375643,
-              "vertical": 0.673995375643,
-              "diagonal": 0.710210912096
+              "horizontal": 0.605666954932,
+              "vertical": 0.605666954932,
+              "diagonal": 0.681280501139
             },
             "relativePupilThroughputFactor": 0.95
           }

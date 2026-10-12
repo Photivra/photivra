@@ -57,7 +57,10 @@ export interface CalculateCameraRotationImageMappingInput {
    * Constant camera angular-velocity vector in radians per second.
    *
    * Components are resolved in the camera axes at exposure start and follow
-   * the right-hand rule: pitch about +X, yaw about +Y, roll about +Z.
+   * the physical right-hand rule: pitch about +X (positive tilts up, content
+   * moves toward image -Y), yaw about +Y (positive turns left, content moves
+   * toward image +X), roll about +Z (positive is clockwise seen from behind
+   * the camera). See CameraAngularVelocityRadPerSec.
    */
   angularVelocityRadPerSec: CameraAngularVelocityRadPerSec;
   /** Optional focus distance in metres for thin-lens projection distance. */
@@ -123,15 +126,28 @@ export interface CalculateInverseCameraRotationImageMappingInput {
 
 ## CameraAngularVelocityRadPerSec
 
-The exact contract is declared below; use the domain guide for assumptions and staged integration.
+Camera angular velocity in radians per second about the exposure-start
+camera axes (+X right, +Y up, +Z forward along the optical axis).
+
+Signs follow the physical right-hand rule about each named axis. That basis
+is left-handed, so a positive rotation is the mirror of what the plain
+component Rodrigues/cross-product formula would give in it:
+
+- positive pitch tilts the optical axis up; stationary scene content moves
+  toward image -Y (down);
+- positive yaw turns the optical axis to the left (counter-clockwise seen
+  from above); stationary scene content moves toward image +X (right);
+- positive roll rotates the camera clockwise as seen by the photographer
+  looking along +Z; stationary scene content rotates counter-clockwise in the
+  +X-right/+Y-up image plane.
 
 ```ts
 export interface CameraAngularVelocityRadPerSec {
-  /** Right-hand rotation rate about camera +X (right), in radians per second. */
+  /** Right-hand rotation rate about camera +X (right): positive tilts the optical axis up. */
   pitch: number;
-  /** Right-hand rotation rate about camera +Y (up), in radians per second. */
+  /** Right-hand rotation rate about camera +Y (up): positive turns the optical axis left. */
   yaw: number;
-  /** Right-hand rotation rate about camera +Z (forward), in radians per second. */
+  /** Right-hand rotation rate about camera +Z (forward): positive rolls the camera clockwise as seen from behind it. */
   roll: number;
 }
 ```

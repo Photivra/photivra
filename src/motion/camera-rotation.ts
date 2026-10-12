@@ -27,12 +27,28 @@ import {
 } from "../core/validation.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
 
+/**
+ * Camera angular velocity in radians per second about the exposure-start
+ * camera axes (+X right, +Y up, +Z forward along the optical axis).
+ *
+ * Signs follow the physical right-hand rule about each named axis. That basis
+ * is left-handed, so a positive rotation is the mirror of what the plain
+ * component Rodrigues/cross-product formula would give in it:
+ *
+ * - positive pitch tilts the optical axis up; stationary scene content moves
+ *   toward image -Y (down);
+ * - positive yaw turns the optical axis to the left (counter-clockwise seen
+ *   from above); stationary scene content moves toward image +X (right);
+ * - positive roll rotates the camera clockwise as seen by the photographer
+ *   looking along +Z; stationary scene content rotates counter-clockwise in the
+ *   +X-right/+Y-up image plane.
+ */
 export interface CameraAngularVelocityRadPerSec {
-  /** Right-hand rotation rate about camera +X (right), in radians per second. */
+  /** Right-hand rotation rate about camera +X (right): positive tilts the optical axis up. */
   pitch: number;
-  /** Right-hand rotation rate about camera +Y (up), in radians per second. */
+  /** Right-hand rotation rate about camera +Y (up): positive turns the optical axis left. */
   yaw: number;
-  /** Right-hand rotation rate about camera +Z (forward), in radians per second. */
+  /** Right-hand rotation rate about camera +Z (forward): positive rolls the camera clockwise as seen from behind it. */
   roll: number;
 }
 
@@ -65,7 +81,10 @@ export interface CalculateCameraRotationImageMappingInput {
    * Constant camera angular-velocity vector in radians per second.
    *
    * Components are resolved in the camera axes at exposure start and follow
-   * the right-hand rule: pitch about +X, yaw about +Y, roll about +Z.
+   * the physical right-hand rule: pitch about +X (positive tilts up, content
+   * moves toward image -Y), yaw about +Y (positive turns left, content moves
+   * toward image +X), roll about +Z (positive is clockwise seen from behind
+   * the camera). See CameraAngularVelocityRadPerSec.
    */
   angularVelocityRadPerSec: CameraAngularVelocityRadPerSec;
   /** Optional focus distance in metres for thin-lens projection distance. */
@@ -178,7 +197,14 @@ function requireNonNegativeFinite(name: string, value: number): void {
   }
 }
 
-/** Internal shared geometric rotation; public callers use the validated camera mappings. */
+/**
+ * Internal component-form Rodrigues rotation (v cos a + (k x v) sin a +
+ * k (k . v)(1 - cos a)), with the cross product evaluated by its usual
+ * component formula. In the left-handed camera basis this is a physical
+ * left-hand rotation; camera-rotation callers must use
+ * applyPhysicalCameraRotation() instead so the right-hand sign convention
+ * stays in one place.
+ */
 export function rotateVectorByAxisAngle(
   vector: Vector3,
   axis: Vector3,
@@ -215,6 +241,44 @@ export function rotateVectorByAxisAngle(
       cross.z * sine +
       axis.z * dot * oneMinusCosine
   };
+}
+
+/**
+ * Internal: applies the physical camera rotation for one right-hand angular
+ * displacement (pitch/yaw/roll about camera +X/+Y/+Z, radians) to a vector in
+ * camera components.
+ *
+ * - "camera-to-reference" applies R: a ray expressed in the rotated camera
+ *   frame is re-expressed in the exposure-start (reference) camera frame.
+ * - "reference-to-camera" applies R^-1: a stationary reference ray is
+ *   expressed in the rotated camera frame.
+ *
+ * Because the camera basis is left-handed, the physical right-hand rotation R
+ * is the component Rodrigues formula with the angle negated.
+ */
+export function applyPhysicalCameraRotation(
+  vector: Vector3,
+  angularDisplacementRad: { pitch: number; yaw: number; roll: number },
+  direction: "camera-to-reference" | "reference-to-camera"
+): Vector3 {
+  const magnitude = Math.hypot(
+    angularDisplacementRad.pitch,
+    angularDisplacementRad.yaw,
+    angularDisplacementRad.roll
+  );
+  if (magnitude === 0) {
+    return { ...vector };
+  }
+  const axis = {
+    x: angularDisplacementRad.pitch / magnitude,
+    y: angularDisplacementRad.yaw / magnitude,
+    z: angularDisplacementRad.roll / magnitude
+  };
+  return rotateVectorByAxisAngle(
+    vector,
+    axis,
+    direction === "camera-to-reference" ? -magnitude : magnitude
+  );
 }
 
 function resolveProjectionDistanceMm(
@@ -317,19 +381,11 @@ export function calculateCameraRotationImageMapping(
     z: 1
   };
 
-  let mappedRay = initialRay;
-  if (angularMagnitude !== 0) {
-    const inverseAxis = {
-      x: angularDisplacementRad.pitch / angularMagnitude,
-      y: angularDisplacementRad.yaw / angularMagnitude,
-      z: angularDisplacementRad.roll / angularMagnitude
-    };
-    mappedRay = rotateVectorByAxisAngle(
-      initialRay,
-      inverseAxis,
-      -angularMagnitude
-    );
-  }
+  const mappedRay = applyPhysicalCameraRotation(
+    initialRay,
+    angularDisplacementRad,
+    "reference-to-camera"
+  );
 
   if (!Number.isFinite(mappedRay.z) || mappedRay.z <= 0) {
     throw new InvalidScientificInputError(
@@ -388,7 +444,7 @@ export function calculateCameraRotationImageMapping(
     focusAware
       ? "focus-aware-spatial-camera-rotation-mapping"
       : "spatial-camera-rotation-mapping",
-    "1.0.0",
+    "2.0.0",
     [
       "Ideal rectilinear projection",
       focusAware
@@ -396,7 +452,7 @@ export function calculateCameraRotationImageMapping(
         : "Nominal focal length is used as the infinity-focus projection distance",
       "Camera angular velocity is constant during the evaluated interval",
       "Angular velocity components are resolved in the camera axes at exposure start and integrated as one axis-angle vector",
-      "Positive pitch/yaw/roll follow the right-hand rule about camera +X/+Y/+Z",
+      "Positive pitch/yaw/roll follow the physical right-hand rule about camera +X/+Y/+Z (pitch up, yaw left, roll clockwise seen from behind); the camera basis is left-handed",
       "The world ray is stationary; subject motion is not included",
       "Camera translation and depth-dependent parallax are not modeled",
       "The stationary world ray is transformed by the inverse camera rotation before rectilinear projection"
@@ -476,19 +532,11 @@ export function calculateInverseCameraRotationImageMapping(
     z: 1
   };
 
-  let referenceRay = capturedRay;
-  if (angularMagnitude !== 0) {
-    const axis = {
-      x: angularDisplacementRad.pitch / angularMagnitude,
-      y: angularDisplacementRad.yaw / angularMagnitude,
-      z: angularDisplacementRad.roll / angularMagnitude
-    };
-    referenceRay = rotateVectorByAxisAngle(
-      capturedRay,
-      axis,
-      angularMagnitude
-    );
-  }
+  const referenceRay = applyPhysicalCameraRotation(
+    capturedRay,
+    angularDisplacementRad,
+    "camera-to-reference"
+  );
 
   if (!Number.isFinite(referenceRay.z) || referenceRay.z <= 0) {
     throw new InvalidScientificInputError(
@@ -547,7 +595,7 @@ export function calculateInverseCameraRotationImageMapping(
     focusAware
       ? "focus-aware-inverse-spatial-camera-rotation-mapping"
       : "inverse-spatial-camera-rotation-mapping",
-    "1.0.0",
+    "2.0.0",
     [
       "Ideal rectilinear projection",
       focusAware
@@ -555,6 +603,7 @@ export function calculateInverseCameraRotationImageMapping(
         : "Nominal focal length is used as the infinity-focus projection distance",
       "Camera angular velocity is constant during the evaluated interval",
       "Angular velocity components are resolved in the camera axes at exposure start and integrated as one axis-angle vector",
+      "Positive pitch/yaw/roll follow the physical right-hand rule about camera +X/+Y/+Z (pitch up, yaw left, roll clockwise seen from behind); the camera basis is left-handed",
       "The inverse is analytic under the same constant-axis pure-rotation model; no iterative solve is used",
       "The captured stationary-world ray is transformed by the forward camera rotation to recover its exposure-start reference ray",
       "Camera translation, scene depth parallax and subject motion are not modeled"

@@ -15,18 +15,23 @@ import { loadBasicReferenceFixture } from "./helpers/basic-reference-fixture.js"
 const base = loadBasicReferenceFixture();
 const catalog = resolveGenericEquipmentTierCatalog({ presetVersion: "1.0.0" });
 /** Independent direct phase sum, rather than another call to the engine PSF. */
-function referenceKernel(p:LensComplexPupilProfile):number[]{
-  const g=p.grid, intensities=g.relativeAmplitude.map((_,out)=>{
+/** Independent direct 2D DFT of the declared pupil, zero padded to 2S-1 per axis (Goodman Q > 2). */
+function referenceKernel(p:LensComplexPupilProfile):{width:number;centerX:number;centerY:number;weights:number[]}{
+  const g=p.grid, nonzero=g.relativeAmplitude.flatMap((a,i)=>a>0?[i]:[]);
+  const span=(f:(i:number)=>number):number=>Math.max(...nonzero.map(f))-Math.min(...nonzero.map(f))+1;
+  const width=Math.max(g.widthSamples,2*span(i=>i%g.widthSamples)-1), height=Math.max(g.heightSamples,2*span(i=>Math.floor(i/g.widthSamples))-1);
+  const centerX=g.centerSampleX+Math.floor((width-g.widthSamples)/2), centerY=g.centerSampleY+Math.floor((height-g.heightSamples)/2);
+  const intensities=Array.from({length:width*height},(_,out)=>{
     let re=0,im=0;
     for(let i=0;i<g.relativeAmplitude.length;i++){
       const phase=2*Math.PI*(g.opticalPathDifferenceMicrometers[i]!/(p.context.wavelengthNm/1000)
-        -(out%g.widthSamples-g.centerSampleX)*(i%g.widthSamples-g.centerSampleX)/g.widthSamples
-        -(Math.floor(out/g.widthSamples)-g.centerSampleY)*(Math.floor(i/g.widthSamples)-g.centerSampleY)/g.heightSamples);
+        -(out%width-centerX)*(i%g.widthSamples-g.centerSampleX)/width
+        -(Math.floor(out/width)-centerY)*(Math.floor(i/g.widthSamples)-g.centerSampleY)/height);
       re+=g.relativeAmplitude[i]!*Math.cos(phase);im+=g.relativeAmplitude[i]!*Math.sin(phase);
     }
     return re*re+im*im;
   });
-  const sum=intensities.reduce((a,b)=>a+b,0);return intensities.map(v=>v/sum);
+  const sum=intensities.reduce((a,b)=>a+b,0);return {width,centerX,centerY,weights:intensities.map(v=>v/sum)};
 }
 
 describe("exact generic tiers through supported production and finite pupil scenes",()=>{
@@ -73,13 +78,15 @@ describe("exact generic tiers through supported production and finite pupil scen
   it.each(GENERIC_EQUIPMENT_TIERS)("%s finite field/near/far pupil scene retains physical response and correction costs",tier=>{
     const p=tierProductionLensProfiles(tier,tier,9), raster={width:9,height:9,centerMm:{x:0,y:0},pitchMm:3};
     for(const pupil of p.pupils){
-      const psf=calculateLensComplexPupilPsf({profile:pupil}).value, oracle=referenceKernel(pupil);
-      psf.kernel.normalizedIntensity.forEach((value,i)=>expect(value).toBeCloseTo(oracle[i]!,13));
+      const psf=calculateLensComplexPupilPsf({profile:pupil}).value, reference=referenceKernel(pupil), oracle=reference.weights, k=psf.kernel;
+      expect([k.widthSamples,k.centerSampleX,k.centerSampleY]).toEqual([reference.width,reference.centerX,reference.centerY]);
+      expect(psf.sampling.samplingFactorQX).toBeGreaterThan(2);expect(psf.sampling.samplingFactorQY).toBeGreaterThan(2);
+      k.normalizedIntensity.forEach((value,i)=>expect(value).toBeCloseTo(oracle[i]!,13));
       // Owned controlled background texture plus a highlight. Sample each declared PSF tap;
       // no field/defocus/spectral interpolation and no universal bokeh score.
       const radiance=(x:number,y:number):number=>1+.2*Math.cos(900*x)+.2*Math.sin(700*y)+Math.exp(-((x/.004)**2+(y/.004)**2));
       const convolution=(x:number,y:number,weights:readonly number[]):number=>weights.reduce((sum,w,i)=>sum+w*radiance(
-        x-(i%5-2)*psf.kernel.samplePitchMicrometersX/1000,y+(Math.floor(i/5)-2)*psf.kernel.samplePitchMicrometersY/1000),0);
+        x-(i%k.widthSamples-k.centerSampleX)*k.samplePitchMicrometersX/1000,y+(Math.floor(i/k.widthSamples)-k.centerSampleY)*k.samplePitchMicrometersY/1000),0);
       const samples=Array.from({length:81},(_,i)=>convolution((i%9-4)*3,(Math.floor(i/9)-4)*3,psf.kernel.normalizedIntensity));
       samples.forEach((v,i)=>expect(v).toBeCloseTo(convolution((i%9-4)*3,(Math.floor(i/9)-4)*3,oracle),12));
       const capture={state:p.state,captureId:"tier-pupil-capture",noiseRealizationId:"same-sampled-noise",timeSeconds:base.exposure.shutterSeconds,

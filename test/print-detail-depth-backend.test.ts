@@ -20,13 +20,15 @@ function visiblePlane(imageXmm: number): typeof planes[number] {
     return surfaceXMetres >= p.minimumX && surfaceXMetres < p.maximumX; })!;
 }
 it("binds the independent depth/pupil reference", () => {
-  expect(createHash("sha256").update(bytes).digest("hex")).toBe("d1bca3ad17e6730ad3861bd267d60f4601df7c7d50480d31af306e6eea46296f");
+  expect(createHash("sha256").update(bytes).digest("hex")).toBe("0ecaf97b1b76937479b6b9aa95fbc7786a2df289f258320fcd7e65c26a052857");
   expect([-.66, 0, .66].map(x => visiblePlane(x).depthM)).toEqual([2, 5, 10]);
   expect(visiblePlane(-.330001).depthM).toBe(2); expect(visiblePlane(-.329999).depthM).toBe(5);
   expect(visiblePlane(.329999).depthM).toBe(5); expect(visiblePlane(.330001).depthM).toBe(10);
 });
 it.each(reference.cases)("propagates a visible $subjectDistanceM m plane at f/$apertureFNumber, focused at 5m", c => {
-  const n = 9, center = 4, kernel = ownedDepthPupilKernel(c.subjectDistanceM, c.apertureFNumber);
+  // The 9x9 declared pupil is zero padded by the engine to 17x17 (2S-1).
+  const kernel = ownedDepthPupilKernel(c.subjectDistanceM, c.apertureFNumber), n = kernel.widthSamples, center = kernel.centerSampleX;
+  expect([n, center]).toEqual([17, 8]);
   expect(Math.abs(kernel.samplePitchMicrometersX / 1000 - c.imageSamplePitchMm)).toBeLessThan(1e-14);
   kernel.normalizedIntensity.forEach((v, i) => expect(Math.abs(v - c.expectedKernel[i]!)).toBeLessThan(1e-12));
   const rect = { x: { 2: 32, 5: 98, 10: 164 }[c.subjectDistanceM]!, y: 98, width: 4, height: 4 };

@@ -208,7 +208,7 @@ The model assumes constant world-space linear velocity. It can represent depth-d
 
 When supplied, camera shake returns unstabilized and stabilized global image-plane vectors.
 
-Yaw/pitch projection uses the selected focus-aware projection distance. Equivalent stabilization stops attenuate angular displacement by `2^-stops` and are explicitly labeled an approximation.
+Yaw/pitch projection uses the selected focus-aware projection distance. Positive yaw (camera turns left) gives positive `deltaXmm`; positive pitch (camera tilts up) gives negative `deltaYmm` (changed in engine 2.0.0; earlier versions returned positive `deltaYmm`). Equivalent stabilization stops attenuate angular displacement by `2^-stops` and are explicitly labeled an approximation.
 
 The result is not a CIPA DC-011 measurement, real-camera stabilization rating, or spatially varying rotational optical-flow model.
 

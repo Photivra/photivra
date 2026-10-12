@@ -43,8 +43,10 @@ it.each(["pitch","yaw","roll"] as const)("reuses the analytic %s rotation and ro
     angularVelocityRadPerSec:r.angularVelocityRadPerSec,timeSecondsFromExposureStart:r.timeSecondsFromOpeningReference}).value;
   expect(forward.mappedImagePointMm.x).toBeCloseTo(4,12);
   expect(forward.mappedImagePointMm.y).toBeCloseTo(-3,12);
-  // Independent axis-specific Rodrigues rotation of the captured look ray.
-  const v={x:4,y:-3,z:50},a=.01,c=Math.cos(a),s=Math.sin(a);
+  // Independent axis-specific Rodrigues rotation of the captured look ray. The
+  // camera basis (+X right, +Y up, +Z forward) is left-handed, so the physical
+  // right-hand camera rotation is the component formula with a negated angle.
+  const v={x:4,y:-3,z:50},a=-.01,c=Math.cos(a),s=Math.sin(a);
   const expected=axis==="pitch"?{x:v.x,y:c*v.y-s*v.z,z:s*v.y+c*v.z}:
     axis==="yaw"?{x:c*v.x+s*v.z,y:v.y,z:-s*v.x+c*v.z}:{x:c*v.x-s*v.y,y:s*v.x+c*v.y,z:v.z};
   const len=Math.hypot(expected.x,expected.y,expected.z);

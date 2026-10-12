@@ -311,7 +311,7 @@ describe("capture rotation temporal quadrature", () => {
       ...baseInput(),
       angularVelocityRadPerSec: {
         pitch: 0,
-        yaw: 1.2,
+        yaw: -1.2,
         roll: 0
       },
       temporalSampleCount: 4,
