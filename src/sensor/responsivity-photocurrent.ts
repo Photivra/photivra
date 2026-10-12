@@ -20,6 +20,7 @@ import {
   approximationResult,
   type CalculationResult
 } from "../core/calculation-result.js";
+import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,
@@ -626,10 +627,21 @@ export function parseSensorResponsivityElectricalApplicabilityProfile(
   };
 }
 
+/**
+ * Key-order-independent identity of parsed plain data, so semantically equal
+ * records compare equal regardless of property insertion order.
+ */
 function canonicalJson(
   value: unknown
 ): string {
-  return JSON.stringify(value);
+  if (value === undefined) return "undefined";
+  return stringifyCanonicalJson(value, {
+    undefinedObjectProperties: "omit",
+    nonFiniteNumberMessage:
+      "A/W photocurrent identity data must contain finite numbers.",
+    unsupportedValueMessage:
+      "A/W photocurrent identity data must be plain JSON data."
+  });
 }
 
 function approximatelyEqual(
@@ -1074,7 +1086,9 @@ function validateElectricalBinding(
   profile:
     SensorResponsivityElectricalApplicabilityProfile,
   input:
-    CalculateSensorResponsivityPhotocurrentInput
+    CalculateSensorResponsivityPhotocurrentInput,
+  operatingElectricalConditions:
+    SensorResponsivityElectricalConditions
 ): {
   compatibility:
     "exact-match" |
@@ -1107,7 +1121,7 @@ function validateElectricalBinding(
     if (
       !electricalConditionsMatch(
         profile.referenceConditions,
-        input.operatingElectricalConditions
+        operatingElectricalConditions
       )
     ) {
       throw new InvalidScientificInputError(
@@ -1194,10 +1208,16 @@ export function calculateSensorResponsivityPhotocurrent(
     input.reduction
   );
 
+  const operatingElectricalConditions =
+    parseElectricalConditions(
+      input.operatingElectricalConditions,
+      "operatingElectricalConditions"
+    );
   const electrical =
     validateElectricalBinding(
       electricalProfile,
-      input
+      input,
+      operatingElectricalConditions
     );
   const nodes =
     validateReductionNodes(
@@ -1351,8 +1371,7 @@ export function calculateSensorResponsivityPhotocurrent(
       electricalReferenceConditions:
         electricalProfile
           .referenceConditions,
-      operatingElectricalConditions:
-        input.operatingElectricalConditions,
+      operatingElectricalConditions,
       electricalConditionPolicy:
         electricalProfile
           .conditionPolicy,

@@ -5,8 +5,9 @@
  * Serializes a parsed, acyclic plain-data tree with sorted enumerable object keys, original array
  * order and finite JSON numbers. JSON escaping and negative zero representation follow JSON.stringify.
  * The source is never mutated. Undefined object properties follow the explicit domain policy;
- * undefined array entries and unsupported scalar types always fail. Callers own dense-array,
- * plain-record and cycle validation. This is serialization mechanics, not a general input parser,
+ * undefined array entries, array holes, non-plain objects (any prototype other than Object.prototype
+ * or null, e.g. Map, Set, Date, typed arrays, class instances) and unsupported scalar types always
+ * fail. Callers own cycle validation. This is serialization mechanics, not a general input parser,
  * cryptographic hash or standardized canonical-JSON claim.
  * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
  */
@@ -26,8 +27,10 @@ export interface CanonicalJsonPolicy {
  * zero representation follow JSON.stringify. The source is never mutated.
  *
  * Undefined object properties follow the explicit domain policy; undefined array
- * entries and unsupported scalar types always fail. Callers own dense-array,
- * plain-record and cycle validation. This is serialization mechanics, not a
+ * entries, array holes, non-plain objects (Map, Set, Date, typed arrays, class
+ * instances or any prototype other than Object.prototype/null) and unsupported
+ * scalar types always fail with the policy's unsupported-value message. Callers
+ * own cycle validation. This is serialization mechanics, not a
  * general input parser, cryptographic hash or standardized canonical-JSON claim.
  */
 export function stringifyCanonicalJson(value: unknown, policy: CanonicalJsonPolicy): string {
@@ -39,9 +42,24 @@ export function stringifyCanonicalJson(value: unknown, policy: CanonicalJsonPoli
     return JSON.stringify(value);
   }
   if (Array.isArray(value)) {
-    return "[" + value.map((entry) => stringifyCanonicalJson(entry, policy)).join(",") + "]";
+    if (Object.getPrototypeOf(value) !== Array.prototype) {
+      throw new InvalidConfigurationError(policy.unsupportedValueMessage);
+    }
+    let serialized = "[";
+    for (let index = 0; index < value.length; index += 1) {
+      // Holes are not JSON data; Array#map would skip them and emit invalid JSON.
+      if (!Object.prototype.hasOwnProperty.call(value, index)) {
+        throw new InvalidConfigurationError(policy.unsupportedValueMessage);
+      }
+      serialized += (index === 0 ? "" : ",") + stringifyCanonicalJson(value[index], policy);
+    }
+    return serialized + "]";
   }
   if (typeof value === "object") {
+    const prototype = Object.getPrototypeOf(value) as unknown;
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new InvalidConfigurationError(policy.unsupportedValueMessage);
+    }
     const record = value as Record<string, unknown>;
     const keys = Object.keys(record)
       .filter((key) => policy.undefinedObjectProperties !== "omit" || record[key] !== undefined)

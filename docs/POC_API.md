@@ -252,12 +252,14 @@ That parser does not duplicate every scientific domain/range rule. Scientific mo
 Current transport responses include:
 
 - `200`: successful simulation;
-- `204`: CORS preflight;
-- `400`: malformed JSON/shape or invalid scientific request;
+- `204`: CORS preflight, with no response body;
+- `400` (`INVALID_SIMULATION_REQUEST`): malformed JSON (fixed message), request shape, or invalid configuration/scientific input;
 - `404`: unknown route;
-- `415`: simulation POST without `application/json`.
+- `413` (`PAYLOAD_TOO_LARGE`): request body over 64 KiB, by declared `Content-Length` or while streaming;
+- `415`: simulation POST without `application/json`;
+- `500` (`INTERNAL_ERROR`): any other failure, with the fixed message `Internal simulation error.`; internal error text is never returned.
 
-Error messages are intended for local development diagnostics and should not be treated as a hardened public error contract.
+400 messages are engine-authored validation diagnostics intended for local development and should not be treated as a hardened public error contract.
 
 ## Reusable repository module
 

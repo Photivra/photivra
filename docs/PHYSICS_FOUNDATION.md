@@ -63,9 +63,9 @@ For an off-center rectangular active area, the two opposite-corner diagonal angu
 
 Output crop/resampling is digital geometry. It does not mutate physical sensor identity or active-capture geometry. Output raster aspect ratio must remain consistent with the selected output crop; implicit geometric stretching is rejected.
 
-Centered crop dimensions are derived from a linear crop factor while preserving source aspect ratio, subject to integer pixel flooring.
+Centered crop dimensions are derived from a linear crop factor: the shorter axis is `floor(dimension / cropFactor)` and the longer axis is the integer nearest the source aspect ratio, capped at `floor(dimension / cropFactor)`, so aspect ratio is preserved as closely as whole pixels allow.
 
-Subject-height framing crop computes the additional same-aspect crop needed to target a requested subject-height fraction. It assumes the crop can be positioned around the subject and does not check subject position against image edges.
+Subject-height framing crop computes the additional same-aspect crop needed to target a requested subject-height fraction. It assumes the crop can be positioned around the subject and does not check subject position against image edges. The crop height is the largest whole-pixel height within the requested crop height but never fewer pixels than the subject needs, and the width is the nearest integer to the source aspect ratio.
 
 ### Crop factor and 35 mm-equivalent focal length
 

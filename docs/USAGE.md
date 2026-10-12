@@ -3734,6 +3734,8 @@ console.log(framing.value.subjectClipped);
 
 Subject framing assumes the crop can be positioned around the subject; it does not check the subject's actual position against image edges.
 
+Integer rounding: `calculateCenteredCrop()` floors the shorter axis (`floor(dimension / cropFactor)`) and derives the longer axis as the integer nearest the source aspect ratio, capped at `floor(dimension / cropFactor)`; 6000×4000 at 1.7× gives 3528×2352 (exactly 3:2). `calculateSubjectFramingCrop()` uses the largest whole-pixel height within the requested crop height (`subjectHeightPixels / targetSubjectHeightFraction`), never fewer than `ceil(subjectHeightPixels)`, and the nearest-integer width for the source ratio. `subjectHeightFraction` is therefore at least the target (within one pixel of crop height) and `subjectClipped` is never `true` when the subject fits the source frame.
+
 See [Physics Foundation](PHYSICS_FOUNDATION.md#sensor-geometry-sampling-capture-and-crop).
 
 ## Projected subject motion

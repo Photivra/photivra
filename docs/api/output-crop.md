@@ -25,8 +25,11 @@ export interface CalculateCenteredCropInput {
   /** Original image height in pixels. */
   pixelHeight: number;
   /**
-   * Linear crop factor. 1 means no crop; 1.5 retains 1 / 1.5 of each
-   * dimension while preserving aspect ratio.
+   * Linear crop factor. 1 means no crop; 1.5 retains at most 1 / 1.5 of each
+   * dimension. The shorter axis is floor(dimension / cropFactor); the longer
+   * axis is the integer nearest the source aspect ratio, capped at
+   * floor(dimension / cropFactor), so the aspect ratio is preserved as closely
+   * as whole pixels allow.
    */
   cropFactor: number;
 }

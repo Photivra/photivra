@@ -17,14 +17,33 @@ import {
   requirePositiveInteger
 } from "../core/validation.js";
 
+/**
+ * Largest whole-pixel count not exceeding `length` (at least 1). A value within
+ * floating-point noise of an integer counts as that integer, so 4480 / (7 / 3)
+ * = 1919.9999999999998 gives 1920 rather than dropping a pixel.
+ * Repository-internal helper; not a root package export.
+ */
+export function floorWholePixels(length: number): number {
+  const nearest = Math.round(length);
+  return Math.max(
+    1,
+    Math.abs(length - nearest) <= 1e-9 * Math.max(1, length)
+      ? nearest
+      : Math.floor(length)
+  );
+}
+
 export interface CalculateCenteredCropInput {
   /** Original image width in pixels. */
   pixelWidth: number;
   /** Original image height in pixels. */
   pixelHeight: number;
   /**
-   * Linear crop factor. 1 means no crop; 1.5 retains 1 / 1.5 of each
-   * dimension while preserving aspect ratio.
+   * Linear crop factor. 1 means no crop; 1.5 retains at most 1 / 1.5 of each
+   * dimension. The shorter axis is floor(dimension / cropFactor); the longer
+   * axis is the integer nearest the source aspect ratio, capped at
+   * floor(dimension / cropFactor), so the aspect ratio is preserved as closely
+   * as whole pixels allow.
    */
   cropFactor: number;
 }
@@ -56,11 +75,23 @@ export function calculateCenteredCrop(
     );
   }
 
-  const pixelWidth = Math.max(1, Math.floor(input.pixelWidth / input.cropFactor));
-  const pixelHeight = Math.max(
+  // Floor the shorter axis (never exceeding 1 / cropFactor of it), then derive
+  // the longer axis from that integer so the ratio is as close as integers
+  // allow. The derived axis is also capped at floor(longer / cropFactor), so a
+  // crop never keeps more than 1 / cropFactor of either dimension.
+  const landscape = input.pixelWidth >= input.pixelHeight;
+  const shortSource = landscape ? input.pixelHeight : input.pixelWidth;
+  const longSource = landscape ? input.pixelWidth : input.pixelHeight;
+  const shortAxis = floorWholePixels(shortSource / input.cropFactor);
+  const longAxis = Math.max(
     1,
-    Math.floor(input.pixelHeight / input.cropFactor)
+    Math.min(
+      floorWholePixels(longSource / input.cropFactor),
+      Math.round((shortAxis * longSource) / shortSource)
+    )
   );
+  const pixelWidth = landscape ? longAxis : shortAxis;
+  const pixelHeight = landscape ? shortAxis : longAxis;
 
   return calculatedResult(
     {
@@ -72,6 +103,9 @@ export function calculateCenteredCrop(
     },
     "centered-same-aspect-crop",
     "1.0.0",
-    ["Centered crop", "Original aspect ratio is preserved"]
+    [
+      "Centered crop",
+      "Original aspect ratio is preserved to integer-pixel precision: the shorter axis is floor(dimension / cropFactor) and the longer axis is the nearest integer to the source ratio, capped at floor(dimension / cropFactor)"
+    ]
   );
 }

@@ -14,6 +14,7 @@ import {
   makeQuadrature
 } from "./helpers/spatial-sample-fixture.js";
 
+import { createSensorSpectralResponseChannelBinding } from "../src/sensor/spectral-response.js";
 import { evidence, operatingConditions, colorProfile, spectralProfile, applicationProfile, operatingProfile } from "./helpers/eqe-response-fixture.js";
 
 function buildPipeline(
@@ -131,6 +132,17 @@ function buildPipeline(
     operatingRange,
     responseProfile
   };
+}
+
+/** Deep copy with every object's keys in reverse insertion order (#276 key-order regression). */
+function reverseKeyOrder<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(reverseKeyOrder) as T;
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .reverse()
+      .map(([key, entry]) => [key, reverseKeyOrder(entry)])
+  ) as T;
 }
 
 describe(
@@ -1071,5 +1083,32 @@ describe(
       );
     });
 
+    it("binds a spectral response channel independently of key order and never from unparsed input", () => {
+      const channel = buildPipeline().responseProfile.channels[0]!;
+      const binding = createSensorSpectralResponseChannelBinding(channel);
+      expect(createSensorSpectralResponseChannelBinding(reverseKeyOrder(channel))).toEqual(binding);
+      expect(createSensorSpectralResponseChannelBinding({ ...channel, unexpected: "caller-only" } as unknown as typeof channel)).toEqual(binding);
+      expect(binding.canonicalJson).not.toContain("caller-only");
+      expect(() => createSensorSpectralResponseChannelBinding({ ...channel, channelId: "" })).toThrow("channelId");
+    });
+
+    it("matches semantically equal reduction metadata regardless of key order", () => {
+      const pipeline = buildPipeline();
+      const baseline = calculateSensorEqeElectronRate({
+        reduction: pipeline.reduction,
+        compatibility: pipeline.compatibility,
+        operatingRange: pipeline.operatingRange,
+        colorSamplingProfile: colorProfile(),
+        spectralResponseProfile: pipeline.responseProfile
+      });
+      const reordered = calculateSensorEqeElectronRate({
+        reduction: reverseKeyOrder(pipeline.reduction),
+        compatibility: pipeline.compatibility,
+        operatingRange: pipeline.operatingRange,
+        colorSamplingProfile: colorProfile(),
+        spectralResponseProfile: reverseKeyOrder(pipeline.responseProfile)
+      });
+      expect(reordered.value.perWavelength).toEqual(baseline.value.perWavelength);
+    });
   }
 );
