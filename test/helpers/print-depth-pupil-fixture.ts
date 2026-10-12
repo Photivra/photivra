@@ -2,8 +2,9 @@
 import { calculateLensComplexPupilPsf, calculateThinLensImageDistance, parseLensComplexPupilProfile, type LensPsfKernel } from "../../src/index.js";
 const evidence = [{ sourceOrigin: "photivra" as const, sourceReference: "owned finite pupil and visible metric planes", reuseStatus: "photivra-owned" as const }];
 const focusImageMm = calculateThinLensImageDistance({ focalLengthMm: 50, objectDistanceM: 5 }).value.imageDistanceMm;
-/** Owned ideal paraxial pupil. Explicit padding controls image-plane sampling;
- * changing the pupil resolution alone does not cure intensity aliasing. */
+/** Owned ideal paraxial pupil. The engine zero pads the declared grid to at
+ * least 2S-1 samples, so image-plane intensity sampling is alias-free; pupil
+ * resolution separately controls wavefront (phase) sampling. */
 export function ownedDepthPupilKernel(subjectDistanceM: number, apertureFNumber: number, n = 9, radiusSamples = 4): LensPsfKernel {
   const objectImageMm = calculateThinLensImageDistance({ focalLengthMm: 50, objectDistanceM: subjectDistanceM }).value.imageDistanceMm;
   const fieldXmm = { 2: -.66, 5: 0, 10: .66 }[subjectDistanceM]!;

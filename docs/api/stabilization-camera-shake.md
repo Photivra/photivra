@@ -4,11 +4,15 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## CameraShakeBlurSample
 
-The exact contract is declared below; use the domain guide for assumptions and staged integration.
+Optical-axis image displacement of a stationary world point over the
+exposure, in the image-plane basis (+X right, +Y up). For a single axis it
+equals calculateCameraRotationImageMapping() deltaMm at the optical axis.
 
 ```ts
 export interface CameraShakeBlurSample {
+  /** +X-right image displacement in millimetres: +d·tan(yaw·t). */
   deltaXmm: number;
+  /** +Y-up image displacement in millimetres: -d·tan(pitch·t). */
   deltaYmm: number;
   distanceMm: number;
   distancePixels?: number;
@@ -59,6 +63,14 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface EstimateCameraShakeBlurInput {
   focalLengthMm: number;
   shutterSeconds: number;
+  /**
+   * Constant camera angular velocity in radians per second, with the same
+   * physical right-hand sign convention as calculateCameraRotationImageMapping()
+   * (camera +X right, +Y up, +Z forward; that basis is left-handed):
+   * positive yaw turns the optical axis left and moves stationary image content
+   * toward +X; positive pitch tilts the optical axis up and moves stationary
+   * image content toward -Y.
+   */
   angularVelocityRadPerSec: {
     yaw: number;
     pitch: number;

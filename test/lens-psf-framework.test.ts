@@ -611,44 +611,170 @@ describe("complex-pupil PSF reference propagation", () => {
       expect(() => calculateLensComplexPupilPsf({ profile, propagationDistanceMm: value as number })).toThrow();
     }
   });
-  it("maps a uniform unaberrated pupil to a unit-energy central discrete Fraunhofer peak", () => {
-    const result =
-      calculateLensComplexPupilPsf({
-        profile:
-          complexPupil()
-      }).value;
-
-    expect(
-      result.kernel
-        .normalizedIntensity
-        .reduce(
-          (sum, value) =>
-            sum + value,
-          0
-        )
-    ).toBeCloseTo(1, 14);
-    expect(
-      result.kernel
-        .normalizedIntensity[4]
-    ).toBeCloseTo(1, 12);
-    expect(result).toMatchObject({
-      diffractionAndAberrationJointlyEvaluated:
-        true,
-      pupilClippingThroughputAppliedToKernel:
-        false,
-      scalarFraunhoferReference:
-        true,
-      sensorOpticalStackIncluded:
-        false,
-      reconstructionIncluded:
-        false,
-      strayLightIncluded:
-        false,
-      scalarSharpnessScoreProduced:
-        false
+  it("matches the analytic Airy pattern for a properly sampled circular pupil", () => {
+    // f = 50 mm, f/4, 550 nm: D = 12.5 mm and lambda*N = 2.2 um. 63 pupil
+    // samples span D centre to centre (dp = D/62) on a 64 x 64 grid, which as
+    // declared gives Q = 64/62 < 2; the engine zero pads to 2S-1 = 125.
+    const focalLengthMm = 50;
+    const fNumber = 4;
+    const wavelengthNm = 550;
+    const n = 64;
+    const center = 32;
+    const radiusSamples = 31;
+    const pitchMm = focalLengthMm / fNumber / (2 * radiusSamples);
+    const amplitude = Array.from({ length: n * n }, (_, i) =>
+      (i % n - center) ** 2 + (Math.floor(i / n) - center) ** 2 <=
+      radiusSamples ** 2 ? 1 : 0
+    );
+    const result = calculateLensComplexPupilPsf({
+      profile: complexPupil({
+        context: {
+          focalLengthMm,
+          focus: { kind: "infinity" },
+          apertureFNumber: fNumber,
+          fieldPointMm: { x: 0, y: 0 },
+          wavelengthNm,
+          signedDefocusImagePlaneMicrometers: 0
+        },
+        grid: {
+          widthSamples: n,
+          heightSamples: n,
+          pupilSamplePitchMmX: pitchMm,
+          pupilSamplePitchMmY: pitchMm,
+          centerSampleX: center,
+          centerSampleY: center,
+          relativeAmplitude: amplitude,
+          opticalPathDifferenceMicrometers: new Array<number>(n * n).fill(0)
+        }
+      })
+    }).value;
+    const k = result.kernel;
+    expect(result.sampling).toMatchObject({
+      pupilSupportSamplesX: 63,
+      transformWidthSamples: 125,
+      transformHeightSamples: 125,
+      zeroPaddingApplied: true
     });
+    expect(result.sampling.samplingFactorQX).toBeCloseTo(125 / 62, 12);
+    expect(result.sampling.samplingFactorQX!).toBeGreaterThan(2);
+    const lambdaNUm = (wavelengthNm / 1000) * fNumber;
+    // Q = lambda*N / pitch, as defined by Goodman.
+    expect(lambdaNUm / k.samplePitchMicrometersX).toBeCloseTo(125 / 62, 12);
+    expect(k.normalizedIntensity.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 13);
+
+    // Analytic Airy irradiance [2 J1(v)/v]^2 with v = pi r/(lambda N);
+    // J1 from its Bessel integral (composite Simpson, 2000 intervals).
+    const besselJ1 = (x: number): number => {
+      const intervals = 2000;
+      const h = Math.PI / intervals;
+      let sum = 0;
+      for (let i = 0; i <= intervals; i += 1) {
+        const t = i * h;
+        const weight = i === 0 || i === intervals ? 1 : i % 2 === 1 ? 4 : 2;
+        sum += weight * Math.cos(t - x * Math.sin(t));
+      }
+      return (sum * h) / 3 / Math.PI;
+    };
+    // Equal-area diameter of the sampled disk: each non-zero sample stands
+    // for one dp x dp cell of the continuous aperture.
+    const sampleCount = amplitude.filter((value) => value > 0).length;
+    const equalAreaDiameterMm = 2 * Math.sqrt(sampleCount / Math.PI) * pitchMm;
+    const lambdaNEffectiveUm = (wavelengthNm / 1000) * focalLengthMm / equalAreaDiameterMm;
+    const airy = (rUm: number): number => {
+      const v = (Math.PI * rUm) / lambdaNEffectiveUm;
+      return v === 0 ? 1 : (2 * besselJ1(v) / v) ** 2;
+    };
+    const peak = k.normalizedIntensity[k.centerSampleY * k.widthSamples + k.centerSampleX]!;
+    expect(Math.max(...k.normalizedIntensity)).toBe(peak);
+    // Compare the peak-normalized shape over the core and first two rings
+    // (r <= 3 lambda N) with the Airy pattern of the equal-area aperture. The
+    // residual is the non-circular staircase edge of a 63-sample disk: about
+    // 4e-4 of the peak. 2e-3 leaves margin while still separating the
+    // equal-area aperture from the nominal 12.5 mm one (2.6e-3).
+    let maximumError = 0;
+    let compared = 0;
+    k.normalizedIntensity.forEach((value, i) => {
+      const xUm = (i % k.widthSamples - k.centerSampleX) * k.samplePitchMicrometersX;
+      const yUm = (Math.floor(i / k.widthSamples) - k.centerSampleY) * k.samplePitchMicrometersY;
+      const r = Math.hypot(xUm, yUm);
+      if (r <= 3 * lambdaNUm) {
+        maximumError = Math.max(maximumError, Math.abs(value / peak - airy(r)));
+        compared += 1;
+      }
+    });
+    expect(compared).toBeGreaterThan(100);
+    expect(maximumError).toBeLessThan(2e-3);
+    expect(equalAreaDiameterMm).toBeCloseTo(focalLengthMm / fNumber, 1);
   });
 
+  it("never returns an aliased kernel: a pupil filling its grid is zero padded to 2S-1", () => {
+    // The previously degenerate 3 x 3 uniform pupil declares Q = 3/2 < 2. Its
+    // unpadded 3-point DFT collapsed every side lobe into one sample.
+    const declared = calculateLensComplexPupilPsf({ profile: complexPupil() }).value;
+    expect(declared.sampling).toEqual({
+      criterion: "discrete-intensity-alias-free-goodman-q-above-2",
+      pupilSupportSamplesX: 3,
+      pupilSupportSamplesY: 3,
+      pupilSupportDiameterMmX: 2,
+      pupilSupportDiameterMmY: 2,
+      declaredPupilDiameterMm: 25,
+      pupilGridWidthSamples: 3,
+      pupilGridHeightSamples: 3,
+      transformWidthSamples: 5,
+      transformHeightSamples: 5,
+      zeroPaddingApplied: true,
+      samplingFactorQX: 2.5,
+      samplingFactorQY: 2.5
+    });
+    const k = declared.kernel;
+    expect([k.widthSamples, k.heightSamples, k.centerSampleX, k.centerSampleY]).toEqual([5, 5, 2, 2]);
+    // Independent separable 1D Dirichlet kernel: |sum_{p=-1..1} e^{-2 pi i k p/5}|^2.
+    const lobe = (q: number): number => (1 + 2 * Math.cos((2 * Math.PI * q) / 5)) ** 2;
+    const total = [-2, -1, 0, 1, 2].reduce((s, q) => s + lobe(q), 0) ** 2;
+    k.normalizedIntensity.forEach((value, i) => {
+      expect(value).toBeCloseTo(lobe(i % 5 - 2) * lobe(Math.floor(i / 5) - 2) / total, 14);
+    });
+    expect(k.normalizedIntensity[12]).toBeLessThan(1);
+    // Padding the declaration explicitly gives the identical kernel.
+    const padded = calculateLensComplexPupilPsf({
+      profile: complexPupil({
+        grid: {
+          widthSamples: 5,
+          heightSamples: 5,
+          pupilSamplePitchMmX: 1,
+          pupilSamplePitchMmY: 1,
+          centerSampleX: 2,
+          centerSampleY: 2,
+          relativeAmplitude: Array.from({ length: 25 }, (_, i) =>
+            i % 5 >= 1 && i % 5 <= 3 && Math.floor(i / 5) >= 1 && Math.floor(i / 5) <= 3 ? 1 : 0),
+          opticalPathDifferenceMicrometers: new Array<number>(25).fill(0)
+        }
+      })
+    }).value;
+    expect(padded.sampling.zeroPaddingApplied).toBe(false);
+    expect(padded.kernel.samplePitchMicrometersX).toBe(k.samplePitchMicrometersX);
+    padded.kernel.normalizedIntensity.forEach((value, i) =>
+      expect(value).toBeCloseTo(k.normalizedIntensity[i]!, 15));
+  });
+
+  it("rejects a pupil support wider than the declared f/N aperture", () => {
+    // 50 mm at f/2 allows D = 25 mm; 3 samples at 20 mm pitch span 40 mm.
+    const profile = complexPupil({
+      grid: {
+        widthSamples: 3,
+        heightSamples: 3,
+        pupilSamplePitchMmX: 20,
+        pupilSamplePitchMmY: 1,
+        centerSampleX: 1,
+        centerSampleY: 1,
+        relativeAmplitude: new Array<number>(9).fill(1),
+        opticalPathDifferenceMicrometers: new Array<number>(9).fill(0)
+      }
+    });
+    expect(() => calculateLensComplexPupilPsf({ profile })).toThrow(
+      /wider than the declared f\/N aperture diameter 25\.0000 mm/
+    );
+  });
   it("keeps pupil clipping shape in the PSF while throughput remains a separate factor", () => {
     const profile =
       complexPupil({
@@ -788,9 +914,14 @@ describe("complex-pupil PSF reference propagation", () => {
       }
     }
 
+    // A tilt of one wave across the 5-sample aperture displaces the PSF by
+    // lambda*z/(5*dp) = 9/5 samples of the zero-padded 9 x 9 kernel; the
+    // brightest sample is two samples toward +X on the centre row.
+    const k = result.kernel;
+    expect([k.widthSamples, k.centerSampleX, k.centerSampleY]).toEqual([9, 4, 4]);
     expect(maxIndex).toBe(
-      center * width +
-      (center + 1)
+      k.centerSampleY * k.widthSamples +
+      (k.centerSampleX + 2)
     );
     expect(
       result.full2dOrientationPreserved

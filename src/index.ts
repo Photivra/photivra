@@ -904,7 +904,8 @@ export {
   type CalculateLensComplexPupilPsfInput,
   type LensComplexPupilGrid,
   type LensComplexPupilProfile,
-  type LensComplexPupilPsf
+  type LensComplexPupilPsf,
+  type LensComplexPupilPsfSampling
 } from "./optics/complex-pupil-psf.js";
 
 export {

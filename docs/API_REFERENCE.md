@@ -874,6 +874,7 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`LensComplexPupilGrid`](api/optics-complex-pupil-psf.md#lenscomplexpupilgrid) | Type |
 | [`LensComplexPupilProfile`](api/optics-complex-pupil-psf.md#lenscomplexpupilprofile) | Type |
 | [`LensComplexPupilPsf`](api/optics-complex-pupil-psf.md#lenscomplexpupilpsf) | Type |
+| [`LensComplexPupilPsfSampling`](api/optics-complex-pupil-psf.md#lenscomplexpupilpsfsampling) | Type |
 | [`parseLensComplexPupilProfile`](api/optics-complex-pupil-psf.md#parselenscomplexpupilprofile) | Runtime |
 
 ## optics/depth-of-field.ts

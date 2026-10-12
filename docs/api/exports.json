@@ -2548,6 +2548,11 @@
       "kind": "type"
     },
     {
+      "name": "LensComplexPupilPsfSampling",
+      "source": "src/optics/complex-pupil-psf.ts",
+      "kind": "type"
+    },
+    {
       "name": "LensConfiguration",
       "source": "src/schema/camera.ts",
       "kind": "type"

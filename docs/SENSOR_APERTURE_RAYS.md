@@ -2,7 +2,7 @@
 
 `calculateSensorApertureRays()` generates origin-aware rays for an explicitly declared ideal symmetric thin lens. Native sensor coordinates use +Y down; camera look directions use +Y up and +Z forward. Origins lie in the lens principal plane and use metres. Pupil sample points use millimetres.
 
-For focal length f and nominal f-number N, the circular pupil radius is f/(2N). The shared focus contract determines image distance v. For finite object-plane distance D, every unrotated ray intersects (xD/v, -yD/v, D). At infinity the rays remain parallel. The existing constant-axis camera rotation rotates both origin and direction about the principal-plane origin at the actual local shutter time.
+For focal length f and nominal f-number N, the circular pupil radius is f/(2N). The shared focus contract determines image distance v. For finite object-plane distance D, every unrotated ray intersects (xD/v, -yD/v, D). At infinity the rays remain parallel. The existing constant-axis camera rotation rotates both origin and direction about the principal-plane origin at the actual local shutter time, using the same physical right-hand pitch/yaw/roll convention as the inverse image mapping.
 
 Uniform-area polar midpoints use r = R sqrt((i + 1/2)/Nr) and theta = 2 pi (j + 1/2)/Na. Each ray has normalized weight 1/(Nr Na). Counts are bounded to 1..32 radial and 4..64 angular samples, with at most 256 rays. These are integration samples, not a convergence guarantee.
 

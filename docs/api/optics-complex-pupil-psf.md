@@ -146,6 +146,8 @@ export interface LensComplexPupilPsf {
   context:
     LensComplexPupilProfile["context"];
   kernel: LensPsfKernel;
+  /** Nyquist sampling diagnostics and the applied zero padding. */
+  sampling: LensComplexPupilPsfSampling;
   relativePupilThroughputFactor:
     number;
   throughputOwnership:
@@ -177,6 +179,41 @@ export interface LensComplexPupilPsf {
   };
   uncertainty:
     LensPsfUncertainty;
+}
+```
+
+## LensComplexPupilPsfSampling
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface LensComplexPupilPsfSampling {
+  criterion: "discrete-intensity-alias-free-goodman-q-above-2";
+  /** Number of pupil samples spanned by non-zero amplitude, per axis. */
+  pupilSupportSamplesX: number;
+  pupilSupportSamplesY: number;
+  /**
+   * Sampled pupil diameter D = (support samples - 1) x pupil pitch: the
+   * centre-to-centre span of the outermost non-zero samples, in millimetres.
+   */
+  pupilSupportDiameterMmX: number;
+  pupilSupportDiameterMmY: number;
+  /** Declared aperture diameter focalLengthMm / apertureFNumber, in millimetres. */
+  declaredPupilDiameterMm: number;
+  /** Declared pupil grid size before zero padding. */
+  pupilGridWidthSamples: number;
+  pupilGridHeightSamples: number;
+  /** DFT size after zero padding; equals the output kernel size. */
+  transformWidthSamples: number;
+  transformHeightSamples: number;
+  zeroPaddingApplied: boolean;
+  /**
+   * Achieved Goodman sampling factor Q = lambda*(z/D)/imagePitch =
+   * transform samples / (support samples - 1). Always greater than 2; null
+   * when the support is a single sample on that axis (no finite diameter).
+   */
+  samplingFactorQX: number | null;
+  samplingFactorQY: number | null;
 }
 ```
 
