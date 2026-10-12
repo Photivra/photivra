@@ -17,6 +17,34 @@ All tasks require host yields, publish only whole successful outputs, distinguis
 
 Smaller chunks can admit an unchanged high-query-per-site optical event under the existing 100,000-query tile cap. The two-billion whole-event cap and 24-million-site/output-byte limits remain unchanged; a smaller tile never establishes convergence, qualified source transport or production activation. For example, 64 sites with 1,024 source queries per site need 65,536 queries in a tile, while 256 sites would exceed the tile cap. The caller must still satisfy the full-event budget and qualify the source and result independently.
 
+### Reusing the optical stage for post-optics edits (unreleased)
+
+Native environment capture spends almost all of its time in the scene-radiance → optics → EQE stage. For an unchanged optical event, `createNativeEnvironmentRawTask` can retain that stage's per-site result and `createNativeEnvironmentSensorStageTask` can re-run only the sensor stage from it, without invoking any radiance callback. Both are opt-in; omitting `NativeEnvironmentRawInput.opticalStage` keeps the original behavior and output shape.
+
+```ts
+const prepared = createNativeEnvironmentRawTask({ ...input, opticalStage: { maximumRetainedBytes } }, provider);
+await prepared.run();
+const { raw, opticalStage } = prepared.takeOutput();
+// Later: new seed, ISO/readout gain, dark profile or WB intent; same optical inputs.
+const edit = createNativeEnvironmentSensorStageTask({ raw: editedRawInput, sceneBinding: input.sceneBinding }, opticalStage!,
+  { readTile: provider.readTile, yieldControl: provider.yieldControl });
+await edit.run();
+const edited = edit.takeOutput(); // develop with createNativeRawDevelopmentTask as usual
+opticalStage!.dispose();
+```
+
+**What is retained.** The optical stage ends at each site's photo-signal expectation: the midpoint times, incident-photon and generated-electron rates, their exact midpoint sums, and the local exposure window. These are retained as float64 values and handed back to the unchanged sensor code (dark charge, accumulated charge, capacity, Poisson/read-noise realization, ADC). The values are the exact numbers the optical stage produced, so RAW codes, black levels, saturation codes and flags, and therefore developed output, are bit-identical to a full `createNativeEnvironmentRawTask` with the same final inputs. This relies on one assumption the full path also makes: the radiance provider is a deterministic function of its request under the bound provider scene and profile identities. The engine cannot inspect supplied code.
+
+**Which settings are reusable.** The optical stage never reads the capture's noise seed or realization, ISO metadata, white-balance intent, adopted white, capture identity, source-artifact metadata or declared models, nor the per-site readout profile/regime (conversion gain, read noise, ADC), charge sampling, capacity, completeness or dark-current profile and temperature. Changing only those reuses the stage. White balance and rendering exposure act in `createNativeRawDevelopmentTask`, which consumes RAW only.
+
+**Which settings refuse reuse.** Everything else is part of the binding, compared by strict structural equality (`Object.is` on every number, so `0` and `-0` differ; identical key sets): scene state and time, geometry including orientation and imaging area, focal length, aperture, shutter time and the exposure window (global or rolling scan), focus, frame/mode/CFA/binding profiles, the scene binding with its provider scene, and every field of every site's environment: provider, illumination, temporal-illumination and material profiles, optical profile, motion, PSF selection and profile, field throughput and vignetting, pupil sampling, spectral and spatial sampling, spectral response (EQE) and temporal sample count. A capture-level difference refuses when the reuse task is created, before any tile is read; a site-environment difference refuses when its tile is read, before that tile is executed. Either withholds all output. There is no fallback recompute: the caller runs `createNativeEnvironmentRawTask` again.
+
+**Why shutter time is not reusable.** Shutter time sets the local exposure window and therefore the midpoint query times. Those times enter every radiance request, the motion rotation and the temporal-illumination waveforms, and the midpoint weight is `duration / temporalSampleCount`. A static scene would give time-independent irradiance, but the engine cannot prove that a supplied provider ignores request time, and scaling the stored counts by a duration ratio would not reproduce the full path's arithmetic. A shutter change therefore needs a full recompute.
+
+**Memory.** Retention stores `NATIVE_ENVIRONMENT_OPTICAL_STAGE_LIMITS.fixedBytesPerSite` (58) plus `bytesPerTemporalSamplePerSite` (24) per temporal midpoint for every native site: 106 bytes per site with two midpoints, about 2.5 GB for 24 million sites. `maximumRetainedBytes` must admit `pixelCount × (58 + 24 × temporalSampleCount)`; the check runs after the first tile is planned and before any radiance callback. One temporal sample count per event is required. Distinct site environments (ignoring the absolute site and integration ID) and distinct photo identity/evidence records are interned, each capped at 256. `retainedBytes` reports the typed-array total. `dispose()` zeroes and releases the storage; a disposed or forged stage is refused, and disposal during a running reuse stops it at the next tile. Cancelling, disposing or failing the producing task before `takeOutput()` releases the stage; after transfer the caller owns it. A stage can be reused any number of times.
+
+`createNativeEnvironmentSensorStageTask` reports `providerEvaluationCount: 0`; `opticalStage.providerEvaluationCount` records the producing task's count. `test/native-environment-optical-stage.test.ts` checks reuse against full recomputes for PSF with radial field, flat emitter, pupil rays and eight temporal midpoints across seed, ISO with readout gain, white balance, rendering exposure and dark-current edits, and checks refusal for every optical input listed above, the memory bound and disposal.
+
 ## Print stage
 
 `createPrintJpegTask` accepts explicitly encoded sRGB 8-bit RGB in an already oriented output raster. It crops only within actual source support and rejects enlargement, stretching and unsupported aspect ratios. Original area filtering decodes this declared post-SDR stage to linear values, integrates exact pixel overlap, then encodes and quantizes sRGB. This does not recover sensor headroom or reprocess RAW. Source reads are bounded to 256 × 32 pixels; JPEG coding uses 8 × 8 blocks. Edge replication is restricted to final JPEG coding blocks, not reconstruction or crop support.
@@ -27,7 +55,7 @@ The ICC serializer uses the existing engine sRGB primaries and transfer function
 
 ## Reproducible validation
 
-`test/native-raw.test.ts`, `test/native-environment-raw.test.ts`, `test/native-raw-development.test.ts` and `test/print-jpeg.test.ts` cover small-reference parity, absolute odd-width phase/seed boundaries, orientation, signed below-black noise, whole-output budgets, corrupt providers, support halos and cancellation/ownership.
+`test/native-raw.test.ts`, `test/native-environment-raw.test.ts`, `test/native-environment-optical-stage.test.ts`, `test/native-raw-development.test.ts` and `test/print-jpeg.test.ts` cover small-reference parity, absolute odd-width phase/seed boundaries, orientation, signed below-black noise, whole-output budgets, corrupt providers, support halos and cancellation/ownership.
 
 Run the optional actual megapixel test with `PHOTIVRA_VALIDATE_MEGAPIXEL_RAW=1 PHOTIVRA_RAW_REPORT=/tmp/native-raw-report.json npx vitest run test/native-raw-megapixel.test.ts`. It executes every one of a million native sites, develops that exact RAW and downsamples to a 500 × 500 ICC JPEG. The constructed count inputs are not a qualified megapixel scene-radiance capture.
 

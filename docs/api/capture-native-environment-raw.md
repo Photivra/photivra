@@ -12,6 +12,25 @@ export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,p
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
 
+## createNativeEnvironmentSensorStageTask
+
+Re-runs only the sensor stage from a retained optical stage: no radiance callback is invoked. Use it when only
+post-optics settings change (noise seed, ISO metadata and readout regime/gain, charge/dark/capacity profiles,
+white-balance intent, capture identity or tile width); white balance and rendering are then applied by
+createNativeRawDevelopmentTask as usual. RAW codes are bit-identical to a full createNativeEnvironmentRawTask
+with the same final inputs, provided the radiance provider is a deterministic function of its request. Any
+optical difference (scene binding, geometry or orientation, focal length, aperture, shutter or exposure window,
+focus, frame/CFA/binding profiles, or any site environment field such as PSF, field throughput, pupil, motion,
+spectral or temporal sampling and provider profiles) refuses with InvalidConfigurationError before output.
+providerEvaluationCount is 0; the stage remains owned by the caller and is not consumed.
+
+```ts
+export function createNativeEnvironmentSensorStageTask(input:NativeEnvironmentSensorStageInput,opticalStage:NativeEnvironmentOpticalStage,
+  provider:NativeEnvironmentSensorStageProvider):NativeEnvironmentRawTask;
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
 ## NativeEnvironmentPhotoTile
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -32,6 +51,11 @@ export interface NativeEnvironmentRawInput {
   sceneBinding: SimulateEnvironmentSensorRawFrameInput["sceneBinding"];
   /** Full-event admission budget; maximum 2 billion calls. No convergence is inferred. */
   maximumProviderEvaluations: number;
+  /**
+   * Opt-in: retain the optical stage (per-site photo-signal expectations bound to every optical input) on the
+   * output for createNativeEnvironmentSensorStageTask. Omission keeps the original behavior and output shape.
+   */
+  opticalStage?: NativeEnvironmentOpticalStageRetention;
 }
 ```
 
@@ -47,6 +71,8 @@ export interface NativeEnvironmentRawOutput {
   upstreamOrigin: "executed-environment-query-provider-optics-psf-eqe";
   providerTransportVerified: false;
   productionPlanActivated: false;
+  /** Present only when NativeEnvironmentRawInput.opticalStage was requested. The caller owns and disposes it. */
+  opticalStage?: NativeEnvironmentOpticalStage;
 }
 ```
 
