@@ -417,6 +417,17 @@ function buildPipeline(
   };
 }
 
+/** Deep copy with every object's keys in reverse insertion order (#276 key-order regression). */
+function reverseKeyOrder<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(reverseKeyOrder) as T;
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .reverse()
+      .map(([key, entry]) => [key, reverseKeyOrder(entry)])
+  ) as T;
+}
+
 const zeroBiasConditions = {
   bias: {
     kind:
@@ -1624,6 +1635,77 @@ describe(
       ).toThrow(
         "photocurrent calculation must remain finite"
       );
+    });
+
+    it("matches semantically equal electrical conditions and reduction metadata regardless of key order", () => {
+      const pipeline = buildPipeline();
+      const conditions = {
+        bias: { kind: "reverse-biased" as const, magnitudeVolts: 3.3 },
+        readoutLoad: { kind: "finite-input-impedance" as const, inputImpedanceOhms: 10 }
+      };
+      const baseline = calculateSensorResponsivityPhotocurrent({
+        reduction: pipeline.reduction,
+        compatibility: pipeline.compatibility,
+        operatingRange: pipeline.operatingRange,
+        colorSamplingProfile: colorProfile(),
+        spectralResponseProfile: pipeline.spectralResponseProfile,
+        electricalApplicabilityProfile: electricalProfile({ referenceConditions: conditions }),
+        operatingElectricalConditions: conditions
+      });
+      const reordered = calculateSensorResponsivityPhotocurrent({
+        reduction: reverseKeyOrder(pipeline.reduction),
+        compatibility: pipeline.compatibility,
+        operatingRange: pipeline.operatingRange,
+        colorSamplingProfile: colorProfile(),
+        spectralResponseProfile: reverseKeyOrder(pipeline.spectralResponseProfile),
+        electricalApplicabilityProfile: electricalProfile({ referenceConditions: conditions }),
+        operatingElectricalConditions: reverseKeyOrder(conditions)
+      });
+
+      expect(reordered.value.electricalCompatibility).toBe("exact-match");
+      expect(reordered.value.photocurrentMagnitudeAmperes).toBe(baseline.value.photocurrentMagnitudeAmperes);
+      // The result carries the parsed conditions, not the caller's object or its key order.
+      expect(JSON.stringify(reordered.value.operatingElectricalConditions)).toBe(JSON.stringify(conditions));
+    });
+
+    it("does not echo unparsed operating electrical conditions into results", () => {
+      const pipeline = buildPipeline();
+      const supplied = {
+        bias: { kind: "zero-bias-photovoltaic" as const, note: "caller-only" },
+        readoutLoad: { kind: "virtual-ground-current-readout" as const },
+        extra: "caller-only"
+      };
+      const result = calculateSensorResponsivityPhotocurrent({
+        reduction: pipeline.reduction,
+        compatibility: pipeline.compatibility,
+        operatingRange: pipeline.operatingRange,
+        colorSamplingProfile: colorProfile(),
+        spectralResponseProfile: pipeline.spectralResponseProfile,
+        electricalApplicabilityProfile: electricalProfile(),
+        operatingElectricalConditions: supplied
+      }).value;
+      expect(result.operatingElectricalConditions).not.toBe(supplied);
+      expect(result.operatingElectricalConditions).toEqual(zeroBiasConditions);
+
+      expect(() =>
+        calculateSensorResponsivityPhotocurrent({
+          reduction: pipeline.reduction,
+          compatibility: pipeline.compatibility,
+          operatingRange: pipeline.operatingRange,
+          colorSamplingProfile: colorProfile(),
+          spectralResponseProfile: pipeline.spectralResponseProfile,
+          electricalApplicabilityProfile: electricalProfile({
+            scientificStatus: "approximation",
+            uncertainty: { kind: "not-quantified", limitation: "electrical approximation" },
+            conditionPolicy: {
+              kind: "assume-compatible",
+              limitation: "Treated as equivalent for this test.",
+              evidence: evidence("test:electrical-assumption")
+            }
+          }),
+          operatingElectricalConditions: { bias: { kind: "forward-biased" }, readoutLoad: zeroBiasConditions.readoutLoad } as never
+        })
+      ).toThrow("operatingElectricalConditions.bias.kind is invalid.");
     });
   }
 );

@@ -17,6 +17,7 @@ import {
 import type {
   EvidenceProvenance
 } from "../core/evidence-provenance.js";
+import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import {
   calculatePhotonEnergyFromWavelength,
@@ -245,10 +246,21 @@ function approximatelyEqual(
   );
 }
 
+/**
+ * Key-order-independent identity of parsed plain data, so semantically equal
+ * records compare equal regardless of property insertion order.
+ */
 function canonicalJson(
   value: unknown
 ): string {
-  return JSON.stringify(value);
+  if (value === undefined) return "undefined";
+  return stringifyCanonicalJson(value, {
+    undefinedObjectProperties: "omit",
+    nonFiniteNumberMessage:
+      "EQE electron-rate identity data must contain finite numbers.",
+    unsupportedValueMessage:
+      "EQE electron-rate identity data must be plain JSON data."
+  });
 }
 
 function requireEquivalent(

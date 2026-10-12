@@ -14,6 +14,17 @@ const darwinReference = JSON.parse(readFileSync(new URL("./fixtures/poc-projecti
   referenceCommit: string; platform: string; architecture: string; verifiedNodeMajors: number[];
   responseSha256Overrides: Record<string, string>;
 };
+// Intentional post-reference changes. #276: centered-crop width is now derived from the floored
+// height at the source aspect ratio, so only crop.pixelWidth/megapixels/retainedAreaFraction differ
+// (e.g. 600x400 at 2.1414x: 280x186 -> 279x186, exactly 3:2). All other fields are unchanged.
+const intentionalResponseSha256: Record<string, string> = {
+  "equivalence-11": "15aaf5e30d228a996173ce549d5fd9368d190a4fa4183e0dcdd4502494d99547",
+  "equivalence-25": "513f7679bfa105995b0f17661d903167a8f6d19a39591d7b1358dfa52b586696",
+  "equivalence-33": "7be90166b6cd791e6778c5b511f7ec49e28579c0587421ee2031d9a6c2b48798",
+  "equivalence-46": "1e50030d40ed215c07fa39e0a8fe0944a2e057bbf1c9bc9ac363b4f38397a018",
+  "equivalence-47": "256ff249de63a24b78ca2072bbbe1bf54599f8606c14bcd57b1a659f4244490c"
+};
+
 // #271 replaced the approximate DOF limits Hs/(H +/- (s - f)) with the exact
 // thin-lens limits. The historical response hashes predate that intentional
 // science change, so the corpus re-applies the pre-#271 expression (same
@@ -43,7 +54,8 @@ describe("request-local defocus focus projection", () => {
         focusDistanceM: fixture.input.focus.focusDistanceM, circleOfConfusionMm: fixture.input.focus.circleOfConfusionMm!
       }).value);
       const response = { ...current, depthOfField: preIssue271DepthOfField(fixture.input) };
-      const expected = (useDarwinReference ? darwinReference.responseSha256Overrides[fixture.id] : undefined) ?? fixture.responseSha256;
+      const expected = intentionalResponseSha256[fixture.id]
+        ?? (useDarwinReference ? darwinReference.responseSha256Overrides[fixture.id] : undefined) ?? fixture.responseSha256;
       expect(createHash("sha256").update(JSON.stringify(response)).digest("hex"), fixture.id).toBe(expected);
     }
   });

@@ -1,9 +1,42 @@
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createPocApiServer } from "../src/api/server.js";
+
+const simulateOverride = vi.hoisted(() => ({
+  current: undefined as (() => never) | undefined
+}));
+
+vi.mock("../src/simulation/poc-simulation.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../src/simulation/poc-simulation.js")>();
+  return {
+    ...actual,
+    simulatePocCamera: (
+      ...args: Parameters<typeof actual.simulatePocCamera>
+    ): ReturnType<typeof actual.simulatePocCamera> =>
+      simulateOverride.current === undefined
+        ? actual.simulatePocCamera(...args)
+        : simulateOverride.current()
+  };
+});
+
+function validRequest(): Record<string, unknown> {
+  return {
+    sensor: { widthMm: 36, heightMm: 24, pixelWidth: 6000, pixelHeight: 4000 },
+    lens: { focalLengthMm: 200, aperture: 5.6 },
+    exposure: { shutterSeconds: 0.001, iso: 800 },
+    focus: { focusDistanceM: 22, circleOfConfusionMm: 0.03 },
+    crop: { factor: 1 },
+    diffraction: { wavelengthNm: 550 },
+    motion: {
+      positionM: { x: 0, y: 0, z: 22 },
+      velocityMps: { x: 0, y: 0, z: 0 }
+    }
+  };
+}
 
 let activeServer: Server | undefined;
 
@@ -76,6 +109,8 @@ describe("POC HTTP API", () => {
     expect(response.headers.get("access-control-allow-methods")).toContain(
       "POST"
     );
+    expect(response.headers.get("content-type")).toBeNull();
+    expect(await response.text()).toBe("");
   });
 
   it("returns a structured 404 for unknown routes", async () => {
@@ -206,11 +241,118 @@ describe("POC HTTP API", () => {
       })
     });
 
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "PAYLOAD_TOO_LARGE",
+        message: "Request body exceeds 64 KiB."
+      }
+    });
+  });
+
+  it("rejects oversized streamed bodies without a Content-Length", async () => {
+    const baseUrl = await listenForTest(createPocApiServer());
+    const chunk = new TextEncoder().encode("x".repeat(16 * 1024));
+    let sent = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller): void {
+        if (sent >= 5) {
+          controller.close();
+          return;
+        }
+        sent += 1;
+        controller.enqueue(chunk);
+      }
+    });
+
+    const response = await fetch(`${baseUrl}/v1/poc/simulate`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: stream,
+      duplex: "half"
+    } as RequestInit & { duplex: "half" });
+
+    expect(response.status).toBe(413);
+    const body = (await response.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("PAYLOAD_TOO_LARGE");
+  });
+
+  it("returns 400 for invalid scientific input that passes shape validation", async () => {
+    const baseUrl = await listenForTest(createPocApiServer());
+
+    const response = await fetch(`${baseUrl}/v1/poc/simulate`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        sensor: { widthMm: -36, heightMm: 24, pixelWidth: 6000, pixelHeight: 4000 },
+        lens: { focalLengthMm: 200, aperture: 5.6 },
+        exposure: { shutterSeconds: 0.001, iso: 800 },
+        focus: { focusDistanceM: 22, circleOfConfusionMm: 0.03 },
+        crop: { factor: 1 },
+        diffraction: { wavelengthNm: 550 },
+        motion: {
+          positionM: { x: 0, y: 0, z: 22 },
+          velocityMps: { x: 0, y: 0, z: 0 }
+        }
+      })
+    });
+
     expect(response.status).toBe(400);
-    const body = (await response.json()) as {
-      error: { message: string };
+    const body = (await response.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("INVALID_SIMULATION_REQUEST");
+  });
+
+  it("does not echo JSON parser text for malformed bodies", async () => {
+    const baseUrl = await listenForTest(createPocApiServer());
+
+    const response = await fetch(`${baseUrl}/v1/poc/simulate`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: '{"secret-token-123'
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "INVALID_SIMULATION_REQUEST",
+        message: "Request body is not valid JSON."
+      }
+    });
+  });
+
+  it("maps internal failures to a fixed 500 without raw error text", async () => {
+    simulateOverride.current = (): never => {
+      throw new Error("internal detail /private/path secret");
     };
-    expect(body.error.message).toContain("exceeds 64 KiB");
+    try {
+      const baseUrl = await listenForTest(createPocApiServer());
+
+      const response = await fetch(`${baseUrl}/v1/poc/simulate`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify(validRequest())
+      });
+
+      expect(response.status).toBe(500);
+      const text = await response.text();
+      expect(text).not.toContain("secret");
+      expect(JSON.parse(text)).toEqual({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Internal simulation error."
+        }
+      });
+    } finally {
+      simulateOverride.current = undefined;
+    }
   });
 
   it("rejects non-JSON simulation requests", async () => {

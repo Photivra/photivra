@@ -334,11 +334,39 @@ function assertFiniteCalculationValue(value: unknown): void {
   assertFiniteNumbers(value, "value", new WeakSet<object>());
 }
 
+function validateProvenanceIdentity(provenance: CalculationProvenance): void {
+  for (const field of ["model", "modelVersion"] as const) {
+    const entry: unknown = provenance[field];
+    if (typeof entry !== "string" || entry.trim().length === 0) {
+      throw new InvalidScientificResultError(
+        `Calculation provenance ${field} must be a non-empty string.`
+      );
+    }
+  }
+}
+
+/**
+ * Estimated and calibrated results carry mandatory quality metadata; the
+ * TypeScript signature alone does not stop JavaScript callers from omitting it.
+ */
+function requireQuality(
+  quality: CalculationQuality | undefined,
+  kind: "estimated" | "calibrated"
+): CalculationQuality {
+  if (quality === undefined || quality === null) {
+    throw new InvalidScientificResultError(
+      `A ${kind} result requires calculation quality metadata.`
+    );
+  }
+  return quality;
+}
+
 function createResult<T>(
   value: T,
   provenance: CalculationProvenance,
   quality?: CalculationQuality
 ): CalculationResult<T> {
+  validateProvenanceIdentity(provenance);
   assertFiniteCalculationValue(value);
   validateCalculationQuality(quality);
 
@@ -411,7 +439,7 @@ export function estimatedResult<T>(
       modelVersion,
       assumptions
     },
-    quality
+    requireQuality(quality, "estimated")
   );
 }
 
@@ -433,6 +461,6 @@ export function calibratedResult<T>(
       modelVersion,
       assumptions
     },
-    quality
+    requireQuality(quality, "calibrated")
   );
 }

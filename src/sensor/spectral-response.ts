@@ -19,6 +19,7 @@ import {
   calculatedResult,
   type CalculationResult
 } from "../core/calculation-result.js";
+import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,
@@ -1014,8 +1015,9 @@ export function parseSensorSpectralResponseProfile(
  *
  * Channel IDs bind an explicit effective EQE or A/W curve, or a separately evidenced
  * filter-times-detector EQE representation. Support/interpolation/wavelength basis and exact canonical
- * channel data remain part of identity. Do not infer response from RGB labels or extrapolate outside
- * sampled support.
+ * channel data remain part of identity. The channel is parsed first and serialized with sorted object
+ * keys, so property order never changes the binding and malformed channels throw. Do not infer
+ * response from RGB labels or extrapolate outside sampled support.
  * @param response - SensorSpectralChannelResponse. See the linked contract for coordinate, unit and profile binding semantics.
  * @returns SensorSpectralResponseChannelBinding. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
  *
@@ -1027,8 +1029,22 @@ export function createSensorSpectralResponseChannelBinding(
   return {
     format:
       "photivra-spectral-channel-response-canonical-json-v1",
+    // Parse first so the binding never echoes unvalidated input, then sort keys
+    // so semantically equal channels bind identically regardless of key order.
     canonicalJson:
-      JSON.stringify(response)
+      stringifyCanonicalJson(
+        parseChannelResponse(
+          response,
+          "sensorSpectralResponseChannel"
+        ),
+        {
+          undefinedObjectProperties: "omit",
+          nonFiniteNumberMessage:
+            "sensorSpectralResponseChannel must contain finite numbers.",
+          unsupportedValueMessage:
+            "sensorSpectralResponseChannel must be plain JSON data."
+        }
+      )
   };
 }
 

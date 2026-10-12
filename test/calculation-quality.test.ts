@@ -5,6 +5,7 @@ import {
   calibratedResult,
   calculatedResult,
   estimatedResult,
+  InvalidScientificResultError,
   validateCalculationQuality,
   type CalculationQuality
 } from "../src/index.js";
@@ -234,5 +235,34 @@ describe("calculation quality metadata", () => {
         ]
       })
     ).toThrow("validRanges[0].unit must not be empty");
+  });
+
+  it("rejects estimated/calibrated results without quality from untyped callers (#276)", () => {
+    for (const create of [estimatedResult, calibratedResult]) {
+      for (const missing of [undefined, null]) {
+        expect(() => create({ x: 1 }, "model", "1.0.0", ["a"], missing as unknown as CalculationQuality))
+          .toThrow(InvalidScientificResultError);
+      }
+      expect(() => create({ x: 1 }, "model", "1.0.0", ["a"], undefined as unknown as CalculationQuality))
+        .toThrow("requires calculation quality metadata");
+      expect(create({ x: 1 }, "model", "1.0.0", ["a"], quality).quality).toBe(quality);
+    }
+  });
+
+  it("validates provenance model and modelVersion as non-empty strings for every result kind", () => {
+    const creators = [
+      (model: unknown, version: unknown): { provenance: unknown } => calculatedResult({ x: 1 }, model as string, version as string),
+      (model: unknown, version: unknown): { provenance: unknown } => approximationResult({ x: 1 }, model as string, version as string, ["a"]),
+      (model: unknown, version: unknown): { provenance: unknown } => estimatedResult({ x: 1 }, model as string, version as string, ["a"], quality),
+      (model: unknown, version: unknown): { provenance: unknown } => calibratedResult({ x: 1 }, model as string, version as string, ["a"], quality)
+    ];
+    for (const create of creators) {
+      expect(create("model", "1.0.0").provenance).toMatchObject({ model: "model", modelVersion: "1.0.0" });
+      for (const invalid of ["", "  ", undefined, null, 1, {}]) {
+        expect(() => create(invalid, "1.0.0")).toThrow("Calculation provenance model must be a non-empty string.");
+        expect(() => create("model", invalid)).toThrow("Calculation provenance modelVersion must be a non-empty string.");
+        expect(() => create(invalid, "1.0.0")).toThrow(InvalidScientificResultError);
+      }
+    }
   });
 });

@@ -18,6 +18,7 @@ import {
   requirePositiveFinite,
   requirePositiveInteger
 } from "../core/validation.js";
+import { floorWholePixels } from "./crop.js";
 
 export interface CalculateSubjectFramingCropInput {
   /** Source image width in pixels. */
@@ -78,14 +79,32 @@ export function calculateSubjectFramingCrop(
       ? 1
       : input.pixelHeight / requestedCropHeight;
 
-  const pixelHeight = Math.max(
-    1,
-    Math.floor(input.pixelHeight / cropFactor)
-  );
-  const pixelWidth = Math.max(
-    1,
-    Math.floor(input.pixelWidth / cropFactor)
-  );
+  // Height is the constrained axis, computed directly from the requested crop
+  // height rather than through H / (H / requested), whose rounding could drop a
+  // pixel. It is the largest whole-pixel height within the requested crop (so
+  // the subject fills at least the target fraction), but never fewer pixels
+  // than the subject needs, so rounding alone never clips the subject. Width
+  // follows from that integer height and the source aspect ratio.
+  const pixelHeight =
+    cropFactor === 1
+      ? input.pixelHeight
+      : Math.min(
+          input.pixelHeight,
+          Math.max(
+            floorWholePixels(requestedCropHeight),
+            Math.ceil(input.subjectHeightPixels)
+          )
+        );
+  const pixelWidth =
+    cropFactor === 1
+      ? input.pixelWidth
+      : Math.max(
+          1,
+          Math.min(
+            input.pixelWidth,
+            Math.round((pixelHeight * input.pixelWidth) / input.pixelHeight)
+          )
+        );
   const subjectHeightFraction =
     input.subjectHeightPixels / pixelHeight;
 
@@ -102,7 +121,7 @@ export function calculateSubjectFramingCrop(
     "subject-height-framing-crop",
     "1.0.0",
     [
-      "Original aspect ratio is preserved",
+      "Crop height is the largest whole-pixel height within the requested crop, but never smaller than the subject; width is the nearest integer to the original aspect ratio",
       "Crop can be positioned around the subject",
       "Subject edge/margin constraints are not modeled",
       "subjectHeightFraction may exceed 1 when the subject is clipped by frame height"

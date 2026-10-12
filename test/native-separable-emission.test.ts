@@ -48,3 +48,12 @@ it('owns the entire contract before source callbacks and does not reuse cache ac
  await task.run();const output=task.takeOutput();expect(calls).toBe(output.geometryEvaluationCount);expect(output.spectralCompositionCount).toBe(f.reference.value.providerEvaluationCount);
  expect(output.geometryEvaluationCount).toBe(output.spectralCompositionCount/2);
 });
+it.each(['map','date','typed-array','sparse'])('rejects a non-JSON %s in shared site state instead of hashing it as {} (#276)',async kind=>{
+ const f=separableNativeFixture(),evaluate=vi.fn(f.provider.evaluateGeometry),read=f.provider.readTile.bind(f.provider);
+ // eslint-disable-next-line no-sparse-arrays
+ const bad:unknown=kind==='map'?new Map([['a',1]]):kind==='date'?new Date(0):kind==='typed-array'?new Float64Array([1]):[1,,2];
+ const provider={...f.provider,evaluateGeometry:evaluate,readTile:async(r:Parameters<typeof read>[0],s:AbortSignal):Promise<NativeEnvironmentRawTile>=>{
+  const tile=await read(r,s);(tile.sites[0]!.environment.sceneBindings as unknown as Record<string,unknown>).extra=bad;return tile;}};
+ const task=createExperimentalNativeSeparableEmissionTask(f.input,provider);
+ await expect(task.run()).rejects.toThrow('Invalid native scene binding.');expect(evaluate).not.toHaveBeenCalled();
+});
