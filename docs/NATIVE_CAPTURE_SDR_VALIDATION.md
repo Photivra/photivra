@@ -32,3 +32,16 @@ On 2026-10-03, Node 26.8.1 on the same darwin/arm64 host, a sequential benchmark
 The [follow-up machine-readable record](validation/native-capture-sdr-darwin-arm64-node26-review.jsonl) preserves baselines, sampled peaks and hashes. All three earlier raster/code-depth hashes agree with the original Node 24 record. The new maximum 24 MP/16-bit backing-byte hash is `b4ab10fe9f6b8f083c5637561aa2a61fe447774b86504a8551b8cc784c815626`. Its host-endian interpretation and all earlier resource/source qualification limitations apply. Earlier measurements are retained; differences across runtimes/runs do not establish a performance improvement.
 
 The package/root candidate identity is 1.2.0, aligned with lock/citation and regenerated references. npm registry verification on 2026-10-03 found 1.1.0 as the latest published version and no 1.2.0 distribution. Follow [the 1.2.0 release procedure](RELEASE_1_2_0.md) after human review to run exact tag/publish gates. No existing published version is overwritten; implementation, human review, merge and publication are separate. #215's publication acceptance remains pending until that reviewed distribution exists. A consumer still requires a qualified authoritative RGB producer and measured device budgets before production activation.
+
+## Typed-array kernel (#275)
+
+The tile path no longer packs each tile into a `number[]`, maps it through the reference's intermediate arrays and deep-validates the result envelope; a typed-array kernel computes the same equations in the same floating-point order and writes codes directly. On 2026-10-12, Node 24.21.0 on linux/x64 (shared 4-vCPU host, so absolute times are indicative only), the repository benchmark gave:
+
+| Raster | Code depth | Before | After | Output hash |
+|---|---|---|---|---|
+| 3000 × 2000 | 8-bit | 9.061 s | 0.700 s | `8681732e…` (unchanged) |
+| 6000 × 4000 | 8-bit | 33.901 s | 3.327 s | `0d3ee7c2…` (unchanged) |
+| 3000 × 2000 | 16-bit | 8.893 s | 0.873 s | `93382bcd…` (unchanged) |
+| 6000 × 4000 | 16-bit | 35.617 s | 3.400 s | `b4ab10fe…` (unchanged) |
+
+All four output hashes equal those in the retained 1.2.0 records above. Timings include the benchmark's own analytic tile generation and per-tile host yields.
