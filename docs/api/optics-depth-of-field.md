@@ -34,8 +34,11 @@ export interface CalculateDefocusCircleInput {
 
 ## calculateDepthOfField
 
-Calculates thin-lens depth-of-field limits using the conventional
-hyperfocal-distance formulation.
+Calculates exact thin-lens depth-of-field limits. With hyperfocal
+distance H = f^2/(Nc) + f and focus distance s, the near limit is
+s(H - f)/(H + s - 2f) and the far limit is s(H - f)/(H - s), which is
+infinite (`null`) when s >= H. At both limits the geometric defocus circle
+from {@link calculateDefocusCircle} equals the supplied circle of confusion.
 
 The model is geometric and does not include diffraction, aberrations,
 focus breathing, pupil magnification, or macro/high-magnification effects.

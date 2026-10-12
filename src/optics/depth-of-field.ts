@@ -2,7 +2,8 @@
 
 /**
  * Module boundary and integration notes.
- * Calculates thin-lens depth-of-field limits using the conventional hyperfocal-distance formulation.
+ * Calculates exact thin-lens depth-of-field limits from the hyperfocal distance H = f^2/(Nc) + f:
+ * near = s(H - f)/(H + s - 2f), far = s(H - f)/(H - s), infinite (null) when s >= H.
  * The model is geometric and does not include diffraction, aberrations, focus breathing, pupil
  * magnification, or macro/high-magnification effects.
  * Calculates the geometric defocus-circle diameter at the sensor plane for a subject plane away from
@@ -42,8 +43,11 @@ export interface DepthOfField {
 }
 
 /**
- * Calculates thin-lens depth-of-field limits using the conventional
- * hyperfocal-distance formulation.
+ * Calculates exact thin-lens depth-of-field limits. With hyperfocal
+ * distance H = f^2/(Nc) + f and focus distance s, the near limit is
+ * s(H - f)/(H + s - 2f) and the far limit is s(H - f)/(H - s), which is
+ * infinite (`null`) when s >= H. At both limits the geometric defocus circle
+ * from {@link calculateDefocusCircle} equals the supplied circle of confusion.
  *
  * The model is geometric and does not include diffraction, aberrations,
  * focus breathing, pupil magnification, or macro/high-magnification effects.
@@ -66,32 +70,41 @@ export function calculateDepthOfField(
     );
   }
 
-  const hyperfocalDistanceMm =
+  // H - f = f^2 / (N c), kept separately to avoid cancellation.
+  const hyperfocalOffsetMm =
     (input.focalLengthMm * input.focalLengthMm) /
-      (input.aperture * input.circleOfConfusionMm) +
-    input.focalLengthMm;
+    (input.aperture * input.circleOfConfusionMm);
+  const hyperfocalDistanceMm = hyperfocalOffsetMm + input.focalLengthMm;
 
-  const focusOffsetMm = focusDistanceMm - input.focalLengthMm;
+  // Exact thin-lens limits. The defocus-circle diameter for a subject at d
+  // while focused at s is c(d) = f^2 |s - d| / (N d (s - f)). Solving
+  // c(d) = c with H = f^2 / (N c) + f gives
+  //   near = s (H - f) / (H + s - 2f) = s (H - f) / ((H - f) + (s - f))
+  //   far  = s (H - f) / (H - s), infinite when s >= H.
   const nearLimitMm =
-    (hyperfocalDistanceMm * focusDistanceMm) /
-    (hyperfocalDistanceMm + focusOffsetMm);
+    (focusDistanceMm * hyperfocalOffsetMm) /
+    (hyperfocalOffsetMm + (focusDistanceMm - input.focalLengthMm));
 
-  const farDenominator = hyperfocalDistanceMm - focusOffsetMm;
+  // Compare against the reported hyperfocal distance in metres as well, so a
+  // caller focusing at exactly the returned hyperfocalDistanceM always gets an
+  // infinite far limit despite millimetre/metre rounding.
+  const hyperfocalDistanceM = hyperfocalDistanceMm / 1000;
+  const farDenominator = hyperfocalDistanceMm - focusDistanceMm;
   const farLimitMm =
-    farDenominator <= 0
+    farDenominator <= 0 || input.focusDistanceM >= hyperfocalDistanceM
       ? null
-      : (hyperfocalDistanceMm * focusDistanceMm) / farDenominator;
+      : (focusDistanceMm * hyperfocalOffsetMm) / farDenominator;
 
   return calculatedResult(
     {
-      hyperfocalDistanceM: hyperfocalDistanceMm / 1000,
+      hyperfocalDistanceM,
       nearLimitM: nearLimitMm / 1000,
       farLimitM: farLimitMm === null ? null : farLimitMm / 1000,
       totalDepthOfFieldM:
         farLimitMm === null ? null : (farLimitMm - nearLimitMm) / 1000
     },
     "thin-lens-depth-of-field",
-    "1.0.0",
+    "1.1.0",
     [
       "Geometric thin-lens model",
       "Circle of confusion is supplied by the caller",

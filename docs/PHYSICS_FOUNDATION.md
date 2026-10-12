@@ -240,7 +240,12 @@ This simplified scale does not model principal-plane movement, pupil magnificati
 
 ### Thin-lens focus and depth of field
 
-The geometric depth-of-field model uses the conventional hyperfocal/near/far equations with a caller-supplied acceptable circle of confusion.
+The geometric depth-of-field model uses the exact thin-lens near/far limits with a caller-supplied acceptable circle of confusion `c`. With focal length `f`, f-number `N`, focus distance `s` and hyperfocal distance `H = f²/(Nc) + f`:
+
+- near limit `= s(H − f)/(H + s − 2f)`;
+- far limit `= s(H − f)/(H − s)`, infinite (`null`) when `s ≥ H`.
+
+These solve `f²|s − d|/(N d (s − f)) = c`, the thin-lens defocus-circle diameter used by `calculateDefocusCircle()`, so the defocus circle at either returned limit equals `c` (Ray, *Applied Photographic Optics*). Model `thin-lens-depth-of-field` 1.1.0 replaced the earlier approximation `Hs/(H ± (s − f))`, which slightly misplaced both limits and returned a finite far limit when focused at `H`.
 
 The circle-of-confusion criterion is a viewing/acceptability input, not a physical sensor threshold. The optional equivalent-viewing helper scales a caller-supplied reference criterion by sensor-diagonal ratio and is explicitly labeled an approximation.
 
