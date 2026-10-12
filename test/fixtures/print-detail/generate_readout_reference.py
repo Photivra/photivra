@@ -34,7 +34,7 @@ for name, capacity, pre_adc, gain, levels in (
     cases.append(dict(name=name, capacityElectrons=capacity, preAdcElectronEquivalent=pre_adc, conversionGainElectronsPerCode=float(gain),
         injectedElectronEquivalents=list(map(float,levels)), expectedStored=list(map(float,stored)), expectedPreAdc=list(map(float,analog)),
         expectedRawCodes=codes, expectedPhysicalClipping=[v>capacity for v in levels], expectedPreAdcClipping=[v>pre_adc for v in stored],
-        expectedDigitalClipping=[v>4095 for v in quantized], pairs=pairs))
+        expectedDigitalClipping=[v>=4095 for v in quantized], pairs=pairs))
 record=dict(schemaVersion="0.1.0", ownership="photivra-owned", source="generate_readout_reference.py",
     domain=dict(signal="declared deterministic charge injection; conditional neutral scalar diagnostic scaled by 100 electrons per relative unit",
         noise="zero photo/dark expectations and zero read noise for exact stage isolation", adcBitDepth=12, blackLevelCode=512,
