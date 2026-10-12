@@ -43,6 +43,14 @@ export interface PrintJpegInput {
   quantizationStep:number;
   maximumEncodedBytes:number;
   maximumProviderReads:number;
+  /**
+   * Optional physical print density in pixels per inch (1..65535) from the caller's print plan. When present,
+   * EXIF IFD0 records XResolution = YResolution = this value as a RATIONAL with ResolutionUnit = 2 (inches),
+   * and JFIF APP0 records units = 1 with the nearest integer density (JFIF density fields are uint16).
+   * When omitted no physical size is claimed: JFIF keeps units = 0 with a 1:1 aspect ratio and IFD0 omits
+   * the resolution tags rather than inventing a default such as 72 ppi.
+   */
+  pixelsPerInch?:number;
 }
 ```
 
