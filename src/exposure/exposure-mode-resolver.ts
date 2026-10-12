@@ -1893,6 +1893,27 @@ function selectShutterNotLongerThanTarget(
   const first = values[0]!;
   const last = values[values.length - 1]!;
 
+  // A grid value within settingEquals tolerance of the target is an exact
+  // match: floating-point error in the computed target must not push the
+  // selection one grid step shorter (#272).
+  const exactMatch =
+    values.find(
+      (candidate) =>
+        settingEquals(
+          candidate,
+          targetSeconds
+        )
+    );
+  if (exactMatch !== undefined) {
+    return {
+      shutterSeconds: exactMatch,
+      kind: "discrete",
+      quantized: false,
+      clamped: false,
+      limitingConstraint: "none"
+    };
+  }
+
   if (targetSeconds < first) {
     return {
       shutterSeconds: first,
@@ -1903,26 +1924,14 @@ function selectShutterNotLongerThanTarget(
         "shutter-minimum"
     };
   }
-  if (targetSeconds >= last) {
+  if (targetSeconds > last) {
     return {
-      shutterSeconds:
-        targetSeconds > last
-          ? last
-          : targetSeconds,
+      shutterSeconds: last,
       kind: "discrete",
-      quantized:
-        !settingEquals(
-          targetSeconds,
-          last
-        ),
-      clamped:
-        targetSeconds > last
-          ? "maximum"
-          : false,
+      quantized: true,
+      clamped: "maximum",
       limitingConstraint:
-        targetSeconds > last
-          ? "shutter-maximum"
-          : "none"
+        "shutter-maximum"
     };
   }
 
@@ -2165,23 +2174,35 @@ function selectApertureNotWiderThanTarget(
   const first = values[0]!;
   const last = values[values.length - 1]!;
 
-  if (idealFNumber <= first) {
+  // A grid value within settingEquals tolerance of the ideal is an exact
+  // match: floating-point error in the computed ideal must not push the
+  // selection one grid step narrower (#272).
+  const exactMatch =
+    values.find(
+      (candidate) =>
+        settingEquals(
+          candidate,
+          idealFNumber
+        )
+    );
+  if (exactMatch !== undefined) {
+    return {
+      aperture: exactMatch,
+      kind: "discrete",
+      quantized: false,
+      clamped: false,
+      limitingConstraint: "none"
+    };
+  }
+
+  if (idealFNumber < first) {
     return {
       aperture: first,
       kind: "discrete",
-      quantized:
-        !settingEquals(
-          idealFNumber,
-          first
-        ),
-      clamped:
-        idealFNumber < first
-          ? "widest"
-          : false,
+      quantized: true,
+      clamped: "widest",
       limitingConstraint:
-        idealFNumber < first
-          ? "aperture-widest"
-          : "none"
+        "aperture-widest"
     };
   }
   if (idealFNumber > last) {
