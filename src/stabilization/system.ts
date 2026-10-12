@@ -1048,27 +1048,58 @@ export function parseStabilizationDisturbanceTrajectory(
   };
 }
 
-function interpolateAxis(
+/**
+ * Evaluation-time index over a parsed disturbance trajectory. Support times are copied once into a
+ * Float64Array (exact IEEE-754 values) so each lookup is an O(log n) binary search instead of the
+ * former O(n) scan; interpolation arithmetic is unchanged.
+ */
+interface DisturbanceIndex {
+  readonly samples:
+    StabilizationDisturbanceTrajectory["samples"];
+  readonly times: Float64Array;
+}
+
+function indexDisturbance(
   trajectory:
-    StabilizationDisturbanceTrajectory,
-  timeSeconds: number,
-  axis:
-    StabilizationRotationAxis
+    StabilizationDisturbanceTrajectory
+): DisturbanceIndex {
+  const times =
+    new Float64Array(
+      trajectory.samples.length
+    );
+  for (
+    let index = 0;
+    index < times.length;
+    index += 1
+  ) {
+    times[index] =
+      trajectory.samples[index]!
+        .timeSecondsFromCaptureReference;
+  }
+  return {
+    samples:
+      trajectory.samples,
+    times
+  };
+}
+
+/**
+ * Return the left index of the support segment used for `timeSeconds`, or -1 for the final support
+ * time (which returns its stored value). The selected segment is exactly the one the original
+ * first-match linear scan chose: the smallest `i` with `t[i] <= timeSeconds <= t[i + 1]`. Support
+ * times are strictly increasing, so an interior support time resolves to the segment on its left.
+ */
+function locateDisturbanceSegment(
+  disturbance: DisturbanceIndex,
+  timeSeconds: number
 ): number {
-  const first =
-    trajectory.samples[0]!;
-  const last =
-    trajectory.samples[
-      trajectory.samples.length -
-        1
-    ]!;
+  const times =
+    disturbance.times;
+  const lastIndex =
+    times.length - 1;
   if (
-    timeSeconds <
-      first
-        .timeSecondsFromCaptureReference ||
-    timeSeconds >
-      last
-        .timeSecondsFromCaptureReference
+    timeSeconds < times[0]! ||
+    timeSeconds > times[lastIndex]!
   ) {
     throw new InvalidScientificInputError(
       "Requested stabilization evaluation time lies outside the disturbance trajectory support."
@@ -1077,68 +1108,110 @@ function interpolateAxis(
 
   if (
     timeSeconds ===
-    last
-      .timeSecondsFromCaptureReference
+    times[lastIndex]!
   ) {
-    return last
+    return -1;
+  }
+
+  // Lower bound: first index whose support time is >= timeSeconds.
+  let low = 0;
+  let high = lastIndex;
+  while (low < high) {
+    const middle =
+      (low + high) >>> 1;
+    if (
+      times[middle]! >=
+      timeSeconds
+    ) {
+      high = middle;
+    } else {
+      low = middle + 1;
+    }
+  }
+  const index =
+    low === 0 ? 0 : low - 1;
+  if (
+    !(
+      timeSeconds >=
+        times[index]! &&
+      timeSeconds <=
+        times[index + 1]!
+    )
+  ) {
+    throw new InvalidScientificInputError(
+      "Disturbance trajectory interpolation failed."
+    );
+  }
+  return index;
+}
+
+function interpolateDisturbanceSegment(
+  disturbance: DisturbanceIndex,
+  segmentIndex: number,
+  timeSeconds: number,
+  axis:
+    StabilizationRotationAxis
+): number {
+  const samples =
+    disturbance.samples;
+  if (segmentIndex < 0) {
+    return samples[
+      samples.length - 1
+    ]!
       .angularDisplacementRad[
         axis
       ];
   }
+  const left =
+    samples[segmentIndex]!;
+  const right =
+    samples[
+      segmentIndex + 1
+    ]!;
+  const duration =
+    right
+      .timeSecondsFromCaptureReference -
+    left
+      .timeSecondsFromCaptureReference;
+  const phase =
+    duration === 0
+      ? 0
+      : (
+          timeSeconds -
+          left
+            .timeSecondsFromCaptureReference
+        ) /
+        duration;
+  const a =
+    left
+      .angularDisplacementRad[
+        axis
+      ];
+  const b =
+    right
+      .angularDisplacementRad[
+        axis
+      ];
+  return (
+    a +
+    (b - a) * phase
+  );
+}
 
-  for (
-    let index = 0;
-    index <
-    trajectory.samples.length - 1;
-    index += 1
-  ) {
-    const left =
-      trajectory.samples[index]!;
-    const right =
-      trajectory.samples[
-        index + 1
-      ]!;
-    if (
-      timeSeconds >=
-        left
-          .timeSecondsFromCaptureReference &&
-      timeSeconds <=
-        right
-          .timeSecondsFromCaptureReference
-    ) {
-      const duration =
-        right
-          .timeSecondsFromCaptureReference -
-        left
-          .timeSecondsFromCaptureReference;
-      const phase =
-        duration === 0
-          ? 0
-          : (
-              timeSeconds -
-              left
-                .timeSecondsFromCaptureReference
-            ) /
-            duration;
-      const a =
-        left
-          .angularDisplacementRad[
-            axis
-          ];
-      const b =
-        right
-          .angularDisplacementRad[
-            axis
-          ];
-      return (
-        a +
-        (b - a) * phase
-      );
-    }
-  }
-
-  throw new InvalidScientificInputError(
-    "Disturbance trajectory interpolation failed."
+function interpolateAxis(
+  disturbance: DisturbanceIndex,
+  timeSeconds: number,
+  axis:
+    StabilizationRotationAxis
+): number {
+  return interpolateDisturbanceSegment(
+    disturbance,
+    locateDisturbanceSegment(
+      disturbance,
+      timeSeconds
+    ),
+    timeSeconds,
+    axis
   );
 }
 
@@ -1171,30 +1244,59 @@ function clampSymmetric(
   );
 }
 
+type AxisResponseIndex = ReadonlyMap<
+  StabilizationRotationAxis,
+  StabilizationSystemProfile["axisResponses"][number]
+>;
+
+/** Built once per calculation; identical last-wins semantics to the former per-evaluation Map. */
+function indexAxisResponses(
+  profile:
+    StabilizationSystemProfile
+): AxisResponseIndex {
+  return new Map(
+    profile.axisResponses.map(
+      (response) => [
+        response.axis,
+        response
+      ] as const
+    )
+  );
+}
+
 function evaluateAtTime(
-  disturbance:
-    StabilizationDisturbanceTrajectory,
+  disturbance: DisturbanceIndex,
   profile:
     StabilizationSystemProfile,
+  responses: AxisResponseIndex,
   timeSeconds: number
 ): StabilizedRotationSample {
+  // One segment lookup serves all three axes at the same time.
+  const segment =
+    locateDisturbanceSegment(
+      disturbance,
+      timeSeconds
+    );
   const current:
     StabilizationAngularStateRad = {
       pitch:
-        interpolateAxis(
+        interpolateDisturbanceSegment(
           disturbance,
+          segment,
           timeSeconds,
           "pitch"
         ),
       yaw:
-        interpolateAxis(
+        interpolateDisturbanceSegment(
           disturbance,
+          segment,
           timeSeconds,
           "yaw"
         ),
       roll:
-        interpolateAxis(
+        interpolateDisturbanceSegment(
           disturbance,
+          segment,
           timeSeconds,
           "roll"
         )
@@ -1209,16 +1311,6 @@ function evaluateAtTime(
     StabilizationAngularStateRad = {
       ...current
     };
-
-  const responses =
-    new Map(
-      profile.axisResponses.map(
-        (response) => [
-          response.axis,
-          response
-        ] as const
-      )
-    );
 
   const axes =
     ["pitch", "yaw", "roll"] as const;
@@ -1394,12 +1486,17 @@ export function calculateStabilizedRotationTrajectory(
     );
   }
 
+  const disturbanceIndex =
+    indexDisturbance(disturbance);
+  const responses =
+    indexAxisResponses(profile);
   const samples =
     disturbance.samples.map(
       (sample) =>
         evaluateAtTime(
-          disturbance,
+          disturbanceIndex,
           profile,
+          responses,
           sample
             .timeSecondsFromCaptureReference
         )
@@ -1451,9 +1548,53 @@ export function calculateStabilizedRotationTrajectory(
   );
 }
 
-function localExposureForPoint(
+type ExposureWindowSample =
+  ResolvedCaptureModeTiming["exposureWindows"]["samples"][number];
+type ExposureWindowIndex = ReadonlyMap<
+  unknown,
+  ReadonlyMap<unknown, readonly ExposureWindowSample[]>
+>;
+
+/**
+ * Group committed exposure-window samples by native point once per calculation, preserving their
+ * order. Map keys use SameValueZero, so lookups are re-filtered with the original `===` test (NaN
+ * never matches; signed zeros do).
+ */
+function indexExposureWindows(
   timing:
-    ResolvedCaptureModeTiming,
+    ResolvedCaptureModeTiming
+): ExposureWindowIndex {
+  const byX =
+    new Map<
+      unknown,
+      Map<unknown, ExposureWindowSample[]>
+    >();
+  for (const sample of timing.exposureWindows.samples) {
+    let byY =
+      byX.get(sample.pointNative.x);
+    if (byY === undefined) {
+      byY = new Map();
+      byX.set(
+        sample.pointNative.x,
+        byY
+      );
+    }
+    const bucket =
+      byY.get(sample.pointNative.y);
+    if (bucket === undefined) {
+      byY.set(
+        sample.pointNative.y,
+        [sample]
+      );
+    } else {
+      bucket.push(sample);
+    }
+  }
+  return byX;
+}
+
+function localExposureForPoint(
+  windows: ExposureWindowIndex,
   point:
     RasterPoint
 ): {
@@ -1462,7 +1603,11 @@ function localExposureForPoint(
   duration: number;
 } {
   const matches =
-    timing.exposureWindows.samples.filter(
+    (
+      windows
+        .get(point.x)
+        ?.get(point.y) ?? []
+    ).filter(
       (sample) =>
         sample.pointNative.x ===
           point.x &&
@@ -1550,12 +1695,22 @@ export function calculateStabilizedCaptureTemporalSamples(
     );
   }
 
+  const disturbanceIndex =
+    indexDisturbance(disturbance);
+  const responses =
+    indexAxisResponses(profile);
+  let exposureWindowIndex:
+    ExposureWindowIndex | undefined;
   const points =
     input.samplePointsNative.map(
       (point) => {
+        exposureWindowIndex ??=
+          indexExposureWindows(
+            input.timing
+          );
         const exposure =
           localExposureForPoint(
-            input.timing,
+            exposureWindowIndex,
             point
           );
         const normalizedTimeWeight =
@@ -1594,8 +1749,9 @@ export function calculateStabilizedCaptureTemporalSamples(
                 timeMeasureSeconds,
                 stabilization:
                   evaluateAtTime(
-                    disturbance,
+                    disturbanceIndex,
                     profile,
+                    responses,
                     captureTime
                   )
               };

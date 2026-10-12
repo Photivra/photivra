@@ -2,6 +2,7 @@
 import {describe,it,expect,vi} from "vitest";
 import {createNativeRawTask,calculateNativeRawPlan,simulateSensorRawFrame,type NativeRawTile} from "../src/index.js";
 import {calculateNativeRawSite} from "../src/capture/sensor-raw-producer.js";
+import {createNativeRawTaskWithCadence} from "../src/capture/native-raw.js";
 import {nativeRawFixture} from "./helpers/native-raw-fixture.js";
 describe("bounded packed native RAW",()=>{
   it("matches exact reference codes, signed black normalization inputs and separate saturation flags",async()=>{
@@ -27,7 +28,8 @@ describe("bounded packed native RAW",()=>{
     expect(legacy.plan).not.toHaveProperty("tileWidth");
     for(const width of [1,3,64,256]){
       const read=vi.fn(f.provider.readTile),yieldControl=vi.fn(f.provider.yieldControl);
-      const task=createNativeRawTask({...f.input,tileWidth:width},{readTile:read,yieldControl});
+      // A zero budget restores the original yield after every tile.
+      const task=createNativeRawTaskWithCadence({...f.input,tileWidth:width},{readTile:read,yieldControl},{budgetMilliseconds:0,now:()=>0});
       expect(task.plan.tileWidth).toBe(width);expect(task.plan.tileCount).toBe(Math.ceil(259/width)*3);
       await task.run();const out=task.takeOutput();
       for(const field of ["codes","blackLevels","digitalSaturationCodes","saturationFlags"] as const)expect(out[field]).toEqual(expected[field]);
@@ -46,7 +48,7 @@ describe("bounded packed native RAW",()=>{
   });
   it("withholds output and stops between smaller chunks when canceled",async()=>{
     const f=nativeRawFixture(7,2),read=vi.fn(f.provider.readTile);
-    const task=createNativeRawTask({...f.input,tileWidth:3},{...f.provider,readTile:read,yieldControl:async():Promise<void>=>{task.cancel();}});
+    const task=createNativeRawTaskWithCadence({...f.input,tileWidth:3},{...f.provider,readTile:read,yieldControl:async():Promise<void>=>{task.cancel();}},{budgetMilliseconds:0,now:()=>0});
     await expect(task.run()).rejects.toThrow();expect(task.completedTileCount).toBe(1);expect(read).toHaveBeenCalledTimes(1);
     expect(task.state).toBe("cancelled");expect(()=>task.takeOutput()).toThrow();
   });
