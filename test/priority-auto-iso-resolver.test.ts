@@ -396,3 +396,71 @@ describe("priority-mode guard and limit coverage",()=>{
   });
 });
 
+describe("Auto ISO grid-aligned exact matches (#272)",()=>{
+  const sPolicy = {
+    kind:"minimum-iso-aperture-first" as const,
+    isoBaseline:"minimum-selectable" as const,
+    isoQuantizationPolicy:"nearest-log2-lower-on-tie" as const,
+    apertureSelectionPolicy:"not-wider-than-target" as const
+  };
+  const thirdStopApertures=[1.8,2,2.2,2.5,2.8,3.2,3.5,4,4.5,5,5.6,6.3,7.1,8,9,10,11,13,14,16];
+
+  it.each([
+    {fNumber:3.2,shutterSeconds:1/60,idealAbove:3.2000000000000006},
+    {fNumber:14,shutterSeconds:1/125,idealAbove:14.000000000000002}
+  ])("Shutter Priority selects f/$fNumber when the ideal lands on the grid",({fNumber,shutterSeconds,idealAbove})=>{
+    const scale=(shutterSeconds/(fNumber*fNumber))/(ref.shutterSeconds/(ref.aperture**2));
+    const r=resolveShutterPriorityExposureMode({
+      target:targetForScale(scale),capabilities:capabilities({apertureGrid:thirdStopApertures}),
+      referenceExposure:ref,manualShutterSeconds:shutterSeconds,
+      isoControl:{kind:"automatic",policy:sPolicy}
+    });
+    expect(r.status).toBe("resolved");
+    if(r.status!=="resolved"||r.isoControl!=="automatic") throw new Error("auto expected");
+    // The computed ideal sits a floating-point hair past the grid value.
+    expect(r.idealApertureAtBaselineIso).toBe(idealAbove);
+    expect(r.resolvedSettings).toEqual({aperture:fNumber,shutterSeconds,iso:100});
+    expect(r.apertureResolution).toMatchObject({kind:"discrete",quantized:false,clamped:false});
+    expect(r.targetResidual.state).toBe("matched");
+    expect(r.targetResidual.residualStops).toBe(0);
+  });
+
+  it("Aperture Priority selects 1/60 at minimum ISO when the ideal lands on the grid",()=>{
+    const shutterGrid=[1/8000,1/4000,1/2000,1/1000,1/500,1/250,1/125,1/60,1/30,1/15,1/8,1/4,1/2,1,2,4,8,15,30];
+    const fNumber=1.8;
+    const scale=((1/60)/(fNumber*fNumber))/(ref.shutterSeconds/(ref.aperture**2));
+    const r=resolveAperturePriorityAutoIsoExposureMode({
+      target:targetForScale(scale),capabilities:capabilities({shutterGrid}),
+      referenceExposure:ref,manualAperture:fNumber,
+      policy:{
+        kind:"minimum-iso-until-slowest-preferred-shutter",
+        slowestPreferredShutterSeconds:30,
+        shutterSelectionPolicy:"not-longer-than-target",
+        isoBaseline:"minimum-selectable",
+        isoQuantizationPolicy:"nearest-log2-lower-on-tie",
+        afterMaximumIso:"allow-slower-shutter"
+      }
+    });
+    expect(r.status).toBe("resolved");
+    if(r.status!=="resolved") throw new Error("resolved expected");
+    expect(r.resolvedSettings).toEqual({aperture:fNumber,shutterSeconds:1/60,iso:100});
+    expect(r.shutterResolution).toMatchObject({kind:"discrete",quantized:false,clamped:false});
+    expect(r.targetResidual.state).toBe("matched");
+    expect(r.targetResidual.residualStops).toBe(0);
+  });
+
+  it("matches the narrowest grid end point without reporting a clamp",()=>{
+    const r=resolveShutterPriorityExposureMode({
+      target:targetForScale(((1/125)/(16*16))/(ref.shutterSeconds/(ref.aperture**2))),
+      capabilities:capabilities({apertureGrid:[1.8,2.8,4,5.6,8,11,16]}),
+      referenceExposure:ref,manualShutterSeconds:1/125,
+      isoControl:{kind:"automatic",policy:sPolicy}
+    });
+    expect(r.status).toBe("resolved");
+    if(r.status!=="resolved"||r.isoControl!=="automatic") throw new Error("auto expected");
+    expect(r.resolvedSettings).toEqual({aperture:16,shutterSeconds:1/125,iso:100});
+    expect(r.apertureResolution).toMatchObject({kind:"discrete",quantized:false,clamped:false});
+    expect(r.targetResidual.state).toBe("matched");
+  });
+});
+
