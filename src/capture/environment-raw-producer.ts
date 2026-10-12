@@ -59,10 +59,10 @@ export interface EnvironmentSensorRawFrame {
   raw: ReturnType<typeof simulateSensorRawFrame>;
 }
 
-/** Internal frame-binding and scalar optical/EQE planning shared with bounded native execution. */
+/** Internal frame-binding and scalar optical/EQE planning shared with bounded native execution; ownership as planEnvironmentSensorPhotoSignal. */
 export function planEnvironmentRawSite(site: SimulateEnvironmentSensorRawFrameInput["sites"][number], i: number,
   frame: NativeRawProducerFrameContext, sceneBinding: SimulateEnvironmentSensorRawFrameInput["sceneBinding"],
-  exposureWindow: SensorRawProducerExposureWindowInput): ReturnType<typeof planEnvironmentSensorPhotoSignal> {
+  exposureWindow: SensorRawProducerExposureWindowInput, ownership: "copy" | "engine-owned" = "copy"): ReturnType<typeof planEnvironmentSensorPhotoSignal> {
   const capture=frame.capture,native=capture.geometry.nativeRaster;
     const e = site.environment, sensor = e.sensor;
     if (sensor.spatialSampling.site.x !== i%native.pixelWidth || sensor.spatialSampling.site.y !== Math.floor(i/native.pixelWidth) ||
@@ -73,7 +73,7 @@ export function planEnvironmentRawSite(site: SimulateEnvironmentSensorRawFrameIn
       e.optics.focalLengthMm !== capture.exposure.focalLengthMm || e.optics.nominalFNumber !== capture.exposure.aperture) {
       throw new InvalidScientificInputError("Environment site, frame geometry/profiles, optics and exact shutter event must match the committed capture.");
     }
-    const plan = planEnvironmentSensorPhotoSignal(e);
+    const plan = planEnvironmentSensorPhotoSignal(e, ownership);
     if (canonical(plan.focus) !== canonical(capture.focus) ||
       e.sceneBindings.providerProfile.sceneId !== sceneBinding.providerSceneId) throw new InvalidScientificInputError("Environment optical focus and provider scene must match the committed capture binding.");
   return plan;

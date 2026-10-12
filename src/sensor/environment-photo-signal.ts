@@ -30,7 +30,7 @@ import { calculateSensorPsfIrradianceQuadrature, type CalculateSensorPsfIrradian
 import { calculateIlluminationVignetting, type IlluminationVignettingProfile } from "../optics/illumination-vignetting.js";
 import { calculateSensorApertureRays, type IdealCircularPupil, type SensorApertureRay } from "../optics/sensor-aperture-rays.js";
 import { sensorPsfSourcePoint } from "../optics/sensor-psf-support.js";
-import { resolveLensSampledPsf } from "../optics/lens-psf-profile.js";
+import { markEngineOwnedLensSampledPsfProfile, resolveLensSampledPsf } from "../optics/lens-psf-profile.js";
 import { calculateSensorSpatialSamplingQuadrature } from "./spatial-sampling-quadrature.js";
 import { calculateSensorSpectralQuadrature } from "./spectral-quadrature.js";
 import { resolveNativeEffectiveRasterColorSamplingBinding } from "./capture-color-sampling-binding.js";
@@ -122,12 +122,16 @@ interface EnvironmentPhotoPlan {
  * opening-reference seconds. Optical throughput, optional local PSF and typed EQE produce photo
  * expectations; callback invocation does not verify transport, visibility or calibration.
  * @param input - Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance" | "evaluateApertureRadiance">. See the linked contract for coordinate, unit and profile binding semantics.
+ * @param ownership - Internal. "copy" (default) structured-clones input. "engine-owned" adopts input as the plan's
+ * owned data without a second clone; only engine callers that already hold a private structured clone, never
+ * exposed to supplied code or mutated afterwards, may pass it.
  * @returns EnvironmentPhotoPlan. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
-export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance" | "evaluateApertureRadiance">): EnvironmentPhotoPlan {
-  const owned = structuredClone(input);
+export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance" | "evaluateApertureRadiance">,
+  ownership: "copy" | "engine-owned" = "copy"): EnvironmentPhotoPlan {
+  const owned = ownership === "engine-owned" ? input : structuredClone(input);
   requirePublicOpaqueId(owned.temporalIntegrationId, "Environment integration requires a public identity.");
   if (!Number.isSafeInteger(owned.temporalSampleCount) || owned.temporalSampleCount < 1 || owned.temporalSampleCount > 256 ||
     owned.sensor.responseApplication.sourcePlane.value !== "sensor-package-incident" ||
@@ -169,6 +173,8 @@ export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmen
   } else if (owned.psf.kind !== "sampled-local") throw new InvalidScientificInputError("Unknown environment PSF selection.");
   if (owned.psf.kind === "sampled-local") {
     const p = owned.psf.configuration.psf;
+    // The owned profile is private to this plan, so its parse can be cached across nodes and instants.
+    markEngineOwnedLensSampledPsfProfile(p.profile);
     if (p.focalLengthMm !== owned.optics.focalLengthMm || p.apertureFNumber !== owned.optics.nominalFNumber ||
       p.focus.kind !== focus.kind || (p.focus.kind === "finite" && focus.kind === "finite" && p.focus.distanceM !== focus.distanceM)) {
       throw new InvalidScientificInputError("PSF and optical focal/aperture/focus state must match exactly.");
@@ -208,12 +214,12 @@ export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmen
       ...(owned.pupil === undefined ? {} : {apertureRays:calculateSensorApertureRays({sourcePointNativeSensorMm:p.point,
         focalLengthMm:owned.optics.focalLengthMm,nominalFNumber:owned.optics.nominalFNumber,focus,pupil:owned.pupil,
         angularVelocityRadPerSec:owned.motion.angularVelocityRadPerSec,timeSecondsFromOpeningReference:time}).value.rays}),
-      query: calculateSensorEnvironmentRadianceQuery({ ...owned.motion, sourcePointNativeSensorMm: p.point,
+      query: freezePlannedRequest(calculateSensorEnvironmentRadianceQuery({ ...owned.motion, sourcePointNativeSensorMm: p.point,
         focalLengthMm: owned.optics.focalLengthMm, focus, timeSecondsFromOpeningReference: time,
         request: { schemaVersion: "0.1.0", sampleId: `${owned.temporalIntegrationId}-t${temporalSampleIndex}-n${ni}-p${pi}`,
           providerProfileId: sceneBindings.providerProfile.profileId, sceneId: sceneBindings.providerProfile.sceneId,
           illuminationProfileId: sceneBindings.illuminationProfile.profileId, materialResponseProfileId: sceneBindings.materialResponseProfile.profileId,
-          wavelengthNanometers: n.node.wavelengthNanometers, wavelengthBasis } }) })) }));
+          wavelengthNanometers: n.node.wavelengthNanometers, wavelengthBasis } })) })) }));
     // Validate PSF evidence/basis/support before supplied code is invoked.
     if (owned.psf.kind === "sampled-local") calculateSensorPsfIrradianceQuadrature({ ...owned.psf.configuration,
       spatialQuadrature, spectralQuadrature, timeSecondsFromOpeningReference: time,
@@ -225,8 +231,19 @@ export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmen
   return { owned, sceneBindings, fieldThroughputEvidence, spatialQuadrature, spectralQuadrature, instants, count, focus };
 }
 
-/** Internal executor consumes a completed bounded geometric plan; returns no partial success on failure. */
-export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof planEnvironmentSensorPhotoSignal>, evaluate: EnvironmentRadianceEvaluator, evaluateAperture?: EnvironmentApertureRadianceEvaluator): CalculationResult<EnvironmentSensorPhotoSignal> {
+/** Deep-freezes a planned provider request once, so execution can hand the same immutable request to supplied code. */
+function freezePlannedRequest<T extends { value: { request: object } }>(query: T): T {
+  freezeOwnedData(query.value.request);
+  return query;
+}
+
+/**
+ * Internal executor consumes a completed bounded geometric plan; returns no partial success on failure.
+ * retention "full" (default) keeps every per-evaluation record in value.instants[].evaluations; "photo-only"
+ * leaves those lists empty for engine callers that consume only value.photo. Photo values are identical.
+ */
+export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof planEnvironmentSensorPhotoSignal>, evaluate: EnvironmentRadianceEvaluator, evaluateAperture?: EnvironmentApertureRadianceEvaluator,
+  retention: "full" | "photo-only" = "full"): CalculationResult<EnvironmentSensorPhotoSignal> {
   if (typeof evaluate !== "function") throw new InvalidScientificInputError("Environment radiance evaluator must be synchronous callable code.");
   const { owned } = plan;
   if (owned.pupil !== undefined && typeof evaluateAperture !== "function") throw new InvalidScientificInputError("Pupil integration requires an origin-aware aperture evaluator.");
@@ -238,8 +255,9 @@ export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof plan
       let integratedIrradiance = 0;
       const support: readonly (SensorApertureRay | undefined)[] = tap.apertureRays ?? [undefined];
       for (const ray of support) {
-        const baseRequest = structuredClone(tap.query.value.request);
-        const request = freezeOwnedData(ray === undefined ? baseRequest : {
+        // Planned requests are deep-frozen once at plan time (freezePlannedRequest); no per-evaluation clone.
+        const baseRequest = tap.query.value.request;
+        const request = ray === undefined ? baseRequest : freezeOwnedData({
           ...baseRequest, sampleId: baseRequest.sampleId+"-a"+ray.pupilSampleIndex,
           target: {kind:"environment-direction" as const,outgoingDirectionUnitVector:{
             x:-ray.directionUnitVector.x,y:-ray.directionUnitVector.y,z:-ray.directionUnitVector.z}}
@@ -249,7 +267,7 @@ export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof plan
         const bindings = validateSceneRadianceEvaluationBindings({ ...plan.sceneBindings, request, result });
         const optics = calculateSceneRadianceToSensorIrradiance({ ...owned.optics, sceneRadianceRequest: request,
           sceneRadianceResult: result, imagePointMm: tap.query.value.sourcePointImagePlaneMm, fieldThroughput: tap.fieldThroughput });
-        evaluations.push({ query: tap.query, result, bindings, optics,
+        if (retention === "full") evaluations.push({ query: tap.query, result, bindings, optics,
           ...(apertureRay === undefined ? {} : {apertureRay,apertureRequest:request}) });
         integratedIrradiance += optics.value.sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer*(ray?.weight ?? 1);
       }

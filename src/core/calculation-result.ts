@@ -330,8 +330,43 @@ function assertFiniteNumbers(
   }
 }
 
+/**
+ * Allocation-light pre-check with the same traversal as assertFiniteNumbers: own enumerable
+ * string keys (Object.keys order, as Object.entries), array indices present in the array (as
+ * forEach) and each object visited once. It builds no per-node path strings. The diagnostic
+ * walk runs only when this finds a non-finite number, so the thrown error type and path
+ * message are unchanged.
+ */
+function containsNonFiniteNumber(value: unknown, seen: WeakSet<object>): boolean {
+  if (typeof value === "number") {
+    return !Number.isFinite(value);
+  }
+  if (typeof value !== "object" || value === null || seen.has(value)) {
+    return false;
+  }
+  seen.add(value);
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index++) {
+      if (index in value && containsNonFiniteNumber(value[index], seen)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  for (let index = 0; index < keys.length; index++) {
+    if (containsNonFiniteNumber(record[keys[index]!], seen)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function assertFiniteCalculationValue(value: unknown): void {
-  assertFiniteNumbers(value, "value", new WeakSet<object>());
+  if (containsNonFiniteNumber(value, new WeakSet<object>())) {
+    assertFiniteNumbers(value, "value", new WeakSet<object>());
+  }
 }
 
 function validateProvenanceIdentity(provenance: CalculationProvenance): void {
