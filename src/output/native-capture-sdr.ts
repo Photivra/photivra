@@ -6,7 +6,9 @@ import { LINEAR_CAPTURE_RGB_PROFILE, resolveCaptureColorModel } from "../color/c
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { freezeOwnedData } from "../core/owned-data.js";
-import { calculateSdrRendering, parseSdrRenderingProfile, type SdrRenderingProfile, type SdrRenderingResult } from "./sdr-rendering.js";
+import { encodeSrgbComponent } from "../color/srgb-transfer.js";
+import { InvalidScientificResultError } from "../core/validation.js";
+import { parseSdrRenderingProfile, type SdrRenderingProfile, type SdrRenderingResult } from "./sdr-rendering.js";
 
 export const NATIVE_CAPTURE_SDR_SCHEMA_VERSION = "0.1.0" as const;
 export const NATIVE_CAPTURE_SDR_LIMITS = Object.freeze({ maximumPixels: 24_000_000,
@@ -89,7 +91,8 @@ export function calculateNativeCaptureSdrPlan(input: NativeCaptureSdrInput): Nat
       !Number.isSafeInteger(r.maximumOutputBytes) || r.maximumOutputBytes < outputBytes) {
     throw new InvalidConfigurationError("Native SDR raster/output exceeds declared admission limits.");
   }
-  // Provider payload + packed copy + reference parser copy + four reference output arrays.
+  // Conservative declared bound, unchanged from the reference-delegating executor (provider payload + packed copy +
+  // reference parser copy + four reference output arrays). The typed kernel itself retains only the provider payload.
   const maximumScratchPayloadBytes = NATIVE_CAPTURE_SDR_LIMITS.maximumTileStorageSamples * 8 +
     NATIVE_CAPTURE_SDR_LIMITS.tileWidth * NATIVE_CAPTURE_SDR_LIMITS.tileHeight * 3 * 8 * 6;
   return freezeOwnedData({ schemaVersion: NATIVE_CAPTURE_SDR_SCHEMA_VERSION, capture, sourcePlaneId, outputImageStateId, profile,
@@ -97,8 +100,16 @@ export function calculateNativeCaptureSdrPlan(input: NativeCaptureSdrInput): Nat
     tileCount: Math.ceil(plane.pixelWidth / NATIVE_CAPTURE_SDR_LIMITS.tileWidth) * Math.ceil(plane.pixelHeight / NATIVE_CAPTURE_SDR_LIMITS.tileHeight) });
 }
 
-function renderTile(tile: NativeCaptureSdrTile, request: NativeCaptureSdrTileRequest, plane: CaptureLinearPlane,
-  profile: SdrRenderingProfile): SdrRenderingResult {
+type NativeSdrDiagnosticCounts = Omit<SdrRenderingResult["diagnostics"], "captureSaturation">;
+/**
+ * Typed-array tile kernel. It applies the bounded SDR reference (`calculateSdrRendering`) equations in the
+ * same per-sample floating-point operation order and with the same error precedence, writing integer codes
+ * directly into the packed output: input-domain check → rendering exposure → tone → gamut → sRGB transfer →
+ * nearest-ties-up quantization. `test/native-capture-sdr-kernel-parity.test.ts` proves identical codes and
+ * diagnostics against the unchanged reference.
+ */
+function renderTileInto(tile: NativeCaptureSdrTile, request: NativeCaptureSdrTileRequest, plane: CaptureLinearPlane,
+  profile: SdrRenderingProfile, scale: number, maximum: number, codes: Uint8Array | Uint16Array, diagnostics: NativeSdrDiagnosticCounts): void {
   const r = requireAllowlistedRecord(tile, ["captureId", "sourcePlaneId", "artifactId", "sha256", "x", "y", "width", "height", "rowStrideSamples", "samples"], "Invalid native SDR tile.");
   for (const key of Object.keys(request) as (keyof NativeCaptureSdrTileRequest)[]) {
     if (r[key] !== request[key]) throw new InvalidConfigurationError("Native SDR tile identity/rectangle mismatch.");
@@ -111,16 +122,48 @@ function renderTile(tile: NativeCaptureSdrTile, request: NativeCaptureSdrTileReq
       samples.length !== r.rowStrideSamples * request.height || samples.length > NATIVE_CAPTURE_SDR_LIMITS.maximumTileStorageSamples) {
     throw new InvalidConfigurationError("Native SDR tile precision/stride/storage mismatch.");
   }
-  const packed: number[] = [];
+  const source: Float32Array | Float64Array = samples, stride = r.rowStrideSamples, rowLength = request.width * 3;
+  // Reference input-domain validation covers every image sample (padding excluded) before any rendering.
   for (let y = 0; y < request.height; y++) {
-    for (let x = 0; x < request.width * 3; x++) packed.push(samples[y * r.rowStrideSamples + x]!);
+    for (let i = y * stride, end = i + rowLength; i < end; i++) {
+      if (!Number.isFinite(source[i]!)) throw new InvalidConfigurationError("Unsupported SDR input domain/raster.");
+    }
   }
   // Engine-declared tiling is valid because every supported rendering operation is pointwise.
-  // The unchanged bounded reference owns equations, clipping, transfer and quantization.
-  return calculateSdrRendering({ sourceImageStateId: plane.imageStateId, inputImageState: "color-transformed-linear-rgb",
-    inputColorSpace: "linear-srgb-d65", whiteBalanceHandling: plane.whiteBalanceApplication === "not-applicable" ? "not-required" : "already-applied-upstream",
-    pixelWidth: request.width, pixelHeight: request.height, referenceWhiteValue: plane.referenceWhiteValue,
-    samples: packed, profile }).value;
+  const reinhard = profile.toneCurve === "positive-reinhard-per-channel", reject = profile.gamutHandling === "reject-out-of-range";
+  const outputRowStride = plane.pixelWidth * 3;
+  let negative = 0, above = 0, changed = 0, low = 0, high = 0, outOfGamut = false;
+  for (let y = 0; y < request.height; y++) {
+    const input = y * stride, output = (request.y + y) * outputRowStride + request.x * 3;
+    for (let i = 0; i < rowLength; i++) {
+      const sample = source[input + i]!;
+      // The reference parser normalizes -0 to +0 before exposure.
+      const exposed = (sample === 0 ? 0 : sample) * scale;
+      if (!Number.isFinite(exposed)) throw new InvalidScientificResultError("Rendering exposure produced a non-finite sample.");
+      if (exposed < 0) negative++;
+      if (exposed > 1) above++;
+      let mapped = reinhard && exposed > 0 ? exposed / (1 + exposed) : exposed;
+      if (mapped !== exposed) changed++;
+      if (mapped === 0) mapped = 0;
+      let linear = mapped;
+      if (mapped < 0 || mapped > 1) {
+        // The reference finishes the whole tone pass (and its exposure errors) before gamut rejection.
+        if (reject) outOfGamut = true;
+        else if (mapped < 0) { low++; linear = 0; }
+        else { high++; linear = 1; }
+      }
+      codes[output + i] = Math.floor(encodeSrgbComponent(linear) * maximum + .5);
+    }
+  }
+  if (outOfGamut) throw new InvalidConfigurationError("Tone output exceeds the declared SDR gamut range.");
+  diagnostics.renderingNegativeSampleCount += negative; diagnostics.renderingAboveReferenceSampleCount += above;
+  diagnostics.toneChangedSampleCount += changed; diagnostics.gamutClippedLowSampleCount += low; diagnostics.gamutClippedHighSampleCount += high;
+}
+
+/** The reference's output-encoding declaration for the given code maximum. */
+function sdrOutputEncoding(maximum: number): SdrRenderingResult["outputEncoding"] {
+  return { imageState: "output-referred-sdr", colorSpace: "srgb", primariesXy: { red: [.64, .33], green: [.30, .60], blue: [.15, .06] },
+    whitePointXy: [.3127, .3290], referenceWhiteLuminanceCdM2: 80, codeMinimum: 0, codeMaximum: maximum };
 }
 
 /** Single-use task: no partial output escapes; cancel/dispose prevents late publication. */
@@ -162,8 +205,8 @@ export function createNativeCaptureSdrTask(input: NativeCaptureSdrInput, provide
         codes = plan.profile.bitDepth === 8 ? new Uint8Array(plan.outputBytes) : new Uint16Array(plan.outputBytes / 2);
         const diagnostics: SdrRenderingResult["diagnostics"] = { renderingNegativeSampleCount: 0, renderingAboveReferenceSampleCount: 0,
           toneChangedSampleCount: 0, gamutClippedLowSampleCount: 0, gamutClippedHighSampleCount: 0, captureSaturation: "not-consumed" };
-        let encoding: SdrRenderingResult["outputEncoding"] | undefined;
-        let adaptation: SdrRenderingResult["displayAdaptation"] | undefined;
+        // Same scale expression and code range as the reference; the plan already rejected an unrepresentable scale.
+        const scale = 2 ** plan.profile.renderingExposureEv / plane.referenceWhiteValue, maximum = 2 ** plan.profile.bitDepth - 1;
         for (let y = 0; y < plane.pixelHeight; y += NATIVE_CAPTURE_SDR_LIMITS.tileHeight) {
           for (let x = 0; x < plane.pixelWidth; x += NATIVE_CAPTURE_SDR_LIMITS.tileWidth) {
             checkActive();
@@ -174,22 +217,17 @@ export function createNativeCaptureSdrTask(input: NativeCaptureSdrInput, provide
             {
               const tile = await readTile(request, abort.signal);
               checkActive();
-              const rendered = renderTile(tile, request, plane, plan.profile);
-              for (let row = 0; row < request.height; row++) {
-                for (let column = 0; column < request.width * 3; column++) {
-                  codes![(y + row) * plane.pixelWidth * 3 + x * 3 + column] = rendered.integerSamples[row * request.width * 3 + column]!;
-                }
-              }
-              for (const key of ["renderingNegativeSampleCount", "renderingAboveReferenceSampleCount", "toneChangedSampleCount",
-                "gamutClippedLowSampleCount", "gamutClippedHighSampleCount"] as const) diagnostics[key] += rendered.diagnostics[key];
-              encoding = rendered.outputEncoding; adaptation = rendered.displayAdaptation; count++;
+              // Diagnostics are aggregated only after the whole tile renders.
+              renderTileInto(tile, request, plane, plan.profile, scale, maximum, codes!, diagnostics);
+              count++;
             }
             // Do not retain tile/reference arrays across the next provider/yield boundary.
             await yieldControl(abort.signal);
             checkActive();
           }
         }
-        output = { plan, integerSamples: codes!, diagnostics, outputEncoding: encoding!, displayAdaptation: adaptation! };
+        output = { plan, integerSamples: codes!, diagnostics, outputEncoding: sdrOutputEncoding(maximum),
+          displayAdaptation: { kind: "external-platform", applied: false, displayCapabilities: "unknown" } };
         state = "completed";
       } catch (error) {
         release();

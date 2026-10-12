@@ -108,7 +108,10 @@ calibration signature, RawImageDigest or NewRawImageDigest is claimed.
 
 JPEG is baseline sequential 8-bit YCbCr444 with an explicit constant quantization
 step 1..255, analytical DCT, custom canonical Huffman tables and byte stuffing.
-The step is not a manufacturer's quality scale. JPEG remains lossy at step 1.
+Each coefficient is the direct 64-term sum accumulated in a fixed order; row
+products are shared across vertical frequencies without reassociating the sum,
+because a factored row/column DCT changes rounded coefficients (and bytes) for a
+small fraction of blocks. The step is not a manufacturer's quality scale. JPEG remains lossy at step 1.
 JFIF and EXIF ColorSpace=1 declare rendered sRGB; DNG is unclassified and carries
 the explicit virtual-camera matrix.
 
