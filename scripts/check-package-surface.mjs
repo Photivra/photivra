@@ -61,7 +61,8 @@ const forbidden = paths.filter(
     path.startsWith("dist/api/") ||
     path.startsWith("src/") ||
     path.startsWith("test/") ||
-    path.startsWith("scripts/")
+    path.startsWith("scripts/") ||
+    path.startsWith(".githooks/")
 );
 
 if (forbidden.length > 0) {

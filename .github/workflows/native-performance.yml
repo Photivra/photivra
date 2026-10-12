@@ -1,0 +1,103 @@
+name: Native performance
+
+# Benchmark and browser-native profiling evidence. It runs when the measured
+# source or its scripts change, nightly against main, and on manual dispatch,
+# instead of on every pull request.
+on:
+  pull_request:
+    paths:
+      - "src/composition/**"
+      - "src/optics/**"
+      - "src/capture/*native*"
+      - "src/capture/environment-raw-producer.ts"
+      - "src/capture/sensor-raw-producer.ts"
+      - "src/output/*native*"
+      - "src/sensor/dark-current.ts"
+      - "src/sensor/environment-photo-signal.ts"
+      - "src/sensor/exposure-window.ts"
+      - "src/motion/camera-rotation.ts"
+      - "test/helpers/environment-raw-fixture.ts"
+      - "test/helpers/eqe-response-fixture.ts"
+      - "scripts/benchmark-image-formation.mjs"
+      - "scripts/benchmark-native-capture-sdr.mjs"
+      - "scripts/assess-browser-native-full-event.mjs"
+      - "scripts/profile-native-reference-path.mjs"
+      - "scripts/qualify-browser-native-progressive.mjs"
+      - "scripts/lib/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig*.json"
+      - ".github/workflows/native-performance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/composition/**"
+      - "src/optics/**"
+      - "src/capture/*native*"
+      - "src/capture/environment-raw-producer.ts"
+      - "src/capture/sensor-raw-producer.ts"
+      - "src/output/*native*"
+      - "src/sensor/dark-current.ts"
+      - "src/sensor/environment-photo-signal.ts"
+      - "src/sensor/exposure-window.ts"
+      - "src/motion/camera-rotation.ts"
+      - "test/helpers/environment-raw-fixture.ts"
+      - "test/helpers/eqe-response-fixture.ts"
+      - "scripts/benchmark-image-formation.mjs"
+      - "scripts/benchmark-native-capture-sdr.mjs"
+      - "scripts/assess-browser-native-full-event.mjs"
+      - "scripts/profile-native-reference-path.mjs"
+      - "scripts/qualify-browser-native-progressive.mjs"
+      - "scripts/lib/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig*.json"
+      - ".github/workflows/native-performance.yml"
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-performance-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  native-performance:
+    name: native performance
+    runs-on: ubuntu-latest
+    # About 2.5 minutes normally.
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Use Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "lts/*"
+      - name: Verify Node.js support policy
+        run: |
+          node --test .github/test-node-lts-policy.mjs
+          node .github/node-lts-policy.mjs
+      - name: Install
+        run: npm ci --ignore-scripts
+      - name: Build
+        run: npm run build
+      - name: Benchmark image formation
+        run: npm run bench:image-formation:built
+
+      - name: Measure bounded native SDR execution
+        run: node --expose-gc scripts/benchmark-native-capture-sdr.mjs
+
+      - name: Verify frozen full-native Path-A work obstruction without executing giant events
+        run: npm run assess:native-full-event
+
+      - name: Profile browser-native reference path
+        run: npm run profile:native-reference
+
+      - name: Qualify progressive browser-native complete events
+        run: npm run qualify:native-reference-progressive

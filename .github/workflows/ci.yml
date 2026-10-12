@@ -12,7 +12,7 @@ jobs:
   verify:
     name: verify (${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    # The primary leg normally takes about 5 minutes, the others about 2.
+    # The primary leg normally takes about 3 minutes, the others under 2.
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -28,7 +28,7 @@ jobs:
           - "lts/*"
           - "node"
         include:
-          # Exactly one primary leg runs the static, coverage and benchmark gates.
+          # Exactly one primary leg runs the static, coverage, docs and package gates.
           - node-version: "lts/*"
             primary: true
     steps:
@@ -46,9 +46,13 @@ jobs:
           node .github/node-lts-policy.mjs
       - name: Install
         run: npm ci --ignore-scripts
-      - name: Verify with ordinary tests
+      # Static, policy, coverage, documentation and package-surface gates do not
+      # depend on the runtime line, so they run once on the primary leg. Every
+      # leg runs the test suite and the packed-consumer acceptance, which
+      # executes the built tarball and its documented examples on that runtime.
+      - name: Test suite
         if: ${{ !matrix.primary }}
-        run: npm run check
+        run: npm test
       - name: Verify static and policy gates
         if: ${{ matrix.primary }}
         run: npm run check:static
@@ -57,29 +61,13 @@ jobs:
         run: npm run coverage
       - name: Build
         run: npm run build
-      - name: Documentation and packed consumer acceptance
-        run: |
-          npm run docs:check
-          npm run release:consumer-check
-
+      - name: Generated documentation and navigation
+        if: ${{ matrix.primary }}
+        run: npm run docs:check
+      - name: Packed consumer acceptance
+        run: npm run release:consumer-check
       - name: Package dry run
+        if: ${{ matrix.primary }}
         run: npm run pack:check
-      - name: Benchmark image formation
-        if: ${{ matrix.primary }}
-        run: npm run bench:image-formation:built
-
-      - name: Measure bounded native SDR execution
-        if: ${{ matrix.primary }}
-        run: node --expose-gc scripts/benchmark-native-capture-sdr.mjs
-
-      - name: Verify frozen full-native Path-A work obstruction without executing giant events
-        if: ${{ matrix.primary }}
-        run: npm run assess:native-full-event
-
-      - name: Profile browser-native reference path
-        if: ${{ matrix.primary }}
-        run: npm run profile:native-reference
-
-      - name: Qualify progressive browser-native complete events
-        if: ${{ matrix.primary }}
-        run: npm run qualify:native-reference-progressive
+      # Benchmark and native profiling evidence runs in native-performance.yml
+      # when its source paths change, nightly, and on manual dispatch.
