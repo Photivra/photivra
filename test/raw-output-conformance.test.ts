@@ -244,7 +244,7 @@ describe("reference-scene sensor RAW to processed output conformance", () => {
         const unclamped = Math.floor(Math.min(n.totalElectronicReadNoiseElectrons, 1000) / .5 + blackLevelCode + .5);
         expect(n.rawCode).toBe(Math.min(1023, Math.max(0, unclamped)));
         expect(n.lowerCodeClampApplied).toBe(unclamped < 0);
-        expect(n.digitalSaturationApplied).toBe(unclamped > 1023);
+        expect(n.digitalSaturationApplied).toBe(unclamped >= 1023);
       }
     }
     const v = producer();

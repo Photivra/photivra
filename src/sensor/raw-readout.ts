@@ -1027,7 +1027,7 @@ function validateChargeIdentity(
     SensorPhysicalChargeCapacityAssessment,
   readout:
     ResolvedSensorReadoutRegime
-): void {
+): true {
   if (
     charge.completenessProfileId !==
       capacity
@@ -1048,6 +1048,18 @@ function validateChargeIdentity(
       "Physical capacity assessment identity must match the accumulated charge."
     );
   }
+  // The assessment copies the complete expected stored-electron total verbatim from the charge it
+  // assessed, so the binding is exact: an assessment computed for any other charge is stale.
+  if (
+    charge
+      .totalExpectedStoredElectronCount !==
+    capacity
+      .totalExpectedStoredElectronCount
+  ) {
+    throw new InvalidScientificInputError(
+      "Physical capacity assessment must be computed for the supplied accumulated charge; its total expected stored electrons differ."
+    );
+  }
   if (
     readout
       .colorSamplingProfileId !==
@@ -1059,10 +1071,16 @@ function validateChargeIdentity(
       "Sensor readout profile color/channel identity must match the accumulated charge."
     );
   }
+  const belowOrAtCapacity =
+    capacity
+      .totalExpectedStoredElectronCount <=
+    capacity
+      .physicalChargeCapacityElectrons;
   if (
     capacity
       .expectedChargeCapacityStatus ===
-    "above-capacity"
+      "above-capacity" ||
+    !belowOrAtCapacity
   ) {
     throw new InvalidScientificInputError(
       "Expected stored charge above physical capacity cannot enter linear expected readout; the actual post-saturation stored charge is not defined by the upstream assessment."
@@ -1080,6 +1098,7 @@ function validateChargeIdentity(
       "Sensor readout requires the unmodified accumulated-charge result."
     );
   }
+  return belowOrAtCapacity;
 }
 
 function additionalPolicyMap(
@@ -1561,6 +1580,16 @@ function validateCapacityAgainstRealization(
     );
   }
   if (
+    charge
+      .totalExpectedStoredElectronCount !==
+    capacity
+      .totalExpectedStoredElectronCount
+  ) {
+    throw new InvalidScientificInputError(
+      "Physical capacity assessment must be computed for the charge behind the realization; its total expected stored electrons differ."
+    );
+  }
+  if (
     readout
       .colorSamplingProfileId !==
       charge.colorSamplingProfileId ||
@@ -1598,12 +1627,13 @@ export function calculateExpectedSensorReadout(
       regimeId:
         input.regimeId
     });
-  validateChargeIdentity(
-    input.accumulatedCharge,
-    input
-      .physicalCapacityAssessment,
-    readout
-  );
+  const expectedStoredChargeBelowOrAtPhysicalCapacity =
+    validateChargeIdentity(
+      input.accumulatedCharge,
+      input
+        .physicalCapacityAssessment,
+      readout
+    );
 
   const expected =
     input.accumulatedCharge
@@ -1657,8 +1687,7 @@ export function calculateExpectedSensorReadout(
           .bindingId,
       expectedStoredElectronCount:
         expected,
-      expectedStoredChargeBelowOrAtPhysicalCapacity:
-        true,
+      expectedStoredChargeBelowOrAtPhysicalCapacity,
       expectedElectronEquivalentAfterPreAdcSaturation:
         afterPreAdc,
       preAdcSaturationAppliedToExpectation:
@@ -1948,7 +1977,7 @@ export function simulateSensorRawCode(
           .digitalSaturationCode,
       rawCode,
       digitalSaturationApplied:
-        quantized >
+        quantized >=
         readout.regime
           .adc
           .digitalSaturationCode,

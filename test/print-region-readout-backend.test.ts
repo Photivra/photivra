@@ -13,7 +13,7 @@ interface ReferenceCase extends PrintReadoutExperiment {
 const bytes = readFileSync(new URL("./fixtures/print-detail/readout-backend-reference.json", import.meta.url));
 const reference = JSON.parse(bytes.toString()) as { cases: ReferenceCase[] };
 it("pins the independent high-bit electronic stage reference", () => {
-  expect(createHash("sha256").update(bytes).digest("hex")).toBe("e2ac2a2cc6dbc84307184c54d2dc2f2bf1ba7eb28ac0b097a07e3bf3557c366c");
+  expect(createHash("sha256").update(bytes).digest("hex")).toBe("8221aa85729364f76325ab09aae5caba3efee78452e89e4ac50c86c818995b89");
 });
 it.each(reference.cases)("isolates $name through actual native RAW execution and linear paired statistics", c => {
   const raw = simulateSensorRawFrame(printReadoutProducer(c)).value, readout = raw.sites.map(s => s.readout.value);
