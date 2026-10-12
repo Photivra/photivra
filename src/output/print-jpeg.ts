@@ -2,7 +2,7 @@
 
 /** Bounded post-SDR area filtering and original baseline JPEG/ICC serialization. */
 import { createExportJpegEncoder } from "../capture/export-jpeg.js";
-import { packExportTiff, exportTiffNumbers, exportTiffAscii } from "../capture/export-tiff.js";
+import { packExportTiff, exportTiffNumbers, exportTiffAscii, exportTiffBytes, exportTiffRationals, type ExportTiffTag } from "../capture/export-tiff.js";
 import { createSrgbIccProfile, SRGB_ICC_PROFILE_VERSION } from "../color/srgb-icc.js";
 import { decodeSrgbComponent, encodeSrgbComponent } from "../color/srgb-transfer.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -24,6 +24,14 @@ export interface PrintJpegInput {
   quantizationStep:number;
   maximumEncodedBytes:number;
   maximumProviderReads:number;
+  /**
+   * Optional physical print density in pixels per inch (1..65535) from the caller's print plan. When present,
+   * EXIF IFD0 records XResolution = YResolution = this value as a RATIONAL with ResolutionUnit = 2 (inches),
+   * and JFIF APP0 records units = 1 with the nearest integer density (JFIF density fields are uint16).
+   * When omitted no physical size is claimed: JFIF keeps units = 0 with a 1:1 aspect ratio and IFD0 omits
+   * the resolution tags rather than inventing a default such as 72 ppi.
+   */
+  pixelsPerInch?:number;
 }
 export interface PrintJpegTileRequest {source:PrintJpegSource;x:number;y:number;width:number;height:number}
 export interface PrintJpegTile extends PrintJpegTileRequest {samples:Uint8Array}
@@ -48,12 +56,25 @@ export interface PrintJpegTask {
   readonly state:NativeRawTaskState;
   run():Promise<void>;cancel():void;dispose():void;takeOutput():PrintJpegOutput;
 }
+/** Exact n/1 for integer densities; otherwise the shared bounded decimal rational approximation. */
+function resolutionRational(id:number,ppi:number):ExportTiffTag {
+  if(!Number.isSafeInteger(ppi))return exportTiffRationals(id,false,[ppi]);
+  const data=new Uint8Array(8),view=new DataView(data.buffer);view.setUint32(0,ppi,true);view.setUint32(4,1,true);
+  return {id,type:5,count:1,data};
+}
+/** TIFF 6.0 IFD0 resolution tags (282/283/296) plus Exif 2.32 Exif IFD fields, including mandatory ExifVersion "0232". */
+function printExif(plan:PrintJpegInput):Uint8Array {
+  const ppi=plan.pixelsPerInch;
+  const resolution=ppi===undefined ? [] : [resolutionRational(282,ppi),resolutionRational(283,ppi),exportTiffNumbers(296,3,[2])];
+  return packExportTiff([exportTiffNumbers(274,3,[1]),...resolution,exportTiffAscii(305,"Photivra Print JPEG")],
+    [exportTiffBytes(36864,7,new TextEncoder().encode("0232")),exportTiffNumbers(40961,3,[1]),exportTiffNumbers(40962,4,[plan.outputWidth]),exportTiffNumbers(40963,4,[plan.outputHeight])]);
+}
 function integer(v:unknown,min=1):number {
   if(typeof v!=="number"||!Number.isSafeInteger(v)||v<min)throw new InvalidConfigurationError("Print raster/budgets require safe integers.");return v;
 }
 /** Admission-only; source detail/perception/printer qualification are separate contracts. */
 export function parsePrintJpegInput(input:PrintJpegInput):PrintJpegInput {
-  const r=requireAllowlistedRecord(input,["source","crop","outputWidth","outputHeight","quantizationStep","maximumEncodedBytes","maximumProviderReads"],"Invalid Print JPEG input.");
+  const r=requireAllowlistedRecord(input,["source","crop","outputWidth","outputHeight","quantizationStep","maximumEncodedBytes","maximumProviderReads","pixelsPerInch"],"Invalid Print JPEG input.");
   const s=requireAllowlistedRecord(r.source,["captureId","imageStateId","artifactId","sha256","width","height","encoding"],"Invalid Print source.");
   if(typeof s.sha256!=="string"||!/^[a-f0-9]{64}$/.test(s.sha256)||s.encoding!=="encoded-srgb-8-rgb")throw new InvalidConfigurationError("Print requires identified encoded sRGB source bytes.");
   const source:PrintJpegSource={captureId:requirePublicOpaqueId(s.captureId,"Invalid capture ID."),imageStateId:requirePublicOpaqueId(s.imageStateId,"Invalid image state ID."),artifactId:requirePublicOpaqueId(s.artifactId,"Invalid artifact ID."),sha256:s.sha256,width:integer(s.width),height:integer(s.height),encoding:s.encoding};
@@ -62,7 +83,9 @@ export function parsePrintJpegInput(input:PrintJpegInput):PrintJpegInput {
   if(source.width>16_384||source.height>16_384||source.width*source.height>24_000_000||crop.x+crop.width>source.width||crop.y+crop.height>source.height||
     outputWidth>crop.width||outputHeight>crop.height||quantizationStep>255||maximumEncodedBytes>256_000_000||maximumProviderReads>1_000_000||
     Math.abs(outputWidth*crop.height-outputHeight*crop.width)>.5*(crop.width+crop.height))throw new InvalidConfigurationError("Print requires bounded native/downsampled aspect-preserving crop output.");
-  return freezeOwnedData({source,crop,outputWidth,outputHeight,quantizationStep,maximumEncodedBytes,maximumProviderReads});
+  const ppi=r.pixelsPerInch;
+  if(ppi!==undefined&&(typeof ppi!=="number"||!Number.isFinite(ppi)||ppi<1||ppi>65535))throw new InvalidConfigurationError("Print density requires finite pixels per inch from 1 to 65535.");
+  return freezeOwnedData({source,crop,outputWidth,outputHeight,quantizationStep,maximumEncodedBytes,maximumProviderReads,...(ppi===undefined ? {} : {pixelsPerInch:ppi})});
 }
 /** Filtering uses exact source-pixel area overlap after decoding the explicitly declared 8-bit SDR stage. */
 export function createPrintJpegTask(input:PrintJpegInput,provider:PrintJpegProvider):PrintJpegTask {
@@ -76,11 +99,11 @@ export function createPrintJpegTask(input:PrintJpegInput,provider:PrintJpegProvi
     async run():Promise<void>{
       if(state!=="ready")throw new InvalidConfigurationError("Print export is single-use.");state="running";
       try{
-        const exif=packExportTiff([exportTiffNumbers(274,3,[1]),exportTiffAscii(305,"Photivra Print JPEG")],
-          [exportTiffNumbers(40961,3,[1]),exportTiffNumbers(40962,4,[plan.outputWidth]),exportTiffNumbers(40963,4,[plan.outputHeight])]);
+        const exif=printExif(plan);
         const escaped=JSON.stringify(plan).replaceAll("&","&amp;").replaceAll('"',"&quot;").replaceAll("<","&lt;").replaceAll(">","&gt;");
         const xmp=new TextEncoder().encode('<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:photivra="https://photivra.com/ns/simulation/1.0/" photivra:PrintExportPlan="'+escaped+'" photivra:SourceBytesVerified="False"/></rdf:RDF></x:xmpmeta>');
-        encoder=createExportJpegEncoder({width:plan.outputWidth,height:plan.outputHeight,quantizationStep:plan.quantizationStep,maximumOutputBytes:plan.maximumEncodedBytes,icc:createSrgbIccProfile(),exif,xmp});
+        encoder=createExportJpegEncoder({width:plan.outputWidth,height:plan.outputHeight,quantizationStep:plan.quantizationStep,maximumOutputBytes:plan.maximumEncodedBytes,icc:createSrgbIccProfile(),exif,xmp,
+          ...(plan.pixelsPerInch===undefined ? {} : {densityDotsPerInch:Math.round(plan.pixelsPerInch)})});
         let reads=0,blocks=0;const scaleX=plan.crop.width/plan.outputWidth,scaleY=plan.crop.height/plan.outputHeight,area=scaleX*scaleY;
         for(let by=0;by<plan.outputHeight;by+=8)for(let bx=0;bx<plan.outputWidth;bx+=8){
           check();const width=Math.min(8,plan.outputWidth-bx),height=Math.min(8,plan.outputHeight-by),sums=new Float64Array(192);

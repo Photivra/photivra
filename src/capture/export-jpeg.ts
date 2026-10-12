@@ -30,13 +30,22 @@ export function encodeExportJpeg(input: ExportJpegInput): Uint8Array {
   }
   return encoder.finish();
 }
-/** Internal bounded sink; reference and scalable exports share DCT/entropy equations exactly. */
-export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> & {maximumOutputBytes:number;icc?:Uint8Array}): {
+/**
+ * Internal bounded sink; reference and scalable exports share DCT/entropy equations exactly.
+ * `densityDotsPerInch`, when supplied, is written as JFIF 1.02 APP0 units=1 (dots per inch) with equal
+ * X/Y density. JFIF density fields are uint16, so it must be an integer in 1..65535; callers round any
+ * fractional physical density and carry the exact value in EXIF. Omitted, APP0 keeps units=0 with a
+ * 1:1 pixel aspect ratio and declares no physical size.
+ */
+export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> & {maximumOutputBytes:number;icc?:Uint8Array;densityDotsPerInch?:number}): {
   writeRgbBlock(samples:readonly number[]):void; finish():Uint8Array; dispose():void;
 } {
   const {width,height,quantizationStep:q}=input;
   if(![width,height,q,input.maximumOutputBytes].every(Number.isSafeInteger)||width<1||height<1||width>65535||height>65535||q<1||q>255||input.maximumOutputBytes<1||input.maximumOutputBytes>256_000_000)
     throw new InvalidConfigurationError("Invalid bounded JPEG encoding plan.");
+  const density=input.densityDotsPerInch;
+  if(density!==undefined&&(!Number.isSafeInteger(density)||density<1||density>65535))
+    throw new InvalidConfigurationError("JFIF density requires an integer from 1 to 65535 dots per inch.");
   const storage=new Uint8Array(input.maximumOutputBytes);let offset=0,disposed=false,blocks=0;
   const push=(...values:number[]):void=>{if(disposed||offset+values.length>storage.length)throw new InvalidConfigurationError("JPEG output exceeds admitted byte budget or is disposed.");storage.set(values,offset);offset+=values.length;};
   push(255,216);
@@ -44,7 +53,8 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
     if (payload.length > 65533) throw new InvalidConfigurationError("JPEG metadata segment exceeds the standard APP limit.");
     push(255,id,(payload.length+2)>>8,(payload.length+2)&255,...payload);
   };
-  marker(224,[74,70,73,70,0,1,2,0,0,1,0,1,0,0]);
+  // JFIF 1.02 APP0: identifier, version 1.02, units (0 aspect ratio only, 1 dots per inch), Xdensity, Ydensity, no thumbnail.
+  marker(224,density===undefined ? [74,70,73,70,0,1,2,0,0,1,0,1,0,0] : [74,70,73,70,0,1,2,1,density>>8,density&255,density>>8,density&255,0,0]);
   marker(225,[69,120,105,102,0,0,...input.exif]);
   marker(225,[...new TextEncoder().encode("http://ns.adobe.com/xap/1.0/\0"),...input.xmp]);
   if(input.icc){
