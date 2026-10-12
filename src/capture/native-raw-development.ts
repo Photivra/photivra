@@ -10,6 +10,7 @@ import { prepareSensorColorDevelopment, invertSensorColorMatrix, sensorColorRefe
 import { calculateSdrRendering, parseSdrRenderingProfile, type SdrRenderingProfile, type SdrRenderingResult } from "../output/sdr-rendering.js";
 import { transformOrientedRasterPointToNative } from "../output/capture-geometry.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { DEFAULT_HOST_YIELD_CADENCE, createHostYieldGate, type HostYieldCadence } from "./host-yield-cadence.js";
 import { requireAllowlistedRecord } from "../core/record-validation.js";
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { freezeOwnedData } from "../core/owned-data.js";
@@ -63,7 +64,9 @@ function validateRaw(raw: NativeRawOutput): NativeRawOutput["plan"] {
   return plan;
 }
 /**
- * Validates complete phase/halo support, snapshots RAW once, and yields between 256-pixel output tiles.
+ * Validates complete phase/halo support, snapshots RAW once, and renders 256-pixel output tiles. The
+ * host yield runs at tile boundaries once about 8 ms of work has elapsed since the previous yield,
+ * and after the final tile; yield cadence never changes output.
  * Retains explicit acquisition tile width when reconstructing the exact packed plan. Omitted width
  * preserves legacy plan shape; inconsistent tile counts or unsupported widths fail validation.
  * Acquisition chunk width changes neither CFA/seed coordinates nor development pixels, and does
@@ -71,6 +74,11 @@ function validateRaw(raw: NativeRawOutput): NativeRawOutput["plan"] {
  */
 export function createNativeRawDevelopmentTask(input: NativeRawDevelopmentInput,
   yieldControl: (signal:AbortSignal)=>Promise<void>): NativeRawDevelopmentTask {
+  return createNativeRawDevelopmentTaskWithCadence(input,yieldControl,DEFAULT_HOST_YIELD_CADENCE);
+}
+/** Internal: explicit host-yield cadence. Cadence never changes output. Not a root export. */
+export function createNativeRawDevelopmentTaskWithCadence(input: NativeRawDevelopmentInput,
+  yieldControl: (signal:AbortSignal)=>Promise<void>,cadence: HostYieldCadence): NativeRawDevelopmentTask {
   const r=requireAllowlistedRecord(input,["raw","phaseProfiles","colorProfile","whiteBalance","rendering","maximumRetainedPayloadBytes"],"Invalid native RAW development input.");
   if(typeof yieldControl!=="function")throw new InvalidConfigurationError("Development requires a host event-loop yield.");
   const plan=validateRaw(input.raw),g=plan.exposure.resolvedGeometry,native=plan.exposure.geometry.nativeRaster;
@@ -114,6 +122,7 @@ export function createNativeRawDevelopmentTask(input: NativeRawDevelopmentInput,
       try{
         codes=profile.bitDepth===8?new Uint8Array(raster.pixelWidth*raster.pixelHeight*3):new Uint16Array(raster.pixelWidth*raster.pixelHeight*3);
         const diagnostics:SdrRenderingResult["diagnostics"]={renderingNegativeSampleCount:0,renderingAboveReferenceSampleCount:0,toneChangedSampleCount:0,gamutClippedLowSampleCount:0,gamutClippedHighSampleCount:0,captureSaturation:"not-consumed"};let encoding:SdrRenderingResult["outputEncoding"]|undefined,adaptation:SdrRenderingResult["displayAdaptation"]|undefined;
+        const gate=createHostYieldGate(cadence);
         for(let y=0;y<raster.pixelHeight;y++)for(let x=0;x<raster.pixelWidth;x+=256){
           check();const width=Math.min(256,raster.pixelWidth-x);
           {
@@ -131,7 +140,7 @@ export function createNativeRawDevelopmentTask(input: NativeRawDevelopmentInput,
             codes.set(rendered.integerSamples,(y*raster.pixelWidth+x)*3);
             for(const key of ["renderingNegativeSampleCount","renderingAboveReferenceSampleCount","toneChangedSampleCount","gamutClippedLowSampleCount","gamutClippedHighSampleCount"] as const)diagnostics[key]+=rendered.diagnostics[key];encoding=rendered.outputEncoding;adaptation=rendered.displayAdaptation;
           }
-          await yieldControl(abort.signal);check();
+          if(gate.due()||(y===raster.pixelHeight-1&&x+256>=raster.pixelWidth)){await yieldControl(abort.signal);check();gate.restart();}
         }
         output={raw,phaseProfiles:phases,colorProfile:color,whiteBalance,width:raster.pixelWidth,height:raster.pixelHeight,integerSamples:codes!,diagnostics,rendering:profile,displayAdaptation:adaptation!,outputEncoding:encoding!,imageDataPairing:"derived-from-exact-packed-native-raw",producerOriginVerified:false};state="completed";
       }catch(error){release();if(!abort.signal.aborted){state="failed";abort.abort();}throw error;}

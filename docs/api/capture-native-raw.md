@@ -15,6 +15,9 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 ## createNativeRawTask
 
 Executes validated EQE/dark/completeness events through the shared reference scalar physics.
+Tiles are read and committed one at a time; the host yield runs at tile boundaries once about
+8 ms of work has elapsed since the previous yield, and after the final tile. Activity is checked
+before every tile, after every read and after every yield.
 
 ```ts
 export function createNativeRawTask(input: NativeRawInput,provider: NativeRawProvider): NativeRawTask;

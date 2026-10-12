@@ -10,10 +10,12 @@ The separate `createNativeRawTask` contract accepts metadata without an inline i
 
 All tasks require host yields, publish only whole successful outputs, distinguish failure/cancellation/disposal, and transfer output ownership once. Typed storage must have an exact owned ArrayBuffer; shared buffers and hidden larger parent allocations are rejected. Metadata provenance and declared hashes do not establish producer authenticity.
 
+RAW acquisition and development await the host `yieldControl` at a tile boundary once about 8 ms of work has elapsed since the previous yield, and always after the final tile. Every tile is still read, validated and committed separately, and cancellation is checked before each tile, after each read and after each yield, so a host event can cancel within about one budget plus one tile. Yield cadence never changes tile requests, absolute CFA/seed indexing or any output value. Earlier releases yielded after every tile (about 96,000 yields for a 6000×4000 raster), which cost minutes of idle time under a clamped browser `setTimeout(0)`.
+
 
 ### Optional smaller execution chunks (unreleased)
 
-`NativeRawInput.tileWidth` may explicitly select an integer from 1 through 256 native sites. Omission retains the original 256-site execution and original plan shape. An explicit width is copied into the immutable plan and changes only tile count, provider request widths and yield frequency. Absolute native CFA coordinates, noise seeds, rolling exposure windows and all output codes/flags are unchanged. This control does not change physical sampling or quadrature.
+`NativeRawInput.tileWidth` may explicitly select an integer from 1 through 256 native sites. Omission retains the original 256-site execution and original plan shape. An explicit width is copied into the immutable plan and changes only tile count and provider request widths; host yields follow the time budget above. Absolute native CFA coordinates, noise seeds, rolling exposure windows and all output codes/flags are unchanged. This control does not change physical sampling or quadrature.
 
 Smaller chunks can admit an unchanged high-query-per-site optical event under the existing 100,000-query tile cap. The two-billion whole-event cap and 24-million-site/output-byte limits remain unchanged; a smaller tile never establishes convergence, qualified source transport or production activation. For example, 64 sites with 1,024 source queries per site need 65,536 queries in a tile, while 256 sites would exceed the tile cap. The caller must still satisfy the full-event budget and qualify the source and result independently.
 

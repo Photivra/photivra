@@ -6,6 +6,7 @@ import { ENGINE_API_VERSION } from "../core/version.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { freezeOwnedData } from "../core/owned-data.js";
+import { DEFAULT_HOST_YIELD_CADENCE, createHostYieldGate, type HostYieldCadence } from "./host-yield-cadence.js";
 import { parseCaptureModeProfile } from "../sensor/capture-mode.js";
 import { parseSensorColorSamplingProfile } from "../sensor/color-sampling.js";
 import { parseNativeEffectiveRasterColorSamplingBindingProfile, resolveCaptureModeColorSamplingContributors } from "../sensor/capture-color-sampling-binding.js";
@@ -116,8 +117,17 @@ export function calculateNativeRawPlan(input: NativeRawInput): NativeRawPlan {
     ...(schedule?{exposureWindow:schedule}:{}),upstreamRadiometryVerified:false as const,
     seedSchedule:"murmur3-capture-seed-native-index-stream-v2" as const});
 }
-/** Executes validated EQE/dark/completeness events through the shared reference scalar physics. */
+/**
+ * Executes validated EQE/dark/completeness events through the shared reference scalar physics.
+ * Tiles are read and committed one at a time; the host yield runs at tile boundaries once about
+ * 8 ms of work has elapsed since the previous yield, and after the final tile. Activity is checked
+ * before every tile, after every read and after every yield.
+ */
 export function createNativeRawTask(input: NativeRawInput,provider: NativeRawProvider): NativeRawTask {
+  return createNativeRawTaskWithCadence(input,provider,DEFAULT_HOST_YIELD_CADENCE);
+}
+/** Internal: explicit host-yield cadence. Cadence never changes tiles, seeds or output. Not a root export. */
+export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: NativeRawProvider,cadence: HostYieldCadence): NativeRawTask {
   const plan=calculateNativeRawPlan(input);
   if(!provider||typeof provider.readTile!=="function"||typeof provider.yieldControl!=="function")throw new InvalidConfigurationError("Native RAW requires reader and host event-loop yield.");
   const read=provider.readTile.bind(provider),yieldControl=provider.yieldControl.bind(provider),abort=new AbortController();
@@ -129,6 +139,7 @@ export function createNativeRawTask(input: NativeRawInput,provider: NativeRawPro
     async run(): Promise<void> {
       if(state!=="ready")throw new InvalidConfigurationError("Native RAW task is single-use.");state="running";
       try{
+        const gate=createHostYieldGate(cadence);
         output={plan,codes:new Uint16Array(plan.pixelCount),blackLevels:new Uint16Array(plan.pixelCount),digitalSaturationCodes:new Uint16Array(plan.pixelCount),saturationFlags:new Uint8Array(plan.pixelCount)};
         for(let y=0;y<native.pixelHeight;y++)for(let x=0;x<native.pixelWidth;x+=tileWidth){
           active();const request=Object.freeze({captureId:plan.exposure.captureId,frameId:plan.frame.frameId,x,y,width:Math.min(tileWidth,native.pixelWidth-x),height:1});
@@ -148,7 +159,8 @@ export function createNativeRawTask(input: NativeRawInput,provider: NativeRawPro
             }
             count++;
           }
-          await yieldControl(abort.signal);active();
+          // Yield on the time budget and always after the final tile; cadence never alters output.
+          if(gate.due()||(y===native.pixelHeight-1&&x+tileWidth>=native.pixelWidth)){await yieldControl(abort.signal);active();gate.restart();}
         }
         first=undefined;state="completed";
       }catch(error){release();if(!abort.signal.aborted){state="failed";abort.abort();}throw error;}

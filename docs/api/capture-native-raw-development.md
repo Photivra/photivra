@@ -4,7 +4,9 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createNativeRawDevelopmentTask
 
-Validates complete phase/halo support, snapshots RAW once, and yields between 256-pixel output tiles.
+Validates complete phase/halo support, snapshots RAW once, and renders 256-pixel output tiles. The
+host yield runs at tile boundaries once about 8 ms of work has elapsed since the previous yield,
+and after the final tile; yield cadence never changes output.
 Retains explicit acquisition tile width when reconstructing the exact packed plan. Omitted width
 preserves legacy plan shape; inconsistent tile counts or unsupported widths fail validation.
 Acquisition chunk width changes neither CFA/seed coordinates nor development pixels, and does
