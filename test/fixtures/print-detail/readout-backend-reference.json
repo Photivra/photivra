@@ -261,8 +261,8 @@
         false
       ],
       "expectedDigitalClipping": [
-        false,
-        false,
+        true,
+        true,
         true,
         true
       ],

@@ -26,14 +26,15 @@ import { assessSensorPhysicalChargeCapacity, parseSensorPhysicalChargeCapacityPr
 import { simulateSensorChargeRealization, simulateSensorRawCode, parseSensorChargeSamplingProfile,
   parseSensorReadoutConversionProfile, resolveSensorReadoutRegime, type SensorChargeSamplingProfile, type SensorReadoutConversionProfile } from "../sensor/raw-readout.js";
 import { createSensorRawCaptureSample } from "../sensor/raw-reconstruction.js";
+import { deriveNativeSiteStreamSeedUint32, NATIVE_SITE_CHARGE_STREAM_ID, NATIVE_SITE_READ_NOISE_STREAM_ID } from "../sensor/stochastic-seed.js";
 import { parseSensorColorSamplingProfile } from "../sensor/color-sampling.js";
 import { parseCaptureModeProfile } from "../sensor/capture-mode.js";
 import { parseNativeEffectiveRasterColorSamplingBindingProfile, resolveCaptureModeColorSamplingContributors } from "../sensor/capture-color-sampling-binding.js";
 import { calculateCaptureExposureWindows, type CalculateCaptureExposureWindowsInput, type CaptureExposureWindows } from "../sensor/exposure-window.js";
 
 export const SENSOR_RAW_PRODUCER_SCHEMA_VERSION = "0.3.0" as const;
-/** Capture noise model identity binds the seed schedule and signed electronic readout behavior. */
-export const SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.2.0" } as const);
+/** Capture noise model identity binds the hashed per-site seed schedule and signed electronic readout behavior. */
+export const SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.3.0" } as const);
 /** One declared EQE/dark/completeness event and explicit readout state per native site. */
 export interface SensorRawProducerSiteInput {
   charge: ComposeSensorAccumulatedChargeInput;
@@ -59,7 +60,7 @@ export interface SensorRawProducerResult {
   codeProducer: "engine-charge-capacity-noise-adc";
   upstreamOrigin: "declared-eqe-and-dark-exposure-results";
   upstreamRadiometryVerified: false;
-  seedSchedule: "capture-seed-plus-two-native-index-modulo-2-to-32-v1";
+  seedSchedule: "murmur3-capture-seed-native-index-stream-v2";
   frame: SensorRawFrame;
   localExposureWindows?: CalculationResult<CaptureExposureWindows>;
   sites: readonly {
@@ -218,15 +219,16 @@ export function validateNativeRawReadoutIdentity(s: SensorRawProducerSiteInput, 
       throw new InvalidConfigurationError("Frame requires one readout identity/regime and a positive uint16 RAW code span.");
     }
 }
-/** The shared scalar pipeline owns all charge, capacity, stochastic and ADC equations. */
+/** The shared scalar pipeline owns all charge, capacity, stochastic and ADC equations. `i` is the absolute native row-major index. */
 export function calculateNativeRawSite(s: SensorRawProducerSiteInput, seed: number, i: number): SensorRawProducerResult["sites"][number] {
   const accumulatedCharge = composeSensorAccumulatedCharge(s.charge);
   const capacity = assessSensorPhysicalChargeCapacity({ accumulatedCharge: accumulatedCharge.value, capacityProfile: s.capacityProfile,
     operatingStateId: s.operatingStateId, operatingTemperatureC: s.charge.darkCharge.operatingTemperatureC });
   const realization = simulateSensorChargeRealization({ accumulatedCharge: accumulatedCharge.value, samplingProfile: s.samplingProfile,
-    seedUint32: (seed+2*i) >>> 0 });
+    seedUint32: deriveNativeSiteStreamSeedUint32(seed, i, NATIVE_SITE_CHARGE_STREAM_ID) });
   const readout = simulateSensorRawCode({ chargeRealization: realization.value, physicalCapacityAssessment: capacity.value,
-    readoutProfile: s.readoutProfile, regimeId: s.regimeId, readNoiseSeedUint32: (seed+2*i+1) >>> 0 });
+    readoutProfile: s.readoutProfile, regimeId: s.regimeId,
+    readNoiseSeedUint32: deriveNativeSiteStreamSeedUint32(seed, i, NATIVE_SITE_READ_NOISE_STREAM_ID) });
   return { accumulatedCharge, capacity, realization, readout };
 }
 /** Validates complete native exposure inputs; no charge/noise/RAW code is accepted as a shortcut. */
@@ -265,11 +267,11 @@ export function simulateSensorRawFrame(input: SensorRawProducerInput): Calculati
       modeSampleIndexFullFrame: { x: i%native.pixelWidth, y: Math.floor(i/native.pixelWidth) } }) }));
   return approximationResult({ schemaVersion: SENSOR_RAW_PRODUCER_SCHEMA_VERSION, codeProducer: "engine-charge-capacity-noise-adc",
     upstreamOrigin: "declared-eqe-and-dark-exposure-results", upstreamRadiometryVerified: false,
-    seedSchedule: "capture-seed-plus-two-native-index-modulo-2-to-32-v1", frame: createSensorRawFrame({ ...v.frame, samples }), sites,
+    seedSchedule: "murmur3-capture-seed-native-index-stream-v2", frame: createSensorRawFrame({ ...v.frame, samples }), sites,
     ...(v.exposureWindow === undefined ? {} : { localExposureWindows: localWindows(v.frame, v.exposureWindow) }) },
   "native-sensor-raw-frame-producer", SENSOR_RAW_PRODUCER_SCHEMA_VERSION, [
     "Untreated EQE/dark exposure results and completeness evidence are upstream declarations; source radiometry is not independently verified",
-    "Native row-major site seeds are capture seed plus 2*index / 2*index+1 modulo 2^32; schedule identity is not an independence proof",
+    "Native row-major site seeds are MurmurHash3_x86_32 of (capture seed, absolute native index, stream 0 charge / 1 read noise); deterministic and non-cryptographic",
     "Existing scalar capacity/noise/readout approximations retain distinct physical/pre-ADC/digital saturation diagnostics; no blooming",
     "Stationarity applies separately to every exact local window; no time-varying radiance integration, multi-frame acquisition, RGB-to-RAW conversion or production-stage activation",
     "Stored capture float planes remain independent; same-RAW export must use the returned frame's reconstruction handoff"]);

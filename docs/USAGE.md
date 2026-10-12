@@ -2935,7 +2935,7 @@ The first stochastic layer keeps expectation values separate from realizations:
 - photo-generated electrons use an explicit Poisson model;
 - dark-generated electrons use an explicit Poisson model;
 - each additional stored-charge component must declare its own Poisson or deterministic electron-equivalent policy;
-- the realization uses an explicit deterministic 32-bit seed;
+- the realization uses an explicit deterministic 32-bit seed, scrambled by the MurmurHash3 `fmix32` finalizer so nearby seeds give unrelated streams;
 - electronic read noise is still downstream.
 
 The stochastic realization does not change the upstream expected charge or its provenance.
@@ -2957,6 +2957,8 @@ Regime selection is explicitly:
 ISO therefore does not silently choose conversion gain, read noise, or ADC behavior. #7 maps an explicit camera ISO/capture-mode state to a documented #14 regime through the separate generic ISO signal-chain contract; the sensor readout contract itself still does not infer that mapping from the ISO number.
 
 `calculateExpectedSensorReadout()` remains an expectation path: it reports zero-mean read noise and does not quantize. If the upstream expected stored charge is already above physical storage capacity, it fails closed because the physical-capacity assessment does not define a linear post-saturation charge value.
+
+Both readout paths require the physical-capacity assessment to have been computed for the same charge: besides matching identity, its total expected stored electrons must equal the charge's exactly (the assessment copies that total verbatim), so a stale assessment fails closed. Digital saturation is reported when the code reaches the digital saturation code (`>=`) on both the expected and the stochastic path, so a sample quantized exactly to the white level is flagged.
 
 `simulateSensorRawCode()` consumes a stochastic charge realization plus the matching physical-capacity assessment. Its stage order is explicit:
 

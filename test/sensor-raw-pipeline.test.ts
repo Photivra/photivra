@@ -1539,6 +1539,154 @@ describe("sensor RAW closeout validation and edge boundaries", () => {
     );
   });
 
+  it("rejects a capacity assessment computed for a different charge (#273)", () => {
+    const large = charge(120);
+    const stale = capacity(charge(80));
+
+    expect(stale.expectedChargeCapacityStatus)
+      .toBe("below-capacity");
+    expect(capacity(large).expectedChargeCapacityStatus)
+      .toBe("above-capacity");
+    expect(() =>
+      calculateExpectedSensorReadout({
+        accumulatedCharge: large,
+        physicalCapacityAssessment: stale,
+        readoutProfile: readoutProfile(),
+        regimeId: "base"
+      })
+    ).toThrow(
+      "total expected stored electrons differ"
+    );
+
+    // A mismatch fails closed even when both totals are below capacity.
+    expect(() =>
+      calculateExpectedSensorReadout({
+        accumulatedCharge: charge(25),
+        physicalCapacityAssessment:
+          capacity(charge(30)),
+        readoutProfile: readoutProfile(),
+        regimeId: "base"
+      })
+    ).toThrow(
+      "total expected stored electrons differ"
+    );
+
+    // The below/at-capacity flag derives from the assessment's own totals, not its status label.
+    expect(() =>
+      calculateExpectedSensorReadout({
+        accumulatedCharge: large,
+        physicalCapacityAssessment: {
+          ...stale,
+          totalExpectedStoredElectronCount: 120
+        },
+        readoutProfile: readoutProfile(),
+        regimeId: "base"
+      })
+    ).toThrow(
+      "above physical capacity"
+    );
+
+    const atCapacity = charge(100);
+    expect(
+      calculateExpectedSensorReadout({
+        accumulatedCharge: atCapacity,
+        physicalCapacityAssessment:
+          capacity(atCapacity),
+        readoutProfile: readoutProfile(),
+        regimeId: "base"
+      }).value
+        .expectedStoredChargeBelowOrAtPhysicalCapacity
+    ).toBe(true);
+
+    const realization =
+      simulateSensorChargeRealization({
+        accumulatedCharge: large,
+        samplingProfile: samplingProfile(),
+        seedUint32: 7
+      }).value;
+    expect(() =>
+      simulateSensorRawCode({
+        chargeRealization: realization,
+        physicalCapacityAssessment: stale,
+        readoutProfile: readoutProfile(),
+        regimeId: "base",
+        readNoiseSeedUint32: 8
+      })
+    ).toThrow(
+      "total expected stored electrons differ"
+    );
+  });
+
+  it("reports digital saturation on both paths when the code lands exactly on the saturation code (#273)", () => {
+    const base =
+      readoutProfile().regimes[0]!;
+    const boundary =
+      parseSensorReadoutConversionProfile({
+        ...readoutProfile(),
+        profileId: "boundary-readout",
+        regimes: [{
+          ...base,
+          regimeId: "boundary",
+          systemConversionGainElectronsPerCode: {
+            value: 0.5,
+            evidence: evidence("boundary-gain")
+          },
+          readNoiseComponents: [],
+          adc: {
+            bitDepth: 12,
+            blackLevelCode: 0,
+            digitalSaturationCode: 50,
+            transfer: "uniform-round-half-up"
+          }
+        }]
+      });
+    const accumulated = charge(25);
+    const assessed = capacity(accumulated);
+
+    const expected =
+      calculateExpectedSensorReadout({
+        accumulatedCharge: accumulated,
+        physicalCapacityAssessment: assessed,
+        readoutProfile: boundary,
+        regimeId: "boundary"
+      }).value;
+    expect(expected.expectedCodeBeforeQuantization)
+      .toBe(50);
+    expect(expected.expectedDigitalSaturation)
+      .toBe(true);
+
+    const realization =
+      simulateSensorChargeRealization({
+        accumulatedCharge: accumulated,
+        samplingProfile: samplingProfile(),
+        seedUint32: 11
+      }).value;
+    const raw = (realized: number): SensorRawCodeSample =>
+      simulateSensorRawCode({
+        chargeRealization: {
+          ...realization,
+          totalRealizedStoredElectronEquivalentCount:
+            realized
+        },
+        physicalCapacityAssessment: assessed,
+        readoutProfile: boundary,
+        regimeId: "boundary",
+        readNoiseSeedUint32: 12
+      }).value;
+
+    const atWhite = raw(25);
+    expect(atWhite.quantizedCodeBeforeDigitalClamp)
+      .toBe(50);
+    expect(atWhite.rawCode).toBe(50);
+    expect(atWhite.digitalSaturationApplied)
+      .toBe(true);
+
+    const belowWhite = raw(24.5);
+    expect(belowWhite.rawCode).toBe(49);
+    expect(belowWhite.digitalSaturationApplied)
+      .toBe(false);
+  });
+
   it("covers zero-read-noise RAW conversion and explicit digital saturation", () => {
     const accumulated = charge(25);
     const realization =

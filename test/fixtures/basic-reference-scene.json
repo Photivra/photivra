@@ -99,9 +99,9 @@
     "focus": {
       "defocusDiameterMm": 0,
       "hyperfocalDistanceM": 20.883333333333336,
-      "nearLimitM": 4.041935483870967,
-      "farLimitM": 6.5533472803347275,
-      "totalDepthOfFieldM": 2.51141179646376
+      "nearLimitM": 4.040077569489334,
+      "farLimitM": 6.558237145855194,
+      "totalDepthOfFieldM": 2.5181595763658597
     },
     "diffraction": {
       "wavelengthNm": 550,

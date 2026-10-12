@@ -29,6 +29,7 @@ import {
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import { fmix32 } from "./stochastic-seed.js";
 import type {
   SensorPhotoAccumulatedChargeComposition as SensorAccumulatedChargeComposition
 } from "./accumulated-charge.js";
@@ -1027,7 +1028,7 @@ function validateChargeIdentity(
     SensorPhysicalChargeCapacityAssessment,
   readout:
     ResolvedSensorReadoutRegime
-): void {
+): true {
   if (
     charge.completenessProfileId !==
       capacity
@@ -1048,6 +1049,18 @@ function validateChargeIdentity(
       "Physical capacity assessment identity must match the accumulated charge."
     );
   }
+  // The assessment copies the complete expected stored-electron total verbatim from the charge it
+  // assessed, so the binding is exact: an assessment computed for any other charge is stale.
+  if (
+    charge
+      .totalExpectedStoredElectronCount !==
+    capacity
+      .totalExpectedStoredElectronCount
+  ) {
+    throw new InvalidScientificInputError(
+      "Physical capacity assessment must be computed for the supplied accumulated charge; its total expected stored electrons differ."
+    );
+  }
   if (
     readout
       .colorSamplingProfileId !==
@@ -1059,10 +1072,16 @@ function validateChargeIdentity(
       "Sensor readout profile color/channel identity must match the accumulated charge."
     );
   }
+  const belowOrAtCapacity =
+    capacity
+      .totalExpectedStoredElectronCount <=
+    capacity
+      .physicalChargeCapacityElectrons;
   if (
     capacity
       .expectedChargeCapacityStatus ===
-    "above-capacity"
+      "above-capacity" ||
+    !belowOrAtCapacity
   ) {
     throw new InvalidScientificInputError(
       "Expected stored charge above physical capacity cannot enter linear expected readout; the actual post-saturation stored charge is not defined by the upstream assessment."
@@ -1080,6 +1099,7 @@ function validateChargeIdentity(
       "Sensor readout requires the unmodified accumulated-charge result."
     );
   }
+  return belowOrAtCapacity;
 }
 
 function additionalPolicyMap(
@@ -1143,8 +1163,11 @@ interface DeterministicRandom {
 
 /**
  * Create the deterministic non-cryptographic xorshift32 stream for one charge or
- * read-noise identity. The XOR mix and nonzero fallback avoid the absorbing zero
- * state. Adding 0.5 before division produces values strictly inside (0,1), so
+ * read-noise identity. The seed is first scrambled by the MurmurHash3 `fmix32`
+ * avalanche finalizer: xorshift32 is linear over GF(2), so an unmixed (affine) seed
+ * would give nearby seeds nearly identical first draws and spatially correlated,
+ * variance-deficient noise (issue #270). The nonzero fallback avoids the absorbing
+ * zero state. Adding 0.5 before division produces values strictly inside (0,1), so
  * logarithmic Poisson/normal transforms never receive a zero or one endpoint.
  * Changing these mechanics changes realized RAW and requires model/replay review.
  */
@@ -1152,9 +1175,11 @@ function createRandom(
   seedUint32: number
 ): DeterministicRandom {
   let state =
-    (seedUint32 ^
-      0x9e3779b9) >>>
-    0;
+    fmix32(
+      (seedUint32 ^
+        0x9e3779b9) >>>
+      0
+    );
   if (state === 0) {
     state =
       0x6d2b79f5;
@@ -1522,12 +1547,12 @@ export function simulateSensorChargeRealization(
         true
     },
     "sensor-charge-stochastic-realization",
-    "1.0.0",
+    "2.0.0",
     [
       "Photo-generated and dark-generated electron counts are sampled independently from Poisson distributions using an explicit deterministic seed.",
       "Each additional stored-charge component uses its explicitly declared Poisson or deterministic electron-equivalent policy; Photivra does not infer defect/leakage statistics from the component name.",
       "This is a pre-saturation, pre-electronic-read-noise charge realization and remains separate from expectation-value calculations.",
-      "The seeded PRNG is a deterministic simulation mechanism and is not cryptographically secure."
+      "The seeded PRNG is a deterministic simulation mechanism and is not cryptographically secure; its seed is scrambled by the MurmurHash3 fmix32 finalizer so nearby seeds give unrelated streams."
     ]
   );
 }
@@ -1558,6 +1583,16 @@ function validateCapacityAgainstRealization(
   ) {
     throw new InvalidScientificInputError(
       "Physical capacity assessment identity must match the charge realization."
+    );
+  }
+  if (
+    charge
+      .totalExpectedStoredElectronCount !==
+    capacity
+      .totalExpectedStoredElectronCount
+  ) {
+    throw new InvalidScientificInputError(
+      "Physical capacity assessment must be computed for the charge behind the realization; its total expected stored electrons differ."
     );
   }
   if (
@@ -1598,12 +1633,13 @@ export function calculateExpectedSensorReadout(
       regimeId:
         input.regimeId
     });
-  validateChargeIdentity(
-    input.accumulatedCharge,
-    input
-      .physicalCapacityAssessment,
-    readout
-  );
+  const expectedStoredChargeBelowOrAtPhysicalCapacity =
+    validateChargeIdentity(
+      input.accumulatedCharge,
+      input
+        .physicalCapacityAssessment,
+      readout
+    );
 
   const expected =
     input.accumulatedCharge
@@ -1657,8 +1693,7 @@ export function calculateExpectedSensorReadout(
           .bindingId,
       expectedStoredElectronCount:
         expected,
-      expectedStoredChargeBelowOrAtPhysicalCapacity:
-        true,
+      expectedStoredChargeBelowOrAtPhysicalCapacity,
       expectedElectronEquivalentAfterPreAdcSaturation:
         afterPreAdc,
       preAdcSaturationAppliedToExpectation:
@@ -1948,7 +1983,7 @@ export function simulateSensorRawCode(
           .digitalSaturationCode,
       rawCode,
       digitalSaturationApplied:
-        quantized >
+        quantized >=
         readout.regime
           .adc
           .digitalSaturationCode,
@@ -1978,7 +2013,7 @@ export function simulateSensorRawCode(
         true
     },
     "sensor-raw-code-stochastic-readout",
-    "2.0.0",
+    "3.0.0",
     [
       "A stochastic stored-charge realization is scalar-clamped at the explicit physical storage capacity; this is a bounded saturation approximation and does not model blooming, neighbor transport or anti-blooming behavior.",
       "Independent input-referred Gaussian electronic read-noise components are sampled after physical charge saturation and before the explicit pre-ADC electron-equivalent saturation threshold.",

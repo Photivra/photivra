@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { simulatePocCamera, calculateDefocusCircle, calculateThinLensImageDistance, type PocSimulationRequest } from "../src/index.js";
+import { simulatePocCamera, calculateDefocusCircle, calculateDepthOfField, calculateThinLensImageDistance, type PocSimulationRequest } from "../src/index.js";
 import { calculateDefocusCircleUsingFocusProjection } from "../src/optics/depth-of-field.js";
 
 const reference = JSON.parse(readFileSync(new URL("./fixtures/poc-projection-reuse-reference.json", import.meta.url), "utf8")) as {
@@ -24,6 +24,22 @@ const intentionalResponseSha256: Record<string, string> = {
   "equivalence-46": "1e50030d40ed215c07fa39e0a8fe0944a2e057bbf1c9bc9ac363b4f38397a018",
   "equivalence-47": "256ff249de63a24b78ca2072bbbe1bf54599f8606c14bcd57b1a659f4244490c"
 };
+
+// #271 replaced the approximate DOF limits Hs/(H +/- (s - f)) with the exact
+// thin-lens limits. The historical response hashes predate that intentional
+// science change, so the corpus re-applies the pre-#271 expression (same
+// floating-point operation order) to the depthOfField field only. Every other
+// response byte remains compared against the historical reference.
+function preIssue271DepthOfField(input: PocSimulationRequest): Record<string, number | null> {
+  const f = input.lens.focalLengthMm, n = input.lens.aperture, c = input.focus.circleOfConfusionMm;
+  if (c === undefined || input.focus.equivalentViewingCircleOfConfusion !== undefined) throw new Error("Corpus case needs an explicit circle of confusion.");
+  const s = input.focus.focusDistanceM * 1000;
+  const h = (f * f) / (n * c) + f;
+  const near = (h * s) / (h + (s - f));
+  const farDenominator = h - (s - f);
+  const far = farDenominator <= 0 ? null : (h * s) / farDenominator;
+  return { hyperfocalDistanceM: h / 1000, nearLimitM: near / 1000, farLimitM: far === null ? null : far / 1000, totalDepthOfFieldM: far === null ? null : (far - near) / 1000 };
+}
 describe("request-local defocus focus projection", () => {
   it("preserves complete pre-change POC response/provenance across the fixed 64-case corpus", () => {
     expect(reference.referenceCommit).toBe("c1374c31473f893310d1ce4f0d5a737aaba43ab5");
@@ -32,7 +48,12 @@ describe("request-local defocus focus projection", () => {
     const useDarwinReference = process.platform === darwinReference.platform && process.arch === darwinReference.architecture
       && darwinReference.verifiedNodeMajors.includes(Number(process.versions.node.split(".")[0]));
     for (const fixture of reference.cases) {
-      const response = simulatePocCamera(fixture.input);
+      const current = simulatePocCamera(fixture.input);
+      expect(current.depthOfField, fixture.id).toEqual(calculateDepthOfField({
+        focalLengthMm: fixture.input.lens.focalLengthMm, aperture: fixture.input.lens.aperture,
+        focusDistanceM: fixture.input.focus.focusDistanceM, circleOfConfusionMm: fixture.input.focus.circleOfConfusionMm!
+      }).value);
+      const response = { ...current, depthOfField: preIssue271DepthOfField(fixture.input) };
       const expected = intentionalResponseSha256[fixture.id]
         ?? (useDarwinReference ? darwinReference.responseSha256Overrides[fixture.id] : undefined) ?? fixture.responseSha256;
       expect(createHash("sha256").update(JSON.stringify(response)).digest("hex"), fixture.id).toBe(expected);

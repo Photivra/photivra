@@ -5,6 +5,11 @@ import { simulateSensorRawFrame, parseSensorRawProducerInput, createSimulatedCap
   simulateSensorChargeRealization, simulateSensorRawCode, type SensorRawProducerInput } from "../src/index.js";
 import { loadSensorRawProducerInput as input } from "./helpers/sensor-raw-producer-fixture.js";
 import { loadPhotographicExportInput } from "./helpers/photographic-export-fixture.js";
+import { deriveNativeSiteStreamSeedUint32 } from "../src/sensor/stochastic-seed.js";
+
+// Cross-checked against an independent byte-oriented MurmurHash3_x86_32 implementation.
+const CHARGE_SEEDS_FFFFFFFF = [0x074b4931, 0x60530872, 0x2c7b7367, 0xc94e4cff];
+const READ_SEEDS_FFFFFFFF = [0x7ee2f56d, 0x74793c16, 0xd24e9f05, 0xcf2b8b6e];
 
 describe("engine-produced native sensor RAW frame", () => {
   it("runs the existing charge/capacity/noise/ADC primitives with exact capture-owned site seeds and no mutation", () => {
@@ -14,8 +19,9 @@ describe("engine-produced native sensor RAW frame", () => {
     expect(simulateSensorRawFrame(v)).toEqual(r); expect(Object.isFrozen(r.value.frame.samples)).toBe(true);
     for (let i = 0; i < 4; i++) {
       const site = r.value.sites[i]!, s = v.sites[i]!;
-      const chargeSeed = (v.frame.capture.noise.seedUint32+2*i) >>> 0;
-      const readSeed = (v.frame.capture.noise.seedUint32+2*i+1) >>> 0;
+      const chargeSeed = deriveNativeSiteStreamSeedUint32(v.frame.capture.noise.seedUint32, i, 0);
+      const readSeed = deriveNativeSiteStreamSeedUint32(v.frame.capture.noise.seedUint32, i, 1);
+      expect(chargeSeed).not.toBe(readSeed);
       expect(site.realization).toEqual(simulateSensorChargeRealization({ accumulatedCharge: site.accumulatedCharge.value,
         samplingProfile: s.samplingProfile, seedUint32: chargeSeed }));
       expect(site.readout).toEqual(simulateSensorRawCode({ chargeRealization: site.realization.value,
@@ -25,7 +31,7 @@ describe("engine-produced native sensor RAW frame", () => {
       expect(r.value.frame.samples[i]!.sourceReadNoiseSeedUint32).toBe(readSeed);
     }
   });
-  it("keeps native CFA through all orientations and uses a stable wrap-safe seed schedule", () => {
+  it("keeps native CFA through all orientations and uses a stable hashed seed schedule at the uint32 seed limit", () => {
     for (const orientation of ["landscape", "portrait-clockwise", "landscape-inverted", "portrait-counter-clockwise"] as const) {
       const v = input(), c = v.frame.capture;
       const { schemaVersion: _s, engineApiVersion: _e, resolvedGeometry: _g, equivalentFocalLength35Mm: _f, ...raw } = c;
@@ -33,8 +39,10 @@ describe("engine-produced native sensor RAW frame", () => {
       v.frame.capture = createSimulatedCapture({ ...raw, geometry: { ...raw.geometry, orientation },
         noise: { ...raw.noise, seedUint32: 0xffffffff } }).value;
       const r = simulateSensorRawFrame(v).value;
-      expect(r.frame.samples.map((s) => s.sourceChargeSeedUint32)).toEqual([0xffffffff, 1, 3, 5]);
-      expect(r.frame.samples.map((s) => s.sourceReadNoiseSeedUint32)).toEqual([0, 2, 4, 6]);
+      // MurmurHash3_x86_32 of little-endian (0xffffffff, index, stream); values are pinned so a
+      // schedule change cannot pass silently. They are seed identities, not independence evidence.
+      expect(r.frame.samples.map((s) => s.sourceChargeSeedUint32)).toEqual(CHARGE_SEEDS_FFFFFFFF);
+      expect(r.frame.samples.map((s) => s.sourceReadNoiseSeedUint32)).toEqual(READ_SEEDS_FFFFFFFF);
       expect(r.frame.samples.map((s) => s.channelId)).toEqual(["red", "green", "green", "blue"]);
       expect(r.frame.samples.map((s) => s.colorSamplingSite)).toEqual([{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }]);
     }
