@@ -339,7 +339,13 @@ export function createSensorStageRawTask<B>(input: NativeEnvironmentSensorStageI
           expectedIncidentPhotonCount: v[o+5]!, expectedGeneratedElectronCount: v[o+6]!, temporalSamples }));
       });
       return { ...request, sites: sites.map((site, j) => composeNativeEnvironmentSensorSite(site, photos[j]!)) };
-    }, yieldControl
+    },
+    // Host yields are time-budgeted and always follow the final tile, so a stage disposed
+    // while the host runs is caught here even when no further tile would be read.
+    async yieldControl(signal) {
+      await yieldControl(signal);
+      if (state.disposed) throw new InvalidConfigurationError("Optical stage was disposed.");
+    }
   });
   // The task's own admitted plan is the one compared, so nothing is planned twice and no callback has run yet.
   if (!strictlyEqual(opticalBinding(task.plan, sceneBinding), state.binding, new WeakMap())) {
