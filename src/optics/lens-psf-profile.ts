@@ -20,6 +20,7 @@ import {
   type CalculationResult
 } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { freezeOwnedData } from "../core/owned-data.js";
 import {
   parseEvidenceList,
   type EvidenceProvenance
@@ -940,6 +941,44 @@ function sameKernelGeometry(
   );
 }
 
+/** Private engine-owned profile declarations registered by markEngineOwnedLensSampledPsfProfile. */
+const ENGINE_OWNED_PROFILES = new WeakSet<object>();
+/** Deep-frozen parse of a deep-frozen engine-owned declaration. */
+const PARSED_OWNED_PROFILES = new WeakMap<object, LensSampledPsfProfile>();
+/** Node coordinate index of a cached, deep-frozen parse. */
+const TRUSTED_NODE_INDEX = new WeakMap<LensSampledPsfProfile, ReadonlyMap<string, LensSampledPsfProfile["nodes"][number]>>();
+
+/**
+ * Internal: registers a private, engine-owned profile declaration (a structured clone that is never
+ * exposed to supplied code) so repeated resolveLensSampledPsf calls reuse one parse. The first resolve
+ * parses it exactly as untrusted input, then deep-freezes the declaration and caches the frozen parse
+ * with its node index. A frozen declaration cannot change, so the cached parse stays exact; caller
+ * objects that were never registered are always parsed again.
+ */
+export function markEngineOwnedLensSampledPsfProfile(value: unknown): void {
+  if (typeof value === "object" && value !== null) ENGINE_OWNED_PROFILES.add(value);
+}
+
+function parseOwnedOrUntrustedProfile(value: unknown): LensSampledPsfProfile {
+  if (typeof value !== "object" || value === null || !ENGINE_OWNED_PROFILES.has(value)) {
+    return parseLensSampledPsfProfile(value);
+  }
+  const cached = PARSED_OWNED_PROFILES.get(value);
+  if (cached !== undefined) return cached;
+  const parsed = parseLensSampledPsfProfile(value);
+  try {
+    freezeOwnedData(value);
+  } catch {
+    // Outside freezeOwnedData's plain-data contract (e.g. typed-array storage): do not cache.
+    ENGINE_OWNED_PROFILES.delete(value);
+    return parsed;
+  }
+  freezeOwnedData(parsed);
+  TRUSTED_NODE_INDEX.set(parsed, new Map(parsed.nodes.map((node) => [coordinateKey(node.coordinate), node] as const)));
+  PARSED_OWNED_PROFILES.set(value, parsed);
+  return parsed;
+}
+
 /**
  * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
  * missing required fields and incompatible scientific data fail at this boundary.
@@ -1518,6 +1557,7 @@ function resolveWeightedNodes(
     >
 ): readonly WeightedNode[] {
   const byKey =
+    TRUSTED_NODE_INDEX.get(profile) ??
     new Map(
       profile.nodes.map(
         (node) => [
@@ -1659,7 +1699,7 @@ export function resolveLensSampledPsf(
     ResolveLensSampledPsfInput
 ): CalculationResult<ResolvedLensSampledPsf> {
   const profile =
-    parseLensSampledPsfProfile(
+    parseOwnedOrUntrustedProfile(
       input.profile
     );
   const query =
