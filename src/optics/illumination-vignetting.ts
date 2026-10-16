@@ -19,6 +19,7 @@ import {
   requirePositiveFinite
 } from "../core/validation.js";
 import type { LensFieldPointMm } from "./radial-distortion.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface IlluminationVignettingCoefficients {
   /** Coefficient on normalized radius squared. */
@@ -221,6 +222,8 @@ function assumptions(): readonly string[] {
 export function calculateIlluminationVignetting(
   input: CalculateIlluminationVignettingInput
 ): CalculationResult<IlluminationVignetting> {
+  requireInputObject(input, "calculateIlluminationVignetting input");
+  requireInputObject(input.imagePointMm, "imagePointMm");
   requireFinite("imagePointMm.x", input.imagePointMm.x);
   requireFinite("imagePointMm.y", input.imagePointMm.y);
 

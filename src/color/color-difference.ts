@@ -28,6 +28,7 @@ import {
   requireRecordValue,
   type CieXyzTristimulus
 } from "./colorimetry-math.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 /** CIE 1976 L*a*b* coordinates. */
 export interface CielabColor {
@@ -78,6 +79,7 @@ function parseWhite(value: unknown): CieXyzTristimulus {
 
 /** CIE XYZ → CIELAB relative to a reference white (same XYZ scale). */
 export function calculateCielabFromXyz(input: { xyz: CieXyzTristimulus; referenceWhiteXyz: CieXyzTristimulus }): CalculationResult<CielabColor> {
+  requireInputObject(input, "calculateCielabFromXyz input");
   const lab = cielabOfXyz(parseXyz(input.xyz, "xyz"), parseWhite(input.referenceWhiteXyz));
   requireFiniteResult([lab.lStar, lab.aStar, lab.bStar], "CIELAB conversion");
   return calculatedResult(lab, "cielab-1976", COLORIMETRY_MODEL_VERSION, ["CIE 15:2018 CIELAB with exact (6/29)³ and (29/3)³ constants"]);
@@ -85,6 +87,7 @@ export function calculateCielabFromXyz(input: { xyz: CieXyzTristimulus; referenc
 
 /** CIELAB → CIE XYZ relative to a reference white. */
 export function calculateXyzFromCielab(input: { lab: CielabColor; referenceWhiteXyz: CieXyzTristimulus }): CalculationResult<CieXyzTristimulus> {
+  requireInputObject(input, "calculateXyzFromCielab input");
   const xyz = xyzOfCielab(parseLab(input.lab, "lab"), parseWhite(input.referenceWhiteXyz));
   requireFiniteResult([xyz.x, xyz.y, xyz.z], "CIELAB inverse");
   return calculatedResult(xyz, "cielab-1976-inverse", COLORIMETRY_MODEL_VERSION, ["CIE 15:2018 CIELAB inverse"]);
@@ -104,11 +107,13 @@ export function cielabOfCielch(lch: CielchColor): CielabColor {
 
 /** CIELAB → CIE LCh(ab): C*ab = √(a*² + b*²), h_ab = atan2(b*, a*) in degrees. */
 export function calculateCielchFromCielab(input: { lab: CielabColor }): CalculationResult<CielchColor> {
+  requireInputObject(input, "calculateCielchFromCielab input");
   return calculatedResult(cielchOfCielab(parseLab(input.lab, "lab")), "cielch-ab", COLORIMETRY_MODEL_VERSION);
 }
 
 /** CIE LCh(ab) → CIELAB. */
 export function calculateCielabFromCielch(input: { lch: CielchColor }): CalculationResult<CielabColor> {
+  requireInputObject(input, "calculateCielabFromCielch input");
   const r = requireRecordValue(input.lch, "lch");
   const lch = {
     lStar: requireFiniteNumber(r.lStar, "lch.lStar"),
@@ -199,6 +204,7 @@ export interface CalculateColorDifferenceInput {
 
 /** Colour difference between two CIELAB colours with an explicit formula. */
 export function calculateColorDifference(input: CalculateColorDifferenceInput): CalculationResult<{ deltaE: number; formula: ColorDifferenceFormula }> {
+  requireInputObject(input, "calculateColorDifference input");
   const reference = parseLab(input.reference, "reference");
   const sample = parseLab(input.sample, "sample");
   let deltaE: number;

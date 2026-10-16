@@ -45,6 +45,7 @@ import {
   type CieXyzTristimulus,
   type ColorMatrix3x3
 } from "./colorimetry-math.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 /** Supported linear chromatic-adaptation transforms. */
 export type ChromaticAdaptationTransform = "bradford" | "cat02" | "cat16" | "von-kries-hpe" | "xyz-scaling";
@@ -116,6 +117,7 @@ export function chromaticAdaptationMatrix(input: CalculateChromaticAdaptationMat
  * matrix itself is calculated exactly from the declared transform.
  */
 export function calculateChromaticAdaptationMatrix(input: CalculateChromaticAdaptationMatrixInput): CalculationResult<ChromaticAdaptationMatrix> {
+  requireInputObject(input, "calculateChromaticAdaptationMatrix input");
   const value = chromaticAdaptationMatrix(input);
   return calculatedResult(value, "chromatic-adaptation-" + value.transform, COLORIMETRY_MODEL_VERSION, [
     "Linear von Kries-type transform M = C⁻¹·diag(D·(Ys/Yd)·ρd/ρs + 1 − D)·C",
@@ -125,6 +127,7 @@ export function calculateChromaticAdaptationMatrix(input: CalculateChromaticAdap
 
 /** Adapts one XYZ colour between whites with the selected transform. */
 export function calculateChromaticallyAdaptedXyz(input: CalculateChromaticAdaptationMatrixInput & { xyz: CieXyzTristimulus }): CalculationResult<{ xyz: CieXyzTristimulus; matrix: ColorMatrix3x3 }> {
+  requireInputObject(input, "calculateChromaticallyAdaptedXyz input");
   const adaptation = chromaticAdaptationMatrix(input);
   const xyz = vectorToXyz(multiplyMatrixVector(adaptation.matrix, xyzToVector(parseXyz(input.xyz, "xyz"))));
   requireFiniteResult([xyz.x, xyz.y, xyz.z], "Chromatic adaptation");
@@ -141,6 +144,7 @@ export type ViewingSurround = "average" | "dim" | "dark";
  * clamped to [0, 1]. L_A is the adapting-field luminance in cd/m².
  */
 export function calculateDegreeOfAdaptation(input: { adaptingLuminanceCdPerSquareMeter: number; surround: ViewingSurround }): CalculationResult<{ degreeOfAdaptation: number }> {
+  requireInputObject(input, "calculateDegreeOfAdaptation input");
   const la = requireNonNegativeNumber(input.adaptingLuminanceCdPerSquareMeter, "adaptingLuminanceCdPerSquareMeter");
   const f = input.surround === "average" ? 1 : input.surround === "dim" ? 0.9 : input.surround === "dark" ? 0.8 : NaN;
   if (Number.isNaN(f)) throw new InvalidScientificInputError("surround must be \"average\", \"dim\" or \"dark\".");

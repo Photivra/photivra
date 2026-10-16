@@ -2,7 +2,7 @@
 
 Generated from the exact root exports for **@photivra/engine 1.5.0 / root contract 1.5.0** by `node scripts/generate-api-reference.mjs`. No module deep import is supported.
 
-Use [the developer guide](DEVELOPERS.md) for executable paths and scientific boundaries. Types are contracts, not runtime validation: parse untrusted data, preserve units/reference frames, read assessment blockers, and retain evidence/limitations. Optional properties do not imply a universal default. Model/schema IDs remain independent of the distribution.
+Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md) for executable paths and scientific boundaries. Types are contracts, not runtime validation: parse untrusted data, preserve units/reference frames, read assessment blockers, and retain evidence/limitations. Optional properties do not imply a universal default. Model/schema IDs remain independent of the distribution.
 
 ## camera/equivalent-focal-length.ts
 
@@ -2438,6 +2438,7 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`ResolvedSensorSpectralResponseValue`](api/sensor-spectral-response.md#resolvedsensorspectralresponsevalue) | Type |
 | [`resolveSensorSpectralResponseAtWavelength`](api/sensor-spectral-response.md#resolvesensorspectralresponseatwavelength) | Runtime |
 | [`ResolveSensorSpectralResponseAtWavelengthInput`](api/sensor-spectral-response.md#resolvesensorspectralresponseatwavelengthinput) | Type |
+| [`SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT`](api/sensor-spectral-response.md#sensor_spectral_response_channel_binding_format) | Runtime |
 | [`SensorSpectralChannelResponse`](api/sensor-spectral-response.md#sensorspectralchannelresponse) | Type |
 | [`SensorSpectralReferenceConditions`](api/sensor-spectral-response.md#sensorspectralreferenceconditions) | Type |
 | [`SensorSpectralResponseChannelBinding`](api/sensor-spectral-response.md#sensorspectralresponsechannelbinding) | Type |

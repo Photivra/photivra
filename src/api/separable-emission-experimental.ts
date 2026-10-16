@@ -64,7 +64,7 @@ export function planSeparableEmissionPhotoSignal(
     throw new InvalidScientificInputError("Separable emission currently requires ideal pupil geometry without sampled PSF.");
   const spectralValues = new Map<number,number>();
   for (const instant of plan.instants) for (const group of instant.groups) for (const tap of group.taps) {
-    const q = parseSceneRadianceEvaluationRequest(tap.query.value.request);
+    const q = parseSceneRadianceEvaluationRequest(tap.request);
     for (const key of ["providerProfileId","sceneId","illuminationProfileId","materialResponseProfileId","wavelengthBasis"] as const)
       if (q[key] !== owned[key]) throw new InvalidScientificInputError("Separable emission identity or wavelength basis mismatch.");
     const wavelength = q.wavelengthNanometers;

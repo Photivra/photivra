@@ -21,6 +21,7 @@ import {
   prepareGeometricMapping, parseGeometricRaster, calculateValidSourceCrop, type DigitalGeometricTransform, type GeometricImageDomain,
   type GeometricRaster, type GeometricResampler, type GeometricSamplingPlan
 } from "./geometric-transforms.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export type LensCorrectionChannel = "red" | "green" | "blue";
 interface CorrectionComponentIdentity {
@@ -133,6 +134,7 @@ export function resolveLensCorrectionPlan(input: {
   selections: Readonly<Record<string, "on" | "off" | "auto">>;
   outputKind: "raw-like" | "processed"; selectionKind: "camera-selectable" | "reference-bypass";
 }): CalculationResult<ResolvedLensCorrectionPlan> {
+  requireInputObject(input, "resolveLensCorrectionPlan input");
   const profile = parseGenericLensCorrectionProfile(input.profile);
   requireSameState(profile.state, input.state);
   const outputKind = choice(input.outputKind, ["raw-like", "processed"]);
@@ -163,7 +165,9 @@ export function calculatePeripheralIlluminationCorrection(input: {
   component: IlluminationLensCorrection; imagePointMm: LensFieldPointMm;
   signal: number; noiseVariance: number; clippingLevel: number;
 }): CalculationResult<{ gain: number; signalBeforeClipping: number; signal: number; noiseVarianceBeforeClipping: number; clipped: boolean }> {
+  requireInputObject(input, "calculatePeripheralIlluminationCorrection input");
   const component = input.component;
+  requireInputObject(component, "component input");
   if (component.kind !== "peripheral-illumination" || component.strength < 0 || component.strength > 1 || !Number.isFinite(component.strength)) throw new InvalidScientificInputError("Invalid illumination component.");
   const signal = finite(input.signal, "signal"), variance = finite(input.noiseVariance, "noiseVariance");
   const level = positive(input.clippingLevel, "clippingLevel");
@@ -203,7 +207,9 @@ export function calculateLensCorrectedCapture(input: {
   /** Gain-stage clipping events before joint support/crop; repeated stages count separately. */
   illuminationClippingEventCount: number;
 }> {
+  requireInputObject(input, "calculateLensCorrectedCapture input");
   // Re-resolve untrusted/mutated plans; callers cannot forge enabled/mandatory state.
+  requireInputObject(input.plan, "plan");
   const plan = resolveLensCorrectionPlan({ profile: input.plan.profile, state: input.plan.profile.state,
     selections: Object.fromEntries(input.plan.components.filter((e) => e.component.availability === "toggle").map((e) => [e.component.id, e.enabled ? "on" : "off"])),
     outputKind: input.plan.outputKind, selectionKind: input.plan.selectionKind }).value;

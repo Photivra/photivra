@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: Apache-2.0
+
+/**
+ * Engine-portable floating-point helpers.
+ *
+ * ECMAScript requires `+ - * /` and `Math.sqrt` to be correctly rounded IEEE 754 binary64
+ * operations, so a fixed sequence of them gives the same bits in every conforming engine.
+ * `Math.hypot`, `Math.exp`, `Math.atan`, `Math.cos` and the other transcendental functions are
+ * "implementation-approximated" (ECMA-262 §21.3.2) and differ in the last bit between V8,
+ * JavaScriptCore and SpiderMonkey. Values that are persisted and re-derived for an exact identity
+ * comparison must therefore be computed from the correctly rounded operations only.
+ * @see docs/NUMERICAL_CORRECTNESS.md §Cross-engine determinism
+ */
+
+const LARGE = 2 ** 500;
+const SMALL = 2 ** -500;
+const SCALE_DOWN = 2 ** -600;
+const SCALE_UP = 2 ** 600;
+
+/**
+ * Euclidean norm of the supplied components computed only from correctly rounded IEEE operations,
+ * so the result is bit-identical across JavaScript engines (unlike `Math.hypot`).
+ *
+ * Components are summed in argument order. Inputs far from unity are rescaled by an exact power of
+ * two first, so squaring cannot overflow or lose the result to underflow. Non-finite input gives a
+ * non-finite result (callers validate inputs before use).
+ */
+export function portableHypot(...values: readonly number[]): number {
+  let maximum = 0;
+  for (const value of values) {
+    const magnitude = Math.abs(value);
+    if (!(magnitude <= maximum)) maximum = magnitude;
+  }
+  if (maximum === 0 || !Number.isFinite(maximum)) return maximum;
+  const scale = maximum > LARGE ? SCALE_DOWN : maximum < SMALL ? SCALE_UP : 1;
+  let sum = 0;
+  for (const value of values) {
+    const scaled = value * scale;
+    sum += scaled * scaled;
+  }
+  return Math.sqrt(sum) / scale;
+}
+
+/**
+ * True when two finite numbers differ by at most `maximumUlps` units of binary64 relative precision
+ * (`Number.EPSILON` times the larger magnitude). Used to accept archived derived values that a
+ * different engine or an earlier release computed with an implementation-approximated function.
+ */
+export function equalWithinUlps(a: number, b: number, maximumUlps: number): boolean {
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+  if (a === b) return true;
+  return Math.abs(a - b) <= maximumUlps * Number.EPSILON * Math.max(Math.abs(a), Math.abs(b));
+}

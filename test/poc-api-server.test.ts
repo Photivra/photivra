@@ -4,6 +4,7 @@ import type { Server } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createPocApiServer } from "../src/api/server.js";
+import { InvalidScientificResultError } from "../src/core/validation.js";
 
 const simulateOverride = vi.hoisted(() => ({
   current: undefined as (() => never) | undefined
@@ -94,7 +95,7 @@ describe("POC HTTP API", () => {
     expect(await response.json()).toEqual({
       ok: true,
       service: "photivra-engine",
-      apiVersion: "0.20.0"
+      apiVersion: "1.0.0"
     });
   });
 
@@ -172,7 +173,7 @@ describe("POC HTTP API", () => {
       apiVersion: string;
       provenance: { kind: string };
     };
-    expect(body.apiVersion).toBe("0.20.0");
+    expect(body.apiVersion).toBe("1.0.0");
     expect(body.provenance.kind).toBe("calculated");
   });
 
@@ -349,6 +350,44 @@ describe("POC HTTP API", () => {
           code: "INTERNAL_ERROR",
           message: "Internal simulation error."
         }
+      });
+    } finally {
+      simulateOverride.current = undefined;
+    }
+  });
+
+  it("returns 400 for finite but extreme magnitudes outside the transport envelope", async () => {
+    const baseUrl = await listenForTest(createPocApiServer());
+    for (const change of [
+      { lens: { focalLengthMm: 200, aperture: 1e-300 } },
+      { lens: { focalLengthMm: 200, aperture: 1e300 } },
+      { focus: { focusDistanceM: 1e300, circleOfConfusionMm: 0.03 } }
+    ]) {
+      const response = await fetch(`${baseUrl}/v1/poc/simulate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...validRequest(), ...change })
+      });
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as { error: { code: string } };
+      expect(body.error.code).toBe("INVALID_SIMULATION_REQUEST");
+    }
+  });
+
+  it("maps a non-finite result from a parsed request to 422", async () => {
+    simulateOverride.current = (): never => {
+      throw new InvalidScientificResultError("depthOfField.nearLimitM must be finite.");
+    };
+    try {
+      const baseUrl = await listenForTest(createPocApiServer());
+      const response = await fetch(`${baseUrl}/v1/poc/simulate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(validRequest())
+      });
+      expect(response.status).toBe(422);
+      expect(await response.json()).toEqual({
+        error: { code: "SIMULATION_RESULT_OUT_OF_RANGE", message: "depthOfField.nearLimitM must be finite." }
       });
     } finally {
       simulateOverride.current = undefined;

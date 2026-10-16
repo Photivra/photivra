@@ -1,22 +1,22 @@
 # Usage Guide
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md) and [release contract](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_2_0.md).
 
 For bounded capture-owned charge/noise/ADC → native RAW generation, see
-[Sensor RAW producer](SENSOR_RAW_PRODUCER.md). Upstream EQE/dark exposure results
+[Sensor RAW producer](https://github.com/Photivra/photivra/blob/main/docs/SENSOR_RAW_PRODUCER.md). Upstream EQE/dark exposure results
 remain declared; the returned frame can feed the same-RAW photographic exporter.
 
 For bounded committed capture → correction → SDR output, see
-[Capture-bound corrected SDR](CAPTURE_CORRECTED_SDR.md). It returns a derived output
+[Capture-bound corrected SDR](https://github.com/Photivra/photivra/blob/main/docs/CAPTURE_CORRECTED_SDR.md). It returns a derived output
 view without changing physical capture geometry or activating production stages.
 
 For bounded same-RAW paired DNG/JPEG byte export, see
-[Photographic export](PHOTOGRAPHIC_EXPORT.md). It requires an explicit approximate
-sensor-color profile; bounded external acceptance and its evidence limits are recorded in [Export acceptance](EXPORT_ACCEPTANCE.md).
+[Photographic export](https://github.com/Photivra/photivra/blob/main/docs/PHOTOGRAPHIC_EXPORT.md). It requires an explicit approximate
+sensor-color profile; bounded external acceptance and its evidence limits are recorded in [Export acceptance](https://github.com/Photivra/photivra/blob/main/docs/EXPORT_ACCEPTANCE.md).
 
 This guide shows how to call the capabilities exported by the root `@photivra/engine` package.
 
-The package is ESM-only. Primitive scientific calculations generally return a `CalculationResult<T>`:
+The package is ESM; CommonJS code on Node 22.12 or later can also `require()` it. Primitive scientific calculations generally return a `CalculationResult<T>`:
 
 ```ts
 const result = calculateSomething(input);
@@ -30,7 +30,7 @@ console.log(result.quality);
 
 ## Standalone digital optics
 
-See [Digital optics foundations](DIGITAL_OPTICS_FOUNDATION.md) for exact-state stray-light/correction profiles and scientific boundaries. A compatible map can be prepared separately from its sampling filter:
+See [Digital optics foundations](https://github.com/Photivra/photivra/blob/main/docs/DIGITAL_OPTICS_FOUNDATION.md) for exact-state stray-light/correction profiles and scientific boundaries. A compatible map can be prepared separately from its sampling filter:
 
 ```ts
 import {
@@ -91,7 +91,7 @@ The contract is descriptive metadata. It does not imply that every reserved stag
 
 Use `requiredUpstreamStages` for hard scientific dependencies and `coupledStages` for shared state/interactions that must not be treated as independent renderer filters.
 
-See [Image-Formation Contract](IMAGE_FORMATION.md) for coordinate, temporal, renderer, and reserved sensor-stage semantics.
+See [Image-Formation Contract](https://github.com/Photivra/photivra/blob/main/docs/IMAGE_FORMATION.md) for coordinate, temporal, renderer, and reserved sensor-stage semantics.
 
 ## Ideal regular-polygon diffraction
 
@@ -327,7 +327,7 @@ console.log(leftHalf.value.degrees);
 
 Unlike the centered `2 × atan(size / 2d)` form, the bounds API preserves asymmetric angular limits and is used by active-capture geometry for off-center crops.
 
-See [Physics Foundation](PHYSICS_FOUNDATION.md#rectilinear-field-of-view).
+See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#rectilinear-field-of-view).
 
 ## Actual and 35 mm-equivalent focal length
 
@@ -958,7 +958,7 @@ Later requested stages remain explicit blockers until intentionally integrated, 
 
 The production plan therefore does not turn standalone foundations into silently active pipeline stages.
 
-See [Production Image-Formation Plan](PRODUCTION_COMPOSITION.md).
+See [Production Image-Formation Plan](https://github.com/Photivra/photivra/blob/main/docs/PRODUCTION_COMPOSITION.md).
 
 ## Front-of-lens filter transmission
 
@@ -1359,7 +1359,7 @@ console.log(projection.value.infinityProjectionScale);
 
 This is a paraxial ideal-lens model. It does not model real-lens focus breathing, pupil magnification, principal-plane movement, or aberrations.
 
-See [Physics Foundation](PHYSICS_FOUNDATION.md#projection-focus-extension-object-size-and-motion).
+See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#projection-focus-extension-object-size-and-motion).
 
 ## Projected object size and sensor sampling
 
@@ -1387,11 +1387,11 @@ Omit `pixelPitchMicrometers` when only physical image-plane dimensions are neede
 
 The object plane is assumed to be fronto-parallel to the sensor.
 
-See [Physics Foundation](PHYSICS_FOUNDATION.md#projection-focus-extension-object-size-and-motion).
+See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#projection-focus-extension-object-size-and-motion).
 
 ## Depth of field and defocus
 
-Use `calculateDepthOfField()` for conventional geometric near/far limits:
+Use `calculateDepthOfField()` for the exact thin-lens near/far limits for a caller-supplied circle of confusion (it must be smaller than the aperture diameter `focalLengthMm / aperture`):
 
 ```ts
 import { calculateDepthOfField } from "@photivra/engine";
@@ -1425,7 +1425,7 @@ console.log(blur.value.diameterMm);
 
 The circle-of-confusion criterion used for depth-of-field is caller supplied. These are ideal geometric thin-lens models and do not incorporate diffraction or real-lens aberrations into the DOF criterion.
 
-See [Physics Foundation](PHYSICS_FOUNDATION.md#thin-lens-focus-and-depth-of-field).
+See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#thin-lens-focus-and-depth-of-field).
 
 ## Real-lens PSF profiles and complex-pupil reference
 
@@ -1521,7 +1521,7 @@ It records field position now even though the current defocus/Airy diagnostics a
 
 The current spectral basis is explicitly monochromatic for the Airy diagnostic. This does not create a spectral lens or sensor-color model.
 
-See [PSF and Pupil Foundation](PSF_FOUNDATION.md).
+See [PSF and Pupil Foundation](https://github.com/Photivra/photivra/blob/main/docs/PSF_FOUNDATION.md).
 
 ## Circular-aperture diffraction
 
@@ -1540,7 +1540,7 @@ console.log(diffraction.value.firstZeroDiameterMicrometers);
 
 This calculation uses `d = 2.44 λ N`. It is not a polygon-aperture diffraction PSF.
 
-See [Physics Foundation](PHYSICS_FOUNDATION.md#diffraction).
+See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#diffraction).
 
 ## Aperture geometry and sunstar directions
 
@@ -1561,7 +1561,7 @@ console.log(aperture.value.sunstarRayAnglesDegrees);
 
 The output describes normalized aperture geometry and idealized ray-direction symmetry only. It does not calculate diffraction intensity, star length, flare, coatings, or a full PSF.
 
-See [Physics Foundation](PHYSICS_FOUNDATION.md#ideal-diaphragm-geometry-and-sunstar-symmetry).
+See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#ideal-diaphragm-geometry-and-sunstar-symmetry).
 
 ## Pixel pitch
 
@@ -1581,7 +1581,7 @@ console.log(pitch.value.millimeters);
 
 The current primitive calculates horizontal pixel pitch. It assumes the supplied sensor width and pixel count describe the same active dimension.
 
-See [Physics Foundation](PHYSICS_FOUNDATION.md#sensor-geometry-sampling-capture-and-crop).
+See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#sensor-geometry-sampling-capture-and-crop).
 
 ## White balance and Auto WB
 
@@ -1684,7 +1684,7 @@ const intent =
 
 The intent keeps `channelGainsResolved: false` and `requiresCameraProfileColorimetry: true`. CCT alone is not treated as a complete chromatic adaptation model, and tint remains an independent axis.
 
-`resolveColorTemperatureWhiteBalance()` resolves gains once the intent is paired with an explicit camera colour model. It takes the white on the Planckian or CIE-daylight locus, offset by tint read as Duv in CIE 1960 uv, maps that white through the camera's XYZ→camera matrix, and neutralizes the result. The state it returns has `source: "color-temperature"`. See [Kelvin + tint white balance](#kelvin--tint-white-balance) below and [Colorimetry](COLORIMETRY.md#kelvin--tint-white-balance).
+`resolveColorTemperatureWhiteBalance()` resolves gains once the intent is paired with an explicit camera colour model. It takes the white on the Planckian or CIE-daylight locus, offset by tint read as Duv in CIE 1960 uv, maps that white through the camera's XYZ→camera matrix, and neutralizes the result. The state it returns has `source: "color-temperature"`. See [Kelvin + tint white balance](#kelvin--tint-white-balance) below and [Colorimetry](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md#kelvin--tint-white-balance).
 
 ### Custom measured WB
 
@@ -1742,7 +1742,7 @@ Every resolved WB state explicitly reports that it did not:
 
 ## Colorimetry
 
-The [colorimetry primitives](COLORIMETRY.md) cover CMFs, illuminants, CCT/Duv, chromatic adaptation, ΔE, camera-matrix fitting, wide-gamut/HDR transfers and gamut mapping. No CIE or ColorChecker tables are bundled; the CIE datasets are CC BY-SA 4.0. Use the labelled analytic CMF approximation, or pass tables you are licensed to use.
+The [colorimetry primitives](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md) cover CMFs, illuminants, CCT/Duv, chromatic adaptation, ΔE, camera-matrix fitting, wide-gamut/HDR transfers and gamut mapping. No CIE or ColorChecker tables are bundled; the CIE datasets are CC BY-SA 4.0. Use the labelled analytic CMF approximation, or pass tables you are licensed to use.
 
 ### Spectrum to XYZ, CCT and colour difference
 
@@ -2923,7 +2923,7 @@ Physical full-well capacity and camera saturation capacity remain separate imple
 
 ## Dark-current charge
 
-Use `calculateSensorDarkCurrentCharge()` with a stationary EQE expected-count exposure result or the validated compact [temporal photo signal](TEMPORAL_PHOTO_RAW.md). Temporal dark charge retains the exact temporal event identity without a stationarity ID. The current path models **pre-compensation thermally generated electrons** in e⁻/s and integrates that rate over the exact local exposure duration already established by the temporal pipeline.
+Use `calculateSensorDarkCurrentCharge()` with a stationary EQE expected-count exposure result or the validated compact [temporal photo signal](https://github.com/Photivra/photivra/blob/main/docs/TEMPORAL_PHOTO_RAW.md). Temporal dark charge retains the exact temporal event identity without a stationarity ID. The current path models **pre-compensation thermally generated electrons** in e⁻/s and integrates that rate over the exact local exposure duration already established by the temporal pipeline.
 
 Photivra deliberately does not impose one universal dark-current temperature law. A dark-current profile may provide either:
 
@@ -3869,7 +3869,7 @@ Subject framing assumes the crop can be positioned around the subject; it does n
 
 Integer rounding: `calculateCenteredCrop()` floors the shorter axis (`floor(dimension / cropFactor)`) and derives the longer axis as the integer nearest the source aspect ratio, capped at `floor(dimension / cropFactor)`; 6000×4000 at 1.7× gives 3528×2352 (exactly 3:2). `calculateSubjectFramingCrop()` uses the largest whole-pixel height within the requested crop height (`subjectHeightPixels / targetSubjectHeightFraction`), never fewer than `ceil(subjectHeightPixels)`, and the nearest-integer width for the source ratio. `subjectHeightFraction` is therefore at least the target (within one pixel of crop height) and `subjectClipped` is never `true` when the subject fits the source frame.
 
-See [Physics Foundation](PHYSICS_FOUNDATION.md#sensor-geometry-sampling-capture-and-crop).
+See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#sensor-geometry-sampling-capture-and-crop).
 
 ## Projected subject motion
 
@@ -3895,7 +3895,7 @@ console.log(motion.value.distancePixels);
 
 The model assumes constant world-space linear velocity. It tracks a representative point rather than extended-object scale blur, rotation, deformation, or acceleration.
 
-See [Motion and Signal Foundation](MOTION_AND_SIGNAL.md#projected-subject-motion).
+See [Motion and Signal Foundation](https://github.com/Photivra/photivra/blob/main/docs/MOTION_AND_SIGNAL.md#projected-subject-motion).
 
 ## Extended-object time-varying projection
 
@@ -5561,7 +5561,7 @@ console.log(iso.value);
 
 These relations do not model scene radiance, lens T-stop/transmission, vignetting, or sensor-specific gain/noise behavior.
 
-See [Motion and Signal Foundation](MOTION_AND_SIGNAL.md#exposure-relations).
+See [Motion and Signal Foundation](https://github.com/Photivra/photivra/blob/main/docs/MOTION_AND_SIGNAL.md#exposure-relations).
 
 ## Capture rotation exposure trajectories
 
@@ -5892,7 +5892,7 @@ Coordinate/sign convention:
 - positive pitch/yaw/roll follow the physical right-hand rule about +X/+Y/+Z: positive yaw turns the camera left and moves stationary content toward +X; positive pitch tilts it up and moves content toward −Y; positive roll is clockwise as seen from behind the camera and rotates content counter-clockwise;
 - the returned image-plane basis is +X right, +Y up;
 - a stationary world ray is transformed by the **inverse** camera rotation, so image content moves opposite to the camera's own turn;
-- `estimateCameraShakeBlur()` uses the same yaw/pitch signs (from 2.0.0); see [Motion and signal](MOTION_AND_SIGNAL.md#spatial-camera-rotation);
+- `estimateCameraShakeBlur()` uses the same yaw/pitch signs (from 2.0.0); see [Motion and signal](https://github.com/Photivra/photivra/blob/main/docs/MOTION_AND_SIGNAL.md#spatial-camera-rotation);
 - optional `deltaImagePlaneSamples` retains image-plane +Y-up semantics and is **not** a native-raster (+Y-down) vector.
 
 The angular-velocity vector is assumed constant and is integrated as one axis-angle rotation. This avoids arbitrary Euler ordering for simultaneous pitch/yaw/roll.
@@ -5926,11 +5926,11 @@ console.log(shake.value.residualMotionFactor);
 console.log(shake.provenance.kind); // "approximation"
 ```
 
-`deltaXmm`/`deltaYmm` are the +X-right/+Y-up image displacement of a stationary on-axis point: positive yaw (camera turns left) gives positive `deltaXmm`; positive pitch (camera tilts up) gives negative `deltaYmm`. These signs match `calculateCameraRotationImageMapping()` at the optical axis.
+`deltaXmm`/`deltaYmm` are the +X-right/+Y-up image displacement of a stationary on-axis point: positive yaw (camera turns left) gives positive `deltaXmm`; positive pitch (camera tilts up) gives negative `deltaYmm`. These signs match `calculateCameraRotationImageMapping()` at the optical axis, and for a single axis the displacements are equal within floating-point rounding. A per-axis rotation of π/2 rad or more over the exposure is rejected.
 
 The `2^-stops` attenuation is an educational approximation, not a real IBIS/OIS or CIPA rating. The current output is one global image-plane vector rather than spatially varying rotational optical flow.
 
-See [Camera Shake and Stabilization](STABILIZATION.md).
+See [Camera Shake and Stabilization](https://github.com/Photivra/photivra/blob/main/docs/STABILIZATION.md).
 
 ## Radiometry readiness
 
@@ -5998,7 +5998,7 @@ Geometric sample pitch is **not** accepted as photon-collection area by itself. 
 
 Data-bearing spectral/spatial calibration inputs are represented by an artifact ID plus SHA-256 checksum. Photivra does not infer reuse rights from public availability; reusable calibration data requires explicit licensing or Photivra ownership.
 
-The readiness API does not calculate photons, does not change the existing `calculatePhotoelectrons()` primitive, and does not add photon/noise output to `simulatePocCamera()`. The bounded [executed environment route](PRODUCTION_ENVIRONMENT_CAPTURE.md) performs explicitly declared EQE photon/electron integration; this readiness gate alone does not activate it or verify calibration.
+The readiness API does not calculate photons, does not change the existing `calculatePhotoelectrons()` primitive, and does not add photon/noise output to `simulatePocCamera()`. The bounded [executed environment route](https://github.com/Photivra/photivra/blob/main/docs/PRODUCTION_ENVIRONMENT_CAPTURE.md) performs explicitly declared EQE photon/electron integration; this readiness gate alone does not activate it or verify calibration.
 
 ## Photoelectron and SNR primitives
 
@@ -6033,7 +6033,7 @@ console.log(snr.value.snrDb);
 
 These primitives do not derive photons from scene imagery and do not model a complete commercial sensor pipeline.
 
-See [Motion and Signal Foundation](MOTION_AND_SIGNAL.md#signalnoise-primitives).
+See [Motion and Signal Foundation](https://github.com/Photivra/photivra/blob/main/docs/MOTION_AND_SIGNAL.md#signalnoise-primitives).
 
 ## Scene illumination source profiles
 
@@ -6106,7 +6106,7 @@ Discrete sources may instead use `discrete-relative-lines`. Each line carries an
 
 The parser establishes illumination metadata only. It does not calculate material response, visibility, indirect transport, outgoing scene spectral radiance, sensor-plane irradiance, photons/electrons, fluorescence, volumetric spectral transport, or polarization.
 
-See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md).
+See [Scene Radiance and Illumination](https://github.com/Photivra/photivra/blob/main/docs/SCENE_RADIANCE_AND_ILLUMINATION.md).
 
 ## Scene-radiance provider and material response
 
@@ -6211,7 +6211,7 @@ The binding validator checks exact scene/profile/material/sample/wavelength iden
 
 Provider/result schema 0.1.0 is approximation-only. Calibrated material or illumination inputs cannot silently promote provider output to calibrated scene radiance.
 
-See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md#scene-radiance-provider-and-material-response-boundary).
+See [Scene Radiance and Illumination](https://github.com/Photivra/photivra/blob/main/docs/SCENE_RADIANCE_AND_ILLUMINATION.md#scene-radiance-provider-and-material-response-boundary).
 
 ## Shared spectral composition
 
@@ -6336,7 +6336,7 @@ There is **no** `dλ` multiplication. Assigning an arbitrary width to a laser/li
 
 The source-level helper may distribute point radiant intensity (W/sr), area radiance (W/m²/sr), directional reference-plane irradiance (W/m²), or an explicitly relative magnitude across normalized line fractions. It does not apply material transport, optics, sensor response, photon conversion, or combined uncertainty, and it does not authorize a calibrated outgoing-radiance claim.
 
-See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md#shared-spectral-composition).
+See [Scene Radiance and Illumination](https://github.com/Photivra/photivra/blob/main/docs/SCENE_RADIANCE_AND_ILLUMINATION.md#shared-spectral-composition).
 
 ## Temporal illumination
 
@@ -6442,7 +6442,7 @@ This layer does not apply the source's physical magnitude, evaluate material/vis
 
 A scene-radiance provider may optionally bind the temporal profile with `illuminationTemporalProfileId`. When declared, `validateSceneRadianceEvaluationBindings()` requires the matching temporal profile.
 
-See [Scene Radiance and Illumination](SCENE_RADIANCE_AND_ILLUMINATION.md#temporal-illumination).
+See [Scene Radiance and Illumination](https://github.com/Photivra/photivra/blob/main/docs/SCENE_RADIANCE_AND_ILLUMINATION.md#temporal-illumination).
 
 ## Camera and scene schema validation
 
@@ -6491,7 +6491,7 @@ const camera = parseCameraConfiguration({
 });
 ```
 
-See [Validation boundaries in the README](../README.md#validation-boundaries) and [Architecture](ARCHITECTURE.md).
+See [Validation boundaries in the README](../README.md#validation-boundaries) and [Architecture](https://github.com/Photivra/photivra/blob/main/docs/ARCHITECTURE.md).
 
 ## Provenance, uncertainty, and quality metadata
 
@@ -6537,7 +6537,7 @@ const result = calculatedResult(
 
 Do not invent uncertainty values. Quality metadata should only be supplied when the uncertainty, calibration, valid range, or quality note has a defensible basis.
 
-See [Scientific and Source Provenance](PROVENANCE.md) and [Public API Style](API_STYLE.md#result-metadata).
+See [Scientific and Source Provenance](https://github.com/Photivra/photivra/blob/main/docs/PROVENANCE.md) and [Public API Style](https://github.com/Photivra/photivra/blob/main/docs/API_STYLE.md#result-metadata).
 
 ## Composed POC simulation
 
@@ -6679,19 +6679,19 @@ The focus request must supply exactly one circle-of-confusion criterion: either 
 
 Additional named defocus, sampling, and motion samples can be supplied when a renderer or analysis client needs per-object outputs.
 
-See [Local POC Simulation API](POC_API.md#simulate) for the complete composed request/response semantics. That HTTP transport is repository-only contributor tooling and is not shipped as a package subpath; `simulatePocCamera()` itself is part of the browser-safe root package.
+See [Local POC Simulation API](https://github.com/Photivra/photivra/blob/main/docs/POC_API.md#simulate) for the complete composed request/response semantics. That HTTP transport is repository-only contributor tooling and is not shipped as a package subpath; `simulatePocCamera()` itself is part of the browser-safe root package.
 
 ## Native-only Print planning
 
-Use [registered linear statistics](PRINT_REGION_STATISTICS.md) to distinguish same-realization processing changes from per-site repeat-capture variance. The [static neutral Gabor contrast reference](PRINT_CONTRAST_REFERENCE.md) requires explicit stimulus, luminance and observer conditions and does not accept an arbitrary photographic ROI as a qualified stimulus. See the [#195/#196 candidate evidence review](PRINT_195_196_REVIEW.md) before integrating either diagnostic.
+Use [registered linear statistics](https://github.com/Photivra/photivra/blob/main/docs/PRINT_REGION_STATISTICS.md) to distinguish same-realization processing changes from per-site repeat-capture variance. The [static neutral Gabor contrast reference](https://github.com/Photivra/photivra/blob/main/docs/PRINT_CONTRAST_REFERENCE.md) requires explicit stimulus, luminance and observer conditions and does not accept an arbitrary photographic ROI as a qualified stimulus. See the [#195/#196 candidate evidence review](https://github.com/Photivra/photivra/blob/main/docs/PRINT_195_196_REVIEW.md) before integrating either diagnostic.
 
-See [Print planning](PRINT_PLANNING.md) for a complete strict packed example and the exact-ratio integer policy. `calculatePrintPlan()` answers native sampling sufficiency and a compatible minimum file raster; `calculatePrintSizeLimit()` distinguishes finite, unbounded and unavailable sampling bounds. Quality and delivery are separately unassessed.
+See [Print planning](https://github.com/Photivra/photivra/blob/main/docs/PRINT_PLANNING.md) for a complete strict packed example and the exact-ratio integer policy. `calculatePrintPlan()` answers native sampling sufficiency and a compatible minimum file raster; `calculatePrintSizeLimit()` distinguishes finite, unbounded and unavailable sampling bounds. Quality and delivery are separately unassessed.
 
-The [regional Print detail diagnostic](PRINT_DETAIL_ASSESSMENT.md) measures one declared coherent sinusoidal fundamental in a selected linear-luminance ROI and records its exact source stage. Its [validation protocol](PRINT_DETAIL_VALIDATION.md) and [capability ledger](validation/print-detail-capabilities.json) distinguish mathematical conformance from blocked acquired-image, renderer and perceived-quality qualification.
+The [regional Print detail diagnostic](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_ASSESSMENT.md) measures one declared coherent sinusoidal fundamental in a selected linear-luminance ROI and records its exact source stage. Its [validation protocol](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_VALIDATION.md) and [capability ledger](https://github.com/Photivra/photivra/blob/main/docs/validation/print-detail-capabilities.json) distinguish mathematical conformance from blocked acquired-image, renderer and perceived-quality qualification.
 
 ## Lens projections, aberrations, polarizer and haze (2.0)
 
-The models below are standalone primitives; see [Physics foundation](PHYSICS_FOUNDATION.md#non-rectilinear-lens-projections-20) and [PSF foundation](PSF_FOUNDATION.md#zernike-and-seidel-wavefronts-20) for equations, sources and limits.
+The models below are standalone primitives; see [Physics foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#non-rectilinear-lens-projections-20) and [PSF foundation](https://github.com/Photivra/photivra/blob/main/docs/PSF_FOUNDATION.md#zernike-and-seidel-wavefronts-20) for equations, sources and limits.
 
 ### Fisheye and equirectangular projections
 

@@ -20,7 +20,9 @@ import {
   InvalidScientificInputError,
   requirePositiveFinite
 } from "../core/validation.js";
+import { portableHypot } from "../core/portable-math.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface EstimateCameraShakeBlurInput {
   focalLengthMm: number;
@@ -83,7 +85,7 @@ function projectAngularDisplacement(
   const deltaXmm = projectionDistanceMm * Math.tan(yawRad);
   // "0 -" keeps zero pitch at +0 rather than -0.
   const deltaYmm = 0 - projectionDistanceMm * Math.tan(pitchRad);
-  const distanceMm = Math.hypot(deltaXmm, deltaYmm);
+  const distanceMm = portableHypot(deltaXmm, deltaYmm);
 
   if (pixelPitchMicrometers === undefined) {
     return { deltaXmm, deltaYmm, distanceMm };
@@ -111,10 +113,12 @@ function projectAngularDisplacement(
  * The optical projection is physically calculated, but mapping a stabilization
  * rating in stops to residual angular motion by 2^-stops is an educational
  * approximation. It is not a CIPA DC-011 measurement or a real-camera rating.
+ * Each axis's rotation over the exposure must stay below a quarter turn (π/2 rad).
  */
 export function estimateCameraShakeBlur(
   input: EstimateCameraShakeBlurInput
 ): CalculationResult<CameraShakeEstimate> {
+  requireInputObject(input, "estimateCameraShakeBlur input");
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("shutterSeconds", input.shutterSeconds);
   requireFinite(
@@ -155,6 +159,14 @@ export function estimateCameraShakeBlur(
     input.angularVelocityRadPerSec.yaw * input.shutterSeconds;
   const pitchRad =
     input.angularVelocityRadPerSec.pitch * input.shutterSeconds;
+  // tan() reverses sign past a quarter turn, which would contradict the sign
+  // convention; the rotation mapping likewise rejects a world ray mapped to or
+  // behind the camera plane.
+  if (Math.abs(yawRad) >= Math.PI / 2 || Math.abs(pitchRad) >= Math.PI / 2) {
+    throw new InvalidScientificInputError(
+      "Camera-shake rotation over the exposure must stay below a quarter turn (|angular velocity × shutterSeconds| < π/2 rad) on each axis."
+    );
+  }
   const residualMotionFactor =
     2 ** -input.stabilizationStopsEquivalent;
 

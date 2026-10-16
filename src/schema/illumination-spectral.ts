@@ -24,6 +24,7 @@ import type {
   SceneIlluminationScientificStatus,
   SceneIlluminationSource
 } from "./illumination.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface CreateSceneIlluminationSpectralCoverageParticipantInput {
   source: SceneIlluminationSource;
@@ -73,6 +74,8 @@ export function createSceneIlluminationSpectralCoverageParticipant(
   input:
     CreateSceneIlluminationSpectralCoverageParticipantInput
 ): SpectralCoverageParticipant {
+  requireInputObject(input, "createSceneIlluminationSpectralCoverageParticipant input");
+  requireInputObject(input.source, "source");
   const spectrum = input.source.spectrum;
   if (
     spectrum.kind !==
@@ -196,6 +199,8 @@ export function resolveSceneIlluminationDiscreteLineMeasure(
   source:
     SceneIlluminationSource
 ): SceneIlluminationDiscreteLineMeasure {
+  requireInputObject(source, "resolveSceneIlluminationDiscreteLineMeasure input");
+  requireInputObject(source.spectrum, "source.spectrum");
   if (
     source.spectrum.kind !==
     "discrete-relative-lines"

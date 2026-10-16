@@ -25,6 +25,7 @@ import type {
   SensorSpatialSamplingQuadrature,
   SensorSpatialSamplingQuadratureNode
 } from "./spatial-sampling-quadrature.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 const SQUARE_MICROMETERS_TO_SQUARE_METERS = 1e-12;
 const WEIGHT_TOLERANCE = 1e-10;
@@ -621,6 +622,7 @@ function parseNodeValues(
 export function reduceSensorSpatialSamplingQuadrature(
   input: ReduceSensorSpatialSamplingQuadratureInput
 ): CalculationResult<SensorSpatialSampleReduction> {
+  requireInputObject(input, "reduceSensorSpatialSamplingQuadrature input");
   const domain = parseValueDomain(
     input.valueDomain
   );

@@ -31,6 +31,7 @@ import {
   type SpectralWavelengthBasis
 } from "../core/spectral.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1261,9 +1262,7 @@ export function resolveFrontOfLensFilterTransmission(
   input:
     ResolveFrontOfLensFilterTransmissionInput
 ): ResolvedFrontOfLensFilterTransmission {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
+  requireInputObject(input, "resolveFrontOfLensFilterTransmission input");
   return resolveComponent(
     input,
     stokesFromState(
@@ -1284,9 +1283,7 @@ export function composeFrontOfLensFilterTransmission(
   input:
     ComposeFrontOfLensFilterTransmissionInput
 ): ComposedFrontOfLensFilterTransmission {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
+  requireInputObject(input, "composeFrontOfLensFilterTransmission input");
   if (
     !Array.isArray(
       input.filters

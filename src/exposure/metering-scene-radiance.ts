@@ -36,6 +36,7 @@ import type {
   ExposureMeteringSampleSet,
   ExposureMeteringZoneSample
 } from "./metering.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -411,6 +412,7 @@ export function createSceneRadianceDerivedExposureMeteringSampleSet(
   input:
     CreateSceneRadianceDerivedExposureMeteringSampleSetInput
 ): SceneRadianceDerivedExposureMeteringSampleSet {
+  requireInputObject(input, "createSceneRadianceDerivedExposureMeteringSampleSet input");
   const derivationProfile =
     parseSceneRadianceMeteringDerivationProfile(
       input.derivationProfile

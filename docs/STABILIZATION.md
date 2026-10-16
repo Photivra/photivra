@@ -38,7 +38,7 @@ The supplied shake profile is synthetic input. The model is not an empirical sta
 
 The root engine now separately exposes `calculateCameraRotationImageMapping()`, which models field-position-dependent **pure camera rotation** for yaw/pitch/roll at arbitrary physical time from exposure start.
 
-From 2.0.0 the two APIs share one sign convention: physical right-hand pitch/yaw/roll about camera +X/+Y/+Z (a left-handed basis), so positive yaw turns the camera left and moves content toward +X, and positive pitch tilts it up and moves content toward −Y. For a single axis at the optical axis, `estimateCameraShakeBlur()` returns exactly the rotation mapping's `deltaMm`. See [Motion and signal](MOTION_AND_SIGNAL.md#spatial-camera-rotation).
+From 2.0.0 the two APIs share one sign convention: physical right-hand pitch/yaw/roll about camera +X/+Y/+Z (a left-handed basis), so positive yaw turns the camera left and moves content toward +X, and positive pitch tilts it up and moves content toward −Y. For a single axis at the optical axis, `estimateCameraShakeBlur()` returns the rotation mapping's `deltaMm`, equal within floating-point rounding (the two evaluate the same tangent by different operation orders). Both reject a per-axis rotation of a quarter turn (π/2 rad) or more over the exposure, where the tangent would reverse sign. See [Motion and signal](MOTION_AND_SIGNAL.md#spatial-camera-rotation).
 
 The results still differ away from the optical axis and for combined axes: the shake estimator is one global vector with independent per-axis tangents, while the spatial primitive maps each field point through one axis-angle rotation. Do not substitute one result for the other without an explicit migration.
 

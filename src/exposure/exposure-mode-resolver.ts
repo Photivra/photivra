@@ -24,6 +24,7 @@ import {
   parseExposureProgramLineProfile,
   type ExposureProgramLineProfile
 } from "./program-line.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -2544,6 +2545,7 @@ export function resolveManualExposureMode(
   input:
     ResolveManualExposureModeInput
 ): ManualExposureModeResolution {
+  requireInputObject(input, "resolveManualExposureMode input");
   const target =
     validateTarget(input.target);
   validateCapabilities(
@@ -2845,6 +2847,7 @@ export function resolveAperturePriorityExposureMode(
   input:
     ResolveAperturePriorityExposureModeInput
 ): AperturePriorityExposureModeResolution {
+  requireInputObject(input, "resolveAperturePriorityExposureMode input");
   const target =
     validateTarget(input.target);
   validateCapabilities(
@@ -3134,6 +3137,7 @@ export function resolveAperturePriorityAutoIsoExposureMode(
   input:
     ResolveAperturePriorityAutoIsoExposureModeInput
 ): AperturePriorityAutoIsoExposureModeResolution {
+  requireInputObject(input, "resolveAperturePriorityAutoIsoExposureMode input");
   const target = validateTarget(input.target);
   validateCapabilities(input.capabilities);
   const referenceExposure =
@@ -3485,6 +3489,7 @@ export function resolveShutterPriorityExposureMode(
   input:
     ResolveShutterPriorityExposureModeInput
 ): ShutterPriorityExposureModeResolution {
+  requireInputObject(input, "resolveShutterPriorityExposureMode input");
   const target = validateTarget(input.target);
   validateCapabilities(input.capabilities);
   const referenceExposure =
@@ -3804,6 +3809,7 @@ export function resolveProgramAutoExposureMode(
   input:
     ResolveProgramAutoExposureModeInput
 ): ProgramAutoExposureModeResolution {
+  requireInputObject(input, "resolveProgramAutoExposureMode input");
   const target =
     validateTarget(input.target);
   validateCapabilities(
@@ -4107,6 +4113,7 @@ export function resolveFullAutoExposureMode(
   input:
     ResolveFullAutoExposureModeInput
 ): FullAutoExposureModeResolution {
+  requireInputObject(input, "resolveFullAutoExposureMode input");
   const target =
     validateTarget(input.target);
   validateCapabilities(

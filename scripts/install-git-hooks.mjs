@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Repository-only: point this checkout's Git hooks at .githooks during `npm install`/`npm ci`.
+ * Repository-only: point this checkout's Git hooks at .githooks (`npm run hooks:install`).
  * Skipped in CI, outside a Git work tree (for example a packed or dependency install),
  * and when the contributor already configured a different core.hooksPath.
  * Messages go to stderr: npm 10 forwards lifecycle stdout into `npm pack --json` output.
