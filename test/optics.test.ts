@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   calculateAiryDisk,
   calculateDefocusCircle,
-  calculateDepthOfField
+  calculateDepthOfField,
+  InvalidScientificInputError
 } from "../src/index.js";
 
 describe("optics foundation", () => {
@@ -137,5 +138,22 @@ describe("optics foundation", () => {
     });
 
     expect(result.value.diameterMm).toBeCloseTo(0, 12);
+  });
+});
+
+describe("depth-of-field focus-plane validation", () => {
+  const base = { focalLengthMm: 50, aperture: 8, circleOfConfusionMm: 0.03 };
+  // A real image needs s > f (thin lens 1/v = 1/f - 1/s); s = f puts the image at infinity.
+  it.each([0.05, 0.03, 0.0499999])("rejects focus distance %f m at or inside a 50 mm focal length", (focusDistanceM) => {
+    expect(() => calculateDepthOfField({ ...base, focusDistanceM })).toThrow(InvalidScientificInputError);
+    expect(() => calculateDepthOfField({ ...base, focusDistanceM })).toThrow("beyond the focal length");
+  });
+
+  it("accepts a focus plane just beyond the focal length with finite limits around it", () => {
+    // s = 50.5 mm: near = s(H-f)/(H+s-2f) and far = s(H-f)/(H-s), both within 0.01 mm of s here.
+    const s = 50.5, hMinusF = 50 * 50 / (8 * 0.03), h = hMinusF + 50;
+    const dof = calculateDepthOfField({ ...base, focusDistanceM: s / 1000 }).value;
+    expect(dof.nearLimitM).toBeCloseTo(s * hMinusF / (h + s - 100) / 1000, 12);
+    expect(dof.farLimitM).toBeCloseTo(s * hMinusF / (h - s) / 1000, 12);
   });
 });

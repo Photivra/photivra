@@ -25,6 +25,7 @@ const capabilities = (options: {
   isoValues?: readonly number[];
   shutterGrid?: "continuous" | readonly number[];
   apertureGrid?: "continuous" | readonly number[];
+  isoGrid?: "continuous";
 } = {}): ResolvedGenericEquipmentExposureCapabilities => {
   const isoValues = options.isoValues ?? [100,200,400,800,1600,3200,6400,12800];
   const body = parseGenericBodyExposureCapabilityProfile({
@@ -41,7 +42,8 @@ const capabilities = (options: {
     },
     iso:{
       range:{value:{minimum:100,maximum:12800},evidence:evidence("iso")},
-      settingGrid:{kind:"discrete-values",values:{value:isoValues,evidence:evidence("iso-grid")}},
+      settingGrid: options.isoGrid === "continuous" ? {kind:"continuous-within-range"}
+        : {kind:"discrete-values",values:{value:isoValues,evidence:evidence("iso-grid")}},
       autoIso:{value:options.autoIso ?? "supported",evidence:evidence("auto")}
     }
   });
@@ -191,6 +193,46 @@ describe("Aperture Priority + Auto ISO",()=>{
       manualAperture:4,policy
     });
     expect(dark).toMatchObject({status:"blocked",blocker:"target-no-signal"});
+  });
+});
+
+describe("Auto ISO on a continuous ISO grid",()=>{
+  // Exposure H is proportional to t * ISO / N^2 (reciprocity), so the ISO that meets a target
+  // k times the reference exposure at (N, t) is ISO = 100 * k * (t_ref / t) * (N / N_ref)^2.
+  it("Aperture Priority raises ISO continuously after holding the preferred shutter",()=>{
+    const r=resolveAperturePriorityAutoIsoExposureMode({
+      target:targetForScale(4),capabilities:capabilities({isoGrid:"continuous"}),referenceExposure:ref,
+      manualAperture:4,policy:{
+        kind:"minimum-iso-until-slowest-preferred-shutter",slowestPreferredShutterSeconds:1/60,
+        shutterSelectionPolicy:"not-longer-than-target",isoBaseline:"minimum-selectable",
+        isoQuantizationPolicy:"nearest-log2-lower-on-tie",afterMaximumIso:"allow-slower-shutter"
+      }
+    });
+    expect(r.status).toBe("resolved");
+    if(r.status!=="resolved") throw new Error("resolved expected");
+    expect(r.resolvedSettings.shutterSeconds).toBeCloseTo(1/60,12);
+    // 100 * 4 * (1/125) / (1/60) = 192, not the discrete grid's 200.
+    expect(r.resolvedSettings.iso).toBeCloseTo(192,9);
+    expect(r.targetResidual.state).toBe("matched");
+    expect(Math.abs(r.targetResidual.residualStops)).toBeLessThan(1e-12);
+  });
+
+  it("Shutter Priority opens to the widest aperture, then sets the exact continuous ISO",()=>{
+    const r=resolveShutterPriorityExposureMode({
+      target:targetForScale(16),capabilities:capabilities({isoGrid:"continuous"}),
+      referenceExposure:ref,manualShutterSeconds:1/125,
+      isoControl:{kind:"automatic",policy:{
+        kind:"minimum-iso-aperture-first",isoBaseline:"minimum-selectable",
+        isoQuantizationPolicy:"nearest-log2-lower-on-tie",apertureSelectionPolicy:"not-wider-than-target"
+      }}
+    });
+    expect(r.status).toBe("resolved");
+    if(r.status!=="resolved"||r.isoControl!=="automatic") throw new Error("auto expected");
+    // Ideal N at ISO 100 = 4 / sqrt(16) = 1 is wider than f/1.8, so ISO = 100 * 16 * (1.8/4)^2 = 324.
+    expect(r.idealApertureAtBaselineIso).toBeCloseTo(1,12);
+    expect(r.resolvedSettings.aperture).toBe(1.8);
+    expect(r.resolvedSettings.iso).toBeCloseTo(324,9);
+    expect(r.targetResidual.state).toBe("matched");
   });
 });
 

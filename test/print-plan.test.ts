@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
-import { calculatePrintPlan, calculatePrintSizeLimit, parsePrintPlanInput, type PrintPlanInput, type PrintSamplingCriterion, type CaptureOrientation } from "../src/index.js";
+import { calculatePrintPlan, InvalidConfigurationError, calculatePrintSizeLimit, parsePrintPlanInput, type PrintPlanInput, type PrintSamplingCriterion, type CaptureOrientation } from "../src/index.js";
 
 function request(): PrintPlanInput {
   return {
@@ -192,5 +192,38 @@ describe("Print input boundary", () => {
       (r: PrintPlanInput): void => { if (r.source.kind === "native-retained") r.source.geometry.outputCropRect = { x: 0.5, y: 0, width: 10, height: 10 }; }
     ]) { const r = request(); mutate(r); expect(() => parsePrintPlanInput(r)).toThrow(); }
     expect(() => calculatePrintSizeLimit({ plan: request(), viewingDistancePolicy: "unknown" } as never)).toThrow();
+  });
+});
+
+describe("Print planning parser rejections and unsupported numeric ranges", () => {
+  it.each([
+    ["an unknown sampling convention", { sampling: { kind: "visual-acuity" } }, "Invalid Print sampling convention."],
+    ["an unknown native-unavailable reason", { source: { kind: "unavailable", reason: "lost" } }, "Invalid native-unavailable reason."]
+  ])("rejects %s", (_name, patch, message) => {
+    const input = { ...request(), ...patch } as unknown as PrintPlanInput;
+    expect(() => parsePrintPlanInput(input)).toThrow(InvalidConfigurationError);
+    expect(() => parsePrintPlanInput(input)).toThrow(message);
+  });
+
+  it.each([
+    // 25.4 / 1e308 in pitch makes width / pitch overflow to Infinity.
+    ["a manual density whose sample count overflows", manual(1e308)],
+    // Width / height overflows, so the relative aspect error is not finite.
+    ["an aspect ratio that overflows", { ...request(), printedImage: { width: 1e300, height: 1e-300, unit: "inches" } } as PrintPlanInput],
+    // The provider minimum raster cannot be expressed as an exact native-ratio safe-integer raster.
+    ["a provider minimum raster beyond safe integers", { ...request(), provider: { minimumRaster: { pixelWidth: 2 ** 53 - 1, pixelHeight: 9 } } } as PrintPlanInput]
+  ])("reports %s as unsupported without a recommendation", (_name, input) => {
+    const plan = calculatePrintPlan(input).value;
+    expect(plan.status).toBe("unsupported");
+    expect(plan.reasons).toContain("unsupported-numeric-range");
+    expect(plan.recommended).toBeNull();
+    expect(JSON.stringify(plan)).not.toMatch(/NaN|Infinity/);
+  });
+
+  it("flags an exact provider density that contradicts the provider's exact raster", () => {
+    // 16 x 9 in at exactly 160 PPI is 2560 x 1440, but the provider also demands 2304 x 1296.
+    const plan = calculatePrintPlan({ ...request(), provider: { exactPpi: 160, exactRaster: { pixelWidth: 2304, pixelHeight: 1296 } } }).value;
+    expect(plan.status).toBe("provider-conflict");
+    expect(plan.reasons).toContain("provider-exact-raster-density-conflict");
   });
 });
