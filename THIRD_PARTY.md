@@ -106,6 +106,25 @@ Format references:
 - Adobe XMP: https://developer.adobe.com/xmp/docs/xmp-specifications/
 - CIPA Exif: https://www.cipa.jp/std/documents/e/DC-X008-Translation-2019-E.pdf
 
+RAW development and tone-mapping references (2.0; published equations and
+factual constants only, independently implemented; no code or data copied):
+
+- DNG 1.7.1.0 tag definitions (WhiteLevel, BlackLevel/ActiveArea phase,
+  AsShotNeutral, ForwardMatrix1, BaselineExposure, NoiseProfile, AnalogBalance):
+  the DNG specification above.
+- EMVA 1288 Release 4.0, saturation point and photon-transfer noise model:
+  https://www.emva.org/standards-technology/emva-1288/
+- Reinhard, Stark, Shirley & Ferwerda (2002), "Photographic tone reproduction
+  for digital images", ACM SIGGRAPH, eq. 3 and 4.
+- Naka & Rushton (1966), J. Physiol. 185:536-555; Reinhard & Devlin (2005),
+  "Dynamic range reduction inspired by photoreceptor physiology", IEEE TVCG 11(1).
+- Guo, Cheng & Hu (2010), "Correcting over-exposure in photographs", CVPR
+  (highlight desaturation concept for the engine-defined `reconstruct` mode).
+- dcraw manual, `-H 0` "clip all highlights to solid white" (documented
+  behaviour only; no dcraw code used): https://www.dechifro.org/dcraw/dcraw.1.html
+- Bradford cone matrix (Lam 1985), already used by the ICC serializer, now also
+  for ForwardMatrix1.
+
 The DNG patent-license notice appears in `NOTICE` and exporter source. These
 references do not authorize copying SDK code or scientific datasets. Human
 provenance/license review remains required before release.
