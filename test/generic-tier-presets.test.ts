@@ -16,20 +16,20 @@ import {
 import { loadBasicReferenceFixture } from "./helpers/basic-reference-fixture.js";
 
 const baseline = loadBasicReferenceFixture();
-const catalog = resolveGenericEquipmentTierCatalog({ presetVersion: "1.0.0" });
+const catalog = resolveGenericEquipmentTierCatalog({ presetVersion: "2.0.0" });
 function state(bodyTier: GenericEquipmentTier, lensTier = bodyTier, size = 9): OpticalProfileState {
-  return { bodyId: `photivra-${bodyTier}-body`, bodyVersion: "1.0.0", lensId: `photivra-${lensTier}-prime`, lensVersion: "1.0.0",
+  return { bodyId: `photivra-${bodyTier}-body`, bodyVersion: "2.0.0", lensId: `photivra-${lensTier}-prime`, lensVersion: "2.0.0",
     focalLengthMm: baseline.lens.focalLengthMm, aperture: baseline.lens.aperture, focusDistanceM: baseline.focus.distanceM,
     captureMode: "still", outputWidth: size, outputHeight: size, frameRateHz: 0, stabilizationMode: "off" };
 }
 function profiles(tier: GenericEquipmentTier): ReturnType<typeof resolveGenericEquipmentTierLensProfiles> {
-  return resolveGenericEquipmentTierLensProfiles({ selection: createGenericEquipmentTierSelection({ presetVersion: "1.0.0", bodyTier: tier }), state: state(tier) });
+  return resolveGenericEquipmentTierLensProfiles({ selection: createGenericEquipmentTierSelection({ presetVersion: "2.0.0", bodyTier: tier }), state: state(tier) });
 }
 
 describe("versioned generic tier reference assets", () => {
   it("pins the complete manifest against silent retuning at the same version", () => {
     const fixture = JSON.parse(readFileSync(new URL("./fixtures/generic-tier-assets-v1.json", import.meta.url), "utf8")) as { presetVersion: string; catalogSha256: string };
-    expect(fixture.presetVersion).toBe("1.0.0");
+    expect(fixture.presetVersion).toBe("2.0.0");
     expect(createHash("sha256").update(JSON.stringify(catalog)).digest("hex")).toBe(fixture.catalogSha256);
     expect(catalog.map((p) => p.label)).toEqual(["Consumer", "Prosumer", "Professional"]);
     expect(catalog.every((p) => p.scientificStatus === "approximation")).toBe(true);
@@ -37,7 +37,7 @@ describe("versioned generic tier reference assets", () => {
   });
   it("keeps all nine body/lens pairings valid without selecting sensor geometry", () => {
     for (const bodyTier of GENERIC_EQUIPMENT_TIERS) for (const lensTier of GENERIC_EQUIPMENT_TIERS) {
-      const selection = createGenericEquipmentTierSelection({ presetVersion: "1.0.0", bodyTier, lensTier });
+      const selection = createGenericEquipmentTierSelection({ presetVersion: "2.0.0", bodyTier, lensTier });
       expect(parseGenericEquipmentTierSelection(JSON.parse(JSON.stringify(selection)))).toEqual(selection);
       expect(selection.sensorFormatSelectedByTier).toBe(false);
       expect(selection.scientificTierMultiplierApplied).toBe(false);
@@ -46,7 +46,7 @@ describe("versioned generic tier reference assets", () => {
   });
   it("rejects unknown versions and saved profile drift rather than substituting defaults", () => {
     expect(() => resolveGenericEquipmentTierCatalog({ presetVersion: "latest" })).toThrow();
-    const selection = createGenericEquipmentTierSelection({ presetVersion: "1.0.0", bodyTier: "consumer" });
+    const selection = createGenericEquipmentTierSelection({ presetVersion: "2.0.0", bodyTier: "consumer" });
     for (const modified of [ { ...selection, presetVersion: "0.9.0" }, { ...selection, bodyPresetId: "other" },
       { ...selection, profileReferences: selection.profileReferences.slice(1) },
       { ...selection, profileReferences: selection.profileReferences.map((r, i) => i ? r : { ...r, profileVersion: "1.0.1" }) },
@@ -57,7 +57,7 @@ describe("versioned generic tier reference assets", () => {
     expect(() => parseGenericEquipmentTierSelection({ ...selection, profileReferences: sparse })).toThrow();
   });
   it("fails closed outside the finite optical reference even if exposure capabilities support it", () => {
-    const selection = createGenericEquipmentTierSelection({ presetVersion: "1.0.0", bodyTier: "consumer" });
+    const selection = createGenericEquipmentTierSelection({ presetVersion: "2.0.0", bodyTier: "consumer" });
     for (const change of [{ aperture: 8 }, { focalLengthMm: 35 }, { focusDistanceM: 3 }, { bodyVersion: "2" },
       { stabilizationMode: "sensor-shift" }, { captureMode: "video" as const, frameRateHz: 24 }]) {
       expect(() => resolveGenericEquipmentTierLensProfiles({ selection, state: { ...state("consumer"), ...change } })).toThrow();

@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "fixtureVersion": "1.0.0",
   "sceneId": "photivra:tier-matched-reference-v1",
-  "presetVersion": "1.0.0",
-  "catalogSha256": "118805a23640593d77920e17d8ff2d43c1b31816acf018c6ed97e8e43f29e885",
+  "presetVersion": "2.0.0",
+  "catalogSha256": "5ce50cba5188c4c3a211cd3831afb7bce9c6bcafcce96bb3be0f3e5e7620a299",
   "provenance": {"sourceOrigin": "photivra", "reuseStatus": "photivra-owned"},
   "meaning": "Regression envelopes for exact owned synthetic assets, not calibrated uncertainty or a population ranking.",
   "common": {

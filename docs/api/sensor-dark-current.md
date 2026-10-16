@@ -8,7 +8,7 @@ Evaluate the declared temperature-dependent dark electron rate and integrate ove
 photo-signal local exposure event.
 
 Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
-or sampled linear interpolation is supported only within declared applicability; no universal
+or sampled (log-linear or legacy linear) interpolation is supported only within declared applicability; no universal
 doubling-temperature law is inferred. Population means remain approximations and do not model
 hot-pixel/DCNU structure.
 
@@ -59,7 +59,7 @@ Validate an untrusted declaration and return the normalized typed contract. Unkn
 missing required fields and incompatible scientific data fail at this boundary.
 
 Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
-or sampled linear interpolation is supported only within declared applicability; no universal
+or sampled (log-linear or legacy linear) interpolation is supported only within declared applicability; no universal
 doubling-temperature law is inferred. Population means remain approximations and do not model
 hot-pixel/DCNU structure.
 
@@ -193,9 +193,28 @@ export type SensorDarkCurrentTemperatureModel =
         number;
     }
   | {
+      /** Legacy linear-in-rate interpolation; overestimates between samples of an exponential curve. */
       kind:
         "piecewise-linear-temperature-table";
       interpolation: "piecewise-linear";
+      outsideRangeBehavior:
+        "fail-closed";
+      samples: readonly {
+        temperatureC: number;
+        darkCurrentElectronsPerSecond:
+          number;
+      }[];
+    }
+  | {
+      /**
+       * Linear interpolation of ln(rate) between adjacent samples, i.e. exponential in temperature
+       * inside each interval, matching the approximately exponential (Arrhenius / doubling-temperature)
+       * behaviour of thermally generated dark current. Rates must be strictly positive. No global
+       * doubling temperature is imposed: each interval follows its own two declared samples.
+       */
+      kind:
+        "log-linear-temperature-table";
+      interpolation: "log-linear";
       outsideRangeBehavior:
         "fail-closed";
       samples: readonly {

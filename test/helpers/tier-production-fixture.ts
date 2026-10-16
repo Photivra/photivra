@@ -8,10 +8,10 @@ import { loadPhotographicExportInput } from "./photographic-export-fixture.js";
 import { loadBasicReferenceFixture } from "./basic-reference-fixture.js";
 
 const base = loadBasicReferenceFixture();
-const catalog = resolveGenericEquipmentTierCatalog({ presetVersion: "1.0.0" });
+const catalog = resolveGenericEquipmentTierCatalog({ presetVersion: "2.0.0" });
 export function tierProductionLensProfiles(bodyTier: GenericEquipmentTier, lensTier = bodyTier, size = 2): ReturnType<typeof resolveGenericEquipmentTierLensProfiles> {
-  return resolveGenericEquipmentTierLensProfiles({selection:createGenericEquipmentTierSelection({presetVersion:"1.0.0",bodyTier,lensTier}),
-    state:{bodyId:`photivra-${bodyTier}-body`,bodyVersion:"1.0.0",lensId:`photivra-${lensTier}-prime`,lensVersion:"1.0.0",
+  return resolveGenericEquipmentTierLensProfiles({selection:createGenericEquipmentTierSelection({presetVersion:"2.0.0",bodyTier,lensTier}),
+    state:{bodyId:`photivra-${bodyTier}-body`,bodyVersion:"2.0.0",lensId:`photivra-${lensTier}-prime`,lensVersion:"2.0.0",
       focalLengthMm:base.lens.focalLengthMm,aperture:base.lens.aperture,focusDistanceM:base.focus.distanceM,
       captureMode:"still",frameRateHz:0,stabilizationMode:"off",outputWidth:size,outputHeight:size}});
 }

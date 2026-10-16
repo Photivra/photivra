@@ -2,8 +2,8 @@
   "reportVersion": "1.0.0",
   "sceneId": "photivra:tier-matched-reference-v1",
   "scientificStatus": "approximation",
-  "presetVersion": "1.0.0",
-  "catalogSha256": "118805a23640593d77920e17d8ff2d43c1b31816acf018c6ed97e8e43f29e885",
+  "presetVersion": "2.0.0",
+  "catalogSha256": "5ce50cba5188c4c3a211cd3831afb7bce9c6bcafcce96bb3be0f3e5e7620a299",
   "baseFixtureId": "basic-reference-scene",
   "seedUint32": 12345,
   "matchedOptics": {
@@ -37,7 +37,7 @@
       "tier": "consumer",
       "selection": {
         "schemaVersion": "0.1.0",
-        "presetVersion": "1.0.0",
+        "presetVersion": "2.0.0",
         "bodyTier": "consumer",
         "lensTier": "consumer",
         "bodyPresetId": "photivra-consumer:body",
@@ -45,95 +45,103 @@
         "profileReferences": [
           {
             "profileId": "photivra-consumer-body:exposure",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-body:iso",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-body:signal-chain",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-body:release",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-body:focus",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-body:stabilization",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-body:white-balance",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-body:metering-capabilities",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-body:flash-sync",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-body:readout:red",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-body:readout:green",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-body:readout:blue",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-body:data-readout",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:rolling-data-readout",
+            "profileVersion": "2.0.0"
+          },
+          {
+            "profileId": "photivra-consumer-body:fixed-pattern",
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-body:meter:multi-zone-uniform",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-prime:exposure",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-prime:radial",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-prime:lateral-ca",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-prime:vignetting",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-prime:breathing",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-prime:transmission",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-prime:pupil",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-prime:stray",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-consumer-prime:correction",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           }
         ],
         "sensorFormatSelectedByTier": false,
@@ -146,7 +154,7 @@
         "pupilResponses": [
           {
             "profileId": "photivra-consumer-prime:pupil:0:0",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 0,
               "y": 0
@@ -173,7 +181,7 @@
           },
           {
             "profileId": "photivra-consumer-prime:pupil:0:1",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 0,
               "y": 0
@@ -200,7 +208,7 @@
           },
           {
             "profileId": "photivra-consumer-prime:pupil:0:2",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 0,
               "y": 0
@@ -227,7 +235,7 @@
           },
           {
             "profileId": "photivra-consumer-prime:pupil:1:0",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 10,
               "y": 6
@@ -254,7 +262,7 @@
           },
           {
             "profileId": "photivra-consumer-prime:pupil:1:1",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 10,
               "y": 6
@@ -281,7 +289,7 @@
           },
           {
             "profileId": "photivra-consumer-prime:pupil:1:2",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 10,
               "y": 6
@@ -308,7 +316,7 @@
           },
           {
             "profileId": "photivra-consumer-prime:pupil:2:0",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 18,
               "y": 12
@@ -335,7 +343,7 @@
           },
           {
             "profileId": "photivra-consumer-prime:pupil:2:1",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 18,
               "y": 12
@@ -362,7 +370,7 @@
           },
           {
             "profileId": "photivra-consumer-prime:pupil:2:2",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 18,
               "y": 12
@@ -868,7 +876,7 @@
       "tier": "prosumer",
       "selection": {
         "schemaVersion": "0.1.0",
-        "presetVersion": "1.0.0",
+        "presetVersion": "2.0.0",
         "bodyTier": "prosumer",
         "lensTier": "prosumer",
         "bodyPresetId": "photivra-prosumer:body",
@@ -876,99 +884,107 @@
         "profileReferences": [
           {
             "profileId": "photivra-prosumer-body:exposure",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-body:iso",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-body:signal-chain",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-body:release",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-body:focus",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-body:stabilization",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-body:white-balance",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-body:metering-capabilities",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-body:flash-sync",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-body:readout:red",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-body:readout:green",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-body:readout:blue",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-body:data-readout",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:rolling-data-readout",
+            "profileVersion": "2.0.0"
+          },
+          {
+            "profileId": "photivra-prosumer-body:fixed-pattern",
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-body:meter:multi-zone-uniform",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-body:meter:highlight-weighted",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-prime:exposure",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-prime:radial",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-prime:lateral-ca",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-prime:vignetting",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-prime:breathing",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-prime:transmission",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-prime:pupil",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-prime:stray",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-prosumer-prime:correction",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           }
         ],
         "sensorFormatSelectedByTier": false,
@@ -981,7 +997,7 @@
         "pupilResponses": [
           {
             "profileId": "photivra-prosumer-prime:pupil:0:0",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 0,
               "y": 0
@@ -1008,7 +1024,7 @@
           },
           {
             "profileId": "photivra-prosumer-prime:pupil:0:1",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 0,
               "y": 0
@@ -1035,7 +1051,7 @@
           },
           {
             "profileId": "photivra-prosumer-prime:pupil:0:2",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 0,
               "y": 0
@@ -1062,7 +1078,7 @@
           },
           {
             "profileId": "photivra-prosumer-prime:pupil:1:0",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 10,
               "y": 6
@@ -1089,7 +1105,7 @@
           },
           {
             "profileId": "photivra-prosumer-prime:pupil:1:1",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 10,
               "y": 6
@@ -1116,7 +1132,7 @@
           },
           {
             "profileId": "photivra-prosumer-prime:pupil:1:2",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 10,
               "y": 6
@@ -1143,7 +1159,7 @@
           },
           {
             "profileId": "photivra-prosumer-prime:pupil:2:0",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 18,
               "y": 12
@@ -1170,7 +1186,7 @@
           },
           {
             "profileId": "photivra-prosumer-prime:pupil:2:1",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 18,
               "y": 12
@@ -1197,7 +1213,7 @@
           },
           {
             "profileId": "photivra-prosumer-prime:pupil:2:2",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 18,
               "y": 12
@@ -1703,7 +1719,7 @@
       "tier": "professional",
       "selection": {
         "schemaVersion": "0.1.0",
-        "presetVersion": "1.0.0",
+        "presetVersion": "2.0.0",
         "bodyTier": "professional",
         "lensTier": "professional",
         "bodyPresetId": "photivra-professional:body",
@@ -1711,99 +1727,107 @@
         "profileReferences": [
           {
             "profileId": "photivra-professional-body:exposure",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-body:iso",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-body:signal-chain",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-body:release",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-body:focus",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-body:stabilization",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-body:white-balance",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-body:metering-capabilities",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-body:flash-sync",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-body:readout:red",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-body:readout:green",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-body:readout:blue",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-body:data-readout",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:rolling-data-readout",
+            "profileVersion": "2.0.0"
+          },
+          {
+            "profileId": "photivra-professional-body:fixed-pattern",
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-body:meter:multi-zone-uniform",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-body:meter:highlight-weighted",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-prime:exposure",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-prime:radial",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-prime:lateral-ca",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-prime:vignetting",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-prime:breathing",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-prime:transmission",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-prime:pupil",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-prime:stray",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           },
           {
             "profileId": "photivra-professional-prime:correction",
-            "profileVersion": "1.0.0"
+            "profileVersion": "2.0.0"
           }
         ],
         "sensorFormatSelectedByTier": false,
@@ -1816,7 +1840,7 @@
         "pupilResponses": [
           {
             "profileId": "photivra-professional-prime:pupil:0:0",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 0,
               "y": 0
@@ -1843,7 +1867,7 @@
           },
           {
             "profileId": "photivra-professional-prime:pupil:0:1",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 0,
               "y": 0
@@ -1870,7 +1894,7 @@
           },
           {
             "profileId": "photivra-professional-prime:pupil:0:2",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 0,
               "y": 0
@@ -1897,7 +1921,7 @@
           },
           {
             "profileId": "photivra-professional-prime:pupil:1:0",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 10,
               "y": 6
@@ -1924,7 +1948,7 @@
           },
           {
             "profileId": "photivra-professional-prime:pupil:1:1",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 10,
               "y": 6
@@ -1951,7 +1975,7 @@
           },
           {
             "profileId": "photivra-professional-prime:pupil:1:2",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 10,
               "y": 6
@@ -1978,7 +2002,7 @@
           },
           {
             "profileId": "photivra-professional-prime:pupil:2:0",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 18,
               "y": 12
@@ -2005,7 +2029,7 @@
           },
           {
             "profileId": "photivra-professional-prime:pupil:2:1",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 18,
               "y": 12
@@ -2032,7 +2056,7 @@
           },
           {
             "profileId": "photivra-professional-prime:pupil:2:2",
-            "profileVersion": "1.0.0",
+            "profileVersion": "2.0.0",
             "fieldPointMm": {
               "x": 18,
               "y": 12
