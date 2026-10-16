@@ -14,6 +14,7 @@ import {
   type CalculationResult
 } from "../core/calculation-result.js";
 import { requirePositiveFinite } from "../core/validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 export interface CalculateAiryDiskInput {
   /** F-number. */
@@ -43,6 +44,7 @@ export interface AiryDisk {
 export function calculateAiryDisk(
   input: CalculateAiryDiskInput
 ): CalculationResult<AiryDisk> {
+  requireInputKeys(input, "calculateAiryDisk", ["aperture", "wavelengthNm"]);
   requirePositiveFinite("aperture", input.aperture);
   requirePositiveFinite("wavelengthNm", input.wavelengthNm);
 

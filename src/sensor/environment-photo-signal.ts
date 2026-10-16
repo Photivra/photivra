@@ -16,7 +16,7 @@
 
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { freezeOwnedData } from "../core/owned-data.js";
-import { requirePublicOpaqueId } from "../core/record-validation.js";
+import { requirePublicOpaqueId, requireInputObject } from "../core/record-validation.js";
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import { parseSceneIlluminationProfile } from "../schema/illumination.js";
@@ -300,6 +300,7 @@ export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof plan
 
 /** Generate, evaluate and integrate one site's actual local midpoint environment support. */
 export function calculateEnvironmentSensorPhotoSignal(input: CalculateEnvironmentSensorPhotoSignalInput): CalculationResult<EnvironmentSensorPhotoSignal> {
+  requireInputObject(input, "calculateEnvironmentSensorPhotoSignal input");
   const { evaluateRadiance, evaluateApertureRadiance, ...data } = input;
   return executeEnvironmentSensorPhotoSignal(planEnvironmentSensorPhotoSignal(data), evaluateRadiance, evaluateApertureRadiance);
 }

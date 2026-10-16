@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /** Owned analytic source; sampled process peaks are host-specific, not allocation guarantees. */
+import "./require-fresh-dist.mjs";
 import process from "node:process";
 import console from "node:console";
 import { performance } from "node:perf_hooks";

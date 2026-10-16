@@ -124,7 +124,8 @@ The root package exports deterministic or explicitly labeled approximate models 
 
 ### Color controls
 
-- [white-balance control and Auto WB](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md#white-balance-and-auto-wb), including generic profile-owned presets, manual gains, independent CCT+tint intent, custom measurement, deterministic AWB priorities, and AWB lock without modifying scene illumination or RAW-like capture.
+- [white-balance control and Auto WB](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md#white-balance-and-auto-wb), including generic profile-owned presets, manual gains, independent CCT+tint intent, custom measurement, deterministic AWB priorities, and AWB lock without modifying scene illumination or RAW-like capture;
+- [colorimetry](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md): a labelled analytic CIE 1931 CMF approximation or caller-supplied CMF tables, spectral integration, Planckian/illuminant A/CIE daylight illuminants, CCT and Duv, Bradford/CAT02/CAT16 adaptation, Kelvin + tint WB gains, CIELAB and ΔE76/94/2000, camera-matrix fitting, Display P3/Rec.2020 matrices, PQ/HLG/BT.1886 transfers and hue-preserving gamut mapping. CIE and ColorChecker tables are not bundled.
 
 ### Sensor and output
 
@@ -270,7 +271,7 @@ The calling application can then use those results while keeping the underlying 
 - Repository package version: `1.5.0` (published October 7, 2026)
 - Engine API contract: `1.5.0`
 - Versioned generic tier reference assets: [GENERIC_TIER_PRESETS.md](https://github.com/Photivra/photivra/blob/main/docs/GENERIC_TIER_PRESETS.md).
-- Composed POC simulation API contract: `0.20.0`
+- Composed POC simulation API contract: `1.0.0`
 - Stability: 1.0 root-package compatibility policy; bounded scientific models and independent POC contract
 
 From 1.0.1, package version and `ENGINE_API_VERSION` are equal. New captures/plans record 1.5.0; existing archives retain their original creator identities. Schema, model and POC contract versions remain independent. Breaking root contracts now require a package major release; additive and corrective changes follow [compatibility and migration](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_3_0.md). A 1.0 package is not a claim of calibrated physical accuracy.
@@ -326,7 +327,7 @@ See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHY
 
 ## Runtime surfaces
 
-The package is ESM-only.
+The package is ESM. From 2.0.0 its export map also has a `default` condition, so CommonJS code on Node 22.12 or later can `require("@photivra/engine")` through Node's `require(esm)` support, and `@photivra/engine/package.json` is exported. The published JavaScript source maps embed their TypeScript sources. The declarations type-check with `lib: ["es2022"]` alone; DOM or `@types/node` is not required (the package declares the minimal `AbortSignal` member it uses).
 
 The root export is the runtime-neutral scientific surface:
 
@@ -341,7 +342,7 @@ The root dependency graph is checked in CI so Node-only modules and the reposito
 
 The open repository still contains a minimal Node HTTP POC server under `src/api` for contributor integration testing. It is deliberately **not** exported by `@photivra/engine` and is excluded from the published npm package. It is unauthenticated and is **not** a production hosting recommendation.
 
-When the package is installed directly from a Git repository using normal npm lifecycle scripts, `prepare` builds `dist` before consumption.
+From 2.0.0 the published manifest declares no `prepare` or other install lifecycle scripts. Install the npm package; a Git checkout must be built explicitly with `npm ci && npm run build` before consumption.
 
 ## Development
 

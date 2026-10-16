@@ -28,6 +28,7 @@ import type {
   SceneIlluminationTemporalProfile
 } from "./illumination-temporal.js";
 import type { Vector3 } from "./scene.js";
+import { requireInputObject, requireInputArray } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -708,6 +709,8 @@ export function parseSceneMaterialResponseProfile(
 export function assessSceneMaterialResponseFidelity(
   profile: SceneMaterialResponseProfile
 ): SceneMaterialResponseFidelity {
+  requireInputObject(profile, "assessSceneMaterialResponseFidelity input");
+  requireInputArray(profile.materials, "profile.materials");
   if (
     profile.materials.some(
       (entry) =>
@@ -1208,6 +1211,7 @@ export function validateSceneRadianceEvaluationBindings(
   input:
     ValidateSceneRadianceEvaluationBindingsInput
 ): SceneRadianceEvaluationBindingAssessment {
+  requireInputObject(input, "validateSceneRadianceEvaluationBindings input");
   const {
     providerProfile,
     illuminationProfile,
@@ -1217,6 +1221,7 @@ export function validateSceneRadianceEvaluationBindings(
     result
   } = input;
 
+  requireInputObject(providerProfile, "providerProfile input");
   requireEqual(
     providerProfile.sceneId,
     illuminationProfile.sceneId,

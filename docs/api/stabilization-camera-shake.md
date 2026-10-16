@@ -1,6 +1,6 @@
 # stabilization/camera-shake.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## CameraShakeBlurSample
 
@@ -46,6 +46,7 @@ primitives; otherwise nominal focal length preserves the prior approximation.
 The optical projection is physically calculated, but mapping a stabilization
 rating in stops to residual angular motion by 2^-stops is an educational
 approximation. It is not a CIPA DC-011 measurement or a real-camera rating.
+Each axis's rotation over the exposure must stay below a quarter turn (π/2 rad).
 
 ```ts
 export function estimateCameraShakeBlur(

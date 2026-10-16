@@ -104,6 +104,7 @@ import {
   type SceneRadianceEvaluationResult,
   type SceneRadianceUncertainty
 } from "../schema/scene-radiance.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1179,6 +1180,7 @@ function validateEquipmentCapabilities(
   value:
     ResolvedGenericEquipmentExposureCapabilities
 ): void {
+  requireInputObject(value, "value input");
   if (
     value.schemaVersion !==
       GENERIC_EQUIPMENT_EXPOSURE_CAPABILITY_SCHEMA_VERSION ||
@@ -1357,7 +1359,9 @@ function fingerprintValue(
 
 /**
  * Return deterministic canonical JSON of a validated production plan. Sorted object keys preserve
- * array order; the representation contains data and excludes executable provider callbacks.
+ * array order; the representation contains data and excludes executable provider callbacks. The
+ * plan version and its fingerprint (recomputed over the content) must match, so an empty or edited
+ * object is rejected instead of serialized.
  *
  * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
  * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
@@ -1373,6 +1377,24 @@ export function serializeProductionImageFormationPlan(
   plan:
     ProductionImageFormationPlan
 ): string {
+  requireInputObject(plan, "serializeProductionImageFormationPlan input");
+  const { fingerprint, ...core } = plan as unknown as Record<string, unknown> & { fingerprint?: unknown };
+  if (core.version !== PRODUCTION_IMAGE_FORMATION_PLAN_VERSION) {
+    throw new InvalidConfigurationError(
+      `Production plan version must be "${PRODUCTION_IMAGE_FORMATION_PLAN_VERSION}".`
+    );
+  }
+  const supplied = fingerprint as Record<string, unknown> | null | undefined;
+  if (
+    typeof supplied !== "object" || supplied === null ||
+    supplied.algorithm !== "fnv1a-32-non-cryptographic" ||
+    supplied.purpose !== "deterministic-reproducibility-key-not-integrity-security" ||
+    supplied.value !== fingerprintValue(core)
+  ) {
+    throw new InvalidConfigurationError(
+      "Production plan fingerprint does not match its content; serialize only a plan returned by createProductionImageFormationPlan."
+    );
+  }
   return canonicalStringify(plan);
 }
 
@@ -1482,6 +1504,7 @@ export function prepareImageFormationContext(
   input:
     PrepareImageFormationContextInput
 ): PreparedImageFormationContext {
+  requireInputObject(input, "prepareImageFormationContext input");
   validateEquipmentCapabilities(
     input.equipmentCapabilities
   );
@@ -2208,6 +2231,7 @@ export function createProductionCaptureSnapshot(
   input:
     CreateProductionCaptureSnapshotInput
 ): ProductionCaptureSnapshot {
+  requireInputObject(input, "createProductionCaptureSnapshot input");
   const sceneTime =
     requireFinite(
       input
@@ -2371,9 +2395,11 @@ export function createProductionCaptureSnapshotFromReleaseFrame(
   input:
     CreateProductionCaptureSnapshotFromReleaseFrameInput
 ): ProductionCaptureSnapshot {
+  requireInputObject(input, "createProductionCaptureSnapshotFromReleaseFrame input");
   const frame =
     input.releaseFrame;
 
+  requireInputObject(frame, "frame input");
   const releaseFrameBinding:
     ProductionReleaseFrameBinding = {
     releaseSequenceVersion:
@@ -4578,6 +4604,8 @@ function computeEnvironmentCapture(input: ProductionEnvironmentCaptureInput | un
       throw new InvalidConfigurationError("Environment geometry, scene, focal length and shutter schedule differ from the committed production context.");
     }
     const rendererTemporal = prepared.renderer.temporalSampling;
+    // Frame-constant serializations are computed once, lazily at their first comparison, instead of once per site.
+    let opticalBridgeCanonical: string | undefined, rotationVelocityCanonical: string | undefined;
     for (const site of owned.sites) {
       const e = site.environment;
       if (e.fieldThroughput.kind !== "unity" &&
@@ -4585,10 +4613,11 @@ function computeEnvironmentCapture(input: ProductionEnvironmentCaptureInput | un
         throw new InvalidConfigurationError("Non-unity environment field throughput requires an explicitly requested illumination-vignetting effect.");
       }
       if (e.sceneBindings.providerProfile.profileId !== prepared.sceneRadianceProviderProfileId ||
-        canonicalStringify(e.optics.profile) !== canonicalStringify(prepared.opticalBridgeProfile) ||
+        canonicalStringify(e.optics.profile) !== (opticalBridgeCanonical ??= canonicalStringify(prepared.opticalBridgeProfile)) ||
         rendererTemporal.kind !== "bounded" || e.temporalSampleCount > rendererTemporal.maximumSamples ||
         (temporal.rotation === undefined && !angularVelocityIsZero(e.motion.angularVelocityRadPerSec)) ||
-        (temporal.rotation !== undefined && (canonicalStringify(e.motion.angularVelocityRadPerSec) !== canonicalStringify(temporal.rotation.angularVelocityRadPerSec) ||
+        (temporal.rotation !== undefined && (canonicalStringify(e.motion.angularVelocityRadPerSec) !==
+          (rotationVelocityCanonical ??= canonicalStringify(temporal.rotation.angularVelocityRadPerSec)) ||
           e.temporalSampleCount !== temporal.rotation.temporalSampleCount ||
           (capture.focus.kind === "finite" ? capture.focus.distanceM : undefined) !== temporal.rotation.focusDistanceM))) {
         throw new InvalidConfigurationError("Environment provider, optics, motion or temporal sampling differs from the committed production context.");
@@ -4623,6 +4652,7 @@ export function createProductionImageFormationPlan(
   input:
     CreateProductionImageFormationPlanInput
 ): ProductionImageFormationPlan {
+  requireInputObject(input, "createProductionImageFormationPlan input");
   const prepared =
     parsePreparedImageFormationContext(
       input.preparedContext

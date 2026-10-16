@@ -170,7 +170,7 @@ describe("POC composed simulation", () => {
       ]
     });
 
-    expect(result.apiVersion).toBe("0.20.0");
+    expect(result.apiVersion).toBe("1.0.0");
     expect(result.projection.kind).toBe("focus-aware-thin-lens");
     expect(result.projection.imageDistanceMm).toBeCloseTo(201.834862385, 9);
     expect(result.projection.infinityProjectionScale).toBeCloseTo(

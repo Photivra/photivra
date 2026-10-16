@@ -122,7 +122,7 @@ Prefer:
 Rounding is a scientific/output operation when it changes represented data.
 
 - Keep calculations in the highest practical deterministic precision until a defined output boundary.
-- Pixel/raster integer rounding rules must be explicit.
+- Pixel/raster integer rounding rules must be explicit. Whole-pixel crop sizes floor the quotient and snap up only when it lies within 4 ulps below the next integer (rounding noise of the divisor, for example 4480 / (7/3)); a genuine fraction is never rounded up (crop model 2.0.0).
 - RAW/export quantization must define scale, offset/black level, clipping, rounding/tie behavior, and code range.
 - Do not round intermediate physical values for display convenience.
 - Do not let serializer/container limitations redefine the authoritative scientific value.
@@ -159,6 +159,21 @@ Do not depend on:
 - machine-specific hidden calibration.
 
 Browser-safe public code and supported Node runtimes must share the same semantic result contract. If an implementation permits small runtime-dependent floating-point differences, acceptance tolerances must be explicit and scientifically harmless.
+
+## Cross-engine determinism
+
+ECMAScript requires `+`, `-`, `*`, `/` and `Math.sqrt` to be correctly rounded IEEE 754 binary64 operations, so a fixed sequence of them gives identical bits in V8 (Chrome, Node), JavaScriptCore (Safari, Bun) and SpiderMonkey (Firefox). `Math.hypot`, `exp`, `log`, `cbrt`, `sin`, `cos`, `tan`, `atan`, `acos` and the other transcendental functions are implementation-approximated and differ in the last bit between engines (measured for package 2.0.0: about a third of two-argument `Math.hypot` calls and 1–10% of the other functions differ between Node 24 and Bun 1.4; `**`/`pow` matched on every tested input).
+
+Rules from package 2.0.0:
+
+- A value that is persisted **and** re-derived for an exact identity comparison on parse must be computed only from correctly rounded operations. `portableHypot()` in `src/core/portable-math.ts` replaces `Math.hypot` for such values; it rescales by exact powers of two, so it neither overflows nor depends on the engine.
+- The diagonal 35 mm crop factor is `√(1872 / (w² + h²))` and the imaging-area diagonal is `portableHypot(w, h)` (`calculateImagingAreaMetrics`). The persisted `equivalentFocalLength35Mm` is therefore engine-portable. Scalar diagonals in circle-of-confusion scaling, the POC response and camera-shake/projected-motion distances use `portableHypot` too.
+- Parsers that re-derive a floating value compare it within a few ulps instead of with `!==`: `parseSimulatedCapture` and packed-RAW validation (`createNativeRawDevelopmentTask`) accept an archived `equivalentFocalLength35Mm` within 8 ulps of the re-derived value and return the re-derived value. This also accepts records written by releases before 2.0.0, which used `Math.hypot`.
+- Integer, string, enum and structural identities stay exact.
+
+Engine-portable identities (equal bits for equal inputs in every conforming engine): the simulated-capture and packed-RAW metadata identities, crop and raster geometry, seeds (`Math.imul`/fmix32 only), RAW codes from integer-safe noise and ADC paths (verified identical for a 512×512 native RAW task in Node and Bun), and every export identity derived from them — `rawDataUniqueId`, `simulationHash` and the DNG/JPEG SHA-256 values (verified identical in Node and Bun for a 23.6 × 15.7 mm sensor at 18 mm, which differed before 2.0.0).
+
+Not guaranteed to be bit-identical across engines: continuous results that pass through a transcendental function (field-of-view angles, rotation and distortion mappings, PSF kernels, tone curves). They agree within a few ulps, and a quantized output (RAW code, 8/16-bit sample) can differ only when a value lies within that rounding noise of a quantization boundary. Hashes over such continuous results, including `simulatePocCamera()` response hashes, are engine-specific. Tests that pin them compare discrete fields exactly and numbers within a stated ulp tolerance; the 64-case POC corpus uses 8 ulps (`test/poc-projection-reuse.test.ts`) and passes under Node and Bun.
 
 ## Testing requirements
 

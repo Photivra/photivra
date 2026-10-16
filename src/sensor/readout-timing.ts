@@ -23,6 +23,7 @@ import { InvalidScientificInputError, requirePositiveInteger } from "../core/val
 import type { RasterPoint, RasterRect } from "../output/capture-geometry.js";
 import type { NativeImageRaster } from "./sensor-geometry.js";
 import type { SensorReadoutArchitecture } from "./architecture.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 /**
  * Readout architecture selected for one capture.
@@ -285,6 +286,7 @@ function parseReadoutDeclaration(
 }
 
 function validateNativeRaster(raster: NativeImageRaster): void {
+  requireInputObject(raster, "raster input");
   requirePositiveInteger("nativeRaster.pixelWidth", raster.pixelWidth);
   requirePositiveInteger("nativeRaster.pixelHeight", raster.pixelHeight);
 }
@@ -404,6 +406,7 @@ function normalizedScanPosition(
 export function calculateSensorReadoutTiming(
   input: CalculateSensorReadoutTimingInput
 ): CalculationResult<SensorReadoutTiming> {
+  requireInputObject(input, "calculateSensorReadoutTiming input");
   validateNativeRaster(input.nativeRaster);
   validateShutterMechanism(input.shutterMechanism);
 

@@ -17,6 +17,7 @@ import { calculateSensorEqeTemporalExposure, type CalculateSensorEqeTemporalExpo
 import { calculateSensorSpatialSamplingQuadrature } from "./spatial-sampling-quadrature.js";
 import { calculateSensorSpectralQuadrature } from "./spectral-quadrature.js";
 import { bindSensorTemporalSamples } from "./temporal-sample-binding.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 /** Declared physical scene radiance at every spatial/wavelength/local-shutter midpoint. */
 export interface CalculateSceneSensorEqeTemporalExposureInput {
@@ -55,6 +56,7 @@ export interface SceneSensorEqeTemporalExposure {
 export function calculateSceneSensorEqeTemporalExposure(
   input: CalculateSceneSensorEqeTemporalExposureInput
 ): CalculationResult<SceneSensorEqeTemporalExposure> {
+  requireInputObject(input, "calculateSceneSensorEqeTemporalExposure input");
   if (input.timeReference !== "first-opening-boundary-phase") {
     throw new InvalidScientificInputError("Scene samples must use the explicit first-opening-boundary-phase time reference.");
   }

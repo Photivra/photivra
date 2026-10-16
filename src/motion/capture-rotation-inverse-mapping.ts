@@ -45,6 +45,7 @@ import {
   type CameraAngularVelocityRadPerSec,
   type ImagePlanePointMm
 } from "./camera-rotation.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface CalculateCaptureRotationInverseMappingsInput
   extends CalculateCaptureExposureWindowsInput {
@@ -201,6 +202,8 @@ function captureTimeAtPhase(
 export function calculateCaptureRotationInverseMappings(
   input: CalculateCaptureRotationInverseMappingsInput
 ): CalculationResult<CaptureRotationInverseMappings> {
+  requireInputObject(input, "calculateCaptureRotationInverseMappings input");
+  requireInputObject(input.imagingArea, "imagingArea");
   requirePositiveFinite("imagingArea.widthMm", input.imagingArea.widthMm);
   requirePositiveFinite("imagingArea.heightMm", input.imagingArea.heightMm);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);

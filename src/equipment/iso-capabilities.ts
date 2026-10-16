@@ -25,6 +25,7 @@ import type {
   ResolvedGenericEquipmentExposureCapabilities,
   ResolvedNumericSettingGrid
 } from "./exposure-capabilities.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -880,6 +881,7 @@ export function resolveIsoCapability(
   input:
     ResolveIsoCapabilityInput
 ): ResolvedIsoCapability {
+  requireInputObject(input, "resolveIsoCapability input");
   const profile =
     parseIsoCapabilityProfile(
       input.profile
@@ -1197,6 +1199,7 @@ export function bindIsoCapabilityToExposureCapabilities(
   input:
     BindIsoCapabilityToExposureCapabilitiesInput
 ): BoundIsoExposureCapabilities {
+  requireInputObject(input, "bindIsoCapabilityToExposureCapabilities input");
   const profile =
     parseIsoCapabilityProfile(
       input.isoCapabilityProfile

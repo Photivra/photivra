@@ -1,11 +1,12 @@
 # optics/depth-of-field.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## calculateDefocusCircle
 
 Calculates the geometric defocus-circle diameter at the sensor plane for a
-subject plane away from the selected focus plane.
+subject plane away from the selected focus plane, using the stable closed
+form c = f^2 |s - d| / (N d (s - f)) (model 1.1.0).
 
 ```ts
 export function calculateDefocusCircle(
@@ -39,6 +40,8 @@ distance H = f^2/(Nc) + f and focus distance s, the near limit is
 s(H - f)/(H + s - 2f) and the far limit is s(H - f)/(H - s), which is
 infinite (`null`) when s >= H. At both limits the geometric defocus circle
 from {@link calculateDefocusCircle} equals the supplied circle of confusion.
+The circle of confusion must be smaller than the aperture diameter f/N;
+otherwise the near limit would fall inside the focal length.
 
 The model is geometric and does not include diffraction, aberrations,
 focus breathing, pupil magnification, or macro/high-magnification effects.
