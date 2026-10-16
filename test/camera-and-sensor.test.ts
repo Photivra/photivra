@@ -4,7 +4,8 @@ import {
   calculateCenteredCrop,
   calculateFieldOfView,
   calculateFieldOfViewBounds,
-  calculatePixelPitch
+  calculatePixelPitch,
+  InvalidScientificInputError
 } from "../src/index.js";
 
 describe("camera geometry and sensor sampling", () => {
@@ -97,5 +98,34 @@ describe("camera geometry and sensor sampling", () => {
 
     expect(result.value.megapixels).toBeCloseTo(19.89, 2);
     expect(result.value.retainedAreaFraction).toBeCloseTo(1 / 2.25, 3);
+  });
+});
+
+describe("field-of-view bounds validation", () => {
+  it.each([
+    [{ minimumSensorCoordinateMm: Number.NaN, maximumSensorCoordinateMm: 1 }, "minimumSensorCoordinateMm must be finite"],
+    [{ minimumSensorCoordinateMm: -1, maximumSensorCoordinateMm: Number.POSITIVE_INFINITY }, "maximumSensorCoordinateMm must be finite"],
+    [{ minimumSensorCoordinateMm: 2, maximumSensorCoordinateMm: 2 }, "must be greater than minimumSensorCoordinateMm"],
+    [{ minimumSensorCoordinateMm: 3, maximumSensorCoordinateMm: -3 }, "must be greater than minimumSensorCoordinateMm"]
+  ])("rejects %o", (bounds, message) => {
+    expect(() => calculateFieldOfViewBounds({ focalLengthMm: 50, ...bounds })).toThrow(InvalidScientificInputError);
+    expect(() => calculateFieldOfViewBounds({ focalLengthMm: 50, ...bounds })).toThrow(message);
+  });
+
+  it("rejects a non-positive focal length and a focus distance inside the focal length", () => {
+    expect(() => calculateFieldOfViewBounds({ focalLengthMm: 0, minimumSensorCoordinateMm: -1, maximumSensorCoordinateMm: 1 }))
+      .toThrow(InvalidScientificInputError);
+    expect(() => calculateFieldOfViewBounds({ focalLengthMm: 50, focusDistanceM: 0.04, minimumSensorCoordinateMm: -1,
+      maximumSensorCoordinateMm: 1 })).toThrow(InvalidScientificInputError);
+  });
+
+  it("matches atan(x / v) at both bounds with the thin-lens image distance", () => {
+    // Focus at 1 m with f = 50 mm: v = 1 / (1/50 - 1/1000) = 1000/19 mm.
+    const v = 1000 / 19;
+    const result = calculateFieldOfViewBounds({ focalLengthMm: 50, focusDistanceM: 1, minimumSensorCoordinateMm: -6,
+      maximumSensorCoordinateMm: 18 }).value;
+    expect(result.minimumRadians).toBeCloseTo(Math.atan(-6 / v), 14);
+    expect(result.maximumRadians).toBeCloseTo(Math.atan(18 / v), 14);
+    expect(result.radians).toBeCloseTo(Math.atan(18 / v) + Math.atan(6 / v), 14);
   });
 });

@@ -17,6 +17,8 @@ import {
   createProductionCaptureSnapshot,
   createProductionImageFormationPlan,
   createProductionPlanConsumerManifest,
+  resolveElectronicRollingShutterExposureSchedule,
+  createRollingShutterCaptureExposureSchedule,
   getImageFormationContract,
   parseFrontOfLensFilterProfile,
   parseGenericBodyExposureCapabilityProfile,
@@ -2209,6 +2211,37 @@ const temporalPrepared = (
 };
 
 describe("production temporal capture composition", () => {
+  it("links an electronic rolling shutter so per-line exposure offsets reach the rotation quadrature", () => {
+    const base = temporalCapture();
+    if (base.readout?.readoutMode !== "rolling") throw new Error("Expected a rolling readout fixture.");
+    const derived = resolveElectronicRollingShutterExposureSchedule({ readout: base.readout,
+      nominalExposureDurationSeconds: base.exposureWindowInput.nominalExposureDurationSeconds,
+      linkageEvidence: evidence("electronic-rolling-shutter") });
+    const linked: ProductionTemporalCaptureInput = { ...base,
+      exposureWindowInput: { ...base.exposureWindowInput, ...createRollingShutterCaptureExposureSchedule(derived),
+        samplePointsNative: [{ x: 3000, y: 500 }, { x: 3000, y: 3500 }] },
+      readoutExposureLinkage: { kind: "electronic-rolling-shutter-line-reset-read", evidence: evidence("linkage") } };
+    const plan = createProductionImageFormationPlan({ preparedContext: temporalPrepared(),
+      captureSnapshot: createProductionCaptureSnapshot({ ...captureInput(), temporalCapture: linked }) });
+    const result = plan.temporalCaptureResult!;
+    expect(result.readoutExposureSynchronization).toBe("electronic-rolling-shutter-line-linked");
+    const [top, bottom] = result.rotationQuadrature!.points;
+    // s = 500/4000 and 3500/4000 with τ = 0.01 s: the lower line opens 7.5 ms later.
+    expect(bottom!.localExposureWindow.startSecondsFromCaptureReference - top!.localExposureWindow.startSecondsFromCaptureReference)
+      .toBeCloseTo(0.0075, 15);
+    expect(bottom!.localExposureWindow.durationSeconds).toBeCloseTo(top!.localExposureWindow.durationSeconds, 15);
+    // Yaw 0.1 rad/s: the later line sees a larger inverse displacement (rolling-shutter skew).
+    expect(Math.abs(bottom!.nodes[0]!.inverseDisplacementImagePlaneMm.x)).toBeGreaterThan(Math.abs(top!.nodes[0]!.inverseDisplacementImagePlaneMm.x));
+    expect(plan.effectPlan.find(effect => effect.effectId === "rolling-readout")?.state).toBe("active");
+
+    // The linkage fails closed when the schedule is not the one derived from the readout.
+    expect(() => createProductionCaptureSnapshot({ ...captureInput(), temporalCapture: { ...base,
+      readoutExposureLinkage: { kind: "electronic-rolling-shutter-line-reset-read", evidence: evidence("linkage") } } }))
+      .toThrow("requires a rolling readout and the exposure schedule derived from it");
+    expect(() => createProductionCaptureSnapshot({ ...captureInput(), temporalCapture: { ...linked,
+      readoutExposureLinkage: { kind: "unknown", evidence: evidence("linkage") } as never } })).toThrow("readoutExposureLinkage.kind is invalid");
+  });
+
   it("composes exposure windows, separate rolling readout timing, and rotation quadrature", () => {
     const snapshot =
       createProductionCaptureSnapshot({
@@ -2819,5 +2852,27 @@ describe("executed environment production graph", () => {
     const changed=createProductionImageFormationPlan(brighter);
     expect(changed.environmentCaptureResult).toEqual(expected.environmentCaptureResult);
     expect(changed.fingerprint.value).not.toBe(expected.fingerprint.value);
+  });
+});
+
+describe("production plan temporal and equipment rejection branches", () => {
+  it("rejects capabilities that are not the resolved generic equipment contract", () => {
+    expect(() => prepareImageFormationContext({ contextId: "context", sceneId: "scene", sceneRadianceProviderProfileId: "provider",
+      outputGeometryProfileId: "output-v1", equipmentCapabilities: { ...equipment(), scientificStatus: "calibrated" } as never,
+      opticalBridgeProfile: opticalProfile(), renderer: renderer(), fidelity: fidelity() }))
+      .toThrow("equipmentCapabilities do not satisfy the resolved generic equipment capability contract.");
+  });
+
+  const temporal = (): ReturnType<typeof temporalCapture> => temporalCapture({ rotation: "active" });
+  it.each([
+    ["an unknown orientation", (t: ReturnType<typeof temporalCapture>): unknown => ({ ...t, orientation: "upside-down" }),
+      "temporalCapture.orientation is invalid."],
+    ["a zero rotation sample count", (t: ReturnType<typeof temporalCapture>): unknown => ({ ...t, rotation: { ...t.rotation!, temporalSampleCount: 0 } }),
+      "temporalCapture.rotation.temporalSampleCount must be a positive safe integer."],
+    ["rotation without sample points", (t: ReturnType<typeof temporalCapture>): unknown => ({ ...t,
+      exposureWindowInput: { ...t.exposureWindowInput, samplePointsNative: [] } }),
+    "temporalCapture.rotation requires non-empty exposureWindowInput.samplePointsNative."]
+  ])("rejects temporal capture with %s", (_name, mutate, message) => {
+    expect(() => createProductionCaptureSnapshot({ ...captureInput(), temporalCapture: mutate(temporal()) as never })).toThrow(message);
   });
 });
