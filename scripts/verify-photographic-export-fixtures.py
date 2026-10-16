@@ -48,7 +48,18 @@ def verify_pair(root, name):
     assert (tags[256], tags[257]) == (width, height)
     assert tags[262] == 32803 and tags[258] == (16,) and tags[259] == 1
     assert list(struct.unpack_from("<" + str(len(expected["codes"])) + "H", raw, tags[273][0])) == expected["codes"]
-    assert tags[33422] == bytes([0, 1, 1, 2]) and tags[50706] == bytes([1, 1, 0, 0])
+    # DNG 1.4 (export pipeline 0.2.0): ForwardMatrix1, BaselineExposure, NoiseProfile and AnalogBalance.
+    assert tags[33422] == bytes([0, 1, 1, 2]) and tags[50706] == bytes([1, 4, 0, 0]) and tags[50707] == bytes([1, 1, 0, 0])
+    forward = [float(v) for v in tags[50964]]
+    assert len(forward) == 9
+    for row, white in zip(range(3), (0.9642, 1.0, 0.8249)):
+        assert abs(sum(forward[row * 3:row * 3 + 3]) - white) < 1e-6
+    assert float(tags[50730]) == 0.0 and tuple(float(v) for v in tags[50727]) == (1.0, 1.0, 1.0)
+    noise = tuple(tags[51041])
+    assert len(noise) == 6 and all(v > 0 for v in noise)
+    span = 1023 - 64
+    assert all(abs(noise[i] - 1 / span) < 1e-15 and abs(noise[i + 1] - (4 + 1 / 12) / span ** 2) < 1e-15 for i in (0, 2, 4))
+    assert tuple(round(float(v), 9) for v in tags[50728]) == (1.0, 1.0, 1.0)
     assert tuple(tags[50714]) == (64, 64, 64, 64) and tags[50717] == 1023
     assert tags[50829] == (0, 0, height, width) and tags[50719] == (0, 0) and tags[50720] == (width, height)
     assert tags[271] == "Photivra" and tags[272] == "Photivra Virtual Camera"

@@ -9,7 +9,8 @@ import {
   reduceSensorSpatioSpectralIrradiance,
   type SensorSpectralResponseProfile,
   type SensorSpatioSpectralIrradianceSample,
-  type SourcedAirPhaseRefractiveIndex
+  type SourcedAirPhaseRefractiveIndex,
+  SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT
 } from "../src/index.js";
 import { expectRejection, type Json, type RejectionCase } from "./helpers/rejection-table.js";
 import {
@@ -1092,6 +1093,26 @@ describe(
       expect(createSensorSpectralResponseChannelBinding({ ...channel, unexpected: "caller-only" } as unknown as typeof channel)).toEqual(binding);
       expect(binding.canonicalJson).not.toContain("caller-only");
       expect(() => createSensorSpectralResponseChannelBinding({ ...channel, channelId: "" })).toThrow("channelId");
+    });
+
+    it("uses binding format v2 and rejects a 1.5.0 v1 binding with an explicit version error", () => {
+      const pipeline = buildPipeline();
+      expect(pipeline.reduction.responseChannelBinding?.format).toBe("photivra-spectral-channel-response-canonical-json-v2");
+      expect(SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT).toBe("photivra-spectral-channel-response-canonical-json-v2");
+      const legacy = {
+        ...pipeline.reduction,
+        responseChannelBinding: { ...pipeline.reduction.responseChannelBinding!, format: "photivra-spectral-channel-response-canonical-json-v1" }
+      } as unknown as typeof pipeline.reduction;
+      const input = {
+        compatibility: pipeline.compatibility,
+        operatingRange: pipeline.operatingRange,
+        colorSamplingProfile: colorProfile(),
+        spectralResponseProfile: pipeline.responseProfile
+      };
+      expect(() => calculateSensorEqeElectronRate({ ...input, reduction: legacy })).toThrow(/format v1 \(package 1\.5\.0 and earlier\) is not supported/);
+      const unknown = { ...pipeline.reduction, responseChannelBinding: { ...pipeline.reduction.responseChannelBinding!, format: "other" } } as unknown as typeof pipeline.reduction;
+      expect(() => calculateSensorEqeElectronRate({ ...input, reduction: unknown })).toThrow(/unsupported format/);
+      expect(() => calculateSensorEqeElectronRate({ ...input, reduction: pipeline.reduction })).not.toThrow();
     });
 
     it("matches semantically equal reduction metadata regardless of key order", () => {

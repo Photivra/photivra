@@ -22,7 +22,7 @@
 
 import { simulateEnvironmentSensorRawFrame, type SimulateEnvironmentSensorRawFrameInput } from "../capture/environment-raw-producer.js";
 import { parseSimulatedCapture, type SimulatedCapture } from "../capture/simulated-capture.js";
-import { calculateProcessedSensorRaw, validateProcessedSensorRawEnvelope, type ProcessedSensorRawInput } from "../capture/photographic-export.js";
+import { calculateProcessedSensorRaw, validateProcessedSensorRawEnvelope, PROCESSED_SENSOR_RAW_MODEL_VERSION, type ProcessedSensorRawInput } from "../capture/photographic-export.js";
 
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import {
@@ -104,6 +104,7 @@ import {
   type SceneRadianceEvaluationResult,
   type SceneRadianceUncertainty
 } from "../schema/scene-radiance.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1179,6 +1180,7 @@ function validateEquipmentCapabilities(
   value:
     ResolvedGenericEquipmentExposureCapabilities
 ): void {
+  requireInputObject(value, "value input");
   if (
     value.schemaVersion !==
       GENERIC_EQUIPMENT_EXPOSURE_CAPABILITY_SCHEMA_VERSION ||
@@ -1357,7 +1359,9 @@ function fingerprintValue(
 
 /**
  * Return deterministic canonical JSON of a validated production plan. Sorted object keys preserve
- * array order; the representation contains data and excludes executable provider callbacks.
+ * array order; the representation contains data and excludes executable provider callbacks. The
+ * plan version and its fingerprint (recomputed over the content) must match, so an empty or edited
+ * object is rejected instead of serialized.
  *
  * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
  * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
@@ -1373,6 +1377,24 @@ export function serializeProductionImageFormationPlan(
   plan:
     ProductionImageFormationPlan
 ): string {
+  requireInputObject(plan, "serializeProductionImageFormationPlan input");
+  const { fingerprint, ...core } = plan as unknown as Record<string, unknown> & { fingerprint?: unknown };
+  if (core.version !== PRODUCTION_IMAGE_FORMATION_PLAN_VERSION) {
+    throw new InvalidConfigurationError(
+      `Production plan version must be "${PRODUCTION_IMAGE_FORMATION_PLAN_VERSION}".`
+    );
+  }
+  const supplied = fingerprint as Record<string, unknown> | null | undefined;
+  if (
+    typeof supplied !== "object" || supplied === null ||
+    supplied.algorithm !== "fnv1a-32-non-cryptographic" ||
+    supplied.purpose !== "deterministic-reproducibility-key-not-integrity-security" ||
+    supplied.value !== fingerprintValue(core)
+  ) {
+    throw new InvalidConfigurationError(
+      "Production plan fingerprint does not match its content; serialize only a plan returned by createProductionImageFormationPlan."
+    );
+  }
   return canonicalStringify(plan);
 }
 
@@ -1482,6 +1504,7 @@ export function prepareImageFormationContext(
   input:
     PrepareImageFormationContextInput
 ): PreparedImageFormationContext {
+  requireInputObject(input, "prepareImageFormationContext input");
   validateEquipmentCapabilities(
     input.equipmentCapabilities
   );
@@ -2208,6 +2231,7 @@ export function createProductionCaptureSnapshot(
   input:
     CreateProductionCaptureSnapshotInput
 ): ProductionCaptureSnapshot {
+  requireInputObject(input, "createProductionCaptureSnapshot input");
   const sceneTime =
     requireFinite(
       input
@@ -2371,9 +2395,11 @@ export function createProductionCaptureSnapshotFromReleaseFrame(
   input:
     CreateProductionCaptureSnapshotFromReleaseFrameInput
 ): ProductionCaptureSnapshot {
+  requireInputObject(input, "createProductionCaptureSnapshotFromReleaseFrame input");
   const frame =
     input.releaseFrame;
 
+  requireInputObject(frame, "frame input");
   const releaseFrameBinding:
     ProductionReleaseFrameBinding = {
     releaseSequenceVersion:
@@ -3768,7 +3794,7 @@ function deriveStagePlan(
         return { stageId:stage.id,contractStatus:stage.status,state:supported ? "active" as const : "blocked" as const,
           scientificStatus:supported ? "approximation" as const : "not-applicable" as const,requiredByFidelity:true,
           requiredUpstreamStages:[...stage.requiredUpstreamStages],coupledStages:[...stage.coupledStages],
-          modelId:"processed-sensor-raw-sdr",modelVersion:"0.1.0",
+          modelId:"processed-sensor-raw-sdr",modelVersion:PROCESSED_SENSOR_RAW_MODEL_VERSION,
           resultIdentity:processedResult.value.source.value.rawFrame.frameId,
           blockerCodes:supported ? [] : ["renderer-stage-unsupported" as const] };
       }
@@ -4465,7 +4491,7 @@ function composeProductionScientificAssurance(
   }
   if (processedResult !== undefined) {
     components.push({componentId:"processed-sensor-raw-sdr",role:"committed post-capture SDR development",required:true,
-      sourceIdentity:{kind:"model",id:"processed-sensor-raw-sdr",version:"0.1.0"},basisKind:"photivra-model-assumption",
+      sourceIdentity:{kind:"model",id:"processed-sensor-raw-sdr",version:PROCESSED_SENSOR_RAW_MODEL_VERSION},basisKind:"photivra-model-assumption",
       scientificStatus:"approximation",evidenceRequirement:"required",evidence:processedResult.value.colorProfile.evidence,
       uncertainty:{kind:"not-quantified",limitation:"Reconstruction, color interpretation and optional correction uncertainty are not propagated into a combined output uncertainty."},
       limitations:[...processedResult.value.colorProfile.limitations,
@@ -4626,6 +4652,7 @@ export function createProductionImageFormationPlan(
   input:
     CreateProductionImageFormationPlanInput
 ): ProductionImageFormationPlan {
+  requireInputObject(input, "createProductionImageFormationPlan input");
   const prepared =
     parsePreparedImageFormationContext(
       input.preparedContext

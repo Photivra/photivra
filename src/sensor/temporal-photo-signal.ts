@@ -10,7 +10,7 @@
  * limits.
  */
 
-import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
+import { requireAllowlistedRecord, requirePublicOpaqueId, requireInputObject } from "../core/record-validation.js";
 import { sumTemporalEqeRateExpectations } from "./temporal-eqe-sum.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -115,6 +115,7 @@ export function createSensorEqeTemporalPhotoSignal(input: {
   temporalIntegrationId: string;
   exposure: CalculateSensorEqeTemporalExposureInput;
 }): CalculationResult<{ photoSignal: SensorEqeTemporalPhotoSignal; exposure: ReturnType<typeof calculateSensorEqeTemporalExposure> }> {
+  requireInputObject(input, "createSensorEqeTemporalPhotoSignal input");
   identity(input.temporalIntegrationId);
   const exposure = calculateSensorEqeTemporalExposure(input.exposure), v = exposure.value;
   const p = { kind: "eqe-temporal-photo-signal", temporalIntegrationId: input.temporalIntegrationId,

@@ -9,12 +9,22 @@ export const SRGB_ICC_PROFILE_VERSION="0.1.0" as const;
  * This is an original Photivra profile, not a redistributed ICC or operating-system profile.
  * Bradford here encodes the D50 profile-connection space; it does not apply shooting WB.
  */
-export function createSrgbIccProfile():Uint8Array {
-  const model=resolveCaptureColorModel(),d65=[model.referenceWhiteXyz.x,1,model.referenceWhiteXyz.z],d50=[.9642,1,.8249];
+/** ICC/DNG D50 profile-connection white (ICC.1:2022 §7.2.16). */
+export const ICC_D50_WHITE_XYZ=[.9642,1,.8249] as const;
+/**
+ * Linear Bradford adaptation from the engine's D65 white to D50: M⁻¹·diag(LMS(D50)/LMS(D65))·M with the
+ * Bradford cone matrix M (Lam 1985; as tabulated in ICC.1:2022 Annex E). Internal; not a root export.
+ */
+export function bradfordD65ToD50Matrix():number[][] {
+  const model=resolveCaptureColorModel(),d65=[model.referenceWhiteXyz.x,1,model.referenceWhiteXyz.z],d50=ICC_D50_WHITE_XYZ;
   const bradford=[[.8951,.2664,-.1614],[-.7502,1.7135,.0367],[.0389,-.0685,1.0296]];
   const lms=(v:readonly number[]):number[]=>bradford.map(row=>row.reduce((sum,x,i)=>sum+x*v[i]!,0));
   const a=lms(d65),b=lms(d50),inverse=invertSensorColorMatrix(bradford);
-  const chad=inverse.map(row=>[0,1,2].map(j=>row.reduce((sum,x,i)=>sum+x*b[i]!/a[i]!*bradford[i]![j]!,0)));
+  return inverse.map(row=>[0,1,2].map(j=>row.reduce((sum,x,i)=>sum+x*b[i]!/a[i]!*bradford[i]![j]!,0)));
+}
+export function createSrgbIccProfile():Uint8Array {
+  const model=resolveCaptureColorModel(),d50=ICC_D50_WHITE_XYZ;
+  const chad=bradfordD65ToD50Matrix();
   const colorants=chad.map(row=>[0,1,2].map(j=>row.reduce((sum,x,i)=>sum+x*model.cameraRgbToXyz[i]![j]!,0)));
   const signature=(value:string):Uint8Array=>new TextEncoder().encode(value);
   function xyz(v:readonly number[]):Uint8Array {

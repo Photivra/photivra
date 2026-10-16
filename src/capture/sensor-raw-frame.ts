@@ -61,7 +61,8 @@ function point(value: unknown): { x: number; y: number } {
 }
 const sampleKeys = ["version", "captureModeId", "modeSampleCoordinateSystem", "modeSampleIndexFullFrame",
   "colorSamplingProfileId", "colorSamplingSite", "channelId", "rawCode", "blackLevelCode", "digitalSaturationCode",
-  "blackSubtractedNormalizedCode", "readoutProfileId", "readoutRegimeId", "sourceChargeSeedUint32",
+  "blackSubtractedNormalizedCode", "effectiveSaturationCode", "systemConversionGainElectronsPerCode",
+  "readNoiseRmsElectrons", "readoutProfileId", "readoutRegimeId", "sourceChargeSeedUint32",
   "sourceReadNoiseSeedUint32", "physicalScalarSaturationApplied", "digitalSaturationApplied",
   "cfaPhasePreservedInNativeCoordinates", "physicalOrientationApplied", "outputRotationApplied",
   "groupedModeCombinationApplied", "reconstructionApplied", "aliasingModeled", "moireModeled"] as const;
@@ -81,10 +82,16 @@ function sample(value: unknown): SensorRawCaptureSample {
       s.blackSubtractedNormalizedCode !== (rawCode-blackLevelCode)/(digitalSaturationCode-blackLevelCode)) {
     throw new InvalidConfigurationError("RAW-frame code/black/white/normalization mismatch.");
   }
+  const effectiveSaturationCode = integer(s.effectiveSaturationCode, 65535), gain = s.systemConversionGainElectronsPerCode, readNoise = s.readNoiseRmsElectrons;
+  if (effectiveSaturationCode <= blackLevelCode || effectiveSaturationCode > digitalSaturationCode ||
+      typeof gain !== "number" || !Number.isFinite(gain) || gain <= 0 || typeof readNoise !== "number" || !Number.isFinite(readNoise) || readNoise < 0) {
+    throw new InvalidConfigurationError("RAW-frame effective white level, conversion gain or read noise is invalid.");
+  }
   return { version: "0.1.0", captureModeId: id(s.captureModeId), modeSampleCoordinateSystem: s.modeSampleCoordinateSystem,
     modeSampleIndexFullFrame: point(s.modeSampleIndexFullFrame), colorSamplingProfileId: id(s.colorSamplingProfileId),
     colorSamplingSite: point(s.colorSamplingSite), channelId: id(s.channelId), rawCode, blackLevelCode, digitalSaturationCode,
-    blackSubtractedNormalizedCode: s.blackSubtractedNormalizedCode, readoutProfileId: id(s.readoutProfileId),
+    blackSubtractedNormalizedCode: s.blackSubtractedNormalizedCode, effectiveSaturationCode,
+    systemConversionGainElectronsPerCode: gain, readNoiseRmsElectrons: Object.is(readNoise, -0) ? 0 : readNoise, readoutProfileId: id(s.readoutProfileId),
     readoutRegimeId: id(s.readoutRegimeId), sourceChargeSeedUint32: integer(s.sourceChargeSeedUint32, 0xffffffff),
     sourceReadNoiseSeedUint32: integer(s.sourceReadNoiseSeedUint32, 0xffffffff),
     physicalScalarSaturationApplied: s.physicalScalarSaturationApplied, digitalSaturationApplied: s.digitalSaturationApplied,
@@ -107,7 +114,14 @@ export function parseSensorRawFrameInput(value: unknown): SensorRawFrameInput {
       mode.perFrameSampling.kind !== "native-effective-raster" || (mode.reconstructionStages?.length ?? 0) !== 0) {
     throw new InvalidConfigurationError("RAW-frame requires bounded single-frame native periodic CFA coverage and uint16 storage.");
   }
-  const samples = r.samples.map(sample);
+  const samples = r.samples.map(sample), layout = colorSamplingProfile.layout, phaseSample: (SensorRawCaptureSample | undefined)[] = [];
+  for (let i = 0; i < samples.length; i++) {
+    // Readout constants are per CFA phase: one white level, gain and read noise for every site of a phase.
+    const s = samples[i]!, phase = (Math.floor(i/native.pixelWidth)%layout.repeatHeightSites)*layout.repeatWidthSites + (i%native.pixelWidth)%layout.repeatWidthSites;
+    const first = phaseSample[phase] ??= s;
+    if (first.effectiveSaturationCode !== s.effectiveSaturationCode || first.systemConversionGainElectronsPerCode !== s.systemConversionGainElectronsPerCode ||
+        first.readNoiseRmsElectrons !== s.readNoiseRmsElectrons) throw new InvalidConfigurationError("RAW-frame readout white level, gain and read noise must be constant per CFA phase.");
+  }
   for (let i = 0; i < samples.length; i++) {
     const s = samples[i]!, x = i%native.pixelWidth, y = Math.floor(i/native.pixelWidth);
     const c = resolveCaptureModeColorSamplingContributors({ nativeRaster: native, captureModeProfile, modeId,

@@ -31,6 +31,7 @@ import type {
   SensorSpectralResponseUncertainty,
   SpectralWavelengthBasis
 } from "./spectral-response.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -501,6 +502,7 @@ export function calculatePhotonEnergyFromWavelength(
   input:
     CalculatePhotonEnergyFromWavelengthInput
 ): CalculationResult<PhotonEnergyFromWavelength> {
+  requireInputObject(input, "calculatePhotonEnergyFromWavelength input");
   const wavelengthNanometers =
     requirePositiveFinite(
       input.wavelengthNanometers,

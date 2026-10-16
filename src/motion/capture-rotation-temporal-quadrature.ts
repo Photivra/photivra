@@ -31,6 +31,7 @@ import {
   calculateCaptureRotationInverseMappings,
   type CalculateCaptureRotationInverseMappingsInput
 } from "./capture-rotation-inverse-mapping.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface CalculateCaptureRotationTemporalQuadratureInput
   extends Omit<
@@ -130,6 +131,7 @@ function midpointPhase(index: number, sampleCount: number): number {
 export function calculateCaptureRotationTemporalQuadrature(
   input: CalculateCaptureRotationTemporalQuadratureInput
 ): CalculationResult<CaptureRotationTemporalQuadrature> {
+  requireInputObject(input, "calculateCaptureRotationTemporalQuadrature input");
   requirePositiveInteger(
     "temporalSampleCount",
     input.temporalSampleCount

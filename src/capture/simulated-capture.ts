@@ -9,9 +9,10 @@
  * limits.
  */
 
-import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
+import { requireAllowlistedRecord, requirePublicOpaqueId, requireInputObject } from "../core/record-validation.js";
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { freezeOwnedData } from "../core/owned-data.js";
+import { equalWithinUlps } from "../core/portable-math.js";
 import { calculatedResult, type CalculationResult, type ProvenanceKind } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { ENGINE_API_VERSION } from "../core/version.js";
@@ -137,6 +138,7 @@ function wb(value: unknown): CaptureWhiteBalanceIntent | null {
 }
 /** Converts validated shooting WB into a public metadata allowlist, discarding private extras. */
 export function createCaptureWhiteBalanceIntent(input: { state: ResolvedWhiteBalanceState }): CaptureWhiteBalanceIntent {
+  requireInputObject(input, "createCaptureWhiteBalanceIntent input");
   const state = parseResolvedWhiteBalanceState(input.state);
   return wb({ stateId: state.stateId, source: state.source, locked: state.locked, channelGains: state.channelGains,
     sourceProfile: state.sourceProfile ? { id: state.sourceProfile.profileId, version: state.sourceProfile.profileVersion } : null })!;
@@ -268,6 +270,8 @@ export function createSimulatedCapture(input: SimulatedCaptureInput): Calculatio
   return calculatedResult(normalize(input, ENGINE_API_VERSION), "authoritative-linear-capture-container", "0.1.0",
     ["Structural commitment only; upstream scientific statuses remain independent", "Master/source declarations do not prove source fidelity", "No tone mapping, recovered headroom, physical sensor calibration or serializer inferred"]);
 }
+/** Tolerance, in ulps, for an archived re-derived 35 mm-equivalent focal length (see NUMERICAL_CORRECTNESS.md). */
+const DERIVED_FOCAL_LENGTH_ULPS = 8;
 /** Parses an archived capture, recomputing and checking all derived geometry/focal metadata. */
 export function parseSimulatedCapture(value: unknown): SimulatedCapture {
   const r = object(value, ["schemaVersion", "engineApiVersion", "captureId", "sceneStateId", "sceneTimeSeconds", "geometry", "resolvedGeometry",
@@ -278,7 +282,11 @@ export function parseSimulatedCapture(value: unknown): SimulatedCapture {
   }
   const { schemaVersion: _schemaVersion, engineApiVersion, resolvedGeometry, equivalentFocalLength35Mm, ...input } = r;
   const result = normalize(input, id(engineApiVersion));
-  if (canonical(resolvedGeometry) !== canonical(result.resolvedGeometry) || equivalentFocalLength35Mm !== result.equivalentFocalLength35Mm) {
+  // The focal-length equivalent is re-derived; an archived value is accepted within a few ulps so
+  // records written by another JavaScript engine or by releases before 2.0.0 (Math.hypot) still parse.
+  if (canonical(resolvedGeometry) !== canonical(result.resolvedGeometry) ||
+      typeof equivalentFocalLength35Mm !== "number" ||
+      !equalWithinUlps(equivalentFocalLength35Mm, result.equivalentFocalLength35Mm, DERIVED_FOCAL_LENGTH_ULPS)) {
     throw new InvalidConfigurationError("Archived derived capture metadata is inconsistent.");
   }
   // _schemaVersion is already checked, not copied as an unchecked discriminator.
@@ -295,12 +303,14 @@ function canonical(value: unknown): string {
 
 /** Canonical allowlisted JSON, including semantic samples/IDs, not private caches or file layout. */
 export function serializeSimulatedCapture(input: { capture: SimulatedCapture }): string {
+  requireInputObject(input, "serializeSimulatedCapture input");
   return JSON.stringify(parseSimulatedCapture(input.capture));
 }
 /** Requires an exact plane image state; callers may not substitute another kind of 'linear'. */
 export function resolveSimulatedCapturePlane(input: {
   capture: SimulatedCapture; planeId: string; requiredImageState: CaptureLinearImageState;
 }): CaptureLinearPlane {
+  requireInputObject(input, "resolveSimulatedCapturePlane input");
   const capture = parseSimulatedCapture(input.capture);
   const state = enumValue(input.requiredImageState, ["scene-referred-xyz", "virtual-sensor-channels", "color-transformed-linear-rgb"]);
   const result = capture.planes.find((p) => p.id === id(input.planeId));

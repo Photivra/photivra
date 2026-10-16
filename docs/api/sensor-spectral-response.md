@@ -1,6 +1,6 @@
 # sensor/spectral-response.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## EffectiveSensorResponseScope
 
@@ -139,6 +139,17 @@ export interface ResolveSensorSpectralResponseAtWavelengthInput {
 }
 ```
 
+## SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT
+
+Current channel-binding format. v2 (package 2.0.0) serializes the parsed channel with sorted keys;
+v1 (package 1.5.0 and earlier) used insertion-order JSON of the unparsed channel and is rejected
+with an explicit version error rather than compared.
+
+```ts
+SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT =
+  "photivra-spectral-channel-response-canonical-json-v2" as const
+```
+
 ## SensorSpectralChannelResponse
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -195,7 +206,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface SensorSpectralResponseChannelBinding {
   format:
-    "photivra-spectral-channel-response-canonical-json-v1";
+    typeof SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT;
   canonicalJson: string;
 }
 ```

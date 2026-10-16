@@ -28,6 +28,7 @@ import type {
   NativeImageRaster,
   RasterDimensions
 } from "./sensor-geometry.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -796,6 +797,7 @@ export function parseCaptureModeProfile(
 function validateNativeRaster(
   raster: NativeImageRaster
 ): void {
+  requireInputObject(raster, "raster input");
   requirePositiveInteger(
     "nativeRaster.pixelWidth",
     raster.pixelWidth
@@ -876,6 +878,7 @@ function resolvePerFrameSampling(
 export function resolveCaptureMode(
   input: ResolveCaptureModeInput
 ): ResolvedCaptureMode {
+  requireInputObject(input, "resolveCaptureMode input");
   validateNativeRaster(input.nativeRaster);
   if (
     typeof input.modeId !== "string" ||

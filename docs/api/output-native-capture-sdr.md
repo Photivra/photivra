@@ -1,6 +1,6 @@
 # output/native-capture-sdr.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## calculateNativeCaptureSdrPlan
 
@@ -96,6 +96,11 @@ export interface NativeCaptureSdrProvider {
   readTile(request: Readonly<NativeCaptureSdrTileRequest>, signal: AbortSignal): Promise<NativeCaptureSdrTile>;
   /** Must yield to the host event loop, allowing cancellation/input events between tiles. */
   yieldControl(signal: AbortSignal): Promise<void>;
+  /**
+   * Optional progress observer, called synchronously after each committed tile. It cannot change
+   * output; an exception it throws fails the task like any other error.
+   */
+  onProgress?(progress: NativeTaskProgress): void;
 }
 ```
 
@@ -147,4 +152,12 @@ export interface NativeCaptureSdrTileRequest {
   sha256: string;
   x: number; y: number; width: number; height: number;
 }
+```
+
+## NativeTaskProgress
+
+Tile progress of a native task: `completedTileCount` of `totalTileCount` tiles are committed.
+
+```ts
+export interface NativeTaskProgress { readonly completedTileCount: number; readonly totalTileCount: number }
 ```

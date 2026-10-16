@@ -19,6 +19,7 @@ import {
   calculateImagingAreaMetrics,
   type SensorImagingArea
 } from "../sensor/sensor-geometry.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 export interface CalculateEquivalentFocalLength35MmInput {
   /** Physical optical focal length in millimetres. */
@@ -55,6 +56,7 @@ export interface EquivalentFocalLength35Mm {
 export function calculateEquivalentFocalLength35Mm(
   input: CalculateEquivalentFocalLength35MmInput
 ): CalculationResult<EquivalentFocalLength35Mm> {
+  requireInputKeys(input, "calculateEquivalentFocalLength35Mm", ["focalLengthMm", "activeImagingArea"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
 
   const imagingAreaMetrics = calculateImagingAreaMetrics(

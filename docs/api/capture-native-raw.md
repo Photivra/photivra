@@ -1,6 +1,6 @@
 # capture/native-raw.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## calculateNativeRawPlan
 
@@ -89,6 +89,12 @@ export interface NativeRawOutput {
   digitalSaturationCodes: Uint16Array;
   /** Bits 0,1,2: physical scalar clamp, pre-ADC clamp, digital saturation respectively. */
   saturationFlags: Uint8Array;
+  /**
+   * Effective white (full-saturation) code per absolute CFA repeat phase, indexed
+   * `phaseY*repeatWidthSites+phaseX`: min(digital saturation, round(black + min(capacity, pre-ADC
+   * saturation)/gain)). See `calculateEffectiveSaturationCode`; a few bytes, not a per-pixel plane.
+   */
+  effectiveSaturationCodes: Uint16Array;
 }
 ```
 

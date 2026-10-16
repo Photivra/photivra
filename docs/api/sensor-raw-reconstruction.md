@@ -1,6 +1,6 @@
 # sensor/raw-reconstruction.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## createSensorRawCaptureSample
 
@@ -31,6 +31,12 @@ export interface CreateSensorRawCaptureSampleInput {
     SensorRawCodeSample;
   contributors:
     ResolvedCaptureModeColorSamplingContributors;
+  /**
+   * The selected readout regime's declared ADC integral non-linearity, when it has one. The code
+   * sample records INL only at its own code; the effective white level needs it at saturation.
+   */
+  adcIntegralNonLinearity?:
+    SensorAdcIntegralNonLinearity;
 }
 ```
 
@@ -134,6 +140,12 @@ export interface SensorRawCaptureSample {
   digitalSaturationCode: number;
   blackSubtractedNormalizedCode:
     number;
+  /** Full-saturation code from `calculateEffectiveSaturationCode`; constant per CFA phase. */
+  effectiveSaturationCode: number;
+  /** Regime system conversion gain, e⁻ per code (DNG NoiseProfile input). */
+  systemConversionGainElectronsPerCode: number;
+  /** sqrt of the summed squared regime read-noise RMS components, e⁻ (DNG NoiseProfile input). */
+  readNoiseRmsElectrons: number;
   readoutProfileId: string;
   readoutRegimeId: string;
   sourceChargeSeedUint32: number;

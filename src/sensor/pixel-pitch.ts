@@ -15,6 +15,7 @@ import {
   requirePositiveFinite,
   requirePositiveInteger
 } from "../core/validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 export interface CalculatePixelPitchInput {
   /** Physical sensor width in millimetres. */
@@ -39,6 +40,7 @@ export interface PixelPitch {
 export function calculatePixelPitch(
   input: CalculatePixelPitchInput
 ): CalculationResult<PixelPitch> {
+  requireInputKeys(input, "calculatePixelPitch", ["sensorWidthMm", "pixelWidth"]);
   requirePositiveFinite("sensorWidthMm", input.sensorWidthMm);
   requirePositiveInteger("pixelWidth", input.pixelWidth);
 

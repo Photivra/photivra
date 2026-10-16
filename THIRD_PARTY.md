@@ -82,7 +82,7 @@ Prepared on 2026-10-11 from local files only (repository files, `package-lock.js
 
 ## Colorimetry published constants and excluded datasets
 
-The colorimetry modules in `src/color/` (see [docs/COLORIMETRY.md](docs/COLORIMETRY.md)) are independently written from published equations. They contain only short factual numeric constants taken from those equations. No third-party source code, table, figure or prose is copied, and no runtime dependency is added.
+The colorimetry modules in `src/color/` (see [docs/COLORIMETRY.md](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md)) are independently written from published equations. They contain only short factual numeric constants taken from those equations. No third-party source code, table, figure or prose is copied, and no runtime dependency is added.
 
 | Constants | Source | Licence / basis for use |
 | --- | --- | --- |
@@ -105,7 +105,7 @@ The tests assert a few individual published values (for example one CMF sample a
 
 The original scalar adapter in `src/output/print-contrast-reference.ts` uses numerical equations/parameters from [castleCSF revision f4b0b722af83001d7af979281e06ca642d36e4e8](https://github.com/gfxdisp/castleCSF/tree/f4b0b722af83001d7af979281e06ca642d36e4e8): `matlab/CSF_castleCSF.m`, `CSF_stelaCSF_lum_peak.m`, `CSF_castleCSF_chrom.m` and `CSF_base.m`. The upstream code/model material is MIT-licensed, copyright (c) 2023 Graphics and Displays group - University of Cambridge. The exact license is preserved at `docs/licenses/castleCSF-MIT.txt` and its notice is retained in `NOTICE` and adapter source. New TypeScript/reference code is distributed under the project Apache-2.0 terms while retaining the MIT notice for upstream numerical material.
 
-No upstream observational CSV, paper text/figure/table, color-matching dataset or runtime dependency is incorporated. The model's presence does not certify camera, print, observer or natural-image visibility applicability. [The model/protocol](docs/PRINT_CONTRAST_REFERENCE.md) records the restricted envelope, independent numerical evaluation and pending human scientific/source/license review. The root still declares no runtime npm dependencies.
+No upstream observational CSV, paper text/figure/table, color-matching dataset or runtime dependency is incorporated. The model's presence does not certify camera, print, observer or natural-image visibility applicability. [The model/protocol](https://github.com/Photivra/photivra/blob/main/docs/PRINT_CONTRAST_REFERENCE.md) records the restricted envelope, independent numerical evaluation and pending human scientific/source/license review. The root still declares no runtime npm dependencies.
 
 
 ## Optional offline physical-proof tools
@@ -127,6 +127,25 @@ Format references:
 - JFIF: https://www.w3.org/Graphics/JPEG/jfif3.pdf
 - Adobe XMP: https://developer.adobe.com/xmp/docs/xmp-specifications/
 - CIPA Exif: https://www.cipa.jp/std/documents/e/DC-X008-Translation-2019-E.pdf
+
+RAW development and tone-mapping references (2.0; published equations and
+factual constants only, independently implemented; no code or data copied):
+
+- DNG 1.7.1.0 tag definitions (WhiteLevel, BlackLevel/ActiveArea phase,
+  AsShotNeutral, ForwardMatrix1, BaselineExposure, NoiseProfile, AnalogBalance):
+  the DNG specification above.
+- EMVA 1288 Release 4.0, saturation point and photon-transfer noise model:
+  https://www.emva.org/standards-technology/emva-1288/
+- Reinhard, Stark, Shirley & Ferwerda (2002), "Photographic tone reproduction
+  for digital images", ACM SIGGRAPH, eq. 3 and 4.
+- Naka & Rushton (1966), J. Physiol. 185:536-555; Reinhard & Devlin (2005),
+  "Dynamic range reduction inspired by photoreceptor physiology", IEEE TVCG 11(1).
+- Guo, Cheng & Hu (2010), "Correcting over-exposure in photographs", CVPR
+  (highlight desaturation concept for the engine-defined `reconstruct` mode).
+- dcraw manual, `-H 0` "clip all highlights to solid white" (documented
+  behaviour only; no dcraw code used): https://www.dechifro.org/dcraw/dcraw.1.html
+- Bradford cone matrix (Lam 1985), already used by the ICC serializer, now also
+  for ForwardMatrix1.
 
 The DNG patent-license notice appears in `NOTICE` and exporter source. These
 references do not authorize copying SDK code or scientific datasets. Human

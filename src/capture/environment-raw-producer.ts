@@ -10,7 +10,7 @@
  */
 
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
-import { requirePublicOpaqueId } from "../core/record-validation.js";
+import { requirePublicOpaqueId, requireInputObject } from "../core/record-validation.js";
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidScientificInputError } from "../core/validation.js";
@@ -78,7 +78,7 @@ export function createEnvironmentRawFrameCanonicalMemo(frame: NativeRawProducerF
 export function planEnvironmentRawSite(site: SimulateEnvironmentSensorRawFrameInput["sites"][number], i: number,
   frame: NativeRawProducerFrameContext, sceneBinding: SimulateEnvironmentSensorRawFrameInput["sceneBinding"],
   exposureWindow: SensorRawProducerExposureWindowInput, ownership: "copy" | "engine-owned" = "copy",
-  memo?: EnvironmentRawFrameCanonicalMemo): ReturnType<typeof planEnvironmentSensorPhotoSignal> {
+  memo?: EnvironmentRawFrameCanonicalMemo, retention: "full" | "photo-only" = "full"): ReturnType<typeof planEnvironmentSensorPhotoSignal> {
   const capture=frame.capture,native=capture.geometry.nativeRaster;
   const strings = memo !== undefined && memo.frame === frame && memo.exposureWindow === exposureWindow ? memo.strings : undefined;
   const frameCanonical = (key: "imagingArea" | "colorSamplingProfile" | "bindingProfile" | "exposureWindow" | "focus", value: () => unknown): string => {
@@ -95,7 +95,7 @@ export function planEnvironmentRawSite(site: SimulateEnvironmentSensorRawFrameIn
       e.optics.focalLengthMm !== capture.exposure.focalLengthMm || e.optics.nominalFNumber !== capture.exposure.aperture) {
       throw new InvalidScientificInputError("Environment site, frame geometry/profiles, optics and exact shutter event must match the committed capture.");
     }
-    const plan = planEnvironmentSensorPhotoSignal(e, ownership);
+    const plan = planEnvironmentSensorPhotoSignal(e, ownership, retention);
     if (canonical(plan.focus) !== frameCanonical("focus", () => capture.focus) ||
       e.sceneBindings.providerProfile.sceneId !== sceneBinding.providerSceneId) throw new InvalidScientificInputError("Environment optical focus and provider scene must match the committed capture binding.");
   return plan;
@@ -106,6 +106,7 @@ export function planEnvironmentRawSite(site: SimulateEnvironmentSensorRawFrameIn
  * returned RAW frame feeds the existing reconstruction and paired export APIs.
  */
 export function simulateEnvironmentSensorRawFrame(input: SimulateEnvironmentSensorRawFrameInput): CalculationResult<EnvironmentSensorRawFrame> {
+  requireInputObject(input, "simulateEnvironmentSensorRawFrame input");
   const { evaluateRadiance, evaluateApertureRadiance, ...data } = input;
   if (typeof evaluateRadiance !== "function") throw new InvalidScientificInputError("Environment RAW requires a synchronous evaluator.");
   const owned = structuredClone(data);

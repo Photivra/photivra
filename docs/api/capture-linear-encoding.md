@@ -1,6 +1,6 @@
 # capture/linear-encoding.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## calculateLinearCaptureEncoding
 
@@ -45,6 +45,14 @@ export interface EncodedLinearCapture {
   defaultRenderingExposureEv: null;
   samples: readonly number[];
 }
+```
+
+## LINEAR_CAPTURE_ENCODING_MODEL_VERSION
+
+Version of the `uniform-linear-capture-uint16` model. 0.2.0: exact nearest-ties-up rounding (Math.round).
+
+```ts
+LINEAR_CAPTURE_ENCODING_MODEL_VERSION = "0.2.0" as const
 ```
 
 ## LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION

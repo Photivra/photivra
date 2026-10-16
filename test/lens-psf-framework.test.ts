@@ -774,8 +774,30 @@ describe("complex-pupil PSF reference propagation", () => {
       }
     });
     expect(() => calculateLensComplexPupilPsf({ profile })).toThrow(
-      /wider than the declared f\/N aperture diameter 25\.0000 mm/
+      /wider than the declared f\/N cone diameter 25\.0000 mm/
     );
+  });
+
+  it("bounds the pupil by the cone z/N of its resolved propagation distance (exit pupils)", () => {
+    // 2.0-changes review #1: a 30 mm exit pupil at z = 60 mm, f = 50 mm, f/2 has
+    // cone D/z = 1/2 = 1/N and is physically consistent.
+    const grid = (width: number): LensComplexPupilProfile["grid"] => ({
+      widthSamples: width, heightSamples: 1, pupilSamplePitchMmX: 1, pupilSamplePitchMmY: 1,
+      centerSampleX: Math.floor(width / 2), centerSampleY: 0,
+      relativeAmplitude: new Array<number>(width).fill(1),
+      opticalPathDifferenceMicrometers: new Array<number>(width).fill(0)
+    });
+    const exitPupil = complexPupil({ grid: grid(31) });
+    const accepted = calculateLensComplexPupilPsf({ profile: exitPupil, propagationDistanceMm: 60 }).value;
+    expect(accepted.sampling.pupilSupportDiameterMmX).toBe(30);
+    expect(accepted.sampling.declaredPupilDiameterMm).toBe(30);
+    // The same 30 mm support is too wide for the nominal z = f = 50 mm reference (25 mm) and for z = 58 mm.
+    expect(() => calculateLensComplexPupilPsf({ profile: exitPupil })).toThrow(/cone diameter 25\.0000 mm/);
+    expect(() => calculateLensComplexPupilPsf({ profile: exitPupil, propagationDistanceMm: 58 })).toThrow(/cone diameter 29\.0000 mm/);
+    // The bound reduces to f/N when z = f, and a shorter z narrows it.
+    const nominal = complexPupil({ grid: grid(26) });
+    expect(calculateLensComplexPupilPsf({ profile: nominal }).value.sampling.declaredPupilDiameterMm).toBe(25);
+    expect(() => calculateLensComplexPupilPsf({ profile: nominal, propagationDistanceMm: 40 })).toThrow(/cone diameter 20\.0000 mm/);
   });
   it("keeps pupil clipping shape in the PSF while throughput remains a separate factor", () => {
     const profile =
