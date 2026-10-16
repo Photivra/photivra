@@ -122,6 +122,15 @@ export function packExportJpegExif(main: readonly ExportTiffTag[], exif: readonl
   ];
   return packExportTiff([...main, ...mainDefaults], [...exif, ...exifDefaults]);
 }
+/** Little-endian IEEE-754 binary64 values (TIFF type 12, DOUBLE); finite values only. */
+export function exportTiffDoubles(id: number, values: readonly number[]): ExportTiffTag {
+  const data = new Uint8Array(values.length*8), view = new DataView(data.buffer);
+  values.forEach((v, i) => {
+    if (!Number.isFinite(v)) throw new InvalidConfigurationError("TIFF double must be finite.");
+    view.setFloat64(i*8, v, true);
+  });
+  return { id, type: 12, count: values.length, data };
+}
 /** Independently authored little-endian TIFF6 IFD0 + EXIF IFD, with optional uncompressed strip. */
 export function packExportTiff(main: readonly ExportTiffTag[], exif: readonly ExportTiffTag[], pixels = new Uint8Array()): Uint8Array {
   const pointer: ExportTiffTag = { ...exportTiffNumbers(34665, 4, [0]), pointer: "exif" };

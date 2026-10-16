@@ -22,7 +22,7 @@
 
 import { simulateEnvironmentSensorRawFrame, type SimulateEnvironmentSensorRawFrameInput } from "../capture/environment-raw-producer.js";
 import { parseSimulatedCapture, type SimulatedCapture } from "../capture/simulated-capture.js";
-import { calculateProcessedSensorRaw, validateProcessedSensorRawEnvelope, type ProcessedSensorRawInput } from "../capture/photographic-export.js";
+import { calculateProcessedSensorRaw, validateProcessedSensorRawEnvelope, PROCESSED_SENSOR_RAW_MODEL_VERSION, type ProcessedSensorRawInput } from "../capture/photographic-export.js";
 
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import {
@@ -3794,7 +3794,7 @@ function deriveStagePlan(
         return { stageId:stage.id,contractStatus:stage.status,state:supported ? "active" as const : "blocked" as const,
           scientificStatus:supported ? "approximation" as const : "not-applicable" as const,requiredByFidelity:true,
           requiredUpstreamStages:[...stage.requiredUpstreamStages],coupledStages:[...stage.coupledStages],
-          modelId:"processed-sensor-raw-sdr",modelVersion:"0.1.0",
+          modelId:"processed-sensor-raw-sdr",modelVersion:PROCESSED_SENSOR_RAW_MODEL_VERSION,
           resultIdentity:processedResult.value.source.value.rawFrame.frameId,
           blockerCodes:supported ? [] : ["renderer-stage-unsupported" as const] };
       }
@@ -4491,7 +4491,7 @@ function composeProductionScientificAssurance(
   }
   if (processedResult !== undefined) {
     components.push({componentId:"processed-sensor-raw-sdr",role:"committed post-capture SDR development",required:true,
-      sourceIdentity:{kind:"model",id:"processed-sensor-raw-sdr",version:"0.1.0"},basisKind:"photivra-model-assumption",
+      sourceIdentity:{kind:"model",id:"processed-sensor-raw-sdr",version:PROCESSED_SENSOR_RAW_MODEL_VERSION},basisKind:"photivra-model-assumption",
       scientificStatus:"approximation",evidenceRequirement:"required",evidence:processedResult.value.colorProfile.evidence,
       uncertainty:{kind:"not-quantified",limitation:"Reconstruction, color interpretation and optional correction uncertainty are not propagated into a combined output uncertainty."},
       limitations:[...processedResult.value.colorProfile.limitations,

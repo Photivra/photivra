@@ -8,19 +8,42 @@
  */
 
 import { encodeSrgbComponent } from "../color/srgb-transfer.js";
+import { resolveCaptureColorModel } from "../color/capture-color.js";
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { calculatedResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { InvalidScientificResultError } from "../core/validation.js";
 
 export const SDR_RENDERING_SCHEMA_VERSION = "0.1.0" as const;
+/**
+ * Version of the `generic-sdr-rendering-reference` model. 0.2.0: correct nearest-ties-up rounding
+ * (`Math.round`; `Math.floor(x+.5)` rounded 0.49999999999999994 up) and luminance tone curves.
+ */
+export const SDR_RENDERING_MODEL_VERSION = "0.2.0" as const;
+/**
+ * Tone curves. Per-channel curves act on each exposed component; luminance curves scale all three
+ * components of a pixel by f(L)/L, with L the linear-sRGB/D65 relative luminance, so chromaticity is
+ * preserved before gamut handling.
+ * - `identity`: f(x)=x.
+ * - `positive-reinhard-per-channel`: f(x)=x/(1+x) for x>0 (Reinhard et al. 2002, eq. 3), per channel.
+ * - `extended-reinhard-luminance`: f(L)=L(1+L/Lw²)/(1+L) (Reinhard et al. 2002, eq. 4); L=Lw maps to 1.
+ * - `naka-rushton-luminance`: f(L)=g(L)/g(Lw), g(L)=Lⁿ/(Lⁿ+σⁿ) (Naka & Rushton 1966; Reinhard & Devlin
+ *   2005): a sigmoid in log luminance with contrast n and mid-response σ, i.e. a film-like S-curve.
+ */
+export type SdrToneCurve = "identity" | "positive-reinhard-per-channel" | "extended-reinhard-luminance" | "naka-rushton-luminance";
+/** Required only by luminance curves; all values are relative linear luminance after rendering exposure. */
+export type SdrToneCurveParameters =
+  | { whiteLuminance: number }
+  | { exponent: number; semiSaturation: number; whiteLuminance: number };
 /** First-party rendering choices, independent of physical exposure and display calibration. */
 export interface SdrRenderingProfile {
   schemaVersion: typeof SDR_RENDERING_SCHEMA_VERSION;
   profileId: string;
   profileVersion: string;
   renderingExposureEv: number;
-  toneCurve: "identity" | "positive-reinhard-per-channel";
+  toneCurve: SdrToneCurve;
+  /** Present exactly for `extended-reinhard-luminance` ({whiteLuminance}) and `naka-rushton-luminance`. */
+  toneCurveParameters?: SdrToneCurveParameters;
   gamutHandling: "clip-components" | "reject-out-of-range";
   outputDynamicRange: "sdr";
   transferFunction: "srgb";
@@ -47,19 +70,76 @@ function object(v: unknown, keys: readonly string[]): Record<string, unknown> {
 function publicId(v: unknown): string {
   return requirePublicOpaqueId(v, "Invalid public SDR identity.");
 }
+function bounded(value: unknown, minimumExclusive: number, maximum: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= minimumExclusive || value > maximum) {
+    throw new InvalidConfigurationError("Unsupported SDR tone-curve parameters.");
+  }
+  return value;
+}
+function parseToneCurveParameters(curve: unknown, value: unknown): SdrToneCurveParameters | undefined {
+  if (curve === "identity" || curve === "positive-reinhard-per-channel") {
+    if (value !== undefined) throw new InvalidConfigurationError("Per-channel tone curves take no parameters.");
+    return undefined;
+  }
+  if (curve === "extended-reinhard-luminance") {
+    const p = requireAllowlistedRecord(value, ["whiteLuminance"], "Invalid SDR tone-curve parameters.");
+    return { whiteLuminance: bounded(p.whiteLuminance, 0, 65536) };
+  }
+  if (curve === "naka-rushton-luminance") {
+    const p = requireAllowlistedRecord(value, ["exponent", "semiSaturation", "whiteLuminance"], "Invalid SDR tone-curve parameters.");
+    const exponent = bounded(p.exponent, 0, 4);
+    if (exponent < .25) throw new InvalidConfigurationError("Unsupported SDR tone-curve parameters.");
+    return { exponent, semiSaturation: bounded(p.semiSaturation, 0, 64), whiteLuminance: bounded(p.whiteLuminance, 0, 65536) };
+  }
+  throw new InvalidConfigurationError("Unsupported SDR rendering profile.");
+}
+/** Linear-sRGB/D65 relative-luminance weights: the Y row of the engine's sRGB to XYZ matrix (IEC 61966-2-1). */
+const LUMINANCE = resolveCaptureColorModel().cameraRgbToXyz[1]! as readonly number[];
+/** Writes the three tone-mapped samples of one exposed pixel. Exposed values are finite. */
+export type SdrPixelTone = (red: number, green: number, blue: number, out: Float64Array | number[]) => void;
+/**
+ * Internal shared tone operator: the reference renderer, the native SDR kernel and RAW development call
+ * this one function, so every path has the same per-pixel operation order. Not a root export.
+ */
+export function prepareSdrPixelTone(profile: Pick<SdrRenderingProfile, "toneCurve" | "toneCurveParameters">): SdrPixelTone {
+  const curve = profile.toneCurve, p = profile.toneCurveParameters;
+  if (curve === "identity") return (r, g, b, out) => { out[0] = r; out[1] = g; out[2] = b; };
+  if (curve === "positive-reinhard-per-channel") return (r, g, b, out) => {
+    out[0] = r > 0 ? r/(1+r) : r; out[1] = g > 0 ? g/(1+g) : g; out[2] = b > 0 ? b/(1+b) : b;
+  };
+  let map: (l: number) => number;
+  if (curve === "extended-reinhard-luminance" && p && !("exponent" in p)) {
+    const white2 = p.whiteLuminance*p.whiteLuminance;
+    // Written as L/(1+L)·(1+L/Lw²) so a very large finite L cannot overflow an intermediate product.
+    map = (l: number): number => l/(1+l)*(1+l/white2);
+  } else if (curve === "naka-rushton-luminance" && p && "exponent" in p) {
+    // g(L) = Lⁿ/(Lⁿ+σⁿ) = 1/(1+(σ/L)ⁿ): no overflow for large L.
+    const q = p as Extract<SdrToneCurveParameters, { exponent: number }>;
+    const n = q.exponent, sigma = q.semiSaturation, g = (l: number): number => 1/(1+(sigma/l)**n), white = g(q.whiteLuminance);
+    map = (l: number): number => g(l)/white;
+  } else throw new InvalidConfigurationError("Unsupported SDR rendering profile.");
+  const kr = LUMINANCE[0]!, kg = LUMINANCE[1]!, kb = LUMINANCE[2]!;
+  return (r, g, b, out) => {
+    const l = kr*r+kg*g+kb*b;
+    if (!(l > 0)) { out[0] = r; out[1] = g; out[2] = b; return; }
+    const ratio = map(l)/l, mr = r*ratio, mg = g*ratio, mb = b*ratio;
+    if (!Number.isFinite(mr) || !Number.isFinite(mg) || !Number.isFinite(mb)) throw new InvalidScientificResultError("Tone mapping produced a non-finite sample.");
+    out[0] = mr; out[1] = mg; out[2] = mb;
+  };
+}
 /** Validates every explicit rendering/encoding policy; unknown HDR/display modes fail. */
 export function parseSdrRenderingProfile(value: unknown): SdrRenderingProfile {
-  const r = object(value, ["schemaVersion", "profileId", "profileVersion", "renderingExposureEv", "toneCurve", "gamutHandling",
+  const r = object(value, ["schemaVersion", "profileId", "profileVersion", "renderingExposureEv", "toneCurve", "toneCurveParameters", "gamutHandling",
     "outputDynamicRange", "transferFunction", "bitDepth", "rounding", "dither"]);
+  const toneCurveParameters = parseToneCurveParameters(r.toneCurve, r.toneCurveParameters);
   if (r.schemaVersion !== SDR_RENDERING_SCHEMA_VERSION || typeof r.renderingExposureEv !== "number" ||
       !Number.isFinite(r.renderingExposureEv) || Math.abs(r.renderingExposureEv) > 32 ||
-      (r.toneCurve !== "identity" && r.toneCurve !== "positive-reinhard-per-channel") ||
       (r.gamutHandling !== "clip-components" && r.gamutHandling !== "reject-out-of-range") ||
       r.outputDynamicRange !== "sdr" || r.transferFunction !== "srgb" || (r.bitDepth !== 8 && r.bitDepth !== 16) ||
       r.rounding !== "nearest-ties-up" || r.dither !== "none") throw new InvalidConfigurationError("Unsupported SDR rendering profile.");
   return { schemaVersion: SDR_RENDERING_SCHEMA_VERSION, profileId: publicId(r.profileId), profileVersion: publicId(r.profileVersion),
-    renderingExposureEv: Object.is(r.renderingExposureEv, -0) ? 0 : r.renderingExposureEv, toneCurve: r.toneCurve,
-    gamutHandling: r.gamutHandling, outputDynamicRange: r.outputDynamicRange, transferFunction: r.transferFunction,
+    renderingExposureEv: Object.is(r.renderingExposureEv, -0) ? 0 : r.renderingExposureEv, toneCurve: r.toneCurve as SdrToneCurve,
+    ...(toneCurveParameters === undefined ? {} : { toneCurveParameters }), gamutHandling: r.gamutHandling, outputDynamicRange: r.outputDynamicRange, transferFunction: r.transferFunction,
     bitDepth: r.bitDepth, rounding: r.rounding, dither: r.dither };
 }
 /** Validates declared image state and a bounded finite inline raster; never resolves WB/color. */
@@ -108,8 +188,12 @@ export interface SdrRenderingResult {
     toneChangedSampleCount: number;
     gamutClippedLowSampleCount: number;
     gamutClippedHighSampleCount: number;
-    /** Upstream full-well/ADC/RAW saturation is unavailable, never inferred from output. */
-    captureSaturation: "not-consumed";
+    /**
+     * `not-consumed`: upstream full-well/ADC/RAW saturation is unavailable, never inferred from output.
+     * `consumed-in-raw-development`: RAW development clipped or reconstructed flagged and white-level
+     * samples before white balance (see its highlight diagnostics).
+     */
+    captureSaturation: "not-consumed" | "consumed-in-raw-development";
   };
   /** Platform color management follows this encoded output; no actual display is assessed. */
   displayAdaptation: { kind: "external-platform"; applied: false; displayCapabilities: "unknown" };
@@ -123,15 +207,22 @@ export function calculateSdrRendering(input: SdrRenderingInput): CalculationResu
   const scale = 2**p.renderingExposureEv/value.referenceWhiteValue;
   if (!Number.isFinite(scale) || scale <= 0) throw new InvalidScientificResultError("Rendering scale is non-finite/unrepresentable.");
   let negative = 0, above = 0, changed = 0, low = 0, high = 0;
-  const tone = value.samples.map((sample) => {
-    const exposed = sample*scale;
-    if (!Number.isFinite(exposed)) throw new InvalidScientificResultError("Rendering exposure produced a non-finite sample.");
-    if (exposed < 0) negative++;
-    if (exposed > 1) above++;
-    const mapped = p.toneCurve === "positive-reinhard-per-channel" && exposed > 0 ? exposed/(1+exposed) : exposed;
-    if (mapped !== exposed) changed++;
-    return Object.is(mapped, -0) ? 0 : mapped;
-  });
+  const toneOf = prepareSdrPixelTone(p), exposed = [0, 0, 0], mapped = [0, 0, 0], tone: number[] = [];
+  for (let i = 0; i < value.samples.length; i += 3) {
+    for (let c = 0; c < 3; c++) {
+      const e = value.samples[i+c]!*scale;
+      if (!Number.isFinite(e)) throw new InvalidScientificResultError("Rendering exposure produced a non-finite sample.");
+      if (e < 0) negative++;
+      if (e > 1) above++;
+      exposed[c] = e;
+    }
+    toneOf(exposed[0]!, exposed[1]!, exposed[2]!, mapped);
+    for (let c = 0; c < 3; c++) {
+      const m = mapped[c]!;
+      if (m !== exposed[c]) changed++;
+      tone.push(m === 0 ? 0 : m);
+    }
+  }
   const linear = tone.map((sample) => {
     if (sample < 0 || sample > 1) {
       if (p.gamutHandling === "reject-out-of-range") throw new InvalidConfigurationError("Tone output exceeds the declared SDR gamut range.");
@@ -142,7 +233,8 @@ export function calculateSdrRendering(input: SdrRenderingInput): CalculationResu
   });
   const encoded = linear.map(encodeSrgbComponent);
   const maximum = 2**p.bitDepth-1;
-  const codes = encoded.map((sample) => Math.floor(sample*maximum+.5));
+  // Nearest, ties up: encoded samples are in [0,1], where Math.round is exact ties-up rounding.
+  const codes = encoded.map((sample) => Math.round(sample*maximum));
   return calculatedResult({ schemaVersion: SDR_RENDERING_SCHEMA_VERSION, sourceImageStateId: value.sourceImageStateId,
     profile: p, pixelWidth: value.pixelWidth, pixelHeight: value.pixelHeight, channelOrder: ["red", "green", "blue"],
     whiteBalanceHandling: value.whiteBalanceHandling, toneMappedLinearSamples: tone, outputLinearSamples: linear,
@@ -152,9 +244,9 @@ export function calculateSdrRendering(input: SdrRenderingInput): CalculationResu
     diagnostics: { renderingNegativeSampleCount: negative, renderingAboveReferenceSampleCount: above,
       toneChangedSampleCount: changed, gamutClippedLowSampleCount: low, gamutClippedHighSampleCount: high, captureSaturation: "not-consumed" },
     displayAdaptation: { kind: "external-platform", applied: false, displayCapabilities: "unknown" } },
-  "generic-sdr-rendering-reference", SDR_RENDERING_SCHEMA_VERSION,
+  "generic-sdr-rendering-reference", SDR_RENDERING_MODEL_VERSION,
   ["Deterministic first-party rendering choice, not a calibrated camera look or scene-light model",
-    "Per-channel positive Reinhard can change chromaticity; component clipping is not perceptual gamut mapping",
+    "Per-channel positive Reinhard can change chromaticity; luminance curves preserve chromaticity until component clipping, which is not perceptual gamut mapping",
     "Input WB/color completion is a producer declaration; capture/correction adapter and production activation remain pending",
     "sRGB reference encoding assumptions do not establish actual display luminance, saturation or viewing conditions"]);
 }

@@ -16,6 +16,8 @@ import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseSimulatedCapture, type SimulatedCapture, type CaptureLinearPlane, type CaptureLinearImageState } from "./simulated-capture.js";
 
 export const LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION = "0.1.0" as const;
+/** Version of the `uniform-linear-capture-uint16` model. 0.2.0: exact nearest-ties-up rounding (Math.round). */
+export const LINEAR_CAPTURE_ENCODING_MODEL_VERSION = "0.2.0" as const;
 /** Uniform channel mapping; capture reference white comes from the source plane. */
 export interface LinearCaptureEncoding {
   schemaVersion: typeof LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION;
@@ -120,8 +122,9 @@ export function calculateLinearCaptureEncoding(input: LinearCaptureEncodingInput
     if (sample === encoding.blackValue) return encoding.blackCode;
     if (sample === plane.referenceWhiteValue) return encoding.referenceWhiteCode;
     const mapped = encoding.blackCode+(sample-encoding.blackValue)/width*codeWidth;
-    // Round nearest, exact binary64 ties toward the larger code. Clamp roundoff at endpoints only.
-    return Math.max(0, Math.min(65535, Math.floor(mapped+.5)));
+    // Round nearest, exact binary64 ties toward the larger code (Math.round; Math.floor(x+.5) wrongly
+    // rounds 0.49999999999999994 up). Clamp roundoff at endpoints only; Math.max(0, -0) is +0.
+    return Math.max(0, Math.min(65535, Math.round(mapped)));
   });
   const { storage: _storage, ...sourcePlane } = plane;
   const { planes: _planes, ...captureMetadata } = capture;
@@ -131,7 +134,7 @@ export function calculateLinearCaptureEncoding(input: LinearCaptureEncodingInput
     referenceWhiteValue: plane.referenceWhiteValue, scale, minimumRepresentableValue: minimum, maximumRepresentableValue: maximum,
     headroomFactor: (65535-encoding.blackCode)/codeWidth, maximumRoundingError: .5/scale,
     clippedLowSampleCount: low, clippedHighSampleCount: high, defaultRenderingExposureEv: null, samples },
-  "uniform-linear-capture-uint16", LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION,
+  "uniform-linear-capture-uint16", LINEAR_CAPTURE_ENCODING_MODEL_VERSION,
   ["Deterministic unsigned linear codes; no dithering, transfer curve, tone mapping or serializer tags",
     "Reference white, capture saturation history, integer maximum and display white remain separate",
     "In-range error bound covers ideal rounding only; binary64 arithmetic can add floating-point error"]);

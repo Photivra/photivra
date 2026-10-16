@@ -33,6 +33,15 @@ export function parseSdrRenderingProfile(value: unknown): SdrRenderingProfile;
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
 
+## SDR_RENDERING_MODEL_VERSION
+
+Version of the `generic-sdr-rendering-reference` model. 0.2.0: correct nearest-ties-up rounding
+(`Math.round`; `Math.floor(x+.5)` rounded 0.49999999999999994 up) and luminance tone curves.
+
+```ts
+SDR_RENDERING_MODEL_VERSION = "0.2.0" as const
+```
+
 ## SDR_RENDERING_SCHEMA_VERSION
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -70,7 +79,9 @@ export interface SdrRenderingProfile {
   profileId: string;
   profileVersion: string;
   renderingExposureEv: number;
-  toneCurve: "identity" | "positive-reinhard-per-channel";
+  toneCurve: SdrToneCurve;
+  /** Present exactly for `extended-reinhard-luminance` ({whiteLuminance}) and `naka-rushton-luminance`. */
+  toneCurveParameters?: SdrToneCurveParameters;
   gamutHandling: "clip-components" | "reject-out-of-range";
   outputDynamicRange: "sdr";
   transferFunction: "srgb";
@@ -113,10 +124,39 @@ export interface SdrRenderingResult {
     toneChangedSampleCount: number;
     gamutClippedLowSampleCount: number;
     gamutClippedHighSampleCount: number;
-    /** Upstream full-well/ADC/RAW saturation is unavailable, never inferred from output. */
-    captureSaturation: "not-consumed";
+    /**
+     * `not-consumed`: upstream full-well/ADC/RAW saturation is unavailable, never inferred from output.
+     * `consumed-in-raw-development`: RAW development clipped or reconstructed flagged and white-level
+     * samples before white balance (see its highlight diagnostics).
+     */
+    captureSaturation: "not-consumed" | "consumed-in-raw-development";
   };
   /** Platform color management follows this encoded output; no actual display is assessed. */
   displayAdaptation: { kind: "external-platform"; applied: false; displayCapabilities: "unknown" };
 }
+```
+
+## SdrToneCurve
+
+Tone curves. Per-channel curves act on each exposed component; luminance curves scale all three
+components of a pixel by f(L)/L, with L the linear-sRGB/D65 relative luminance, so chromaticity is
+preserved before gamut handling.
+- `identity`: f(x)=x.
+- `positive-reinhard-per-channel`: f(x)=x/(1+x) for x>0 (Reinhard et al. 2002, eq. 3), per channel.
+- `extended-reinhard-luminance`: f(L)=L(1+L/Lw²)/(1+L) (Reinhard et al. 2002, eq. 4); L=Lw maps to 1.
+- `naka-rushton-luminance`: f(L)=g(L)/g(Lw), g(L)=Lⁿ/(Lⁿ+σⁿ) (Naka & Rushton 1966; Reinhard & Devlin
+  2005): a sigmoid in log luminance with contrast n and mid-response σ, i.e. a film-like S-curve.
+
+```ts
+export type SdrToneCurve = "identity" | "positive-reinhard-per-channel" | "extended-reinhard-luminance" | "naka-rushton-luminance";
+```
+
+## SdrToneCurveParameters
+
+Required only by luminance curves; all values are relative linear luminance after rendering exposure.
+
+```ts
+export type SdrToneCurveParameters =
+  | { whiteLuminance: number }
+  | { exponent: number; semiSaturation: number; whiteLuminance: number };
 ```

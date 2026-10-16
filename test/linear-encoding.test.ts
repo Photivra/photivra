@@ -29,6 +29,9 @@ describe("deterministic linear uint16 encoding", () => {
       (.5-Number.EPSILON)/1024, (.5+Number.EPSILON)/1024, -0])).value;
     expect(r.samples).toEqual([1, 2, 3, 0, 1, 0]);
     expect(r.clippedLowSampleCount).toBe(0); expect(r.clippedHighSampleCount).toBe(0);
+    // The largest double below 0.5 maps to exactly 0.49999999999999994 codes: nearest is 0
+    // (Math.floor(x+0.5) returned 1 because x+0.5 rounds to 1 in binary64).
+    expect(calculateLinearCaptureEncoding(request([0.49999999999999994/1024, 0, 0, 0, 0, 0])).value.samples[0]).toBe(0);
   });
   it("can preserve representable negatives with a black-code offset and reject negatives independently", () => {
     const input = request([-1, -.5, 0, .5, 1, 2]);

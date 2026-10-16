@@ -77,6 +77,7 @@ export async function runNativeEnvironmentWorkload(kind: NativeEnvironmentWorklo
     maximumRetainedPayloadBytes: output.raw.codes.length*10 }, async (): Promise<void> => {});
   await development.run();
   const developed = development.takeOutput(); development.dispose();
-  return { photoSha256: sha256(Float64Array.from(photo)), rawSha256: sha256(output.raw.codes),
+  // Development took ownership of the RAW arrays; the developed output returns the same RAW.
+  return { photoSha256: sha256(Float64Array.from(photo)), rawSha256: sha256(developed.raw.codes),
     developedSha256: sha256(developed.integerSamples), providerEvaluationCount: output.providerEvaluationCount };
 }

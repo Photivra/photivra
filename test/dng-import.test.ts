@@ -45,9 +45,10 @@ describe("DNG import", () => {
       const dng = parseDngRawImage({ bytes: pair.dng.bytes });
       expect(dng.width).toBe(frame.nativePixelWidth); expect(dng.height).toBe(frame.nativePixelHeight);
       expect(Array.from(dng.codes)).toEqual(frame.samples.map((s) => s.rawCode));
-      expect(dng).toMatchObject({ byteOrder: "little-endian", dngVersion: [1, 1, 0, 0], make: "Photivra", model: "Photivra Virtual Camera",
+      expect(dng).toMatchObject({ byteOrder: "little-endian", make: "Photivra", model: "Photivra Virtual Camera",
         uniqueCameraModel: pair.uniqueCameraModel, bitsPerSample: 16, compression: "uncompressed", photometricInterpretation: "cfa", samplesPerPixel: 1,
-        whiteLevel: [frame.samples[0]!.digitalSaturationCode], calibrationIlluminant1: 21, calibrationIlluminant2: null, linearizationTable: null });
+        whiteLevel: [Math.min(...frame.samples.map((s) => s.digitalSaturationCode))], calibrationIlluminant1: 21, calibrationIlluminant2: null, linearizationTable: null });
+      expect(dng.dngVersion?.[0]).toBe(1);
       expect(dng.rawDataUniqueId).toBe(pair.rawDataUniqueId);
       // CFA pattern and black levels agree with every site's own channel and pedestal (origin = active-area top-left).
       const channels = ["red", "green", "blue"];

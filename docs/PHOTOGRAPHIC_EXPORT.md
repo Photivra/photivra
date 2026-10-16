@@ -19,8 +19,9 @@ timestamp, and own saving the bytes.
 This is a bounded reference implementation. The entire native frame must contain
 at most **4,096 sites**, with complete single-frame, one-site-per-native-sample,
 registered 2×2 RGB Bayer coverage. RAW codes remain in native row-major CFA
-coordinates. A fixed repeating black tile and common digital white code are
-required. Below-black codes and original saturation codes are preserved without
+coordinates. A fixed repeating black tile is required, and every sample carries
+its readout's effective white level, conversion gain and read noise, constant per
+CFA phase. Below-black codes and original saturation codes are preserved without
 stretching to the 16-bit container limit. This does not support typical camera
 resolutions or establish calibrated camera behavior.
 
@@ -39,11 +40,56 @@ must use the declared RGB order and exact CFA profile. The reference white must
 map to positive camera-neutral coordinates.
 
 WB is explicitly `not-required` with no captured intent, or
-`apply-resolved-sensor-gains` with intent. Existing resolved camera-channel gains
-apply once before camera-to-XYZ and the existing XYZ-to-linear-sRGB transform.
-No second WB estimator runs. Existing SDR rendering handles rendering exposure,
-named tone mapping, clipping, transfer and 8-bit quantization. Rendering clipping
-is separate from RAW saturation.
+`apply-resolved-sensor-gains` with intent. No second WB estimator runs. Existing
+SDR rendering handles rendering exposure, named tone mapping, clipping, transfer
+and 8-bit quantization. Rendering clipping is separate from RAW saturation.
+
+### Development model (2.0: `sensor-color-development` 2.0.0, `processed-sensor-raw-sdr` 0.2.0)
+
+Development reads the attached RAW codes directly through the shared typed
+kernel (`src/capture/raw-development-kernel.ts`), the same kernel used by
+`createNativeRawDevelopmentTask`, so the bounded export and packed native
+development are byte-identical for the same RAW and policy.
+
+1. **Effective white level.** Each site is normalized as
+   `(code − black)/(W − black)`, where `W` is the CFA phase's effective white
+   (full-saturation) code, `calculateEffectiveSaturationCode`:
+   `I = B + min(C, P)/G`, `A = min(Amax, round(I + INL(I)))`,
+   `W = min(D, round((A − B)·d + B))` (capacity C, pre-ADC saturation P,
+   conversion gain G, black B, optional INL and digital gain d, digital
+   saturation D). Previously development divided by the digital full scale D, so
+   a sensor clipping at code 20,512 of 65,535 developed white to 0.31. This
+   follows the DNG 1.7 `WhiteLevel` definition (the fully saturated encoding
+   level) and the EMVA 1288 saturation point.
+2. **Saturation consumed.** A site whose code reaches `W` or that carries any
+   saturation flag (physical, pre-ADC or digital) is set to exactly 1 before
+   reconstruction. Signed below-black values are preserved.
+3. **White balance once, for any matrix.** With normalized channels `c`,
+   `linear sRGB = X · M · diag(w) · highlight(diag(g) · c)`, where `M` is the
+   declared camera→XYZ matrix, `X` XYZ→linear sRGB, `w = M⁻¹·XYZ(D65)`
+   normalized to green (the camera neutral of D65, exactly [1,1,1] for
+   white-normalized profiles within 1e-12) and `g` the resolved gains. Gains map
+   the scene white to equal channels and `diag(w)` maps equal channels to D65,
+   so a grey card under the gains' illuminant develops neutral for every
+   invertible `M`. Without an intent, `g = 1/w` and development equals `X·M·c`.
+   Before 2.0 the gains were followed directly by `M`, applying WB twice when `M`
+   was not white-normalized (review r1: a D65 grey card with camera neutral
+   [0.45, 1, 0.65] developed to (0.40, 0.18, 0.277)).
+4. **Highlights** (`highlightMode`, default `clip`). `clip` limits every
+   WB-scaled channel to the smallest gain, the level at which the least-amplified
+   channel saturates, so clipped pixels stay neutral (the documented default of
+   dcraw `-H 0` and of common raw converters). `reconstruct` is an engine-defined
+   approximation: with `s` the largest normalized channel and
+   `t = clamp((s − 0.8)/0.2, 0, 1)`, the unclipped WB result `u` blends toward
+   neutral `n = max_k min(u_k, g_min)`: `(1 − t)·u + t·n`. Below 0.8 of white the
+   colour is unchanged and unclipped (no hue shift from channel clipping); at
+   white it is neutral. This follows the highlight-desaturation idea of Guo,
+   Cheng & Hu, "Correcting over-exposure in photographs" (CVPR 2010); it does not
+   recover clipped scene signal. `highlight` diagnostics report saturated pixels,
+   clipped WB samples and reconstructed pixels.
+
+`source.value.linearPlane` keeps its documented digital-span normalization for
+review; development no longer reads it.
 
 Only 1:1 output cropping is supported. The final oriented crop is translated
 through the active crop to exact native coordinates. JPEG pixels receive
@@ -98,13 +144,40 @@ correction XMP. The additive contract retains export schema 0.1.0.
 
 ## Files and metadata
 
-DNG uses little-endian TIFF, version/backward version 1.1, one uncompressed
-16-bit CFA strip, CFA/black/white tags, inverse XYZ-to-camera ColorMatrix1,
-D65 CalibrationIlluminant1 and normalized AsShotNeutral. Rational values use
-bounded decimal approximations (maximum denominator 10^9); unsupported range
-or nonzero values rounding to zero fail. AsShotNeutral records development intent
-and does not alter RAW codes. No preview, compression, opcodes, NoiseProfile,
-calibration signature, RawImageDigest or NewRawImageDigest is claimed.
+DNG uses little-endian TIFF, DNGVersion 1.4.0.0 (backward version 1.1.0.0),
+one uncompressed 16-bit CFA strip, CFA/black/white tags, inverse XYZ-to-camera
+ColorMatrix1 and D65 CalibrationIlluminant1. Rational values use bounded decimal
+approximations (maximum denominator 10^9); unsupported range or nonzero values
+rounding to zero fail. Values written, all from engine-known quantities (DNG
+Specification 1.7.1.0):
+
+- **WhiteLevel**: the smallest per-phase effective white level (one value,
+  SamplesPerPixel = 1), so no channel reads as unsaturated above its saturation.
+- **BlackLevel / CFAPattern**: phased from the **ActiveArea** origin, because DNG
+  applies BlackLevelRepeatDim and the CFA pattern to the ActiveArea-cropped
+  image. Before 2.0 both used absolute native phase, which is wrong for odd
+  active offsets.
+- **AsShotNeutral**: the camera neutral of the assumed scene white,
+  `g_green/g` (the D65 camera neutral `w` without an intent). Before 2.0 it was
+  written as `w/g`, the camera white squared for non-normalized matrices.
+- **ForwardMatrix1**: `Bradford(D65→D50) · M · diag(M⁻¹·XYZ(D65))` (the engine's `chromaticAdaptationMatrix`), mapping
+  white-balanced camera [1,1,1] to the D50 white (Lam 1985 Bradford matrix, as in
+  the ICC profile-connection space).
+- **BaselineExposure**: the rendering profile's `renderingExposureEv`, so a raw
+  converter's default rendering matches the paired JPEG's exposure intent.
+- **AnalogBalance**: [1,1,1]; the readout model has no per-channel analog WB.
+- **NoiseProfile** (DOUBLE, one (S, O) pair per CFAPlaneColor plane): with
+  `x = (code − black)/(WhiteLevel − black)`, `var(x) = S·x + O`,
+  `S = 1/(G·span)`, `O = (σ²/G² + 1/12)/span²` from the per-channel conversion
+  gain G (e⁻/DN), read noise σ (e⁻) and uniform ADC quantization. Photo and dark
+  shot noise are Poisson (variance = mean electrons). PRNU, DSNU and fixed-pattern
+  noise are not modeled and not included. Written only when every phase of a
+  channel has the same gain, read noise and black; otherwise omitted.
+
+AsShotNeutral records development intent and does not alter RAW codes. No
+preview, compression, opcodes, calibration signature, RawImageDigest or
+NewRawImageDigest is claimed. XMP `RawPipelineVersion` and
+`ProcessedPipelineVersion` record `PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION` (0.2.0).
 
 JPEG is baseline sequential 8-bit YCbCr444 with an explicit constant quantization
 step 1..255, analytical DCT, custom canonical Huffman tables and byte stuffing.
@@ -167,8 +240,8 @@ Private paths/GPS/serials and unsupported rights/calibration/AI fields are rejec
 
 - SimulationHash is SHA-256 over sorted finite canonical JSON containing the
   entire RAW frame, including capture identity/history/float planes, phase
-  profiles, region, color/scene profiles, WB policy, rendering, JPEG step and
-  the optional correction choice.
+  profiles, region, color/scene profiles, WB policy, rendering, JPEG step,
+  highlight mode, pipeline version and the optional correction choice.
   Save timestamp and artifact IDs are excluded. History changes may change the
   hash without changing decoded pixels.
 - RawDataUniqueID is the first 128 bits of SHA-256 over versioned native
@@ -191,10 +264,16 @@ Reconstruction/rendering calculation envelopes remain available for review.
 import { createPhotographicExportPair, parsePhotographicExportInput,
   type PhotographicExportInput } from "@photivra/engine";
 
-async function exportCommittedRaw(input: PhotographicExportInput) {
-  return createPhotographicExportPair(parsePhotographicExportInput(input));
+async function exportCommittedRaw(input: PhotographicExportInput, signal?: AbortSignal) {
+  return createPhotographicExportPair(parsePhotographicExportInput(input), signal ? { signal } : {});
 }
 ```
+
+`createPhotographicExportPair(input, { signal })` checks the optional
+`AbortSignal` before work and after every hash, and rejects with
+"Photographic export aborted." without returning a partial pair. Missing
+`crypto.subtle` fails before any work with a domain error: browsers expose Web
+Crypto only in secure contexts (HTTPS or localhost); Node.js 22+ provides it.
 
 Callers supply actual committed input and explicit profile evidence. Test profiles
 are synthetic and are not suggested physical calibrations.
@@ -238,5 +317,5 @@ sensor-channel gain → camera-to-XYZ → linear-sRGB calculation and conditione
 inversion. Export retains profile/evidence validation, CFA binding, one-time WB
 authorization, geometry and DNG/JPEG container mapping. The adapter consumes
 validated data and does not infer sensor calibration or reuse the distinct ideal
-virtual-camera input contract. Existing arithmetic order and error policies are
-preserved; no public API or schema change is introduced.
+virtual-camera input contract. Version 2.0.0 of that model changes WB, white
+level and highlight handling as documented above.

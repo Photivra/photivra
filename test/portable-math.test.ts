@@ -78,7 +78,7 @@ describe("engine-portable floating-point helpers (numeric review #1, #2)", () =>
     f.input.exposure.exposure.focalLengthMm = 18;
     const plan = JSON.parse(JSON.stringify(calculateNativeRawPlan(f.input))) as NativeRawOutput["plan"];
     const develop = (p: NativeRawOutput["plan"]) => (): unknown => createNativeRawDevelopmentTask({
-      raw: { plan: p, codes: new Uint16Array(4), blackLevels: new Uint16Array(4), digitalSaturationCodes: new Uint16Array(4), saturationFlags: new Uint8Array(4) },
+      raw: { plan: p, codes: new Uint16Array(4), blackLevels: new Uint16Array(4), digitalSaturationCodes: new Uint16Array(4), saturationFlags: new Uint8Array(4), effectiveSaturationCodes: new Uint16Array(4) },
       phaseProfiles: [], colorProfile: {} as never, whiteBalance: "not-required", rendering: {} as never, maximumRetainedPayloadBytes: 1e6
     }, () => Promise.resolve());
     const withEquivalent = (value: number): NativeRawOutput["plan"] => ({ ...plan, exposure: { ...plan.exposure, equivalentFocalLength35Mm: value }, frame: { ...plan.frame, capture: { ...plan.frame.capture, equivalentFocalLength35Mm: value } } }) as NativeRawOutput["plan"];

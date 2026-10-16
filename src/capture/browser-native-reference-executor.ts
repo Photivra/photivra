@@ -34,6 +34,10 @@ import {
 } from "./browser-native-reference-geometry.js";
 import type { SensorApertureRay } from "../optics/sensor-aperture-rays.js";
 import type { NativeRawOutput, NativeRawTaskState } from "./native-raw.js";
+import {
+  calculateSiteEffectiveSaturationCode,
+  createPhaseWhiteLevelAccumulator
+} from "./raw-white-level.js";
 import type { PreparedBrowserNativeReferenceEventPlan } from "./browser-native-reference-plan.js";
 import type { PreparedBrowserNativeReferenceSite } from "./browser-native-reference-site.js";
 import {
@@ -592,6 +596,7 @@ export function createBrowserNativeReferenceTask(
       output.blackLevels.fill(0);
       output.digitalSaturationCodes.fill(0);
       output.saturationFlags.fill(0);
+      output.effectiveSaturationCodes.fill(0);
     }
     output = null;
     firstRawSite = undefined;
@@ -616,12 +621,27 @@ export function createBrowserNativeReferenceTask(
       state = "running";
 
       try {
+        const whiteLayout =
+          eventPlan.rawPlan.frame.colorSamplingProfile.layout;
+        if (whiteLayout.kind !== "periodic-mosaic") {
+          throw new InvalidConfigurationError(
+            "Browser-native prepared reference requires periodic CFA."
+          );
+        }
+        const white = createPhaseWhiteLevelAccumulator(
+          eventPlan.rawPlan.exposure.geometry.nativeRaster.pixelWidth,
+          whiteLayout.repeatWidthSites,
+          whiteLayout.repeatHeightSites
+        );
         output = {
           plan: eventPlan.rawPlan,
           codes: new Uint16Array(eventPlan.rawPlan.pixelCount),
           blackLevels: new Uint16Array(eventPlan.rawPlan.pixelCount),
           digitalSaturationCodes: new Uint16Array(eventPlan.rawPlan.pixelCount),
-          saturationFlags: new Uint8Array(eventPlan.rawPlan.pixelCount)
+          saturationFlags: new Uint8Array(eventPlan.rawPlan.pixelCount),
+          effectiveSaturationCodes: new Uint16Array(
+            whiteLayout.repeatWidthSites * whiteLayout.repeatHeightSites
+          )
         };
 
         for (let start = 0; start < sites.length; start += batchSize) {
@@ -711,6 +731,14 @@ export function createBrowserNativeReferenceTask(
               Number(readout.physicalScalarSaturationApplied) |
               (Number(readout.preAdcSaturationApplied) << 1) |
               (Number(readout.digitalSaturationApplied) << 2);
+            white.record(
+              entry.nativeIndex,
+              calculateSiteEffectiveSaturationCode(
+                readout,
+                entry.rawSite.readoutProfile,
+                entry.rawSite.regimeId
+              )
+            );
           }
 
           work.actual.completedBatchCount += 1;
@@ -735,6 +763,7 @@ export function createBrowserNativeReferenceTask(
           );
         }
 
+        output.effectiveSaturationCodes.set(white.finish());
         firstRawSite = undefined;
         state = "completed";
       } catch (error) {
