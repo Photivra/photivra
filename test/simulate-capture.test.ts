@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
-import { InvalidConfigurationError, SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX, calculateNativeRawPlan, simulateCapture,
+import { InvalidConfigurationError, SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX, calculateNativeRawPlan, resolveGenericEquipmentTierCatalog, simulateCapture,
   type SimulateCaptureResult } from "../src/index.js";
 
 /** Mean black-subtracted, white-normalized RAW level of one CFA channel over the active area. */
@@ -151,6 +151,23 @@ describe("simulateCapture facade", { timeout: 60_000 }, () => {
     const stages = new Set<string>();
     await simulateCapture({ scene: { preset: "uniform" }, ...small, output: { width: 4, height: 4, format: "jpeg", whiteBalance: "auto" }, onProgress: (p) => { stages.add(p.stage); } });
     expect([...stages]).toEqual(["raw", "white-balance", "development", "jpeg"]);
+  });
+
+  it("accepts a full camera record, exposure compensation, tone parameters and caller illuminants", async () => {
+    const preset = resolveGenericEquipmentTierCatalog({ presetVersion: "2.0.0" }).find((p) => p.tier === "consumer")!;
+    const flat = (value: number): { wavelengthNanometers: number; value: number }[] => [380, 580, 780].map((w) => ({ wavelengthNanometers: w, value }));
+    const r = await simulateCapture({ camera: preset, scene: { preset: "uniform" }, ...small, exposure: { mode: "aperture-priority", compensationStops: 1 },
+      illuminant: { kind: "daylight", correlatedColorTemperatureKelvin: 6500, basis: { s0: flat(100), s1: flat(0), s2: flat(0), datasetId: "test-flat-basis" } },
+      output: { width: 4, height: 4, toneCurve: "extended-reinhard-luminance", toneCurveParameters: { whiteLuminance: 4 }, highlightMode: "reconstruct" } });
+    expect(r.provenance.cameraPresetId).toBe("photivra-consumer");
+    expect(r.scene.illuminant.id).toBe("cie-daylight-6500K");
+    // +1 stop of compensation doubles the aperture-priority shutter.
+    const base = await simulateCapture({ camera: preset, scene: { preset: "uniform" }, ...small, exposure: { mode: "aperture-priority" } });
+    expect(r.exposure.settings.shutterSeconds / base.exposure.settings.shutterSeconds).toBeCloseTo(2, 4); // illuminants differ; metering quadrature agrees to ~1e-6
+    const spectrum = await simulateCapture({ scene: { preset: "uniform" }, ...small, illuminant: { kind: "spectrum", spectrum: { kind: "tabulated", samples: flat(1) }, label: "equal energy" } });
+    expect(spectrum.scene.illuminant.description).toContain("equal energy");
+    await expect(simulateCapture({ scene: { preset: "uniform" }, ...small, output: { toneCurve: "naka-rushton-luminance" } })).rejects.toThrow(InvalidConfigurationError);
+    await expect(simulateCapture({ scene: { preset: "uniform" }, ...small, lens: { pupilSampling: { radialSamples: 0, angularSamples: 8 } } })).rejects.toThrow(InvalidConfigurationError);
   });
 
   it("rejects malformed input with domain errors", async () => {

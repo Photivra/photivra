@@ -39,7 +39,7 @@ import type { NativeEnvironmentOpticalStage } from "../capture/native-environmen
 import { createNativeRawDevelopmentTask, type NativeRawDevelopmentInput, type RawHighlightDiagnostics } from "../capture/native-raw-development.js";
 import type { RawFrameReconstructionPhaseProfile } from "../capture/raw-frame-reconstruction.js";
 import type { ExportSensorColorProfile } from "../capture/photographic-export.js";
-import type { SdrRenderingProfile, SdrToneCurve, SdrToneCurveParameters, SdrRenderingResult } from "../output/sdr-rendering.js";
+import { parseSdrRenderingProfile, type SdrRenderingProfile, type SdrToneCurve, type SdrToneCurveParameters, type SdrRenderingResult } from "../output/sdr-rendering.js";
 import type { RawHighlightMode } from "../color/sensor-color-development.js";
 import { createPrintJpegTask } from "../output/print-jpeg.js";
 import type { SimulateEnvironmentSensorRawFrameInput } from "../capture/environment-raw-producer.js";
@@ -530,6 +530,15 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   } else fail("Unknown output.whiteBalance.");
   const intentOf = (state: ResolvedWhiteBalanceState | null): CaptureWhiteBalanceIntent | null => (state ? createCaptureWhiteBalanceIntent({ state }) : null);
 
+  const rendering: SdrRenderingProfile = { schemaVersion: "0.1.0", profileId: "facade-sdr", profileVersion: "1", renderingExposureEv: 0, toneCurve,
+    ...(outputOptions.toneCurveParameters === undefined ? {} : { toneCurveParameters: outputOptions.toneCurveParameters as SdrToneCurveParameters }),
+    gamutHandling: "clip-components", outputDynamicRange: "sdr", transferFunction: "srgb", bitDepth: format === "srgb-16" ? 16 : 8, rounding: "nearest-ties-up", dither: "none" };
+  assume("output.rendering", "model", { renderingExposureEv: 0, gamutHandling: "clip-components" },
+    "Developed linear sRGB/D65 with the RAW white level mapped to display white, no exposure push, out-of-gamut components clipped.");
+  // Rendering choices are validated before any radiance work, so a bad tone curve fails fast.
+  parseSdrRenderingProfile(rendering);
+  if (highlightMode !== "clip" && highlightMode !== "reconstruct") fail("output.highlightMode must be clip or reconstruct.");
+
   // Frame profiles
   const evidence = FACADE_EVIDENCE;
   const colorSamplingProfile = { schemaVersion: "0.1.0" as const, profileId: IDS.cfa, evidence, coordinateSystem: "native-sensor-color-sampling-site-index" as const,
@@ -709,11 +718,6 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const colorProfile: ExportSensorColorProfile = { schemaVersion: "0.1.0", profileId: IDS.spectral, profileVersion: SIMULATE_CAPTURE_FACADE_VERSION, colorSamplingProfileId: IDS.cfa,
     channelIds: ["red", "green", "blue"], scientificStatus: "approximation", referenceIlluminant: "D65", normalizedCameraChannelsToXyz: CAMERA_TO_XYZ,
     evidence, limitations: ["Diagonal camera→XYZ matrix of the idealized colorimetric (Luther–Ives) sensor; exact up to spectral quadrature."] };
-  const rendering: SdrRenderingProfile = { schemaVersion: "0.1.0", profileId: "facade-sdr", profileVersion: "1", renderingExposureEv: 0, toneCurve,
-    ...(outputOptions.toneCurveParameters === undefined ? {} : { toneCurveParameters: outputOptions.toneCurveParameters as SdrToneCurveParameters }),
-    gamutHandling: "clip-components", outputDynamicRange: "sdr", transferFunction: "srgb", bitDepth: format === "srgb-16" ? 16 : 8, rounding: "nearest-ties-up", dither: "none" };
-  assume("output.rendering", "model", { renderingExposureEv: 0, gamutHandling: "clip-components" },
-    "Developed linear sRGB/D65 with the RAW white level mapped to display white, no exposure push, out-of-gamut components clipped.");
   const development: Omit<NativeRawDevelopmentInput, "raw"> = { phaseProfiles: bilinearPhaseProfiles(), colorProfile,
     whiteBalance: whiteBalanceState ? "apply-resolved-sensor-gains" : "not-required", rendering, highlightMode,
     maximumRetainedPayloadBytes: plan.outputBytes + width * height * 3 * (rendering.bitDepth / 8) };
