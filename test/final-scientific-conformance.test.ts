@@ -11,7 +11,7 @@ import { tierProductionRequest, registerTierFixture } from "./helpers/tier-produ
 import { loadPhotographicExportInput } from "./helpers/photographic-export-fixture.js";
 import { evaluator } from "./helpers/environment-raw-fixture.js";
 
-const f=loadBasicReferenceFixture(), catalog=resolveGenericEquipmentTierCatalog({presetVersion:"1.0.0"});
+const f=loadBasicReferenceFixture(), catalog=resolveGenericEquipmentTierCatalog({presetVersion:"2.0.0"});
 const evidence=[f.provenance];
 const radiance=f.target.reflectance*f.illumination.spectralIrradianceWattsPerSquareMeterNanometer/Math.PI*1e-9;
 const derivation=parseSceneRadianceMeteringDerivationProfile({schemaVersion:"0.1.0",derivationId:"conformance-relative-reduction",
