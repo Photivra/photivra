@@ -137,7 +137,7 @@ for (const path of paths) {
 // targets use absolute GitHub URLs (validated by docs:check).
 // Known coordinator-owned exception: CHANGELOG.md links docs/NATIVE_RAW_AND_PRINT.md relatively.
 // Remove this entry once that link is made absolute.
-const LINK_EXCEPTIONS = new Set(["CHANGELOG.md -> docs/NATIVE_RAW_AND_PRINT.md"]);
+const LINK_EXCEPTIONS = new Set();
 for (const path of paths.filter((p) => p.endsWith(".md"))) {
   const prose = (await readFile(path, "utf8")).replace(/```[\s\S]*?```/gu, "");
   for (const match of prose.matchAll(/\]\(([^\s)]+)\)/gu)) {
