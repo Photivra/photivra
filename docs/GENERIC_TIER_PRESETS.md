@@ -2,7 +2,7 @@
 
 Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
 
-`resolveGenericEquipmentTierCatalog({ presetVersion: "1.0.0" })` returns immutable
+`resolveGenericEquipmentTierCatalog({ presetVersion: "2.0.0" })` returns immutable
 Consumer, Prosumer and Professional body/lens reference bundles. These are
 Photivra-owned synthetic educational approximations, with unquantified physical
 uncertainty. They are not measured calibration, commercial camera emulation or a
@@ -25,7 +25,7 @@ import {
 } from "@photivra/engine";
 
 const selection = createGenericEquipmentTierSelection({
-  presetVersion: "1.0.0",
+  presetVersion: "2.0.0",
   bodyTier: "consumer",
   lensTier: "professional"
 });
@@ -35,8 +35,8 @@ const saved = parseGenericEquipmentTierSelection(
 const profiles = resolveGenericEquipmentTierLensProfiles({
   selection: saved,
   state: {
-    bodyId: "photivra-consumer-body", bodyVersion: "1.0.0",
-    lensId: "photivra-professional-prime", lensVersion: "1.0.0",
+    bodyId: "photivra-consumer-body", bodyVersion: "2.0.0",
+    lensId: "photivra-professional-prime", lensVersion: "2.0.0",
     focalLengthMm: 50, aperture: 4, focusDistanceM: 5,
     captureMode: "still", frameRateHz: 0, stabilizationMode: "off",
     outputWidth: 600, outputHeight: 400
@@ -91,14 +91,32 @@ is a contract, not proof that prefiltering was performed.
 | Maximum standard exposure index | 6400 | 12800 | 25600 |
 | Maximum declared cadence (fps) | 4 | 8 | 12 |
 | Maximum logical sequence frames | 8 | 16 | 24 |
-| Base electronic RMS read noise (electrons) | 6 | 3 | 2 |
+| ADC bit depth / black level / white (codes) | 12 / 256 / 4095 | 14 / 1024 / 16383 | 14 / 1024 / 16383 |
+| Base-ISO saturation signal Q₀ (electrons at ADC white) | 20000 | 40000 | 60000 |
+| Electrons per code at ISO 100 | 5.21 | 2.60 | 3.91 |
+| Maximum analog gain (digital gain above) | 32× (ISO 6400 adds 2× digital) | 64× (ISO 12800 adds 2×) | 128× (ISO 25600 adds 2×) |
+| Low-conversion-gain RMS read noise, ISO 100–400 (electrons) | 6 | 3 | 2 |
+| High-conversion-gain RMS read noise, ISO ≥ 800 (electrons) | 2.5 | 1.4 | 1.1 |
+| High-conversion-gain storage limit (electrons) | 6000 | 12000 | 16000 |
 | Data readout duration (seconds) | 0.030 | 0.015 | 0.008 |
+| Rolling variant top-to-bottom skew (seconds) | 0.030 | 0.015 | 0.008 |
+| Opt-in fixed pattern: PRNU / DSNU / hot fraction × multiplier | 1% / 30% / 2e-4 × 50 | 0.6% / 20% / 1e-4 × 40 | 0.4% / 15% / 5e-5 × 30 |
+| Opt-in fixed pattern: row / column offset RMS (electrons) | 0.6 / 0.4 | 0.3 / 0.2 | 0.15 / 0.1 |
 | Pitch/yaw/roll stabilization gain | 0.35 | 0.65 | 0.85 |
 | Continuous AF mode | unavailable | available | available |
 | Highlight-weighted meter/ambience AWB | unavailable | available | available |
 
-ISO selects explicit readout regimes on a finite power-of-two setting grid.
-It is not a photon/noise equation. Full-well/storage physics is not inferred from
+Preset version **2.0.0** (breaking from 1.0.0): every sensor number above is a synthetic educational design value
+chosen to be a plausible order of magnitude for interchangeable-lens sensors, not data from any camera. ISO selects
+one explicit readout regime per setting (`iso-100`, `iso-200`, …) on the finite power-of-two grid, derived by
+`createIsoGainReadoutRegimes()` (see [MOTION_AND_SIGNAL.md](MOTION_AND_SIGNAL.md#iso-gain-fixed-pattern-noise-and-dark-current-temperature-200)):
+electrons per code fall by the ISO ratio, base-ISO saturation lands exactly on ADC white, a correctly exposed mid-grey
+keeps the same normalized RAW level at every ISO, and read noise switches from the low- to the high-conversion-gain value
+at ISO 800. Each regime records its derivation in `exposureIndexGain`, and the producer rejects a regime whose recorded
+ISO differs from the committed capture ISO. ISO is still not a photon/noise equation.
+The `rollingReadoutTiming` and `fixedPatternNoise` body assets are opt-in: the default timing is global and no fixed
+pattern is applied unless a caller attaches the profile to every site. Lens transmission is a flat synthetic
+380–780 nm spectrum (1.0.0 was 540–560 nm), so ordinary visible channel responses no longer fall outside it. Full-well/storage physics is not inferred from
 pre-ADC saturation or ADC white. AF uses the same ideal instantaneous actuator
 for every tier; mode availability does not establish faster or more accurate
 tracking. Data readout duration does not establish exposure scan or flash motion
@@ -199,7 +217,7 @@ export wiring and broader stabilization/flash acceptance remain separate work.
 
 ## Readout-to-file acceptance
 
-`test/generic-tier-output-acceptance.test.ts` binds the exact body 1.0.0
+`test/generic-tier-output-acceptance.test.ts` binds the exact body 2.0.0
 readout/signal-chain profiles to an explicitly declared owned 2×2 Bayer/native-still
 test topology. The topology IDs are registered to those required by the assets;
 matching channel names alone is not the binding. Charge expectations, physical
@@ -207,15 +225,14 @@ storage capacity and ideal test-color interpretation remain independent syntheti
 fixture contracts. This tiny raster is structural regression evidence and is not
 an external-editor acceptance file or a realistic pixel sampling model.
 
-Nine cases verify that ISO 100/400 resolve the same base regime and ISO 800 selects
-the explicitly declared high regime. Expected photons/charge and the realized
-stored charge remain unchanged while electronic noise and conversion gain change.
-Independent signed-signal/pedestal/quantization arithmetic predicts each RAW code.
-The producer itself still consumes an explicit regime: changing ISO metadata
-without changing that regime cannot alter its samples. Unsupported ISO settings
-reject in the upstream capability resolver.
+The cases verify that ISO 100, 400 and 800 resolve the regimes `iso-100`, `iso-400` and `iso-800`, that electrons per
+code fall by the ISO ratio and that read noise drops in the high-conversion-gain mode. Expected photons/charge and the
+realized stored charge remain unchanged. Independent signed-signal/pedestal/quantization arithmetic predicts each RAW
+code. A regime whose recorded ISO differs from the committed capture ISO is rejected; unsupported ISO settings reject in
+the upstream capability resolver. A further case attaches the tier's fixed-pattern profile and checks that it is
+deterministic, independent of the capture seed and required on every site of a frame.
 
-Both regimes export through all four orientations. Stored DNG codes match every
+ISO 100 and 800 export through all four orientations. Stored DNG codes match every
 native produced sample; downstream +1 EV preserves codes, capture/noise and RAW
 image identity while changing processed pixels. Repeated JPEG export is deterministic.
 These are genuine producer-to-file checks, with upstream radiometry and producer

@@ -15,9 +15,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 ## SENSOR_RAW_PRODUCER_NOISE_MODEL
 
 Capture noise model identity binds the hashed per-site seed schedule and signed electronic readout behavior.
+0.4.0: exact ties-up ADC rounding, normal-approximation Poisson draws for means of 1e9 and above, optional
+post-ADC digital gain/INL and optional per-sensor fixed-pattern noise.
 
 ```ts
-SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.3.0" } as const)
+SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.4.0" } as const)
 ```
 
 ## SENSOR_RAW_PRODUCER_SCHEMA_VERSION
@@ -84,6 +86,8 @@ export interface SensorRawProducerSiteInput {
   operatingStateId: string;
   readoutProfile: SensorReadoutConversionProfile;
   regimeId: string;
+  /** Optional per-sensor-instance fixed pattern; one profile for the whole frame. Omission disables FPN. */
+  fixedPatternNoise?: SensorFixedPatternNoiseProfile;
 }
 ```
 
