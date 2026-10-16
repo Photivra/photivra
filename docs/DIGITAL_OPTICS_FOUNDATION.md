@@ -30,8 +30,6 @@ prepareGeometricMapping() stores canonical transforms, a deterministic semantic 
 
 Transforms are listed in destination-to-source order. Affine maps represent breathing, rotation, crop and digital stabilization with a full matrix and offset. Radial maps reuse the existing monotonic radial-distortion evaluator; for correction the destination ideal coordinate maps to physical distorted source data. A declared correction polynomial is independent from a physical optical polynomial and can intentionally leave residual distortion. No implicit correction strength or ideal-lens inversion is assumed.
 
-The 2.0 Brown–Conrady (radial plus tangential) mapping and the fisheye/equirectangular projections are standalone primitives (see [Physics foundation](PHYSICS_FOUNDATION.md#brownconrady-tangential-distortion-20)); they are not yet transform kinds of `prepareGeometricMapping()`, whose schema is unchanged. A renderer may sample them directly with their own inverse functions until a versioned transform kind is added.
-
 Raw-channel, reconstructed-linear and processed-output domains are barriers. Compatible contiguous transforms can share a resampling pass; incompatible groups are retained by the prepared mapping but a fused pixel pass rejects them. Prepared maps are frame/time specific in seconds from exposure start; no trajectory averaging or full-video crop guarantee is implied.
 
 calculateComposedGeometricMapping() emits each component's local Jacobian and the full product d(source mm)/d(destination mm), determinant, singular values and anisotropy. calculateForwardGeometricMapping() reverses the same authoritative mapping for focus, meter and overlay coordinates. No app should independently reverse-engineer the warp.

@@ -271,26 +271,6 @@ export {
 } from "./camera/field-of-view.js";
 
 export {
-  LENS_PROJECTION_MODELS,
-  calculateLensProjectionDirection,
-  calculateLensProjectionFieldOfView,
-  calculateLensProjectionFieldOfViewBounds,
-  calculateLensProjectionImagePoint,
-  parseLensProjectionModel,
-  type CalculateLensProjectionDirectionInput,
-  type CalculateLensProjectionFieldOfViewBoundsInput,
-  type CalculateLensProjectionFieldOfViewInput,
-  type CalculateLensProjectionImagePointInput,
-  type LensDirection,
-  type LensProjectionDirection,
-  type LensProjectionFieldOfView,
-  type LensProjectionFieldOfViewBounds,
-  type LensProjectionImagePoint,
-  type LensProjectionModel,
-  type RadialLensProjectionModel
-} from "./camera/lens-projection.js";
-
-export {
   calculateProjectedObjectSize,
   type CalculateProjectedObjectSizeInput,
   type ProjectedObjectSize
@@ -942,53 +922,9 @@ export {
 
 export {
   calculateIdealPolygonDiffractionPsf,
-  calculatePolygonPupilFraunhoferPsf,
   type CalculateIdealPolygonDiffractionInput,
-  type CalculatePolygonPupilFraunhoferPsfInput,
-  type IdealPolygonDiffraction,
-  type PolygonPupilFraunhoferPsf
+  type IdealPolygonDiffraction
 } from "./optics/polygon-diffraction.js";
-
-export {
-  ZERNIKE_MAXIMUM_NOLL_INDEX,
-  ZERNIKE_PUPIL_MAXIMUM_SAMPLES_ACROSS,
-  calculateDefocusWavefront,
-  createWavefrontPupilGrid,
-  estimateMarechalStrehlRatio,
-  evaluateZernikePolynomial,
-  resolveZernikeNollOrder,
-  type CalculateDefocusWavefrontInput,
-  type CreateWavefrontPupilGridInput,
-  type DefocusWavefront,
-  type EstimateMarechalStrehlRatioInput,
-  type SeidelFieldPosition,
-  type SeidelWavefrontCoefficients,
-  type WavefrontPupilGrid,
-  type ZernikeCoefficient,
-  type ZernikeOrder
-} from "./optics/zernike-wavefront.js";
-
-export {
-  FRAUNHOFER_C_LINE_NM,
-  FRAUNHOFER_D_LINE_NM,
-  FRAUNHOFER_F_LINE_NM,
-  calculateCauchyRefractiveIndex,
-  calculateLongitudinalChromaticFocus,
-  type CalculateLongitudinalChromaticFocusInput,
-  type LongitudinalChromaticDispersion,
-  type LongitudinalChromaticFocus
-} from "./optics/longitudinal-chromatic-aberration.js";
-
-export {
-  calculateMechanicalVignetting,
-  calculateNaturalVignetting,
-  type CalculateMechanicalVignettingInput,
-  type CalculateNaturalVignettingInput,
-  type MechanicalVignetting,
-  type MechanicalVignettingAperture,
-  type NaturalVignetting,
-  type NaturalVignettingModel
-} from "./optics/pupil-vignetting.js";
 
 export {
   estimateEquivalentViewingCircleOfConfusion,
@@ -1021,24 +957,11 @@ export {
 export {
   calculateFocusBreathingFieldOfView,
   calculateFocusBreathingProjection,
-  calculateGeometricFocusBreathing,
   type CalculateFocusBreathingFieldOfViewInput,
   type CalculateFocusBreathingProjectionInput,
-  type CalculateGeometricFocusBreathingInput,
   type FocusBreathingFieldOfView,
-  type FocusBreathingProjection,
-  type GeometricFocusBreathing,
-  type GeometricFocusingMethod
+  type FocusBreathingProjection
 } from "./optics/focus-breathing.js";
-
-export {
-  calculateAtmosphericHaze,
-  calculateExtinctionFromVisibility,
-  type AtmosphericExtinctionModel,
-  type AtmosphericHaze,
-  type CalculateAtmosphericHazeInput,
-  type CalculateExtinctionFromVisibilityInput
-} from "./optics/atmospheric-haze.js";
 
 export {
   calculateInverseRadialDistortionMapping,
@@ -1054,17 +977,6 @@ export {
   type RadialDistortionMapping,
   type RadialDistortionProfile
 } from "./optics/radial-distortion.js";
-
-export {
-  calculateBrownConradyDistortionMapping,
-  calculateInverseBrownConradyDistortionMapping,
-  type BrownConradyDistortionCoefficients,
-  type BrownConradyDistortionMapping,
-  type BrownConradyDistortionProfile,
-  type CalculateBrownConradyDistortionMappingInput,
-  type CalculateInverseBrownConradyDistortionMappingInput,
-  type InverseBrownConradyDistortionMapping
-} from "./optics/brown-conrady-distortion.js";
 
 export {
   calculateInverseLateralChromaticAberrationMapping,
@@ -1086,19 +998,16 @@ export {
 
 export {
   FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION,
-  FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION,
   composeFrontOfLensFilterTransmission,
   parseFrontOfLensFilterProfile,
   resolveFrontOfLensFilterTransmission,
   type ComposeFrontOfLensFilterTransmissionInput,
   type ComposedFrontOfLensFilterTransmission,
   type FrontOfLensFilterProfile,
-  type FrontOfLensFilterProfileSchemaVersion,
   type FrontOfLensFilterScientificStatus,
   type FrontOfLensFilterSpectralSample,
   type FrontOfLensFilterTransmissionModel,
   type FrontOfLensFilterUncertainty,
-  type LinearPolarizationState,
   type ResolveFrontOfLensFilterTransmissionInput,
   type ResolvedFrontOfLensFilterTransmission
 } from "./optics/front-of-lens-filter.js";
@@ -1143,7 +1052,6 @@ export {
   type LensPsfUncertainty,
   type LensSampledPsfGridCoordinate,
   type LensSampledPsfGridNode,
-  type LensSampledPsfInterpolation,
   type LensSampledPsfProfile,
   type MtfOnlyPsfRenderabilityAssessment,
   type ResolveLensSampledPsfInput,
@@ -1687,6 +1595,24 @@ export type { NativeRawExposureInput, NativeRawExposure, NativeRawInput, NativeR
 export { NATIVE_CAPTURE_SDR_SCHEMA_VERSION, NATIVE_CAPTURE_SDR_LIMITS, calculateNativeCaptureSdrPlan, createNativeCaptureSdrTask } from "./output/native-capture-sdr.js";
 export type { NativeCaptureSdrInput, NativeCaptureSdrTileRequest, NativeCaptureSdrTile, NativeCaptureSdrProvider, NativeCaptureSdrPlan,
   NativeCaptureSdrOutput, NativeCaptureSdrTaskState, NativeCaptureSdrTask, NativeTaskProgress } from "./output/native-capture-sdr.js";
+
+export { BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION, createBuiltInBayerDemosaicProfiles, type BuiltInBayerDemosaicKernel, type BuiltInBayerDemosaicProfiles,
+  type CreateBuiltInBayerDemosaicProfilesInput, type RawReconstructionBorderHandling } from "./sensor/raw-reconstruction.js";
+export { PROCESSING_MAX_PIXELS, PROCESSING_MAX_FRAMES, PROCESSING_DEFAULT_MAXIMUM_WORKING_BYTES, PROCESSING_MODEL_VERSION,
+  type ProcessingProvider, type ProcessingTask, type ProcessingTaskState, type ProcessingRgbImage, type ProcessingLinearColorSpace,
+  type ProcessingProvenance } from "./processing/processing-task.js";
+export { createCfaPlaneReconstructionTask, createAhdDemosaicTask, type CfaMosaicPlane, type CfaPlaneReconstructionInput,
+  type CfaPlaneReconstructionOutput, type AhdDemosaicInput, type AhdDemosaicOutput } from "./processing/demosaic.js";
+export { createHdrBracketMergeTask, createHdrImageEncodingTask, type HdrBracketFrame, type HdrBracketMergeInput, type HdrBracketMergeOutput,
+  type HdrTransfer, type HdrImageEncodingInput, type HdrImageEncodingOutput } from "./processing/hdr.js";
+export { createReinhardGlobalToneMappingTask, createDurandDorseyToneMappingTask, createExposureFusionTask, type ToneMappedImage,
+  type ReinhardGlobalToneMappingInput, type ReinhardGlobalToneMappingOutput, type DurandDorseyToneMappingInput, type DurandDorseyToneMappingOutput,
+  type ExposureFusionInput, type ExposureFusionOutput } from "./processing/tone-mapping.js";
+export { createFocusStackTask, type FocusStackInput, type FocusStackOutput } from "./processing/focus-stacking.js";
+export { createPanoramaTask, type PanoramaFrame, type PanoramaCanvas, type PanoramaInput, type PanoramaOutput } from "./processing/panorama.js";
+export { SYNTHETIC_FILM_GRAIN_STREAM_ID, createBilateralFilterTask, createNonLocalMeansTask, createUnsharpMaskTask, createSyntheticFilmGrainTask,
+  type ProcessedRgbImage, type BilateralFilterInput, type NonLocalMeansInput, type UnsharpMaskInput, type SyntheticFilmGrainInput,
+  type SyntheticFilmGrainOutput } from "./processing/denoise.js";
 
 export { calculateSensorApertureRays, type CalculateSensorApertureRaysInput, type IdealCircularPupil, type SensorApertureRay, type SensorApertureRays } from "./optics/sensor-aperture-rays.js";
 

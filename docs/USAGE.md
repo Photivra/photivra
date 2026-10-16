@@ -6733,230 +6733,80 @@ See [Print planning](https://github.com/Photivra/photivra/blob/main/docs/PRINT_P
 
 The [regional Print detail diagnostic](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_ASSESSMENT.md) measures one declared coherent sinusoidal fundamental in a selected linear-luminance ROI and records its exact source stage. Its [validation protocol](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_VALIDATION.md) and [capability ledger](https://github.com/Photivra/photivra/blob/main/docs/validation/print-detail-capabilities.json) distinguish mathematical conformance from blocked acquired-image, renderer and perceived-quality qualification.
 
-## Lens projections, aberrations, polarizer and haze (2.0)
+## Image processing operators
 
-The models below are standalone primitives; see [Physics foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#non-rectilinear-lens-projections-20) and [PSF foundation](https://github.com/Photivra/photivra/blob/main/docs/PSF_FOUNDATION.md#zernike-and-seidel-wavefronts-20) for equations, sources and limits.
-
-### Fisheye and equirectangular projections
+Standalone cancellable operators for demosaicing, HDR merge/encoding, tone mapping, exposure fusion, focus stacking, panorama stitching from known rotations, denoising, sharpening and synthetic grain. All results are labelled approximations; see [Image processing operators](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md) for equations, sources, measured PSNR and limits. Every factory takes `(input, { yieldControl, onProgress? })` and returns a single-use task.
 
 ```ts
 import {
-  calculateFieldOfView,
-  calculateLensProjectionDirection,
-  calculateLensProjectionImagePoint
+  createBuiltInBayerDemosaicProfiles,
+  createCfaPlaneReconstructionTask,
+  createAhdDemosaicTask,
+  type SensorColorSamplingProfile
 } from "@photivra/engine";
 
-// 8 mm equidistant fisheye across a 24 mm sensor: 2 * (12 / 8) rad = 171.9 degrees.
-const fisheye = calculateFieldOfView({
-  focalLengthMm: 8,
-  sensorDimensionMm: 24,
-  projectionModel: "fisheye-equidistant"
-});
-console.log(fisheye.value.degrees, fisheye.provenance.model);
-
-// Omitting projectionModel keeps the rectilinear result unchanged.
-console.log(calculateFieldOfView({ focalLengthMm: 50, sensorDimensionMm: 36 }).value.degrees);
-
-const point = calculateLensProjectionImagePoint({
-  projectionModel: "fisheye-stereographic",
-  focalLengthMm: 8,
-  direction: { x: 1, y: 0.2, z: -0.1 } // slightly behind the lens: still mapped
-});
-const back = calculateLensProjectionDirection({
-  projectionModel: "fisheye-stereographic",
-  focalLengthMm: 8,
-  imagePointMm: point.value.imagePointMm
-});
-console.log(point.value.imagePointMm, back.value.direction);
-```
-
-### Brown–Conrady distortion
-
-```ts
-import {
-  calculateBrownConradyDistortionMapping,
-  calculateInverseBrownConradyDistortionMapping,
-  type BrownConradyDistortionProfile
-} from "@photivra/engine";
-
-const profile: BrownConradyDistortionProfile = {
-  normalizationRadiusMm: 21.6,
-  maximumNormalizedRadius: 1,
-  coefficients: { k1: -0.08, k2: 0.01, k3: 0, p1: 0.002, p2: -0.0015 }
+const provider = { yieldControl: async () => {} };
+const cfa: SensorColorSamplingProfile = {
+  schemaVersion: "0.1.0", profileId: "rggb", coordinateSystem: "native-sensor-color-sampling-site-index",
+  evidence: [{ sourceOrigin: "photivra", sourceReference: "example", reuseStatus: "photivra-owned" }],
+  layout: { kind: "periodic-mosaic", repeatWidthSites: 2, repeatHeightSites: 2,
+    siteChannelIds: ["red", "green", "green", "blue"], anchor: "native-sensor-top-left-site" }
 };
-const distorted = calculateBrownConradyDistortionMapping({ imagePointMm: { x: 10, y: -6 }, profile });
-const ideal = calculateInverseBrownConradyDistortionMapping({
-  distortedImagePointMm: distorted.value.mappedImagePointMm,
-  profile
-});
-console.log(distorted.value.mappedImagePointMm, ideal.value.sourceImagePointMm);
+const plane = { width: 64, height: 48, captureModeId: "native", colorSamplingProfile: cfa,
+  samples: new Float32Array(64 * 48).fill(0.25) };
+const channelRoles = { red: "red", green: "green", blue: "blue" };
+
+// Malvar–He–Cutler linear kernels with mirror borders (also accepted by createNativeRawDevelopmentTask).
+const mhc = createBuiltInBayerDemosaicProfiles({ kernel: "malvar-he-cutler-2004", captureModeId: "native",
+  colorSamplingProfile: cfa, channelRoles }).value;
+const linearTask = createCfaPlaneReconstructionTask({ plane, phaseProfiles: mhc.phaseProfiles, borderHandling: "mirror" }, provider);
+await linearTask.run();
+console.log(linearTask.takeOutput().channelIds);
+
+// Adaptive homogeneity-directed (non-linear) demosaic.
+const ahd = createAhdDemosaicTask({ plane, channelRoles }, provider);
+await ahd.run();
+console.log(ahd.takeOutput().direction.length);
 ```
 
-### Zernike wavefront PSF, longitudinal CA and cat's-eye vignetting
+Merge linear RAW brackets with noise-optimal weights, tone map and encode HDR:
 
 ```ts
 import {
-  calculateLensComplexPupilPsf,
-  calculateLongitudinalChromaticFocus,
-  calculateMechanicalVignetting,
-  calculateNaturalVignetting,
-  calculatePolygonPupilFraunhoferPsf,
-  createWavefrontPupilGrid,
-  estimateMarechalStrehlRatio,
-  parseLensComplexPupilProfile
+  createHdrBracketMergeTask,
+  createHdrImageEncodingTask,
+  createReinhardGlobalToneMappingTask
 } from "@photivra/engine";
 
-// Per-wavelength defocus of an achromat-like secondary spectrum at f/4.
-const blue = calculateLongitudinalChromaticFocus({
-  focalLengthMm: 50,
-  referenceWavelengthNm: 550,
-  wavelengthNm: 460,
-  apertureFNumber: 4,
-  focusDistanceM: 3,
-  dispersion: {
-    kind: "declared-focal-shift",
-    samples: [
-      { wavelengthNm: 450, focalLengthShiftMicrometers: 20 },
-      { wavelengthNm: 550, focalLengthShiftMicrometers: 0 },
-      { wavelengthNm: 650, focalLengthShiftMicrometers: 15 }
-    ]
-  }
-}).value;
+const provider = { yieldControl: async () => {} };
+const n = 32 * 32 * 3;
+const frame = (seconds: number) => ({ exposureTimeSeconds: seconds, codes: new Uint16Array(n).fill(64 + Math.round(2000 * seconds)),
+  blackLevelCode: 64, whiteLevelCode: 4000, conversionGainElectronsPerCode: 1.5, readNoiseElectrons: 3 });
+const merge = createHdrBracketMergeTask({ sampleCount: n, frames: [frame(1), frame(1 / 8), frame(1 / 64)] }, provider);
+await merge.run();
+const merged = merge.takeOutput();
+const radiance = { width: 32, height: 32, data: merged.radianceElectronsPerSecond.map((v) => v / 3000) };
 
-// Defocus (Z4) plus a little spherical aberration (Z11) on a 12.5 mm pupil.
-const wavefront = createWavefrontPupilGrid({
-  pupilDiameterMm: 12.5,
-  samplesAcross: 31,
-  zernikeCoefficients: [
-    { nollIndex: 4, coefficientMicrometers: blue.zernikeZ4Micrometers },
-    { nollIndex: 11, coefficientMicrometers: 0.02 }
-  ]
-}).value;
-console.log(estimateMarechalStrehlRatio({
-  rmsWavefrontErrorMicrometers: wavefront.sampledRmsMicrometers,
-  wavelengthNm: 460
-}).value.strehlRatio);
+const pq = createHdrImageEncodingTask({ image: radiance, inputColorSpace: "linear-srgb-d65", transfer: "pq", bitDepth: 10 }, provider);
+await pq.run();
+console.log(pq.takeOutput().codes?.slice(0, 3));
 
-const psf = calculateLensComplexPupilPsf({
-  profile: parseLensComplexPupilProfile({
-    schemaVersion: "0.1.0",
-    profileId: "example-wavefront",
-    profileVersion: "1.0.0",
-    scientificStatus: "approximation",
-    opticalDomain: "lens-primary-optical-path-only",
-    representation: "complex-pupil-amplitude-plus-opd",
-    pupilCoordinateSystem: "pupil-plane-metric-aligned-to-image-plane",
-    imageFieldAxes: "+X right, +Y up",
-    amplitudeMeaning: "relative-complex-pupil-amplitude-shape",
-    wavefrontMeaning: "optical-path-difference-micrometers",
-    throughputOwnership: "separate-relative-pupil-throughput-factor",
-    kernelEnergyNormalization: "unit-energy-shape",
-    propagationModel: "scalar-fraunhofer-discrete-reference",
-    context: {
-      focalLengthMm: 50,
-      focus: { kind: "finite", distanceM: 3 },
-      apertureFNumber: 4,
-      fieldPointMm: { x: 0, y: 0 },
-      wavelengthNm: 460,
-      signedDefocusImagePlaneMicrometers: blue.signedDefocusImagePlaneMicrometers
-    },
-    responseIncludes: { diffraction: true, aberration: true, defocus: true, pupilClippingShape: false },
-    relativePupilThroughputFactor: 1,
-    grid: wavefront.grid,
-    sensorOpticalStackIncluded: false,
-    sensorSamplingIncluded: false,
-    reconstructionIncluded: false,
-    strayLightIncluded: false,
-    evidence: [{ sourceOrigin: "photivra", sourceReference: "usage-example", reuseStatus: "photivra-owned" }],
-    uncertainty: { kind: "not-quantified", limitation: "Synthetic example wavefront." },
-    limitations: ["Synthetic example."]
-  })
-});
-console.log(psf.value.kernel.widthSamples);
-
-// Natural cos^4 falloff and a cat's-eye pupil 20 degrees off axis.
-console.log(calculateNaturalVignetting({
-  model: "cosine-fourth",
-  imagePointMm: { x: 15, y: 10 },
-  exitPupilDistanceMm: 60
-}).value.relativeIllumination);
-const catsEye = calculateMechanicalVignetting({
-  entrancePupilDiameterMm: 12.5,
-  fieldAngleDegrees: 20,
-  fieldAzimuthDegrees: 30,
-  apertures: [{ radiusMm: 7, shiftPerTanFieldMm: 30 }]
-}).value;
-const bokehPsf = calculatePolygonPupilFraunhoferPsf({
-  pupilVerticesMm: catsEye.openPupilPolygonMm,
-  pupilToImageDistanceMm: 50,
-  wavelengthNm: 550,
-  wavelengthBasis: "air",
-  imagePointsMicrometers: [{ x: 0, y: 0 }, { x: 2, y: 0 }]
-});
-console.log(catsEye.openAreaRatio, bokehPsf.value.samples[1]?.peakNormalizedIntensity);
+const sdr = createReinhardGlobalToneMappingTask({ image: radiance, inputColorSpace: "linear-srgb-d65", key: 0.18 }, provider);
+await sdr.run();
+console.log(sdr.takeOutput().logAverageLuminance);
 ```
 
-### Polarizer and haze
+`createDurandDorseyToneMappingTask`, `createExposureFusionTask`, `createFocusStackTask`, `createBilateralFilterTask`, `createNonLocalMeansTask`, `createUnsharpMaskTask` and `createSyntheticFilmGrainTask` follow the same pattern. Panorama stitching uses each frame's known rotation in the engine's pitch/yaw/roll convention:
 
 ```ts
-import {
-  calculateAtmosphericHaze,
-  calculateExtinctionFromVisibility,
-  calculateGeometricFocusBreathing,
-  composeFrontOfLensFilterTransmission,
-  parseFrontOfLensFilterProfile
-} from "@photivra/engine";
+import { createPanoramaTask } from "@photivra/engine";
 
-const polarizer = parseFrontOfLensFilterProfile({
-  schemaVersion: "0.2.0",
-  filterId: "generic-linear-polarizer",
-  profileVersion: "1.0.0",
-  identityScope: "photivra-generic-unbranded",
-  position: "front-of-lens",
-  scientificStatus: "approximation",
-  wavelengthBasis: "air",
-  wavelengthRangeNanometers: { minimum: 400, maximum: 700 },
-  transmission: {
-    kind: "linear-polarizer",
-    principalTransmittance: { value: 0.8, evidence: [{ sourceOrigin: "photivra", sourceReference: "usage-polarizer", reuseStatus: "photivra-owned" }] },
-    extinctionRatio: { value: 1000, evidence: [{ sourceOrigin: "photivra", sourceReference: "usage-polarizer", reuseStatus: "photivra-owned" }] },
-    transmissionAxisDegrees: 90
-  },
-  uncertainty: { kind: "not-quantified", limitation: "Generic educational polarizer." },
-  polarizationModeled: true,
-  wavelengthChangingBehaviorModeled: false,
-  evidence: [{ sourceOrigin: "photivra", sourceReference: "usage-polarizer", reuseStatus: "photivra-owned" }],
-  limitations: ["Generic example."]
-});
-// Glare partially polarized horizontally (P = 0.6) is suppressed by a vertical axis.
-const filtered = composeFrontOfLensFilterTransmission({
-  filters: [polarizer],
-  wavelengthNanometers: 550,
-  wavelengthBasis: "air",
-  incidentPolarization: { degreeOfLinearPolarization: 0.6, angleDegrees: 0 }
-});
-console.log(filtered.combinedLinearTransmissionFactor, filtered.transmittedPolarization);
-
-const beta = calculateExtinctionFromVisibility({ visibilityM: 15_000 }).value.extinctionPerMeter;
-const hazy = calculateAtmosphericHaze({
-  pathLengthM: 4000,
-  wavelengthNm: 450,
-  sceneRadiance: 0.02,
-  airlightRadiance: 0.08,
-  extinction: {
-    referenceWavelengthNm: 550,
-    rayleighExtinctionPerMeter: 0,
-    aerosolExtinctionPerMeter: beta,
-    angstromExponent: 1.3
-  }
-});
-console.log(hazy.value.hazedRadiance, hazy.value.transmittance);
-
-// Unit-focus breathing of a 100 mm lens focused at 0.6 m (subject to sensor).
-console.log(calculateGeometricFocusBreathing({
-  focalLengthMm: 100,
-  subjectToSensorDistanceM: 0.6,
-  sensorDimensionMm: 36,
-  focusingMethod: "unit-focus"
-}).value.deltaDegrees);
+const image = { width: 48, height: 36, data: new Float32Array(48 * 36 * 3).fill(0.5) };
+const panorama = createPanoramaTask({
+  frames: [-0.5, 0, 0.5].map((yaw) => ({ image, focalLengthPixels: 40, rotationRad: { pitch: 0, yaw, roll: 0 } })),
+  canvas: { projection: "equirectangular", width: 160, height: 48, longitudeRangeRad: [-1.1, 1.1], latitudeRangeRad: [-0.4, 0.4] },
+  blending: "multi-band", exposureCompensation: "gain"
+}, { yieldControl: async () => {} });
+await panorama.run();
+console.log(panorama.takeOutput().gains);
 ```

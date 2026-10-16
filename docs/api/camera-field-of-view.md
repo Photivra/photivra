@@ -58,8 +58,6 @@ export interface CalculateFieldOfViewBoundsInput {
   maximumSensorCoordinateMm: number;
   /** Optional focus distance in metres. */
   focusDistanceM?: number;
-  /** Ideal projection model; omitted or `"rectilinear"` keeps the existing behaviour. */
-  projectionModel?: LensProjectionModel;
 }
 ```
 
@@ -79,12 +77,6 @@ export interface CalculateFieldOfViewInput {
    * infinity-focus/pinhole approximation.
    */
   focusDistanceM?: number;
-  /**
-   * Ideal projection model. Omitted or `"rectilinear"` keeps the rectilinear behaviour (and model
-   * ids) unchanged. Non-rectilinear models use the focal length as the mapping scale and do not
-   * accept focusDistanceM.
-   */
-  projectionModel?: LensProjectionModel;
 }
 ```
 

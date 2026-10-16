@@ -73,52 +73,6 @@ export interface CalculateFocusBreathingProjectionInput {
 }
 ```
 
-## calculateGeometricFocusBreathing
-
-Focus breathing derived from ideal focusing geometry rather than a declared scale.
-
-- unit-focus: the whole lens moves; u + v = L - hiatus with 1/u + 1/v = 1/f, so
-  v = (T - sqrt(T^2 - 4 f T)) / 2 for T = L - hiatus >= 4 f, and the field narrows as v grows.
-- fixed-image-distance-internal-focus: an idealised internal-focus lens keeps the rear principal
-  plane at v = f_infinity and shortens its focal length to f' = u v / (u + v); the angular field
-  at the rear nodal point is then unchanged while magnification is f_infinity / u.
-Both use paraxial Gaussian optics with nodal points at the principal planes (unit pupil
-magnification; Kingslake & Johnson, Lens Design Fundamentals, 2nd ed., ch. 3; Ray, Applied
-Photographic Optics, 3rd ed., ch. 9 and 14). Real internal-focus lenses also shift pupils and
-principal planes, so their breathing needs a calibrated profile.
-
-```ts
-export function calculateGeometricFocusBreathing(
-  input: CalculateGeometricFocusBreathingInput
-): CalculationResult<GeometricFocusBreathing>;
-```
-
-This call is synchronous; any supplied provider must follow its explicit synchronous contract.
-
-## CalculateGeometricFocusBreathingInput
-
-The exact contract is declared below; use the domain guide for assumptions and staged integration.
-
-```ts
-export interface CalculateGeometricFocusBreathingInput {
-  /** Focal length at infinity focus, mm. */
-  focalLengthMm: number;
-  /**
-   * Photographic focus distance measured from the subject plane to the sensor (image) plane, in
-   * metres, as marked on lens distance scales.
-   */
-  subjectToSensorDistanceM: number;
-  /** Sensor/capture dimension along the axis of interest, mm. */
-  sensorDimensionMm: number;
-  focusingMethod: GeometricFocusingMethod;
-  /**
-   * Signed separation between the front and rear principal planes (the hiatus), mm; default 0
-   * (thin lens). The subject-to-sensor distance is u + hiatus + v.
-   */
-  principalPlaneSeparationMm?: number;
-}
-```
-
 ## FocusBreathingFieldOfView
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -162,44 +116,4 @@ export interface FocusBreathingProjection {
   /** Generic breathing-adjusted magnification. */
   effectiveMagnification: number;
 }
-```
-
-## GeometricFocusBreathing
-
-The exact contract is declared below; use the domain guide for assumptions and staged integration.
-
-```ts
-export interface GeometricFocusBreathing {
-  focusingMethod: GeometricFocusingMethod;
-  infinityFocalLengthMm: number;
-  /** Focal length of the focused system (changes only for internal focus), mm. */
-  effectiveFocalLengthMm: number;
-  /** Subject distance from the front principal plane, mm. */
-  objectDistanceMm: number;
-  /** Rear principal plane to sensor distance (projection distance), mm. */
-  imageDistanceMm: number;
-  /** Lateral magnification v / u. */
-  magnification: number;
-  /** v / f_infinity: framing scale relative to infinity focus. */
-  projectionScaleRelativeToInfinity: number;
-  /**
-   * v divided by the ideal thin-lens image distance of the same infinity focal length at
-   * objectDistanceMm. Exactly 1 for unit focus; usable as breathingProjectionScale with
-   * focusDistanceM = objectDistanceMm / 1000 in calculateFocusBreathingProjection().
-   */
-  equivalentBreathingProjectionScale: number;
-  fieldOfViewDegrees: number;
-  infinityFieldOfViewDegrees: number;
-  deltaDegrees: number;
-}
-```
-
-## GeometricFocusingMethod
-
-Ideal focusing geometry for {@link calculateGeometricFocusBreathing}.
-
-```ts
-export type GeometricFocusingMethod =
-  | "unit-focus"
-  | "fixed-image-distance-internal-focus";
 ```

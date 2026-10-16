@@ -189,28 +189,6 @@ export interface LensSampledPsfGridNode {
 }
 ```
 
-## LensSampledPsfInterpolation
-
-Kernel interpolation between regular-grid nodes.
-- `bounded-regular-grid-multilinear`: legacy weighted sum of kernel values. Blending kernels whose
-  peaks sit at different positions produces multiple peaks.
-- `bounded-regular-grid-centroid-aligned`: each node kernel is shifted so its intensity centroid
-  sits at the weighted (interpolated) centroid before the same multilinear weights are applied,
-  so shifted or asymmetric PSFs blend into one peak at the interpolated position.
-- `rotationally-symmetric-radial-field-centroid-aligned`: for a rotationally symmetric lens, nodes
-  are declared only along the +X field axis (fieldYmm = [0], fieldXmm >= 0); a query at field
-  (x, y) is interpolated at radius hypot(x, y) with centroid alignment and the kernel is then
-  rotated by atan2(y, x) about its centre (square sample pitch required).
-Shifts and rotations use bilinear resampling, which slightly smooths the kernel (at most about
-one sample); outside-kernel samples are zero and the result is renormalised to unit energy.
-
-```ts
-export type LensSampledPsfInterpolation =
-  | "bounded-regular-grid-multilinear"
-  | "bounded-regular-grid-centroid-aligned"
-  | "rotationally-symmetric-radial-field-centroid-aligned";
-```
-
 ## LensSampledPsfProfile
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -232,7 +210,7 @@ export interface LensSampledPsfProfile {
   kernelEnergyNormalization:
     "unit-energy-shape";
   interpolation:
-    LensSampledPsfInterpolation;
+    "bounded-regular-grid-multilinear";
   throughputOwnership:
     "separate-relative-pupil-throughput-factor";
   responseIncludes: {

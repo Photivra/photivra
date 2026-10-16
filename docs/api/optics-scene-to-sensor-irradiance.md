@@ -309,12 +309,8 @@ export interface SceneToSensorIrradianceResult {
     number;
   frontOfLensFilterTransmissionAppliedExactlyOnce:
     true;
-  /**
-   * True when a front-of-lens linear polarizer was applied. Scene radiance is unpolarized in this
-   * bridge, so a polarizer transmits (k1 + k2) / 2.
-   */
   frontOfLensFilterPolarizationModeled:
-    boolean;
+    false;
   fieldThroughputFactor: number;
   effectiveAcceptanceAfterTransmissionAndFieldSteradians:
     number;
