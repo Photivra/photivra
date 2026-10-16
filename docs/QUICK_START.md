@@ -186,8 +186,14 @@ running Node 24 under heavy load (slanted edge, JPEG output, default settings):
 
 | Output | Native sites | Wall time | CPU time | CPU per site |
 | --- | --- | --- | --- | --- |
-| 256 × 256 | 66 564 | BENCH_256_WALL | BENCH_256_CPU | BENCH_256_SITE |
-| 1000 × 1000 | 1 004 004 | BENCH_1M_WALL | BENCH_1M_CPU | BENCH_1M_SITE |
+| 256 × 256 | 66 564 | 277 s | 118 s | 1.8 ms |
+| 1000 × 1000 | 1 004 004 | about 54 min (extrapolated) | about 30 min (extrapolated) | — |
+
+The 1000 × 1000 row is not a completed measurement. A run reached 1579 of 4008 RAW tiles in 1269 s
+(about 1.24 tiles per second) before the host was restarted; the wall time extrapolates that rate, and
+the CPU time multiplies the 256 × 256 CPU cost per site by the site count. Development and JPEG
+encoding are under 1 % of the total. Almost all of the time is spent in per-site validation and
+result envelopes inside the existing environment pipeline.
 
 These numbers come from one run on a noisy machine. They are not a performance claim. Small captures
 (up to about 64 × 64) take seconds. Use them while you explore, and render large images only when
