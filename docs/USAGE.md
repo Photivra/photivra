@@ -5795,7 +5795,7 @@ console.log(shake.value.residualMotionFactor);
 console.log(shake.provenance.kind); // "approximation"
 ```
 
-`deltaXmm`/`deltaYmm` are the +X-right/+Y-up image displacement of a stationary on-axis point: positive yaw (camera turns left) gives positive `deltaXmm`; positive pitch (camera tilts up) gives negative `deltaYmm`. These signs match `calculateCameraRotationImageMapping()` at the optical axis.
+`deltaXmm`/`deltaYmm` are the +X-right/+Y-up image displacement of a stationary on-axis point: positive yaw (camera turns left) gives positive `deltaXmm`; positive pitch (camera tilts up) gives negative `deltaYmm`. These signs match `calculateCameraRotationImageMapping()` at the optical axis, and for a single axis the displacements are equal within floating-point rounding. A per-axis rotation of π/2 rad or more over the exposure is rejected.
 
 The `2^-stops` attenuation is an educational approximation, not a real IBIS/OIS or CIPA rating. The current output is one global image-plane vector rather than spatially varying rotational optical flow.
 

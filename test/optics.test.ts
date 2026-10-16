@@ -138,4 +138,26 @@ describe("optics foundation", () => {
 
     expect(result.value.diameterMm).toBeCloseTo(0, 12);
   });
+
+  it("rejects a circle of confusion at or above the aperture diameter f/N (numeric review #6)", () => {
+    const input = { focalLengthMm: 50, aperture: 1.4, focusDistanceM: 3 };
+    expect(() => calculateDepthOfField({ ...input, circleOfConfusionMm: 40 })).toThrow(/smaller than the aperture diameter/);
+    expect(() => calculateDepthOfField({ ...input, circleOfConfusionMm: 50 / 1.4 })).toThrow(/smaller than the aperture diameter/);
+    const justBelow = calculateDepthOfField({ ...input, circleOfConfusionMm: 35 }).value;
+    expect(justBelow.nearLimitM * 1000).toBeGreaterThan(input.focalLengthMm);
+  });
+
+  it("evaluates defocus with the stable closed form f^2|s-d|/(N d (s-f)) at extreme distances", () => {
+    // Exact rational oracle with integer millimetre inputs: c = f^2 |s - d| / (N d (s - f)).
+    const exact = (f: bigint, n: bigint, s: bigint, d: bigint): number => {
+      const numerator = f * f * (s > d ? s - d : d - s) * 10n ** 30n;
+      return Number(numerator / (n * d * (s - f))) / 1e30;
+    };
+    for (const [subjectDistanceM, focusDistanceM] of [[1e9, 5], [5, 1e9], [1e6, 1e6 + 1], [0.3, 1e12]] as const) {
+      const value = calculateDefocusCircle({ focalLengthMm: 50, aperture: 4, focusDistanceM, subjectDistanceM }).value.diameterMm;
+      const oracle = exact(50n, 4n, BigInt(focusDistanceM * 1000), BigInt(subjectDistanceM * 1000));
+      expect(Math.abs(value - oracle) / oracle).toBeLessThan(1e-14);
+    }
+    expect(calculateDefocusCircle({ focalLengthMm: 50, aperture: 4, focusDistanceM: 5, subjectDistanceM: 3 }).provenance.modelVersion).toBe("1.1.0");
+  });
 });

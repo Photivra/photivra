@@ -1212,7 +1212,7 @@ describe("ready physical production plan", () => {
       .toBe(false);
     expect(
       POC_SIMULATION_API_VERSION
-    ).toBe("0.20.0");
+    ).toBe("1.0.0");
   });
 });
 

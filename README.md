@@ -270,7 +270,7 @@ The calling application can then use those results while keeping the underlying 
 - Repository package version: `1.5.0` (published October 7, 2026)
 - Engine API contract: `1.5.0`
 - Versioned generic tier reference assets: [GENERIC_TIER_PRESETS.md](https://github.com/Photivra/photivra/blob/main/docs/GENERIC_TIER_PRESETS.md).
-- Composed POC simulation API contract: `0.20.0`
+- Composed POC simulation API contract: `1.0.0`
 - Stability: 1.0 root-package compatibility policy; bounded scientific models and independent POC contract
 
 From 1.0.1, package version and `ENGINE_API_VERSION` are equal. New captures/plans record 1.5.0; existing archives retain their original creator identities. Schema, model and POC contract versions remain independent. Breaking root contracts now require a package major release; additive and corrective changes follow [compatibility and migration](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_3_0.md). A 1.0 package is not a claim of calibrated physical accuracy.

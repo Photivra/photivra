@@ -17,19 +17,26 @@ import {
   requirePositiveInteger
 } from "../core/validation.js";
 
+/** Quotient rounding noise, in ulps of the quotient, that still counts as the next whole pixel. */
+const WHOLE_PIXEL_SNAP_ULPS = 4;
+
 /**
- * Largest whole-pixel count not exceeding `length` (at least 1). A value within
- * floating-point noise of an integer counts as that integer, so 4480 / (7 / 3)
- * = 1919.9999999999998 gives 1920 rather than dropping a pixel.
+ * Largest whole-pixel count not exceeding `length` (at least 1). Only a value
+ * at most 4 ulps below the next integer counts as that integer, because a
+ * quotient such as 4480 / (7 / 3) = 1919.9999999999998 is the exact 1920 with
+ * the divisor's rounding error; floorWholePixels(4480 / (7 / 3)) therefore gives
+ * 1920 rather than dropping a pixel. The tolerance scales with the binary64
+ * spacing of `length`, not with an absolute fraction of it, so a genuinely
+ * fractional count (6000 / 1.0000000001, or 1e9 / 1.5) is always floored and the
+ * result never exceeds `length` by more than that rounding noise.
  * Repository-internal helper; not a root package export.
  */
 export function floorWholePixels(length: number): number {
-  const nearest = Math.round(length);
+  const floor = Math.floor(length);
+  const next = floor + 1;
   return Math.max(
     1,
-    Math.abs(length - nearest) <= 1e-9 * Math.max(1, length)
-      ? nearest
-      : Math.floor(length)
+    next - length <= WHOLE_PIXEL_SNAP_ULPS * Number.EPSILON * length ? next : floor
   );
 }
 
@@ -102,7 +109,7 @@ export function calculateCenteredCrop(
         (pixelWidth * pixelHeight) / (input.pixelWidth * input.pixelHeight)
     },
     "centered-same-aspect-crop",
-    "1.0.0",
+    "2.0.0",
     [
       "Centered crop",
       "Original aspect ratio is preserved to integer-pixel precision: the shorter axis is floor(dimension / cropFactor) and the longer axis is the nearest integer to the source ratio, capped at floor(dimension / cropFactor)"

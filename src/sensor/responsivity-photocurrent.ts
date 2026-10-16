@@ -39,6 +39,7 @@ import type {
 } from "./response-operating-range.js";
 import {
   createSensorSpectralResponseChannelBinding,
+  requireCurrentSensorSpectralResponseChannelBinding,
   parseSensorSpectralResponseProfile,
   resolveParsedSensorSpectralResponseAtWavelength,
   type ResolvedSensorSpectralResponse,
@@ -1063,6 +1064,11 @@ function validateExactResponseDataBinding(
         entry.channelId ===
         reduction.channelId
     );
+  if (reduction.responseChannelBinding !== undefined) {
+    requireCurrentSensorSpectralResponseChannelBinding(
+      reduction.responseChannelBinding
+    );
+  }
   if (
     response === undefined ||
     reduction.responseChannelBinding ===

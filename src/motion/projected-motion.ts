@@ -20,6 +20,7 @@ import {
   InvalidScientificInputError,
   requirePositiveFinite
 } from "../core/validation.js";
+import { portableHypot } from "../core/portable-math.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
 import type { Vector3 } from "../schema/scene.js";
 
@@ -120,7 +121,7 @@ export function calculateProjectedMotionBlur(
 
   const deltaXMm = endXmm - startXmm;
   const deltaYMm = endYmm - startYmm;
-  const distanceMm = Math.hypot(deltaXMm, deltaYMm);
+  const distanceMm = portableHypot(deltaXMm, deltaYMm);
 
   let distancePixels: number | undefined;
   if (input.pixelPitchMicrometers !== undefined) {

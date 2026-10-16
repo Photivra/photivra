@@ -22,13 +22,25 @@ import {
   requirePositiveFinite,
   requirePositiveInteger
 } from "../core/validation.js";
+import { portableHypot } from "../core/portable-math.js";
 
 const REFERENCE_35MM_WIDTH_MM = 36;
 const REFERENCE_35MM_HEIGHT_MM = 24;
-const REFERENCE_35MM_DIAGONAL_MM = Math.hypot(
-  REFERENCE_35MM_WIDTH_MM,
-  REFERENCE_35MM_HEIGHT_MM
-);
+/** 36² + 24² mm²: squared diagonal of the 35 mm reference frame (exact in binary64). */
+const REFERENCE_35MM_DIAGONAL_SQUARED_MM2 =
+  REFERENCE_35MM_WIDTH_MM * REFERENCE_35MM_WIDTH_MM +
+  REFERENCE_35MM_HEIGHT_MM * REFERENCE_35MM_HEIGHT_MM;
+
+/**
+ * Diagonal 35 mm crop factor, √(1872 / (w² + h²)), from correctly rounded operations only so the
+ * persisted value is bit-identical in every JavaScript engine (see core/portable-math.ts).
+ */
+function diagonalCropFactor35Mm(widthMm: number, heightMm: number, diagonalMm: number): number {
+  const diagonalSquaredMm2 = widthMm * widthMm + heightMm * heightMm;
+  return Number.isFinite(diagonalSquaredMm2) && diagonalSquaredMm2 > 0
+    ? Math.sqrt(REFERENCE_35MM_DIAGONAL_SQUARED_MM2 / diagonalSquaredMm2)
+    : Math.sqrt(REFERENCE_35MM_DIAGONAL_SQUARED_MM2) / diagonalMm;
+}
 
 /**
  * Physical photosensitive imaging area used for image formation.
@@ -126,13 +138,13 @@ export function calculateImagingAreaMetrics(
   requirePositiveFinite("imagingArea.widthMm", imagingArea.widthMm);
   requirePositiveFinite("imagingArea.heightMm", imagingArea.heightMm);
 
-  const diagonalMm = Math.hypot(imagingArea.widthMm, imagingArea.heightMm);
+  const diagonalMm = portableHypot(imagingArea.widthMm, imagingArea.heightMm);
 
   return calculatedResult(
     {
       diagonalMm,
       aspectRatio: imagingArea.widthMm / imagingArea.heightMm,
-      cropFactor35Mm: REFERENCE_35MM_DIAGONAL_MM / diagonalMm
+      cropFactor35Mm: diagonalCropFactor35Mm(imagingArea.widthMm, imagingArea.heightMm, diagonalMm)
     },
     "sensor-imaging-area",
     "1.0.0",

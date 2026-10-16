@@ -69,6 +69,14 @@ export function calculateDepthOfField(
       "focusDistanceM must place the focus plane beyond the focal length."
     );
   }
+  // The near limit lies beyond the focal length only when H - f = f^2/(Nc) > f,
+  // i.e. c < f/N (the entrance-pupil diameter). A blur circle at least as large
+  // as the pupil itself has no real-image depth-of-field solution.
+  if (input.circleOfConfusionMm >= input.focalLengthMm / input.aperture) {
+    throw new InvalidScientificInputError(
+      "circleOfConfusionMm must be smaller than the aperture diameter focalLengthMm / aperture."
+    );
+  }
 
   // H - f = f^2 / (N c), kept separately to avoid cancellation.
   const hyperfocalOffsetMm =
@@ -188,17 +196,28 @@ export function calculateDefocusCircleUsingFocusProjection(
     }
     throw error;
   }
+  // Both image distances are still resolved above so the thin-lens domain checks
+  // and borrowed-projection identity are unchanged.
+  void focusImageDistanceMm;
+  void subjectImageDistanceMm;
   const apertureDiameterMm = input.focalLengthMm / input.aperture;
+  const focusDistanceMm = input.focusDistanceM * 1000;
+  const subjectDistanceMm = input.subjectDistanceM * 1000;
 
+  // Closed form of D |v_d - v_s| / v_d with v = f x / (x - f) (Gaussian thin lens):
+  //   c = f^2 |s - d| / (N d (s - f)).
+  // It avoids subtracting two nearly equal image distances (catastrophic
+  // cancellation for distant subjects) and is grouped as bounded ratios so the
+  // intermediate products cannot overflow for finite in-domain inputs.
   const diameterMm =
     apertureDiameterMm *
-    (Math.abs(subjectImageDistanceMm - focusImageDistanceMm) /
-      subjectImageDistanceMm);
+    (Math.abs(focusDistanceMm - subjectDistanceMm) / subjectDistanceMm) *
+    (input.focalLengthMm / (focusDistanceMm - input.focalLengthMm));
 
   return calculatedResult(
     { diameterMm },
     "thin-lens-defocus-circle",
-    "1.0.0",
+    "1.1.0",
     ["Geometric thin-lens model", "Ideal circular entrance pupil"]
   );
 }

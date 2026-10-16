@@ -14,6 +14,7 @@ import {
   type CalculationResult
 } from "../core/calculation-result.js";
 import { requirePositiveFinite } from "../core/validation.js";
+import { portableHypot } from "../core/portable-math.js";
 
 export interface EstimateEquivalentViewingCircleOfConfusionInput {
   sensorWidthMm: number;
@@ -55,11 +56,11 @@ export function estimateEquivalentViewingCircleOfConfusion(
     input.referenceCircleOfConfusionMm
   );
 
-  const sensorDiagonalMm = Math.hypot(
+  const sensorDiagonalMm = portableHypot(
     input.sensorWidthMm,
     input.sensorHeightMm
   );
-  const referenceSensorDiagonalMm = Math.hypot(
+  const referenceSensorDiagonalMm = portableHypot(
     input.referenceSensorWidthMm,
     input.referenceSensorHeightMm
   );

@@ -413,6 +413,7 @@ export {
 
 export {
   parseSensorSpectralResponseProfile,
+  SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT,
   resolveSensorSpectralResponseAtWavelength,
   type EffectiveSensorResponseScope,
   type ResolveSensorSpectralResponseAtWavelengthInput,

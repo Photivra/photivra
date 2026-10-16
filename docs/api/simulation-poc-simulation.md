@@ -7,7 +7,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
 
 ```ts
-POC_SIMULATION_API_VERSION = "0.20.0" as const
+POC_SIMULATION_API_VERSION = "1.0.0" as const
 ```
 
 ## PocSimulationRequest

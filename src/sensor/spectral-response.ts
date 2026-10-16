@@ -136,9 +136,17 @@ export type SensorSpectralChannelResponse =
         SpectralFractionCurve;
     });
 
+/**
+ * Current channel-binding format. v2 (package 2.0.0) serializes the parsed channel with sorted keys;
+ * v1 (package 1.5.0 and earlier) used insertion-order JSON of the unparsed channel and is rejected
+ * with an explicit version error rather than compared.
+ */
+export const SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT =
+  "photivra-spectral-channel-response-canonical-json-v2" as const;
+
 export interface SensorSpectralResponseChannelBinding {
   format:
-    "photivra-spectral-channel-response-canonical-json-v1";
+    typeof SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT;
   canonicalJson: string;
 }
 
@@ -1028,7 +1036,7 @@ export function createSensorSpectralResponseChannelBinding(
 ): SensorSpectralResponseChannelBinding {
   return {
     format:
-      "photivra-spectral-channel-response-canonical-json-v1",
+      SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT,
     // Parse first so the binding never echoes unvalidated input, then sort keys
     // so semantically equal channels bind identically regardless of key order.
     canonicalJson:
@@ -1046,6 +1054,28 @@ export function createSensorSpectralResponseChannelBinding(
         }
       )
   };
+}
+
+/**
+ * Rejects a channel binding carried by a reduction unless it uses the current format. A v1 binding
+ * from package 1.5.0 or earlier fails with an explicit version error: its content was computed by a
+ * different serializer, so comparing it would report a misleading data mismatch. Recompute the
+ * spectral quadrature and reduction with this release to obtain a v2 binding.
+ * Repository-internal helper; not a root package export.
+ */
+export function requireCurrentSensorSpectralResponseChannelBinding(
+  binding: unknown
+): void {
+  const format =
+    typeof binding === "object" && binding !== null
+      ? (binding as { format?: unknown }).format
+      : undefined;
+  if (format === SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT) return;
+  throw new InvalidScientificInputError(
+    format === "photivra-spectral-channel-response-canonical-json-v1"
+      ? "Response-channel binding format v1 (package 1.5.0 and earlier) is not supported; recompute the spectral quadrature and reduction to obtain a v2 binding."
+      : "Response-channel binding has an unsupported format; expected " + SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT + "."
+  );
 }
 
 function topologyChannelIds(

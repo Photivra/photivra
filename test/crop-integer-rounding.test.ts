@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { calculateCenteredCrop, calculateSubjectFramingCrop } from "../src/index.js";
+import { floorWholePixels } from "../src/output/crop.js";
 
 // Independent oracles use exact integer arithmetic on rational crop factors p/q.
 function floorDiv(numerator: number, denominator: number): number {
@@ -106,5 +107,22 @@ describe("subject framing crop integer rounding (#276)", () => {
     expect(result.pixelWidth).toBe(11);
     expect(result.subjectClipped).toBe(false);
     expect(result.subjectHeightFraction).toBeCloseTo(6.5 / 7, 15);
+  });
+
+  it("snaps only quotient rounding noise of a few ulps, never a genuine fraction (numeric review #5)", () => {
+    expect(floorWholePixels(4480 / (7 / 3))).toBe(1920);
+    expect(floorWholePixels(1920.0000000000002)).toBe(1920);
+    expect(floorWholePixels(5999.9999994)).toBe(5999);
+    expect(floorWholePixels(0.25)).toBe(1);
+    const nearlyOne = calculateCenteredCrop({ pixelWidth: 6000, pixelHeight: 4000, cropFactor: 1.0000000001 }).value;
+    expect([nearlyOne.pixelWidth, nearlyOne.pixelHeight]).toEqual([5999, 3999]);
+    const huge = calculateCenteredCrop({ pixelWidth: 1_500_000_000, pixelHeight: 1_000_000_000, cropFactor: 1.5 }).value;
+    expect(huge.pixelHeight).toBe(666_666_666);
+    expect(huge.pixelWidth).toBeLessThanOrEqual(1_000_000_000);
+  });
+
+  it("versions the 2.0 crop rounding in provenance", () => {
+    expect(calculateCenteredCrop({ pixelWidth: 6000, pixelHeight: 4000, cropFactor: 1.5 }).provenance.modelVersion).toBe("2.0.0");
+    expect(calculateSubjectFramingCrop({ pixelWidth: 13, pixelHeight: 9, subjectHeightPixels: 7, targetSubjectHeightFraction: 1 }).provenance.modelVersion).toBe("2.0.0");
   });
 });

@@ -37,6 +37,7 @@ import {
 } from "./color-sampling.js";
 import {
   createSensorSpectralResponseChannelBinding,
+  requireCurrentSensorSpectralResponseChannelBinding,
   parseSensorSpectralResponseProfile,
   resolveParsedSensorSpectralResponseAtWavelength,
   type ResolvedSensorSpectralResponseValue,
@@ -804,6 +805,11 @@ function validateExactResponseDataBinding(
         entry.channelId ===
         reduction.channelId
     );
+  if (reduction.responseChannelBinding !== undefined) {
+    requireCurrentSensorSpectralResponseChannelBinding(
+      reduction.responseChannelBinding
+    );
+  }
   if (
     response === undefined ||
     reduction.responseChannelBinding ===
