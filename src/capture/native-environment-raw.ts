@@ -178,7 +178,8 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
           shared??=state;if(state!==shared)throw new InvalidConfigurationError("Native event requires one shared source/optical/motion state.");
           reference??={canonical:state,values:SHARED_STATE_KEYS.map(key=>(e as unknown as Record<string,unknown>)[key]),cleanArrays:new WeakSet()};
         }
-        const p=planEnvironmentRawSite(site,index,plan.frame,sceneBinding,plan.exposureWindow!,"engine-owned",memo);
+        // Execution is photo-only, so the plan keeps only each query's frozen request and image-plane point.
+        const p=planEnvironmentRawSite(site,index,plan.frame,sceneBinding,plan.exposureWindow!,"engine-owned",memo,"photo-only");
         if(p.owned.pupil&&!aperture)throw new InvalidConfigurationError("Pupil capture requires origin-aware source visibility.");
         recorder?.admit(index,e,state);
         tileCount+=p.count;
