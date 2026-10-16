@@ -14,6 +14,17 @@ export interface AffineGeometricTransform extends TransformIdentity {
 }
 ```
 
+## BrownConradyGeometricTransform
+
+Schema 0.2.0: correction samples Brown-Conrady distorted data at the mapped ideal destination.
+
+```ts
+export interface BrownConradyGeometricTransform extends TransformIdentity {
+  kind: "brown-conrady";
+  profile: BrownConradyDistortionProfile;
+}
+```
+
 ## calculateComposedGeometricMapping
 
 Authoritative display-to-capture map and full local directional derivatives.
@@ -58,6 +69,11 @@ Resolves one joint validity/crop/AA plan after composing compatible inverse maps
 export function calculateGeometricSamplingPlan(input: {
   mapping: PreparedGeometricMapping; sourceRaster: GeometricRaster; destinationRaster: GeometricRaster;
   resampler: GeometricResampler; physicalProjectionDistanceMm: number;
+  /**
+   * Ideal projection of the physical source (captured) raster for the reported angles. Omitted or
+   * "rectilinear" keeps the existing atan(mm / projection distance) angles exactly.
+   */
+  sourceProjectionModel?: LensProjectionModel;
 }): CalculationResult<GeometricSamplingPlan>;
 ```
 
@@ -68,7 +84,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
 
 ```ts
-export type DigitalGeometricTransform = AffineGeometricTransform | RadialGeometricTransform;
+export type DigitalGeometricTransform =
+  | AffineGeometricTransform
+  | RadialGeometricTransform
+  | BrownConradyGeometricTransform
+  | ProjectionRemapGeometricTransform;
 ```
 
 ## GeometricImageDomain
@@ -99,6 +119,17 @@ export interface GeometricMappingPoint {
   principalStretches: readonly [number, number];
   anisotropy: number;
   components: readonly { id: string; sourcePointMm: LensFieldPointMm; jacobian: GeometricJacobian }[];
+}
+```
+
+## GeometricProjectionDeclaration
+
+One ideal projection and its mapping scale (focal length, or mm per radian for equirectangular).
+
+```ts
+export interface GeometricProjectionDeclaration {
+  projectionModel: LensProjectionModel;
+  focalLengthMm: number;
 }
 ```
 
@@ -167,7 +198,8 @@ Serializable prepared state. Maps are applied in listed destination-to-source or
 
 ```ts
 export interface PreparedGeometricMapping {
-  schemaVersion: "0.1.0";
+  /** 0.1.0 when only affine/radial kinds are used; 0.2.0 when a 2.0 kind is present. */
+  schemaVersion: "0.1.0" | "0.2.0";
   frameTimeSeconds: number;
   transforms: readonly DigitalGeometricTransform[];
   semanticKey: string;
@@ -186,6 +218,19 @@ export function prepareGeometricMapping(input: {
 ```
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
+## ProjectionRemapGeometricTransform
+
+Schema 0.2.0: destination point -> scene direction (destination projection) -> source point
+(source projection). Purpose must be "projection".
+
+```ts
+export interface ProjectionRemapGeometricTransform extends TransformIdentity {
+  kind: "projection-remap";
+  destinationProjection: GeometricProjectionDeclaration;
+  sourceProjection: GeometricProjectionDeclaration;
+}
+```
 
 ## RadialGeometricTransform
 

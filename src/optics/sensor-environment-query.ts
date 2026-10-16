@@ -6,17 +6,89 @@
  * ideal projection and analytic inverse camera rotation. Native Y is explicitly inverted; the provider
  * direction is opposite the exposure-start look ray. No scene intersection, radiance or renderer
  * executes.
+ * Optional lens field mapping (2.0): the physical sensor point is first inverse-distorted (radial or
+ * Brown-Conrady) to the ideal image point, which is then unprojected with the declared ideal
+ * projection (rectilinear, fisheye or equirectangular) at the same focus-aware projection scale and
+ * rotated to exposure-start axes. The local area factor 1 / det(d distorted / d ideal) is reported
+ * for the caller to apply exactly once to irradiance. Omitting the mapping keeps the existing
+ * rectilinear computation unchanged.
  * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
 
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidScientificInputError } from "../core/validation.js";
-import { calculateInverseCameraRotationImageMapping,
+import { applyPhysicalCameraRotation, calculateInverseCameraRotationImageMapping,
   type CameraAngularVelocityRadPerSec } from "../motion/camera-rotation.js";
+import { lensProjectionDirectionValue, parseLensProjectionModel, type LensProjectionModel } from "../camera/lens-projection.js";
+import {
+  calculateInverseRadialSourcePointValue, validateRadialDistortionProfile, type RadialDistortionProfile, type ValidatedRadialProfile
+} from "./radial-distortion.js";
+import {
+  brownConradyForwardValue, brownConradyInverseValue, validateBrownConradyDistortionProfile,
+  type BrownConradyDistortionProfile, type ValidatedBrownConradyDistortionProfile
+} from "./brown-conrady-distortion.js";
+import { calculateThinLensImageDistance } from "./thin-lens.js";
 import { parseSceneRadianceEvaluationRequest, type SceneRadianceEvaluationRequest } from "../schema/scene-radiance.js";
 import { parseFocusPlane, type FocusPlane } from "./focus-state.js";
 import { requireInputObject } from "../core/record-validation.js";
+
+/**
+ * Lens field mapping between the physical (distorted) sensor point and the scene ray (2.0).
+ * `radiometricAreaCorrection` makes ownership of the distortion area factor explicit: the
+ * environment photo signal multiplies irradiance by 1 / det(d distorted / d ideal) exactly once,
+ * so a supplied field-throughput profile must not also contain it.
+ */
+export interface EnvironmentLensFieldMapping {
+  projectionModel: LensProjectionModel;
+  distortion:
+    | { kind: "none" }
+    | { kind: "radial"; profile: RadialDistortionProfile }
+    | { kind: "brown-conrady"; profile: BrownConradyDistortionProfile };
+  radiometricAreaCorrection: "inverse-distortion-jacobian";
+}
+
+/** @internal Parsed mapping with validated profiles, reused across one plan's queries. */
+export interface PreparedEnvironmentLensFieldMapping {
+  mapping: EnvironmentLensFieldMapping;
+  radial?: ValidatedRadialProfile;
+  brownConrady?: ValidatedBrownConradyDistortionProfile;
+}
+
+/** @internal Strict parse/validation of a lens field mapping (fails closed on unknown fields). */
+export function prepareEnvironmentLensFieldMapping(value: unknown): PreparedEnvironmentLensFieldMapping {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new InvalidScientificInputError("lensFieldMapping must be an object.");
+  }
+  const record = value as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    if (!["projectionModel", "distortion", "radiometricAreaCorrection"].includes(key)) {
+      throw new InvalidScientificInputError(`lensFieldMapping has unknown field ${JSON.stringify(key)}.`);
+    }
+  }
+  if (record.radiometricAreaCorrection !== "inverse-distortion-jacobian") {
+    throw new InvalidScientificInputError("lensFieldMapping.radiometricAreaCorrection must be \"inverse-distortion-jacobian\".");
+  }
+  const projectionModel = parseLensProjectionModel(record.projectionModel);
+  const distortion = record.distortion as EnvironmentLensFieldMapping["distortion"] | undefined;
+  if (typeof distortion !== "object" || distortion === null) {
+    throw new InvalidScientificInputError("lensFieldMapping.distortion must be an object.");
+  }
+  if (distortion.kind === "none") {
+    return { mapping: { projectionModel, distortion: { kind: "none" }, radiometricAreaCorrection: "inverse-distortion-jacobian" } };
+  }
+  if (distortion.kind === "radial") {
+    const radial = validateRadialDistortionProfile(distortion.profile);
+    return { mapping: { projectionModel, distortion: { kind: "radial", profile: distortion.profile },
+      radiometricAreaCorrection: "inverse-distortion-jacobian" }, radial };
+  }
+  if (distortion.kind === "brown-conrady") {
+    const brownConrady = validateBrownConradyDistortionProfile(distortion.profile);
+    return { mapping: { projectionModel, distortion: { kind: "brown-conrady", profile: distortion.profile },
+      radiometricAreaCorrection: "inverse-distortion-jacobian" }, brownConrady };
+  }
+  throw new InvalidScientificInputError("lensFieldMapping.distortion.kind must be none, radial or brown-conrady.");
+}
 
 export interface CalculateSensorEnvironmentRadianceQueryInput {
   /** Pre-AA or pre-PSF optical support, native +X right/+Y down, mm about optical axis. */
@@ -30,6 +102,19 @@ export interface CalculateSensorEnvironmentRadianceQueryInput {
   /** Environment request uses radiance propagation toward the camera, opposite the look ray. */
   environmentDirectionConvention: "outgoing-radiance-toward-camera";
   request: Omit<SceneRadianceEvaluationRequest, "target" | "timeSecondsFromExposureStart">;
+  /** Optional 2.0 lens field mapping; omitted keeps the ideal rectilinear, distortion-free query. */
+  lensFieldMapping?: EnvironmentLensFieldMapping;
+}
+
+export interface SensorEnvironmentLensFieldMappingResult {
+  projectionModel: LensProjectionModel;
+  distortionKind: "none" | "radial" | "brown-conrady";
+  /** Ideal (undistorted) image-plane point, +X right / +Y up, mm. */
+  idealImagePointMm: { x: number; y: number };
+  /** Projection scale: thin-lens image distance at finite focus, focal length at infinity, mm. */
+  projectionScaleMm: number;
+  /** 1 / det(d distorted / d ideal) at this point; 1 without distortion. */
+  distortionAreaFactor: number;
 }
 
 export interface SensorEnvironmentRadianceQuery {
@@ -37,7 +122,10 @@ export interface SensorEnvironmentRadianceQuery {
   sourcePointNativeSensorMm: { x: number; y: number };
   sourcePointImagePlaneMm: { x: number; y: number };
   referenceLookDirectionUnitVector: { x: number; y: number; z: number };
-  projection: ReturnType<typeof calculateInverseCameraRotationImageMapping>;
+  /** Rectilinear rotation mapping; null when a non-rectilinear lens field mapping is used. */
+  projection: ReturnType<typeof calculateInverseCameraRotationImageMapping> | null;
+  /** Present only when the input declared a lens field mapping. */
+  lensFieldMapping?: SensorEnvironmentLensFieldMappingResult;
   targetMeaning: "environment-direction-in-exposure-start-camera-axes";
   directionConvention: "outgoing-radiance-toward-camera";
   geometricRayProjectionCalculated: true;
@@ -56,6 +144,9 @@ export function calculateSensorEnvironmentRadianceQuery(
   input: CalculateSensorEnvironmentRadianceQueryInput
 ): CalculationResult<SensorEnvironmentRadianceQuery> {
   requireInputObject(input, "calculateSensorEnvironmentRadianceQuery input");
+  if (input.lensFieldMapping !== undefined) {
+    return calculateMappedSensorEnvironmentRadianceQuery(input, prepareEnvironmentLensFieldMapping(input.lensFieldMapping));
+  }
   if (input.timeReference !== "first-opening-boundary-phase" ||
     input.environmentDirectionConvention !== "outgoing-radiance-toward-camera") {
     throw new InvalidScientificInputError("Environment projection requires explicit opening-boundary time and outgoing-toward-camera direction conventions.");
@@ -81,5 +172,83 @@ export function calculateSensorEnvironmentRadianceQuery(
     "Ideal focus-aware rectilinear projection and constant-axis pure camera rotation; reference ray must stay in the forward hemisphere.",
     "The environment and rotation reference axes coincide with camera axes at the first opening boundary by explicit convention.",
     "Lens distortion, breathing, chromatic field mapping, translation/parallax and scene intersections remain separate."
+  ]);
+}
+
+/**
+ * @internal Lens-field-mapped query with a prepared (validated) mapping, shared with the environment
+ * photo-signal planner so profiles are validated once per plan.
+ */
+export function calculateMappedSensorEnvironmentRadianceQuery(
+  input: CalculateSensorEnvironmentRadianceQueryInput,
+  prepared: PreparedEnvironmentLensFieldMapping
+): CalculationResult<SensorEnvironmentRadianceQuery> {
+  if (input.timeReference !== "first-opening-boundary-phase" ||
+    input.environmentDirectionConvention !== "outgoing-radiance-toward-camera") {
+    throw new InvalidScientificInputError("Environment projection requires explicit opening-boundary time and outgoing-toward-camera direction conventions.");
+  }
+  const focus = parseFocusPlane(input.focus);
+  const sourcePointImagePlaneMm = { x: input.sourcePointNativeSensorMm.x, y: -input.sourcePointNativeSensorMm.y };
+  const mapping = prepared.mapping;
+  let ideal = sourcePointImagePlaneMm;
+  let distortionAreaFactor = 1;
+  if (prepared.radial !== undefined) {
+    ideal = calculateInverseRadialSourcePointValue(sourcePointImagePlaneMm, prepared.radial, "sourcePointNativeSensorMm").sourceImagePointMm;
+    // Radial map p -> s(r) p: det = s (s + r ds/dr) with r ds/dr = 2 r^2 s'(r^2).
+    const { k1, k2, k3 } = prepared.radial.coefficients;
+    const r2 = (ideal.x*ideal.x+ideal.y*ideal.y)/prepared.radial.normalizationRadiusMm**2;
+    const scale = 1+k1*r2+k2*r2*r2+k3*r2*r2*r2;
+    const radialDerivative = 1+3*k1*r2+5*k2*r2*r2+7*k3*r2*r2*r2;
+    distortionAreaFactor = 1/(scale*radialDerivative);
+  } else if (prepared.brownConrady !== undefined) {
+    ideal = brownConradyInverseValue(prepared.brownConrady, sourcePointImagePlaneMm);
+    const j = brownConradyForwardValue(prepared.brownConrady, ideal).jacobian;
+    distortionAreaFactor = 1/(j[0]*j[3]-j[1]*j[2]);
+  }
+  if (!(distortionAreaFactor > 0) || !Number.isFinite(distortionAreaFactor)) {
+    throw new InvalidScientificInputError("Distortion area factor must remain finite and positive.");
+  }
+  let projection: ReturnType<typeof calculateInverseCameraRotationImageMapping> | null = null;
+  let look: { x: number; y: number; z: number };
+  let projectionScaleMm: number;
+  if (mapping.projectionModel === "rectilinear") {
+    projection = calculateInverseCameraRotationImageMapping({ focalLengthMm: input.focalLengthMm,
+      imagePointMm: ideal, angularVelocityRadPerSec: input.angularVelocityRadPerSec,
+      timeSecondsFromExposureStart: input.timeSecondsFromOpeningReference,
+      ...(focus.kind === "finite" ? { focusDistanceM: focus.distanceM } : {}) });
+    const point = projection.value.referenceImagePointMm, z = projection.value.projectionDistanceMm;
+    const length = Math.hypot(point.x, point.y, z);
+    look = { x: point.x/length, y: point.y/length, z: z/length };
+    projectionScaleMm = z;
+  } else {
+    projectionScaleMm = focus.kind === "finite"
+      ? calculateThinLensImageDistance({ focalLengthMm: input.focalLengthMm, objectDistanceM: focus.distanceM }).value.imageDistanceMm
+      : input.focalLengthMm;
+    const velocity = input.angularVelocityRadPerSec;
+    const t = input.timeSecondsFromOpeningReference;
+    if (typeof t !== "number" || !Number.isFinite(t) || t < 0) {
+      throw new InvalidScientificInputError("timeSecondsFromOpeningReference must be finite and non-negative.");
+    }
+    const captured = lensProjectionDirectionValue(mapping.projectionModel, projectionScaleMm, ideal.x, ideal.y);
+    const reference = applyPhysicalCameraRotation(captured,
+      { pitch: velocity.pitch*t, yaw: velocity.yaw*t, roll: velocity.roll*t }, "camera-to-reference");
+    const length = Math.hypot(reference.x, reference.y, reference.z);
+    if (!(length > 0) || !Number.isFinite(length)) throw new InvalidScientificInputError("Mapped reference ray must be finite.");
+    look = { x: reference.x/length, y: reference.y/length, z: reference.z/length };
+  }
+  const request = parseSceneRadianceEvaluationRequest({ ...input.request,
+    timeSecondsFromExposureStart: input.timeSecondsFromOpeningReference,
+    target: { kind: "environment-direction", outgoingDirectionUnitVector: { x: -look.x, y: -look.y, z: -look.z } } });
+  return approximationResult({ request, sourcePointNativeSensorMm: { ...input.sourcePointNativeSensorMm },
+    sourcePointImagePlaneMm, referenceLookDirectionUnitVector: look, projection,
+    lensFieldMapping: { projectionModel: mapping.projectionModel, distortionKind: mapping.distortion.kind,
+      idealImagePointMm: { ...ideal }, projectionScaleMm, distortionAreaFactor },
+    targetMeaning: "environment-direction-in-exposure-start-camera-axes", directionConvention: "outgoing-radiance-toward-camera",
+    geometricRayProjectionCalculated: true, sceneIntersectionCalculated: false, visibilityCalculated: false, providerExecuted: false
+  }, "lens-mapped-sensor-environment-radiance-query", "0.1.0", [
+    "The physical sensor point is inverse-distorted to the ideal image point, then unprojected with the declared ideal projection and rotated by the constant-axis pure camera rotation.",
+    "Projection scale is the thin-lens image distance at finite focus (focal length at infinity) for every projection model; a calibrated finite-focus fisheye scale is not modeled.",
+    "The distortion area factor 1/det(d distorted/d ideal) is reported for exactly-once application to irradiance; field throughput, PSF and pupil models are not changed by this query.",
+    "Breathing, chromatic field mapping, translation/parallax and scene intersections remain separate."
   ]);
 }

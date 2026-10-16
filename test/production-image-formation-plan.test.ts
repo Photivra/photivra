@@ -2855,6 +2855,52 @@ describe("executed environment production graph", () => {
   });
 });
 
+describe("lens field mapping in the executed environment graph (2.0 geometric-distortion effect)", () => {
+  const BARREL = { projectionModel: "rectilinear" as const, radiometricAreaCorrection: "inverse-distortion-jacobian" as const,
+    distortion: { kind: "radial" as const, profile: { normalizationRadiusMm: 30, maximumNormalizedRadius: 1, coefficients: { k1: -0.1, k2: 0, k3: 0 } } } };
+  function request(requestDistortion: boolean, mapping?: typeof BARREL): Parameters<typeof createProductionImageFormationPlan>[0] {
+    const {evaluateRadiance,...captureData} = environmentFrameInput(false, false);
+    const capture = {...structuredClone(captureData),evaluateRadiance}, c = capture.frame.capture;
+    if (mapping !== undefined) capture.sites = capture.sites.map(s => ({...s, environment: {...s.environment, lensFieldMapping: mapping}}));
+    const e = capture.sites[0]!.environment;
+    const base = prepared({rendererOverride:{supportedStages:getImageFormationContract().stages.map(s=>s.id),
+      supportedEffects:["illumination-vignetting","geometric-distortion"],temporalSampling:{kind:"bounded",maximumSamples:256}},
+      fidelityOverride:{requiredStages:["adc-quantization"],
+        requiredEffects:requestDistortion ? [{effectId:"geometric-distortion",modelId:"generic-radial-lens-distortion",modelVersion:"1.0.0"}] : []}});
+    const preparedContext = prepareImageFormationContext({...base, sceneId:e.sceneBindings.providerProfile.sceneId,
+      sceneRadianceProviderProfileId:e.sceneBindings.providerProfile.profileId,opticalBridgeProfile:e.optics.profile});
+    const captureSnapshot = createProductionCaptureSnapshot({captureId:c.captureId,releaseFrameId:"release-environment",
+      sceneStateId:c.sceneStateId,sceneTimeSecondsFromExposureStart:c.sceneTimeSeconds,outputStateId:"output-v1",
+      exposure:c.exposure,stochasticSeedUint32:c.noise.seedUint32,
+      temporalCapture:{exposureWindowInput:{...capture.exposureWindow,nativeRaster:c.geometry.nativeRaster,
+        samplePointsNative:capture.sites.map((_,i)=>({x:i%2+.5,y:Math.floor(i/2)+.5}))},
+        imagingArea:c.geometry.imagingArea,orientation:c.geometry.orientation,
+        rotation:{angularVelocityRadPerSec:e.motion.angularVelocityRadPerSec,temporalSampleCount:e.temporalSampleCount,
+          ...(c.focus.kind === "finite" ? {focusDistanceM:c.focus.distanceM} : {})}}});
+    return {preparedContext,captureSnapshot,environmentCapture:{capture}};
+  }
+  it("composes requested lens distortion through the executed environment route", () => {
+    const plan = createProductionImageFormationPlan(request(true, BARREL));
+    expect(plan.blockers).toEqual([]);
+    expect(plan.status).toBe("ready");
+    expect(plan.effectPlan.find(e=>e.effectId==="geometric-distortion")).toMatchObject({state:"active",scientificStatus:"approximation",requiredByFidelity:true});
+    const baseline = createProductionImageFormationPlan(request(false));
+    expect(plan.environmentCaptureResult?.value.raw.value.frame).not.toEqual(baseline.environmentCaptureResult?.value.raw.value.frame);
+    const zero = createProductionImageFormationPlan(request(true, {...BARREL, distortion:{...BARREL.distortion,profile:{...BARREL.distortion.profile,coefficients:{k1:0,k2:0,k3:0}}}}));
+    expect(zero.effectPlan.find(e=>e.effectId==="geometric-distortion")?.state).toBe("modeled-zero");
+  });
+  it("blocks requested distortion without a mapping, and active distortion that was not requested", () => {
+    const missing = createProductionImageFormationPlan(request(true));
+    expect(missing.status).toBe("blocked");
+    expect(missing.blockers.some(b=>b.code==="missing-lens-field-mapping")).toBe(true);
+    expect(missing.effectPlan.find(e=>e.effectId==="geometric-distortion")?.state).toBe("blocked");
+    const undeclared = createProductionImageFormationPlan(request(false, BARREL));
+    expect(undeclared.status).toBe("blocked");
+    expect(undeclared.environmentCaptureResult).toBeUndefined();
+    expect(undeclared.blockers.some(b=>b.code==="environment-capture-evaluation-blocked")).toBe(true);
+  });
+});
+
 describe("production plan temporal and equipment rejection branches", () => {
   it("rejects capabilities that are not the resolved generic equipment contract", () => {
     expect(() => prepareImageFormationContext({ contextId: "context", sceneId: "scene", sceneRadianceProviderProfileId: "provider",

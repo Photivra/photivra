@@ -122,7 +122,8 @@ export function simulateEnvironmentSensorRawFrame(input: SimulateEnvironmentSens
   let evaluations = 0;
   const ids = new Set<string>();
   const sharedState = (e: SimulateEnvironmentSensorRawFrameInput["sites"][number]["environment"]): string => canonical({
-    sceneBindings: e.sceneBindings, optics: e.optics, motion: e.motion, psf: e.psf, pupil: e.pupil, fieldThroughput: e.fieldThroughput });
+    sceneBindings: e.sceneBindings, optics: e.optics, motion: e.motion, psf: e.psf, pupil: e.pupil, fieldThroughput: e.fieldThroughput,
+    lensFieldMapping: e.lensFieldMapping });
   // Site 0's shared state is serialized once per frame rather than once per site (#2); it is evaluated after the
   // per-site duplicate-ID check and the per-site serialization exactly as before, so the first error is unchanged.
   let firstSharedState: string | undefined;

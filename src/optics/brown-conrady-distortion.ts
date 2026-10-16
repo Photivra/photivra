@@ -247,57 +247,51 @@ function assumptions(): readonly string[] {
   ];
 }
 
-/** Applies the Brown-Conrady forward mapping to one ideal image-plane point. */
-export function calculateBrownConradyDistortionMapping(
-  input: CalculateBrownConradyDistortionMappingInput
-): CalculationResult<BrownConradyDistortionMapping> {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
-  const point = requirePoint("imagePointMm", input.imagePointMm);
-  const profile = validateProfile(input.profile);
+/** @internal Opaque validated profile for repeated in-package evaluation. */
+export type ValidatedBrownConradyDistortionProfile = ValidatedBrownConradyProfile;
+
+/** @internal Validates one profile for repeated evaluation (geometric mapping, ray queries). */
+export function validateBrownConradyDistortionProfile(
+  profile: BrownConradyDistortionProfile
+): ValidatedBrownConradyDistortionProfile {
+  return validateProfile(profile);
+}
+
+/** @internal Forward map in mm with its Jacobian d(distorted)/d(ideal), row-major. */
+export function brownConradyForwardValue(
+  profile: ValidatedBrownConradyDistortionProfile,
+  point: LensFieldPointMm
+): { mappedImagePointMm: LensFieldPointMm; jacobian: readonly [number, number, number, number] } {
   const scale = profile.radial.normalizationRadiusMm;
   const x = point.x / scale;
   const y = point.y / scale;
-  const sourceNormalizedRadius = Math.hypot(x, y);
-  if (sourceNormalizedRadius > profile.radial.maximumNormalizedRadius) {
+  if (Math.hypot(x, y) > profile.radial.maximumNormalizedRadius) {
     throw new InvalidScientificInputError(
-      "imagePointMm lies outside the Brown-Conrady profile maximumNormalizedRadius."
+      "Point lies outside the Brown-Conrady profile maximumNormalizedRadius."
     );
   }
   const mapped = forwardNormalized(x, y, profile.coefficients);
-  const mappedImagePointMm = { x: mapped.x * scale, y: mapped.y * scale };
-  const dx = mappedImagePointMm.x - point.x;
-  const dy = mappedImagePointMm.y - point.y;
-  return approximationResult(
-    {
-      direction: "undistorted-to-distorted",
-      sourceImagePointMm: point,
-      mappedImagePointMm,
-      sourceNormalizedRadius,
-      jacobianDeterminant: determinant(jacobianNormalized(x, y, profile.coefficients)),
-      deltaMm: { x: dx, y: dy, distance: Math.hypot(dx, dy) },
-      profileMinimumJacobianDeterminant: profile.minimumJacobianDeterminant
-    },
-    "generic-brown-conrady-lens-distortion",
-    "1.0.0",
-    assumptions()
-  );
+  const j = jacobianNormalized(x, y, profile.coefficients);
+  return {
+    mappedImagePointMm: { x: mapped.x * scale, y: mapped.y * scale },
+    jacobian: [j.a, j.b, j.c, j.d]
+  };
 }
 
-/**
- * Inverse-maps one distorted image-plane point to its ideal source point for destination-to-source
- * resampling. The radial-only inverse seeds damped Newton iteration; the solution must lie inside
- * the declared envelope and reproduce the distorted point within a relative 1e-12 tolerance.
- */
-export function calculateInverseBrownConradyDistortionMapping(
-  input: CalculateInverseBrownConradyDistortionMappingInput
-): CalculationResult<InverseBrownConradyDistortionMapping> {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
-  const point = requirePoint("distortedImagePointMm", input.distortedImagePointMm);
-  const profile = validateProfile(input.profile);
+/** @internal Inverse map in mm (distorted to ideal). */
+export function brownConradyInverseValue(
+  profile: ValidatedBrownConradyDistortionProfile,
+  point: LensFieldPointMm
+): LensFieldPointMm {
+  const solved = solveInverseBrownConrady(profile, point);
+  const scale = profile.radial.normalizationRadiusMm;
+  return { x: solved.x * scale, y: solved.y * scale };
+}
+
+function solveInverseBrownConrady(
+  profile: ValidatedBrownConradyProfile,
+  point: LensFieldPointMm
+): { x: number; y: number; iterations: number; residual: number; sourceNormalizedRadius: number } {
   const scale = profile.radial.normalizationRadiusMm;
   const maximum = profile.radial.maximumNormalizedRadius;
   const tx = point.x / scale;
@@ -364,6 +358,63 @@ export function calculateInverseBrownConradyDistortionMapping(
     );
   }
 
+  return { x, y, iterations, residual, sourceNormalizedRadius };
+}
+
+/** Applies the Brown-Conrady forward mapping to one ideal image-plane point. */
+export function calculateBrownConradyDistortionMapping(
+  input: CalculateBrownConradyDistortionMappingInput
+): CalculationResult<BrownConradyDistortionMapping> {
+  if (typeof input !== "object" || input === null) {
+    throw new InvalidScientificInputError("input must be an object.");
+  }
+  const point = requirePoint("imagePointMm", input.imagePointMm);
+  const profile = validateProfile(input.profile);
+  const scale = profile.radial.normalizationRadiusMm;
+  const x = point.x / scale;
+  const y = point.y / scale;
+  const sourceNormalizedRadius = Math.hypot(x, y);
+  if (sourceNormalizedRadius > profile.radial.maximumNormalizedRadius) {
+    throw new InvalidScientificInputError(
+      "imagePointMm lies outside the Brown-Conrady profile maximumNormalizedRadius."
+    );
+  }
+  const mapped = forwardNormalized(x, y, profile.coefficients);
+  const mappedImagePointMm = { x: mapped.x * scale, y: mapped.y * scale };
+  const dx = mappedImagePointMm.x - point.x;
+  const dy = mappedImagePointMm.y - point.y;
+  return approximationResult(
+    {
+      direction: "undistorted-to-distorted",
+      sourceImagePointMm: point,
+      mappedImagePointMm,
+      sourceNormalizedRadius,
+      jacobianDeterminant: determinant(jacobianNormalized(x, y, profile.coefficients)),
+      deltaMm: { x: dx, y: dy, distance: Math.hypot(dx, dy) },
+      profileMinimumJacobianDeterminant: profile.minimumJacobianDeterminant
+    },
+    "generic-brown-conrady-lens-distortion",
+    "1.0.0",
+    assumptions()
+  );
+}
+
+/**
+ * Inverse-maps one distorted image-plane point to its ideal source point for destination-to-source
+ * resampling. The radial-only inverse seeds damped Newton iteration; the solution must lie inside
+ * the declared envelope and reproduce the distorted point within a relative 1e-12 tolerance.
+ */
+export function calculateInverseBrownConradyDistortionMapping(
+  input: CalculateInverseBrownConradyDistortionMappingInput
+): CalculationResult<InverseBrownConradyDistortionMapping> {
+  if (typeof input !== "object" || input === null) {
+    throw new InvalidScientificInputError("input must be an object.");
+  }
+  const point = requirePoint("distortedImagePointMm", input.distortedImagePointMm);
+  const profile = validateProfile(input.profile);
+  const solved = solveInverseBrownConrady(profile, point);
+  const scale = profile.radial.normalizationRadiusMm;
+  const { x, y, iterations, residual, sourceNormalizedRadius } = solved;
   const sourceImagePointMm = { x: x * scale, y: y * scale };
   const dx = sourceImagePointMm.x - point.x;
   const dy = sourceImagePointMm.y - point.y;

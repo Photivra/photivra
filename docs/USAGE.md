@@ -7105,6 +7105,38 @@ console.log(calculateGeometricFocusBreathing({
 }).value.deltaDegrees);
 ```
 
+### Fisheye-to-rectilinear and Brown–Conrady geometric mappings
+
+```ts
+import {
+  calculateComposedGeometricMapping,
+  calculateForwardGeometricMapping,
+  prepareGeometricMapping
+} from "@photivra/engine";
+
+// Destination-to-source: a rectilinear 10 mm view sampled from an 8 mm equidistant fisheye capture,
+// after a Brown–Conrady correction of the fisheye's residual distortion.
+const mapping = prepareGeometricMapping({
+  frameTimeSeconds: 0,
+  transforms: [
+    {
+      id: "fisheye-to-rectilinear", version: "1", domain: "reconstructed-linear", purpose: "projection",
+      kind: "projection-remap",
+      destinationProjection: { projectionModel: "rectilinear", focalLengthMm: 10 },
+      sourceProjection: { projectionModel: "fisheye-equidistant", focalLengthMm: 8 }
+    },
+    {
+      id: "residual-distortion", version: "1", domain: "reconstructed-linear", purpose: "distortion",
+      kind: "brown-conrady",
+      profile: { normalizationRadiusMm: 12, maximumNormalizedRadius: 1,
+        coefficients: { k1: -0.02, k2: 0, k3: 0, p1: 0.001, p2: 0 } }
+    }
+  ]
+}).value;
+const point = calculateComposedGeometricMapping({ mapping, destinationPointMm: { x: 4, y: -2 } }).value;
+console.log(mapping.schemaVersion, point.sourcePointMm, point.determinant);
+console.log(calculateForwardGeometricMapping({ mapping, sourcePointMm: point.sourcePointMm }).value);
+```
 ## Simulate a capture with the facade
 
 `simulateCapture()` composes the generic tier presets, scene metering, the exposure-mode resolver,

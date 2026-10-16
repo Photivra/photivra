@@ -52,6 +52,9 @@ export {
   type DigitalGeometricTransform,
   type AffineGeometricTransform,
   type RadialGeometricTransform,
+  type BrownConradyGeometricTransform,
+  type ProjectionRemapGeometricTransform,
+  type GeometricProjectionDeclaration,
   type GeometricJacobian,
   type GeometricImageDomain,
   type PreparedGeometricMapping,
@@ -1682,6 +1685,7 @@ export { calculateSceneSensorEqeTemporalExposure, type CalculateSceneSensorEqeTe
 export { calculateSensorPsfIrradianceQuadrature, type CalculateSensorPsfIrradianceQuadratureInput,
   type SensorPsfSourceSample, type SensorPsfIrradianceQuadrature } from "./optics/sensor-psf-quadrature.js";
 export { calculateSensorEnvironmentRadianceQuery, type CalculateSensorEnvironmentRadianceQueryInput,
+  type EnvironmentLensFieldMapping, type SensorEnvironmentLensFieldMappingResult,
   type SensorEnvironmentRadianceQuery } from "./optics/sensor-environment-query.js";
 export { calculateSensorEqeTemporalExposure, type CalculateSensorEqeTemporalExposureInput,
   type SensorEqeTemporalExposure } from "./sensor/eqe-temporal-exposure.js";
