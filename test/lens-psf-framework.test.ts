@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   assessMtfOnlyPsfRenderability,
+  InvalidConfigurationError,
   calculateLensComplexPupilPsf,
   parseLensComplexPupilProfile,
   parseLensMtfDiagnosticProfile,
@@ -13,6 +14,7 @@ import {
   type LensSampledPsfGridNode,
   type LensSampledPsfProfile
 } from "../src/index.js";
+import { expectRejection, type Json, type RejectionCase } from "./helpers/rejection-table.js";
 
 const evidence = (
   ref: string
@@ -1604,5 +1606,51 @@ describe("MTF diagnostic validation boundaries", () => {
     ).toThrow(
       "must lie from zero through one"
     );
+  });
+});
+
+describe("sampled PSF and MTF profile rejection branches", () => {
+  const sampled = (): Json => structuredClone(sampledProfile());
+  const cases: RejectionCase[] = [
+    ["a non-object responseIncludes", (p): void => { p.responseIncludes = null; }, " must be an object."],
+    ["a blank profile id", (p): void => { p.profileId = ""; }, ".profileId must be a non-empty string."],
+    ["a non-finite field coordinate", (p): void => { p.nodes[0].coordinate.fieldYmm = Number.NaN; }, " must be finite."],
+    ["a zero kernel pitch", (p): void => { p.nodes[0].kernel.samplePitchMicrometersX = 0; }, ".samplePitchMicrometersX must be greater than zero."],
+    ["a negative kernel intensity", (p): void => { p.nodes[0].kernel.normalizedIntensity[4] = -0.1; }, " must be greater than or equal to zero."],
+    ["a fractional kernel width", (p): void => { p.nodes[0].kernel.widthSamples = 2.5; }, ".widthSamples must be a positive safe integer."],
+    ["a negative kernel centre", (p): void => { p.nodes[0].kernel.centerSampleX = -1; }, ".centerSampleX must be a non-negative safe integer."],
+    ["an unknown scientific status", (p): void => { p.scientificStatus = "measured"; }, ".scientificStatus is invalid."],
+    ["an unknown node uncertainty kind", (p): void => { p.nodes[0].uncertainty = { kind: "interval" }; }, ".uncertainty.kind is invalid."],
+    ["non-array limitations", (p): void => { p.limitations = "synthetic"; }, ".limitations must be an array."],
+    ["duplicate limitations", (p): void => { p.limitations = ["a", "a"]; }, ".limitations must not contain duplicates."],
+    ["an empty axis", (p): void => { p.axes.fieldYmm = []; }, ".fieldYmm must be a non-empty array."],
+    ["a kernel whose sample count overflows", (p): void => { p.nodes[0].kernel.widthSamples = 2 ** 30; p.nodes[0].kernel.heightSamples = 2 ** 30; },
+      " sample count must remain a safe integer."],
+    ["a kernel centre outside the grid", (p): void => { p.nodes[0].kernel.centerSampleX = 3; }, " center sample must lie within the kernel grid."],
+    ["a kernel with the wrong sample count", (p): void => { p.nodes[0].kernel.normalizedIntensity.push(0); },
+      ".normalizedIntensity length must equal widthSamples × heightSamples."],
+    ["a regular grid above 100000 nodes", (p): void => { p.axes.fieldYmm = Array.from({ length: 12_501 }, (_, i) => i); },
+      "lensPsfProfile regular grid must contain at most 100000 nodes."],
+    ["object-space coordinates", (p): void => { p.coordinateSystem = "object-space-angular"; }, "lensPsfProfile image-plane coordinate semantics are invalid."],
+    ["peak-normalized kernels", (p): void => { p.kernelEnergyNormalization = "unit-peak"; },
+      "lensPsfProfile normalization/interpolation/throughput ownership is invalid."],
+    ["non-array nodes", (p): void => { p.nodes = {}; }, "lensPsfProfile.nodes must be an array."],
+    ["no nodes", (p): void => { p.nodes = []; }, "lensPsfProfile.nodes must contain exactly one node for every regular-grid coordinate."]
+  ];
+  it.each(cases)("rejects a sampled PSF profile with %s", (_name, mutate, message) => {
+    expectRejection(sampled, parseLensSampledPsfProfile, InvalidConfigurationError, mutate, message);
+  });
+
+  const mtf = (): Json => ({ schemaVersion: "0.1.0", profileId: "mtf", profileVersion: "1.0.0", opticalDomain: "lens-primary-optical-path-only",
+    phaseInformationAvailable: false, magnitudeMeaning: "mtf-magnitude-only", fieldPointMm: { x: 0, y: 0 }, focalLengthMm: 50,
+    focus: { kind: "infinity" }, apertureFNumber: 4, wavelengthNm: null, samples: [
+      { spatialFrequencyCyclesPerMm: 0, sagittalMagnitude: 1, tangentialMagnitude: 1 },
+      { spatialFrequencyCyclesPerMm: 20, sagittalMagnitude: 0.7, tangentialMagnitude: 0.6 }], evidence: evidence("mtf"), limitations: ["m"] });
+  it.each([
+    ["an unsupported schema version", (p: Json): void => { p.schemaVersion = "0.2.0"; }, "lensMtfProfile.schemaVersion must be"],
+    ["claimed phase information", (p: Json): void => { p.phaseInformationAvailable = true; }, "lensMtfProfile optical/phase semantics are invalid."],
+    ["no samples", (p: Json): void => { p.samples = []; }, "lensMtfProfile.samples must be a non-empty array."]
+  ] as RejectionCase[])("rejects an MTF diagnostic profile with %s", (_name, mutate, message) => {
+    expectRejection(mtf, parseLensMtfDiagnosticProfile, InvalidConfigurationError, mutate, message);
   });
 });

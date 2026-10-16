@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createExposureMeterTargetFromMeteringResult,
+  InvalidScientificInputError,
   meterRelativeExposure,
   parseExposureMeteringProfile,
   parseGenericBodyExposureCapabilityProfile,
@@ -13,6 +14,7 @@ import {
   type ExposureMeterTarget,
   type ResolvedGenericEquipmentExposureCapabilities
 } from "../src/index.js";
+import { expectRejection, type Json, type RejectionCase } from "./helpers/rejection-table.js";
 
 const evidence = (ref: string) => [{
   sourceOrigin: "photivra" as const,
@@ -508,3 +510,33 @@ describe("Auto ISO grid-aligned exact matches (#272)",()=>{
   });
 });
 
+
+describe("exposure-mode resolver target and capability rejection branches",()=>{
+  const input=():Json=>({target:structuredClone(targetForScale(2)),capabilities:structuredClone(capabilities()),referenceExposure:{...ref},
+    manualShutterSeconds:1/125,isoControl:{kind:"manual",iso:100,apertureQuantizationPolicy:"nearest-log2-narrower-on-tie"}});
+  const resolve=(i:Json):unknown=>resolveShutterPriorityExposureMode(i);
+  it.each([
+    ["a non-object target",(i:Json):void=>{i.target=null;},"target must be an object."],
+    ["a zero reference aperture",(i:Json):void=>{i.referenceExposure.aperture=0;},"must be finite and greater than zero."],
+    ["an unsupported target schema",(i:Json):void=>{i.target.schemaVersion="9.9.9";},"target.schemaVersion must be"],
+    ["a blank target id",(i:Json):void=>{i.target.targetId="";},"target.targetId must be a non-empty string."],
+    ["a non-finite target offset",(i:Json):void=>{i.target.exposureOffsetStopsToTarget=Number.NaN;},"target.exposureOffsetStopsToTarget must be finite."],
+    ["an unknown target status",(i:Json):void=>{i.target.status="saturated";},"target.status is invalid."],
+    ["an empty discrete aperture grid",(i:Json):void=>{i.capabilities.aperture.settingGrid={kind:"discrete-values",values:[]};},
+      "must be a continuous grid or a non-empty discrete-values grid."],
+    ["a non-increasing ISO grid",(i:Json):void=>{i.capabilities.iso.settingGrid.values=[100,100,200];},
+      ".values must be strictly increasing with no duplicates."],
+    ["an ISO grid outside the range",(i:Json):void=>{i.capabilities.iso.settingGrid.values=[50,100];},
+      ".values must stay inside the resolved capability range."],
+    ["a calibrated capability claim",(i:Json):void=>{i.capabilities.scientificStatus="calibrated";},
+      "capabilities do not satisfy the generic equipment exposure-capability boundary."],
+    ["an inverted aperture range",(i:Json):void=>{i.capabilities.aperture.widestAvailableFNumber=22;},"capabilities aperture range is invalid."],
+    ["an inverted shutter range",(i:Json):void=>{i.capabilities.shutter.minimumSeconds=60;},"capabilities shutter range is invalid."],
+    ["an unknown Auto ISO availability",(i:Json):void=>{i.capabilities.iso.autoIsoAvailability="maybe";},
+      "capabilities.iso.autoIsoAvailability is invalid."],
+    ["an unknown manual-ISO aperture quantization policy",(i:Json):void=>{i.isoControl.apertureQuantizationPolicy="nearest";},
+      'isoControl.apertureQuantizationPolicy must be "nearest-log2-narrower-on-tie".']
+  ] as RejectionCase[])("rejects %s",(_name,mutate,message)=>{
+    expectRejection(input,resolve,InvalidScientificInputError,mutate,message);
+  });
+});
