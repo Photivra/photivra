@@ -87,7 +87,8 @@ const POLICY_KINDS =
     "multi-zone-uniform",
     "center-weighted-radial",
     "spot",
-    "highlight-weighted"
+    "highlight-weighted",
+    "highlight-priority"
   ]);
 
 function requireRecord(

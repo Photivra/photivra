@@ -162,9 +162,9 @@ Front- and rear-curtain modes differ only in where the same pulse support is reg
 
 Flash duration and shutter duration remain independent. Extending the shutter can integrate more ambient scene time without proportionally increasing a fixed short flash pulse.
 
-Schema 0.1.0 intentionally excludes HSS. A moving-slit exposure with no whole-frame-open interval cannot be made ordinary-flash-compatible by relabeling a single pulse as HSS.
+Ordinary sync never covers HSS. A moving-slit exposure with no whole-frame-open interval cannot be made ordinary-flash-compatible by relabeling a single pulse as HSS; high-speed sync is the separate quasi-continuous burst model of `resolveHighSpeedFlashSync()` (schema 0.2.0 sync profiles), see [Flash: guide number, TTL and high-speed sync](SCENE_SENSOR_TEMPORAL_EXPOSURE.md#flash-guide-number-ttl-and-high-speed-sync).
 
-Manual flash also excludes TTL/preflash metering, recycle/thermal behavior, flash exposure lock, red-eye/modeling/AF-assist emissions and branded protocols. Camera WB remains downstream interpretation and never changes the emitted flash spectrum.
+Manual flash itself has no TTL; generic pre-flash TTL power is solved separately by `resolveTtlFlashExposure()` and applied to the manual profile. Recycle/thermal behavior, flash exposure lock, red-eye/modeling/AF-assist emissions and branded protocols remain excluded. Camera WB remains downstream interpretation and never changes the emitted flash spectrum.
 
 ### Generic illumination vignetting
 

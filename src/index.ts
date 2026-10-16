@@ -846,6 +846,12 @@ export {
 
 export {
   assessReadoutExposureTimingLinkage,
+  deriveElectronicRollingShutterExposureSchedule,
+  isElectronicRollingShutterExposureSchedule,
+  toCaptureExposureSchedule,
+  ELECTRONIC_ROLLING_SHUTTER_MODEL,
+  type DeriveElectronicRollingShutterExposureScheduleInput,
+  type ElectronicRollingShutterExposureSchedule,
   type AssessReadoutExposureTimingLinkageInput,
   type ReadoutExposureBoundaryId,
   type ReadoutExposureBoundarySpatialLink,
@@ -1242,10 +1248,17 @@ export {
 export {
   FLASH_SYNC_CAPABILITY_SCHEMA_VERSION,
   MANUAL_FLASH_PROFILE_SCHEMA_VERSION,
+  FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION,
+  HIGH_SPEED_SYNC_MODEL,
+  createHighSpeedSyncIlluminationOverlay,
   createManualFlashIlluminationOverlay,
   parseFlashSyncCapabilityProfile,
   parseManualFlashProfile,
+  resolveHighSpeedFlashSync,
   resolveManualFlashSync,
+  type FlashOverlaySyncRegistration,
+  type ResolveHighSpeedFlashSyncInput,
+  type ResolvedHighSpeedFlashSync,
   type CreateManualFlashIlluminationOverlayInput,
   type FlashSyncCapabilityProfile,
   type ManualFlashIlluminationOverlay,
@@ -1256,6 +1269,19 @@ export {
   type ResolveManualFlashSyncInput,
   type ResolvedManualFlashSync
 } from "./exposure/flash.js";
+
+export {
+  TTL_FLASH_MODEL,
+  applyTtlFlashPower,
+  calculateFlashGuideNumber,
+  calculateFlashPowerForDistance,
+  resolveTtlFlashExposure,
+  type FlashGuideNumberInput,
+  type FlashPowerForDistance,
+  type FlashPowerForDistanceInput,
+  type ResolveTtlFlashExposureInput,
+  type TtlFlashExposure
+} from "./exposure/flash-ttl.js";
 
 export {
   calculateEquivalentIso,
@@ -1281,8 +1307,10 @@ export {
 
 export {
   EXPOSURE_METERING_PROFILE_SCHEMA_VERSION,
+  calculateHighlightPriorityPlacementSignal,
   meterRelativeExposure,
   parseExposureMeteringProfile,
+  type HighlightPriorityMeteringDiagnostics,
   type ExposureMeteringPolicy,
   type ExposureMeteringProfile,
   type ExposureMeteringResult,
@@ -1406,6 +1434,19 @@ export {
   type ResolvedReleaseFrame,
   type ResolvedReleaseSequence
 } from "./capture/release-sequence.js";
+
+export {
+  VIDEO_FRAME_SEED_STREAM_ID,
+  VIDEO_FRAME_SEQUENCE_MAXIMUM_FRAMES,
+  VIDEO_FRAME_SEQUENCE_VERSION,
+  assessShutterAngleRule,
+  calculateShutterAngleExposureSeconds,
+  calculateShutterAngleFromExposureSeconds,
+  resolveVideoFrameSequence,
+  type ResolveVideoFrameSequenceInput,
+  type ShutterAngleRuleAssessment,
+  type VideoFrameSequence
+} from "./motion/video-sequence.js";
 
 export {
   GENERIC_BODY_METERING_CAPABILITY_SCHEMA_VERSION,

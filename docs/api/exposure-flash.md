@@ -2,6 +2,19 @@
 
 The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
+## createHighSpeedSyncIlluminationOverlay
+
+Registers a resolved HSS burst as a temporal illumination overlay (rectangular quasi-continuous
+waveform over [0, D]); every line then integrates the burst over its own local exposure window.
+
+```ts
+export function createHighSpeedSyncIlluminationOverlay(
+  input: Omit<CreateManualFlashIlluminationOverlayInput, "resolvedSync"> & { resolvedSync: ResolvedHighSpeedFlashSync }
+): ManualFlashIlluminationOverlay;
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
 ## createManualFlashIlluminationOverlay
 
 Construct an owned registered temporal illumination overlay from the resolved manual pulse while
@@ -34,10 +47,19 @@ export interface CreateManualFlashIlluminationOverlayInput {
   flashProfile:
     ManualFlashProfile;
   resolvedSync:
-    ResolvedManualFlashSync;
+    FlashOverlaySyncRegistration;
   illuminationProfileId: string;
   temporalProfileId: string;
 }
+```
+
+## FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION
+
+Sync-capability schema that may declare high-speed (pulsed quasi-continuous) sync.
+
+```ts
+FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION =
+  "0.2.0" as const
 ```
 
 ## FLASH_SYNC_CAPABILITY_SCHEMA_VERSION
@@ -49,6 +71,22 @@ FLASH_SYNC_CAPABILITY_SCHEMA_VERSION =
   "0.1.0" as const
 ```
 
+## FlashOverlaySyncRegistration
+
+Fields of a resolved sync that registration of a flash overlay needs (ordinary or HSS).
+
+```ts
+export type FlashOverlaySyncRegistration = Pick<
+  ResolvedManualFlashSync,
+  | "flashEnabled"
+  | "flashProfileId"
+  | "flashProfileVersion"
+  | "sourceId"
+  | "waveformTimeZeroSecondsFromCaptureReference"
+  | "evidence"
+>;
+```
+
 ## FlashSyncCapabilityProfile
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -56,19 +94,41 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface FlashSyncCapabilityProfile {
   schemaVersion:
-    typeof FLASH_SYNC_CAPABILITY_SCHEMA_VERSION;
+    | typeof FLASH_SYNC_CAPABILITY_SCHEMA_VERSION
+    | typeof FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION;
   profileId: string;
   profileVersion: string;
   captureModeId: string;
   timingProfileId: string;
   supportedOrdinarySyncModes:
     readonly ManualFlashSyncMode[];
-  highSpeedSyncSupported: false;
+  /** Schema 0.1.0 is always false; schema 0.2.0 may declare HSS with {@link highSpeedSync}. */
+  highSpeedSyncSupported: boolean;
+  /** Present exactly when highSpeedSyncSupported is true (schema 0.2.0). */
+  highSpeedSync?: {
+    /**
+     * η: energy of one full-power quasi-continuous burst as a fraction of one full-power ordinary
+     * pulse, (0, 1]. Caller-declared from evidence (capacitor/thermal limits); never inferred.
+     */
+    burstEnergyFractionOfFullPulse: number;
+    evidence: readonly EvidenceProvenance[];
+  };
   ordinarySyncRequiresWholeActiveFrameSimultaneouslyExposed:
     true;
   evidence: readonly EvidenceProvenance[];
   limitations: readonly string[];
 }
+```
+
+## HIGH_SPEED_SYNC_MODEL
+
+Model identity of the pulsed quasi-continuous high-speed-sync burst.
+
+```ts
+HIGH_SPEED_SYNC_MODEL = Object.freeze({
+  id: "flash-hss-quasi-continuous-burst",
+  version: "1.0.0"
+} as const)
 ```
 
 ## MANUAL_FLASH_PROFILE_SCHEMA_VERSION
@@ -225,6 +285,54 @@ export type RequestedFlashSyncMode =
   | "high-speed-sync";
 ```
 
+## ResolvedHighSpeedFlashSync
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface ResolvedHighSpeedFlashSync extends FlashOverlaySyncRegistration {
+  modelId: typeof HIGH_SPEED_SYNC_MODEL.id;
+  modelVersion: typeof HIGH_SPEED_SYNC_MODEL.version;
+  syncMode: "high-speed-sync";
+  syncStatus: "disabled" | "high-speed-sync-resolved";
+  captureModeId: string;
+  timingProfileId: string;
+  syncCapabilityProfileId: string;
+  timeReference: "first-opening-boundary-phase";
+  powerFraction: number;
+  /** η from the sync capability profile. */
+  burstEnergyFractionOfFullPulse: number;
+  /** ∫ pulse(t) dt of the declared relative-peak-one ordinary pulse (relative multiplier · s). */
+  singlePulseIntegratedRelativeSeconds: number;
+  /** D: burst support covering the first line opening to the last line closing. */
+  burstStartSecondsFromCaptureReference: number;
+  burstEndSecondsFromCaptureReference: number;
+  burstDurationSeconds: number;
+  /** Local (slit) exposure durations t_e over the active frame. */
+  localExposureDurationRangeSeconds: { minimum: number; maximum: number };
+  /** Flash energy each line receives relative to one ordinary pulse at the same power: η·t_e/D. */
+  energyFractionOfSinglePulseRange: { minimum: number; maximum: number };
+  /** Effective guide-number factor relative to the same-power ordinary pulse: √(η·t_e/D). */
+  guideNumberFactorRange: { minimum: number; maximum: number };
+  uniformAcrossActiveFrame: boolean;
+  /** Rectangular quasi-continuous burst expressed as a manual pulse profile for the illumination overlay. */
+  burstFlashProfile: ManualFlashProfile | null;
+  releaseFrameBinding:
+    | {
+        sequenceId: string;
+        releaseFrameId: string;
+        frameIndex: number;
+        sceneTimeSecondsFromSequenceStartAtBurstStart: number;
+        sceneTimeSecondsFromSequenceStartAtBurstEnd: number;
+      }
+    | null;
+  hssModeled: true;
+  ttlModeled: false;
+  sensorReadoutTimingUsedAsExposureTiming: false;
+  limitations: readonly string[];
+}
+```
+
 ## ResolvedManualFlashSync
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -284,6 +392,47 @@ export interface ResolvedManualFlashSync {
   supportStateModified: false;
   evidence: readonly EvidenceProvenance[];
   limitations: readonly string[];
+}
+```
+
+## resolveHighSpeedFlashSync
+
+Resolves high-speed (focal-plane) sync as a pulsed quasi-continuous burst spanning the whole
+travelling-slit exposure.
+
+When the opening and closing boundaries traverse the frame so that no instant exposes the whole
+frame (shutter faster than the ordinary sync limit), a single short pulse would expose only a band.
+HSS instead emits a rapid pulse train that behaves as constant output P over the burst D from the
+first line opening to the last line closing. Each line integrates P·t_e over its slit time t_e. If
+the burst carries energy E_burst = η·p·E_pulse (η declared by the sync profile, p the power
+fraction, E_pulse the ordinary full-power pulse energy), then P = E_burst/D and each line receives
+η·p·E_pulse·t_e/D. Because exposure ∝ GN² (inverse-square law, GN = d·N), the effective guide number
+relative to the same-power ordinary pulse is GN_HSS/GN = √(η·t_e/D). Shortening t_e by one stop
+therefore costs half a stop of guide number. Approximation: the pulse train is treated as continuous
+(pulse period ≪ t_e), recycle/thermal limits are folded into η, and front/rear-curtain placement does
+not apply because the burst spans the whole exposure.
+
+```ts
+export function resolveHighSpeedFlashSync(input: ResolveHighSpeedFlashSyncInput): ResolvedHighSpeedFlashSync;
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
+## ResolveHighSpeedFlashSyncInput
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface ResolveHighSpeedFlashSyncInput {
+  flashEnabled: boolean;
+  /** Ordinary full-power pulse definition; its integral defines the full-power pulse energy. */
+  flashProfile: ManualFlashProfile;
+  /** Schema 0.2.0 profile with highSpeedSyncSupported true. */
+  syncCapabilities: FlashSyncCapabilityProfile;
+  timing: ResolvedCaptureModeTiming;
+  /** Commanded output as a fraction of full power, (0, 1]. */
+  powerFraction: number;
+  releaseFrame?: ResolvedReleaseFrame;
 }
 ```
 

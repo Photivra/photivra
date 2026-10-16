@@ -50,6 +50,8 @@ import {
   type ScientificAssuranceComponentUncertainty
 } from "../core/scientific-assurance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
+import { isElectronicRollingShutterExposureSchedule } from "../sensor/readout-exposure-linkage.js";
 import {
   calculateCaptureRotationTemporalQuadrature,
   type CaptureRotationTemporalQuadrature
@@ -251,6 +253,15 @@ export interface ProductionTemporalCaptureInput {
   orientation: CaptureOrientation;
   readout?:
     SensorReadoutTimingDeclaration;
+  /**
+   * Optional explicit readout→exposure linkage. With the electronic rolling-shutter model the
+   * exposure-window schedule must equal deriveElectronicRollingShutterExposureSchedule(readout), so
+   * every per-site exposure window (and the rotation quadrature) carries the per-line offset.
+   */
+  readoutExposureLinkage?: {
+    kind: "electronic-rolling-shutter-line-reset-read";
+    evidence: readonly EvidenceProvenance[];
+  };
   rotation?: {
     angularVelocityRadPerSec:
       CameraAngularVelocityRadPerSec;
@@ -269,7 +280,8 @@ export interface ProductionTemporalCaptureResult {
   exposureTimeReference:
     "first-opening-boundary-phase";
   readoutExposureSynchronization:
-    "not-assumed";
+    | "not-assumed"
+    | "electronic-rolling-shutter-line-linked";
   sensorReadoutTimingRemainsSeparate:
     true;
   temporalRadianceIntegrated:
@@ -1722,6 +1734,34 @@ function validateTemporalCaptureInput(
     });
   }
 
+  if (input.readoutExposureLinkage !== undefined) {
+    const linkage = input.readoutExposureLinkage;
+    if (
+      typeof linkage !== "object" ||
+      linkage === null ||
+      linkage.kind !== "electronic-rolling-shutter-line-reset-read"
+    ) {
+      throw new InvalidConfigurationError(
+        "temporalCapture.readoutExposureLinkage.kind is invalid."
+      );
+    }
+    parseEvidenceList(
+      linkage.evidence,
+      "temporalCapture.readoutExposureLinkage.evidence"
+    );
+    if (
+      input.readout === undefined ||
+      !isElectronicRollingShutterExposureSchedule(
+        input.exposureWindowInput,
+        input.readout
+      )
+    ) {
+      throw new InvalidConfigurationError(
+        "temporalCapture electronic rolling-shutter linkage requires a rolling readout and the exposure schedule derived from it."
+      );
+    }
+  }
+
   if (input.rotation !== undefined) {
     const sampleCount =
       input.rotation
@@ -3138,7 +3178,10 @@ function computeTemporalResult(
       exposureTimeReference:
         "first-opening-boundary-phase",
       readoutExposureSynchronization:
-        "not-assumed",
+        temporal.readoutExposureLinkage ===
+        undefined
+          ? "not-assumed"
+          : "electronic-rolling-shutter-line-linked",
       sensorReadoutTimingRemainsSeparate:
         true,
       temporalRadianceIntegrated:

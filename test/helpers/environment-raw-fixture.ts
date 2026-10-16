@@ -42,13 +42,16 @@ export function siteInput(base = sensorInput(), psf = true): CalculateEnvironmen
     psf: psf ? { kind: "sampled-local", configuration: { psf: p.psf, psfWavelengthBasis: p.psfWavelengthBasis, spatialModel: p.spatialModel } } :
       { kind: "not-applied", evidence: evidence("test:no-psf"), limitation: "Point optics only; no lens blur." }, evaluateRadiance: evaluator };
 }
-export function frameInput(rolling = false, sampledPsf = false): SimulateEnvironmentSensorRawFrameInput {
+/** Optional exact boundary schedules (e.g. a derived electronic rolling shutter) replacing the rolling flag. */
+export type FrameScheduleOverride = Pick<SimulateEnvironmentSensorRawFrameInput["exposureWindow"], "opening" | "closing">;
+export function frameInput(rolling = false, sampledPsf = false, schedule?: FrameScheduleOverride): SimulateEnvironmentSensorRawFrameInput {
   const raw = loadSensorRawProducerInput(), ev = raw.frame.colorSamplingProfile.evidence;
   const scan = { kind: "uniform-linear-native-scan" as const, directionNative: { value: "right-to-left" as const, evidence: ev },
     traversalDurationSeconds: { value: .002, unit: "s" as const, evidence: ev } };
   const exposureWindow = { shutterMechanism: "electronic" as const, nominalExposureDurationSeconds: {
     value: raw.frame.capture.exposure.shutterSeconds, unit: "s" as const, evidence: ev },
-    opening: rolling ? scan : { kind: "simultaneous" as const }, closing: rolling ? scan : { kind: "simultaneous" as const } };
+    opening: schedule?.opening ?? (rolling ? scan : { kind: "simultaneous" as const }),
+    closing: schedule?.closing ?? (rolling ? scan : { kind: "simultaneous" as const }) };
   const windows = calculateCaptureExposureWindows({ ...exposureWindow, nativeRaster: raw.frame.capture.geometry.nativeRaster,
     samplePointsNative: raw.sites.map((_, i) => ({ x: i%2+.5, y: Math.floor(i/2)+.5 })) }).value;
   return { frame: raw.frame, sceneBinding: { sceneStateId: raw.frame.capture.sceneStateId, providerSceneId: "room", evidence: ev },
