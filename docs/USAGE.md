@@ -3774,9 +3774,7 @@ Sensor **data readout timing is never used as flash exposure timing**.
 
 ### HSS boundary
 
-`high-speed-sync` is a recognized request but is intentionally unsupported in schema 0.1.0.
-
-Photivra does not make HSS work by allowing an ordinary short pulse above the normal sync regime. Real HSS requires an extended/repeated illumination waveform coordinated with the moving exposure slit and has different energy/range behavior.
+`resolveManualFlashSync()` still rejects `high-speed-sync`: Photivra does not make HSS work by allowing an ordinary short pulse above the normal sync regime. Real HSS requires an extended/repeated illumination waveform coordinated with the moving exposure slit and has different energy/range behavior; that is the separate `resolveHighSpeedFlashSync()` burst model for schema 0.2.0 sync profiles that declare HSS (see [Rolling shutter, video, flash TTL/HSS and highlight-priority metering](#rolling-shutter-video-flash-ttlhss-and-highlight-priority-metering-200)).
 
 ### Illumination overlay
 
@@ -3809,7 +3807,7 @@ Flash spectrum is physical scene illumination. A downstream Flash WB preset, if 
 
 An optional committed `ResolvedReleaseFrame` may be supplied. Its shutter duration must match the #12 timing contract. The resolved flash event then exposes pulse start/end in sequence-relative scene time without changing the release frame.
 
-TTL/preflash metering, flash exposure compensation policy, FE/FV lock, recycle/burst/thermal limits, red-eye preflashes, modeling lamps, AF-assist and wireless protocol simulation remain outside this first manual-flash contract.
+Generic pre-flash TTL power (`resolveTtlFlashExposure()`, with flash exposure compensation) is solved separately and applied to the manual profile with `createTtlScaledFlashProfile()`. FE/FV lock, recycle/burst/thermal limits, red-eye preflashes, modeling lamps, AF-assist and wireless protocol simulation remain outside the manual-flash contract.
 
 ## Capture orientation, active area, and output geometry
 
@@ -4157,7 +4155,8 @@ The first generic policies are explicit rather than branded:
 - `multi-zone-uniform` — area-weighted average over all supplied zones;
 - `center-weighted-radial` — multiplies area weight by a radial physical-frame weighting function with explicit edge weight and exponent;
 - `spot` — selects samples inside an explicit spot center/radius in the oriented active capture frame;
-- `highlight-weighted` — gives brighter relative-linear samples more weight through an explicit exponent and minimum weight fraction.
+- `highlight-weighted` — gives brighter relative-linear samples more weight through an explicit exponent and minimum weight fraction, then places that weighted mean at the target. It is highlight emphasis, not highlight protection: in a mostly mid-grey frame with a small bright area it darkens the mid-tones (about 0.5–0.8 EV versus uniform metering for a 95 % 0.18 / 5 % 0.9 frame) without placing the highlights relative to saturation.
+- `highlight-priority` — places the area-weighted `highlightPercentile` quantile of the samples `headroomStops` below a declared `saturationRelativeSignal`; the profile target must equal `saturationRelativeSignal · 2^−headroomStops` (`calculateHighlightPriorityPlacementSignal()`). It is a spatial quantile, so the time-averaged scene-radiance meter and TTL flash reject it.
 
 The sample producer supplies `areaWeight`, so denser sampling in one part of the frame does not automatically mean more metering influence.
 
@@ -6732,6 +6731,133 @@ Use [registered linear statistics](https://github.com/Photivra/photivra/blob/mai
 See [Print planning](https://github.com/Photivra/photivra/blob/main/docs/PRINT_PLANNING.md) for a complete strict packed example and the exact-ratio integer policy. `calculatePrintPlan()` answers native sampling sufficiency and a compatible minimum file raster; `calculatePrintSizeLimit()` distinguishes finite, unbounded and unavailable sampling bounds. Quality and delivery are separately unassessed.
 
 The [regional Print detail diagnostic](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_ASSESSMENT.md) measures one declared coherent sinusoidal fundamental in a selected linear-luminance ROI and records its exact source stage. Its [validation protocol](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_VALIDATION.md) and [capability ledger](https://github.com/Photivra/photivra/blob/main/docs/validation/print-detail-capabilities.json) distinguish mathematical conformance from blocked acquired-image, renderer and perceived-quality qualification.
+
+## Rolling shutter, video, flash TTL/HSS and highlight-priority metering (2.0.0)
+
+These additions are approximations; the equations, derivations and sources are in
+[Electronic rolling-shutter image formation](https://github.com/Photivra/photivra/blob/main/docs/MOTION_AND_SIGNAL.md#electronic-rolling-shutter-image-formation),
+[Video frame sequences](https://github.com/Photivra/photivra/blob/main/docs/MOTION_AND_SIGNAL.md#video-frame-sequences) and
+[Flash: guide number, TTL and high-speed sync](https://github.com/Photivra/photivra/blob/main/docs/SCENE_SENSOR_TEMPORAL_EXPOSURE.md#flash-guide-number-ttl-and-high-speed-sync).
+
+An electronic rolling shutter turns the rolling readout declaration into a line-offset exposure schedule.
+Pass the schedule wherever an exposure window is accepted (native RAW and environment `exposureWindow`,
+production `temporalCapture.exposureWindowInput` with `readoutExposureLinkage`); skew, wobble, partial
+exposure and flicker banding then emerge from per-site sampling. A video clip is a deterministic sequence of
+ordinary release frames:
+
+```ts
+import {
+  assessShutterAngleRule,
+  calculateCaptureExposureWindows,
+  resolveElectronicRollingShutterExposureSchedule,
+  resolveVideoFrameSequence,
+  createRollingShutterCaptureExposureSchedule
+} from "@photivra/engine";
+
+const evidence = [{ sourceOrigin: "photivra" as const, sourceReference: "example:rolling-video", reuseStatus: "photivra-owned" as const }];
+const readout = {
+  readoutMode: "rolling" as const,
+  captureReadoutDurationSeconds: { value: 0.016, unit: "s" as const, evidence },
+  scanDirectionNative: { value: "top-to-bottom" as const, evidence },
+  spatialSamplingSkewSeconds: { value: 0.016, unit: "s" as const, evidence }
+};
+const schedule = resolveElectronicRollingShutterExposureSchedule({
+  readout,
+  nominalExposureDurationSeconds: { value: 1 / 250, unit: "s", evidence },
+  linkageEvidence: evidence
+});
+const windows = calculateCaptureExposureWindows({
+  ...createRollingShutterCaptureExposureSchedule(schedule),
+  nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 },
+  samplePointsNative: [{ x: 3000, y: 0.5 }, { x: 3000, y: 3999.5 }]
+}).value;
+// Top and bottom lines open about 16 ms apart: a subject moving 2000 px/s is sheared by ~32 px.
+console.log(windows.samples.map((window) => window.startOffsetSecondsFromOpeningReference));
+
+const clip = resolveVideoFrameSequence({
+  sequenceId: "clip-1",
+  opticalState: { bodyId: "generic-body", bodyVersion: "1", lensId: "generic-50", lensVersion: "1", focalLengthMm: 50,
+    aperture: 4, focusDistanceM: 5, captureMode: "video", outputWidth: 1920, outputHeight: 1080, frameRateHz: 24,
+    stabilizationMode: "off" },
+  shutterAngleDegrees: 180,
+  frameCount: 3,
+  sequenceSeedUint32: 7,
+  iso: 400,
+  automation: { ae: "locked", af: "manual", awb: "locked" },
+  timingEvidence: evidence,
+  rollingShutter: { readout, linkageEvidence: evidence }
+});
+console.log(clip.exposureSeconds, clip.frames.map((frame) => [frame.exposureStartTimeSeconds, frame.stochasticSeedUint32]));
+console.log(assessShutterAngleRule(24, 172.8).classification);
+```
+
+Highlight-priority metering places a highlight percentile below saturation; TTL solves the main-flash power
+from a pre-flash measured with the same linear meter, and the result feeds the ordinary front/rear-curtain sync:
+
+```ts
+import {
+  calculateFlashPowerForDistance,
+  calculateHighlightPriorityPlacementSignal,
+  meterRelativeExposure,
+  parseExposureMeteringProfile,
+  resolveCaptureGeometry,
+  resolveTtlFlashExposure,
+  type ExposureMeteringSampleSet
+} from "@photivra/engine";
+
+const evidence = [{ sourceOrigin: "photivra" as const, sourceReference: "example:flash-meter", reuseStatus: "photivra-owned" as const }];
+const zones = (signals: readonly number[]): ExposureMeteringSampleSet => ({
+  measurementId: "meter", sceneStateId: "scene", inputDomain: "relative-pre-exposure-linear-signal",
+  captureRegion: "oriented-active-capture",
+  captureGeometry: resolveCaptureGeometry({ imagingArea: { widthMm: 36, heightMm: 24 },
+    nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 }, orientation: "landscape" }).value,
+  processingState: { exposureSettingsApplied: false, whiteBalanceApplied: false, toneMappingApplied: false,
+    displayGammaApplied: false, sharpeningApplied: false },
+  samples: signals.map((relativeLinearSignal, index) => ({ sampleId: "zone-" + index,
+    positionOrientedCaptureUv: { u: (index % 5 + 0.5) / 5, v: (Math.floor(index / 5) + 0.5) / 4 },
+    relativeLinearSignal, areaWeight: 1 }))
+});
+const meter = (policy: Parameters<typeof parseExposureMeteringProfile>[0], target: number) => parseExposureMeteringProfile({
+  schemaVersion: "0.1.0", profileId: "meter", scientificStatus: "approximation",
+  inputDomain: "relative-pre-exposure-linear-signal", captureRegion: "oriented-active-capture", policy,
+  target: { kind: "relative-signal-reference", targetRelativeSignal: target, evidence }, evidence,
+  limitations: ["Generic relative meter."]
+});
+
+// 95 % mid-grey, 5 % bright: place the 99th percentile half a stop below saturation.
+const scene = zones([...Array.from({ length: 19 }, () => 0.18), 0.9]);
+const placement = calculateHighlightPriorityPlacementSignal(1, 0.5);
+const highlight = meterRelativeExposure({
+  profile: meter({ kind: "highlight-priority", highlightPercentile: 0.99, saturationRelativeSignal: 1, headroomStops: 0.5 }, placement),
+  sampleSet: scene
+}).value;
+console.log(highlight.highlightPriority?.percentileRelativeSignal, highlight.status === "resolved" && highlight.requiredExposureScaleToTarget);
+
+// Manual guide-number exposure: GN 40 m at ISO 100, subject 5 m at f/4 → quarter power.
+console.log(calculateFlashPowerForDistance({ fullPowerGuideNumberMetersIso100: 40, subjectDistanceM: 5,
+  apertureFNumber: 4, iso: 100, minimumPowerFraction: 1 / 128 }).powerFraction);
+
+// TTL: ambient and 1/32-power pre-flash readings of the same zones.
+const ttl = resolveTtlFlashExposure({
+  meteringProfile: meter({ kind: "multi-zone-uniform" }, 0.18),
+  ambientSampleSet: zones([0.02, 0.02, 0.04, 0.04]),
+  preFlashSampleSet: zones([0.12, 0.12, 0.06, 0.06]),
+  preFlashPowerFraction: 1 / 32,
+  ambientScaleToMainExposure: 0.5,
+  flashExposureCompensationStops: 0,
+  minimumPowerFraction: 1 / 128,
+  guideNumber: { fullPowerGuideNumberMetersIso100: 40, iso: 100, apertureFNumber: 4 }
+}).value;
+console.log(ttl.status, ttl.powerFraction, ttl.flashRangeAtApertureM);
+// Apply with createTtlScaledFlashProfile(flashProfile, ttl) and place it with resolveManualFlashSync() as before.
+```
+
+High-speed sync needs a schema 0.2.0 sync-capability profile that declares HSS and its burst energy fraction.
+`resolveHighSpeedFlashSync()` returns the burst support, the per-line energy fraction `η·t_e/D` and the
+guide-number factor `√(η·t_e/D)`; `createHighSpeedSyncIlluminationOverlay()` registers the burst as a
+temporal illumination source that every line integrates over its own window. Pass
+`syncEnergyFactor = energyFractionOfSinglePulseRange.minimum` to `resolveTtlFlashExposure()` to solve TTL power
+for HSS.
 
 ## Lens projections, aberrations, polarizer and haze (2.0)
 

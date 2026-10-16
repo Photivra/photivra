@@ -2,6 +2,20 @@
 
 The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
+## calculateHighlightPriorityPlacementSignal
+
+Relative signal at which a highlight-priority profile places its highlight
+percentile: `saturationRelativeSignal * 2^-headroomStops`.
+
+```ts
+export function calculateHighlightPriorityPlacementSignal(
+  saturationRelativeSignal: number,
+  headroomStops: number
+): number;
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
 ## EXPOSURE_METERING_PROFILE_SCHEMA_VERSION
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -33,9 +47,35 @@ export type ExposureMeteringPolicy =
         number;
     }
   | {
+      /**
+       * Highlight-emphasis weighted average (unchanged since 1.x). Brighter samples
+       * receive weight `minimumWeightFraction + (1 - minimumWeightFraction) *
+       * (signal / maximum)^exponent`; the weighted mean is then placed at the
+       * profile target. It is NOT highlight protection: no sample is placed
+       * relative to saturation, so in a mostly mid-grey scene with a small bright
+       * area it underexposes the mid-tones relative to uniform metering without
+       * guaranteeing headroom. Use `highlight-priority` to place highlights below
+       * saturation.
+       */
       kind: "highlight-weighted";
       minimumWeightFraction: number;
       exponent: number;
+    }
+  | {
+      /**
+       * Highlight-priority placement. The area-weighted `highlightPercentile`
+       * quantile of the relative pre-exposure signal is placed `headroomStops`
+       * below `saturationRelativeSignal`. The profile target must declare that
+       * placement exactly: `targetRelativeSignal = saturationRelativeSignal *
+       * 2^-headroomStops` (see {@link calculateHighlightPriorityPlacementSignal}).
+       */
+      kind: "highlight-priority";
+      /** Area-weighted quantile in (0, 1]; 1 places the brightest sample. */
+      highlightPercentile: number;
+      /** Relative pre-exposure signal at which the declared output saturates. */
+      saturationRelativeSignal: number;
+      /** Non-negative headroom in stops between the placed highlight and saturation. */
+      headroomStops: number;
     };
 ```
 
@@ -123,6 +163,23 @@ export interface ExposureMeteringZoneSample {
     NormalizedRasterUv;
   relativeLinearSignal: number;
   areaWeight: number;
+}
+```
+
+## HighlightPriorityMeteringDiagnostics
+
+Diagnostics reported only for the highlight-priority policy.
+
+```ts
+export interface HighlightPriorityMeteringDiagnostics {
+  highlightPercentile: number;
+  /** Lower area-weighted quantile (inverse empirical CDF) of the samples. */
+  percentileRelativeSignal: number;
+  saturationRelativeSignal: number;
+  headroomStops: number;
+  placementRelativeSignal: number;
+  quantileDefinition:
+    "area-weighted-lower-quantile-inverse-empirical-cdf";
 }
 ```
 
