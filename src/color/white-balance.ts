@@ -15,6 +15,18 @@ import {
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import {
+  calculateChromaticityFromCorrelatedColorTemperature,
+  type PlanckianLocusModel,
+  type WhiteLocus
+} from "./illuminants.js";
+import {
+  multiplyMatrixVector,
+  parseMatrix3x3,
+  xyzOfChromaticity,
+  type CieXyChromaticity,
+  type ColorMatrix3x3
+} from "./colorimetry-math.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -93,7 +105,8 @@ export interface ResolvedWhiteBalanceState {
     | "preset"
     | "manual-gains"
     | "custom-measurement"
-    | "auto-white-balance";
+    | "auto-white-balance"
+    | "color-temperature";
   channelGains: WhiteBalanceChannelGains;
   locked: boolean;
   sourceProfile?: {
@@ -116,6 +129,8 @@ export interface ResolvedWhiteBalanceState {
       blue: number;
     };
   };
+  /** Present for `color-temperature` states: the declared CCT/tint and its camera neutral. */
+  colorTemperature?: ResolvedColorTemperatureWhiteBalance;
   sourceStateId?: string;
   trueIlluminantMetadataUsed: false;
   sceneIlluminationModified: false;
@@ -133,6 +148,40 @@ export interface ColorTemperatureWhiteBalanceIntent {
   channelGainsResolved: false;
   requiresCameraProfileColorimetry: true;
   sceneIlluminationModified: false;
+}
+
+/** Locus/tint interpretation and camera neutral behind a Kelvin + tint WB state. */
+export interface ResolvedColorTemperatureWhiteBalance {
+  intentId: string;
+  colorTemperatureKelvin: number;
+  tint: number;
+  whiteLocus: WhiteLocus;
+  tintInterpretation: "duv-cie-1960-uv";
+  planckianLocusModel: "kim-2002-cubic-spline" | "planck-integration";
+  /** CIE 1931 xy of the declared white (CCT + Duv). */
+  adoptedWhiteChromaticity: CieXyChromaticity;
+  /** Pre-WB camera response to that white (XYZ with Y = 1 through xyzToCameraRgb). */
+  cameraNeutralRgb: WhiteBalanceChannelGains;
+}
+
+/** Camera colour model used to turn a declared white into channel gains. */
+export interface ColorTemperatureWhiteBalanceCameraModel {
+  profileId: string;
+  profileVersion: string;
+  /** Row-major CIE XYZ (white Y = 1) → relative pre-WB camera-linear RGB. */
+  xyzToCameraRgb: ColorMatrix3x3;
+}
+
+export interface ResolveColorTemperatureWhiteBalanceInput {
+  stateId: string;
+  intent: ColorTemperatureWhiteBalanceIntent;
+  /** Locus whose temperature defines the white: Planckian or CIE daylight. */
+  whiteLocus: WhiteLocus;
+  /** Tint is read as Duv in the CIE 1960 UCS (positive = above the Planckian locus, greenish). */
+  tintInterpretation: "duv-cie-1960-uv";
+  /** Defaults to the Kim et al. (2002) cubic-spline locus. */
+  planckianLocus?: PlanckianLocusModel;
+  camera: ColorTemperatureWhiteBalanceCameraModel;
 }
 
 export interface ResolvePresetWhiteBalanceInput {
@@ -499,6 +548,15 @@ function immutableState(
     ...(state.awbPolicy === undefined
       ? {}
       : { awbPolicy: Object.freeze({ ...state.awbPolicy }) }),
+    ...(state.colorTemperature === undefined
+      ? {}
+      : {
+          colorTemperature: Object.freeze({
+            ...state.colorTemperature,
+            adoptedWhiteChromaticity: Object.freeze({ ...state.colorTemperature.adoptedWhiteChromaticity }),
+            cameraNeutralRgb: Object.freeze({ ...state.colorTemperature.cameraNeutralRgb })
+          })
+        }),
     ...(state.measurement === undefined
       ? {}
       : {
@@ -601,8 +659,9 @@ export function resolveManualWhiteBalance(
 /**
  * Records independent color-temperature and tint intent.
  *
- * No channel gains are fabricated here; mapping CCT+tint into a camera's
- * channel/color space belongs to a profile/colorimetry contract.
+ * No channel gains are fabricated here; use
+ * `resolveColorTemperatureWhiteBalance()` with an explicit camera colour model to
+ * resolve gains.
  */
 export function createColorTemperatureWhiteBalanceIntent(
   input: CreateColorTemperatureWhiteBalanceIntentInput
@@ -618,6 +677,81 @@ export function createColorTemperatureWhiteBalanceIntent(
     channelGainsResolved: false,
     requiresCameraProfileColorimetry: true,
     sceneIlluminationModified: false
+  });
+}
+
+/**
+ * Resolves Kelvin + tint WB intent into camera channel gains for an explicit camera
+ * colour model: white xy = locus(CCT) offset by Duv = tint along the Planckian-locus
+ * normal in CIE 1960 uv; camera neutral n = M_XYZ→camera · XYZ(white, Y = 1); gains =
+ * (n_G/n_R, 1, n_G/n_B). A neutral surface lit by an illuminant with exactly that
+ * chromaticity then renders with equal channels. The CCT/tint is the photographer's
+ * declared white, not a measured scene illuminant; accuracy is bounded by the camera
+ * matrix (exact only under the Luther–Ives condition) and the locus model.
+ */
+export function resolveColorTemperatureWhiteBalance(
+  input: ResolveColorTemperatureWhiteBalanceInput
+): ResolvedWhiteBalanceState {
+  const intent = input.intent;
+  if (
+    typeof intent !== "object" ||
+    intent === null ||
+    intent.version !== COLOR_TEMPERATURE_WHITE_BALANCE_INTENT_VERSION
+  ) {
+    throw new InvalidScientificInputError(
+      "intent must be a color-temperature WB intent of version " +
+        COLOR_TEMPERATURE_WHITE_BALANCE_INTENT_VERSION +
+        "."
+    );
+  }
+  const intentId = requireScientificNonEmptyString(intent.intentId, "intent.intentId");
+  const kelvin = requireScientificPositiveFinite(intent.colorTemperatureKelvin, "intent.colorTemperatureKelvin");
+  const tint = requireScientificFinite(intent.tint, "intent.tint");
+  if (input.tintInterpretation !== "duv-cie-1960-uv") {
+    throw new InvalidScientificInputError('tintInterpretation must be "duv-cie-1960-uv".');
+  }
+  const camera = input.camera;
+  if (typeof camera !== "object" || camera === null) {
+    throw new InvalidScientificInputError("camera must be an object.");
+  }
+  const profileId = requireScientificNonEmptyString(camera.profileId, "camera.profileId");
+  const profileVersion = requireScientificNonEmptyString(camera.profileVersion, "camera.profileVersion");
+  const matrix = parseMatrix3x3(camera.xyzToCameraRgb, "camera.xyzToCameraRgb");
+  const locus: PlanckianLocusModel = input.planckianLocus ?? { kind: "kim-2002-cubic-spline" };
+  const white = calculateChromaticityFromCorrelatedColorTemperature({
+    correlatedColorTemperatureKelvin: kelvin,
+    duv: tint,
+    whiteLocus: input.whiteLocus,
+    locus
+  }).value;
+  const xyz = xyzOfChromaticity(white);
+  const [red, green, blue] = multiplyMatrixVector(matrix, [xyz.x, xyz.y, xyz.z]);
+  if (!(red > 0) || !(green > 0) || !(blue > 0)) {
+    throw new InvalidScientificInputError(
+      "The camera response to the declared white must be positive in every channel."
+    );
+  }
+  return immutableState({
+    ...stateBase(
+      input.stateId,
+      "color-temperature",
+      { red: green / red, green: 1, blue: green / blue },
+      [
+        "Kelvin/tint gains neutralize the declared white through the supplied camera matrix; they do not identify the scene illuminant.",
+        "Tint is Duv in CIE 1960 uv; accuracy is bounded by the camera matrix and the locus model."
+      ]
+    ),
+    sourceProfile: { profileId, profileVersion },
+    colorTemperature: {
+      intentId,
+      colorTemperatureKelvin: kelvin,
+      tint,
+      whiteLocus: input.whiteLocus,
+      tintInterpretation: "duv-cie-1960-uv",
+      planckianLocusModel: locus.kind,
+      adoptedWhiteChromaticity: { x: white.x, y: white.y },
+      cameraNeutralRgb: { red, green, blue }
+    }
   });
 }
 
@@ -956,6 +1090,39 @@ function parseResolvedWhiteBalanceMeasurement(
   };
 }
 
+function parseResolvedColorTemperature(
+  value: unknown,
+  path: string
+): ResolvedColorTemperatureWhiteBalance {
+  const record = requireRecord(value, path);
+  if (record.whiteLocus !== "planckian" && record.whiteLocus !== "cie-daylight") {
+    throw new InvalidConfigurationError(path + ".whiteLocus is invalid.");
+  }
+  if (record.tintInterpretation !== "duv-cie-1960-uv") {
+    throw new InvalidConfigurationError(path + ".tintInterpretation is invalid.");
+  }
+  if (
+    record.planckianLocusModel !== "kim-2002-cubic-spline" &&
+    record.planckianLocusModel !== "planck-integration"
+  ) {
+    throw new InvalidConfigurationError(path + ".planckianLocusModel is invalid.");
+  }
+  const white = requireRecord(record.adoptedWhiteChromaticity, path + ".adoptedWhiteChromaticity");
+  return {
+    intentId: requireNonEmptyString(record.intentId, path + ".intentId"),
+    colorTemperatureKelvin: requirePositiveFinite(record.colorTemperatureKelvin, path + ".colorTemperatureKelvin"),
+    tint: requireFinite(record.tint, path + ".tint"),
+    whiteLocus: record.whiteLocus,
+    tintInterpretation: "duv-cie-1960-uv",
+    planckianLocusModel: record.planckianLocusModel,
+    adoptedWhiteChromaticity: {
+      x: requirePositiveFinite(white.x, path + ".adoptedWhiteChromaticity.x"),
+      y: requirePositiveFinite(white.y, path + ".adoptedWhiteChromaticity.y")
+    },
+    cameraNeutralRgb: parseChannelGains(record.cameraNeutralRgb, path + ".cameraNeutralRgb")
+  };
+}
+
 /**
  * Parses a committed resolved white-balance state from an untrusted JSON
  * boundary without re-estimating WB.
@@ -997,7 +1164,9 @@ export function parseResolvedWhiteBalanceState(
     record.source !==
       "custom-measurement" &&
     record.source !==
-      "auto-white-balance"
+      "auto-white-balance" &&
+    record.source !==
+      "color-temperature"
   ) {
     throw new InvalidConfigurationError(
       "resolvedWhiteBalanceState.source is invalid."
@@ -1087,6 +1256,14 @@ export function parseResolvedWhiteBalanceState(
           "resolvedWhiteBalanceState.measurement"
         );
 
+  const colorTemperature =
+    record.colorTemperature === undefined
+      ? undefined
+      : parseResolvedColorTemperature(
+          record.colorTemperature,
+          "resolvedWhiteBalanceState.colorTemperature"
+        );
+
   const presetId =
     record.presetId === undefined
       ? undefined
@@ -1133,6 +1310,17 @@ export function parseResolvedWhiteBalanceState(
   ) {
     throw new InvalidConfigurationError(
       "An auto-white-balance state requires sourceProfile, awbPolicy, and measurement identity."
+    );
+  }
+
+  if (
+    (record.source === "color-temperature") !==
+      (colorTemperature !== undefined) ||
+    (record.source === "color-temperature" &&
+      sourceProfile === undefined)
+  ) {
+    throw new InvalidConfigurationError(
+      "A color-temperature WB state requires sourceProfile and colorTemperature; other sources must not declare colorTemperature."
     );
   }
 
@@ -1190,6 +1378,11 @@ export function parseResolvedWhiteBalanceState(
       ? {}
       : {
           measurement
+        }),
+    ...(colorTemperature === undefined
+      ? {}
+      : {
+          colorTemperature
         }),
     ...(sourceStateId === undefined
       ? {}
