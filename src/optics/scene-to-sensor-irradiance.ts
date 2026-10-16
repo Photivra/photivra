@@ -256,8 +256,12 @@ export interface SceneToSensorIrradianceResult {
     number;
   frontOfLensFilterTransmissionAppliedExactlyOnce:
     true;
+  /**
+   * True when a front-of-lens linear polarizer was applied. Scene radiance is unpolarized in this
+   * bridge, so a polarizer transmits (k1 + k2) / 2.
+   */
   frontOfLensFilterPolarizationModeled:
-    false;
+    boolean;
   fieldThroughputFactor: number;
   effectiveAcceptanceAfterTransmissionAndFieldSteradians:
     number;
@@ -1395,6 +1399,7 @@ export function calculateSceneRadianceToSensorIrradiance(
   }
 
   let frontOfLensFilterCount = 0;
+  let frontOfLensFilterPolarizationModeled = false;
   let frontOfLensFilterTransmissionFactor = 1;
   let frontOfLensFilterAttenuationStops = 0;
   let frontOfLensFilterEvidence:
@@ -1417,6 +1422,8 @@ export function calculateSceneRadianceToSensorIrradiance(
       });
     frontOfLensFilterCount =
       composed.appliedFilterCount;
+    frontOfLensFilterPolarizationModeled =
+      composed.polarizationModeled;
     frontOfLensFilterTransmissionFactor =
       composed
         .combinedLinearTransmissionFactor;
@@ -1470,7 +1477,9 @@ export function calculateSceneRadianceToSensorIrradiance(
     "Geometric distortion area-density/Jacobian correction is not applied by this bridge.",
     "PSF/diffraction energy redistribution is downstream and must preserve normalized energy apart from separately owned throughput losses.",
     "Sensor optical stack, microlens, CFA, QE/responsivity and charge conversion are downstream.",
-    "Flare, ghosting, veiling glare, polarization, volumetric scattering and wavelength-changing behavior are not modeled."
+    frontOfLensFilterPolarizationModeled
+      ? "Flare, ghosting, veiling glare, scene-radiance polarization (scene light is treated as unpolarized; the front-of-lens linear polarizer transmits (k1 + k2) / 2), volumetric scattering and wavelength-changing behavior are not modeled."
+      : "Flare, ghosting, veiling glare, polarization, volumetric scattering and wavelength-changing behavior are not modeled."
   ];
 
   return approximationResult(
@@ -1519,8 +1528,7 @@ export function calculateSceneRadianceToSensorIrradiance(
       frontOfLensFilterAttenuationStops,
       frontOfLensFilterTransmissionAppliedExactlyOnce:
         true,
-      frontOfLensFilterPolarizationModeled:
-        false,
+      frontOfLensFilterPolarizationModeled,
       fieldThroughputFactor,
       effectiveAcceptanceAfterTransmissionAndFieldSteradians:
         effectiveAcceptance,

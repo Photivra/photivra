@@ -13,7 +13,7 @@ import {
   createWavefrontPupilGrid,
   estimateMarechalStrehlRatio,
   evaluateZernikePolynomial,
-  zernikeNollToOrder,
+  resolveZernikeNollOrder,
   type LensComplexPupilGrid
 } from "../src/index.js";
 import { complexPupilProfileForGrid } from "./helpers/complex-pupil-profile.js";
@@ -33,12 +33,12 @@ describe("Zernike (Noll) wavefront parameterisation", () => {
       [9, 3, -3], [10, 3, 3], [11, 4, 0], [12, 4, 2], [13, 4, -2], [14, 4, 4], [15, 4, -4], [22, 6, 0], [37, 8, 0]
     ];
     for (const [j, n, m] of expected) {
-      const order = zernikeNollToOrder(j);
+      const order = resolveZernikeNollOrder(j);
       expect([order.radialOrder, order.azimuthalFrequency]).toEqual([n, m]);
     }
-    expect(() => zernikeNollToOrder(0)).toThrow(/nollIndex/);
-    expect(() => zernikeNollToOrder(67)).toThrow(/nollIndex/);
-    expect(() => zernikeNollToOrder(2.5)).toThrow(/nollIndex/);
+    expect(() => resolveZernikeNollOrder(0)).toThrow(/nollIndex/);
+    expect(() => resolveZernikeNollOrder(67)).toThrow(/nollIndex/);
+    expect(() => resolveZernikeNollOrder(2.5)).toThrow(/nollIndex/);
   });
 
   it("matches the closed-form low-order polynomials", () => {

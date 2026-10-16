@@ -4,7 +4,17 @@
  * Module boundary and integration notes.
  * Parses one generic front-of-lens transmission filter. Schema 0.1.0 is explicitly unbranded and
  * unpolarized. It models only passive transmission placed before the lens. Reflections between stacked
- * filters, polarization, flare/ghosting and wavelength-changing behavior are outside this contract.
+ * filters, flare/ghosting and wavelength-changing behavior are outside this contract.
+ * Schema 0.2.0 adds one polarizing kind, a linear (partial) polarizer with principal transmittance
+ * k1, extinction ratio k1/k2 and a transmission-axis angle. Polarization is carried as linear Stokes
+ * parameters (S0, S1, S2) and filters are composed in order with Mueller matrices of a linear
+ * diattenuator (Chipman, Handbook of Optics vol. I ch. 22, 3rd ed., 2010; Goldstein, Polarized Light,
+ * 3rd ed., ch. 4-5; Born & Wolf, Principles of Optics, sec. 1.4.2):
+ *   T = (k1 + k2)/2 + (k1 - k2)/2 * P * cos(2 (psi - theta))
+ * for incident light of degree of linear polarization P at angle psi and an axis at theta. For P = 1
+ * this is Malus's law k1 cos^2(psi - theta) + k2 sin^2(psi - theta); for unpolarized light it is
+ * (k1 + k2)/2, about one half of k1. Circular polarization, retardance (for example the quarter-wave
+ * plate of a circular polarizer), angle-of-incidence dependence and depolarization are not modeled.
  * Resolves one passive filter at one wavelength.
  * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
  * limits.
@@ -26,6 +36,21 @@ type UnknownRecord = Record<string, unknown>;
 
 export const FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION =
   "0.1.0" as const;
+/** Schema that additionally admits the `linear-polarizer` transmission kind. */
+export const FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION =
+  "0.2.0" as const;
+
+export type FrontOfLensFilterProfileSchemaVersion =
+  | typeof FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION
+  | typeof FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION;
+
+/** Partially linearly polarized light: degree P in [0, 1] and polarization angle psi. */
+export interface LinearPolarizationState {
+  /** Degree of linear polarization P in [0, 1]; 0 is unpolarized. */
+  degreeOfLinearPolarization: number;
+  /** Electric-field polarization angle, degrees counter-clockwise from image +X. */
+  angleDegrees: number;
+}
 
 export type FrontOfLensFilterScientificStatus =
   | "calibrated"
@@ -64,11 +89,23 @@ export type FrontOfLensFilterTransmissionModel =
         EvidenceBackedFact<
           readonly FrontOfLensFilterSpectralSample[]
         >;
+    }
+  | {
+      /** Schema 0.2.0 only. Neutral (wavelength-independent) within the declared range. */
+      kind: "linear-polarizer";
+      /** k1: intensity transmittance for light polarized along the transmission axis, (0, 1]. */
+      principalTransmittance:
+        EvidenceBackedFact<number>;
+      /** k1 / k2 >= 1, finite (use a large finite ratio for a near-ideal polarizer). */
+      extinctionRatio:
+        EvidenceBackedFact<number>;
+      /** Transmission-axis angle as mounted, degrees counter-clockwise from image +X. */
+      transmissionAxisDegrees: number;
     };
 
 export interface FrontOfLensFilterProfile {
   schemaVersion:
-    typeof FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION;
+    FrontOfLensFilterProfileSchemaVersion;
   filterId: string;
   profileVersion: string;
   identityScope:
@@ -89,7 +126,8 @@ export interface FrontOfLensFilterProfile {
     FrontOfLensFilterTransmissionModel;
   uncertainty:
     FrontOfLensFilterUncertainty;
-  polarizationModeled: false;
+  /** True exactly when the transmission kind is `linear-polarizer` (schema 0.2.0). */
+  polarizationModeled: boolean;
   wavelengthChangingBehaviorModeled:
     false;
   evidence: readonly EvidenceProvenance[];
@@ -104,11 +142,13 @@ export interface ResolveFrontOfLensFilterTransmissionInput {
       SpectralWavelengthBasis,
       "unspecified"
     >;
+  /** Incident polarization; omitted means unpolarized. */
+  incidentPolarization?: LinearPolarizationState;
 }
 
 export interface ResolvedFrontOfLensFilterTransmission {
   schemaVersion:
-    typeof FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION;
+    FrontOfLensFilterProfileSchemaVersion;
   filterId: string;
   profileVersion: string;
   identityScope:
@@ -124,10 +164,13 @@ export interface ResolvedFrontOfLensFilterTransmission {
     >;
   transmissionKind:
     FrontOfLensFilterTransmissionModel["kind"];
+  /** Intensity transmittance for the declared incident polarization. */
   linearTransmissionFactor: number;
   attenuationStops: number;
   opticalDensityBase10: number;
-  polarizationModeled: false;
+  polarizationModeled: boolean;
+  incidentPolarization: LinearPolarizationState;
+  transmittedPolarization: LinearPolarizationState;
   wavelengthChangingBehaviorModeled:
     false;
   lensTransmissionIncluded: false;
@@ -140,6 +183,7 @@ export interface ResolvedFrontOfLensFilterTransmission {
 }
 
 export interface ComposeFrontOfLensFilterTransmissionInput {
+  /** Filters in light-path order (scene side first). */
   filters:
     readonly FrontOfLensFilterProfile[];
   wavelengthNanometers: number;
@@ -148,11 +192,13 @@ export interface ComposeFrontOfLensFilterTransmissionInput {
       SpectralWavelengthBasis,
       "unspecified"
     >;
+  /** Incident scene polarization; omitted means unpolarized. */
+  incidentPolarization?: LinearPolarizationState;
 }
 
 export interface ComposedFrontOfLensFilterTransmission {
   schemaVersion:
-    typeof FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION;
+    FrontOfLensFilterProfileSchemaVersion;
   wavelengthNanometers: number;
   wavelengthBasis:
     Exclude<
@@ -171,8 +217,11 @@ export interface ComposedFrontOfLensFilterTransmission {
     "not-propagated";
   uncertaintyLimitation: string;
   compositionModel:
-    "independent-multiplicative-unpolarized-transmission-no-inter-filter-reflections";
-  polarizationModeled: false;
+    | "independent-multiplicative-unpolarized-transmission-no-inter-filter-reflections"
+    | "ordered-linear-stokes-mueller-no-inter-filter-reflections";
+  polarizationModeled: boolean;
+  incidentPolarization: LinearPolarizationState;
+  transmittedPolarization: LinearPolarizationState;
   wavelengthChangingBehaviorModeled:
     false;
   lensTransmissionIncluded: false;
@@ -512,12 +561,63 @@ function parseSpectralSamples(
 
 function parseTransmission(
   value: unknown,
-  path: string
+  path: string,
+  polarizerAllowed: boolean
 ): FrontOfLensFilterTransmissionModel {
   const record = requireRecord(
     value,
     path
   );
+
+  if (record.kind === "linear-polarizer") {
+    if (!polarizerAllowed) {
+      throw new InvalidConfigurationError(
+        path + '.kind "linear-polarizer" requires schemaVersion "' +
+          FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION + '".'
+      );
+    }
+    const principal = requireRecord(
+      record.principalTransmittance,
+      path + ".principalTransmittance"
+    );
+    const extinction = requireRecord(
+      record.extinctionRatio,
+      path + ".extinctionRatio"
+    );
+    const ratio = requireFinite(
+      extinction.value,
+      path + ".extinctionRatio.value"
+    );
+    if (ratio < 1) {
+      throw new InvalidConfigurationError(
+        path + ".extinctionRatio.value must be at least one."
+      );
+    }
+    return {
+      kind: "linear-polarizer",
+      principalTransmittance: {
+        value: requirePassiveTransmission(
+          principal.value,
+          path + ".principalTransmittance.value"
+        ),
+        evidence: parseEvidenceList(
+          principal.evidence,
+          path + ".principalTransmittance.evidence"
+        )
+      },
+      extinctionRatio: {
+        value: ratio,
+        evidence: parseEvidenceList(
+          extinction.evidence,
+          path + ".extinctionRatio.evidence"
+        )
+      },
+      transmissionAxisDegrees: requireFinite(
+        record.transmissionAxisDegrees,
+        path + ".transmissionAxisDegrees"
+      )
+    };
+  }
 
   if (
     record.kind ===
@@ -628,14 +728,20 @@ export function parseFrontOfLensFilterProfile(
 
   if (
     record.schemaVersion !==
-    FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION
+      FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION &&
+    record.schemaVersion !==
+      FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION
   ) {
     throw new InvalidConfigurationError(
       'frontOfLensFilterProfile.schemaVersion must be "' +
         FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION +
+        '" or "' +
+        FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION +
         '".'
     );
   }
+  const schemaVersion =
+    record.schemaVersion as FrontOfLensFilterProfileSchemaVersion;
   if (
     record.identityScope !==
     "photivra-generic-unbranded"
@@ -653,10 +759,11 @@ export function parseFrontOfLensFilterProfile(
     );
   }
   if (
-    record.polarizationModeled !==
-      false ||
     record.wavelengthChangingBehaviorModeled !==
-      false
+      false ||
+    (schemaVersion ===
+      FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION &&
+      record.polarizationModeled !== false)
   ) {
     throw new InvalidConfigurationError(
       "frontOfLensFilterProfile must explicitly keep polarization and wavelength-changing behavior unmodeled in schema 0.1.0."
@@ -692,8 +799,17 @@ export function parseFrontOfLensFilterProfile(
   const transmission =
     parseTransmission(
       record.transmission,
-      "frontOfLensFilterProfile.transmission"
+      "frontOfLensFilterProfile.transmission",
+      schemaVersion ===
+        FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION
     );
+  const polarizationModeled =
+    transmission.kind === "linear-polarizer";
+  if (record.polarizationModeled !== polarizationModeled) {
+    throw new InvalidConfigurationError(
+      "frontOfLensFilterProfile.polarizationModeled must be true exactly for a linear-polarizer transmission."
+    );
+  }
 
   if (
     transmission.kind ===
@@ -717,8 +833,7 @@ export function parseFrontOfLensFilterProfile(
   }
 
   return {
-    schemaVersion:
-      FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION,
+    schemaVersion,
     filterId:
       requireNonEmptyString(
         record.filterId,
@@ -744,8 +859,7 @@ export function parseFrontOfLensFilterProfile(
       range,
     transmission,
     uncertainty,
-    polarizationModeled:
-      false,
+    polarizationModeled,
     wavelengthChangingBehaviorModeled:
       false,
     evidence:
@@ -858,17 +972,116 @@ function transmissionEvidence(
       .opticalDensityBase10
       .evidence;
   }
+  if (transmission.kind === "linear-polarizer") {
+    return [
+      ...transmission.principalTransmittance.evidence,
+      ...transmission.extinctionRatio.evidence
+    ];
+  }
   return transmission
     .samples.evidence;
 }
 
+/** Linear Stokes vector (S0, S1, S2); circular S3 is not modeled. */
+interface LinearStokes {
+  s0: number;
+  s1: number;
+  s2: number;
+}
+
+const UNPOLARIZED: LinearPolarizationState = Object.freeze({
+  degreeOfLinearPolarization: 0,
+  angleDegrees: 0
+});
+
+function parsePolarizationState(
+  value: LinearPolarizationState | undefined,
+  path: string
+): LinearPolarizationState {
+  if (value === undefined) {
+    return { ...UNPOLARIZED };
+  }
+  if (typeof value !== "object" || value === null) {
+    throw new InvalidScientificInputError(path + " must be an object.");
+  }
+  const degree = value.degreeOfLinearPolarization;
+  const angle = value.angleDegrees;
+  if (
+    typeof degree !== "number" ||
+    !Number.isFinite(degree) ||
+    degree < 0 ||
+    degree > 1
+  ) {
+    throw new InvalidScientificInputError(
+      path + ".degreeOfLinearPolarization must lie in [0, 1]."
+    );
+  }
+  if (typeof angle !== "number" || !Number.isFinite(angle)) {
+    throw new InvalidScientificInputError(
+      path + ".angleDegrees must be finite."
+    );
+  }
+  return { degreeOfLinearPolarization: degree, angleDegrees: angle };
+}
+
+function stokesFromState(state: LinearPolarizationState): LinearStokes {
+  const twice = (2 * state.angleDegrees * Math.PI) / 180;
+  return {
+    s0: 1,
+    s1: state.degreeOfLinearPolarization * Math.cos(twice),
+    s2: state.degreeOfLinearPolarization * Math.sin(twice)
+  };
+}
+
+function stateFromStokes(stokes: LinearStokes): LinearPolarizationState {
+  const polarized = Math.hypot(stokes.s1, stokes.s2);
+  const degree = Math.min(1, polarized / stokes.s0);
+  if (degree === 0) {
+    return { ...UNPOLARIZED };
+  }
+  let angle = (Math.atan2(stokes.s2, stokes.s1) * 90) / Math.PI;
+  if (angle < 0) angle += 180;
+  return { degreeOfLinearPolarization: degree, angleDegrees: angle };
+}
+
 /**
- * Resolves one passive filter at one wavelength.
+ * Mueller matrix of a linear diattenuator (principal intensity transmittances k1 along the axis
+ * and k2 across it, axis at theta) applied to a linear Stokes vector.
  */
-export function resolveFrontOfLensFilterTransmission(
-  input:
-    ResolveFrontOfLensFilterTransmissionInput
-): ResolvedFrontOfLensFilterTransmission {
+function applyLinearPolarizer(
+  stokes: LinearStokes,
+  k1: number,
+  k2: number,
+  axisDegrees: number
+): LinearStokes {
+  const twice = (2 * axisDegrees * Math.PI) / 180;
+  const c = Math.cos(twice);
+  const sn = Math.sin(twice);
+  const sum = (k1 + k2) / 2;
+  const difference = (k1 - k2) / 2;
+  const geometric = Math.sqrt(k1 * k2);
+  return {
+    s0: sum * stokes.s0 + difference * (c * stokes.s1 + sn * stokes.s2),
+    s1:
+      difference * c * stokes.s0 +
+      (sum * c * c + geometric * sn * sn) * stokes.s1 +
+      (sum - geometric) * c * sn * stokes.s2,
+    s2:
+      difference * sn * stokes.s0 +
+      (sum - geometric) * c * sn * stokes.s1 +
+      (sum * sn * sn + geometric * c * c) * stokes.s2
+  };
+}
+
+interface ResolvedComponent {
+  resolved: ResolvedFrontOfLensFilterTransmission;
+  outgoing: LinearStokes;
+}
+
+function resolveComponent(
+  input: ResolveFrontOfLensFilterTransmissionInput,
+  incoming: LinearStokes
+): ResolvedComponent {
   const profile =
     parseFrontOfLensFilterProfile(
       input.profile
@@ -902,34 +1115,55 @@ export function resolveFrontOfLensFilterTransmission(
   }
 
   let factor: number;
+  let outgoing: LinearStokes;
   const transmission =
     profile.transmission;
 
   if (
     transmission.kind ===
-    "neutral-linear-transmission"
+    "linear-polarizer"
   ) {
-    factor =
-      transmission
-        .linearTransmissionFactor
-        .value;
-  } else if (
-    transmission.kind ===
-    "neutral-optical-density"
-  ) {
-    factor =
-      Math.pow(
-        10,
-        -transmission
-          .opticalDensityBase10
-          .value
-      );
+    const k1 = transmission.principalTransmittance.value;
+    const k2 = k1 / transmission.extinctionRatio.value;
+    outgoing = applyLinearPolarizer(
+      incoming,
+      k1,
+      k2,
+      transmission.transmissionAxisDegrees
+    );
+    factor = outgoing.s0 / incoming.s0;
   } else {
-    factor =
-      interpolateSpectralTransmission(
-        transmission.samples.value,
-        wavelength
-      );
+    if (
+      transmission.kind ===
+      "neutral-linear-transmission"
+    ) {
+      factor =
+        transmission
+          .linearTransmissionFactor
+          .value;
+    } else if (
+      transmission.kind ===
+      "neutral-optical-density"
+    ) {
+      factor =
+        Math.pow(
+          10,
+          -transmission
+            .opticalDensityBase10
+            .value
+        );
+    } else {
+      factor =
+        interpolateSpectralTransmission(
+          transmission.samples.value,
+          wavelength
+        );
+    }
+    outgoing = {
+      s0: incoming.s0 * factor,
+      s1: incoming.s1 * factor,
+      s2: incoming.s2 * factor
+    };
   }
 
   if (
@@ -960,63 +1194,99 @@ export function resolveFrontOfLensFilterTransmission(
     );
   }
 
+  const polarizer = transmission.kind === "linear-polarizer";
   return {
-    schemaVersion:
-      FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION,
-    filterId:
-      profile.filterId,
-    profileVersion:
-      profile.profileVersion,
-    identityScope:
-      "photivra-generic-unbranded",
-    position:
-      "front-of-lens",
-    scientificStatus:
-      profile.scientificStatus,
-    wavelengthNanometers:
-      wavelength,
-    wavelengthBasis:
-      input.wavelengthBasis,
-    transmissionKind:
-      transmission.kind,
-    linearTransmissionFactor:
-      factor,
-    attenuationStops,
-    opticalDensityBase10,
-    polarizationModeled:
-      false,
-    wavelengthChangingBehaviorModeled:
-      false,
-    lensTransmissionIncluded:
-      false,
-    sensorOpticalStackIncluded:
-      false,
-    fieldThroughputIncluded:
-      false,
-    uncertainty:
-      profile.uncertainty,
-    evidence: [
-      ...profile.evidence,
-      ...transmissionEvidence(
-        transmission
-      )
-    ],
-    limitations: [
-      ...profile.limitations,
-      "Front-of-lens transmission is independent of lens aperture geometry, focus/DOF, diffraction and sensor optical-stack response.",
-      "Polarization and inter-filter reflections/flare/ghosting are not modeled."
-    ]
+    outgoing,
+    resolved: {
+      schemaVersion:
+        profile.schemaVersion,
+      filterId:
+        profile.filterId,
+      profileVersion:
+        profile.profileVersion,
+      identityScope:
+        "photivra-generic-unbranded",
+      position:
+        "front-of-lens",
+      scientificStatus:
+        profile.scientificStatus,
+      wavelengthNanometers:
+        wavelength,
+      wavelengthBasis:
+        input.wavelengthBasis,
+      transmissionKind:
+        transmission.kind,
+      linearTransmissionFactor:
+        factor,
+      attenuationStops,
+      opticalDensityBase10,
+      polarizationModeled:
+        polarizer,
+      incidentPolarization:
+        stateFromStokes(incoming),
+      transmittedPolarization:
+        stateFromStokes(outgoing),
+      wavelengthChangingBehaviorModeled:
+        false,
+      lensTransmissionIncluded:
+        false,
+      sensorOpticalStackIncluded:
+        false,
+      fieldThroughputIncluded:
+        false,
+      uncertainty:
+        profile.uncertainty,
+      evidence: [
+        ...profile.evidence,
+        ...transmissionEvidence(
+          transmission
+        )
+      ],
+      limitations: [
+        ...profile.limitations,
+        "Front-of-lens transmission is independent of lens aperture geometry, focus/DOF, diffraction and sensor optical-stack response.",
+        polarizer
+          ? "Linear diattenuator on linear Stokes parameters; circular polarization, retardance, angle-of-incidence dependence and inter-filter reflections/flare/ghosting are not modeled."
+          : "Polarization and inter-filter reflections/flare/ghosting are not modeled."
+      ]
+    }
   };
 }
 
 /**
- * Composes multiple passive front-of-lens filters multiplicatively at one
- * wavelength while preserving each component's identity.
+ * Resolves one passive filter at one wavelength. Non-polarizing filters scale all Stokes
+ * components equally, so their transmission does not depend on the incident polarization.
+ */
+export function resolveFrontOfLensFilterTransmission(
+  input:
+    ResolveFrontOfLensFilterTransmissionInput
+): ResolvedFrontOfLensFilterTransmission {
+  if (typeof input !== "object" || input === null) {
+    throw new InvalidScientificInputError("input must be an object.");
+  }
+  return resolveComponent(
+    input,
+    stokesFromState(
+      parsePolarizationState(
+        input.incidentPolarization,
+        "incidentPolarization"
+      )
+    )
+  ).resolved;
+}
+
+/**
+ * Composes multiple passive front-of-lens filters at one wavelength in light-path order while
+ * preserving each component's identity. Without a polarizer this is the plain product of
+ * transmissions; with one, linear Stokes parameters propagate through the ordered Mueller chain.
  */
 export function composeFrontOfLensFilterTransmission(
   input:
     ComposeFrontOfLensFilterTransmissionInput
 ): ComposedFrontOfLensFilterTransmission {
+  if (typeof input !== "object" || input === null) {
+    throw new InvalidScientificInputError("input must be an object.");
+  }
   if (
     !Array.isArray(
       input.filters
@@ -1028,28 +1298,29 @@ export function composeFrontOfLensFilterTransmission(
     );
   }
 
-  const components =
-    input.filters.map(
-      (profile) =>
-        resolveFrontOfLensFilterTransmission({
-          profile,
-          wavelengthNanometers:
-            input.wavelengthNanometers,
-          wavelengthBasis:
-            input.wavelengthBasis
-        })
+  const incidentPolarization = parsePolarizationState(
+    input.incidentPolarization,
+    "incidentPolarization"
+  );
+  const incident = stokesFromState(incidentPolarization);
+  let stokes = incident;
+  const components: ResolvedFrontOfLensFilterTransmission[] = [];
+  for (const profile of input.filters) {
+    const component = resolveComponent(
+      {
+        profile,
+        wavelengthNanometers:
+          input.wavelengthNanometers,
+        wavelengthBasis:
+          input.wavelengthBasis
+      },
+      stokes
     );
-
-  let combined = 1;
-  for (
-    const component of
-    components
-  ) {
-    combined *=
-      component
-        .linearTransmissionFactor;
+    components.push(component.resolved);
+    stokes = component.outgoing;
   }
 
+  const combined = stokes.s0 / incident.s0;
   if (
     !Number.isFinite(combined) ||
     combined <= 0 ||
@@ -1068,9 +1339,13 @@ export function composeFrontOfLensFilterTransmission(
     );
   }
 
+  const polarizationModeled = components.some(
+    (component) => component.polarizationModeled
+  );
   return {
-    schemaVersion:
-      FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION,
+    schemaVersion: polarizationModeled
+      ? FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION
+      : FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION,
     wavelengthNanometers:
       scientificWavelength(
         input.wavelengthNanometers
@@ -1097,10 +1372,13 @@ export function composeFrontOfLensFilterTransmission(
       "not-propagated",
     uncertaintyLimitation:
       "Component filter uncertainties are preserved individually; aggregate numeric uncertainty is not propagated because independence/correlation is not assumed.",
-    compositionModel:
-      "independent-multiplicative-unpolarized-transmission-no-inter-filter-reflections",
-    polarizationModeled:
-      false,
+    compositionModel: polarizationModeled
+      ? "ordered-linear-stokes-mueller-no-inter-filter-reflections"
+      : "independent-multiplicative-unpolarized-transmission-no-inter-filter-reflections",
+    polarizationModeled,
+    incidentPolarization,
+    transmittedPolarization:
+      stateFromStokes(stokes),
     wavelengthChangingBehaviorModeled:
       false,
     lensTransmissionIncluded:

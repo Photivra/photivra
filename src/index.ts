@@ -813,7 +813,7 @@ export {
   createWavefrontPupilGrid,
   estimateMarechalStrehlRatio,
   evaluateZernikePolynomial,
-  zernikeNollToOrder,
+  resolveZernikeNollOrder,
   type CalculateDefocusWavefrontInput,
   type CreateWavefrontPupilGridInput,
   type DefocusWavefront,
@@ -878,11 +878,24 @@ export {
 export {
   calculateFocusBreathingFieldOfView,
   calculateFocusBreathingProjection,
+  calculateGeometricFocusBreathing,
   type CalculateFocusBreathingFieldOfViewInput,
   type CalculateFocusBreathingProjectionInput,
+  type CalculateGeometricFocusBreathingInput,
   type FocusBreathingFieldOfView,
-  type FocusBreathingProjection
+  type FocusBreathingProjection,
+  type GeometricFocusBreathing,
+  type GeometricFocusingMethod
 } from "./optics/focus-breathing.js";
+
+export {
+  calculateAtmosphericHaze,
+  calculateExtinctionFromVisibility,
+  type AtmosphericExtinctionModel,
+  type AtmosphericHaze,
+  type CalculateAtmosphericHazeInput,
+  type CalculateExtinctionFromVisibilityInput
+} from "./optics/atmospheric-haze.js";
 
 export {
   calculateInverseRadialDistortionMapping,
@@ -930,16 +943,19 @@ export {
 
 export {
   FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION,
+  FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION,
   composeFrontOfLensFilterTransmission,
   parseFrontOfLensFilterProfile,
   resolveFrontOfLensFilterTransmission,
   type ComposeFrontOfLensFilterTransmissionInput,
   type ComposedFrontOfLensFilterTransmission,
   type FrontOfLensFilterProfile,
+  type FrontOfLensFilterProfileSchemaVersion,
   type FrontOfLensFilterScientificStatus,
   type FrontOfLensFilterSpectralSample,
   type FrontOfLensFilterTransmissionModel,
   type FrontOfLensFilterUncertainty,
+  type LinearPolarizationState,
   type ResolveFrontOfLensFilterTransmissionInput,
   type ResolvedFrontOfLensFilterTransmission
 } from "./optics/front-of-lens-filter.js";
@@ -984,6 +1000,7 @@ export {
   type LensPsfUncertainty,
   type LensSampledPsfGridCoordinate,
   type LensSampledPsfGridNode,
+  type LensSampledPsfInterpolation,
   type LensSampledPsfProfile,
   type MtfOnlyPsfRenderabilityAssessment,
   type ResolveLensSampledPsfInput,

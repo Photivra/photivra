@@ -157,7 +157,7 @@ function requireNollIndex(value: unknown): number {
 }
 
 /** Converts a Noll index to radial order n and signed azimuthal frequency m (Noll 1976). */
-export function zernikeNollToOrder(nollIndex: number): ZernikeOrder {
+export function resolveZernikeNollOrder(nollIndex: number): ZernikeOrder {
   const j = requireNollIndex(nollIndex);
   let n = 0;
   while (((n + 1) * (n + 2)) / 2 < j) {
@@ -198,7 +198,7 @@ export function evaluateZernikePolynomial(
   normalizedRadius: number,
   azimuthRadians: number
 ): number {
-  const order = zernikeNollToOrder(nollIndex);
+  const order = resolveZernikeNollOrder(nollIndex);
   const rho = requireFinite("normalizedRadius", normalizedRadius);
   const theta = requireFinite("azimuthRadians", azimuthRadians);
   if (rho < 0 || rho > 1 + 1e-12) {

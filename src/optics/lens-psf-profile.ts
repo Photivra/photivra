@@ -53,6 +53,31 @@ export type LensPsfUncertainty =
       limitation: string;
     };
 
+/**
+ * Kernel interpolation between regular-grid nodes.
+ * - `bounded-regular-grid-multilinear`: legacy weighted sum of kernel values. Blending kernels whose
+ *   peaks sit at different positions produces multiple peaks.
+ * - `bounded-regular-grid-centroid-aligned`: each node kernel is shifted so its intensity centroid
+ *   sits at the weighted (interpolated) centroid before the same multilinear weights are applied,
+ *   so shifted or asymmetric PSFs blend into one peak at the interpolated position.
+ * - `rotationally-symmetric-radial-field-centroid-aligned`: for a rotationally symmetric lens, nodes
+ *   are declared only along the +X field axis (fieldYmm = [0], fieldXmm >= 0); a query at field
+ *   (x, y) is interpolated at radius hypot(x, y) with centroid alignment and the kernel is then
+ *   rotated by atan2(y, x) about its centre (square sample pitch required).
+ * Shifts and rotations use bilinear resampling, which slightly smooths the kernel (at most about
+ * one sample); outside-kernel samples are zero and the result is renormalised to unit energy.
+ */
+export type LensSampledPsfInterpolation =
+  | "bounded-regular-grid-multilinear"
+  | "bounded-regular-grid-centroid-aligned"
+  | "rotationally-symmetric-radial-field-centroid-aligned";
+
+const LENS_SAMPLED_PSF_INTERPOLATIONS: readonly LensSampledPsfInterpolation[] = [
+  "bounded-regular-grid-multilinear",
+  "bounded-regular-grid-centroid-aligned",
+  "rotationally-symmetric-radial-field-centroid-aligned"
+];
+
 export interface LensPsfKernel {
   widthSamples: number;
   heightSamples: number;
@@ -123,7 +148,7 @@ export interface LensSampledPsfProfile {
   kernelEnergyNormalization:
     "unit-energy-shape";
   interpolation:
-    "bounded-regular-grid-multilinear";
+    LensSampledPsfInterpolation;
   throughputOwnership:
     "separate-relative-pupil-throughput-factor";
   responseIncludes: {
@@ -1031,8 +1056,9 @@ export function parseLensSampledPsfProfile(
   if (
     record.kernelEnergyNormalization !==
       "unit-energy-shape" ||
-    record.interpolation !==
-      "bounded-regular-grid-multilinear" ||
+    !(LENS_SAMPLED_PSF_INTERPOLATIONS as readonly unknown[]).includes(
+      record.interpolation
+    ) ||
     record.throughputOwnership !==
       "separate-relative-pupil-throughput-factor"
   ) {
@@ -1164,6 +1190,29 @@ export function parseLensSampledPsfProfile(
     }
   }
 
+  if (
+    record.interpolation ===
+    "rotationally-symmetric-radial-field-centroid-aligned"
+  ) {
+    if (
+      axes.fieldYmm.length !== 1 ||
+      axes.fieldYmm[0] !== 0 ||
+      axes.fieldXmm.some((value) => value < 0)
+    ) {
+      throw new InvalidConfigurationError(
+        "Rotationally symmetric PSF profiles must declare fieldYmm = [0] and non-negative fieldXmm radii."
+      );
+    }
+    if (
+      firstKernel.samplePitchMicrometersX !==
+      firstKernel.samplePitchMicrometersY
+    ) {
+      throw new InvalidConfigurationError(
+        "Rotationally symmetric PSF profiles require square kernel sample pitch for rotation."
+      );
+    }
+  }
+
   return {
     schemaVersion:
       LENS_SAMPLED_PSF_PROFILE_SCHEMA_VERSION,
@@ -1188,7 +1237,7 @@ export function parseLensSampledPsfProfile(
     kernelEnergyNormalization:
       "unit-energy-shape",
     interpolation:
-      "bounded-regular-grid-multilinear",
+      record.interpolation as LensSampledPsfInterpolation,
     throughputOwnership:
       "separate-relative-pupil-throughput-factor",
     responseIncludes: {
@@ -1663,6 +1712,134 @@ function interpolateKernel(
   };
 }
 
+function kernelCentroid(
+  kernel: LensPsfKernel
+): { x: number; y: number } {
+  let sum = 0;
+  let x = 0;
+  let y = 0;
+  for (let row = 0; row < kernel.heightSamples; row += 1) {
+    for (let column = 0; column < kernel.widthSamples; column += 1) {
+      const value = kernel.normalizedIntensity[row * kernel.widthSamples + column]!;
+      sum += value;
+      x += value * (column - kernel.centerSampleX);
+      y += value * (row - kernel.centerSampleY);
+    }
+  }
+  return { x: x / sum, y: y / sum };
+}
+
+/** Bilinear sample at fractional array coordinates; zero outside the kernel. */
+function bilinearSample(
+  kernel: LensPsfKernel,
+  column: number,
+  row: number
+): number {
+  const x0 = Math.floor(column);
+  const y0 = Math.floor(row);
+  const fx = column - x0;
+  const fy = row - y0;
+  const at = (x: number, y: number): number =>
+    x < 0 || y < 0 || x >= kernel.widthSamples || y >= kernel.heightSamples
+      ? 0
+      : kernel.normalizedIntensity[y * kernel.widthSamples + x]!;
+  const top = fx === 0 ? at(x0, y0) : (1 - fx) * at(x0, y0) + fx * at(x0 + 1, y0);
+  if (fy === 0) {
+    return top;
+  }
+  const bottom = fx === 0 ? at(x0, y0 + 1) : (1 - fx) * at(x0, y0 + 1) + fx * at(x0 + 1, y0 + 1);
+  return (1 - fy) * top + fy * bottom;
+}
+
+function normalizedKernel(
+  template: LensPsfKernel,
+  values: readonly number[]
+): LensPsfKernel {
+  const sum = values.reduce((acc, value) => acc + value, 0);
+  if (!Number.isFinite(sum) || sum <= 0) {
+    throw new InvalidScientificInputError(
+      "Interpolated PSF energy must remain finite and positive."
+    );
+  }
+  return {
+    widthSamples: template.widthSamples,
+    heightSamples: template.heightSamples,
+    samplePitchMicrometersX: template.samplePitchMicrometersX,
+    samplePitchMicrometersY: template.samplePitchMicrometersY,
+    centerSampleX: template.centerSampleX,
+    centerSampleY: template.centerSampleY,
+    normalizedIntensity: values.map((value) => value / sum)
+  };
+}
+
+/**
+ * Centroid-aligned interpolation: every node kernel is translated so that its intensity centroid
+ * lands on the weighted centroid, then the multilinear weights are applied. A single exact node is
+ * returned unchanged.
+ */
+function interpolateKernelCentroidAligned(
+  weighted: readonly WeightedNode[]
+): LensPsfKernel {
+  const first = weighted[0]?.node.kernel;
+  if (first === undefined) {
+    throw new InvalidScientificInputError(
+      "PSF interpolation requires at least one source node."
+    );
+  }
+  if (weighted.length === 1) {
+    // An exact grid node is already a validated unit-energy kernel; return it bit-for-bit.
+    return { ...first, normalizedIntensity: [...first.normalizedIntensity] };
+  }
+  const centroids = weighted.map((entry) => kernelCentroid(entry.node.kernel));
+  const target = centroids.reduce(
+    (acc, centroid, index) => ({
+      x: acc.x + weighted[index]!.weight * centroid.x,
+      y: acc.y + weighted[index]!.weight * centroid.y
+    }),
+    { x: 0, y: 0 }
+  );
+  const values = new Array<number>(first.normalizedIntensity.length).fill(0);
+  weighted.forEach((entry, index) => {
+    const dx = centroids[index]!.x - target.x;
+    const dy = centroids[index]!.y - target.y;
+    for (let row = 0; row < first.heightSamples; row += 1) {
+      for (let column = 0; column < first.widthSamples; column += 1) {
+        values[row * first.widthSamples + column]! +=
+          entry.weight * bilinearSample(entry.node.kernel, column + dx, row + dy);
+      }
+    }
+  });
+  return normalizedKernel(first, values);
+}
+
+/** Rotates a kernel by angleRadians (counter-clockwise, +Y up) about its centre sample. */
+function rotateKernel(
+  kernel: LensPsfKernel,
+  angleRadians: number
+): LensPsfKernel {
+  const cos = Math.cos(angleRadians);
+  const sin = Math.sin(angleRadians);
+  const values: number[] = [];
+  for (let row = 0; row < kernel.heightSamples; row += 1) {
+    // Array rows increase downward; image +Y is up.
+    const y = kernel.centerSampleY - row;
+    for (let column = 0; column < kernel.widthSamples; column += 1) {
+      const x = column - kernel.centerSampleX;
+      // Inverse rotation: destination (x, y) samples source R(-angle) (x, y).
+      const sourceX = cos * x + sin * y;
+      const sourceY = -sin * x + cos * y;
+      values.push(
+        bilinearSample(
+          kernel,
+          kernel.centerSampleX + sourceX,
+          kernel.centerSampleY - sourceY
+        )
+      );
+    }
+  }
+  return normalizedKernel(kernel, values);
+}
+
 function weightedScalar(
   weighted:
     readonly WeightedNode[],
@@ -1704,10 +1881,22 @@ export function resolveLensSampledPsf(
     );
   const query =
     queryCoordinate(input);
+  const rotational =
+    profile.interpolation ===
+    "rotationally-symmetric-radial-field-centroid-aligned";
+  const fieldRadiusMm = Math.hypot(
+    query.coordinate.fieldXmm,
+    query.coordinate.fieldYmm
+  );
+  const fieldAngleRadians = rotational
+    ? Math.atan2(query.coordinate.fieldYmm, query.coordinate.fieldXmm)
+    : 0;
   const brackets =
     bracketCoordinate(
       profile.axes,
-      query.coordinate
+      rotational
+        ? { ...query.coordinate, fieldXmm: fieldRadiusMm, fieldYmm: 0 }
+        : query.coordinate
     );
   const weighted =
     resolveWeightedNodes(
@@ -1718,11 +1907,16 @@ export function resolveLensSampledPsf(
     AXIS_KEYS.every(
       (key) =>
         brackets[key].exact
-    );
+    ) && fieldAngleRadians === 0;
   const kernel =
-    interpolateKernel(
-      weighted
-    );
+    profile.interpolation === "bounded-regular-grid-multilinear"
+      ? interpolateKernel(weighted)
+      : fieldAngleRadians === 0
+        ? interpolateKernelCentroidAligned(weighted)
+        : rotateKernel(
+            interpolateKernelCentroidAligned(weighted),
+            fieldAngleRadians
+          );
   const bestFocus =
     weightedScalar(
       weighted,
@@ -1812,9 +2006,21 @@ export function resolveLensSampledPsf(
       scalarSharpnessScoreProduced:
         false
     },
-    "lens-sampled-psf-bounded-interpolation",
+    profile.interpolation === "bounded-regular-grid-multilinear"
+      ? "lens-sampled-psf-bounded-interpolation"
+      : rotational
+        ? "lens-sampled-psf-rotational-centroid-aligned-interpolation"
+        : "lens-sampled-psf-centroid-aligned-interpolation",
     "1.0.0",
     [
+      ...(profile.interpolation === "bounded-regular-grid-multilinear"
+        ? []
+        : [
+            "Node kernels are translated to the weighted intensity centroid before blending (bilinear resampling, outside samples zero, renormalised), so shifted PSFs blend into one peak.",
+            ...(rotational
+              ? ["Rotationally symmetric lens: nodes along +X are interpolated at the field radius and the kernel is rotated by the field azimuth."]
+              : [])
+          ]),
       "PSF intensity is a unit-energy shape; relative pupil throughput remains a separate factor for the optical-throughput path.",
       "Regular-grid interpolation is bounded and never extrapolates beyond declared focal-length, focus, aperture, field, wavelength or signed-defocus axes.",
       "Full 2D image-plane kernel orientation is preserved in +X right, +Y up coordinates; no radial or sagittal/tangential averaging is forced.",
