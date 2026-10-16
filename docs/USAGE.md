@@ -3774,9 +3774,7 @@ Sensor **data readout timing is never used as flash exposure timing**.
 
 ### HSS boundary
 
-`high-speed-sync` is a recognized request but is intentionally unsupported in schema 0.1.0.
-
-Photivra does not make HSS work by allowing an ordinary short pulse above the normal sync regime. Real HSS requires an extended/repeated illumination waveform coordinated with the moving exposure slit and has different energy/range behavior.
+`resolveManualFlashSync()` still rejects `high-speed-sync`: Photivra does not make HSS work by allowing an ordinary short pulse above the normal sync regime. Real HSS requires an extended/repeated illumination waveform coordinated with the moving exposure slit and has different energy/range behavior; that is the separate `resolveHighSpeedFlashSync()` burst model for schema 0.2.0 sync profiles that declare HSS (see [Rolling shutter, video, flash TTL/HSS and highlight-priority metering](#rolling-shutter-video-flash-ttlhss-and-highlight-priority-metering-200)).
 
 ### Illumination overlay
 
@@ -3809,7 +3807,7 @@ Flash spectrum is physical scene illumination. A downstream Flash WB preset, if 
 
 An optional committed `ResolvedReleaseFrame` may be supplied. Its shutter duration must match the #12 timing contract. The resolved flash event then exposes pulse start/end in sequence-relative scene time without changing the release frame.
 
-TTL/preflash metering, flash exposure compensation policy, FE/FV lock, recycle/burst/thermal limits, red-eye preflashes, modeling lamps, AF-assist and wireless protocol simulation remain outside this first manual-flash contract.
+Generic pre-flash TTL power (`resolveTtlFlashExposure()`, with flash exposure compensation) is solved separately and applied to the manual profile with `createTtlScaledFlashProfile()`. FE/FV lock, recycle/burst/thermal limits, red-eye preflashes, modeling lamps, AF-assist and wireless protocol simulation remain outside the manual-flash contract.
 
 ## Capture orientation, active area, and output geometry
 
@@ -4157,7 +4155,8 @@ The first generic policies are explicit rather than branded:
 - `multi-zone-uniform` — area-weighted average over all supplied zones;
 - `center-weighted-radial` — multiplies area weight by a radial physical-frame weighting function with explicit edge weight and exponent;
 - `spot` — selects samples inside an explicit spot center/radius in the oriented active capture frame;
-- `highlight-weighted` — gives brighter relative-linear samples more weight through an explicit exponent and minimum weight fraction.
+- `highlight-weighted` — gives brighter relative-linear samples more weight through an explicit exponent and minimum weight fraction, then places that weighted mean at the target. It is highlight emphasis, not highlight protection: in a mostly mid-grey frame with a small bright area it darkens the mid-tones (about 0.5–0.8 EV versus uniform metering for a 95 % 0.18 / 5 % 0.9 frame) without placing the highlights relative to saturation.
+- `highlight-priority` — places the area-weighted `highlightPercentile` quantile of the samples `headroomStops` below a declared `saturationRelativeSignal`; the profile target must equal `saturationRelativeSignal · 2^−headroomStops` (`calculateHighlightPriorityPlacementSignal()`). It is a spatial quantile, so the time-averaged scene-radiance meter and TTL flash reject it.
 
 The sample producer supplies `areaWeight`, so denser sampling in one part of the frame does not automatically mean more metering influence.
 
@@ -6732,6 +6731,360 @@ Use [registered linear statistics](https://github.com/Photivra/photivra/blob/mai
 See [Print planning](https://github.com/Photivra/photivra/blob/main/docs/PRINT_PLANNING.md) for a complete strict packed example and the exact-ratio integer policy. `calculatePrintPlan()` answers native sampling sufficiency and a compatible minimum file raster; `calculatePrintSizeLimit()` distinguishes finite, unbounded and unavailable sampling bounds. Quality and delivery are separately unassessed.
 
 The [regional Print detail diagnostic](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_ASSESSMENT.md) measures one declared coherent sinusoidal fundamental in a selected linear-luminance ROI and records its exact source stage. Its [validation protocol](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_VALIDATION.md) and [capability ledger](https://github.com/Photivra/photivra/blob/main/docs/validation/print-detail-capabilities.json) distinguish mathematical conformance from blocked acquired-image, renderer and perceived-quality qualification.
+
+## Rolling shutter, video, flash TTL/HSS and highlight-priority metering (2.0.0)
+
+These additions are approximations; the equations, derivations and sources are in
+[Electronic rolling-shutter image formation](https://github.com/Photivra/photivra/blob/main/docs/MOTION_AND_SIGNAL.md#electronic-rolling-shutter-image-formation),
+[Video frame sequences](https://github.com/Photivra/photivra/blob/main/docs/MOTION_AND_SIGNAL.md#video-frame-sequences) and
+[Flash: guide number, TTL and high-speed sync](https://github.com/Photivra/photivra/blob/main/docs/SCENE_SENSOR_TEMPORAL_EXPOSURE.md#flash-guide-number-ttl-and-high-speed-sync).
+
+An electronic rolling shutter turns the rolling readout declaration into a line-offset exposure schedule.
+Pass the schedule wherever an exposure window is accepted (native RAW and environment `exposureWindow`,
+production `temporalCapture.exposureWindowInput` with `readoutExposureLinkage`); skew, wobble, partial
+exposure and flicker banding then emerge from per-site sampling. A video clip is a deterministic sequence of
+ordinary release frames:
+
+```ts
+import {
+  assessShutterAngleRule,
+  calculateCaptureExposureWindows,
+  resolveElectronicRollingShutterExposureSchedule,
+  resolveVideoFrameSequence,
+  createRollingShutterCaptureExposureSchedule
+} from "@photivra/engine";
+
+const evidence = [{ sourceOrigin: "photivra" as const, sourceReference: "example:rolling-video", reuseStatus: "photivra-owned" as const }];
+const readout = {
+  readoutMode: "rolling" as const,
+  captureReadoutDurationSeconds: { value: 0.016, unit: "s" as const, evidence },
+  scanDirectionNative: { value: "top-to-bottom" as const, evidence },
+  spatialSamplingSkewSeconds: { value: 0.016, unit: "s" as const, evidence }
+};
+const schedule = resolveElectronicRollingShutterExposureSchedule({
+  readout,
+  nominalExposureDurationSeconds: { value: 1 / 250, unit: "s", evidence },
+  linkageEvidence: evidence
+});
+const windows = calculateCaptureExposureWindows({
+  ...createRollingShutterCaptureExposureSchedule(schedule),
+  nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 },
+  samplePointsNative: [{ x: 3000, y: 0.5 }, { x: 3000, y: 3999.5 }]
+}).value;
+// Top and bottom lines open about 16 ms apart: a subject moving 2000 px/s is sheared by ~32 px.
+console.log(windows.samples.map((window) => window.startOffsetSecondsFromOpeningReference));
+
+const clip = resolveVideoFrameSequence({
+  sequenceId: "clip-1",
+  opticalState: { bodyId: "generic-body", bodyVersion: "1", lensId: "generic-50", lensVersion: "1", focalLengthMm: 50,
+    aperture: 4, focusDistanceM: 5, captureMode: "video", outputWidth: 1920, outputHeight: 1080, frameRateHz: 24,
+    stabilizationMode: "off" },
+  shutterAngleDegrees: 180,
+  frameCount: 3,
+  sequenceSeedUint32: 7,
+  iso: 400,
+  automation: { ae: "locked", af: "manual", awb: "locked" },
+  timingEvidence: evidence,
+  rollingShutter: { readout, linkageEvidence: evidence }
+});
+console.log(clip.exposureSeconds, clip.frames.map((frame) => [frame.exposureStartTimeSeconds, frame.stochasticSeedUint32]));
+console.log(assessShutterAngleRule(24, 172.8).classification);
+```
+
+Highlight-priority metering places a highlight percentile below saturation; TTL solves the main-flash power
+from a pre-flash measured with the same linear meter, and the result feeds the ordinary front/rear-curtain sync:
+
+```ts
+import {
+  calculateFlashPowerForDistance,
+  calculateHighlightPriorityPlacementSignal,
+  meterRelativeExposure,
+  parseExposureMeteringProfile,
+  resolveCaptureGeometry,
+  resolveTtlFlashExposure,
+  type ExposureMeteringSampleSet
+} from "@photivra/engine";
+
+const evidence = [{ sourceOrigin: "photivra" as const, sourceReference: "example:flash-meter", reuseStatus: "photivra-owned" as const }];
+const zones = (signals: readonly number[]): ExposureMeteringSampleSet => ({
+  measurementId: "meter", sceneStateId: "scene", inputDomain: "relative-pre-exposure-linear-signal",
+  captureRegion: "oriented-active-capture",
+  captureGeometry: resolveCaptureGeometry({ imagingArea: { widthMm: 36, heightMm: 24 },
+    nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 }, orientation: "landscape" }).value,
+  processingState: { exposureSettingsApplied: false, whiteBalanceApplied: false, toneMappingApplied: false,
+    displayGammaApplied: false, sharpeningApplied: false },
+  samples: signals.map((relativeLinearSignal, index) => ({ sampleId: "zone-" + index,
+    positionOrientedCaptureUv: { u: (index % 5 + 0.5) / 5, v: (Math.floor(index / 5) + 0.5) / 4 },
+    relativeLinearSignal, areaWeight: 1 }))
+});
+const meter = (policy: Parameters<typeof parseExposureMeteringProfile>[0], target: number) => parseExposureMeteringProfile({
+  schemaVersion: "0.1.0", profileId: "meter", scientificStatus: "approximation",
+  inputDomain: "relative-pre-exposure-linear-signal", captureRegion: "oriented-active-capture", policy,
+  target: { kind: "relative-signal-reference", targetRelativeSignal: target, evidence }, evidence,
+  limitations: ["Generic relative meter."]
+});
+
+// 95 % mid-grey, 5 % bright: place the 99th percentile half a stop below saturation.
+const scene = zones([...Array.from({ length: 19 }, () => 0.18), 0.9]);
+const placement = calculateHighlightPriorityPlacementSignal(1, 0.5);
+const highlight = meterRelativeExposure({
+  profile: meter({ kind: "highlight-priority", highlightPercentile: 0.99, saturationRelativeSignal: 1, headroomStops: 0.5 }, placement),
+  sampleSet: scene
+}).value;
+console.log(highlight.highlightPriority?.percentileRelativeSignal, highlight.status === "resolved" && highlight.requiredExposureScaleToTarget);
+
+// Manual guide-number exposure: GN 40 m at ISO 100, subject 5 m at f/4 → quarter power.
+console.log(calculateFlashPowerForDistance({ fullPowerGuideNumberMetersIso100: 40, subjectDistanceM: 5,
+  apertureFNumber: 4, iso: 100, minimumPowerFraction: 1 / 128 }).powerFraction);
+
+// TTL: ambient and 1/32-power pre-flash readings of the same zones.
+const ttl = resolveTtlFlashExposure({
+  meteringProfile: meter({ kind: "multi-zone-uniform" }, 0.18),
+  ambientSampleSet: zones([0.02, 0.02, 0.04, 0.04]),
+  preFlashSampleSet: zones([0.12, 0.12, 0.06, 0.06]),
+  preFlashPowerFraction: 1 / 32,
+  ambientScaleToMainExposure: 0.5,
+  flashExposureCompensationStops: 0,
+  minimumPowerFraction: 1 / 128,
+  guideNumber: { fullPowerGuideNumberMetersIso100: 40, iso: 100, apertureFNumber: 4 }
+}).value;
+console.log(ttl.status, ttl.powerFraction, ttl.flashRangeAtApertureM);
+// Apply with createTtlScaledFlashProfile(flashProfile, ttl) and place it with resolveManualFlashSync() as before.
+```
+
+High-speed sync needs a schema 0.2.0 sync-capability profile that declares HSS and its burst energy fraction.
+`resolveHighSpeedFlashSync()` returns the burst support, the per-line energy fraction `η·t_e/D` and the
+guide-number factor `√(η·t_e/D)`; `createHighSpeedSyncIlluminationOverlay()` registers the burst as a
+temporal illumination source that every line integrates over its own window. Pass
+`syncEnergyFactor = energyFractionOfSinglePulseRange.minimum` to `resolveTtlFlashExposure()` to solve TTL power
+for HSS.
+
+## Lens projections, aberrations, polarizer and haze (2.0)
+
+The models below are standalone primitives; see [Physics foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#non-rectilinear-lens-projections-20) and [PSF foundation](https://github.com/Photivra/photivra/blob/main/docs/PSF_FOUNDATION.md#zernike-and-seidel-wavefronts-20) for equations, sources and limits.
+
+### Fisheye and equirectangular projections
+
+```ts
+import {
+  calculateFieldOfView,
+  calculateLensProjectionDirection,
+  calculateLensProjectionImagePoint
+} from "@photivra/engine";
+
+// 8 mm equidistant fisheye across a 24 mm sensor: 2 * (12 / 8) rad = 171.9 degrees.
+const fisheye = calculateFieldOfView({
+  focalLengthMm: 8,
+  sensorDimensionMm: 24,
+  projectionModel: "fisheye-equidistant"
+});
+console.log(fisheye.value.degrees, fisheye.provenance.model);
+
+// Omitting projectionModel keeps the rectilinear result unchanged.
+console.log(calculateFieldOfView({ focalLengthMm: 50, sensorDimensionMm: 36 }).value.degrees);
+
+const point = calculateLensProjectionImagePoint({
+  projectionModel: "fisheye-stereographic",
+  focalLengthMm: 8,
+  direction: { x: 1, y: 0.2, z: -0.1 } // slightly behind the lens: still mapped
+});
+const back = calculateLensProjectionDirection({
+  projectionModel: "fisheye-stereographic",
+  focalLengthMm: 8,
+  imagePointMm: point.value.imagePointMm
+});
+console.log(point.value.imagePointMm, back.value.direction);
+```
+
+### Brown–Conrady distortion
+
+```ts
+import {
+  calculateBrownConradyDistortionMapping,
+  calculateInverseBrownConradyDistortionMapping,
+  type BrownConradyDistortionProfile
+} from "@photivra/engine";
+
+const profile: BrownConradyDistortionProfile = {
+  normalizationRadiusMm: 21.6,
+  maximumNormalizedRadius: 1,
+  coefficients: { k1: -0.08, k2: 0.01, k3: 0, p1: 0.002, p2: -0.0015 }
+};
+const distorted = calculateBrownConradyDistortionMapping({ imagePointMm: { x: 10, y: -6 }, profile });
+const ideal = calculateInverseBrownConradyDistortionMapping({
+  distortedImagePointMm: distorted.value.mappedImagePointMm,
+  profile
+});
+console.log(distorted.value.mappedImagePointMm, ideal.value.sourceImagePointMm);
+```
+
+### Zernike wavefront PSF, longitudinal CA and cat's-eye vignetting
+
+```ts
+import {
+  calculateLensComplexPupilPsf,
+  calculateLongitudinalChromaticFocus,
+  calculateMechanicalVignetting,
+  calculateNaturalVignetting,
+  calculatePolygonPupilFraunhoferPsf,
+  createWavefrontPupilGrid,
+  estimateMarechalStrehlRatio,
+  parseLensComplexPupilProfile
+} from "@photivra/engine";
+
+// Per-wavelength defocus of an achromat-like secondary spectrum at f/4.
+const blue = calculateLongitudinalChromaticFocus({
+  focalLengthMm: 50,
+  referenceWavelengthNm: 550,
+  wavelengthNm: 460,
+  apertureFNumber: 4,
+  focusDistanceM: 3,
+  dispersion: {
+    kind: "declared-focal-shift",
+    samples: [
+      { wavelengthNm: 450, focalLengthShiftMicrometers: 20 },
+      { wavelengthNm: 550, focalLengthShiftMicrometers: 0 },
+      { wavelengthNm: 650, focalLengthShiftMicrometers: 15 }
+    ]
+  }
+}).value;
+
+// Defocus (Z4) plus a little spherical aberration (Z11) on a 12.5 mm pupil.
+const wavefront = createWavefrontPupilGrid({
+  pupilDiameterMm: 12.5,
+  samplesAcross: 31,
+  zernikeCoefficients: [
+    { nollIndex: 4, coefficientMicrometers: blue.zernikeZ4Micrometers },
+    { nollIndex: 11, coefficientMicrometers: 0.02 }
+  ]
+}).value;
+console.log(estimateMarechalStrehlRatio({
+  rmsWavefrontErrorMicrometers: wavefront.sampledRmsMicrometers,
+  wavelengthNm: 460
+}).value.strehlRatio);
+
+const psf = calculateLensComplexPupilPsf({
+  profile: parseLensComplexPupilProfile({
+    schemaVersion: "0.1.0",
+    profileId: "example-wavefront",
+    profileVersion: "1.0.0",
+    scientificStatus: "approximation",
+    opticalDomain: "lens-primary-optical-path-only",
+    representation: "complex-pupil-amplitude-plus-opd",
+    pupilCoordinateSystem: "pupil-plane-metric-aligned-to-image-plane",
+    imageFieldAxes: "+X right, +Y up",
+    amplitudeMeaning: "relative-complex-pupil-amplitude-shape",
+    wavefrontMeaning: "optical-path-difference-micrometers",
+    throughputOwnership: "separate-relative-pupil-throughput-factor",
+    kernelEnergyNormalization: "unit-energy-shape",
+    propagationModel: "scalar-fraunhofer-discrete-reference",
+    context: {
+      focalLengthMm: 50,
+      focus: { kind: "finite", distanceM: 3 },
+      apertureFNumber: 4,
+      fieldPointMm: { x: 0, y: 0 },
+      wavelengthNm: 460,
+      signedDefocusImagePlaneMicrometers: blue.signedDefocusImagePlaneMicrometers
+    },
+    responseIncludes: { diffraction: true, aberration: true, defocus: true, pupilClippingShape: false },
+    relativePupilThroughputFactor: 1,
+    grid: wavefront.grid,
+    sensorOpticalStackIncluded: false,
+    sensorSamplingIncluded: false,
+    reconstructionIncluded: false,
+    strayLightIncluded: false,
+    evidence: [{ sourceOrigin: "photivra", sourceReference: "usage-example", reuseStatus: "photivra-owned" }],
+    uncertainty: { kind: "not-quantified", limitation: "Synthetic example wavefront." },
+    limitations: ["Synthetic example."]
+  })
+});
+console.log(psf.value.kernel.widthSamples);
+
+// Natural cos^4 falloff and a cat's-eye pupil 20 degrees off axis.
+console.log(calculateNaturalVignetting({
+  model: "cosine-fourth",
+  imagePointMm: { x: 15, y: 10 },
+  exitPupilDistanceMm: 60
+}).value.relativeIllumination);
+const catsEye = calculateMechanicalVignetting({
+  entrancePupilDiameterMm: 12.5,
+  fieldAngleDegrees: 20,
+  fieldAzimuthDegrees: 30,
+  apertures: [{ radiusMm: 7, shiftPerTanFieldMm: 30 }]
+}).value;
+const bokehPsf = calculatePolygonPupilFraunhoferPsf({
+  pupilVerticesMm: catsEye.openPupilPolygonMm,
+  pupilToImageDistanceMm: 50,
+  wavelengthNm: 550,
+  wavelengthBasis: "air",
+  imagePointsMicrometers: [{ x: 0, y: 0 }, { x: 2, y: 0 }]
+});
+console.log(catsEye.openAreaRatio, bokehPsf.value.samples[1]?.peakNormalizedIntensity);
+```
+
+### Polarizer and haze
+
+```ts
+import {
+  calculateAtmosphericHaze,
+  calculateExtinctionFromVisibility,
+  calculateGeometricFocusBreathing,
+  composeFrontOfLensFilterTransmission,
+  parseFrontOfLensFilterProfile
+} from "@photivra/engine";
+
+const polarizer = parseFrontOfLensFilterProfile({
+  schemaVersion: "0.2.0",
+  filterId: "generic-linear-polarizer",
+  profileVersion: "1.0.0",
+  identityScope: "photivra-generic-unbranded",
+  position: "front-of-lens",
+  scientificStatus: "approximation",
+  wavelengthBasis: "air",
+  wavelengthRangeNanometers: { minimum: 400, maximum: 700 },
+  transmission: {
+    kind: "linear-polarizer",
+    principalTransmittance: { value: 0.8, evidence: [{ sourceOrigin: "photivra", sourceReference: "usage-polarizer", reuseStatus: "photivra-owned" }] },
+    extinctionRatio: { value: 1000, evidence: [{ sourceOrigin: "photivra", sourceReference: "usage-polarizer", reuseStatus: "photivra-owned" }] },
+    transmissionAxisDegrees: 90
+  },
+  uncertainty: { kind: "not-quantified", limitation: "Generic educational polarizer." },
+  polarizationModeled: true,
+  wavelengthChangingBehaviorModeled: false,
+  evidence: [{ sourceOrigin: "photivra", sourceReference: "usage-polarizer", reuseStatus: "photivra-owned" }],
+  limitations: ["Generic example."]
+});
+// Glare partially polarized horizontally (P = 0.6) is suppressed by a vertical axis.
+const filtered = composeFrontOfLensFilterTransmission({
+  filters: [polarizer],
+  wavelengthNanometers: 550,
+  wavelengthBasis: "air",
+  incidentPolarization: { degreeOfLinearPolarization: 0.6, angleDegrees: 0 }
+});
+console.log(filtered.combinedLinearTransmissionFactor, filtered.transmittedPolarization);
+
+const beta = calculateExtinctionFromVisibility({ visibilityM: 15_000 }).value.extinctionPerMeter;
+const hazy = calculateAtmosphericHaze({
+  pathLengthM: 4000,
+  wavelengthNm: 450,
+  sceneRadiance: 0.02,
+  airlightRadiance: 0.08,
+  extinction: {
+    referenceWavelengthNm: 550,
+    rayleighExtinctionPerMeter: 0,
+    aerosolExtinctionPerMeter: beta,
+    angstromExponent: 1.3
+  }
+});
+console.log(hazy.value.hazedRadiance, hazy.value.transmittance);
+
+// Unit-focus breathing of a 100 mm lens focused at 0.6 m (subject to sensor).
+console.log(calculateGeometricFocusBreathing({
+  focalLengthMm: 100,
+  subjectToSensorDistanceM: 0.6,
+  sensorDimensionMm: 36,
+  focusingMethod: "unit-focus"
+}).value.deltaDegrees);
 
 ## Optional WebGPU image kernels
 

@@ -27,6 +27,30 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`FieldOfView`](api/camera-field-of-view.md#fieldofview) | Type |
 | [`FieldOfViewBounds`](api/camera-field-of-view.md#fieldofviewbounds) | Type |
 
+## camera/lens-projection.ts
+
+[Detailed contracts](api/camera-lens-projection.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/camera/lens-projection.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateLensProjectionDirection`](api/camera-lens-projection.md#calculatelensprojectiondirection) | Runtime |
+| [`CalculateLensProjectionDirectionInput`](api/camera-lens-projection.md#calculatelensprojectiondirectioninput) | Type |
+| [`calculateLensProjectionFieldOfView`](api/camera-lens-projection.md#calculatelensprojectionfieldofview) | Runtime |
+| [`calculateLensProjectionFieldOfViewBounds`](api/camera-lens-projection.md#calculatelensprojectionfieldofviewbounds) | Runtime |
+| [`CalculateLensProjectionFieldOfViewBoundsInput`](api/camera-lens-projection.md#calculatelensprojectionfieldofviewboundsinput) | Type |
+| [`CalculateLensProjectionFieldOfViewInput`](api/camera-lens-projection.md#calculatelensprojectionfieldofviewinput) | Type |
+| [`calculateLensProjectionImagePoint`](api/camera-lens-projection.md#calculatelensprojectionimagepoint) | Runtime |
+| [`CalculateLensProjectionImagePointInput`](api/camera-lens-projection.md#calculatelensprojectionimagepointinput) | Type |
+| [`LENS_PROJECTION_MODELS`](api/camera-lens-projection.md#lens_projection_models) | Runtime |
+| [`LensDirection`](api/camera-lens-projection.md#lensdirection) | Type |
+| [`LensProjectionDirection`](api/camera-lens-projection.md#lensprojectiondirection) | Type |
+| [`LensProjectionFieldOfView`](api/camera-lens-projection.md#lensprojectionfieldofview) | Type |
+| [`LensProjectionFieldOfViewBounds`](api/camera-lens-projection.md#lensprojectionfieldofviewbounds) | Type |
+| [`LensProjectionImagePoint`](api/camera-lens-projection.md#lensprojectionimagepoint) | Type |
+| [`LensProjectionModel`](api/camera-lens-projection.md#lensprojectionmodel) | Type |
+| [`parseLensProjectionModel`](api/camera-lens-projection.md#parselensprojectionmodel) | Runtime |
+| [`RadialLensProjectionModel`](api/camera-lens-projection.md#radiallensprojectionmodel) | Type |
+
 ## camera/projected-object-size.ts
 
 [Detailed contracts](api/camera-projected-object-size.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/camera/projected-object-size.ts)
@@ -860,16 +884,37 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`RelativeOpticalExposure`](api/exposure-exposure.md#relativeopticalexposure) | Type |
 | [`RelativeRenderedExposure`](api/exposure-exposure.md#relativerenderedexposure) | Type |
 
+## exposure/flash-ttl.ts
+
+[Detailed contracts](api/exposure-flash-ttl.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/exposure/flash-ttl.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateFlashGuideNumber`](api/exposure-flash-ttl.md#calculateflashguidenumber) | Runtime |
+| [`calculateFlashPowerForDistance`](api/exposure-flash-ttl.md#calculateflashpowerfordistance) | Runtime |
+| [`createTtlScaledFlashProfile`](api/exposure-flash-ttl.md#createttlscaledflashprofile) | Runtime |
+| [`FlashGuideNumberInput`](api/exposure-flash-ttl.md#flashguidenumberinput) | Type |
+| [`FlashPowerForDistance`](api/exposure-flash-ttl.md#flashpowerfordistance) | Type |
+| [`FlashPowerForDistanceInput`](api/exposure-flash-ttl.md#flashpowerfordistanceinput) | Type |
+| [`resolveTtlFlashExposure`](api/exposure-flash-ttl.md#resolvettlflashexposure) | Runtime |
+| [`ResolveTtlFlashExposureInput`](api/exposure-flash-ttl.md#resolvettlflashexposureinput) | Type |
+| [`TTL_FLASH_MODEL`](api/exposure-flash-ttl.md#ttl_flash_model) | Runtime |
+| [`TtlFlashExposure`](api/exposure-flash-ttl.md#ttlflashexposure) | Type |
+
 ## exposure/flash.ts
 
 [Detailed contracts](api/exposure-flash.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/exposure/flash.ts)
 
 | Export | Kind |
 | --- | --- |
+| [`createHighSpeedSyncIlluminationOverlay`](api/exposure-flash.md#createhighspeedsyncilluminationoverlay) | Runtime |
 | [`createManualFlashIlluminationOverlay`](api/exposure-flash.md#createmanualflashilluminationoverlay) | Runtime |
 | [`CreateManualFlashIlluminationOverlayInput`](api/exposure-flash.md#createmanualflashilluminationoverlayinput) | Type |
+| [`FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION`](api/exposure-flash.md#flash_sync_capability_hss_schema_version) | Runtime |
 | [`FLASH_SYNC_CAPABILITY_SCHEMA_VERSION`](api/exposure-flash.md#flash_sync_capability_schema_version) | Runtime |
+| [`FlashOverlaySyncRegistration`](api/exposure-flash.md#flashoverlaysyncregistration) | Type |
 | [`FlashSyncCapabilityProfile`](api/exposure-flash.md#flashsynccapabilityprofile) | Type |
+| [`HIGH_SPEED_SYNC_MODEL`](api/exposure-flash.md#high_speed_sync_model) | Runtime |
 | [`MANUAL_FLASH_PROFILE_SCHEMA_VERSION`](api/exposure-flash.md#manual_flash_profile_schema_version) | Runtime |
 | [`ManualFlashIlluminationOverlay`](api/exposure-flash.md#manualflashilluminationoverlay) | Type |
 | [`ManualFlashProfile`](api/exposure-flash.md#manualflashprofile) | Type |
@@ -878,7 +923,10 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`parseFlashSyncCapabilityProfile`](api/exposure-flash.md#parseflashsynccapabilityprofile) | Runtime |
 | [`parseManualFlashProfile`](api/exposure-flash.md#parsemanualflashprofile) | Runtime |
 | [`RequestedFlashSyncMode`](api/exposure-flash.md#requestedflashsyncmode) | Type |
+| [`ResolvedHighSpeedFlashSync`](api/exposure-flash.md#resolvedhighspeedflashsync) | Type |
 | [`ResolvedManualFlashSync`](api/exposure-flash.md#resolvedmanualflashsync) | Type |
+| [`resolveHighSpeedFlashSync`](api/exposure-flash.md#resolvehighspeedflashsync) | Runtime |
+| [`ResolveHighSpeedFlashSyncInput`](api/exposure-flash.md#resolvehighspeedflashsyncinput) | Type |
 | [`resolveManualFlashSync`](api/exposure-flash.md#resolvemanualflashsync) | Runtime |
 | [`ResolveManualFlashSyncInput`](api/exposure-flash.md#resolvemanualflashsyncinput) | Type |
 
@@ -930,12 +978,14 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 
 | Export | Kind |
 | --- | --- |
+| [`calculateHighlightPriorityPlacementSignal`](api/exposure-metering.md#calculatehighlightpriorityplacementsignal) | Runtime |
 | [`EXPOSURE_METERING_PROFILE_SCHEMA_VERSION`](api/exposure-metering.md#exposure_metering_profile_schema_version) | Runtime |
 | [`ExposureMeteringPolicy`](api/exposure-metering.md#exposuremeteringpolicy) | Type |
 | [`ExposureMeteringProfile`](api/exposure-metering.md#exposuremeteringprofile) | Type |
 | [`ExposureMeteringResult`](api/exposure-metering.md#exposuremeteringresult) | Type |
 | [`ExposureMeteringSampleSet`](api/exposure-metering.md#exposuremeteringsampleset) | Type |
 | [`ExposureMeteringZoneSample`](api/exposure-metering.md#exposuremeteringzonesample) | Type |
+| [`HighlightPriorityMeteringDiagnostics`](api/exposure-metering.md#highlightprioritymeteringdiagnostics) | Type |
 | [`meterRelativeExposure`](api/exposure-metering.md#meterrelativeexposure) | Runtime |
 | [`MeterRelativeExposureInput`](api/exposure-metering.md#meterrelativeexposureinput) | Type |
 | [`parseExposureMeteringProfile`](api/exposure-metering.md#parseexposuremeteringprofile) | Runtime |
@@ -1077,6 +1127,23 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`CalculateProjectedMotionBlurInput`](api/motion-projected-motion.md#calculateprojectedmotionblurinput) | Type |
 | [`ProjectedMotionBlur`](api/motion-projected-motion.md#projectedmotionblur) | Type |
 
+## motion/video-sequence.ts
+
+[Detailed contracts](api/motion-video-sequence.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/motion/video-sequence.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`assessShutterAngleRule`](api/motion-video-sequence.md#assessshutteranglerule) | Runtime |
+| [`calculateShutterAngleExposureSeconds`](api/motion-video-sequence.md#calculateshutterangleexposureseconds) | Runtime |
+| [`calculateShutterAngleFromExposureSeconds`](api/motion-video-sequence.md#calculateshutteranglefromexposureseconds) | Runtime |
+| [`resolveVideoFrameSequence`](api/motion-video-sequence.md#resolvevideoframesequence) | Runtime |
+| [`ResolveVideoFrameSequenceInput`](api/motion-video-sequence.md#resolvevideoframesequenceinput) | Type |
+| [`ShutterAngleRuleAssessment`](api/motion-video-sequence.md#shutterangleruleassessment) | Type |
+| [`VIDEO_FRAME_SEED_STREAM_ID`](api/motion-video-sequence.md#video_frame_seed_stream_id) | Runtime |
+| [`VIDEO_FRAME_SEQUENCE_MAXIMUM_FRAMES`](api/motion-video-sequence.md#video_frame_sequence_maximum_frames) | Runtime |
+| [`VIDEO_FRAME_SEQUENCE_VERSION`](api/motion-video-sequence.md#video_frame_sequence_version) | Runtime |
+| [`VideoFrameSequence`](api/motion-video-sequence.md#videoframesequence) | Type |
+
 ## optics/aperture.ts
 
 [Detailed contracts](api/optics-aperture.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/optics/aperture.ts)
@@ -1087,6 +1154,34 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`calculateIdealApertureGeometry`](api/optics-aperture.md#calculateidealaperturegeometry) | Runtime |
 | [`CalculateIdealApertureInput`](api/optics-aperture.md#calculateidealapertureinput) | Type |
 | [`IdealApertureGeometry`](api/optics-aperture.md#idealaperturegeometry) | Type |
+
+## optics/atmospheric-haze.ts
+
+[Detailed contracts](api/optics-atmospheric-haze.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/optics/atmospheric-haze.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`AtmosphericExtinctionModel`](api/optics-atmospheric-haze.md#atmosphericextinctionmodel) | Type |
+| [`AtmosphericHaze`](api/optics-atmospheric-haze.md#atmospherichaze) | Type |
+| [`calculateAtmosphericHaze`](api/optics-atmospheric-haze.md#calculateatmospherichaze) | Runtime |
+| [`CalculateAtmosphericHazeInput`](api/optics-atmospheric-haze.md#calculateatmospherichazeinput) | Type |
+| [`calculateExtinctionFromVisibility`](api/optics-atmospheric-haze.md#calculateextinctionfromvisibility) | Runtime |
+| [`CalculateExtinctionFromVisibilityInput`](api/optics-atmospheric-haze.md#calculateextinctionfromvisibilityinput) | Type |
+
+## optics/brown-conrady-distortion.ts
+
+[Detailed contracts](api/optics-brown-conrady-distortion.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/optics/brown-conrady-distortion.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`BrownConradyDistortionCoefficients`](api/optics-brown-conrady-distortion.md#brownconradydistortioncoefficients) | Type |
+| [`BrownConradyDistortionMapping`](api/optics-brown-conrady-distortion.md#brownconradydistortionmapping) | Type |
+| [`BrownConradyDistortionProfile`](api/optics-brown-conrady-distortion.md#brownconradydistortionprofile) | Type |
+| [`calculateBrownConradyDistortionMapping`](api/optics-brown-conrady-distortion.md#calculatebrownconradydistortionmapping) | Runtime |
+| [`CalculateBrownConradyDistortionMappingInput`](api/optics-brown-conrady-distortion.md#calculatebrownconradydistortionmappinginput) | Type |
+| [`calculateInverseBrownConradyDistortionMapping`](api/optics-brown-conrady-distortion.md#calculateinversebrownconradydistortionmapping) | Runtime |
+| [`CalculateInverseBrownConradyDistortionMappingInput`](api/optics-brown-conrady-distortion.md#calculateinversebrownconradydistortionmappinginput) | Type |
+| [`InverseBrownConradyDistortionMapping`](api/optics-brown-conrady-distortion.md#inversebrownconradydistortionmapping) | Type |
 
 ## optics/circle-of-confusion.ts
 
@@ -1146,8 +1241,12 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`CalculateFocusBreathingFieldOfViewInput`](api/optics-focus-breathing.md#calculatefocusbreathingfieldofviewinput) | Type |
 | [`calculateFocusBreathingProjection`](api/optics-focus-breathing.md#calculatefocusbreathingprojection) | Runtime |
 | [`CalculateFocusBreathingProjectionInput`](api/optics-focus-breathing.md#calculatefocusbreathingprojectioninput) | Type |
+| [`calculateGeometricFocusBreathing`](api/optics-focus-breathing.md#calculategeometricfocusbreathing) | Runtime |
+| [`CalculateGeometricFocusBreathingInput`](api/optics-focus-breathing.md#calculategeometricfocusbreathinginput) | Type |
 | [`FocusBreathingFieldOfView`](api/optics-focus-breathing.md#focusbreathingfieldofview) | Type |
 | [`FocusBreathingProjection`](api/optics-focus-breathing.md#focusbreathingprojection) | Type |
+| [`GeometricFocusBreathing`](api/optics-focus-breathing.md#geometricfocusbreathing) | Type |
+| [`GeometricFocusingMethod`](api/optics-focus-breathing.md#geometricfocusingmethod) | Type |
 
 ## optics/focus-state.ts
 
@@ -1170,11 +1269,14 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`composeFrontOfLensFilterTransmission`](api/optics-front-of-lens-filter.md#composefrontoflensfiltertransmission) | Runtime |
 | [`ComposeFrontOfLensFilterTransmissionInput`](api/optics-front-of-lens-filter.md#composefrontoflensfiltertransmissioninput) | Type |
 | [`FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION`](api/optics-front-of-lens-filter.md#front_of_lens_filter_profile_schema_version) | Runtime |
+| [`FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION`](api/optics-front-of-lens-filter.md#front_of_lens_polarizer_profile_schema_version) | Runtime |
 | [`FrontOfLensFilterProfile`](api/optics-front-of-lens-filter.md#frontoflensfilterprofile) | Type |
+| [`FrontOfLensFilterProfileSchemaVersion`](api/optics-front-of-lens-filter.md#frontoflensfilterprofileschemaversion) | Type |
 | [`FrontOfLensFilterScientificStatus`](api/optics-front-of-lens-filter.md#frontoflensfilterscientificstatus) | Type |
 | [`FrontOfLensFilterSpectralSample`](api/optics-front-of-lens-filter.md#frontoflensfilterspectralsample) | Type |
 | [`FrontOfLensFilterTransmissionModel`](api/optics-front-of-lens-filter.md#frontoflensfiltertransmissionmodel) | Type |
 | [`FrontOfLensFilterUncertainty`](api/optics-front-of-lens-filter.md#frontoflensfilteruncertainty) | Type |
+| [`LinearPolarizationState`](api/optics-front-of-lens-filter.md#linearpolarizationstate) | Type |
 | [`parseFrontOfLensFilterProfile`](api/optics-front-of-lens-filter.md#parsefrontoflensfilterprofile) | Runtime |
 | [`ResolvedFrontOfLensFilterTransmission`](api/optics-front-of-lens-filter.md#resolvedfrontoflensfiltertransmission) | Type |
 | [`resolveFrontOfLensFilterTransmission`](api/optics-front-of-lens-filter.md#resolvefrontoflensfiltertransmission) | Runtime |
@@ -1244,6 +1346,7 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`LensPsfUncertainty`](api/optics-lens-psf-profile.md#lenspsfuncertainty) | Type |
 | [`LensSampledPsfGridCoordinate`](api/optics-lens-psf-profile.md#lenssampledpsfgridcoordinate) | Type |
 | [`LensSampledPsfGridNode`](api/optics-lens-psf-profile.md#lenssampledpsfgridnode) | Type |
+| [`LensSampledPsfInterpolation`](api/optics-lens-psf-profile.md#lenssampledpsfinterpolation) | Type |
 | [`LensSampledPsfProfile`](api/optics-lens-psf-profile.md#lenssampledpsfprofile) | Type |
 | [`MtfOnlyPsfRenderabilityAssessment`](api/optics-lens-psf-profile.md#mtfonlypsfrenderabilityassessment) | Type |
 | [`parseLensMtfDiagnosticProfile`](api/optics-lens-psf-profile.md#parselensmtfdiagnosticprofile) | Runtime |
@@ -1251,6 +1354,21 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`ResolvedLensSampledPsf`](api/optics-lens-psf-profile.md#resolvedlenssampledpsf) | Type |
 | [`resolveLensSampledPsf`](api/optics-lens-psf-profile.md#resolvelenssampledpsf) | Runtime |
 | [`ResolveLensSampledPsfInput`](api/optics-lens-psf-profile.md#resolvelenssampledpsfinput) | Type |
+
+## optics/longitudinal-chromatic-aberration.ts
+
+[Detailed contracts](api/optics-longitudinal-chromatic-aberration.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/optics/longitudinal-chromatic-aberration.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateCauchyRefractiveIndex`](api/optics-longitudinal-chromatic-aberration.md#calculatecauchyrefractiveindex) | Runtime |
+| [`calculateLongitudinalChromaticFocus`](api/optics-longitudinal-chromatic-aberration.md#calculatelongitudinalchromaticfocus) | Runtime |
+| [`CalculateLongitudinalChromaticFocusInput`](api/optics-longitudinal-chromatic-aberration.md#calculatelongitudinalchromaticfocusinput) | Type |
+| [`FRAUNHOFER_C_LINE_NM`](api/optics-longitudinal-chromatic-aberration.md#fraunhofer_c_line_nm) | Runtime |
+| [`FRAUNHOFER_D_LINE_NM`](api/optics-longitudinal-chromatic-aberration.md#fraunhofer_d_line_nm) | Runtime |
+| [`FRAUNHOFER_F_LINE_NM`](api/optics-longitudinal-chromatic-aberration.md#fraunhofer_f_line_nm) | Runtime |
+| [`LongitudinalChromaticDispersion`](api/optics-longitudinal-chromatic-aberration.md#longitudinalchromaticdispersion) | Type |
+| [`LongitudinalChromaticFocus`](api/optics-longitudinal-chromatic-aberration.md#longitudinalchromaticfocus) | Type |
 
 ## optics/polygon-diffraction.ts
 
@@ -1260,7 +1378,10 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | --- | --- |
 | [`CalculateIdealPolygonDiffractionInput`](api/optics-polygon-diffraction.md#calculateidealpolygondiffractioninput) | Type |
 | [`calculateIdealPolygonDiffractionPsf`](api/optics-polygon-diffraction.md#calculateidealpolygondiffractionpsf) | Runtime |
+| [`calculatePolygonPupilFraunhoferPsf`](api/optics-polygon-diffraction.md#calculatepolygonpupilfraunhoferpsf) | Runtime |
+| [`CalculatePolygonPupilFraunhoferPsfInput`](api/optics-polygon-diffraction.md#calculatepolygonpupilfraunhoferpsfinput) | Type |
 | [`IdealPolygonDiffraction`](api/optics-polygon-diffraction.md#idealpolygondiffraction) | Type |
+| [`PolygonPupilFraunhoferPsf`](api/optics-polygon-diffraction.md#polygonpupilfraunhoferpsf) | Type |
 
 ## optics/profile-contract.ts
 
@@ -1287,6 +1408,21 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`PsfContributionStatus`](api/optics-psf-foundation.md#psfcontributionstatus) | Type |
 | [`PsfFoundationComponents`](api/optics-psf-foundation.md#psffoundationcomponents) | Type |
 | [`PsfFoundationContract`](api/optics-psf-foundation.md#psffoundationcontract) | Type |
+
+## optics/pupil-vignetting.ts
+
+[Detailed contracts](api/optics-pupil-vignetting.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/optics/pupil-vignetting.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateMechanicalVignetting`](api/optics-pupil-vignetting.md#calculatemechanicalvignetting) | Runtime |
+| [`CalculateMechanicalVignettingInput`](api/optics-pupil-vignetting.md#calculatemechanicalvignettinginput) | Type |
+| [`calculateNaturalVignetting`](api/optics-pupil-vignetting.md#calculatenaturalvignetting) | Runtime |
+| [`CalculateNaturalVignettingInput`](api/optics-pupil-vignetting.md#calculatenaturalvignettinginput) | Type |
+| [`MechanicalVignetting`](api/optics-pupil-vignetting.md#mechanicalvignetting) | Type |
+| [`MechanicalVignettingAperture`](api/optics-pupil-vignetting.md#mechanicalvignettingaperture) | Type |
+| [`NaturalVignetting`](api/optics-pupil-vignetting.md#naturalvignetting) | Type |
+| [`NaturalVignettingModel`](api/optics-pupil-vignetting.md#naturalvignettingmodel) | Type |
 
 ## optics/radial-distortion.ts
 
@@ -1394,6 +1530,29 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`calculateThinLensImageDistance`](api/optics-thin-lens.md#calculatethinlensimagedistance) | Runtime |
 | [`CalculateThinLensImageDistanceInput`](api/optics-thin-lens.md#calculatethinlensimagedistanceinput) | Type |
 | [`ThinLensImageDistance`](api/optics-thin-lens.md#thinlensimagedistance) | Type |
+
+## optics/zernike-wavefront.ts
+
+[Detailed contracts](api/optics-zernike-wavefront.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/optics/zernike-wavefront.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateDefocusWavefront`](api/optics-zernike-wavefront.md#calculatedefocuswavefront) | Runtime |
+| [`CalculateDefocusWavefrontInput`](api/optics-zernike-wavefront.md#calculatedefocuswavefrontinput) | Type |
+| [`createWavefrontPupilGrid`](api/optics-zernike-wavefront.md#createwavefrontpupilgrid) | Runtime |
+| [`CreateWavefrontPupilGridInput`](api/optics-zernike-wavefront.md#createwavefrontpupilgridinput) | Type |
+| [`DefocusWavefront`](api/optics-zernike-wavefront.md#defocuswavefront) | Type |
+| [`estimateMarechalStrehlRatio`](api/optics-zernike-wavefront.md#estimatemarechalstrehlratio) | Runtime |
+| [`EstimateMarechalStrehlRatioInput`](api/optics-zernike-wavefront.md#estimatemarechalstrehlratioinput) | Type |
+| [`evaluateZernikePolynomial`](api/optics-zernike-wavefront.md#evaluatezernikepolynomial) | Runtime |
+| [`resolveZernikeNollOrder`](api/optics-zernike-wavefront.md#resolvezernikenollorder) | Runtime |
+| [`SeidelFieldPosition`](api/optics-zernike-wavefront.md#seidelfieldposition) | Type |
+| [`SeidelWavefrontCoefficients`](api/optics-zernike-wavefront.md#seidelwavefrontcoefficients) | Type |
+| [`WavefrontPupilGrid`](api/optics-zernike-wavefront.md#wavefrontpupilgrid) | Type |
+| [`ZERNIKE_MAXIMUM_NOLL_INDEX`](api/optics-zernike-wavefront.md#zernike_maximum_noll_index) | Runtime |
+| [`ZERNIKE_PUPIL_MAXIMUM_SAMPLES_ACROSS`](api/optics-zernike-wavefront.md#zernike_pupil_maximum_samples_across) | Runtime |
+| [`ZernikeCoefficient`](api/optics-zernike-wavefront.md#zernikecoefficient) | Type |
+| [`ZernikeOrder`](api/optics-zernike-wavefront.md#zernikeorder) | Type |
 
 ## output/capture-corrected-sdr.ts
 
@@ -2191,12 +2350,17 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | --- | --- |
 | [`assessReadoutExposureTimingLinkage`](api/sensor-readout-exposure-linkage.md#assessreadoutexposuretiminglinkage) | Runtime |
 | [`AssessReadoutExposureTimingLinkageInput`](api/sensor-readout-exposure-linkage.md#assessreadoutexposuretiminglinkageinput) | Type |
+| [`createRollingShutterCaptureExposureSchedule`](api/sensor-readout-exposure-linkage.md#createrollingshuttercaptureexposureschedule) | Runtime |
+| [`ELECTRONIC_ROLLING_SHUTTER_MODEL`](api/sensor-readout-exposure-linkage.md#electronic_rolling_shutter_model) | Runtime |
+| [`ElectronicRollingShutterExposureSchedule`](api/sensor-readout-exposure-linkage.md#electronicrollingshutterexposureschedule) | Type |
 | [`ReadoutExposureBoundaryId`](api/sensor-readout-exposure-linkage.md#readoutexposureboundaryid) | Type |
 | [`ReadoutExposureBoundarySpatialLink`](api/sensor-readout-exposure-linkage.md#readoutexposureboundaryspatiallink) | Type |
 | [`ReadoutExposureBoundarySpatialLinkAssessment`](api/sensor-readout-exposure-linkage.md#readoutexposureboundaryspatiallinkassessment) | Type |
 | [`ReadoutExposureSpatialPhaseOrientation`](api/sensor-readout-exposure-linkage.md#readoutexposurespatialphaseorientation) | Type |
 | [`ReadoutExposureTimingLinkageAssessment`](api/sensor-readout-exposure-linkage.md#readoutexposuretiminglinkageassessment) | Type |
 | [`ReadoutExposureTimingLinkageDeclaration`](api/sensor-readout-exposure-linkage.md#readoutexposuretiminglinkagedeclaration) | Type |
+| [`resolveElectronicRollingShutterExposureSchedule`](api/sensor-readout-exposure-linkage.md#resolveelectronicrollingshutterexposureschedule) | Runtime |
+| [`ResolveElectronicRollingShutterExposureScheduleInput`](api/sensor-readout-exposure-linkage.md#resolveelectronicrollingshutterexposurescheduleinput) | Type |
 
 ## sensor/readout-timing.ts
 

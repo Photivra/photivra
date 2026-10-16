@@ -197,6 +197,15 @@ export function meterSceneRadianceTemporalExposure(
     );
 
   if (
+    profile.policy.kind ===
+    "highlight-priority"
+  ) {
+    // A time average of per-snapshot quantiles is not the quantile of the time-averaged signal.
+    throw new InvalidScientificInputError(
+      "highlight-priority is a spatial quantile, not a linear signal mean; temporal averaging of snapshot quantiles is not defined by this model."
+    );
+  }
+  if (
     input.policy.kind !==
     "weighted-time-average"
   ) {
