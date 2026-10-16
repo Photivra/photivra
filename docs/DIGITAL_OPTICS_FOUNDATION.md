@@ -30,7 +30,12 @@ prepareGeometricMapping() stores canonical transforms, a deterministic semantic 
 
 Transforms are listed in destination-to-source order. Affine maps represent breathing, rotation, crop and digital stabilization with a full matrix and offset. Radial maps reuse the existing monotonic radial-distortion evaluator; for correction the destination ideal coordinate maps to physical distorted source data. A declared correction polynomial is independent from a physical optical polynomial and can intentionally leave residual distortion. No implicit correction strength or ideal-lens inversion is assumed.
 
-The 2.0 Brown–Conrady (radial plus tangential) mapping and the fisheye/equirectangular projections are standalone primitives (see [Physics foundation](PHYSICS_FOUNDATION.md#brownconrady-tangential-distortion-20)); they are not yet transform kinds of `prepareGeometricMapping()`, whose schema is unchanged. A renderer may sample them directly with their own inverse functions until a versioned transform kind is added.
+Mapping schema 0.2.0 (2.0) adds two transform kinds; see the [contract review](PHYSICS_FOUNDATION.md#lens-geometry-wiring-contract-review-20):
+
+- `brown-conrady` (purpose `distortion`): like `radial`, the destination ideal coordinate maps to physical distorted source data through the validated Brown–Conrady forward map; its analytic Jacobian enters the composed derivative and the forward bridge uses the Newton inverse.
+- `projection-remap` (purpose `projection`, used by no other kind): the destination point is unprojected with `destinationProjection` and reprojected with `sourceProjection` (each an ideal projection model and mapping scale), for example a rectilinear or equirectangular view resampled from a fisheye capture. Its Jacobian is the analytic chain d(source)/d(direction) · d(direction)/d(destination).
+
+A mapping that uses only `affine` and `radial` keeps `schemaVersion` and model version 0.1.0 and identical output, semantic key and Jacobians. Lens-correction profiles parse transforms through the same parser, so they can carry the new kinds. `calculateGeometricSamplingPlan()` accepts an optional `sourceProjectionModel` so captured-FOV and retained-ray angles of a fisheye source use its mapping function; omitted or `"rectilinear"` keeps `atan(mm / distance)` exactly.
 
 Raw-channel, reconstructed-linear and processed-output domains are barriers. Compatible contiguous transforms can share a resampling pass; incompatible groups are retained by the prepared mapping but a fused pixel pass rejects them. Prepared maps are frame/time specific in seconds from exposure start; no trajectory averaging or full-video crop guarantee is implied.
 

@@ -305,38 +305,13 @@ export function calculateLensProjectionImagePoint(
       "direction must be a finite non-zero vector."
     );
   }
-  const f = input.focalLengthMm;
-  const transverse = Math.hypot(x, y);
-  const fieldAngleRadians = Math.atan2(transverse, z);
-
-  let imagePointMm: { x: number; y: number };
-  if (model === "equirectangular") {
-    const latitude = Math.asin(Math.max(-1, Math.min(1, y / length)));
-    const horizontal = Math.hypot(x, z);
-    if (horizontal === 0) {
-      // Poles have an undefined longitude; the projection is singular there.
-      throw new InvalidScientificInputError(
-        "Equirectangular projection is undefined at the poles (direction parallel to +/-Y)."
-      );
-    }
-    const longitude = Math.atan2(x, z);
-    imagePointMm = { x: f * longitude, y: f * latitude };
-  } else {
-    const limit = radialFieldAngleLimit(model);
-    if (
-      fieldAngleRadians > limit.radians ||
-      (!limit.inclusive && fieldAngleRadians === limit.radians)
-    ) {
-      throw new InvalidScientificInputError(
-        `direction lies outside the ${model} projection domain.`
-      );
-    }
-    const radius = radialProjectionImageRadius(model, f, fieldAngleRadians);
-    imagePointMm =
-      transverse === 0
-        ? { x: 0, y: 0 }
-        : { x: (radius * x) / transverse, y: (radius * y) / transverse };
-  }
+  const { imagePointMm, fieldAngleRadians } = lensProjectionImagePointValue(
+    model,
+    input.focalLengthMm,
+    x,
+    y,
+    z
+  );
 
   return calculatedResult(
     {
@@ -363,36 +338,13 @@ export function calculateLensProjectionDirection(
   requireRecord("imagePointMm", input.imagePointMm);
   const px = requireFinite("imagePointMm.x", input.imagePointMm.x);
   const py = requireFinite("imagePointMm.y", input.imagePointMm.y);
-  const f = input.focalLengthMm;
   const imageRadiusMm = Math.hypot(px, py);
-
-  let direction: LensDirection;
-  if (model === "equirectangular") {
-    const longitude = px / f;
-    const latitude = py / f;
-    if (Math.abs(longitude) > Math.PI || Math.abs(latitude) > HALF_PI) {
-      throw new InvalidScientificInputError(
-        "imagePointMm lies outside the equirectangular longitude/latitude domain."
-      );
-    }
-    const cosLatitude = Math.cos(latitude);
-    direction = {
-      x: cosLatitude * Math.sin(longitude),
-      y: Math.sin(latitude),
-      z: cosLatitude * Math.cos(longitude)
-    };
-  } else {
-    const theta = radialProjectionFieldAngle(model, f, imageRadiusMm);
-    const sinTheta = Math.sin(theta);
-    direction =
-      imageRadiusMm === 0
-        ? { x: 0, y: 0, z: 1 }
-        : {
-            x: (sinTheta * px) / imageRadiusMm,
-            y: (sinTheta * py) / imageRadiusMm,
-            z: Math.cos(theta)
-          };
-  }
+  const direction = lensProjectionDirectionValue(
+    model,
+    input.focalLengthMm,
+    px,
+    py
+  );
 
   return calculatedResult(
     {
@@ -512,4 +464,234 @@ export function calculateLensProjectionFieldOfViewBounds(
       "Signed sensor-plane bounds are measured relative to the optical axis along one axis through it"
     ]
   );
+}
+
+/**
+ * @internal Image point of a non-zero camera-frame direction under one model (no envelope).
+ * Shared by the public mapping, geometric remaps and the environment ray query.
+ */
+export function lensProjectionImagePointValue(
+  model: LensProjectionModel,
+  focalLengthMm: number,
+  x: number,
+  y: number,
+  z: number
+): { imagePointMm: { x: number; y: number }; fieldAngleRadians: number } {
+  const length = Math.hypot(x, y, z);
+  const f = focalLengthMm;
+  const transverse = Math.hypot(x, y);
+  const fieldAngleRadians = Math.atan2(transverse, z);
+
+  let imagePointMm: { x: number; y: number };
+  if (model === "equirectangular") {
+    const latitude = Math.asin(Math.max(-1, Math.min(1, y / length)));
+    const horizontal = Math.hypot(x, z);
+    if (horizontal === 0) {
+      // Poles have an undefined longitude; the projection is singular there.
+      throw new InvalidScientificInputError(
+        "Equirectangular projection is undefined at the poles (direction parallel to +/-Y)."
+      );
+    }
+    const longitude = Math.atan2(x, z);
+    imagePointMm = { x: f * longitude, y: f * latitude };
+  } else {
+    const limit = radialFieldAngleLimit(model);
+    if (
+      fieldAngleRadians > limit.radians ||
+      (!limit.inclusive && fieldAngleRadians === limit.radians)
+    ) {
+      throw new InvalidScientificInputError(
+        `direction lies outside the ${model} projection domain.`
+      );
+    }
+    const radius = radialProjectionImageRadius(model, f, fieldAngleRadians);
+    imagePointMm =
+      transverse === 0
+        ? { x: 0, y: 0 }
+        : { x: (radius * x) / transverse, y: (radius * y) / transverse };
+  }
+
+  return { imagePointMm, fieldAngleRadians };
+}
+
+/** @internal Unit camera-frame direction of one image point under one model (no envelope). */
+export function lensProjectionDirectionValue(
+  model: LensProjectionModel,
+  focalLengthMm: number,
+  px: number,
+  py: number
+): LensDirection {
+  const f = focalLengthMm;
+  const imageRadiusMm = Math.hypot(px, py);
+
+  let direction: LensDirection;
+  if (model === "equirectangular") {
+    const longitude = px / f;
+    const latitude = py / f;
+    if (Math.abs(longitude) > Math.PI || Math.abs(latitude) > HALF_PI) {
+      throw new InvalidScientificInputError(
+        "imagePointMm lies outside the equirectangular longitude/latitude domain."
+      );
+    }
+    const cosLatitude = Math.cos(latitude);
+    direction = {
+      x: cosLatitude * Math.sin(longitude),
+      y: Math.sin(latitude),
+      z: cosLatitude * Math.cos(longitude)
+    };
+  } else {
+    const theta = radialProjectionFieldAngle(model, f, imageRadiusMm);
+    const sinTheta = Math.sin(theta);
+    direction =
+      imageRadiusMm === 0
+        ? { x: 0, y: 0, z: 1 }
+        : {
+            x: (sinTheta * px) / imageRadiusMm,
+            y: (sinTheta * py) / imageRadiusMm,
+            z: Math.cos(theta)
+          };
+  }
+
+  return direction;
+}
+
+/** d r / d theta of a radial model. */
+function radialDerivative(
+  model: RadialLensProjectionModel,
+  f: number,
+  theta: number
+): number {
+  switch (model) {
+    case "rectilinear":
+      return f / Math.cos(theta) ** 2;
+    case "fisheye-equidistant":
+      return f;
+    case "fisheye-equisolid-angle":
+      return f * Math.cos(theta / 2);
+    case "fisheye-stereographic":
+      return f / Math.cos(theta / 2) ** 2;
+    case "fisheye-orthographic":
+      return f * Math.cos(theta);
+  }
+}
+
+type Matrix32 = readonly [readonly [number, number], readonly [number, number], readonly [number, number]];
+
+/** Unit direction of an image point and its derivative d(direction)/d(point) (3 x 2). */
+function directionWithDerivative(
+  model: LensProjectionModel,
+  f: number,
+  px: number,
+  py: number
+): { direction: LensDirection; derivative: Matrix32 } {
+  const direction = lensProjectionDirectionValue(model, f, px, py);
+  if (model === "equirectangular") {
+    const lambda = px / f;
+    const phi = py / f;
+    const cp = Math.cos(phi);
+    const sp = Math.sin(phi);
+    const cl = Math.cos(lambda);
+    const sl = Math.sin(lambda);
+    return {
+      direction,
+      derivative: [
+        [(cp * cl) / f, (-sp * sl) / f],
+        [0, cp / f],
+        [(-cp * sl) / f, (-sp * cl) / f]
+      ]
+    };
+  }
+  const rho = Math.hypot(px, py);
+  if (rho === 0) {
+    const a = 1 / radialDerivative(model, f, 0);
+    return { direction, derivative: [[a, 0], [0, a], [0, 0]] };
+  }
+  const theta = radialProjectionFieldAngle(model, f, rho);
+  const dTheta = 1 / radialDerivative(model, f, theta);
+  const a = Math.sin(theta) / rho;
+  const aPrime = (Math.cos(theta) * dTheta * rho - Math.sin(theta)) / (rho * rho);
+  const ux = px / rho;
+  const uy = py / rho;
+  const dz = -Math.sin(theta) * dTheta;
+  return {
+    direction,
+    derivative: [
+      [a + aPrime * px * ux, aPrime * px * uy],
+      [aPrime * py * ux, a + aPrime * py * uy],
+      [dz * ux, dz * uy]
+    ]
+  };
+}
+
+/** Image point of a unit direction and its derivative d(point)/d(direction) (2 x 3). */
+function imagePointWithDerivative(
+  model: LensProjectionModel,
+  f: number,
+  v: LensDirection
+): { point: { x: number; y: number }; derivative: readonly [readonly [number, number, number], readonly [number, number, number]] } {
+  const point = lensProjectionImagePointValue(model, f, v.x, v.y, v.z).imagePointMm;
+  if (model === "equirectangular") {
+    const h2 = v.x * v.x + v.z * v.z;
+    const c = Math.sqrt(Math.max(0, 1 - v.y * v.y));
+    return {
+      point,
+      derivative: [
+        [(f * v.z) / h2, 0, (-f * v.x) / h2],
+        [0, f / c, 0]
+      ]
+    };
+  }
+  const t = Math.hypot(v.x, v.y);
+  const theta = Math.atan2(t, v.z);
+  if (theta < 1e-9) {
+    const g = radialDerivative(model, f, 0);
+    return { point, derivative: [[g, 0, 0], [0, g, 0]] };
+  }
+  const s = Math.sin(theta);
+  const g = radialProjectionImageRadius(model, f, theta);
+  const b = g / s;
+  const bPrime = (radialDerivative(model, f, theta) * s - g * Math.cos(theta)) / (s * s);
+  // q = b(theta) (vx, vy); on the unit sphere d theta = -d vz / sin theta.
+  const k = -bPrime / s;
+  return {
+    point,
+    derivative: [
+      [b, 0, k * v.x],
+      [0, b, k * v.y]
+    ]
+  };
+}
+
+/**
+ * @internal Destination-to-source remap between two ideal projections: the destination point is
+ * unprojected with the destination model and reprojected with the source model. Returns the
+ * source point and the 2 x 2 Jacobian d(source)/d(destination), row-major.
+ */
+export function lensProjectionRemapValue(
+  destinationModel: LensProjectionModel,
+  destinationFocalLengthMm: number,
+  sourceModel: LensProjectionModel,
+  sourceFocalLengthMm: number,
+  px: number,
+  py: number
+): { sourcePointMm: { x: number; y: number }; jacobian: readonly [number, number, number, number] } {
+  const inverse = directionWithDerivative(destinationModel, destinationFocalLengthMm, px, py);
+  const forward = imagePointWithDerivative(sourceModel, sourceFocalLengthMm, inverse.direction);
+  const d = inverse.derivative;
+  const q = forward.derivative;
+  const j = (row: 0 | 1, column: 0 | 1): number =>
+    q[row][0] * d[0][column] + q[row][1] * d[1][column] + q[row][2] * d[2][column];
+  return {
+    sourcePointMm: forward.point,
+    jacobian: [j(0, 0), j(0, 1), j(1, 0), j(1, 1)]
+  };
+}
+
+/** @internal Signed angle along one axis through the optical axis (exported for sampling plans). */
+export function lensProjectionSignedAxisAngle(
+  model: LensProjectionModel,
+  focalLengthMm: number,
+  coordinateMm: number
+): number {
+  return signedAxisAngle(model, focalLengthMm, coordinateMm);
 }

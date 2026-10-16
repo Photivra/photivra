@@ -223,6 +223,11 @@
       "kind": "type"
     },
     {
+      "name": "BrownConradyGeometricTransform",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
       "name": "Bt1886Eotf",
       "source": "src/color/rgb-color-spaces.ts",
       "kind": "type"
@@ -2158,6 +2163,11 @@
       "kind": "type"
     },
     {
+      "name": "EnvironmentLensFieldMapping",
+      "source": "src/optics/sensor-environment-query.ts",
+      "kind": "type"
+    },
+    {
       "name": "EnvironmentRadianceEvaluator",
       "source": "src/sensor/environment-photo-signal.ts",
       "kind": "type"
@@ -2824,6 +2834,11 @@
     },
     {
       "name": "GeometricMappingPoint",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GeometricProjectionDeclaration",
       "source": "src/output/geometric-transforms.ts",
       "kind": "type"
     },
@@ -4778,6 +4793,11 @@
       "kind": "type"
     },
     {
+      "name": "ProjectionRemapGeometricTransform",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
       "name": "ProvenanceKind",
       "source": "src/core/calculation-result.ts",
       "kind": "type"
@@ -6190,6 +6210,11 @@
     {
       "name": "SensorElectronicReadNoiseComponent",
       "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorEnvironmentLensFieldMappingResult",
+      "source": "src/optics/sensor-environment-query.ts",
       "kind": "type"
     },
     {

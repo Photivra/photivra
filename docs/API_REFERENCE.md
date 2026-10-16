@@ -1408,6 +1408,8 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | --- | --- |
 | [`calculateSensorEnvironmentRadianceQuery`](api/optics-sensor-environment-query.md#calculatesensorenvironmentradiancequery) | Runtime |
 | [`CalculateSensorEnvironmentRadianceQueryInput`](api/optics-sensor-environment-query.md#calculatesensorenvironmentradiancequeryinput) | Type |
+| [`EnvironmentLensFieldMapping`](api/optics-sensor-environment-query.md#environmentlensfieldmapping) | Type |
+| [`SensorEnvironmentLensFieldMappingResult`](api/optics-sensor-environment-query.md#sensorenvironmentlensfieldmappingresult) | Type |
 | [`SensorEnvironmentRadianceQuery`](api/optics-sensor-environment-query.md#sensorenvironmentradiancequery) | Type |
 
 ## optics/sensor-psf-quadrature.ts
@@ -1544,6 +1546,7 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | Export | Kind |
 | --- | --- |
 | [`AffineGeometricTransform`](api/output-geometric-transforms.md#affinegeometrictransform) | Type |
+| [`BrownConradyGeometricTransform`](api/output-geometric-transforms.md#brownconradygeometrictransform) | Type |
 | [`calculateComposedGeometricMapping`](api/output-geometric-transforms.md#calculatecomposedgeometricmapping) | Runtime |
 | [`calculateForwardGeometricMapping`](api/output-geometric-transforms.md#calculateforwardgeometricmapping) | Runtime |
 | [`calculateGeometricResampling`](api/output-geometric-transforms.md#calculategeometricresampling) | Runtime |
@@ -1552,12 +1555,14 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`GeometricImageDomain`](api/output-geometric-transforms.md#geometricimagedomain) | Type |
 | [`GeometricJacobian`](api/output-geometric-transforms.md#geometricjacobian) | Type |
 | [`GeometricMappingPoint`](api/output-geometric-transforms.md#geometricmappingpoint) | Type |
+| [`GeometricProjectionDeclaration`](api/output-geometric-transforms.md#geometricprojectiondeclaration) | Type |
 | [`GeometricRaster`](api/output-geometric-transforms.md#geometricraster) | Type |
 | [`GeometricResampler`](api/output-geometric-transforms.md#geometricresampler) | Type |
 | [`GeometricSamplingPlan`](api/output-geometric-transforms.md#geometricsamplingplan) | Type |
 | [`parseDigitalGeometricTransform`](api/output-geometric-transforms.md#parsedigitalgeometrictransform) | Runtime |
 | [`PreparedGeometricMapping`](api/output-geometric-transforms.md#preparedgeometricmapping) | Type |
 | [`prepareGeometricMapping`](api/output-geometric-transforms.md#preparegeometricmapping) | Runtime |
+| [`ProjectionRemapGeometricTransform`](api/output-geometric-transforms.md#projectionremapgeometrictransform) | Type |
 | [`RadialGeometricTransform`](api/output-geometric-transforms.md#radialgeometrictransform) | Type |
 
 ## output/lens-corrections.ts

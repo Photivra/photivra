@@ -457,6 +457,7 @@ export type ProductionImageFormationBlockerCode =
   | "missing-temporal-capture-input"
   | "temporal-evaluation-blocked"
   | "missing-camera-rotation-model"
+  | "missing-lens-field-mapping"
   | "missing-sensor-readout-timing"
   | "renderer-temporal-sampling-insufficient";
 
@@ -608,6 +609,7 @@ const COMPOSER_SUPPORTED_STAGES =
 const COMPOSER_SUPPORTED_EFFECTS =
   new Set<ImageFormationEffectId>([
     "illumination-vignetting",
+    "geometric-distortion",
     "spatial-camera-rotation",
     "rolling-readout"
   ]);
@@ -2926,6 +2928,15 @@ function requestedEffectMap(
   );
 }
 
+/** True when a declared lens field mapping applies no distortion (absent, "none" or all-zero terms). */
+function lensDistortionIsZero(mapping: { distortion?: { kind?: unknown; profile?: { coefficients?: unknown } } } | undefined): boolean {
+  const distortion = mapping?.distortion;
+  if (distortion === undefined || distortion.kind === "none") return true;
+  const coefficients = distortion.profile?.coefficients;
+  return typeof coefficients === "object" && coefficients !== null &&
+    Object.values(coefficients).every(value => value === 0);
+}
+
 function hasActiveUndeclaredFieldThroughput(
   prepared:
     PreparedImageFormationContext,
@@ -3326,6 +3337,31 @@ function deriveEffectPlan(
             blockerCodes: [
               blocker.code
             ]
+          };
+        }
+
+        if (placement.id === "geometric-distortion") {
+          // 2.0: lens distortion is composed only through an executed environment capture whose
+          // sites declare a lens field mapping (the ray query owns the inverse map and area factor).
+          const mapping = environmentCapture?.capture.sites[0]?.environment.lensFieldMapping;
+          if (mapping === undefined) {
+            const blocker: ProductionImageFormationBlocker = {
+              code: "missing-lens-field-mapping",
+              effectId: placement.id,
+              message: "Geometric-distortion planning requires an executed environment capture with an explicit lens field mapping."
+            };
+            addBlocker(blockers, blocker);
+            return {
+              effectId: placement.id, primaryStage: placement.primaryStage, coupledStages: [...placement.coupledStages],
+              state: "blocked" as const, scientificStatus: "not-applicable" as const, requiredByFidelity: true,
+              modelId: request.modelId, modelVersion: request.modelVersion, blockerCodes: [blocker.code]
+            };
+          }
+          return {
+            effectId: placement.id, primaryStage: placement.primaryStage, coupledStages: [...placement.coupledStages],
+            state: lensDistortionIsZero(mapping) ? "modeled-zero" as const : "active" as const,
+            scientificStatus: "approximation" as const, requiredByFidelity: true,
+            modelId: request.modelId, modelVersion: request.modelVersion, blockerCodes: []
           };
         }
 
@@ -4612,6 +4648,10 @@ function computeEnvironmentCapture(input: ProductionEnvironmentCaptureInput | un
         !prepared.fidelity.requiredEffects.some(effect => effect.effectId === "illumination-vignetting")) {
         throw new InvalidConfigurationError("Non-unity environment field throughput requires an explicitly requested illumination-vignetting effect.");
       }
+      if (e.lensFieldMapping !== undefined && !lensDistortionIsZero(e.lensFieldMapping) &&
+        !prepared.fidelity.requiredEffects.some(effect => effect.effectId === "geometric-distortion")) {
+        throw new InvalidConfigurationError("Active environment lens distortion requires an explicitly requested geometric-distortion effect.");
+      }
       if (e.sceneBindings.providerProfile.profileId !== prepared.sceneRadianceProviderProfileId ||
         canonicalStringify(e.optics.profile) !== (opticalBridgeCanonical ??= canonicalStringify(prepared.opticalBridgeProfile)) ||
         rendererTemporal.kind !== "bounded" || e.temporalSampleCount > rendererTemporal.maximumSamples ||
@@ -4713,7 +4753,8 @@ export function createProductionImageFormationPlan(
     prepared, snapshot, requiredStages, blockers);
   const environmentCaptureResult = environmentExecution?.result;
   if (input.environmentCapture !== undefined && environmentCaptureResult === undefined) {
-    effectPlan = effectPlan.map(effect => effect.effectId === "illumination-vignetting" && effect.requiredByFidelity
+    effectPlan = effectPlan.map(effect => (effect.effectId === "illumination-vignetting" ||
+      (effect.effectId === "geometric-distortion" && effect.state !== "blocked")) && effect.requiredByFidelity
       ? { ...effect, state: "blocked" as const, scientificStatus: "not-applicable" as const,
         blockerCodes: ["environment-capture-evaluation-blocked" as const] } : effect);
   }

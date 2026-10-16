@@ -305,6 +305,17 @@ bounded algorithms; it does not establish calibrated provider transport or
 physical visibility. An explicitly omitted PSF is a declared point-optics
 model, with its evidence and limitation, not proof of a physically perfect lens.
 
+Since 2.0 the `geometric-distortion` effect is composed through this route only:
+the environment sites must declare a `lensFieldMapping` (see
+[environment capture](ENVIRONMENT_RAW_CAPTURE.md#lens-field-mapping-20)). Requested
+without a mapping it is blocked with `missing-lens-field-mapping`; a mapping with
+active (non-zero) distortion that the fidelity profile did not request blocks
+execution before callbacks, as undeclared field attenuation already does. A
+declared zero distortion reports `modeled-zero`. The plan version stays 0.7.0:
+existing requests that do not request the effect or declare a mapping are
+bit-identical, and the change is additive for requests that previously received
+`engine-effect-not-composed` for it.
+
 Required effects outside a route's actual implementation continue to report
 `engine-effect-not-composed`. The plan cannot silently reinterpret a requested
 surface, depth, stabilization, breathing or field-transport model as an ideal

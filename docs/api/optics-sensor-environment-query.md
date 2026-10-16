@@ -34,6 +34,43 @@ export interface CalculateSensorEnvironmentRadianceQueryInput {
   /** Environment request uses radiance propagation toward the camera, opposite the look ray. */
   environmentDirectionConvention: "outgoing-radiance-toward-camera";
   request: Omit<SceneRadianceEvaluationRequest, "target" | "timeSecondsFromExposureStart">;
+  /** Optional 2.0 lens field mapping; omitted keeps the ideal rectilinear, distortion-free query. */
+  lensFieldMapping?: EnvironmentLensFieldMapping;
+}
+```
+
+## EnvironmentLensFieldMapping
+
+Lens field mapping between the physical (distorted) sensor point and the scene ray (2.0).
+`radiometricAreaCorrection` makes ownership of the distortion area factor explicit: the
+environment photo signal multiplies irradiance by 1 / det(d distorted / d ideal) exactly once,
+so a supplied field-throughput profile must not also contain it.
+
+```ts
+export interface EnvironmentLensFieldMapping {
+  projectionModel: LensProjectionModel;
+  distortion:
+    | { kind: "none" }
+    | { kind: "radial"; profile: RadialDistortionProfile }
+    | { kind: "brown-conrady"; profile: BrownConradyDistortionProfile };
+  radiometricAreaCorrection: "inverse-distortion-jacobian";
+}
+```
+
+## SensorEnvironmentLensFieldMappingResult
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface SensorEnvironmentLensFieldMappingResult {
+  projectionModel: LensProjectionModel;
+  distortionKind: "none" | "radial" | "brown-conrady";
+  /** Ideal (undistorted) image-plane point, +X right / +Y up, mm. */
+  idealImagePointMm: { x: number; y: number };
+  /** Projection scale: thin-lens image distance at finite focus, focal length at infinity, mm. */
+  projectionScaleMm: number;
+  /** 1 / det(d distorted / d ideal) at this point; 1 without distortion. */
+  distortionAreaFactor: number;
 }
 ```
 
@@ -47,7 +84,10 @@ export interface SensorEnvironmentRadianceQuery {
   sourcePointNativeSensorMm: { x: number; y: number };
   sourcePointImagePlaneMm: { x: number; y: number };
   referenceLookDirectionUnitVector: { x: number; y: number; z: number };
-  projection: ReturnType<typeof calculateInverseCameraRotationImageMapping>;
+  /** Rectilinear rotation mapping; null when a non-rectilinear lens field mapping is used. */
+  projection: ReturnType<typeof calculateInverseCameraRotationImageMapping> | null;
+  /** Present only when the input declared a lens field mapping. */
+  lensFieldMapping?: SensorEnvironmentLensFieldMappingResult;
   targetMeaning: "environment-direction-in-exposure-start-camera-axes";
   directionConvention: "outgoing-radiance-toward-camera";
   geometricRayProjectionCalculated: true;
