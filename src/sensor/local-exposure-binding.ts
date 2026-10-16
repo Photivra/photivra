@@ -40,6 +40,7 @@ import {
 import type {
   SensorResponsivityPhotocurrent
 } from "./responsivity-photocurrent.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export type SensorInstantaneousRateResult =
   | SensorEqeElectronRate
@@ -154,6 +155,7 @@ function validateRateBoundary(
     SensorInstantaneousRateResult
 ): "eqe-electron-rate" |
   "responsivity-photocurrent" {
+  requireInputObject(rate, "rate");
   if (
     rate.sourceResponseKind ===
       "effective-spectral-responsivity"
@@ -243,6 +245,7 @@ export function bindSensorRateToLocalExposure(
   input:
     BindSensorRateToLocalExposureInput
 ): CalculationResult<SensorRateLocalExposureBinding> {
+  requireInputObject(input, "bindSensorRateToLocalExposure input");
   const rateDomain =
     validateRateBoundary(input.rate);
   const site = requireSite(input.rate);

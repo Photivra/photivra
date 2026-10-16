@@ -34,6 +34,7 @@ import {
   type ResolvedSensorReadoutRegime,
   type SensorReadoutConversionProfile
 } from "./raw-readout.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -624,6 +625,7 @@ export function resolveGenericIsoSignalChain(
   input:
     ResolveGenericIsoSignalChainInput
 ): ResolvedGenericIsoSignalChain {
+  requireInputObject(input, "resolveGenericIsoSignalChain input");
   const profile =
     parseGenericIsoSignalChainProfile(
       input.profile
@@ -912,6 +914,7 @@ export function resolveGenericIsoSignalChainPreset(
   realCameraRankingClaimed:
     false;
 } {
+  requireInputObject(input, "resolveGenericIsoSignalChainPreset input");
   const catalog =
     parseGenericIsoSignalChainPresetCatalog(
       input.catalog

@@ -15,6 +15,7 @@ import {
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -552,6 +553,7 @@ function stateBase(
 export function resolvePresetWhiteBalance(
   input: ResolvePresetWhiteBalanceInput
 ): ResolvedWhiteBalanceState {
+  requireInputObject(input, "resolvePresetWhiteBalance input");
   const profile = parseWhiteBalanceProfile(input.profile);
   const presetId = requireScientificNonEmptyString(
     input.presetId,
@@ -586,6 +588,7 @@ export function resolvePresetWhiteBalance(
 export function resolveManualWhiteBalance(
   input: ResolveManualWhiteBalanceInput
 ): ResolvedWhiteBalanceState {
+  requireInputObject(input, "resolveManualWhiteBalance input");
   return immutableState(
     stateBase(
       input.stateId,
@@ -607,6 +610,7 @@ export function resolveManualWhiteBalance(
 export function createColorTemperatureWhiteBalanceIntent(
   input: CreateColorTemperatureWhiteBalanceIntentInput
 ): ColorTemperatureWhiteBalanceIntent {
+  requireInputObject(input, "createColorTemperatureWhiteBalanceIntent input");
   return Object.freeze({
     version: COLOR_TEMPERATURE_WHITE_BALANCE_INTENT_VERSION,
     intentId: requireScientificNonEmptyString(input.intentId, "intentId"),
@@ -634,6 +638,7 @@ function reduceSampleSet(
     blue: number;
   };
 } {
+  requireInputObject(sampleSet, "sampleSet");
   if (sampleSet.inputDomain !== "relative-pre-wb-camera-linear-rgb") {
     throw new InvalidScientificInputError(
       'sampleSet.inputDomain must be "relative-pre-wb-camera-linear-rgb".'
@@ -753,6 +758,7 @@ function neutralizingGains(
 export function resolveCustomWhiteBalance(
   input: ResolveCustomWhiteBalanceInput
 ): ResolvedWhiteBalanceState {
+  requireInputObject(input, "resolveCustomWhiteBalance input");
   const reduced = reduceSampleSet(input.sampleSet, "reject-any");
 
   return immutableState({
@@ -784,6 +790,7 @@ export function resolveCustomWhiteBalance(
 export function estimateAutoWhiteBalance(
   input: EstimateAutoWhiteBalanceInput
 ): ResolvedWhiteBalanceState {
+  requireInputObject(input, "estimateAutoWhiteBalance input");
   const profile = parseWhiteBalanceProfile(input.profile);
   const policyId = requireScientificNonEmptyString(
     input.policyId,
@@ -846,6 +853,7 @@ export function estimateAutoWhiteBalance(
 export function createLockedWhiteBalanceState(
   input: CreateLockedWhiteBalanceStateInput
 ): ResolvedWhiteBalanceState {
+  requireInputObject(input, "createLockedWhiteBalanceState input");
   const stateId = requireScientificNonEmptyString(input.stateId, "stateId");
   const source = input.sourceState;
 

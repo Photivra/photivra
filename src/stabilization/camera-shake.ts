@@ -22,6 +22,7 @@ import {
 } from "../core/validation.js";
 import { portableHypot } from "../core/portable-math.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface EstimateCameraShakeBlurInput {
   focalLengthMm: number;
@@ -117,6 +118,7 @@ function projectAngularDisplacement(
 export function estimateCameraShakeBlur(
   input: EstimateCameraShakeBlurInput
 ): CalculationResult<CameraShakeEstimate> {
+  requireInputObject(input, "estimateCameraShakeBlur input");
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("shutterSeconds", input.shutterSeconds);
   requireFinite(

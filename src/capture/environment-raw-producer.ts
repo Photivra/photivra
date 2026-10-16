@@ -10,7 +10,7 @@
  */
 
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
-import { requirePublicOpaqueId } from "../core/record-validation.js";
+import { requirePublicOpaqueId, requireInputObject } from "../core/record-validation.js";
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidScientificInputError } from "../core/validation.js";
@@ -84,6 +84,7 @@ export function planEnvironmentRawSite(site: SimulateEnvironmentSensorRawFrameIn
  * returned RAW frame feeds the existing reconstruction and paired export APIs.
  */
 export function simulateEnvironmentSensorRawFrame(input: SimulateEnvironmentSensorRawFrameInput): CalculationResult<EnvironmentSensorRawFrame> {
+  requireInputObject(input, "simulateEnvironmentSensorRawFrame input");
   const { evaluateRadiance, evaluateApertureRadiance, ...data } = input;
   if (typeof evaluateRadiance !== "function") throw new InvalidScientificInputError("Environment RAW requires a synchronous evaluator.");
   const owned = structuredClone(data);

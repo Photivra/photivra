@@ -40,6 +40,7 @@ import type {
 import type {
   SensorSpatioSpectralIrradianceReduction
 } from "./spatio-spectral-reduction.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1033,6 +1034,7 @@ function validateReductionIdentity(
   compatibility:
     SensorResponseApplicationCompatibilityAssessment
 ): void {
+  requireInputObject(reduction, "reduction");
   if (
     reduction.responseProfileId !==
       compatibility
@@ -1066,6 +1068,7 @@ export function assessSensorResponseOperatingRange(
   input:
     AssessSensorResponseOperatingRangeInput
 ): CalculationResult<SensorResponseOperatingRangeAssessment> {
+  requireInputObject(input, "assessSensorResponseOperatingRange input");
   validateReductionIdentity(
     input.reduction,
     input.compatibility

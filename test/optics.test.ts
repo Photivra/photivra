@@ -121,7 +121,8 @@ describe("optics foundation", () => {
     // The defocus circle of a very distant subject approaches c at s = H:
     // the limit d -> infinity of f^2 (d - s) / (N d (s - f)) is f^2/(N(s - f)) = c.
     const farBlur = calculateDefocusCircle({
-      ...input,
+      focalLengthMm: input.focalLengthMm,
+      aperture: input.aperture,
       focusDistanceM: hyperfocalDistanceM,
       subjectDistanceM: 1e12
     }).value.diameterMm;
@@ -159,5 +160,14 @@ describe("optics foundation", () => {
       expect(Math.abs(value - oracle) / oracle).toBeLessThan(1e-14);
     }
     expect(calculateDefocusCircle({ focalLengthMm: 50, aperture: 4, focusDistanceM: 5, subjectDistanceM: 3 }).provenance.modelVersion).toBe("1.1.0");
+  });
+
+  it("rejects unknown fields on scalar calculators instead of ignoring them (API review #4)", () => {
+    expect(() => calculateDepthOfField({ focalLengthMm: 50, aperture: 4, focusDistanceM: 3, circleOfConfusionMm: 0.03,
+      focusDistanceMm: 3000 } as never)).toThrow('calculateDepthOfField input has unknown field "focusDistanceMm".');
+    expect(() => calculateDefocusCircle({ focalLengthMm: 50, aperture: 4, focusDistanceM: 3, subjectDistanceM: 5,
+      circleOfConfusionMm: 0.03 } as never)).toThrow(/unknown field "circleOfConfusionMm"/);
+    expect(() => calculateAiryDisk({ aperture: 8, wavelengthNm: 550, wavelengthNanometers: 550 } as never)).toThrow(/unknown field/);
+    expect(() => calculateDepthOfField(null as never)).toThrow("calculateDepthOfField input must be an object.");
   });
 });

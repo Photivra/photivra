@@ -34,6 +34,7 @@ import type {
   NativeImageRaster,
   SensorImagingArea
 } from "./sensor-geometry.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -494,6 +495,7 @@ function requireSiteIndex(
 function requirePositiveImagingArea(
   imagingArea: SensorImagingArea
 ): void {
+  requireInputObject(imagingArea, "imagingArea");
   if (
     !Number.isFinite(imagingArea.widthMm) ||
     imagingArea.widthMm <= 0 ||
@@ -517,6 +519,7 @@ function requirePositiveImagingArea(
 export function resolveSensorSamplingAperture(
   input: ResolveSensorSamplingApertureInput
 ): ResolvedSensorSamplingAperture {
+  requireInputObject(input, "resolveSensorSamplingAperture input");
   requirePositiveImagingArea(
     input.imagingArea
   );

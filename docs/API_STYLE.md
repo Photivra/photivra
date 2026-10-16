@@ -144,6 +144,17 @@ Choose API shape from semantic role, not module history.
 
 Consistency must never erase a meaningful scientific distinction.
 
+From package 2.0.0 every root function rejects a `null`, primitive or array argument where it requires an input object, and a missing required sub-object, with the domain `InvalidConfigurationError` rather than a raw `TypeError` from a property read (shared guards in `src/core/record-validation.ts`; `test/root-export-input-errors.test.ts` calls every root function with `null`, `undefined`, `{}`, `42`, `"x"` and `[]`). The simple scalar calculators (field of view, equivalent focal length, projected object size, thin lens, depth of field, defocus, equivalent-viewing circle of confusion, Airy disk, ideal aperture, pixel pitch and the exposure primitives) also reject unknown input fields, so a wrong-unit or misspelled field such as `focusDistanceMm` beside `focusDistanceM` fails instead of being ignored. `serializeProductionImageFormationPlan()` checks the plan version and recomputed fingerprint before serializing.
+
+### Naming conventions
+
+Existing field names are stable contracts and are not renamed for uniformity; new fields follow these suffix rules, which describe current usage:
+
+- A unit suffix names the public unit: `Mm` (millimetres), `M` (metres), `Micrometers`, `Seconds`, `Degrees`, `Rad` (radians), `RadPerSec`, `Mps` (metres per second), `Hz`, `Pixels`.
+- Wavelengths use `Nanometers` in spectral profiles, curves and samples (`wavelengthNanometers`) and the short `Nm` in scalar calculator inputs (`wavelengthNm`); both mean nanometres. Prefer `Nanometers` for new data records and `Nm` only beside existing scalar inputs.
+- Raster sizes use `pixelWidth`/`pixelHeight` on raster records, `widthPixels`/`heightPixels` for derived projected sizes measured in pixels, and bare `width`/`height` only inside integer raster rectangles (`{ x, y, width, height }`) whose coordinate space is named by the enclosing field.
+- Dimensionless factors, fractions, counts and codes carry no unit suffix; their meaning and range are documented on the field.
+
 Internal immutable-data mechanics are shared through `src/core/owned-data.ts`.
 Capture, RAW attachment/reconstruction, export metadata and equipment presets use
 its child-first freeze helper only on their owned plain-data trees. Each domain

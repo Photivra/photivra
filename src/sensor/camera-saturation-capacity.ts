@@ -33,6 +33,7 @@ import type {
   SensorSpectralResponseScientificStatus,
   SensorSpectralResponseUncertainty
 } from "./spectral-response.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -592,6 +593,7 @@ function validateCharge(
   photo: number;
   total: number;
 } {
+  requireInputObject(charge, "charge");
   if (
     charge.accumulatedChargeCompleteness !==
       "complete-for-physical-storage-capacity-assessment" ||
@@ -635,6 +637,7 @@ export function assessSensorCameraSaturationCapacity(
   input:
     AssessSensorCameraSaturationCapacityInput
 ): CalculationResult<SensorCameraSaturationCapacityAssessment> {
+  requireInputObject(input, "assessSensorCameraSaturationCapacity input");
   const charge =
     validateCharge(
       input.accumulatedCharge

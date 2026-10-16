@@ -47,6 +47,7 @@ import type {
   SensorSpatioSpectralIrradianceReduction,
   SensorSpatioSpectralWavelengthReduction
 } from "./spatio-spectral-reduction.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 const REDUCTION_TOLERANCE = 1e-10;
 
@@ -287,6 +288,7 @@ function validateAuthorizationChain(
   operatingRange:
     SensorResponseOperatingRangeAssessment
 ): void {
+  requireInputObject(reduction, "reduction");
   if (
     reduction.outputMeaning !==
       "pre-response-spatio-spectral-radiometric-reduction" ||
@@ -864,6 +866,7 @@ export function calculateSensorEqeElectronRate(
   input:
     CalculateSensorEqeElectronRateInput
 ): CalculationResult<SensorEqeElectronRate> {
+  requireInputObject(input, "calculateSensorEqeElectronRate input");
   validateAuthorizationChain(
     input.reduction,
     input.compatibility,

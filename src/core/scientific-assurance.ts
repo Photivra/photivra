@@ -17,6 +17,7 @@ import {
   parseEvidenceProvenance,
   type EvidenceProvenance
 } from "./evidence-provenance.js";
+import { requireInputObject } from "./record-validation.js";
 
 export const SCIENTIFIC_ASSURANCE_CONTRACT_VERSION =
   "0.1.0" as const;
@@ -636,6 +637,7 @@ export function composeScientificAssurance(
   input:
     ComposeScientificAssuranceInput
 ): ComposedScientificAssurance {
+  requireInputObject(input, "composeScientificAssurance input");
   if (
     !Array.isArray(
       input.components

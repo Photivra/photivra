@@ -36,6 +36,7 @@ import {
   parseSensorColorSamplingProfile,
   type SensorColorSamplingProfile
 } from "./color-sampling.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1532,6 +1533,7 @@ export function resolveSensorSpectralResponseAtWavelength(
   input:
     ResolveSensorSpectralResponseAtWavelengthInput
 ): CalculationResult<ResolvedSensorSpectralResponse> {
+  requireInputObject(input, "resolveSensorSpectralResponseAtWavelength input");
   const colorProfile =
     parseSensorColorSamplingProfile(
       input.colorSamplingProfile

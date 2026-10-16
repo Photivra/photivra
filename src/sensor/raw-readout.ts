@@ -39,6 +39,7 @@ import type {
 import type {
   SensorSpectralResponseScientificStatus
 } from "./spectral-response.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -963,6 +964,7 @@ export function resolveSensorReadoutRegime(
   input:
     ResolveSensorReadoutRegimeInput
 ): ResolvedSensorReadoutRegime {
+  requireInputObject(input, "resolveSensorReadoutRegime input");
   const profile =
     parseSensorReadoutConversionProfile(
       input.profile
@@ -1389,6 +1391,7 @@ export function simulateSensorChargeRealization(
   input:
     SimulateSensorChargeRealizationInput
 ): CalculationResult<SensorChargeRealization> {
+  requireInputObject(input, "simulateSensorChargeRealization input");
   const profile =
     parseSensorChargeSamplingProfile(
       input.samplingProfile
@@ -1626,6 +1629,7 @@ export function calculateExpectedSensorReadout(
   input:
     CalculateExpectedSensorReadoutInput
 ): CalculationResult<SensorExpectedReadoutSignal> {
+  requireInputObject(input, "calculateExpectedSensorReadout input");
   const readout =
     resolveSensorReadoutRegime({
       profile:
@@ -1775,6 +1779,7 @@ export function simulateSensorRawCode(
   input:
     SimulateSensorRawCodeInput
 ): CalculationResult<SensorRawCodeSample> {
+  requireInputObject(input, "simulateSensorRawCode input");
   const readout =
     resolveSensorReadoutRegime({
       profile:

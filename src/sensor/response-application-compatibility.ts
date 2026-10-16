@@ -33,6 +33,7 @@ import type {
 import type {
   SensorSpatioSpectralIrradianceReduction
 } from "./spatio-spectral-reduction.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -556,6 +557,7 @@ function validateReductionBoundary(
   reduction:
     SensorSpatioSpectralIrradianceReduction
 ): number {
+  requireInputObject(reduction, "reduction");
   if (
     reduction.outputMeaning !==
       "pre-response-spatio-spectral-radiometric-reduction" ||
@@ -611,6 +613,7 @@ export function assessSensorResponseApplicationCompatibility(
   input:
     AssessSensorResponseApplicationCompatibilityInput
 ): CalculationResult<SensorResponseApplicationCompatibilityAssessment> {
+  requireInputObject(input, "assessSensorResponseApplicationCompatibility input");
   const geometricArea =
     validateReductionBoundary(
       input.reduction

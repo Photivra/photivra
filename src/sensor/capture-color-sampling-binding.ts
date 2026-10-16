@@ -35,6 +35,7 @@ import {
   type SensorColorSamplingProfile
 } from "./color-sampling.js";
 import type { NativeImageRaster } from "./sensor-geometry.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -321,6 +322,7 @@ function safeProduct(
 function validateNativeRaster(
   raster: NativeImageRaster
 ): void {
+  requireInputObject(raster, "raster");
   requirePositiveInteger(
     "nativeRaster.pixelWidth",
     raster.pixelWidth
@@ -448,6 +450,7 @@ export function resolveNativeEffectiveRasterColorSamplingBinding(
     bindingProfile: NativeEffectiveRasterColorSamplingBindingProfile;
   }
 ): ResolvedNativeEffectiveRasterColorSamplingBinding {
+  requireInputObject(input, "resolveNativeEffectiveRasterColorSamplingBinding input");
   validateNativeRaster(input.nativeRaster);
 
   const colorSamplingProfile =
@@ -711,6 +714,7 @@ function channelCountsForSiteRect(
 export function resolveCaptureModeColorSamplingContributors(
   input: ResolveCaptureModeColorSamplingContributorsInput
 ): ResolvedCaptureModeColorSamplingContributors {
+  requireInputObject(input, "resolveCaptureModeColorSamplingContributors input");
   const colorSamplingProfile =
     parseSensorColorSamplingProfile(
       input.colorSamplingProfile

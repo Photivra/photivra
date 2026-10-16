@@ -1077,6 +1077,12 @@ describe("ready physical production plan", () => {
         first
       )
     );
+    // API review #4: serialization validates instead of echoing arbitrary objects.
+    expect(() => serializeProductionImageFormationPlan({} as never)).toThrow(/version must be/);
+    expect(() => serializeProductionImageFormationPlan(null as never)).toThrow("serializeProductionImageFormationPlan input must be an object.");
+    const edited = { ...structuredClone(first), status: first.status === "ready" ? "blocked" : "ready" } as typeof first;
+    expect(() => serializeProductionImageFormationPlan(edited)).toThrow(/fingerprint does not match/);
+    expect(JSON.parse(serializeProductionImageFormationPlan(structuredClone(first)))).toEqual(JSON.parse(serializeProductionImageFormationPlan(first)));
   });
 
   it("changes reproducibility identity when material uncertainty metadata changes", () => {

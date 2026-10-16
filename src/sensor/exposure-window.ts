@@ -38,6 +38,7 @@ import type {
   NativeSensorReadoutScanDirection,
   SourcedSensorTimingSeconds
 } from "./readout-timing.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export type CaptureExposureBoundaryActuator = "mechanical" | "electronic";
 
@@ -254,6 +255,7 @@ function parseBoundarySchedule(
 }
 
 function validateNativeRaster(raster: NativeImageRaster): void {
+  requireInputObject(raster, "raster");
   requirePositiveInteger("nativeRaster.pixelWidth", raster.pixelWidth);
   requirePositiveInteger("nativeRaster.pixelHeight", raster.pixelHeight);
 }
@@ -491,6 +493,7 @@ function activeRectCorners(rect: RasterRect): readonly RasterPoint[] {
 export function calculateCaptureExposureWindows(
   input: CalculateCaptureExposureWindowsInput
 ): CalculationResult<CaptureExposureWindows> {
+  requireInputObject(input, "calculateCaptureExposureWindows input");
   validateNativeRaster(input.nativeRaster);
   validateShutterMechanism(input.shutterMechanism);
 

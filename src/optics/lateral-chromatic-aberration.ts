@@ -26,6 +26,7 @@ import {
   type RadialDistortionCoefficients,
   type RadialDistortionProfile
 } from "./radial-distortion.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export type LateralChromaticAberrationChannel = "red" | "green" | "blue";
 
@@ -161,6 +162,7 @@ function addCoefficients(
 function resolveProfiles(
   profile: LateralChromaticAberrationProfile
 ): ChannelProfiles {
+  requireInputObject(profile, "profile");
   requireFiniteCoefficients(
     "profile.baseDistortionCoefficients",
     profile.baseDistortionCoefficients
@@ -273,6 +275,7 @@ function assumptions(): readonly string[] {
 export function calculateLateralChromaticAberrationMapping(
   input: CalculateLateralChromaticAberrationMappingInput
 ): CalculationResult<LateralChromaticAberrationMapping> {
+  requireInputObject(input, "calculateLateralChromaticAberrationMapping input");
   const profiles = resolveProfiles(input.profile);
 
   const red = withChannelContext("red", () =>
@@ -338,6 +341,7 @@ export function calculateLateralChromaticAberrationMapping(
 export function calculateInverseLateralChromaticAberrationMapping(
   input: CalculateInverseLateralChromaticAberrationMappingInput
 ): CalculationResult<InverseLateralChromaticAberrationMapping> {
+  requireInputObject(input, "calculateInverseLateralChromaticAberrationMapping input");
   const profiles = resolveProfiles(input.profile);
 
   const red = withChannelContext("red", () =>
@@ -404,6 +408,7 @@ export function calculateInverseLateralChromaticAberrationMapping(
 export function calculateInverseLateralChromaticAberrationMappings(
   input: CalculateInverseLateralChromaticAberrationMappingsInput
 ): CalculationResult<InverseLateralChromaticAberrationMappings> {
+  requireInputObject(input, "calculateInverseLateralChromaticAberrationMappings input");
   const profiles = resolveProfiles(input.profile);
   const validatedProfiles = {
     red: withChannelContext("red", () =>

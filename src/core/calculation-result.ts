@@ -8,6 +8,7 @@
  */
 
 import { InvalidScientificResultError } from "./validation.js";
+import { requireInputObject } from "./record-validation.js";
 
 /**
  * Scientific provenance labels used throughout the public API.
@@ -254,6 +255,7 @@ export function validateCalculationQuality(
   if (quality === undefined) {
     return;
   }
+  requireInputObject(quality, "validateCalculationQuality input");
 
   if (quality.uncertainty !== undefined) {
     if (quality.uncertainty.length === 0) {

@@ -21,6 +21,7 @@ import {
   requirePositiveFinite
 } from "../core/validation.js";
 import { calculateThinLensImageDistance } from "./thin-lens.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 export interface CalculateDepthOfFieldInput {
   /** Lens focal length in millimetres. */
@@ -48,6 +49,8 @@ export interface DepthOfField {
  * s(H - f)/(H + s - 2f) and the far limit is s(H - f)/(H - s), which is
  * infinite (`null`) when s >= H. At both limits the geometric defocus circle
  * from {@link calculateDefocusCircle} equals the supplied circle of confusion.
+ * The circle of confusion must be smaller than the aperture diameter f/N;
+ * otherwise the near limit would fall inside the focal length.
  *
  * The model is geometric and does not include diffraction, aberrations,
  * focus breathing, pupil magnification, or macro/high-magnification effects.
@@ -58,6 +61,7 @@ export interface DepthOfField {
 export function calculateDepthOfField(
   input: CalculateDepthOfFieldInput
 ): CalculationResult<DepthOfField> {
+  requireInputKeys(input, "calculateDepthOfField", ["focalLengthMm", "aperture", "focusDistanceM", "circleOfConfusionMm"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("aperture", input.aperture);
   requirePositiveFinite("focusDistanceM", input.focusDistanceM);
@@ -139,7 +143,8 @@ export interface DefocusCircle {
 
 /**
  * Calculates the geometric defocus-circle diameter at the sensor plane for a
- * subject plane away from the selected focus plane.
+ * subject plane away from the selected focus plane, using the stable closed
+ * form c = f^2 |s - d| / (N d (s - f)) (model 1.1.0).
  *
  * @param input Lens, aperture, focus-plane, and subject-plane distances.
  * @returns Geometric blur-circle diameter.
@@ -147,6 +152,7 @@ export interface DefocusCircle {
 export function calculateDefocusCircle(
   input: CalculateDefocusCircleInput
 ): CalculationResult<DefocusCircle> {
+  requireInputKeys(input, "calculateDefocusCircle", ["focalLengthMm", "aperture", "focusDistanceM", "subjectDistanceM"]);
   return calculateDefocusCircleUsingFocusProjection(input);
 }
 

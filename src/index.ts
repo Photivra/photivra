@@ -1436,3 +1436,14 @@ export type { NativeCaptureSdrInput, NativeCaptureSdrTileRequest, NativeCaptureS
   NativeCaptureSdrOutput, NativeCaptureSdrTaskState, NativeCaptureSdrTask } from "./output/native-capture-sdr.js";
 
 export { calculateSensorApertureRays, type CalculateSensorApertureRaysInput, type IdealCircularPupil, type SensorApertureRay, type SensorApertureRays } from "./optics/sensor-aperture-rays.js";
+
+declare global {
+  /**
+   * Minimal ambient AbortSignal so the published declarations type-check with `lib: ["es2022"]` and
+   * no DOM or `@types/node` (task and yield callbacks receive an engine-created signal). It merges
+   * with the DOM, WebWorker and Node declarations, which declare the identical `aborted` member.
+   */
+  interface AbortSignal {
+    readonly aborted: boolean;
+  }
+}

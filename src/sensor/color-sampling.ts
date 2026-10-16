@@ -26,6 +26,7 @@ import {
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -461,6 +462,7 @@ function requireNativeSiteIndex(
 export function resolveColorSamplingSite(
   input: ResolveColorSamplingSiteInput
 ): ResolvedColorSamplingSite {
+  requireInputObject(input, "resolveColorSamplingSite input");
   const profile =
     parseSensorColorSamplingProfile(input.profile);
 

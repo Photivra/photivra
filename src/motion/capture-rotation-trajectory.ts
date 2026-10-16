@@ -42,6 +42,7 @@ import {
   type CameraRotationImageMapping,
   type ImagePlanePointMm
 } from "./camera-rotation.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface CalculateCaptureRotationTrajectoriesInput
   extends CalculateCaptureExposureWindowsInput {
@@ -252,6 +253,8 @@ function trajectorySample(
 export function calculateCaptureRotationTrajectories(
   input: CalculateCaptureRotationTrajectoriesInput
 ): CalculationResult<CaptureRotationTrajectories> {
+  requireInputObject(input, "calculateCaptureRotationTrajectories input");
+  requireInputObject(input.imagingArea, "imagingArea");
   requirePositiveFinite("imagingArea.widthMm", input.imagingArea.widthMm);
   requirePositiveFinite("imagingArea.heightMm", input.imagingArea.heightMm);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);

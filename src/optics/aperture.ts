@@ -18,6 +18,7 @@ import {
   InvalidScientificInputError,
   requirePositiveInteger
 } from "../core/validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 const MAX_IDEAL_APERTURE_BLADES = 1024;
 
@@ -68,6 +69,7 @@ function normalizeDegrees(value: number): number {
 export function calculateIdealApertureGeometry(
   input: CalculateIdealApertureInput
 ): CalculationResult<IdealApertureGeometry> {
+  requireInputKeys(input, "calculateIdealApertureGeometry", ["bladeCount", "firstBladeEdgeAngleDegrees"]);
   requirePositiveInteger("bladeCount", input.bladeCount);
   if (input.bladeCount < 3) {
     throw new InvalidScientificInputError(

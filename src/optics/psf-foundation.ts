@@ -26,6 +26,7 @@ import {
 import type { LensFieldPointMm } from "./radial-distortion.js";
 import { calculateDefocusCircle } from "./depth-of-field.js";
 import { calculateAiryDisk } from "./diffraction.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export const PSF_FOUNDATION_VERSION = "0.3.0" as const;
 
@@ -230,6 +231,7 @@ export function getPsfFoundationContract(): PsfFoundationContract {
 export function calculatePsfFoundationComponents(
   input: CalculatePsfFoundationComponentsInput
 ): CalculationResult<PsfFoundationComponents> {
+  requireInputObject(input, "calculatePsfFoundationComponents input");
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("aperture", input.aperture);
   requirePositiveFinite("focusDistanceM", input.focusDistanceM);

@@ -15,6 +15,7 @@ import {
 } from "../core/calculation-result.js";
 import { requirePositiveFinite } from "../core/validation.js";
 import { portableHypot } from "../core/portable-math.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 export interface EstimateEquivalentViewingCircleOfConfusionInput {
   sensorWidthMm: number;
@@ -41,6 +42,7 @@ export interface EquivalentViewingCircleOfConfusion {
 export function estimateEquivalentViewingCircleOfConfusion(
   input: EstimateEquivalentViewingCircleOfConfusionInput
 ): CalculationResult<EquivalentViewingCircleOfConfusion> {
+  requireInputKeys(input, "estimateEquivalentViewingCircleOfConfusion", ["sensorWidthMm", "sensorHeightMm", "referenceSensorWidthMm", "referenceSensorHeightMm", "referenceCircleOfConfusionMm"]);
   requirePositiveFinite("sensorWidthMm", input.sensorWidthMm);
   requirePositiveFinite("sensorHeightMm", input.sensorHeightMm);
   requirePositiveFinite(

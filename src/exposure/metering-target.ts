@@ -18,6 +18,7 @@ import type {
 import type {
   SceneRadianceTemporalExposureMeteringResult
 } from "./metering-temporal.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export const EXPOSURE_METER_TARGET_SCHEMA_VERSION =
   "0.1.0" as const;
@@ -207,6 +208,7 @@ function validateCommonMeterResult(
   result:
     ExposureMeterTargetSourceResult
 ): void {
+  requireInputObject(result, "result");
   if (
     result.scientificStatus !==
     "approximation"
@@ -310,6 +312,7 @@ export function createExposureMeterTargetFromMeteringResult(
   input:
     CreateExposureMeterTargetInput
 ): ExposureMeterTarget {
+  requireInputObject(input, "createExposureMeterTargetFromMeteringResult input");
   const base =
     createBaseTargetFields(
       input.targetId,
@@ -384,6 +387,7 @@ export function createExposureMeterTargetFromMeteringResult(
 function validateBaseTarget(
   target: ExposureMeterTarget
 ): void {
+  requireInputObject(target, "target");
   if (
     target.schemaVersion !==
     EXPOSURE_METER_TARGET_SCHEMA_VERSION
@@ -490,6 +494,7 @@ export function setExposureCompensationOnMeterTarget(
   input:
     SetExposureCompensationOnMeterTargetInput
 ): ExposureMeterTarget {
+  requireInputObject(input, "setExposureCompensationOnMeterTarget input");
   validateBaseTarget(
     input.baseTarget
   );

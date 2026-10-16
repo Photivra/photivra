@@ -16,6 +16,7 @@ import {
   requirePositiveFinite,
   requirePositiveInteger
 } from "../core/validation.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 /** Quotient rounding noise, in ulps of the quotient, that still counts as the next whole pixel. */
 const WHOLE_PIXEL_SNAP_ULPS = 4;
@@ -72,6 +73,7 @@ export interface CenteredCrop {
 export function calculateCenteredCrop(
   input: CalculateCenteredCropInput
 ): CalculationResult<CenteredCrop> {
+  requireInputObject(input, "calculateCenteredCrop input");
   requirePositiveInteger("pixelWidth", input.pixelWidth);
   requirePositiveInteger("pixelHeight", input.pixelHeight);
   requirePositiveFinite("cropFactor", input.cropFactor);
