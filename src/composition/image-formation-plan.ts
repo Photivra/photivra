@@ -4604,6 +4604,8 @@ function computeEnvironmentCapture(input: ProductionEnvironmentCaptureInput | un
       throw new InvalidConfigurationError("Environment geometry, scene, focal length and shutter schedule differ from the committed production context.");
     }
     const rendererTemporal = prepared.renderer.temporalSampling;
+    // Frame-constant serializations are computed once, lazily at their first comparison, instead of once per site.
+    let opticalBridgeCanonical: string | undefined, rotationVelocityCanonical: string | undefined;
     for (const site of owned.sites) {
       const e = site.environment;
       if (e.fieldThroughput.kind !== "unity" &&
@@ -4611,10 +4613,11 @@ function computeEnvironmentCapture(input: ProductionEnvironmentCaptureInput | un
         throw new InvalidConfigurationError("Non-unity environment field throughput requires an explicitly requested illumination-vignetting effect.");
       }
       if (e.sceneBindings.providerProfile.profileId !== prepared.sceneRadianceProviderProfileId ||
-        canonicalStringify(e.optics.profile) !== canonicalStringify(prepared.opticalBridgeProfile) ||
+        canonicalStringify(e.optics.profile) !== (opticalBridgeCanonical ??= canonicalStringify(prepared.opticalBridgeProfile)) ||
         rendererTemporal.kind !== "bounded" || e.temporalSampleCount > rendererTemporal.maximumSamples ||
         (temporal.rotation === undefined && !angularVelocityIsZero(e.motion.angularVelocityRadPerSec)) ||
-        (temporal.rotation !== undefined && (canonicalStringify(e.motion.angularVelocityRadPerSec) !== canonicalStringify(temporal.rotation.angularVelocityRadPerSec) ||
+        (temporal.rotation !== undefined && (canonicalStringify(e.motion.angularVelocityRadPerSec) !==
+          (rotationVelocityCanonical ??= canonicalStringify(temporal.rotation.angularVelocityRadPerSec)) ||
           e.temporalSampleCount !== temporal.rotation.temporalSampleCount ||
           (capture.focus.kind === "finite" ? capture.focus.distanceM : undefined) !== temporal.rotation.focusDistanceM))) {
         throw new InvalidConfigurationError("Environment provider, optics, motion or temporal sampling differs from the committed production context.");

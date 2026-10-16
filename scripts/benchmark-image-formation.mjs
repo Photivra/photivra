@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import "./require-fresh-dist.mjs";
 import { readFileSync } from "node:fs";
 import process from "node:process";
 import { URL } from "node:url";

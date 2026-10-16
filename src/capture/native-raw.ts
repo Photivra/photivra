@@ -6,7 +6,7 @@ import { ENGINE_API_VERSION } from "../core/version.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { freezeOwnedData } from "../core/owned-data.js";
-import { DEFAULT_HOST_YIELD_CADENCE, createHostYieldGate, type HostYieldCadence } from "./host-yield-cadence.js";
+import { DEFAULT_HOST_YIELD_CADENCE, createHostYieldGate, type HostYieldCadence, type HostYieldGate } from "./host-yield-cadence.js";
 import { parseCaptureModeProfile } from "../sensor/capture-mode.js";
 import { parseSensorColorSamplingProfile } from "../sensor/color-sampling.js";
 import { parseNativeEffectiveRasterColorSamplingBindingProfile, resolveCaptureModeColorSamplingContributors } from "../sensor/capture-color-sampling-binding.js";
@@ -127,7 +127,9 @@ export function createNativeRawTask(input: NativeRawInput,provider: NativeRawPro
   return createNativeRawTaskWithCadence(input,provider,DEFAULT_HOST_YIELD_CADENCE);
 }
 /** Internal: explicit host-yield cadence. Cadence never changes tiles, seeds or output. Not a root export. */
-export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: NativeRawProvider,cadence: HostYieldCadence): NativeRawTask {
+export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: NativeRawProvider,cadence: HostYieldCadence,
+  /** Internal: a gate shared with a provider that also yields inside readTile, so both observe one budget. */
+  sharedGate?: HostYieldGate): NativeRawTask {
   const plan=calculateNativeRawPlan(input);
   if(!provider||typeof provider.readTile!=="function"||typeof provider.yieldControl!=="function")throw new InvalidConfigurationError("Native RAW requires reader and host event-loop yield.");
   const read=provider.readTile.bind(provider),yieldControl=provider.yieldControl.bind(provider),abort=new AbortController();
@@ -139,7 +141,7 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
     async run(): Promise<void> {
       if(state!=="ready")throw new InvalidConfigurationError("Native RAW task is single-use.");state="running";
       try{
-        const gate=createHostYieldGate(cadence);
+        const gate=sharedGate??createHostYieldGate(cadence);sharedGate?.restart();
         output={plan,codes:new Uint16Array(plan.pixelCount),blackLevels:new Uint16Array(plan.pixelCount),digitalSaturationCodes:new Uint16Array(plan.pixelCount),saturationFlags:new Uint8Array(plan.pixelCount)};
         for(let y=0;y<native.pixelHeight;y++)for(let x=0;x<native.pixelWidth;x+=tileWidth){
           active();const request=Object.freeze({captureId:plan.exposure.captureId,frameId:plan.frame.frameId,x,y,width:Math.min(tileWidth,native.pixelWidth-x),height:1});

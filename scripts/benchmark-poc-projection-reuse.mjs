@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import "./require-fresh-dist.mjs";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { cpus, platform, arch } from "node:os";
