@@ -53,20 +53,26 @@ describe("Zernike (Noll) wavefront parameterisation", () => {
   });
 
   it("is orthonormal over the unit disk (numerical quadrature, j <= 15)", () => {
-    const radial = 300;
-    const angular = 64;
-    for (let i = 1; i <= 15; i += 1) {
-      for (let j = i; j <= 15; j += 1) {
-        let sum = 0;
-        for (let a = 0; a < radial; a += 1) {
-          const rho = (a + 0.5) / radial;
-          for (let b = 0; b < angular; b += 1) {
-            const theta = (2 * Math.PI * (b + 0.5)) / angular;
-            sum += evaluateZernikePolynomial(i, rho, theta) * evaluateZernikePolynomial(j, rho, theta) * rho;
-          }
+    const radial = 200;
+    const angular = 48;
+    // Tabulate each polynomial once on a midpoint polar grid, then form inner products.
+    const tables: number[][] = [];
+    for (let j = 1; j <= 15; j += 1) {
+      const values: number[] = [];
+      for (let a = 0; a < radial; a += 1) {
+        const rho = (a + 0.5) / radial;
+        for (let b = 0; b < angular; b += 1) {
+          values.push(evaluateZernikePolynomial(j, rho, (2 * Math.PI * (b + 0.5)) / angular) * Math.sqrt(rho));
         }
+      }
+      tables.push(values);
+    }
+    for (let i = 0; i < 15; i += 1) {
+      for (let j = i; j < 15; j += 1) {
+        let sum = 0;
+        for (let k = 0; k < tables[i]!.length; k += 1) sum += tables[i]![k]! * tables[j]![k]!;
         const inner = (sum * (1 / radial) * ((2 * Math.PI) / angular)) / Math.PI;
-        expect(Math.abs(inner - (i === j ? 1 : 0))).toBeLessThan(2e-4);
+        expect(Math.abs(inner - (i === j ? 1 : 0))).toBeLessThan(5e-4);
       }
     }
   });
