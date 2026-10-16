@@ -592,3 +592,23 @@ export function calculateCaptureExposureWindows(
     ]
   );
 }
+
+/**
+ * Internal (lean native environment executor, 2.0 performance): admits a schedule once with every check of
+ * calculateCaptureExposureWindows, then returns a per-point sampler that applies the same point validation and
+ * the same createWindowSample arithmetic. A sampled window is therefore identical to the one
+ * calculateCaptureExposureWindows returns for that point. Not a root export.
+ */
+export function prepareCaptureExposureWindowSampler(
+  input: Omit<CalculateCaptureExposureWindowsInput, "samplePointsNative">
+): (point: RasterPoint) => CaptureExposureWindowSample {
+  const admitted = calculateCaptureExposureWindows({ ...input, samplePointsNative: [] }).value;
+  const rect = { ...admitted.activeCaptureRect };
+  const opening = parseBoundarySchedule(input.opening, "opening");
+  const closing = parseBoundarySchedule(input.closing, "closing");
+  const nominal = admitted.nominalExposureDurationSeconds.value;
+  return (point) => {
+    validatePointWithinActiveCapture(point, rect, "samplePointsNative[0]");
+    return createWindowSample(point, rect, opening, closing, nominal);
+  };
+}

@@ -14,6 +14,9 @@ import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { freezeOwnedData } from "../core/owned-data.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { createNativeEnvironmentLeanExecutor, isLeanEnvironmentPlan, type LeanEnvironmentPlan } from "./native-environment-lean.js";
+
+type SitePlan = ReturnType<typeof planEnvironmentRawSite> | LeanEnvironmentPlan;
 
 export interface NativeEnvironmentRawInput {
   raw: NativeRawInput;
@@ -145,6 +148,11 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
   let evaluations=0,shared:string|undefined,reference:SharedStateReference|undefined;
   const recorder=retention?createNativeEnvironmentOpticalStageRecorder(plan,sceneBinding,retention):undefined;
   const memo=createEnvironmentRawFrameCanonicalMemo(plan.frame,plan.exposureWindow!),gate=createHostYieldGate(cadence);
+  const layout=plan.frame.colorSamplingProfile.layout,relationship=plan.frame.bindingProfile.relationship;
+  const lean=createNativeEnvironmentLeanExecutor({frameId:plan.frame.frameId,nativeWidth:plan.exposure.geometry.nativeRaster.pixelWidth,
+    nativeHeight:plan.exposure.geometry.nativeRaster.pixelHeight,repeatWidth:layout.kind==="periodic-mosaic"?layout.repeatWidthSites:0,
+    repeatHeight:layout.kind==="periodic-mosaic"?layout.repeatHeightSites:0,
+    identityBinding:relationship.sitesPerNativeSampleX===1&&relationship.sitesPerNativeSampleY===1&&relationship.anchor==="shared-native-top-left"});
   const task=createNativeRawTaskWithCadence(input.raw,{
     async readTile(request,signal){
       const supplied=await read(request,signal);
@@ -162,7 +170,7 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
         gate.restart();
       };
       let tileCount=0;
-      const plans:ReturnType<typeof planEnvironmentRawSite>[]=[],verified:unknown[]=[];
+      const plans:SitePlan[]=[],verified:unknown[]=[];
       for(let j=0;j<sites.length;j++){
         if(j>0)await pause();
         const site=sites[j]!;
@@ -178,8 +186,16 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
           shared??=state;if(state!==shared)throw new InvalidConfigurationError("Native event requires one shared source/optical/motion state.");
           reference??={canonical:state,values:SHARED_STATE_KEYS.map(key=>(e as unknown as Record<string,unknown>)[key]),cleanArrays:new WeakSet()};
         }
-        // Execution is photo-only, so the plan keeps only each query's frozen request and image-plane point.
-        const p=planEnvironmentRawSite(site,index,plan.frame,sceneBinding,plan.exposureWindow!,"engine-owned",memo,"photo-only");
+        // A site matching a verified template gets a lean plan (identical requests and admission, see
+        // native-environment-lean.ts); a template candidate keeps full query records for its self-check.
+        // Otherwise execution is photo-only, so the plan keeps only each query's frozen request and image-plane point.
+        const leanPlan=lean.plan(e,index);
+        let p:SitePlan;
+        if(typeof leanPlan==="object")p=leanPlan;
+        else{
+          p=planEnvironmentRawSite(site,index,plan.frame,sceneBinding,plan.exposureWindow!,"engine-owned",memo,leanPlan==="candidate"?"full":"photo-only");
+          if(leanPlan==="candidate")lean.admitCandidate(e,index,p);
+        }
         if(p.owned.pupil&&!aperture)throw new InvalidConfigurationError("Pupil capture requires origin-aware source visibility.");
         recorder?.admit(index,e,state);
         tileCount+=p.count;
@@ -188,11 +204,24 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
       }
       // Only value.photo is consumed, so per-evaluation diagnostics are not retained.
       const rawSites:ReturnType<typeof composeNativeEnvironmentSensorSite>[]=[];
+      const evaluateCounted=(q:Parameters<typeof evaluate>[0]):ReturnType<typeof evaluate>=>{if(signal.aborted)throw new InvalidConfigurationError("Native source evaluation aborted.");evaluations++;return evaluate(q);};
+      const apertureCounted=aperture?(q:Parameters<typeof aperture>[0],ray:Parameters<typeof aperture>[1]):ReturnType<typeof evaluate>=>{if(signal.aborted)throw new InvalidConfigurationError("Native aperture evaluation aborted.");evaluations++;return aperture(q,ray);}:undefined;
       for(let j=0;j<sites.length;j++){
         await pause();
-        const result=executeEnvironmentSensorPhotoSignal(plans[j]!,q=>{if(signal.aborted)throw new InvalidConfigurationError("Native source evaluation aborted.");evaluations++;return evaluate(q);},aperture?(q,ray):ReturnType<typeof evaluate>=>{if(signal.aborted)throw new InvalidConfigurationError("Native aperture evaluation aborted.");evaluations++;return aperture(q,ray);}:undefined,"photo-only");
-        const photoSignal=result.value.photo.value.photoSignal;
-        recorder?.record(request.y*plan.exposure.geometry.nativeRaster.pixelWidth+request.x+j,photoSignal);
+        const index=request.y*plan.exposure.geometry.nativeRaster.pixelWidth+request.x+j;
+        let p=plans[j]!,photoSignal:ReturnType<typeof executeEnvironmentSensorPhotoSignal>["value"]["photo"]["value"]["photoSignal"]|undefined;
+        if(isLeanEnvironmentPlan(p)){
+          photoSignal=lean.execute(p,evaluateCounted,apertureCounted);
+          // An unverified template: plan this site in full now (deterministic, no callbacks) and execute it in full.
+          if(photoSignal===undefined)p=planEnvironmentRawSite(sites[j]!,index,plan.frame,sceneBinding,plan.exposureWindow!,"engine-owned",memo,"photo-only");
+        }
+        if(photoSignal===undefined){
+          const full=p as ReturnType<typeof planEnvironmentRawSite>,candidate=lean.isCandidate(index);
+          const result=executeEnvironmentSensorPhotoSignal(full,evaluateCounted,apertureCounted,candidate?"full":"photo-only");
+          if(candidate)lean.verifyCandidate(index,full,result);
+          photoSignal=result.value.photo.value.photoSignal;
+        }
+        recorder?.record(index,photoSignal);
         rawSites.push(composeNativeEnvironmentSensorSite(sites[j]!,photoSignal));
       }
       if(signal.aborted)throw new InvalidConfigurationError("Native photo observation aborted.");
