@@ -6727,6 +6727,21 @@ Additional named defocus, sampling, and motion samples can be supplied when a re
 
 See [Local POC Simulation API](https://github.com/Photivra/photivra/blob/main/docs/POC_API.md#simulate) for the complete composed request/response semantics. That HTTP transport is repository-only contributor tooling and is not shipped as a package subpath; `simulatePocCamera()` itself is part of the browser-safe root package.
 
+## DNG import and PNG output
+
+`parseDngRawImage` reads a DNG or TIFF-EP CFA/LinearRaw file (uncompressed or lossless JPEG, 8–16 bits) into stored raw codes plus CFA, black/white levels, active area, default crop, colour matrices, as-shot neutral and orientation. Nothing is applied to the codes. `serializePngImage` writes 8- or 16-bit RGB PNG with an sRGB, ICC or cICP (Display P3, BT.2020, PQ, HLG) colour description and optional mDCV/cLLI HDR metadata. See [DNG import and PNG output](https://github.com/Photivra/photivra/blob/main/docs/IMPORT_AND_PNG.md) for supported subsets, limits and sources.
+
+```ts
+import { serializePngImage, parseDngRawImage } from '@photivra/engine';
+
+// Encode a 1 x 1 Display P3 pixel (sRGB transfer), then show that a PNG is not a DNG.
+const png = serializePngImage({ width: 1, height: 1, bitDepth: 8, samples: Uint8Array.of(255, 128, 0),
+  colourEncoding: { kind: 'cicp', primaries: 'display-p3', transfer: 'srgb', fullRange: true } });
+let rejected = false;
+try { parseDngRawImage({ bytes: png }); } catch { rejected = true; }
+if (!rejected) throw new Error('A PNG must not parse as a DNG');
+```
+
 ## Native-only Print planning
 
 Use [registered linear statistics](https://github.com/Photivra/photivra/blob/main/docs/PRINT_REGION_STATISTICS.md) to distinguish same-realization processing changes from per-site repeat-capture variance. The [static neutral Gabor contrast reference](https://github.com/Photivra/photivra/blob/main/docs/PRINT_CONTRAST_REFERENCE.md) requires explicit stimulus, luminance and observer conditions and does not accept an arbitrary photographic ROI as a qualified stimulus. See the [#195/#196 candidate evidence review](https://github.com/Photivra/photivra/blob/main/docs/PRINT_195_196_REVIEW.md) before integrating either diagnostic.

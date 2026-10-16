@@ -5,12 +5,14 @@ import {
   assessSensorResponseOperatingRange,
   calculateSensorEqeElectronRate,
   calculateSensorSpectralQuadrature,
+  InvalidScientificInputError,
   reduceSensorSpatioSpectralIrradiance,
   type SensorSpectralResponseProfile,
   type SensorSpatioSpectralIrradianceSample,
   type SourcedAirPhaseRefractiveIndex,
   SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT
 } from "../src/index.js";
+import { expectRejection, type Json, type RejectionCase } from "./helpers/rejection-table.js";
 import {
   makeQuadrature
 } from "./helpers/spatial-sample-fixture.js";
@@ -1133,3 +1135,48 @@ describe(
     });
   }
 );
+
+describe("sensor EQE electron-rate authorization-chain rejection branches", () => {
+  // Two 50 nm spectral nodes so ordering, weight and power-sum checks have more than one entry.
+  const base = (): Json => {
+    const pipeline = buildPipeline("direct-eqe", "vacuum", 50);
+    return structuredClone({ reduction: pipeline.reduction, compatibility: pipeline.compatibility, operatingRange: pipeline.operatingRange,
+      colorSamplingProfile: colorProfile(), spectralResponseProfile: pipeline.responseProfile });
+  };
+  it("converts the two-node base pipeline", () => {
+    expect(base().reduction.perWavelength).toHaveLength(2);
+    expect(() => calculateSensorEqeElectronRate(base())).not.toThrow();
+  });
+  const cases: RejectionCase[] = [
+    ["a reduction that already applied QE", (i): void => { i.reduction.quantumEfficiencyApplied = true; },
+      "reduction must remain pre-response and pre-temporal before EQE rate conversion."],
+    ["a compatibility for another channel", (i): void => { i.compatibility.channelId = "red"; }, "compatibility identities must exactly match the reduction."],
+    ["an aggregate spectral input model", (i): void => { i.operatingRange.spectralInputModel = { kind: "aggregate" }; },
+      "operatingRange must establish per-spectral-bin input-range applicability"],
+    ["no spatial linearity model", (i): void => { i.operatingRange.spatialLinearityModel = { kind: "unknown" }; },
+      "operatingRange must establish linear superposition over the geometric aperture."],
+    ["an operating range for another channel", (i): void => { i.operatingRange.channelId = "red"; },
+      "operatingRange identities must exactly match the reduction and compatibility assessment."],
+    ["non-increasing reduction wavelengths", (i): void => { i.reduction.perWavelength[1].wavelengthNanometers = i.reduction.perWavelength[0].wavelengthNanometers; },
+      "reduction per-wavelength samples must be strictly increasing in wavelength."],
+    ["overflowing wavelength weights", (i): void => { for (const w of i.reduction.perWavelength) w.normalizedWavelengthWeight = Number.MAX_VALUE; },
+      "reduction normalized wavelength weights must remain finite."],
+    ["weights that do not sum to one", (i): void => { for (const w of i.reduction.perWavelength) w.normalizedWavelengthWeight = 0.4; },
+      "reduction normalized wavelength weights must sum to 1."],
+    ["a total power that disagrees with its contributions", (i): void => { i.reduction.wavelengthIntegratedGeometricApertureIncidentFluxWatts *= 2; },
+      "reduction total geometric-aperture radiant power must match the sum of per-wavelength contributions."],
+    ["missing evaluated spectral-node inputs", (i): void => { i.operatingRange.evaluatedSpectralNodeInputs = []; },
+      "operatingRange must carry one evaluated spectral-node input for every reduction wavelength node."],
+    ["a shifted evaluated spectral node", (i): void => { i.operatingRange.evaluatedSpectralNodeInputs[0].wavelengthNanometers += 1; },
+      "operatingRange spectral-node identities must exactly match the reduction."],
+    ["an unspecified wavelength basis", (i): void => { i.reduction.wavelengthBasis = "unspecified"; },
+      "EQE electron-rate conversion requires a resolved air or vacuum wavelength basis."],
+    ["a reduction built from a differently classified response", (i): void => { i.reduction.responseScientificStatus = "approximation"; },
+      "Resolved spectral response metadata must exactly match the response used to construct the reduction."],
+    ["reduction curve evidence that differs from the response", (i): void => { i.reduction.componentEvidence.spectral.curves = []; },
+      "Resolved spectral response evidence must match the calibration evidence carried by the reduction."]
+  ];
+  it.each(cases)("rejects %s", (_name, mutate, message) => {
+    expectRejection(base, calculateSensorEqeElectronRate, InvalidScientificInputError, mutate, message);
+  });
+});

@@ -10,6 +10,38 @@
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
+/**
+ * Identifies the exact byte behaviour of the baseline encoder. Version 2 (engine 2.0.0) uses the fixed
+ * cosine table below instead of runtime `Math.cos` and rounds quantized coefficients half away from zero.
+ * Relative to version 1, bytes can differ only where a coefficient's pre-rounding value was within about
+ * one ulp of a half-integer, or was exactly a negative half-integer; the repository corpus is unchanged.
+ */
+export const EXPORT_JPEG_ENCODER_ID = "photivra-baseline-jpeg-444-v2" as const;
+/**
+ * C(u,x) = cos((2x+1)·u·π/16) for u,x in 0..7, row-major by u. Each entry is the correctly rounded IEEE-754
+ * binary64 value of the exact mathematical cosine, computed offline with 130-digit decimal arithmetic and
+ * checked so that no neighbouring double is closer (see docs/PHOTOGRAPHIC_EXPORT.md). Hard-coding them
+ * makes the DCT independent of each JavaScript engine's `Math.cos`, whose results differ in the last bit
+ * between engines. Mathematical facts, not third-party data.
+ */
+export const JPEG_DCT_COSINES: Readonly<Float64Array> = Float64Array.of(
+  1,1,1,1,1,1,1,1,
+  0.9807852804032304,0.8314696123025452,0.5555702330196022,0.19509032201612828,-0.19509032201612828,-0.5555702330196022,-0.8314696123025452,-0.9807852804032304,
+  0.9238795325112867,0.3826834323650898,-0.3826834323650898,-0.9238795325112867,-0.9238795325112867,-0.3826834323650898,0.3826834323650898,0.9238795325112867,
+  0.8314696123025452,-0.19509032201612828,-0.9807852804032304,-0.5555702330196022,0.5555702330196022,0.9807852804032304,0.19509032201612828,-0.8314696123025452,
+  0.7071067811865476,-0.7071067811865476,-0.7071067811865476,0.7071067811865476,0.7071067811865476,-0.7071067811865476,-0.7071067811865476,0.7071067811865476,
+  0.5555702330196022,-0.9807852804032304,0.19509032201612828,0.8314696123025452,-0.8314696123025452,-0.19509032201612828,0.9807852804032304,-0.5555702330196022,
+  0.3826834323650898,-0.9238795325112867,0.9238795325112867,-0.3826834323650898,-0.3826834323650898,0.9238795325112867,-0.9238795325112867,0.3826834323650898,
+  0.19509032201612828,-0.5555702330196022,0.8314696123025452,-0.9807852804032304,0.9807852804032304,-0.8314696123025452,0.5555702330196022,-0.19509032201612828
+);
+/**
+ * Quantized-coefficient rounding: nearest integer, ties half away from zero (−2.5 → −3, 2.5 → 3), so
+ * positive and negative coefficients round symmetrically. `Math.round` alone sends −2.5 to −2.
+ */
+export function roundJpegCoefficient(value: number): number {
+  return value<0 ? -Math.round(-value) : Math.round(value);
+}
+
 /** Internal baseline JPEG profile: 8-bit YCbCr444, explicit constant quantization step and original uniform Huffman tables. */
 export interface ExportJpegInput { width: number; height: number; samples: readonly number[]; quantizationStep: number; exif: Uint8Array; xmp: Uint8Array }
 /** Independent analytical DCT implementation; no third-party encoder, source, default quantization or Huffman tables. */
@@ -46,10 +78,20 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
   const density=input.densityDotsPerInch;
   if(density!==undefined&&(!Number.isSafeInteger(density)||density<1||density>65535))
     throw new InvalidConfigurationError("JFIF density requires an integer from 1 to 65535 dots per inch.");
-  const storage=new Uint8Array(input.maximumOutputBytes);let offset=0,disposed=false,blocks=0;
-  const push=(...values:number[]):void=>{if(disposed||offset+values.length>storage.length)throw new InvalidConfigurationError("JPEG output exceeds admitted byte budget or is disposed.");storage.set(values,offset);offset+=values.length;};
+  // Growable output: capacity starts at min(budget, 64 KiB) and doubles, never beyond the admitted budget. The budget
+  // check is unchanged (offset + n > maximumOutputBytes fails), so the emitted bytes and failures equal those of a
+  // buffer pre-allocated at the full budget. A superseded buffer is zeroed after its bytes are copied forward.
+  const budget=input.maximumOutputBytes;
+  let storage=new Uint8Array(Math.min(budget,65_536)),offset=0,disposed=false,blocks=0;
+  const reserve=(count:number):void=>{
+    if(disposed||offset+count>budget)throw new InvalidConfigurationError("JPEG output exceeds admitted byte budget or is disposed.");
+    if(offset+count<=storage.length)return;
+    const grown=new Uint8Array(Math.min(budget,Math.max(storage.length*2,offset+count)));
+    grown.set(storage.subarray(0,offset));storage.fill(0,0,offset);storage=grown;
+  };
+  const push=(...values:number[]):void=>{reserve(values.length);storage.set(values,offset);offset+=values.length;};
   // Single-byte entropy fast path: same budget/disposal check and byte order as push(), without an argument array per byte.
-  const pushByte=(value:number):void=>{if(disposed||offset+1>storage.length)throw new InvalidConfigurationError("JPEG output exceeds admitted byte budget or is disposed.");storage[offset++]=value;};
+  const pushByte=(value:number):void=>{if(disposed||offset>=storage.length)reserve(1);storage[offset++]=value;};
   push(255,216);
   const marker = (id: number, payload: readonly number[]): void => {
     if (payload.length > 65533) throw new InvalidConfigurationError("JPEG metadata segment exceeds the standard APP limit.");
@@ -102,11 +144,14 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
  *
  * Each coefficient is the direct 64-term sum Σ_y Σ_x (f(x,y)·C(u,x))·C(v,y), accumulated in y-then-x
  * order. The row products f(x,y)·C(u,x) are computed once per u and reused for all eight v; this reuses
- * identical IEEE-754 products and keeps the exact multiplication/summation order, so output bytes are
- * unchanged. A factored row/column DCT would reassociate the sum and is deliberately not used.
+ * identical IEEE-754 products and keeps the exact multiplication/summation order. A factored row/column
+ * DCT would reassociate the sum and is deliberately not used.
+ *
+ * C(u,x) comes from the fixed table `JPEG_DCT_COSINES` (correctly rounded constants), not `Math.cos`,
+ * so the coefficients do not depend on the JavaScript engine's libm. Each quantized coefficient is
+ * rounded half away from zero (`roundJpegCoefficient`).
  */
-  const cosine=new Float64Array(64);
-  for (let u=0;u<8;u++) for (let x=0;x<8;x++) cosine[u*8+x]=Math.cos((2*x+1)*u*Math.PI/16);
+  const cosine=JPEG_DCT_COSINES;
   const previous=[0,0,0];
   const planes=[new Float64Array(64),new Float64Array(64),new Float64Array(64)];
   const rowProducts=new Float64Array(64), transformed=new Float64Array(64);
@@ -132,7 +177,7 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
         for (let v=0;v<8;v++) {
           const vOffset=v*8;
           let sum=0; for (let y=0;y<8;y++) { const cv=cosine[vOffset+y]!; for (let x=0;x<8;x++) sum+=rowProducts[y*8+x]!*cv; }
-          transformed[vOffset+u]=Math.round(sum*.25*uFactor*(v===0 ? Math.SQRT1_2 : 1)/q);
+          transformed[vOffset+u]=roundJpegCoefficient(sum*.25*uFactor*(v===0 ? Math.SQRT1_2 : 1)/q);
         }
       }
       const difference=transformed[0]!-previous[channel]!, size=amplitude(difference,11); emit(size,4); coefficient(difference,size); previous[channel]=transformed[0]!;
@@ -150,8 +195,9 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
     finish():Uint8Array {
       if(disposed||blocks!==Math.ceil(width/8)*Math.ceil(height/8))throw new InvalidConfigurationError("JPEG cannot finish incomplete or disposed encoding.");
       if(bits)emit((1<<(8-bits))-1,8-bits);
-      push(255,217);const output=storage.slice(0,offset);storage.fill(0);disposed=true;return output;
+      // Only the written prefix can hold data; zero it after the copy instead of filling the whole capacity.
+      push(255,217);const output=storage.slice(0,offset);storage.fill(0,0,offset);storage=new Uint8Array(0);disposed=true;return output;
     },
-    dispose():void {storage.fill(0);disposed=true;}
+    dispose():void {storage.fill(0,0,offset);storage=new Uint8Array(0);disposed=true;}
   };
 }
