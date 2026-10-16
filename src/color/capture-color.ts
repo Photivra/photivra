@@ -11,6 +11,7 @@ import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-
 import { calculatedResult, approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { InvalidScientificResultError } from "../core/validation.js";
+import { chromaticAdaptationMatrix } from "./chromatic-adaptation.js";
 import { parseSimulatedCapture, type SimulatedCapture, type CaptureLinearPlane, type CapturePublicProfileReference } from "../capture/simulated-capture.js";
 
 export const CAPTURE_COLOR_MODEL_VERSION = "0.1.0" as const;
@@ -39,11 +40,17 @@ const scales = multiply(inverse(basis), [D65.x, 1, D65.z]);
 const RGB_TO_XYZ = basis.map((row) => row.map((v, i) => v*scales[i]!)) as unknown as Matrix;
 const XYZ_TO_RGB = inverse(RGB_TO_XYZ);
 
+/**
+ * Cone-space transform for adopted-white adaptation. Omitted keeps the original
+ * XYZ-diagonal scaling (model id `photivra-xyz-diagonal-adaptation`) unchanged.
+ */
+export type CaptureChromaticAdaptationTransform = "bradford" | "cat02" | "cat16" | "von-kries-hpe";
+const CAPTURE_ADAPTATION_TRANSFORMS: readonly string[] = ["bradford", "cat02", "cat16", "von-kries-hpe"];
 /** One explicit color interpretation; gains and adaptation cannot silently double-apply WB. */
 export type CaptureColorWhiteBalance =
   | { kind: "preserve-intent" }
   | { kind: "apply-resolved-rgb-gains"; channelBasis: CapturePublicProfileReference }
-  | { kind: "adopted-white-xyz-scaling" };
+  | { kind: "adopted-white-xyz-scaling"; transform?: CaptureChromaticAdaptationTransform };
 /** IDs identify a new derived plane; source capture stays immutable. */
 export interface CaptureColorTransformInput {
   capture: SimulatedCapture;
@@ -86,12 +93,17 @@ function publicId(v: unknown): string {
 /** Validates the entire capture and explicit transform policy across untrusted JSON boundaries. */
 export function parseCaptureColorTransformInput(value: unknown): CaptureColorTransformInput {
   const r = record(value, ["capture", "sourcePlaneId", "outputPlaneId", "outputImageStateId", "whiteBalance"]);
-  const w = record(r.whiteBalance, ["kind", "channelBasis"]);
+  const w = record(r.whiteBalance, ["kind", "channelBasis", "transform"]);
   let whiteBalance: CaptureColorWhiteBalance;
   if (w.kind === "apply-resolved-rgb-gains") {
     const p = record(w.channelBasis, ["id", "version"]);
     whiteBalance = { kind: w.kind, channelBasis: { id: publicId(p.id), version: publicId(p.version) } };
-  } else if ((w.kind === "preserve-intent" || w.kind === "adopted-white-xyz-scaling") && w.channelBasis === undefined) {
+  } else if (w.kind === "adopted-white-xyz-scaling" && w.channelBasis === undefined && w.transform !== undefined) {
+    if (typeof w.transform !== "string" || !CAPTURE_ADAPTATION_TRANSFORMS.includes(w.transform)) {
+      throw new InvalidConfigurationError("Unsupported chromatic-adaptation transform.");
+    }
+    whiteBalance = { kind: w.kind, transform: w.transform as CaptureChromaticAdaptationTransform };
+  } else if ((w.kind === "preserve-intent" || w.kind === "adopted-white-xyz-scaling") && w.channelBasis === undefined && w.transform === undefined) {
     whiteBalance = { kind: w.kind };
   } else throw new InvalidConfigurationError("Unsupported or contradictory color WB policy.");
   return { capture: parseSimulatedCapture(r.capture), sourcePlaneId: publicId(r.sourcePlaneId),
@@ -108,10 +120,16 @@ export interface CaptureColorTransformResult {
   /** False: even adopted-white scaling is a camera choice under mixed illumination. */
   claimsUniqueSceneWhite: false;
 }
+function adaptationProfileId(whiteBalance: CaptureColorWhiteBalance): string {
+  return whiteBalance.kind === "adopted-white-xyz-scaling" && whiteBalance.transform !== undefined
+    ? "photivra-" + whiteBalance.transform + "-adaptation"
+    : "photivra-xyz-diagonal-adaptation";
+}
 /**
  * Converts a bounded inline XYZ/ideal-camera plane to unclamped linear sRGB.
  * Reuses resolved WB intent; never estimates illumination or changes exposure/noise.
- * XYZ diagonal adaptation is explicitly an approximation, distinct from RGB gains.
+ * Adopted-white adaptation (XYZ diagonal by default, or an explicit Bradford/CAT02/CAT16/
+ * von Kries-HPE cone-space transform) is explicitly an approximation, distinct from RGB gains.
  */
 export function calculateCaptureColorTransform(input: CaptureColorTransformInput): CalculationResult<CaptureColorTransformResult> {
   const { capture, sourcePlaneId, outputPlaneId, outputImageStateId, whiteBalance } = parseCaptureColorTransformInput(input);
@@ -147,7 +165,17 @@ export function calculateCaptureColorTransform(input: CaptureColorTransformInput
     if (!Number.isFinite(x) || !Number.isFinite(z) || x < 1e-6 || x > 1e6 || z < 1e-6 || z > 1e6) {
       throw new InvalidConfigurationError("Adopted-white scaling is outside the declared numerical domain.");
     }
-    adaptation = [[x, 0, 0], [0, 1, 0], [0, 0, z]];
+    if (whiteBalance.transform === undefined) adaptation = [[x, 0, 0], [0, 1, 0], [0, 0, z]];
+    else {
+      let m: Matrix;
+      try {
+        m = chromaticAdaptationMatrix({ transform: whiteBalance.transform, sourceWhiteXyz: white, destinationWhiteXyz: D65 }).matrix;
+      } catch {
+        throw new InvalidConfigurationError("Adopted-white adaptation is outside the transform's numerical domain.");
+      }
+      if (m.flat().some((v) => Math.abs(v) > 1e6)) throw new InvalidConfigurationError("Adopted-white adaptation is outside the declared numerical domain.");
+      adaptation = m;
+    }
   }
   const samples: number[] = [], values = source.storage.samples;
   for (let i = 0; i < values.length; i += 3) {
@@ -161,7 +189,7 @@ export function calculateCaptureColorTransform(input: CaptureColorTransformInput
     samples.push(...rgb.map((v) => Object.is(v, -0) ? 0 : v));
   }
   const transforms: CaptureLinearPlane["appliedTransforms"][number][] = [...source.appliedTransforms];
-  if (adapt) transforms.push({ profile: { id: "photivra-xyz-diagonal-adaptation", version: CAPTURE_COLOR_MODEL_VERSION }, kind: "chromatic-adaptation" });
+  if (adapt) transforms.push({ profile: { id: adaptationProfileId(whiteBalance), version: CAPTURE_COLOR_MODEL_VERSION }, kind: "chromatic-adaptation" });
   transforms.push({ profile: { ...LINEAR_CAPTURE_RGB_PROFILE }, kind: "linear-color" });
   if (gains) transforms.push({ profile: { id: capture.whiteBalanceIntent!.stateId, version: CAPTURE_COLOR_MODEL_VERSION }, kind: "linear-color" });
   const plane: CaptureLinearPlane = { ...source, id: outputPlaneId, imageStateId: outputImageStateId,
@@ -176,7 +204,11 @@ export function calculateCaptureColorTransform(input: CaptureColorTransformInput
     claimsUniqueSceneWhite: false };
   const assumptions = ["Ideal CIE colorimetric virtual camera only; no sensor calibration inferred", "Source exposure/noise/saturation history retained; float samples never clipped",
     "WB intent, applied RGB gains and adopted-white adaptation are independent choices; no scene-white oracle"];
-  return adapt ? approximationResult(result, "capture-color-xyz-diagonal-adaptation", CAPTURE_COLOR_MODEL_VERSION,
-    [...assumptions, "XYZ diagonal scaling is a limited chromatic-adaptation approximation, not Bradford or a color-appearance model"])
+  const transform = whiteBalance.kind === "adopted-white-xyz-scaling" ? whiteBalance.transform : undefined;
+  return adapt ? transform === undefined
+    ? approximationResult(result, "capture-color-xyz-diagonal-adaptation", CAPTURE_COLOR_MODEL_VERSION,
+      [...assumptions, "XYZ diagonal scaling is a limited chromatic-adaptation approximation, not Bradford or a color-appearance model"])
+    : approximationResult(result, "capture-color-" + transform + "-adaptation", CAPTURE_COLOR_MODEL_VERSION,
+      [...assumptions, "Complete (D = 1) linear " + transform + " von Kries-type adaptation to D65; corresponding-colour prediction is approximate and no color-appearance model is applied"])
     : calculatedResult(result, "capture-colorimetric-linear-rgb", CAPTURE_COLOR_MODEL_VERSION, assumptions);
 }

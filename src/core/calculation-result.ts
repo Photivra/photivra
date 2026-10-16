@@ -363,8 +363,81 @@ function containsNonFiniteNumber(value: unknown, seen: WeakSet<object>): boolean
   return false;
 }
 
+/** Object visits allowed to the memo-free pre-scan before it defers to the exact visited-set scan. */
+const FAST_FINITE_SCAN_MAX_OBJECT_VISITS = 1 << 16;
+/** Nesting allowed to the memo-free pre-scan; a cycle or very deep tree defers to the exact scan. */
+const FAST_FINITE_SCAN_MAX_DEPTH = 64;
+const FAST_SCAN_FINITE = 0, FAST_SCAN_NON_FINITE = 1, FAST_SCAN_UNDECIDED = 2;
+/** Remaining object visits of the active pre-scan; saved and restored around nested scans. */
+let fastFiniteScanBudget = 0;
+
+/**
+ * Memo-free pre-scan (#3, 2.0 performance): the same traversal as containsNonFiniteNumber (own
+ * enumerable string keys in Object.keys order, present array indices) without a WeakSet. It may
+ * revisit shared nodes, so it stops as UNDECIDED once FAST_FINITE_SCAN_MAX_OBJECT_VISITS objects or
+ * FAST_FINITE_SCAN_MAX_DEPTH nesting are reached (any cycle reaches the depth bound). Revisiting
+ * cannot change the answer: the set of reachable numbers is the same with or without the memo. A
+ * found non-finite number is reachable, and a completed scan saw every reachable number, so a
+ * decided answer always equals the exact scan's; UNDECIDED falls back to that exact scan.
+ */
+function scanNonFiniteWithoutMemo(value: unknown, depth: number): number {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? FAST_SCAN_FINITE : FAST_SCAN_NON_FINITE;
+  }
+  if (typeof value !== "object" || value === null) {
+    return FAST_SCAN_FINITE;
+  }
+  if (depth >= FAST_FINITE_SCAN_MAX_DEPTH || --fastFiniteScanBudget < 0) {
+    return FAST_SCAN_UNDECIDED;
+  }
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index++) {
+      if (index in value) {
+        const entry: unknown = value[index];
+        if (typeof entry === "number") {
+          if (!Number.isFinite(entry)) return FAST_SCAN_NON_FINITE;
+        } else if (typeof entry === "object" && entry !== null) {
+          const result = scanNonFiniteWithoutMemo(entry, depth + 1);
+          if (result !== FAST_SCAN_FINITE) return result;
+        }
+      }
+    }
+    return FAST_SCAN_FINITE;
+  }
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  for (let index = 0; index < keys.length; index++) {
+    const entry = record[keys[index]!];
+    if (typeof entry === "number") {
+      if (!Number.isFinite(entry)) return FAST_SCAN_NON_FINITE;
+    } else if (typeof entry === "object" && entry !== null) {
+      const result = scanNonFiniteWithoutMemo(entry, depth + 1);
+      if (result !== FAST_SCAN_FINITE) return result;
+    }
+  }
+  return FAST_SCAN_FINITE;
+}
+
+/** Internal: exact answer of containsNonFiniteNumber, using the memo-free pre-scan when it decides. */
+export function calculationValueContainsNonFiniteNumber(value: unknown): boolean {
+  const saved = fastFiniteScanBudget;
+  fastFiniteScanBudget = FAST_FINITE_SCAN_MAX_OBJECT_VISITS;
+  let result: number;
+  try {
+    result = scanNonFiniteWithoutMemo(value, 0);
+  } finally {
+    fastFiniteScanBudget = saved;
+  }
+  return result === FAST_SCAN_UNDECIDED ? containsNonFiniteNumber(value, new WeakSet<object>()) : result === FAST_SCAN_NON_FINITE;
+}
+
+/** Internal: the exact visited-set scan, exposed for equivalence tests only. */
+export function calculationValueContainsNonFiniteNumberExact(value: unknown): boolean {
+  return containsNonFiniteNumber(value, new WeakSet<object>());
+}
+
 function assertFiniteCalculationValue(value: unknown): void {
-  if (containsNonFiniteNumber(value, new WeakSet<object>())) {
+  if (calculationValueContainsNonFiniteNumber(value)) {
     assertFiniteNumbers(value, "value", new WeakSet<object>());
   }
 }

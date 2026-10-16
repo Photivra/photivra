@@ -124,7 +124,8 @@ The root package exports deterministic or explicitly labeled approximate models 
 
 ### Color controls
 
-- [white-balance control and Auto WB](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md#white-balance-and-auto-wb), including generic profile-owned presets, manual gains, independent CCT+tint intent, custom measurement, deterministic AWB priorities, and AWB lock without modifying scene illumination or RAW-like capture.
+- [white-balance control and Auto WB](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md#white-balance-and-auto-wb), including generic profile-owned presets, manual gains, independent CCT+tint intent, custom measurement, deterministic AWB priorities, and AWB lock without modifying scene illumination or RAW-like capture;
+- [colorimetry](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md): a labelled analytic CIE 1931 CMF approximation or caller-supplied CMF tables, spectral integration, Planckian/illuminant A/CIE daylight illuminants, CCT and Duv, Bradford/CAT02/CAT16 adaptation, Kelvin + tint WB gains, CIELAB and ΔE76/94/2000, camera-matrix fitting, Display P3/Rec.2020 matrices, PQ/HLG/BT.1886 transfers and hue-preserving gamut mapping. CIE and ColorChecker tables are not bundled.
 
 ### Sensor and output
 

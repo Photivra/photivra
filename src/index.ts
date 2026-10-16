@@ -97,6 +97,7 @@ export {
   resolveCaptureColorModel,
   parseCaptureColorTransformInput,
   calculateCaptureColorTransform,
+  type CaptureChromaticAdaptationTransform,
   type CaptureColorModel,
   type CaptureColorWhiteBalance,
   type CaptureColorTransformInput,
@@ -321,8 +322,142 @@ export {
   type WhiteBalanceChannelGains,
   type WhiteBalanceInputDomain,
   type WhiteBalancePresetDefinition,
-  type WhiteBalanceProfile
+  type WhiteBalanceProfile,
+  resolveColorTemperatureWhiteBalance,
+  type ColorTemperatureWhiteBalanceCameraModel,
+  type ResolveColorTemperatureWhiteBalanceInput,
+  type ResolvedColorTemperatureWhiteBalance
 } from "./color/white-balance.js";
+
+export type {
+  Cie1960UvChromaticity,
+  CieXyChromaticity,
+  CieXyzTristimulus,
+  ColorMatrix3x3,
+  ColorVector3
+} from "./color/colorimetry-math.js";
+
+export {
+  COLORIMETRY_MODEL_VERSION,
+  MAX_COLORIMETRIC_QUADRATURE_NODES,
+  MAX_COLORIMETRIC_TABLE_SAMPLES,
+  WYMAN_2013_CMF_DOMAIN_NANOMETERS,
+  createColorimetricMidpointQuadrature,
+  estimateCie1931ColorMatchingFunctions,
+  integrateSpectrumToXyz,
+  parseColorimetricQuadratureNodes,
+  prepareColorMatchingFunctions,
+  prepareColorimetricSpectrum,
+  type ColorMatchingFunctionsSource,
+  type ColorimetricObserver,
+  type ColorimetricQuadratureNode,
+  type ColorimetricSpectralSample,
+  type ColorimetricSpectrum,
+  type CreateColorimetricMidpointQuadratureInput,
+  type IntegrateSpectrumToXyzInput,
+  type IntegratedSpectrumXyz,
+  type PreparedColorMatchingFunctions,
+  type PreparedColorimetricSpectrum,
+  type TabulatedColorMatchingSample,
+  type TristimulusNormalization
+} from "./color/color-matching-functions.js";
+
+export {
+  BOLTZMANN_CONSTANT_JOULES_PER_KELVIN,
+  CIE_DAYLIGHT_LOCUS_RANGE_KELVIN,
+  CIE_ILLUMINANT_A_RANGE_NANOMETERS,
+  KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN,
+  MAX_CORRELATED_COLOR_TEMPERATURE_DUV,
+  PLANCK_CONSTANT_JOULE_SECONDS,
+  SECOND_RADIATION_CONSTANT_METER_KELVIN,
+  SPEED_OF_LIGHT_METERS_PER_SECOND,
+  calculateChromaticityFromCorrelatedColorTemperature,
+  calculateCieDaylightComponentWeights,
+  calculateCieIlluminantARelativeSpectralPower,
+  calculateCorrelatedColorTemperature,
+  calculatePlanckianChromaticity,
+  calculatePlanckianSpectralRadiance,
+  createCieDaylightSpectrum,
+  createCieIlluminantASpectrum,
+  createPlanckianSpectrum,
+  estimateCorrelatedColorTemperatureMcCamy,
+  estimatePlanckianLocusChromaticity,
+  type CieDaylightBasis,
+  type CieDaylightComponentWeights,
+  type CorrelatedColorTemperatureResult,
+  type PlanckianLocusModel,
+  type WhiteLocus
+} from "./color/illuminants.js";
+
+export {
+  CHROMATIC_ADAPTATION_TRANSFORMS,
+  calculateChromaticAdaptationMatrix,
+  calculateChromaticallyAdaptedXyz,
+  calculateDegreeOfAdaptation,
+  resolveChromaticAdaptationConeMatrix,
+  type CalculateChromaticAdaptationMatrixInput,
+  type ChromaticAdaptationMatrix,
+  type ChromaticAdaptationTransform,
+  type ViewingSurround
+} from "./color/chromatic-adaptation.js";
+
+export {
+  calculateCielabFromCielch,
+  calculateCielabFromXyz,
+  calculateCielchFromCielab,
+  calculateColorDifference,
+  calculateXyzFromCielab,
+  type CalculateColorDifferenceInput,
+  type Ciede2000ParametricFactors,
+  type CielabColor,
+  type CielchColor,
+  type ColorDifferenceFormula
+} from "./color/color-difference.js";
+
+export {
+  MAX_CAMERA_MATRIX_TRAINING_PATCHES,
+  estimateCameraColorMatrix,
+  type CameraColorMatrixFit,
+  type CameraMatrixFitConstraint,
+  type CameraMatrixPatchReport,
+  type CameraMatrixTrainingPatch,
+  type CameraSpectralSensitivities,
+  type EstimateCameraColorMatrixInput
+} from "./color/camera-color-matrix.js";
+
+export {
+  HLG_CONSTANTS,
+  PQ_CONSTANTS,
+  calculateHlgSystemGamma,
+  calculateRgbToXyzMatrices,
+  evaluateBt709InverseOetf,
+  evaluateHlgInverseOetf,
+  evaluatePqEotf,
+  evaluateSrgbDecoding,
+  evaluateBt709Oetf,
+  evaluateHlgOetf,
+  evaluatePqInverseEotf,
+  evaluateSrgbEncoding,
+  prepareBt1886Eotf,
+  prepareHlgReferenceDisplay,
+  resolveRgbColorSpace,
+  type Bt1886Eotf,
+  type HlgReferenceDisplay,
+  type RgbColorSpaceDefinition,
+  type RgbColorSpaceId,
+  type RgbPrimaryChromaticities,
+  type RgbToXyzMatrices,
+  type RgbTransferFunctionId
+} from "./color/rgb-color-spaces.js";
+
+export {
+  calculateGamutMappedColor,
+  prepareRgbGamutMapping,
+  type GamutMappedColor,
+  type GamutMappingMethod,
+  type PrepareRgbGamutMappingInput,
+  type PreparedRgbGamutMapping
+} from "./color/gamut-mapping.js";
 
 export {
   calculatePixelPitch,
