@@ -95,6 +95,7 @@ The colorimetry modules in `src/color/` (see [docs/COLORIMETRY.md](https://githu
 | Bradford, CAT02, CAT16 and Hunt–Pointer–Estévez matrices (`chromatic-adaptation.ts`) | Lam (1985) / ICC.1:2010 Annex E; Moroney et al. (2002) / CIE 159:2004; Li et al. (2017); CIE 159:2004 | Published 3×3 model constants. |
 | Primaries and white points; PQ, HLG, BT.709 and BT.1886 constants (`rgb-color-spaces.ts`) | IEC 61966-2-1, ITU-R BT.709-6, BT.1886, BT.2020-2, BT.2100-3, SMPTE ST 2084, SMPTE EG 432-1 | Standardized numeric constants; the ITU-R recommendations are freely published. |
 | h, c, k | BIPM SI Brochure (2019) | Exact SI defining constants (facts). |
+| K = 12.5 cd·s/m² reflected-light meter constant, K_m = 683 lm/W (`src/facade/`) | ISO 2720:1974; CIE 15:2018 / SI definition of the candela | Standardized scalar constants used as facts. The capture facade's charts (slanted edge, Siemens star, step wedge, grey ramp, checkerboard, point grid) are engine-authored analytic patterns; the slanted edge only follows the ISO 12233 geometry (a few degrees of slant, 4:1 contrast) and reproduces no chart artwork or data. |
 
 The following datasets are deliberately **excluded**:
 

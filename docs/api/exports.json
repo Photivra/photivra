@@ -918,6 +918,11 @@
       "kind": "runtime"
     },
     {
+      "name": "calculatePointGridCenters",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculatePolygonPupilFraunhoferPsf",
       "source": "src/optics/polygon-diffraction.ts",
       "kind": "runtime"
@@ -1228,6 +1233,11 @@
       "kind": "type"
     },
     {
+      "name": "calculateStepWedgeReflectances",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateSubjectFramingCrop",
       "source": "src/output/subject-framing-crop.ts",
       "kind": "runtime"
@@ -1280,6 +1290,16 @@
     {
       "name": "CalibrationArtifactReference",
       "source": "src/sensor/radiometry-readiness.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CallerRadianceScene",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CallerReflectanceScene",
+      "source": "src/facade/scene-radiance.ts",
       "kind": "type"
     },
     {
@@ -1478,6 +1498,11 @@
       "kind": "type"
     },
     {
+      "name": "CaptureIlluminant",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
       "name": "CaptureLinearImageState",
       "source": "src/capture/simulated-capture.ts",
       "kind": "type"
@@ -1640,6 +1665,41 @@
     {
       "name": "ChannelSeparationVectorMm",
       "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CHART_SCENE_DEFAULTS",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CHART_SCENE_PRESETS",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CHART_SPECTRAL_RANGE_NANOMETERS",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ChartReflectance",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartScenePresetId",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CheckerboardChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
@@ -1985,6 +2045,11 @@
     {
       "name": "createPhotographicExportPair",
       "source": "src/capture/photographic-export.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createPlanarSceneRadianceProvider",
+      "source": "src/facade/scene-radiance.ts",
       "kind": "runtime"
     },
     {
@@ -2955,6 +3020,11 @@
     {
       "name": "GlobalSensorReadoutTimingDeclaration",
       "source": "src/sensor/readout-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GreyRampChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
@@ -4438,6 +4508,11 @@
       "kind": "runtime"
     },
     {
+      "name": "PatchChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "PeriodicMosaicColorSamplingLayout",
       "source": "src/sensor/color-sampling.ts",
       "kind": "type"
@@ -4473,6 +4548,11 @@
       "kind": "type"
     },
     {
+      "name": "PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "PhotositeCollectionAreaRequirement",
       "source": "src/sensor/radiometry-readiness.ts",
       "kind": "type"
@@ -4490,6 +4570,11 @@
     {
       "name": "PixelPitch",
       "source": "src/sensor/pixel-pitch.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PlanarSceneRadianceProvider",
+      "source": "src/facade/scene-radiance.ts",
       "kind": "type"
     },
     {
@@ -4580,6 +4665,11 @@
     {
       "name": "PocSimulationResponse",
       "source": "src/simulation/poc-simulation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PointGridChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
@@ -5303,6 +5393,11 @@
       "kind": "type"
     },
     {
+      "name": "resolveCaptureIlluminant",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "resolveCaptureMode",
       "source": "src/sensor/capture-mode.ts",
       "kind": "runtime"
@@ -5331,6 +5426,11 @@
       "name": "ResolveCaptureModeTimingInput",
       "source": "src/sensor/capture-mode-timing.ts",
       "kind": "type"
+    },
+    {
+      "name": "resolveChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
     },
     {
       "name": "resolveChromaticAdaptationConeMatrix",
@@ -5383,6 +5483,11 @@
       "kind": "type"
     },
     {
+      "name": "ResolvedCaptureIlluminant",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
       "name": "ResolvedCaptureMode",
       "source": "src/sensor/capture-mode.ts",
       "kind": "type"
@@ -5395,6 +5500,11 @@
     {
       "name": "ResolvedCaptureModeTiming",
       "source": "src/sensor/capture-mode-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
@@ -5980,6 +6090,11 @@
     {
       "name": "SceneObject",
       "source": "src/schema/scene.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ScenePlanePoint",
+      "source": "src/facade/scene-radiance.ts",
       "kind": "type"
     },
     {
@@ -7008,8 +7123,63 @@
       "kind": "type"
     },
     {
+      "name": "SiemensStarChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "SignalToNoise",
       "source": "src/sensor/signal-noise.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SIMULATE_CAPTURE_FACADE_VERSION",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "simulateCapture",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SimulateCaptureAssumption",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureExposureMode",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureOptions",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureOutputFormat",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureProgress",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureResult",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureWhiteBalance",
+      "source": "src/facade/simulate-capture.ts",
       "kind": "type"
     },
     {
@@ -7075,6 +7245,11 @@
     {
       "name": "SingleFrameCaptureAcquisition",
       "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SlantedEdgeChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
@@ -7273,6 +7448,11 @@
       "kind": "type"
     },
     {
+      "name": "StepWedgeChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "StrayLightIrradiance",
       "source": "src/optics/stray-light.ts",
       "kind": "type"
@@ -7370,6 +7550,11 @@
     {
       "name": "UncertaintySource",
       "source": "src/core/calculation-result.ts",
+      "kind": "type"
+    },
+    {
+      "name": "UniformChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
