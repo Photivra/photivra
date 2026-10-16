@@ -63,13 +63,18 @@ describe("bounded native/downsampled Print JPEG",()=>{
   it("writes actual dimensions, original sRGB ICC, EXIF and immutable source/crop metadata",async()=>{
     const f=fixture(),task=createPrintJpegTask(f.input,f.provider);await task.run();const out=task.takeOutput(),tags=segments(out.bytes);
     expect(tags.get(192)![0]!.slice(1,5)).toEqual(new Uint8Array([0,8,0,16]));
-    // No physical density was planned: JFIF declares only a 1:1 aspect ratio and IFD0 claims no resolution.
+    // No physical density was planned: JFIF declares only a 1:1 aspect ratio; Exif 2.32 still requires its
+    // resolution tags and designates 72 dpi for an unknown resolution.
     expect(jfif(tags.get(224)![0]!)).toEqual({version:[1,2],units:0,x:1,y:1,thumbnail:[0,0]});
     const {ifd0,exif}=exifDirectories(tags.get(225)![0]!);
-    expect([...ifd0.keys()]).toEqual([274,305,34665]);expect(ifd0.get(274)!.values).toEqual([1]);
+    expect([...ifd0.keys()]).toEqual([274,282,283,296,305,531,34665]);expect(ifd0.get(274)!.values).toEqual([1]);
+    expect(ifd0.get(282)!.values).toEqual([72]);expect(ifd0.get(283)!.values).toEqual([72]);expect(ifd0.get(296)!.values).toEqual([2]);expect(ifd0.get(531)).toMatchObject({type:3,values:[1]});
     expect(new TextDecoder().decode(ifd0.get(305)!.bytes)).toBe("Photivra Print JPEG\0");
-    expect([...exif.keys()]).toEqual([36864,40961,40962,40963]);
+    expect([...exif.keys()]).toEqual([36864,37121,40960,40961,40962,40963]);
     expect(exif.get(36864)).toMatchObject({type:7,count:4});expect(new TextDecoder().decode(exif.get(36864)!.bytes)).toBe("0232");
+    expect(exif.get(37121)).toMatchObject({type:7,count:4,values:[1,2,3,0]});
+    expect(exif.get(40960)).toMatchObject({type:7,count:4});expect(new TextDecoder().decode(exif.get(40960)!.bytes)).toBe("0100");
+    expect(out.encoderId).toBe("photivra-baseline-jpeg-444-v2");expect(out.schemaVersion).toBe("0.2.0");expect(out.providerReads).toBe(1);
     expect(exif.get(40961)!.values).toEqual([1]);expect(exif.get(40962)!.values).toEqual([16]);expect(exif.get(40963)!.values).toEqual([8]);
     const icc=tags.get(226)![0]!;expect(new TextDecoder().decode(icc.slice(0,12))).toBe("ICC_PROFILE\0");expect(Array.from(icc.slice(12,14))).toEqual([1,1]);expect(icc.slice(14)).toEqual(createSrgbIccProfile());
     const xmp=new TextDecoder().decode(tags.get(225)![1]!);expect(xmp).toContain("capture");expect(xmp).toContain("PrintExportPlan");expect(out.digitalUpscalingApplied).toBe(false);expect(out.sourceStage).toBe("post-SDR-8-bit-quantization");
@@ -80,7 +85,7 @@ describe("bounded native/downsampled Print JPEG",()=>{
       const f=fixture();f.input.pixelsPerInch=ppi;const task=createPrintJpegTask(f.input,f.provider);await task.run();const out=task.takeOutput(),tags=segments(out.bytes);
       expect(jfif(tags.get(224)![0]!)).toEqual({version:[1,2],units:1,x:dpi,y:dpi,thumbnail:[0,0]});
       const {ifd0,exif}=exifDirectories(tags.get(225)![0]!);
-      expect([...ifd0.keys()]).toEqual([274,282,283,296,305,34665]);
+      expect([...ifd0.keys()]).toEqual([274,282,283,296,305,531,34665]);
       for(const id of [282,283]){
         const tag=ifd0.get(id)!;expect(tag).toMatchObject({type:5,count:1});expect(tag.values[0]).toBeCloseTo(ppi,9);
         expect([new DataView(tag.bytes.buffer).getUint32(0,true),new DataView(tag.bytes.buffer).getUint32(4,true)]).toEqual(rational);
@@ -125,7 +130,8 @@ describe("bounded native/downsampled Print JPEG",()=>{
   });
   it("rejects resource exhaustion and corrupt provider tiles without publishing bytes",async()=>{
     for(const bad of ["budget","identity","rect","storage","shared","reads"]){
-      const f=fixture();if(bad==="budget")f.input.maximumEncodedBytes=10;if(bad==="reads")f.input.maximumProviderReads=1;
+      // 300 x 8 needs ceil(8/32) x ceil(300/256) = 2 reads, so a budget of 1 fails before the first read.
+      const f=bad==="reads" ? fixture(300,8) : fixture();if(bad==="budget")f.input.maximumEncodedBytes=10;if(bad==="reads")f.input.maximumProviderReads=1;
       const read=f.provider.readTile,task=createPrintJpegTask(f.input,{...f.provider,readTile:async(r,s):Promise<PrintJpegTile>=>{
         const tile=await read(r,s);if(bad==="identity")return {...tile,source:{...tile.source,sha256:"b".repeat(64)}};
         if(bad==="rect")return {...tile,x:1};if(bad==="storage")return {...tile,samples:new Uint8Array(1)};
