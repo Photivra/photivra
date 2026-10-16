@@ -222,11 +222,11 @@ camera, not a commercial device.
 
 Exif 2.32 (CIPA DC-008-2019, Tables 17–18) also makes these tags mandatory for a compressed
 primary image: IFD0 XResolution, YResolution, ResolutionUnit and YCbCrPositioning, and Exif
-FlashpixVersion and ComponentsConfiguration. The paired-export JPEG does not yet write them; the
-shared helper `packExportJpegExif` (in `src/capture/export-tiff.ts`, used by the Print JPEG) adds
-every missing mandatory tag with the standard's defaults (72 dpi for an unknown resolution,
-centered positioning, `0100`, Y Cb Cr) and is to replace the plain `packExportTiff` call for the
-paired-export JPEG Exif.
+FlashpixVersion and ComponentsConfiguration. Since 2.0.0 the paired-export JPEG writes them
+through `packExportJpegExif` (shared with the Print JPEG) using the standard's defaults: 72/1 dpi
+with ResolutionUnit 2 (the Exif value for an unknown resolution, not a print size; JFIF keeps
+units 0), YCbCrPositioning 1 (centered), FlashpixVersion `0100` and ComponentsConfiguration
+Y Cb Cr. Only the APP1 Exif segment changes; pixels, entropy data and SimulationHash do not.
 
 XMP contains distinct xmpMM DocumentID/InstanceID and IPTC DigitalImageGUID per
 file, the caller-selected non-generative IPTC workflow type and the namespace

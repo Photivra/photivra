@@ -3,7 +3,8 @@ import { describe, it, expect } from "vitest";
 import { createExportJpegEncoder, roundJpegCoefficient, JPEG_DCT_COSINES, EXPORT_JPEG_ENCODER_ID } from "../src/capture/export-jpeg.js";
 import { packExportJpegExif, exportTiffNumbers, exportTiffAscii, exportTiffBytes } from "../src/capture/export-tiff.js";
 import { createLegacyExportJpegEncoder } from "./helpers/legacy-export-jpeg.js";
-import { InvalidConfigurationError } from "../src/index.js";
+import { InvalidConfigurationError, createPhotographicExportPair } from "../src/index.js";
+import { loadPhotographicExportInput } from "./helpers/photographic-export-fixture.js";
 
 describe("baseline JPEG encoder version 2", () => {
   it("uses correctly rounded DCT cosines: exact symmetries hold and every entry is within 1 ulp of Math.cos", () => {
@@ -80,5 +81,15 @@ describe("Exif 2.32 completion for JPEG-compressed primary images", () => {
     for (const id of [256, 257, 259, 273, 530]) expect(() => packExportJpegExif([exportTiffNumbers(id, 3, [1])], [cs], dims)).toThrow(InvalidConfigurationError);
     expect(() => packExportJpegExif([exportTiffAscii(305, "x")], [cs, exportTiffNumbers(40962, 4, [17])], dims)).toThrow(InvalidConfigurationError);
     expect(() => packExportJpegExif([], [cs], { pixelWidth: 0, pixelHeight: 8 })).toThrow(InvalidConfigurationError);
+  });
+
+  it("is used by the paired-export JPEG, which then carries every mandatory tag", async () => {
+    const jpeg = (await createPhotographicExportPair(loadPhotographicExportInput())).jpeg.bytes;
+    let p = 2, app1: Uint8Array | undefined;
+    while (!app1 && jpeg[p + 1] !== 0xda) { const size = jpeg[p + 2]! * 256 + jpeg[p + 3]!; if (jpeg[p + 1] === 0xe1 && jpeg[p + 4] === 0x45) app1 = jpeg.slice(p + 10, p + 2 + size); p += 2 + size; }
+    const view = new DataView(app1!.buffer), ids = (o: number): number[] => Array.from({ length: view.getUint16(o, true) }, (_, i) => view.getUint16(o + 2 + i * 12, true));
+    const ifd0 = ids(view.getUint32(4, true)), exifEntry = ifd0.indexOf(34665), exifOffset = view.getUint32(view.getUint32(4, true) + 2 + exifEntry * 12 + 8, true);
+    for (const id of [282, 283, 296, 531, 34665]) expect(ifd0).toContain(id);
+    for (const id of [36864, 37121, 40960, 40961, 40962, 40963]) expect(ids(exifOffset)).toContain(id);
   });
 });
