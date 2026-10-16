@@ -17,8 +17,8 @@ import {
   createProductionCaptureSnapshot,
   createProductionImageFormationPlan,
   createProductionPlanConsumerManifest,
-  deriveElectronicRollingShutterExposureSchedule,
-  toCaptureExposureSchedule,
+  resolveElectronicRollingShutterExposureSchedule,
+  createRollingShutterCaptureExposureSchedule,
   getImageFormationContract,
   parseFrontOfLensFilterProfile,
   parseGenericBodyExposureCapabilityProfile,
@@ -2214,11 +2214,11 @@ describe("production temporal capture composition", () => {
   it("links an electronic rolling shutter so per-line exposure offsets reach the rotation quadrature", () => {
     const base = temporalCapture();
     if (base.readout?.readoutMode !== "rolling") throw new Error("Expected a rolling readout fixture.");
-    const derived = deriveElectronicRollingShutterExposureSchedule({ readout: base.readout,
+    const derived = resolveElectronicRollingShutterExposureSchedule({ readout: base.readout,
       nominalExposureDurationSeconds: base.exposureWindowInput.nominalExposureDurationSeconds,
       linkageEvidence: evidence("electronic-rolling-shutter") });
     const linked: ProductionTemporalCaptureInput = { ...base,
-      exposureWindowInput: { ...base.exposureWindowInput, ...toCaptureExposureSchedule(derived),
+      exposureWindowInput: { ...base.exposureWindowInput, ...createRollingShutterCaptureExposureSchedule(derived),
         samplePointsNative: [{ x: 3000, y: 500 }, { x: 3000, y: 3500 }] },
       readoutExposureLinkage: { kind: "electronic-rolling-shutter-line-reset-read", evidence: evidence("linkage") } };
     const plan = createProductionImageFormationPlan({ preparedContext: temporalPrepared(),

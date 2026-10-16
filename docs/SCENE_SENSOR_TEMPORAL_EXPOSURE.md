@@ -125,7 +125,7 @@ target), `clamped-at-full-power` with the predicted exposure error, or `no-flash
 effective guide number and flash range when a guide number is supplied. The pre-flash precedes the main
 exposure, so movement and ambient change between them are outside the model.
 
-`applyTtlFlashPower()` scales a `ManualFlashProfile` by the solved power; the scaled profile is then placed
+`createTtlScaledFlashProfile()` scales a `ManualFlashProfile` by the solved power; the scaled profile is then placed
 by the existing `resolveManualFlashSync()` exactly as before. Front- and rear-curtain sync differ only in
 where the same pulse lies inside the whole-frame-open interval, so TTL power and sync timing stay independent.
 For HSS pass the unscaled profile and the TTL power fraction to `resolveHighSpeedFlashSync()`.

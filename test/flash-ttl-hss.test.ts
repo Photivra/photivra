@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  applyTtlFlashPower,
+  createTtlScaledFlashProfile,
   calculateCaptureExposureWindows,
   calculateFlashGuideNumber,
   calculateFlashPowerForDistance,
@@ -19,7 +19,10 @@ import {
   resolveHighSpeedFlashSync,
   resolveManualFlashSync,
   resolveTtlFlashExposure,
+  type ExposureMeteringProfile,
   type ExposureMeteringSampleSet,
+  type FlashSyncCapabilityProfile,
+  type TtlFlashExposure,
   type ManualFlashProfile,
   type ResolvedCaptureModeTiming
 } from "../src/index.js";
@@ -41,7 +44,7 @@ const flash = (): ManualFlashProfile => parseManualFlashProfile({ schemaVersion:
   ttlModeled: false, highSpeedSyncModeled: false, recycleBehaviorModeled: false, redEyePreflashModeled: false,
   modelingLightModeled: false, afAssistModeled: false, evidence: evidence("flash"), limitations: ["Manual flash."] });
 
-const capabilities = (hss: boolean) => parseFlashSyncCapabilityProfile({ schemaVersion: "0.2.0", profileId: "sync", profileVersion: "1",
+const capabilities = (hss: boolean): FlashSyncCapabilityProfile => parseFlashSyncCapabilityProfile({ schemaVersion: "0.2.0", profileId: "sync", profileVersion: "1",
   captureModeId: "still", timingProfileId: "timing", supportedOrdinarySyncModes: ["front-curtain", "rear-curtain"],
   highSpeedSyncSupported: hss, ...(hss ? { highSpeedSync: { burstEnergyFractionOfFullPulse: .8, evidence: evidence("hss") } } : {}),
   ordinarySyncRequiresWholeActiveFrameSimultaneouslyExposed: true, evidence: evidence("sync"), limitations: ["Generic sync."] });
@@ -99,7 +102,7 @@ describe("guide number", () => {
 });
 
 describe("TTL pre-flash exposure", () => {
-  const meter = (policy: Record<string, unknown> = { kind: "multi-zone-uniform" }) => parseExposureMeteringProfile({ schemaVersion: "0.1.0",
+  const meter = (policy: Record<string, unknown> = { kind: "multi-zone-uniform" }): ExposureMeteringProfile => parseExposureMeteringProfile({ schemaVersion: "0.1.0",
     profileId: "ttl-meter", scientificStatus: "approximation", inputDomain: "relative-pre-exposure-linear-signal", captureRegion: "oriented-active-capture",
     policy, target: { kind: "relative-signal-reference", targetRelativeSignal: .18, evidence: evidence("target") }, evidence: evidence("meter"),
     limitations: ["Relative TTL meter."] });
@@ -112,7 +115,7 @@ describe("TTL pre-flash exposure", () => {
     samples: signals.map((relativeLinearSignal, i) => ({ sampleId: "z" + i, positionOrientedCaptureUv: { u: .25+.5*(i%2), v: .25+.5*Math.floor(i/2) },
       relativeLinearSignal, areaWeight: 1 })) });
   const ambient = zones([.02, .02, .04, .04], "ambient"), preflash = zones([.12, .12, .06, .06], "pre");
-  const ttl = (overrides: Record<string, unknown> = {}) => resolveTtlFlashExposure({ meteringProfile: meter(), ambientSampleSet: ambient,
+  const ttl = (overrides: Record<string, unknown> = {}): TtlFlashExposure => resolveTtlFlashExposure({ meteringProfile: meter(), ambientSampleSet: ambient,
     preFlashSampleSet: preflash, preFlashPowerFraction: 1/32, ambientScaleToMainExposure: .5, flashExposureCompensationStops: 0,
     minimumPowerFraction: 1/128, ...overrides }).value;
 
@@ -153,7 +156,7 @@ describe("TTL pre-flash exposure", () => {
   });
 
   it("feeds the solved power into ordinary front- and rear-curtain sync unchanged", () => {
-    const result = ttl(), scaled = applyTtlFlashPower(flash(), result), slow = timing(.02, .005);
+    const result = ttl(), scaled = createTtlScaledFlashProfile(flash(), result), slow = timing(.02, .005);
     expect(scaled.outputControl.scale).toBeCloseTo(.5*result.powerFraction!, 15);
     for (const syncMode of ["front-curtain", "rear-curtain"] as const) {
       const sync = resolveManualFlashSync({ flashEnabled: true, flashProfile: scaled, syncCapabilities: capabilities(false), timing: slow, syncMode });
@@ -163,7 +166,7 @@ describe("TTL pre-flash exposure", () => {
       // Every row receives the whole pulse: 2 × 0.5p × ∫pulse = p·PULSE/2.
       for (const energy of rowFlashEnergy(overlay, slow, [.5, 5, 9.5])) expect(energy).toBeCloseTo(result.powerFraction!*PULSE/2, 9);
     }
-    expect(() => applyTtlFlashPower(flash(), ttl({ preFlashSampleSet: zones([.02, .02, .04, .04]) }))).toThrow("no flash return");
+    expect(() => createTtlScaledFlashProfile(flash(), ttl({ preFlashSampleSet: zones([.02, .02, .04, .04]) }))).toThrow("no flash return");
   });
 });
 

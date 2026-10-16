@@ -4,17 +4,18 @@ import { describe, expect, it } from "vitest";
 import {
   assessReadoutExposureTimingLinkage,
   calculateCaptureExposureWindows,
-  deriveElectronicRollingShutterExposureSchedule,
+  resolveElectronicRollingShutterExposureSchedule,
   integrateSceneIlluminationTemporalMultiplierOverExposureWindow,
-  isElectronicRollingShutterExposureSchedule,
   parseSceneIlluminationProfile,
   parseSceneIlluminationTemporalProfile,
   simulateEnvironmentSensorRawFrame,
-  toCaptureExposureSchedule,
+  createRollingShutterCaptureExposureSchedule,
+  type ElectronicRollingShutterExposureSchedule,
   type NativeSensorReadoutScanDirection,
   type RollingSensorReadoutTimingDeclaration,
   type SceneRadianceEvaluationRequest
 } from "../src/index.js";
+import { isElectronicRollingShutterExposureSchedule } from "../src/sensor/readout-exposure-linkage.js";
 import { evaluator, frameInput, type FrameScheduleOverride } from "./helpers/environment-raw-fixture.js";
 import { evidence } from "./helpers/eqe-response-fixture.js";
 
@@ -23,8 +24,8 @@ const readout = (direction: NativeSensorReadoutScanDirection, skew: number): Rol
   scanDirectionNative: { value: direction, evidence: evidence("test:direction") },
   spatialSamplingSkewSeconds: { value: skew, unit: "s", evidence: evidence("test:skew") } });
 
-const rollingSchedule = (direction: NativeSensorReadoutScanDirection, skew: number, exposure: number) =>
-  deriveElectronicRollingShutterExposureSchedule({ readout: readout(direction, skew),
+const rollingSchedule = (direction: NativeSensorReadoutScanDirection, skew: number, exposure: number): ElectronicRollingShutterExposureSchedule =>
+  resolveElectronicRollingShutterExposureSchedule({ readout: readout(direction, skew),
     nominalExposureDurationSeconds: { value: exposure, unit: "s", evidence: evidence("test:exposure") },
     linkageEvidence: evidence("test:electronic-rolling-shutter") });
 
@@ -36,7 +37,7 @@ describe("electronic rolling-shutter exposure schedule", () => {
     expect(isElectronicRollingShutterExposureSchedule(schedule, readout("top-to-bottom", .02))).toBe(true);
     expect(isElectronicRollingShutterExposureSchedule(schedule, readout("bottom-to-top", .02))).toBe(false);
     expect(isElectronicRollingShutterExposureSchedule({ ...schedule, shutterMechanism: "mechanical" }, readout("top-to-bottom", .02))).toBe(false);
-    const H = 8, windows = calculateCaptureExposureWindows({ ...toCaptureExposureSchedule(schedule),
+    const H = 8, windows = calculateCaptureExposureWindows({ ...createRollingShutterCaptureExposureSchedule(schedule),
       nativeRaster: { pixelWidth: 4, pixelHeight: H }, samplePointsNative: Array.from({ length: H }, (_, y) => ({ x: 1.5, y: y+.5 })) }).value;
     windows.samples.forEach((w, y) => {
       expect(w.startOffsetSecondsFromOpeningReference).toBeCloseTo(.02*(y+.5)/H, 15);
@@ -50,13 +51,13 @@ describe("electronic rolling-shutter exposure schedule", () => {
   });
 
   it("fails closed for global readout and invalid declarations", () => {
-    expect(() => deriveElectronicRollingShutterExposureSchedule({
+    expect(() => resolveElectronicRollingShutterExposureSchedule({
       readout: { readoutMode: "global", captureReadoutDurationSeconds: { value: .01, unit: "s", evidence: evidence("g") } } as never,
       nominalExposureDurationSeconds: { value: .01, unit: "s", evidence: evidence("e") }, linkageEvidence: evidence("l") }))
       .toThrow("requires a rolling sensor readout");
     expect(() => rollingSchedule("top-to-bottom", -1, .01)).toThrow();
     expect(() => rollingSchedule("top-to-bottom", .01, 0)).toThrow();
-    expect(() => deriveElectronicRollingShutterExposureSchedule({ readout: readout("top-to-bottom", .01),
+    expect(() => resolveElectronicRollingShutterExposureSchedule({ readout: readout("top-to-bottom", .01),
       nominalExposureDurationSeconds: { value: .01, unit: "s", evidence: evidence("e") }, linkageEvidence: [] })).toThrow();
   });
 });
@@ -78,7 +79,7 @@ function image(schedule: FrameScheduleOverride | undefined, radiance: (h: number
     site.environment.motion.angularVelocityRadPerSec = { pitch: 0, yaw: yawRadPerSec, roll: 0 };
     site.environment.temporalSampleCount = 2;
   });
-  input.evaluateRadiance = q => {
+  input.evaluateRadiance = (q): ReturnType<typeof evaluator> => {
     const site = Number(/environment-site-(\d+)-/.exec(q.sampleId)![1]);
     if (record) record.set(site, [...(record.get(site) ?? []), Math.atan(horizontal(q)), q.timeSecondsFromExposureStart]);
     return evaluator({ ...q, timeSecondsFromExposureStart: 0 }, 1e-9*radiance(horizontal(q), q.timeSecondsFromExposureStart));

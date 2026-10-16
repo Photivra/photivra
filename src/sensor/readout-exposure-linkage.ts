@@ -455,7 +455,7 @@ export const ELECTRONIC_ROLLING_SHUTTER_MODEL = Object.freeze({
   version: "1.0.0"
 } as const);
 
-export interface DeriveElectronicRollingShutterExposureScheduleInput {
+export interface ResolveElectronicRollingShutterExposureScheduleInput {
   /** Rolling readout declaration whose scan direction and spatial skew drive both exposure boundaries. */
   readout: RollingSensorReadoutTimingDeclaration;
   /** Per-line integration time between line reset and line read. */
@@ -472,7 +472,7 @@ export interface DeriveElectronicRollingShutterExposureScheduleInput {
  * Exposure-window schedule of an electronic rolling shutter. Its `shutterMechanism`,
  * `nominalExposureDurationSeconds`, `opening` and `closing` fields form a complete exposure schedule, so
  * they can be passed as a native RAW / environment `exposureWindow` or spread into a production
- * `temporalCapture.exposureWindowInput` (see {@link toCaptureExposureSchedule}).
+ * `temporalCapture.exposureWindowInput` (see {@link createRollingShutterCaptureExposureSchedule}).
  */
 export interface ElectronicRollingShutterExposureSchedule {
   modelId: typeof ELECTRONIC_ROLLING_SHUTTER_MODEL.id;
@@ -493,9 +493,10 @@ export interface ElectronicRollingShutterExposureSchedule {
 }
 
 /** The exposure-schedule fields of a derived rolling-shutter schedule, without model metadata. */
-export function toCaptureExposureSchedule(
+export function createRollingShutterCaptureExposureSchedule(
   schedule: ElectronicRollingShutterExposureSchedule
 ): Pick<CalculateCaptureExposureWindowsInput, "shutterMechanism" | "nominalExposureDurationSeconds" | "opening" | "closing"> {
+  requireRecord(schedule, "rollingShutterSchedule");
   return structuredClone({ shutterMechanism: schedule.shutterMechanism,
     nominalExposureDurationSeconds: schedule.nominalExposureDurationSeconds,
     opening: schedule.opening, closing: schedule.closing });
@@ -520,8 +521,8 @@ export function toCaptureExposureSchedule(
  * the active-capture skew is caller-declared (never scaled from a full-frame value).
  * @see docs/MOTION_AND_SIGNAL.md#electronic-rolling-shutter-image-formation
  */
-export function deriveElectronicRollingShutterExposureSchedule(
-  input: DeriveElectronicRollingShutterExposureScheduleInput
+export function resolveElectronicRollingShutterExposureSchedule(
+  input: ResolveElectronicRollingShutterExposureScheduleInput
 ): ElectronicRollingShutterExposureSchedule {
   const record = requireRecord(input, "rollingShutter");
   const readout = requireRecord(record.readout, "rollingShutter.readout");

@@ -847,11 +847,10 @@ export {
 
 export {
   assessReadoutExposureTimingLinkage,
-  deriveElectronicRollingShutterExposureSchedule,
-  isElectronicRollingShutterExposureSchedule,
-  toCaptureExposureSchedule,
+  resolveElectronicRollingShutterExposureSchedule,
+  createRollingShutterCaptureExposureSchedule,
   ELECTRONIC_ROLLING_SHUTTER_MODEL,
-  type DeriveElectronicRollingShutterExposureScheduleInput,
+  type ResolveElectronicRollingShutterExposureScheduleInput,
   type ElectronicRollingShutterExposureSchedule,
   type AssessReadoutExposureTimingLinkageInput,
   type ReadoutExposureBoundaryId,
@@ -1273,7 +1272,7 @@ export {
 
 export {
   TTL_FLASH_MODEL,
-  applyTtlFlashPower,
+  createTtlScaledFlashProfile,
   calculateFlashGuideNumber,
   calculateFlashPowerForDistance,
   resolveTtlFlashExposure,

@@ -147,7 +147,7 @@ export interface VideoFrameSequence {
    * first-opening phase). Null when no rolling shutter is declared: the caller supplies the global
    * schedule of its capture mode.
    */
-  exposureSchedule: ReturnType<typeof toCaptureExposureSchedule> | null;
+  exposureSchedule: ReturnType<typeof createRollingShutterCaptureExposureSchedule> | null;
   rollingShutter: Pick<ElectronicRollingShutterExposureSchedule, "modelId" | "modelVersion" | "lineScanSkewSeconds" | "linkage"> | null;
   /** Ordinary release frames: pass each to createProductionCaptureSnapshotFromReleaseFrame. */
   frames: readonly ResolvedReleaseFrame[];

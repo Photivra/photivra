@@ -841,9 +841,9 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 
 | Export | Kind |
 | --- | --- |
-| [`applyTtlFlashPower`](api/exposure-flash-ttl.md#applyttlflashpower) | Runtime |
 | [`calculateFlashGuideNumber`](api/exposure-flash-ttl.md#calculateflashguidenumber) | Runtime |
 | [`calculateFlashPowerForDistance`](api/exposure-flash-ttl.md#calculateflashpowerfordistance) | Runtime |
+| [`createTtlScaledFlashProfile`](api/exposure-flash-ttl.md#createttlscaledflashprofile) | Runtime |
 | [`FlashGuideNumberInput`](api/exposure-flash-ttl.md#flashguidenumberinput) | Type |
 | [`FlashPowerForDistance`](api/exposure-flash-ttl.md#flashpowerfordistance) | Type |
 | [`FlashPowerForDistanceInput`](api/exposure-flash-ttl.md#flashpowerfordistanceinput) | Type |
@@ -2161,18 +2161,17 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | --- | --- |
 | [`assessReadoutExposureTimingLinkage`](api/sensor-readout-exposure-linkage.md#assessreadoutexposuretiminglinkage) | Runtime |
 | [`AssessReadoutExposureTimingLinkageInput`](api/sensor-readout-exposure-linkage.md#assessreadoutexposuretiminglinkageinput) | Type |
-| [`deriveElectronicRollingShutterExposureSchedule`](api/sensor-readout-exposure-linkage.md#deriveelectronicrollingshutterexposureschedule) | Runtime |
-| [`DeriveElectronicRollingShutterExposureScheduleInput`](api/sensor-readout-exposure-linkage.md#deriveelectronicrollingshutterexposurescheduleinput) | Type |
+| [`createRollingShutterCaptureExposureSchedule`](api/sensor-readout-exposure-linkage.md#createrollingshuttercaptureexposureschedule) | Runtime |
 | [`ELECTRONIC_ROLLING_SHUTTER_MODEL`](api/sensor-readout-exposure-linkage.md#electronic_rolling_shutter_model) | Runtime |
 | [`ElectronicRollingShutterExposureSchedule`](api/sensor-readout-exposure-linkage.md#electronicrollingshutterexposureschedule) | Type |
-| [`isElectronicRollingShutterExposureSchedule`](api/sensor-readout-exposure-linkage.md#iselectronicrollingshutterexposureschedule) | Runtime |
 | [`ReadoutExposureBoundaryId`](api/sensor-readout-exposure-linkage.md#readoutexposureboundaryid) | Type |
 | [`ReadoutExposureBoundarySpatialLink`](api/sensor-readout-exposure-linkage.md#readoutexposureboundaryspatiallink) | Type |
 | [`ReadoutExposureBoundarySpatialLinkAssessment`](api/sensor-readout-exposure-linkage.md#readoutexposureboundaryspatiallinkassessment) | Type |
 | [`ReadoutExposureSpatialPhaseOrientation`](api/sensor-readout-exposure-linkage.md#readoutexposurespatialphaseorientation) | Type |
 | [`ReadoutExposureTimingLinkageAssessment`](api/sensor-readout-exposure-linkage.md#readoutexposuretiminglinkageassessment) | Type |
 | [`ReadoutExposureTimingLinkageDeclaration`](api/sensor-readout-exposure-linkage.md#readoutexposuretiminglinkagedeclaration) | Type |
-| [`toCaptureExposureSchedule`](api/sensor-readout-exposure-linkage.md#tocaptureexposureschedule) | Runtime |
+| [`resolveElectronicRollingShutterExposureSchedule`](api/sensor-readout-exposure-linkage.md#resolveelectronicrollingshutterexposureschedule) | Runtime |
+| [`ResolveElectronicRollingShutterExposureScheduleInput`](api/sensor-readout-exposure-linkage.md#resolveelectronicrollingshutterexposurescheduleinput) | Type |
 
 ## sensor/readout-timing.ts
 

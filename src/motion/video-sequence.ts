@@ -12,14 +12,14 @@
 
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
-import { requirePublicOpaqueId } from "../core/record-validation.js";
+import { requireInputObject, requirePublicOpaqueId } from "../core/record-validation.js";
 import type { ReleaseAutomationState, ResolvedReleaseFrame } from "../capture/release-sequence.js";
 import { parseFocusPlane, type FocusPlane } from "../optics/focus-state.js";
 import { parseOpticalProfileState, type OpticalProfileState } from "../optics/profile-contract.js";
 import {
-  deriveElectronicRollingShutterExposureSchedule,
+  resolveElectronicRollingShutterExposureSchedule,
   ELECTRONIC_ROLLING_SHUTTER_MODEL,
-  toCaptureExposureSchedule,
+  createRollingShutterCaptureExposureSchedule,
   type ElectronicRollingShutterExposureSchedule
 } from "../sensor/readout-exposure-linkage.js";
 import type { RollingSensorReadoutTimingDeclaration } from "../sensor/readout-timing.js";
@@ -138,7 +138,7 @@ export interface VideoFrameSequence {
    * first-opening phase). Null when no rolling shutter is declared: the caller supplies the global
    * schedule of its capture mode.
    */
-  exposureSchedule: ReturnType<typeof toCaptureExposureSchedule> | null;
+  exposureSchedule: ReturnType<typeof createRollingShutterCaptureExposureSchedule> | null;
   rollingShutter: Pick<ElectronicRollingShutterExposureSchedule, "modelId" | "modelVersion" | "lineScanSkewSeconds" | "linkage"> | null;
   /** Ordinary release frames: pass each to createProductionCaptureSnapshotFromReleaseFrame. */
   frames: readonly ResolvedReleaseFrame[];
@@ -156,6 +156,8 @@ export interface VideoFrameSequence {
  * period so each line is read once per frame.
  */
 export function resolveVideoFrameSequence(input: ResolveVideoFrameSequenceInput): VideoFrameSequence {
+  requireInputObject(input, "resolveVideoFrameSequence input");
+  requireInputObject(input.automation, "resolveVideoFrameSequence automation");
   const sequenceId = requirePublicOpaqueId(input.sequenceId, "Invalid video sequence ID.");
   const optical = parseOpticalProfileState(input.opticalState);
   if (optical.captureMode !== "video") {
@@ -190,7 +192,7 @@ export function resolveVideoFrameSequence(input: ResolveVideoFrameSequenceInput)
 
   let rolling: ElectronicRollingShutterExposureSchedule | null = null;
   if (input.rollingShutter !== undefined) {
-    rolling = deriveElectronicRollingShutterExposureSchedule({ readout: input.rollingShutter.readout,
+    rolling = resolveElectronicRollingShutterExposureSchedule({ readout: input.rollingShutter.readout,
       nominalExposureDurationSeconds: { value: exposureSeconds, unit: "s", evidence: timingEvidence },
       linkageEvidence: input.rollingShutter.linkageEvidence });
     if (rolling.lineScanSkewSeconds > framePeriodSeconds) {
@@ -231,7 +233,7 @@ export function resolveVideoFrameSequence(input: ResolveVideoFrameSequenceInput)
     sequenceSeedUint32: seed,
     seedDerivation: "murmur3-x86-32(sequenceSeed, absoluteFrameIndex, VIDEO_FRAME_SEED_STREAM_ID)",
     frameTimeDerivation: "absoluteFrameIndex / frameRateHz",
-    exposureSchedule: rolling === null ? null : toCaptureExposureSchedule(rolling),
+    exposureSchedule: rolling === null ? null : createRollingShutterCaptureExposureSchedule(rolling),
     rollingShutter: rolling === null ? null : { modelId: ELECTRONIC_ROLLING_SHUTTER_MODEL.id,
       modelVersion: ELECTRONIC_ROLLING_SHUTTER_MODEL.version, lineScanSkewSeconds: rolling.lineScanSkewSeconds,
       linkage: rolling.linkage },

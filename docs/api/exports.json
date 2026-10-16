@@ -58,11 +58,6 @@
       "kind": "type"
     },
     {
-      "name": "applyTtlFlashPower",
-      "source": "src/exposure/flash-ttl.ts",
-      "kind": "runtime"
-    },
-    {
       "name": "approximationResult",
       "source": "src/core/calculation-result.ts",
       "kind": "runtime"
@@ -1868,6 +1863,11 @@
       "kind": "type"
     },
     {
+      "name": "createRollingShutterCaptureExposureSchedule",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "createSceneIlluminationSpectralCoverageParticipant",
       "source": "src/schema/illumination-spectral.ts",
       "kind": "runtime"
@@ -1938,6 +1938,11 @@
       "kind": "runtime"
     },
     {
+      "name": "createTtlScaledFlashProfile",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "DeclaredEffectiveCaptureSampling",
       "source": "src/sensor/capture-mode.ts",
       "kind": "type"
@@ -1950,16 +1955,6 @@
     {
       "name": "DepthOfField",
       "source": "src/optics/depth-of-field.ts",
-      "kind": "type"
-    },
-    {
-      "name": "deriveElectronicRollingShutterExposureSchedule",
-      "source": "src/sensor/readout-exposure-linkage.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "DeriveElectronicRollingShutterExposureScheduleInput",
-      "source": "src/sensor/readout-exposure-linkage.ts",
       "kind": "type"
     },
     {
@@ -2936,11 +2931,6 @@
       "name": "InverseRadialDistortionMappings",
       "source": "src/optics/radial-distortion.ts",
       "kind": "type"
-    },
-    {
-      "name": "isElectronicRollingShutterExposureSchedule",
-      "source": "src/sensor/readout-exposure-linkage.ts",
-      "kind": "runtime"
     },
     {
       "name": "ISO_CAPABILITY_PROFILE_SCHEMA_VERSION",
@@ -5028,6 +5018,16 @@
       "kind": "type"
     },
     {
+      "name": "resolveElectronicRollingShutterExposureSchedule",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveElectronicRollingShutterExposureScheduleInput",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "type"
+    },
+    {
       "name": "resolveExposureDurationControl",
       "source": "src/exposure/exposure-duration-control.ts",
       "kind": "runtime"
@@ -6771,11 +6771,6 @@
       "name": "ThinLensImageDistance",
       "source": "src/optics/thin-lens.ts",
       "kind": "type"
-    },
-    {
-      "name": "toCaptureExposureSchedule",
-      "source": "src/sensor/readout-exposure-linkage.ts",
-      "kind": "runtime"
     },
     {
       "name": "transformNativeRasterPointToOriented",

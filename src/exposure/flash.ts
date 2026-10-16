@@ -1522,6 +1522,8 @@ function integratePulse(samples: readonly SceneIlluminationTemporalWaveformSampl
  * @see docs/SCENE_SENSOR_TEMPORAL_EXPOSURE.md#high-speed-sync
  */
 export function resolveHighSpeedFlashSync(input: ResolveHighSpeedFlashSyncInput): ResolvedHighSpeedFlashSync {
+  requireInputObject(input, "resolveHighSpeedFlashSync input");
+  requireInputObject(input.timing, "resolveHighSpeedFlashSync timing");
   const flash = parseManualFlashProfile(input.flashProfile);
   const capabilities = parseFlashSyncCapabilityProfile(input.syncCapabilities);
   if (capabilities.captureModeId !== input.timing.captureModeId || capabilities.timingProfileId !== input.timing.timingProfileId) {
@@ -1614,6 +1616,8 @@ export function resolveHighSpeedFlashSync(input: ResolveHighSpeedFlashSyncInput)
 export function createHighSpeedSyncIlluminationOverlay(
   input: Omit<CreateManualFlashIlluminationOverlayInput, "resolvedSync"> & { resolvedSync: ResolvedHighSpeedFlashSync }
 ): ManualFlashIlluminationOverlay {
+  requireInputObject(input, "createHighSpeedSyncIlluminationOverlay input");
+  requireInputObject(input.resolvedSync, "createHighSpeedSyncIlluminationOverlay resolvedSync");
   return createManualFlashIlluminationOverlay({ ...input,
     flashProfile: input.resolvedSync.burstFlashProfile ?? input.flashProfile });
 }

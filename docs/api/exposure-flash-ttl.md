@@ -2,18 +2,6 @@
 
 The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
-## applyTtlFlashPower
-
-Returns a copy of a manual flash profile whose relative output is scaled by a resolved TTL power
-fraction, ready for resolveManualFlashSync (front/rear curtain). For HSS pass the unscaled profile and
-`ttl.powerFraction` as resolveHighSpeedFlashSync's powerFraction instead, so power is applied once.
-
-```ts
-export function applyTtlFlashPower(flashProfile: ManualFlashProfile, ttl: TtlFlashExposure): ManualFlashProfile;
-```
-
-This call is synchronous; any supplied provider must follow its explicit synchronous contract.
-
 ## calculateFlashGuideNumber
 
 Effective guide number GN = GN_full · √p · √(ISO/100).
@@ -35,6 +23,18 @@ Manual guide-number exposure: the power fraction that exposes a subject at dista
 
 ```ts
 export function calculateFlashPowerForDistance(input: FlashPowerForDistanceInput): FlashPowerForDistance;
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
+## createTtlScaledFlashProfile
+
+Returns a copy of a manual flash profile whose relative output is scaled by a resolved TTL power
+fraction, ready for resolveManualFlashSync (front/rear curtain). For HSS pass the unscaled profile and
+`ttl.powerFraction` as resolveHighSpeedFlashSync's powerFraction instead, so power is applied once.
+
+```ts
+export function createTtlScaledFlashProfile(flashProfile: ManualFlashProfile, ttl: TtlFlashExposure): ManualFlashProfile;
 ```
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.

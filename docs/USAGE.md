@@ -3763,7 +3763,7 @@ Flash spectrum is physical scene illumination. A downstream Flash WB preset, if 
 
 An optional committed `ResolvedReleaseFrame` may be supplied. Its shutter duration must match the #12 timing contract. The resolved flash event then exposes pulse start/end in sequence-relative scene time without changing the release frame.
 
-Generic pre-flash TTL power (`resolveTtlFlashExposure()`, with flash exposure compensation) is solved separately and applied to the manual profile with `applyTtlFlashPower()`. FE/FV lock, recycle/burst/thermal limits, red-eye preflashes, modeling lamps, AF-assist and wireless protocol simulation remain outside the manual-flash contract.
+Generic pre-flash TTL power (`resolveTtlFlashExposure()`, with flash exposure compensation) is solved separately and applied to the manual profile with `createTtlScaledFlashProfile()`. FE/FV lock, recycle/burst/thermal limits, red-eye preflashes, modeling lamps, AF-assist and wireless protocol simulation remain outside the manual-flash contract.
 
 ## Capture orientation, active area, and output geometry
 
@@ -6705,9 +6705,9 @@ ordinary release frames:
 import {
   assessShutterAngleRule,
   calculateCaptureExposureWindows,
-  deriveElectronicRollingShutterExposureSchedule,
+  resolveElectronicRollingShutterExposureSchedule,
   resolveVideoFrameSequence,
-  toCaptureExposureSchedule
+  createRollingShutterCaptureExposureSchedule
 } from "@photivra/engine";
 
 const evidence = [{ sourceOrigin: "photivra" as const, sourceReference: "example:rolling-video", reuseStatus: "photivra-owned" as const }];
@@ -6717,13 +6717,13 @@ const readout = {
   scanDirectionNative: { value: "top-to-bottom" as const, evidence },
   spatialSamplingSkewSeconds: { value: 0.016, unit: "s" as const, evidence }
 };
-const schedule = deriveElectronicRollingShutterExposureSchedule({
+const schedule = resolveElectronicRollingShutterExposureSchedule({
   readout,
   nominalExposureDurationSeconds: { value: 1 / 250, unit: "s", evidence },
   linkageEvidence: evidence
 });
 const windows = calculateCaptureExposureWindows({
-  ...toCaptureExposureSchedule(schedule),
+  ...createRollingShutterCaptureExposureSchedule(schedule),
   nativeRaster: { pixelWidth: 6000, pixelHeight: 4000 },
   samplePointsNative: [{ x: 3000, y: 0.5 }, { x: 3000, y: 3999.5 }]
 }).value;
@@ -6805,7 +6805,7 @@ const ttl = resolveTtlFlashExposure({
   guideNumber: { fullPowerGuideNumberMetersIso100: 40, iso: 100, apertureFNumber: 4 }
 }).value;
 console.log(ttl.status, ttl.powerFraction, ttl.flashRangeAtApertureM);
-// Apply with applyTtlFlashPower(flashProfile, ttl) and place it with resolveManualFlashSync() as before.
+// Apply with createTtlScaledFlashProfile(flashProfile, ttl) and place it with resolveManualFlashSync() as before.
 ```
 
 High-speed sync needs a schema 0.2.0 sync-capability profile that declares HSS and its burst energy fraction.

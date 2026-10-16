@@ -256,7 +256,7 @@ export interface ProductionTemporalCaptureInput {
     SensorReadoutTimingDeclaration;
   /**
    * Optional explicit readout→exposure linkage. With the electronic rolling-shutter model the
-   * exposure-window schedule must equal deriveElectronicRollingShutterExposureSchedule(readout), so
+   * exposure-window schedule must equal resolveElectronicRollingShutterExposureSchedule(readout), so
    * every per-site exposure window (and the rotation quadrature) carries the per-line offset.
    */
   readoutExposureLinkage?: {

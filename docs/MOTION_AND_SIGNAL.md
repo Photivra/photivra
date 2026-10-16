@@ -140,7 +140,7 @@ and `integrateSceneIlluminationTemporalMultiplierOverExposureWindow()` integrate
 What was missing was the **row offset itself**: a rolling readout declaration described only sensor data
 readout, so with simultaneous exposure boundaries every row saw the same window.
 
-`deriveElectronicRollingShutterExposureSchedule()` is the explicit linkage model
+`resolveElectronicRollingShutterExposureSchedule()` is the explicit linkage model
 (`electronic-rolling-shutter-line-reset-read` 1.0.0) for a fully electronic, line-sequential CMOS rolling
 shutter. Each line is reset, integrates for the exposure time `T` and is read; the reset pointer leads the
 read pointer by `T` and both advance at the line rate (El Gamal & Eltoukhy 2005; Liang, Chang & Chen 2008).
@@ -154,7 +154,7 @@ window  = [s·τ, s·τ + T]            local duration = T for every line
 ```
 
 Both exposure boundaries therefore become uniform-linear scans in the readout direction with traversal `τ`.
-The schedule is a complete exposure schedule (`toCaptureExposureSchedule()`), so it is passed unchanged as a
+The schedule is a complete exposure schedule (`createRollingShutterCaptureExposureSchedule()`), so it is passed unchanged as a
 native RAW / environment `exposureWindow`, or as a production `temporalCapture.exposureWindowInput` together
 with `readoutExposureLinkage: { kind: "electronic-rolling-shutter-line-reset-read", evidence }`. The plan then
 verifies that the schedule is exactly the one derived from its rolling readout

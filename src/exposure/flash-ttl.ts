@@ -14,6 +14,7 @@
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import { requireInputKeys, requireInputObject } from "../core/record-validation.js";
 import { parseManualFlashProfile, type ManualFlashProfile } from "./flash.js";
 import {
   meterRelativeExposure,
@@ -54,6 +55,7 @@ export interface FlashGuideNumberInput {
  * (power fraction p) and the required exposure inversely with ISO speed, so GN ∝ √p·√ISO.
  */
 export function calculateFlashGuideNumber(input: FlashGuideNumberInput): number {
+  requireInputKeys(input, "calculateFlashGuideNumber", ["fullPowerGuideNumberMetersIso100", "powerFraction", "iso"]);
   return requirePositive(input.fullPowerGuideNumberMetersIso100, "fullPowerGuideNumberMetersIso100") *
     Math.sqrt(requireFraction(input.powerFraction, "powerFraction")) *
     Math.sqrt(requirePositive(input.iso, "iso") / 100);
@@ -81,6 +83,8 @@ export interface FlashPowerForDistance {
 
 /** Manual guide-number exposure: the power fraction that exposes a subject at distance d correctly. */
 export function calculateFlashPowerForDistance(input: FlashPowerForDistanceInput): FlashPowerForDistance {
+  requireInputKeys(input, "calculateFlashPowerForDistance", ["fullPowerGuideNumberMetersIso100", "subjectDistanceM",
+    "apertureFNumber", "iso", "minimumPowerFraction"]);
   const gnIso = calculateFlashGuideNumber({ fullPowerGuideNumberMetersIso100: input.fullPowerGuideNumberMetersIso100,
     powerFraction: 1, iso: input.iso });
   const distance = requirePositive(input.subjectDistanceM, "subjectDistanceM");
@@ -173,6 +177,12 @@ function sameZones(a: ExposureMeteringSampleSet, b: ExposureMeteringSampleSet): 
  * weights depend on the signal and the total is no longer linear in p.
  */
 export function resolveTtlFlashExposure(input: ResolveTtlFlashExposureInput): CalculationResult<TtlFlashExposure> {
+  requireInputObject(input, "resolveTtlFlashExposure input");
+  requireInputObject(input.ambientSampleSet, "resolveTtlFlashExposure ambientSampleSet");
+  requireInputObject(input.preFlashSampleSet, "resolveTtlFlashExposure preFlashSampleSet");
+  if (!Array.isArray(input.ambientSampleSet.samples) || !Array.isArray(input.preFlashSampleSet.samples)) {
+    throw new InvalidConfigurationError("TTL sample sets must contain sample arrays.");
+  }
   const profile = parseExposureMeteringProfile(input.meteringProfile);
   if (!LINEAR_POLICIES.has(profile.policy.kind)) {
     throw new InvalidScientificInputError(
@@ -246,9 +256,10 @@ export function resolveTtlFlashExposure(input: ResolveTtlFlashExposureInput): Ca
  * fraction, ready for resolveManualFlashSync (front/rear curtain). For HSS pass the unscaled profile and
  * `ttl.powerFraction` as resolveHighSpeedFlashSync's powerFraction instead, so power is applied once.
  */
-export function applyTtlFlashPower(flashProfile: ManualFlashProfile, ttl: TtlFlashExposure): ManualFlashProfile {
+export function createTtlScaledFlashProfile(flashProfile: ManualFlashProfile, ttl: TtlFlashExposure): ManualFlashProfile {
   const flash = parseManualFlashProfile(flashProfile);
-  if (ttl.powerFraction === null) {
+  requireInputObject(ttl, "createTtlScaledFlashProfile ttl");
+  if (ttl.powerFraction === null || typeof ttl.powerFraction !== "number") {
     throw new InvalidScientificInputError("TTL found no flash return; there is no power fraction to apply.");
   }
   return { ...flash, outputControl: { ...flash.outputControl, scale: flash.outputControl.scale * ttl.powerFraction } };
