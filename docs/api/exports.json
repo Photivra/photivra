@@ -928,6 +928,11 @@
       "kind": "type"
     },
     {
+      "name": "calculateSensorFixedPatternSite",
+      "source": "src/sensor/fixed-pattern-noise.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateSensorGeometryMetrics",
       "source": "src/sensor/sensor-geometry.ts",
       "kind": "runtime"
@@ -1711,6 +1716,16 @@
       "name": "createGenericEquipmentTierSelection",
       "source": "src/equipment/generic-tier-presets.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "createIsoGainReadoutRegimes",
+      "source": "src/sensor/iso-gain.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateIsoGainReadoutRegimesInput",
+      "source": "src/sensor/iso-gain.ts",
+      "kind": "type"
     },
     {
       "name": "createLockedWhiteBalanceState",
@@ -2863,6 +2878,16 @@
       "kind": "type"
     },
     {
+      "name": "IsoGainConversionGainMode",
+      "source": "src/sensor/iso-gain.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IsoGainReadoutRegimes",
+      "source": "src/sensor/iso-gain.ts",
+      "kind": "type"
+    },
+    {
       "name": "IsoStandardSettingGrid",
       "source": "src/equipment/iso-capabilities.ts",
       "kind": "type"
@@ -3805,6 +3830,11 @@
     {
       "name": "parseSensorEqeTemporalPhotoSignal",
       "source": "src/sensor/temporal-photo-signal.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseSensorFixedPatternNoiseProfile",
+      "source": "src/sensor/fixed-pattern-noise.ts",
       "kind": "runtime"
     },
     {
@@ -5538,6 +5568,16 @@
       "kind": "runtime"
     },
     {
+      "name": "SENSOR_FIXED_PATTERN_NOISE_MODEL",
+      "source": "src/sensor/fixed-pattern-noise.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SENSOR_FIXED_PATTERN_NOISE_PROFILE_SCHEMA_VERSION",
+      "source": "src/sensor/fixed-pattern-noise.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "SENSOR_RAW_CAPTURE_SAMPLE_VERSION",
       "source": "src/sensor/raw-reconstruction.ts",
       "kind": "runtime"
@@ -5575,6 +5615,11 @@
     {
       "name": "SensorAccumulatedChargeComposition",
       "source": "src/sensor/accumulated-charge.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorAdcIntegralNonLinearity",
+      "source": "src/sensor/raw-readout.ts",
       "kind": "type"
     },
     {
@@ -5778,6 +5823,16 @@
       "kind": "type"
     },
     {
+      "name": "SensorFixedPatternNoiseProfile",
+      "source": "src/sensor/fixed-pattern-noise.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorFixedPatternSiteValues",
+      "source": "src/sensor/fixed-pattern-noise.ts",
+      "kind": "type"
+    },
+    {
       "name": "SensorGeometricSensitiveAperture",
       "source": "src/sensor/sampling-aperture.ts",
       "kind": "type"
@@ -5954,6 +6009,11 @@
     },
     {
       "name": "SensorReadoutConversionRegime",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorReadoutExposureIndexGain",
       "source": "src/sensor/raw-readout.ts",
       "kind": "type"
     },

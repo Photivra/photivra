@@ -4,12 +4,12 @@
  * Module boundary and integration notes.
  * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
  * missing required fields and incompatible scientific data fail at this boundary. Dark current is an
- * independently declared pre-compensation thermal electron rate. Exact-temperature or sampled linear
+ * independently declared pre-compensation thermal electron rate. Exact-temperature or sampled (log-linear or legacy linear)
  * interpolation is supported only within declared applicability; no universal doubling-temperature law
  * is inferred. Population means remain approximations and do not model hot-pixel/DCNU structure.
  * Evaluate the declared temperature-dependent dark electron rate and integrate over the exact
  * photo-signal local exposure event. Dark current is an independently declared pre-compensation
- * thermal electron rate. Exact-temperature or sampled linear interpolation is supported only within
+ * thermal electron rate. Exact-temperature or sampled (log-linear or legacy linear) interpolation is supported only within
  * declared applicability; no universal doubling-temperature law is inferred. Population means remain
  * approximations and do not model hot-pixel/DCNU structure.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
@@ -64,9 +64,28 @@ export type SensorDarkCurrentTemperatureModel =
         number;
     }
   | {
+      /** Legacy linear-in-rate interpolation; overestimates between samples of an exponential curve. */
       kind:
         "piecewise-linear-temperature-table";
       interpolation: "piecewise-linear";
+      outsideRangeBehavior:
+        "fail-closed";
+      samples: readonly {
+        temperatureC: number;
+        darkCurrentElectronsPerSecond:
+          number;
+      }[];
+    }
+  | {
+      /**
+       * Linear interpolation of ln(rate) between adjacent samples, i.e. exponential in temperature
+       * inside each interval, matching the approximately exponential (Arrhenius / doubling-temperature)
+       * behaviour of thermally generated dark current. Rates must be strictly positive. No global
+       * doubling temperature is imposed: each interval follows its own two declared samples.
+       */
+      kind:
+        "log-linear-temperature-table";
+      interpolation: "log-linear";
       outsideRangeBehavior:
         "fail-closed";
       samples: readonly {
@@ -371,9 +390,13 @@ function parseTemperatureModel(
     };
   }
 
+  const logLinear =
+    record.kind ===
+    "log-linear-temperature-table";
   if (
     record.kind !==
-      "piecewise-linear-temperature-table"
+      "piecewise-linear-temperature-table" &&
+    !logLinear
   ) {
     throw new InvalidConfigurationError(
       "sensorDarkCurrent.temperatureModel.kind is invalid."
@@ -381,10 +404,12 @@ function parseTemperatureModel(
   }
   if (
     record.interpolation !==
-      "piecewise-linear"
+      (logLinear ? "log-linear" : "piecewise-linear")
   ) {
     throw new InvalidConfigurationError(
-      'sensorDarkCurrent.temperatureModel.interpolation must be "piecewise-linear".'
+      logLinear
+        ? 'sensorDarkCurrent.temperatureModel.interpolation must be "log-linear".'
+        : 'sensorDarkCurrent.temperatureModel.interpolation must be "piecewise-linear".'
     );
   }
   if (
@@ -445,14 +470,37 @@ function parseTemperatureModel(
       }
     );
 
-  return {
-    kind:
-      "piecewise-linear-temperature-table",
-    interpolation: "piecewise-linear",
-    outsideRangeBehavior:
-      "fail-closed",
-    samples
-  };
+  if (
+    logLinear &&
+    samples.some(
+      (sample) =>
+        sample
+          .darkCurrentElectronsPerSecond <=
+        0
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      "sensorDarkCurrent.temperatureModel log-linear samples require strictly positive rates."
+    );
+  }
+
+  return logLinear
+    ? {
+        kind:
+          "log-linear-temperature-table",
+        interpolation: "log-linear",
+        outsideRangeBehavior:
+          "fail-closed",
+        samples
+      }
+    : {
+        kind:
+          "piecewise-linear-temperature-table",
+        interpolation: "piecewise-linear",
+        outsideRangeBehavior:
+          "fail-closed",
+        samples
+      };
 }
 
 /**
@@ -460,7 +508,7 @@ function parseTemperatureModel(
  * missing required fields and incompatible scientific data fail at this boundary.
  *
  * Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
- * or sampled linear interpolation is supported only within declared applicability; no universal
+ * or sampled (log-linear or legacy linear) interpolation is supported only within declared applicability; no universal
  * doubling-temperature law is inferred. Population means remain approximations and do not model
  * hot-pixel/DCNU structure.
  * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
@@ -692,6 +740,23 @@ function resolveDarkCurrentRate(
       lower.temperatureC) /
     (upper.temperatureC -
       lower.temperatureC);
+  if (
+    model.kind ===
+    "log-linear-temperature-table"
+  ) {
+    // r = r0^(1-alpha) * r1^alpha, written as r0 * (r1/r0)^alpha.
+    return {
+      rate:
+        lower
+          .darkCurrentElectronsPerSecond *
+        (upper
+          .darkCurrentElectronsPerSecond /
+          lower
+            .darkCurrentElectronsPerSecond) **
+          alpha,
+      interpolationUsed: true
+    };
+  }
   const rate =
     lower
       .darkCurrentElectronsPerSecond +
@@ -756,7 +821,7 @@ function validateExposure(
  * photo-signal local exposure event.
  *
  * Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
- * or sampled linear interpolation is supported only within declared applicability; no universal
+ * or sampled (log-linear or legacy linear) interpolation is supported only within declared applicability; no universal
  * doubling-temperature law is inferred. Population means remain approximations and do not model
  * hot-pixel/DCNU structure.
  * @param input - Omit<CalculateSensorDarkCurrentChargeInput, "exposure"> & { exposure: SensorEqeExposureIntegration }. See the linked contract for coordinate, unit and profile binding semantics.
@@ -772,7 +837,7 @@ export function calculateSensorDarkCurrentCharge(
  * photo-signal local exposure event.
  *
  * Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
- * or sampled linear interpolation is supported only within declared applicability; no universal
+ * or sampled (log-linear or legacy linear) interpolation is supported only within declared applicability; no universal
  * doubling-temperature law is inferred. Population means remain approximations and do not model
  * hot-pixel/DCNU structure.
  * @param input - Omit<CalculateSensorDarkCurrentChargeInput, "exposure"> & { exposure: SensorEqeTemporalPhotoSignal }. See the linked contract for coordinate, unit and profile binding semantics.
@@ -788,7 +853,7 @@ export function calculateSensorDarkCurrentCharge(
  * photo-signal local exposure event.
  *
  * Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
- * or sampled linear interpolation is supported only within declared applicability; no universal
+ * or sampled (log-linear or legacy linear) interpolation is supported only within declared applicability; no universal
  * doubling-temperature law is inferred. Population means remain approximations and do not model
  * hot-pixel/DCNU structure.
  * @param input - CalculateSensorDarkCurrentChargeInput<SensorEqePhotoExposure>. See the linked contract for coordinate, unit and profile binding semantics.
@@ -804,7 +869,7 @@ export function calculateSensorDarkCurrentCharge(
  * photo-signal local exposure event.
  *
  * Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
- * or sampled linear interpolation is supported only within declared applicability; no universal
+ * or sampled (log-linear or legacy linear) interpolation is supported only within declared applicability; no universal
  * doubling-temperature law is inferred. Population means remain approximations and do not model
  * hot-pixel/DCNU structure.
  * @param input - CalculateSensorDarkCurrentChargeInput<SensorEqePhotoExposure>. See the linked contract for coordinate, unit and profile binding semantics.
@@ -942,7 +1007,10 @@ export function calculateSensorDarkCurrentCharge(
   const assumptions = [
     "Dark current is modeled as pre-compensation thermally generated electron rate in electrons per second.",
     "Release 4.0 style temperature handling is data-driven: no universal exponential or doubling-temperature law is inferred.",
-    "Piecewise-linear interpolation is allowed only inside an explicitly sampled temperature table; extrapolation fails closed.",
+    profile.temperatureModel.kind ===
+      "log-linear-temperature-table"
+      ? "Log-linear (exponential-in-temperature) interpolation between adjacent declared samples is allowed only inside the sampled table; extrapolation fails closed."
+      : "Piecewise-linear interpolation is allowed only inside an explicitly sampled temperature table; extrapolation fails closed.",
     "Dark-current compensation, dark offset, hot-pixel/defect excess, leakage and charge injection remain separate from this thermal dark-current expectation.",
     "Expected dark-electron count is rate × the exact local exposure duration; no integer sampling or dark-current shot-noise realization is performed.",
     "This result is dark charge only. Photo-signal and other accumulated charge are not included, so physical full-well assessment remains unauthorized.",

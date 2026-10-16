@@ -13,7 +13,7 @@ import { loadPhotographicExportInput } from "./helpers/photographic-export-fixtu
 import { loadBasicReferenceFixture } from "./helpers/basic-reference-fixture.js";
 
 const base = loadBasicReferenceFixture();
-const catalog = resolveGenericEquipmentTierCatalog({ presetVersion: "1.0.0" });
+const catalog = resolveGenericEquipmentTierCatalog({ presetVersion: "2.0.0" });
 /** Independent direct phase sum, rather than another call to the engine PSF. */
 /** Independent direct 2D DFT of the declared pupil, zero padded to 2S-1 per axis (Goodman Q > 2). */
 function referenceKernel(p:LensComplexPupilProfile):{width:number;centerX:number;centerY:number;weights:number[]}{

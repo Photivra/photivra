@@ -3071,6 +3071,44 @@ The physical storage clamp is a bounded scalar approximation only. Overflow is r
 
 Physical storage capacity, pre-ADC saturation, and digital/ADC saturation are independent thresholds and may disagree.
 
+Quantization rounds to the nearest code with exact ties toward +∞. A regime may also declare `adc.digitalGain` (≥ 1,
+applied about black after quantization and re-quantized) and `adc.integralNonLinearity` (piecewise-linear INL in codes).
+
+### ISO-dependent gain regimes
+
+`createIsoGainReadoutRegimes()` derives one explicit regime per ISO setting from declared sensor parameters, so ISO
+changes RAW brightness like analog/digital gain (ISO 12232 exposure index, EMVA 1288 linear model):
+
+```ts
+import { createIsoGainReadoutRegimes, parseSensorReadoutConversionProfile } from "@photivra/engine";
+
+const evidence = [{ sourceOrigin: "photivra", sourceReference: "my-sensor-design", reuseStatus: "photivra-owned" }] as const;
+const { regimes, standardRegimeBands } = createIsoGainReadoutRegimes({
+  regimeIdPrefix: "", scientificStatus: "approximation", baseExposureIndex: 100,
+  exposureIndices: [100, 200, 400, 800, 1600, 3200],
+  baseSaturationElectronEquivalent: { value: 30000, evidence }, // electrons at ADC white, ISO 100
+  maximumAnalogGain: { value: 16, evidence },                      // ISO 3200 adds 2x digital gain
+  adc: { bitDepth: 14, blackLevelCode: 1024, digitalSaturationCode: 16383 },
+  conversionGainModes: [
+    { mode: "low-conversion-gain", minimumExposureIndex: 100, readNoiseRmsElectrons: { value: 3, evidence } },
+    { mode: "high-conversion-gain", minimumExposureIndex: 800, readNoiseRmsElectrons: { value: 1.2, evidence } }
+  ],
+  evidence, limitations: ["Illustrative design values, not a measured camera."]
+});
+const readoutProfile = parseSensorReadoutConversionProfile({ schemaVersion: "0.1.0", profileId: "my-readout",
+  colorSamplingProfileId: "my-cfa", channelId: "green",
+  regimeSelectionOwnedBy: "explicit-upstream-camera-state-not-inferred-from-iso", regimes, evidence });
+// standardRegimeBands binds each ISO to its regime in a GenericIsoSignalChainProfile.
+```
+
+### Fixed-pattern noise
+
+`parseSensorFixedPatternNoiseProfile()` declares an opt-in per-sensor-instance pattern (PRNU, DSNU, hot pixels, row and
+column offsets) seeded by `sensorInstanceSeedUint32`, independent of the capture noise seed. Pass the same profile as
+`fixedPatternNoise` to `simulateSensorChargeRealization()` and `simulateSensorRawCode()`, or on every producer site.
+`calculateSensorFixedPatternSite()` returns the deterministic values of one colour-sampling site. The generic tier
+presets carry a synthetic profile in `body.fixedPatternNoise`.
+
 ## RAW capture samples and reconstruction
 
 Use `createSensorRawCaptureSample()` to bind one generated RAW code to the existing capture-mode/color-sampling structural contract.
