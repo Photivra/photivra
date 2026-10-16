@@ -12,12 +12,14 @@ Both are browser-safe: they work on `Uint8Array`/`Uint16Array` data, do no file 
 ```ts
 import { parseDngRawImage } from '@photivra/engine';
 
-declare const fileBytes: Uint8Array; // the caller reads the file
-const dng = parseDngRawImage({ bytes: fileBytes, maximumPixels: 64_000_000 });
-// dng.codes: Uint16Array, row-major, width x height x samplesPerPixel stored raw codes
-// dng.cfa: { repeatRows, repeatColumns, pattern, planeColors } with its origin at the active-area top-left
-// dng.blackLevel / dng.whiteLevel / dng.activeArea / dng.defaultCrop / dng.colorMatrix1 / dng.asShotNeutral ...
-if (dng.photometricInterpretation === 'cfa' && dng.cfa === null) throw new Error('unreachable: CFA images always carry a pattern');
+// `fileBytes` holds the DNG file the caller read (from fetch, a file input or the file system).
+export function readDng(fileBytes: Uint8Array) {
+  const dng = parseDngRawImage({ bytes: fileBytes, maximumPixels: 64_000_000 });
+  // dng.codes: Uint16Array, row-major, width x height x samplesPerPixel stored raw codes
+  // dng.cfa: { repeatRows, repeatColumns, pattern, planeColors } with its origin at the active-area top-left
+  // dng.blackLevel / dng.whiteLevel / dng.activeArea / dng.defaultCrop / dng.colorMatrix1 / dng.asShotNeutral ...
+  return dng;
+}
 ```
 
 ### What it returns
