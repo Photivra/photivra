@@ -18,6 +18,7 @@ import {
   type SensorSpectralChannelResponse,
   type SensorSpectralResponseProfile
 } from "./spectral-response.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface CreateSensorSpectralCoverageParticipantInput {
   spectralResponseProfile:
@@ -86,6 +87,7 @@ export function createSensorSpectralCoverageParticipant(
   input:
     CreateSensorSpectralCoverageParticipantInput
 ): SpectralCoverageParticipant {
+  requireInputObject(input, "createSensorSpectralCoverageParticipant input");
   const profile =
     parseSensorSpectralResponseProfile(
       input.spectralResponseProfile

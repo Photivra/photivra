@@ -247,6 +247,10 @@ The geometric depth-of-field model uses the exact thin-lens near/far limits with
 
 These solve `f²|s − d|/(N d (s − f)) = c`, the thin-lens defocus-circle diameter used by `calculateDefocusCircle()`, so the defocus circle at either returned limit equals `c` (Ray, *Applied Photographic Optics*). Model `thin-lens-depth-of-field` 1.1.0 replaced the earlier approximation `Hs/(H ± (s − f))`, which slightly misplaced both limits and returned a finite far limit when focused at `H`.
 
+The near limit lies beyond the focal length only when `H − f > f`, that is `c < f/N` (the aperture diameter). From package 2.0.0 a circle of confusion at or above `f/N` is rejected as a domain error instead of returning a near limit inside the focal length.
+
+`calculateDefocusCircle()` (model `thin-lens-defocus-circle` 1.1.0, package 2.0.0) evaluates that closed form directly, grouped as `(f/N)·(|s − d|/d)·(f/(s − f))`. The earlier evaluation `D·|v_d − v_s|/v_d` subtracted two nearly equal image distances and lost relative accuracy when both planes are distant or close together (for example a relative error of about 2e-3 for focus at 1000 km and a subject 1 m farther, against an exact rational evaluation); the closed form is accurate to a few ulps there and cannot overflow for finite in-domain inputs.
+
 The circle-of-confusion criterion is a viewing/acceptability input, not a physical sensor threshold. The optional equivalent-viewing helper scales a caller-supplied reference criterion by sensor-diagonal ratio and is explicitly labeled an approximation.
 
 In composed POC capture mode, the equivalent-viewing helper uses the final retained physical image region that will be enlarged to the assumed final viewing size. Active capture, digital output crop, and centered subject framing can therefore change the viewing criterion; output pixel resolution alone cannot. This changes only the viewing/acceptability convention, not the physical optical blur. An explicit caller-supplied `circleOfConfusionMm` is never rescaled.

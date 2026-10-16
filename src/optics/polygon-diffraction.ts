@@ -138,7 +138,7 @@ export function calculateIdealPolygonDiffractionPsf(
       throw new InvalidScientificInputError("imagePointsMicrometers must not contain sparse entries.");
     }
   }
-  const geometry = calculateIdealApertureGeometry(input).value;
+  const geometry = calculateIdealApertureGeometry({ bladeCount: input.bladeCount, ...(input.firstBladeEdgeAngleDegrees === undefined ? {} : { firstBladeEdgeAngleDegrees: input.firstBladeEdgeAngleDegrees }) }).value;
   const unitArea = input.bladeCount * Math.sin(2 * Math.PI / input.bladeCount) / 2;
   const pupilAreaSquareMm = Math.PI * (input.equivalentAreaPupilDiameterMm / 2) ** 2;
   const radius = Math.sqrt(pupilAreaSquareMm / unitArea);

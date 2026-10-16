@@ -25,6 +25,7 @@ import type {
   NormalizedRasterUv,
   ResolvedCaptureGeometry
 } from "../output/capture-geometry.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -913,6 +914,7 @@ export function meterRelativeExposure(
   input:
     MeterRelativeExposureInput
 ): CalculationResult<ExposureMeteringResult> {
+  requireInputObject(input, "meterRelativeExposure input");
   const profile =
     parseExposureMeteringProfile(
       input.profile

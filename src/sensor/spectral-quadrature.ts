@@ -45,6 +45,7 @@ import {
   type SensorSpectralResponseScientificStatus,
   type SensorSpectralResponseUncertainty
 } from "./spectral-response.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 const MAX_SPECTRAL_QUADRATURE_NODES = 100_000;
 
@@ -1009,6 +1010,7 @@ export function calculateSensorSpectralQuadrature(
   input:
     CalculateSensorSpectralQuadratureInput
 ): CalculationResult<SensorSpectralQuadrature> {
+  requireInputObject(input, "calculateSensorSpectralQuadrature input");
   const maximumSubintervalWidthNanometers =
     requirePositiveFinite(
       input.maximumSubintervalWidthNanometers,

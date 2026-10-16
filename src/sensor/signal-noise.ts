@@ -16,6 +16,7 @@ import {
   type CalculationResult
 } from "../core/calculation-result.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 function requireNonNegativeFinite(name: string, value: number): void {
   if (!Number.isFinite(value) || value < 0) {
@@ -41,6 +42,7 @@ export interface CalculatePhotoelectronsInput {
 export function calculatePhotoelectrons(
   input: CalculatePhotoelectronsInput
 ): CalculationResult<number> {
+  requireInputObject(input, "calculatePhotoelectrons input");
   requireNonNegativeFinite("incidentPhotons", input.incidentPhotons);
 
   if (
@@ -87,6 +89,7 @@ export interface SignalToNoise {
 export function calculateSignalToNoise(
   input: CalculateSignalToNoiseInput
 ): CalculationResult<SignalToNoise> {
+  requireInputObject(input, "calculateSignalToNoise input");
   requireNonNegativeFinite("signalElectrons", input.signalElectrons);
   requireNonNegativeFinite("readNoiseElectrons", input.readNoiseElectrons);
 

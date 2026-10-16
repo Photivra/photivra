@@ -17,6 +17,7 @@ import {
   InvalidScientificInputError,
   requirePositiveFinite
 } from "../core/validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 export interface CalculateThinLensImageDistanceInput {
   /** Lens focal length in millimetres. */
@@ -50,6 +51,7 @@ export interface ThinLensImageDistance {
 export function calculateThinLensImageDistance(
   input: CalculateThinLensImageDistanceInput
 ): CalculationResult<ThinLensImageDistance> {
+  requireInputKeys(input, "calculateThinLensImageDistance", ["focalLengthMm", "objectDistanceM"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("objectDistanceM", input.objectDistanceM);
 

@@ -36,6 +36,7 @@ import type {
   SensorSpectralResponseScientificStatus,
   SensorSpectralResponseUncertainty
 } from "./spectral-response.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -778,6 +779,7 @@ function validateExposure(
   exposure:
     SensorEqePhotoExposure
 ): void {
+  requireInputObject(exposure, "exposure input");
   if (exposure.kind === "eqe-temporal-photo-signal") parseSensorEqeTemporalPhotoSignal(exposure);
   if (
     (exposure.kind !== "eqe-expected-counts" && exposure.kind !== "eqe-temporal-photo-signal") ||
@@ -881,6 +883,7 @@ export function calculateSensorDarkCurrentCharge(
   input:
     CalculateSensorDarkCurrentChargeInput<SensorEqePhotoExposure>
 ): CalculationResult<SensorPhotoDarkCurrentCharge> {
+  requireInputObject(input, "calculateSensorDarkCurrentCharge input");
   validateExposure(input.exposure);
   const profile =
     parseSensorDarkCurrentProfile(

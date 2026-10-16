@@ -57,9 +57,8 @@ export interface PreparedBrowserNativeReferenceCompactExecutionPlan {
       kernelSampleX: number;
       kernelSampleY: number;
       point: EnvironmentReferenceTap["point"];
-      request: EnvironmentReferenceTap["query"]["value"]["request"];
-      sourcePointImagePlaneMm:
-        EnvironmentReferenceTap["query"]["value"]["sourcePointImagePlaneMm"];
+      request: EnvironmentReferenceTap["request"];
+      sourcePointImagePlaneMm: EnvironmentReferenceTap["sourcePointImagePlaneMm"];
       fieldThroughput: EnvironmentReferenceTap["fieldThroughput"];
     }[];
   }[];
@@ -193,8 +192,8 @@ function prepareCompactExecutionPlan(
         kernelSampleX: tap.kernelSampleX,
         kernelSampleY: tap.kernelSampleY,
         point: tap.point,
-        request: tap.query.value.request,
-        sourcePointImagePlaneMm: tap.query.value.sourcePointImagePlaneMm,
+        request: tap.request,
+        sourcePointImagePlaneMm: tap.sourcePointImagePlaneMm,
         fieldThroughput: tap.fieldThroughput
       };
     });

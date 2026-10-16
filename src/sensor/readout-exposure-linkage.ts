@@ -40,6 +40,7 @@ import {
   type SourcedSensorTimingSeconds
 } from "./readout-timing.js";
 import type { NativeImageRaster } from "./sensor-geometry.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export type ReadoutExposureBoundaryId = "opening" | "closing";
 
@@ -282,6 +283,7 @@ function expectedBoundaryDirection(
 export function assessReadoutExposureTimingLinkage(
   input: AssessReadoutExposureTimingLinkageInput
 ): CalculationResult<ReadoutExposureTimingLinkageAssessment> {
+  requireInputObject(input, "assessReadoutExposureTimingLinkage input");
   const linkage = parseLinkageDeclaration(input.linkage);
 
   const sensorReadout = calculateSensorReadoutTiming({

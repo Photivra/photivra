@@ -27,6 +27,7 @@ import {
   type RasterDimensions,
   type SensorImagingArea
 } from "../sensor/sensor-geometry.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export type CaptureOrientation =
   | "landscape"
@@ -516,6 +517,7 @@ function inverseRotateVector(
 export function transformNativeRasterPointToOriented(
   input: TransformRasterPointInput
 ): RasterPoint {
+  requireInputObject(input, "transformNativeRasterPointToOriented input");
   requireCaptureOrientation(input.orientation);
   requireRasterDimensions("nativeRaster", input.nativeRaster);
   validateRasterPoint("point", input.point, input.nativeRaster);
@@ -537,6 +539,7 @@ export function transformNativeRasterPointToOriented(
 export function transformOrientedRasterPointToNative(
   input: TransformRasterPointInput
 ): RasterPoint {
+  requireInputObject(input, "transformOrientedRasterPointToNative input");
   requireCaptureOrientation(input.orientation);
   requireRasterDimensions("nativeRaster", input.nativeRaster);
   const orientedRaster = orientRaster(input.nativeRaster, input.orientation);
@@ -559,6 +562,7 @@ export function transformOrientedRasterPointToNative(
 export function transformNativeRasterVectorToOriented(
   input: TransformRasterVectorInput
 ): RasterVector {
+  requireInputObject(input, "transformNativeRasterVectorToOriented input");
   requireCaptureOrientation(input.orientation);
   validateRasterVector("vector", input.vector);
   return rotateVector(input.vector, input.orientation);
@@ -568,6 +572,7 @@ export function transformNativeRasterVectorToOriented(
 export function transformOrientedRasterVectorToNative(
   input: TransformRasterVectorInput
 ): RasterVector {
+  requireInputObject(input, "transformOrientedRasterVectorToNative input");
   requireCaptureOrientation(input.orientation);
   validateRasterVector("vector", input.vector);
   return inverseRotateVector(input.vector, input.orientation);
@@ -585,6 +590,7 @@ export function transformOrientedRasterVectorToNative(
 export function mapOrientedPhysicalUvToImagePlanePoint(
   input: MapOrientedPhysicalUvToImagePlaneInput
 ): ImagePlaneMetricPointMm {
+  requireInputObject(input, "mapOrientedPhysicalUvToImagePlanePoint input");
   requireCaptureOrientation(input.orientation);
   validateNormalizedUv("uv", input.uv);
   validatePhysicalBounds(
@@ -620,6 +626,7 @@ export function mapOrientedPhysicalUvToImagePlanePoint(
 export function mapImagePlanePointToOrientedPhysicalUv(
   input: MapImagePlanePointToOrientedPhysicalUvInput
 ): NormalizedRasterUv {
+  requireInputObject(input, "mapImagePlanePointToOrientedPhysicalUv input");
   requireCaptureOrientation(input.orientation);
   validateRasterVector("imagePlanePointMm", input.imagePlanePointMm);
   validatePhysicalBounds(
@@ -656,6 +663,7 @@ export function mapImagePlanePointToOrientedPhysicalUv(
 export function transformNativeRasterRectToOriented(
   input: TransformRasterRectInput
 ): RasterRect {
+  requireInputObject(input, "transformNativeRasterRectToOriented input");
   requireCaptureOrientation(input.orientation);
   requireRasterDimensions("nativeRaster", input.nativeRaster);
   validateRasterRect("rect", input.rect, input.nativeRaster);
@@ -693,6 +701,7 @@ export function transformNativeRasterRectToOriented(
 export function transformOrientedRasterRectToNative(
   input: TransformRasterRectInput
 ): RasterRect {
+  requireInputObject(input, "transformOrientedRasterRectToNative input");
   requireCaptureOrientation(input.orientation);
   requireRasterDimensions("nativeRaster", input.nativeRaster);
   const orientedRaster = orientRaster(input.nativeRaster, input.orientation);
@@ -923,6 +932,7 @@ function calculateBoundsFieldOfView(
 export function resolveCaptureGeometry(
   input: ResolveCaptureGeometryInput
 ): CalculationResult<ResolvedCaptureGeometry> {
+  requireInputObject(input, "resolveCaptureGeometry input");
   requireCaptureOrientation(input.orientation);
   requirePositiveFinite("imagingArea.widthMm", input.imagingArea.widthMm);
   requirePositiveFinite("imagingArea.heightMm", input.imagingArea.heightMm);
@@ -1058,6 +1068,7 @@ export function resolveCaptureGeometry(
 export function calculateActiveCaptureFieldOfView(
   input: CalculateActiveCaptureFieldOfViewInput
 ): CalculationResult<ActiveCaptureFieldOfView> {
+  requireInputObject(input, "calculateActiveCaptureFieldOfView input");
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
 
   const geometry = resolveCaptureGeometry({
@@ -1109,6 +1120,7 @@ export function calculateActiveCaptureFieldOfView(
 export function calculateOutputFieldOfView(
   input: CalculateOutputFieldOfViewInput
 ): CalculationResult<OutputFieldOfView> {
+  requireInputObject(input, "calculateOutputFieldOfView input");
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
 
   const geometry = resolveCaptureGeometry({

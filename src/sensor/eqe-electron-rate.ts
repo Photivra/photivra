@@ -37,6 +37,7 @@ import {
 } from "./color-sampling.js";
 import {
   createSensorSpectralResponseChannelBinding,
+  requireCurrentSensorSpectralResponseChannelBinding,
   parseSensorSpectralResponseProfile,
   resolveParsedSensorSpectralResponseAtWavelength,
   type ResolvedSensorSpectralResponseValue,
@@ -46,6 +47,7 @@ import type {
   SensorSpatioSpectralIrradianceReduction,
   SensorSpatioSpectralWavelengthReduction
 } from "./spatio-spectral-reduction.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 const REDUCTION_TOLERANCE = 1e-10;
 
@@ -286,6 +288,7 @@ function validateAuthorizationChain(
   operatingRange:
     SensorResponseOperatingRangeAssessment
 ): void {
+  requireInputObject(reduction, "reduction input");
   if (
     reduction.outputMeaning !==
       "pre-response-spatio-spectral-radiometric-reduction" ||
@@ -804,6 +807,11 @@ function validateExactResponseDataBinding(
         entry.channelId ===
         reduction.channelId
     );
+  if (reduction.responseChannelBinding !== undefined) {
+    requireCurrentSensorSpectralResponseChannelBinding(
+      reduction.responseChannelBinding
+    );
+  }
   if (
     response === undefined ||
     reduction.responseChannelBinding ===
@@ -858,6 +866,7 @@ export function calculateSensorEqeElectronRate(
   input:
     CalculateSensorEqeElectronRateInput
 ): CalculationResult<SensorEqeElectronRate> {
+  requireInputObject(input, "calculateSensorEqeElectronRate input");
   validateAuthorizationChain(
     input.reduction,
     input.compatibility,

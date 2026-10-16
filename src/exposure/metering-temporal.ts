@@ -24,6 +24,7 @@ import {
 import type {
   SceneRadianceDerivedExposureMeteringSampleSet
 } from "./metering-scene-radiance.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 const NORMALIZED_WEIGHT_TOLERANCE =
   1e-9;
@@ -183,6 +184,7 @@ export function meterSceneRadianceTemporalExposure(
 ): CalculationResult<
   SceneRadianceTemporalExposureMeteringResult
 > {
+  requireInputObject(input, "meterSceneRadianceTemporalExposure input");
   const temporalMeasurementId =
     requireNonEmptyString(
       input.temporalMeasurementId,

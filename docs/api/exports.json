@@ -5743,6 +5743,11 @@
       "kind": "runtime"
     },
     {
+      "name": "SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "SensorAccumulatedChargeCompletenessProfile",
       "source": "src/sensor/accumulated-charge.ts",
       "kind": "type"

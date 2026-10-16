@@ -1,6 +1,6 @@
 # composition/image-formation-plan.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## createProductionCaptureSnapshot
 
@@ -817,7 +817,9 @@ export interface RequiredImageFormationEffect {
 ## serializeProductionImageFormationPlan
 
 Return deterministic canonical JSON of a validated production plan. Sorted object keys preserve
-array order; the representation contains data and excludes executable provider callbacks.
+array order; the representation contains data and excludes executable provider callbacks. The
+plan version and its fingerprint (recomputed over the content) must match, so an empty or edited
+object is rejected instead of serialized.
 
 The planner owns scientific stage ordering, immutable capture identity and reproducibility.
 Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The

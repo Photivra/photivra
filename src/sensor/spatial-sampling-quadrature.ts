@@ -47,6 +47,7 @@ import type {
   NativeImageRaster,
   SensorImagingArea
 } from "./sensor-geometry.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 const MAX_SPATIAL_QUADRATURE_NODES = 100_000;
 
@@ -233,6 +234,7 @@ function insideImagingArea(
 export function calculateSensorSpatialSamplingQuadrature(
   input: CalculateSensorSpatialSamplingQuadratureInput
 ): CalculationResult<SensorSpatialSamplingQuadrature> {
+  requireInputObject(input, "calculateSensorSpatialSamplingQuadrature input");
   requirePositiveInteger(
     "spatialSampleCountX",
     input.spatialSampleCountX
