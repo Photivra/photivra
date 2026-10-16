@@ -6683,7 +6683,7 @@ See [Local POC Simulation API](https://github.com/Photivra/photivra/blob/main/do
 
 ## DNG import and PNG output
 
-`parseDngRawImage` reads a DNG or TIFF-EP CFA/LinearRaw file (uncompressed or lossless JPEG, 8–16 bits) into stored raw codes plus CFA, black/white levels, active area, default crop, colour matrices, as-shot neutral and orientation. Nothing is applied to the codes. `serializePngImage` writes 8- or 16-bit RGB PNG with an sRGB, ICC or cICP (Display P3, BT.2020, PQ, HLG) colour description and optional mDCV/cLLI HDR metadata. See [DNG import and PNG output](IMPORT_AND_PNG.md) for supported subsets, limits and sources.
+`parseDngRawImage` reads a DNG or TIFF-EP CFA/LinearRaw file (uncompressed or lossless JPEG, 8–16 bits) into stored raw codes plus CFA, black/white levels, active area, default crop, colour matrices, as-shot neutral and orientation. Nothing is applied to the codes. `serializePngImage` writes 8- or 16-bit RGB PNG with an sRGB, ICC or cICP (Display P3, BT.2020, PQ, HLG) colour description and optional mDCV/cLLI HDR metadata. See [DNG import and PNG output](https://github.com/Photivra/photivra/blob/main/docs/IMPORT_AND_PNG.md) for supported subsets, limits and sources.
 
 ```ts
 import { serializePngImage, parseDngRawImage } from '@photivra/engine';
