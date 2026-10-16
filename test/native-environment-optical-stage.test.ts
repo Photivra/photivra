@@ -31,16 +31,17 @@ function postOptics(kind: NativeEnvironmentWorkload, settings: PostOptics): { in
       site.darkCurrentProfile.temperatureModel.darkCurrentElectronsPerSecond = settings.darkCurrent;
   }) };
 }
-async function develop(raw: NativeEnvironmentRawOutput["raw"], settings: PostOptics): Promise<Uint8Array | Uint16Array> {
+/** Development takes RAW ownership; the snapshot reads the RAW returned with the developed output. */
+async function develop(raw: NativeEnvironmentRawOutput["raw"], settings: PostOptics): Promise<{ raw: NativeEnvironmentRawOutput["raw"]; integerSamples: Uint8Array | Uint16Array }> {
   const policy = loadPhotographicExportInput();
   const task = createNativeRawDevelopmentTask({ raw, phaseProfiles: policy.reconstruction.phaseProfiles, colorProfile: policy.colorProfile,
     whiteBalance: settings.whiteBalance ? "apply-resolved-sensor-gains" : "not-required",
     rendering: { ...policy.rendering, renderingExposureEv: settings.renderingEv ?? 0 }, maximumRetainedPayloadBytes: raw.codes.length*10 }, noYield);
   await task.run();
   const out = task.takeOutput(); task.dispose();
-  return out.integerSamples;
+  return out;
 }
-function snapshot(raw: NativeEnvironmentRawOutput["raw"], developed: Uint8Array | Uint16Array): Record<string, number[]> {
+function snapshot({ raw, integerSamples: developed }: { raw: NativeEnvironmentRawOutput["raw"]; integerSamples: Uint8Array | Uint16Array }): Record<string, number[]> {
   return { codes: Array.from(raw.codes), blackLevels: Array.from(raw.blackLevels), digitalSaturationCodes: Array.from(raw.digitalSaturationCodes),
     saturationFlags: Array.from(raw.saturationFlags), developed: Array.from(developed) };
 }
@@ -48,7 +49,7 @@ async function full(kind: NativeEnvironmentWorkload, settings: PostOptics): Prom
   const { input, provider } = postOptics(kind, settings), task = createNativeEnvironmentRawTask(input, provider);
   await task.run();
   const out = task.takeOutput(); task.dispose();
-  return snapshot(out.raw, await develop(out.raw, settings));
+  return snapshot(await develop(out.raw, settings));
 }
 async function prepare(kind: NativeEnvironmentWorkload, settings: PostOptics = {}): Promise<{ stage: NativeEnvironmentOpticalStage; output: NativeEnvironmentRawOutput }> {
   const { input, provider } = postOptics(kind, settings);
@@ -64,7 +65,7 @@ async function reuse(kind: NativeEnvironmentWorkload, stage: NativeEnvironmentOp
   await task.run();
   const out = task.takeOutput(); task.dispose();
   expect(out.providerEvaluationCount).toBe(0);
-  return snapshot(out.raw, await develop(out.raw, settings));
+  return snapshot(await develop(out.raw, settings));
 }
 
 const edits: readonly [string, PostOptics][] = [
@@ -81,7 +82,7 @@ describe("native environment optical-stage reuse", () => {
     const { stage, output } = await prepare(kind);
     expect(stage.providerEvaluationCount).toBe(output.providerEvaluationCount);
     const baseline = await full(kind, {});
-    expect(snapshot(output.raw, await develop(output.raw, {}))).toEqual(baseline);
+    expect(snapshot(await develop(output.raw, {}))).toEqual(baseline);
     expect(await reuse(kind, stage, {})).toEqual(baseline);
     for (const [, settings] of edits) {
       const recomputed = await full(kind, settings);

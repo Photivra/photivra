@@ -10,6 +10,8 @@ it("preserves the historical paired-export identity and complete file bytes", as
   const pair = await createPhotographicExportPair(input);
   const identities = { simulationHash: pair.simulationHash, rawDataUniqueId: pair.rawDataUniqueId,
     dngSha256: pair.dng.sha256, jpegSha256: pair.jpeg.sha256 };
-  // Captured from main 412da46 before the serializer consolidation.
-  expect(identities).toEqual({"simulationHash":"6ccd9d17e121c11fe9593ced91f8d950ab1778e3d24677faf8f9834b0756beaa","rawDataUniqueId":"4c801d757c7b186763207e615920bfca","dngSha256":"ef94600b042adfad7783104a0d0f754b6b3013bfd060c61381dbb67f876ff5c7","jpegSha256":"b7b9af4cc32b28f2a4693759392ab1cba47560309bab4d47729c6cda53e648c2"});
+  // Captured from main 412da46 before the serializer consolidation; re-pinned for 2.0 pipeline 0.2.0 (new RAW sample
+  // readout fields and highlight mode enter SimulationHash; DNG 1.4 tags, AsShotNeutral and XMP pipeline versions change
+  // the file bytes). RawDataUniqueID is unchanged because the RAW codes are unchanged.
+  expect(identities).toEqual({"simulationHash":"9861e862dc45ed79db0a3044750d90bd6b6667e4e05bffdb5dc8f60b6b427a0a","rawDataUniqueId":"4c801d757c7b186763207e615920bfca","dngSha256":"2d7cbb31d708bff38a1448eb781ec15fb6e6686cf01f96ed8493b5a7996a9678","jpegSha256":"614f0ecb2f6842b905c296230ff9bae853953500c24a2b40d011a61ef2946e2e"});
 });

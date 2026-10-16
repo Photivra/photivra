@@ -4,6 +4,7 @@ import { describe, it, expect } from "vitest";
 import { calculateSdrRendering, parseSdrRenderingInput, parseSdrRenderingProfile, type SdrRenderingInput,
   type SdrRenderingProfile } from "../src/index.js";
 import { loadBasicReferenceFixture } from "./helpers/basic-reference-fixture.js";
+import { resolveCaptureColorModel } from "../src/color/capture-color.js";
 const fixture = loadBasicReferenceFixture();
 const profile: SdrRenderingProfile = { schemaVersion: "0.1.0", profileId: "photivra-generic-neutral-sdr", profileVersion: "1",
   renderingExposureEv: 0, toneCurve: "identity", gamutHandling: "clip-components", outputDynamicRange: "sdr",
@@ -87,5 +88,46 @@ describe("standalone SDR rendering foundation", () => {
     expect(r.outputEncodedSamples[3]).toBeCloseTo(.040449936, 13);
     expect(r.outputEncodedSamples[4]).toBeCloseTo(.0404499074953966, 10);
     expect(r.outputEncodedSamples[5]).toBeCloseTo(.04044993598708, 13);
+  });
+  it("adds luminance tone curves that preserve chromaticity and map the declared white to 1", () => {
+    const y = resolveCaptureColorModel().cameraRgbToXyz[1]!, lum = (r: number, g: number, b: number): number => y[0]!*r+y[1]!*g+y[2]!*b;
+    const white = 2.5, ext = input([white, white, white, .18, .18, .18]);
+    ext.profile = { ...profile, toneCurve: "extended-reinhard-luminance", toneCurveParameters: { whiteLuminance: white } };
+    const e = calculateSdrRendering(ext).value;
+    // Reinhard et al. 2002 eq. 4: Ld = L(1+L/Lw²)/(1+L); L=Lw maps to 1 (within rounding).
+    for (const v of e.toneMappedLinearSamples.slice(0, 3)) expect(v).toBeCloseTo(1, 14);
+    const l18 = lum(.18, .18, .18);
+    for (const v of e.toneMappedLinearSamples.slice(3)) expect(v).toBeCloseTo(.18*(l18*(1+l18/(white*white))/(1+l18))/l18, 14);
+    // Chromaticity: channel ratios survive tone mapping for a coloured pixel.
+    const colour = input([.9, .4, .1, 3, 2, 1]); colour.profile = ext.profile;
+    const c = calculateSdrRendering(colour).value.toneMappedLinearSamples;
+    expect(c[0]!/c[1]!).toBeCloseTo(.9/.4, 12); expect(c[2]!/c[1]!).toBeCloseTo(.1/.4, 12);
+    expect(c[3]!/c[4]!).toBeCloseTo(1.5, 12); expect(lum(c[3]!, c[4]!, c[5]!)).toBeLessThan(lum(3, 2, 1));
+    // Naka-Rushton: g(L)=Lⁿ/(Lⁿ+σⁿ) normalized by g(Lw); σ maps to 0.5/g(Lw) and Lw to 1.
+    const nr = input([1, 1, 1, .4, .4, .4]), n = 1.4, sigma = .4;
+    nr.profile = { ...profile, toneCurve: "naka-rushton-luminance", toneCurveParameters: { exponent: n, semiSaturation: sigma, whiteLuminance: lum(1, 1, 1) } };
+    const t = calculateSdrRendering(nr).value.toneMappedLinearSamples, gw = 1/(1+(sigma/lum(1, 1, 1))**n);
+    for (const v of t.slice(0, 3)) expect(v).toBeCloseTo(1, 14);
+    const l4 = lum(.4, .4, .4);
+    for (const v of t.slice(3)) expect(v).toBeCloseTo(.4*(1/(1+(sigma/l4)**n))/gw/l4, 14);
+    // Monotone in luminance; zero/negative luminance is left for gamut handling.
+    const ramp = input([.01, .01, .01, .1, .1, .1]); ramp.profile = nr.profile; ramp.pixelWidth = 2;
+    const rr = calculateSdrRendering(ramp).value.toneMappedLinearSamples; expect(rr[3]!).toBeGreaterThan(rr[0]!);
+    const neg = input([-.2, 0, 0, 0, 0, 0]); neg.profile = nr.profile;
+    expect(calculateSdrRendering(neg).value.toneMappedLinearSamples.slice(0, 3)).toEqual([-.2, 0, 0]);
+  });
+  it("validates tone-curve parameters exactly and keeps existing curves parameter-free", () => {
+    for (const patch of [{ toneCurve: "identity", toneCurveParameters: { whiteLuminance: 1 } },
+      { toneCurve: "extended-reinhard-luminance" }, { toneCurve: "extended-reinhard-luminance", toneCurveParameters: { whiteLuminance: 0 } },
+      { toneCurve: "extended-reinhard-luminance", toneCurveParameters: { whiteLuminance: 1, exponent: 1 } },
+      { toneCurve: "naka-rushton-luminance", toneCurveParameters: { exponent: .1, semiSaturation: .2, whiteLuminance: 1 } },
+      { toneCurve: "naka-rushton-luminance", toneCurveParameters: { exponent: 1, semiSaturation: 65, whiteLuminance: 1 } },
+      { toneCurve: "naka-rushton-luminance", toneCurveParameters: { exponent: 1, semiSaturation: .2 } }]) {
+      expect(() => parseSdrRenderingProfile({ ...profile, ...patch })).toThrow();
+    }
+    expect(parseSdrRenderingProfile(profile)).not.toHaveProperty("toneCurveParameters");
+    expect(parseSdrRenderingProfile({ ...profile, toneCurve: "extended-reinhard-luminance", toneCurveParameters: { whiteLuminance: 4 } }).toneCurveParameters)
+      .toEqual({ whiteLuminance: 4 });
+    const provenance = calculateSdrRendering(input()).provenance; expect([provenance.model, provenance.modelVersion]).toEqual(["generic-sdr-rendering-reference", "0.2.0"]);
   });
 });

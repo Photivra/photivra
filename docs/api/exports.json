@@ -418,6 +418,11 @@
       "kind": "runtime"
     },
     {
+      "name": "calculateEffectiveSaturationCode",
+      "source": "src/capture/raw-white-level.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateEnvironmentSensorPhotoSignal",
       "source": "src/sensor/environment-photo-signal.ts",
       "kind": "runtime"
@@ -1988,6 +1993,11 @@
       "kind": "runtime"
     },
     {
+      "name": "EffectiveSaturationReadout",
+      "source": "src/capture/raw-white-level.ts",
+      "kind": "type"
+    },
+    {
       "name": "EffectiveSensorResponseScope",
       "source": "src/sensor/spectral-response.ts",
       "kind": "type"
@@ -3133,6 +3143,11 @@
       "kind": "type"
     },
     {
+      "name": "LINEAR_CAPTURE_ENCODING_MODEL_VERSION",
+      "source": "src/capture/linear-encoding.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION",
       "source": "src/capture/linear-encoding.ts",
       "kind": "runtime"
@@ -3433,6 +3448,11 @@
       "kind": "type"
     },
     {
+      "name": "NativeRawDevelopmentProvider",
+      "source": "src/capture/native-raw-development.ts",
+      "kind": "type"
+    },
+    {
       "name": "NativeRawDevelopmentTask",
       "source": "src/capture/native-raw-development.ts",
       "kind": "type"
@@ -3500,6 +3520,11 @@
     {
       "name": "NativeSensorReadoutScanDirection",
       "source": "src/sensor/readout-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeTaskProgress",
+      "source": "src/output/native-capture-sdr.ts",
       "kind": "type"
     },
     {
@@ -4038,12 +4063,22 @@
       "kind": "type"
     },
     {
+      "name": "PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION",
       "source": "src/capture/photographic-export.ts",
       "kind": "runtime"
     },
     {
       "name": "PhotographicExportInput",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PhotographicExportOptions",
       "source": "src/capture/photographic-export.ts",
       "kind": "type"
     },
@@ -4398,6 +4433,11 @@
       "kind": "type"
     },
     {
+      "name": "PROCESSED_SENSOR_RAW_MODEL_VERSION",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "ProcessedSensorRawInput",
       "source": "src/capture/photographic-export.ts",
       "kind": "type"
@@ -4618,6 +4658,11 @@
       "kind": "runtime"
     },
     {
+      "name": "RAW_HIGHLIGHT_RECONSTRUCTION_START",
+      "source": "src/color/sensor-color-development.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "RawFrameReconstruction",
       "source": "src/capture/raw-frame-reconstruction.ts",
       "kind": "type"
@@ -4630,6 +4675,16 @@
     {
       "name": "RawFrameReconstructionPhaseProfile",
       "source": "src/capture/raw-frame-reconstruction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RawHighlightDiagnostics",
+      "source": "src/capture/native-raw-development.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RawHighlightMode",
+      "source": "src/color/sensor-color-development.ts",
       "kind": "type"
     },
     {
@@ -5668,6 +5723,11 @@
       "kind": "type"
     },
     {
+      "name": "SDR_RENDERING_MODEL_VERSION",
+      "source": "src/output/sdr-rendering.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "SDR_RENDERING_SCHEMA_VERSION",
       "source": "src/output/sdr-rendering.ts",
       "kind": "runtime"
@@ -5688,6 +5748,16 @@
       "kind": "type"
     },
     {
+      "name": "SdrToneCurve",
+      "source": "src/output/sdr-rendering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SdrToneCurveParameters",
+      "source": "src/output/sdr-rendering.ts",
+      "kind": "type"
+    },
+    {
       "name": "SECOND_RADIATION_CONSTANT_METER_KELVIN",
       "source": "src/color/illuminants.ts",
       "kind": "runtime"
@@ -5700,6 +5770,11 @@
     {
       "name": "SENSOR_CHARGE_SAMPLING_PROFILE_SCHEMA_VERSION",
       "source": "src/sensor/raw-readout.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SENSOR_COLOR_DEVELOPMENT_MODEL",
+      "source": "src/color/sensor-color-development.ts",
       "kind": "runtime"
     },
     {

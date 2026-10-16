@@ -100,6 +100,7 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | --- | --- |
 | [`calculateLinearCaptureEncoding`](api/capture-linear-encoding.md#calculatelinearcaptureencoding) | Runtime |
 | [`EncodedLinearCapture`](api/capture-linear-encoding.md#encodedlinearcapture) | Type |
+| [`LINEAR_CAPTURE_ENCODING_MODEL_VERSION`](api/capture-linear-encoding.md#linear_capture_encoding_model_version) | Runtime |
 | [`LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION`](api/capture-linear-encoding.md#linear_capture_encoding_schema_version) | Runtime |
 | [`LinearCaptureEncoding`](api/capture-linear-encoding.md#linearcaptureencoding) | Type |
 | [`LinearCaptureEncodingInput`](api/capture-linear-encoding.md#linearcaptureencodinginput) | Type |
@@ -141,7 +142,9 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`createNativeRawDevelopmentTask`](api/capture-native-raw-development.md#createnativerawdevelopmenttask) | Runtime |
 | [`NativeRawDevelopmentInput`](api/capture-native-raw-development.md#nativerawdevelopmentinput) | Type |
 | [`NativeRawDevelopmentOutput`](api/capture-native-raw-development.md#nativerawdevelopmentoutput) | Type |
+| [`NativeRawDevelopmentProvider`](api/capture-native-raw-development.md#nativerawdevelopmentprovider) | Type |
 | [`NativeRawDevelopmentTask`](api/capture-native-raw-development.md#nativerawdevelopmenttask) | Type |
+| [`RawHighlightDiagnostics`](api/capture-native-raw-development.md#rawhighlightdiagnostics) | Type |
 
 ## capture/native-raw.ts
 
@@ -176,9 +179,12 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`parseExportSensorColorProfile`](api/capture-photographic-export.md#parseexportsensorcolorprofile) | Runtime |
 | [`parsePhotographicExportInput`](api/capture-photographic-export.md#parsephotographicexportinput) | Runtime |
 | [`parseProcessedSensorRawInput`](api/capture-photographic-export.md#parseprocessedsensorrawinput) | Runtime |
+| [`PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION`](api/capture-photographic-export.md#photographic_export_pipeline_version) | Runtime |
 | [`PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION`](api/capture-photographic-export.md#photographic_export_schema_version) | Runtime |
 | [`PhotographicExportInput`](api/capture-photographic-export.md#photographicexportinput) | Type |
+| [`PhotographicExportOptions`](api/capture-photographic-export.md#photographicexportoptions) | Type |
 | [`PhotographicExportPair`](api/capture-photographic-export.md#photographicexportpair) | Type |
+| [`PROCESSED_SENSOR_RAW_MODEL_VERSION`](api/capture-photographic-export.md#processed_sensor_raw_model_version) | Runtime |
 | [`ProcessedSensorRawInput`](api/capture-photographic-export.md#processedsensorrawinput) | Type |
 | [`ProcessedSensorRawResult`](api/capture-photographic-export.md#processedsensorrawresult) | Type |
 
@@ -194,6 +200,15 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`RawFrameReconstructionInput`](api/capture-raw-frame-reconstruction.md#rawframereconstructioninput) | Type |
 | [`RawFrameReconstructionPhaseProfile`](api/capture-raw-frame-reconstruction.md#rawframereconstructionphaseprofile) | Type |
 | [`resolveRawFrameReconstruction`](api/capture-raw-frame-reconstruction.md#resolverawframereconstruction) | Runtime |
+
+## capture/raw-white-level.ts
+
+[Detailed contracts](api/capture-raw-white-level.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/raw-white-level.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateEffectiveSaturationCode`](api/capture-raw-white-level.md#calculateeffectivesaturationcode) | Runtime |
+| [`EffectiveSaturationReadout`](api/capture-raw-white-level.md#effectivesaturationreadout) | Type |
 
 ## capture/release-sequence.ts
 
@@ -443,6 +458,16 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`RgbPrimaryChromaticities`](api/color-rgb-color-spaces.md#rgbprimarychromaticities) | Type |
 | [`RgbToXyzMatrices`](api/color-rgb-color-spaces.md#rgbtoxyzmatrices) | Type |
 | [`RgbTransferFunctionId`](api/color-rgb-color-spaces.md#rgbtransferfunctionid) | Type |
+
+## color/sensor-color-development.ts
+
+[Detailed contracts](api/color-sensor-color-development.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/color/sensor-color-development.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`RAW_HIGHLIGHT_RECONSTRUCTION_START`](api/color-sensor-color-development.md#raw_highlight_reconstruction_start) | Runtime |
+| [`RawHighlightMode`](api/color-sensor-color-development.md#rawhighlightmode) | Type |
+| [`SENSOR_COLOR_DEVELOPMENT_MODEL`](api/color-sensor-color-development.md#sensor_color_development_model) | Runtime |
 
 ## color/srgb-icc.ts
 
@@ -1499,6 +1524,7 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`NativeCaptureSdrTaskState`](api/output-native-capture-sdr.md#nativecapturesdrtaskstate) | Type |
 | [`NativeCaptureSdrTile`](api/output-native-capture-sdr.md#nativecapturesdrtile) | Type |
 | [`NativeCaptureSdrTileRequest`](api/output-native-capture-sdr.md#nativecapturesdrtilerequest) | Type |
+| [`NativeTaskProgress`](api/output-native-capture-sdr.md#nativetaskprogress) | Type |
 
 ## output/print-contrast-reference.ts
 
@@ -1595,10 +1621,13 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`calculateSdrRendering`](api/output-sdr-rendering.md#calculatesdrrendering) | Runtime |
 | [`parseSdrRenderingInput`](api/output-sdr-rendering.md#parsesdrrenderinginput) | Runtime |
 | [`parseSdrRenderingProfile`](api/output-sdr-rendering.md#parsesdrrenderingprofile) | Runtime |
+| [`SDR_RENDERING_MODEL_VERSION`](api/output-sdr-rendering.md#sdr_rendering_model_version) | Runtime |
 | [`SDR_RENDERING_SCHEMA_VERSION`](api/output-sdr-rendering.md#sdr_rendering_schema_version) | Runtime |
 | [`SdrRenderingInput`](api/output-sdr-rendering.md#sdrrenderinginput) | Type |
 | [`SdrRenderingProfile`](api/output-sdr-rendering.md#sdrrenderingprofile) | Type |
 | [`SdrRenderingResult`](api/output-sdr-rendering.md#sdrrenderingresult) | Type |
+| [`SdrToneCurve`](api/output-sdr-rendering.md#sdrtonecurve) | Type |
+| [`SdrToneCurveParameters`](api/output-sdr-rendering.md#sdrtonecurveparameters) | Type |
 
 ## output/subject-framing-crop.ts
 
