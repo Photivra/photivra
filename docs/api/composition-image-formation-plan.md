@@ -699,6 +699,15 @@ export interface ProductionTemporalCaptureInput {
   orientation: CaptureOrientation;
   readout?:
     SensorReadoutTimingDeclaration;
+  /**
+   * Optional explicit readout→exposure linkage. With the electronic rolling-shutter model the
+   * exposure-window schedule must equal resolveElectronicRollingShutterExposureSchedule(readout), so
+   * every per-site exposure window (and the rotation quadrature) carries the per-line offset.
+   */
+  readoutExposureLinkage?: {
+    kind: "electronic-rolling-shutter-line-reset-read";
+    evidence: readonly EvidenceProvenance[];
+  };
   rotation?: {
     angularVelocityRadPerSec:
       CameraAngularVelocityRadPerSec;
@@ -723,7 +732,8 @@ export interface ProductionTemporalCaptureResult {
   exposureTimeReference:
     "first-opening-boundary-phase";
   readoutExposureSynchronization:
-    "not-assumed";
+    | "not-assumed"
+    | "electronic-rolling-shutter-line-linked";
   sensorReadoutTimingRemainsSeparate:
     true;
   temporalRadianceIntegrated:

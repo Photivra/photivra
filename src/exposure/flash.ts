@@ -5,13 +5,10 @@
  * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
  * missing required fields and incompatible scientific data fail at this boundary. Manual flash is a
  * registered relative pulse/source overlay on the capture opening-reference clock. Ordinary front/rear
- * sync requires a real whole-frame opening interval. HSS/TTL and flash metering are unsupported here;
- * source magnitude, optical transport and sensor integration retain their own contracts.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Manual flash is a
- * registered relative pulse/source overlay on the capture opening-reference clock. Ordinary front/rear
- * sync requires a real whole-frame opening interval. HSS/TTL and flash metering are unsupported here;
- * source magnitude, optical transport and sensor integration retain their own contracts.
+ * sync requires a real whole-frame opening interval. High-speed sync (schema 0.2.0 sync profiles) is a
+ * separate quasi-continuous burst spanning the travelling slit (resolveHighSpeedFlashSync). TTL
+ * pre-flash power and guide-number relations live in flash-ttl.ts; source magnitude, optical transport
+ * and sensor integration retain their own contracts.
  * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
@@ -45,6 +42,14 @@ export const MANUAL_FLASH_PROFILE_SCHEMA_VERSION =
   "0.1.0" as const;
 export const FLASH_SYNC_CAPABILITY_SCHEMA_VERSION =
   "0.1.0" as const;
+/** Sync-capability schema that may declare high-speed (pulsed quasi-continuous) sync. */
+export const FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION =
+  "0.2.0" as const;
+/** Model identity of the pulsed quasi-continuous high-speed-sync burst. */
+export const HIGH_SPEED_SYNC_MODEL = Object.freeze({
+  id: "flash-hss-quasi-continuous-burst",
+  version: "1.0.0"
+} as const);
 
 export type ManualFlashSyncMode =
   | "front-curtain"
@@ -100,14 +105,25 @@ export interface ManualFlashProfile {
 
 export interface FlashSyncCapabilityProfile {
   schemaVersion:
-    typeof FLASH_SYNC_CAPABILITY_SCHEMA_VERSION;
+    | typeof FLASH_SYNC_CAPABILITY_SCHEMA_VERSION
+    | typeof FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION;
   profileId: string;
   profileVersion: string;
   captureModeId: string;
   timingProfileId: string;
   supportedOrdinarySyncModes:
     readonly ManualFlashSyncMode[];
-  highSpeedSyncSupported: false;
+  /** Schema 0.1.0 is always false; schema 0.2.0 may declare HSS with {@link highSpeedSync}. */
+  highSpeedSyncSupported: boolean;
+  /** Present exactly when highSpeedSyncSupported is true (schema 0.2.0). */
+  highSpeedSync?: {
+    /**
+     * η: energy of one full-power quasi-continuous burst as a fraction of one full-power ordinary
+     * pulse, (0, 1]. Caller-declared from evidence (capacitor/thermal limits); never inferred.
+     */
+    burstEnergyFractionOfFullPulse: number;
+    evidence: readonly EvidenceProvenance[];
+  };
   ordinarySyncRequiresWholeActiveFrameSimultaneouslyExposed:
     true;
   evidence: readonly EvidenceProvenance[];
@@ -184,6 +200,17 @@ export interface ResolvedManualFlashSync {
   limitations: readonly string[];
 }
 
+/** Fields of a resolved sync that registration of a flash overlay needs (ordinary or HSS). */
+export type FlashOverlaySyncRegistration = Pick<
+  ResolvedManualFlashSync,
+  | "flashEnabled"
+  | "flashProfileId"
+  | "flashProfileVersion"
+  | "sourceId"
+  | "waveformTimeZeroSecondsFromCaptureReference"
+  | "evidence"
+>;
+
 export interface CreateManualFlashIlluminationOverlayInput {
   baseIlluminationProfile:
     SceneIlluminationProfile;
@@ -192,7 +219,7 @@ export interface CreateManualFlashIlluminationOverlayInput {
   flashProfile:
     ManualFlashProfile;
   resolvedSync:
-    ResolvedManualFlashSync;
+    FlashOverlaySyncRegistration;
   illuminationProfileId: string;
   temporalProfileId: string;
 }
@@ -703,23 +730,65 @@ export function parseFlashSyncCapabilityProfile(
     );
   if (
     record.schemaVersion !==
-    FLASH_SYNC_CAPABILITY_SCHEMA_VERSION
+      FLASH_SYNC_CAPABILITY_SCHEMA_VERSION &&
+    record.schemaVersion !==
+      FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION
   ) {
     throw new InvalidConfigurationError(
       'flashSyncCapabilityProfile.schemaVersion must be "' +
         FLASH_SYNC_CAPABILITY_SCHEMA_VERSION +
+        '" or "' +
+        FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION +
         '".'
     );
   }
+  const hssSchema =
+    record.schemaVersion ===
+    FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION;
   if (
-    record.highSpeedSyncSupported !==
-      false ||
+    (hssSchema
+      ? typeof record.highSpeedSyncSupported !==
+        "boolean"
+      : record.highSpeedSyncSupported !==
+        false) ||
     record
       .ordinarySyncRequiresWholeActiveFrameSimultaneouslyExposed !==
       true
   ) {
     throw new InvalidConfigurationError(
       "flashSyncCapabilityProfile schema 0.1.0 supports ordinary whole-frame sync only and must not claim HSS."
+    );
+  }
+  let highSpeedSync:
+    FlashSyncCapabilityProfile["highSpeedSync"];
+  if (record.highSpeedSyncSupported === true) {
+    const hss = requireRecord(
+      record.highSpeedSync,
+      "flashSyncCapabilityProfile.highSpeedSync"
+    );
+    const fraction = requirePositiveFinite(
+      hss.burstEnergyFractionOfFullPulse,
+      "flashSyncCapabilityProfile.highSpeedSync.burstEnergyFractionOfFullPulse"
+    );
+    if (fraction > 1) {
+      throw new InvalidConfigurationError(
+        "flashSyncCapabilityProfile.highSpeedSync.burstEnergyFractionOfFullPulse must be at most 1."
+      );
+    }
+    highSpeedSync = {
+      burstEnergyFractionOfFullPulse:
+        fraction,
+      evidence: parseEvidenceList(
+        hss.evidence,
+        "flashSyncCapabilityProfile.highSpeedSync.evidence"
+      )
+    };
+  } else if (
+    record.highSpeedSync !==
+    undefined
+  ) {
+    throw new InvalidConfigurationError(
+      "flashSyncCapabilityProfile.highSpeedSync must be omitted when HSS is unsupported."
     );
   }
   if (
@@ -764,8 +833,9 @@ export function parseFlashSyncCapabilityProfile(
   }
 
   return {
-    schemaVersion:
-      FLASH_SYNC_CAPABILITY_SCHEMA_VERSION,
+    schemaVersion: hssSchema
+      ? FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION
+      : FLASH_SYNC_CAPABILITY_SCHEMA_VERSION,
     profileId:
       requireNonEmptyString(
         record.profileId,
@@ -789,7 +859,10 @@ export function parseFlashSyncCapabilityProfile(
     supportedOrdinarySyncModes:
       modes,
     highSpeedSyncSupported:
-      false,
+      highSpeedSync !== undefined,
+    ...(highSpeedSync === undefined
+      ? {}
+      : { highSpeedSync }),
     ordinarySyncRequiresWholeActiveFrameSimultaneouslyExposed:
       true,
     evidence:
@@ -998,7 +1071,7 @@ export function resolveManualFlashSync(
     "high-speed-sync"
   ) {
     throw new InvalidScientificInputError(
-      "High-speed sync is not modeled in manual flash schema 0.1.0; ordinary single-pulse flash cannot be used as an HSS substitute."
+      "High-speed sync is not an ordinary sync mode; ordinary single-pulse flash cannot be used as an HSS substitute. Use resolveHighSpeedFlashSync with an HSS-capable sync profile."
     );
   }
   if (
@@ -1365,4 +1438,186 @@ export function createManualFlashIlluminationOverlay(
       ttlMeteringIncluded:
       false
   };
+}
+
+export interface ResolveHighSpeedFlashSyncInput {
+  flashEnabled: boolean;
+  /** Ordinary full-power pulse definition; its integral defines the full-power pulse energy. */
+  flashProfile: ManualFlashProfile;
+  /** Schema 0.2.0 profile with highSpeedSyncSupported true. */
+  syncCapabilities: FlashSyncCapabilityProfile;
+  timing: ResolvedCaptureModeTiming;
+  /** Commanded output as a fraction of full power, (0, 1]. */
+  powerFraction: number;
+  releaseFrame?: ResolvedReleaseFrame;
+}
+
+export interface ResolvedHighSpeedFlashSync extends FlashOverlaySyncRegistration {
+  modelId: typeof HIGH_SPEED_SYNC_MODEL.id;
+  modelVersion: typeof HIGH_SPEED_SYNC_MODEL.version;
+  syncMode: "high-speed-sync";
+  syncStatus: "disabled" | "high-speed-sync-resolved";
+  captureModeId: string;
+  timingProfileId: string;
+  syncCapabilityProfileId: string;
+  timeReference: "first-opening-boundary-phase";
+  powerFraction: number;
+  /** η from the sync capability profile. */
+  burstEnergyFractionOfFullPulse: number;
+  /** ∫ pulse(t) dt of the declared relative-peak-one ordinary pulse (relative multiplier · s). */
+  singlePulseIntegratedRelativeSeconds: number;
+  /** D: burst support covering the first line opening to the last line closing. */
+  burstStartSecondsFromCaptureReference: number;
+  burstEndSecondsFromCaptureReference: number;
+  burstDurationSeconds: number;
+  /** Local (slit) exposure durations t_e over the active frame. */
+  localExposureDurationRangeSeconds: { minimum: number; maximum: number };
+  /** Flash energy each line receives relative to one ordinary pulse at the same power: η·t_e/D. */
+  energyFractionOfSinglePulseRange: { minimum: number; maximum: number };
+  /** Effective guide-number factor relative to the same-power ordinary pulse: √(η·t_e/D). */
+  guideNumberFactorRange: { minimum: number; maximum: number };
+  uniformAcrossActiveFrame: boolean;
+  /** Rectangular quasi-continuous burst expressed as a manual pulse profile for the illumination overlay. */
+  burstFlashProfile: ManualFlashProfile | null;
+  releaseFrameBinding:
+    | {
+        sequenceId: string;
+        releaseFrameId: string;
+        frameIndex: number;
+        sceneTimeSecondsFromSequenceStartAtBurstStart: number;
+        sceneTimeSecondsFromSequenceStartAtBurstEnd: number;
+      }
+    | null;
+  hssModeled: true;
+  ttlModeled: false;
+  sensorReadoutTimingUsedAsExposureTiming: false;
+  limitations: readonly string[];
+}
+
+function integratePulse(samples: readonly SceneIlluminationTemporalWaveformSample[]): number {
+  let area = 0;
+  for (let index = 1; index < samples.length; index += 1) {
+    const a = samples[index - 1]!, b = samples[index]!;
+    area += (b.timeSecondsFromWaveformReference - a.timeSecondsFromWaveformReference) *
+      (a.relativeMagnitudeMultiplier + b.relativeMagnitudeMultiplier) / 2;
+  }
+  return area;
+}
+
+/**
+ * Resolves high-speed (focal-plane) sync as a pulsed quasi-continuous burst spanning the whole
+ * travelling-slit exposure.
+ *
+ * When the opening and closing boundaries traverse the frame so that no instant exposes the whole
+ * frame (shutter faster than the ordinary sync limit), a single short pulse would expose only a band.
+ * HSS instead emits a rapid pulse train that behaves as constant output P over the burst D from the
+ * first line opening to the last line closing. Each line integrates P·t_e over its slit time t_e. If
+ * the burst carries energy E_burst = η·p·E_pulse (η declared by the sync profile, p the power
+ * fraction, E_pulse the ordinary full-power pulse energy), then P = E_burst/D and each line receives
+ * η·p·E_pulse·t_e/D. Because exposure ∝ GN² (inverse-square law, GN = d·N), the effective guide number
+ * relative to the same-power ordinary pulse is GN_HSS/GN = √(η·t_e/D). Shortening t_e by one stop
+ * therefore costs half a stop of guide number. Approximation: the pulse train is treated as continuous
+ * (pulse period ≪ t_e), recycle/thermal limits are folded into η, and front/rear-curtain placement does
+ * not apply because the burst spans the whole exposure.
+ * @see docs/SCENE_SENSOR_TEMPORAL_EXPOSURE.md#high-speed-sync
+ */
+export function resolveHighSpeedFlashSync(input: ResolveHighSpeedFlashSyncInput): ResolvedHighSpeedFlashSync {
+  requireInputObject(input, "resolveHighSpeedFlashSync input");
+  requireInputObject(input.timing, "resolveHighSpeedFlashSync timing");
+  const flash = parseManualFlashProfile(input.flashProfile);
+  const capabilities = parseFlashSyncCapabilityProfile(input.syncCapabilities);
+  if (capabilities.captureModeId !== input.timing.captureModeId || capabilities.timingProfileId !== input.timing.timingProfileId) {
+    throw new InvalidScientificInputError(
+      "Flash sync capability profile must exactly match the resolved capture-mode and timing-profile identities."
+    );
+  }
+  if (!capabilities.highSpeedSyncSupported || capabilities.highSpeedSync === undefined) {
+    throw new InvalidScientificInputError("The flash sync capability profile does not declare high-speed sync.");
+  }
+  const power = input.powerFraction;
+  if (typeof power !== "number" || !Number.isFinite(power) || power <= 0 || power > 1) {
+    throw new InvalidScientificInputError("HSS powerFraction must lie in (0, 1].");
+  }
+  if (input.releaseFrame !== undefined) validateReleaseBinding(input.releaseFrame, input.timing);
+
+  const windows = input.timing.exposureWindows;
+  const closing = windows.closing.schedule;
+  const burstEnd = windows.nominalExposureDurationSeconds.value +
+    (closing.kind === "simultaneous" ? 0 : closing.traversalDurationSeconds.value);
+  const eta = capabilities.highSpeedSync.burstEnergyFractionOfFullPulse;
+  const local = windows.localExposureDurationRangeSeconds;
+  const fraction = { minimum: eta * local.minimum / burstEnd, maximum: eta * local.maximum / burstEnd };
+  const pulseEnergy = integratePulse(flash.pulse.samples);
+  const burstFlashProfile: ManualFlashProfile = {
+    ...flash,
+    pulse: {
+      ...flash.pulse,
+      waveformId: flash.pulse.waveformId + "-hss-burst",
+      supportDurationSeconds: burstEnd,
+      samples: [
+        { timeSecondsFromWaveformReference: 0, relativeMagnitudeMultiplier: 1 },
+        { timeSecondsFromWaveformReference: burstEnd, relativeMagnitudeMultiplier: 1 }
+      ],
+      limitations: [...flash.pulse.limitations,
+        "Quasi-continuous HSS burst: the pulse train is approximated by constant output over the burst support."]
+    },
+    outputControl: { ...flash.outputControl, scale: flash.outputControl.scale * power * eta * pulseEnergy / burstEnd }
+  };
+  const enabled = input.flashEnabled;
+  return {
+    modelId: HIGH_SPEED_SYNC_MODEL.id,
+    modelVersion: HIGH_SPEED_SYNC_MODEL.version,
+    flashEnabled: enabled,
+    flashProfileId: flash.profileId,
+    flashProfileVersion: flash.profileVersion,
+    sourceId: flash.sourceTemplate.sourceId,
+    syncMode: "high-speed-sync",
+    syncStatus: enabled ? "high-speed-sync-resolved" : "disabled",
+    captureModeId: input.timing.captureModeId,
+    timingProfileId: input.timing.timingProfileId,
+    syncCapabilityProfileId: capabilities.profileId,
+    timeReference: "first-opening-boundary-phase",
+    powerFraction: power,
+    burstEnergyFractionOfFullPulse: eta,
+    singlePulseIntegratedRelativeSeconds: pulseEnergy,
+    burstStartSecondsFromCaptureReference: 0,
+    burstEndSecondsFromCaptureReference: burstEnd,
+    burstDurationSeconds: burstEnd,
+    localExposureDurationRangeSeconds: { minimum: local.minimum, maximum: local.maximum },
+    energyFractionOfSinglePulseRange: fraction,
+    guideNumberFactorRange: { minimum: Math.sqrt(fraction.minimum), maximum: Math.sqrt(fraction.maximum) },
+    uniformAcrossActiveFrame: local.minimum === local.maximum,
+    burstFlashProfile: enabled ? burstFlashProfile : null,
+    waveformTimeZeroSecondsFromCaptureReference: enabled ? 0 : null,
+    releaseFrameBinding: !enabled || input.releaseFrame === undefined ? null : {
+      sequenceId: input.releaseFrame.sequenceId,
+      releaseFrameId: input.releaseFrame.releaseFrameId,
+      frameIndex: input.releaseFrame.frameIndex,
+      sceneTimeSecondsFromSequenceStartAtBurstStart: input.releaseFrame.sceneTimeSecondsFromSequenceStart,
+      sceneTimeSecondsFromSequenceStartAtBurstEnd: input.releaseFrame.sceneTimeSecondsFromSequenceStart + burstEnd
+    },
+    hssModeled: true,
+    ttlModeled: false,
+    sensorReadoutTimingUsedAsExposureTiming: false,
+    evidence: [...flash.evidence, ...capabilities.evidence, ...capabilities.highSpeedSync.evidence, ...input.timing.evidence],
+    limitations: [
+      ...flash.limitations,
+      ...capabilities.limitations,
+      "HSS burst is registered to exposure-boundary timing (first line opening to last line closing), never sensor data-readout timing.",
+      "Pulse-train ripple, recycle/thermal limits beyond the declared burst energy fraction and branded flash protocols are not modeled."
+    ]
+  };
+}
+
+/**
+ * Registers a resolved HSS burst as a temporal illumination overlay (rectangular quasi-continuous
+ * waveform over [0, D]); every line then integrates the burst over its own local exposure window.
+ */
+export function createHighSpeedSyncIlluminationOverlay(
+  input: Omit<CreateManualFlashIlluminationOverlayInput, "resolvedSync"> & { resolvedSync: ResolvedHighSpeedFlashSync }
+): ManualFlashIlluminationOverlay {
+  requireInputObject(input, "createHighSpeedSyncIlluminationOverlay input");
+  requireInputObject(input.resolvedSync, "createHighSpeedSyncIlluminationOverlay resolvedSync");
+  return createManualFlashIlluminationOverlay({ ...input,
+    flashProfile: input.resolvedSync.burstFlashProfile ?? input.flashProfile });
 }

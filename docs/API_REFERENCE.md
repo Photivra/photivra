@@ -884,16 +884,37 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`RelativeOpticalExposure`](api/exposure-exposure.md#relativeopticalexposure) | Type |
 | [`RelativeRenderedExposure`](api/exposure-exposure.md#relativerenderedexposure) | Type |
 
+## exposure/flash-ttl.ts
+
+[Detailed contracts](api/exposure-flash-ttl.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/exposure/flash-ttl.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateFlashGuideNumber`](api/exposure-flash-ttl.md#calculateflashguidenumber) | Runtime |
+| [`calculateFlashPowerForDistance`](api/exposure-flash-ttl.md#calculateflashpowerfordistance) | Runtime |
+| [`createTtlScaledFlashProfile`](api/exposure-flash-ttl.md#createttlscaledflashprofile) | Runtime |
+| [`FlashGuideNumberInput`](api/exposure-flash-ttl.md#flashguidenumberinput) | Type |
+| [`FlashPowerForDistance`](api/exposure-flash-ttl.md#flashpowerfordistance) | Type |
+| [`FlashPowerForDistanceInput`](api/exposure-flash-ttl.md#flashpowerfordistanceinput) | Type |
+| [`resolveTtlFlashExposure`](api/exposure-flash-ttl.md#resolvettlflashexposure) | Runtime |
+| [`ResolveTtlFlashExposureInput`](api/exposure-flash-ttl.md#resolvettlflashexposureinput) | Type |
+| [`TTL_FLASH_MODEL`](api/exposure-flash-ttl.md#ttl_flash_model) | Runtime |
+| [`TtlFlashExposure`](api/exposure-flash-ttl.md#ttlflashexposure) | Type |
+
 ## exposure/flash.ts
 
 [Detailed contracts](api/exposure-flash.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/exposure/flash.ts)
 
 | Export | Kind |
 | --- | --- |
+| [`createHighSpeedSyncIlluminationOverlay`](api/exposure-flash.md#createhighspeedsyncilluminationoverlay) | Runtime |
 | [`createManualFlashIlluminationOverlay`](api/exposure-flash.md#createmanualflashilluminationoverlay) | Runtime |
 | [`CreateManualFlashIlluminationOverlayInput`](api/exposure-flash.md#createmanualflashilluminationoverlayinput) | Type |
+| [`FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION`](api/exposure-flash.md#flash_sync_capability_hss_schema_version) | Runtime |
 | [`FLASH_SYNC_CAPABILITY_SCHEMA_VERSION`](api/exposure-flash.md#flash_sync_capability_schema_version) | Runtime |
+| [`FlashOverlaySyncRegistration`](api/exposure-flash.md#flashoverlaysyncregistration) | Type |
 | [`FlashSyncCapabilityProfile`](api/exposure-flash.md#flashsynccapabilityprofile) | Type |
+| [`HIGH_SPEED_SYNC_MODEL`](api/exposure-flash.md#high_speed_sync_model) | Runtime |
 | [`MANUAL_FLASH_PROFILE_SCHEMA_VERSION`](api/exposure-flash.md#manual_flash_profile_schema_version) | Runtime |
 | [`ManualFlashIlluminationOverlay`](api/exposure-flash.md#manualflashilluminationoverlay) | Type |
 | [`ManualFlashProfile`](api/exposure-flash.md#manualflashprofile) | Type |
@@ -902,7 +923,10 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`parseFlashSyncCapabilityProfile`](api/exposure-flash.md#parseflashsynccapabilityprofile) | Runtime |
 | [`parseManualFlashProfile`](api/exposure-flash.md#parsemanualflashprofile) | Runtime |
 | [`RequestedFlashSyncMode`](api/exposure-flash.md#requestedflashsyncmode) | Type |
+| [`ResolvedHighSpeedFlashSync`](api/exposure-flash.md#resolvedhighspeedflashsync) | Type |
 | [`ResolvedManualFlashSync`](api/exposure-flash.md#resolvedmanualflashsync) | Type |
+| [`resolveHighSpeedFlashSync`](api/exposure-flash.md#resolvehighspeedflashsync) | Runtime |
+| [`ResolveHighSpeedFlashSyncInput`](api/exposure-flash.md#resolvehighspeedflashsyncinput) | Type |
 | [`resolveManualFlashSync`](api/exposure-flash.md#resolvemanualflashsync) | Runtime |
 | [`ResolveManualFlashSyncInput`](api/exposure-flash.md#resolvemanualflashsyncinput) | Type |
 
@@ -954,12 +978,14 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 
 | Export | Kind |
 | --- | --- |
+| [`calculateHighlightPriorityPlacementSignal`](api/exposure-metering.md#calculatehighlightpriorityplacementsignal) | Runtime |
 | [`EXPOSURE_METERING_PROFILE_SCHEMA_VERSION`](api/exposure-metering.md#exposure_metering_profile_schema_version) | Runtime |
 | [`ExposureMeteringPolicy`](api/exposure-metering.md#exposuremeteringpolicy) | Type |
 | [`ExposureMeteringProfile`](api/exposure-metering.md#exposuremeteringprofile) | Type |
 | [`ExposureMeteringResult`](api/exposure-metering.md#exposuremeteringresult) | Type |
 | [`ExposureMeteringSampleSet`](api/exposure-metering.md#exposuremeteringsampleset) | Type |
 | [`ExposureMeteringZoneSample`](api/exposure-metering.md#exposuremeteringzonesample) | Type |
+| [`HighlightPriorityMeteringDiagnostics`](api/exposure-metering.md#highlightprioritymeteringdiagnostics) | Type |
 | [`meterRelativeExposure`](api/exposure-metering.md#meterrelativeexposure) | Runtime |
 | [`MeterRelativeExposureInput`](api/exposure-metering.md#meterrelativeexposureinput) | Type |
 | [`parseExposureMeteringProfile`](api/exposure-metering.md#parseexposuremeteringprofile) | Runtime |
@@ -1069,6 +1095,23 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`calculateProjectedMotionBlur`](api/motion-projected-motion.md#calculateprojectedmotionblur) | Runtime |
 | [`CalculateProjectedMotionBlurInput`](api/motion-projected-motion.md#calculateprojectedmotionblurinput) | Type |
 | [`ProjectedMotionBlur`](api/motion-projected-motion.md#projectedmotionblur) | Type |
+
+## motion/video-sequence.ts
+
+[Detailed contracts](api/motion-video-sequence.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/motion/video-sequence.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`assessShutterAngleRule`](api/motion-video-sequence.md#assessshutteranglerule) | Runtime |
+| [`calculateShutterAngleExposureSeconds`](api/motion-video-sequence.md#calculateshutterangleexposureseconds) | Runtime |
+| [`calculateShutterAngleFromExposureSeconds`](api/motion-video-sequence.md#calculateshutteranglefromexposureseconds) | Runtime |
+| [`resolveVideoFrameSequence`](api/motion-video-sequence.md#resolvevideoframesequence) | Runtime |
+| [`ResolveVideoFrameSequenceInput`](api/motion-video-sequence.md#resolvevideoframesequenceinput) | Type |
+| [`ShutterAngleRuleAssessment`](api/motion-video-sequence.md#shutterangleruleassessment) | Type |
+| [`VIDEO_FRAME_SEED_STREAM_ID`](api/motion-video-sequence.md#video_frame_seed_stream_id) | Runtime |
+| [`VIDEO_FRAME_SEQUENCE_MAXIMUM_FRAMES`](api/motion-video-sequence.md#video_frame_sequence_maximum_frames) | Runtime |
+| [`VIDEO_FRAME_SEQUENCE_VERSION`](api/motion-video-sequence.md#video_frame_sequence_version) | Runtime |
+| [`VideoFrameSequence`](api/motion-video-sequence.md#videoframesequence) | Type |
 
 ## optics/aperture.ts
 
@@ -2268,12 +2311,17 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | --- | --- |
 | [`assessReadoutExposureTimingLinkage`](api/sensor-readout-exposure-linkage.md#assessreadoutexposuretiminglinkage) | Runtime |
 | [`AssessReadoutExposureTimingLinkageInput`](api/sensor-readout-exposure-linkage.md#assessreadoutexposuretiminglinkageinput) | Type |
+| [`createRollingShutterCaptureExposureSchedule`](api/sensor-readout-exposure-linkage.md#createrollingshuttercaptureexposureschedule) | Runtime |
+| [`ELECTRONIC_ROLLING_SHUTTER_MODEL`](api/sensor-readout-exposure-linkage.md#electronic_rolling_shutter_model) | Runtime |
+| [`ElectronicRollingShutterExposureSchedule`](api/sensor-readout-exposure-linkage.md#electronicrollingshutterexposureschedule) | Type |
 | [`ReadoutExposureBoundaryId`](api/sensor-readout-exposure-linkage.md#readoutexposureboundaryid) | Type |
 | [`ReadoutExposureBoundarySpatialLink`](api/sensor-readout-exposure-linkage.md#readoutexposureboundaryspatiallink) | Type |
 | [`ReadoutExposureBoundarySpatialLinkAssessment`](api/sensor-readout-exposure-linkage.md#readoutexposureboundaryspatiallinkassessment) | Type |
 | [`ReadoutExposureSpatialPhaseOrientation`](api/sensor-readout-exposure-linkage.md#readoutexposurespatialphaseorientation) | Type |
 | [`ReadoutExposureTimingLinkageAssessment`](api/sensor-readout-exposure-linkage.md#readoutexposuretiminglinkageassessment) | Type |
 | [`ReadoutExposureTimingLinkageDeclaration`](api/sensor-readout-exposure-linkage.md#readoutexposuretiminglinkagedeclaration) | Type |
+| [`resolveElectronicRollingShutterExposureSchedule`](api/sensor-readout-exposure-linkage.md#resolveelectronicrollingshutterexposureschedule) | Runtime |
+| [`ResolveElectronicRollingShutterExposureScheduleInput`](api/sensor-readout-exposure-linkage.md#resolveelectronicrollingshutterexposurescheduleinput) | Type |
 
 ## sensor/readout-timing.ts
 
