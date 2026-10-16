@@ -46,6 +46,7 @@ import {
   type Cie1960UvChromaticity,
   type CieXyChromaticity
 } from "./colorimetry-math.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 /** Exact SI defining constants (BIPM SI Brochure, 9th edition, 2019). */
 export const PLANCK_CONSTANT_JOULE_SECONDS = 6.62607015e-34;
@@ -67,6 +68,7 @@ export const MAX_CORRELATED_COLOR_TEMPERATURE_DUV = 0.05;
  * L(λ, T) = 2hc² / λ⁵ / (exp(hc/(λkT)) − 1). Returns W·m⁻²·sr⁻¹·nm⁻¹.
  */
 export function calculatePlanckianSpectralRadiance(input: { temperatureKelvin: number; wavelengthNanometers: number }): number {
+  requireInputKeys(input, "calculatePlanckianSpectralRadiance", ["temperatureKelvin", "wavelengthNanometers"]);
   const t = requirePositiveNumber(input.temperatureKelvin, "temperatureKelvin");
   const nm = requirePositiveNumber(input.wavelengthNanometers, "wavelengthNanometers");
   const lambda = nm * 1e-9;
@@ -78,6 +80,7 @@ export function calculatePlanckianSpectralRadiance(input: { temperatureKelvin: n
 
 /** Planckian spectral radiance (W·m⁻²·sr⁻¹·nm⁻¹) as a function spectrum over the given range. */
 export function createPlanckianSpectrum(input: { temperatureKelvin: number; wavelengthRangeNanometers: SpectralWavelengthRangeNanometers }): ColorimetricSpectrum {
+  requireInputObject(input, "createPlanckianSpectrum input");
   const temperatureKelvin = requirePositiveNumber(input.temperatureKelvin, "temperatureKelvin");
   const range = requireRecordValue(input.wavelengthRangeNanometers, "wavelengthRangeNanometers");
   const spectrum: ColorimetricSpectrum = {
@@ -144,6 +147,7 @@ export function calculateCieDaylightComponentWeights(input: {
   correlatedColorTemperatureKelvin: number;
   coefficientRounding: "none" | "cie-three-decimals";
 }): CalculationResult<CieDaylightComponentWeights> {
+  requireInputObject(input, "calculateCieDaylightComponentWeights input");
   const t = requireTemperatureIn(input.correlatedColorTemperatureKelvin, CIE_DAYLIGHT_LOCUS_RANGE_KELVIN, "correlatedColorTemperatureKelvin");
   if (input.coefficientRounding !== "none" && input.coefficientRounding !== "cie-three-decimals") {
     throw new InvalidScientificInputError("coefficientRounding must be \"none\" or \"cie-three-decimals\".");
@@ -178,6 +182,7 @@ export function createCieDaylightSpectrum(input: {
   coefficientRounding: "none" | "cie-three-decimals";
   basis: CieDaylightBasis;
 }): ColorimetricSpectrum {
+  requireInputObject(input, "createCieDaylightSpectrum input");
   const weights = calculateCieDaylightComponentWeights(input).value;
   const basis = requireRecordValue(input.basis, "basis");
   if (typeof basis.datasetId !== "string" || basis.datasetId.trim().length === 0) {
@@ -211,6 +216,7 @@ function kimLocus(t: number): CieXyChromaticity {
  * exact integration in the test suite rather than claimed here.
  */
 export function estimatePlanckianLocusChromaticity(input: { temperatureKelvin: number }): CalculationResult<CieXyChromaticity> {
+  requireInputKeys(input, "estimatePlanckianLocusChromaticity", ["temperatureKelvin"]);
   const t = requireTemperatureIn(input.temperatureKelvin, KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN, "temperatureKelvin");
   return approximationResult(kimLocus(t), "planckian-locus-kim-2002-cubic-spline", COLORIMETRY_MODEL_VERSION,
     ["Kim et al. (2002) cubic-spline approximation of the CIE 1931 Planckian locus; valid 1667–25000 K"]);
@@ -257,6 +263,7 @@ function prepareLocus(model: PlanckianLocusModel): PreparedLocus {
 
 /** Planckian chromaticity at T using either locus model. */
 export function calculatePlanckianChromaticity(input: { temperatureKelvin: number; locus: PlanckianLocusModel }): CalculationResult<CieXyChromaticity> {
+  requireInputObject(input, "calculatePlanckianChromaticity input");
   const locus = prepareLocus(input.locus);
   const t = requireTemperatureIn(input.temperatureKelvin, locus.range, "temperatureKelvin");
   const value = locus.chromaticity(t);
@@ -273,6 +280,7 @@ export function calculatePlanckianChromaticity(input: { temperatureKelvin: numbe
  * approximation and carries no Duv.
  */
 export function estimateCorrelatedColorTemperatureMcCamy(input: { chromaticity: CieXyChromaticity }): CalculationResult<{ correlatedColorTemperatureKelvin: number }> {
+  requireInputObject(input, "estimateCorrelatedColorTemperatureMcCamy input");
   const xy = parseChromaticity(input.chromaticity, "chromaticity");
   const n = (xy.x - 0.3320) / (0.1858 - xy.y);
   const cct = 449 * n ** 3 + 3525 * n ** 2 + 6823.3 * n + 5520.33;
@@ -309,6 +317,7 @@ export interface CorrelatedColorTemperatureResult {
  * |Duv| > 0.05, where CIE 15 advises CCT should not be used.
  */
 export function calculateCorrelatedColorTemperature(input: { chromaticity: CieXyChromaticity; locus: PlanckianLocusModel }): CalculationResult<CorrelatedColorTemperatureResult> {
+  requireInputObject(input, "calculateCorrelatedColorTemperature input");
   const xy = parseChromaticity(input.chromaticity, "chromaticity");
   const locus = prepareLocus(input.locus);
   const target = uvOfChromaticity(xy);
@@ -364,6 +373,7 @@ export function calculateChromaticityFromCorrelatedColorTemperature(input: {
   whiteLocus: WhiteLocus;
   locus: PlanckianLocusModel;
 }): CalculationResult<CieXyChromaticity> {
+  requireInputObject(input, "calculateChromaticityFromCorrelatedColorTemperature input");
   const locus = prepareLocus(input.locus);
   const duv = requireFiniteNumber(input.duv, "duv");
   if (Math.abs(duv) > MAX_CORRELATED_COLOR_TEMPERATURE_DUV) throw new InvalidScientificInputError("|duv| must not exceed 0.05.");

@@ -19,7 +19,10 @@ import {
 } from "node:http";
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
-import { InvalidScientificInputError } from "../core/validation.js";
+import {
+  InvalidScientificInputError,
+  InvalidScientificResultError
+} from "../core/validation.js";
 import {
   InvalidPocRequestError,
   parsePocSimulationRequest
@@ -177,12 +180,24 @@ export function createPocApiServer(
         return;
       }
 
+      let parsed = false;
       try {
         const body = parsePocSimulationRequest(await readJsonBody(request));
+        parsed = true;
         const result = simulatePocCamera(body);
         writeJson(response, 200, result, allowedOrigin);
       } catch (error) {
-        if (error instanceof RequestBodyTooLargeError) {
+        if (parsed && error instanceof InvalidScientificResultError) {
+          // A structurally valid request whose finite values drive a result out of the finite
+          // numeric range: caller-caused, but not a shape/validation failure.
+          writeError(
+            response,
+            422,
+            "SIMULATION_RESULT_OUT_OF_RANGE",
+            error.message,
+            allowedOrigin
+          );
+        } else if (error instanceof RequestBodyTooLargeError) {
           // The unread remainder of the body is abandoned, so close the connection.
           writeError(
             response,

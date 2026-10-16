@@ -36,6 +36,7 @@ import {
   type ColorMatrix3x3,
   type ColorVector3
 } from "./colorimetry-math.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 /** RGB primaries as CIE 1931 xy chromaticities. */
 export interface RgbPrimaryChromaticities {
@@ -72,6 +73,7 @@ export function rgbToXyzMatrices(primaries: RgbPrimaryChromaticities, white: Cie
  * columns are the primaries' XYZ (Y = 1) scaled so that RGB (1, 1, 1) maps to the white.
  */
 export function calculateRgbToXyzMatrices(input: { primaries: RgbPrimaryChromaticities; whiteChromaticity: CieXyChromaticity }): CalculationResult<RgbToXyzMatrices> {
+  requireInputObject(input, "calculateRgbToXyzMatrices input");
   const value = rgbToXyzMatrices(input.primaries, input.whiteChromaticity);
   requireFiniteResult([...value.rgbToXyz.flat(), ...value.xyzToRgb.flat()], "RGB matrix derivation");
   return calculatedResult(value, "rgb-xyz-matrix-smpte-rp177", COLORIMETRY_MODEL_VERSION);
@@ -159,6 +161,7 @@ export interface Bt1886Eotf {
 
 /** Prepares the ITU-R BT.1886 reference EOTF (γ = 2.4) for a display's white and black luminance. */
 export function prepareBt1886Eotf(input: { whiteLuminanceCdPerSquareMeter: number; blackLuminanceCdPerSquareMeter: number }): Bt1886Eotf {
+  requireInputKeys(input, "prepareBt1886Eotf", ["whiteLuminanceCdPerSquareMeter", "blackLuminanceCdPerSquareMeter"]);
   const lw = requirePositiveNumber(input.whiteLuminanceCdPerSquareMeter, "whiteLuminanceCdPerSquareMeter");
   const lb = requireNonNegativeNumber(input.blackLuminanceCdPerSquareMeter, "blackLuminanceCdPerSquareMeter");
   if (!(lb < lw)) throw new InvalidScientificInputError("blackLuminanceCdPerSquareMeter must be below the white luminance.");
@@ -228,6 +231,7 @@ export function evaluateHlgInverseOetf(signal: number): number {
  * γ = 1.2 · 1.111^(log2(L_W/1000)).
  */
 export function calculateHlgSystemGamma(input: { nominalPeakLuminanceCdPerSquareMeter: number }): CalculationResult<{ systemGamma: number }> {
+  requireInputKeys(input, "calculateHlgSystemGamma", ["nominalPeakLuminanceCdPerSquareMeter"]);
   const lw = requirePositiveNumber(input.nominalPeakLuminanceCdPerSquareMeter, "nominalPeakLuminanceCdPerSquareMeter");
   const gamma = lw >= 400 && lw <= 2000 ? 1.2 + 0.42 * Math.log10(lw / 1000) : 1.2 * 1.111 ** Math.log2(lw / 1000);
   return calculatedResult({ systemGamma: gamma }, "bt2100-hlg-system-gamma", COLORIMETRY_MODEL_VERSION);
@@ -247,6 +251,7 @@ export interface HlgReferenceDisplay {
 
 /** Prepares the BT.2100 HLG reference OOTF/EOTF for a display (BT.2100-3 Table 5). */
 export function prepareHlgReferenceDisplay(input: { nominalPeakLuminanceCdPerSquareMeter: number; blackLuminanceCdPerSquareMeter: number; systemGamma?: number }): HlgReferenceDisplay {
+  requireInputKeys(input, "prepareHlgReferenceDisplay", ["nominalPeakLuminanceCdPerSquareMeter", "blackLuminanceCdPerSquareMeter", "systemGamma"]);
   const lw = requirePositiveNumber(input.nominalPeakLuminanceCdPerSquareMeter, "nominalPeakLuminanceCdPerSquareMeter");
   const lb = requireNonNegativeNumber(input.blackLuminanceCdPerSquareMeter, "blackLuminanceCdPerSquareMeter");
   if (!(lb < lw)) throw new InvalidScientificInputError("blackLuminanceCdPerSquareMeter must be below the peak luminance.");

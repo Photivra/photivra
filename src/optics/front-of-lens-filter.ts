@@ -21,6 +21,7 @@ import {
   type SpectralWavelengthBasis
 } from "../core/spectral.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -869,6 +870,7 @@ export function resolveFrontOfLensFilterTransmission(
   input:
     ResolveFrontOfLensFilterTransmissionInput
 ): ResolvedFrontOfLensFilterTransmission {
+  requireInputObject(input, "resolveFrontOfLensFilterTransmission input");
   const profile =
     parseFrontOfLensFilterProfile(
       input.profile
@@ -1017,6 +1019,7 @@ export function composeFrontOfLensFilterTransmission(
   input:
     ComposeFrontOfLensFilterTransmissionInput
 ): ComposedFrontOfLensFilterTransmission {
+  requireInputObject(input, "composeFrontOfLensFilterTransmission input");
   if (
     !Array.isArray(
       input.filters

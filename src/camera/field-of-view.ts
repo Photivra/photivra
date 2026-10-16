@@ -23,6 +23,7 @@ import {
   requirePositiveFinite
 } from "../core/validation.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 export interface CalculateFieldOfViewInput {
   /** Lens focal length in millimetres. */
@@ -131,6 +132,7 @@ function fieldOfViewAssumptions(focusAware: boolean): readonly string[] {
 export function calculateFieldOfView(
   input: CalculateFieldOfViewInput
 ): CalculationResult<FieldOfView> {
+  requireInputKeys(input, "calculateFieldOfView", ["focalLengthMm", "sensorDimensionMm", "focusDistanceM"]);
   requirePositiveFinite("sensorDimensionMm", input.sensorDimensionMm);
 
   const { projectionDistanceMm, focusAware } = resolveProjectionDistance(
@@ -164,6 +166,7 @@ export function calculateFieldOfView(
 export function calculateFieldOfViewBounds(
   input: CalculateFieldOfViewBoundsInput
 ): CalculationResult<FieldOfViewBounds> {
+  requireInputKeys(input, "calculateFieldOfViewBounds", ["focalLengthMm", "minimumSensorCoordinateMm", "maximumSensorCoordinateMm", "focusDistanceM"]);
   if (!Number.isFinite(input.minimumSensorCoordinateMm)) {
     throw new InvalidScientificInputError(
       "minimumSensorCoordinateMm must be finite."

@@ -20,6 +20,7 @@ import { bindSensorSpatioSpectralSamples, reduceSensorSpatioSpectralIrradiance,
   type ReduceSensorSpatioSpectralIrradianceInput, type SensorSpatioSpectralNodeIdentity } from "../sensor/spatio-spectral-reduction.js";
 import { sensorSpatialQuadratureNodeIdentityKey } from "../sensor/spatial-sample-reduction.js";
 import { calculateSceneRadianceToSensorIrradiance, type CalculateSceneRadianceToSensorIrradianceInput } from "./scene-to-sensor-irradiance.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 /** One declared scene query/result for an exact pre-AA spatial/wavelength node. */
 export interface SceneSensorQuadratureSample {
@@ -74,6 +75,7 @@ export interface SceneToSensorIrradianceQuadrature {
 export function calculateSceneToSensorIrradianceQuadrature(
   input: CalculateSceneToSensorIrradianceQuadratureInput
 ): CalculationResult<SceneToSensorIrradianceQuadrature> {
+  requireInputObject(input, "calculateSceneToSensorIrradianceQuadrature input");
   if (!Number.isFinite(input.timeSecondsFromExposureStart) || input.timeSecondsFromExposureStart < 0) {
     throw new InvalidScientificInputError("Quadrature sample time must be finite and nonnegative.");
   }

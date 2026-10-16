@@ -32,6 +32,7 @@ import type {
 import type {
   ResolvedCaptureModeTiming
 } from "../sensor/capture-mode-timing.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface ExtendedObjectMetricPoint {
   pointId: string;
@@ -664,6 +665,7 @@ export function calculateExtendedObjectProjectionTrajectory(
   input:
     CalculateExtendedObjectProjectionTrajectoryInput
 ): CalculationResult<ExtendedObjectProjectionTrajectory> {
+  requireInputObject(input, "calculateExtendedObjectProjectionTrajectory input");
   const objectId =
     requireNonEmptyString(
       input.objectId,
@@ -857,6 +859,7 @@ export function calculateCaptureExtendedObjectTemporalProjection(
   input:
     CalculateCaptureExtendedObjectTemporalProjectionInput
 ): CalculationResult<CaptureExtendedObjectTemporalProjection> {
+  requireInputObject(input, "calculateCaptureExtendedObjectTemporalProjection input");
   requirePositiveInteger(
     "temporalSampleCount",
     input.temporalSampleCount

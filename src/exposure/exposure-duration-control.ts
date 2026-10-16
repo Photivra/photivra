@@ -19,6 +19,7 @@ import { InvalidScientificInputError } from "../core/validation.js";
 import type {
   CalculateCaptureExposureWindowsInput
 } from "../sensor/exposure-window.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export const EXPOSURE_DURATION_CONTROL_VERSION =
   "0.1.0" as const;
@@ -307,9 +308,11 @@ export function bindResolvedExposureDurationToCaptureExposureInput(
   input:
     BindResolvedExposureDurationToCaptureExposureInput
 ): CalculateCaptureExposureWindowsInput {
+  requireInputObject(input, "bindResolvedExposureDurationToCaptureExposureInput input");
   const resolution =
     input.resolution;
 
+  requireInputObject(resolution, "resolution input");
   if (
     resolution.version !==
       EXPOSURE_DURATION_CONTROL_VERSION ||

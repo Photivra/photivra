@@ -11,14 +11,15 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist/index.js",
     "dist/index.js.map",
     "dist/index.d.ts",
-    "dist/index.d.ts.map",
     "dist/camera",
     "dist/capture",
     "dist/color",
@@ -33,18 +34,23 @@
     "dist/sensor",
     "dist/simulation",
     "dist/stabilization",
+    "!dist/capture/browser-native-reference-*",
+    "!dist/schema/camera.js",
+    "!dist/schema/camera.js.map",
+    "!dist/schema/scene.js",
+    "!dist/schema/scene.js.map",
     "CHANGELOG.md",
     "README.md",
     "CITATION.cff",
     "LICENSE",
     "NOTICE",
-    "docs",
-    "AGENTS.md",
-    "CONTRIBUTING.md",
     "SECURITY.md",
     "NODE_SUPPORT.md",
-    "DCO",
-    "THIRD_PARTY.md"
+    "THIRD_PARTY.md",
+    "docs/USAGE.md",
+    "docs/API_REFERENCE.md",
+    "docs/api",
+    "docs/examples"
   ],
   "repository": {
     "type": "git",
@@ -62,7 +68,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "prepare": "node scripts/install-git-hooks.mjs && npm run build",
+    "hooks:install": "node scripts/install-git-hooks.mjs",
     "prepush": "node scripts/prepush.mjs",
     "check:static": "eslint . && tsc --noEmit && npm run check:licenses && npm run check:license-headers && npm run check:identity && npm run check:browser-surface",
     "check": "npm run check:static && vitest run",

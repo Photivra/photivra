@@ -46,6 +46,7 @@ import {
   type ColorMatrix3x3,
   type ColorVector3
 } from "./colorimetry-math.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export const MAX_CAMERA_MATRIX_TRAINING_PATCHES = 10_000;
 
@@ -111,6 +112,7 @@ function solveRow(aInv: ColorMatrix3x3, rhs: ColorVector3, white: ColorVector3 |
  * an illuminant and CMFs, and reports the per-patch CIEDE2000 residual.
  */
 export function estimateCameraColorMatrix(input: EstimateCameraColorMatrixInput): CalculationResult<CameraColorMatrixFit> {
+  requireInputObject(input, "estimateCameraColorMatrix input");
   if (input.constraint !== "least-squares" && input.constraint !== "white-point-preserving-least-squares") {
     throw new InvalidScientificInputError("constraint is not supported.");
   }

@@ -21,6 +21,7 @@ import {
   calculateThinLensImageDistance,
   type ThinLensImageDistance
 } from "./thin-lens.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 /**
  * Explicit ideal focus-plane state.
@@ -109,6 +110,7 @@ export function parseFocusPlane(value: unknown): FocusPlane {
 export function calculateFocusPlaneImageDistance(
   input: CalculateFocusPlaneImageDistanceInput
 ): CalculationResult<ThinLensImageDistance> {
+  requireInputObject(input, "calculateFocusPlaneImageDistance input");
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
 
   const focus = parseFocusPlane(input.focus);

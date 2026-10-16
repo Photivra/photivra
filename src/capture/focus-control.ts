@@ -27,6 +27,7 @@ import {
   parseFocusPlane,
   type FocusPlane
 } from "../optics/focus-state.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -733,6 +734,7 @@ export function createFocusControlState(
   input:
     CreateFocusControlStateInput
 ): FocusControlState {
+  requireInputObject(input, "createFocusControlState input");
   const profile =
     parseFocusControlProfile(
       input.profile
@@ -815,6 +817,8 @@ export function setManualFocusState(
   input:
     SetManualFocusStateInput
 ): FocusControlState {
+  requireInputObject(input, "setManualFocusState input");
+  requireInputObject(input.state, "state");
   if (
     input.state.mode !==
     "manual"
@@ -1078,6 +1082,7 @@ export function resolveFocusTargetObservation(
   input:
     ResolveFocusTargetObservationInput
 ): FocusTargetResolution {
+  requireInputObject(input, "resolveFocusTargetObservation input");
   if (
     input.event !== "acquire" &&
     input.event !== "update"
@@ -1262,6 +1267,7 @@ export function setFocusLock(
   input:
     SetFocusLockInput
 ): FocusControlState {
+  requireInputObject(input, "setFocusLock input");
   const time =
     requireMonotonicEventTime(
       input.state,
@@ -1347,6 +1353,7 @@ export function assessFocusReleaseGate(
   input:
     AssessFocusReleaseGateInput
 ): FocusReleaseGateAssessment {
+  requireInputObject(input, "assessFocusReleaseGate input");
   const profile =
     parseFocusControlProfile(
       input.profile

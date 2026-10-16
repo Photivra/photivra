@@ -19,6 +19,7 @@ import {
   requirePositiveFinite
 } from "../core/validation.js";
 import { calculateExposureValue100 } from "../exposure/exposure.js";
+import { portableHypot } from "../core/portable-math.js";
 import { calculateProjectedMotionBlur } from "../motion/projected-motion.js";
 import { calculateIdealApertureGeometry } from "../optics/aperture.js";
 import { estimateEquivalentViewingCircleOfConfusion } from "../optics/circle-of-confusion.js";
@@ -52,8 +53,9 @@ import {
 } from "../sensor/sensor-geometry.js";
 import type { Vector3 } from "../schema/scene.js";
 import { estimateCameraShakeBlur } from "../stabilization/camera-shake.js";
+import { requireInputObject } from "../core/record-validation.js";
 
-export const POC_SIMULATION_API_VERSION = "0.20.0" as const;
+export const POC_SIMULATION_API_VERSION = "1.0.0" as const;
 
 const POC_MAX_PITCH_AXIS_RELATIVE_DIFFERENCE = 0.01;
 
@@ -153,7 +155,7 @@ function calculateCroppedFieldOfView(
   focusDistanceM: number,
   cropFactor: number
 ): FieldOfViewSummary {
-  const diagonalMm = Math.hypot(sensorWidthMm, sensorHeightMm);
+  const diagonalMm = portableHypot(sensorWidthMm, sensorHeightMm);
   return {
     horizontalDegrees: calculateFieldOfView({
       focalLengthMm,
@@ -266,12 +268,12 @@ function calculateFieldOfViewForPhysicalBounds(
     first: RasterVector,
     second: RasterVector
   ): number => {
-    const firstLength = Math.hypot(
+    const firstLength = portableHypot(
       first.x,
       first.y,
       projectionDistanceMm
     );
-    const secondLength = Math.hypot(
+    const secondLength = portableHypot(
       second.x,
       second.y,
       projectionDistanceMm
@@ -599,6 +601,8 @@ function resolveCaptureVector(
 export function simulatePocCamera(
   request: PocSimulationRequest
 ): PocSimulationResponse {
+  requireInputObject(request, "simulatePocCamera input");
+  requireInputObject(request.sensor, "request.sensor");
   requirePositiveFinite("sensor.widthMm", request.sensor.widthMm);
   requirePositiveFinite("sensor.heightMm", request.sensor.heightMm);
 
@@ -701,7 +705,7 @@ export function simulatePocCamera(
         imageDistanceMm: projection.value.imageDistanceMm
       })
     : undefined;
-  const diagonalMm = Math.hypot(
+  const diagonalMm = portableHypot(
     request.sensor.widthMm,
     request.sensor.heightMm
   );

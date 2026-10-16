@@ -46,6 +46,17 @@ describe("camera shake stabilization estimate", () => {
     ).toThrow("Calculation produced a non-finite number");
   });
 
+  it("rejects a quarter turn or more per axis instead of reversing the tan() sign (2.0-changes review #5)", () => {
+    const shake = (yaw: number, pitch: number): ReturnType<typeof estimateCameraShakeBlur> => estimateCameraShakeBlur({
+      focalLengthMm: 50, shutterSeconds: 1, angularVelocityRadPerSec: { yaw, pitch }, stabilizationStopsEquivalent: 0
+    });
+    for (const [yaw, pitch] of [[2.5, 0], [-2.5, 0], [0, Math.PI / 2], [Math.PI / 2, 0], [0, -3]]) {
+      expect(() => shake(yaw!, pitch!)).toThrow(/quarter turn/);
+    }
+    const nearQuarter = shake(1.5, 0).value.unstabilized;
+    expect(nearQuarter.deltaXmm).toBeGreaterThan(0);
+  });
+
   it("uses focus-aware projection distance when focus is supplied", () => {
     const pinhole = estimateCameraShakeBlur({
       focalLengthMm: 200,
