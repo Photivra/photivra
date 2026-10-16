@@ -131,7 +131,7 @@ function wb(value: unknown): CaptureWhiteBalanceIntent | null {
   const r = object(value, ["stateId", "source", "locked", "channelGains", "sourceProfile"]);
   const g = object(r.channelGains, ["red", "green", "blue"]);
   if (typeof r.locked !== "boolean") throw new InvalidConfigurationError("WB lock must be boolean.");
-  return { stateId: id(r.stateId), source: enumValue(r.source, ["preset", "manual-gains", "custom-measurement", "auto-white-balance"]),
+  return { stateId: id(r.stateId), source: enumValue(r.source, ["preset", "manual-gains", "custom-measurement", "auto-white-balance", "color-temperature"]),
     locked: r.locked, channelGains: { red: number(g.red, true), green: number(g.green, true), blue: number(g.blue, true) },
     sourceProfile: r.sourceProfile === null ? null : profile(r.sourceProfile) };
 }
