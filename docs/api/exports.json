@@ -148,6 +148,16 @@
       "kind": "type"
     },
     {
+      "name": "AtmosphericExtinctionModel",
+      "source": "src/optics/atmospheric-haze.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AtmosphericHaze",
+      "source": "src/optics/atmospheric-haze.ts",
+      "kind": "type"
+    },
+    {
       "name": "AutoIsoBaselinePolicy",
       "source": "src/exposure/exposure-mode-resolver.ts",
       "kind": "type"
@@ -193,6 +203,21 @@
       "kind": "type"
     },
     {
+      "name": "BrownConradyDistortionCoefficients",
+      "source": "src/optics/brown-conrady-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "BrownConradyDistortionMapping",
+      "source": "src/optics/brown-conrady-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "BrownConradyDistortionProfile",
+      "source": "src/optics/brown-conrady-distortion.ts",
+      "kind": "type"
+    },
+    {
       "name": "calculateActiveCaptureFieldOfView",
       "source": "src/output/capture-geometry.ts",
       "kind": "runtime"
@@ -210,6 +235,26 @@
     {
       "name": "CalculateAiryDiskInput",
       "source": "src/optics/diffraction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateAtmosphericHaze",
+      "source": "src/optics/atmospheric-haze.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateAtmosphericHazeInput",
+      "source": "src/optics/atmospheric-haze.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateBrownConradyDistortionMapping",
+      "source": "src/optics/brown-conrady-distortion.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateBrownConradyDistortionMappingInput",
+      "source": "src/optics/brown-conrady-distortion.ts",
       "kind": "type"
     },
     {
@@ -298,6 +343,11 @@
       "kind": "type"
     },
     {
+      "name": "calculateCauchyRefractiveIndex",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateCenteredCrop",
       "source": "src/output/crop.ts",
       "kind": "runtime"
@@ -320,6 +370,16 @@
     {
       "name": "CalculateDefocusCircleInput",
       "source": "src/optics/depth-of-field.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateDefocusWavefront",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateDefocusWavefrontInput",
+      "source": "src/optics/zernike-wavefront.ts",
       "kind": "type"
     },
     {
@@ -398,6 +458,16 @@
       "kind": "type"
     },
     {
+      "name": "calculateExtinctionFromVisibility",
+      "source": "src/optics/atmospheric-haze.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateExtinctionFromVisibilityInput",
+      "source": "src/optics/atmospheric-haze.ts",
+      "kind": "type"
+    },
+    {
       "name": "calculateFieldOfView",
       "source": "src/camera/field-of-view.ts",
       "kind": "runtime"
@@ -453,6 +523,16 @@
       "kind": "runtime"
     },
     {
+      "name": "calculateGeometricFocusBreathing",
+      "source": "src/optics/focus-breathing.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateGeometricFocusBreathingInput",
+      "source": "src/optics/focus-breathing.ts",
+      "kind": "type"
+    },
+    {
       "name": "calculateGeometricResampling",
       "source": "src/output/geometric-transforms.ts",
       "kind": "runtime"
@@ -496,6 +576,16 @@
       "name": "calculateImagingAreaMetrics",
       "source": "src/sensor/sensor-geometry.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "calculateInverseBrownConradyDistortionMapping",
+      "source": "src/optics/brown-conrady-distortion.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateInverseBrownConradyDistortionMappingInput",
+      "source": "src/optics/brown-conrady-distortion.ts",
+      "kind": "type"
     },
     {
       "name": "calculateInverseCameraRotationImageMapping",
@@ -573,6 +663,46 @@
       "kind": "runtime"
     },
     {
+      "name": "calculateLensProjectionDirection",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateLensProjectionDirectionInput",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateLensProjectionFieldOfView",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateLensProjectionFieldOfViewBounds",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateLensProjectionFieldOfViewBoundsInput",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CalculateLensProjectionFieldOfViewInput",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateLensProjectionImagePoint",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateLensProjectionImagePointInput",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
       "name": "calculateLensStrayLightIrradiance",
       "source": "src/optics/stray-light.ts",
       "kind": "runtime"
@@ -583,6 +713,26 @@
       "kind": "runtime"
     },
     {
+      "name": "calculateLongitudinalChromaticFocus",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateLongitudinalChromaticFocusInput",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateMechanicalVignetting",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateMechanicalVignettingInput",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "type"
+    },
+    {
       "name": "calculateNativeCaptureSdrPlan",
       "source": "src/output/native-capture-sdr.ts",
       "kind": "runtime"
@@ -591,6 +741,16 @@
       "name": "calculateNativeRawPlan",
       "source": "src/capture/native-raw.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "calculateNaturalVignetting",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateNaturalVignettingInput",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "type"
     },
     {
       "name": "calculateOutputFieldOfView",
@@ -635,6 +795,16 @@
     {
       "name": "CalculatePixelPitchInput",
       "source": "src/sensor/pixel-pitch.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculatePolygonPupilFraunhoferPsf",
+      "source": "src/optics/polygon-diffraction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculatePolygonPupilFraunhoferPsfInput",
+      "source": "src/optics/polygon-diffraction.ts",
       "kind": "type"
     },
     {
@@ -1618,6 +1788,16 @@
       "kind": "runtime"
     },
     {
+      "name": "createWavefrontPupilGrid",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateWavefrontPupilGridInput",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
       "name": "DeclaredEffectiveCaptureSampling",
       "source": "src/sensor/capture-mode.ts",
       "kind": "type"
@@ -1625,6 +1805,11 @@
     {
       "name": "DefocusCircle",
       "source": "src/optics/depth-of-field.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DefocusWavefront",
+      "source": "src/optics/zernike-wavefront.ts",
       "kind": "type"
     },
     {
@@ -1743,6 +1928,16 @@
       "kind": "type"
     },
     {
+      "name": "estimateMarechalStrehlRatio",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EstimateMarechalStrehlRatioInput",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
       "name": "evaluateSceneIlluminationTemporalMultiplier",
       "source": "src/schema/illumination-temporal.ts",
       "kind": "runtime"
@@ -1751,6 +1946,11 @@
       "name": "EvaluateSceneIlluminationTemporalMultiplierInput",
       "source": "src/schema/illumination-temporal.ts",
       "kind": "type"
+    },
+    {
+      "name": "evaluateZernikePolynomial",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "runtime"
     },
     {
       "name": "ExportSensorColorProfile",
@@ -2018,12 +2218,37 @@
       "kind": "type"
     },
     {
+      "name": "FRAUNHOFER_C_LINE_NM",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "FRAUNHOFER_D_LINE_NM",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "FRAUNHOFER_F_LINE_NM",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION",
       "source": "src/optics/front-of-lens-filter.ts",
       "kind": "runtime"
     },
     {
+      "name": "FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "FrontOfLensFilterProfile",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FrontOfLensFilterProfileSchemaVersion",
       "source": "src/optics/front-of-lens-filter.ts",
       "kind": "type"
     },
@@ -2205,6 +2430,16 @@
     {
       "name": "GenericVersionedAsset",
       "source": "src/equipment/generic-tier-assets.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GeometricFocusBreathing",
+      "source": "src/optics/focus-breathing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GeometricFocusingMethod",
+      "source": "src/optics/focus-breathing.ts",
       "kind": "type"
     },
     {
@@ -2433,6 +2668,11 @@
       "kind": "runtime"
     },
     {
+      "name": "InverseBrownConradyDistortionMapping",
+      "source": "src/optics/brown-conrady-distortion.ts",
+      "kind": "type"
+    },
+    {
       "name": "InverseCameraRotationImageMapping",
       "source": "src/motion/camera-rotation.ts",
       "kind": "type"
@@ -2558,6 +2798,11 @@
       "kind": "runtime"
     },
     {
+      "name": "LENS_PROJECTION_MODELS",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "LENS_SAMPLED_PSF_PROFILE_SCHEMA_VERSION",
       "source": "src/optics/lens-psf-profile.ts",
       "kind": "runtime"
@@ -2603,6 +2848,11 @@
       "kind": "type"
     },
     {
+      "name": "LensDirection",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
       "name": "LensFieldPointMm",
       "source": "src/optics/radial-distortion.ts",
       "kind": "type"
@@ -2615,6 +2865,31 @@
     {
       "name": "LensMtfDiagnosticSample",
       "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensProjectionDirection",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensProjectionFieldOfView",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensProjectionFieldOfViewBounds",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensProjectionImagePoint",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensProjectionModel",
+      "source": "src/camera/lens-projection.ts",
       "kind": "type"
     },
     {
@@ -2648,6 +2923,11 @@
       "kind": "type"
     },
     {
+      "name": "LensSampledPsfInterpolation",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
       "name": "LensSampledPsfProfile",
       "source": "src/optics/lens-psf-profile.ts",
       "kind": "type"
@@ -2675,6 +2955,21 @@
     {
       "name": "LinearCaptureEncodingInput",
       "source": "src/capture/linear-encoding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LinearPolarizationState",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LongitudinalChromaticDispersion",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LongitudinalChromaticFocus",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
       "kind": "type"
     },
     {
@@ -2741,6 +3036,16 @@
       "name": "MAX_PRINT_REGION_STATISTICS_SAMPLES",
       "source": "src/output/print-region-statistics.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "MechanicalVignetting",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "type"
+    },
+    {
+      "name": "MechanicalVignettingAperture",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "type"
     },
     {
       "name": "MeteringCapabilityCompatibilityAssessment",
@@ -3008,6 +3313,16 @@
       "kind": "type"
     },
     {
+      "name": "NaturalVignetting",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NaturalVignettingModel",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "type"
+    },
+    {
       "name": "NormalizedDiscreteSpectralLine",
       "source": "src/core/spectral-composition.ts",
       "kind": "type"
@@ -3220,6 +3535,11 @@
     {
       "name": "parseLensMtfDiagnosticProfile",
       "source": "src/optics/lens-psf-profile.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseLensProjectionModel",
+      "source": "src/camera/lens-projection.ts",
       "kind": "runtime"
     },
     {
@@ -3618,6 +3938,11 @@
       "kind": "type"
     },
     {
+      "name": "PolygonPupilFraunhoferPsf",
+      "source": "src/optics/polygon-diffraction.ts",
+      "kind": "type"
+    },
+    {
       "name": "PREPARED_IMAGE_FORMATION_CONTEXT_VERSION",
       "source": "src/composition/image-formation-plan.ts",
       "kind": "runtime"
@@ -4000,6 +4325,11 @@
     {
       "name": "RadialGeometricTransform",
       "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RadialLensProjectionModel",
+      "source": "src/camera/lens-projection.ts",
       "kind": "type"
     },
     {
@@ -4658,6 +4988,11 @@
       "kind": "runtime"
     },
     {
+      "name": "resolveZernikeNollOrder",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "RollingSensorReadoutTimingDeclaration",
       "source": "src/sensor/readout-timing.ts",
       "kind": "type"
@@ -5030,6 +5365,16 @@
     {
       "name": "SdrRenderingResult",
       "source": "src/output/sdr-rendering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SeidelFieldPosition",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SeidelWavefrontCoefficients",
+      "source": "src/optics/zernike-wavefront.ts",
       "kind": "type"
     },
     {
@@ -6188,6 +6533,11 @@
       "kind": "runtime"
     },
     {
+      "name": "WavefrontPupilGrid",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
       "name": "WHITE_BALANCE_PROFILE_SCHEMA_VERSION",
       "source": "src/color/white-balance.ts",
       "kind": "runtime"
@@ -6230,6 +6580,26 @@
     {
       "name": "WidestAvailableFNumberCapability",
       "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ZERNIKE_MAXIMUM_NOLL_INDEX",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ZERNIKE_PUPIL_MAXIMUM_SAMPLES_ACROSS",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ZernikeCoefficient",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ZernikeOrder",
+      "source": "src/optics/zernike-wavefront.ts",
       "kind": "type"
     }
   ]
