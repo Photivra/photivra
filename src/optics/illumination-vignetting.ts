@@ -100,27 +100,46 @@ function throughputFromSquaredRadius(
   );
 }
 
+/**
+ * Real roots of dT/ds for s = rho². Every interior extremum of the throughput lies at one of these
+ * roots, so the validator evaluates them together with both envelope ends: a profile that dips
+ * below zero (or rises above one) mid-field is rejected even when both ends are valid.
+ *
+ * The quadratic is scaled before solving and uses the stable q-form roots so a tiny cubic term
+ * cannot erase the smaller root through cancellation (the same scheme as the radial-distortion
+ * validator).
+ */
 function throughputCriticalSquaredRadii(
   coefficients: IlluminationVignettingCoefficients
 ): number[] {
-  // For s = rho²:
   // T(s) = 1 + r2*s + r4*s² + r6*s³
   // dT/ds = r2 + 2*r4*s + 3*r6*s²
   const a = 3 * coefficients.r6;
   const b = 2 * coefficients.r4;
   const c = coefficients.r2;
+  const coefficientScale = Math.max(Math.abs(a), Math.abs(b), Math.abs(c));
+  if (coefficientScale === 0) {
+    return [];
+  }
+  const scaledA = a / coefficientScale;
+  const scaledB = b / coefficientScale;
+  const scaledC = c / coefficientScale;
 
-  if (a === 0) {
-    return b === 0 ? [] : [-c / b];
+  if (scaledA === 0) {
+    return scaledB === 0 ? [] : [-scaledC / scaledB];
   }
 
-  const discriminant = b * b - 4 * a * c;
+  const discriminant = scaledB * scaledB - 4 * scaledA * scaledC;
   if (discriminant < 0) {
     return [];
   }
-
   const root = Math.sqrt(discriminant);
-  return [(-b - root) / (2 * a), (-b + root) / (2 * a)];
+  const q = -0.5 * (scaledB + (scaledB >= 0 ? root : -root));
+  if (q === 0) {
+    // Only when b = c = 0: the double root is s = 0.
+    return [0];
+  }
+  return [q / scaledA, scaledC / q];
 }
 
 function validateProfile(

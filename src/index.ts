@@ -263,6 +263,26 @@ export {
 } from "./camera/field-of-view.js";
 
 export {
+  LENS_PROJECTION_MODELS,
+  calculateLensProjectionDirection,
+  calculateLensProjectionFieldOfView,
+  calculateLensProjectionFieldOfViewBounds,
+  calculateLensProjectionImagePoint,
+  parseLensProjectionModel,
+  type CalculateLensProjectionDirectionInput,
+  type CalculateLensProjectionFieldOfViewBoundsInput,
+  type CalculateLensProjectionFieldOfViewInput,
+  type CalculateLensProjectionImagePointInput,
+  type LensDirection,
+  type LensProjectionDirection,
+  type LensProjectionFieldOfView,
+  type LensProjectionFieldOfViewBounds,
+  type LensProjectionImagePoint,
+  type LensProjectionModel,
+  type RadialLensProjectionModel
+} from "./camera/lens-projection.js";
+
+export {
   calculateProjectedObjectSize,
   type CalculateProjectedObjectSizeInput,
   type ProjectedObjectSize
@@ -834,6 +854,17 @@ export {
   type RadialDistortionMapping,
   type RadialDistortionProfile
 } from "./optics/radial-distortion.js";
+
+export {
+  calculateBrownConradyDistortionMapping,
+  calculateInverseBrownConradyDistortionMapping,
+  type BrownConradyDistortionCoefficients,
+  type BrownConradyDistortionMapping,
+  type BrownConradyDistortionProfile,
+  type CalculateBrownConradyDistortionMappingInput,
+  type CalculateInverseBrownConradyDistortionMappingInput,
+  type InverseBrownConradyDistortionMapping
+} from "./optics/brown-conrady-distortion.js";
 
 export {
   calculateInverseLateralChromaticAberrationMapping,
