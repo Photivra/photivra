@@ -319,7 +319,10 @@
           "groupedModeCombinationApplied": false,
           "reconstructionApplied": false,
           "aliasingModeled": false,
-          "moireModeled": false
+          "moireModeled": false,
+          "effectiveSaturationCode": 1023,
+          "systemConversionGainElectronsPerCode": 1,
+          "readNoiseRmsElectrons": 2
         },
         {
           "version": "0.1.0",
@@ -351,7 +354,10 @@
           "groupedModeCombinationApplied": false,
           "reconstructionApplied": false,
           "aliasingModeled": false,
-          "moireModeled": false
+          "moireModeled": false,
+          "effectiveSaturationCode": 1023,
+          "systemConversionGainElectronsPerCode": 1,
+          "readNoiseRmsElectrons": 2
         },
         {
           "version": "0.1.0",
@@ -383,7 +389,10 @@
           "groupedModeCombinationApplied": false,
           "reconstructionApplied": false,
           "aliasingModeled": false,
-          "moireModeled": false
+          "moireModeled": false,
+          "effectiveSaturationCode": 1023,
+          "systemConversionGainElectronsPerCode": 1,
+          "readNoiseRmsElectrons": 2
         },
         {
           "version": "0.1.0",
@@ -415,7 +424,10 @@
           "groupedModeCombinationApplied": false,
           "reconstructionApplied": false,
           "aliasingModeled": false,
-          "moireModeled": false
+          "moireModeled": false,
+          "effectiveSaturationCode": 1023,
+          "systemConversionGainElectronsPerCode": 1,
+          "readNoiseRmsElectrons": 2
         }
       ],
       "schemaVersion": "0.1.0",

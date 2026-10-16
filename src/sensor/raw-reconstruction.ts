@@ -22,6 +22,7 @@ import {
   type CalculationResult
 } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { calculateEffectiveSaturationCode } from "../capture/raw-white-level.js";
 import {
   parseEvidenceList,
   type EvidenceProvenance
@@ -36,6 +37,7 @@ import {
   type SensorColorSamplingProfile
 } from "./color-sampling.js";
 import type {
+  SensorAdcIntegralNonLinearity,
   SensorRawCodeSample
 } from "./raw-readout.js";
 import type {
@@ -55,6 +57,12 @@ export interface CreateSensorRawCaptureSampleInput {
     SensorRawCodeSample;
   contributors:
     ResolvedCaptureModeColorSamplingContributors;
+  /**
+   * The selected readout regime's declared ADC integral non-linearity, when it has one. The code
+   * sample records INL only at its own code; the effective white level needs it at saturation.
+   */
+  adcIntegralNonLinearity?:
+    SensorAdcIntegralNonLinearity;
 }
 
 export interface SensorRawCaptureSample {
@@ -78,6 +86,12 @@ export interface SensorRawCaptureSample {
   digitalSaturationCode: number;
   blackSubtractedNormalizedCode:
     number;
+  /** Full-saturation code from `calculateEffectiveSaturationCode`; constant per CFA phase. */
+  effectiveSaturationCode: number;
+  /** Regime system conversion gain, e⁻ per code (DNG NoiseProfile input). */
+  systemConversionGainElectronsPerCode: number;
+  /** sqrt of the summed squared regime read-noise RMS components, e⁻ (DNG NoiseProfile input). */
+  readNoiseRmsElectrons: number;
   readoutProfileId: string;
   readoutRegimeId: string;
   sourceChargeSeedUint32: number;
@@ -682,6 +696,29 @@ export function createSensorRawCaptureSample(
         raw.blackLevelCode
       ) /
       denominator,
+    effectiveSaturationCode:
+      calculateEffectiveSaturationCode(
+        input.adcIntegralNonLinearity ===
+          undefined
+          ? raw
+          : {
+              ...raw,
+              integralNonLinearity:
+                input.adcIntegralNonLinearity
+            }
+      ),
+    systemConversionGainElectronsPerCode:
+      raw.systemConversionGainElectronsPerCode,
+    readNoiseRmsElectrons:
+      Math.sqrt(
+        raw.electronicReadNoiseComponents.reduce(
+          (sum, component) =>
+            sum +
+            component.rmsElectrons *
+              component.rmsElectrons,
+          0
+        )
+      ),
     readoutProfileId:
       raw.readoutProfileId,
     readoutRegimeId:

@@ -24,7 +24,7 @@ File identity and RAW data identity are distinct. Hashing is asynchronous; input
 before the first await. Full-native execution is limited to 4096 sites.
 
 ```ts
-export async function createPhotographicExportPair(input: PhotographicExportInput): Promise<PhotographicExportPair>;
+export async function createPhotographicExportPair(input: PhotographicExportInput, options: PhotographicExportOptions = {}): Promise<PhotographicExportPair>;
 ```
 
 This call is asynchronous; byte hashing uses the caller runtime's Web Crypto.
@@ -82,6 +82,16 @@ export function parseProcessedSensorRawInput(value: unknown): ProcessedSensorRaw
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
 
+## PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION
+
+RAW/processed pipeline version recorded in XMP. 0.2.0: development normalizes to the effective white
+level, consumes saturation, fixes WB for non-white-normalized matrices; DNG WhiteLevel, AsShotNeutral,
+BlackLevel/CFA phase and the 1.4 tags ForwardMatrix1, BaselineExposure, NoiseProfile, AnalogBalance.
+
+```ts
+PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION = "0.2.0" as const
+```
+
 ## PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -107,6 +117,19 @@ export interface PhotographicExportInput {
   jpegQuantizationStep: number;
   /** Optional native-optical post-color correction; JPEG only, RAW records informational intent. */
   correction?: CaptureCorrectedSdrInput["correction"];
+  /** RAW highlight handling before WB; default `clip`. See `prepareSensorColorDevelopment`. */
+  highlightMode?: RawHighlightMode;
+}
+```
+
+## PhotographicExportOptions
+
+Options for {@link createPhotographicExportPair}.
+
+```ts
+export interface PhotographicExportOptions {
+  /** Aborting rejects with a domain error at the next step boundary; no partial pair is returned. */
+  signal?: AbortSignal;
 }
 ```
 
@@ -129,11 +152,21 @@ export interface PhotographicExportPair {
   processedOutputView: { rect: RasterRect; pixelWidth: number; pixelHeight: number };
   correction: CalculationResult<CaptureCorrectedSdrResult> | null;
   rawCorrectionIntent: CalculationResult<ResolvedLensCorrectionPlan> | null;
+  /** RAW saturation consumed before WB in the JPEG development. */
+  highlight: RawHighlightDiagnostics;
   imageDataPairing: "jpeg-generated-from-exact-attached-raw";
   dng: { mediaType: "image/dng"; bytes: Uint8Array; sha256: string };
   jpeg: { mediaType: "image/jpeg"; bytes: Uint8Array; sha256: string };
   interoperability: "independent-decode-required-editor-validation-pending";
 }
+```
+
+## PROCESSED_SENSOR_RAW_MODEL_VERSION
+
+Version of the `processed-sensor-raw-sdr` model (0.2.0: effective-white normalization, saturation and WB fixes).
+
+```ts
+PROCESSED_SENSOR_RAW_MODEL_VERSION = "0.2.0" as const
 ```
 
 ## ProcessedSensorRawInput
@@ -142,7 +175,7 @@ Explicit post-ADC RAW development policy shared by preview and file output.
 
 ```ts
 export type ProcessedSensorRawInput = Pick<PhotographicExportInput,
-  "reconstruction" | "colorProfile" | "whiteBalance" | "rendering" | "correction">;
+  "reconstruction" | "colorProfile" | "whiteBalance" | "rendering" | "correction" | "highlightMode">;
 ```
 
 ## ProcessedSensorRawResult
@@ -168,5 +201,7 @@ export interface ProcessedSensorRawResult {
   processedOutputView: PhotographicExportPair["processedOutputView"];
   correction: CalculationResult<CaptureCorrectedSdrResult> | null;
   rawCorrectionIntent: CalculationResult<ResolvedLensCorrectionPlan> | null;
+  /** RAW saturation consumed before WB over the developed raster. */
+  highlight: RawHighlightDiagnostics;
 }
 ```

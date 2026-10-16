@@ -15,8 +15,11 @@ export { SENSOR_RAW_PRODUCER_SCHEMA_VERSION, SENSOR_RAW_PRODUCER_NOISE_MODEL, pa
   type SensorRawProducerExposureWindowInput, type SensorRawProducerSiteInput, type SensorRawProducerInput, type SensorRawProducerResult } from "./capture/sensor-raw-producer.js";
 export { CAPTURE_CORRECTED_SDR_SCHEMA_VERSION, parseCaptureCorrectedSdrInput, calculateCaptureCorrectedSdr,
   type CaptureCorrectedSdrInput, type CaptureCorrectedSdrResult } from "./output/capture-corrected-sdr.js";
-export { PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION, parseExportSensorColorProfile, parsePhotographicExportInput, createPhotographicExportPair,
-  type ExportSensorColorProfile, type PhotographicExportInput, type PhotographicExportPair } from "./capture/photographic-export.js";
+export { PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION, PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION, PROCESSED_SENSOR_RAW_MODEL_VERSION, parseExportSensorColorProfile,
+  parsePhotographicExportInput, createPhotographicExportPair, type ExportSensorColorProfile, type PhotographicExportInput,
+  type PhotographicExportOptions, type PhotographicExportPair } from "./capture/photographic-export.js";
+export { calculateEffectiveSaturationCode, type EffectiveSaturationReadout } from "./capture/raw-white-level.js";
+export { RAW_HIGHLIGHT_RECONSTRUCTION_START, SENSOR_COLOR_DEVELOPMENT_MODEL, type RawHighlightMode } from "./color/sensor-color-development.js";
 export { CAPTURE_EXPORT_METADATA_SCHEMA_VERSION, parseCaptureExportMetadataInput, createCaptureExportMetadataPair,
   type CaptureExportWorkflow, type CaptureExportArtifactIdentity, type CaptureExportMetadataInput,
   type CaptureExportSharedMetadata, type CaptureExportMetadataPair } from "./capture/capture-export-metadata.js";
@@ -108,6 +111,7 @@ export { ENGINE_API_VERSION } from "./core/version.js";
 
 export {
   LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION,
+  LINEAR_CAPTURE_ENCODING_MODEL_VERSION,
   parseLinearCaptureEncoding,
   calculateLinearCaptureEncoding,
   type LinearCaptureEncoding,
@@ -117,10 +121,13 @@ export {
 
 export {
   SDR_RENDERING_SCHEMA_VERSION,
+  SDR_RENDERING_MODEL_VERSION,
   parseSdrRenderingProfile,
   parseSdrRenderingInput,
   calculateSdrRendering,
   type SdrRenderingProfile,
+  type SdrToneCurve,
+  type SdrToneCurveParameters,
   type SdrRenderingInput,
   type SdrRenderingResult
 } from "./output/sdr-rendering.js";
@@ -1581,12 +1588,13 @@ export { NATIVE_ENVIRONMENT_OPTICAL_STAGE_LIMITS } from "./capture/native-enviro
 export type { NativeEnvironmentOpticalStage, NativeEnvironmentOpticalStageRetention, NativeEnvironmentSensorStageInput,
   NativeEnvironmentSensorStageProvider } from "./capture/native-environment-optical-stage.js";
 export { createNativeRawDevelopmentTask } from "./capture/native-raw-development.js";
-export type { NativeRawDevelopmentInput, NativeRawDevelopmentOutput, NativeRawDevelopmentTask } from "./capture/native-raw-development.js";
+export type { NativeRawDevelopmentInput, NativeRawDevelopmentOutput, NativeRawDevelopmentProvider, NativeRawDevelopmentTask,
+  RawHighlightDiagnostics } from "./capture/native-raw-development.js";
 export type { NativeRawExposureInput, NativeRawExposure, NativeRawInput, NativeRawPlan, NativeRawTileRequest, NativeRawTile,
   NativeRawProvider, NativeRawOutput, NativeRawTaskState, NativeRawTask } from "./capture/native-raw.js";
 export { NATIVE_CAPTURE_SDR_SCHEMA_VERSION, NATIVE_CAPTURE_SDR_LIMITS, calculateNativeCaptureSdrPlan, createNativeCaptureSdrTask } from "./output/native-capture-sdr.js";
 export type { NativeCaptureSdrInput, NativeCaptureSdrTileRequest, NativeCaptureSdrTile, NativeCaptureSdrProvider, NativeCaptureSdrPlan,
-  NativeCaptureSdrOutput, NativeCaptureSdrTaskState, NativeCaptureSdrTask } from "./output/native-capture-sdr.js";
+  NativeCaptureSdrOutput, NativeCaptureSdrTaskState, NativeCaptureSdrTask, NativeTaskProgress } from "./output/native-capture-sdr.js";
 
 export { calculateSensorApertureRays, type CalculateSensorApertureRaysInput, type IdealCircularPupil, type SensorApertureRay, type SensorApertureRays } from "./optics/sensor-aperture-rays.js";
 
