@@ -47,6 +47,14 @@ export interface EncodedLinearCapture {
 }
 ```
 
+## LINEAR_CAPTURE_ENCODING_MODEL_VERSION
+
+Version of the `uniform-linear-capture-uint16` model. 0.2.0: exact nearest-ties-up rounding (Math.round).
+
+```ts
+LINEAR_CAPTURE_ENCODING_MODEL_VERSION = "0.2.0" as const
+```
+
 ## LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.

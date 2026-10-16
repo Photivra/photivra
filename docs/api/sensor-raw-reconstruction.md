@@ -134,6 +134,12 @@ export interface SensorRawCaptureSample {
   digitalSaturationCode: number;
   blackSubtractedNormalizedCode:
     number;
+  /** Full-saturation code from `calculateEffectiveSaturationCode`; constant per CFA phase. */
+  effectiveSaturationCode: number;
+  /** Regime system conversion gain, e⁻ per code (DNG NoiseProfile input). */
+  systemConversionGainElectronsPerCode: number;
+  /** sqrt of the summed squared regime read-noise RMS components, e⁻ (DNG NoiseProfile input). */
+  readNoiseRmsElectrons: number;
   readoutProfileId: string;
   readoutRegimeId: string;
   sourceChargeSeedUint32: number;
