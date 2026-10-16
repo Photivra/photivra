@@ -14,6 +14,9 @@ For bounded same-RAW paired DNG/JPEG byte export, see
 [Photographic export](https://github.com/Photivra/photivra/blob/main/docs/PHOTOGRAPHIC_EXPORT.md). It requires an explicit approximate
 sensor-color profile; bounded external acceptance and its evidence limits are recorded in [Export acceptance](https://github.com/Photivra/photivra/blob/main/docs/EXPORT_ACCEPTANCE.md).
 
+New to the engine? Start with [`simulateCapture()`](#simulate-a-capture-with-the-facade), which builds
+and runs a complete capture from a few options; the [Quick Start](QUICK_START.md) explains it in full.
+
 This guide shows how to call the capabilities exported by the root `@photivra/engine` package.
 
 The package is ESM; CommonJS code on Node 22.12 or later can also `require()` it. Primitive scientific calculations generally return a `CalculationResult<T>`:
@@ -6732,3 +6735,35 @@ Use [registered linear statistics](https://github.com/Photivra/photivra/blob/mai
 See [Print planning](https://github.com/Photivra/photivra/blob/main/docs/PRINT_PLANNING.md) for a complete strict packed example and the exact-ratio integer policy. `calculatePrintPlan()` answers native sampling sufficiency and a compatible minimum file raster; `calculatePrintSizeLimit()` distinguishes finite, unbounded and unavailable sampling bounds. Quality and delivery are separately unassessed.
 
 The [regional Print detail diagnostic](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_ASSESSMENT.md) measures one declared coherent sinusoidal fundamental in a selected linear-luminance ROI and records its exact source stage. Its [validation protocol](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_VALIDATION.md) and [capability ledger](https://github.com/Photivra/photivra/blob/main/docs/validation/print-detail-capabilities.json) distinguish mathematical conformance from blocked acquired-image, renderer and perceived-quality qualification.
+
+## Simulate a capture with the facade
+
+`simulateCapture()` composes the generic tier presets, scene metering, the exposure-mode resolver,
+the native environment RAW task, native RAW development and, optionally, the print JPEG encoder.
+It returns the image, the packed RAW, the complete request and plan it executed, provenance and an
+`assumptions` list naming every default and modelling choice. See the [Quick Start](QUICK_START.md)
+for every option, the chart catalogue and the limits.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const star = await simulateCapture({
+  camera: "prosumer",
+  exposure: { mode: "aperture-priority", iso: 200 },
+  lens: { fNumber: 5.6 },
+  scene: { preset: "siemens-star", cycles: 24 },
+  illuminant: { kind: "planckian", temperatureKelvin: 5000 },
+  illuminanceLux: 8000,
+  output: { width: 12, height: 8, toneCurve: "positive-reinhard-per-channel", whiteBalance: { kelvin: 5000 } }
+});
+
+console.log(star.exposure.settings.shutterSeconds, star.exposure.ev100);
+console.log(star.assumptions.filter((a) => a.kind === "default").map((a) => a.id));
+console.log(star.request.siteInput(0).environment.optics.nominalFNumber);
+```
+
+In `aperture-priority` mode the shutter comes from the meter (ISO 2720 relation with K = 12.5) through
+`resolveAperturePriorityExposureMode()`. The chart presets are also available on their own:
+`resolveChartScene()` gives analytic reflectance at any frame point, and
+`createPlanarSceneRadianceProvider()` turns a chart into an `evaluateRadiance` callback for the native
+environment RAW contract.

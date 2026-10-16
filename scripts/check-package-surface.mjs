@@ -59,7 +59,7 @@ const packedPaths = new Set(paths);
 // benchmarks, release/audit records and agent/governance files stay in the repository.
 const USER_FILES = new Set([
   "package.json", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md", "CITATION.cff",
-  "SECURITY.md", "NODE_SUPPORT.md", "THIRD_PARTY.md", "docs/USAGE.md", "docs/API_REFERENCE.md"
+  "SECURITY.md", "NODE_SUPPORT.md", "THIRD_PARTY.md", "docs/USAGE.md", "docs/QUICK_START.md", "docs/API_REFERENCE.md"
 ]);
 const USER_DIRECTORIES = ["docs/api/", "docs/examples/"];
 for (const path of paths) {

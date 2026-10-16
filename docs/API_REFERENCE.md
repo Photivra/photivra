@@ -951,6 +951,64 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`ExposureProgramLineProfile`](api/exposure-program-line.md#exposureprogramlineprofile) | Type |
 | [`parseExposureProgramLineProfile`](api/exposure-program-line.md#parseexposureprogramlineprofile) | Runtime |
 
+## facade/chart-scenes.ts
+
+[Detailed contracts](api/facade-chart-scenes.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/chart-scenes.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculatePointGridCenters`](api/facade-chart-scenes.md#calculatepointgridcenters) | Runtime |
+| [`calculateStepWedgeReflectances`](api/facade-chart-scenes.md#calculatestepwedgereflectances) | Runtime |
+| [`CHART_SCENE_DEFAULTS`](api/facade-chart-scenes.md#chart_scene_defaults) | Runtime |
+| [`CHART_SCENE_PRESETS`](api/facade-chart-scenes.md#chart_scene_presets) | Runtime |
+| [`CHART_SPECTRAL_RANGE_NANOMETERS`](api/facade-chart-scenes.md#chart_spectral_range_nanometers) | Runtime |
+| [`ChartReflectance`](api/facade-chart-scenes.md#chartreflectance) | Type |
+| [`ChartScene`](api/facade-chart-scenes.md#chartscene) | Type |
+| [`ChartScenePresetId`](api/facade-chart-scenes.md#chartscenepresetid) | Type |
+| [`CheckerboardChartScene`](api/facade-chart-scenes.md#checkerboardchartscene) | Type |
+| [`GreyRampChartScene`](api/facade-chart-scenes.md#greyrampchartscene) | Type |
+| [`PatchChartScene`](api/facade-chart-scenes.md#patchchartscene) | Type |
+| [`PointGridChartScene`](api/facade-chart-scenes.md#pointgridchartscene) | Type |
+| [`resolveChartScene`](api/facade-chart-scenes.md#resolvechartscene) | Runtime |
+| [`ResolvedChartScene`](api/facade-chart-scenes.md#resolvedchartscene) | Type |
+| [`SiemensStarChartScene`](api/facade-chart-scenes.md#siemensstarchartscene) | Type |
+| [`SlantedEdgeChartScene`](api/facade-chart-scenes.md#slantededgechartscene) | Type |
+| [`StepWedgeChartScene`](api/facade-chart-scenes.md#stepwedgechartscene) | Type |
+| [`UniformChartScene`](api/facade-chart-scenes.md#uniformchartscene) | Type |
+
+## facade/scene-radiance.ts
+
+[Detailed contracts](api/facade-scene-radiance.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/scene-radiance.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`CallerRadianceScene`](api/facade-scene-radiance.md#callerradiancescene) | Type |
+| [`CallerReflectanceScene`](api/facade-scene-radiance.md#callerreflectancescene) | Type |
+| [`CaptureIlluminant`](api/facade-scene-radiance.md#captureilluminant) | Type |
+| [`createPlanarSceneRadianceProvider`](api/facade-scene-radiance.md#createplanarsceneradianceprovider) | Runtime |
+| [`PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W`](api/facade-scene-radiance.md#photopic_maximum_luminous_efficacy_lm_per_w) | Runtime |
+| [`PlanarSceneRadianceProvider`](api/facade-scene-radiance.md#planarsceneradianceprovider) | Type |
+| [`resolveCaptureIlluminant`](api/facade-scene-radiance.md#resolvecaptureilluminant) | Runtime |
+| [`ResolvedCaptureIlluminant`](api/facade-scene-radiance.md#resolvedcaptureilluminant) | Type |
+| [`ScenePlanePoint`](api/facade-scene-radiance.md#sceneplanepoint) | Type |
+
+## facade/simulate-capture.ts
+
+[Detailed contracts](api/facade-simulate-capture.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/simulate-capture.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX`](api/facade-simulate-capture.md#simulate_capture_default_illuminance_lux) | Runtime |
+| [`SIMULATE_CAPTURE_FACADE_VERSION`](api/facade-simulate-capture.md#simulate_capture_facade_version) | Runtime |
+| [`simulateCapture`](api/facade-simulate-capture.md#simulatecapture) | Runtime |
+| [`SimulateCaptureAssumption`](api/facade-simulate-capture.md#simulatecaptureassumption) | Type |
+| [`SimulateCaptureExposureMode`](api/facade-simulate-capture.md#simulatecaptureexposuremode) | Type |
+| [`SimulateCaptureOptions`](api/facade-simulate-capture.md#simulatecaptureoptions) | Type |
+| [`SimulateCaptureOutputFormat`](api/facade-simulate-capture.md#simulatecaptureoutputformat) | Type |
+| [`SimulateCaptureProgress`](api/facade-simulate-capture.md#simulatecaptureprogress) | Type |
+| [`SimulateCaptureResult`](api/facade-simulate-capture.md#simulatecaptureresult) | Type |
+| [`SimulateCaptureWhiteBalance`](api/facade-simulate-capture.md#simulatecapturewhitebalance) | Type |
+
 ## motion/camera-rotation.ts
 
 [Detailed contracts](api/motion-camera-rotation.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/motion/camera-rotation.ts)

@@ -52,7 +52,7 @@ try {
     try { execFileSync(process.execPath,[file],{cwd:scratch,stdio:"pipe",timeout:30000}); }
     catch(error) { throw new Error(`Packed example failed: ${entry.path} block ${entry.index}`,{cause:error}); }
   }
-  for (const file of ["quick-start.mjs","production-capture.mjs","production-request.json"]) copyFileSync(join(packageRoot,"docs/examples",file),join(scratch,file));
-  for (const file of ["quick-start.mjs","production-capture.mjs"]) execFileSync(process.execPath,[join(scratch,file)],{cwd:scratch,stdio:"pipe",timeout:30000});
-  console.log(`Packed ${manifest.name}@${manifest.version}: require(esm) and lib-es2022/DOM declaration consumers, ${entries.length} strict typed/running doc snippets plus quick-start and production/paired-export consumers passed; no source checkout/dependencies used.`);
+  for (const file of ["quick-start.mjs","simulate-capture.mjs","production-capture.mjs","production-request.json"]) copyFileSync(join(packageRoot,"docs/examples",file),join(scratch,file));
+  for (const file of ["quick-start.mjs","simulate-capture.mjs","production-capture.mjs"]) execFileSync(process.execPath,[join(scratch,file)],{cwd:scratch,stdio:"pipe",timeout:30000});
+  console.log(`Packed ${manifest.name}@${manifest.version}: require(esm) and lib-es2022/DOM declaration consumers, ${entries.length} strict typed/running doc snippets plus quick-start, simulate-capture and production/paired-export consumers passed; no source checkout/dependencies used.`);
 } finally { rmSync(scratch,{recursive:true,force:true}); }
