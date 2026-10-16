@@ -376,3 +376,98 @@ describe("indexed stabilization evaluation is bit-identical to the linear-scan e
     expect(run(zero, { x: -0, y: 50 })).not.toThrow();
   });
 });
+
+/*
+ * Independent spot values beside the digests above, so a digest change can be diagnosed. The
+ * controller is re-derived here from its documented equation (delayed linear image-equivalent
+ * response): for each active axis, residual(t) = d(t) - clamp(g * d(t - tau), +-L), where d is the
+ * piecewise-linear disturbance and d(t < 0) = 0; "off" and bypassed axes keep residual = d(t).
+ * No engine helper is used. Tolerances are absolute 1e-15 rad on angles below 0.03 rad.
+ */
+type DisturbanceSamples = { samples: { timeSecondsFromCaptureReference: number; angularDisplacementRad: Angles }[] };
+type AxisSpec = { axis: keyof Angles; gain: number; latency: number; limit: number };
+
+function independentDisturbance(input: unknown, time: number, axis: keyof Angles): number {
+  const samples = (input as DisturbanceSamples).samples;
+  if (time < 0) return 0;
+  for (let i = 1; i < samples.length; i++) {
+    const t0 = samples[i - 1]!.timeSecondsFromCaptureReference, t1 = samples[i]!.timeSecondsFromCaptureReference;
+    if (time <= t1) {
+      const a = samples[i - 1]!.angularDisplacementRad[axis], b = samples[i]!.angularDisplacementRad[axis];
+      return a + (b - a) * ((time - t0) / (t1 - t0));
+    }
+  }
+  throw new Error("time outside support");
+}
+
+function independentResidual(input: unknown, time: number, axis: keyof Angles, specs: readonly AxisSpec[]): number {
+  const current = independentDisturbance(input, time, axis), spec = specs.find((entry) => entry.axis === axis);
+  if (spec === undefined) return current;
+  const requested = spec.gain * independentDisturbance(input, time - spec.latency, axis);
+  return current - Math.max(-spec.limit, Math.min(spec.limit, requested));
+}
+
+// Same declarations as profiles(): index 0 off; 1 three-axis sensor shift; 2 yaw bypassed for panning.
+const profileSpecs: readonly (readonly AxisSpec[])[] = [
+  [],
+  [{ axis: "pitch", gain: 0.9, latency: 0.0003, limit: 0.004 }, { axis: "yaw", gain: 0.97, latency: 0.00017, limit: 0.006 },
+    { axis: "roll", gain: 0.75, latency: 0, limit: 1 }],
+  [{ axis: "pitch", gain: 1, latency: 0.001, limit: 1 }]
+];
+
+describe("independent spot values beside the stabilization digests", () => {
+  it("matches the delayed, gained and clamped controller on every digest disturbance and profile", () => {
+    let limited = 0, delayedBeforeStart = 0;
+    for (const input of [randomDisturbance(2, 1), randomDisturbance(3, 2), randomDisturbance(257, 3), gridDisturbance(501, 5)]) {
+      profiles().forEach((profileInput, index) => {
+        const result = calculateStabilizedRotationTrajectory({ disturbance: input as never, profile: profileInput as never,
+          captureKind: "still" }).value;
+        const support = (input as DisturbanceSamples).samples;
+        expect(result.samples.map((sample) => sample.timeSecondsFromCaptureReference))
+          .toEqual(support.map((sample) => sample.timeSecondsFromCaptureReference));
+        for (const sample of result.samples) {
+          const t = sample.timeSecondsFromCaptureReference;
+          for (const axis of ["pitch", "yaw", "roll"] as const) {
+            expect(Math.abs(sample.residualAngularDisplacementRad[axis] - independentResidual(input, t, axis, profileSpecs[index]!)))
+              .toBeLessThanOrEqual(1e-15);
+          }
+          for (const resolution of sample.axes) {
+            if (resolution.correctionLimitReached) limited++;
+            if (resolution.latencySeconds > t) delayedBeforeStart++;
+          }
+        }
+      });
+    }
+    // The spot set exercises both the clamp and the pre-start (d = 0) latency branch.
+    expect(limited).toBeGreaterThan(0);
+    expect(delayedBeforeStart).toBeGreaterThan(0);
+  });
+
+  it("places capture temporal nodes at uniform midpoints of each rolling local exposure window", () => {
+    // Opening and closing scan top-to-bottom in 0.004 s over 100 rows, so a point at row y opens at
+    // 0.004 * y / 100 s and stays open for the 0.012 s nominal exposure; n midpoint nodes sit at
+    // start + (k + 1/2) * 0.012 / n with equal weight 1/n.
+    const points = [{ x: 10, y: 0 }, { x: 50, y: 25 }, { x: 90, y: 75 }];
+    const input = randomDisturbance(400, 7);
+    for (const [index, specs] of profileSpecs.entries()) {
+      for (const n of [1, 3, 16]) {
+        const result = calculateStabilizedCaptureTemporalSamples({ disturbance: input as never, profile: profiles()[index] as never,
+          captureKind: "still", timing: timing(points), samplePointsNative: points, temporalSampleCount: n }).value;
+        result.points.forEach((point, p) => {
+          const start = 0.004 * points[p]!.y / 100;
+          expect(point.localExposureWindow.startSecondsFromCaptureReference).toBeCloseTo(start, 15);
+          expect(point.localExposureWindow.durationSeconds).toBeCloseTo(0.012, 15);
+          point.nodes.forEach((node, k) => {
+            expect(node.captureTimeSecondsFromReference).toBeCloseTo(start + (k + 0.5) * 0.012 / n, 15);
+            expect(node.normalizedTimeWeight).toBeCloseTo(1 / n, 15);
+            for (const axis of ["pitch", "yaw", "roll"] as const) {
+              expect(Math.abs(node.stabilization.residualAngularDisplacementRad[axis] -
+                independentResidual(input, node.captureTimeSecondsFromReference, axis, specs))).toBeLessThanOrEqual(1e-15);
+            }
+          });
+        });
+      }
+    }
+  });
+});
+

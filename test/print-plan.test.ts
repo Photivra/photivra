@@ -17,8 +17,10 @@ describe("native Print planning", () => {
     const result = calculatePrintPlan(request()), p = result.value;
     expect(result.provenance.kind).toBe("calculated");
     expect(p.native?.pixelsPerInch.x).toBe(160); expect(p.native?.pixelsPerInch.y).toBe(160);
-    // High precision independent value: 1 / (48 tan(pi / 21600)).
-    expect(p.guidance?.value.derivedPixelsPerInch).toBeCloseTo(143.23944777269085, 10);
+    // Independent value 1 / (48 tan(pi / 21600)) = 143.2394477726772984560533776811... (60-digit
+    // decimal series); the literal is its correctly rounded double. The engine's float64 tan result
+    // differs by about 1.4e-11, inside the 5e-11 tolerance.
+    expect(p.guidance?.value.derivedPixelsPerInch).toBeCloseTo(143.2394477726773, 10);
     expect(p.guidance?.provenance.kind).toBe("approximation");
     // ceil(16 * 143.23944777269 / 16) exact-ratio units => 144 * (16,9).
     expect(p.minimumSamplingRaster).toEqual({ pixelWidth: 2304, pixelHeight: 1296 });

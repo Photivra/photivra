@@ -406,9 +406,9 @@ describe("Auto ISO grid-aligned exact matches (#272)",()=>{
   const thirdStopApertures=[1.8,2,2.2,2.5,2.8,3.2,3.5,4,4.5,5,5.6,6.3,7.1,8,9,10,11,13,14,16];
 
   it.each([
-    {fNumber:3.2,shutterSeconds:1/60,idealAbove:3.2000000000000006},
-    {fNumber:14,shutterSeconds:1/125,idealAbove:14.000000000000002}
-  ])("Shutter Priority selects f/$fNumber when the ideal lands on the grid",({fNumber,shutterSeconds,idealAbove})=>{
+    {fNumber:3.2,shutterSeconds:1/60},
+    {fNumber:14,shutterSeconds:1/125}
+  ])("Shutter Priority selects f/$fNumber when the ideal lands on the grid",({fNumber,shutterSeconds})=>{
     const scale=(shutterSeconds/(fNumber*fNumber))/(ref.shutterSeconds/(ref.aperture**2));
     const r=resolveShutterPriorityExposureMode({
       target:targetForScale(scale),capabilities:capabilities({apertureGrid:thirdStopApertures}),
@@ -417,8 +417,10 @@ describe("Auto ISO grid-aligned exact matches (#272)",()=>{
     });
     expect(r.status).toBe("resolved");
     if(r.status!=="resolved"||r.isoControl!=="automatic") throw new Error("auto expected");
-    // The computed ideal sits a floating-point hair past the grid value.
-    expect(r.idealApertureAtBaselineIso).toBe(idealAbove);
+    // By construction the exact ideal is N = fNumber (EV reciprocity: t/N^2 equals the target ratio);
+    // the computed value may sit a floating-point hair past the grid value (V8 x64 gives
+    // 3.2000000000000006 and 14.000000000000002), which must still resolve as a grid match.
+    expect(Math.abs(r.idealApertureAtBaselineIso/fNumber-1)).toBeLessThan(1e-12);
     expect(r.resolvedSettings).toEqual({aperture:fNumber,shutterSeconds,iso:100});
     expect(r.apertureResolution).toMatchObject({kind:"discrete",quantized:false,clamped:false});
     expect(r.targetResidual.state).toBe("matched");
