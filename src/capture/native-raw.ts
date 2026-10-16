@@ -6,6 +6,7 @@ import { ENGINE_API_VERSION } from "../core/version.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { freezeOwnedData } from "../core/owned-data.js";
+import { calculateSiteEffectiveSaturationCode, createPhaseWhiteLevelAccumulator } from "./raw-white-level.js";
 import { DEFAULT_HOST_YIELD_CADENCE, createHostYieldGate, type HostYieldCadence, type HostYieldGate } from "./host-yield-cadence.js";
 import { parseCaptureModeProfile } from "../sensor/capture-mode.js";
 import { parseSensorColorSamplingProfile } from "../sensor/color-sampling.js";
@@ -61,6 +62,12 @@ export interface NativeRawOutput {
   digitalSaturationCodes: Uint16Array;
   /** Bits 0,1,2: physical scalar clamp, pre-ADC clamp, digital saturation respectively. */
   saturationFlags: Uint8Array;
+  /**
+   * Effective white (full-saturation) code per absolute CFA repeat phase, indexed
+   * `phaseY*repeatWidthSites+phaseX`: min(digital saturation, round(black + min(capacity, pre-ADC
+   * saturation)/gain)). See `calculateEffectiveSaturationCode`; a few bytes, not a per-pixel plane.
+   */
+  effectiveSaturationCodes: Uint16Array;
 }
 export type NativeRawTaskState = "ready" | "running" | "completed" | "cancelled" | "failed" | "disposed" | "transferred";
 export interface NativeRawTask {
@@ -135,14 +142,16 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
   const read=provider.readTile.bind(provider),yieldControl=provider.yieldControl.bind(provider),abort=new AbortController();
   const native=plan.exposure.geometry.nativeRaster,tileWidth=plan.tileWidth??NATIVE_RAW_LIMITS.tileWidth;
   let state:NativeRawTaskState="ready",count=0,output:NativeRawOutput|null=null,first:SensorRawProducerSiteInput|undefined;
-  function release(): void {if(output){output.codes.fill(0);output.blackLevels.fill(0);output.digitalSaturationCodes.fill(0);output.saturationFlags.fill(0);}output=null;first=undefined;}
+  function release(): void {if(output){output.codes.fill(0);output.blackLevels.fill(0);output.digitalSaturationCodes.fill(0);output.saturationFlags.fill(0);output.effectiveSaturationCodes.fill(0);}output=null;first=undefined;}
   function active(): void {if(abort.signal.aborted)throw new InvalidConfigurationError("Native RAW execution aborted.");}
   return {plan,get state(): NativeRawTaskState {return state;},get completedTileCount(): number {return count;},
     async run(): Promise<void> {
       if(state!=="ready")throw new InvalidConfigurationError("Native RAW task is single-use.");state="running";
       try{
         const gate=sharedGate??createHostYieldGate(cadence);sharedGate?.restart();
-        output={plan,codes:new Uint16Array(plan.pixelCount),blackLevels:new Uint16Array(plan.pixelCount),digitalSaturationCodes:new Uint16Array(plan.pixelCount),saturationFlags:new Uint8Array(plan.pixelCount)};
+        const layout=plan.frame.colorSamplingProfile.layout;if(layout.kind!=="periodic-mosaic")throw new InvalidConfigurationError("Native RAW requires periodic CFA.");
+        const white=createPhaseWhiteLevelAccumulator(native.pixelWidth,layout.repeatWidthSites,layout.repeatHeightSites);
+        output={plan,codes:new Uint16Array(plan.pixelCount),blackLevels:new Uint16Array(plan.pixelCount),digitalSaturationCodes:new Uint16Array(plan.pixelCount),saturationFlags:new Uint8Array(plan.pixelCount),effectiveSaturationCodes:new Uint16Array(layout.repeatWidthSites*layout.repeatHeightSites)};
         for(let y=0;y<native.pixelHeight;y++)for(let x=0;x<native.pixelWidth;x+=tileWidth){
           active();const request=Object.freeze({captureId:plan.exposure.captureId,frameId:plan.frame.frameId,x,y,width:Math.min(tileWidth,native.pixelWidth-x),height:1});
           {
@@ -158,13 +167,14 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
               const index=y*native.pixelWidth+x+j,r=calculateNativeRawSite(sites[j]!,plan.exposure.noise.seedUint32,index).readout.value;
               output.codes[index]=r.rawCode;output.blackLevels[index]=r.blackLevelCode;output.digitalSaturationCodes[index]=r.digitalSaturationCode;
               output.saturationFlags[index]=Number(r.physicalScalarSaturationApplied)|Number(r.preAdcSaturationApplied)<<1|Number(r.digitalSaturationApplied)<<2;
+              white.record(index,calculateSiteEffectiveSaturationCode(r,sites[j]!.readoutProfile,sites[j]!.regimeId));
             }
             count++;
           }
           // Yield on the time budget and always after the final tile; cadence never alters output.
           if(gate.due()||(y===native.pixelHeight-1&&x+tileWidth>=native.pixelWidth)){await yieldControl(abort.signal);active();gate.restart();}
         }
-        first=undefined;state="completed";
+        output.effectiveSaturationCodes.set(white.finish());first=undefined;state="completed";
       }catch(error){release();if(!abort.signal.aborted){state="failed";abort.abort();}throw error;}
     },
     cancel(): void {if(state==="ready"||state==="running"||state==="completed"){state="cancelled";abort.abort();release();}},

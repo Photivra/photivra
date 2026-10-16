@@ -277,6 +277,11 @@ export function calculateNativeRawSite(s: SensorRawProducerSiteInput, seed: numb
     readNoiseSeedUint32: deriveNativeSiteStreamSeedUint32(seed, i, NATIVE_SITE_READ_NOISE_STREAM_ID), ...pattern });
   return { accumulatedCharge, capacity, realization, readout };
 }
+/** The selected regime's declared INL, which the effective white level needs at saturation. */
+function regimeInl(site: SensorRawProducerSiteInput): { adcIntegralNonLinearity?: NonNullable<SensorReadoutConversionProfile["regimes"][number]["adc"]["integralNonLinearity"]> } {
+  const inl = site.readoutProfile.regimes.find((r) => r.regimeId === site.regimeId)?.adc.integralNonLinearity;
+  return inl === undefined ? {} : { adcIntegralNonLinearity: inl };
+}
 /** Validates complete native exposure inputs; no charge/noise/RAW code is accepted as a shortcut. */
 export function parseSensorRawProducerInput(value: unknown): SensorRawProducerInput {
   const r = fields(value, ["frame", "sites", "exposureWindow"]), f = fields(r.frame, ["frameId", "capture", "modeId", "captureModeProfile", "colorSamplingProfile", "bindingProfile", "containerBitDepth"]);
@@ -308,6 +313,7 @@ export function simulateSensorRawFrame(input: SensorRawProducerInput): Calculati
   const sites = v.sites.map((s, i) => calculateNativeRawSite(s, seed, i));
   const native = v.frame.capture.geometry.nativeRaster;
   const samples = sites.map((s, i) => createSensorRawCaptureSample({ rawCode: s.readout.value,
+    ...regimeInl(v.sites[i]!),
     contributors: resolveCaptureModeColorSamplingContributors({ nativeRaster: native, captureModeProfile: v.frame.captureModeProfile,
       modeId: v.frame.modeId, colorSamplingProfile: v.frame.colorSamplingProfile, bindingProfile: v.frame.bindingProfile,
       modeSampleIndexFullFrame: { x: i%native.pixelWidth, y: Math.floor(i/native.pixelWidth) } }) }));

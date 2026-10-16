@@ -3141,6 +3141,50 @@ The first reconstruction contract:
 
 Aliasing/moiré claims require an adequate pre-sampling optical/scene spatial-frequency model; reconstruction artifacts alone are not treated as proof that that physical aliasing model exists.
 
+## RAW development, white level, highlights and tone curves
+
+RAW samples also carry `effectiveSaturationCode` (the code at which the site is fully saturated,
+`calculateEffectiveSaturationCode`), `systemConversionGainElectronsPerCode` and
+`readNoiseRmsElectrons`; packed native RAW carries `effectiveSaturationCodes` once per CFA phase.
+Development normalizes to that white level, clips saturated or flagged sites before white balance,
+applies white balance once for any invertible camera matrix and keeps clipped highlights neutral.
+See [photographic export](https://github.com/Photivra/photivra/blob/main/docs/PHOTOGRAPHIC_EXPORT.md) for the equations.
+
+```ts
+import { calculateEffectiveSaturationCode, createNativeRawDevelopmentTask, type NativeRawDevelopmentInput,
+  type SdrRenderingProfile } from "@photivra/engine";
+
+// A 20,000 e⁻ well at 1 e⁻/DN over a 512 pedestal saturates at code 20512, not at 65535.
+const white = calculateEffectiveSaturationCode({ physicalChargeCapacityElectrons: 20000,
+  preAdcSaturationElectronEquivalent: 30000, systemConversionGainElectronsPerCode: 1,
+  blackLevelCode: 512, digitalSaturationCode: 65535 });
+if (white !== 20512) throw new Error("unexpected white level");
+
+// Luminance tone curves preserve chromaticity; existing curve ids are unchanged.
+const filmic: SdrRenderingProfile = { schemaVersion: "0.1.0", profileId: "filmic", profileVersion: "1",
+  renderingExposureEv: 0, toneCurve: "naka-rushton-luminance",
+  toneCurveParameters: { exponent: 1.2, semiSaturation: 0.5, whiteLuminance: 4 },
+  gamutHandling: "clip-components", outputDynamicRange: "sdr", transferFunction: "srgb",
+  bitDepth: 8, rounding: "nearest-ties-up", dither: "none" };
+
+async function develop(input: NativeRawDevelopmentInput) {
+  // The task takes ownership of input.raw (its arrays are detached); output.raw returns it.
+  const task = createNativeRawDevelopmentTask({ ...input, rendering: filmic, highlightMode: "clip" }, {
+    yieldControl: () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
+    onProgress: ({ completedTileCount, totalTileCount }) => void (completedTileCount / totalTileCount)
+  });
+  await task.run();
+  const output = task.takeOutput();
+  return { pixels: output.integerSamples, raw: output.raw, saturatedPixels: output.highlight.saturatedPixelCount };
+}
+void develop;
+```
+
+`highlightMode: "reconstruct"` blends pixels above 0.8 of white toward neutral instead of clipping
+each WB-scaled channel; it is an approximation, not recovery of clipped signal.
+`extended-reinhard-luminance` takes `{ whiteLuminance }`, the luminance mapped to output white.
+`createPhotographicExportPair(input, { signal })` accepts an optional `AbortSignal`.
+
 ## Capture-mode profiles
 
 Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:

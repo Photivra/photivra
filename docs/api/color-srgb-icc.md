@@ -4,9 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createSrgbIccProfile
 
-Reference: https://registry.color.org/rgb-registry/files/sRGB.pdf and ICC.1:2022.
-This is an original Photivra profile, not a redistributed ICC or operating-system profile.
-Bradford here encodes the D50 profile-connection space; it does not apply shooting WB.
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
 
 ```ts
 export function createSrgbIccProfile():Uint8Array;
