@@ -148,6 +148,11 @@
       "kind": "type"
     },
     {
+      "name": "assessShutterAngleRule",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "AtmosphericExtinctionModel",
       "source": "src/optics/atmospheric-haze.ts",
       "kind": "type"
@@ -568,6 +573,16 @@
       "kind": "type"
     },
     {
+      "name": "calculateFlashGuideNumber",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateFlashPowerForDistance",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateFocusBreathingFieldOfView",
       "source": "src/optics/focus-breathing.ts",
       "kind": "runtime"
@@ -625,6 +640,11 @@
     {
       "name": "calculateGeometricSamplingPlan",
       "source": "src/output/geometric-transforms.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateHighlightPriorityPlacementSignal",
+      "source": "src/exposure/metering.ts",
       "kind": "runtime"
     },
     {
@@ -1171,6 +1191,16 @@
       "name": "CalculateSensorSpectralQuadratureInput",
       "source": "src/sensor/spectral-quadrature.ts",
       "kind": "type"
+    },
+    {
+      "name": "calculateShutterAngleExposureSeconds",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateShutterAngleFromExposureSeconds",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "runtime"
     },
     {
       "name": "calculateSignalToNoise",
@@ -1953,6 +1983,11 @@
       "kind": "runtime"
     },
     {
+      "name": "createHighSpeedSyncIlluminationOverlay",
+      "source": "src/exposure/flash.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "createIsoGainReadoutRegimes",
       "source": "src/sensor/iso-gain.ts",
       "kind": "runtime"
@@ -2068,6 +2103,11 @@
       "kind": "type"
     },
     {
+      "name": "createRollingShutterCaptureExposureSchedule",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "createSceneIlluminationSpectralCoverageParticipant",
       "source": "src/schema/illumination-spectral.ts",
       "kind": "runtime"
@@ -2138,6 +2178,11 @@
       "kind": "runtime"
     },
     {
+      "name": "createTtlScaledFlashProfile",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "createWavefrontPupilGrid",
       "source": "src/optics/zernike-wavefront.ts",
       "kind": "runtime"
@@ -2205,6 +2250,16 @@
     {
       "name": "EffectiveSensorResponseScope",
       "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ELECTRONIC_ROLLING_SHUTTER_MODEL",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ElectronicRollingShutterExposureSchedule",
+      "source": "src/sensor/readout-exposure-linkage.ts",
       "kind": "type"
     },
     {
@@ -2543,9 +2598,34 @@
       "kind": "type"
     },
     {
+      "name": "FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION",
+      "source": "src/exposure/flash.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "FLASH_SYNC_CAPABILITY_SCHEMA_VERSION",
       "source": "src/exposure/flash.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "FlashGuideNumberInput",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FlashOverlaySyncRegistration",
+      "source": "src/exposure/flash.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FlashPowerForDistance",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FlashPowerForDistanceInput",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "type"
     },
     {
       "name": "FlashSyncCapabilityProfile",
@@ -2935,6 +3015,16 @@
     {
       "name": "GroupedNativeCaptureSampling",
       "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HIGH_SPEED_SYNC_MODEL",
+      "source": "src/exposure/flash.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "HighlightPriorityMeteringDiagnostics",
+      "source": "src/exposure/metering.ts",
       "kind": "type"
     },
     {
@@ -5348,6 +5438,11 @@
       "kind": "type"
     },
     {
+      "name": "ResolvedHighSpeedFlashSync",
+      "source": "src/exposure/flash.ts",
+      "kind": "type"
+    },
+    {
       "name": "ResolvedIsoCapability",
       "source": "src/equipment/iso-capabilities.ts",
       "kind": "type"
@@ -5415,6 +5510,16 @@
     {
       "name": "ResolvedWhiteBalanceState",
       "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveElectronicRollingShutterExposureSchedule",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveElectronicRollingShutterExposureScheduleInput",
+      "source": "src/sensor/readout-exposure-linkage.ts",
       "kind": "type"
     },
     {
@@ -5486,6 +5591,16 @@
       "name": "resolveGenericIsoSignalChainPreset",
       "source": "src/sensor/iso-signal-chain.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "resolveHighSpeedFlashSync",
+      "source": "src/exposure/flash.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveHighSpeedFlashSyncInput",
+      "source": "src/exposure/flash.ts",
+      "kind": "type"
     },
     {
       "name": "resolveIsoCapability",
@@ -5646,6 +5761,26 @@
       "name": "resolveSimulatedCapturePlane",
       "source": "src/capture/simulated-capture.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "resolveTtlFlashExposure",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveTtlFlashExposureInput",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveVideoFrameSequence",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveVideoFrameSequenceInput",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "type"
     },
     {
       "name": "resolveZernikeNollOrder",
@@ -6868,6 +7003,11 @@
       "kind": "type"
     },
     {
+      "name": "ShutterAngleRuleAssessment",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "type"
+    },
+    {
       "name": "ShutterPriorityAutoIsoPolicy",
       "source": "src/exposure/exposure-mode-resolver.ts",
       "kind": "type"
@@ -7283,6 +7423,16 @@
       "kind": "type"
     },
     {
+      "name": "TTL_FLASH_MODEL",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "TtlFlashExposure",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "type"
+    },
+    {
       "name": "UncertaintyConfidence",
       "source": "src/core/calculation-result.ts",
       "kind": "type"
@@ -7330,6 +7480,26 @@
     {
       "name": "Vector3",
       "source": "src/schema/scene.ts",
+      "kind": "type"
+    },
+    {
+      "name": "VIDEO_FRAME_SEED_STREAM_ID",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "VIDEO_FRAME_SEQUENCE_MAXIMUM_FRAMES",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "VIDEO_FRAME_SEQUENCE_VERSION",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "VideoFrameSequence",
+      "source": "src/motion/video-sequence.ts",
       "kind": "type"
     },
     {
