@@ -6732,3 +6732,25 @@ Use [registered linear statistics](https://github.com/Photivra/photivra/blob/mai
 See [Print planning](https://github.com/Photivra/photivra/blob/main/docs/PRINT_PLANNING.md) for a complete strict packed example and the exact-ratio integer policy. `calculatePrintPlan()` answers native sampling sufficiency and a compatible minimum file raster; `calculatePrintSizeLimit()` distinguishes finite, unbounded and unavailable sampling bounds. Quality and delivery are separately unassessed.
 
 The [regional Print detail diagnostic](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_ASSESSMENT.md) measures one declared coherent sinusoidal fundamental in a selected linear-luminance ROI and records its exact source stage. Its [validation protocol](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_VALIDATION.md) and [capability ledger](https://github.com/Photivra/photivra/blob/main/docs/validation/print-detail-capabilities.json) distinguish mathematical conformance from blocked acquired-image, renderer and perceived-quality qualification.
+
+## Optional WebGPU image kernels
+
+`createImageKernelAccelerator()` runs isoplanatic PSF convolution, native capture SDR and packed RAW development either on the float64 CPU reference (the default) or, when the caller opts in, on the `webgpu-f32` backend. Every result's `execution` label names the backend that actually ran, any fallback reason, and the a-priori error bound against the reference. See [WebGPU backend](https://github.com/Photivra/photivra/blob/main/docs/WEBGPU.md) for the bounds, the supported domain and the browser test.
+
+```ts
+import { createImageKernelAccelerator, calculateIrradianceConvolution } from "@photivra/engine";
+
+const width = 16, height = 8, kernelRadius = 1;
+const input = { schemaVersion: "0.1.0" as const, width, height, kernelRadius, patchWidth: width, patchHeight: height,
+  boundary: "zero-outside-grid" as const, samples: new Float64Array(width * height).fill(2),
+  kernels: Float64Array.from([0, .1, 0, .1, .6, .1, 0, .1, 0]) };
+
+const accelerator = await createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "cpu-reference" });
+const result = await accelerator.convolveIrradiance(input);
+// Without WebGPU (e.g. Node) this ran the reference and says so.
+console.log(result.execution.backend, result.execution.fallbackReason, result.execution.bitIdenticalToReference);
+// Bit-exact identities and fixtures must come from the CPU reference.
+const reference = calculateIrradianceConvolution(input).values;
+console.log(result.execution.backend === "cpu-reference" ? result.values.every((v, i) => v === reference[i]) : result.execution.errorBound);
+accelerator.dispose();
+```

@@ -107,16 +107,12 @@ export function calculateNativeCaptureSdrPlan(input: NativeCaptureSdrInput): Nat
     tileCount: Math.ceil(plane.pixelWidth / NATIVE_CAPTURE_SDR_LIMITS.tileWidth) * Math.ceil(plane.pixelHeight / NATIVE_CAPTURE_SDR_LIMITS.tileHeight) });
 }
 
-type NativeSdrDiagnosticCounts = Omit<SdrRenderingResult["diagnostics"], "captureSaturation">;
 /**
- * Typed-array tile kernel. It applies the bounded SDR reference (`calculateSdrRendering`) equations in the
- * same per-sample floating-point operation order and with the same error precedence, writing integer codes
- * directly into the packed output: input-domain check → rendering exposure → tone → gamut → sRGB transfer →
- * nearest-ties-up quantization. `test/native-capture-sdr-kernel-parity.test.ts` proves identical codes and
- * diagnostics against the unchanged reference.
+ * Tile identity/precision/stride/storage and input-domain validation shared by every native SDR backend.
+ * Returns the borrowed sample view; padding is excluded from the finiteness scan. Not a root export.
  */
-function renderTileInto(tile: NativeCaptureSdrTile, request: NativeCaptureSdrTileRequest, plane: CaptureLinearPlane,
-  profile: SdrRenderingProfile, tone: SdrPixelTone, scale: number, maximum: number, codes: Uint8Array | Uint16Array, diagnostics: NativeSdrDiagnosticCounts): void {
+export function validateNativeCaptureSdrTile(tile: NativeCaptureSdrTile, request: NativeCaptureSdrTileRequest,
+  plane: CaptureLinearPlane): { source: Float32Array | Float64Array; stride: number } {
   const r = requireAllowlistedRecord(tile, ["captureId", "sourcePlaneId", "artifactId", "sha256", "x", "y", "width", "height", "rowStrideSamples", "samples"], "Invalid native SDR tile.");
   for (const key of Object.keys(request) as (keyof NativeCaptureSdrTileRequest)[]) {
     if (r[key] !== request[key]) throw new InvalidConfigurationError("Native SDR tile identity/rectangle mismatch.");
@@ -136,6 +132,20 @@ function renderTileInto(tile: NativeCaptureSdrTile, request: NativeCaptureSdrTil
       if (!Number.isFinite(source[i]!)) throw new InvalidConfigurationError("Unsupported SDR input domain/raster.");
     }
   }
+  return { source, stride };
+}
+
+type NativeSdrDiagnosticCounts = Omit<SdrRenderingResult["diagnostics"], "captureSaturation">;
+/**
+ * Typed-array tile kernel. It applies the bounded SDR reference (`calculateSdrRendering`) equations in the
+ * same per-sample floating-point operation order and with the same error precedence, writing integer codes
+ * directly into the packed output: input-domain check → rendering exposure → tone → gamut → sRGB transfer →
+ * nearest-ties-up quantization. `test/native-capture-sdr-kernel-parity.test.ts` proves identical codes and
+ * diagnostics against the unchanged reference.
+ */
+function renderTileInto(tile: NativeCaptureSdrTile, request: NativeCaptureSdrTileRequest, plane: CaptureLinearPlane,
+  profile: SdrRenderingProfile, tone: SdrPixelTone, scale: number, maximum: number, codes: Uint8Array | Uint16Array, diagnostics: NativeSdrDiagnosticCounts): void {
+  const { source, stride } = validateNativeCaptureSdrTile(tile, request, plane);
   // Engine-declared tiling is valid because every supported rendering operation is per pixel.
   const outputRowStride = plane.pixelWidth * 3;
   const counts = { negative: 0, above: 0, changed: 0, low: 0, high: 0, outOfGamut: false }, scratch = new Float64Array(3);
@@ -247,7 +257,7 @@ export function renderSdrRunInto(source: Float32Array | Float64Array, start: num
 }
 
 /** The reference's output-encoding declaration for the given code maximum. */
-function sdrOutputEncoding(maximum: number): SdrRenderingResult["outputEncoding"] {
+export function sdrOutputEncoding(maximum: number): SdrRenderingResult["outputEncoding"] {
   return { imageState: "output-referred-sdr", colorSpace: "srgb", primariesXy: { red: [.64, .33], green: [.30, .60], blue: [.15, .06] },
     whitePointXy: [.3127, .3290], referenceWhiteLuminanceCdM2: 80, codeMinimum: 0, codeMaximum: maximum };
 }

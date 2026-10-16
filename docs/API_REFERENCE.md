@@ -951,6 +951,37 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`ExposureProgramLineProfile`](api/exposure-program-line.md#exposureprogramlineprofile) | Type |
 | [`parseExposureProgramLineProfile`](api/exposure-program-line.md#parseexposureprogramlineprofile) | Runtime |
 
+## gpu/image-kernel-accelerator.ts
+
+[Detailed contracts](api/gpu-image-kernel-accelerator.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/gpu/image-kernel-accelerator.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`AcceleratedNativeCaptureSdrOutput`](api/gpu-image-kernel-accelerator.md#acceleratednativecapturesdroutput) | Type |
+| [`AcceleratedNativeRawDevelopmentOutput`](api/gpu-image-kernel-accelerator.md#acceleratednativerawdevelopmentoutput) | Type |
+| [`createImageKernelAccelerator`](api/gpu-image-kernel-accelerator.md#createimagekernelaccelerator) | Runtime |
+| [`ImageKernelAccelerator`](api/gpu-image-kernel-accelerator.md#imagekernelaccelerator) | Type |
+| [`ImageKernelAcceleratorOptions`](api/gpu-image-kernel-accelerator.md#imagekernelacceleratoroptions) | Type |
+| [`ImageKernelAcceleratorState`](api/gpu-image-kernel-accelerator.md#imagekernelacceleratorstate) | Type |
+| [`ImageKernelRunOptions`](api/gpu-image-kernel-accelerator.md#imagekernelrunoptions) | Type |
+| [`IrradianceConvolutionResult`](api/gpu-image-kernel-accelerator.md#irradianceconvolutionresult) | Type |
+
+## gpu/image-kernel-execution.ts
+
+[Detailed contracts](api/gpu-image-kernel-execution.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/gpu/image-kernel-execution.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`ImageKernelBackend`](api/gpu-image-kernel-execution.md#imagekernelbackend) | Type |
+| [`ImageKernelCodeErrorBound`](api/gpu-image-kernel-execution.md#imagekernelcodeerrorbound) | Type |
+| [`ImageKernelExecution`](api/gpu-image-kernel-execution.md#imagekernelexecution) | Type |
+| [`ImageKernelExecutionError`](api/gpu-image-kernel-execution.md#imagekernelexecutionerror) | Runtime |
+| [`ImageKernelFailureReason`](api/gpu-image-kernel-execution.md#imagekernelfailurereason) | Type |
+| [`ImageKernelFallbackReason`](api/gpu-image-kernel-execution.md#imagekernelfallbackreason) | Type |
+| [`ImageKernelRelativeErrorBound`](api/gpu-image-kernel-execution.md#imagekernelrelativeerrorbound) | Type |
+| [`WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND`](api/gpu-image-kernel-execution.md#webgpu_f32_transfer_absolute_bound) | Runtime |
+| [`WEBGPU_F32_UNIT_ROUNDOFF`](api/gpu-image-kernel-execution.md#webgpu_f32_unit_roundoff) | Runtime |
+
 ## motion/camera-rotation.ts
 
 [Detailed contracts](api/motion-camera-rotation.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/motion/camera-rotation.ts)
@@ -1160,6 +1191,19 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`IlluminationVignetting`](api/optics-illumination-vignetting.md#illuminationvignetting) | Type |
 | [`IlluminationVignettingCoefficients`](api/optics-illumination-vignetting.md#illuminationvignettingcoefficients) | Type |
 | [`IlluminationVignettingProfile`](api/optics-illumination-vignetting.md#illuminationvignettingprofile) | Type |
+
+## optics/irradiance-convolution.ts
+
+[Detailed contracts](api/optics-irradiance-convolution.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/optics/irradiance-convolution.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateIrradianceConvolution`](api/optics-irradiance-convolution.md#calculateirradianceconvolution) | Runtime |
+| [`calculateIrradianceConvolutionPlan`](api/optics-irradiance-convolution.md#calculateirradianceconvolutionplan) | Runtime |
+| [`IRRADIANCE_CONVOLUTION_LIMITS`](api/optics-irradiance-convolution.md#irradiance_convolution_limits) | Runtime |
+| [`IRRADIANCE_CONVOLUTION_SCHEMA_VERSION`](api/optics-irradiance-convolution.md#irradiance_convolution_schema_version) | Runtime |
+| [`IrradianceConvolutionInput`](api/optics-irradiance-convolution.md#irradianceconvolutioninput) | Type |
+| [`IrradianceConvolutionPlan`](api/optics-irradiance-convolution.md#irradianceconvolutionplan) | Type |
 
 ## optics/lateral-chromatic-aberration.ts
 
