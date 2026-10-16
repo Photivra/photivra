@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
-import { nativeEnvironmentWorkloads, runNativeEnvironmentWorkload } from "./helpers/native-environment-workloads.js";
+import { createNativeEnvironmentRawTask } from "../src/index.js";
+import { nativeEnvironmentWorkload, nativeEnvironmentWorkloads, runNativeEnvironmentWorkload } from "./helpers/native-environment-workloads.js";
 import { applyNativeEnvironmentTileVariant, nativeEnvironmentTileVariants } from "./helpers/native-environment-variants.js";
 
 /**
@@ -54,3 +55,51 @@ describe("native environment RAW bit identity", () => {
     expect(await runNativeEnvironmentWorkload(kind, { tileWidth: 1 })).toEqual(expected[kind]);
   });
 });
+
+/*
+ * Independent spot values beside the hashes above, derived from first principles in this file so a
+ * hash change can be localized (photo radiometry, provider work, or downstream RAW/development).
+ *
+ * Camera equation for an extended Lambertian field imaged on axis by an ideal thin lens (Smith,
+ * Modern Optical Engineering, 4th ed., sec. 9; Hecht, Optics, 5th ed., sec. 5.7.5 on the effective
+ * f-number): sensor-plane spectral irradiance E = pi L T / (4 N_w^2) with working f-number
+ * N_w = N (1 + m) = N / (1 - f/d) for a finite focus distance d. Photon count per pixel is
+ * A * integral(E * lambda / (h c)) dlambda dt; electrons weight each wavelength by the EQE.
+ * Workload declarations: N = 4, f = 50 mm, d = 5 m, shutter 0.008 s (global), sensitive aperture
+ * 800 x 600 um, spectral midpoints 425/475 nm over 50 nm bins, lens transmission 0.8 - 0.004 (lambda-400),
+ * EQE 0.2 + 0.004 (lambda-400), radiance 1e-9 (1 + 200 t) W m^-2 sr^-1 nm^-1 (time mean over
+ * [0, 0.008] s = 1.8, exact under the midpoint rule because it is linear). h and c are the SI exact values.
+ */
+describe("native environment independent spot values", () => {
+  it("matches the camera equation for the flat-emitter photo expectations", async () => {
+    const { input, provider } = nativeEnvironmentWorkload("flat-emitter");
+    const photo: { photons: number; electrons: number }[] = [];
+    const task = createNativeEnvironmentRawTask(input, { ...provider, observePhotoTile: (tile): void => {
+      for (const site of tile.sites) photo.push({ photons: site.expectedIncidentPhotonCount, electrons: site.expectedGeneratedElectronCount });
+    } });
+    await task.run(); task.dispose();
+    const h = 6.62607015e-34, c = 299792458, n = 4, workingFactor = (1 - 0.05 / 5) ** 2, area = 800e-6 * 600e-6;
+    let photons = 0, electrons = 0;
+    for (const nm of [425, 475]) {
+      const irradiance = Math.PI / (4 * n * n) * workingFactor * (0.8 - 0.004 * (nm - 400)) * 1e-9 * 1.8;
+      const count = irradiance * area * 50 * 0.008 * nm * 1e-9 / (h * c);
+      photons += count; electrons += count * (0.2 + 0.004 * (nm - 400));
+    }
+    // About 44.78 photons and 17.41 electrons per site.
+    expect(photo).toHaveLength(4);
+    for (const site of photo) {
+      expect(site.photons / photons).toBeCloseTo(1, 12);
+      expect(site.electrons / electrons).toBeCloseTo(1, 12);
+    }
+  });
+
+  it("derives each provider evaluation count from the declared quadrature", () => {
+    // 4 sites x 2 spectral nodes x 2x2 spatial nodes x 2 temporal nodes = 64 base evaluations;
+    // the sampled PSF multiplies by its 3x3 taps, the ideal pupil by 2 radial x 4 angular rays,
+    // and the temporal workload uses 8 instead of 2 temporal nodes.
+    const base = 4 * 2 * (2 * 2) * 2;
+    expect({ "psf-radial-field": base * 9, "flat-emitter": base, "pupil-rays": base * 2 * 4, "temporal-samples": base / 2 * 8 })
+      .toEqual(Object.fromEntries(Object.entries(expected).map(([kind, value]) => [kind, value.providerEvaluationCount])));
+  });
+});
+

@@ -294,6 +294,19 @@ This simplified scale does not model principal-plane movement, pupil magnificati
 
 Both are paraxial with nodal points at the principal planes (Kingslake & Johnson, *Lens Design Fundamentals*, 2nd ed., ch. 3; Ray, *Applied Photographic Optics*, 3rd ed., ch. 9 and 14). `equivalentBreathingProjectionScale` (exactly 1 for unit focus) can be passed to the declared-scale model with `focusDistanceM = objectDistanceMm / 1000`. Real internal-focus lenses also move their pupils and principal planes, so real breathing still needs a calibrated profile. The declared-scale model itself still never infers its scale.
 
+### Lens geometry wiring contract review (2.0)
+
+The domain rules require an explicit contract review before distortion or projection models enter composed science. Brown–Conrady distortion and the non-rectilinear projections are wired in two places; this is the review.
+
+1. **Ownership and single application.** Geometry is applied once per path: digital correction/warping through `prepareGeometricMapping()` (kinds `brown-conrady`, `projection-remap`, mapping schema 0.2.0), and physical capture through the environment `lensFieldMapping` (scene-ray query). Neither adds a second distortion stage elsewhere; the POC remains unchanged.
+2. **Defaults and identity.** Omitted options select the previous rectilinear, radial-only behaviour with unchanged model ids, versions and bytes. The existing hash locks (`native-environment-bit-identity`, `poc-projection-reuse`, production plan replay) pass unchanged, and new tests show identity mappings reproduce photo signals and RAW frames exactly.
+3. **Coordinates.** Sensor points are physical (distorted) +X right / +Y up after the explicit native Y inversion; distortion profiles keep their declared normalization radius and envelope; projection scales are declared, never inferred from lens identity.
+4. **Radiometry.** Distortion's area change is owned by the environment path as `1/det(d distorted/d ideal)`, applied exactly once and reported per query; the scene-to-sensor bridge still adds no cos⁴ term and field throughput remains caller-owned (a fisheye's natural falloff must be supplied there, not inferred).
+5. **Invertibility and validity.** Radial profiles keep the monotonic validator; Brown–Conrady profiles keep the sampled Jacobian/boundary validator; projection domains (image circle, horizon, poles) fail closed.
+6. **Focus.** Non-rectilinear projections use the focus-aware projection distance as mapping scale; this generalisation of the rectilinear focus-aware projection is an approximation, not a calibrated finite-focus fisheye model.
+7. **Unsupported combinations fail closed.** Ideal pupil rays and browser-native prepared sites reject a mapping; the production plan blocks requested distortion without a mapping and active distortion that was not requested.
+8. **Versions.** Geometric mapping schema/model 0.2.0 only when a new kind is present; environment photo-signal model 0.4.0 only with a mapping; new query model id `lens-mapped-sensor-environment-radiance-query`; production plan stays 0.7.0 with a new blocker code `missing-lens-field-mapping`.
+
 ### Thin-lens focus and depth of field
 
 The geometric depth-of-field model uses the exact thin-lens near/far limits with a caller-supplied acceptable circle of confusion `c`. With focal length `f`, f-number `N`, focus distance `s` and hyperfocal distance `H = f²/(Nc) + f`:

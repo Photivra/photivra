@@ -52,6 +52,9 @@ export {
   type DigitalGeometricTransform,
   type AffineGeometricTransform,
   type RadialGeometricTransform,
+  type BrownConradyGeometricTransform,
+  type ProjectionRemapGeometricTransform,
+  type GeometricProjectionDeclaration,
   type GeometricJacobian,
   type GeometricImageDomain,
   type PreparedGeometricMapping,
@@ -1682,6 +1685,7 @@ export { calculateSceneSensorEqeTemporalExposure, type CalculateSceneSensorEqeTe
 export { calculateSensorPsfIrradianceQuadrature, type CalculateSensorPsfIrradianceQuadratureInput,
   type SensorPsfSourceSample, type SensorPsfIrradianceQuadrature } from "./optics/sensor-psf-quadrature.js";
 export { calculateSensorEnvironmentRadianceQuery, type CalculateSensorEnvironmentRadianceQueryInput,
+  type EnvironmentLensFieldMapping, type SensorEnvironmentLensFieldMappingResult,
   type SensorEnvironmentRadianceQuery } from "./optics/sensor-environment-query.js";
 export { calculateSensorEqeTemporalExposure, type CalculateSensorEqeTemporalExposureInput,
   type SensorEqeTemporalExposure } from "./sensor/eqe-temporal-exposure.js";
@@ -1747,6 +1751,23 @@ export { SYNTHETIC_FILM_GRAIN_STREAM_ID, createBilateralFilterTask, createNonLoc
   type SyntheticFilmGrainOutput } from "./processing/denoise.js";
 
 export { calculateSensorApertureRays, type CalculateSensorApertureRaysInput, type IdealCircularPupil, type SensorApertureRay, type SensorApertureRays } from "./optics/sensor-aperture-rays.js";
+
+export { SIMULATE_CAPTURE_FACADE_VERSION, SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX, simulateCapture,
+  type SimulateCaptureOptions, type SimulateCaptureResult, type SimulateCaptureAssumption, type SimulateCaptureProgress,
+  type SimulateCaptureExposureMode, type SimulateCaptureOutputFormat, type SimulateCaptureWhiteBalance } from "./facade/simulate-capture.js";
+export { CHART_SCENE_PRESETS, CHART_SCENE_DEFAULTS, CHART_SPECTRAL_RANGE_NANOMETERS, resolveChartScene, calculateStepWedgeReflectances,
+  calculatePointGridCenters, type ChartScene, type ChartScenePresetId, type ChartReflectance, type ResolvedChartScene, type UniformChartScene,
+  type SlantedEdgeChartScene, type SiemensStarChartScene, type StepWedgeChartScene, type GreyRampChartScene, type CheckerboardChartScene,
+  type PointGridChartScene, type PatchChartScene } from "./facade/chart-scenes.js";
+export { PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, resolveCaptureIlluminant, createPlanarSceneRadianceProvider,
+  type CaptureIlluminant, type ResolvedCaptureIlluminant, type CallerReflectanceScene, type CallerRadianceScene, type ScenePlanePoint,
+  type PlanarSceneRadianceProvider } from "./facade/scene-radiance.js";
+export { EXPORT_JPEG_ENCODER_ID } from "./capture/export-jpeg.js";
+export { DNG_IMPORT_SCHEMA_VERSION, DNG_IMPORT_LIMITS, parseDngRawImage } from "./capture/dng-import.js";
+export type { DngImportInput, ImportedDngRaw, ImportedDngCfa, ImportedDngBlackLevel, ImportedDngRect } from "./capture/dng-import.js";
+export { parseLosslessJpeg, type LosslessJpegImage, type LosslessJpegLimits } from "./capture/lossless-jpeg.js";
+export { PNG_ENCODER_ID, PNG_ENCODER_LIMITS, serializePngImage } from "./output/png-encoder.js";
+export type { PngEncodeInput, PngColourEncoding, PngCicpPrimaries, PngCicpTransfer, PngMasteringDisplay, PngContentLightLevel } from "./output/png-encoder.js";
 
 declare global {
   /**

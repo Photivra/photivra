@@ -27,7 +27,7 @@ import { resolveRawFrameReconstruction, parseRawFrameReconstructionInput, type R
 import { createCaptureExportMetadataPair, type CaptureExportMetadataInput, type CaptureExportMetadataPair } from "./capture-export-metadata.js";
 import { encodeExportJpeg } from "./export-jpeg.js";
 import { packExportTiff, exportTiffAscii as ascii, exportTiffNumbers as numbers, exportTiffRationals as rationals,
-  exportTiffBytes as rawBytes, exportTiffDoubles as doubles, type ExportTiffTag } from "./export-tiff.js";
+  exportTiffBytes as rawBytes, exportTiffDoubles as doubles, packExportJpegExif, type ExportTiffTag } from "./export-tiff.js";
 import { calculateCaptureCorrectedSdr, parseCaptureCorrectionChoice,
   type CaptureCorrectedSdrInput, type CaptureCorrectedSdrResult } from "../output/capture-corrected-sdr.js";
 import { resolveLensCorrectionPlan, type ResolvedLensCorrectionPlan } from "../output/lens-corrections.js";
@@ -388,7 +388,9 @@ export async function createPhotographicExportPair(input: PhotographicExportInpu
     rawBytes(50781,1,Uint8Array.from(rawDataUniqueId.match(/../g)!.map((s) => parseInt(s,16)))),numbers(50829,4,[activeRect.y,activeRect.x,activeRect.y+activeRect.height,activeRect.x+activeRect.width]),
     rationals(50964,true,forward.flat()),...(dng.noiseProfile ? [doubles(51041,dng.noiseProfile)] : []),
     rawBytes(700,1,xmp(metadata,"raw",simulationHash,v.colorProfile,frame.modeId,v.sceneProfile,correctedMetadata))],commonExif(metadata,"raw",local.width,local.height),pixels);
-  const jpegExif=packExportTiff(identity(metadata,1),commonExif(metadata,"jpeg",processedOutputView.pixelWidth,processedOutputView.pixelHeight));
+  // Exif 2.32 mandatory tags for a compressed primary image (resolution 72 dpi = unknown, YCbCrPositioning, FlashpixVersion, ComponentsConfiguration).
+  const jpegExif=packExportJpegExif(identity(metadata,1),commonExif(metadata,"jpeg",processedOutputView.pixelWidth,processedOutputView.pixelHeight),
+    {pixelWidth:processedOutputView.pixelWidth,pixelHeight:processedOutputView.pixelHeight});
   const jpegBytes=encodeExportJpeg({width:processedOutputView.pixelWidth,height:processedOutputView.pixelHeight,samples:rendering.value.integerSamples,
     quantizationStep:v.jpegQuantizationStep,exif:jpegExif,xmp:xmp(metadata,"jpeg",simulationHash,v.colorProfile,frame.modeId,v.sceneProfile,correctedMetadata)});
   active();

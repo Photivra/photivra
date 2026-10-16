@@ -14,6 +14,9 @@ For bounded same-RAW paired DNG/JPEG byte export, see
 [Photographic export](https://github.com/Photivra/photivra/blob/main/docs/PHOTOGRAPHIC_EXPORT.md). It requires an explicit approximate
 sensor-color profile; bounded external acceptance and its evidence limits are recorded in [Export acceptance](https://github.com/Photivra/photivra/blob/main/docs/EXPORT_ACCEPTANCE.md).
 
+New to the engine? Start with [`simulateCapture()`](#simulate-a-capture-with-the-facade), which builds
+and runs a complete capture from a few options; the [Quick Start](QUICK_START.md) explains it in full.
+
 This guide shows how to call the capabilities exported by the root `@photivra/engine` package.
 
 The package is ESM; CommonJS code on Node 22.12 or later can also `require()` it. Primitive scientific calculations generally return a `CalculationResult<T>`:
@@ -6724,6 +6727,21 @@ Additional named defocus, sampling, and motion samples can be supplied when a re
 
 See [Local POC Simulation API](https://github.com/Photivra/photivra/blob/main/docs/POC_API.md#simulate) for the complete composed request/response semantics. That HTTP transport is repository-only contributor tooling and is not shipped as a package subpath; `simulatePocCamera()` itself is part of the browser-safe root package.
 
+## DNG import and PNG output
+
+`parseDngRawImage` reads a DNG or TIFF-EP CFA/LinearRaw file (uncompressed or lossless JPEG, 8–16 bits) into stored raw codes plus CFA, black/white levels, active area, default crop, colour matrices, as-shot neutral and orientation. Nothing is applied to the codes. `serializePngImage` writes 8- or 16-bit RGB PNG with an sRGB, ICC or cICP (Display P3, BT.2020, PQ, HLG) colour description and optional mDCV/cLLI HDR metadata. See [DNG import and PNG output](https://github.com/Photivra/photivra/blob/main/docs/IMPORT_AND_PNG.md) for supported subsets, limits and sources.
+
+```ts
+import { serializePngImage, parseDngRawImage } from '@photivra/engine';
+
+// Encode a 1 x 1 Display P3 pixel (sRGB transfer), then show that a PNG is not a DNG.
+const png = serializePngImage({ width: 1, height: 1, bitDepth: 8, samples: Uint8Array.of(255, 128, 0),
+  colourEncoding: { kind: 'cicp', primaries: 'display-p3', transfer: 'srgb', fullRange: true } });
+let rejected = false;
+try { parseDngRawImage({ bytes: png }); } catch { rejected = true; }
+if (!rejected) throw new Error('A PNG must not parse as a DNG');
+```
+
 ## Native-only Print planning
 
 Use [registered linear statistics](https://github.com/Photivra/photivra/blob/main/docs/PRINT_REGION_STATISTICS.md) to distinguish same-realization processing changes from per-site repeat-capture variance. The [static neutral Gabor contrast reference](https://github.com/Photivra/photivra/blob/main/docs/PRINT_CONTRAST_REFERENCE.md) requires explicit stimulus, luminance and observer conditions and does not accept an arbitrary photographic ROI as a qualified stimulus. See the [#195/#196 candidate evidence review](https://github.com/Photivra/photivra/blob/main/docs/PRINT_195_196_REVIEW.md) before integrating either diagnostic.
@@ -7164,3 +7182,66 @@ const panorama = createPanoramaTask({
 await panorama.run();
 console.log(panorama.takeOutput().gains);
 ```
+### Fisheye-to-rectilinear and Brown–Conrady geometric mappings
+
+```ts
+import {
+  calculateComposedGeometricMapping,
+  calculateForwardGeometricMapping,
+  prepareGeometricMapping
+} from "@photivra/engine";
+
+// Destination-to-source: a rectilinear 10 mm view sampled from an 8 mm equidistant fisheye capture,
+// after a Brown–Conrady correction of the fisheye's residual distortion.
+const mapping = prepareGeometricMapping({
+  frameTimeSeconds: 0,
+  transforms: [
+    {
+      id: "fisheye-to-rectilinear", version: "1", domain: "reconstructed-linear", purpose: "projection",
+      kind: "projection-remap",
+      destinationProjection: { projectionModel: "rectilinear", focalLengthMm: 10 },
+      sourceProjection: { projectionModel: "fisheye-equidistant", focalLengthMm: 8 }
+    },
+    {
+      id: "residual-distortion", version: "1", domain: "reconstructed-linear", purpose: "distortion",
+      kind: "brown-conrady",
+      profile: { normalizationRadiusMm: 12, maximumNormalizedRadius: 1,
+        coefficients: { k1: -0.02, k2: 0, k3: 0, p1: 0.001, p2: 0 } }
+    }
+  ]
+}).value;
+const point = calculateComposedGeometricMapping({ mapping, destinationPointMm: { x: 4, y: -2 } }).value;
+console.log(mapping.schemaVersion, point.sourcePointMm, point.determinant);
+console.log(calculateForwardGeometricMapping({ mapping, sourcePointMm: point.sourcePointMm }).value);
+```
+## Simulate a capture with the facade
+
+`simulateCapture()` composes the generic tier presets, scene metering, the exposure-mode resolver,
+the native environment RAW task, native RAW development and, optionally, the print JPEG encoder.
+It returns the image, the packed RAW, the complete request and plan it executed, provenance and an
+`assumptions` list naming every default and modelling choice. See the [Quick Start](QUICK_START.md)
+for every option, the chart catalogue and the limits.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const star = await simulateCapture({
+  camera: "prosumer",
+  exposure: { mode: "aperture-priority", iso: 200 },
+  lens: { fNumber: 5.6 },
+  scene: { preset: "siemens-star", cycles: 24 },
+  illuminant: { kind: "planckian", temperatureKelvin: 5000 },
+  illuminanceLux: 8000,
+  output: { width: 12, height: 8, toneCurve: "positive-reinhard-per-channel", whiteBalance: { kelvin: 5000 } }
+});
+
+console.log(star.exposure.settings.shutterSeconds, star.exposure.ev100);
+console.log(star.assumptions.filter((a) => a.kind === "default").map((a) => a.id));
+console.log(star.request.siteInput(0).environment.optics.nominalFNumber);
+```
+
+In `aperture-priority` mode the shutter comes from the meter (ISO 2720 relation with K = 12.5) through
+`resolveAperturePriorityExposureMode()`. The chart presets are also available on their own:
+`resolveChartScene()` gives analytic reflectance at any frame point, and
+`createPlanarSceneRadianceProvider()` turns a chart into an `evaluateRadiance` callback for the native
+environment RAW contract.
