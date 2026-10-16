@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { expect, it } from "vitest";
-import { createPhotographicExportPair, parseSimulatedCapture } from "../src/index.js";
+import { createPhotographicExportPair, parseSimulatedCapture, PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION } from "../src/index.js";
 import { loadPhotographicExportInput } from "./helpers/photographic-export-fixture.js";
 
 async function historicalPair(): Promise<{ input: ReturnType<typeof loadPhotographicExportInput>;
@@ -48,9 +48,11 @@ it("re-derives the export identities and container structure independently", asy
     cfa: frame.colorSamplingProfile.layout, containerBitDepth: 16, codes: frame.samples.map((s) => s.rawCode) };
   expect(pair.rawDataUniqueId).toBe(sha256Hex(independentCanonical(rawRecord)).slice(0, 32));
 
-  // Simulation hash: SHA-256 over the canonical replay record (frame, reconstruction, colour, scene,
-  // white balance, rendering and JPEG quantization).
-  const simulationRecord = { schema: pair.schemaVersion, rawFrame: frame, phaseProfiles: pair.source.value.phaseProfiles,
+  // Simulation hash: SHA-256 over the canonical replay record (schema and pipeline versions, frame,
+  // reconstruction, colour, scene, white balance, rendering, JPEG quantization and highlight mode,
+  // which defaults to "clip").
+  const simulationRecord = { schema: pair.schemaVersion, pipeline: PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION,
+    highlightMode: input.highlightMode ?? "clip", rawFrame: frame, phaseProfiles: pair.source.value.phaseProfiles,
     region: pair.source.value.region, colorProfile: input.colorProfile, sceneProfile: input.sceneProfile,
     whiteBalance: input.whiteBalance, rendering: input.rendering, jpegQuantizationStep: input.jpegQuantizationStep };
   expect(pair.simulationHash).toBe(sha256Hex(independentCanonical(simulationRecord)));
