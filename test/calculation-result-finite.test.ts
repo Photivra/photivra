@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
 import { approximationResult, calculatedResult, InvalidScientificResultError } from "../src/index.js";
+import { calculationValueContainsNonFiniteNumber, calculationValueContainsNonFiniteNumberExact } from "../src/core/calculation-result.js";
 
 /** Independent copy of the diagnostic path walk: the error message contract that must not change. */
 function referencePath(value: unknown, path = "value", seen = new WeakSet<object>()): string | undefined {
@@ -73,5 +74,69 @@ describe("calculation result finite-number validation", () => {
       expect((error as Error).message).toBe(`Calculation produced a non-finite number at ${path}.`);
     }
     expect(failures).toBeGreaterThan(50);
+  });
+
+  describe("memo-free pre-scan (2.0 performance)", () => {
+    const same = (value: unknown): void => {
+      expect(calculationValueContainsNonFiniteNumber(value)).toBe(calculationValueContainsNonFiniteNumberExact(value));
+    };
+
+    it("matches the exact visited-set scan on cycles, shared references, typed arrays, frozen and null-prototype objects", () => {
+      const cyclic: Record<string, unknown> = { a: 1 }; cyclic.self = cyclic;
+      const cyclicBad: Record<string, unknown> = { a: 1 }; cyclicBad.self = cyclicBad; cyclicBad.z = NaN;
+      const shared = { x: [1, 2, 3] }, sharedBad = { x: [1, -Infinity] };
+      const bare = Object.assign(Object.create(null) as Record<string, unknown>, { n: 1, m: { k: Infinity } });
+      for (const value of [0, NaN, Infinity, -Infinity, "x", null, undefined, true, 1n, Symbol("s"), (): number => NaN,
+        cyclic, cyclicBad, { a: shared, b: shared, c: [shared, shared] }, { a: shared, b: sharedBad },
+        Float64Array.of(1, 2, 3), Float64Array.of(1, NaN), Float32Array.of(Infinity), new Uint8Array(4), new Map([[1, NaN]]), new Set([NaN]),
+        Object.freeze({ a: Object.freeze([1, 2]), b: Object.freeze({ c: 3 }) }), Object.freeze({ a: Object.freeze([1, NaN]) }),
+        bare, [, , 1], [, NaN], Object.assign([1, 2], { extra: NaN }), new Date(NaN), { get g(): number { return NaN; } }]) same(value); // eslint-disable-line no-sparse-arrays
+    });
+
+    it("falls back past its depth and visit budgets with the same answer", () => {
+      // Depth beyond the memo-free bound, finite and non-finite at the bottom.
+      let deep: unknown = 1, deepBad: unknown = NaN;
+      for (let depth = 0; depth < 200; depth++) { deep = { next: deep }; deepBad = [deepBad]; }
+      same(deep); same(deepBad);
+      expect(calculationValueContainsNonFiniteNumber(deep)).toBe(false);
+      expect(calculationValueContainsNonFiniteNumber(deepBad)).toBe(true);
+      // A 40-level diamond chain has 2^40 paths: the visit budget is exhausted and the exact scan decides.
+      let diamond: unknown = { leaf: 1 }, diamondBad: unknown = { leaf: Infinity };
+      for (let level = 0; level < 40; level++) { diamond = { left: diamond, right: diamond }; diamondBad = { left: diamondBad, right: diamondBad }; }
+      same(diamond); same(diamondBad);
+      expect(calculationValueContainsNonFiniteNumber(diamond)).toBe(false);
+      expect(calculationValueContainsNonFiniteNumber(diamondBad)).toBe(true);
+      // Wide trees with more objects than the visit budget.
+      const wide = Array.from({ length: 70_000 }, (_, i) => ({ i })), wideBad = [...wide, { i: NaN }];
+      same(wide); same(wideBad);
+    });
+
+    it("restores its budget across a re-entrant scan from an accessor", () => {
+      let inner: boolean | undefined;
+      const value = { get nested(): number { inner = calculationValueContainsNonFiniteNumber({ q: [1, 2, { r: 3 }] }); return 1; }, bad: NaN };
+      expect(calculationValueContainsNonFiniteNumber(value)).toBe(true);
+      expect(inner).toBe(false);
+    });
+
+    it("matches on seeded random graphs with cycles, sharing and typed arrays", () => {
+      let state = 0x2750_0003;
+      const random = (): number => { state = (Math.imul(state, 1664525)+1013904223) >>> 0; return state/2**32; };
+      for (let trial = 0; trial < 500; trial++) {
+        const nodes: (Record<string, unknown> | unknown[])[] = [];
+        const count = 1+Math.floor(random()*30);
+        for (let i = 0; i < count; i++) nodes.push(random() < .4 ? [] : random() < .1 ? Object.create(null) as Record<string, unknown> : {});
+        for (const node of nodes) {
+          const edges = Math.floor(random()*5);
+          for (let e = 0; e < edges; e++) {
+            const r = random();
+            const child: unknown = r < .5 ? nodes[Math.floor(random()*count)] : r < .55 ? Float64Array.of(random(), random() < .02 ? NaN : 1)
+              : r < .6 ? (random() < .5 ? NaN : Infinity) : r < .8 ? random() : "s";
+            if (Array.isArray(node)) { if (random() < .1) node.length++; node.push(child); } else node[`k${e}`] = child;
+          }
+          if (random() < .2) Object.freeze(node);
+        }
+        same(nodes[0]);
+      }
+    });
   });
 });
