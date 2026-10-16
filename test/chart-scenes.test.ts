@@ -96,7 +96,7 @@ describe("planar scene radiance provider", () => {
 
   it("maps query directions and pupil rays onto the plane", () => {
     const provider = createPlanarSceneRadianceProvider({ ...base, scene: { kind: "reflectance-function", sceneId: "left", evaluate: (p) => (p.xM < -0.5 ? 1 : 0) } });
-    const look = (x: number) => { const n = Math.hypot(x, 1); return { x: -x / n, y: 0, z: -1 / n }; };
+    const look = (x: number): { x: number; y: number; z: number } => { const n = Math.hypot(x, 1); return { x: -x / n, y: 0, z: -1 / n }; };
     // A look direction (x, 0, 1) meets the plane at x·4 m; the plane point is u = x·4/1.
     expect(provider.evaluateRadiance(request(look(-0.2))).spectralRadianceWattsPerSquareMeterSteradianNanometer).toBeGreaterThan(0);
     expect(provider.evaluateRadiance(request(look(-0.1))).spectralRadianceWattsPerSquareMeterSteradianNanometer).toBe(0);

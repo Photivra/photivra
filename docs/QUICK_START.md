@@ -7,9 +7,9 @@ optional JPEG. The facade adds no physics of its own. It only builds the request
 contracts, runs them, and tells you every choice it made for you.
 
 This page covers the inputs, the defaults, the chart presets and the limits. The detailed contracts
-it composes are in [ENVIRONMENT_RAW_CAPTURE.md](ENVIRONMENT_RAW_CAPTURE.md),
-[NATIVE_RAW_AND_PRINT.md](NATIVE_RAW_AND_PRINT.md), [GENERIC_TIER_PRESETS.md](GENERIC_TIER_PRESETS.md),
-[COLORIMETRY.md](COLORIMETRY.md) and the [Usage Guide](USAGE.md).
+it composes are in [ENVIRONMENT_RAW_CAPTURE.md](https://github.com/Photivra/photivra/blob/main/docs/ENVIRONMENT_RAW_CAPTURE.md),
+[NATIVE_RAW_AND_PRINT.md](https://github.com/Photivra/photivra/blob/main/docs/NATIVE_RAW_AND_PRINT.md), [GENERIC_TIER_PRESETS.md](https://github.com/Photivra/photivra/blob/main/docs/GENERIC_TIER_PRESETS.md),
+[COLORIMETRY.md](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md) and the [Usage Guide](USAGE.md).
 
 ## The ten-line capture
 

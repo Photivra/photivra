@@ -85,7 +85,7 @@ describe("simulateCapture facade", { timeout: 60_000 }, () => {
   });
 
   it("applies white balance choices through the engine's WB states", async () => {
-    const run = (whiteBalance: NonNullable<NonNullable<Parameters<typeof simulateCapture>[0]["output"]>["whiteBalance"]>) =>
+    const run = (whiteBalance: NonNullable<NonNullable<Parameters<typeof simulateCapture>[0]["output"]>["whiteBalance"]>): Promise<SimulateCaptureResult> =>
       simulateCapture({ scene: { preset: "uniform" }, illuminant: "cie-a", output: { width: 4, height: 4, whiteBalance } });
     const none = mean(await run("none"));
     expect(none[0]!).toBeGreaterThan(none[1]! + 20);
