@@ -271,6 +271,26 @@ export {
 } from "./camera/field-of-view.js";
 
 export {
+  LENS_PROJECTION_MODELS,
+  calculateLensProjectionDirection,
+  calculateLensProjectionFieldOfView,
+  calculateLensProjectionFieldOfViewBounds,
+  calculateLensProjectionImagePoint,
+  parseLensProjectionModel,
+  type CalculateLensProjectionDirectionInput,
+  type CalculateLensProjectionFieldOfViewBoundsInput,
+  type CalculateLensProjectionFieldOfViewInput,
+  type CalculateLensProjectionImagePointInput,
+  type LensDirection,
+  type LensProjectionDirection,
+  type LensProjectionFieldOfView,
+  type LensProjectionFieldOfViewBounds,
+  type LensProjectionImagePoint,
+  type LensProjectionModel,
+  type RadialLensProjectionModel
+} from "./camera/lens-projection.js";
+
+export {
   calculateProjectedObjectSize,
   type CalculateProjectedObjectSizeInput,
   type ProjectedObjectSize
@@ -922,9 +942,53 @@ export {
 
 export {
   calculateIdealPolygonDiffractionPsf,
+  calculatePolygonPupilFraunhoferPsf,
   type CalculateIdealPolygonDiffractionInput,
-  type IdealPolygonDiffraction
+  type CalculatePolygonPupilFraunhoferPsfInput,
+  type IdealPolygonDiffraction,
+  type PolygonPupilFraunhoferPsf
 } from "./optics/polygon-diffraction.js";
+
+export {
+  ZERNIKE_MAXIMUM_NOLL_INDEX,
+  ZERNIKE_PUPIL_MAXIMUM_SAMPLES_ACROSS,
+  calculateDefocusWavefront,
+  createWavefrontPupilGrid,
+  estimateMarechalStrehlRatio,
+  evaluateZernikePolynomial,
+  resolveZernikeNollOrder,
+  type CalculateDefocusWavefrontInput,
+  type CreateWavefrontPupilGridInput,
+  type DefocusWavefront,
+  type EstimateMarechalStrehlRatioInput,
+  type SeidelFieldPosition,
+  type SeidelWavefrontCoefficients,
+  type WavefrontPupilGrid,
+  type ZernikeCoefficient,
+  type ZernikeOrder
+} from "./optics/zernike-wavefront.js";
+
+export {
+  FRAUNHOFER_C_LINE_NM,
+  FRAUNHOFER_D_LINE_NM,
+  FRAUNHOFER_F_LINE_NM,
+  calculateCauchyRefractiveIndex,
+  calculateLongitudinalChromaticFocus,
+  type CalculateLongitudinalChromaticFocusInput,
+  type LongitudinalChromaticDispersion,
+  type LongitudinalChromaticFocus
+} from "./optics/longitudinal-chromatic-aberration.js";
+
+export {
+  calculateMechanicalVignetting,
+  calculateNaturalVignetting,
+  type CalculateMechanicalVignettingInput,
+  type CalculateNaturalVignettingInput,
+  type MechanicalVignetting,
+  type MechanicalVignettingAperture,
+  type NaturalVignetting,
+  type NaturalVignettingModel
+} from "./optics/pupil-vignetting.js";
 
 export {
   estimateEquivalentViewingCircleOfConfusion,
@@ -957,11 +1021,24 @@ export {
 export {
   calculateFocusBreathingFieldOfView,
   calculateFocusBreathingProjection,
+  calculateGeometricFocusBreathing,
   type CalculateFocusBreathingFieldOfViewInput,
   type CalculateFocusBreathingProjectionInput,
+  type CalculateGeometricFocusBreathingInput,
   type FocusBreathingFieldOfView,
-  type FocusBreathingProjection
+  type FocusBreathingProjection,
+  type GeometricFocusBreathing,
+  type GeometricFocusingMethod
 } from "./optics/focus-breathing.js";
+
+export {
+  calculateAtmosphericHaze,
+  calculateExtinctionFromVisibility,
+  type AtmosphericExtinctionModel,
+  type AtmosphericHaze,
+  type CalculateAtmosphericHazeInput,
+  type CalculateExtinctionFromVisibilityInput
+} from "./optics/atmospheric-haze.js";
 
 export {
   calculateInverseRadialDistortionMapping,
@@ -977,6 +1054,17 @@ export {
   type RadialDistortionMapping,
   type RadialDistortionProfile
 } from "./optics/radial-distortion.js";
+
+export {
+  calculateBrownConradyDistortionMapping,
+  calculateInverseBrownConradyDistortionMapping,
+  type BrownConradyDistortionCoefficients,
+  type BrownConradyDistortionMapping,
+  type BrownConradyDistortionProfile,
+  type CalculateBrownConradyDistortionMappingInput,
+  type CalculateInverseBrownConradyDistortionMappingInput,
+  type InverseBrownConradyDistortionMapping
+} from "./optics/brown-conrady-distortion.js";
 
 export {
   calculateInverseLateralChromaticAberrationMapping,
@@ -998,16 +1086,19 @@ export {
 
 export {
   FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION,
+  FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION,
   composeFrontOfLensFilterTransmission,
   parseFrontOfLensFilterProfile,
   resolveFrontOfLensFilterTransmission,
   type ComposeFrontOfLensFilterTransmissionInput,
   type ComposedFrontOfLensFilterTransmission,
   type FrontOfLensFilterProfile,
+  type FrontOfLensFilterProfileSchemaVersion,
   type FrontOfLensFilterScientificStatus,
   type FrontOfLensFilterSpectralSample,
   type FrontOfLensFilterTransmissionModel,
   type FrontOfLensFilterUncertainty,
+  type LinearPolarizationState,
   type ResolveFrontOfLensFilterTransmissionInput,
   type ResolvedFrontOfLensFilterTransmission
 } from "./optics/front-of-lens-filter.js";
@@ -1052,6 +1143,7 @@ export {
   type LensPsfUncertainty,
   type LensSampledPsfGridCoordinate,
   type LensSampledPsfGridNode,
+  type LensSampledPsfInterpolation,
   type LensSampledPsfProfile,
   type MtfOnlyPsfRenderabilityAssessment,
   type ResolveLensSampledPsfInput,

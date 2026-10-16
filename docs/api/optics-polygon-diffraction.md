@@ -40,6 +40,43 @@ export function calculateIdealPolygonDiffractionPsf(
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
 
+## calculatePolygonPupilFraunhoferPsf
+
+Continuous monochromatic Fraunhofer PSF density for a uniformly illuminated, zero-phase,
+arbitrary simple polygon pupil (for example a mechanically vignetted cat's-eye pupil). Uses the
+same analytic divergence-theorem boundary integral as the regular-polygon model, so there is no
+pupil-grid aliasing. A pupil offset from the axis only adds a linear phase and leaves the
+intensity unchanged. Density = A |F/A|² / (lambda z)², with unit integral over the infinite plane.
+
+```ts
+export function calculatePolygonPupilFraunhoferPsf(
+  input: CalculatePolygonPupilFraunhoferPsfInput
+): CalculationResult<PolygonPupilFraunhoferPsf>;
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
+## CalculatePolygonPupilFraunhoferPsfInput
+
+On-axis scalar Fraunhofer diffraction of one arbitrary simple polygon pupil.
+
+```ts
+export interface CalculatePolygonPupilFraunhoferPsfInput {
+  /**
+   * Simple (non-self-intersecting) pupil polygon in pupil-plane millimetres, +X right / +Y up,
+   * 3 through 4096 vertices; for example the cat's-eye pupil from calculateMechanicalVignetting().
+   */
+  pupilVerticesMm: readonly { x: number; y: number }[];
+  /** Paraxial pupil-to-image propagation scale; not silently inferred from focus. */
+  pupilToImageDistanceMm: number;
+  /** Wavelength in the declared propagation medium; no air/vacuum conversion. */
+  wavelengthNm: number;
+  wavelengthBasis: Exclude<SpectralWavelengthBasis, "unspecified">;
+  /** Displacements from the PSF centre (the geometric image point), +X right / +Y up; at most 4096. */
+  imagePointsMicrometers: readonly { x: number; y: number }[];
+}
+```
+
 ## IdealPolygonDiffraction
 
 Continuous unit-energy PSF samples, not a normalized finite convolution kernel.
@@ -60,6 +97,29 @@ export interface IdealPolygonDiffraction {
   samples: readonly {
     imagePointMicrometers: { x: number; y: number };
     /** |F/A|²; unity at the origin. Not an energy/probability weight. */
+    peakNormalizedIntensity: number;
+    /** Density integrating to unity over the full image plane, in 1/µm². */
+    intensityDensityPerSquareMicrometer: number;
+  }[];
+}
+```
+
+## PolygonPupilFraunhoferPsf
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface PolygonPupilFraunhoferPsf {
+  pupilAreaSquareMm: number;
+  pupilToImageDistanceMm: number;
+  wavelengthNm: number;
+  wavelengthBasis: Exclude<SpectralWavelengthBasis, "unspecified">;
+  fieldAxes: "+X right, +Y up";
+  energyNormalization: "unit-integral-over-infinite-image-plane";
+  throughputApplied: false;
+  samples: readonly {
+    imagePointMicrometers: { x: number; y: number };
+    /** |F/A|²; unity at the origin. */
     peakNormalizedIntensity: number;
     /** Density integrating to unity over the full image plane, in 1/µm². */
     intensityDensityPerSquareMicrometer: number;

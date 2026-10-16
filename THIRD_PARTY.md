@@ -22,6 +22,8 @@ Node built-in modules are used only by development tooling and the repository-lo
 
 `src/sensor/stochastic-seed.ts` independently implements the MurmurHash3_x86_32 algorithm and its `fmix32` finalizer (Austin Appleby, SMHasher). The upstream `MurmurHash3.cpp` header states the algorithm "is placed in the public domain" and disclaims copyright. No upstream source file is vendored; the implementation is checked against published test vectors in `test/sensor-raw-noise-independence.test.ts`.
 
+`src/optics/longitudinal-chromatic-aberration.ts` uses three physical constants: the Fraunhofer d (helium, 587.5618 nm), F (hydrogen, 486.1327 nm) and C (hydrogen, 656.2725 nm) spectral-line wavelengths used to define the Abbe number (reference wavelengths of ISO 7944). They are factual measured constants of nature, not a copied dataset or table; no glass catalogue data is included and refractive index and Abbe number are caller inputs. The 2.0 projection, distortion, Zernike/Seidel, vignetting, polarizer and haze models are independent implementations of published equations cited in `docs/PHYSICS_FOUNDATION.md` and `docs/PSF_FOUNDATION.md`; they contain no third-party code or numeric tables.
+
 This inventory does not replace a transitive dependency/SBOM review before a release. New runtime dependencies, scientific datasets, model weights, or calibration material require explicit provenance and license review.
 
 ## Pending licence and source reviews

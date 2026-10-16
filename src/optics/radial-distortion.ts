@@ -225,12 +225,11 @@ function derivativeCriticalSquaredRadii(
     return [-scaledB / (2 * scaledA)];
   }
 
+  // root > 0 here, so q is never zero: for scaledB >= 0 the sum scaledB + root is positive and for
+  // scaledB < 0 the difference scaledB - root is negative. (A former q === 0 branch was unreachable.)
   const q =
     -0.5 *
     (scaledB + (scaledB >= 0 ? root : -root));
-  if (q === 0) {
-    return [-scaledB / (2 * scaledA)];
-  }
 
   return [q / scaledA, scaledC / q];
 }
