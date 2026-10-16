@@ -48,3 +48,35 @@ export function requirePublicOpaqueId(value: unknown, message: string): string {
 export function isPublicOpaqueId(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
 }
+
+/**
+ * Root-function input guard: throws the domain InvalidConfigurationError (never a raw TypeError
+ * from a property read) when a public function receives null, a primitive or an array where it
+ * requires an input object. Does not validate fields.
+ */
+export function requireInputObject(value: unknown, label: string): void {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new InvalidConfigurationError(`${label} must be an object.`);
+  }
+}
+
+/** Root-function input guard for a required array argument; see requireInputObject. */
+export function requireInputArray(value: unknown, label: string): void {
+  if (!Array.isArray(value)) {
+    throw new InvalidConfigurationError(`${label} must be an array.`);
+  }
+}
+
+/**
+ * Input object guard for simple scalar calculators that also rejects unknown keys, so a misspelled
+ * or wrong-unit field (for example focusDistanceMm next to focusDistanceM) is never silently ignored.
+ */
+export function requireInputKeys(value: unknown, functionName: string, allowedKeys: readonly string[]): void {
+  requireInputObject(value, `${functionName} input`);
+  // for-in over own keys avoids allocating a key array on hot scalar paths.
+  for (const key in value as object) {
+    if (Object.hasOwn(value as object, key) && !allowedKeys.includes(key)) {
+      throw new InvalidConfigurationError(`${functionName} input has unknown field ${JSON.stringify(key)}.`);
+    }
+  }
+}

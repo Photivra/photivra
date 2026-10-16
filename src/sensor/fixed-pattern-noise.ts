@@ -26,7 +26,7 @@
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseEvidenceList, type EvidenceBackedFact, type EvidenceProvenance } from "../core/evidence-provenance.js";
-import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
+import { requireAllowlistedRecord, requirePublicOpaqueId, requireInputObject } from "../core/record-validation.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import {
   createDeterministicUniformStream,
@@ -176,6 +176,7 @@ function normal(seed: number, x: number, y: number, stream: number): number {
 export function calculateSensorFixedPatternSite(input: {
   profile: SensorFixedPatternNoiseProfile; site: { x: number; y: number };
 }): SensorFixedPatternSiteValues {
+  requireInputObject(input, "calculateSensorFixedPatternSite input");
   const profile = parseSensorFixedPatternNoiseProfile(input.profile);
   return evaluateParsedFixedPatternSite(profile, input.site);
 }

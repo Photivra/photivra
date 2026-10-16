@@ -1,12 +1,13 @@
 # color/capture-color.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## calculateCaptureColorTransform
 
 Converts a bounded inline XYZ/ideal-camera plane to unclamped linear sRGB.
 Reuses resolved WB intent; never estimates illumination or changes exposure/noise.
-XYZ diagonal adaptation is explicitly an approximation, distinct from RGB gains.
+Adopted-white adaptation (XYZ diagonal by default, or an explicit Bradford/CAT02/CAT16/
+von Kries-HPE cone-space transform) is explicitly an approximation, distinct from RGB gains.
 
 ```ts
 export function calculateCaptureColorTransform(input: CaptureColorTransformInput): CalculationResult<CaptureColorTransformResult>;
@@ -20,6 +21,15 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 CAPTURE_COLOR_MODEL_VERSION = "0.1.0" as const
+```
+
+## CaptureChromaticAdaptationTransform
+
+Cone-space transform for adopted-white adaptation. Omitted keeps the original
+XYZ-diagonal scaling (model id `photivra-xyz-diagonal-adaptation`) unchanged.
+
+```ts
+export type CaptureChromaticAdaptationTransform = "bradford" | "cat02" | "cat16" | "von-kries-hpe";
 ```
 
 ## CaptureColorModel
@@ -82,7 +92,7 @@ One explicit color interpretation; gains and adaptation cannot silently double-a
 export type CaptureColorWhiteBalance =
   | { kind: "preserve-intent" }
   | { kind: "apply-resolved-rgb-gains"; channelBasis: CapturePublicProfileReference }
-  | { kind: "adopted-white-xyz-scaling" };
+  | { kind: "adopted-white-xyz-scaling"; transform?: CaptureChromaticAdaptationTransform };
 ```
 
 ## LINEAR_CAPTURE_RGB_PROFILE

@@ -15,9 +15,10 @@ import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
-import { LINEAR_CAPTURE_RGB_PROFILE } from "../color/capture-color.js";
+import { LINEAR_CAPTURE_RGB_PROFILE, resolveCaptureColorModel } from "../color/capture-color.js";
 import { invertSensorColorMatrix, prepareSensorColorDevelopment, sensorColorReferenceWhite, type RawHighlightMode } from "../color/sensor-color-development.js";
-import { bradfordD65ToD50Matrix } from "../color/srgb-icc.js";
+import { ICC_D50_WHITE_XYZ } from "../color/srgb-icc.js";
+import { chromaticAdaptationMatrix } from "../color/chromatic-adaptation.js";
 import { createRawPixelDeveloper, type RawDevelopmentSource } from "./raw-development-kernel.js";
 import type { RawHighlightDiagnostics } from "./native-raw-development.js";
 import { calculateSdrRendering, parseSdrRenderingProfile, type SdrRenderingProfile, type SdrRenderingResult } from "../output/sdr-rendering.js";
@@ -375,7 +376,7 @@ export async function createPhotographicExportPair(input: PhotographicExportInpu
   const strip={...numbers(273,4,[0]),pointer:"pixels" as const};
   // ForwardMatrix1 maps white-balanced camera values to XYZ(D50) with [1,1,1] -> D50 white:
   // FM = Bradford(D65->D50) * M * diag(w), w = M^-1 * XYZ(D65) (unnormalized camera white).
-  const cameraWhite=sensorColorReferenceWhite(colorMatrix), m=v.colorProfile.normalizedCameraChannelsToXyz, chad=bradfordD65ToD50Matrix();
+  const cameraWhite=sensorColorReferenceWhite(colorMatrix), m=v.colorProfile.normalizedCameraChannelsToXyz, chad=chromaticAdaptationMatrix({transform:"bradford",sourceWhiteXyz:resolveCaptureColorModel().referenceWhiteXyz,destinationWhiteXyz:{x:ICC_D50_WHITE_XYZ[0],y:1,z:ICC_D50_WHITE_XYZ[2]}}).matrix;
   const forward=chad.map((row) => [0,1,2].map((j) => row.reduce((sum,x,k) => sum+x*m[k]![j]!*cameraWhite[j]!,0)));
   const dngBytes=packExportTiff([...identity(metadata,orientation),numbers(254,4,[0]),numbers(256,4,[frame.nativePixelWidth]),numbers(257,4,[frame.nativePixelHeight]),
     numbers(258,3,[16]),numbers(259,3,[1]),numbers(262,3,[32803]),strip,numbers(277,3,[1]),numbers(278,4,[frame.nativePixelHeight]),numbers(279,4,[pixels.length]),

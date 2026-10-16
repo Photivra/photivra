@@ -23,6 +23,7 @@
  * @see docs/PHOTOGRAPHIC_EXPORT.md
  */
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { requireInputObject } from "../core/record-validation.js";
 import type { SensorReadoutConversionProfile } from "../sensor/raw-readout.js";
 
 /** Readout fields the white level depends on; a `SensorRawCodeSample` satisfies this shape. */
@@ -54,6 +55,7 @@ function inlOffset(inl: EffectiveSaturationReadout["integralNonLinearity"], code
 
 /** W as documented above; throws unless B < W ≤ D. Ties round up, matching the ADC. */
 export function calculateEffectiveSaturationCode(readout: EffectiveSaturationReadout): number {
+  requireInputObject(readout, "Effective RAW white-level readout");
   const c = readout.physicalChargeCapacityElectrons, p = readout.preAdcSaturationElectronEquivalent,
     g = readout.systemConversionGainElectronsPerCode, b = readout.blackLevelCode, d = readout.digitalSaturationCode;
   const gain = readout.digitalGain ?? 1, adcMaximum = readout.adcMaximumCode ?? Infinity;

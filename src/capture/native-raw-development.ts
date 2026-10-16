@@ -4,6 +4,7 @@
 import { calculateNativeRawPlan, type NativeRawInput, type NativeRawOutput, type NativeRawTaskState } from "./native-raw.js";
 import { parseRawReconstructionPhaseProfiles, type RawFrameReconstructionPhaseProfile } from "./raw-frame-reconstruction.js";
 import { calculateRawReconstructionChannel } from "../sensor/raw-reconstruction.js";
+import { equalWithinUlps } from "../core/portable-math.js";
 import { resolveColorSamplingSite } from "../sensor/color-sampling.js";
 import { parseExportSensorColorProfile, type ExportSensorColorProfile } from "./photographic-export.js";
 import { prepareSensorColorDevelopment, type RawHighlightMode, type SensorColorDevelopment } from "../color/sensor-color-development.js";
@@ -87,11 +88,16 @@ function validateRaw(raw: NativeRawOutput): NativeRawOutput["plan"] {
   const p=raw.plan;
   if(!p?.exposure||!p.frame)throw new InvalidConfigurationError("Packed RAW requires complete exposure and frame metadata.");
   const {engineApiVersion,resolvedGeometry,equivalentFocalLength35Mm,...exposure}=p.exposure;
-  void engineApiVersion;void resolvedGeometry;void equivalentFocalLength35Mm;
-  const {capture,containerBitDepth,...frame}=p.frame;void capture;void containerBitDepth;
+  void engineApiVersion;void resolvedGeometry;
+  const {capture,containerBitDepth,...frame}=p.frame;void containerBitDepth;
   const input: NativeRawInput={exposure,...frame,maximumOutputBytes:p.outputBytes,...(p.tileWidth===undefined?{}:{tileWidth:p.tileWidth}),...(p.exposureWindow?{exposureWindow:p.exposureWindow}:{})};
   const plan=calculateNativeRawPlan(input);
-  if(canonical(p)!==canonical(plan))throw new InvalidConfigurationError("Packed RAW metadata is stale or inconsistent.");
+  // The re-derived 35 mm equivalent (also inside frame.capture, the same exposure record) is accepted
+  // within a few ulps for engine-portable parsing; every other field must match exactly.
+  const eq=plan.exposure.equivalentFocalLength35Mm,archivedFrameEq=(capture as unknown as Record<string,unknown>|undefined)?.equivalentFocalLength35Mm;
+  if(typeof equivalentFocalLength35Mm!=="number"||!equalWithinUlps(equivalentFocalLength35Mm,eq,8)||typeof archivedFrameEq!=="number"||!equalWithinUlps(archivedFrameEq,eq,8)||
+    canonical({...p,exposure:{...p.exposure,equivalentFocalLength35Mm:eq},frame:{...p.frame,capture:{...p.frame.capture,equivalentFocalLength35Mm:eq}}})!==canonical(plan))
+    throw new InvalidConfigurationError("Packed RAW metadata is stale or inconsistent.");
   const layout=plan.frame.colorSamplingProfile.layout,phaseCount=layout.kind==="periodic-mosaic"?layout.repeatWidthSites*layout.repeatHeightSites:0;
   const buffers=new Set<ArrayBufferLike>();
   for(const [a,type,length] of [[raw.codes,Uint16Array,plan.pixelCount],[raw.blackLevels,Uint16Array,plan.pixelCount],[raw.digitalSaturationCodes,Uint16Array,plan.pixelCount],

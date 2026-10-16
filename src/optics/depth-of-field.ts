@@ -21,6 +21,7 @@ import {
   requirePositiveFinite
 } from "../core/validation.js";
 import { calculateThinLensImageDistance } from "./thin-lens.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 export interface CalculateDepthOfFieldInput {
   /** Lens focal length in millimetres. */
@@ -48,6 +49,8 @@ export interface DepthOfField {
  * s(H - f)/(H + s - 2f) and the far limit is s(H - f)/(H - s), which is
  * infinite (`null`) when s >= H. At both limits the geometric defocus circle
  * from {@link calculateDefocusCircle} equals the supplied circle of confusion.
+ * The circle of confusion must be smaller than the aperture diameter f/N;
+ * otherwise the near limit would fall inside the focal length.
  *
  * The model is geometric and does not include diffraction, aberrations,
  * focus breathing, pupil magnification, or macro/high-magnification effects.
@@ -58,6 +61,7 @@ export interface DepthOfField {
 export function calculateDepthOfField(
   input: CalculateDepthOfFieldInput
 ): CalculationResult<DepthOfField> {
+  requireInputKeys(input, "calculateDepthOfField", ["focalLengthMm", "aperture", "focusDistanceM", "circleOfConfusionMm"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("aperture", input.aperture);
   requirePositiveFinite("focusDistanceM", input.focusDistanceM);
@@ -67,6 +71,14 @@ export function calculateDepthOfField(
   if (focusDistanceMm <= input.focalLengthMm) {
     throw new InvalidScientificInputError(
       "focusDistanceM must place the focus plane beyond the focal length."
+    );
+  }
+  // The near limit lies beyond the focal length only when H - f = f^2/(Nc) > f,
+  // i.e. c < f/N (the entrance-pupil diameter). A blur circle at least as large
+  // as the pupil itself has no real-image depth-of-field solution.
+  if (input.circleOfConfusionMm >= input.focalLengthMm / input.aperture) {
+    throw new InvalidScientificInputError(
+      "circleOfConfusionMm must be smaller than the aperture diameter focalLengthMm / aperture."
     );
   }
 
@@ -131,7 +143,8 @@ export interface DefocusCircle {
 
 /**
  * Calculates the geometric defocus-circle diameter at the sensor plane for a
- * subject plane away from the selected focus plane.
+ * subject plane away from the selected focus plane, using the stable closed
+ * form c = f^2 |s - d| / (N d (s - f)) (model 1.1.0).
  *
  * @param input Lens, aperture, focus-plane, and subject-plane distances.
  * @returns Geometric blur-circle diameter.
@@ -139,6 +152,7 @@ export interface DefocusCircle {
 export function calculateDefocusCircle(
   input: CalculateDefocusCircleInput
 ): CalculationResult<DefocusCircle> {
+  requireInputKeys(input, "calculateDefocusCircle", ["focalLengthMm", "aperture", "focusDistanceM", "subjectDistanceM"]);
   return calculateDefocusCircleUsingFocusProjection(input);
 }
 
@@ -188,17 +202,28 @@ export function calculateDefocusCircleUsingFocusProjection(
     }
     throw error;
   }
+  // Both image distances are still resolved above so the thin-lens domain checks
+  // and borrowed-projection identity are unchanged.
+  void focusImageDistanceMm;
+  void subjectImageDistanceMm;
   const apertureDiameterMm = input.focalLengthMm / input.aperture;
+  const focusDistanceMm = input.focusDistanceM * 1000;
+  const subjectDistanceMm = input.subjectDistanceM * 1000;
 
+  // Closed form of D |v_d - v_s| / v_d with v = f x / (x - f) (Gaussian thin lens):
+  //   c = f^2 |s - d| / (N d (s - f)).
+  // It avoids subtracting two nearly equal image distances (catastrophic
+  // cancellation for distant subjects) and is grouped as bounded ratios so the
+  // intermediate products cannot overflow for finite in-domain inputs.
   const diameterMm =
     apertureDiameterMm *
-    (Math.abs(subjectImageDistanceMm - focusImageDistanceMm) /
-      subjectImageDistanceMm);
+    (Math.abs(focusDistanceMm - subjectDistanceMm) / subjectDistanceMm) *
+    (input.focalLengthMm / (focusDistanceMm - input.focalLengthMm));
 
   return calculatedResult(
     { diameterMm },
     "thin-lens-defocus-circle",
-    "1.0.0",
+    "1.1.0",
     ["Geometric thin-lens model", "Ideal circular entrance pupil"]
   );
 }

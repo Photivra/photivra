@@ -43,6 +43,7 @@ import type {
 import type {
   SensorSpectralResponseScientificStatus
 } from "./spectral-response.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -591,11 +592,13 @@ export function createSensorRawCaptureSample(
   input:
     CreateSensorRawCaptureSampleInput
 ): SensorRawCaptureSample {
+  requireInputObject(input, "createSensorRawCaptureSample input");
   const raw =
     input.rawCode;
   const contributors =
     input.contributors;
 
+  requireInputObject(contributors, "contributors input");
   if (
     contributors
       .modeSamplingKind !==
@@ -786,6 +789,7 @@ export function resolveSensorRawReconstruction(
   input:
     ResolveSensorRawReconstructionInput
 ): CalculationResult<SensorRawReconstructedPixel> {
+  requireInputObject(input, "resolveSensorRawReconstruction input");
   const profile =
     parseSensorRawReconstructionProfile(
       input.profile

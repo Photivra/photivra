@@ -21,6 +21,7 @@ import { assessSensorResponseOperatingRange, type AssessSensorResponseOperatingR
 import { calculateSensorEqeElectronRate, type CalculateSensorEqeElectronRateInput } from "./eqe-electron-rate.js";
 import { bindSensorRateToLocalExposure, type BindSensorRateToLocalExposureInput } from "./local-exposure-binding.js";
 import { integrateStationarySensorRateOverLocalExposure, type SensorEqeExposureIntegration, type SensorRateTemporalStationarityProfile } from "./constant-rate-temporal-integration.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 /** Explicit post-optics irradiance samples and evidence; no renderer or RGB conversion. */
 export interface CalculateSensorEqeLocalExposureInput {
@@ -71,6 +72,7 @@ export interface SensorEqeLocalExposure {
 export function calculateSensorEqeLocalExposure(
   input: CalculateSensorEqeLocalExposureInput
 ): CalculationResult<SensorEqeLocalExposure> {
+  requireInputObject(input, "calculateSensorEqeLocalExposure input");
   const stages = calculateSensorEqeLocalRate(input);
   const { spatialQuadrature, spectralQuadrature, reduction, compatibility, operatingRange, electronRate, exposureBinding } = stages;
   const exposure = integrateStationarySensorRateOverLocalExposure({
@@ -96,6 +98,7 @@ export function calculateSensorEqeLocalExposure(
 export function calculateSensorEqeLocalRate(
   input: Omit<CalculateSensorEqeLocalExposureInput, "stationarityProfile">
 ): Omit<SensorEqeLocalExposure, "upstreamOrigin" | "upstreamSceneAndOpticsVerified" | "exposure"> {
+  requireInputObject(input.localExposure, "localExposure");
   const spatialQuadrature = calculateSensorSpatialSamplingQuadrature({
     ...input.spatialSampling, colorSamplingProfile: input.colorSamplingProfile,
     colorSamplingBindingProfile: input.localExposure.bindingProfile,

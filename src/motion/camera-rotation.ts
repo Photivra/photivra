@@ -26,6 +26,7 @@ import {
   requirePositiveFinite
 } from "../core/validation.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 /**
  * Camera angular velocity in radians per second about the exposure-start
@@ -321,6 +322,7 @@ function resolveProjectionDistanceMm(
 export function calculateCameraRotationImageMapping(
   input: CalculateCameraRotationImageMappingInput
 ): CalculationResult<CameraRotationImageMapping> {
+  requireInputObject(input, "calculateCameraRotationImageMapping input");
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requireFinite("imagePointMm.x", input.imagePointMm.x);
   requireFinite("imagePointMm.y", input.imagePointMm.y);
@@ -472,6 +474,7 @@ export function calculateCameraRotationImageMapping(
 export function calculateInverseCameraRotationImageMapping(
   input: CalculateInverseCameraRotationImageMappingInput
 ): CalculationResult<InverseCameraRotationImageMapping> {
+  requireInputObject(input, "calculateInverseCameraRotationImageMapping input");
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requireFinite("imagePointMm.x", input.imagePointMm.x);
   requireFinite("imagePointMm.y", input.imagePointMm.y);

@@ -160,7 +160,7 @@ Specification 1.7.1.0):
 - **AsShotNeutral**: the camera neutral of the assumed scene white,
   `g_green/g` (the D65 camera neutral `w` without an intent). Before 2.0 it was
   written as `w/g`, the camera white squared for non-normalized matrices.
-- **ForwardMatrix1**: `Bradford(D65→D50) · M · diag(M⁻¹·XYZ(D65))`, mapping
+- **ForwardMatrix1**: `Bradford(D65→D50) · M · diag(M⁻¹·XYZ(D65))` (the engine's `chromaticAdaptationMatrix`), mapping
   white-balanced camera [1,1,1] to the D50 white (Lam 1985 Bradford matrix, as in
   the ICC profile-connection space).
 - **BaselineExposure**: the rendering profile's `renderingExposureEv`, so a raw

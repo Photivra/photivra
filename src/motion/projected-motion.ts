@@ -20,8 +20,10 @@ import {
   InvalidScientificInputError,
   requirePositiveFinite
 } from "../core/validation.js";
+import { portableHypot } from "../core/portable-math.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
 import type { Vector3 } from "../schema/scene.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface CalculateProjectedMotionBlurInput {
   /** Lens focal length in millimetres. */
@@ -75,6 +77,7 @@ function requireFiniteVector3(name: string, value: Vector3): void {
 export function calculateProjectedMotionBlur(
   input: CalculateProjectedMotionBlurInput
 ): CalculationResult<ProjectedMotionBlur> {
+  requireInputObject(input, "calculateProjectedMotionBlur input");
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("shutterSeconds", input.shutterSeconds);
 
@@ -120,7 +123,7 @@ export function calculateProjectedMotionBlur(
 
   const deltaXMm = endXmm - startXmm;
   const deltaYMm = endYmm - startYmm;
-  const distanceMm = Math.hypot(deltaXMm, deltaYMm);
+  const distanceMm = portableHypot(deltaXMm, deltaYMm);
 
   let distancePixels: number | undefined;
   if (input.pixelPitchMicrometers !== undefined) {

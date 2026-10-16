@@ -18,6 +18,7 @@ import {
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -875,6 +876,7 @@ export function resolveGenericEquipmentExposureCapabilities(
   input:
     ResolveGenericEquipmentExposureCapabilitiesInput
 ): ResolvedGenericEquipmentExposureCapabilities {
+  requireInputObject(input, "resolveGenericEquipmentExposureCapabilities input");
   const body =
     parseGenericBodyExposureCapabilityProfile(
       input.bodyProfile

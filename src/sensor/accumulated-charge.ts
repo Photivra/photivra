@@ -41,6 +41,7 @@ import type {
   SensorSpectralResponseScientificStatus,
   SensorSpectralResponseUncertainty
 } from "./spectral-response.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -700,6 +701,7 @@ function validatePhoto(
   photo:
     SensorEqePhotoExposure
 ): void {
+  requireInputObject(photo, "photo input");
   if (photo.kind === "eqe-temporal-photo-signal") parseSensorEqeTemporalPhotoSignal(photo);
   if (
     (photo.kind !== "eqe-expected-counts" && photo.kind !== "eqe-temporal-photo-signal") ||
@@ -884,6 +886,7 @@ export function composeSensorAccumulatedCharge(
 export function composeSensorAccumulatedCharge(
   input: ComposeSensorPhotoAccumulatedChargeInput
 ): CalculationResult<SensorPhotoAccumulatedChargeComposition> {
+  requireInputObject(input, "composeSensorAccumulatedCharge input");
   validatePhoto(input.photoSignal);
   validateDarkBinding(
     input.photoSignal,

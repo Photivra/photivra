@@ -7,7 +7,7 @@ import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { freezeOwnedData } from "../core/owned-data.js";
 import { calculateSiteEffectiveSaturationCode, createPhaseWhiteLevelAccumulator } from "./raw-white-level.js";
-import { DEFAULT_HOST_YIELD_CADENCE, createHostYieldGate, type HostYieldCadence } from "./host-yield-cadence.js";
+import { DEFAULT_HOST_YIELD_CADENCE, createHostYieldGate, type HostYieldCadence, type HostYieldGate } from "./host-yield-cadence.js";
 import { parseCaptureModeProfile } from "../sensor/capture-mode.js";
 import { parseSensorColorSamplingProfile } from "../sensor/color-sampling.js";
 import { parseNativeEffectiveRasterColorSamplingBindingProfile, resolveCaptureModeColorSamplingContributors } from "../sensor/capture-color-sampling-binding.js";
@@ -134,7 +134,9 @@ export function createNativeRawTask(input: NativeRawInput,provider: NativeRawPro
   return createNativeRawTaskWithCadence(input,provider,DEFAULT_HOST_YIELD_CADENCE);
 }
 /** Internal: explicit host-yield cadence. Cadence never changes tiles, seeds or output. Not a root export. */
-export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: NativeRawProvider,cadence: HostYieldCadence): NativeRawTask {
+export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: NativeRawProvider,cadence: HostYieldCadence,
+  /** Internal: a gate shared with a provider that also yields inside readTile, so both observe one budget. */
+  sharedGate?: HostYieldGate): NativeRawTask {
   const plan=calculateNativeRawPlan(input);
   if(!provider||typeof provider.readTile!=="function"||typeof provider.yieldControl!=="function")throw new InvalidConfigurationError("Native RAW requires reader and host event-loop yield.");
   const read=provider.readTile.bind(provider),yieldControl=provider.yieldControl.bind(provider),abort=new AbortController();
@@ -146,7 +148,7 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
     async run(): Promise<void> {
       if(state!=="ready")throw new InvalidConfigurationError("Native RAW task is single-use.");state="running";
       try{
-        const gate=createHostYieldGate(cadence);
+        const gate=sharedGate??createHostYieldGate(cadence);sharedGate?.restart();
         const layout=plan.frame.colorSamplingProfile.layout;if(layout.kind!=="periodic-mosaic")throw new InvalidConfigurationError("Native RAW requires periodic CFA.");
         const white=createPhaseWhiteLevelAccumulator(native.pixelWidth,layout.repeatWidthSites,layout.repeatHeightSites);
         output={plan,codes:new Uint16Array(plan.pixelCount),blackLevels:new Uint16Array(plan.pixelCount),digitalSaturationCodes:new Uint16Array(plan.pixelCount),saturationFlags:new Uint8Array(plan.pixelCount),effectiveSaturationCodes:new Uint16Array(layout.repeatWidthSites*layout.repeatHeightSites)};

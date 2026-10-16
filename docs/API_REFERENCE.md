@@ -2,7 +2,7 @@
 
 Generated from the exact root exports for **@photivra/engine 1.5.0 / root contract 1.5.0** by `node scripts/generate-api-reference.mjs`. No module deep import is supported.
 
-Use [the developer guide](DEVELOPERS.md) for executable paths and scientific boundaries. Types are contracts, not runtime validation: parse untrusted data, preserve units/reference frames, read assessment blockers, and retain evidence/limitations. Optional properties do not imply a universal default. Model/schema IDs remain independent of the distribution.
+Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md) for executable paths and scientific boundaries. Types are contracts, not runtime validation: parse untrusted data, preserve units/reference frames, read assessment blockers, and retain evidence/limitations. Optional properties do not imply a universal default. Model/schema IDs remain independent of the distribution.
 
 ## camera/equivalent-focal-length.ts
 
@@ -279,6 +279,21 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`SimulatedCapture`](api/capture-simulated-capture.md#simulatedcapture) | Type |
 | [`SimulatedCaptureInput`](api/capture-simulated-capture.md#simulatedcaptureinput) | Type |
 
+## color/camera-color-matrix.ts
+
+[Detailed contracts](api/color-camera-color-matrix.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/color/camera-color-matrix.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`CameraColorMatrixFit`](api/color-camera-color-matrix.md#cameracolormatrixfit) | Type |
+| [`CameraMatrixFitConstraint`](api/color-camera-color-matrix.md#cameramatrixfitconstraint) | Type |
+| [`CameraMatrixPatchReport`](api/color-camera-color-matrix.md#cameramatrixpatchreport) | Type |
+| [`CameraMatrixTrainingPatch`](api/color-camera-color-matrix.md#cameramatrixtrainingpatch) | Type |
+| [`CameraSpectralSensitivities`](api/color-camera-color-matrix.md#cameraspectralsensitivities) | Type |
+| [`estimateCameraColorMatrix`](api/color-camera-color-matrix.md#estimatecameracolormatrix) | Runtime |
+| [`EstimateCameraColorMatrixInput`](api/color-camera-color-matrix.md#estimatecameracolormatrixinput) | Type |
+| [`MAX_CAMERA_MATRIX_TRAINING_PATCHES`](api/color-camera-color-matrix.md#max_camera_matrix_training_patches) | Runtime |
+
 ## color/capture-color.ts
 
 [Detailed contracts](api/color-capture-color.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/color/capture-color.ts)
@@ -287,6 +302,7 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | --- | --- |
 | [`calculateCaptureColorTransform`](api/color-capture-color.md#calculatecapturecolortransform) | Runtime |
 | [`CAPTURE_COLOR_MODEL_VERSION`](api/color-capture-color.md#capture_color_model_version) | Runtime |
+| [`CaptureChromaticAdaptationTransform`](api/color-capture-color.md#capturechromaticadaptationtransform) | Type |
 | [`CaptureColorModel`](api/color-capture-color.md#capturecolormodel) | Type |
 | [`CaptureColorTransformInput`](api/color-capture-color.md#capturecolortransforminput) | Type |
 | [`CaptureColorTransformResult`](api/color-capture-color.md#capturecolortransformresult) | Type |
@@ -295,6 +311,153 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`parseCaptureColorTransformInput`](api/color-capture-color.md#parsecapturecolortransforminput) | Runtime |
 | [`resolveCaptureColorModel`](api/color-capture-color.md#resolvecapturecolormodel) | Runtime |
 | [`VIRTUAL_COLOR_CAMERA_PROFILE`](api/color-capture-color.md#virtual_color_camera_profile) | Runtime |
+
+## color/chromatic-adaptation.ts
+
+[Detailed contracts](api/color-chromatic-adaptation.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/color/chromatic-adaptation.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateChromaticAdaptationMatrix`](api/color-chromatic-adaptation.md#calculatechromaticadaptationmatrix) | Runtime |
+| [`CalculateChromaticAdaptationMatrixInput`](api/color-chromatic-adaptation.md#calculatechromaticadaptationmatrixinput) | Type |
+| [`calculateChromaticallyAdaptedXyz`](api/color-chromatic-adaptation.md#calculatechromaticallyadaptedxyz) | Runtime |
+| [`calculateDegreeOfAdaptation`](api/color-chromatic-adaptation.md#calculatedegreeofadaptation) | Runtime |
+| [`CHROMATIC_ADAPTATION_TRANSFORMS`](api/color-chromatic-adaptation.md#chromatic_adaptation_transforms) | Runtime |
+| [`ChromaticAdaptationMatrix`](api/color-chromatic-adaptation.md#chromaticadaptationmatrix) | Type |
+| [`ChromaticAdaptationTransform`](api/color-chromatic-adaptation.md#chromaticadaptationtransform) | Type |
+| [`resolveChromaticAdaptationConeMatrix`](api/color-chromatic-adaptation.md#resolvechromaticadaptationconematrix) | Runtime |
+| [`ViewingSurround`](api/color-chromatic-adaptation.md#viewingsurround) | Type |
+
+## color/color-difference.ts
+
+[Detailed contracts](api/color-color-difference.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/color/color-difference.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateCielabFromCielch`](api/color-color-difference.md#calculatecielabfromcielch) | Runtime |
+| [`calculateCielabFromXyz`](api/color-color-difference.md#calculatecielabfromxyz) | Runtime |
+| [`calculateCielchFromCielab`](api/color-color-difference.md#calculatecielchfromcielab) | Runtime |
+| [`calculateColorDifference`](api/color-color-difference.md#calculatecolordifference) | Runtime |
+| [`CalculateColorDifferenceInput`](api/color-color-difference.md#calculatecolordifferenceinput) | Type |
+| [`calculateXyzFromCielab`](api/color-color-difference.md#calculatexyzfromcielab) | Runtime |
+| [`Ciede2000ParametricFactors`](api/color-color-difference.md#ciede2000parametricfactors) | Type |
+| [`CielabColor`](api/color-color-difference.md#cielabcolor) | Type |
+| [`CielchColor`](api/color-color-difference.md#cielchcolor) | Type |
+| [`ColorDifferenceFormula`](api/color-color-difference.md#colordifferenceformula) | Type |
+
+## color/color-matching-functions.ts
+
+[Detailed contracts](api/color-color-matching-functions.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/color/color-matching-functions.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`ColorimetricObserver`](api/color-color-matching-functions.md#colorimetricobserver) | Type |
+| [`ColorimetricQuadratureNode`](api/color-color-matching-functions.md#colorimetricquadraturenode) | Type |
+| [`ColorimetricSpectralSample`](api/color-color-matching-functions.md#colorimetricspectralsample) | Type |
+| [`ColorimetricSpectrum`](api/color-color-matching-functions.md#colorimetricspectrum) | Type |
+| [`COLORIMETRY_MODEL_VERSION`](api/color-color-matching-functions.md#colorimetry_model_version) | Runtime |
+| [`ColorMatchingFunctionsSource`](api/color-color-matching-functions.md#colormatchingfunctionssource) | Type |
+| [`createColorimetricMidpointQuadrature`](api/color-color-matching-functions.md#createcolorimetricmidpointquadrature) | Runtime |
+| [`CreateColorimetricMidpointQuadratureInput`](api/color-color-matching-functions.md#createcolorimetricmidpointquadratureinput) | Type |
+| [`estimateCie1931ColorMatchingFunctions`](api/color-color-matching-functions.md#estimatecie1931colormatchingfunctions) | Runtime |
+| [`IntegratedSpectrumXyz`](api/color-color-matching-functions.md#integratedspectrumxyz) | Type |
+| [`integrateSpectrumToXyz`](api/color-color-matching-functions.md#integratespectrumtoxyz) | Runtime |
+| [`IntegrateSpectrumToXyzInput`](api/color-color-matching-functions.md#integratespectrumtoxyzinput) | Type |
+| [`MAX_COLORIMETRIC_QUADRATURE_NODES`](api/color-color-matching-functions.md#max_colorimetric_quadrature_nodes) | Runtime |
+| [`MAX_COLORIMETRIC_TABLE_SAMPLES`](api/color-color-matching-functions.md#max_colorimetric_table_samples) | Runtime |
+| [`parseColorimetricQuadratureNodes`](api/color-color-matching-functions.md#parsecolorimetricquadraturenodes) | Runtime |
+| [`prepareColorimetricSpectrum`](api/color-color-matching-functions.md#preparecolorimetricspectrum) | Runtime |
+| [`prepareColorMatchingFunctions`](api/color-color-matching-functions.md#preparecolormatchingfunctions) | Runtime |
+| [`PreparedColorimetricSpectrum`](api/color-color-matching-functions.md#preparedcolorimetricspectrum) | Type |
+| [`PreparedColorMatchingFunctions`](api/color-color-matching-functions.md#preparedcolormatchingfunctions) | Type |
+| [`TabulatedColorMatchingSample`](api/color-color-matching-functions.md#tabulatedcolormatchingsample) | Type |
+| [`TristimulusNormalization`](api/color-color-matching-functions.md#tristimulusnormalization) | Type |
+| [`WYMAN_2013_CMF_DOMAIN_NANOMETERS`](api/color-color-matching-functions.md#wyman_2013_cmf_domain_nanometers) | Runtime |
+
+## color/colorimetry-math.ts
+
+[Detailed contracts](api/color-colorimetry-math.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/color/colorimetry-math.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`Cie1960UvChromaticity`](api/color-colorimetry-math.md#cie1960uvchromaticity) | Type |
+| [`CieXyChromaticity`](api/color-colorimetry-math.md#ciexychromaticity) | Type |
+| [`CieXyzTristimulus`](api/color-colorimetry-math.md#ciexyztristimulus) | Type |
+| [`ColorMatrix3x3`](api/color-colorimetry-math.md#colormatrix3x3) | Type |
+| [`ColorVector3`](api/color-colorimetry-math.md#colorvector3) | Type |
+
+## color/gamut-mapping.ts
+
+[Detailed contracts](api/color-gamut-mapping.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/color/gamut-mapping.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateGamutMappedColor`](api/color-gamut-mapping.md#calculategamutmappedcolor) | Runtime |
+| [`GamutMappedColor`](api/color-gamut-mapping.md#gamutmappedcolor) | Type |
+| [`GamutMappingMethod`](api/color-gamut-mapping.md#gamutmappingmethod) | Type |
+| [`PreparedRgbGamutMapping`](api/color-gamut-mapping.md#preparedrgbgamutmapping) | Type |
+| [`prepareRgbGamutMapping`](api/color-gamut-mapping.md#preparergbgamutmapping) | Runtime |
+| [`PrepareRgbGamutMappingInput`](api/color-gamut-mapping.md#preparergbgamutmappinginput) | Type |
+
+## color/illuminants.ts
+
+[Detailed contracts](api/color-illuminants.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/color/illuminants.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`BOLTZMANN_CONSTANT_JOULES_PER_KELVIN`](api/color-illuminants.md#boltzmann_constant_joules_per_kelvin) | Runtime |
+| [`calculateChromaticityFromCorrelatedColorTemperature`](api/color-illuminants.md#calculatechromaticityfromcorrelatedcolortemperature) | Runtime |
+| [`calculateCieDaylightComponentWeights`](api/color-illuminants.md#calculateciedaylightcomponentweights) | Runtime |
+| [`calculateCieIlluminantARelativeSpectralPower`](api/color-illuminants.md#calculatecieilluminantarelativespectralpower) | Runtime |
+| [`calculateCorrelatedColorTemperature`](api/color-illuminants.md#calculatecorrelatedcolortemperature) | Runtime |
+| [`calculatePlanckianChromaticity`](api/color-illuminants.md#calculateplanckianchromaticity) | Runtime |
+| [`calculatePlanckianSpectralRadiance`](api/color-illuminants.md#calculateplanckianspectralradiance) | Runtime |
+| [`CIE_DAYLIGHT_LOCUS_RANGE_KELVIN`](api/color-illuminants.md#cie_daylight_locus_range_kelvin) | Runtime |
+| [`CIE_ILLUMINANT_A_RANGE_NANOMETERS`](api/color-illuminants.md#cie_illuminant_a_range_nanometers) | Runtime |
+| [`CieDaylightBasis`](api/color-illuminants.md#ciedaylightbasis) | Type |
+| [`CieDaylightComponentWeights`](api/color-illuminants.md#ciedaylightcomponentweights) | Type |
+| [`CorrelatedColorTemperatureResult`](api/color-illuminants.md#correlatedcolortemperatureresult) | Type |
+| [`createCieDaylightSpectrum`](api/color-illuminants.md#createciedaylightspectrum) | Runtime |
+| [`createCieIlluminantASpectrum`](api/color-illuminants.md#createcieilluminantaspectrum) | Runtime |
+| [`createPlanckianSpectrum`](api/color-illuminants.md#createplanckianspectrum) | Runtime |
+| [`estimateCorrelatedColorTemperatureMcCamy`](api/color-illuminants.md#estimatecorrelatedcolortemperaturemccamy) | Runtime |
+| [`estimatePlanckianLocusChromaticity`](api/color-illuminants.md#estimateplanckianlocuschromaticity) | Runtime |
+| [`KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN`](api/color-illuminants.md#kim_2002_planckian_locus_range_kelvin) | Runtime |
+| [`MAX_CORRELATED_COLOR_TEMPERATURE_DUV`](api/color-illuminants.md#max_correlated_color_temperature_duv) | Runtime |
+| [`PLANCK_CONSTANT_JOULE_SECONDS`](api/color-illuminants.md#planck_constant_joule_seconds) | Runtime |
+| [`PlanckianLocusModel`](api/color-illuminants.md#planckianlocusmodel) | Type |
+| [`SECOND_RADIATION_CONSTANT_METER_KELVIN`](api/color-illuminants.md#second_radiation_constant_meter_kelvin) | Runtime |
+| [`SPEED_OF_LIGHT_METERS_PER_SECOND`](api/color-illuminants.md#speed_of_light_meters_per_second) | Runtime |
+| [`WhiteLocus`](api/color-illuminants.md#whitelocus) | Type |
+
+## color/rgb-color-spaces.ts
+
+[Detailed contracts](api/color-rgb-color-spaces.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/color/rgb-color-spaces.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`Bt1886Eotf`](api/color-rgb-color-spaces.md#bt1886eotf) | Type |
+| [`calculateHlgSystemGamma`](api/color-rgb-color-spaces.md#calculatehlgsystemgamma) | Runtime |
+| [`calculateRgbToXyzMatrices`](api/color-rgb-color-spaces.md#calculatergbtoxyzmatrices) | Runtime |
+| [`evaluateBt709InverseOetf`](api/color-rgb-color-spaces.md#evaluatebt709inverseoetf) | Runtime |
+| [`evaluateBt709Oetf`](api/color-rgb-color-spaces.md#evaluatebt709oetf) | Runtime |
+| [`evaluateHlgInverseOetf`](api/color-rgb-color-spaces.md#evaluatehlginverseoetf) | Runtime |
+| [`evaluateHlgOetf`](api/color-rgb-color-spaces.md#evaluatehlgoetf) | Runtime |
+| [`evaluatePqEotf`](api/color-rgb-color-spaces.md#evaluatepqeotf) | Runtime |
+| [`evaluatePqInverseEotf`](api/color-rgb-color-spaces.md#evaluatepqinverseeotf) | Runtime |
+| [`evaluateSrgbDecoding`](api/color-rgb-color-spaces.md#evaluatesrgbdecoding) | Runtime |
+| [`evaluateSrgbEncoding`](api/color-rgb-color-spaces.md#evaluatesrgbencoding) | Runtime |
+| [`HLG_CONSTANTS`](api/color-rgb-color-spaces.md#hlg_constants) | Runtime |
+| [`HlgReferenceDisplay`](api/color-rgb-color-spaces.md#hlgreferencedisplay) | Type |
+| [`PQ_CONSTANTS`](api/color-rgb-color-spaces.md#pq_constants) | Runtime |
+| [`prepareBt1886Eotf`](api/color-rgb-color-spaces.md#preparebt1886eotf) | Runtime |
+| [`prepareHlgReferenceDisplay`](api/color-rgb-color-spaces.md#preparehlgreferencedisplay) | Runtime |
+| [`resolveRgbColorSpace`](api/color-rgb-color-spaces.md#resolvergbcolorspace) | Runtime |
+| [`RgbColorSpaceDefinition`](api/color-rgb-color-spaces.md#rgbcolorspacedefinition) | Type |
+| [`RgbColorSpaceId`](api/color-rgb-color-spaces.md#rgbcolorspaceid) | Type |
+| [`RgbPrimaryChromaticities`](api/color-rgb-color-spaces.md#rgbprimarychromaticities) | Type |
+| [`RgbToXyzMatrices`](api/color-rgb-color-spaces.md#rgbtoxyzmatrices) | Type |
+| [`RgbTransferFunctionId`](api/color-rgb-color-spaces.md#rgbtransferfunctionid) | Type |
 
 ## color/sensor-color-development.ts
 
@@ -322,6 +485,7 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | Export | Kind |
 | --- | --- |
 | [`COLOR_TEMPERATURE_WHITE_BALANCE_INTENT_VERSION`](api/color-white-balance.md#color_temperature_white_balance_intent_version) | Runtime |
+| [`ColorTemperatureWhiteBalanceCameraModel`](api/color-white-balance.md#colortemperaturewhitebalancecameramodel) | Type |
 | [`ColorTemperatureWhiteBalanceIntent`](api/color-white-balance.md#colortemperaturewhitebalanceintent) | Type |
 | [`createColorTemperatureWhiteBalanceIntent`](api/color-white-balance.md#createcolortemperaturewhitebalanceintent) | Runtime |
 | [`CreateColorTemperatureWhiteBalanceIntentInput`](api/color-white-balance.md#createcolortemperaturewhitebalanceintentinput) | Type |
@@ -333,8 +497,11 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`parseWhiteBalanceProfile`](api/color-white-balance.md#parsewhitebalanceprofile) | Runtime |
 | [`PreWhiteBalanceRgbSample`](api/color-white-balance.md#prewhitebalancergbsample) | Type |
 | [`PreWhiteBalanceRgbSampleSet`](api/color-white-balance.md#prewhitebalancergbsampleset) | Type |
+| [`resolveColorTemperatureWhiteBalance`](api/color-white-balance.md#resolvecolortemperaturewhitebalance) | Runtime |
+| [`ResolveColorTemperatureWhiteBalanceInput`](api/color-white-balance.md#resolvecolortemperaturewhitebalanceinput) | Type |
 | [`resolveCustomWhiteBalance`](api/color-white-balance.md#resolvecustomwhitebalance) | Runtime |
 | [`ResolveCustomWhiteBalanceInput`](api/color-white-balance.md#resolvecustomwhitebalanceinput) | Type |
+| [`ResolvedColorTemperatureWhiteBalance`](api/color-white-balance.md#resolvedcolortemperaturewhitebalance) | Type |
 | [`ResolvedWhiteBalanceState`](api/color-white-balance.md#resolvedwhitebalancestate) | Type |
 | [`resolveManualWhiteBalance`](api/color-white-balance.md#resolvemanualwhitebalance) | Runtime |
 | [`ResolveManualWhiteBalanceInput`](api/color-white-balance.md#resolvemanualwhitebalanceinput) | Type |
@@ -2184,6 +2351,7 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`ResolvedSensorSpectralResponseValue`](api/sensor-spectral-response.md#resolvedsensorspectralresponsevalue) | Type |
 | [`resolveSensorSpectralResponseAtWavelength`](api/sensor-spectral-response.md#resolvesensorspectralresponseatwavelength) | Runtime |
 | [`ResolveSensorSpectralResponseAtWavelengthInput`](api/sensor-spectral-response.md#resolvesensorspectralresponseatwavelengthinput) | Type |
+| [`SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT`](api/sensor-spectral-response.md#sensor_spectral_response_channel_binding_format) | Runtime |
 | [`SensorSpectralChannelResponse`](api/sensor-spectral-response.md#sensorspectralchannelresponse) | Type |
 | [`SensorSpectralReferenceConditions`](api/sensor-spectral-response.md#sensorspectralreferenceconditions) | Type |
 | [`SensorSpectralResponseChannelBinding`](api/sensor-spectral-response.md#sensorspectralresponsechannelbinding) | Type |

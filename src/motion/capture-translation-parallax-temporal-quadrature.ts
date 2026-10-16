@@ -32,6 +32,7 @@ import type {
 import type {
   SensorImagingArea
 } from "../sensor/sensor-geometry.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface CaptureTranslationParallaxSceneSample {
   sampleId: string;
@@ -277,6 +278,8 @@ export function calculateCaptureTranslationParallaxTemporalQuadrature(
   input:
     CalculateCaptureTranslationParallaxTemporalQuadratureInput
 ): CalculationResult<CaptureTranslationParallaxTemporalQuadrature> {
+  requireInputObject(input, "calculateCaptureTranslationParallaxTemporalQuadrature input");
+  requireInputObject(input.imagingArea, "imagingArea");
   requirePositiveFinite(
     "imagingArea.widthMm",
     input.imagingArea.widthMm

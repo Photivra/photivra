@@ -37,6 +37,7 @@ import {
 import type {
   ResolvedCaptureModeTiming
 } from "../sensor/capture-mode-timing.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -893,6 +894,7 @@ export function resolveManualFlashSync(
   input:
     ResolveManualFlashSyncInput
 ): ResolvedManualFlashSync {
+  requireInputObject(input, "resolveManualFlashSync input");
   const flash =
     parseManualFlashProfile(
       input.flashProfile
@@ -1132,6 +1134,7 @@ export function createManualFlashIlluminationOverlay(
   input:
     CreateManualFlashIlluminationOverlayInput
 ): ManualFlashIlluminationOverlay {
+  requireInputObject(input, "createManualFlashIlluminationOverlay input");
   const base =
     parseSceneIlluminationProfile(
       input

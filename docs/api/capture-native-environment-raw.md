@@ -1,10 +1,13 @@
 # capture/native-environment-raw.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## createNativeEnvironmentRawTask
 
-Every tile is planned and admission-checked before its radiance callbacks; no partial output escapes.
+Every tile is planned and admission-checked before its radiance callbacks; no partial output escapes. The
+host yield also runs between sites inside a tile once about 8 ms of work has elapsed (one budget shared with
+the tile loop), and cancellation is checked after each such yield, so cancel() takes effect within about one
+site's work. Yield cadence never changes tile requests, admission, callbacks or output.
 
 ```ts
 export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,provider:NativeEnvironmentRawProvider):NativeEnvironmentRawTask;
