@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
 import { nativeEnvironmentWorkloads, runNativeEnvironmentWorkload } from "./helpers/native-environment-workloads.js";
+import { applyNativeEnvironmentTileVariant, nativeEnvironmentTileVariants } from "./helpers/native-environment-variants.js";
 
 /**
  * SHA-256 of float64 photo expectations, RAW codes and developed samples computed on main d3a704b before the #275
@@ -26,8 +27,30 @@ const expected = {
     developedSha256: "28841a6a748eae1f74043466dd001247260636ac6ddfa023d44cf3efba3aa2a8" }
 } as const;
 
+/**
+ * Photo hashes computed on main d01d04b (before the 2.0 shared-state adoption) for the negative-zero tile
+ * variant, whose motion differs from the base workload. RAW and developed hashes equal the base workload's.
+ */
+const negativeZeroPhotoSha256 = {
+  "psf-radial-field": "5cdf8bd2204b585acfdb422a2385567449348f44f634eaebfa69585df8f46980",
+  "flat-emitter": expected["flat-emitter"].photoSha256,
+  "pupil-rays": "37cd32a9aa3b361e6da851a1385a443ba1399172709c50c4b67f7f02772a184f",
+  "temporal-samples": "5bcaf338d547837712da776d3dd03c2c227d28dcf812a1160af842cf23c4d025"
+} as const;
+
 describe("native environment RAW bit identity", () => {
   it.each(nativeEnvironmentWorkloads)("keeps photo expectations, RAW codes and developed output bit-identical for %s", async kind => {
     expect(await runNativeEnvironmentWorkload(kind)).toEqual(expected[kind]);
+  });
+
+  // Shared references take the identity fast path; reordered keys and -0 take the canonical fallback (2.0 performance).
+  it.each(nativeEnvironmentWorkloads.flatMap(kind => nativeEnvironmentTileVariants.map(variant => [kind, variant] as const)))(
+    "keeps %s bit-identical to main with %s shared state", async (kind, variant) => {
+      const result = await runNativeEnvironmentWorkload(kind, { mutateTile: tile => applyNativeEnvironmentTileVariant(variant, tile) });
+      expect(result).toEqual(variant === "negative-zero" ? { ...expected[kind], photoSha256: negativeZeroPhotoSha256[kind] } : expected[kind]);
+    });
+
+  it.each(nativeEnvironmentWorkloads)("keeps %s bit-identical to main with one-site tiles", async kind => {
+    expect(await runNativeEnvironmentWorkload(kind, { tileWidth: 1 })).toEqual(expected[kind]);
   });
 });

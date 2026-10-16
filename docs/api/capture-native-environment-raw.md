@@ -4,7 +4,10 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createNativeEnvironmentRawTask
 
-Every tile is planned and admission-checked before its radiance callbacks; no partial output escapes.
+Every tile is planned and admission-checked before its radiance callbacks; no partial output escapes. The
+host yield also runs between sites inside a tile once about 8 ms of work has elapsed (one budget shared with
+the tile loop), and cancellation is checked after each such yield, so cancel() takes effect within about one
+site's work. Yield cadence never changes tile requests, admission, callbacks or output.
 
 ```ts
 export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,provider:NativeEnvironmentRawProvider):NativeEnvironmentRawTask;

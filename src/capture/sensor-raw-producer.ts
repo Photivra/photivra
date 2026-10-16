@@ -76,12 +76,41 @@ function fields(value: unknown, allowed: readonly string[]): Record<string, unkn
 function publicId(value: unknown): string {
   return requirePublicOpaqueId(value, "Expected public producer identity.");
 }
+const KEY_RECURSE = 0, KEY_IDENTITY = 1, KEY_IDENTITY_LIST = 2;
+/** Bounded memo of the identity-walk classification of a property name (a pure function of the name). */
+const IDENTITY_KEY_KINDS = new Map<string, number>();
+/** Bounded memo of strings that already satisfied the public opaque-ID grammar (a pure function of the string). */
+const VALID_PUBLIC_IDS = new Set<string>();
+const IDENTITY_WALK_MEMO_LIMIT = 4096;
+function identityKeyKind(key: string): number {
+  // Array indices and other names ending in a digit match neither suffix.
+  const last = key.charCodeAt(key.length - 1);
+  if (last >= 48 && last <= 57) return KEY_RECURSE;
+  let kind = IDENTITY_KEY_KINDS.get(key);
+  if (kind === undefined) {
+    kind = /(?:Id|Version)$/.test(key) ? KEY_IDENTITY : /Ids$/.test(key) ? KEY_IDENTITY_LIST : KEY_RECURSE;
+    if (IDENTITY_KEY_KINDS.size < IDENTITY_WALK_MEMO_LIMIT) IDENTITY_KEY_KINDS.set(key, kind);
+  }
+  return kind;
+}
+function memoizedPublicId(value: unknown): void {
+  if (typeof value === "string" && VALID_PUBLIC_IDS.has(value)) return;
+  publicId(value);
+  if (VALID_PUBLIC_IDS.size < IDENTITY_WALK_MEMO_LIMIT) VALID_PUBLIC_IDS.add(value as string);
+}
+/**
+ * Every property name ending in Id/Version must hold a public opaque ID and every name ending in Ids a
+ * bounded dense list of them, at any depth. Same order, keys and errors as the former Object.entries walk;
+ * key classification and already-valid IDs are memoized because both are pure functions of their strings.
+ */
 function publicIdentities(value: unknown): void {
   if (value === null || typeof value !== "object") return;
-  for (const [key, child] of Object.entries(value)) {
-    if (/(?:Id|Version)$/.test(key)) publicId(child);
-    else if (/Ids$/.test(key)) dense(child, 256).forEach(publicId);
-    else publicIdentities(child);
+  const record = value as Record<string, unknown>, keys = Object.keys(record);
+  for (let index = 0; index < keys.length; index++) {
+    const key = keys[index]!, kind = identityKeyKind(key), child = record[key];
+    if (kind === KEY_IDENTITY) memoizedPublicId(child);
+    else if (kind === KEY_IDENTITY_LIST) dense(child, 256).forEach(memoizedPublicId);
+    else if (child !== null && typeof child === "object") publicIdentities(child);
   }
 }
 function dense(value: unknown, maximum: number): unknown[] {
