@@ -96,6 +96,8 @@ export interface SimulateCaptureOptions {
     format?: SimulateCaptureOutputFormat;
     /** Default "identity". */
     toneCurve?: SdrToneCurve;
+    /** Required by the luminance tone curves (see `SdrToneCurveParameters`); the facade invents none. */
+    toneCurveParameters?: SdrToneCurveParameters;
     /** Default "clip". */
     highlightMode?: RawHighlightMode;
     /** Default "scene-illuminant". */
