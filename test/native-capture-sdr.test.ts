@@ -5,6 +5,7 @@ import { createNativeCaptureSdrTask, calculateNativeCaptureSdrPlan, createSimula
   type NativeCaptureSdrInput, type NativeCaptureSdrProvider, type NativeCaptureSdrTileRequest,
   type NativeCaptureSdrTile, type SimulatedCaptureInput } from "../src/index.js";
 import { loadLinearCaptureInput } from "./helpers/linear-capture-fixture.js";
+import { scaledTimeout } from "./helpers/test-timeout.js";
 
 function raw(width = 2, height = 1): SimulatedCaptureInput {
   const input = loadLinearCaptureInput();
@@ -235,5 +236,5 @@ describe("bounded native capture SDR", () => {
       const encoded = linear <= .0031308 ? 12.92 * linear : 1.055 * linear ** (1 / 2.4) - .055;
       expect(out.integerSamples[(y! * 1200 + x!) * 3 + c!]).toBe(Math.floor(encoded * 255 + .5));
     }
- }, 15_000);
+ }, scaledTimeout(15_000));
 });

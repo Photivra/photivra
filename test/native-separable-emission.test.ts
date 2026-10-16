@@ -5,6 +5,7 @@ import {createExperimentalNativeSeparableEmissionTask} from "../src/api/native-s
 import type { NativeEnvironmentRawTile } from "../src/index.js";
 import { evaluator } from "./helpers/environment-raw-fixture.js";
 import { separableNativeFixture } from "./helpers/separable-native-fixture.js";
+import { scaledTimeout } from "./helpers/test-timeout.js";
 
 it.each([32,64,128])('streams exact original global and rolling RAW/photo results at %i rays',async rays=>{
  for(const rolling of [false,true]){const f=separableNativeFixture(rays,rolling),yieldControl=vi.fn(f.provider.yieldControl),photos:number[]=[];
@@ -13,7 +14,7 @@ it.each([32,64,128])('streams exact original global and rolling RAW/photo result
  expect(photos).toEqual(f.reference.value.sites.map(s=>s.value.photo.value.photoSignal.expectedGeneratedElectronCount));
  expect(output.spectralCompositionCount).toBe(f.reference.value.providerEvaluationCount);expect(output.geometryEvaluationCount).toBe(output.spectralCompositionCount/2);
  expect(output.sourceSeparabilityVerified).toBe(false);expect(output.productionPlanActivated).toBe(false);expect('providerEvaluationCount' in output).toBe(false);expect(yieldControl).toHaveBeenCalled();}
-},15_000);
+},scaledTimeout(15_000));
 it.each(['geometry','spectral','support','identity'])('rejects %s budget/source before any geometry callback',async fault=>{
  const f=separableNativeFixture(),evaluate=vi.fn(f.provider.evaluateGeometry);
  if(fault==='geometry')f.input.maximumGeometryEvaluations=4;
