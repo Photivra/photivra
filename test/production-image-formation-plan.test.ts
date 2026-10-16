@@ -2815,3 +2815,25 @@ describe("executed environment production graph", () => {
     expect(changed.fingerprint.value).not.toBe(expected.fingerprint.value);
   });
 });
+
+describe("production plan temporal and equipment rejection branches", () => {
+  it("rejects capabilities that are not the resolved generic equipment contract", () => {
+    expect(() => prepareImageFormationContext({ contextId: "context", sceneId: "scene", sceneRadianceProviderProfileId: "provider",
+      outputGeometryProfileId: "output-v1", equipmentCapabilities: { ...equipment(), scientificStatus: "calibrated" } as never,
+      opticalBridgeProfile: opticalProfile(), renderer: renderer(), fidelity: fidelity() }))
+      .toThrow("equipmentCapabilities do not satisfy the resolved generic equipment capability contract.");
+  });
+
+  const temporal = (): ReturnType<typeof temporalCapture> => temporalCapture({ rotation: "active" });
+  it.each([
+    ["an unknown orientation", (t: ReturnType<typeof temporalCapture>): unknown => ({ ...t, orientation: "upside-down" }),
+      "temporalCapture.orientation is invalid."],
+    ["a zero rotation sample count", (t: ReturnType<typeof temporalCapture>): unknown => ({ ...t, rotation: { ...t.rotation!, temporalSampleCount: 0 } }),
+      "temporalCapture.rotation.temporalSampleCount must be a positive safe integer."],
+    ["rotation without sample points", (t: ReturnType<typeof temporalCapture>): unknown => ({ ...t,
+      exposureWindowInput: { ...t.exposureWindowInput, samplePointsNative: [] } }),
+    "temporalCapture.rotation requires non-empty exposureWindowInput.samplePointsNative."]
+  ])("rejects temporal capture with %s", (_name, mutate, message) => {
+    expect(() => createProductionCaptureSnapshot({ ...captureInput(), temporalCapture: mutate(temporal()) as never })).toThrow(message);
+  });
+});
