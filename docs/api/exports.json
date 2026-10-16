@@ -188,8 +188,18 @@
       "kind": "type"
     },
     {
+      "name": "BOLTZMANN_CONSTANT_JOULES_PER_KELVIN",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "BoundIsoExposureCapabilities",
       "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "Bt1886Eotf",
+      "source": "src/color/rgb-color-spaces.ts",
       "kind": "type"
     },
     {
@@ -308,8 +318,68 @@
       "kind": "type"
     },
     {
+      "name": "calculateChromaticAdaptationMatrix",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateChromaticAdaptationMatrixInput",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateChromaticallyAdaptedXyz",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateChromaticityFromCorrelatedColorTemperature",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCieDaylightComponentWeights",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCieIlluminantARelativeSpectralPower",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCielabFromCielch",
+      "source": "src/color/color-difference.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCielabFromXyz",
+      "source": "src/color/color-difference.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCielchFromCielab",
+      "source": "src/color/color-difference.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateColorDifference",
+      "source": "src/color/color-difference.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateColorDifferenceInput",
+      "source": "src/color/color-difference.ts",
+      "kind": "type"
+    },
+    {
       "name": "calculateComposedGeometricMapping",
       "source": "src/output/geometric-transforms.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCorrelatedColorTemperature",
+      "source": "src/color/illuminants.ts",
       "kind": "runtime"
     },
     {
@@ -321,6 +391,11 @@
       "name": "CalculateDefocusCircleInput",
       "source": "src/optics/depth-of-field.ts",
       "kind": "type"
+    },
+    {
+      "name": "calculateDegreeOfAdaptation",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "runtime"
     },
     {
       "name": "calculateDepthOfField",
@@ -453,6 +528,11 @@
       "kind": "runtime"
     },
     {
+      "name": "calculateGamutMappedColor",
+      "source": "src/color/gamut-mapping.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateGeometricResampling",
       "source": "src/output/geometric-transforms.ts",
       "kind": "runtime"
@@ -460,6 +540,11 @@
     {
       "name": "calculateGeometricSamplingPlan",
       "source": "src/output/geometric-transforms.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateHlgSystemGamma",
+      "source": "src/color/rgb-color-spaces.ts",
       "kind": "runtime"
     },
     {
@@ -638,6 +723,16 @@
       "kind": "type"
     },
     {
+      "name": "calculatePlanckianChromaticity",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculatePlanckianSpectralRadiance",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculatePrintContrastReference",
       "source": "src/output/print-contrast-reference.ts",
       "kind": "runtime"
@@ -731,6 +826,11 @@
       "name": "CalculateRelativeRenderedExposureInput",
       "source": "src/exposure/exposure.ts",
       "kind": "type"
+    },
+    {
+      "name": "calculateRgbToXyzMatrices",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
     },
     {
       "name": "calculateSceneRadianceToSensorIrradiance",
@@ -938,6 +1038,11 @@
       "kind": "type"
     },
     {
+      "name": "calculateXyzFromCielab",
+      "source": "src/color/color-difference.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "CalculationProvenance",
       "source": "src/core/calculation-result.ts",
       "kind": "type"
@@ -973,8 +1078,28 @@
       "kind": "type"
     },
     {
+      "name": "CameraColorMatrixFit",
+      "source": "src/color/camera-color-matrix.ts",
+      "kind": "type"
+    },
+    {
       "name": "CameraConfiguration",
       "source": "src/schema/camera.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CameraMatrixFitConstraint",
+      "source": "src/color/camera-color-matrix.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CameraMatrixPatchReport",
+      "source": "src/color/camera-color-matrix.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CameraMatrixTrainingPatch",
+      "source": "src/color/camera-color-matrix.ts",
       "kind": "type"
     },
     {
@@ -990,6 +1115,11 @@
     {
       "name": "CameraShakeEstimate",
       "source": "src/stabilization/camera-shake.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CameraSpectralSensitivities",
+      "source": "src/color/camera-color-matrix.ts",
       "kind": "type"
     },
     {
@@ -1031,6 +1161,11 @@
       "name": "CAPTURE_SDR_SCHEMA_VERSION",
       "source": "src/output/capture-sdr.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "CaptureChromaticAdaptationTransform",
+      "source": "src/color/capture-color.ts",
+      "kind": "type"
     },
     {
       "name": "CaptureColorModel",
@@ -1298,9 +1433,114 @@
       "kind": "type"
     },
     {
+      "name": "CHROMATIC_ADAPTATION_TRANSFORMS",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ChromaticAdaptationMatrix",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChromaticAdaptationTransform",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CIE_DAYLIGHT_LOCUS_RANGE_KELVIN",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CIE_ILLUMINANT_A_RANGE_NANOMETERS",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "Cie1960UvChromaticity",
+      "source": "src/color/colorimetry-math.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CieDaylightBasis",
+      "source": "src/color/illuminants.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CieDaylightComponentWeights",
+      "source": "src/color/illuminants.ts",
+      "kind": "type"
+    },
+    {
+      "name": "Ciede2000ParametricFactors",
+      "source": "src/color/color-difference.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CielabColor",
+      "source": "src/color/color-difference.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CielchColor",
+      "source": "src/color/color-difference.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CieXyChromaticity",
+      "source": "src/color/colorimetry-math.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CieXyzTristimulus",
+      "source": "src/color/colorimetry-math.ts",
+      "kind": "type"
+    },
+    {
       "name": "COLOR_TEMPERATURE_WHITE_BALANCE_INTENT_VERSION",
       "source": "src/color/white-balance.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "ColorDifferenceFormula",
+      "source": "src/color/color-difference.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorimetricObserver",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorimetricQuadratureNode",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorimetricSpectralSample",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorimetricSpectrum",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
+      "name": "COLORIMETRY_MODEL_VERSION",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ColorMatchingFunctionsSource",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorMatrix3x3",
+      "source": "src/color/colorimetry-math.ts",
+      "kind": "type"
     },
     {
       "name": "ColorSamplingChannelComposition",
@@ -1323,8 +1563,18 @@
       "kind": "type"
     },
     {
+      "name": "ColorTemperatureWhiteBalanceCameraModel",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
       "name": "ColorTemperatureWhiteBalanceIntent",
       "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorVector3",
+      "source": "src/color/colorimetry-math.ts",
       "kind": "type"
     },
     {
@@ -1388,6 +1638,11 @@
       "kind": "type"
     },
     {
+      "name": "CorrelatedColorTemperatureResult",
+      "source": "src/color/illuminants.ts",
+      "kind": "type"
+    },
+    {
       "name": "createCancelledReleaseSequence",
       "source": "src/capture/release-sequence.ts",
       "kind": "runtime"
@@ -1401,6 +1656,26 @@
       "name": "createCaptureWhiteBalanceIntent",
       "source": "src/capture/simulated-capture.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "createCieDaylightSpectrum",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createCieIlluminantASpectrum",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createColorimetricMidpointQuadrature",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateColorimetricMidpointQuadratureInput",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
     },
     {
       "name": "createColorTemperatureWhiteBalanceIntent",
@@ -1485,6 +1760,11 @@
     {
       "name": "createPhotographicExportPair",
       "source": "src/capture/photographic-export.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createPlanckianSpectrum",
+      "source": "src/color/illuminants.ts",
       "kind": "runtime"
     },
     {
@@ -1703,6 +1983,16 @@
       "kind": "type"
     },
     {
+      "name": "estimateCameraColorMatrix",
+      "source": "src/color/camera-color-matrix.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EstimateCameraColorMatrixInput",
+      "source": "src/color/camera-color-matrix.ts",
+      "kind": "type"
+    },
+    {
       "name": "estimateCameraShakeBlur",
       "source": "src/stabilization/camera-shake.ts",
       "kind": "runtime"
@@ -1711,6 +2001,16 @@
       "name": "EstimateCameraShakeBlurInput",
       "source": "src/stabilization/camera-shake.ts",
       "kind": "type"
+    },
+    {
+      "name": "estimateCie1931ColorMatchingFunctions",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "estimateCorrelatedColorTemperatureMcCamy",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
     },
     {
       "name": "estimatedResult",
@@ -1728,6 +2028,41 @@
       "kind": "type"
     },
     {
+      "name": "estimatePlanckianLocusChromaticity",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluateBt709InverseOetf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluateBt709Oetf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluateHlgInverseOetf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluateHlgOetf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluatePqEotf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluatePqInverseEotf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "evaluateSceneIlluminationTemporalMultiplier",
       "source": "src/schema/illumination-temporal.ts",
       "kind": "runtime"
@@ -1736,6 +2071,16 @@
       "name": "EvaluateSceneIlluminationTemporalMultiplierInput",
       "source": "src/schema/illumination-temporal.ts",
       "kind": "type"
+    },
+    {
+      "name": "evaluateSrgbDecoding",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluateSrgbEncoding",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
     },
     {
       "name": "ExportSensorColorProfile",
@@ -2043,6 +2388,16 @@
       "kind": "type"
     },
     {
+      "name": "GamutMappedColor",
+      "source": "src/color/gamut-mapping.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GamutMappingMethod",
+      "source": "src/color/gamut-mapping.ts",
+      "kind": "type"
+    },
+    {
       "name": "GENERIC_BODY_METERING_CAPABILITY_SCHEMA_VERSION",
       "source": "src/equipment/metering-capabilities.ts",
       "kind": "runtime"
@@ -2253,6 +2608,16 @@
       "kind": "type"
     },
     {
+      "name": "HLG_CONSTANTS",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "HlgReferenceDisplay",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "type"
+    },
+    {
       "name": "IdealApertureGeometry",
       "source": "src/optics/aperture.ts",
       "kind": "type"
@@ -2383,6 +2748,11 @@
       "kind": "runtime"
     },
     {
+      "name": "IntegratedSpectrumXyz",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
       "name": "IntegrateSceneIlluminationTemporalMultiplierInput",
       "source": "src/schema/illumination-temporal.ts",
       "kind": "type"
@@ -2391,6 +2761,16 @@
       "name": "integrateSceneIlluminationTemporalMultiplierOverExposureWindow",
       "source": "src/schema/illumination-temporal.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "integrateSpectrumToXyz",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "IntegrateSpectrumToXyzInput",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
     },
     {
       "name": "IntegrateStationarySensorRateInput",
@@ -2486,6 +2866,11 @@
       "name": "IsoStandardSettingGrid",
       "source": "src/equipment/iso-capabilities.ts",
       "kind": "type"
+    },
+    {
+      "name": "KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
     },
     {
       "name": "LateralCaLensCorrection",
@@ -2705,6 +3090,26 @@
     {
       "name": "mapOrientedPhysicalUvToImagePlanePoint",
       "source": "src/output/capture-geometry.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "MAX_CAMERA_MATRIX_TRAINING_PATCHES",
+      "source": "src/color/camera-color-matrix.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "MAX_COLORIMETRIC_QUADRATURE_NODES",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "MAX_COLORIMETRIC_TABLE_SAMPLES",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "MAX_CORRELATED_COLOR_TEMPERATURE_DUV",
+      "source": "src/color/illuminants.ts",
       "kind": "runtime"
     },
     {
@@ -3095,6 +3500,11 @@
     {
       "name": "parseCaptureSdrInput",
       "source": "src/output/capture-sdr.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseColorimetricQuadratureNodes",
+      "source": "src/color/color-matching-functions.ts",
       "kind": "runtime"
     },
     {
@@ -3548,6 +3958,16 @@
       "kind": "type"
     },
     {
+      "name": "PLANCK_CONSTANT_JOULE_SECONDS",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PlanckianLocusModel",
+      "source": "src/color/illuminants.ts",
+      "kind": "type"
+    },
+    {
       "name": "PlannedImageFormationEffect",
       "source": "src/composition/image-formation-plan.ts",
       "kind": "type"
@@ -3588,9 +4008,39 @@
       "kind": "type"
     },
     {
+      "name": "PQ_CONSTANTS",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "prepareBt1886Eotf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "prepareColorimetricSpectrum",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "prepareColorMatchingFunctions",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "PREPARED_IMAGE_FORMATION_CONTEXT_VERSION",
       "source": "src/composition/image-formation-plan.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "PreparedColorimetricSpectrum",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PreparedColorMatchingFunctions",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
     },
     {
       "name": "PreparedGeometricMapping",
@@ -3603,8 +4053,18 @@
       "kind": "type"
     },
     {
+      "name": "PreparedRgbGamutMapping",
+      "source": "src/color/gamut-mapping.ts",
+      "kind": "type"
+    },
+    {
       "name": "prepareGeometricMapping",
       "source": "src/output/geometric-transforms.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "prepareHlgReferenceDisplay",
+      "source": "src/color/rgb-color-spaces.ts",
       "kind": "runtime"
     },
     {
@@ -3615,6 +4075,16 @@
     {
       "name": "PrepareImageFormationContextInput",
       "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "prepareRgbGamutMapping",
+      "source": "src/color/gamut-mapping.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PrepareRgbGamutMappingInput",
+      "source": "src/color/gamut-mapping.ts",
       "kind": "type"
     },
     {
@@ -4258,6 +4728,11 @@
       "kind": "type"
     },
     {
+      "name": "resolveChromaticAdaptationConeMatrix",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "resolveColorSamplingSite",
       "source": "src/sensor/color-sampling.ts",
       "kind": "runtime"
@@ -4265,6 +4740,16 @@
     {
       "name": "ResolveColorSamplingSiteInput",
       "source": "src/sensor/color-sampling.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveColorTemperatureWhiteBalance",
+      "source": "src/color/white-balance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveColorTemperatureWhiteBalanceInput",
+      "source": "src/color/white-balance.ts",
       "kind": "type"
     },
     {
@@ -4310,6 +4795,11 @@
     {
       "name": "ResolvedColorSamplingSite",
       "source": "src/sensor/color-sampling.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedColorTemperatureWhiteBalance",
+      "source": "src/color/white-balance.ts",
       "kind": "type"
     },
     {
@@ -4568,6 +5058,11 @@
       "kind": "type"
     },
     {
+      "name": "resolveRgbColorSpace",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "resolveSceneIlluminationDiscreteLineMeasure",
       "source": "src/schema/illumination-spectral.ts",
       "kind": "runtime"
@@ -4626,6 +5121,31 @@
       "name": "resolveSimulatedCapturePlane",
       "source": "src/capture/simulated-capture.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "RgbColorSpaceDefinition",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RgbColorSpaceId",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RgbPrimaryChromaticities",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RgbToXyzMatrices",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RgbTransferFunctionId",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "type"
     },
     {
       "name": "RollingSensorReadoutTimingDeclaration",
@@ -5001,6 +5521,11 @@
       "name": "SdrRenderingResult",
       "source": "src/output/sdr-rendering.ts",
       "kind": "type"
+    },
+    {
+      "name": "SECOND_RADIATION_CONSTANT_METER_KELVIN",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
     },
     {
       "name": "SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION",
@@ -5918,6 +6443,11 @@
       "kind": "type"
     },
     {
+      "name": "SPEED_OF_LIGHT_METERS_PER_SECOND",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "SRGB_ICC_PROFILE_VERSION",
       "source": "src/color/srgb-icc.ts",
       "kind": "runtime"
@@ -6028,6 +6558,11 @@
       "kind": "type"
     },
     {
+      "name": "TabulatedColorMatchingSample",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
       "name": "ThinLensImageDistance",
       "source": "src/optics/thin-lens.ts",
       "kind": "type"
@@ -6078,6 +6613,11 @@
       "kind": "type"
     },
     {
+      "name": "TristimulusNormalization",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
       "name": "UncertaintyConfidence",
       "source": "src/core/calculation-result.ts",
       "kind": "type"
@@ -6120,6 +6660,11 @@
     {
       "name": "Vector3",
       "source": "src/schema/scene.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ViewingSurround",
+      "source": "src/color/chromatic-adaptation.ts",
       "kind": "type"
     },
     {
@@ -6168,9 +6713,19 @@
       "kind": "type"
     },
     {
+      "name": "WhiteLocus",
+      "source": "src/color/illuminants.ts",
+      "kind": "type"
+    },
+    {
       "name": "WidestAvailableFNumberCapability",
       "source": "src/equipment/exposure-capabilities.ts",
       "kind": "type"
+    },
+    {
+      "name": "WYMAN_2013_CMF_DOMAIN_NANOMETERS",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
     }
   ]
 }
