@@ -1663,6 +1663,21 @@
       "kind": "runtime"
     },
     {
+      "name": "DNG_IMPORT_LIMITS",
+      "source": "src/capture/dng-import.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "DNG_IMPORT_SCHEMA_VERSION",
+      "source": "src/capture/dng-import.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "DngImportInput",
+      "source": "src/capture/dng-import.ts",
+      "kind": "type"
+    },
+    {
       "name": "EffectiveSensorResponseScope",
       "source": "src/sensor/spectral-response.ts",
       "kind": "type"
@@ -1751,6 +1766,11 @@
       "name": "EvaluateSceneIlluminationTemporalMultiplierInput",
       "source": "src/schema/illumination-temporal.ts",
       "kind": "type"
+    },
+    {
+      "name": "EXPORT_JPEG_ENCODER_ID",
+      "source": "src/capture/export-jpeg.ts",
+      "kind": "runtime"
     },
     {
       "name": "ExportSensorColorProfile",
@@ -2388,6 +2408,26 @@
       "kind": "type"
     },
     {
+      "name": "ImportedDngBlackLevel",
+      "source": "src/capture/dng-import.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImportedDngCfa",
+      "source": "src/capture/dng-import.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImportedDngRaw",
+      "source": "src/capture/dng-import.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImportedDngRect",
+      "source": "src/capture/dng-import.ts",
+      "kind": "type"
+    },
+    {
       "name": "IntegratedDiscreteSpectralLineMeasure",
       "source": "src/core/spectral-composition.ts",
       "kind": "type"
@@ -2675,6 +2715,16 @@
     {
       "name": "LinearCaptureEncodingInput",
       "source": "src/capture/linear-encoding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LosslessJpegImage",
+      "source": "src/capture/lossless-jpeg.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LosslessJpegLimits",
+      "source": "src/capture/lossless-jpeg.ts",
       "kind": "type"
     },
     {
@@ -3128,6 +3178,11 @@
       "kind": "runtime"
     },
     {
+      "name": "parseDngRawImage",
+      "source": "src/capture/dng-import.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "parseExportSensorColorProfile",
       "source": "src/capture/photographic-export.ts",
       "kind": "runtime"
@@ -3235,6 +3290,11 @@
     {
       "name": "parseLinearCaptureEncoding",
       "source": "src/capture/linear-encoding.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseLosslessJpeg",
+      "source": "src/capture/lossless-jpeg.ts",
       "kind": "runtime"
     },
     {
@@ -3600,6 +3660,46 @@
     {
       "name": "PlannedScientificStatus",
       "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PNG_ENCODER_ID",
+      "source": "src/output/png-encoder.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PNG_ENCODER_LIMITS",
+      "source": "src/output/png-encoder.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PngCicpPrimaries",
+      "source": "src/output/png-encoder.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PngCicpTransfer",
+      "source": "src/output/png-encoder.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PngColourEncoding",
+      "source": "src/output/png-encoder.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PngContentLightLevel",
+      "source": "src/output/png-encoder.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PngEncodeInput",
+      "source": "src/output/png-encoder.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PngMasteringDisplay",
+      "source": "src/output/png-encoder.ts",
       "kind": "type"
     },
     {
@@ -5761,6 +5861,11 @@
       "name": "SensorTemporalDarkCurrentCharge",
       "source": "src/sensor/dark-current.ts",
       "kind": "type"
+    },
+    {
+      "name": "serializePngImage",
+      "source": "src/output/png-encoder.ts",
+      "kind": "runtime"
     },
     {
       "name": "serializeProductionImageFormationPlan",

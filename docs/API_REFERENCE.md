@@ -52,6 +52,21 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`createCaptureExportMetadataPair`](api/capture-capture-export-metadata.md#createcaptureexportmetadatapair) | Runtime |
 | [`parseCaptureExportMetadataInput`](api/capture-capture-export-metadata.md#parsecaptureexportmetadatainput) | Runtime |
 
+## capture/dng-import.ts
+
+[Detailed contracts](api/capture-dng-import.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/dng-import.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`DNG_IMPORT_LIMITS`](api/capture-dng-import.md#dng_import_limits) | Runtime |
+| [`DNG_IMPORT_SCHEMA_VERSION`](api/capture-dng-import.md#dng_import_schema_version) | Runtime |
+| [`DngImportInput`](api/capture-dng-import.md#dngimportinput) | Type |
+| [`ImportedDngBlackLevel`](api/capture-dng-import.md#importeddngblacklevel) | Type |
+| [`ImportedDngCfa`](api/capture-dng-import.md#importeddngcfa) | Type |
+| [`ImportedDngRaw`](api/capture-dng-import.md#importeddngraw) | Type |
+| [`ImportedDngRect`](api/capture-dng-import.md#importeddngrect) | Type |
+| [`parseDngRawImage`](api/capture-dng-import.md#parsedngrawimage) | Runtime |
+
 ## capture/environment-raw-producer.ts
 
 [Detailed contracts](api/capture-environment-raw-producer.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/environment-raw-producer.ts)
@@ -61,6 +76,14 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`EnvironmentSensorRawFrame`](api/capture-environment-raw-producer.md#environmentsensorrawframe) | Type |
 | [`simulateEnvironmentSensorRawFrame`](api/capture-environment-raw-producer.md#simulateenvironmentsensorrawframe) | Runtime |
 | [`SimulateEnvironmentSensorRawFrameInput`](api/capture-environment-raw-producer.md#simulateenvironmentsensorrawframeinput) | Type |
+
+## capture/export-jpeg.ts
+
+[Detailed contracts](api/capture-export-jpeg.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/export-jpeg.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`EXPORT_JPEG_ENCODER_ID`](api/capture-export-jpeg.md#export_jpeg_encoder_id) | Runtime |
 
 ## capture/focus-control.ts
 
@@ -104,6 +127,16 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`LinearCaptureEncoding`](api/capture-linear-encoding.md#linearcaptureencoding) | Type |
 | [`LinearCaptureEncodingInput`](api/capture-linear-encoding.md#linearcaptureencodinginput) | Type |
 | [`parseLinearCaptureEncoding`](api/capture-linear-encoding.md#parselinearcaptureencoding) | Runtime |
+
+## capture/lossless-jpeg.ts
+
+[Detailed contracts](api/capture-lossless-jpeg.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/lossless-jpeg.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`LosslessJpegImage`](api/capture-lossless-jpeg.md#losslessjpegimage) | Type |
+| [`LosslessJpegLimits`](api/capture-lossless-jpeg.md#losslessjpeglimits) | Type |
+| [`parseLosslessJpeg`](api/capture-lossless-jpeg.md#parselosslessjpeg) | Runtime |
 
 ## capture/native-environment-optical-stage.ts
 
@@ -1289,6 +1322,22 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`NativeCaptureSdrTaskState`](api/output-native-capture-sdr.md#nativecapturesdrtaskstate) | Type |
 | [`NativeCaptureSdrTile`](api/output-native-capture-sdr.md#nativecapturesdrtile) | Type |
 | [`NativeCaptureSdrTileRequest`](api/output-native-capture-sdr.md#nativecapturesdrtilerequest) | Type |
+
+## output/png-encoder.ts
+
+[Detailed contracts](api/output-png-encoder.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/output/png-encoder.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`PNG_ENCODER_ID`](api/output-png-encoder.md#png_encoder_id) | Runtime |
+| [`PNG_ENCODER_LIMITS`](api/output-png-encoder.md#png_encoder_limits) | Runtime |
+| [`PngCicpPrimaries`](api/output-png-encoder.md#pngcicpprimaries) | Type |
+| [`PngCicpTransfer`](api/output-png-encoder.md#pngcicptransfer) | Type |
+| [`PngColourEncoding`](api/output-png-encoder.md#pngcolourencoding) | Type |
+| [`PngContentLightLevel`](api/output-png-encoder.md#pngcontentlightlevel) | Type |
+| [`PngEncodeInput`](api/output-png-encoder.md#pngencodeinput) | Type |
+| [`PngMasteringDisplay`](api/output-png-encoder.md#pngmasteringdisplay) | Type |
+| [`serializePngImage`](api/output-png-encoder.md#serializepngimage) | Runtime |
 
 ## output/print-contrast-reference.ts
 

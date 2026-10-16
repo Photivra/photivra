@@ -126,6 +126,7 @@ Rounding is a scientific/output operation when it changes represented data.
 - RAW/export quantization must define scale, offset/black level, clipping, rounding/tie behavior, and code range.
 - Do not round intermediate physical values for display convenience.
 - Do not let serializer/container limitations redefine the authoritative scientific value.
+- Encoded file bytes must not depend on the JavaScript engine's `Math` library. The baseline JPEG encoder uses a fixed table of correctly rounded DCT cosines (`JPEG_DCT_COSINES`) and rounds quantized coefficients half away from zero; the Print JPEG rounds encoded sRGB codes to nearest with ties up via `Math.round`, not `Math.floor(x + 0.5)` (which rounds 0.49999999999999994 up). See [Photographic export](PHOTOGRAPHIC_EXPORT.md).
 
 ## Signed zero and tiny values
 
