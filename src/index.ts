@@ -799,9 +799,53 @@ export {
 
 export {
   calculateIdealPolygonDiffractionPsf,
+  calculatePolygonPupilFraunhoferPsf,
   type CalculateIdealPolygonDiffractionInput,
-  type IdealPolygonDiffraction
+  type CalculatePolygonPupilFraunhoferPsfInput,
+  type IdealPolygonDiffraction,
+  type PolygonPupilFraunhoferPsf
 } from "./optics/polygon-diffraction.js";
+
+export {
+  ZERNIKE_MAXIMUM_NOLL_INDEX,
+  ZERNIKE_PUPIL_MAXIMUM_SAMPLES_ACROSS,
+  calculateDefocusWavefront,
+  createWavefrontPupilGrid,
+  estimateMarechalStrehlRatio,
+  evaluateZernikePolynomial,
+  zernikeNollToOrder,
+  type CalculateDefocusWavefrontInput,
+  type CreateWavefrontPupilGridInput,
+  type DefocusWavefront,
+  type EstimateMarechalStrehlRatioInput,
+  type SeidelFieldPosition,
+  type SeidelWavefrontCoefficients,
+  type WavefrontPupilGrid,
+  type ZernikeCoefficient,
+  type ZernikeOrder
+} from "./optics/zernike-wavefront.js";
+
+export {
+  FRAUNHOFER_C_LINE_NM,
+  FRAUNHOFER_D_LINE_NM,
+  FRAUNHOFER_F_LINE_NM,
+  calculateCauchyRefractiveIndex,
+  calculateLongitudinalChromaticFocus,
+  type CalculateLongitudinalChromaticFocusInput,
+  type LongitudinalChromaticDispersion,
+  type LongitudinalChromaticFocus
+} from "./optics/longitudinal-chromatic-aberration.js";
+
+export {
+  calculateMechanicalVignetting,
+  calculateNaturalVignetting,
+  type CalculateMechanicalVignettingInput,
+  type CalculateNaturalVignettingInput,
+  type MechanicalVignetting,
+  type MechanicalVignettingAperture,
+  type NaturalVignetting,
+  type NaturalVignettingModel
+} from "./optics/pupil-vignetting.js";
 
 export {
   estimateEquivalentViewingCircleOfConfusion,
