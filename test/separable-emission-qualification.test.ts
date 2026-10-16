@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import { calculateSeparableEmissionPhotoSignal, type SeparableEmissionContract } from "../src/api/separable-emission-experimental.js";
 import { siteInput } from "./helpers/environment-raw-fixture.js";
 import { evidence } from "./helpers/eqe-response-fixture.js";
+import { scaledTimeout } from "./helpers/test-timeout.js";
 
 it.each([32, 64, 128])("matches an independent SI photon/electron oracle at %i pupil rays", rays => {
   const source = siteInput(undefined, false);
@@ -40,7 +41,7 @@ it.each([32, 64, 128])("matches an independent SI photon/electron oracle at %i p
     expect(result.work.spectralCompositionCount).toBe(8 * temporalSampleCount * rays);
     expect(result.work.sourceSeparabilityVerified).toBe(false);
   }
-}, 15_000);
+}, scaledTimeout(15_000));
 
 it("exposes the full native Focus work bound without relabeling spectral work", () => {
   const sites = 2048 * 1366;

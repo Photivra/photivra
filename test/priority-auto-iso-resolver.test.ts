@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createExposureMeterTargetFromMeteringResult,
+  InvalidScientificInputError,
   meterRelativeExposure,
   parseExposureMeteringProfile,
   parseGenericBodyExposureCapabilityProfile,
@@ -13,6 +14,7 @@ import {
   type ExposureMeterTarget,
   type ResolvedGenericEquipmentExposureCapabilities
 } from "../src/index.js";
+import { expectRejection, type Json, type RejectionCase } from "./helpers/rejection-table.js";
 
 const evidence = (ref: string) => [{
   sourceOrigin: "photivra" as const,
@@ -25,6 +27,7 @@ const capabilities = (options: {
   isoValues?: readonly number[];
   shutterGrid?: "continuous" | readonly number[];
   apertureGrid?: "continuous" | readonly number[];
+  isoGrid?: "continuous";
 } = {}): ResolvedGenericEquipmentExposureCapabilities => {
   const isoValues = options.isoValues ?? [100,200,400,800,1600,3200,6400,12800];
   const body = parseGenericBodyExposureCapabilityProfile({
@@ -41,7 +44,8 @@ const capabilities = (options: {
     },
     iso:{
       range:{value:{minimum:100,maximum:12800},evidence:evidence("iso")},
-      settingGrid:{kind:"discrete-values",values:{value:isoValues,evidence:evidence("iso-grid")}},
+      settingGrid: options.isoGrid === "continuous" ? {kind:"continuous-within-range"}
+        : {kind:"discrete-values",values:{value:isoValues,evidence:evidence("iso-grid")}},
       autoIso:{value:options.autoIso ?? "supported",evidence:evidence("auto")}
     }
   });
@@ -191,6 +195,46 @@ describe("Aperture Priority + Auto ISO",()=>{
       manualAperture:4,policy
     });
     expect(dark).toMatchObject({status:"blocked",blocker:"target-no-signal"});
+  });
+});
+
+describe("Auto ISO on a continuous ISO grid",()=>{
+  // Exposure H is proportional to t * ISO / N^2 (reciprocity), so the ISO that meets a target
+  // k times the reference exposure at (N, t) is ISO = 100 * k * (t_ref / t) * (N / N_ref)^2.
+  it("Aperture Priority raises ISO continuously after holding the preferred shutter",()=>{
+    const r=resolveAperturePriorityAutoIsoExposureMode({
+      target:targetForScale(4),capabilities:capabilities({isoGrid:"continuous"}),referenceExposure:ref,
+      manualAperture:4,policy:{
+        kind:"minimum-iso-until-slowest-preferred-shutter",slowestPreferredShutterSeconds:1/60,
+        shutterSelectionPolicy:"not-longer-than-target",isoBaseline:"minimum-selectable",
+        isoQuantizationPolicy:"nearest-log2-lower-on-tie",afterMaximumIso:"allow-slower-shutter"
+      }
+    });
+    expect(r.status).toBe("resolved");
+    if(r.status!=="resolved") throw new Error("resolved expected");
+    expect(r.resolvedSettings.shutterSeconds).toBeCloseTo(1/60,12);
+    // 100 * 4 * (1/125) / (1/60) = 192, not the discrete grid's 200.
+    expect(r.resolvedSettings.iso).toBeCloseTo(192,9);
+    expect(r.targetResidual.state).toBe("matched");
+    expect(Math.abs(r.targetResidual.residualStops)).toBeLessThan(1e-12);
+  });
+
+  it("Shutter Priority opens to the widest aperture, then sets the exact continuous ISO",()=>{
+    const r=resolveShutterPriorityExposureMode({
+      target:targetForScale(16),capabilities:capabilities({isoGrid:"continuous"}),
+      referenceExposure:ref,manualShutterSeconds:1/125,
+      isoControl:{kind:"automatic",policy:{
+        kind:"minimum-iso-aperture-first",isoBaseline:"minimum-selectable",
+        isoQuantizationPolicy:"nearest-log2-lower-on-tie",apertureSelectionPolicy:"not-wider-than-target"
+      }}
+    });
+    expect(r.status).toBe("resolved");
+    if(r.status!=="resolved"||r.isoControl!=="automatic") throw new Error("auto expected");
+    // Ideal N at ISO 100 = 4 / sqrt(16) = 1 is wider than f/1.8, so ISO = 100 * 16 * (1.8/4)^2 = 324.
+    expect(r.idealApertureAtBaselineIso).toBeCloseTo(1,12);
+    expect(r.resolvedSettings.aperture).toBe(1.8);
+    expect(r.resolvedSettings.iso).toBeCloseTo(324,9);
+    expect(r.targetResidual.state).toBe("matched");
   });
 });
 
@@ -406,9 +450,9 @@ describe("Auto ISO grid-aligned exact matches (#272)",()=>{
   const thirdStopApertures=[1.8,2,2.2,2.5,2.8,3.2,3.5,4,4.5,5,5.6,6.3,7.1,8,9,10,11,13,14,16];
 
   it.each([
-    {fNumber:3.2,shutterSeconds:1/60,idealAbove:3.2000000000000006},
-    {fNumber:14,shutterSeconds:1/125,idealAbove:14.000000000000002}
-  ])("Shutter Priority selects f/$fNumber when the ideal lands on the grid",({fNumber,shutterSeconds,idealAbove})=>{
+    {fNumber:3.2,shutterSeconds:1/60},
+    {fNumber:14,shutterSeconds:1/125}
+  ])("Shutter Priority selects f/$fNumber when the ideal lands on the grid",({fNumber,shutterSeconds})=>{
     const scale=(shutterSeconds/(fNumber*fNumber))/(ref.shutterSeconds/(ref.aperture**2));
     const r=resolveShutterPriorityExposureMode({
       target:targetForScale(scale),capabilities:capabilities({apertureGrid:thirdStopApertures}),
@@ -417,8 +461,10 @@ describe("Auto ISO grid-aligned exact matches (#272)",()=>{
     });
     expect(r.status).toBe("resolved");
     if(r.status!=="resolved"||r.isoControl!=="automatic") throw new Error("auto expected");
-    // The computed ideal sits a floating-point hair past the grid value.
-    expect(r.idealApertureAtBaselineIso).toBe(idealAbove);
+    // By construction the exact ideal is N = fNumber (EV reciprocity: t/N^2 equals the target ratio);
+    // the computed value may sit a floating-point hair past the grid value (V8 x64 gives
+    // 3.2000000000000006 and 14.000000000000002), which must still resolve as a grid match.
+    expect(Math.abs(r.idealApertureAtBaselineIso/fNumber-1)).toBeLessThan(1e-12);
     expect(r.resolvedSettings).toEqual({aperture:fNumber,shutterSeconds,iso:100});
     expect(r.apertureResolution).toMatchObject({kind:"discrete",quantized:false,clamped:false});
     expect(r.targetResidual.state).toBe("matched");
@@ -464,3 +510,33 @@ describe("Auto ISO grid-aligned exact matches (#272)",()=>{
   });
 });
 
+
+describe("exposure-mode resolver target and capability rejection branches",()=>{
+  const input=():Json=>({target:structuredClone(targetForScale(2)),capabilities:structuredClone(capabilities()),referenceExposure:{...ref},
+    manualShutterSeconds:1/125,isoControl:{kind:"manual",iso:100,apertureQuantizationPolicy:"nearest-log2-narrower-on-tie"}});
+  const resolve=(i:Json):unknown=>resolveShutterPriorityExposureMode(i);
+  it.each([
+    ["a non-object target",(i:Json):void=>{i.target=null;},"target must be an object."],
+    ["a zero reference aperture",(i:Json):void=>{i.referenceExposure.aperture=0;},"must be finite and greater than zero."],
+    ["an unsupported target schema",(i:Json):void=>{i.target.schemaVersion="9.9.9";},"target.schemaVersion must be"],
+    ["a blank target id",(i:Json):void=>{i.target.targetId="";},"target.targetId must be a non-empty string."],
+    ["a non-finite target offset",(i:Json):void=>{i.target.exposureOffsetStopsToTarget=Number.NaN;},"target.exposureOffsetStopsToTarget must be finite."],
+    ["an unknown target status",(i:Json):void=>{i.target.status="saturated";},"target.status is invalid."],
+    ["an empty discrete aperture grid",(i:Json):void=>{i.capabilities.aperture.settingGrid={kind:"discrete-values",values:[]};},
+      "must be a continuous grid or a non-empty discrete-values grid."],
+    ["a non-increasing ISO grid",(i:Json):void=>{i.capabilities.iso.settingGrid.values=[100,100,200];},
+      ".values must be strictly increasing with no duplicates."],
+    ["an ISO grid outside the range",(i:Json):void=>{i.capabilities.iso.settingGrid.values=[50,100];},
+      ".values must stay inside the resolved capability range."],
+    ["a calibrated capability claim",(i:Json):void=>{i.capabilities.scientificStatus="calibrated";},
+      "capabilities do not satisfy the generic equipment exposure-capability boundary."],
+    ["an inverted aperture range",(i:Json):void=>{i.capabilities.aperture.widestAvailableFNumber=22;},"capabilities aperture range is invalid."],
+    ["an inverted shutter range",(i:Json):void=>{i.capabilities.shutter.minimumSeconds=60;},"capabilities shutter range is invalid."],
+    ["an unknown Auto ISO availability",(i:Json):void=>{i.capabilities.iso.autoIsoAvailability="maybe";},
+      "capabilities.iso.autoIsoAvailability is invalid."],
+    ["an unknown manual-ISO aperture quantization policy",(i:Json):void=>{i.isoControl.apertureQuantizationPolicy="nearest";},
+      'isoControl.apertureQuantizationPolicy must be "nearest-log2-narrower-on-tie".']
+  ] as RejectionCase[])("rejects %s",(_name,mutate,message)=>{
+    expectRejection(input,resolve,InvalidScientificInputError,mutate,message);
+  });
+});

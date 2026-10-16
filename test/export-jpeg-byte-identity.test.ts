@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from "vitest";
 import { createExportJpegEncoder } from "../src/capture/export-jpeg.js";
-import { createLegacyExportJpegEncoder } from "./helpers/legacy-export-jpeg.js";
+import { createReferenceExportJpegEncoderV2 } from "./helpers/reference-export-jpeg-v2.js";
 
 type EncoderOptions = Parameters<typeof createExportJpegEncoder>[0];
 type Outcome = { bytes: string } | { error: string };
@@ -44,7 +44,7 @@ function run(factory: typeof createExportJpegEncoder, options: EncoderOptions, b
   }
 }
 
-describe("export JPEG byte identity with the frozen pre-#275 encoder", () => {
+describe("export JPEG byte identity with the straightforward version-2 reference encoder", () => {
   it("emits identical bytes for a randomized corpus of sizes, quantization steps, patterns and metadata", () => {
     const next = random(0x275);
     let encoded = 0, rejected = 0;
@@ -58,7 +58,7 @@ describe("export JPEG byte identity with the frozen pre-#275 encoder", () => {
         ...(n % 6 === 0 ? { densityDotsPerInch: 1 + n * 7 } : {}) };
       const blocks: number[][] = [];
       for (let by = 0; by < Math.ceil(height / 8); by++) for (let bx = 0; bx < Math.ceil(width / 8); bx++) blocks.push(block(next, pattern, bx, by));
-      const expected = run(createLegacyExportJpegEncoder, options, blocks);
+      const expected = run(createReferenceExportJpegEncoderV2, options, blocks);
       expect(run(createExportJpegEncoder, options, blocks)).toEqual(expected);
       if ("bytes" in expected) encoded++; else rejected++;
     }
@@ -71,7 +71,7 @@ describe("export JPEG byte identity with the frozen pre-#275 encoder", () => {
     const next = random(quantizationStep * 7919);
     const blocks = Array.from({ length: 1024 }, (_, i) => block(next, i % 3 === 0 ? "uniform" : "smooth-noise", i % 32, Math.floor(i / 32)));
     const options: EncoderOptions = { width: 256, height: 256, quantizationStep, maximumOutputBytes: 4_000_000, exif: new Uint8Array(), xmp: new Uint8Array() };
-    const expected = run(createLegacyExportJpegEncoder, options, blocks);
+    const expected = run(createReferenceExportJpegEncoderV2, options, blocks);
     expect("bytes" in expected).toBe(true);
     expect(run(createExportJpegEncoder, options, blocks)).toEqual(expected);
   }, 60_000);
@@ -84,7 +84,7 @@ describe("export JPEG byte identity with the frozen pre-#275 encoder", () => {
       [base, [good.slice(0, 191)]], [{ ...base, maximumOutputBytes: 700 }, [noisy, noisy]], [{ ...base, width: 8 }, [[...good.slice(0, 191), -1]]]
     ];
     for (const [options, blocks] of cases) {
-      const expected = run(createLegacyExportJpegEncoder, options, blocks);
+      const expected = run(createReferenceExportJpegEncoderV2, options, blocks);
       expect("error" in expected).toBe(true);
       expect(run(createExportJpegEncoder, options, blocks)).toEqual(expected);
     }
