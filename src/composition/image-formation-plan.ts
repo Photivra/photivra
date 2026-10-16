@@ -1180,7 +1180,7 @@ function validateEquipmentCapabilities(
   value:
     ResolvedGenericEquipmentExposureCapabilities
 ): void {
-  requireInputObject(value, "value");
+  requireInputObject(value, "value input");
   if (
     value.schemaVersion !==
       GENERIC_EQUIPMENT_EXPOSURE_CAPABILITY_SCHEMA_VERSION ||
@@ -2399,7 +2399,7 @@ export function createProductionCaptureSnapshotFromReleaseFrame(
   const frame =
     input.releaseFrame;
 
-  requireInputObject(frame, "frame");
+  requireInputObject(frame, "frame input");
   const releaseFrameBinding:
     ProductionReleaseFrameBinding = {
     releaseSequenceVersion:

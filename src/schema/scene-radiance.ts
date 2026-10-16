@@ -1221,7 +1221,7 @@ export function validateSceneRadianceEvaluationBindings(
     result
   } = input;
 
-  requireInputObject(providerProfile, "providerProfile");
+  requireInputObject(providerProfile, "providerProfile input");
   requireEqual(
     providerProfile.sceneId,
     illuminationProfile.sceneId,

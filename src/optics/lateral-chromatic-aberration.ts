@@ -162,7 +162,7 @@ function addCoefficients(
 function resolveProfiles(
   profile: LateralChromaticAberrationProfile
 ): ChannelProfiles {
-  requireInputObject(profile, "profile");
+  requireInputObject(profile, "profile input");
   requireFiniteCoefficients(
     "profile.baseDistortionCoefficients",
     profile.baseDistortionCoefficients

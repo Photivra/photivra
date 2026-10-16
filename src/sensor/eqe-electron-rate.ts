@@ -288,7 +288,7 @@ function validateAuthorizationChain(
   operatingRange:
     SensorResponseOperatingRangeAssessment
 ): void {
-  requireInputObject(reduction, "reduction");
+  requireInputObject(reduction, "reduction input");
   if (
     reduction.outputMeaning !==
       "pre-response-spatio-spectral-radiometric-reduction" ||

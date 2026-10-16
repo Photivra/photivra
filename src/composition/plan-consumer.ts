@@ -98,7 +98,7 @@ function requireConsumerKind(
 function requirePlan(
   plan: ProductionImageFormationPlan
 ): void {
-  requireInputObject(plan, "plan");
+  requireInputObject(plan, "plan input");
   if (
     plan.version !==
     PRODUCTION_IMAGE_FORMATION_PLAN_VERSION

@@ -411,7 +411,7 @@ function requireRateSite(
   x: number;
   y: number;
 } {
-  requireInputObject(rate, "rate");
+  requireInputObject(rate, "rate input");
   if (
     rate.site === undefined ||
     !Number.isSafeInteger(rate.site.x) ||

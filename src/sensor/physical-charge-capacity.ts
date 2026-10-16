@@ -547,7 +547,7 @@ function validateCharge(
   charge:
     SensorAccumulatedChargeComposition
 ): number {
-  requireInputObject(charge, "charge");
+  requireInputObject(charge, "charge input");
   if (
     charge
       .physicalFullWellAssessmentAuthorized !==

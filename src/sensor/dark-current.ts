@@ -779,7 +779,7 @@ function validateExposure(
   exposure:
     SensorEqePhotoExposure
 ): void {
-  requireInputObject(exposure, "exposure");
+  requireInputObject(exposure, "exposure input");
   if (exposure.kind === "eqe-temporal-photo-signal") parseSensorEqeTemporalPhotoSignal(exposure);
   if (
     (exposure.kind !== "eqe-expected-counts" && exposure.kind !== "eqe-temporal-photo-signal") ||

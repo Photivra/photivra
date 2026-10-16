@@ -155,7 +155,7 @@ function validateRateBoundary(
     SensorInstantaneousRateResult
 ): "eqe-electron-rate" |
   "responsivity-photocurrent" {
-  requireInputObject(rate, "rate");
+  requireInputObject(rate, "rate input");
   if (
     rate.sourceResponseKind ===
       "effective-spectral-responsivity"

@@ -584,7 +584,7 @@ export function createSensorRawCaptureSample(
   const contributors =
     input.contributors;
 
-  requireInputObject(contributors, "contributors");
+  requireInputObject(contributors, "contributors input");
   if (
     contributors
       .modeSamplingKind !==

@@ -312,7 +312,7 @@ export function bindResolvedExposureDurationToCaptureExposureInput(
   const resolution =
     input.resolution;
 
-  requireInputObject(resolution, "resolution");
+  requireInputObject(resolution, "resolution input");
   if (
     resolution.version !==
       EXPOSURE_DURATION_CONTROL_VERSION ||

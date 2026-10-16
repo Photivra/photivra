@@ -208,7 +208,7 @@ function validateCommonMeterResult(
   result:
     ExposureMeterTargetSourceResult
 ): void {
-  requireInputObject(result, "result");
+  requireInputObject(result, "result input");
   if (
     result.scientificStatus !==
     "approximation"
@@ -387,7 +387,7 @@ export function createExposureMeterTargetFromMeteringResult(
 function validateBaseTarget(
   target: ExposureMeterTarget
 ): void {
-  requireInputObject(target, "target");
+  requireInputObject(target, "target input");
   if (
     target.schemaVersion !==
     EXPOSURE_METER_TARGET_SCHEMA_VERSION

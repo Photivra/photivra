@@ -167,7 +167,7 @@ export function calculatePeripheralIlluminationCorrection(input: {
 }): CalculationResult<{ gain: number; signalBeforeClipping: number; signal: number; noiseVarianceBeforeClipping: number; clipped: boolean }> {
   requireInputObject(input, "calculatePeripheralIlluminationCorrection input");
   const component = input.component;
-  requireInputObject(component, "component");
+  requireInputObject(component, "component input");
   if (component.kind !== "peripheral-illumination" || component.strength < 0 || component.strength > 1 || !Number.isFinite(component.strength)) throw new InvalidScientificInputError("Invalid illumination component.");
   const signal = finite(input.signal, "signal"), variance = finite(input.noiseVariance, "noiseVariance");
   const level = positive(input.clippingLevel, "clippingLevel");

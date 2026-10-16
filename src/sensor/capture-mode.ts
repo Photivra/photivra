@@ -797,7 +797,7 @@ export function parseCaptureModeProfile(
 function validateNativeRaster(
   raster: NativeImageRaster
 ): void {
-  requireInputObject(raster, "raster");
+  requireInputObject(raster, "raster input");
   requirePositiveInteger(
     "nativeRaster.pixelWidth",
     raster.pixelWidth

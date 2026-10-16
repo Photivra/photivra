@@ -1682,7 +1682,9 @@ const intent =
   });
 ```
 
-The result keeps `channelGainsResolved: false` and `requiresCameraProfileColorimetry: true`. CCT alone is not treated as a complete chromatic adaptation model, and tint remains an independent axis.
+The intent keeps `channelGainsResolved: false` and `requiresCameraProfileColorimetry: true`. CCT alone is not treated as a complete chromatic adaptation model, and tint remains an independent axis.
+
+`resolveColorTemperatureWhiteBalance()` resolves gains once the intent is paired with an explicit camera colour model. It takes the white on the Planckian or CIE-daylight locus, offset by tint read as Duv in CIE 1960 uv, maps that white through the camera's XYZ→camera matrix, and neutralizes the result. The state it returns has `source: "color-temperature"`. See [Kelvin + tint white balance](#kelvin--tint-white-balance) below and [Colorimetry](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md#kelvin--tint-white-balance).
 
 ### Custom measured WB
 
@@ -1737,6 +1739,97 @@ Every resolved WB state explicitly reports that it did not:
 - modify focus.
 
 #15 remains authoritative for how resolved WB intent is applied or encoded in processed linear images, previews, TIFF, DNG metadata, or other output states.
+
+## Colorimetry
+
+The [colorimetry primitives](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md) cover CMFs, illuminants, CCT/Duv, chromatic adaptation, ΔE, camera-matrix fitting, wide-gamut/HDR transfers and gamut mapping. No CIE or ColorChecker tables are bundled; the CIE datasets are CC BY-SA 4.0. Use the labelled analytic CMF approximation, or pass tables you are licensed to use.
+
+### Spectrum to XYZ, CCT and colour difference
+
+```ts
+import {
+  calculateColorDifference,
+  calculateCielabFromXyz,
+  calculateCorrelatedColorTemperature,
+  createCieIlluminantASpectrum,
+  createColorimetricMidpointQuadrature,
+  integrateSpectrumToXyz
+} from "@photivra/engine";
+
+const quadratureNodes = createColorimetricMidpointQuadrature({
+  wavelengthRangeNanometers: { minimum: 360, maximum: 830 },
+  maximumSubintervalWidthNanometers: 1
+});
+const colorMatchingFunctions = { kind: "wyman-2013-cie-1931-multi-lobe-fit" } as const;
+
+const illuminantA = integrateSpectrumToXyz({
+  quadratureNodes,
+  spectralDistribution: createCieIlluminantASpectrum(),
+  colorMatchingFunctions,
+  normalization: { kind: "white-luminance-one" }
+});
+console.log(illuminantA.provenance.kind); // "approximation" (analytic CMF fit)
+
+const cct = calculateCorrelatedColorTemperature({
+  chromaticity: illuminantA.value.chromaticity!,
+  locus: { kind: "planck-integration", colorMatchingFunctions, quadratureNodes }
+});
+console.log(cct.value.correlatedColorTemperatureKelvin, cct.value.duv); // ≈ 2855.5 K, ≈ 0
+
+const white = illuminantA.value.whiteXyz;
+const reference = calculateCielabFromXyz({ xyz: { x: 0.2, y: 0.18, z: 0.05 }, referenceWhiteXyz: white }).value;
+const sample = calculateCielabFromXyz({ xyz: { x: 0.21, y: 0.18, z: 0.05 }, referenceWhiteXyz: white }).value;
+console.log(calculateColorDifference({ reference, sample, formula: "ciede2000" }).value.deltaE);
+```
+
+### Kelvin + tint white balance
+
+```ts
+import {
+  createColorTemperatureWhiteBalanceIntent,
+  resolveCaptureColorModel,
+  resolveColorTemperatureWhiteBalance
+} from "@photivra/engine";
+
+const tungsten = resolveColorTemperatureWhiteBalance({
+  stateId: "wb-3200k",
+  intent: createColorTemperatureWhiteBalanceIntent({ intentId: "k3200", colorTemperatureKelvin: 3200, tint: 0 }),
+  whiteLocus: "planckian",
+  tintInterpretation: "duv-cie-1960-uv",
+  camera: { profileId: "ideal-colorimetric", profileVersion: "0.1.0", xyzToCameraRgb: resolveCaptureColorModel().xyzToCameraRgb }
+});
+console.log(tungsten.channelGains); // red < 1 < blue for a warm declared white
+```
+
+### Chromatic adaptation, HDR transfer and gamut mapping
+
+```ts
+import {
+  calculateChromaticAdaptationMatrix,
+  calculateGamutMappedColor,
+  evaluatePqInverseEotf,
+  resolveRgbColorSpace
+} from "@photivra/engine";
+
+const bradford = calculateChromaticAdaptationMatrix({
+  transform: "bradford",
+  sourceWhiteXyz: { x: 1.0985, y: 1, z: 0.3558 },
+  destinationWhiteXyz: { x: 0.95047, y: 1, z: 1.08883 }
+}).value.matrix;
+
+const rec2020 = resolveRgbColorSpace("rec2020").value.rgbToXyz;
+const pqCodeFor100Nits = evaluatePqInverseEotf(100); // ≈ 0.5081
+
+const mapped = calculateGamutMappedColor({
+  colorSpace: "srgb",
+  method: "cielab-hue-preserving-chroma-compression",
+  kneeFraction: 0.9,
+  xyz: { x: rec2020[0][1], y: rec2020[1][1], z: rec2020[2][1] } // Rec.2020 green primary
+});
+console.log(bradford, pqCodeFor100Nits, mapped.value.linearRgb);
+```
+
+Scene adaptation inside `calculateCaptureColorTransform()` can opt into a cone-space transform with `whiteBalance: { kind: "adopted-white-xyz-scaling", transform: "bradford" }`. Omitting `transform` keeps the original XYZ-diagonal scaling unchanged.
 
 ## Sensor imaging area and native raster
 

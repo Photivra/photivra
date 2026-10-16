@@ -495,7 +495,7 @@ function requireSiteIndex(
 function requirePositiveImagingArea(
   imagingArea: SensorImagingArea
 ): void {
-  requireInputObject(imagingArea, "imagingArea");
+  requireInputObject(imagingArea, "imagingArea input");
   if (
     !Number.isFinite(imagingArea.widthMm) ||
     imagingArea.widthMm <= 0 ||

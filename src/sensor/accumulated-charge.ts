@@ -701,7 +701,7 @@ function validatePhoto(
   photo:
     SensorEqePhotoExposure
 ): void {
-  requireInputObject(photo, "photo");
+  requireInputObject(photo, "photo input");
   if (photo.kind === "eqe-temporal-photo-signal") parseSensorEqeTemporalPhotoSignal(photo);
   if (
     (photo.kind !== "eqe-expected-counts" && photo.kind !== "eqe-temporal-photo-signal") ||

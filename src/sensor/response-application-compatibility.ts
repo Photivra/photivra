@@ -557,7 +557,7 @@ function validateReductionBoundary(
   reduction:
     SensorSpatioSpectralIrradianceReduction
 ): number {
-  requireInputObject(reduction, "reduction");
+  requireInputObject(reduction, "reduction input");
   if (
     reduction.outputMeaning !==
       "pre-response-spatio-spectral-radiometric-reduction" ||

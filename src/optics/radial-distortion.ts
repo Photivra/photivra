@@ -239,7 +239,7 @@ function derivativeCriticalSquaredRadii(
 export function validateRadialDistortionProfile(
   profile: RadialDistortionProfile
 ): ValidatedRadialProfile {
-  requireInputObject(profile, "profile");
+  requireInputObject(profile, "profile input");
   requirePositiveFinite(
     "profile.normalizationRadiusMm",
     profile.normalizationRadiusMm

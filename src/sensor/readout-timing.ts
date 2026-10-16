@@ -286,7 +286,7 @@ function parseReadoutDeclaration(
 }
 
 function validateNativeRaster(raster: NativeImageRaster): void {
-  requireInputObject(raster, "raster");
+  requireInputObject(raster, "raster input");
   requirePositiveInteger("nativeRaster.pixelWidth", raster.pixelWidth);
   requirePositiveInteger("nativeRaster.pixelHeight", raster.pixelHeight);
 }

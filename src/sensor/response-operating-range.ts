@@ -1034,7 +1034,7 @@ function validateReductionIdentity(
   compatibility:
     SensorResponseApplicationCompatibilityAssessment
 ): void {
-  requireInputObject(reduction, "reduction");
+  requireInputObject(reduction, "reduction input");
   if (
     reduction.responseProfileId !==
       compatibility

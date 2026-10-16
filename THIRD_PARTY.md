@@ -32,6 +32,7 @@ These human reviews are **pending**. This inventory records them; it does not co
 - ReportLab/pypdf offline PDF test-artifact tools: substantive human source review pending.
 - DNG/TIFF and JPEG format references: human provenance/license review required before release.
 - Transitive dependency/SBOM review: required before each release; this inventory does not replace it.
+- Colorimetry published constants (`src/color/`): human source/licence review pending. See [Colorimetry published constants and excluded datasets](#colorimetry-published-constants-and-excluded-datasets).
 
 ## Licence summaries (prepared for owner sign-off)
 
@@ -78,6 +79,27 @@ Prepared on 2026-10-11 from local files only (repository files, `package-lock.js
   - The figures come from declared lockfile metadata, not licence texts.
   - The review must be repeated against each release's exact lockfile.
   - The GitHub Action licences in the table above are not verified locally.
+
+## Colorimetry published constants and excluded datasets
+
+The colorimetry modules in `src/color/` (see [docs/COLORIMETRY.md](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md)) are independently written from published equations. They contain only short factual numeric constants taken from those equations. No third-party source code, table, figure or prose is copied, and no runtime dependency is added.
+
+| Constants | Source | Licence / basis for use |
+| --- | --- | --- |
+| 28 fitted coefficients of the multi-lobe CIE 1931 CMF fit (`color-matching-functions.ts`) | Wyman, Sloan & Shirley (2013), JCGT 2(2), Table 1 | The paper is CC BY-ND 3.0. Only the published model parameters are used, as factual inputs to an independently written equation; no text, figure or code is reproduced. |
+| Daylight-locus polynomial and M₁/M₂ coefficients; illuminant A formula constants; CIELAB, CIE94 and CIEDE2000 formula constants (`illuminants.ts`, `color-difference.ts`) | CIE 15:2018, CIE 116-1995, CIE 142-2001; Sharma, Wu & Dalal (2005) | Coefficients of standardized equations, used as factual constants. |
+| Planckian-locus cubic-spline coefficients (`illuminants.ts`) | Kang et al. (2002), J. Korean Phys. Soc. 41(6); US 7,024,034 | Published equation coefficients. The patent claims an HDTV colour-temperature control system; using the published locus approximation for calculation is not reviewed here as a patent question and needs the human review. |
+| McCamy CCT cubic | McCamy (1992), Color Res. Appl. 17(2) | Published equation coefficients. |
+| Bradford, CAT02, CAT16 and Hunt–Pointer–Estévez matrices (`chromatic-adaptation.ts`) | Lam (1985) / ICC.1:2010 Annex E; Moroney et al. (2002) / CIE 159:2004; Li et al. (2017); CIE 159:2004 | Published 3×3 model constants. |
+| Primaries and white points; PQ, HLG, BT.709 and BT.1886 constants (`rgb-color-spaces.ts`) | IEC 61966-2-1, ITU-R BT.709-6, BT.1886, BT.2020-2, BT.2100-3, SMPTE ST 2084, SMPTE EG 432-1 | Standardized numeric constants; the ITU-R recommendations are freely published. |
+| h, c, k | BIPM SI Brochure (2019) | Exact SI defining constants (facts). |
+
+The following datasets are deliberately **excluded**:
+
+- **CIE tabulated datasets.** This covers the CIE 1931/1964 CMFs, the daylight components S₀/S₁/S₂ and the standard illuminant tables. They were verified on 2026-10-16 from the CIE dataset metadata (for example DOI 10.25039/CIE.DS.xvudnb9b and `CIE_illum_Dxx_comp.csv_metadata_v2.json`), which declare **CC BY-SA 4.0**. ShareAlike would bind adaptations, and this is not compatible with Apache-2.0-only distribution. The API accepts caller-supplied tables instead.
+- **ColorChecker or other chart reflectances.** Their licence is unclear, so they are not included. Reflectances are supplied by the caller.
+
+The tests assert a few individual published values (for example one CMF sample at 479 nm, the column sums from the CIE metadata, 13 CIEDE2000 test pairs, and standard luminance coefficients) as cited facts. They do not reproduce any table.
 
 ## Print contrast numerical model material
 
