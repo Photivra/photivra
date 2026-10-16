@@ -15,7 +15,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 ## createNativeEnvironmentSensorStageTask
 
 Re-runs only the sensor stage from a retained optical stage: no radiance callback is invoked. Use it when only
-post-optics settings change (noise seed, ISO metadata and readout regime/gain, charge/dark/capacity profiles,
+post-optics settings change (noise seed, ISO and its bound readout regime/gain, fixed-pattern noise, charge/dark/capacity profiles,
 white-balance intent, capture identity or tile width); white balance and rendering are then applied by
 createNativeRawDevelopmentTask as usual. RAW codes are bit-identical to a full createNativeEnvironmentRawTask
 with the same final inputs, provided the radiance provider is a deterministic function of its request. Any

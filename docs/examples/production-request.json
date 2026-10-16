@@ -10,11 +10,11 @@
       "scientificStatus": "approximation",
       "bodyProfile": {
         "profileId": "photivra-consumer-body:exposure",
-        "profileVersion": "1.0.0"
+        "profileVersion": "2.0.0"
       },
       "lensProfile": {
         "profileId": "photivra-consumer-prime:exposure",
-        "profileVersion": "1.0.0"
+        "profileVersion": "2.0.0"
       },
       "selectedFocalLengthMm": 50,
       "aperture": {
@@ -81,11 +81,11 @@
         "samples": {
           "value": [
             {
-              "wavelengthNanometers": 540,
+              "wavelengthNanometers": 380,
               "linearTransmissionFactor": 0.75
             },
             {
-              "wavelengthNanometers": 560,
+              "wavelengthNanometers": 780,
               "linearTransmissionFactor": 0.75
             }
           ],
@@ -99,7 +99,7 @@
         },
         "uncertainty": {
           "kind": "not-quantified",
-          "limitation": "Synthetic flat narrow-band reference."
+          "limitation": "Synthetic spectrally flat reference over 380-780 nm."
         }
       },
       "distortionAreaMappingOwnership": "not-applied-by-bridge",
@@ -171,7 +171,7 @@
     },
     "fingerprint": {
       "algorithm": "fnv1a-32-non-cryptographic",
-      "value": "785e09d0"
+      "value": "9b53052e"
     }
   },
   "captureSnapshot": {
@@ -255,8 +255,7 @@
       "frame": {
         "frameId": "raw-frame",
         "capture": {
-          "schemaVersion": "0.2.0",
-          "engineApiVersion": "0.116.0",
+          "engineApiVersion": "1.5.0",
           "captureId": "00000000-0000-4000-8000-000000000001",
           "sceneStateId": "fixture-scene",
           "sceneTimeSeconds": 0,
@@ -383,7 +382,7 @@
             "realizationId": "noise",
             "model": {
               "id": "photivra-native-raw-noise",
-              "version": "0.3.0"
+              "version": "0.4.0"
             }
           },
           "source": {
@@ -406,6 +405,7 @@
               ]
             }
           ],
+          "schemaVersion": "0.2.0",
           "planes": [
             {
               "id": "source",
@@ -1150,11 +1150,11 @@
                   "samples": {
                     "value": [
                       {
-                        "wavelengthNanometers": 540,
+                        "wavelengthNanometers": 380,
                         "linearTransmissionFactor": 0.75
                       },
                       {
-                        "wavelengthNanometers": 560,
+                        "wavelengthNanometers": 780,
                         "linearTransmissionFactor": 0.75
                       }
                     ],
@@ -1168,7 +1168,7 @@
                   },
                   "uncertainty": {
                     "kind": "not-quantified",
-                    "limitation": "Synthetic flat narrow-band reference."
+                    "limitation": "Synthetic spectrally flat reference over 380-780 nm."
                   }
                 },
                 "distortionAreaMappingOwnership": "not-applied-by-bridge",
@@ -1301,10 +1301,10 @@
               "channelId": "red",
               "regimes": [
                 {
-                  "regimeId": "base",
+                  "regimeId": "iso-100",
                   "scientificStatus": "approximation",
                   "systemConversionGainElectronsPerCode": {
-                    "value": 1,
+                    "value": 5.209690023443605,
                     "evidence": [
                       {
                         "sourceOrigin": "photivra",
@@ -1346,10 +1346,24 @@
                     }
                   ],
                   "adc": {
-                    "bitDepth": 16,
-                    "blackLevelCode": 512,
-                    "digitalSaturationCode": 65535,
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
                     "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 100,
+                    "baseExposureIndex": 100,
+                    "analogGain": 1,
+                    "digitalGain": 1,
+                    "conversionGainMode": "low-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
                   },
                   "evidence": [
                     {
@@ -1359,14 +1373,15 @@
                     }
                   ],
                   "limitations": [
-                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
                   ]
                 },
                 {
-                  "regimeId": "high",
+                  "regimeId": "iso-200",
                   "scientificStatus": "approximation",
                   "systemConversionGainElectronsPerCode": {
-                    "value": 0.25,
+                    "value": 2.6048450117218027,
                     "evidence": [
                       {
                         "sourceOrigin": "photivra",
@@ -1376,7 +1391,7 @@
                     ]
                   },
                   "preAdcSaturationElectronEquivalent": {
-                    "value": 12000,
+                    "value": 10000,
                     "evidence": [
                       {
                         "sourceOrigin": "photivra",
@@ -1389,7 +1404,7 @@
                     {
                       "componentId": "electronic",
                       "rmsElectrons": {
-                        "value": 4.5,
+                        "value": 6,
                         "evidence": [
                           {
                             "sourceOrigin": "photivra",
@@ -1408,10 +1423,24 @@
                     }
                   ],
                   "adc": {
-                    "bitDepth": 16,
-                    "blackLevelCode": 512,
-                    "digitalSaturationCode": 65535,
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
                     "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 200,
+                    "baseExposureIndex": 100,
+                    "analogGain": 2,
+                    "digitalGain": 1,
+                    "conversionGainMode": "low-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
                   },
                   "evidence": [
                     {
@@ -1421,7 +1450,394 @@
                     }
                   ],
                   "limitations": [
-                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-400",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 1.3024225058609014,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 5000,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 6,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 400,
+                    "baseExposureIndex": 100,
+                    "analogGain": 4,
+                    "digitalGain": 1,
+                    "conversionGainMode": "low-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-800",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.6512112529304507,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 2500,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 800,
+                    "baseExposureIndex": 100,
+                    "analogGain": 8,
+                    "digitalGain": 1,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-1600",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.32560562646522534,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 1250,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 1600,
+                    "baseExposureIndex": 100,
+                    "analogGain": 16,
+                    "digitalGain": 1,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-3200",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.16280281323261267,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 625,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 3200,
+                    "baseExposureIndex": 100,
+                    "analogGain": 32,
+                    "digitalGain": 1,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-6400",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.16280281323261267,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 625,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up",
+                    "digitalGain": 2
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 6400,
+                    "baseExposureIndex": 100,
+                    "analogGain": 32,
+                    "digitalGain": 2,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
                   ]
                 }
               ],
@@ -1434,7 +1850,7 @@
                 }
               ]
             },
-            "regimeId": "base"
+            "regimeId": "iso-100"
           },
           "charge": {
             "completenessProfile": {
@@ -2076,11 +2492,11 @@
                   "samples": {
                     "value": [
                       {
-                        "wavelengthNanometers": 540,
+                        "wavelengthNanometers": 380,
                         "linearTransmissionFactor": 0.75
                       },
                       {
-                        "wavelengthNanometers": 560,
+                        "wavelengthNanometers": 780,
                         "linearTransmissionFactor": 0.75
                       }
                     ],
@@ -2094,7 +2510,7 @@
                   },
                   "uncertainty": {
                     "kind": "not-quantified",
-                    "limitation": "Synthetic flat narrow-band reference."
+                    "limitation": "Synthetic spectrally flat reference over 380-780 nm."
                   }
                 },
                 "distortionAreaMappingOwnership": "not-applied-by-bridge",
@@ -2227,10 +2643,10 @@
               "channelId": "green",
               "regimes": [
                 {
-                  "regimeId": "base",
+                  "regimeId": "iso-100",
                   "scientificStatus": "approximation",
                   "systemConversionGainElectronsPerCode": {
-                    "value": 1,
+                    "value": 5.209690023443605,
                     "evidence": [
                       {
                         "sourceOrigin": "photivra",
@@ -2272,10 +2688,24 @@
                     }
                   ],
                   "adc": {
-                    "bitDepth": 16,
-                    "blackLevelCode": 512,
-                    "digitalSaturationCode": 65535,
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
                     "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 100,
+                    "baseExposureIndex": 100,
+                    "analogGain": 1,
+                    "digitalGain": 1,
+                    "conversionGainMode": "low-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
                   },
                   "evidence": [
                     {
@@ -2285,14 +2715,15 @@
                     }
                   ],
                   "limitations": [
-                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
                   ]
                 },
                 {
-                  "regimeId": "high",
+                  "regimeId": "iso-200",
                   "scientificStatus": "approximation",
                   "systemConversionGainElectronsPerCode": {
-                    "value": 0.25,
+                    "value": 2.6048450117218027,
                     "evidence": [
                       {
                         "sourceOrigin": "photivra",
@@ -2302,7 +2733,7 @@
                     ]
                   },
                   "preAdcSaturationElectronEquivalent": {
-                    "value": 12000,
+                    "value": 10000,
                     "evidence": [
                       {
                         "sourceOrigin": "photivra",
@@ -2315,7 +2746,7 @@
                     {
                       "componentId": "electronic",
                       "rmsElectrons": {
-                        "value": 4.5,
+                        "value": 6,
                         "evidence": [
                           {
                             "sourceOrigin": "photivra",
@@ -2334,10 +2765,24 @@
                     }
                   ],
                   "adc": {
-                    "bitDepth": 16,
-                    "blackLevelCode": 512,
-                    "digitalSaturationCode": 65535,
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
                     "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 200,
+                    "baseExposureIndex": 100,
+                    "analogGain": 2,
+                    "digitalGain": 1,
+                    "conversionGainMode": "low-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
                   },
                   "evidence": [
                     {
@@ -2347,7 +2792,394 @@
                     }
                   ],
                   "limitations": [
-                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-400",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 1.3024225058609014,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 5000,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 6,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 400,
+                    "baseExposureIndex": 100,
+                    "analogGain": 4,
+                    "digitalGain": 1,
+                    "conversionGainMode": "low-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-800",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.6512112529304507,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 2500,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 800,
+                    "baseExposureIndex": 100,
+                    "analogGain": 8,
+                    "digitalGain": 1,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-1600",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.32560562646522534,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 1250,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 1600,
+                    "baseExposureIndex": 100,
+                    "analogGain": 16,
+                    "digitalGain": 1,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-3200",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.16280281323261267,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 625,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 3200,
+                    "baseExposureIndex": 100,
+                    "analogGain": 32,
+                    "digitalGain": 1,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-6400",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.16280281323261267,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 625,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up",
+                    "digitalGain": 2
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 6400,
+                    "baseExposureIndex": 100,
+                    "analogGain": 32,
+                    "digitalGain": 2,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
                   ]
                 }
               ],
@@ -2360,7 +3192,7 @@
                 }
               ]
             },
-            "regimeId": "base"
+            "regimeId": "iso-100"
           },
           "charge": {
             "completenessProfile": {
@@ -3002,11 +3834,11 @@
                   "samples": {
                     "value": [
                       {
-                        "wavelengthNanometers": 540,
+                        "wavelengthNanometers": 380,
                         "linearTransmissionFactor": 0.75
                       },
                       {
-                        "wavelengthNanometers": 560,
+                        "wavelengthNanometers": 780,
                         "linearTransmissionFactor": 0.75
                       }
                     ],
@@ -3020,7 +3852,7 @@
                   },
                   "uncertainty": {
                     "kind": "not-quantified",
-                    "limitation": "Synthetic flat narrow-band reference."
+                    "limitation": "Synthetic spectrally flat reference over 380-780 nm."
                   }
                 },
                 "distortionAreaMappingOwnership": "not-applied-by-bridge",
@@ -3153,10 +3985,10 @@
               "channelId": "green",
               "regimes": [
                 {
-                  "regimeId": "base",
+                  "regimeId": "iso-100",
                   "scientificStatus": "approximation",
                   "systemConversionGainElectronsPerCode": {
-                    "value": 1,
+                    "value": 5.209690023443605,
                     "evidence": [
                       {
                         "sourceOrigin": "photivra",
@@ -3198,10 +4030,24 @@
                     }
                   ],
                   "adc": {
-                    "bitDepth": 16,
-                    "blackLevelCode": 512,
-                    "digitalSaturationCode": 65535,
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
                     "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 100,
+                    "baseExposureIndex": 100,
+                    "analogGain": 1,
+                    "digitalGain": 1,
+                    "conversionGainMode": "low-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
                   },
                   "evidence": [
                     {
@@ -3211,14 +4057,15 @@
                     }
                   ],
                   "limitations": [
-                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
                   ]
                 },
                 {
-                  "regimeId": "high",
+                  "regimeId": "iso-200",
                   "scientificStatus": "approximation",
                   "systemConversionGainElectronsPerCode": {
-                    "value": 0.25,
+                    "value": 2.6048450117218027,
                     "evidence": [
                       {
                         "sourceOrigin": "photivra",
@@ -3228,7 +4075,7 @@
                     ]
                   },
                   "preAdcSaturationElectronEquivalent": {
-                    "value": 12000,
+                    "value": 10000,
                     "evidence": [
                       {
                         "sourceOrigin": "photivra",
@@ -3241,7 +4088,7 @@
                     {
                       "componentId": "electronic",
                       "rmsElectrons": {
-                        "value": 4.5,
+                        "value": 6,
                         "evidence": [
                           {
                             "sourceOrigin": "photivra",
@@ -3260,10 +4107,24 @@
                     }
                   ],
                   "adc": {
-                    "bitDepth": 16,
-                    "blackLevelCode": 512,
-                    "digitalSaturationCode": 65535,
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
                     "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 200,
+                    "baseExposureIndex": 100,
+                    "analogGain": 2,
+                    "digitalGain": 1,
+                    "conversionGainMode": "low-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
                   },
                   "evidence": [
                     {
@@ -3273,7 +4134,394 @@
                     }
                   ],
                   "limitations": [
-                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-400",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 1.3024225058609014,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 5000,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 6,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 400,
+                    "baseExposureIndex": 100,
+                    "analogGain": 4,
+                    "digitalGain": 1,
+                    "conversionGainMode": "low-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-800",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.6512112529304507,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 2500,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 800,
+                    "baseExposureIndex": 100,
+                    "analogGain": 8,
+                    "digitalGain": 1,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-1600",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.32560562646522534,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 1250,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 1600,
+                    "baseExposureIndex": 100,
+                    "analogGain": 16,
+                    "digitalGain": 1,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-3200",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.16280281323261267,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 625,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 3200,
+                    "baseExposureIndex": 100,
+                    "analogGain": 32,
+                    "digitalGain": 1,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-6400",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.16280281323261267,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 625,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up",
+                    "digitalGain": 2
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 6400,
+                    "baseExposureIndex": 100,
+                    "analogGain": 32,
+                    "digitalGain": 2,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
                   ]
                 }
               ],
@@ -3286,7 +4534,7 @@
                 }
               ]
             },
-            "regimeId": "base"
+            "regimeId": "iso-100"
           },
           "charge": {
             "completenessProfile": {
@@ -3928,11 +5176,11 @@
                   "samples": {
                     "value": [
                       {
-                        "wavelengthNanometers": 540,
+                        "wavelengthNanometers": 380,
                         "linearTransmissionFactor": 0.75
                       },
                       {
-                        "wavelengthNanometers": 560,
+                        "wavelengthNanometers": 780,
                         "linearTransmissionFactor": 0.75
                       }
                     ],
@@ -3946,7 +5194,7 @@
                   },
                   "uncertainty": {
                     "kind": "not-quantified",
-                    "limitation": "Synthetic flat narrow-band reference."
+                    "limitation": "Synthetic spectrally flat reference over 380-780 nm."
                   }
                 },
                 "distortionAreaMappingOwnership": "not-applied-by-bridge",
@@ -4079,10 +5327,10 @@
               "channelId": "blue",
               "regimes": [
                 {
-                  "regimeId": "base",
+                  "regimeId": "iso-100",
                   "scientificStatus": "approximation",
                   "systemConversionGainElectronsPerCode": {
-                    "value": 1,
+                    "value": 5.209690023443605,
                     "evidence": [
                       {
                         "sourceOrigin": "photivra",
@@ -4124,10 +5372,24 @@
                     }
                   ],
                   "adc": {
-                    "bitDepth": 16,
-                    "blackLevelCode": 512,
-                    "digitalSaturationCode": 65535,
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
                     "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 100,
+                    "baseExposureIndex": 100,
+                    "analogGain": 1,
+                    "digitalGain": 1,
+                    "conversionGainMode": "low-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
                   },
                   "evidence": [
                     {
@@ -4137,14 +5399,15 @@
                     }
                   ],
                   "limitations": [
-                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
                   ]
                 },
                 {
-                  "regimeId": "high",
+                  "regimeId": "iso-200",
                   "scientificStatus": "approximation",
                   "systemConversionGainElectronsPerCode": {
-                    "value": 0.25,
+                    "value": 2.6048450117218027,
                     "evidence": [
                       {
                         "sourceOrigin": "photivra",
@@ -4154,7 +5417,7 @@
                     ]
                   },
                   "preAdcSaturationElectronEquivalent": {
-                    "value": 12000,
+                    "value": 10000,
                     "evidence": [
                       {
                         "sourceOrigin": "photivra",
@@ -4167,7 +5430,7 @@
                     {
                       "componentId": "electronic",
                       "rmsElectrons": {
-                        "value": 4.5,
+                        "value": 6,
                         "evidence": [
                           {
                             "sourceOrigin": "photivra",
@@ -4186,10 +5449,24 @@
                     }
                   ],
                   "adc": {
-                    "bitDepth": 16,
-                    "blackLevelCode": 512,
-                    "digitalSaturationCode": 65535,
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
                     "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 200,
+                    "baseExposureIndex": 100,
+                    "analogGain": 2,
+                    "digitalGain": 1,
+                    "conversionGainMode": "low-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
                   },
                   "evidence": [
                     {
@@ -4199,7 +5476,394 @@
                     }
                   ],
                   "limitations": [
-                    "Synthetic educational design values; no named camera/lens calibration or population ranking."
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-400",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 1.3024225058609014,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 5000,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 6,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 400,
+                    "baseExposureIndex": 100,
+                    "analogGain": 4,
+                    "digitalGain": 1,
+                    "conversionGainMode": "low-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-800",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.6512112529304507,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 2500,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 800,
+                    "baseExposureIndex": 100,
+                    "analogGain": 8,
+                    "digitalGain": 1,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-1600",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.32560562646522534,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 1250,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 1600,
+                    "baseExposureIndex": 100,
+                    "analogGain": 16,
+                    "digitalGain": 1,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-3200",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.16280281323261267,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 625,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up"
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 3200,
+                    "baseExposureIndex": 100,
+                    "analogGain": 32,
+                    "digitalGain": 1,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
+                  ]
+                },
+                {
+                  "regimeId": "iso-6400",
+                  "scientificStatus": "approximation",
+                  "systemConversionGainElectronsPerCode": {
+                    "value": 0.16280281323261267,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "preAdcSaturationElectronEquivalent": {
+                    "value": 625,
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "readNoiseComponents": [
+                    {
+                      "componentId": "electronic",
+                      "rmsElectrons": {
+                        "value": 2.5,
+                        "evidence": [
+                          {
+                            "sourceOrigin": "photivra",
+                            "sourceReference": "photivra:generic-tier-assets-v1",
+                            "reuseStatus": "photivra-owned"
+                          }
+                        ]
+                      },
+                      "evidence": [
+                        {
+                          "sourceOrigin": "photivra",
+                          "sourceReference": "photivra:generic-tier-assets-v1",
+                          "reuseStatus": "photivra-owned"
+                        }
+                      ]
+                    }
+                  ],
+                  "adc": {
+                    "bitDepth": 12,
+                    "blackLevelCode": 256,
+                    "digitalSaturationCode": 4095,
+                    "transfer": "uniform-round-half-up",
+                    "digitalGain": 2
+                  },
+                  "exposureIndexGain": {
+                    "exposureIndex": 6400,
+                    "baseExposureIndex": 100,
+                    "analogGain": 32,
+                    "digitalGain": 2,
+                    "conversionGainMode": "high-conversion-gain",
+                    "evidence": [
+                      {
+                        "sourceOrigin": "photivra",
+                        "sourceReference": "photivra:generic-tier-assets-v1",
+                        "reuseStatus": "photivra-owned"
+                      }
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "sourceOrigin": "photivra",
+                      "sourceReference": "photivra:generic-tier-assets-v1",
+                      "reuseStatus": "photivra-owned"
+                    }
+                  ],
+                  "limitations": [
+                    "Synthetic educational design values; no named camera/lens calibration or population ranking.",
+                    "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."
                   ]
                 }
               ],
@@ -4212,7 +5876,7 @@
                 }
               ]
             },
-            "regimeId": "base"
+            "regimeId": "iso-100"
           },
           "charge": {
             "completenessProfile": {

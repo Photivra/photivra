@@ -44,14 +44,14 @@ export interface TierAcceptanceReport {
 }
 
 const base = loadBasicReferenceFixture();
-const catalog = resolveGenericEquipmentTierCatalog({presetVersion:"1.0.0"});
+const catalog = resolveGenericEquipmentTierCatalog({presetVersion:"2.0.0"});
 export const TIER_REPORT_VERSION = "1.0.0";
 export const TIER_REPORT_SCENE_ID = "photivra:tier-matched-reference-v1";
 const channels=["red","green","blue"] as const;
 const raster={width:9,height:9,centerMm:{x:0,y:0},pitchMm:3};
 export function tierProfiles(tier:GenericEquipmentTier):ReturnType<typeof resolveGenericEquipmentTierLensProfiles>{
-  return resolveGenericEquipmentTierLensProfiles({selection:createGenericEquipmentTierSelection({presetVersion:"1.0.0",bodyTier:tier}),
-    state:{bodyId:`photivra-${tier}-body`,bodyVersion:"1.0.0",lensId:`photivra-${tier}-prime`,lensVersion:"1.0.0",
+  return resolveGenericEquipmentTierLensProfiles({selection:createGenericEquipmentTierSelection({presetVersion:"2.0.0",bodyTier:tier}),
+    state:{bodyId:`photivra-${tier}-body`,bodyVersion:"2.0.0",lensId:`photivra-${tier}-prime`,lensVersion:"2.0.0",
       focalLengthMm:base.lens.focalLengthMm,aperture:base.lens.aperture,focusDistanceM:base.focus.distanceM,
       captureMode:"still",frameRateHz:0,stabilizationMode:"off",outputWidth:9,outputHeight:9}});
 }
@@ -186,7 +186,7 @@ export function createTierAcceptanceReport():TierAcceptanceReport{
           dataReadoutSeconds:flash.timing.readoutTiming.captureReadoutDurationSeconds,wholeFrameOpenInterval:flash.front.wholeActiveFrameOpenInterval}}};
   });
   return {reportVersion:TIER_REPORT_VERSION,sceneId:TIER_REPORT_SCENE_ID,scientificStatus:"approximation" as const,
-    presetVersion:"1.0.0",catalogSha256:createHash("sha256").update(JSON.stringify(catalog)).digest("hex"),
+    presetVersion:"2.0.0",catalogSha256:createHash("sha256").update(JSON.stringify(catalog)).digest("hex"),
     baseFixtureId:base.fixtureId,seedUint32:base.stochasticSeedUint32,matchedOptics:{focalLengthMm:base.lens.focalLengthMm,aperture:base.lens.aperture,focusDistanceM:base.focus.distanceM,wavelengthNm:550},
     sensorGeometry:base.sensor.imagingArea,sampledCorrectionRaster:raster,
     limitations:["Owned synthetic regression evidence, not measured calibration or universal tier rank.",

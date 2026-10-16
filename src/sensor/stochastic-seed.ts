@@ -68,3 +68,77 @@ export function deriveNativeSiteStreamSeedUint32(
   h = mixBlock(h, streamId);
   return fmix32(h ^ 12);
 }
+
+/** One deterministic stream of uniforms strictly inside (0,1). */
+export interface DeterministicUniformStream {
+  next(): number;
+}
+
+/**
+ * Create the deterministic non-cryptographic xorshift32 stream for one charge, read-noise or
+ * fixed-pattern identity. The seed is first scrambled by the MurmurHash3 `fmix32` avalanche
+ * finalizer: xorshift32 is linear over GF(2), so an unmixed (affine) seed would give nearby seeds
+ * nearly identical first draws and spatially correlated, variance-deficient noise (issue #270). The
+ * nonzero fallback avoids the absorbing zero state. Adding 0.5 before division produces values
+ * strictly inside (0,1), so logarithmic Poisson/normal transforms never receive a zero or one
+ * endpoint. Changing these mechanics changes realized RAW and requires model/replay review.
+ */
+export function createDeterministicUniformStream(seedUint32: number): DeterministicUniformStream {
+  let state = fmix32((seedUint32 ^ 0x9e3779b9) >>> 0);
+  if (state === 0) {
+    state = 0x6d2b79f5;
+  }
+  return {
+    next(): number {
+      state ^= state << 13;
+      state ^= state >>> 17;
+      state ^= state << 5;
+      state >>>= 0;
+      return (state + 0.5) / 0x1_0000_0000;
+    }
+  };
+}
+
+/**
+ * Box–Muller transform of two open-interval uniforms (Box & Muller 1958). Each call consumes two
+ * values and returns one signed unit-normal sample; no cached partner changes the seed schedule.
+ */
+export function sampleDeterministicStandardNormal(random: DeterministicUniformStream): number {
+  const u1 = random.next();
+  const u2 = random.next();
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+
+/**
+ * Fixed-pattern stream identifiers. They seed per-sensor-instance spatial patterns, never per-capture
+ * temporal noise, and are hashed with the sensor-instance seed rather than the capture seed.
+ */
+export const SENSOR_FIXED_PATTERN_PRNU_STREAM_ID = 16 as const;
+export const SENSOR_FIXED_PATTERN_DSNU_STREAM_ID = 17 as const;
+export const SENSOR_FIXED_PATTERN_HOT_PIXEL_STREAM_ID = 18 as const;
+export const SENSOR_FIXED_PATTERN_ROW_STREAM_ID = 19 as const;
+export const SENSOR_FIXED_PATTERN_COLUMN_STREAM_ID = 20 as const;
+
+/**
+ * Return the uint32 seed of one fixed-pattern stream for one physical colour-sampling site.
+ * MurmurHash3_x86_32 (hash seed 0) of the 16-byte little-endian message
+ * `[sensorInstanceSeed, siteX, siteY, streamId]`. Site coordinates are absolute colour-sampling
+ * lattice indices, so a pattern belongs to the sensor instance and is unchanged by crop, tiling or
+ * the per-capture seed. Deterministic and non-cryptographic.
+ */
+export function deriveSensorFixedPatternSeedUint32(
+  sensorInstanceSeedUint32: number,
+  siteX: number,
+  siteY: number,
+  streamId: number
+): number {
+  if (!isUint32(sensorInstanceSeedUint32) || !isUint32(siteX) || !isUint32(siteY) || !isUint32(streamId)) {
+    throw new RangeError("Fixed-pattern seed inputs must be uint32 integers.");
+  }
+  let h = 0;
+  h = mixBlock(h, sensorInstanceSeedUint32);
+  h = mixBlock(h, siteX);
+  h = mixBlock(h, siteY);
+  h = mixBlock(h, streamId);
+  return fmix32(h ^ 16);
+}

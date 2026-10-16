@@ -700,6 +700,18 @@ export function resolveGenericIsoSignalChain(
       regimeId:
         regime.regimeId
     });
+  const gain =
+    readout.regime
+      .exposureIndexGain;
+  if (
+    gain !== undefined &&
+    gain.exposureIndex !==
+      iso.reportedExposureIndex
+  ) {
+    throw new InvalidScientificInputError(
+      "The bound readout regime declares an ISO-gain derivation for a different exposure index."
+    );
+  }
 
   return {
     profileId:

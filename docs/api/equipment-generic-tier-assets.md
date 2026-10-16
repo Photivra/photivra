@@ -18,7 +18,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface GenericEquipmentTierPreset {
   tier: GenericEquipmentTier;
   label: "Consumer" | "Prosumer" | "Professional";
-  presetId: string; presetVersion: "1.0.0";
+  presetId: string; presetVersion: "2.0.0";
   scientificStatus: "approximation";
   evidence: readonly EvidenceProvenance[];
   body: GenericTierBodyAssets;
@@ -37,7 +37,12 @@ export interface GenericTierBodyAssets {
   iso: IsoCapabilityProfile;
   signalChain: GenericIsoSignalChainProfile;
   readout: readonly GenericVersionedAsset<SensorReadoutConversionProfile>[];
+  /** Global (no spatial skew) data readout; the default timing asset. */
   readoutTiming: GenericVersionedAsset<SensorReadoutTimingDeclaration>;
+  /** Opt-in rolling readout variant with explicit top-to-bottom spatial skew. */
+  rollingReadoutTiming: GenericVersionedAsset<SensorReadoutTimingDeclaration>;
+  /** Opt-in synthetic fixed-pattern noise for this body; never applied unless a caller attaches it. */
+  fixedPatternNoise: GenericVersionedAsset<SensorFixedPatternNoiseProfile>;
   release: GenericReleaseCapabilityProfile;
   focus: FocusControlProfile;
   stabilization: StabilizationSystemProfile;

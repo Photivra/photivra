@@ -145,6 +145,20 @@ SENSOR_READOUT_CONVERSION_PROFILE_SCHEMA_VERSION =
   "0.1.0" as const
 ```
 
+## SensorAdcIntegralNonLinearity
+
+Optional ADC integral non-linearity: a piecewise-linear offset in code units (LSB) as a function
+of the ideal continuous ADC input code, added before quantization. Knots must start at code 0 and
+end at the ADC maximum code. Omission is an ideal uniform ADC.
+
+```ts
+export interface SensorAdcIntegralNonLinearity {
+  kind: "piecewise-linear-code-offset";
+  knots: readonly { code: number; offsetCodes: number }[];
+  evidence: readonly EvidenceProvenance[];
+}
+```
+
 ## SensorAdditionalChargeSamplingModel
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -187,6 +201,17 @@ export interface SensorChargeRealization {
   photoRealizedElectronCount: number;
   darkExpectedElectronCount: number;
   darkRealizedElectronCount: number;
+  /** Fixed-pattern profile applied to this realization, or null for the uniform population model. */
+  fixedPatternNoiseProfileId:
+    string | null;
+  /** PRNU gain applied to the photo expectation (exactly 1 without a fixed pattern). */
+  photoResponseGainFactor: number;
+  /** DSNU/hot-pixel factor applied to the dark expectation (exactly 1 without a fixed pattern). */
+  darkCurrentFactor: number;
+  hotPixel: boolean;
+  /** Poisson means actually sampled: expectation × the site's fixed-pattern factor. */
+  photoSampledMeanElectronCount: number;
+  darkSampledMeanElectronCount: number;
   additionalComponents:
     readonly {
       componentId: string;
@@ -280,7 +305,14 @@ export interface SensorExpectedReadoutSignal {
   expectedCodeBeforeBlackOffset:
     number;
   blackLevelCode: number;
+  /** Continuous ADC input code including any declared INL offset. */
   expectedCodeBeforeQuantization:
+    number;
+  adcIntegralNonLinearityOffsetCodes:
+    number;
+  digitalGain: number;
+  /** Continuous code after post-ADC digital gain about black (equals the ADC input without one). */
+  expectedCodeAfterDigitalGain:
     number;
   adcBitDepth: number;
   adcMaximumCode: number;
@@ -337,6 +369,12 @@ export interface SensorRawCodeSample {
     }[];
   totalElectronicReadNoiseElectrons:
     number;
+  /** Fixed-pattern profile applied at readout, or null. */
+  fixedPatternNoiseProfileId:
+    string | null;
+  /** Static fixed-pattern row + column offset in input-referred electrons (0 without a pattern). */
+  fixedPatternReadoutOffsetElectrons:
+    number;
   electronEquivalentAfterReadNoise:
     number;
   preAdcSaturationElectronEquivalent:
@@ -349,8 +387,17 @@ export interface SensorRawCodeSample {
   systemConversionGainElectronsPerCode:
     number;
   blackLevelCode: number;
+  /** Continuous ADC input code including any declared integral non-linearity offset. */
   codeBeforeQuantization:
     number;
+  /** INL offset added before quantization (0 for an ideal ADC). */
+  adcIntegralNonLinearityOffsetCodes:
+    number;
+  /** ADC output after quantization and the ADC code-range limit, before digital gain. */
+  adcCodeBeforeDigitalGain:
+    number;
+  /** Post-ADC digital gain (1 when the regime declares none). */
+  digitalGain: number;
   quantizedCodeBeforeDigitalClamp:
     number;
   adcBitDepth: number;
@@ -420,10 +467,42 @@ export interface SensorReadoutConversionRegime {
     digitalSaturationCode: number;
     transfer:
       "uniform-round-half-up";
+    /**
+     * Optional post-ADC digital gain (>= 1) applied about the black level:
+     * code = roundHalfUp((adcCode - black) * digitalGain + black). Omission means 1.
+     */
+    digitalGain?: number;
+    integralNonLinearity?:
+      SensorAdcIntegralNonLinearity;
   };
+  exposureIndexGain?:
+    SensorReadoutExposureIndexGain;
   evidence:
     readonly EvidenceProvenance[];
   limitations: readonly string[];
+}
+```
+
+## SensorReadoutExposureIndexGain
+
+Optional descriptive ISO-gain derivation of one regime (ISO 12232 exposure index relative to the
+base exposure index). The numbers that enter the readout equations remain
+systemConversionGainElectronsPerCode (analog, pre-ADC) and adc.digitalGain (post-ADC); this
+record must agree with them and never replaces them.
+
+```ts
+export interface SensorReadoutExposureIndexGain {
+  exposureIndex: number;
+  baseExposureIndex: number;
+  /** Analog (pre-ADC) gain relative to the base-exposure-index regime. */
+  analogGain: number;
+  /** Post-ADC digital gain; equals adc.digitalGain (1 when omitted). */
+  digitalGain: number;
+  conversionGainMode:
+    | "single-conversion-gain"
+    | "low-conversion-gain"
+    | "high-conversion-gain";
+  evidence: readonly EvidenceProvenance[];
 }
 ```
 
@@ -458,6 +537,12 @@ export interface SimulateSensorChargeRealizationInput {
   samplingProfile:
     SensorChargeSamplingProfile;
   seedUint32: number;
+  /**
+   * Optional per-sensor-instance fixed pattern. PRNU scales the photo Poisson mean and DSNU/hot
+   * pixels scale the dark Poisson mean. Omission is exactly the uniform population model.
+   */
+  fixedPatternNoise?:
+    SensorFixedPatternNoiseProfile;
 }
 ```
 
@@ -495,5 +580,11 @@ export interface SimulateSensorRawCodeInput {
     SensorReadoutConversionProfile;
   regimeId: string;
   readNoiseSeedUint32: number;
+  /**
+   * Optional fixed pattern; must be the same profile used for the charge realization. Its static
+   * row/column offsets are added with read noise before the pre-ADC threshold.
+   */
+  fixedPatternNoise?:
+    SensorFixedPatternNoiseProfile;
 }
 ```

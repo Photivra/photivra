@@ -236,12 +236,12 @@ describe("reference-scene sensor RAW to processed output conformance", () => {
       expect(r.sites.some(s => s.readout.value.preAdcSaturationApplied && s.readout.value.digitalSaturationApplied)).toBe(true);
       for (const s of r.sites) {
         const n = s.readout.value;
-        expect(s.readout.provenance.modelVersion).toBe("3.0.0");
+        expect(s.readout.provenance.modelVersion).toBe("4.0.0");
         expect(n.realizedStoredElectronEquivalentCountBeforePhysicalCapacity).toBe(0);
         expect(n.physicalScalarSaturationApplied).toBe(false);
         expect(n.electronEquivalentAfterReadNoise).toBe(n.totalElectronicReadNoiseElectrons);
         expect(n.electronEquivalentAfterPreAdcSaturation).toBe(Math.min(n.totalElectronicReadNoiseElectrons, 1000));
-        const unclamped = Math.floor(Math.min(n.totalElectronicReadNoiseElectrons, 1000) / .5 + blackLevelCode + .5);
+        const unclamped = Math.round(Math.min(n.totalElectronicReadNoiseElectrons, 1000) / .5 + blackLevelCode);
         expect(n.rawCode).toBe(Math.min(1023, Math.max(0, unclamped)));
         expect(n.lowerCodeClampApplied).toBe(unclamped < 0);
         expect(n.digitalSaturationApplied).toBe(unclamped >= 1023);
@@ -252,5 +252,7 @@ describe("reference-scene sensor RAW to processed output conformance", () => {
       noise: { ...v.frame.capture.noise, model: { id: "photivra-native-raw-noise", version: "0.1.0" } } } } })).toThrow();
     expect(() => parseSensorRawProducerInput({ ...v, frame: { ...v.frame, capture: { ...v.frame.capture,
       noise: { ...v.frame.capture.noise, model: { id: "photivra-native-raw-noise", version: "0.2.0" } } } } })).toThrow();
+    expect(() => parseSensorRawProducerInput({ ...v, frame: { ...v.frame, capture: { ...v.frame.capture,
+      noise: { ...v.frame.capture.noise, model: { id: "photivra-native-raw-noise", version: "0.3.0" } } } } })).toThrow();
   });
 });
