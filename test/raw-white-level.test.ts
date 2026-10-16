@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from "vitest";
 import { createNativeRawTask, simulateSensorRawFrame, createSensorRawFrame, type NativeRawTile } from "../src/index.js";
-import { calculateEffectiveSaturationCode, createPhaseWhiteLevelAccumulator, nativeCfaPhaseIndex } from "../src/capture/raw-white-level.js";
+import { calculateEffectiveSaturationCode, calculateSiteEffectiveSaturationCode, createPhaseWhiteLevelAccumulator, nativeCfaPhaseIndex } from "../src/capture/raw-white-level.js";
 import { calculateNativeRawSite } from "../src/capture/sensor-raw-producer.js";
 import { nativeRawFixture } from "./helpers/native-raw-fixture.js";
 import { loadSensorRawFrameInput } from "./helpers/sensor-raw-frame-fixture.js";
@@ -36,6 +36,23 @@ describe("effective RAW white level", () => {
       expect(r.physicalScalarSaturationApplied).toBe(true); expect(calculateEffectiveSaturationCode(r)).toBe(69);
       expect(Math.abs(r.rawCode-calculateEffectiveSaturationCode(r))).toBeLessThanOrEqual(Math.ceil(6*r.electronicReadNoiseComponents[0]!.rmsElectrons));
     }
+  });
+  it("matches a saturated noiseless site exactly through INL and post-ADC digital gain (per-ISO regimes)", () => {
+    const f = nativeRawFixture(2, 2);
+    for (const i of [1, 2, 3]) {
+      const site = f.site(i%2, Math.floor(i/2));
+      site.capacityProfile = { ...site.capacityProfile, capacityElectrons: 5 };
+      const regimes = site.readoutProfile.regimes.map((r) => ({ ...r, readNoiseComponents: r.readNoiseComponents.map((c) => ({ ...c, rmsElectrons: { ...c.rmsElectrons, value: 0 } })),
+        adc: { ...r.adc, digitalGain: 2, integralNonLinearity: { kind: "piecewise-linear-code-offset" as const,
+          knots: [{ code: 0, offsetCodes: 0 }, { code: 1023, offsetCodes: 60 }], evidence: r.evidence } } }));
+      site.readoutProfile = { ...site.readoutProfile, regimes };
+      const r = calculateNativeRawSite(site, 1, i).readout.value;
+      expect(r.physicalScalarSaturationApplied).toBe(true);
+      const white = calculateSiteEffectiveSaturationCode(r, site.readoutProfile, site.regimeId);
+      expect(white).toBe(r.rawCode); expect(white).toBe(Math.round((Math.round(69+60*69/1023)-64)*2+64));
+      expect(white).not.toBe(calculateEffectiveSaturationCode(r));
+    }
+    expect(() => calculateSiteEffectiveSaturationCode(readout, { regimes: [] }, "base")).toThrow("selected readout regime");
   });
   it("is retained once per CFA phase by packed native RAW and per sample by the bounded frame", async () => {
     const f = nativeRawFixture(4, 2), task = createNativeRawTask(f.input, f.provider); await task.run();

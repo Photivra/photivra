@@ -609,9 +609,27 @@ export {
   type SensorRawCodeSample,
   type SensorReadoutConversionProfile,
   type SensorReadoutConversionRegime,
+  type SensorAdcIntegralNonLinearity,
+  type SensorReadoutExposureIndexGain,
   type SimulateSensorChargeRealizationInput,
   type SimulateSensorRawCodeInput
 } from "./sensor/raw-readout.js";
+
+export {
+  createIsoGainReadoutRegimes,
+  type CreateIsoGainReadoutRegimesInput,
+  type IsoGainConversionGainMode,
+  type IsoGainReadoutRegimes
+} from "./sensor/iso-gain.js";
+
+export {
+  SENSOR_FIXED_PATTERN_NOISE_MODEL,
+  SENSOR_FIXED_PATTERN_NOISE_PROFILE_SCHEMA_VERSION,
+  calculateSensorFixedPatternSite,
+  parseSensorFixedPatternNoiseProfile,
+  type SensorFixedPatternNoiseProfile,
+  type SensorFixedPatternSiteValues
+} from "./sensor/fixed-pattern-noise.js";
 
 export {
   SENSOR_RAW_CAPTURE_SAMPLE_VERSION,

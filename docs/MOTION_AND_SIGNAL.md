@@ -240,7 +240,83 @@ The root package also exports low-level deterministic sensor primitives:
 
 These functions do **not** derive incident photon counts from scene imagery.
 
-They do not currently model dark current, fixed-pattern noise, PRNU/DSNU, ADC quantization, clipping/full-well behavior, CFA/demosaic, downstream denoising, or a particular commercial sensor.
+These two scalar primitives do not model dark current, fixed-pattern noise, PRNU/DSNU, ADC quantization, clipping/full-well behavior, CFA/demosaic, downstream denoising, or a particular commercial sensor. The per-site RAW readout chain below does model dark current, opt-in fixed-pattern noise, ADC quantization and saturation; it still does not model blooming or a particular commercial sensor.
+
+## ISO gain, fixed-pattern noise and dark-current temperature (2.0.0)
+
+### ISO maps to analog and digital gain
+
+ISO is still never an equation inside the readout: an ISO signal chain (`resolveGenericIsoSignalChain`) binds each
+exposure-index setting to an explicitly declared readout regime. `createIsoGainReadoutRegimes()` derives one regime per
+setting from declared parameters, using the linear camera model of EMVA Standard 1288 Release 4.0 (system gain K in
+DN/e⁻; here stored as its reciprocal, electrons per code) and the exposure index of ISO 12232:2019:
+
+| Quantity | Equation |
+|---|---|
+| exposure-index ratio | R = S / S₀ (S₀ = base exposure index) |
+| analog gain | a = min(R, A_max) |
+| post-ADC digital gain | d = R / a (1 inside the analog range) |
+| electrons per code | g(S) = Q₀ / (span · a), span = digitalSaturationCode − blackLevelCode |
+| pre-ADC threshold | Q_preADC(S) = Q₀ / a |
+| electrons reaching digital white | Q₀ · S₀ / S |
+
+Every ISO 12232 speed definition places its reference exposure at H ∝ 1/S (saturation-based S_sat = 78/H_sat; standard
+output sensitivity S_SOS = 10/H_SOS). Under this model an exposure that is correct for S therefore produces the same
+black-subtracted fraction of the white level at every S, and at a fixed exposure the RAW code doubles per stop until it
+clips. `test/iso-brightness.test.ts` (the review repro `r4-iso-white.mjs`) checks, for every generic tier and ISO, that a
+metered mid-grey exposure (H_m/H_sat = 10/78) normalizes to 10/78 within 1e-9 in the expectation and within 6σ shot noise
+plus quantization in noise-free quantized codes, that a clipped site normalizes to 1, and that brightness is monotonic.
+
+Read noise in electrons is declared per conversion-gain mode, never derived from S. A dual-conversion-gain sensor is
+represented by a low-conversion-gain mode at low S and a high-conversion-gain mode, with lower input-referred read noise
+and an optional storage limit, from a declared switch exposure index. These are explicit preset parameters, not a claim
+about any camera.
+
+The readout chain is: realized charge → physical clamp → read noise + fixed-pattern row/column offset → pre-ADC threshold →
+code = signal/g + black + INL(code) → round half up (exact ties toward +∞, `Math.round`) → optional digital gain
+d about black, re-quantized → clamp to [0, digitalSaturationCode]. Digital gain leaves missing codes, as on real
+cameras. The noise-free code of a saturated site is therefore
+`min(digitalSaturationCode, round((min(adcMax, round(black + min(capacity, Q_preADC)/g + INL)) − black) · d + black))`;
+it reduces to `min(digitalSaturationCode, round(black + min(capacity, Q_preADC)/g))` when d = 1 and no INL is declared.
+
+`adc.integralNonLinearity` optionally adds a piecewise-linear INL offset in code units (knots from code 0 to the ADC
+maximum) before quantization; EMVA 1288 characterizes the resulting linearity error. Blooming is **not** modeled: each
+native site is computed independently in tile order, so charge spilling into vertical neighbours would need a second
+frame-wide pass over overflow charge from sites in other tiles. That breaks the per-site, tile-independent reference
+architecture and bit-identical chunking, so the scalar physical clamp and its overflow diagnostic remain the model.
+
+### Fixed-pattern noise
+
+`SensorFixedPatternNoiseProfile` (model `photivra-sensor-fixed-pattern` 1.0.0) is an opt-in, per-sensor-instance spatial
+pattern with EMVA 1288 definitions. Values come from MurmurHash3 streams of (sensor-instance seed, absolute colour-sampling
+site x, y, stream), never from the capture seed, so the same sensor shows the same pattern in every capture:
+
+- PRNU: gain g = max(0, 1 + σ_PRNU·z) multiplies the expected photo charge before Poisson sampling;
+- DSNU: factor max(0, 1 + σ_DSNU·z) multiplies the population-mean dark expectation before dark Poisson sampling;
+- hot pixels: a fraction f of sites uses a declared dark-current multiplier instead; because both act on the dark
+  expectation, the excess scales with exposure time and with the dark-current temperature model;
+- row and column offsets: static normal offsets (σ_row, σ_col, input-referred electrons) shared by a whole row or column,
+  added with read noise before the pre-ADC threshold.
+
+The thermal dark-current contract stays a population mean (`spatialDarkCurrentNonuniformityModeled` is unchanged); this
+is a separately attached model. Omitting the profile gives exactly the uniform model. Normal factors are truncated at 0;
+for σ ≤ 0.2 the resulting bias of the mean factor is below 1e-6.
+
+### Dark-current temperature interpolation
+
+Thermally generated dark current rises approximately exponentially with temperature (Arrhenius behaviour, often
+summarized as a doubling temperature of a few kelvin; Janesick, *Photon Transfer*, SPIE 2007; EMVA 1288 Release 4.0
+dark-current temperature dependence). The new `log-linear-temperature-table` model interpolates ln(rate) linearly between
+adjacent declared samples, r = r₀·(r₁/r₀)^α, so each interval follows its own two samples and no global doubling
+temperature is imposed. Rates must be positive and extrapolation still fails closed. With 10 e⁻/s at 20 °C and 100 e⁻/s
+at 40 °C it gives 31.6 e⁻/s at 30 °C, where the legacy `piecewise-linear-temperature-table` gives 55. The legacy kind
+remains accepted for callers whose data are better described linearly.
+
+### Poisson sampling at very large means
+
+Means of 1e9 electrons and above use a continuity-corrected normal approximation, k = max(0, ⌊μ + √μ·z + ½⌋), whose
+skewness error 1/√μ ≤ 3.2e-5 is negligible there; the transformed-rejection sampler (Hörmann 1993) lost precision at
+1e14 (var/mean 1.012). Means below 1e9 keep the previous samplers and draws.
 
 The composed POC intentionally does not expose photon/noise output.
 
@@ -259,3 +335,12 @@ Geometric pixel/sample pitch is not accepted as photon-collection area. An expli
 ## Provenance
 
 The equations in this slice are independently implemented from established projective geometry, exposure relations, and elementary photon/statistical noise models. No third-party source code or calibration dataset is incorporated by these modules.
+
+References for the 2.0.0 readout additions (cited as published methods; no text, tables or data are copied):
+ISO 12232:2019, *Photography — Digital still cameras — Determination of exposure index, ISO speed ratings, standard
+output sensitivity, and recommended exposure index*; EMVA Standard 1288 Release 4.0, *Standard for Characterization of
+Image Sensors and Cameras* (linear model, PRNU, DSNU, linearity, dark current); J. R. Janesick, *Photon Transfer*,
+SPIE Press, 2007; W. Hörmann, "The transformed rejection method for generating Poisson random variables", *Insurance:
+Mathematics and Economics* 12 (1993); G. E. P. Box and M. E. Muller, "A note on the generation of random normal
+deviates", *Ann. Math. Statist.* 29 (1958); N. L. Johnson, A. W. Kemp and S. Kotz, *Univariate Discrete Distributions*,
+3rd ed., Wiley, 2005 (normal approximation to the Poisson distribution).

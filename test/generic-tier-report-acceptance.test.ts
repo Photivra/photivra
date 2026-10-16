@@ -95,7 +95,7 @@ describe("versioned matched tier report acceptance",()=>{
       const left=Math.floor(x),top=Math.floor(y),dx=x-left,dy=y-top,right=dx===0?left:left+1,bottom=dy===0?top:top+1;
       const samples=v.capture.channels.green;
       const interpolated=(1-dy)*((1-dx)*samples[top*9+left]!+dx*samples[top*9+right]!)+dy*((1-dx)*samples[bottom*9+left]!+dx*samples[bottom*9+right]!);
-      const a=resolveGenericEquipmentTierCatalog({presetVersion:"1.0.0"}).find(t=>t.tier===tier)!.lens.matchedReference;
+      const a=resolveGenericEquipmentTierCatalog({presetVersion:"2.0.0"}).find(t=>t.tier===tier)!.lens.matchedReference;
       const destination={x:(i%9-4)*3,y:(4-Math.floor(i/9))*3};
       const gain=(1+a.vignettingR2*(destination.x**2+destination.y**2)/a.normalizationRadiusMm**2)**(-a.correctionGainStrength);
       expect(v.on.channels.green[i]).toBeCloseTo(interpolated*gain,12);

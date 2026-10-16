@@ -21,7 +21,7 @@ import type { RadialDistortionProfile } from "../optics/radial-distortion.js";
 import type { LateralChromaticAberrationProfile } from "../optics/lateral-chromatic-aberration.js";
 import type { IlluminationVignettingProfile } from "../optics/illumination-vignetting.js";
 
-export const GENERIC_EQUIPMENT_TIER_PRESET_VERSION = "1.0.0" as const;
+export const GENERIC_EQUIPMENT_TIER_PRESET_VERSION = "2.0.0" as const;
 export const GENERIC_EQUIPMENT_TIERS = Object.freeze(["consumer", "prosumer", "professional"] as const);
 export interface GenericEquipmentTierProfileReference { profileId: string; profileVersion: string }
 export interface GenericEquipmentTierSelection {
@@ -58,7 +58,8 @@ function bodyReferences(p: GenericEquipmentTierPreset): GenericEquipmentTierProf
   const b = p.body;
   return [b.exposure, b.iso, b.signalChain, b.release, b.focus, b.stabilization, b.whiteBalance, b.meteringCapabilities, b.flashSync]
     .map((profile) => ({ profileId: profile.profileId, profileVersion: profile.profileVersion }))
-    .concat([...b.readout, b.readoutTiming, ...b.metering].map((a) => ({ profileId: a.assetId, profileVersion: a.assetVersion })));
+    .concat([...b.readout, b.readoutTiming, b.rollingReadoutTiming, b.fixedPatternNoise, ...b.metering]
+      .map((a) => ({ profileId: a.assetId, profileVersion: a.assetVersion })));
 }
 /** Match lens tier by default; cross-tier combinations remain normal supported selections. */
 export function createGenericEquipmentTierSelection(input: {
@@ -124,8 +125,8 @@ export function resolveGenericEquipmentTierLensProfiles(input: { selection: Gene
   const transmission = parseSceneToSensorIrradianceProfile({ schemaVersion: "0.1.0", profileId: id+":transmission", profileVersion: version, lensProfileId: id,
     scientificStatus: "approximation", applicability: { focalLengthMm: { minimum: 50, maximum: 50 }, nominalFNumber: { minimum: 4, maximum: 4 },
       focus: { kind: "finite-distance-range", objectDistanceM: { minimum: 5, maximum: 5 } } }, transmission: { kind: "spectral-transmission", scientificStatus: "approximation",
-      wavelengthBasis: "vacuum", samples: { value: [{ wavelengthNanometers: 540, linearTransmissionFactor: a.transmission },
-        { wavelengthNanometers: 560, linearTransmissionFactor: a.transmission }], evidence }, uncertainty: { kind: "not-quantified", limitation: "Synthetic flat narrow-band reference." } },
+      wavelengthBasis: "vacuum", samples: { value: [{ wavelengthNanometers: 380, linearTransmissionFactor: a.transmission },
+        { wavelengthNanometers: 780, linearTransmissionFactor: a.transmission }], evidence }, uncertainty: { kind: "not-quantified", limitation: "Synthetic spectrally flat reference over 380-780 nm." } },
     distortionAreaMappingOwnership: "not-applied-by-bridge", psfRedistributionOwnership: "downstream-normalized-energy-redistribution", sensorOpticalStackIncluded: false,
     strayLightIncluded: false, polarizationModeled: false, wavelengthChangingBehaviorModeled: false, volumetricScatteringModeled: false, evidence, limitations: l.lens.limitations });
   const pupils = [0,1,2].flatMap((field) => [-20,0,20].map((defocus, index) => parseLensComplexPupilProfile({ schemaVersion: "0.1.0",

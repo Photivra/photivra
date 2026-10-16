@@ -31,6 +31,12 @@ export interface CreateSensorRawCaptureSampleInput {
     SensorRawCodeSample;
   contributors:
     ResolvedCaptureModeColorSamplingContributors;
+  /**
+   * The selected readout regime's declared ADC integral non-linearity, when it has one. The code
+   * sample records INL only at its own code; the effective white level needs it at saturation.
+   */
+  adcIntegralNonLinearity?:
+    SensorAdcIntegralNonLinearity;
 }
 ```
 

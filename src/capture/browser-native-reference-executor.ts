@@ -35,7 +35,7 @@ import {
 import type { SensorApertureRay } from "../optics/sensor-aperture-rays.js";
 import type { NativeRawOutput, NativeRawTaskState } from "./native-raw.js";
 import {
-  calculateEffectiveSaturationCode,
+  calculateSiteEffectiveSaturationCode,
   createPhaseWhiteLevelAccumulator
 } from "./raw-white-level.js";
 import type { PreparedBrowserNativeReferenceEventPlan } from "./browser-native-reference-plan.js";
@@ -733,7 +733,11 @@ export function createBrowserNativeReferenceTask(
               (Number(readout.digitalSaturationApplied) << 2);
             white.record(
               entry.nativeIndex,
-              calculateEffectiveSaturationCode(readout)
+              calculateSiteEffectiveSaturationCode(
+                readout,
+                entry.rawSite.readoutProfile,
+                entry.rawSite.regimeId
+              )
             );
           }
 

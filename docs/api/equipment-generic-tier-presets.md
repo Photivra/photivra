@@ -19,7 +19,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
 
 ```ts
-GENERIC_EQUIPMENT_TIER_PRESET_VERSION = "1.0.0" as const
+GENERIC_EQUIPMENT_TIER_PRESET_VERSION = "2.0.0" as const
 ```
 
 ## GENERIC_EQUIPMENT_TIERS

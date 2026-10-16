@@ -21,6 +21,18 @@ function floatHash(samples: readonly number[]): string {
   samples.forEach((v, i) => bytes.writeDoubleLE(v, i * 8));
   return sha(bytes);
 }
+/** JPEG bytes with APP0-APP15 and COM marker segments removed (test-only marker walk up to SOS). */
+function withoutAppSegments(bytes: Uint8Array): Uint8Array {
+  const out: number[] = [bytes[0]!, bytes[1]!];
+  let p = 2;
+  for (;;) {
+    const marker = bytes[p + 1]!, length = (bytes[p + 2]! << 8) | bytes[p + 3]!;
+    if (bytes[p] !== 0xff) throw Error("Invalid JPEG marker");
+    if (marker === 0xda) { out.push(...bytes.subarray(p)); return Uint8Array.from(out); }
+    if (!((marker >= 0xe0 && marker <= 0xef) || marker === 0xfe)) out.push(...bytes.subarray(p, p + 2 + length));
+    p += 2 + length;
+  }
+}
 const inverseTransfer = (code: number): number => {
   const s = code / 255;
   return s <= .04045 ? s / 12.92 : ((s + .055) / 1.055) ** 2.4;
@@ -45,8 +57,12 @@ it.each(PRINT_DETAIL_JPEG_CASES)("measures exact independently decoded public JP
   const m = manifest.cases.find(c => c.name === scenario.name)!, r = reference.cases.find(c => c.name === scenario.name)!;
   const input = printDetailJpegInput(scenario.orientation, scenario.quantizationStep, m.engineCandidate), before = JSON.stringify(input);
   const pair = await createPhotographicExportPair(input), jpeg = readFileSync(new URL(scenario.name + ".jpg", root));
-  expect(pair.jpeg.bytes).toEqual(new Uint8Array(jpeg));
-  expect(sha(jpeg)).toBe(m.jpegSha256); expect(r.jpegSha256).toBe(pair.jpeg.sha256);
+  // The archived 1.1.0 JPEG keeps its independent decoder record. Since export pipeline 0.2.0 the APP1 EXIF/XMP
+  // metadata (SimulationHash, pipeline versions) differs, so the current file must match it in every non-APP segment:
+  // identical quantization/Huffman tables, frame header and entropy-coded image data.
+  expect(withoutAppSegments(pair.jpeg.bytes)).toEqual(withoutAppSegments(new Uint8Array(jpeg)));
+  expect(pair.jpeg.bytes).not.toEqual(new Uint8Array(jpeg));
+  expect(sha(jpeg)).toBe(m.jpegSha256); expect(r.jpegSha256).toBe(m.jpegSha256);
   expect(pair.source.value.rawFrame.samples.map(s => s.rawCode)).toEqual(m.nativeRawCodes);
   expect(pair.source.value.rawFrame.capture.captureId).toBe(m.captureId);
   expect([input.metadata.raw.documentId, input.metadata.raw.instanceId, input.metadata.jpeg.documentId, input.metadata.jpeg.instanceId]).toEqual(m.documentIds);
@@ -99,7 +115,7 @@ it.each(PRINT_DETAIL_JPEG_CASES)("measures exact independently decoded public JP
       contentSha256: floatHash(preLuminance), stage: "post-resampling-linear", processing: { id: "owned-neutral-pre-jpeg-srgb-readback", version: "0.1.0" } }, samples: preSamples },
     after: { print: assessment.print, region: assessment.region, source: assessment.source, samples } }).value;
   const expectedDifference = processingReference.cases.find(c => c.name === scenario.name)!;
-  expect(difference.status).toBe("diagnostic-only"); expect(expectedDifference.jpegSha256).toBe(pair.jpeg.sha256);
+  expect(difference.status).toBe("diagnostic-only"); expect(expectedDifference.jpegSha256).toBe(m.jpegSha256);
   expect(expectedDifference.sampleCount).toBe(samples.length);
   for (const key of ["meanSignedDifferenceRelativeLuminance", "rmsDifferenceRelativeLuminance", "maximumAbsoluteDifferenceRelativeLuminance"] as const) {
     expect(Math.abs(difference.measurement![key] - expectedDifference[key])).toBeLessThan(1e-12);

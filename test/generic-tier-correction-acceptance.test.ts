@@ -10,7 +10,7 @@ import {
 import { loadBasicReferenceFixture } from "./helpers/basic-reference-fixture.js";
 
 const base = loadBasicReferenceFixture();
-const catalog = resolveGenericEquipmentTierCatalog({ presetVersion: "1.0.0" });
+const catalog = resolveGenericEquipmentTierCatalog({ presetVersion: "2.0.0" });
 const channels = ["red", "green", "blue"] as const;
 type Point = { x: number; y: number };
 const radius = Math.hypot(18, 12);
@@ -21,13 +21,13 @@ function setup(tier: GenericEquipmentTier): {
   samples: number[]; render: (enabled: boolean, shift?: number) => CorrectionResult;
 } {
   const asset = catalog.find((p) => p.tier === tier)!;
-  const state = { bodyId: `photivra-${tier}-body`, bodyVersion: "1.0.0",
-    lensId: `photivra-${tier}-prime`, lensVersion: "1.0.0",
+  const state = { bodyId: `photivra-${tier}-body`, bodyVersion: "2.0.0",
+    lensId: `photivra-${tier}-prime`, lensVersion: "2.0.0",
     focalLengthMm: base.lens.focalLengthMm, aperture: base.lens.aperture,
     focusDistanceM: base.focus.distanceM, captureMode: "still" as const,
     outputWidth: 9, outputHeight: 9, frameRateHz: 0, stabilizationMode: "off" };
   const profiles = resolveGenericEquipmentTierLensProfiles({
-    selection: createGenericEquipmentTierSelection({ presetVersion: "1.0.0", bodyTier: tier }), state
+    selection: createGenericEquipmentTierSelection({ presetVersion: "2.0.0", bodyTier: tier }), state
   });
   // Already sampled synthetic slanted step + fixed alternating noise.
   // This is an interpolation target, not a scene radiometry or MTF simulation.

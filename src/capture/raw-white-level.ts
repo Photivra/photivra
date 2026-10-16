@@ -23,6 +23,7 @@
  * @see docs/PHOTOGRAPHIC_EXPORT.md
  */
 import { InvalidConfigurationError } from "../core/configuration-error.js";
+import type { SensorReadoutConversionProfile } from "../sensor/raw-readout.js";
 
 /** Readout fields the white level depends on; a `SensorRawCodeSample` satisfies this shape. */
 export interface EffectiveSaturationReadout {
@@ -65,6 +66,18 @@ export function calculateEffectiveSaturationCode(readout: EffectiveSaturationRea
   const code = Math.min(d, gain === 1 ? adc : Math.round((adc-b)*gain + b));
   if (!(code > b)) throw new InvalidConfigurationError("Effective RAW white level must exceed the black level.");
   return code;
+}
+
+/**
+ * White level of one simulated site: its readout sample (capacity, thresholds, gain, black, ADC maximum,
+ * digital gain) plus the selected regime's declared INL, which the sample records only at its own code.
+ */
+export function calculateSiteEffectiveSaturationCode(readout: EffectiveSaturationReadout,
+  readoutProfile: Pick<SensorReadoutConversionProfile, "regimes">, regimeId: string): number {
+  const regime = readoutProfile.regimes.find((r) => r.regimeId === regimeId);
+  if (!regime) throw new InvalidConfigurationError("Effective RAW white level requires the selected readout regime.");
+  const inl = regime.adc.integralNonLinearity;
+  return calculateEffectiveSaturationCode(inl === undefined ? readout : { ...readout, integralNonLinearity: inl });
 }
 
 /** Index of the absolute native CFA repeat phase of row-major native index `i`. */

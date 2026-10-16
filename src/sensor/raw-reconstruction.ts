@@ -37,6 +37,7 @@ import {
   type SensorColorSamplingProfile
 } from "./color-sampling.js";
 import type {
+  SensorAdcIntegralNonLinearity,
   SensorRawCodeSample
 } from "./raw-readout.js";
 import type {
@@ -55,6 +56,12 @@ export interface CreateSensorRawCaptureSampleInput {
     SensorRawCodeSample;
   contributors:
     ResolvedCaptureModeColorSamplingContributors;
+  /**
+   * The selected readout regime's declared ADC integral non-linearity, when it has one. The code
+   * sample records INL only at its own code; the effective white level needs it at saturation.
+   */
+  adcIntegralNonLinearity?:
+    SensorAdcIntegralNonLinearity;
 }
 
 export interface SensorRawCaptureSample {
@@ -687,7 +694,16 @@ export function createSensorRawCaptureSample(
       ) /
       denominator,
     effectiveSaturationCode:
-      calculateEffectiveSaturationCode(raw),
+      calculateEffectiveSaturationCode(
+        input.adcIntegralNonLinearity ===
+          undefined
+          ? raw
+          : {
+              ...raw,
+              integralNonLinearity:
+                input.adcIntegralNonLinearity
+            }
+      ),
     systemConversionGainElectronsPerCode:
       raw.systemConversionGainElectronsPerCode,
     readNoiseRmsElectrons:

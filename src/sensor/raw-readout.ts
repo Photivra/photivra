@@ -29,7 +29,11 @@ import {
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
-import { fmix32 } from "./stochastic-seed.js";
+import {
+  createDeterministicUniformStream,
+  sampleDeterministicStandardNormal,
+  type DeterministicUniformStream
+} from "./stochastic-seed.js";
 import type {
   SensorPhotoAccumulatedChargeComposition as SensorAccumulatedChargeComposition
 } from "./accumulated-charge.js";
@@ -39,6 +43,12 @@ import type {
 import type {
   SensorSpectralResponseScientificStatus
 } from "./spectral-response.js";
+import {
+  evaluateParsedFixedPatternSite,
+  parseSensorFixedPatternNoiseProfile,
+  type SensorFixedPatternNoiseProfile,
+  type SensorFixedPatternSiteValues
+} from "./fixed-pattern-noise.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -78,6 +88,12 @@ export interface SimulateSensorChargeRealizationInput {
   samplingProfile:
     SensorChargeSamplingProfile;
   seedUint32: number;
+  /**
+   * Optional per-sensor-instance fixed pattern. PRNU scales the photo Poisson mean and DSNU/hot
+   * pixels scale the dark Poisson mean. Omission is exactly the uniform population model.
+   */
+  fixedPatternNoise?:
+    SensorFixedPatternNoiseProfile;
 }
 
 export interface SensorChargeRealization {
@@ -95,6 +111,17 @@ export interface SensorChargeRealization {
   photoRealizedElectronCount: number;
   darkExpectedElectronCount: number;
   darkRealizedElectronCount: number;
+  /** Fixed-pattern profile applied to this realization, or null for the uniform population model. */
+  fixedPatternNoiseProfileId:
+    string | null;
+  /** PRNU gain applied to the photo expectation (exactly 1 without a fixed pattern). */
+  photoResponseGainFactor: number;
+  /** DSNU/hot-pixel factor applied to the dark expectation (exactly 1 without a fixed pattern). */
+  darkCurrentFactor: number;
+  hotPixel: boolean;
+  /** Poisson means actually sampled: expectation × the site's fixed-pattern factor. */
+  photoSampledMeanElectronCount: number;
+  darkSampledMeanElectronCount: number;
   additionalComponents:
     readonly {
       componentId: string;
@@ -120,6 +147,37 @@ export interface SensorChargeRealization {
     "independent-poisson-photo-dark-explicit-additional-policy";
   deterministicSeededRealization:
     true;
+}
+
+/**
+ * Optional ADC integral non-linearity: a piecewise-linear offset in code units (LSB) as a function
+ * of the ideal continuous ADC input code, added before quantization. Knots must start at code 0 and
+ * end at the ADC maximum code. Omission is an ideal uniform ADC.
+ */
+export interface SensorAdcIntegralNonLinearity {
+  kind: "piecewise-linear-code-offset";
+  knots: readonly { code: number; offsetCodes: number }[];
+  evidence: readonly EvidenceProvenance[];
+}
+
+/**
+ * Optional descriptive ISO-gain derivation of one regime (ISO 12232 exposure index relative to the
+ * base exposure index). The numbers that enter the readout equations remain
+ * systemConversionGainElectronsPerCode (analog, pre-ADC) and adc.digitalGain (post-ADC); this
+ * record must agree with them and never replaces them.
+ */
+export interface SensorReadoutExposureIndexGain {
+  exposureIndex: number;
+  baseExposureIndex: number;
+  /** Analog (pre-ADC) gain relative to the base-exposure-index regime. */
+  analogGain: number;
+  /** Post-ADC digital gain; equals adc.digitalGain (1 when omitted). */
+  digitalGain: number;
+  conversionGainMode:
+    | "single-conversion-gain"
+    | "low-conversion-gain"
+    | "high-conversion-gain";
+  evidence: readonly EvidenceProvenance[];
 }
 
 export interface SensorElectronicReadNoiseComponent {
@@ -153,7 +211,16 @@ export interface SensorReadoutConversionRegime {
     digitalSaturationCode: number;
     transfer:
       "uniform-round-half-up";
+    /**
+     * Optional post-ADC digital gain (>= 1) applied about the black level:
+     * code = roundHalfUp((adcCode - black) * digitalGain + black). Omission means 1.
+     */
+    digitalGain?: number;
+    integralNonLinearity?:
+      SensorAdcIntegralNonLinearity;
   };
+  exposureIndexGain?:
+    SensorReadoutExposureIndexGain;
   evidence:
     readonly EvidenceProvenance[];
   limitations: readonly string[];
@@ -227,7 +294,14 @@ export interface SensorExpectedReadoutSignal {
   expectedCodeBeforeBlackOffset:
     number;
   blackLevelCode: number;
+  /** Continuous ADC input code including any declared INL offset. */
   expectedCodeBeforeQuantization:
+    number;
+  adcIntegralNonLinearityOffsetCodes:
+    number;
+  digitalGain: number;
+  /** Continuous code after post-ADC digital gain about black (equals the ADC input without one). */
+  expectedCodeAfterDigitalGain:
     number;
   adcBitDepth: number;
   adcMaximumCode: number;
@@ -253,6 +327,12 @@ export interface SimulateSensorRawCodeInput {
     SensorReadoutConversionProfile;
   regimeId: string;
   readNoiseSeedUint32: number;
+  /**
+   * Optional fixed pattern; must be the same profile used for the charge realization. Its static
+   * row/column offsets are added with read noise before the pre-ADC threshold.
+   */
+  fixedPatternNoise?:
+    SensorFixedPatternNoiseProfile;
 }
 
 export interface SensorRawCodeSample {
@@ -289,6 +369,12 @@ export interface SensorRawCodeSample {
     }[];
   totalElectronicReadNoiseElectrons:
     number;
+  /** Fixed-pattern profile applied at readout, or null. */
+  fixedPatternNoiseProfileId:
+    string | null;
+  /** Static fixed-pattern row + column offset in input-referred electrons (0 without a pattern). */
+  fixedPatternReadoutOffsetElectrons:
+    number;
   electronEquivalentAfterReadNoise:
     number;
   preAdcSaturationElectronEquivalent:
@@ -301,8 +387,17 @@ export interface SensorRawCodeSample {
   systemConversionGainElectronsPerCode:
     number;
   blackLevelCode: number;
+  /** Continuous ADC input code including any declared integral non-linearity offset. */
   codeBeforeQuantization:
     number;
+  /** INL offset added before quantization (0 for an ideal ADC). */
+  adcIntegralNonLinearityOffsetCodes:
+    number;
+  /** ADC output after quantization and the ADC code-range limit, before digital gain. */
+  adcCodeBeforeDigitalGain:
+    number;
+  /** Post-ADC digital gain (1 when the regime declares none). */
+  digitalGain: number;
   quantizedCodeBeforeDigitalClamp:
     number;
   adcBitDepth: number;
@@ -690,6 +785,155 @@ function parseReadNoiseComponent(
   };
 }
 
+function parseIntegralNonLinearity(
+  value: unknown,
+  path: string,
+  adcMaximumCode: number
+): SensorAdcIntegralNonLinearity {
+  const record =
+    requireRecord(value, path);
+  if (
+    record.kind !==
+    "piecewise-linear-code-offset"
+  ) {
+    throw new InvalidConfigurationError(
+      path +
+        '.kind must be "piecewise-linear-code-offset".'
+    );
+  }
+  if (
+    !Array.isArray(record.knots) ||
+    record.knots.length < 2 ||
+    record.knots.length > 4096
+  ) {
+    throw new InvalidConfigurationError(
+      path +
+        ".knots must contain 2 through 4096 knots."
+    );
+  }
+  const knots =
+    record.knots.map(
+      (entry: unknown, index: number) => {
+        const knot =
+          requireRecord(
+            entry,
+            path + ".knots[" + index + "]"
+          );
+        return {
+          code: requireFinite(
+            knot.code,
+            path + ".knots[" + index + "].code"
+          ),
+          offsetCodes: requireFinite(
+            knot.offsetCodes,
+            path + ".knots[" + index + "].offsetCodes"
+          )
+        };
+      }
+    );
+  if (
+    knots[0]!.code !== 0 ||
+    knots[knots.length - 1]!.code !==
+      adcMaximumCode ||
+    knots.some(
+      (knot, index) =>
+        index > 0 &&
+        knot.code <=
+          knots[index - 1]!.code
+    ) ||
+    knots.some(
+      (knot) =>
+        Math.abs(knot.offsetCodes) >
+        adcMaximumCode
+    )
+  ) {
+    throw new InvalidConfigurationError(
+      path +
+        ".knots must strictly increase from code 0 to the ADC maximum code with bounded offsets."
+    );
+  }
+  return {
+    kind:
+      "piecewise-linear-code-offset",
+    knots,
+    evidence:
+      parseEvidenceList(
+        record.evidence,
+        path + ".evidence"
+      )
+  };
+}
+
+function parseExposureIndexGain(
+  value: unknown,
+  path: string,
+  adcDigitalGain: number
+): SensorReadoutExposureIndexGain {
+  const record =
+    requireRecord(value, path);
+  const exposureIndex =
+    requirePositiveFinite(
+      record.exposureIndex,
+      path + ".exposureIndex"
+    );
+  const baseExposureIndex =
+    requirePositiveFinite(
+      record.baseExposureIndex,
+      path + ".baseExposureIndex"
+    );
+  const analogGain =
+    requirePositiveFinite(
+      record.analogGain,
+      path + ".analogGain"
+    );
+  const digitalGain =
+    requirePositiveFinite(
+      record.digitalGain,
+      path + ".digitalGain"
+    );
+  const mode =
+    record.conversionGainMode;
+  if (
+    mode !== "single-conversion-gain" &&
+    mode !== "low-conversion-gain" &&
+    mode !== "high-conversion-gain"
+  ) {
+    throw new InvalidConfigurationError(
+      path +
+        ".conversionGainMode is invalid."
+    );
+  }
+  const ratio =
+    exposureIndex /
+    baseExposureIndex;
+  if (
+    digitalGain !==
+      adcDigitalGain ||
+    Math.abs(
+      analogGain * digitalGain -
+        ratio
+    ) >
+      1e-12 * ratio
+  ) {
+    throw new InvalidConfigurationError(
+      path +
+        " must satisfy analogGain x digitalGain = exposureIndex / baseExposureIndex and digitalGain = adc.digitalGain."
+    );
+  }
+  return {
+    exposureIndex,
+    baseExposureIndex,
+    analogGain,
+    digitalGain,
+    conversionGainMode: mode,
+    evidence:
+      parseEvidenceList(
+        record.evidence,
+        path + ".evidence"
+      )
+  };
+}
+
 function parseRegime(
   value: unknown,
   path: string
@@ -795,6 +1039,47 @@ function parseRegime(
     );
   }
 
+  const digitalGain =
+    adc.digitalGain === undefined
+      ? undefined
+      : requireFinite(
+          adc.digitalGain,
+          path + ".adc.digitalGain"
+        );
+  if (
+    digitalGain !== undefined &&
+    (digitalGain < 1 ||
+      digitalGain > 65536)
+  ) {
+    throw new InvalidConfigurationError(
+      path +
+        ".adc.digitalGain must be from 1 through 65536."
+    );
+  }
+  const integralNonLinearity =
+    adc.integralNonLinearity === undefined
+      ? undefined
+      : parseIntegralNonLinearity(
+          adc.integralNonLinearity,
+          path + ".adc.integralNonLinearity",
+          adcMaximumCode
+        );
+  const systemConversionGainElectronsPerCode =
+    parsePositiveFact(
+      record
+        .systemConversionGainElectronsPerCode,
+      path +
+        ".systemConversionGainElectronsPerCode"
+    );
+  const exposureIndexGain =
+    record.exposureIndexGain === undefined
+      ? undefined
+      : parseExposureIndexGain(
+          record.exposureIndexGain,
+          path + ".exposureIndexGain",
+          digitalGain ?? 1
+        );
+
   return {
     regimeId:
       requireNonEmptyString(
@@ -807,13 +1092,7 @@ function parseRegime(
         path +
           ".scientificStatus"
       ),
-    systemConversionGainElectronsPerCode:
-      parsePositiveFact(
-        record
-          .systemConversionGainElectronsPerCode,
-        path +
-          ".systemConversionGainElectronsPerCode"
-      ),
+    systemConversionGainElectronsPerCode,
     preAdcSaturationElectronEquivalent:
       parsePositiveFact(
         record
@@ -827,8 +1106,17 @@ function parseRegime(
       blackLevelCode,
       digitalSaturationCode,
       transfer:
-        "uniform-round-half-up"
+        "uniform-round-half-up",
+      ...(digitalGain === undefined
+        ? {}
+        : { digitalGain }),
+      ...(integralNonLinearity === undefined
+        ? {}
+        : { integralNonLinearity })
     },
+    ...(exposureIndexGain === undefined
+      ? {}
+      : { exposureIndexGain }),
     evidence:
       parseEvidenceList(
         record.evidence,
@@ -1157,46 +1445,12 @@ function additionalPolicyMap(
   );
 }
 
-interface DeterministicRandom {
-  next(): number;
-}
+type DeterministicRandom = DeterministicUniformStream;
 
-/**
- * Create the deterministic non-cryptographic xorshift32 stream for one charge or
- * read-noise identity. The seed is first scrambled by the MurmurHash3 `fmix32`
- * avalanche finalizer: xorshift32 is linear over GF(2), so an unmixed (affine) seed
- * would give nearby seeds nearly identical first draws and spatially correlated,
- * variance-deficient noise (issue #270). The nonzero fallback avoids the absorbing
- * zero state. Adding 0.5 before division produces values strictly inside (0,1), so
- * logarithmic Poisson/normal transforms never receive a zero or one endpoint.
- * Changing these mechanics changes realized RAW and requires model/replay review.
- */
 function createRandom(
   seedUint32: number
 ): DeterministicRandom {
-  let state =
-    fmix32(
-      (seedUint32 ^
-        0x9e3779b9) >>>
-      0
-    );
-  if (state === 0) {
-    state =
-      0x6d2b79f5;
-  }
-
-  return {
-    next(): number {
-      state ^= state << 13;
-      state ^= state >>> 17;
-      state ^= state << 5;
-      state >>>= 0;
-      return (
-        (state + 0.5) /
-        0x1_0000_0000
-      );
-    }
-  };
+  return createDeterministicUniformStream(seedUint32);
 }
 
 /**
@@ -1238,11 +1492,16 @@ function logFactorial(
   );
 }
 
+/** Means at or above this use the continuity-corrected normal approximation. */
+const POISSON_NORMAL_APPROXIMATION_MINIMUM_MEAN =
+  1e9;
+
 /**
  * Sample a nonnegative integer from the declared Poisson expectation. Zero mean
  * returns exactly zero. Below mean 30, multiply uniforms until the exponential
- * threshold is crossed; larger means use transformed rejection and compare log
- * probabilities to avoid overflow. The same mean and stream reproduce a draw;
+ * threshold is crossed; means from 30 to below 1e9 use Hörmann's (1993) PTRS transformed
+ * rejection and compare log probabilities to avoid overflow; means of 1e9 and above use a
+ * continuity-corrected normal approximation because the log terms lose precision there. The same mean and stream reproduce a draw;
  * changing means does not guarantee monotonic individual samples.
  */
 function samplePoisson(
@@ -1260,6 +1519,27 @@ function samplePoisson(
   }
   if (mean === 0) {
     return 0;
+  }
+
+  if (
+    mean >=
+    POISSON_NORMAL_APPROXIMATION_MINIMUM_MEAN
+  ) {
+    // Above 1e9 the log-probability terms of the rejection test reach ~1e10 and cancel
+    // catastrophically (var/mean 1.012 at 1e14). The normal approximation with continuity
+    // correction has relative skewness error 1/sqrt(mean) <= 3.2e-5 here (Johnson, Kemp & Kotz,
+    // Univariate Discrete Distributions, 3rd ed., section 4.4).
+    return Math.max(
+      0,
+      Math.floor(
+        mean +
+          Math.sqrt(mean) *
+            sampleStandardNormal(
+              random
+            ) +
+          0.5
+      )
+    );
   }
 
   if (mean < 30) {
@@ -1349,26 +1629,50 @@ function samplePoisson(
 }
 
 /**
- * Box–Muller transform of two open-interval uniforms. Each call consumes two
- * values and returns one signed unit-normal sample; no cached partner changes the
- * seed schedule. Electronic noise is allowed to be negative before pedestal/ADC.
+ * Internal (not a root export): draw `count` Poisson samples of one mean from one seeded stream,
+ * exactly as the charge realization does. Exists for distribution tests of the sampler.
  */
+export function samplePoissonStreamForValidation(
+  mean: number,
+  seedUint32: number,
+  count: number
+): number[] {
+  const random =
+    createRandom(seedUint32);
+  return Array.from(
+    { length: count },
+    () =>
+      samplePoisson(
+        mean,
+        random
+      )
+  );
+}
+
+/**
+ * Internal (not a root export): draw `count` unit normals from one seeded stream exactly as the
+ * electronic read-noise path does. Exists for distribution tests of the sampler.
+ */
+export function sampleStandardNormalStreamForValidation(
+  seedUint32: number,
+  count: number
+): number[] {
+  const random =
+    createRandom(seedUint32);
+  return Array.from(
+    { length: count },
+    () =>
+      sampleStandardNormal(
+        random
+      )
+  );
+}
+
 function sampleStandardNormal(
   random:
     DeterministicRandom
 ): number {
-  const u1 =
-    random.next();
-  const u2 =
-    random.next();
-  return (
-    Math.sqrt(
-      -2 * Math.log(u1)
-    ) *
-    Math.cos(
-      2 * Math.PI * u2
-    )
-  );
+  return sampleDeterministicStandardNormal(random);
 }
 
 /**
@@ -1421,18 +1725,50 @@ export function simulateSensorChargeRealization(
       profile,
       charge
     );
+  const pattern =
+    input.fixedPatternNoise === undefined
+      ? null
+      : fixedPatternAtSite(
+          parseSensorFixedPatternNoiseProfile(
+            input.fixedPatternNoise
+          ),
+          charge
+            .colorSamplingProfileId,
+          charge.site
+        );
+  const photoGain =
+    pattern === null
+      ? 1
+      : pattern
+          .photoResponseGainFactor;
+  const darkFactor =
+    pattern === null
+      ? 1
+      : pattern.darkCurrentFactor;
+  const photoMean =
+    pattern === null
+      ? charge
+          .photoExpectedElectronCount
+      : charge
+          .photoExpectedElectronCount *
+        photoGain;
+  const darkMean =
+    pattern === null
+      ? charge
+          .darkExpectedElectronCount
+      : charge
+          .darkExpectedElectronCount *
+        darkFactor;
   const random =
     createRandom(seed);
   const photoRealized =
     samplePoisson(
-      charge
-        .photoExpectedElectronCount,
+      photoMean,
       random
     );
   const darkRealized =
     samplePoisson(
-      charge
-        .darkExpectedElectronCount,
+      darkMean,
       random
     );
 
@@ -1520,6 +1856,20 @@ export function simulateSensorChargeRealization(
           .darkExpectedElectronCount,
       darkRealizedElectronCount:
         darkRealized,
+      fixedPatternNoiseProfileId:
+        pattern === null
+          ? null
+          : pattern.profileId,
+      photoResponseGainFactor:
+        photoGain,
+      darkCurrentFactor:
+        darkFactor,
+      hotPixel:
+        pattern?.hotPixel ?? false,
+      photoSampledMeanElectronCount:
+        photoMean,
+      darkSampledMeanElectronCount:
+        darkMean,
       additionalComponents,
       totalExpectedStoredElectronCount:
         charge
@@ -1547,13 +1897,73 @@ export function simulateSensorChargeRealization(
         true
     },
     "sensor-charge-stochastic-realization",
-    "2.0.0",
+    "3.0.0",
     [
+      "An optional explicit fixed-pattern profile multiplies the photo Poisson mean by the site's PRNU gain and the dark Poisson mean by its DSNU/hot-pixel factor; without one the uniform population expectation is sampled. Fixed-pattern values are deterministic per sensor instance and colour-sampling site.",
+      "Poisson means of 1e9 electrons and above use a continuity-corrected normal approximation.",
       "Photo-generated and dark-generated electron counts are sampled independently from Poisson distributions using an explicit deterministic seed.",
       "Each additional stored-charge component uses its explicitly declared Poisson or deterministic electron-equivalent policy; Photivra does not infer defect/leakage statistics from the component name.",
       "This is a pre-saturation, pre-electronic-read-noise charge realization and remains separate from expectation-value calculations.",
       "The seeded PRNG is a deterministic simulation mechanism and is not cryptographically secure; its seed is scrambled by the MurmurHash3 fmix32 finalizer so nearby seeds give unrelated streams."
     ]
+  );
+}
+
+function fixedPatternAtSite(
+  profile:
+    SensorFixedPatternNoiseProfile,
+  colorSamplingProfileId: string,
+  site: { x: number; y: number }
+): SensorFixedPatternSiteValues {
+  if (
+    profile.colorSamplingProfileId !==
+    colorSamplingProfileId
+  ) {
+    throw new InvalidScientificInputError(
+      "Fixed-pattern noise profile colour-sampling identity must match the charge."
+    );
+  }
+  return evaluateParsedFixedPatternSite(
+    profile,
+    site
+  );
+}
+
+function fixedPatternForRealization(
+  value:
+    SensorFixedPatternNoiseProfile | undefined,
+  charge:
+    SensorChargeRealization
+): SensorFixedPatternSiteValues | null {
+  if (value === undefined) {
+    if (
+      charge.fixedPatternNoiseProfileId !==
+        null &&
+      charge.fixedPatternNoiseProfileId !==
+        undefined
+    ) {
+      throw new InvalidScientificInputError(
+        "A charge realization with a fixed pattern requires the same fixed-pattern profile at readout."
+      );
+    }
+    return null;
+  }
+  const profile =
+    parseSensorFixedPatternNoiseProfile(
+      value
+    );
+  if (
+    charge.fixedPatternNoiseProfileId !==
+    profile.profileId
+  ) {
+    throw new InvalidScientificInputError(
+      "Readout fixed-pattern profile must be the profile used for the charge realization."
+    );
+  }
+  return fixedPatternAtSite(
+    profile,
+    charge.colorSamplingProfileId,
+    charge.site
   );
 }
 
@@ -1658,10 +2068,35 @@ export function calculateExpectedSensorReadout(
     readout.regime
       .systemConversionGainElectronsPerCode
       .value;
+  const inlOffset =
+    integralNonLinearityOffset(
+      readout.regime.adc
+        .integralNonLinearity,
+      codeSignal +
+        readout.regime
+          .adc.blackLevelCode
+    );
   const codeBeforeQuantization =
     codeSignal +
     readout.regime
-      .adc.blackLevelCode;
+      .adc.blackLevelCode +
+    inlOffset;
+  const digitalGain =
+    readout.regime.adc
+      .digitalGain ?? 1;
+  const codeAfterDigitalGain =
+    readout.regime.adc
+      .digitalGain === undefined
+      ? codeBeforeQuantization
+      : (Math.min(
+          codeBeforeQuantization,
+          readout.adcMaximumCode
+        ) -
+          readout.regime.adc
+            .blackLevelCode) *
+          digitalGain +
+        readout.regime.adc
+          .blackLevelCode;
 
   return approximationResult(
     {
@@ -1709,6 +2144,11 @@ export function calculateExpectedSensorReadout(
           .adc.blackLevelCode,
       expectedCodeBeforeQuantization:
         codeBeforeQuantization,
+      adcIntegralNonLinearityOffsetCodes:
+        inlOffset,
+      digitalGain,
+      expectedCodeAfterDigitalGain:
+        codeAfterDigitalGain,
       adcBitDepth:
         readout.regime
           .adc.bitDepth,
@@ -1719,7 +2159,7 @@ export function calculateExpectedSensorReadout(
           .adc
           .digitalSaturationCode,
       expectedDigitalSaturation:
-        codeBeforeQuantization >=
+        codeAfterDigitalGain >=
         readout.regime
           .adc
           .digitalSaturationCode,
@@ -1738,23 +2178,139 @@ export function calculateExpectedSensorReadout(
         false
     },
     "sensor-expected-electronic-readout",
-    "1.0.0",
+    "2.0.0",
     [
       "Expected readout uses complete expected stored charge only after the upstream physical-capacity assessment confirms the expectation is not above physical capacity.",
       "Electronic read-noise mean is zero and is not sampled in this expectation result.",
-      "The explicitly selected conversion regime is not inferred from ISO, sensor technology family or marketing mode names.",
+      "The explicitly selected conversion regime is not inferred from ISO, sensor technology family or marketing mode names; an ISO signal chain may bind an exposure index to a declared regime.",
+      "Declared ADC integral non-linearity and post-ADC digital gain are applied to the continuous expectation without quantization.",
       "Pre-ADC electron-equivalent saturation, black offset and ADC/digital saturation remain separate domains.",
       "ADC quantization is not applied to the expectation value."
     ]
   );
 }
 
+/**
+ * Nearest integer with ties toward +infinity. Math.round is exact for every double (unlike
+ * floor(x + 0.5), which returns 1 for 0.49999999999999994 because the addition rounds up);
+ * adding 0 normalizes -0 to +0.
+ */
 function roundHalfUp(
   value: number
 ): number {
-  return Math.floor(
-    value + 0.5
+  return Math.round(value) + 0;
+}
+
+function integralNonLinearityOffset(
+  inl:
+    SensorAdcIntegralNonLinearity | undefined,
+  code: number
+): number {
+  if (inl === undefined) {
+    return 0;
+  }
+  const knots = inl.knots;
+  const first = knots[0]!;
+  const last = knots[knots.length - 1]!;
+  if (code <= first.code) {
+    return first.offsetCodes;
+  }
+  if (code >= last.code) {
+    return last.offsetCodes;
+  }
+  let low = 0;
+  let high = knots.length - 1;
+  while (high - low > 1) {
+    const middle = (low + high) >> 1;
+    if (knots[middle]!.code <= code) {
+      low = middle;
+    } else {
+      high = middle;
+    }
+  }
+  const a = knots[low]!;
+  const b = knots[high]!;
+  return (
+    a.offsetCodes +
+    ((code - a.code) /
+      (b.code - a.code)) *
+      (b.offsetCodes - a.offsetCodes)
   );
+}
+
+/**
+ * Shared ADC transfer: continuous input code (signal/gain + black + INL), round-half-up
+ * quantization limited to the ADC code range, then optional post-ADC digital gain about black,
+ * re-quantized. The final clamp to [0, digitalSaturationCode] is applied by the caller.
+ */
+function adcTransfer(
+  regime:
+    SensorReadoutConversionRegime,
+  adcMaximumCode: number,
+  electronEquivalent: number
+): {
+  codeBeforeQuantization: number;
+  inlOffset: number;
+  adcCode: number;
+  digitalGain: number;
+  quantized: number;
+} {
+  const ideal =
+    electronEquivalent /
+      regime
+        .systemConversionGainElectronsPerCode
+        .value +
+    regime.adc.blackLevelCode;
+  const inlOffset =
+    integralNonLinearityOffset(
+      regime.adc.integralNonLinearity,
+      ideal
+    );
+  const codeBeforeQuantization =
+    ideal + inlOffset;
+  const quantizedAdc =
+    roundHalfUp(
+      codeBeforeQuantization
+    );
+  const digitalGain =
+    regime.adc.digitalGain ?? 1;
+  if (
+    regime.adc.digitalGain ===
+    undefined
+  ) {
+    return {
+      codeBeforeQuantization,
+      inlOffset,
+      adcCode:
+        quantizedAdc,
+      digitalGain,
+      quantized:
+        quantizedAdc
+    };
+  }
+  const adcCode =
+    Math.max(
+      0,
+      Math.min(
+        quantizedAdc,
+        adcMaximumCode
+      )
+    );
+  return {
+    codeBeforeQuantization,
+    inlOffset,
+    adcCode,
+    digitalGain,
+    quantized:
+      roundHalfUp(
+        (adcCode -
+          regime.adc
+            .blackLevelCode) *
+          digitalGain +
+          regime.adc
+            .blackLevelCode
+      )
+  };
 }
 
 /**
@@ -1863,10 +2419,21 @@ export function simulateSensorRawCode(
           .sampledElectrons,
       0
     );
+  const pattern =
+    fixedPatternForRealization(
+      input.fixedPatternNoise,
+      input.chargeRealization
+    );
+  const fixedPatternOffset =
+    pattern === null
+      ? 0
+      : pattern
+          .readoutOffsetElectrons;
 
   const afterReadNoise =
     afterPhysical +
-    totalReadNoise;
+    totalReadNoise +
+    fixedPatternOffset;
   const preAdcThreshold =
     readout.regime
       .preAdcSaturationElectronEquivalent
@@ -1882,17 +2449,16 @@ export function simulateSensorRawCode(
     afterReadNoise >
     preAdcThreshold;
 
-  const codeBeforeQuantization =
-    afterPreAdc /
-      readout.regime
-        .systemConversionGainElectronsPerCode
-        .value +
-    readout.regime
-      .adc.blackLevelCode;
-  const quantized =
-    roundHalfUp(
-      codeBeforeQuantization
+  const transfer =
+    adcTransfer(
+      readout.regime,
+      readout.adcMaximumCode,
+      afterPreAdc
     );
+  const codeBeforeQuantization =
+    transfer.codeBeforeQuantization;
+  const quantized =
+    transfer.quantized;
   const rawCode =
     Math.max(
       0,
@@ -1954,6 +2520,12 @@ export function simulateSensorRawCode(
         readNoiseComponents,
       totalElectronicReadNoiseElectrons:
         totalReadNoise,
+      fixedPatternNoiseProfileId:
+        pattern === null
+          ? null
+          : pattern.profileId,
+      fixedPatternReadoutOffsetElectrons:
+        fixedPatternOffset,
       electronEquivalentAfterReadNoise:
         afterReadNoise,
       preAdcSaturationElectronEquivalent:
@@ -1970,6 +2542,12 @@ export function simulateSensorRawCode(
         readout.regime
           .adc.blackLevelCode,
       codeBeforeQuantization,
+      adcIntegralNonLinearityOffsetCodes:
+        transfer.inlOffset,
+      adcCodeBeforeDigitalGain:
+        transfer.adcCode,
+      digitalGain:
+        transfer.digitalGain,
       quantizedCodeBeforeDigitalClamp:
         quantized,
       adcBitDepth:
@@ -2013,12 +2591,12 @@ export function simulateSensorRawCode(
         true
     },
     "sensor-raw-code-stochastic-readout",
-    "3.0.0",
+    "4.0.0",
     [
       "A stochastic stored-charge realization is scalar-clamped at the explicit physical storage capacity; this is a bounded saturation approximation and does not model blooming, neighbor transport or anti-blooming behavior.",
-      "Independent input-referred Gaussian electronic read-noise components are sampled after physical charge saturation and before the explicit pre-ADC electron-equivalent saturation threshold.",
-      "System conversion gain is expressed in electrons per digital-number code unit for the explicitly selected regime and is not inferred from ISO.",
-      "Signed electronic read noise survives the upper-only pre-ADC saturation threshold. Black level is added before uniform round-half-up quantization and clamping to zero/digital saturation; valid below-black codes are retained.",
+      "Independent input-referred Gaussian electronic read-noise components, plus any declared static fixed-pattern row/column offsets, are added after physical charge saturation and before the explicit pre-ADC electron-equivalent saturation threshold.",
+      "System conversion gain is expressed in electrons per digital-number code unit for the explicitly selected regime; an ISO-dependent gain exists only where an explicit ISO signal chain binds the setting to a declared regime.",
+      "Signed electronic read noise survives the upper-only pre-ADC saturation threshold. Black level and any declared ADC integral non-linearity are added before uniform round-half-up quantization (exact ties toward +infinity); an optional post-ADC digital gain about black is re-quantized; codes are then clamped to zero/digital saturation and valid below-black codes are retained.",
       "Physical storage capacity, pre-ADC saturation and digital/ADC saturation remain separate thresholds.",
       "The charge seed and read-noise seed are separate deterministic simulation identities; neither is cryptographically secure."
     ]

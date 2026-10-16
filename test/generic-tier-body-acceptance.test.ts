@@ -13,7 +13,7 @@ import {
 import { loadBasicReferenceFixture } from "./helpers/basic-reference-fixture.js";
 
 const base = loadBasicReferenceFixture();
-const catalog = resolveGenericEquipmentTierCatalog({ presetVersion: "1.0.0" });
+const catalog = resolveGenericEquipmentTierCatalog({ presetVersion: "2.0.0" });
 function preset(tier: GenericEquipmentTier): (typeof catalog)[number] {
   return catalog.find((p) => p.tier === tier)!;
 }
@@ -151,5 +151,14 @@ describe("exact-version tier body execution acceptance", () => {
       expect(value.maximumSpatialSamplingSkewSeconds).toBe(0);
       expect(value.samples.map((sample) => sample.readoutPhaseOffsetSeconds)).toEqual([0, 0, 0]);
     }
+  });
+  it.each(GENERIC_EQUIPMENT_TIERS)("%s offers an opt-in rolling readout variant with explicit top-to-bottom skew", (tier) => {
+    const readout = preset(tier).body.rollingReadoutTiming.profile;
+    expect(readout.readoutMode).toBe("rolling");
+    const value = calculateSensorReadoutTiming({ nativeRaster: base.sensor.nativeRaster, shutterMechanism: "electronic", readout,
+      samplePointsNative: [{ x: 0, y: 0 }, { x: 300, y: base.sensor.nativeRaster.pixelHeight / 2 }] }).value;
+    expect(value.maximumSpatialSamplingSkewSeconds).toBe(readout.captureReadoutDurationSeconds.value);
+    expect(value.samples[1]!.readoutPhaseOffsetSeconds).toBeGreaterThan(0);
+    expect(value.samples[0]!.readoutPhaseOffsetSeconds).toBe(0);
   });
 });

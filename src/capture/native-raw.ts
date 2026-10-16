@@ -6,7 +6,7 @@ import { ENGINE_API_VERSION } from "../core/version.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
 import { freezeOwnedData } from "../core/owned-data.js";
-import { calculateEffectiveSaturationCode, createPhaseWhiteLevelAccumulator } from "./raw-white-level.js";
+import { calculateSiteEffectiveSaturationCode, createPhaseWhiteLevelAccumulator } from "./raw-white-level.js";
 import { DEFAULT_HOST_YIELD_CADENCE, createHostYieldGate, type HostYieldCadence } from "./host-yield-cadence.js";
 import { parseCaptureModeProfile } from "../sensor/capture-mode.js";
 import { parseSensorColorSamplingProfile } from "../sensor/color-sampling.js";
@@ -165,7 +165,7 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
               const index=y*native.pixelWidth+x+j,r=calculateNativeRawSite(sites[j]!,plan.exposure.noise.seedUint32,index).readout.value;
               output.codes[index]=r.rawCode;output.blackLevels[index]=r.blackLevelCode;output.digitalSaturationCodes[index]=r.digitalSaturationCode;
               output.saturationFlags[index]=Number(r.physicalScalarSaturationApplied)|Number(r.preAdcSaturationApplied)<<1|Number(r.digitalSaturationApplied)<<2;
-              white.record(index,calculateEffectiveSaturationCode(r));
+              white.record(index,calculateSiteEffectiveSaturationCode(r,sites[j]!.readoutProfile,sites[j]!.regimeId));
             }
             count++;
           }

@@ -1790,6 +1790,30 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`SourcedCaptureTimingSeconds`](api/sensor-exposure-window.md#sourcedcapturetimingseconds) | Type |
 | [`UniformLinearExposureBoundarySchedule`](api/sensor-exposure-window.md#uniformlinearexposureboundaryschedule) | Type |
 
+## sensor/fixed-pattern-noise.ts
+
+[Detailed contracts](api/sensor-fixed-pattern-noise.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/sensor/fixed-pattern-noise.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateSensorFixedPatternSite`](api/sensor-fixed-pattern-noise.md#calculatesensorfixedpatternsite) | Runtime |
+| [`parseSensorFixedPatternNoiseProfile`](api/sensor-fixed-pattern-noise.md#parsesensorfixedpatternnoiseprofile) | Runtime |
+| [`SENSOR_FIXED_PATTERN_NOISE_MODEL`](api/sensor-fixed-pattern-noise.md#sensor_fixed_pattern_noise_model) | Runtime |
+| [`SENSOR_FIXED_PATTERN_NOISE_PROFILE_SCHEMA_VERSION`](api/sensor-fixed-pattern-noise.md#sensor_fixed_pattern_noise_profile_schema_version) | Runtime |
+| [`SensorFixedPatternNoiseProfile`](api/sensor-fixed-pattern-noise.md#sensorfixedpatternnoiseprofile) | Type |
+| [`SensorFixedPatternSiteValues`](api/sensor-fixed-pattern-noise.md#sensorfixedpatternsitevalues) | Type |
+
+## sensor/iso-gain.ts
+
+[Detailed contracts](api/sensor-iso-gain.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/sensor/iso-gain.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`createIsoGainReadoutRegimes`](api/sensor-iso-gain.md#createisogainreadoutregimes) | Runtime |
+| [`CreateIsoGainReadoutRegimesInput`](api/sensor-iso-gain.md#createisogainreadoutregimesinput) | Type |
+| [`IsoGainConversionGainMode`](api/sensor-iso-gain.md#isogainconversiongainmode) | Type |
+| [`IsoGainReadoutRegimes`](api/sensor-iso-gain.md#isogainreadoutregimes) | Type |
+
 ## sensor/iso-signal-chain.ts
 
 [Detailed contracts](api/sensor-iso-signal-chain.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/sensor/iso-signal-chain.ts)
@@ -1913,6 +1937,7 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`ResolveSensorReadoutRegimeInput`](api/sensor-raw-readout.md#resolvesensorreadoutregimeinput) | Type |
 | [`SENSOR_CHARGE_SAMPLING_PROFILE_SCHEMA_VERSION`](api/sensor-raw-readout.md#sensor_charge_sampling_profile_schema_version) | Runtime |
 | [`SENSOR_READOUT_CONVERSION_PROFILE_SCHEMA_VERSION`](api/sensor-raw-readout.md#sensor_readout_conversion_profile_schema_version) | Runtime |
+| [`SensorAdcIntegralNonLinearity`](api/sensor-raw-readout.md#sensoradcintegralnonlinearity) | Type |
 | [`SensorAdditionalChargeSamplingModel`](api/sensor-raw-readout.md#sensoradditionalchargesamplingmodel) | Type |
 | [`SensorAdditionalChargeSamplingPolicy`](api/sensor-raw-readout.md#sensoradditionalchargesamplingpolicy) | Type |
 | [`SensorChargeRealization`](api/sensor-raw-readout.md#sensorchargerealization) | Type |
@@ -1922,6 +1947,7 @@ Use [the developer guide](DEVELOPERS.md) for executable paths and scientific bou
 | [`SensorRawCodeSample`](api/sensor-raw-readout.md#sensorrawcodesample) | Type |
 | [`SensorReadoutConversionProfile`](api/sensor-raw-readout.md#sensorreadoutconversionprofile) | Type |
 | [`SensorReadoutConversionRegime`](api/sensor-raw-readout.md#sensorreadoutconversionregime) | Type |
+| [`SensorReadoutExposureIndexGain`](api/sensor-raw-readout.md#sensorreadoutexposureindexgain) | Type |
 | [`simulateSensorChargeRealization`](api/sensor-raw-readout.md#simulatesensorchargerealization) | Runtime |
 | [`SimulateSensorChargeRealizationInput`](api/sensor-raw-readout.md#simulatesensorchargerealizationinput) | Type |
 | [`simulateSensorRawCode`](api/sensor-raw-readout.md#simulatesensorrawcode) | Runtime |

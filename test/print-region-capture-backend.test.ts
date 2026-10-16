@@ -47,12 +47,15 @@ it.each(reference.cases)("executes the owned radiance source at scale $radianceS
   expect(source.rawFrame).toEqual(raw.frame); expect(source.linearPlane.samples).toHaveLength(12);
   const before = printReadoutFrame(raw.sites.map(s => s.readout.value.electronEquivalentAfterPreAdcSaturation / c.expectedPhotoElectrons),
     raw, "owned-pre-adc-source", "owned-capture-realization");
-  const after = printReadoutFrame(raw.frame.samples.map(s => (s.rawCode - 512) / c.expectedPhotoElectrons),
+  // Decode each native code with its own regime black level and electrons per code.
+  const gain = raw.sites[0]!.readout.value.systemConversionGainElectronsPerCode;
+  expect(raw.sites.every(s => s.readout.value.systemConversionGainElectronsPerCode === gain)).toBe(true);
+  const after = printReadoutFrame(raw.frame.samples.map((s, i) => (s.rawCode - raw.sites[i]!.readout.value.blackLevelCode) * gain / c.expectedPhotoElectrons),
     raw, "owned-decoded-16bit-source", "owned-capture-realization");
   const difference = calculatePrintRegionDifference({ assessmentId: "actual-production-adc-difference", before, after,
     purpose: "processing-change", realizationPolicy: "same-noise-realization", referenceRange: null }).value;
   expect(difference.status).toBe("diagnostic-only");
-  expect(difference.measurement!.maximumAbsoluteDifferenceRelativeLuminance).toBeLessThanOrEqual(.5 / c.expectedPhotoElectrons + 1e-14);
+  expect(difference.measurement!.maximumAbsoluteDifferenceRelativeLuminance).toBeLessThanOrEqual(.5 * gain / c.expectedPhotoElectrons + 1e-14);
   const previousQueries = queries;
   expect(createProductionImageFormationPlan(v)).toEqual(plan); expect(queries - previousQueries).toBe(32);
   // Physical print enlargement changes geometry, not this immutable capture or
