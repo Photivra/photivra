@@ -1146,7 +1146,7 @@ describe("manual flash parser and overlay rejection branches", () => {
 
   const syncInput = (): Json => structuredClone(syncCapabilities());
   it.each([
-    ["an unsupported schema version", (p: Json): void => { p.schemaVersion = "0.2.0"; }, "flashSyncCapabilityProfile.schemaVersion must be"],
+    ["an unsupported schema version", (p: Json): void => { p.schemaVersion = "9.9.9"; }, "flashSyncCapabilityProfile.schemaVersion must be"],
     ["no ordinary sync modes", (p: Json): void => { p.supportedOrdinarySyncModes = []; },
       "flashSyncCapabilityProfile.supportedOrdinarySyncModes must be a non-empty array."],
     ["an unknown sync mode", (p: Json): void => { p.supportedOrdinarySyncModes = ["front-curtain", "high-speed"]; },
