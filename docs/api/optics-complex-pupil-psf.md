@@ -1,6 +1,6 @@
 # optics/complex-pupil-psf.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## calculateLensComplexPupilPsf
 
@@ -198,7 +198,11 @@ export interface LensComplexPupilPsfSampling {
    */
   pupilSupportDiameterMmX: number;
   pupilSupportDiameterMmY: number;
-  /** Declared aperture diameter focalLengthMm / apertureFNumber, in millimetres. */
+  /**
+   * Widest support consistent with the declared f-number at the resolved propagation distance,
+   * propagationDistanceMm / apertureFNumber, in millimetres (focalLengthMm / apertureFNumber for
+   * the nominal focal-plane reference).
+   */
   declaredPupilDiameterMm: number;
   /** Declared pupil grid size before zero padding. */
   pupilGridWidthSamples: number;

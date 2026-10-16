@@ -45,6 +45,7 @@ import {
   type SceneRadianceEvaluationRequest,
   type SceneRadianceEvaluationResult
 } from "../schema/scene-radiance.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1242,6 +1243,7 @@ export function calculateSceneRadianceToSensorIrradiance(
 ): CalculationResult<
   SceneToSensorIrradianceResult
 > {
+  requireInputObject(input, "calculateSceneRadianceToSensorIrradiance input");
   const request =
     parseSceneRadianceEvaluationRequest(
       input.sceneRadianceRequest

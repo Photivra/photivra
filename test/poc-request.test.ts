@@ -4,7 +4,9 @@ import {
   InvalidPocRequestError,
   parsePocSimulationRequest
 } from "../src/api/poc-request.js";
-import type { PocSimulationRequest } from "../src/simulation/poc-simulation.js";
+import { simulatePocCamera, type PocSimulationRequest } from "../src/simulation/poc-simulation.js";
+import { InvalidConfigurationError } from "../src/core/configuration-error.js";
+import { InvalidScientificInputError } from "../src/core/validation.js";
 
 function createValidRequest(): PocSimulationRequest {
   return {
@@ -245,5 +247,42 @@ describe("POC API request parser", () => {
     ).toThrow(
       "cameraShake.angularVelocityRadPerSec.yaw must be a finite number."
     );
+  });
+});
+
+describe("POC request leaf fuzz (2.0-changes review #4)", () => {
+  it("never lets a parsed request raise a non-client error for any numeric leaf substitution", () => {
+    const base = (): Record<string, unknown> => ({
+      sensor: { widthMm: 36, heightMm: 24, pixelWidth: 6000, pixelHeight: 4000 },
+      lens: { focalLengthMm: 200, aperture: 5.6 },
+      exposure: { shutterSeconds: 0.001, iso: 800 },
+      focus: { focusDistanceM: 22, circleOfConfusionMm: 0.03 },
+      crop: { factor: 1 },
+      diffraction: { wavelengthNm: 550 },
+      motion: { positionM: { x: 0, y: 0, z: 22 }, velocityMps: { x: 0, y: 0, z: 0 } },
+      cameraShake: { angularVelocityRadPerSec: { yaw: 0.01, pitch: 0.01 }, stabilizationStopsEquivalent: 2 }
+    });
+    const paths = (value: object, prefix: string[] = []): string[][] =>
+      Object.entries(value).flatMap(([key, child]) =>
+        typeof child === "object" && child !== null ? paths(child as object, [...prefix, key]) : [[...prefix, key]]);
+    const substitutes: unknown[] = [0, -1, 1e-300, 1e300, 1e-9, 1e9, "x", null, {}, [], true, 0.5, 2, 1e15, -0, 4294967296, 65536];
+    const nonClient: string[] = [];
+    for (const path of paths(base())) {
+      for (const substitute of substitutes) {
+        const request = base();
+        let parent = request;
+        for (const key of path.slice(0, -1)) parent = parent[key] as Record<string, unknown>;
+        parent[path.at(-1)!] = substitute;
+        try {
+          simulatePocCamera(parsePocSimulationRequest(JSON.parse(JSON.stringify(request))));
+        } catch (error) {
+          if (!(error instanceof InvalidPocRequestError || error instanceof InvalidConfigurationError ||
+            error instanceof InvalidScientificInputError)) {
+            nonClient.push(`${path.join(".")}=${JSON.stringify(substitute)}: ${String(error)}`);
+          }
+        }
+      }
+    }
+    expect(nonClient).toEqual([]);
   });
 });

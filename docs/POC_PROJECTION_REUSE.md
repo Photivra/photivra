@@ -93,7 +93,11 @@ inputs and complete response/provenance SHA-256 commitments generated from the
 unchanged main reference build. The corpus includes all four orientations,
 off-center captures, legacy crops, varied focal/focus/aperture state and sample
 counts. Seed is `0x45c1374c`. Do not regenerate expectations from the candidate to
-hide drift. #130 remains unchanged. Additional tests compare the scalar oracle,
+hide drift. From package 2.0.0 the test also keeps the complete reference responses
+(`poc-projection-reuse-responses.json`, anchored to those hashes) and compares
+discrete fields exactly and numbers within 8 ulps, so the corpus is portable across
+platforms and JavaScript engines; intentional 2.0.0 response changes are applied
+explicitly in the test. #130 remains unchanged. Additional tests compare the scalar oracle,
 invalid-input errors, stale context rejection and alternating request identities.
 
 Browser-surface and package gates remain required. This is a Node-measured POC

@@ -20,6 +20,7 @@ import {
 } from "../core/calculation-result.js";
 import { requirePositiveFinite } from "../core/validation.js";
 import { calculateThinLensImageDistance } from "./thin-lens.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface CalculateFocusBreathingProjectionInput {
   /** Physical lens focal length in millimetres. This value is never rewritten. */
@@ -91,6 +92,7 @@ export interface FocusBreathingFieldOfView {
 export function calculateFocusBreathingProjection(
   input: CalculateFocusBreathingProjectionInput
 ): CalculationResult<FocusBreathingProjection> {
+  requireInputObject(input, "calculateFocusBreathingProjection input");
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("focusDistanceM", input.focusDistanceM);
   requirePositiveFinite(
@@ -140,6 +142,7 @@ export function calculateFocusBreathingProjection(
 export function calculateFocusBreathingFieldOfView(
   input: CalculateFocusBreathingFieldOfViewInput
 ): CalculationResult<FocusBreathingFieldOfView> {
+  requireInputObject(input, "calculateFocusBreathingFieldOfView input");
   requirePositiveFinite("sensorDimensionMm", input.sensorDimensionMm);
 
   const projection = calculateFocusBreathingProjection(input);

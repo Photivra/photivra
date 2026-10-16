@@ -20,6 +20,7 @@ import {
   type ProductionImageFormationPlan,
   type RendererConsumerKind
 } from "./image-formation-plan.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export const PRODUCTION_PLAN_CONSUMER_MANIFEST_VERSION =
   "0.2.0" as const;
@@ -97,6 +98,7 @@ function requireConsumerKind(
 function requirePlan(
   plan: ProductionImageFormationPlan
 ): void {
+  requireInputObject(plan, "plan input");
   if (
     plan.version !==
     PRODUCTION_IMAGE_FORMATION_PLAN_VERSION
@@ -130,6 +132,7 @@ export function createProductionPlanConsumerManifest(
   input:
     CreateProductionPlanConsumerManifestInput
 ): ProductionPlanConsumerManifest {
+  requireInputObject(input, "createProductionPlanConsumerManifest input");
   requirePlan(input.plan);
   const consumerKind =
     requireConsumerKind(

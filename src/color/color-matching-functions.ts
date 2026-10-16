@@ -35,6 +35,7 @@ import {
   type CieXyChromaticity,
   type CieXyzTristimulus
 } from "./colorimetry-math.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export const COLORIMETRY_MODEL_VERSION = "1.0.0" as const;
 /** Upper bound on quadrature nodes per integration call. */
@@ -271,6 +272,7 @@ export interface CreateColorimetricMidpointQuadratureInput {
  * node carries its d-lambda measure in nm; the measures sum to the range width.
  */
 export function createColorimetricMidpointQuadrature(input: CreateColorimetricMidpointQuadratureInput): ColorimetricQuadratureNode[] {
+  requireInputObject(input, "createColorimetricMidpointQuadrature input");
   const range = requireRecordValue(input.wavelengthRangeNanometers, "wavelengthRangeNanometers");
   const minimum = requirePositiveNumber(range.minimum, "wavelengthRangeNanometers.minimum");
   const maximum = requirePositiveNumber(range.maximum, "wavelengthRangeNanometers.maximum");
@@ -392,6 +394,7 @@ function scaleXyz(xyz: CieXyzTristimulus, k: number): CieXyzTristimulus {
  * caller-tabulated CMFs; in both cases the quadrature itself is the caller's choice.
  */
 export function integrateSpectrumToXyz(input: IntegrateSpectrumToXyzInput): CalculationResult<IntegratedSpectrumXyz> {
+  requireInputObject(input, "integrateSpectrumToXyz input");
   const cmf = prepareColorMatchingFunctions(input.colorMatchingFunctions);
   const distribution = prepareColorimetricSpectrum(input.spectralDistribution, "spectralDistribution");
   const factor = input.spectralFactor === undefined ? undefined : prepareColorimetricSpectrum(input.spectralFactor, "spectralFactor");

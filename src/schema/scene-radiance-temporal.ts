@@ -25,6 +25,7 @@ import {
 import type {
   ResolvedCaptureModeTiming
 } from "../sensor/capture-mode-timing.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export const SCENE_RADIANCE_TEMPORAL_SAMPLING_PLAN_VERSION =
   "0.1.0" as const;
@@ -262,6 +263,7 @@ export function createSceneRadianceTemporalSamplingPlan(
   input:
     CreateSceneRadianceTemporalSamplingPlanInput
 ): SceneRadianceTemporalSamplingPlan {
+  requireInputObject(input, "createSceneRadianceTemporalSamplingPlan input");
   requirePositiveInteger(
     "temporalSampleCount",
     input.temporalSampleCount
@@ -411,6 +413,7 @@ export function reduceSceneRadianceTemporalSamples(
   input:
     ReduceSceneRadianceTemporalSamplesInput
 ): ReducedSceneRadianceTemporalExposure {
+  requireInputObject(input, "reduceSceneRadianceTemporalSamples input");
   if (
     !Array.isArray(
       input.samples

@@ -1,13 +1,13 @@
 # simulation/poc-simulation.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## POC_SIMULATION_API_VERSION
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
 
 ```ts
-POC_SIMULATION_API_VERSION = "0.20.0" as const
+POC_SIMULATION_API_VERSION = "1.0.0" as const
 ```
 
 ## PocSimulationRequest

@@ -25,6 +25,7 @@ import {
   parseFocusPlane,
   type FocusPlane
 } from "../optics/focus-state.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export const RELEASE_SEQUENCE_VERSION =
   "0.1.0" as const;
@@ -764,6 +765,7 @@ export function resolveReleaseSequence(
   input:
     ResolveReleaseSequenceInput
 ): ResolvedReleaseSequence {
+  requireInputObject(input, "resolveReleaseSequence input");
   const sequenceId =
     requireNonEmptyString(
       input.sequenceId,
@@ -1047,6 +1049,7 @@ export function createCancelledReleaseSequence(
   input:
     CancelReleaseSequenceInput
 ): CancelledReleaseSequence {
+  requireInputObject(input, "createCancelledReleaseSequence input");
   const count =
     requireNonNegativeFinite(
       input.completedFrameCount,

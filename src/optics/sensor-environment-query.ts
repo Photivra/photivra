@@ -16,6 +16,7 @@ import { calculateInverseCameraRotationImageMapping,
   type CameraAngularVelocityRadPerSec } from "../motion/camera-rotation.js";
 import { parseSceneRadianceEvaluationRequest, type SceneRadianceEvaluationRequest } from "../schema/scene-radiance.js";
 import { parseFocusPlane, type FocusPlane } from "./focus-state.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface CalculateSensorEnvironmentRadianceQueryInput {
   /** Pre-AA or pre-PSF optical support, native +X right/+Y down, mm about optical axis. */
@@ -54,6 +55,7 @@ export interface SensorEnvironmentRadianceQuery {
 export function calculateSensorEnvironmentRadianceQuery(
   input: CalculateSensorEnvironmentRadianceQueryInput
 ): CalculationResult<SensorEnvironmentRadianceQuery> {
+  requireInputObject(input, "calculateSensorEnvironmentRadianceQuery input");
   if (input.timeReference !== "first-opening-boundary-phase" ||
     input.environmentDirectionConvention !== "outgoing-radiance-toward-camera") {
     throw new InvalidScientificInputError("Environment projection requires explicit opening-boundary time and outgoing-toward-camera direction conventions.");

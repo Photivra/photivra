@@ -30,6 +30,7 @@ import {
   parseFocusPlane,
   type FocusPlane
 } from "./focus-state.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1698,6 +1699,7 @@ export function resolveLensSampledPsf(
   input:
     ResolveLensSampledPsfInput
 ): CalculationResult<ResolvedLensSampledPsf> {
+  requireInputObject(input, "resolveLensSampledPsf input");
   const profile =
     parseOwnedOrUntrustedProfile(
       input.profile
