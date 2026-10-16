@@ -7085,6 +7085,7 @@ console.log(calculateGeometricFocusBreathing({
   sensorDimensionMm: 36,
   focusingMethod: "unit-focus"
 }).value.deltaDegrees);
+```
 
 ## Optional WebGPU image kernels
 
