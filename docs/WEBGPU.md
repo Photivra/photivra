@@ -71,7 +71,8 @@ Per-site radiance and pupil sampling (the 75-hour path in #277) stay on the CPU.
 ### Supported domain (fails closed outside it)
 
 - **SDR and RAW development:**
-  - Only the `identity` and `positive-reinhard-per-channel` tone curves. Luminance curves (`extended-reinhard-luminance`, `naka-rushton-luminance`) reject with `unsupported-on-backend`.
+  - All four tone curves (2.0: the luminance curves too). `naka-rushton-luminance` needs exponent n ≥ 1 on the GPU (below 1 its ratio f(L)/L is unbounded as L → 0, so no useful bound exists there; `unsupported-on-backend`), 1/g(Lw) ≤ 2^60 and σⁿ ≥ 2^-60; `extended-reinhard-luminance` needs Lw ≥ 2^-20 (`unsupported-float32-domain` otherwise).
+  - A luminance-toned sample whose value plus bound exceeds 2^100 fails closed (`unsupported-float32-domain`).
   - Only `borderHandling: "reject"`. Mirror borders (`borderHandling: "mirror"`) reject with `unsupported-on-backend`; use `cpu-reference` for them.
   - Sample magnitude times scale must stay ≤ 2^120 (`unsupported-float32-domain`).
   - In `reject-out-of-range` mode, any sample inside the float32 gamut classification band rejects with `indeterminate-float32-classification`. The backend fails closed rather than guessing whether the reference would reject.
@@ -109,6 +110,13 @@ Here `p(s)` is the isoplanatic patch containing the *source* site, and `K_p(u, v
 4. Highlight handling: clip at the smallest gain, or the declared neutral blend above 0.8.
 5. Camera→XYZ, then XYZ→linear sRGB, in the documented row order.
 6. The SDR chain above.
+
+**Luminance tone curves** (2.0) follow `prepareSdrPixelTone`: when L = kr·r + kg·g + kb·b > 0 (the linear-sRGB/D65 luminance row), every component of the pixel is scaled by h(L) = f(L)/L; otherwise the pixel is unchanged. The kernel evaluates h directly, in a form algebraically equal to f(L)/L:
+
+- extended Reinhard: h = (1 + L/Lw²)/(1 + L);
+- Naka–Rushton: h = (1/g(Lw)) / (L·(1 + P)), P = (σ/L)ⁿ = exp2(n·log2(σ/L)); for P ≥ 1 the equal form (1/g(Lw))·P⁻¹/(L·(1 + P⁻¹)) keeps every intermediate finite.
+
+The SDR kernel runs one invocation per pixel for these curves; RAW development applies them after XYZ → linear sRGB, as the reference does.
 
 A saturated site normalizes to exactly 1, while every unsaturated value is ≤ 1 − 1/65535. The GPU can therefore detect saturated contributing sites exactly, so `highlight.saturatedPixelCount` is exact.
 
@@ -163,11 +171,19 @@ Let u = 2^-24 (binary32 unit roundoff) and γ_k = k·u/(1 − k·u). These are t
   - δ_E = 2^-17 is the declared bound on the WGSL encode. The worst case derived from the WGSL `log2`/`exp2` accuracy is about 2.5e-6, so the bound keeps a 3× margin. The sRGB segment join is discontinuous by only −2.85e-8.
   - **SDR:** δ_L = γ_6, so the bound is 1 code at 8 and 16 bits.
   - **RAW development:** δ_L is propagated through every step (channel sums γ_{n+2}, gains, clip or blend, two 3×3 products, exposure), using the run's largest normalized site magnitude, Σ|w|, the largest gain and the ∞-norms of both matrices. It is therefore input-dependent. For example, it was 1 code at 8 bits and 12–67 codes at 16 bits on the conformance corpora.
+- **Luminance tone curves (`integer-code-difference`, a running bound).** The bound has the same form, with δ_L the largest per-sample linear bound of the run. The per-sample formula below is fixed in advance, but unlike the other stages its value is known only after the run: the kernel evaluates it from each pixel's own float32 values (a running error bound), inflated (×1.001, and ×1.01 on the factors) so that the float32 evaluation can only over-estimate, and collects the largest value with an atomic maximum. Every term is a non-negative bound in terms of the computed values, so the result is still a rigorous bound for every sample:
+  - Inputs: each exposed component carries a bound ε (SDR: 4u·|e| for the source, scale and product roundings and the reference's own; RAW development: the propagated development bound). The luminance then carries λ = Σk·ε + 6u·Σk|e| (coefficient rounding, products and additions).
+  - Branch: the reference maps a pixel only if L > 0. When |L̃| > 2λ both sides take the same branch. Inside that band either branch may run, and the bound covers both: 2(|e| + ε)(1 + sup h) over (0, 3λ], where sup h is max(1, 1/Lw²) for extended Reinhard and (1/g(Lw))·(3λ)^(n−1)/σⁿ for Naka–Rushton with n ≥ 1.
+  - Mapped pixels: |m_gpu − m| ≤ H·ε·(1 + Fq) + (|e| + ε)·(H·(η + Fq) + a) + 2u|m|, where H bounds h(L̃), η and a are the relative and absolute errors of evaluating h in float32, q = λ/L̃ ≤ 1/2, and F = ((1 + q)/(1 − q))^T/(1 − q) bounds h's change over [L̃ − λ, L̃ + λ]. T bounds h's elasticity |d ln h/d ln L|: 1 for extended Reinhard, max(1, n − 1) for Naka–Rushton.
+  - η: 14u for extended Reinhard, counting WGSL division as 2.5 ULP. For Naka–Rushton, η = 2ρ + 16u, where ρ is the relative error of P from the WGSL `log2` (2^-21 absolute or 3 ULP) and `exp2` (3 + 2|z| ULP) entries, plus slack for the reference's float64 `pow`. Below 2^-120 the power may flush to zero, which adds an absolute term.
+  - Clipping is 1-Lipschitz, and a sample whose interval [m − δ, m + δ] lies entirely above 1 or below 0 contributes 0. In reject mode, a sample whose interval straddles 0 or 1 fails closed (`indeterminate-float32-classification`).
+  - So the bound is tight for ordinary colours: 1 code at 8 bits and 3–30 codes at 16 bits on the conformance corpora. It grows near L = 0 when components have mixed signs (18–102 codes at 8 bits on the mixed-sign corpus), and with the absolute development bound in RAW development (152–1652 codes at 16 bits on random RAW codes). Measured differences were at most 1 code everywhere.
 - **Diagnostics.** A sample is *uncertain* when its float32 value lies inside a classification band where float32 and float64 decisions can differ:
   - near 0 or 1, in band δ_e;
   - tiny positive Reinhard inputs below 2^-20;
   - zero results from non-zero sources (underflow);
-  - the WB-clip level or the 0.8 reconstruction start (RAW).
+  - the WB-clip level or the 0.8 reconstruction start (RAW);
+  - luminance curves: a ratio h within its bound of 1 (the tone-changed count), a luminance inside its branch band, or a toned value whose bound interval straddles 0 or 1.
 
   Every diagnostic count then differs from the reference by at most `diagnosticUncertaintySampleCount`. When that count is 0, `diagnosticsExact` is true and the counts equal the reference.
 - **Temporal exposure sum (`relative-to-reference`).** Every term is non-negative and carries at most K + 7 roundings (sample, bilinear weight, their product, three inner additions, row weight, its product, K − 1 outer additions). So `|v_gpu − v_ref| ≤ (γ_{K+8} + 2^-40)·v_ref + K·(8·w_max + 2)·2^-126`, where K is the node count and w_max the largest row weight.
@@ -193,6 +209,7 @@ This section states what the `webgpu-f32` path promises for each stage, relative
 | Sensor | RAW codes, saturation counts, noise moments | `exact-except-flagged-sites` | unflagged sites identical; counts within ± flagged; flagged sites listed | `test/packed-sensor-raw.test.ts`, `test/webgpu/stages.webgpu.ts` |
 | Native capture SDR | 8- or 16-bit codes | `integer-code-difference` | 1 code | `test/image-kernel-accelerator.test.ts`, `test/webgpu/conformance.webgpu.ts` |
 | RAW development | 8- or 16-bit codes | `integer-code-difference` | propagated per run (see above) | same |
+| Luminance tone curves (SDR and RAW development) | 8- or 16-bit codes | `integer-code-difference` | largest per-sample bound of the run (see above) | `test/webgpu-luminance-tone.test.ts`, `test/webgpu/conformance.webgpu.ts` |
 
 **How the bounds compose:**
 
@@ -231,6 +248,8 @@ This section states what the `webgpu-f32` path promises for each stage, relative
 | Convolution | 257×193 r=0 … 64×64 r=32, nine-decade grids, field-varying anisotropic kernels | relative 1.4e-7 (r=0) … 3.8e-6 (r=32) | relative 2.4e-7 … 2.5e-4 |
 | SDR, 8 and 16 bit, identity/Reinhard, clip/reject, f32/f64 | 300×41 with code centres, near-ties, transfer breakpoints, ±0, clipping | 1 code (0.0–4.9 % of samples differ) | 1 code |
 | RAW development, all four orientations, clip/reconstruct, ideal and non-white-normalized cameras, with and without WB gains | 96×64 synthetic Bayer RAW (random codes, black levels, flags, white levels) | 1 code (≤ 0.3 % of samples differ) | 1 (8 bit) … 67 (16 bit) |
+| SDR, luminance tone curves: extended Reinhard Lw 2 and 0.5; Naka–Rushton n = 1, 1.6, 4 | 300×41: colours over eight decades of luminance, greys, zeros; 8 bit f32, 16 bit f64, and a mixed-sign 8-bit corpus with luminance cancelling to near zero | 1 code (≤ 0.08 % of samples differ) | 1 (8 bit); 3–30 (16 bit); 1–102 (mixed signs) |
+| RAW development, luminance tone curves (same five), WB gains, clip (8 bit) and reconstruct (16 bit) | 96×64 synthetic Bayer RAW | 1 code (≤ 0.15 % of samples differ) | 1 (8 bit); 152–1652 (16 bit) |
 
 Reject-mode corpora that contain samples exactly at 1 ± 2^-52 fail closed with `indeterminate-float32-classification`, as designed. Banded and unbanded GPU output are identical. Abort, busy, out-of-range rejection, and in-flight dispose return the documented domain errors on the real device.
 
