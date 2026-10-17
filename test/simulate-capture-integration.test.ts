@@ -320,7 +320,7 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
       { scene, output: { format: "png", colorEncoding: "rec2020", toneCurve: "positive-reinhard-per-channel" } },
       { scene, output: { format: "png", dng: {} } },
       { scene, output: { format: "png", bitDepth: 12 as never } },
-      { scene, output: { demosaic: "ahd" as never } },
+      { scene, output: { demosaic: "lmmse" as never } },
       { scene, output: { borderHandling: "wrap" as never } },
       { scene, lens: { projection: "fisheye-equidistant", pupilSampling: { radialSamples: 1, angularSamples: 4 } } },
       { scene, lens: { distortion: { kind: "radial", profile: { normalizationRadiusMm: 1, maximumNormalizedRadius: 1, coefficients: { k1: -2, k2: 0, k3: 0 } } } } },

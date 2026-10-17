@@ -118,3 +118,41 @@ describe("lens.diffraction object-space convolution equals the per-tap environme
     expect((r.request.siteInput(0).environment as unknown as { psf: { kind: string } }).psf.kind).toBe("sampled-local");
   }, scaledTimeout(30_000));
 });
+
+describe("simulateCapture output.demosaic \"ahd\" (2.1)", () => {
+  /** Mean false colour of a neutral chart: |R − G| + |B − G| per pixel, in 8-bit codes. */
+  const falseColour = (samples: ArrayLike<number>): number => {
+    let sum = 0;
+    for (let i = 0; i < samples.length; i += 3) sum += Math.abs(samples[i]! - samples[i + 1]!) + Math.abs(samples[i + 2]! - samples[i + 1]!);
+    return sum / (samples.length / 3);
+  };
+
+  it("reduces false colour on sharp neutral edges and keeps flat fields", async () => {
+    for (const preset of ["siemens-star", "slanted-edge"] as const) {
+      const options: SimulateCaptureOptions = { scene: { preset }, output: { width: 32, height: 32 } };
+      const bilinear = await simulateCapture(options), ahd = await simulateCapture({ ...options, output: { ...options.output, demosaic: "ahd" } });
+      expect(falseColour(ahd.image.samples)).toBeLessThan(0.75 * falseColour(bilinear.image.samples));
+      expect(ahd.provenance.composedContracts).toContain("createAhdDemosaicTask");
+      expect(ahd.raw.plan.exposure.geometry.nativeRaster.pixelWidth).toBe(42);
+    }
+    const flat: SimulateCaptureOptions = { scene: { preset: "uniform" }, output: { width: 12, height: 12 } };
+    const a = await simulateCapture({ ...flat, output: { ...flat.output, demosaic: "ahd" } }), b = await simulateCapture({ ...flat, output: { ...flat.output, demosaic: "bilinear" } });
+    const mean = (s: ArrayLike<number>, c: number): number => { let t = 0; for (let i = c; i < s.length; i += 3) t += s[i]!; return t / (s.length / 3); };
+    for (const c of [0, 1, 2]) expect(Math.abs(mean(a.image.samples, c) - mean(b.image.samples, c))).toBeLessThan(1.5);
+  });
+
+  it("works with mirror borders, wide-gamut PNG, JPEG and highlight diagnostics", async () => {
+    const mirror = await simulateCapture({ scene: { preset: "checkerboard" }, output: { width: 8, height: 8, demosaic: "ahd", borderHandling: "mirror" } });
+    expect(mirror.raw.plan.exposure.geometry.nativeRaster.pixelWidth).toBe(8);
+    const wide = await simulateCapture({ scene: { preset: "checkerboard" }, output: { width: 8, height: 8, demosaic: "ahd", format: "png", colorEncoding: "display-p3",
+      gamutMapping: "perceptual" } });
+    expect(wide.diagnostics.gamutMapping).toBeDefined();
+    expect(wide.image.png!.length).toBeGreaterThan(0);
+    const jpeg = await simulateCapture({ scene: { preset: "slanted-edge" }, output: { width: 16, height: 16, demosaic: "ahd", format: "jpeg" } });
+    expect(jpeg.image.jpeg!.length).toBeGreaterThan(0);
+    const bright = await simulateCapture({ scene: { preset: "slanted-edge" }, output: { width: 12, height: 12, demosaic: "ahd" }, exposure: { shutterSeconds: 1 / 15 } });
+    expect(bright.diagnostics.highlight.saturatedPixelCount).toBeGreaterThan(0);
+    await expect(simulateCapture({ scene: { preset: "uniform" }, output: { width: 2, height: 2, demosaic: "ahd", borderHandling: "mirror" } })).rejects.toThrow(InvalidConfigurationError);
+    await expect(simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, demosaic: "lmmse" as never } })).rejects.toThrow(InvalidConfigurationError);
+  });
+});
