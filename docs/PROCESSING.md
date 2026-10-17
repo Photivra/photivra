@@ -1,28 +1,48 @@
 # Image processing operators
 
-Standalone, browser-safe operators for post-capture image processing: built-in and adaptive demosaicing, HDR bracket merging and HDR output encoding, tone mapping, exposure fusion, focus stacking, panorama stitching from known rotations, denoising, sharpening and synthetic film grain. They are independently written from the published equations cited below; no third-party code or data is incorporated. Every result is labelled **approximation**: these are named processing choices, not calibrated camera or display models. They do not activate production-plan stages or change POC behaviour.
+These are standalone, browser-safe operators for processing an image after capture:
+
+- built-in and adaptive demosaicing (turning a colour-filter mosaic into full RGB);
+- HDR bracket merging, and HDR output encoding;
+- tone mapping and exposure fusion;
+- focus stacking;
+- panorama stitching from known rotations;
+- denoising, sharpening and synthetic film grain.
+
+They were written independently from the published equations cited below. No third-party code or data is included.
+
+Every result is labelled **approximation**. These are named processing choices, not calibrated camera or display models. They do not turn on production-plan stages, and do not change the behaviour of the POC (proof-of-concept simulation API).
 
 Examples are in [USAGE](USAGE.md#image-processing-operators).
 
 ## Shared task contract
 
-Every operator is a factory `createXTask(input, provider)` returning a single-use `ProcessingTask<T>` with `run()`, `cancel()`, `dispose()`, `takeOutput()`, `state`, `completedTileCount`, `totalTileCount` and `estimatedWorkingBytes`. `provider` is `{ yieldControl, onProgress? }`, the same shape as the native RAW tasks:
+Every operator is a factory, `createXTask(input, provider)`. It returns a single-use `ProcessingTask<T>` with `run()`, `cancel()`, `dispose()`, `takeOutput()`, `state`, `completedTileCount`, `totalTileCount` and `estimatedWorkingBytes`.
+
+`provider` is `{ yieldControl, onProgress? }`, the same shape as the native RAW tasks:
 
 - one progress tile is one processed row of one pass; `totalTileCount` is known before `run()`;
 - `yieldControl` is awaited once about 8 ms of work has elapsed since the last yield, and after the last row. Cadence never changes output;
 - `cancel()` aborts at the next row; `takeOutput()` transfers the result once.
 
-Images are interleaved `Float32Array` RGB (`ProcessingRgbImage`, row-major, +Y down). Inputs are validated at creation (shape, enums, ranges) and at the start of `run()` (finite samples). Inputs are read during `run()` and never written; callers must not mutate them until it settles. Outputs never alias inputs.
+**Images.** Images are interleaved `Float32Array` RGB (`ProcessingRgbImage`, row-major, +Y down).
 
-Limits: at most `PROCESSING_MAX_PIXELS` (2²⁶) pixels per image and `PROCESSING_MAX_FRAMES` (32) frames. Each task estimates its typed-array working memory, including its output, and rejects a plan above `maximumWorkingBytes` (default `PROCESSING_DEFAULT_MAXIMUM_WORKING_BYTES`, 1 GiB).
+- Inputs are validated when the task is created (shape, enums, ranges) and at the start of `run()` (finite samples).
+- Inputs are read during `run()` and never written. Callers must not change them until `run()` settles.
+- Outputs never share memory with inputs.
 
-All spatial operations use whole-sample symmetric ("reflect-101") borders: index −1 reads 1, n reads n−2.
+**Limits.** At most `PROCESSING_MAX_PIXELS` (2²⁶) pixels per image, and `PROCESSING_MAX_FRAMES` (32) frames. Each task estimates its typed-array working memory, including its output. It rejects a plan above `maximumWorkingBytes` (default `PROCESSING_DEFAULT_MAXIMUM_WORKING_BYTES`, 1 GiB).
+
+**Borders.** All spatial operations use whole-sample symmetric ("reflect-101") borders: index −1 reads 1, and index n reads n−2.
 
 ## Demosaicing
 
 ### Built-in linear Bayer kernels
 
-`createBuiltInBayerDemosaicProfiles({ kernel, captureModeId, colorSamplingProfile, channelRoles })` returns one `explicit-linear-native-neighborhood` profile per CFA phase. These are the ordinary reconstruction contract, so they run unchanged through `resolveRawFrameReconstruction`, `createNativeRawDevelopmentTask` and `createCfaPlaneReconstructionTask`. The CFA must be a 2×2 mosaic with one red, one blue and two diagonal greens. Every phase layout (RGGB, GRBG, GBRG, BGGR) is supported.
+`createBuiltInBayerDemosaicProfiles({ kernel, captureModeId, colorSamplingProfile, channelRoles })` returns one `explicit-linear-native-neighborhood` profile per CFA (colour filter array) phase.
+
+- They use the ordinary reconstruction contract, so they run unchanged through `resolveRawFrameReconstruction`, `createNativeRawDevelopmentTask` and `createCfaPlaneReconstructionTask`.
+- The CFA must be a 2×2 mosaic with one red, one blue and two diagonal greens. Every phase layout (RGGB, GRBG, GBRG, BGGR) is supported.
 
 - **`bilinear`**: average of the nearest same-channel sites (2 or 4 sites; reach 1) (Gunturk et al., 2005).
 - **`malvar-he-cutler-2004`**: the 5×5 gradient-corrected linear filters of Malvar, He & Cutler (ICASSP 2004). Each output is the bilinear estimate plus a gain times a zero-sum discrete Laplacian of the site's own channel:
