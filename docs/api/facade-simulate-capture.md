@@ -44,12 +44,65 @@ export interface SimulateCaptureAssumption {
 }
 ```
 
+## SimulateCaptureBorderHandling
+
+`margin` renders the kernel reach as extra native sites around the output; `mirror` renders exactly the
+output and reads reflect-101 images of the missing border sites (CFA-consistency validated).
+
+```ts
+export type SimulateCaptureBorderHandling = "margin" | "mirror";
+```
+
+## SimulateCaptureColorEncoding
+
+PNG colour encoding. `srgb` is the developed sRGB output. The others convert the developed linear
+colour (camera → XYZ → linear sRGB/D65, unclipped) through CIE XYZ into the target primaries:
+`display-p3` (SMPTE EG 432-1 primaries, sRGB transfer), `rec2020` (ITU-R BT.2020 primaries and OETF),
+`rec2100-pq` / `rec2100-hlg` (BT.2020 primaries, SMPTE ST 2084 PQ / ARIB STD-B67 HLG, 16-bit full range).
+
+```ts
+export type SimulateCaptureColorEncoding = "srgb" | "display-p3" | "rec2020" | "rec2100-pq" | "rec2100-hlg";
+```
+
+## SimulateCaptureDemosaic
+
+Built-in Bayer demosaic kernels (`createBuiltInBayerDemosaicProfiles`).
+
+```ts
+export type SimulateCaptureDemosaic = "bilinear" | "malvar-he-cutler";
+```
+
 ## SimulateCaptureExposureMode
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
 
 ```ts
 export type SimulateCaptureExposureMode = "manual" | "aperture-priority" | "shutter-priority" | "program";
+```
+
+## SimulateCaptureLensDistortion
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export type SimulateCaptureLensDistortion =
+  | { kind: "radial"; profile: RadialDistortionProfile }
+  | { kind: "brown-conrady"; profile: BrownConradyDistortionProfile };
+```
+
+## SimulateCaptureMotion
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface SimulateCaptureMotion {
+  /** Constant camera angular velocity, rad/s, in the engine's pitch/yaw/roll convention. Missing axes are 0. */
+  angularVelocityRadPerSec?: { pitch?: number; yaw?: number; roll?: number };
+  /** Default "global". `rolling` derives the exposure schedule from the body's rolling readout declaration. */
+  shutter?: "global" | "rolling";
+  /** Rolling only: first-to-last line skew over the simulated frame, s. Default: the body's declared readout skew. */
+  rollingShutterSkewSeconds?: number;
+}
 ```
 
 ## SimulateCaptureOptions
@@ -69,6 +122,17 @@ export interface SimulateCaptureOptions {
     focusDistanceM?: number;
     /** Opt-in ideal circular-pupil ray sampling (defocus/depth of field). Default off (central ray only). */
     pupilSampling?: { radialSamples: number; angularSamples: number };
+    /** Ideal lens projection (`LENS_PROJECTION_MODELS`). Default "rectilinear". Not combinable with pupilSampling. */
+    projection?: LensProjectionModel;
+    /** Caller-declared radial or Brown–Conrady distortion profile. Default none. Not combinable with pupilSampling. */
+    distortion?: SimulateCaptureLensDistortion;
+    /** Caller-declared radial relative-illumination (vignetting) profile, applied as environment field throughput. */
+    vignetting?: IlluminationVignettingProfile;
+    /**
+     * Caller sampled lens PSF, passed unchanged to the environment contract. Its focal length, f-number and
+     * focus must equal the resolved capture settings exactly. Not combinable with pupilSampling.
+     */
+    psf?: Extract<CalculateEnvironmentSensorPhotoSignalInput["psf"], { kind: "sampled-local" }>;
   };
   exposure?: {
     /** Default "manual". */
@@ -104,7 +168,17 @@ export interface SimulateCaptureOptions {
     whiteBalance?: SimulateCaptureWhiteBalance;
     /** JPEG constant quantization step 1-255 (not a manufacturer 'quality'). Default 2. */
     jpegQuantizationStep?: number;
+    /** PNG only. Default "srgb". */
+    colorEncoding?: SimulateCaptureColorEncoding;
+    /** PNG only: 8 or 16 bits per sample. Default 8, or 16 for the PQ/HLG encodings (which require 16). */
+    bitDepth?: 8 | 16;
+    /** Default: the 1.0 facade's bilinear RGGB kernels. */
+    demosaic?: SimulateCaptureDemosaic;
+    /** Default "margin". */
+    borderHandling?: SimulateCaptureBorderHandling;
   };
+  /** Camera motion and shutter type. Default: still camera, global electronic shutter. */
+  motion?: SimulateCaptureMotion;
   sensor?: {
     /** Pixel pitch in micrometres. Default 6. */
     pixelPitchMicrometers?: number;
@@ -127,7 +201,7 @@ export interface SimulateCaptureOptions {
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
 
 ```ts
-export type SimulateCaptureOutputFormat = "srgb-8" | "srgb-16" | "jpeg";
+export type SimulateCaptureOutputFormat = "srgb-8" | "srgb-16" | "jpeg" | "png";
 ```
 
 ## SimulateCaptureProgress
@@ -154,10 +228,14 @@ export interface SimulateCaptureResult {
     width: number;
     height: number;
     format: SimulateCaptureOutputFormat;
-    /** Interleaved RGB, sRGB-encoded (IEC 61966-2-1), row-major from the top-left. */
+    /** Interleaved RGB, row-major from the top-left; sRGB-encoded (IEC 61966-2-1) unless `colorEncoding` says otherwise. */
     samples: Uint8Array | Uint16Array;
     /** Baseline JPEG bytes when format is "jpeg". */
     jpeg?: Uint8Array;
+    /** PNG file bytes when format is "png". */
+    png?: Uint8Array;
+    /** Encoding of `samples` and `png` when format is "png". */
+    colorEncoding?: SimulateCaptureColorEncoding;
   };
   /** Packed native RAW (codes, black levels, saturation flags) as produced by the native environment RAW task. */
   raw: NativeRawOutput;

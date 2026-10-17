@@ -7266,3 +7266,56 @@ In `aperture-priority` mode the shutter comes from the meter (ISO 2720 relation 
 `resolveChartScene()` gives analytic reflectance at any frame point, and
 `createPlanarSceneRadianceProvider()` turns a chart into an `evaluateRadiance` callback for the native
 environment RAW contract.
+
+### Facade 2.0 options: output, demosaic, optics and motion
+
+Each 2.0 option is opt-in and composes an existing public contract; without them the facade's output
+is byte-identical to 1.0. `output.format: "png"` writes `serializePngImage` output, either the
+developed sRGB samples or, with `colorEncoding`, the unclipped linear development converted through
+CIE XYZ to Display P3, Rec. 2020 or Rec. 2100 PQ/HLG (`createHdrImageEncodingTask`), signalled with
+cICP. DNG is refused, because the engine's DNG writer needs a linear-master capture that a native
+environment capture does not have. See [Output formats](QUICK_START.md#output-formats).
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const p3 = await simulateCapture({ scene: { preset: "checkerboard" }, output: { width: 8, height: 8, format: "png", colorEncoding: "display-p3", bitDepth: 16 } });
+console.log(p3.image.png?.length, p3.image.colorEncoding, p3.provenance.composedContracts.includes("serializePngImage"));
+```
+
+`output.demosaic` selects `createBuiltInBayerDemosaicProfiles` kernels, and `output.borderHandling:
+"mirror"` renders no border sites and reads reflect-101 images at the frame edge instead.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const mirrored = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 6, height: 4, demosaic: "malvar-he-cutler", borderHandling: "mirror" } });
+console.log(mirrored.plan.exposure.geometry.nativeRaster, mirrored.assumptions.find((a) => a.id === "output.demosaic")?.value);
+```
+
+`lens.projection` and `lens.distortion` become the environment `lensFieldMapping`, `lens.vignetting`
+becomes radial field throughput and `lens.psf` is a caller sampled PSF; haze and polarizers are not
+offered because the scene-radiance provider contract declares neither volumetric transport nor
+polarization. See [Optics](QUICK_START.md#optics).
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const barrel = await simulateCapture({
+  scene: { preset: "uniform" },
+  lens: { distortion: { kind: "brown-conrady", profile: { normalizationRadiusMm: 0.05, maximumNormalizedRadius: 1, coefficients: { k1: -0.2, k2: 0, k3: 0, p1: 0.01, p2: 0 } } } },
+  output: { width: 8, height: 8 }
+});
+console.log(barrel.request.siteInput(0).environment.lensFieldMapping?.distortion.kind);
+```
+
+`motion.angularVelocityRadPerSec` rotates the camera during the exposure (8 temporal midpoints by
+default), and `motion.shutter: "rolling"` derives each site's exposure window from the body's rolling
+readout with `resolveElectronicRollingShutterExposureSchedule`. See [Motion](QUICK_START.md#motion).
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const rolling = await simulateCapture({ scene: { preset: "checkerboard" }, motion: { angularVelocityRadPerSec: { pitch: 0.02 }, shutter: "rolling" }, output: { width: 6, height: 6 } });
+console.log(rolling.request.siteInput(7 * 8).charge.completenessProfile.startOffsetSecondsFromOpeningReference);
+```

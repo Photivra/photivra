@@ -38,7 +38,7 @@ the example above is [simulate-capture.mjs](examples/simulate-capture.mjs).
 
 | Field | Contents |
 | --- | --- |
-| `image` | `width`, `height`, `format`, `samples` (`Uint8Array` or `Uint16Array` RGB), and `jpeg` bytes for the `jpeg` format |
+| `image` | `width`, `height`, `format`, `samples` (`Uint8Array` or `Uint16Array` RGB), `jpeg` bytes for the `jpeg` format, and `png` bytes plus `colorEncoding` for the `png` format |
 | `raw` | The packed native RAW: codes, black levels, saturation flags and per-phase white levels |
 | `plan` | The native RAW plan the engine executed |
 | `request` | The complete underlying request: `environmentRaw` (the native environment RAW input), `siteInput(index)` (rebuilds the physical input of any sensor site), `development` (the RAW development input) and `whiteBalanceState` |
@@ -60,7 +60,11 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `lens.focalLengthMm` | 50 | Must lie in the lens capability; the generic primes are 50 mm. |
 | `lens.fNumber` | 8 | Used in `manual` and `aperture-priority`; resolved automatically otherwise. Must lie in f/4–f/16. |
 | `lens.focusDistanceM` | the subject distance | |
-| `lens.pupilSampling` | off | `{ radialSamples, angularSamples }` traces an ideal circular pupil, which renders defocus. Off means one chief ray per sample. |
+| `lens.pupilSampling` | off | `{ radialSamples, angularSamples }` traces an ideal circular pupil, which renders defocus. Off means one chief ray per sample. Angular samples 4–64, at most 256 rays. |
+| `lens.projection` | `"rectilinear"` | Any `LENS_PROJECTION_MODELS` value, for example `"fisheye-equisolid-angle"` (see [Optics](#optics)). |
+| `lens.distortion` | none | `{ kind: "radial", profile }` or `{ kind: "brown-conrady", profile }`. |
+| `lens.vignetting` | none | An `IlluminationVignettingProfile` (radial relative illumination). |
+| `lens.psf` | none | A `{ kind: "sampled-local", configuration }` sampled lens PSF, passed to the environment contract unchanged. |
 | `exposure.mode` | `"manual"` | Also `"aperture-priority"`, `"shutter-priority"`, `"program"`. |
 | `exposure.iso` | 100 | Selects the body's ISO readout regime (gain and read noise). |
 | `exposure.shutterSeconds` | 1/125 | Used in `manual` and `shutter-priority`. |
@@ -69,8 +73,12 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `subjectDistanceM` | 5 | Distance of the scene plane. |
 | `illuminant` | Planckian 6500 K | Also `"cie-a"`, `{ kind: "planckian", temperatureKelvin }`, `{ kind: "daylight", correlatedColorTemperatureKelvin, basis }` or `{ kind: "spectrum", spectrum }`. |
 | `illuminanceLux` | 17 453 | See [Exposure](#exposure). |
-| `output.width`, `output.height` | 64 × 64 | Output pixels. The sensor has one extra site on each side for demosaicing. |
-| `output.format` | `"srgb-8"` | Also `"srgb-16"` and `"jpeg"`. |
+| `output.width`, `output.height` | 64 × 64 | Output pixels. The sensor has one extra site on each side for demosaicing (see `output.borderHandling`). |
+| `output.format` | `"srgb-8"` | Also `"srgb-16"`, `"jpeg"` and `"png"` (see [Output formats](#output-formats)). |
+| `output.colorEncoding` | `"srgb"` | PNG only: also `"display-p3"`, `"rec2020"`, `"rec2100-pq"` and `"rec2100-hlg"`. |
+| `output.bitDepth` | 8 (16 for PQ/HLG) | PNG only: 8 or 16. |
+| `output.demosaic` | the 1.0 bilinear kernels | `"bilinear"` or `"malvar-he-cutler"` (see [Demosaic](#demosaic)). |
+| `output.borderHandling` | `"margin"` | Or `"mirror"`. |
 | `output.toneCurve` | `"identity"` | Any `SdrToneCurve`, for example `"positive-reinhard-per-channel"`. |
 | `output.toneCurveParameters` | none | Required by the luminance curves (`extended-reinhard-luminance`, `naka-rushton-luminance`); the facade invents no curve parameters. |
 | `output.highlightMode` | `"clip"` | Or `"reconstruct"`. |
@@ -78,11 +86,16 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `output.jpegQuantizationStep` | 2 | Constant step 1–255, not a manufacturer quality scale. |
 | `sensor.pixelPitchMicrometers` | 6 | The sensor is `width × pitch` wide (see [Geometry](#geometry)). |
 | `sensor.spectralStepNanometers` | 20 | Spectral quadrature over 380–780 nm. |
-| `sensor.temporalSampleCount` | 1 | The scene and camera are static. |
+| `sensor.temporalSampleCount` | 1, or 8 when the camera rotates | Midpoints across each site's exposure window. |
 | `sensor.noiseSeed` | 1 | Output is deterministic for a given seed. |
+| `motion.angularVelocityRadPerSec` | still | `{ pitch?, yaw?, roll? }` in rad/s (see [Motion](#motion)). |
+| `motion.shutter` | `"global"` | Or `"rolling"`. |
+| `motion.rollingShutterSkewSeconds` | the body's readout skew | Rolling only. |
 | `signal`, `onProgress` | none | An `AbortSignal` cancels the running task; `onProgress` reports `raw`, `white-balance`, `development` and `jpeg` tiles. |
 
-Unknown fields are rejected, so a typo never silently falls back to a default.
+Unknown fields are rejected, so a typo never silently falls back to a default. Every 2.0 option
+(PNG, demosaic, optics and motion) is opt-in: with none of them given, the request, RAW, samples and
+JPEG are byte-identical to the 1.0 facade, and a test pins that.
 
 ## Geometry
 
@@ -166,17 +179,163 @@ These choices appear in `assumptions` as `kind: "model"` entries:
   photon-counting response. RAW channels are then proportional to CIE XYZ (the Luther–Ives
   condition), and the camera matrix is diagonal. No real camera has this response.
 - **Lens.** The tier lens's spectrally flat transmission is used at every f-number and focus in the
-  lens capability. No PSF or diffraction, vignetting, distortion, lateral colour or stray light is
-  applied. The tier's optical data exist only at f/4 and 5 m, and the facade does not extrapolate them.
+  lens capability. By default no PSF or diffraction, vignetting, distortion, lateral colour or stray
+  light is applied. The tier's optical data exist only at f/4 and 5 m, and the facade does not
+  extrapolate them; vignetting, distortion and PSF are applied only from profiles you supply.
 - **Sensor.** Square pixels with a fill factor of 1 and no anti-aliasing filter. A global
-  electronic shutter. A synthetic uniform dark current of 1 e⁻/s at 20 °C (the tiers declare none).
-  The charge capacity equals the body's base-ISO saturation signal.
-- **Demosaic.** Bilinear RGGB interpolation through the existing linear-kernel contract. Sharp
-  edges without lens blur therefore show the usual zipper and false-colour artefacts.
+  electronic shutter unless `motion.shutter` is `"rolling"`. A synthetic uniform dark current of
+  1 e⁻/s at 20 °C (the tiers declare none). The charge capacity equals the body's base-ISO saturation signal.
+- **Demosaic.** Bilinear RGGB interpolation through the existing linear-kernel contract unless
+  `output.demosaic` selects a built-in kernel. Sharp edges without lens blur therefore show the
+  usual zipper and false-colour artefacts.
 - **Scene.** A planar Lambertian surface: radiance = reflectance × irradiance / π, with illuminance
   from K_m = 683 lm/W and the analytic ȳ. No shadows, inter-reflection, gloss or fluorescence.
 - **Rendering.** Linear sRGB with RAW white at display white, no exposure push, out-of-gamut
   components clipped, then the sRGB transfer function.
+
+## Output formats
+
+`output.format: "png"` writes a PNG with `serializePngImage`: 8- or 16-bit RGB, deterministic
+in-house zlib, and the colour encoding signalled in the file.
+
+| `colorEncoding` | Samples | PNG signalling |
+| --- | --- | --- |
+| `"srgb"` | Exactly the developed sRGB samples (the `srgb-8` / `srgb-16` output). | sRGB chunk (perceptual intent) with its prescribed gAMA/cHRM values |
+| `"display-p3"` | Linear colour converted to Display P3 primaries (SMPTE EG 432-1, D65), sRGB transfer. | cICP 12/13/0/1 |
+| `"rec2020"` | Linear colour converted to ITU-R BT.2020 primaries, BT.2020 OETF (the BT.709 curve). | cICP 9/1/0/1 |
+| `"rec2100-pq"` | BT.2020 primaries, SMPTE ST 2084 PQ, 16-bit full range. | cICP 9/16/0/1 |
+| `"rec2100-hlg"` | BT.2020 primaries, ARIB STD-B67 HLG, 16-bit full range. | cICP 9/18/0/1 |
+
+What is converted, and where: the sRGB output path develops each pixel to linear sRGB/D65 (demosaic,
+per-site clip at the RAW white level, white balance, highlight mode, the camera→XYZ matrix and the
+XYZ→sRGB matrix) and then clips each component to [0, 1]. The wide-gamut and HDR encodings use the same
+development operator but stop before that clip, so colours outside sRGB survive (as negative or
+above-one sRGB components). They convert that linear colour back to CIE XYZ and on to the target
+primaries (matrices from the primaries and the D65 white, SMPTE RP 177). Gamut mapping then happens
+only once, in the target space: components are clipped to [0, 1] for Display P3 and Rec. 2020, and
+negative BT.2020 components are clipped by `createHdrImageEncodingTask` for PQ and HLG. No perceptual
+gamut compression is applied. Tone curves other than `identity` are sRGB-only and are refused with a
+wide-gamut encoding.
+
+For PQ and HLG, relative value 1.0 (the RAW white level) sits at the ITU-R BT.2408 HDR reference white:
+203 cd/m² in PQ, signal 0.75 in HLG. A single capture has no signal above its RAW white, so these files
+have no highlight headroom above reference white; merge a bracket with `createHdrBracketMergeTask`
+(see [PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)) for extended range. No mDCV or cLLI metadata is
+written. With the facade's colorimetric sensor the wide-gamut colours are exact up to the spectral
+quadrature: with 5 nm spectral steps, a test reproduces an out-of-sRGB green emitter's CIE 1931 xy chromaticity to within 0.004.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const wide = await simulateCapture({
+  scene: { preset: "checkerboard" },
+  output: { width: 8, height: 8, format: "png", colorEncoding: "display-p3", bitDepth: 16 }
+});
+console.log(wide.image.colorEncoding, wide.image.png?.length, wide.diagnostics.rendering.gamutClippedLowSampleCount);
+
+const hdr = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "png", colorEncoding: "rec2100-pq" } });
+console.log(hdr.image.samples instanceof Uint16Array, hdr.assumptions.find((a) => a.id === "output.colorEncoding.conversion")?.value);
+```
+
+DNG output is not offered. The engine's DNG writer, `createPhotographicExportPair`, serializes a
+bounded `SensorRawFrame` whose committed capture must declare a linear-master source with float
+planes. A native environment capture commits a scene-radiance source without planes, so the only way
+to use that writer would be to declare a linear master that never existed. `format: "dng"` is refused
+with that reason; `result.raw` holds the packed RAW codes, black levels and white levels.
+
+## Demosaic
+
+`output.demosaic` selects the built-in Bayer kernels of `createBuiltInBayerDemosaicProfiles`:
+`"bilinear"` (nearest same-channel averages; pixel-identical to the default) or `"malvar-he-cutler"`
+(Malvar, He & Cutler 2004: bilinear plus the own-channel Laplacian with gains 1/2, 5/8 and 3/4). The
+Malvar–He–Cutler kernels sharpen luminance edges, but on saturated colour edges they can fringe more
+than bilinear (measured in [PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)).
+
+`output.borderHandling` decides how edge pixels get their neighbours. `"margin"` (the default) renders
+the kernel reach as extra sensor sites around the output: one site for bilinear, two for
+Malvar–He–Cutler. `"mirror"` renders exactly the output and reads reflect-101 mirror images of the
+missing sites, after the engine has checked that every reflected site keeps its CFA colour. Mirror
+saves the border's radiance work and keeps small captures from needing extra sites; its edge pixels
+use mirrored rather than rendered neighbours.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const mhc = await simulateCapture({
+  scene: { preset: "slanted-edge" },
+  output: { width: 8, height: 8, demosaic: "malvar-he-cutler", borderHandling: "mirror" }
+});
+console.log(mhc.plan.exposure.geometry.nativeRaster, mhc.request.development.borderHandling);
+```
+
+## Optics
+
+The optics options feed only what the environment site contract accepts:
+
+- `lens.projection` and `lens.distortion` become the site's `lensFieldMapping`. Each sensor point is
+  inverse-distorted, unprojected with the chosen ideal projection, and only then turned into a scene
+  ray; irradiance is multiplied exactly once by the distortion area factor 1/det(J). At finite focus a
+  non-rectilinear projection is scaled by the thin-lens image distance (an approximation). The chart is
+  still sized with the rectilinear scale, so its edges move with the projection. Neither can be
+  combined with `lens.pupilSampling`, because ideal pupil rays assume the rectilinear, distortion-free
+  projection.
+- `lens.vignetting` becomes radial-illumination-vignetting field throughput,
+  1 + r2·ρ² + r4·ρ⁴ + r6·ρ⁶, applied once at the physical sensor point before any PSF.
+- `lens.psf` is a caller sampled PSF passed through unchanged. Its focal length, f-number and focus
+  must equal the resolved capture settings exactly, and it cannot be combined with pupil sampling.
+
+The default frame is a 0.38 mm crop behind a 50 mm lens, a field of well under a degree, so projection
+and distortion effects only become visible with larger pixels (or a custom lens). Profiles are yours:
+the tiers declare no vignetting, distortion or PSF away from their f/4 reference.
+
+Atmospheric haze and polarizers are not offered. The scene-radiance provider contract fixes
+`volumetricTransportModeled` and `polarizationModeled` to false, so haze airlight added inside the
+provider would be misdeclared, and with unpolarized scene light a polarizer reduces to a uniform
+attenuation with none of its glare or sky effects. Use `calculateAtmosphericHaze` and the
+front-of-lens filter contracts directly (see [PHYSICS_FOUNDATION.md](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md)).
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const lensy = await simulateCapture({
+  scene: { preset: "point-grid" },
+  sensor: { pixelPitchMicrometers: 50 },
+  lens: {
+    projection: "fisheye-equisolid-angle",
+    distortion: { kind: "radial", profile: { normalizationRadiusMm: 0.5, maximumNormalizedRadius: 1, coefficients: { k1: -0.1, k2: 0, k3: 0 } } },
+    vignetting: { normalizationRadiusMm: 0.5, maximumNormalizedRadius: 1, coefficients: { r2: -0.3, r4: 0, r6: 0 } }
+  },
+  output: { width: 8, height: 8 }
+});
+console.log(lensy.request.siteInput(0).environment.lensFieldMapping, lensy.assumptions.find((a) => a.id === "lens.vignetting")?.kind);
+```
+
+## Motion
+
+`motion.angularVelocityRadPerSec` rotates the camera at a constant rate during the exposure, in the
+engine's pitch/yaw/roll convention ([SENSOR_ENVIRONMENT_QUERY.md](https://github.com/Photivra/photivra/blob/main/docs/SENSOR_ENVIRONMENT_QUERY.md)). Every scene ray is rotated at each temporal midpoint of the site's
+exposure window, so motion blur is a midpoint quadrature; `sensor.temporalSampleCount` defaults to 8
+when the camera rotates. A yaw of ω rad/s moves the image by ω·f/pitch pixels per second.
+
+`motion.shutter: "rolling"` derives the exposure schedule from the body's rolling readout declaration
+with `resolveElectronicRollingShutterExposureSchedule` (line reset/read linkage): a site at normalized
+scan position s integrates over [s·τ, s·τ + T]. The default skew τ is the tier's full-frame data-readout
+time, applied unchanged across the simulated frame; it is not scaled to the cropped sensor, because the
+engine never rescales a declared skew. A small frame therefore shows the skew of a full-sensor readout.
+Pass `rollingShutterSkewSeconds` to declare τ for the simulated frame yourself. Each site's charge
+window follows its own exposure window. Combined with rotation, a vertical edge shears by
+ω·f/pitch·τ pixels from the first to the last row, which a test checks.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const pan = await simulateCapture({
+  scene: { preset: "slanted-edge", angleDegrees: 0 },
+  motion: { angularVelocityRadPerSec: { yaw: 0.06 }, shutter: "rolling", rollingShutterSkewSeconds: 0.01 },
+  output: { width: 8, height: 8 }
+});
+console.log(pan.assumptions.find((a) => a.id === "sensor.shutter")?.value, pan.exposure.settings.shutterSeconds);
+```
 
 ## Performance
 
@@ -199,11 +358,11 @@ These numbers come from one run on a noisy machine. They are not a performance c
 (up to about 64 × 64) take seconds. Use them while you explore, and render large images only when
 you need them.
 
-## Not available yet
+## Not available
 
-The facade has no lens PSF or diffraction blur, vignetting, distortion, motion blur, rolling shutter,
-flash, or DNG and PNG output. The underlying contracts support several of these; the facade will
-expose them as they are added. Real camera and lens presets are not provided, for rights reasons.
+The facade offers no DNG output (see [Output formats](#output-formats)), atmospheric haze or polarizer
+(see [Optics](#optics)), flash, video, HDR brackets or processing operators; those APIs are available
+directly. Real camera and lens presets are not provided, for rights reasons.
 
 ## Sources
 
@@ -218,3 +377,14 @@ expose them as they are added. Real camera and lens presets are not provided, fo
   functions", *Journal of Computer Graphics Techniques* 2(2), 2013.
 - R. Luther, "Aus dem Gebiet der Farbreizmetrik", *Zeitschrift für technische Physik* 8, 1927
   (the Luther condition for colorimetric cameras).
+- IEC 61966-2-1:1999 (sRGB); SMPTE EG 432-1:2010 (P3 primaries); ITU-R BT.2020-2; ITU-R BT.2100-3
+  (PQ and HLG); SMPTE ST 2084; ITU-R BT.2408 (HDR reference white); SMPTE RP 177 (matrices from
+  primaries); ITU-T H.273 (cICP code points); W3C PNG Specification, Third Edition (2025).
+- H. S. Malvar, L.-W. He, R. Cutler, "High-quality linear interpolation for demosaicing of
+  Bayer-patterned color images", *Proc. IEEE ICASSP* 2004.
+- K. Miyamoto, "Fish eye lens", *JOSA* 54, 1964; J. Kannala, S. Brandt, *IEEE TPAMI* 28, 2006
+  (projections); A. E. Conrady, *MNRAS* 79, 1919; D. C. Brown, *Photogrammetric Engineering* 32, 1966
+  (distortion).
+- A. El Gamal, H. Eltoukhy, "CMOS image sensors", *IEEE Circuits and Devices Magazine* 21(3), 2005;
+  C.-K. Liang, L.-W. Chang, H. H. Chen, "Analysis and compensation of rolling shutter effect",
+  *IEEE TIP* 17(8), 2008 (rolling-shutter line timing).
