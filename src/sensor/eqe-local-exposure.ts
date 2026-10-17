@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Compose validated irradiance reduction, response applicability/range, EQE conversion and stationary
- * local integration. The exposure value is suitable for accumulated-charge photoSignal;
- * dark/completeness/capacity/readout remain explicit downstream inputs. Invalid or unsupported
- * evidence fails closed.
- * Internal shared instantaneous path; no stationarity or exposure accumulation.
+ * Photo signal for one site over one exposure, assuming constant light. It chains four existing steps:
+ * reduce irradiance samples over the site, check the response applies and is in range, convert with
+ * EQE (external quantum efficiency), and integrate the constant rate over the local exposure.
+ *
+ * The result can be used as the photoSignal for accumulated charge. Dark current, completeness,
+ * capacity and readout are separate later inputs. Invalid or unsupported evidence is rejected.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -23,33 +23,33 @@ import { bindSensorRateToLocalExposure, type BindSensorRateToLocalExposureInput 
 import { integrateStationarySensorRateOverLocalExposure, type SensorEqeExposureIntegration, type SensorRateTemporalStationarityProfile } from "./constant-rate-temporal-integration.js";
 import { requireInputObject } from "../core/record-validation.js";
 
-/** Explicit post-optics irradiance samples and evidence; no renderer or RGB conversion. */
+/** Input: explicit irradiance samples after the optics, with evidence. No renderer or RGB conversion is involved. */
 export interface CalculateSensorEqeLocalExposureInput {
-  /** Physical area, registered aperture/lattice, AA support and destination site. */
+  /** Physical area, the site's aperture on its grid, anti-aliasing (AA) support and the destination site. */
   spatialSampling: Omit<CalculateSensorSpatialSamplingQuadratureInput,
     "colorSamplingProfile" | "colorSamplingBindingProfile" | "nativeRaster">;
-  /** Explicit wavelength basis/range, channel and midpoint subdivision budget. */
+  /** Wavelength basis and range, channel, and the budget for midpoint subdivisions. */
   spectralSampling: Omit<CalculateSensorSpectralQuadratureInput,
     "colorSamplingProfile" | "spectralResponseProfile">;
-  /** One W/m²/nm value per identified pre-AA spatial/spectral node. */
+  /** One value in W/m²/nm for each identified spatial and spectral node, before anti-aliasing. */
   irradianceSamples: ReduceSensorSpatioSpectralIrradianceInput["sampleValues"];
-  /** Source-plane, collection-area and reference-condition evidence. */
+  /** Evidence about the source plane, collection area and reference conditions of the response data. */
   responseApplication: Omit<AssessSensorResponseApplicationCompatibilityInput, "reduction">;
-  /** Evidence-backed linear response domain; no extrapolation is authorized. */
+  /** Evidence-backed range in which the response is linear. No extrapolation beyond it is allowed. */
   operatingRangeProfile: AssessSensorResponseOperatingRangeInput["operatingRangeProfile"];
-  /** Destination CFA/channel identity shared by every composed step. */
+  /** The destination CFA site and channel, shared by every step. */
   colorSamplingProfile: CalculateSensorEqeElectronRateInput["colorSamplingProfile"];
-  /** Direct or separable EQE response; A/W responsivity is unsupported here. */
+  /** EQE response, given directly or as separable factors. A/W responsivity is not supported here. */
   spectralResponseProfile: CalculateSensorEqeElectronRateInput["spectralResponseProfile"];
-  /** Required explicit photon-energy conversion context for air wavelengths. */
+  /** Required for air wavelengths: the explicit context for converting to photon energy. */
   airPhotonEnergyContext?: CalculateSensorEqeElectronRateInput["airPhotonEnergyContext"];
-  /** Native one-to-one site binding and one opening/closing shutter event. */
+  /** One-to-one native site binding and one shutter opening and closing. */
   localExposure: Omit<BindSensorRateToLocalExposureInput, "rate" | "colorSamplingProfile">;
-  /** Separate declaration authorizing a constant rate across this exact window. */
+  /** A separate declaration that the rate is constant over this exact window. */
   stationarityProfile: SensorRateTemporalStationarityProfile;
 }
 
-/** Child envelopes retain separate provenance, validity and unpropagated uncertainty. */
+/** Result. Each step's result keeps its own provenance, validity and uncertainty; uncertainties are not combined. */
 export interface SensorEqeLocalExposure {
   upstreamOrigin: "declared-spatio-spectral-irradiance-samples";
   upstreamSceneAndOpticsVerified: false;
@@ -64,10 +64,11 @@ export interface SensorEqeLocalExposure {
 }
 
 /**
- * Compose validated irradiance reduction, response applicability/range, EQE
- * conversion and stationary local integration. The exposure value is suitable
- * for accumulated-charge photoSignal; dark/completeness/capacity/readout remain
- * explicit downstream inputs. Invalid or unsupported evidence fails closed.
+ * Runs irradiance reduction, the response applicability and range checks, EQE
+ * conversion and constant-rate integration over the local exposure. The result
+ * can be the photoSignal for accumulated charge. Dark current, completeness,
+ * capacity and readout are separate later inputs. Invalid or unsupported
+ * evidence is rejected.
  */
 export function calculateSensorEqeLocalExposure(
   input: CalculateSensorEqeLocalExposureInput
@@ -94,7 +95,7 @@ export function calculateSensorEqeLocalExposure(
   ]);
 }
 
-/** Internal shared instantaneous path; no stationarity or exposure accumulation. */
+/** Internal: the same chain for one instant (a rate). No stationarity check and no integration over the exposure. */
 export function calculateSensorEqeLocalRate(
   input: Omit<CalculateSensorEqeLocalExposureInput, "stationarityProfile">
 ): Omit<SensorEqeLocalExposure, "upstreamOrigin" | "upstreamSceneAndOpticsVerified" | "exposure"> {

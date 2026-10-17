@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Calculates physical imaging-area metrics independently from native raster density. Crop factor uses
- * the diagonal ratio to a 36 × 24 mm reference frame. Digital/output crops are not part of this
- * physical imaging-area quantity.
- * Calculates physical imaging-area, native-raster, and geometric sampling metrics without coupling
- * sensor size to resolution. The supplied raster is assumed to span the supplied imaging area. Derived
- * sampling pitch is geometric sample spacing only and must not be interpreted as photosite fill factor
- * or photon-collection area.
+ * Sensor geometry: physical size of the imaging area (diagonal, aspect ratio, 35 mm crop factor) and
+ * the native pixel grid (megapixels, pixel pitch).
+ *
+ * Sensor size and resolution are kept independent. Crop factor is the ratio of diagonals to a
+ * 36 × 24 mm frame, and does not include any digital or output crop. Pixel pitch here is only the
+ * spacing between samples; it is not the photosite's fill factor or light-collecting area.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -27,14 +25,14 @@ import { requireInputObject } from "../core/record-validation.js";
 
 const REFERENCE_35MM_WIDTH_MM = 36;
 const REFERENCE_35MM_HEIGHT_MM = 24;
-/** 36² + 24² mm²: squared diagonal of the 35 mm reference frame (exact in binary64). */
+/** 36² + 24² mm²: the squared diagonal of the 35 mm reference frame (exact as a double). */
 const REFERENCE_35MM_DIAGONAL_SQUARED_MM2 =
   REFERENCE_35MM_WIDTH_MM * REFERENCE_35MM_WIDTH_MM +
   REFERENCE_35MM_HEIGHT_MM * REFERENCE_35MM_HEIGHT_MM;
 
 /**
- * Diagonal 35 mm crop factor, √(1872 / (w² + h²)), from correctly rounded operations only so the
- * persisted value is bit-identical in every JavaScript engine (see core/portable-math.ts).
+ * Diagonal 35 mm crop factor, √(1872 / (w² + h²)). It uses only correctly rounded operations, so the
+ * stored value is bit-identical in every JavaScript engine (see core/portable-math.ts).
  */
 function diagonalCropFactor35Mm(widthMm: number, heightMm: number, diagonalMm: number): number {
   const diagonalSquaredMm2 = widthMm * widthMm + heightMm * heightMm;
@@ -44,9 +42,9 @@ function diagonalCropFactor35Mm(widthMm: number, heightMm: number, diagonalMm: n
 }
 
 /**
- * Physical photosensitive imaging area used for image formation.
+ * The physical light-sensitive imaging area used for image formation.
  *
- * This is deliberately not a sensor package/die dimension.
+ * It is deliberately not the size of the sensor package or die.
  */
 export interface SensorImagingArea {
   /** Physical active imaging width in millimetres. */
@@ -56,10 +54,10 @@ export interface SensorImagingArea {
 }
 
 /**
- * Native effective image-sampling raster associated with an imaging area.
+ * Width and height of an image grid in pixels.
  *
- * The raster describes effective image samples. It does not imply that each
- * sample corresponds one-to-one with a physical photodiode/photosite.
+ * Pixels here are image samples. That does not mean each sample matches one
+ * physical photodiode (photosite).
  */
 export interface RasterDimensions {
   /** Horizontal image-sample/pixel count. */
@@ -69,10 +67,10 @@ export interface RasterDimensions {
 }
 
 /**
- * Native effective image-sampling raster associated with an imaging area.
+ * The native pixel grid of an imaging area.
  *
- * This alias identifies semantic role; generic active/output rasters should
- * use RasterDimensions instead.
+ * This alias names the role. For other grids, such as active or output
+ * images, use RasterDimensions.
  */
 export type NativeImageRaster = RasterDimensions;
 
@@ -84,8 +82,8 @@ export interface ImagingAreaMetrics {
   /**
    * Diagonal crop factor relative to a 36 × 24 mm reference frame.
    *
-   * This is a physical imaging-area quantity and does not include later
-   * digital/output cropping.
+   * It describes the physical imaging area only, and does not include any
+   * later digital or output crop.
    */
   cropFactor35Mm: number;
 }
@@ -107,15 +105,15 @@ export interface SensorGeometryMetrics {
   };
   sampling: {
     /**
-     * Horizontal geometric sampling pitch in micrometres.
+     * Horizontal sample spacing (pitch) in micrometres.
      *
-     * This is image-sample spacing, not physical photodiode active area.
+     * This is the spacing between image samples, not the photodiode's active area.
      */
     pitchXMicrometers: number;
     /**
-     * Vertical geometric sampling pitch in micrometres.
+     * Vertical sample spacing (pitch) in micrometres.
      *
-     * This is image-sample spacing, not physical photodiode active area.
+     * This is the spacing between image samples, not the photodiode's active area.
      */
     pitchYMicrometers: number;
     /** Horizontal sampling pitch divided by vertical sampling pitch. */
@@ -124,11 +122,10 @@ export interface SensorGeometryMetrics {
 }
 
 /**
- * Calculates physical imaging-area metrics independently from native raster
- * density.
+ * Calculates metrics of the physical imaging area, independent of pixel count.
  *
- * Crop factor uses the diagonal ratio to a 36 × 24 mm reference frame.
- * Digital/output crops are not part of this physical imaging-area quantity.
+ * Crop factor is the ratio of diagonals to a 36 × 24 mm reference frame. It
+ * does not include any digital or output crop.
  *
  * @param imagingArea Physical photosensitive imaging area.
  * @returns Physical diagonal, aspect ratio, and diagonal 35 mm crop factor.
@@ -158,12 +155,12 @@ export function calculateImagingAreaMetrics(
 }
 
 /**
- * Calculates physical imaging-area, native-raster, and geometric sampling
- * metrics without coupling sensor size to resolution.
+ * Calculates metrics of the physical imaging area, the native pixel grid and
+ * the sample spacing, keeping sensor size and resolution independent.
  *
- * The supplied raster is assumed to span the supplied imaging area. Derived
- * sampling pitch is geometric sample spacing only and must not be interpreted
- * as photosite fill factor or photon-collection area.
+ * The grid is assumed to cover the whole imaging area. The derived pitch is
+ * only the spacing between samples. Do not read it as the photosite's fill
+ * factor or light-collecting area.
  *
  * @param input Physical imaging area and native effective image raster.
  * @returns Derived imaging-area, raster, and sampling metrics.

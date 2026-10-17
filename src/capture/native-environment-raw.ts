@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/** Bounded source-radiance → optical/EQE → native packed RAW execution. */
+/**
+ * Native RAW capture from a scene-radiance provider: source radiance → optics → EQE (external quantum
+ * efficiency) → packed RAW codes for the full native sensor, within fixed work limits.
+ */
 import { calculateNativeRawPlan, createNativeRawTaskWithCadence, type NativeRawInput, type NativeRawOutput,
   type NativeRawTask, type NativeRawTileRequest, type NativeRawTaskState } from "./native-raw.js";
 import { createEnvironmentRawFrameCanonicalMemo, planEnvironmentRawSite, type SimulateEnvironmentSensorRawFrameInput } from "./environment-raw-producer.js";
@@ -25,11 +28,11 @@ type PhotoSignal = SensorEqeTemporalPhotoSignal;
 export interface NativeEnvironmentRawInput {
   raw: NativeRawInput;
   sceneBinding: SimulateEnvironmentSensorRawFrameInput["sceneBinding"];
-  /** Full-event admission budget; maximum 2 billion calls. No convergence is inferred. */
+  /** Budget of provider calls for the whole capture, checked before work starts; at most 2 billion. Staying within it does not imply convergence. */
   maximumProviderEvaluations: number;
   /**
-   * Opt-in: retain the optical stage (per-site photo-signal expectations bound to every optical input) on the
-   * output for createNativeEnvironmentSensorStageTask. Omission keeps the original behavior and output shape.
+   * Optional: keep the optical stage (per-site expected photo signal, tied to every optical input) on the
+   * output, for createNativeEnvironmentSensorStageTask. If omitted, behaviour and output shape are unchanged.
    */
   opticalStage?: NativeEnvironmentOpticalStageRetention;
 }
@@ -41,7 +44,7 @@ export interface NativeEnvironmentRawProvider {
   readTile(request: Readonly<NativeRawTileRequest>,signal:AbortSignal):Promise<NativeEnvironmentRawTile>;
   evaluateRadiance: SimulateEnvironmentSensorRawFrameInput["evaluateRadiance"];
   evaluateApertureRadiance?: SimulateEnvironmentSensorRawFrameInput["evaluateApertureRadiance"];
-  /** Optional bounded diagnostic observer; counts are expectation values before any noise/clamp/ADC. */
+  /** Optional, bounded diagnostic callback. Counts are expected values before any noise, clipping or ADC (analogue-to-digital conversion). */
   observePhotoTile?(tile:Readonly<NativeEnvironmentPhotoTile>,signal:AbortSignal):void|Promise<void>;
   yieldControl(signal:AbortSignal):Promise<void>;
 }
@@ -68,7 +71,7 @@ function canonical(value:unknown):string {
 /** Site-environment fields that one native event shares across every site (same set as the optical-stage binding). */
 const SHARED_STATE_KEYS = ["sceneBindings","optics","motion","psf","pupil","fieldThroughput"] as const;
 type SiteEnvironment = SimulateEnvironmentSensorRawFrameInput["sites"][number]["environment"];
-/** The frame's first admitted shared state: its canonical string and its engine-owned (cloned) values. */
+/** The frame's first accepted shared state: its canonical string and its engine-owned (cloned) values. */
 interface SharedStateReference {
   readonly canonical: string;
   readonly values: readonly unknown[];
@@ -104,11 +107,11 @@ function samePlainData(value: unknown, reference: unknown, cleanArrays: WeakSet<
   return true;
 }
 /**
- * Replaces a site's private cloned shared state with the frame reference values when every field is strictly
- * equal (#2, 2.0 performance). Every site then shares one engine-owned shared state, so its sampled PSF is
- * parsed and frozen once per frame and duplicate clones become garbage at once. `verified` holds clone objects
- * of the current tile already shown equal, so sites that the supplier built from one object compare in O(1).
- * Returns false, changing nothing, when any field differs; the caller then serializes as before.
+ * Replaces a site's private copy of the shared state with the frame's reference values when every field is
+ * strictly equal (a 2.0 performance change). All sites then share one engine-owned shared state, so its sampled
+ * PSF is parsed and frozen once per frame and duplicate copies can be garbage-collected at once. `verified`
+ * holds copies in the current tile already shown equal, so sites the supplier built from one object compare in
+ * O(1). Returns false, changing nothing, when any field differs; the caller then serializes as before.
  */
 function adoptSharedState(environment: SiteEnvironment, reference: SharedStateReference, verified: unknown[]): boolean {
   const record = environment as unknown as Record<string, unknown>;
@@ -127,15 +130,17 @@ function parseSceneBinding(value: unknown): NativeEnvironmentRawInput["sceneBind
   return freezeOwnedData({sceneStateId:requirePublicOpaqueId(binding.sceneStateId,"Invalid scene-state ID."),providerSceneId:requirePublicOpaqueId(binding.providerSceneId,"Invalid provider-scene ID."),evidence:parseEvidenceList(binding.evidence,"nativeEnvironmentSceneBinding.evidence")});
 }
 /**
- * Every tile is planned and admission-checked before its radiance callbacks; no partial output escapes. The
- * host yield also runs between sites inside a tile once about 8 ms of work has elapsed (one budget shared with
- * the tile loop), and cancellation is checked after each such yield, so cancel() takes effect within about one
- * site's work. Yield cadence never changes tile requests, admission, callbacks or output.
+ * Creates the native RAW task. Every tile is planned and checked against the limits before its radiance
+ * callbacks run, and no partial output is ever returned.
+ *
+ * The task also yields to the host between sites inside a tile once about 8 ms of work has passed (one budget
+ * shared with the tile loop). Cancellation is checked after each such yield, so cancel() takes effect within
+ * about one site's work. Yield timing never changes tile requests, limit checks, callbacks or output.
  */
 export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,provider:NativeEnvironmentRawProvider):NativeEnvironmentRawTask {
   return createNativeEnvironmentRawTaskWithCadence(input,provider,DEFAULT_HOST_YIELD_CADENCE);
 }
-/** Internal: explicit host-yield cadence. Cadence never changes tiles, callbacks or output. Not a root export. */
+/** Internal: the same task with an explicit host-yield timing. Timing never changes tiles, callbacks or output. Not exported from the package. */
 export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmentRawInput,provider:NativeEnvironmentRawProvider,
   cadence:HostYieldCadence):NativeEnvironmentRawTask {
   const r=requireAllowlistedRecord(input,["raw","sceneBinding","maximumProviderEvaluations","opticalStage"],"Invalid native environment input.");
@@ -168,9 +173,9 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
       const tile=requireAllowlistedRecord(supplied,["captureId","frameId","x","y","width","height","sites"],"Invalid physical source tile.");
       for(const key of Object.keys(request) as (keyof NativeRawTileRequest)[])if(tile[key]!==request[key])throw new InvalidConfigurationError("Physical source tile identity mismatch.");
       if(!Array.isArray(tile.sites)||tile.sites.length!==request.width||Array.from({length:request.width},(_,i)=>i in (tile.sites as unknown[])).includes(false))throw new InvalidConfigurationError("Physical source tile needs exact native coverage.");
-      // Private clone: planning adopts each site environment as engine-owned plan data without a second clone.
+      // Private copy: planning takes each site environment as engine-owned plan data without copying it again.
       const sites=structuredClone(tile.sites) as SimulateEnvironmentSensorRawFrameInput["sites"];
-      // Host yield between sites on the shared time budget; cancellation is honored right after it.
+      // Yield to the host between sites on the shared time budget. Cancellation is honoured right after it.
       const pause=async():Promise<void>=>{
         if(!gate.due())return;
         await yieldControl(signal);
@@ -194,9 +199,9 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
           shared??=state;if(state!==shared)throw new InvalidConfigurationError("Native event requires one shared source/optical/motion state.");
           reference??={canonical:state,values:SHARED_STATE_KEYS.map(key=>(e as unknown as Record<string,unknown>)[key]),cleanArrays:new WeakSet()};
         }
-        // A site matching a verified template gets a lean plan (identical requests and admission, see
-        // native-environment-lean.ts); a template candidate keeps full query records for its self-check.
-        // Otherwise execution is photo-only, so the plan keeps only each query's frozen request and image-plane point.
+        // A site matching a verified template gets a lean plan (identical requests and limit checks; see
+        // native-environment-lean.ts). A template candidate keeps full query records for its self-check.
+        // Otherwise only the photo signal is needed, so the plan keeps just each query's frozen request and image-plane point.
         const leanPlan=lean.plan(e,index);
         let p:SitePlan;
         if(typeof leanPlan==="object")p=leanPlan;
@@ -259,15 +264,21 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
   };
 }
 /**
- * Re-runs only the sensor stage from a retained optical stage: no radiance callback is invoked. Use it when only
- * post-optics settings change (noise seed, ISO and its bound readout regime/gain, fixed-pattern noise, charge/dark/capacity profiles,
- * white-balance intent, capture identity or tile width); white balance and rendering are then applied by
- * createNativeRawDevelopmentTask as usual. RAW codes are bit-identical to a full createNativeEnvironmentRawTask
- * with the same final inputs, provided the radiance provider is a deterministic function of its request. Any
- * optical difference (scene binding, geometry or orientation, focal length, aperture, shutter or exposure window,
- * focus, frame/CFA/binding profiles, or any site environment field such as PSF, field throughput, pupil, motion,
- * spectral or temporal sampling and provider profiles) refuses with InvalidConfigurationError before output.
- * providerEvaluationCount is 0; the stage remains owned by the caller and is not consumed.
+ * Re-runs only the sensor stage from a retained optical stage. No radiance callback is called.
+ *
+ * Use it when only post-optics settings change: noise seed, ISO and its readout regime and gain,
+ * fixed-pattern noise, charge, dark-current and capacity profiles, white-balance intent, capture identity
+ * or tile width. White balance and rendering are then applied by createNativeRawDevelopmentTask as usual.
+ *
+ * RAW codes are bit-identical to a full createNativeEnvironmentRawTask with the same final inputs, as long
+ * as the radiance provider is a deterministic function of its request.
+ *
+ * Any optical difference is rejected with InvalidConfigurationError before output. That includes scene
+ * binding, geometry or orientation, focal length, aperture, shutter or exposure window, focus,
+ * frame/CFA/binding profiles, and any site environment field such as PSF, field throughput, pupil, motion,
+ * spectral or temporal sampling and provider profiles.
+ *
+ * providerEvaluationCount is 0. The caller still owns the stage; it is not used up.
  */
 export function createNativeEnvironmentSensorStageTask(input:NativeEnvironmentSensorStageInput,opticalStage:NativeEnvironmentOpticalStage,
   provider:NativeEnvironmentSensorStageProvider):NativeEnvironmentRawTask {

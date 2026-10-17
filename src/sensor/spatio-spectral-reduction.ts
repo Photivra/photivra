@@ -1,18 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Internal shared node binding; domain callers retain value validation and equations.
- * Reduces explicitly supplied sensor-plane spectral irradiance E_lambda(x,y) over the Cartesian
- * product of an existing spatial quadrature and spectral quadrature. The supplied density unit is
- * W/m^2/nm and wavelengthMeasureNanometers is d-lambda in nm, so their direct product has units W/m^2.
- * Do not convert d-lambda to metres unless the spectral-density denominator is converted consistently.
- * Spatial area integration uses the spatial quadrature's geometric area measures converted from square
- * micrometres to square metres. The result is geometric-aperture incident radiant flux only; geometric
- * area is not upgraded to an effective radiometric collection area. This reducer deliberately stops
- * before sensor response. The spectral plan was derived from a specific response channel so its
- * support/knots are useful, but QE, A/W responsivity and channel-filter transmission are not applied
- * here. Response-scope/source-plane matching therefore remains an explicit later composition step.
+ * Spatio-spectral reduction: integrates spectral irradiance on the sensor over one site's area and
+ * over wavelength, giving the incident light power on the site's geometric aperture.
+ *
+ * It stops before the sensor response: QE (quantum efficiency), A/W responsivity and colour-filter
+ * transmission are applied in later steps.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -49,8 +42,8 @@ export interface SensorSpatioSpectralNodeIdentity {
 export interface SensorSpatioSpectralIrradianceSample {
   node: SensorSpatioSpectralNodeIdentity;
   /**
-   * Spectral irradiance evaluated at the spatial quadrature node's
-   * preAntiAliasingSourcePointMm and this spectral node's wavelength.
+   * Spectral irradiance at the spatial node's preAntiAliasingSourcePointMm
+   * and this spectral node's wavelength.
    *
    * Units: W/m^2/nm.
    */
@@ -61,10 +54,10 @@ export interface ReduceSensorSpatioSpectralIrradianceInput {
   spatialQuadrature: SensorSpatialSamplingQuadrature;
   spectralQuadrature: SensorSpectralQuadrature;
   /**
-   * Exactly one explicitly identified E_lambda(x,y) value for every Cartesian
-   * product of spatial and spectral quadrature nodes.
+   * Exactly one E_lambda(x,y) value, with its node identity, for every
+   * combination of spatial node and spectral node.
    *
-   * Ordering is not significant; node identity is.
+   * Order does not matter; the node identity does.
    */
   sampleValues: readonly SensorSpatioSpectralIrradianceSample[];
 }
@@ -81,11 +74,10 @@ export interface SensorSpatioSpectralWavelengthReduction {
   normalizedSpatialAverageSpectralIrradianceWattsPerSquareMeterPerNanometer:
     number;
   /**
-   * Spectral radiant flux density incident over the geometric sensitive
-   * aperture after the declared normalized AA redistribution.
-   * Units: W/nm.
+   * Spectral radiant flux reaching the geometric sensitive aperture, after the
+   * declared normalized AA spreading. Units: W/nm.
    *
-   * This uses geometric area, not an established radiometric collection area.
+   * This uses geometric area, not an established light-collection area.
    */
   geometricApertureIncidentSpectralFluxWattsPerNanometer: number;
   /**
@@ -156,11 +148,11 @@ export interface SensorSpatioSpectralIrradianceReduction {
   wavelengthIntegratedSpatialAverageIrradianceWattsPerSquareMeter:
     number;
   /**
-   * Integral over the requested wavelength interval and geometric aperture
-   * area. Units: W.
+   * Integral over the requested wavelength interval and the geometric
+   * aperture area. Units: W.
    *
-   * This is pre-sensor-response incident radiant flux over the declared
-   * wavelength interval, not collected optical power or generated charge.
+   * This is the incident radiant flux before the sensor response, over the
+   * declared wavelength interval. It is not collected power or generated charge.
    */
   wavelengthIntegratedGeometricApertureIncidentFluxWatts:
     number;
@@ -385,7 +377,7 @@ function parseSamples<T extends { node: SensorSpatioSpectralNodeIdentity }, V>(
   return valuesByKey;
 }
 
-/** Internal shared node binding; domain callers retain value validation and equations. */
+/** Internal: matches samples to their spatial × spectral nodes. Each caller still validates values and applies its own equations. */
 export function bindSensorSpatioSpectralSamples<T extends { node: SensorSpatioSpectralNodeIdentity }, V>(
   input: { spatialQuadrature: SensorSpatialSamplingQuadrature; spectralQuadrature: SensorSpectralQuadrature; sampleValues: readonly T[] },
   valueForSample: (sample: T, sampleIndex: number) => V
@@ -482,25 +474,24 @@ export function bindSensorSpatioSpectralSamples<T extends { node: SensorSpatioSp
 }
 
 /**
- * Reduces explicitly supplied sensor-plane spectral irradiance E_lambda(x,y)
- * over the Cartesian product of an existing spatial quadrature and spectral
+ * Integrates supplied spectral irradiance on the sensor plane, E_lambda(x,y),
+ * over every combination of an existing spatial quadrature and spectral
  * quadrature.
  *
- * The supplied density unit is W/m^2/nm and wavelengthMeasureNanometers is
- * d-lambda in nm, so their direct product has units W/m^2. Do not convert
- * d-lambda to metres unless the spectral-density denominator is converted
- * consistently.
+ * Units: the density is in W/m^2/nm and wavelengthMeasureNanometers is dλ in
+ * nm, so their product is in W/m^2. Do not convert dλ to metres unless the
+ * density's per-nanometre unit is converted to match.
  *
- * Spatial area integration uses the spatial quadrature's geometric area
- * measures converted from square micrometres to square metres. The result is
- * geometric-aperture incident radiant flux only; geometric area is not upgraded
- * to an effective radiometric collection area.
+ * Area integration uses the spatial quadrature's geometric area measures,
+ * converted from square micrometres to square metres. The result is the
+ * incident radiant flux on the geometric aperture only; geometric area is not
+ * treated as an effective light-collection area.
  *
- * This reducer deliberately stops before sensor response. The spectral plan was
- * derived from a specific response channel so its support/knots are useful, but
- * QE, A/W responsivity and channel-filter transmission are not applied here.
- * Response-scope/source-plane matching therefore remains an explicit later
- * composition step.
+ * It deliberately stops before the sensor response. The spectral plan comes
+ * from a specific response channel, so its wavelength range and breakpoints
+ * fit that channel, but QE, A/W responsivity and colour-filter transmission are
+ * not applied here. Matching the response's scope and source plane is a
+ * separate later step.
  */
 export function reduceSensorSpatioSpectralIrradiance(
   input:

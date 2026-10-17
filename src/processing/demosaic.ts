@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Typed-array CFA reconstruction on a linear mosaic plane (for example black-subtracted normalized
- * RAW values or a merged HDR mosaic):
- * - `createCfaPlaneReconstructionTask` executes explicit per-phase linear kernels (the existing
- *   `explicit-linear-native-neighborhood` contract, including the built-in bilinear and
- *   Malvar–He–Cutler factories) with reject or mirror (reflect-101) borders. Summation order equals
- *   `calculateRawReconstructionChannel`, so values match the reference resolver exactly before float32
- *   storage.
- * - `createAhdDemosaicTask` is the separate non-linear adaptive path after Hirakawa & Parks (2005),
- *   adaptive homogeneity-directed demosaicing. It never claims to be a linear kernel.
+ * Demosaicing: rebuilds full colour from a CFA (colour filter array) mosaic. Works on a linear mosaic
+ * plane stored in typed arrays, for example black-subtracted normalized RAW values or a merged HDR
+ * mosaic.
+ * - `createCfaPlaneReconstructionTask` runs explicit linear kernels, one per CFA phase. It uses the
+ *   existing `explicit-linear-native-neighborhood` contract, including the built-in bilinear and
+ *   Malvar–He–Cutler factories. Borders either reject or mirror (reflect-101). The summation order is
+ *   the same as `calculateRawReconstructionChannel`, so values match the reference resolver exactly
+ *   before float32 storage.
+ * - `createAhdDemosaicTask` is a separate, non-linear, adaptive method: adaptive
+ *   homogeneity-directed (AHD) demosaicing after Hirakawa & Parks (2005). It never claims to be a
+ *   linear kernel.
  * @see docs/PROCESSING.md for equations, sources and approximation status.
  */
 
@@ -73,10 +74,12 @@ function parsePlane(value: unknown, label: string): ParsedPlane {
 }
 
 /**
- * Executes explicit per-phase linear reconstruction kernels over a typed CFA plane. With `mirror`
- * borders a site outside the plane is read at its reflect-101 image, which is accepted only when it
- * keeps the CFA channel (always true for 2×2 Bayer); `reject` fails closed like the reference
- * resolver. Values are linear and signed; no clamping, white balance or colour transform is applied.
+ * Runs explicit linear reconstruction kernels, one per CFA phase, over a typed CFA plane.
+ * - With `mirror` borders, a site outside the plane is read from its mirrored (reflect-101) position.
+ *   This is accepted only if the mirrored site has the same CFA channel, which is always true for a
+ *   2×2 Bayer pattern.
+ * - With `reject`, out-of-plane reads throw (fail closed), like the reference resolver.
+ * Values are linear and signed. No clamping, white balance or colour transform is applied.
  */
 export function createCfaPlaneReconstructionTask(input: CfaPlaneReconstructionInput, provider: ProcessingProvider): ProcessingTask<CfaPlaneReconstructionOutput> {
   const r = requireOptions(input, ["plane", "phaseProfiles", "borderHandling", "region", "maximumWorkingBytes"], "createCfaPlaneReconstructionTask input");
@@ -148,8 +151,9 @@ export interface AhdDemosaicInput {
   /** CFA channel ids of the red, green and blue sites; output order is red, green, blue. */
   channelRoles: { red: string; green: string; blue: string };
   /**
-   * Camera-linear RGB → CIE XYZ used only for the homogeneity metric (CIELAB). Default: the sRGB/D65
-   * matrix, i.e. the plane is treated as linear sRGB for the metric. Output values are never transformed.
+   * Camera-linear RGB → CIE XYZ, used only for the homogeneity metric (in CIELAB). Default: the
+   * sRGB/D65 matrix, so the plane is treated as linear sRGB for the metric. Output values are never
+   * transformed.
    */
   cameraToXyz?: ColorMatrix3x3;
   maximumWorkingBytes?: number;
@@ -167,12 +171,14 @@ export interface AhdDemosaicOutput extends ProcessingRgbImage {
  *    [−1/4, 1/2, 1/2, 1/2, −1/4] (bilinear green plus the own-channel second difference);
  * 2. red and blue are filled from bilinearly interpolated colour differences (R−G, B−G) against each
  *    directional green, giving two full-colour candidates;
- * 3. both candidates are converted to CIELAB; at each pixel the homogeneity is the number of 4-neighbours
- *    within adaptive luminance and chrominance tolerances ε_L, ε_C (the smaller of the two directions'
- *    largest along-direction differences);
- * 4. homogeneity is summed over 3×3 and the more homogeneous candidate is chosen (ties average both).
- * The paper's optional iterative median artifact-reduction step is not applied. Mirror (reflect-101)
- * borders keep Bayer channel identity. Non-linear: output is not a linear function of the mosaic.
+ * 3. both candidates are converted to CIELAB. At each pixel, the homogeneity is the number of
+ *    4-neighbours within adaptive luminance and chrominance tolerances ε_L, ε_C. Each tolerance is the
+ *    smaller of the two directions' largest differences along their own direction;
+ * 4. homogeneity is summed over 3×3, and the more homogeneous candidate is chosen (a tie averages
+ *    both).
+ * The paper's optional iterative median step for reducing artifacts is not applied. Mirrored
+ * (reflect-101) borders keep each site's Bayer channel. The method is non-linear: the output is not a
+ * linear function of the mosaic.
  */
 export function createAhdDemosaicTask(input: AhdDemosaicInput, provider: ProcessingProvider): ProcessingTask<AhdDemosaicOutput> {
   const r = requireOptions(input, ["plane", "channelRoles", "cameraToXyz", "maximumWorkingBytes"], "createAhdDemosaicTask input");

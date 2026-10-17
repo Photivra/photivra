@@ -6,14 +6,13 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 Parses untrusted descriptive sensor-architecture metadata.
 
-Schema 0.2.0 remains accepted and returns a 0.2.0 profile unchanged in
-semantic identity. Schema 0.3.0 adds optional evidence-backed CMOS/CCD
-technology-family metadata. Unknown facts should be omitted instead of
-inferred.
+Schema 0.2.0 is still accepted and returns a 0.2.0 profile with the same
+meaning. Schema 0.3.0 adds an optional, evidence-backed technology family
+(CMOS or CCD). Leave out facts you do not know rather than guessing them.
 
-The parser validates structure, supported vocabulary, and field-level
-evidence only; it does not verify that a cited real-world claim is
-factually true and technology family does not activate hidden physics.
+The parser checks structure, allowed values and per-field evidence only. It
+does not check that a cited real-world claim is true, and the technology
+family does not switch on any hidden physics.
 
 ```ts
 export function parseSensorArchitectureProfile(
@@ -53,8 +52,8 @@ export type SensorArchitectureProfile =
 
 Legacy sensor-architecture schema.
 
-Schema 0.2.0 remains accepted and is preserved exactly when parsed. It does
-not support technologyFamily; omission remains unknown/unasserted.
+Schema 0.2.0 is still accepted and kept exactly as parsed. It has no
+technologyFamily field; leaving it out means "unknown, not stated".
 
 ```ts
 export interface SensorArchitectureProfileV0_2
@@ -66,18 +65,18 @@ export interface SensorArchitectureProfileV0_2
 
 ## SensorArchitectureProfileV0_3
 
-Current descriptive sensor hardware/capability metadata.
+Current descriptive metadata about the sensor hardware and its capabilities.
 
-Omitted properties mean unknown/unasserted. These fields are not scientific
-effect switches: no architecture value changes noise, dynamic range, FOV,
-crop factor, exposure, readout timing, or sampling without a separate
-downstream model that explicitly consumes that fact.
+An omitted property means "unknown, not stated". These fields do not switch
+on scientific effects. No architecture value changes noise, dynamic range,
+field of view, crop factor, exposure, readout timing or sampling unless a
+separate downstream model explicitly uses that fact.
 
 ```ts
 export interface SensorArchitectureProfileV0_3
   extends SensorArchitectureProfileBase {
   schemaVersion: typeof SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION;
-  /** Coarse detector technology identity only; never a performance switch. */
+  /** Broad detector technology (for example CMOS or CCD) only. It never changes performance. */
   technologyFamily?: SourcedSensorArchitectureFact<SensorTechnologyFamily>;
 }
 ```

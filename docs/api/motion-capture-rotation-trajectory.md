@@ -7,20 +7,20 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 Evaluates pure-camera-rotation trajectories for stationary reference rays
 over each point's local exposure window.
 
-This is a temporal-geometry bridge, not a finished rolling-shutter image
-mapping. The native sample point defines where a stationary world ray would
-land in the reference global-shutter image at the first opening-boundary
-phase. The existing camera-rotation model is then evaluated at that point's
-local exposure start and end.
+This links timing to geometry. It is not a finished rolling-shutter image
+mapping. The native sample point sets where a still world ray would land in
+the reference global-shutter image at the first opening-boundary phase. The
+existing camera-rotation model is then evaluated at that point's local
+exposure start and end.
 
-Sensor data-readout timing is intentionally absent. A camera/mode-specific
-relationship between sensor readout and exposure boundaries requires a
-separate explicit contract; this function never assumes one.
+Sensor data-readout timing is deliberately not used. How readout relates to
+exposure boundaries depends on the camera and mode, and needs its own
+explicit contract. This function never assumes one.
 
-A later renderer-facing rolling-shutter warp must solve the image mapping
-consistently with capture-location-dependent time and integrate over the
-local exposure interval. The endpoint chord returned here must not be treated
-as a blur kernel or as an inverse destination-to-source sampling map.
+A future rolling-shutter warp for renderers must solve the image mapping
+with time that depends on capture location, and must integrate over the
+local exposure interval. Do not treat the endpoint chord returned here as a
+blur kernel or as an inverse destination-to-source sampling map.
 
 ```ts
 export function calculateCaptureRotationTrajectories(
@@ -51,8 +51,8 @@ export interface CalculateCaptureRotationTrajectoriesInput
    */
   angularVelocityRadPerSec: CameraAngularVelocityRadPerSec;
   /**
-   * Native points whose stationary-reference-ray trajectories should be
-   * evaluated. Required and non-empty for this trajectory API.
+   * Native points whose still-ray paths to evaluate. Required, and must not be
+   * empty.
    */
   samplePointsNative: readonly RasterPoint[];
 }

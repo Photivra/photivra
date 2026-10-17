@@ -1,26 +1,31 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * HDR from linear RAW brackets and HDR output encoding.
  *
- * Merge (`createHdrBracketMergeTask`): per sample, every frame whose code is below its white level and
- * not flagged contributes an independent estimate of the photo-electron rate Φ (e⁻/s):
+ * Merge (`createHdrBracketMergeTask`): for each sample, every frame whose code is below its white level
+ * and not flagged gives an independent estimate of the photo-electron rate Φ (e⁻/s):
  *   e_k = (code_k − black_k)·K_k,  Φ̂_k = e_k / t_k,
  *   Var[e_k] = max(Φ, 0)·t_k + σ_read,k² + K_k²/12   (Poisson shot + Gaussian read + uniform quantization,
  *   the same shot+read variance as `calculateSignalToNoise`, plus the EMVA 1288 quantization term).
- * The estimates are combined with inverse-variance weights w_k = t_k²/Var[e_k], the noise-optimal
- * linear combination for a linear camera (Granados et al., CVPR 2010; Hasinoff, Durand & Freeman,
- * CVPR 2010). Φ in the variance is unknown, so it starts from the shot-noise-limited estimate
- * Σe_k/Σt_k and is refined by a fixed number of reweighting iterations. Var[Φ̂] = 1/Σw_k.
- * Samples saturated in every frame get the largest representable rate (a lower bound) and count 0.
- * Inputs must be linear RAW codes; non-linear (camera-response) inputs are not supported, so no
- * Debevec–Malik response recovery is performed. Works on any per-sample layout (CFA mosaic or RGB).
+ * The estimates are combined with inverse-variance weights w_k = t_k²/Var[e_k]. This is the
+ * lowest-noise linear combination for a linear camera (Granados et al., CVPR 2010; Hasinoff, Durand &
+ * Freeman, CVPR 2010). The Φ inside the variance is not known in advance. So it starts from the
+ * shot-noise-limited estimate Σe_k/Σt_k and is refined by a fixed number of reweighting passes.
+ * Var[Φ̂] = 1/Σw_k.
+ * - A sample saturated in every frame gets the largest representable rate (a lower bound) and a
+ *   count of 0.
+ * - Inputs must be linear RAW codes. Non-linear inputs (with a camera response curve) are not
+ *   supported, so no Debevec–Malik response recovery is done.
+ * - Works with any per-sample layout (CFA mosaic or RGB).
  *
- * Encoding (`createHdrImageEncodingTask`): linear RGB → BT.2020 primaries (matrices from
- * `resolveRgbColorSpace`), then ITU-R BT.2100 PQ (also SMPTE ST 2084) with relative 1.0 = reference white in cd/m² (default
- * 203, ITU-R BT.2408), or BT.2100 HLG with relative 1.0 at the HLG reference-white signal (default 0.75,
- * BT.2408), quantized as BT.2100 full or narrow range integer codes; or float32 linear BT.2020.
+ * Encoding (`createHdrImageEncodingTask`): linear RGB is converted to BT.2020 primaries (matrices from
+ * `resolveRgbColorSpace`). Then one of:
+ * - ITU-R BT.2100 PQ (also SMPTE ST 2084), where relative 1.0 = the reference white in cd/m² (default
+ *   203, ITU-R BT.2408);
+ * - BT.2100 HLG, where relative 1.0 = the HLG reference-white signal (default 0.75, BT.2408);
+ * - float32 linear BT.2020.
+ * PQ and HLG are quantized as BT.2100 full-range or narrow-range integer codes.
  * @see docs/PROCESSING.md for equations, sources and limits.
  */
 
@@ -41,7 +46,7 @@ export interface HdrBracketFrame {
   blackLevelCode: number;
   /** Codes at or above this level are saturated and excluded. */
   whiteLevelCode: number;
-  /** Optional per-sample flags; non-zero excludes the sample (e.g. physical/pre-ADC saturation). */
+  /** Optional per-sample flags. Non-zero excludes the sample (for example physical saturation before the ADC). */
   saturationFlags?: Uint8Array;
   /** System conversion gain K, electrons per code (includes the frame's ISO gain). */
   conversionGainElectronsPerCode: number;
@@ -119,7 +124,7 @@ export function createHdrBracketMergeTask(input: HdrBracketMergeInput, provider:
           }
           if (used === 0) { rate[j] = ceiling; sd[j] = 0; allSaturated++; continue; }
           let phi = sumE / sumT, weightSum = 0;
-          // Pass `it` weights by the current Φ; passes 1..iterations update Φ, the last pass also gives Var[Φ̂].
+          // Pass `it` weights by the current Φ. Passes 1..iterations update Φ; the last pass also gives Var[Φ̂].
           for (let it = 0; it <= iterations; it++) {
             let num = 0; weightSum = 0;
             for (const f of frames) {

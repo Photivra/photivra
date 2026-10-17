@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Focus stacking of registered frames focused at different distances. Sharpness per frame and pixel
- * is the locally averaged Laplacian energy S_k = G_σ ⊗ (∇²Y_k)² of Rec.709-weighted luma Y (a
- * Laplacian-based focus measure, cf. Nayar & Nakagawa 1994 and the survey of Pertuz, Puig & García
- * 2013). Each pixel selects the sharpest frame (ties → lowest index), and the one-hot selection masks
- * blend the frames with Laplacian pyramids (Burt & Adelson 1983; pyramid image fusion as in Burt &
- * Kolczynski 1993), which hides selection seams at every scale. No registration, magnification
- * (focus-breathing) correction or depth estimation is performed; the index map is only the selected
- * frame, not calibrated depth.
+ * Focus stacking: combines aligned (registered) frames focused at different distances into one sharp
+ * image.
+ *
+ * - Sharpness for each frame and pixel is the locally averaged Laplacian energy S_k = G_σ ⊗ (∇²Y_k)²
+ *   of the Rec.709-weighted luma Y. This is a Laplacian-based focus measure (see Nayar & Nakagawa 1994,
+ *   and the survey by Pertuz, Puig & García 2013).
+ * - Each pixel picks the sharpest frame; a tie picks the lowest index.
+ * - The selection masks blend the frames with Laplacian pyramids (Burt & Adelson 1983; pyramid image
+ *   fusion as in Burt & Kolczynski 1993). This hides the seams between selections at every scale.
+ *
+ * Not done: frame alignment, magnification (focus-breathing) correction and depth estimation. The
+ * index map only says which frame was picked; it is not calibrated depth.
  * @see docs/PROCESSING.md for equations, sources and limits.
  */
 

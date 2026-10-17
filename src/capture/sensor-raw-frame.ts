@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validates dense bounded native coverage and exact CFA/mode/site/code identity, without IO.
- * Commits native RAW samples and capture metadata; no demosaic, WB, tone or format packing.
+ * Sensor RAW frames: native CFA (colour filter array) samples attached to a committed capture.
+ *
+ * The parser checks that every native site has exactly one sample, within size limits, and that CFA,
+ * capture mode, site and code identities match exactly. Committing a frame stores the samples and
+ * capture metadata only: no demosaicing, white balance (WB), tone mapping or file packing.
  * @see docs/SENSOR_RAW_FRAME.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -21,7 +23,7 @@ import { parseNativeEffectiveRasterColorSamplingBindingProfile, resolveCaptureMo
 import { type SensorRawCaptureSample } from "../sensor/raw-reconstruction.js";
 
 export const SENSOR_RAW_FRAME_SCHEMA_VERSION = "0.1.0" as const;
-/** Declared attachment of #14 native CFA samples to a committed photographic capture. */
+/** Declares that native CFA samples from the sensor model belong to a committed photographic capture. */
 export interface SensorRawFrameInput {
   frameId: string;
   capture: SimulatedCapture;
@@ -30,10 +32,10 @@ export interface SensorRawFrameInput {
   colorSamplingProfile: SensorColorSamplingProfile;
   bindingProfile: NativeEffectiveRasterColorSamplingBindingProfile;
   containerBitDepth: 16;
-  /** Exactly one sample per full native site, row-major; no processed RGB masking. */
+  /** Exactly one sample per native site, row-major. Not processed RGB with a mask applied. */
   samples: readonly SensorRawCaptureSample[];
 }
-/** Immutable RAW attachment. Structural validation does not prove producer truth or DNG compatibility. */
+/** Immutable attached RAW frame. Passing the structural checks does not prove the producer was correct or that the data is DNG-compatible. */
 export interface SensorRawFrame extends SensorRawFrameInput {
   schemaVersion: typeof SENSOR_RAW_FRAME_SCHEMA_VERSION;
   sampleDomain: "native-cfa-raw-code";
@@ -98,7 +100,7 @@ function sample(value: unknown): SensorRawCaptureSample {
     cfaPhasePreservedInNativeCoordinates: true, physicalOrientationApplied: false, outputRotationApplied: false,
     groupedModeCombinationApplied: false, reconstructionApplied: false, aliasingModeled: false, moireModeled: false };
 }
-/** Validates dense bounded native coverage and exact CFA/mode/site/code identity, without IO. */
+/** Checks that every native site has one sample, within limits, and that CFA, mode, site and code identities match exactly. No I/O. */
 export function parseSensorRawFrameInput(value: unknown): SensorRawFrameInput {
   const r = object(value, ["frameId", "capture", "modeId", "captureModeProfile", "colorSamplingProfile",
     "bindingProfile", "containerBitDepth", "samples"]);
@@ -137,7 +139,7 @@ export function parseSensorRawFrameInput(value: unknown): SensorRawFrameInput {
   }
   return { frameId, capture, modeId, captureModeProfile, colorSamplingProfile, bindingProfile, containerBitDepth: 16, samples };
 }
-/** Commits native RAW samples and capture metadata; no demosaic, WB, tone or format packing. */
+/** Commits native RAW samples and capture metadata. No demosaicing, WB, tone mapping or file packing. */
 export function createSensorRawFrame(input: SensorRawFrameInput): SensorRawFrame {
   const value = parseSensorRawFrameInput(input);
   const frame: SensorRawFrame = { ...value, schemaVersion: SENSOR_RAW_FRAME_SCHEMA_VERSION, sampleDomain: "native-cfa-raw-code",

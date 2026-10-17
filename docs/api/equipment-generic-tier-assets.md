@@ -37,11 +37,11 @@ export interface GenericTierBodyAssets {
   iso: IsoCapabilityProfile;
   signalChain: GenericIsoSignalChainProfile;
   readout: readonly GenericVersionedAsset<SensorReadoutConversionProfile>[];
-  /** Global (no spatial skew) data readout; the default timing asset. */
+  /** Global data readout (no skew across the frame). The default timing asset. */
   readoutTiming: GenericVersionedAsset<SensorReadoutTimingDeclaration>;
-  /** Opt-in rolling readout variant with explicit top-to-bottom spatial skew. */
+  /** Optional rolling readout variant, with an explicit top-to-bottom skew across the frame. */
   rollingReadoutTiming: GenericVersionedAsset<SensorReadoutTimingDeclaration>;
-  /** Opt-in synthetic fixed-pattern noise for this body; never applied unless a caller attaches it. */
+  /** Optional synthetic fixed-pattern noise for this body. Never applied unless a caller attaches it. */
   fixedPatternNoise: GenericVersionedAsset<SensorFixedPatternNoiseProfile>;
   release: GenericReleaseCapabilityProfile;
   focus: FocusControlProfile;

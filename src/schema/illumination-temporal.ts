@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses time-varying illumination metadata as an additive overlay on one existing illumination
- * profile. The base source magnitude/spectrum remain authoritative. Each binding applies one relative
- * temporal multiplier waveform to one source. Unbound sources remain time-invariant.
- * Evaluates one explicitly registered time-varying source multiplier at one physical capture time.
- * Capture time is seconds from the first opening-boundary phase. Sensor data readout timing is not
- * used as a time surrogate.
+ * Time-varying light sources, such as flicker or a pulsed light.
+ *
+ * A temporal profile sits on top of an existing illumination profile. Each binding multiplies
+ * one source by a relative waveform over time. The base source magnitude and spectrum still
+ * apply, and sources with no binding stay constant. This module parses the profile, evaluates
+ * a waveform at one capture time, and integrates it over an exposure window.
  * @see docs/SCENE_RADIANCE_AND_ILLUMINATION.md for equations, coordinate/unit conventions, blockers
  * and support limits.
  */
@@ -87,7 +86,7 @@ export interface SceneIlluminationTemporalSourceBinding {
   captureTimeReference:
     "first-opening-boundary-phase";
   /**
-   * Capture-reference time at which waveform-local t=0 occurs.
+   * The capture time at which the waveform's own t=0 falls.
    *
    * waveformTime = captureTime - waveformTimeZeroSecondsFromCaptureReference
    */
@@ -690,12 +689,11 @@ function parseSourceBinding(
 }
 
 /**
- * Parses time-varying illumination metadata as an additive overlay on one
- * existing illumination profile.
+ * Parses a time-varying illumination profile that sits on top of one existing
+ * illumination profile.
  *
- * The base source magnitude/spectrum remain authoritative. Each binding applies
- * one relative temporal multiplier waveform to one source. Unbound sources
- * remain time-invariant.
+ * The base source magnitude and spectrum still apply. Each binding multiplies one
+ * source by one relative waveform over time. Sources with no binding stay constant.
  */
 export function parseSceneIlluminationTemporalProfile(
   value: unknown
@@ -1049,11 +1047,10 @@ function evaluateWaveform(
 }
 
 /**
- * Evaluates one explicitly registered time-varying source multiplier at one
- * physical capture time.
+ * Returns one registered source's time-varying multiplier at one capture time.
  *
- * Capture time is seconds from the first opening-boundary phase. Sensor data
- * readout timing is not used as a time surrogate.
+ * Capture time is in seconds from the first opening boundary of the exposure. Sensor
+ * readout timing is never used in place of capture time.
  */
 export function evaluateSceneIlluminationTemporalMultiplier(
   input:
@@ -1132,11 +1129,11 @@ export function evaluateSceneIlluminationTemporalMultiplier(
 }
 
 /**
- * Integrates one time-varying source multiplier over one authoritative local
- * exposure window from #12 using deterministic midpoint quadrature.
+ * Integrates one source's time-varying multiplier over one local exposure window
+ * (from sensor/exposure-window), using the deterministic midpoint rule.
  *
- * This integrates relative temporal modulation only. It does not apply source
- * magnitude, scene transport, optics, sensor response, or metering policy.
+ * It integrates only the relative modulation over time. It does not apply source
+ * magnitude, scene light transport, optics, sensor response or metering policy.
  */
 export function integrateSceneIlluminationTemporalMultiplierOverExposureWindow(
   input:

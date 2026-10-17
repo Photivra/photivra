@@ -6,9 +6,9 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 Parses a renderer-independent scene illumination profile.
 
-The result describes illumination sources only. It does not calculate
-outgoing scene radiance, apply material response, evaluate visibility or
-indirect transport, or authorize downstream photon/electron claims.
+The result describes light sources only. It does not compute outgoing scene
+radiance, material response, visibility or indirect light, and on its own it
+does not justify photon or electron counts downstream.
 
 ```ts
 export function parseSceneIlluminationProfile(

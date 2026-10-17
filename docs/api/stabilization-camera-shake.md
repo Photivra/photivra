@@ -4,9 +4,10 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## CameraShakeBlurSample
 
-Optical-axis image displacement of a stationary world point over the
-exposure, in the image-plane basis (+X right, +Y up). For a single axis it
-equals calculateCameraRotationImageMapping() deltaMm at the optical axis.
+How far a still world point on the optical axis moves in the image during
+the exposure, in image-plane axes (+X right, +Y up). For a single axis it
+equals the deltaMm from calculateCameraRotationImageMapping() at the
+optical axis.
 
 ```ts
 export interface CameraShakeBlurSample {
@@ -36,17 +37,21 @@ export interface CameraShakeEstimate {
 
 ## estimateCameraShakeBlur
 
-Estimates sensor-plane blur from a controlled constant-angular-velocity
-handheld shake profile, with optional equivalent stabilization attenuation.
+Estimates blur on the sensor from a simple handheld-shake profile, where
+the camera turns at a constant angular velocity. An optional stabilization
+rating reduces that motion.
 
-With focusDistanceM supplied, angular motion is projected using the same
-ideal thin-lens sensor-plane distance as the other focus-aware projection
-primitives; otherwise nominal focal length preserves the prior approximation.
+With focusDistanceM, angular motion is projected using the ideal thin-lens
+sensor distance, like the other focus-aware projection functions. Without
+it, the nominal focal length is used, which keeps the older approximation.
 
-The optical projection is physically calculated, but mapping a stabilization
-rating in stops to residual angular motion by 2^-stops is an educational
-approximation. It is not a CIPA DC-011 measurement or a real-camera rating.
-Each axis's rotation over the exposure must stay below a quarter turn (π/2 rad).
+The optical projection is physically calculated. But turning a
+stabilization rating in stops into residual angular motion by 2^-stops is
+an educational approximation. It is not a CIPA DC-011 measurement or a
+real-camera rating.
+
+Each axis's rotation during the exposure must stay below a quarter turn
+(π/2 rad).
 
 ```ts
 export function estimateCameraShakeBlur(
@@ -65,12 +70,13 @@ export interface EstimateCameraShakeBlurInput {
   focalLengthMm: number;
   shutterSeconds: number;
   /**
-   * Constant camera angular velocity in radians per second, with the same
-   * physical right-hand sign convention as calculateCameraRotationImageMapping()
-   * (camera +X right, +Y up, +Z forward; that basis is left-handed):
-   * positive yaw turns the optical axis left and moves stationary image content
-   * toward +X; positive pitch tilts the optical axis up and moves stationary
-   * image content toward -Y.
+   * Constant camera angular velocity in radians per second. Signs follow the
+   * same physical right-hand rule as calculateCameraRotationImageMapping().
+   * The camera axes are +X right, +Y up, +Z forward (a left-handed basis).
+   * - Positive yaw turns the optical axis left and moves still image content
+   *   toward +X.
+   * - Positive pitch tilts the optical axis up and moves still image content
+   *   toward -Y.
    */
   angularVelocityRadPerSec: {
     yaw: number;

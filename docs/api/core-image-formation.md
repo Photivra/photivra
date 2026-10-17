@@ -4,10 +4,10 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## getImageFormationContract
 
-Returns the public image-formation ownership/order contract.
+Returns the image-formation contract: the order of stages and who owns each one.
 
-The result is descriptive metadata, not a renderer implementation or an
-assertion that every reserved stage is currently available.
+The result is descriptive metadata. It is not a renderer, and a listed stage is not
+necessarily available yet.
 
 ```ts
 export function getImageFormationContract(): ImageFormationContract;
@@ -19,9 +19,9 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 Version of the public image-formation ordering contract.
 
-This version is independent from package, root-engine, and composed-POC
-versions. It describes semantic ownership/order only; it does not imply that
-every reserved stage is implemented.
+It is separate from the package, root-engine and composed proof-of-concept (POC)
+versions. It covers only stage order and ownership. It does not mean every listed
+stage is implemented.
 
 ```ts
 IMAGE_FORMATION_CONTRACT_VERSION = "0.4.0" as const

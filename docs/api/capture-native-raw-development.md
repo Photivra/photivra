@@ -4,19 +4,25 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createNativeRawDevelopmentTask
 
-Validates complete phase/halo support, takes ownership of the packed RAW (zero-copy transfer where
-supported) and renders 256-pixel output tiles through the typed kernel. Development normalizes each
-site to its CFA phase's effective white level, clips flagged/white sites before white balance and
-applies the selected highlight mode (see `prepareSensorColorDevelopment`). Numeric RAW integrity is
-checked in bounded chunks at the start of `run()`, with host yields, so creation stays O(metadata).
-The host yield runs at chunk/tile boundaries once about 8 ms of work has elapsed since the previous
-yield, and after the final tile; yield cadence never changes output.
+Creates a native RAW development task.
 
-`provider` is `{ yieldControl, onProgress? }`, the shape of the other native task providers. A bare
-yield function is still accepted for 2.x and is deprecated.
-Retains explicit acquisition tile width when reconstructing the exact packed plan. Acquisition chunk
-width changes neither CFA/seed coordinates nor development pixels, and does not establish transport or
-device-resource qualification.
+It checks that every CFA phase has a reconstruction kernel and that every kernel neighbourhood is
+available, takes ownership of the packed RAW (without copying where supported), and renders 256-pixel
+output tiles with the fast typed kernel. Development scales each site to its CFA phase's effective white
+level, clips flagged or white-level sites before white balance, and applies the selected highlight mode
+(see `prepareSensorColorDevelopment`).
+
+The RAW numbers are checked in bounded chunks at the start of `run()`, with host yields, so creating the
+task costs only as much as reading the metadata. The task yields to the host at chunk and tile boundaries
+once about 8 ms of work has passed since the last yield, and after the final tile. Yield timing never
+changes the output.
+
+`provider` is `{ yieldControl, onProgress? }`, the same shape as the other native task providers. A bare
+yield function is still accepted in 2.x but is deprecated.
+
+The tile width used at capture is kept when rebuilding the exact packed plan. That width changes neither
+CFA or noise-seed coordinates nor the developed pixels, and says nothing about transport or what a device
+can handle.
 
 ```ts
 export function createNativeRawDevelopmentTask(input: NativeRawDevelopmentInput,
@@ -32,24 +38,25 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface NativeRawDevelopmentInput {
   /**
-   * Packed RAW. Ownership transfers to the task: on creation its five typed arrays are detached with
-   * `ArrayBuffer.prototype.transfer` (zero-copy; the caller's arrays become length 0), or copied when
-   * the runtime lacks `transfer`. The developed output returns the same RAW, now owned by the output.
+   * Packed RAW. Ownership passes to the task. On creation its five typed arrays are detached with
+   * `ArrayBuffer.prototype.transfer` (no copy; the caller's arrays become length 0), or copied when
+   * the runtime has no `transfer`. The developed output hands back the same RAW, now owned by the output.
    */
   raw: NativeRawOutput;
   phaseProfiles: readonly RawFrameReconstructionPhaseProfile[];
   colorProfile: ExportSensorColorProfile;
   whiteBalance: "not-required" | "apply-resolved-sensor-gains";
   rendering: SdrRenderingProfile;
-  /** Default `clip`: neutral clipped highlights. `reconstruct`: documented desaturation blend. */
+  /** Highlight handling. `clip` (default): clipped highlights become neutral. `reconstruct`: the documented blend toward neutral. */
   highlightMode?: RawHighlightMode;
   /**
-   * Default `reject`: every reconstruction neighbourhood must lie inside the native RAW frame. `mirror`
-   * reads sites outside the frame at their reflect-101 image, accepted only when that keeps the CFA
-   * channel (always for 2×2 Bayer); interior pixels are unchanged.
+   * Frame-edge handling. `reject` (default): every reconstruction neighbourhood must lie inside the
+   * native RAW frame. `mirror`: a site outside the frame is read from its mirror image (reflect-101,
+   * edge not repeated). This is allowed only when the mirrored site has the same CFA colour, which is
+   * always true for a 2×2 Bayer pattern. Interior pixels are unchanged.
    */
   borderHandling?: RawReconstructionBorderHandling;
-  /** Includes the retained packed RAW plus integer output; not caller buffers, process heap or GPU. */
+  /** Counts the kept packed RAW plus the integer output. It does not count caller buffers, process heap or GPU memory. */
   maximumRetainedPayloadBytes: number;
 }
 ```
@@ -80,13 +87,13 @@ export interface NativeRawDevelopmentOutput {
 
 ## NativeRawDevelopmentProvider
 
-Host hooks, the same shape as the other native task providers (without a tile reader).
+Host callbacks, the same shape as the other native task providers but without a tile reader.
 
 ```ts
 export interface NativeRawDevelopmentProvider {
-  /** Must yield to the host event loop, allowing cancellation/input events between tiles. */
+  /** Must yield to the host event loop, so cancellation and input events can run between tiles. */
   yieldControl(signal: AbortSignal): Promise<void>;
-  /** Optional observer called after each committed 256-pixel output tile; cannot change output. */
+  /** Optional callback after each committed 256-pixel output tile. It cannot change the output. */
   onProgress?(progress: NativeTaskProgress): void;
 }
 ```
@@ -109,12 +116,12 @@ export interface NativeRawDevelopmentTask {
 
 ## RawHighlightDiagnostics
 
-RAW saturation consumed before white balance; counts are pixels/samples of the developed output.
+RAW saturation handled before white balance. Counts are pixels or samples of the developed output.
 
 ```ts
 export interface RawHighlightDiagnostics {
   mode: RawHighlightMode;
-  /** Output pixels with at least one contributing site at/above its white level or flagged saturated. */
+  /** Output pixels with at least one contributing site at or above its white level, or flagged as saturated. */
   saturatedPixelCount: number;
   /** `clip`: WB-scaled samples clipped at the smallest gain. Always 0 for `reconstruct`. */
   whiteBalanceClippedSampleCount: number;

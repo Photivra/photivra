@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Internal host-yield cadence for native tile loops (#275). Execution chunks stay small for bounded
- * memory and exact tile identity, but the host `yieldControl` callback is awaited only after the
- * elapsed work since the previous yield reaches a time budget, and always after the final tile.
- * Cadence changes only when the host event loop runs: tile requests, absolute CFA/seed indexing and
- * every output value are independent of it. Not a root export.
+ * Internal: decides how often native tile loops yield to the host (browser) event loop.
+ *
+ * Tiles stay small, for bounded memory and exact tile identity. But the host's `yieldControl`
+ * callback is awaited only once the work since the last yield reaches a time budget, and always
+ * after the final tile. This only changes when the host gets to run. Tile requests, absolute CFA
+ * (colour filter array) and noise-seed indexing, and every output value are unaffected.
+ * Not exported from the package.
  */
 
 /** Default work budget between host yields: about half of a 60 Hz frame. */
 export const HOST_YIELD_BUDGET_MILLISECONDS = 8;
 
 export interface HostYieldCadence {
-  /** Yield once at least this much monotonic time has elapsed since the previous yield. 0 yields after every tile. */
+  /** Yield once at least this many milliseconds (monotonic clock) have passed since the last yield. 0 yields after every tile. */
   readonly budgetMilliseconds: number;
   /** Monotonic clock in milliseconds. */
   readonly now: () => number;
@@ -24,7 +26,7 @@ export const DEFAULT_HOST_YIELD_CADENCE: HostYieldCadence = Object.freeze({
 });
 
 export interface HostYieldGate {
-  /** Restart the budget, e.g. at run start and after each host yield settles. */
+  /** Restarts the budget, for example at the start of a run and after each host yield finishes. */
   restart(): void;
   /** True once the budget since the last restart is spent. */
   due(): boolean;

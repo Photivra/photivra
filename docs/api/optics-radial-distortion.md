@@ -4,8 +4,8 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateInverseRadialDistortionMapping
 
-Invert the declared monotonic radial field map within its supported envelope using the existing
-bounded root solve and preserve explicit optical coordinates.
+Inverts the declared monotonic radial field mapping inside its supported range, using the existing
+bounded root solver. Optical coordinates are kept explicit.
 
 ```ts
 export function calculateInverseRadialDistortionMapping(
@@ -29,11 +29,11 @@ export interface CalculateInverseRadialDistortionMappingInput {
 
 ## calculateInverseRadialDistortionMappings
 
-Inverse-maps multiple distorted image-plane destinations while validating
-and resolving the radial profile only once for the complete batch.
+Inverse-maps many distorted image-plane points at once. The radial profile
+is validated and resolved only once for the whole batch.
 
-The returned per-point mappings are numerically identical to the scalar API;
-provenance and profile validation are shared once at the batch boundary.
+Each returned mapping is numerically identical to the single-point API.
+Provenance and profile validation are reported once for the batch.
 
 ```ts
 export function calculateInverseRadialDistortionMappings(
@@ -66,9 +66,9 @@ The mapping is rotationally symmetric about the optical axis:
 
 where r is normalized by the caller-declared physical reference radius.
 
-The profile is accepted only when the radial mapping is strictly monotonic
-over its declared operating radius, which makes inverse destination-to-source
-sampling well-defined.
+A profile is accepted only if the radial mapping is strictly monotonic over
+its declared operating radius. That makes the inverse mapping
+(destination-to-source sampling) well defined.
 
 ```ts
 export function calculateRadialDistortionMapping(
@@ -185,8 +185,8 @@ export interface RadialDistortionProfile {
    */
   normalizationRadiusMm: number;
   /**
-   * Maximum undistorted normalized radius over which this profile is declared
-   * valid and must remain one-to-one/invertible.
+   * Largest undistorted normalized radius for which this profile is declared
+   * valid. Within it the mapping must stay one-to-one and invertible.
    */
   maximumNormalizedRadius: number;
   coefficients: RadialDistortionCoefficients;

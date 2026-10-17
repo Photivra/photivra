@@ -4,12 +4,11 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateSensorResponsivityPhotocurrent
 
-Integrate per-wavelength A/W times radiant-power contributions to steady-state current magnitude
-with explicit electrical applicability.
+Sums responsivity (A/W) × radiant power over wavelength bins to get the steady current magnitude,
+under explicit electrical conditions.
 
-A/W response converts per-bin radiant power to quasi-static detector-terminal current magnitude.
-Electrical bias/load applicability is explicit. This is not EQE, electron rate, transimpedance
-voltage or RAW; rapidly varying current requires a separate temporal detector-response model.
+This is not EQE, an electron rate, a transimpedance voltage or RAW. Fast-changing current needs a
+separate time-dependent detector model.
 
 ```ts
 export function calculateSensorResponsivityPhotocurrent(
@@ -45,12 +44,10 @@ export interface CalculateSensorResponsivityPhotocurrentInput {
 
 ## parseSensorResponsivityElectricalApplicabilityProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
-A/W response converts per-bin radiant power to quasi-static detector-terminal current magnitude.
-Electrical bias/load applicability is explicit. This is not EQE, electron rate, transimpedance
-voltage or RAW; rapidly varying current requires a separate temporal detector-response model.
+The profile states the electrical bias and load conditions under which an A/W responsivity applies.
 
 ```ts
 export function parseSensorResponsivityElectricalApplicabilityProfile(
@@ -141,7 +138,7 @@ export interface SensorResponsivityPhotocurrent {
   operatingRangeProfileId: string;
   electricalApplicabilityProfileId:
     string;
-  /** Engine-produced results populate the exact source color site. */
+  /** The exact source colour site. Results produced by the engine fill this in. */
   site?: {
     x: number;
     y: number;

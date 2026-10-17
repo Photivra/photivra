@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/** Original ICC v4 matrix/TRC serialization from public sRGB/ICC numeric specifications. */
+/** Writes an original ICC v4 matrix/TRC (tone reproduction curve) profile from the public sRGB and ICC numeric specifications. */
 import { resolveCaptureColorModel } from "./capture-color.js";
 import { invertSensorColorMatrix } from "./sensor-color-development.js";
 export const SRGB_ICC_PROFILE_VERSION="0.1.0" as const;
 /**
  * Reference: https://registry.color.org/rgb-registry/files/sRGB.pdf and ICC.1:2022.
  * This is an original Photivra profile, not a redistributed ICC or operating-system profile.
- * Bradford here encodes the D50 profile-connection space; it does not apply shooting WB.
+ * The Bradford step here only converts to the D50 profile connection space. It does not apply the
+ * white balance (WB) chosen when shooting.
  */
 /** ICC/DNG D50 profile-connection white (ICC.1:2022 §7.2.16). */
 export const ICC_D50_WHITE_XYZ=[.9642,1,.8249] as const;

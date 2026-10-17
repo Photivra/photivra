@@ -1,12 +1,16 @@
 # Developer guide
 
-This is the entry point for **@photivra/engine 2.0.0** (release candidate prepared October 17, 2026; publication is separate), root API contract **2.0.0**. Repository `main` may later describe newer development; use a published release's packaged docs or its exact tag for the stable contract. [Release notes and migration](RELEASE_1_3_0.md) explain the transition to aligned package/root versions.
+This is the entry point for **@photivra/engine 2.0.0**, root API contract **2.0.0**. The 2.0.0 release candidate was prepared on October 17, 2026; publishing it is a separate step.
 
-Photivra is an Apache-2.0 ESM TypeScript calculation library with no runtime npm dependencies. It exposes explicit units, deterministic data, provenance and bounded scientific approximations. The package supplies no hosted API, renderer installation, UI, commercial camera calibration or automatic agent service. [Photivra's public site](https://photivra.com) is separate from the engine's license; public engine documentation is available here without an application account.
+Repository `main` may later describe newer development. For the stable contract, use a published release's packaged docs or its exact tag. [Release notes and migration](RELEASE_1_3_0.md) explain why the package version and the root API version are now the same number.
+
+Photivra is a TypeScript calculation library, published as ESM under Apache-2.0, with no runtime npm dependencies. Its results carry explicit units, deterministic data, provenance (where a result came from and how it was made) and clearly bounded scientific approximations.
+
+The package does **not** supply a hosted API, a renderer, a UI, commercial camera calibration, or an automatic agent service. [Photivra's public site](https://photivra.com) is separate from the engine's licence. You do not need an application account to read the engine documentation here.
 
 ## Install and calculate
 
-Install `npm install @photivra/engine@2.0.0`. The [2.0.0 release record](RELEASE_2_0_0.md) and [changelog](../CHANGELOG.md) describe the current release.
+Install with `npm install @photivra/engine@2.0.0`. The [2.0.0 release record](RELEASE_2_0_0.md) and the [changelog](../CHANGELOG.md) describe the current release.
 
 ```ts
 import { calculateFieldOfView, ENGINE_API_VERSION } from "@photivra/engine";
@@ -17,55 +21,106 @@ console.log(horizontal.value.degrees); // approximately 39.60, ideal infinity-fo
 console.log(horizontal.provenance); // read assumptions/status with the value
 ```
 
-The root is browser-safe. Supported Node execution/tooling is Node 22.13+ within the maintained 22 line, the maintained 24 line, and Node 26 Current; prefer patched Node 24. The broad manifest minimum does not qualify untested or EOL lines. A browser backend must supply the documented ES APIs (including `structuredClone`, typed arrays and Web Crypto where used); a browser-safe import graph is not a promise about every browser version or rendering speed. See [runtime policy](../NODE_SUPPORT.md).
+### Runtimes
 
-Primitive calculations normally return `CalculationResult<T>` with `value`, `provenance` and optional `quality`. Parsers return validated values; plans/snapshots return their independently versioned records; assessments return explicit blockers; paired export returns a Promise because hashing is asynchronous. Do not infer calibrated accuracy from successful parsing, a complete stage graph, a generic tier name or deterministic replay.
+- The root export is browser-safe.
+- Supported Node versions for running and tooling: Node 22.13+ on the maintained 22 line, the maintained 24 line, and Node 26 Current. Patched Node 24 is preferred.
+- The broad minimum in the manifest does not mean untested or end-of-life lines are supported.
+- A browser must provide the documented ES APIs, including `structuredClone`, typed arrays and Web Crypto where used. A browser-safe import graph is not a promise about every browser version, or about rendering speed.
+
+See the [runtime policy](../NODE_SUPPORT.md).
+
+### What calls return
+
+| Kind of call | Returns |
+| --- | --- |
+| Primitive calculation | Usually `CalculationResult<T>`: `value`, `provenance` and optional `quality`. |
+| Parser | A validated value. |
+| Plan or snapshot | Its own independently versioned record. |
+| Assessment | Explicit blockers (reasons it cannot proceed). |
+| Paired export | A Promise, because hashing is asynchronous. |
+
+None of these proves calibrated accuracy. Do not infer it from successful parsing, a complete stage graph, a generic tier name, or a deterministic replay.
 
 ## Find the operation by scientific task
 
-Rows were last reviewed for package/root API 1.3.0; the later 1.4.0 and 1.5.0 minor releases and the 2.0.0 major release are summarized in the [changelog](../CHANGELOG.md) and their own guides. Direct calculations are synchronous/browser-safe unless the row says otherwise. A listed primitive is not automatically an app feature or supported in every production combination. The [API reference](API_REFERENCE.md) resolves all root exports and exact signatures; the linked guides own equations, inputs, defaults, errors and limits.
+These rows were last reviewed for package/root API 1.3.0. The later 1.4.0 and 1.5.0 minor releases and the 2.0.0 major release are summarized in the [changelog](../CHANGELOG.md) and in their own guides.
 
-| Task | Start here / executable evidence | Qualified boundary |
+- Direct calculations are synchronous and browser-safe unless the row says otherwise.
+- A listed primitive is not automatically an app feature, and is not supported in every production combination.
+- The [API reference](API_REFERENCE.md) lists every root export with its exact signature. The linked guides own the equations, inputs, defaults, errors and limits.
+
+| Task | Start here / executable evidence | What is supported |
 | --- | --- | --- |
-| FOV, focus, depth of field, subject size | [Usage: field of view](USAGE.md#field-of-view), [physics](PHYSICS_FOUNDATION.md), [quick start](examples/quick-start.mjs) | Ideal paraxial/thin-lens geometry; explicit mm/metres/axes |
-| Aperture, diffraction, sampled PSF | [PSF foundation](PSF_FOUNDATION.md), [usage](USAGE.md#real-lens-psf-profiles-and-complex-pupil-reference) | Shape and throughput separate; explicit support; no inferred commercial calibration |
-| Metering and exposure modes | [Usage: relative metering](USAGE.md#relative-pre-exposure-metering), [API conventions](API_STYLE.md) | Relative pre-exposure linear signal; compensated target before control; ISO does not create photons |
-| Rigid/depth motion and stabilization | [Motion](MOTION_AND_SIGNAL.md), [stabilization](STABILIZATION.md) | Declared constant-motion/generic control models; visibility remains external |
-| Continuous or discrete spectral measures | [Scene/illumination](SCENE_RADIANCE_AND_ILLUMINATION.md) | Continuous dλ in nm versus wavelength-integrated line fractions; `distribute*` preserves quantity domain |
-| Sampling, response validity, photon/electron expectations | [Usage](USAGE.md#sensor-spectral-response), [temporal EQE](SENSOR_EQE_TEMPORAL_EXPOSURE.md) | Exact source-plane/area/profile/wavelength/time bindings; no implicit QE/collection area |
-| Execute declared environment → production RAW → output | [Production envelope](PRODUCTION_ENVIRONMENT_CAPTURE.md), [complete packed example](examples/production-capture.mjs) | Node example loads owned data; engine callback is synchronous; 4,096 native sites / 100,000 provider evaluations |
-| Qualify browser-first dense-pupil Focus/Depth native capture | [#234 implementation handoff](BROWSER_NATIVE_CAPTURE_REFERENCE_EXECUTOR_HANDOFF.md), [#224 qualification envelope](BROWSER_NATIVE_CAPTURE_ENVELOPE.md), [numerical evidence matrix](BROWSER_NATIVE_CAPTURE_NUMERICAL_ACCEPTANCE.md), [prepared-state contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md), [robust-geometry contract](BROWSER_NATIVE_CAPTURE_ROBUST_GEOMETRY.md), [resource-accounting contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md), [Path-B adoption/version gate](BROWSER_NATIVE_CAPTURE_PATH_B_ADOPTION.md), [dense-pupil evidence](DENSE_PUPIL_QUALIFICATION.md) | Reconciled #233 governance now defines one Path-A float64 reference-executor implementation/evidence target for #234; implementation and #224 qualification remain separate work |
-| Preserve/reconstruct RAW and develop preview | [RAW envelope](RAW_FRAME_ENVELOPE.md), [processed output](PROCESSED_OUTPUT.md) | Signed shadows, absolute CFA phase, explicit sensor-channel color/WB; rendering does not redraw noise |
-| Pair native CFA DNG with processed JPEG | [Photographic export](PHOTOGRAPHIC_EXPORT.md), [acceptance](EXPORT_ACCEPTANCE.md) | Async Web Crypto; registered Bayer reference; 1:1 output crop; caller saves bytes |
-| Read DNG/TIFF-EP raw files; write wide-gamut/HDR PNG | [DNG import and PNG output](IMPORT_AND_PNG.md) | Stored codes and metadata only; bounded untrusted input; caller-encoded PNG code values with sRGB/ICC/cICP signalling; no AVIF/HEIC |
-| Commit capture, ideal virtual-camera color, linear encoding | [Capture](SIMULATED_CAPTURE.md), [ideal color](CAPTURE_COLOR.md), [encoding](LINEAR_CAPTURE_ENCODING.md) | Ideal XYZ encoding differs from approximate sensor-channel development |
-| Generic tiers and correction cost | [Presets](GENERIC_TIER_PRESETS.md), [tier acceptance](TIER_ACCEPTANCE.md), [correction](DIGITAL_OPTICS_FOUNDATION.md) | Versioned owned synthetic assets; no universal quality ranking |
-| Opt-in WebGPU acceleration of PSF convolution, native SDR and RAW development | [WebGPU backend](WEBGPU.md), [usage](USAGE.md#optional-webgpu-image-kernels) | Labelled float32 approximation with a-priori bounds tested on a real adapter; CPU float64 stays the reference and the only bit-exact path |
-| Reproduce conformance/performance | [Scientific suite](SCIENTIFIC_CONFORMANCE.md), [performance disposition](V1_PERFORMANCE_DISPOSITION.md) | CI science gates; Node measurements do not establish browser or megapixel performance |
-| Optional local HTTP development transport | [Repository POC](POC_API.md) | Node-only checkout tooling, excluded from root/package; unauthenticated loopback |
+| FOV (field of view), focus, depth of field, subject size | [Usage: field of view](USAGE.md#field-of-view), [physics](PHYSICS_FOUNDATION.md), [quick start](examples/quick-start.mjs) | Ideal paraxial / thin-lens geometry. Explicit mm, metres and axes. |
+| Aperture, diffraction, sampled PSF (point-spread function) | [PSF foundation](PSF_FOUNDATION.md), [usage](USAGE.md#real-lens-psf-profiles-and-complex-pupil-reference) | PSF shape and light throughput are kept separate. Support is explicit. No inferred commercial calibration. |
+| Metering and exposure modes | [Usage: relative metering](USAGE.md#relative-pre-exposure-metering), [API conventions](API_STYLE.md) | Relative linear signal before exposure. Compensation is applied to the target before exposure control. ISO does not create photons. |
+| Rigid or depth-dependent motion, and stabilization | [Motion](MOTION_AND_SIGNAL.md), [stabilization](STABILIZATION.md) | Declared constant-motion and generic control models. Visibility (what hides what) stays the caller's job. |
+| Continuous or discrete spectral measures | [Scene/illumination](SCENE_RADIANCE_AND_ILLUMINATION.md) | Continuous per-nanometre quantities (dλ in nm) versus wavelength-integrated line fractions. `distribute*` keeps the quantity's domain. |
+| Sampling, response validity, photon/electron expectations | [Usage](USAGE.md#sensor-spectral-response), [temporal EQE](SENSOR_EQE_TEMPORAL_EXPOSURE.md) | Exact bindings to source plane, area, profile, wavelength and time. No implicit QE (quantum efficiency) or collection area. |
+| Run a declared environment through production RAW to output | [Production envelope](PRODUCTION_ENVIRONMENT_CAPTURE.md), [complete packed example](examples/production-capture.mjs) | The Node example loads its own data. The engine callback is synchronous. Limits: 4,096 native sites / 100,000 provider evaluations. |
+| Browser-first dense-pupil Focus/Depth native capture | [Reference-executor handoff (#234)](BROWSER_NATIVE_CAPTURE_REFERENCE_EXECUTOR_HANDOFF.md), [support envelope (#224)](BROWSER_NATIVE_CAPTURE_ENVELOPE.md), [numerical evidence matrix](BROWSER_NATIVE_CAPTURE_NUMERICAL_ACCEPTANCE.md), [prepared-state contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md), [robust-geometry contract](BROWSER_NATIVE_CAPTURE_ROBUST_GEOMETRY.md), [resource-accounting contract](BROWSER_NATIVE_CAPTURE_RESOURCE_ACCOUNTING.md), [Path-B adoption/version gate](BROWSER_NATIVE_CAPTURE_PATH_B_ADOPTION.md), [dense-pupil evidence](DENSE_PUPIL_QUALIFICATION.md) | The agreed plan (#233) defines one Path-A float64 reference executor as the implementation and evidence target for #234. Building it, and qualifying the #224 envelope, are separate work. |
+| Keep or reconstruct RAW, and develop a preview | [RAW envelope](RAW_FRAME_ENVELOPE.md), [processed output](PROCESSED_OUTPUT.md) | Signed shadow values, absolute CFA (colour filter array) phase, explicit sensor-channel colour and white balance. Rendering does not redraw noise. |
+| Pair a native CFA DNG with a processed JPEG | [Photographic export](PHOTOGRAPHIC_EXPORT.md), [acceptance](EXPORT_ACCEPTANCE.md) | Async Web Crypto. Registered Bayer reference. 1:1 output crop. The caller saves the bytes. |
+| Read DNG/TIFF-EP raw files; write wide-gamut/HDR PNG | [DNG import and PNG output](IMPORT_AND_PNG.md) | Reads stored codes and metadata only. Untrusted input is bounded. PNG code values are encoded by the caller, with sRGB/ICC/cICP signalling. No AVIF/HEIC. |
+| Commit a capture; ideal virtual-camera colour; linear encoding | [Capture](SIMULATED_CAPTURE.md), [ideal color](CAPTURE_COLOR.md), [encoding](LINEAR_CAPTURE_ENCODING.md) | Ideal XYZ encoding is different from approximate sensor-channel development. |
+| Generic tiers and correction cost | [Presets](GENERIC_TIER_PRESETS.md), [tier acceptance](TIER_ACCEPTANCE.md), [correction](DIGITAL_OPTICS_FOUNDATION.md) | Versioned synthetic assets owned by the project. No universal quality ranking. |
+| Optional WebGPU acceleration of PSF convolution, native SDR and RAW development | [WebGPU backend](WEBGPU.md), [usage](USAGE.md#optional-webgpu-image-kernels) | Labelled float32 approximation, with error bounds stated in advance and tested on a real GPU adapter. CPU float64 stays the reference and the only bit-exact path. |
+| Reproduce conformance and performance results | [Scientific suite](SCIENTIFIC_CONFORMANCE.md), [performance disposition](V1_PERFORMANCE_DISPOSITION.md) | Science gates run in CI. Node measurements do not establish browser or megapixel performance. |
+| Optional local HTTP development transport | [Repository POC](POC_API.md) | Node-only tooling in the checkout, excluded from the root export and the package. Unauthenticated, loopback only. |
 
 ## Complete packed examples
 
-The package includes `docs/examples/quick-start.mjs` and `production-capture.mjs`. In a Node ESM consumer directory with the package installed, copy these files and `production-request.json` from `node_modules/@photivra/engine/docs/examples/` into that directory and run them. The quick start asserts independent geometry/exposure invariants. The production example executes the same owned 2×2 narrow-band synthetic fixture used in final conformance through all fourteen production stages and paired byte export, retaining the exact RAW codes and deterministic replay. It writes no files and installs no renderer.
+The package includes `docs/examples/quick-start.mjs` and `production-capture.mjs`. To run them:
 
-The JSON data is explicitly synthetic: uniform angular radiance `1e-9 * (1 + 200t)` W/m²/sr/nm; 540–560 nm band; independently declared 800×600 µm sensitive aperture and package-incident EQE 0.4; registered opening-reference time; fixed seed and generic consumer profiles. This is a controlled regression laboratory, not a real scene, native camera pixel pitch, calibrated color/visibility, PSF transport proof or convergence bound. Production supports only the envelope linked above. The tiny DNG demonstrates byte serialization/lineage; external-reader acceptance uses separate larger fixtures.
+1. Install the package in a Node ESM project directory.
+2. Copy both files and `production-request.json` from `node_modules/@photivra/engine/docs/examples/` into that directory.
+3. Run them with Node.
 
-The [Usage Guide](USAGE.md) includes both complete snippets and clearly marked composition fragments that require earlier validated bindings. The release checker typechecks and executes complete importing snippets against the packed artifact; it inventories fragment dependencies without pretending missing calibration data exists.
+The quick start checks independent geometry and exposure invariants.
+
+The production example runs the same small synthetic fixture used in final conformance (2×2 sites, narrow band). It goes through all fourteen production stages and the paired byte export, and keeps the exact RAW codes and deterministic replay. It writes no files and installs no renderer.
+
+The JSON data is deliberately synthetic:
+
+- uniform angular radiance `1e-9 * (1 + 200t)` W/m²/sr/nm;
+- a 540–560 nm band;
+- an independently declared 800×600 µm sensitive aperture and a package-incident EQE (external quantum efficiency) of 0.4;
+- a registered opening-reference time;
+- a fixed seed and generic consumer profiles.
+
+This is a controlled regression laboratory. It is not a real scene, a real native camera pixel pitch, calibrated colour or visibility, proof of PSF transport, or a convergence bound. Production supports only the envelope linked above. The tiny DNG demonstrates byte serialization and lineage; acceptance by external readers uses separate, larger fixtures.
+
+The [Usage Guide](USAGE.md) has two kinds of snippet:
+
+- **complete snippets**, which run on their own; and
+- **composition fragments**, clearly marked, which need bindings validated earlier.
+
+The release checker typechecks and runs every complete importing snippet against the packed package. For fragments it lists the bindings they depend on, without pretending that missing calibration data exists.
 
 ## Contracts and support
 
-Use only `import ... from "@photivra/engine"`. Deep paths and repository transport/scripts/test helpers are unsupported. TypeScript declarations describe shape; parse untrusted JSON before scientific execution. Keep native +Y-down, optical +Y-up and half-open raster rectangles explicit. Preserve domain distinctions between radiance, irradiance, rates, expected counts, realized charge, RAW codes and processed SDR.
+- Use only `import ... from "@photivra/engine"`. Deep paths, and the repository's transport, scripts and test helpers, are unsupported.
+- TypeScript declarations describe shape only. Parse untrusted JSON before running any scientific calculation on it.
+- Keep coordinate conventions explicit: native +Y down, optical +Y up, and half-open raster rectangles.
+- Keep physical domains apart: radiance, irradiance, rates, expected counts, realized charge, RAW codes and processed SDR are different things.
 
-Malformed configurations/non-finite values throw the established domain errors. Scientifically incomplete but well-formed assessments/plans expose structured blockers. Trusted provider callback exceptions propagate; no silent fallback renderer runs. The exact return contract and independent model versions are visible in the reference and declarations.
+How errors are reported:
 
-See [provenance](PROVENANCE.md), [license](../LICENSE), [NOTICE](../NOTICE), [third-party inventory](../THIRD_PARTY.md), [contributing](../CONTRIBUTING.md) and [security reporting](../SECURITY.md). Engine code/docs do not license the commercial application or its private assets. Report reproducible engine defects through [public issues](https://github.com/Photivra/photivra/issues).
+- Malformed configurations and non-finite values throw the established domain errors.
+- Well-formed but scientifically incomplete assessments and plans return structured blockers.
+- Exceptions thrown by trusted provider callbacks propagate. No silent fallback renderer runs.
 
-Website navigation and documentation hosting are outside this repository. Handoff: link the public engine repository, this developer guide, the verified npm release package and capability examples from the public site. No unpublished destination is linked here. Website launch is not an engine release prerequisite.
+The reference and the declarations show each exact return contract and the independent model versions.
+
+See [provenance](PROVENANCE.md), [license](../LICENSE), [NOTICE](../NOTICE), [third-party inventory](../THIRD_PARTY.md), [contributing](../CONTRIBUTING.md) and [security reporting](../SECURITY.md). The engine's code and docs do not license the commercial application or its private assets. Report reproducible engine defects through [public issues](https://github.com/Photivra/photivra/issues).
+
+Website navigation and documentation hosting live outside this repository. For the website: link the public engine repository, this developer guide, the verified npm release package and the capability examples from the public site. No unpublished destination is linked here. A website launch is not a prerequisite for an engine release.
 
 ## Print planning
 
-The published 1.2.0 release added [registered linear statistics](PRINT_REGION_STATISTICS.md) and a separate [static contrast model reference](PRINT_CONTRAST_REFERENCE.md). The [combined #195/#196 review](PRINT_195_196_REVIEW.md) and [candidate ledger](validation/print-196-candidate-capabilities.json) list executed public-backend experiments and the remaining full release gates. None of these diagnostics supplies a universal quality score.
+The published 1.2.0 release added [registered linear statistics](PRINT_REGION_STATISTICS.md) and a separate [static contrast model reference](PRINT_CONTRAST_REFERENCE.md). The [combined #195/#196 review](PRINT_195_196_REVIEW.md) and the [candidate ledger](validation/print-196-candidate-capabilities.json) list the experiments run on public backends and the full release gates still outstanding. None of these diagnostics gives a universal quality score.
 
-Use [native-only Print planning](PRINT_PLANNING.md) for independently specified image size/viewing distance, explicit angular conventions, confirmed native crop and lab constraints. It returns no upscale recommendation and does not certify perceived quality or activate an exporter.
+Use [native-only Print planning](PRINT_PLANNING.md) when you have an independently specified image size and viewing distance, explicit angular conventions, a confirmed native crop and the lab's constraints. It never recommends upscaling, does not certify perceived quality, and does not turn on an exporter.
 
-The [regional Print detail diagnostic](PRINT_DETAIL_ASSESSMENT.md) measures one declared coherent sinusoidal fundamental in a selected linear-luminance ROI and records its exact source stage. Its [validation protocol](PRINT_DETAIL_VALIDATION.md) and [capability ledger](validation/print-detail-capabilities.json) distinguish mathematical conformance from blocked acquired-image, renderer and perceived-quality qualification.
+The [regional Print detail diagnostic](PRINT_DETAIL_ASSESSMENT.md) measures one declared, coherent sinusoidal fundamental in a selected linear-luminance ROI (region of interest), and records the exact pipeline stage it was measured at. Its [validation protocol](PRINT_DETAIL_VALIDATION.md) and [capability ledger](validation/print-detail-capabilities.json) separate mathematical conformance from the still-blocked qualification of acquired images, renderers and perceived quality.

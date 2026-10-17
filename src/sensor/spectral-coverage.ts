@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Adapts one parsed sensor response channel into the shared continuous spectral-coverage contract.
- * This exposes support and interpolation knots only. It does not apply QE or A/W responsivity and does
- * not establish scene/optics coverage.
+ * Describes a sensor response channel's wavelength coverage in the shared spectral-coverage format
+ * (core/spectral-composition), so it can be intersected with the light source and optics.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -77,11 +75,11 @@ function responseCurves(
 }
 
 /**
- * Adapts one parsed sensor response channel into the shared continuous
- * spectral-coverage contract.
+ * Converts one parsed sensor response channel into the shared continuous
+ * spectral-coverage format.
  *
- * This exposes support and interpolation knots only. It does not apply QE or
- * A/W responsivity and does not establish scene/optics coverage.
+ * It gives only the wavelength range and interpolation breakpoints. It does not
+ * apply QE or A/W responsivity, and says nothing about scene or optics coverage.
  */
 export function createSensorSpectralCoverageParticipant(
   input:

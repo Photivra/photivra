@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-/** Repository-only explicit ideal-emission factorization; never inferred for an arbitrary provider. */
+/**
+ * Repository-only experiment: a source whose emission factors into geometry × spectrum (ideal,
+ * separable emission). The caller must declare this explicitly; it is never assumed for an
+ * arbitrary provider.
+ */
 import { planEnvironmentSensorPhotoSignal, executeEnvironmentSensorPhotoSignal,
   type CalculateEnvironmentSensorPhotoSignalInput } from "../sensor/environment-photo-signal.js";
 import { parseSceneRadianceEvaluationRequest, type SceneRadianceEvaluationRequest } from "../schema/scene-radiance.js";
@@ -18,25 +22,26 @@ export interface SeparableEmissionContract {
   illuminationProfileId: string;
   materialResponseProfileId: string;
   wavelengthBasis: "air" | "vacuum";
-  /** Explicit linear-interpolated spectral radiance, W/m²/sr/nm; no extrapolation. */
+  /** Spectral radiance in W/m²/sr/nm, linearly interpolated between points; no extrapolation. */
   spectrum: readonly { wavelengthNanometers: number; spectralRadianceWattsPerSquareMeterSteradianNanometer: number }[];
   evidence: readonly EvidenceProvenance[];
   limitation: string;
 }
-/** Geometry callback cannot observe wavelength or sample IDs. Time and origin remain exact. */
+/** Request passed to the geometry callback. It cannot see the wavelength or sample IDs. Time and origin are exact. */
 export type SeparableEmissionGeometryRequest = Omit<SceneRadianceEvaluationRequest,
   "sampleId" | "wavelengthNanometers" | "wavelengthBasis"> & { apertureRay: Readonly<SensorApertureRay> };
 export interface SeparableEmissionWork {
   geometryEvaluationCount: number;
   spectralCompositionCount: number;
-  /** Actual source geometry is caller-owned, unverified and approximation-only. */
+  /** Always false: the caller supplies the source geometry, which is unverified and an approximation. */
   sourceSeparabilityVerified: false;
 }
 
 /**
- * Bounded single-site draft composition. Reuses each exact geometric ray/time once across
- * explicitly supported wavelength nodes. All optical/EQE nodes and weights remain executed.
- * Native admission and its existing provider budgets are deliberately unchanged.
+ * Draft, bounded calculation for one sensor site. Each geometric ray and time is evaluated
+ * once and reused for every supported wavelength node. All optical and EQE (external quantum
+ * efficiency) nodes and weights are still executed. The native RAW budget checks and their
+ * existing provider limits are deliberately unchanged.
  */
 export function planSeparableEmissionPhotoSignal(
   input: Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance" | "evaluateApertureRadiance">,
@@ -111,7 +116,7 @@ export function executeSeparableEmissionPhotoSignal(
   return {photoSignal,work:{geometryEvaluationCount,spectralCompositionCount,sourceSeparabilityVerified:false}};
 }
 
-/** Bounded single-site composition. Native capture budgets remain independently enforced. */
+/** Bounded calculation for one sensor site. Native capture budgets are still enforced separately. */
 export function calculateSeparableEmissionPhotoSignal(
  input:Omit<CalculateEnvironmentSensorPhotoSignalInput,"evaluateRadiance"|"evaluateApertureRadiance">,
  contract:SeparableEmissionContract,

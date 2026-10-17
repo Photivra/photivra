@@ -4,9 +4,9 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createIsoGainReadoutRegimes
 
-Derive per-exposure-index readout regimes and their signal-chain bands (see the module comment
-for the equations). The result is validated by parseSensorReadoutConversionProfile semantics;
-each regime carries an `exposureIndexGain` record of its derivation.
+Builds a readout regime and signal-chain band for each exposure index (see the module comment
+for the equations). The result is checked with the same rules as parseSensorReadoutConversionProfile.
+Each regime carries an `exposureIndexGain` record of how it was derived.
 
 ```ts
 export function createIsoGainReadoutRegimes(input: CreateIsoGainReadoutRegimesInput): IsoGainReadoutRegimes;
@@ -45,7 +45,7 @@ export interface IsoGainConversionGainMode {
   mode: SensorReadoutExposureIndexGain["conversionGainMode"];
   minimumExposureIndex: number;
   readNoiseRmsElectrons: EvidenceBackedFact<number>;
-  /** Optional storage limit of this mode; every regime's pre-ADC threshold must stay at or below it. */
+  /** Optional charge storage limit of this mode. Every regime's pre-ADC threshold must be at or below it. */
   maximumChargeElectrons?: EvidenceBackedFact<number>;
 }
 ```

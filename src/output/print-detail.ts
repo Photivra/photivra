@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/** Bounded regional Fourier diagnostic, not a perceived-quality or captured-MTF verdict.
+/** Measures how strongly one declared grating frequency appears in a region of an image, using a
+ * Fourier fit. It is a diagnostic, bounded in size. It does not judge perceived quality or measure
+ * the capture's MTF (modulation transfer function).
  * @see docs/PRINT_DETAIL_ASSESSMENT.md and docs/PRINT_DETAIL_VALIDATION.md.
  */
 import { calculatedResult, type CalculationResult } from "../core/calculation-result.js";
@@ -15,12 +17,12 @@ import type { RasterDimensions } from "../sensor/sensor-geometry.js";
 import { mapOrientedPhysicalUvToImagePlanePoint, resolveCaptureGeometry, type RasterRect } from "./capture-geometry.js";
 import { calculatePrintPlan, parsePrintPlanInput, type PrintPlan, type PrintPlanInput } from "./print-plan.js";
 
-/** Metric/protocol identity; independent of the root creator version. */
+/** Version of this metric and protocol. Independent of the engine version. */
 export const PRINT_REGION_DETAIL_MODEL_VERSION = "0.1.0" as const;
-/** Work bound for one dense ROI, not an actual-device capability claim. */
+/** Work limit for one dense region of interest (ROI). It does not say what a real device can handle. */
 export const MAX_PRINT_DETAIL_REGION_SAMPLES = 65536;
 
-/** Exact represented source; content hash and decoding are caller assertions. */
+/** The exact source image. The caller asserts the content hash and decoding; the engine does not check them. */
 export interface PrintDetailSource {
   captureId: string;
   representationId: string;
@@ -33,8 +35,8 @@ export interface PrintDetailSource {
   noiseRealizationId: string | null;
   evidence: readonly EvidenceProvenance[];
 }
-/** Selected half-open rectangle in the represented oriented retained raster.
- * Depth is descriptive, in metres; null explicitly means unknown.
+/** The selected half-open rectangle in the oriented, retained source image.
+ * Depth is descriptive, in metres; null means unknown.
  */
 export interface PrintDetailRegion {
   id: string;
@@ -43,7 +45,7 @@ export interface PrintDetailRegion {
   subjectDistanceM: number | null;
   focusDistanceM: number | null;
 }
-/** Coherent integer Fourier mode; x right/y down, arbitrary phase at first ROI sample.
+/** The target grating: a whole-number Fourier mode across the ROI (x right, y down), with any phase at the first ROI sample.
  * Input modulation is dimensionless, positive and at most one.
  */
 export interface PrintSinusoidalTarget {
@@ -53,7 +55,7 @@ export interface PrintSinusoidalTarget {
   cyclesAcrossRegion: { x: number; y: number };
   referenceModulation: number;
 }
-/** Own/reusable scalar relative-linear ROI samples; no RGB/luma conversion is inferred. */
+/** Input: single-channel, relative-linear ROI samples that are the caller's own or reusable data. No RGB or luma conversion is assumed. */
 export interface PrintRegionDetailInput {
   assessmentId: string;
   print: PrintPlanInput;
@@ -62,7 +64,7 @@ export interface PrintRegionDetailInput {
   target: PrintSinusoidalTarget;
   samples: readonly number[];
 }
-/** Calculated coefficients for one declared grating; residual is not a noise metric. */
+/** Fitted coefficients for one declared grating. The residual is not a noise measurement. */
 export interface PrintSinusoidalMeasurement {
   meanRelativeLuminance: number;
   fundamentalAmplitudeRelativeLuminance: number;
@@ -70,7 +72,7 @@ export interface PrintSinusoidalMeasurement {
   declaredGratingTransfer: number;
   unexplainedResidualRmsRelativeToMean: number;
 }
-/** Immutable snapshot with no full-system, artifact, perception or print-quality pass. */
+/** Frozen result. It never reports a pass for the full system, artefacts, perception or print quality. */
 export interface PrintRegionDetailAssessment {
   assessmentId: string;
   engineApiVersion: string;
@@ -121,7 +123,7 @@ function raster(value: unknown): RasterDimensions {
 }
 function nullableDistance(value: unknown): number | null { return value === null ? null : positive(value); }
 
-/** Internal shared source boundary for the regional measurement protocols. */
+/** Internal: source checks shared by the regional measurement protocols. */
 export function parsePrintDetailSource(value: unknown): PrintDetailSource {
   const s = record(value, ["captureId", "representationId", "contentSha256", "raster", "stage", "domain", "registration", "processing", "noiseRealizationId", "evidence"]);
   if (typeof s.contentSha256 !== "string" || !/^[a-f0-9]{64}$/.test(s.contentSha256)) throw new InvalidConfigurationError("Print detail source requires a lowercase SHA-256 declaration.");
@@ -140,7 +142,7 @@ export function parsePrintDetailSource(value: unknown): PrintDetailSource {
   };
 }
 
-/** Internal shared ROI boundary; no target or signal interpretation is inferred. */
+/** Internal: region (ROI) checks shared by the protocols. Nothing is assumed about the target or signal. */
 export function parsePrintDetailRegion(value: unknown, source: PrintDetailSource, sampleValues: unknown): { region: PrintDetailRegion; samples: number[] } {
   const regionRecord = record(value, ["id", "rect", "role", "subjectDistanceM", "focusDistanceM"]);
   const rr = record(regionRecord.rect, ["x", "y", "width", "height"]);
@@ -158,8 +160,8 @@ export function parsePrintDetailRegion(value: unknown, source: PrintDetailSource
   return { region, samples };
 }
 
-/** Parse/copy bounded, untrusted region/source/target data and existing Print geometry.
- * Unknowns, sparse arrays and factual-reference-only numeric samples fail closed.
+/** Parses and copies untrusted, bounded region, source and target data and the existing print geometry.
+ * Unknown fields, sparse arrays and samples marked factual-reference-only are rejected.
  */
 export function parsePrintRegionDetailInput(value: unknown): PrintRegionDetailInput {
   const r = record(value, ["assessmentId", "print", "source", "region", "target", "samples"]);
@@ -173,7 +175,7 @@ export function parsePrintRegionDetailInput(value: unknown): PrintRegionDetailIn
   return { assessmentId: id(r.assessmentId), print: parsePrintPlanInput(r.print), source, region, target, samples };
 }
 
-/** Compensated sum of normalized bounded values; no image transformation is applied. */
+/** Compensated sum (Neumaier variant of Kahan summation) of normalized, bounded values. The image is not transformed. */
 class Sum {
   private total = 0;
   correction = 0;
@@ -189,8 +191,8 @@ function phase(x: number, y: number, width: number, height: number, kx: number, 
 }
 function finiteValues(...values: number[]): boolean { return values.every(v => Number.isFinite(v)); }
 
-/** Calculate one coherent regional fundamental and its print reference scale.
- * Acquisition remains unknown; no MTF, noise, compression or perceptual pass is produced.
+/** Calculates the strength of one grating frequency in a region and its print reference scale.
+ * How the image was acquired stays unknown. No MTF, noise, compression or perceptual pass is reported.
  */
 export function calculatePrintRegionDetail(value: PrintRegionDetailInput): CalculationResult<PrintRegionDetailAssessment> {
   const input = parsePrintRegionDetailInput(value), print = calculatePrintPlan(input.print).value;

@@ -4,7 +4,8 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateSensorApertureRays
 
-Uniform-area polar midpoint rule, normalized as an average, never a second f-number factor.
+Polar midpoint rule with equal-area cells. Weights are normalized as an average, so they never
+apply the f-number a second time.
 
 ```ts
 export function calculateSensorApertureRays(input: CalculateSensorApertureRaysInput): CalculationResult<SensorApertureRays>;

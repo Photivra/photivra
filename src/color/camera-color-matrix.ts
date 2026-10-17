@@ -1,23 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Fits a 3×3 camera-RGB → CIE XYZ matrix from caller-supplied spectral data.
  *
  * For each training reflectance R_j under illuminant S:
  *   camera ρ_j,c = k_c Σ S(λ) R_j(λ) s_c(λ) Δλ,   target X_j = k Σ S(λ) R_j(λ) x̄(λ) Δλ
- * with k such that the perfect diffuser has Y = 1 and k_c (common to all channels) such
- * that the camera response to the perfect diffuser has green = 1. Matrix M minimizes
- * Σ_j ‖M ρ_j − X_j‖² (ordinary least squares, M = X Pᵀ (P Pᵀ)⁻¹), or the same subject
- * to M ρ_white = X_white exactly (white-point-preserving least squares; Finlayson &
- * Drew 1997, "White-point preserving color correction", IS&T/SID CIC5), solved in
- * closed form with a Lagrange multiplier per row.
+ * k is chosen so the perfect diffuser has Y = 1. k_c (the same for all channels) is chosen so
+ * the camera's response to the perfect diffuser has green = 1.
  *
- * Residual errors are reported per patch as CIEDE2000 with CIELAB relative to the
- * illuminant white (no chromatic adaptation). A 3×3 matrix is exact only when the camera
- * satisfies the Luther–Ives condition; otherwise the result is an estimate whose error
- * depends on the training set. No camera, reflectance or ColorChecker data is bundled:
- * reflectance tables of unclear licence must be supplied by the caller.
+ * Two fits are available:
+ * - Ordinary least squares: M minimizes Σ_j ‖M ρ_j − X_j‖², so M = X Pᵀ (P Pᵀ)⁻¹.
+ * - White-point-preserving least squares: the same, subject to M ρ_white = X_white exactly
+ *   (Finlayson & Drew 1997, "White-point preserving color correction", IS&T/SID CIC5). It is
+ *   solved in closed form with one Lagrange multiplier per row.
+ *
+ * Residual errors are reported per patch as CIEDE2000, with CIELAB relative to the illuminant
+ * white (no chromatic adaptation). A 3×3 matrix is exact only if the camera meets the
+ * Luther–Ives condition. Otherwise the result is an estimate, and its error depends on the
+ * training set. No camera, reflectance or ColorChecker data is bundled. Reflectance tables with an
+ * unclear licence must come from the caller.
  * @see docs/COLORIMETRY.md for equations, coordinate/unit conventions and limits.
  */
 

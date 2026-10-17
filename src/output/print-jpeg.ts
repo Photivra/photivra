@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/** Bounded post-SDR area filtering and original baseline JPEG/ICC serialization. */
+/**
+ * Print JPEG export: downsamples an SDR image by exact area averaging, then writes a baseline JPEG
+ * with an ICC colour profile. Bounded in size; the encoder is written for this project.
+ */
 import { createExportJpegEncoder, EXPORT_JPEG_ENCODER_ID } from "../capture/export-jpeg.js";
 import { packExportJpegExif, exportTiffNumbers, exportTiffAscii, exportTiffRationals, type ExportTiffTag } from "../capture/export-tiff.js";
 import { createSrgbIccProfile, SRGB_ICC_PROFILE_VERSION } from "../color/srgb-icc.js";
@@ -21,7 +24,7 @@ export interface PrintJpegSource {
 }
 export interface PrintJpegInput {
   source:PrintJpegSource;
-  /** Integer crop in the declared oriented output source, not crop-local sensor/CFA coordinates. */
+  /** Integer crop in the oriented output source image, not in sensor or CFA (colour filter array) coordinates. */
   crop:RasterRect;
   outputWidth:number;outputHeight:number;
   quantizationStep:number;
@@ -68,7 +71,7 @@ export interface PrintJpegTask {
   readonly state:NativeRawTaskState;
   run():Promise<void>;cancel():void;dispose():void;takeOutput():PrintJpegOutput;
 }
-/** Exact n/1 for integer densities; otherwise the shared bounded decimal rational approximation. */
+/** Exactly n/1 for a whole-number density; otherwise the shared bounded decimal-fraction approximation. */
 function resolutionRational(id:number,ppi:number):ExportTiffTag {
   if(!Number.isSafeInteger(ppi))return exportTiffRationals(id,false,[ppi]);
   const data=new Uint8Array(8),view=new DataView(data.buffer);view.setUint32(0,ppi,true);view.setUint32(4,1,true);
@@ -89,7 +92,7 @@ function printExif(plan:PrintJpegInput):Uint8Array {
 function integer(v:unknown,min=1):number {
   if(typeof v!=="number"||!Number.isSafeInteger(v)||v<min)throw new InvalidConfigurationError("Print raster/budgets require safe integers.");return v;
 }
-/** Admission-only; source detail/perception/printer qualification are separate contracts. */
+/** Validates the input only. Source detail, perception and printer suitability are checked by separate APIs. */
 export function parsePrintJpegInput(input:PrintJpegInput):PrintJpegInput {
   const r=requireAllowlistedRecord(input,["source","crop","outputWidth","outputHeight","quantizationStep","maximumEncodedBytes","maximumProviderReads","pixelsPerInch"],"Invalid Print JPEG input.");
   const s=requireAllowlistedRecord(r.source,["captureId","imageStateId","artifactId","sha256","width","height","encoding"],"Invalid Print source.");
@@ -104,7 +107,7 @@ export function parsePrintJpegInput(input:PrintJpegInput):PrintJpegInput {
   if(ppi!==undefined&&(typeof ppi!=="number"||!Number.isFinite(ppi)||ppi<1||ppi>65535))throw new InvalidConfigurationError("Print density requires finite pixels per inch from 1 to 65535.");
   return freezeOwnedData({source,crop,outputWidth,outputHeight,quantizationStep,maximumEncodedBytes,maximumProviderReads,...(ppi===undefined ? {} : {pixelsPerInch:ppi})});
 }
-/** Filtering uses exact source-pixel area overlap after decoding the explicitly declared 8-bit SDR stage. */
+/** Creates the export task. Filtering weights each source pixel by its exact area overlap, after decoding the declared 8-bit SDR source. */
 export function createPrintJpegTask(input:PrintJpegInput,provider:PrintJpegProvider):PrintJpegTask {
   const plan=parsePrintJpegInput(input);
   if(!provider||typeof provider.readTile!=="function"||typeof provider.yieldControl!=="function")throw new InvalidConfigurationError("Print export requires source reader and host yields.");
@@ -145,7 +148,7 @@ export function createPrintJpegTask(input:PrintJpegInput,provider:PrintJpegProvi
               for(const key of ["x","y","width","height"] as const)if(tile[key]!==request[key])throw new InvalidConfigurationError("Print source rectangle mismatch.");
               const samples=tile.samples;if(!(samples instanceof Uint8Array)||!(samples.buffer instanceof ArrayBuffer)||samples.length!==request.width*request.height*3||samples.buffer.byteLength!==samples.byteLength)throw new InvalidConfigurationError("Print source requires exact owned bounded RGB tile storage.");
               for(let iy=0;iy<bandHeight;iy++)cache.set(samples.subarray(iy*request.width*3,(iy+1)*request.width*3),(cacheBottom-cacheTop+iy)*rowBytes+(sx-plan.crop.x)*3);
-              // A single output block can span a megapixel footprint: yield within source traversal too.
+              // One output block can cover a megapixel of source, so also yield to the host while reading the source.
               if(reads%32===0){await yieldControl(abort.signal);check();}
             }
             cacheBottom+=bandHeight;
@@ -181,7 +184,7 @@ export function createPrintJpegTask(input:PrintJpegInput,provider:PrintJpegProvi
             const width=Math.min(8,plan.outputWidth-bx),base=block*192,samples:number[]=[];
             for(let y=0;y<8;y++)for(let x=0;x<8;x++)for(let c=0;c<3;c++){
               const value=sums[base+(Math.min(y,height-1)*8+Math.min(x,width-1))*3+c]!;
-              // Nearest code, ties up; Math.round avoids floor(x+0.5) rounding 0.49999999999999994 up.
+              // Nearest code, ties up. Math.round is used because floor(x+0.5) wrongly rounds 0.49999999999999994 up.
               samples.push(Math.min(255,Math.max(0,Math.round(encodeSrgbComponent(value)*255))));
             }
             check();encoder.writeRgbBlock(samples);if(++blocks%32===0){await yieldControl(abort.signal);check();}

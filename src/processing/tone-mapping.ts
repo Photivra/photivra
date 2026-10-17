@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * HDR → SDR tone-mapping operators and exposure fusion. All are named rendering choices
- * (approximations), not perceptual or display-calibrated models:
+ * HDR → SDR tone-mapping operators, and exposure fusion. Each is a named rendering choice (an
+ * approximation), not a perceptual or display-calibrated model:
  * - Reinhard et al. 2002 global photographic operator: log-average key, L = a·L_w/L̄_w,
  *   L_d = L(1 + L/L_white²)/(1 + L); colour by the luminance ratio L_d/L_w (chromaticity-preserving).
  * - Durand & Dorsey 2002 local operator: base = bilateral(log₁₀ L), detail = log₁₀ L − base,
@@ -13,8 +12,8 @@
  *   W = C^ωc·S^ωs·E^ωe from Laplacian contrast, RGB standard deviation and well-exposedness
  *   exp(−(v − 0.5)²/(2·0.2²)), normalized across frames and blended with Laplacian pyramids
  *   (Burt & Adelson 1983).
- * Outputs of the HDR operators are display-referred linear RGB in the input primaries; encode them with
- * the SDR rendering primitives. Fusion output stays in the (encoded) domain of its inputs.
+ * The HDR operators output display-referred linear RGB in the input primaries; encode it with the SDR
+ * rendering functions. Fusion output stays in the (encoded) domain of its inputs.
  * @see docs/PROCESSING.md for equations, sources and limits.
  */
 
@@ -116,9 +115,11 @@ export interface DurandDorseyToneMappingOutput extends ToneMappedImage {
 
 /**
  * Durand & Dorsey (2002) bilateral base/detail tone mapping. The fast bilateral filter is the paper's
- * piecewise-linear scheme: intensity nodes i_j spaced ≤ σ_r apart, for each J_j = (f ⊗ (g_r(I − i_j)·I)) /
- * (f ⊗ g_r(I − i_j)) on a box-downsampled grid, then bilinear upsampling and linear interpolation between
- * the two nodes bracketing each full-resolution intensity.
+ * piecewise-linear scheme:
+ * 1. Place intensity nodes i_j no more than σ_r apart.
+ * 2. For each node, compute J_j = (f ⊗ (g_r(I − i_j)·I)) / (f ⊗ g_r(I − i_j)) on a box-downsampled grid.
+ * 3. Upsample bilinearly, then interpolate linearly between the two nodes on either side of each
+ *    full-resolution intensity.
  */
 export function createDurandDorseyToneMappingTask(input: DurandDorseyToneMappingInput, provider: ProcessingProvider): ProcessingTask<DurandDorseyToneMappingOutput> {
   const r = requireOptions(input, ["image", "inputColorSpace", "spatialSigmaPixels", "rangeSigmaLog10", "targetContrast", "downsampleFactor",

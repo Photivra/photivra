@@ -4,10 +4,10 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## assessRadiometryReadiness
 
-Assesses whether the declared prerequisites are sufficient for a nominal
-photon estimate and, separately, for a calibrated photon claim.
+Checks whether the declared prerequisites are enough for a nominal photon
+estimate and, separately, for a calibrated photon claim.
 
-This assessment does not enable composed photon/noise output.
+It does not switch on composed photon or noise output.
 
 ```ts
 export function assessRadiometryReadiness(
@@ -65,10 +65,10 @@ export type OpticalTransmissionRequirement =
 
 ## parseRadiometryReadinessProfile
 
-Parses untrusted radiometry-prerequisite metadata.
+Parses untrusted metadata about radiometry prerequisites.
 
-This validates structure and provenance; it cannot prove that a cited
-calibration/evidence claim is scientifically true.
+It checks structure and provenance. It cannot prove that a cited calibration
+or evidence claim is scientifically true.
 
 ```ts
 export function parseRadiometryReadinessProfile(
@@ -127,8 +127,8 @@ export interface RadiometryReadinessAssessment {
   approximateRequirements: readonly RadiometryRequirementId[];
   unquantifiedUncertaintyRequirements: readonly RadiometryRequirementId[];
   /**
-   * This assessment never enables composed photon/noise output by itself.
-   * Integration remains an explicit later product/engine decision.
+   * Always false: this assessment never switches on composed photon or noise
+   * output by itself. Doing so is a separate, explicit later decision.
    */
   composedPhotonOutputEnabled: false;
 }

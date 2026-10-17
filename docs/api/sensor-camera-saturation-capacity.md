@@ -4,12 +4,10 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## assessSensorCameraSaturationCapacity
 
-Compare dark-corrected expected photo signal with the declared camera response-chain capacity
-without adding dark charge or identifying a hardware clamp.
+Compares the expected photo signal (dark-corrected) with the camera's declared saturation
+capacity. Dark charge is not added, and no hardware clamp is identified.
 
-Camera saturation capacity is a dark-corrected photo-signal electron-equivalent limit. It is not
-physical total-charge storage capacity, ADC maximum or evidence of the limiting hardware stage. This
-assessment compares expectations and does not synthesize post-saturation codes.
+This compares expected values only. It does not make up codes beyond saturation.
 
 ```ts
 export function assessSensorCameraSaturationCapacity(
@@ -37,12 +35,12 @@ export interface AssessSensorCameraSaturationCapacityInput {
 
 ## parseSensorCameraSaturationCapacityProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
-Camera saturation capacity is a dark-corrected photo-signal electron-equivalent limit. It is not
-physical total-charge storage capacity, ADC maximum or evidence of the limiting hardware stage. This
-assessment compares expectations and does not synthesize post-saturation codes.
+Camera saturation capacity is a limit on the dark-corrected photo signal, in electron
+equivalents. It is not the physical charge storage capacity or the ADC maximum, and does not
+identify which hardware stage limits it.
 
 ```ts
 export function parseSensorCameraSaturationCapacityProfile(

@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## parseSpectralWavelengthBasis
 
-Parses a wavelength basis without inferring air/vacuum conversion.
+Parses a wavelength basis. It never converts between air and vacuum.
 
 ```ts
 export function parseSpectralWavelengthBasis(
@@ -43,11 +43,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## SpectralWavelengthBasis
 
-Explicit wavelength coordinate basis used by renderer-neutral spectral data.
+Whether wavelengths are measured in air or in vacuum.
 
-"unspecified" is permitted only where a downstream contract explicitly
-allows unresolved/approximate wavelength coordinates. Calibrated physical
-composition must resolve the basis before use.
+"unspecified" is allowed only where a downstream contract explicitly accepts
+unresolved or approximate wavelengths. Calibrated physical calculations must
+resolve the basis first.
 
 ```ts
 export type SpectralWavelengthBasis =

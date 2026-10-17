@@ -50,10 +50,11 @@ export interface ExposureProgramLineProfile {
 
 Parses a generic educational/product exposure program line.
 
-A program line is control policy, not physics. Nodes declare desired
-aperture/shutter pairs at explicit optical-exposure stops relative to the
-resolver's reference exposure. Resolution later verifies that every node is
-physically consistent with that reference and current equipment capability.
+A program line is control policy, not physics. Each node declares a wanted
+aperture/shutter pair at an explicit number of stops of optical exposure,
+relative to the resolver's reference exposure. The resolver later checks
+that every node is physically consistent with that reference and with what
+the equipment can do.
 
 ```ts
 export function parseExposureProgramLineProfile(

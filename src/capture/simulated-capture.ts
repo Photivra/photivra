@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Converts validated shooting WB into a public metadata allowlist, discarding private extras.
- * Commits a format-neutral float master manifest; no radiance generation, clamp, WB or export
- * encoding.
+ * Simulated captures: the committed record of one exposure, with its settings, geometry, white-balance
+ * (WB) choice and a manifest of linear float image planes, independent of any file format.
+ *
+ * Committing a capture does not generate radiance, clip, apply WB or encode a file.
  * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -22,12 +22,12 @@ import { parseFocusPlane, type FocusPlane } from "../optics/focus-state.js";
 import { resolveCaptureGeometry, type ResolveCaptureGeometryInput, type ResolvedCaptureGeometry } from "../output/capture-geometry.js";
 
 export const SIMULATED_CAPTURE_SCHEMA_VERSION = "0.2.0" as const;
-/** Distinct linear domains, not one interchangeable 'linear' flag. */
+/** Which kind of linear data a plane holds. These are different domains, not one interchangeable "linear" flag. */
 export type CaptureLinearImageState = "scene-referred-xyz" | "virtual-sensor-channels" | "color-transformed-linear-rgb";
 export interface CapturePublicProfileReference { id: string; version: string }
 /** Normalized tristimulus white; Y=1. This is not a spectrum or Kelvin value. */
 export interface CaptureWhiteXyz { x: number; y: 1; z: number }
-/** A resolved #108 choice, sanitized for public metadata. No estimator is rerun. */
+/** A resolved white-balance state (ResolvedWhiteBalanceState), cleaned for public metadata. No WB estimator is rerun. */
 export interface CaptureWhiteBalanceIntent {
   stateId: string;
   source: ResolvedWhiteBalanceState["source"];
@@ -35,11 +35,11 @@ export interface CaptureWhiteBalanceIntent {
   channelGains: WhiteBalanceChannelGains;
   sourceProfile: CapturePublicProfileReference | null;
 }
-/** External bytes are caller-owned; the engine never reads a path or URL. */
+/** External bytes belong to the caller. The engine never reads a path or URL. */
 export type CaptureFloatStorage =
   | { kind: "inline-float64"; samples: readonly number[] }
   | { kind: "external-float32" | "external-float64"; byteOrder: "little-endian"; artifactId: string; sha256: string; sampleCount: number };
-/** Linear float plane; all channels are co-sited and interleaved in row-major order. */
+/** Linear float plane. All channels are sampled at the same positions and interleaved in row-major order. */
 export interface CaptureLinearPlane {
   id: string;
   imageStateId: string;
@@ -49,9 +49,9 @@ export interface CaptureLinearPlane {
   pixelHeight: number;
   channelIds: readonly string[];
   colorProfile: CapturePublicProfileReference | null;
-  /** Defined for colorimetric/RGB encodings; null for unresolved sensor channels. */
+  /** Set for colorimetric (RGB) encodings; null for raw sensor channels with no colour meaning yet. */
   encodingReferenceWhiteXyz: CaptureWhiteXyz | null;
-  /** Value normalization, independent of capture saturation or eventual integer white. */
+  /** How values are normalized. Independent of capture saturation and of any later integer white level. */
   referenceWhiteValue: number;
   whiteBalanceApplication: "intent-only" | "applied-rgb-gains" | "applied-chromatic-adaptation" | "not-applicable";
   captureSaturation:
@@ -60,7 +60,7 @@ export interface CaptureLinearPlane {
   appliedTransforms: readonly { profile: CapturePublicProfileReference; kind: "linear-color" | "chromatic-adaptation" | "digital-lens-correction" }[];
   storage: CaptureFloatStorage;
 }
-/** Format-neutral input from an upstream master/capture provider, not a preview image. */
+/** Input from an upstream master or capture provider, independent of file format. Not a preview image. */
 export interface SimulatedCaptureInput {
   captureId: string;
   sceneStateId: string;
@@ -77,12 +77,12 @@ export interface SimulatedCaptureInput {
     dynamicRangeHistory: "unknown" | "no-loss-declared" | "upstream-clipped";
   };
   whiteBalanceIntent: CaptureWhiteBalanceIntent | null;
-  /** Adopted/WB white is a camera choice, not automatically the encoding white. */
+  /** The adopted (WB) white is a camera choice. It is not automatically the encoding white. */
   adoptedWhiteXyz: CaptureWhiteXyz | null;
   models: readonly { profile: CapturePublicProfileReference; scientificStatus: ProvenanceKind; publicEvidenceIds: readonly string[] }[];
   planes: readonly CaptureLinearPlane[];
 }
-/** Immutable committed value. Geometry/focal equivalence are derived, never caller overrides. */
+/** The immutable committed capture. Geometry and equivalent focal length are computed, never taken from the caller. */
 export interface SimulatedCapture extends SimulatedCaptureInput {
   schemaVersion: typeof SIMULATED_CAPTURE_SCHEMA_VERSION;
   engineApiVersion: string;
@@ -136,7 +136,7 @@ function wb(value: unknown): CaptureWhiteBalanceIntent | null {
     locked: r.locked, channelGains: { red: number(g.red, true), green: number(g.green, true), blue: number(g.blue, true) },
     sourceProfile: r.sourceProfile === null ? null : profile(r.sourceProfile) };
 }
-/** Converts validated shooting WB into a public metadata allowlist, discarding private extras. */
+/** Converts the validated shooting WB to the allowed public metadata fields, dropping private extras. */
 export function createCaptureWhiteBalanceIntent(input: { state: ResolvedWhiteBalanceState }): CaptureWhiteBalanceIntent {
   requireInputObject(input, "createCaptureWhiteBalanceIntent input");
   const state = parseResolvedWhiteBalanceState(input.state);
@@ -216,9 +216,9 @@ function plane(value: unknown, resolved: ResolvedCaptureGeometry, intent: Captur
     channelIds: channels, colorProfile, encodingReferenceWhiteXyz: referenceWhite, referenceWhiteValue: number(r.referenceWhiteValue, true),
     whiteBalanceApplication: application, captureSaturation, appliedTransforms: transforms, storage };
 }
-/** A procedural/physical source identity without a manufactured linear-master plane. */
+/** Identifies a procedural or physical source, without making up a linear master plane. */
 export type CaptureExposureSource = SimulatedCaptureInput["source"] | (Omit<SimulatedCaptureInput["source"], "kind"> & {kind:"scene-radiance-source"});
-/** Internal shared exposure metadata parser. It does not commit or invent float planes. */
+/** Internal: shared parser for exposure metadata. It does not commit or make up float planes. */
 export function normalizeCaptureExposureMetadata(value: unknown, apiVersion: string, allowRadianceSource=false): Omit<SimulatedCapture, "schemaVersion" | "planes" | "source"> & {source:CaptureExposureSource} {
   const r = object(value, ["captureId", "sceneStateId", "sceneTimeSeconds", "geometry", "exposure", "focus", "noise", "source",
     "whiteBalanceIntent", "adoptedWhiteXyz", "models"]);
@@ -265,12 +265,12 @@ function normalize(value: unknown, apiVersion: string): SimulatedCapture {
   }
   return freezeOwnedData({ ...metadata, source:metadata.source as SimulatedCapture["source"], schemaVersion: SIMULATED_CAPTURE_SCHEMA_VERSION, planes });
 }
-/** Commits a format-neutral float master manifest; no radiance generation, clamp, WB or export encoding. */
+/** Commits a capture with a manifest of float master planes. No radiance generation, clipping, WB or file encoding. */
 export function createSimulatedCapture(input: SimulatedCaptureInput): CalculationResult<SimulatedCapture> {
   return calculatedResult(normalize(input, ENGINE_API_VERSION), "authoritative-linear-capture-container", "0.1.0",
     ["Structural commitment only; upstream scientific statuses remain independent", "Master/source declarations do not prove source fidelity", "No tone mapping, recovered headroom, physical sensor calibration or serializer inferred"]);
 }
-/** Tolerance, in ulps, for an archived re-derived 35 mm-equivalent focal length (see NUMERICAL_CORRECTNESS.md). */
+/** Tolerance, in ULPs (units in the last place), when re-checking an archived 35 mm-equivalent focal length (see NUMERICAL_CORRECTNESS.md). */
 const DERIVED_FOCAL_LENGTH_ULPS = 8;
 /** Parses an archived capture, recomputing and checking all derived geometry/focal metadata. */
 export function parseSimulatedCapture(value: unknown): SimulatedCapture {
@@ -282,8 +282,8 @@ export function parseSimulatedCapture(value: unknown): SimulatedCapture {
   }
   const { schemaVersion: _schemaVersion, engineApiVersion, resolvedGeometry, equivalentFocalLength35Mm, ...input } = r;
   const result = normalize(input, id(engineApiVersion));
-  // The focal-length equivalent is re-derived; an archived value is accepted within a few ulps so
-  // records written by another JavaScript engine or by releases before 2.0.0 (Math.hypot) still parse.
+  // The equivalent focal length is recomputed. An archived value within a few ULPs is accepted, so records
+  // written by another JavaScript engine or by releases before 2.0.0 (which used Math.hypot) still parse.
   if (canonical(resolvedGeometry) !== canonical(result.resolvedGeometry) ||
       typeof equivalentFocalLength35Mm !== "number" ||
       !equalWithinUlps(equivalentFocalLength35Mm, result.equivalentFocalLength35Mm, DERIVED_FOCAL_LENGTH_ULPS)) {
@@ -301,12 +301,12 @@ function canonical(value: unknown): string {
   });
 }
 
-/** Canonical allowlisted JSON, including semantic samples/IDs, not private caches or file layout. */
+/** Canonical JSON of the allowed fields, including sample values and IDs. Excludes private caches and file layout. */
 export function serializeSimulatedCapture(input: { capture: SimulatedCapture }): string {
   requireInputObject(input, "serializeSimulatedCapture input");
   return JSON.stringify(parseSimulatedCapture(input.capture));
 }
-/** Requires an exact plane image state; callers may not substitute another kind of 'linear'. */
+/** Requires the exact image state of the plane. Callers cannot substitute another kind of "linear". */
 export function resolveSimulatedCapturePlane(input: {
   capture: SimulatedCapture; planeId: string; requiredImageState: CaptureLinearImageState;
 }): CaptureLinearPlane {

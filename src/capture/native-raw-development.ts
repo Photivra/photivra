@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/** Exact packed RAW reconstruction and shared color/SDR development, with bounded pixel tiles. */
+/**
+ * Native RAW development: turns packed RAW codes into an SDR image. It reconstructs full colour from
+ * the CFA (colour filter array) mosaic exactly, then applies the shared colour, white-balance and SDR
+ * steps, in bounded pixel tiles.
+ */
 import { calculateNativeRawPlan, type NativeRawInput, type NativeRawOutput, type NativeRawTaskState } from "./native-raw.js";
 import { parseRawReconstructionPhaseProfiles, type RawFrameReconstructionPhaseProfile } from "./raw-frame-reconstruction.js";
 import { calculateRawReconstructionChannel, rawReconstructionKernelReach, validateMirrorBorderCfaConsistency,
@@ -22,30 +26,31 @@ import { createRawDevelopmentCounts, createRawPixelDeveloper, normalizedRawSite,
 
 export interface NativeRawDevelopmentInput {
   /**
-   * Packed RAW. Ownership transfers to the task: on creation its five typed arrays are detached with
-   * `ArrayBuffer.prototype.transfer` (zero-copy; the caller's arrays become length 0), or copied when
-   * the runtime lacks `transfer`. The developed output returns the same RAW, now owned by the output.
+   * Packed RAW. Ownership passes to the task. On creation its five typed arrays are detached with
+   * `ArrayBuffer.prototype.transfer` (no copy; the caller's arrays become length 0), or copied when
+   * the runtime has no `transfer`. The developed output hands back the same RAW, now owned by the output.
    */
   raw: NativeRawOutput;
   phaseProfiles: readonly RawFrameReconstructionPhaseProfile[];
   colorProfile: ExportSensorColorProfile;
   whiteBalance: "not-required" | "apply-resolved-sensor-gains";
   rendering: SdrRenderingProfile;
-  /** Default `clip`: neutral clipped highlights. `reconstruct`: documented desaturation blend. */
+  /** Highlight handling. `clip` (default): clipped highlights become neutral. `reconstruct`: the documented blend toward neutral. */
   highlightMode?: RawHighlightMode;
   /**
-   * Default `reject`: every reconstruction neighbourhood must lie inside the native RAW frame. `mirror`
-   * reads sites outside the frame at their reflect-101 image, accepted only when that keeps the CFA
-   * channel (always for 2×2 Bayer); interior pixels are unchanged.
+   * Frame-edge handling. `reject` (default): every reconstruction neighbourhood must lie inside the
+   * native RAW frame. `mirror`: a site outside the frame is read from its mirror image (reflect-101,
+   * edge not repeated). This is allowed only when the mirrored site has the same CFA colour, which is
+   * always true for a 2×2 Bayer pattern. Interior pixels are unchanged.
    */
   borderHandling?: RawReconstructionBorderHandling;
-  /** Includes the retained packed RAW plus integer output; not caller buffers, process heap or GPU. */
+  /** Counts the kept packed RAW plus the integer output. It does not count caller buffers, process heap or GPU memory. */
   maximumRetainedPayloadBytes: number;
 }
-/** RAW saturation consumed before white balance; counts are pixels/samples of the developed output. */
+/** RAW saturation handled before white balance. Counts are pixels or samples of the developed output. */
 export interface RawHighlightDiagnostics {
   mode: RawHighlightMode;
-  /** Output pixels with at least one contributing site at/above its white level or flagged saturated. */
+  /** Output pixels with at least one contributing site at or above its white level, or flagged as saturated. */
   saturatedPixelCount: number;
   /** `clip`: WB-scaled samples clipped at the smallest gain. Always 0 for `reconstruct`. */
   whiteBalanceClippedSampleCount: number;
@@ -69,11 +74,11 @@ export interface NativeRawDevelopmentOutput {
   imageDataPairing: "derived-from-exact-packed-native-raw";
   producerOriginVerified: false;
 }
-/** Host hooks, the same shape as the other native task providers (without a tile reader). */
+/** Host callbacks, the same shape as the other native task providers but without a tile reader. */
 export interface NativeRawDevelopmentProvider {
-  /** Must yield to the host event loop, allowing cancellation/input events between tiles. */
+  /** Must yield to the host event loop, so cancellation and input events can run between tiles. */
   yieldControl(signal: AbortSignal): Promise<void>;
-  /** Optional observer called after each committed 256-pixel output tile; cannot change output. */
+  /** Optional callback after each committed 256-pixel output tile. It cannot change the output. */
   onProgress?(progress: NativeTaskProgress): void;
 }
 export interface NativeRawDevelopmentTask {
@@ -86,12 +91,12 @@ export interface NativeRawDevelopmentTask {
   takeOutput(): NativeRawDevelopmentOutput;
 }
 const TILE_WIDTH = 256;
-/** Sites checked per integrity chunk before the yield gate is consulted. */
+/** Sites checked per integrity chunk before checking whether it is time to yield. */
 const INTEGRITY_CHUNK_SITES = 1 << 18;
 function canonical(value: unknown): string {
   return stringifyCanonicalJson(value,{undefinedObjectProperties:"reject",nonFiniteNumberMessage:"Invalid RAW metadata.",unsupportedValueMessage:"Invalid RAW metadata."});
 }
-/** Validates packed RAW storage and re-derives its plan; shared with the native DNG writer. Not a root export. */
+/** Validates packed RAW storage and recomputes its plan. Shared with the native DNG writer. Not exported from the package. */
 export function validatePackedNativeRaw(raw: NativeRawOutput): NativeRawOutput["plan"] {
   requireAllowlistedRecord(raw,["plan","codes","blackLevels","digitalSaturationCodes","saturationFlags","effectiveSaturationCodes"],"Invalid packed RAW output.");
   const p=raw.plan;
@@ -101,8 +106,8 @@ export function validatePackedNativeRaw(raw: NativeRawOutput): NativeRawOutput["
   const {capture,containerBitDepth,...frame}=p.frame;void containerBitDepth;
   const input: NativeRawInput={exposure,...frame,maximumOutputBytes:p.outputBytes,...(p.tileWidth===undefined?{}:{tileWidth:p.tileWidth}),...(p.exposureWindow?{exposureWindow:p.exposureWindow}:{})};
   const plan=calculateNativeRawPlan(input);
-  // The re-derived 35 mm equivalent (also inside frame.capture, the same exposure record) is accepted
-  // within a few ulps for engine-portable parsing; every other field must match exactly.
+  // The recomputed 35 mm-equivalent focal length (also inside frame.capture, the same exposure record) may
+  // differ by a few ULPs, so records parse in every JavaScript engine. Every other field must match exactly.
   const eq=plan.exposure.equivalentFocalLength35Mm,archivedFrameEq=(capture as unknown as Record<string,unknown>|undefined)?.equivalentFocalLength35Mm;
   if(typeof equivalentFocalLength35Mm!=="number"||!equalWithinUlps(equivalentFocalLength35Mm,eq,8)||typeof archivedFrameEq!=="number"||!equalWithinUlps(archivedFrameEq,eq,8)||
     canonical({...p,exposure:{...p.exposure,equivalentFocalLength35Mm:eq},frame:{...p.frame,capture:{...p.frame.capture,equivalentFocalLength35Mm:eq}}})!==canonical(plan))
@@ -116,25 +121,28 @@ export function validatePackedNativeRaw(raw: NativeRawOutput): NativeRawOutput["
   }
   return plan;
 }
-/** Takes sole ownership: zero-copy detach when the runtime supports ArrayBuffer transfer, else a copy. */
+/** Takes sole ownership: detaches without copying when the runtime supports ArrayBuffer transfer, otherwise copies. */
 function own<T extends Uint8Array<ArrayBuffer>|Uint16Array<ArrayBuffer>>(array: T, make: (buffer: ArrayBuffer)=>T): T {
   const buffer=array.buffer as ArrayBuffer&{transfer?:()=>ArrayBuffer};
   return typeof buffer.transfer==="function"?make(buffer.transfer()):make(buffer.slice(0));
 }
-/** Takes the validated packed RAW's arrays (zero-copy detach where supported). Not a root export. */
+/** Takes the validated packed RAW's arrays (without copying where supported). Not exported from the package. */
 export function takeNativeRawOwnership(given: NativeRawOutput, plan: NativeRawOutput["plan"]): NativeRawOutput {
   return {plan,codes:own(given.codes as Uint16Array<ArrayBuffer>,b=>new Uint16Array(b)),blackLevels:own(given.blackLevels as Uint16Array<ArrayBuffer>,b=>new Uint16Array(b)),
     digitalSaturationCodes:own(given.digitalSaturationCodes as Uint16Array<ArrayBuffer>,b=>new Uint16Array(b)),saturationFlags:own(given.saturationFlags as Uint8Array<ArrayBuffer>,b=>new Uint8Array(b)),
     effectiveSaturationCodes:given.effectiveSaturationCodes.slice()};
 }
-/** Validated development metadata (internal; shared with the image-kernel accelerator). Not a root export. */
+/** Validated development metadata (internal; shared with the image-kernel accelerator). Not exported from the package. */
 export interface PreparedDevelopment {
   plan: NativeRawOutput["plan"]; phases: RawFrameReconstructionPhaseProfile[]; color: ExportSensorColorProfile; profile: SdrRenderingProfile;
   whiteBalance: NativeRawDevelopmentInput["whiteBalance"]; highlightMode: RawHighlightMode; development: SensorColorDevelopment;
   crop: {x:number;y:number;width:number;height:number}; raster: {pixelWidth:number;pixelHeight:number};
   border: RawReconstructionBorderHandling; mirror: {nativeHeight:number;reach:number}|undefined;
 }
-/** Synchronous metadata/halo/CFA validation shared by the task, the reference and the accelerator. No pixel loop. Not a root export. */
+/**
+ * Synchronous checks of metadata, kernel halo (the neighbourhood each pixel reads) and CFA, shared by the
+ * task, the reference and the accelerator. No pixel loop. Not exported from the package.
+ */
 export function prepareNativeRawDevelopment(input: NativeRawDevelopmentInput): PreparedDevelopment {
   const r=requireAllowlistedRecord(input,["raw","phaseProfiles","colorProfile","whiteBalance","rendering","highlightMode","borderHandling","maximumRetainedPayloadBytes"],"Invalid native RAW development input.");
   const plan=validatePackedNativeRaw(input.raw),g=plan.exposure.resolvedGeometry,native=plan.exposure.geometry.nativeRaster;
@@ -165,7 +173,7 @@ export function prepareNativeRawDevelopment(input: NativeRawDevelopmentInput): P
     for(const kernel of phase.profile.kernels)for(const c of kernel.contributions){
       if(firstX+c.offsetX<0||firstY+c.offsetY<0||lastX+c.offsetX>=native.pixelWidth||lastY+c.offsetY>=native.pixelHeight){
         if(border==="reject")throw new InvalidConfigurationError("Reconstruction halo leaves native RAW; no padding or renormalization.");
-        // Mirror: check the virtual periodic site; validateMirrorBorderCfaConsistency proves reflected reads agree.
+        // Mirror: check the virtual site from the repeating pattern; validateMirrorBorderCfaConsistency proves mirrored reads agree with it.
         const vx=phase.phaseX+c.offsetX,vy=phase.phaseY+c.offsetY;
         if(layout.siteChannelIds[((vy%layout.repeatHeightSites)+layout.repeatHeightSites)%layout.repeatHeightSites*layout.repeatWidthSites+((vx%layout.repeatWidthSites)+layout.repeatWidthSites)%layout.repeatWidthSites]!==c.sourceChannelId)
           throw new InvalidConfigurationError("Reconstruction source channel disagrees with absolute CFA phase.");
@@ -183,7 +191,7 @@ export function prepareNativeRawDevelopment(input: NativeRawDevelopmentInput): P
   }
   return {plan,phases,color,profile,whiteBalance:r.whiteBalance,highlightMode,development,crop,raster,border,mirror};
 }
-/** Numeric integrity of rows [y0,y1): signed values below black are preserved; spans are positive. Not a root export. */
+/** Checks the numbers in rows [y0,y1). Values below black stay signed; each white-minus-black span is positive. Not exported from the package. */
 export function checkNativeRawIntegrity(raw: NativeRawOutput, nativeWidth: number, repeatWidth: number, repeatHeight: number, y0: number, y1: number): void {
   const codes=raw.codes,blacks=raw.blackLevels,digital=raw.digitalSaturationCodes,flags=raw.saturationFlags,white=raw.effectiveSaturationCodes;
   for(let y=y0;y<y1;y++){
@@ -207,10 +215,12 @@ function highlightOf(mode: RawHighlightMode, counts: RawDevelopmentCounts): RawH
   return {mode,saturatedPixelCount:counts.saturatedPixelCount,whiteBalanceClippedSampleCount:counts.whiteBalanceClippedSampleCount,reconstructedPixelCount:counts.reconstructedPixelCount};
 }
 /**
- * Internal per-object reference development (not a root export), kept to prove the typed kernel
- * byte-identical: per pixel it maps orientation with `transformOrientedRasterPointToNative`, gathers each
- * channel through `calculateRawReconstructionChannel`, develops with the shared colour operator and renders
- * 256-pixel rows with the reference `calculateSdrRendering`. It does not take RAW ownership.
+ * Internal, slow reference development using one object per step (not exported from the package). It is
+ * kept to prove that the fast typed kernel gives byte-identical output.
+ *
+ * For each pixel it maps orientation with `transformOrientedRasterPointToNative`, gathers each channel
+ * with `calculateRawReconstructionChannel`, develops with the shared colour operator, and renders
+ * 256-pixel rows with the reference `calculateSdrRendering`. It does not take ownership of the RAW.
  */
 export function developNativeRawReference(input: NativeRawDevelopmentInput): {integerSamples:number[];diagnostics:SdrRenderingResult["diagnostics"];highlight:RawHighlightDiagnostics} {
   const v=prepareNativeRawDevelopment(input),plan=v.plan,g=plan.exposure.resolvedGeometry,active=g.activeCapture.nativeRect,src=source(input.raw,plan);
@@ -239,25 +249,31 @@ function sdrOutputEncoding(maximum: number): SdrRenderingResult["outputEncoding"
   return {imageState:"output-referred-sdr",colorSpace:"srgb",primariesXy:{red:[.64,.33],green:[.30,.60],blue:[.15,.06]},whitePointXy:[.3127,.3290],referenceWhiteLuminanceCdM2:80,codeMinimum:0,codeMaximum:maximum};
 }
 /**
- * Validates complete phase/halo support, takes ownership of the packed RAW (zero-copy transfer where
- * supported) and renders 256-pixel output tiles through the typed kernel. Development normalizes each
- * site to its CFA phase's effective white level, clips flagged/white sites before white balance and
- * applies the selected highlight mode (see `prepareSensorColorDevelopment`). Numeric RAW integrity is
- * checked in bounded chunks at the start of `run()`, with host yields, so creation stays O(metadata).
- * The host yield runs at chunk/tile boundaries once about 8 ms of work has elapsed since the previous
- * yield, and after the final tile; yield cadence never changes output.
+ * Creates a native RAW development task.
  *
- * `provider` is `{ yieldControl, onProgress? }`, the shape of the other native task providers. A bare
- * yield function is still accepted for 2.x and is deprecated.
- * Retains explicit acquisition tile width when reconstructing the exact packed plan. Acquisition chunk
- * width changes neither CFA/seed coordinates nor development pixels, and does not establish transport or
- * device-resource qualification.
+ * It checks that every CFA phase has a reconstruction kernel and that every kernel neighbourhood is
+ * available, takes ownership of the packed RAW (without copying where supported), and renders 256-pixel
+ * output tiles with the fast typed kernel. Development scales each site to its CFA phase's effective white
+ * level, clips flagged or white-level sites before white balance, and applies the selected highlight mode
+ * (see `prepareSensorColorDevelopment`).
+ *
+ * The RAW numbers are checked in bounded chunks at the start of `run()`, with host yields, so creating the
+ * task costs only as much as reading the metadata. The task yields to the host at chunk and tile boundaries
+ * once about 8 ms of work has passed since the last yield, and after the final tile. Yield timing never
+ * changes the output.
+ *
+ * `provider` is `{ yieldControl, onProgress? }`, the same shape as the other native task providers. A bare
+ * yield function is still accepted in 2.x but is deprecated.
+ *
+ * The tile width used at capture is kept when rebuilding the exact packed plan. That width changes neither
+ * CFA or noise-seed coordinates nor the developed pixels, and says nothing about transport or what a device
+ * can handle.
  */
 export function createNativeRawDevelopmentTask(input: NativeRawDevelopmentInput,
   provider: NativeRawDevelopmentProvider | ((signal:AbortSignal)=>Promise<void>)): NativeRawDevelopmentTask {
   return createNativeRawDevelopmentTaskWithCadence(input,provider,DEFAULT_HOST_YIELD_CADENCE);
 }
-/** Internal: explicit host-yield cadence. Cadence never changes output. Not a root export. */
+/** Internal: the same task with an explicit host-yield timing. Timing never changes output. Not exported from the package. */
 export function createNativeRawDevelopmentTaskWithCadence(input: NativeRawDevelopmentInput,
   provider: NativeRawDevelopmentProvider | ((signal:AbortSignal)=>Promise<void>),cadence: HostYieldCadence): NativeRawDevelopmentTask {
   const hooks=typeof provider==="function"?{yieldControl:provider}:provider;
@@ -265,7 +281,7 @@ export function createNativeRawDevelopmentTaskWithCadence(input: NativeRawDevelo
   const yieldControl=hooks.yieldControl.bind(hooks),onProgress=hooks.onProgress?.bind(hooks);
   const v=prepareNativeRawDevelopment(input),plan=v.plan,g=plan.exposure.resolvedGeometry,active=g.activeCapture.nativeRect,raster=v.raster,crop=v.crop;
   const nativeHeight=plan.exposure.geometry.nativeRaster.pixelHeight;
-  // Ownership transfer happens only after every synchronous check passed.
+  // Ownership is transferred only after every synchronous check has passed.
   const raw=takeNativeRawOwnership(input.raw,plan);
   const src=source(raw,plan),tilesPerRow=Math.ceil(raster.pixelWidth/TILE_WIDTH),totalTileCount=tilesPerRow*raster.pixelHeight;
   const abort=new AbortController();let state:NativeRawTaskState="ready",output:NativeRawDevelopmentOutput|null=null,codes:Uint8Array|Uint16Array|null=null,completed=0;
@@ -297,7 +313,7 @@ export function createNativeRawDevelopmentTaskWithCadence(input: NativeRawDevelo
           const counts:SdrPixelCounts={negative:0,above:0,changed:0,low:0,high:0,outOfGamut:false};
           developer.developRun(map.nx,map.ny,map.dx,map.dy,width,rgb);
           renderSdrRunInto(rgb,0,width,v.profile,tone,scale,maximum,codes,(y*raster.pixelWidth+x)*3,scratch,counts);
-          // Same 256-pixel granularity as the reference rows: exposure errors precede gamut rejection.
+          // Same 256-pixel granularity as the reference rows, so exposure errors come before gamut rejection.
           if(counts.outOfGamut)throw new InvalidConfigurationError("Tone output exceeds the declared SDR gamut range.");
           diagnostics.renderingNegativeSampleCount+=counts.negative;diagnostics.renderingAboveReferenceSampleCount+=counts.above;diagnostics.toneChangedSampleCount+=counts.changed;
           diagnostics.gamutClippedLowSampleCount+=counts.low;diagnostics.gamutClippedHighSampleCount+=counts.high;

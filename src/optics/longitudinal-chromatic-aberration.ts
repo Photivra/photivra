@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
  * Longitudinal (axial) chromatic aberration: wavelength-dependent focal length and the resulting
  * per-wavelength image-plane defocus for a sensor focused at a reference wavelength.
  *
@@ -12,20 +11,23 @@
  *   6.3). Lensmaker scaling gives f(lambda) = f_ref (n_ref - 1) / (n(lambda) - 1), so
  *   f_C - f_F ~ f_d / V_d (Hecht sec. 6.3.2; Kingslake & Johnson, Lens Design Fundamentals, 2nd ed.,
  *   ch. 5). The Fraunhofer d, F and C wavelengths (587.5618, 486.1327, 656.2725 nm) are standard
- *   spectral-line constants (SCHOTT Technical Information TIE-29, 2023, free;
- *   also specified in ISO 7944). A real multi-element lens is not a singlet; this is an
- *   educational approximation.
+ *   spectral-line constants (SCHOTT Technical Information TIE-29, 2023, free; also specified in
+ *   ISO 7944). A real multi-element lens is not a singlet, so this is an educational
+ *   approximation.
  * - declared-focal-shift: a caller-supplied table of focal-length shift versus wavelength
  *   (for example a corrected lens's secondary spectrum), interpolated linearly without extrapolation.
  *
- * The sensor sits at the Gaussian thin-lens image distance for focusDistanceM at the reference
- * wavelength. Per wavelength, the image distance of subjectDistanceM uses f(lambda); the signed
- * image-plane defocus is sensor minus image distance, and the geometric blur diameter is
- * D |dz| / v(lambda) with D = f_ref / N the entrance-pupil diameter (same thin-lens form as
- * calculateDefocusCircle()). The defocus also feeds calculateDefocusWavefront() so a complex-pupil
- * PSF can be evaluated per wavelength.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * How defocus is computed:
+ * - The sensor sits at the Gaussian thin-lens image distance for focusDistanceM at the reference
+ *   wavelength.
+ * - At each wavelength, the image distance of subjectDistanceM uses f(lambda).
+ * - The signed image-plane defocus dz is the sensor distance minus that image distance.
+ * - The geometric blur diameter is D |dz| / v(lambda), where D = f_ref / N is the entrance-pupil
+ *   diameter. This is the same thin-lens form as calculateDefocusCircle().
+ * The defocus also feeds calculateDefocusWavefront(), so a complex-pupil PSF (point-spread function)
+ * can be evaluated per wavelength.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {

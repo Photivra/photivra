@@ -14,12 +14,12 @@ export type EffectiveSensorResponseScope =
 
 ## parseSensorSpectralResponseProfile
 
-Parses reusable wavelength-dependent response data for semantic sensor
-channels without inferring response from channel names or CFA family.
+Parses wavelength-dependent response data for sensor channels. Responses are
+never guessed from channel names or the CFA type.
 
-Embedded multi-point curves require reusable-data or Photivra-owned evidence.
-Public/factual references without reuse permission may support metadata but
-cannot by themselves authorize copying numeric curve data into the engine.
+An embedded multi-point curve needs evidence that the data is reusable or
+owned by Photivra. A public reference without reuse permission can support
+metadata, but does not by itself allow copying numeric curve data into the engine.
 
 ```ts
 export function parseSensorSpectralResponseProfile(
@@ -108,11 +108,11 @@ export type ResolvedSensorSpectralResponseValue =
 
 ## resolveSensorSpectralResponseAtWavelength
 
-Public spectral-response resolver for untrusted/raw profile inputs.
+Public spectral-response lookup for untrusted, unparsed profiles.
 
-Profiles are parsed once here. Internal composition code that has already
-parsed both profiles may use resolveParsedSensorSpectralResponseAtWavelength
-to avoid repeating full profile parsing for every wavelength node.
+The profiles are parsed here, once. Internal code that has already parsed
+both profiles can call resolveParsedSensorSpectralResponseAtWavelength, to
+avoid parsing them again for every wavelength node.
 
 ```ts
 export function resolveSensorSpectralResponseAtWavelength(
@@ -141,9 +141,9 @@ export interface ResolveSensorSpectralResponseAtWavelengthInput {
 
 ## SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT
 
-Current channel-binding format. v2 (package 2.0.0) serializes the parsed channel with sorted keys;
-v1 (package 1.5.0 and earlier) used insertion-order JSON of the unparsed channel and is rejected
-with an explicit version error rather than compared.
+Current channel-binding format. v2 (package 2.0.0) serializes the parsed channel with sorted keys.
+v1 (package 1.5.0 and earlier) used the unparsed channel's JSON in insertion order; it is rejected
+with an explicit version error instead of being compared.
 
 ```ts
 SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT =
@@ -213,11 +213,12 @@ export interface SensorSpectralResponseChannelBinding {
 
 ## SensorSpectralResponseProfile
 
-Versioned channel-response data linked to one exact color-sampling profile.
-Each channel declares effective EQE, effective A/W response or separable filter
-and detector EQE, sampled support/interpolation and an explicit wavelength basis.
-Reference conditions, evidence and uncertainty retain their own validity. Names
-such as red/green/blue never supply missing curves or justify extrapolation.
+Versioned response data for the channels of one exact colour-sampling profile.
+Each channel declares an effective EQE, an effective A/W response, or separate
+filter and detector EQE curves, with its sampled range, interpolation and an
+explicit wavelength basis (air or vacuum). Reference conditions, evidence and
+uncertainty each keep their own validity. Names such as red, green or blue
+never fill in a missing curve or justify extrapolation.
 
 ```ts
 export interface SensorSpectralResponseProfile {

@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Strict parser for generic system corrections; no extrapolation or restoration claim.
- * Resolves independent camera states, explicit dependencies, RAW intent and educational bypass.
+ * Generic lens corrections applied after capture: distortion, lateral chromatic aberration
+ * (CA) and vignetting (corner darkening).
+ *
+ * It parses correction profiles, resolves which corrections are on for a camera state, and
+ * applies them to linear RGB channels. It does not extrapolate beyond a profile and does not
+ * claim to restore lost detail.
  * @see docs/DIGITAL_OPTICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and
  * support limits.
  */
@@ -32,27 +35,27 @@ interface CorrectionComponentIdentity {
   defaultEnabled: boolean;
   dependencies: readonly string[];
   requiredByStabilizationModes: readonly string[];
-  /** Declared residual/calibration limitations; not inferred from optical tier. */
+  /** Declared remaining errors and calibration limits. They are not inferred from the optical model tier. */
   residualNote: string;
 }
-/** A separately declared correction map may deliberately retain physical distortion. */
+/** A distortion correction map, declared separately. It may deliberately leave some physical distortion in place. */
 export interface GeometricLensCorrection extends CorrectionComponentIdentity {
   kind: "geometry";
   transform: DigitalGeometricTransform;
 }
-/** Channel registration only, not longitudinal CA or color shading. */
+/** Lateral CA: shifts colour channels into register. It does not correct longitudinal CA or colour shading. */
 export interface LateralCaLensCorrection extends CorrectionComponentIdentity {
   kind: "lateral-ca";
   transforms: Readonly<Record<LensCorrectionChannel, DigitalGeometricTransform>>;
 }
-/** Post-capture scalar gain; strength 0..1 leaves explicit residual falloff. */
+/** Vignetting correction as a gain applied after capture. A strength below 1 deliberately leaves some falloff. Range 0..1. */
 export interface IlluminationLensCorrection extends CorrectionComponentIdentity {
   kind: "peripheral-illumination";
   profile: IlluminationVignettingProfile;
   strength: number;
 }
 export type LensCorrectionComponent = GeometricLensCorrection | LateralCaLensCorrection | IlluminationLensCorrection;
-/** Exact generic system binding, with components in authoritative application order. */
+/** A correction profile for one exact lens-and-camera system. Components are listed in the order they are applied. */
 export interface GenericLensCorrectionProfile {
   schemaVersion: "0.1.0";
   id: string;
@@ -67,7 +70,7 @@ export interface ResolvedLensCorrectionPlan {
   selectionKind: "camera-selectable" | "reference-bypass";
   components: readonly { component: LensCorrectionComponent; enabled: boolean;
     reason: "selected" | "default" | "mandatory" | "stabilization-dependency" | "component-dependency" | "reference-bypass" }[];
-  /** RAW-like intent remains metadata only in this first foundation. */
+  /** For now, a RAW-like intent is recorded as metadata only. */
   application: "metadata-only" | "bake-downstream";
 }
 function illumination(value: unknown): IlluminationVignettingProfile {
@@ -79,7 +82,7 @@ function illumination(value: unknown): IlluminationVignettingProfile {
   calculateIlluminationVignetting({ imagePointMm: { x: 0, y: 0 }, profile });
   return profile;
 }
-/** Strict parser for generic system corrections; no extrapolation or restoration claim. */
+/** Strictly parses a generic correction profile. It does not extrapolate and makes no claim to restore lost detail. */
 export function parseGenericLensCorrectionProfile(value: unknown): GenericLensCorrectionProfile {
   const r = record(value, ["schemaVersion", "id", "version", "state", "evidence", "components"]);
   const components = list(r.components, 16).map((value): LensCorrectionComponent => {
@@ -117,7 +120,7 @@ export function parseGenericLensCorrectionProfile(value: unknown): GenericLensCo
     if (preceding.has(c.id) || c.dependencies.some((id) => !preceding.has(id)) ||
         new Set(c.dependencies).size !== c.dependencies.length) throw new InvalidScientificInputError("Component IDs/dependency order must be unique and acyclic.");
     preceding.add(c.id);
-    // Common and per-channel transforms need stable distinct IDs when fused.
+    // Common and per-channel transforms need stable, distinct IDs when they are combined.
     const maps = c.kind === "geometry" ? [c.transform] : c.kind === "lateral-ca" ? Object.values(c.transforms) : [];
     for (const t of maps) {
       if (mappingIds.has(t.id)) throw new InvalidScientificInputError("Duplicate correction transform ID.");
@@ -128,7 +131,10 @@ export function parseGenericLensCorrectionProfile(value: unknown): GenericLensCo
     state: parseOpticalProfileState(r.state), evidence: parseEvidence(r.evidence), components };
 }
 
-/** Resolves independent camera states, explicit dependencies, RAW intent and educational bypass. */
+/**
+ * Decides which corrections apply for a camera state. It accounts for per-component settings,
+ * explicit dependencies between components, RAW intent and the educational "corrections off" bypass.
+ */
 export function resolveLensCorrectionPlan(input: {
   profile: GenericLensCorrectionProfile; state: OpticalProfileState;
   selections: Readonly<Record<string, "on" | "off" | "auto">>;
@@ -160,7 +166,10 @@ export function resolveLensCorrectionPlan(input: {
     "Raw-like output preserves intent without baking corrections; color shading, axial CA and restoration remain unsupported"]);
 }
 
-/** Applies scalar post-capture gain and reports pre-clip variance; no photon/SNR history rewrite. */
+/**
+ * Applies a gain after capture and reports the variance before clipping. It does not rewrite
+ * the photon or SNR (signal-to-noise ratio) history of the capture.
+ */
 export function calculatePeripheralIlluminationCorrection(input: {
   component: IlluminationLensCorrection; imagePointMm: LensFieldPointMm;
   signal: number; noiseVariance: number; clippingLevel: number;
@@ -179,7 +188,7 @@ export function calculatePeripheralIlluminationCorrection(input: {
     "post-capture-peripheral-illumination-gain", "0.1.0", ["Variance describes pre-clip samples only", "Gain does not increase captured photons or restore sensor SNR"]);
 }
 
-/** Immutable capture identity accompanies downstream channels for meaningful On/Off comparisons. */
+/** The fixed capture identity travels with the output channels, so On/Off comparisons use the same capture. */
 export interface LensCorrectionCapture {
   state: OpticalProfileState;
   captureId: string;
@@ -188,9 +197,9 @@ export interface LensCorrectionCapture {
   raster: GeometricRaster;
   channels: Readonly<Record<LensCorrectionChannel, readonly number[]>>;
 }
-/** Executes bounded reconstructed-linear corrections on already sampled RGB channels.
- * Compatible common geometry plus channel CA is sampled once per channel.
- * A gain between geometry components or incompatible domains requires an external staged consumer.
+/** Applies bounded corrections to RGB channels that are already sampled and linear.
+ * Compatible shared geometry and per-channel CA are combined, so each channel is resampled once.
+ * A gain between geometry components, or incompatible domains, needs a separate staged caller.
  */
 export function calculateLensCorrectedCapture(input: {
   plan: ResolvedLensCorrectionPlan; capture: LensCorrectionCapture;
@@ -201,14 +210,14 @@ export function calculateLensCorrectedCapture(input: {
   application: ResolvedLensCorrectionPlan["application"];
   channels: Readonly<Record<LensCorrectionChannel, readonly (number | null)[]>>;
   samplingPlans: Partial<Record<LensCorrectionChannel, GeometricSamplingPlan>>;
-  /** Intersection across all channel footprints, before crop; no missing colors fabricated. */
+  /** Area valid in every channel, before cropping. Missing colours are never made up. */
   validSourceMask: readonly boolean[];
   jointCrop: GeometricSamplingPlan["jointCrop"];
-  /** Gain-stage clipping events before joint support/crop; repeated stages count separately. */
+  /** Clipping events in gain stages, before the shared valid-area crop. Each stage is counted separately. */
   illuminationClippingEventCount: number;
 }> {
   requireInputObject(input, "calculateLensCorrectedCapture input");
-  // Re-resolve untrusted/mutated plans; callers cannot forge enabled/mandatory state.
+  // Re-resolve the plan, which may be untrusted or changed, so callers cannot fake enabled or mandatory states.
   requireInputObject(input.plan, "plan");
   const plan = resolveLensCorrectionPlan({ profile: input.plan.profile, state: input.plan.profile.state,
     selections: Object.fromEntries(input.plan.components.filter((e) => e.component.availability === "toggle").map((e) => [e.component.id, e.enabled ? "on" : "off"])),
@@ -250,7 +259,7 @@ export function calculateLensCorrectedCapture(input: {
   const samplingPlans: Partial<Record<LensCorrectionChannel, GeometricSamplingPlan>> = {};
   let illuminationClippingEventCount = 0;
   for (const channel of ["red", "green", "blue"] as const) {
-    // Application order source->destination reverses for inverse sampling.
+    // Corrections are listed source → destination. Inverse sampling runs them in reverse.
     const transforms = active.filter((c) => c.kind !== "peripheral-illumination").reverse().map((c) =>
       c.kind === "geometry" ? c.transform : (c as LateralCaLensCorrection).transforms[channel]);
     const mapping = prepareGeometricMapping({ transforms, frameTimeSeconds: capture.timeSeconds }).value;

@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Strict boundary; execution also checks capture optics, native raster binding and source history.
- * Internal shared validation for capture-derived exporters; does not create or validate pixel values.
+ * SDR (standard dynamic range) output from a simulated capture with lens corrections applied.
+ *
+ * Pipeline: committed capture → colour and white balance (WB) → lens correction in native sensor
+ * coordinates → oriented output view → SDR rendering. It produces a derived view only; the
+ * capture's physical geometry is unchanged.
  * @see docs/PROCESSED_OUTPUT.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -22,12 +24,15 @@ import { mapOrientedPhysicalUvToImagePlanePoint, transformNativeRasterPointToOri
 import { calculateSdrRendering } from "./sdr-rendering.js";
 
 export const CAPTURE_CORRECTED_SDR_SCHEMA_VERSION = "0.1.0" as const;
-/** Explicit native-optical correction binding. Body/lens/mode identities remain producer declarations. */
+/**
+ * Input: a capture plus an explicit lens-correction choice in native optical coordinates. Camera
+ * body, lens and mode identities are taken as the capture producer declared them.
+ */
 export interface CaptureCorrectedSdrInput extends CaptureSdrInput {
   correction: {
     profile: GenericLensCorrectionProfile;
     state: OpticalProfileState;
-    /** Native optical +X right/+Y up, RGB basis after the selected color/WB operation. */
+    /** Native optical coordinates (+X right, +Y up), in the RGB space after the selected colour/WB step. */
     coordinateFrame: "native-optical-linear-srgb-d65";
     selections: Readonly<Record<string, "on" | "off" | "auto">>;
     selectionKind: ResolvedLensCorrectionPlan["selectionKind"];
@@ -39,28 +44,31 @@ export interface CaptureCorrectedSdrInput extends CaptureSdrInput {
     outputImageStateId: string;
   };
 }
-/** Derived output view, never a replacement for the committed capture's physical geometry. */
+/** A derived output view. It never replaces the committed capture's physical geometry. */
 export interface CaptureCorrectedSdrResult extends Omit<CaptureSdrResult, "schemaVersion"> {
   schemaVersion: typeof CAPTURE_CORRECTED_SDR_SCHEMA_VERSION;
   sceneTimeSeconds: number;
   plan: CalculationResult<ResolvedLensCorrectionPlan>;
   correction: ReturnType<typeof calculateLensCorrectedCapture>;
   projection: ReturnType<typeof calculateFieldOfView>;
-  /** Oriented full-output support; child correction plans retain native optical coordinates. */
+  /** Valid-source mask over the full oriented output. The nested correction plans still use native optical coordinates. */
   validSourceMask: readonly boolean[];
   outputView: { imageStateId: string; rect: RasterRect; pixelWidth: number; pixelHeight: number; samples: readonly number[] };
 }
 function fields(value: unknown, allowed: readonly string[]): Record<string, unknown> {
   return requireAllowlistedRecord(value, allowed, "Invalid capture correction fields.");
 }
-/** Strict boundary; execution also checks capture optics, native raster binding and source history. */
+/**
+ * Strictly parses untrusted input. Running the calculation also checks the capture's optics,
+ * native pixel-grid binding and source history.
+ */
 export function parseCaptureCorrectedSdrInput(input: unknown): CaptureCorrectedSdrInput {
   const r = fields(input, ["capture", "sourcePlaneId", "color", "profile", "correction"]);
   const base = parseCaptureSdrInput({ capture: r.capture, sourcePlaneId: r.sourcePlaneId, color: r.color, profile: r.profile });
   return { ...base, correction: parseCaptureCorrectionChoice(r.correction, base.capture,
     base.color.kind === "transform" ? [base.color.outputImageStateId] : []) };
 }
-/** Internal shared validation for capture-derived exporters; does not create or validate pixel values. */
+/** Internal: validates the correction choice for exporters that start from a capture. It neither creates nor checks pixel values. */
 export function parseCaptureCorrectionChoice(input: unknown, capture: CaptureSdrInput["capture"],
   forbiddenImageStateIds: readonly string[] = []): CaptureCorrectedSdrInput["correction"] {
   const c = fields(input, ["profile", "state", "coordinateFrame", "selections", "selectionKind", "frameTimeSeconds",
@@ -104,7 +112,7 @@ function nativeRaster(bounds: PhysicalBoundsFromOpticalAxisMm, width: number, he
   return { width: w, height: h, pitchMm: pitchX,
     centerMm: { x: (Math.min(...x)+Math.max(...x))/2, y: (Math.min(...y)+Math.max(...y))/2 } };
 }
-/** Exact quarter-turn index permutation through the capture geometry contract, not another resampling pass. */
+/** Reorders pixel indices for a quarter-turn orientation, using the capture geometry functions. This is an exact reorder, not another resampling pass. */
 function orientedIndices(raster: GeometricRaster, orientation: CaptureOrientation, orientedWidth: number): number[] {
   return Array.from({ length: raster.width*raster.height }, (_, i): number => {
     const p = transformNativeRasterPointToOriented({ point: { x: i%raster.width+.5, y: Math.floor(i/raster.width)+.5 },
@@ -112,7 +120,10 @@ function orientedIndices(raster: GeometricRaster, orientation: CaptureOrientatio
     return Math.floor(p.y)*orientedWidth+Math.floor(p.x);
   });
 }
-/** Bounded committed capture → color/WB → native correction → oriented output view → SDR. No physical stage activation. */
+/**
+ * Runs a bounded committed capture through colour/WB → native lens correction → oriented output
+ * view → SDR. No physical simulation stage is run.
+ */
 export function calculateCaptureCorrectedSdr(input: CaptureCorrectedSdrInput): CalculationResult<CaptureCorrectedSdrResult> {
   const v = parseCaptureCorrectedSdrInput(input), c = v.correction;
   const { value, source, plane, color, applied } = prepareCaptureSdrSource({
@@ -135,7 +146,7 @@ export function calculateCaptureCorrectedSdr(input: CaptureCorrectedSdrInput): C
   const samples = plane.storage.samples, sourceIndices = orientedIndices(src, orientation, plane.pixelWidth);
   const channels = { red: sourceIndices.map((i) => samples[3*i]!), green: sourceIndices.map((i) => samples[3*i+1]!),
     blue: sourceIndices.map((i) => samples[3*i+2]!) };
-  // Existing engine projection owns finite-focus distance; never substitute scene-clock time or focal length.
+  // The engine's projection model supplies the finite focus distance. Never substitute scene-clock time or focal length for it.
   const projection = calculateFieldOfView({ focalLengthMm: capture.exposure.focalLengthMm,
     sensorDimensionMm: g.activeCapture.imagingArea.widthMm, focusDistanceM: c.state.focusDistanceM });
   const correction = calculateLensCorrectedCapture({ plan: plan.value, capture: { state: c.state,

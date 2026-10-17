@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses a renderer-independent scene illumination profile. The result describes illumination sources
- * only. It does not calculate outgoing scene radiance, apply material response, evaluate visibility or
- * indirect transport, or authorize downstream photon/electron claims.
+ * Scene illumination profiles: the light sources in a scene, independent of any renderer.
+ *
+ * A profile describes sources only. It does not compute the light leaving surfaces
+ * (outgoing scene radiance), material response, visibility or indirect light, and on its
+ * own it does not justify photon or electron counts downstream.
  * @see docs/SCENE_RADIANCE_AND_ILLUMINATION.md for equations, coordinate/unit conventions, blockers
  * and support limits.
  */
@@ -1062,9 +1063,9 @@ function parseSource(
 /**
  * Parses a renderer-independent scene illumination profile.
  *
- * The result describes illumination sources only. It does not calculate
- * outgoing scene radiance, apply material response, evaluate visibility or
- * indirect transport, or authorize downstream photon/electron claims.
+ * The result describes light sources only. It does not compute outgoing scene
+ * radiance, material response, visibility or indirect light, and on its own it
+ * does not justify photon or electron counts downstream.
  */
 export function parseSceneIlluminationProfile(
   value: unknown

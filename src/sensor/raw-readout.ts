@@ -1,19 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Signal ordering is
- * expected charge → independent seeded photo/dark draws → signed electronic read noise → upper pre-ADC
- * threshold → black pedestal → nearest-half-up ADC quantization → unsigned code limits. Signed
- * below-black values survive until the final code clamp. Physical storage saturation, pre-ADC clipping
- * and digital clipping have distinct diagnostics; ISO never invents a conversion regime.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Signal ordering is
- * expected charge → independent seeded photo/dark draws → signed electronic read noise → upper pre-ADC
- * threshold → black pedestal → nearest-half-up ADC quantization → unsigned code limits. Signed
- * below-black values survive until the final code clamp. Physical storage saturation, pre-ADC clipping
- * and digital clipping have distinct diagnostics; ISO never invents a conversion regime.
+ * RAW readout: turns the expected charge in a sensor site into a RAW code, with shot noise, read
+ * noise and the ADC (analogue-to-digital converter).
+ *
+ * The steps, in order:
+ * 1. expected charge;
+ * 2. separately seeded random photo and dark draws (Poisson shot noise);
+ * 3. signed electronic read noise;
+ * 4. the upper pre-ADC clipping threshold;
+ * 5. the black pedestal (offset);
+ * 6. ADC quantization, rounding to nearest with ties up;
+ * 7. limits on the unsigned code.
+ *
+ * Values below black stay signed until the final code clamp. Physical storage saturation, pre-ADC
+ * clipping and digital clipping are reported separately. The ISO setting never invents a conversion
+ * regime; regimes are declared.
  * @see docs/SENSOR_RAW_PRODUCER.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -90,8 +92,9 @@ export interface SimulateSensorChargeRealizationInput {
     SensorChargeSamplingProfile;
   seedUint32: number;
   /**
-   * Optional per-sensor-instance fixed pattern. PRNU scales the photo Poisson mean and DSNU/hot
-   * pixels scale the dark Poisson mean. Omission is exactly the uniform population model.
+   * Optional fixed-pattern noise for this sensor. PRNU (photo-response non-uniformity) scales the
+   * photo Poisson mean; DSNU (dark-signal non-uniformity) and hot pixels scale the dark Poisson mean.
+   * If omitted, the result is exactly the uniform population model.
    */
   fixedPatternNoise?:
     SensorFixedPatternNoiseProfile;
@@ -151,9 +154,9 @@ export interface SensorChargeRealization {
 }
 
 /**
- * Optional ADC integral non-linearity: a piecewise-linear offset in code units (LSB) as a function
- * of the ideal continuous ADC input code, added before quantization. Knots must start at code 0 and
- * end at the ADC maximum code. Omission is an ideal uniform ADC.
+ * Optional ADC integral non-linearity (INL): an offset in code units (LSB, least significant bit),
+ * piecewise linear in the ideal continuous ADC input code, added before quantization. The points must
+ * start at code 0 and end at the ADC maximum code. If omitted, the ADC is ideal and uniform.
  */
 export interface SensorAdcIntegralNonLinearity {
   kind: "piecewise-linear-code-offset";
@@ -162,10 +165,10 @@ export interface SensorAdcIntegralNonLinearity {
 }
 
 /**
- * Optional descriptive ISO-gain derivation of one regime (exposure index of CIPA DC-004 / ISO 12232 relative to the
- * base exposure index). The numbers that enter the readout equations remain
- * systemConversionGainElectronsPerCode (analog, pre-ADC) and adc.digitalGain (post-ADC); this
- * record must agree with them and never replaces them.
+ * Optional record of how one regime's ISO gain was derived (the exposure index of CIPA DC-004 /
+ * ISO 12232, relative to the base exposure index). The readout equations still use
+ * systemConversionGainElectronsPerCode (analog, before the ADC) and adc.digitalGain (after the ADC).
+ * This record must agree with them and never replaces them.
  */
 export interface SensorReadoutExposureIndexGain {
   exposureIndex: number;
@@ -190,11 +193,12 @@ export interface SensorElectronicReadNoiseComponent {
 }
 
 /**
- * One explicitly selected electronic conversion regime, with sourced electrons
- * per code, upper pre-ADC electron-equivalent threshold, independent RMS-electron
- * read-noise components and unsigned ADC coding policy. Black pedestal and digital
- * saturation are code-domain quantities. The regime does not infer its hardware
- * mechanism or selection from ISO and does not replace physical storage capacity.
+ * One explicitly selected electronic conversion regime. It has a sourced number of
+ * electrons per code, an upper pre-ADC threshold in electron equivalents, separate
+ * read-noise components (RMS electrons) and an unsigned ADC coding policy. The black
+ * pedestal and digital saturation are in code units. The regime does not guess its
+ * hardware mechanism, is not chosen from ISO automatically, and does not replace
+ * physical storage capacity.
  */
 export interface SensorReadoutConversionRegime {
   regimeId: string;
@@ -380,7 +384,7 @@ export interface SensorRawCodeSample {
     number;
   preAdcSaturationElectronEquivalent:
     number;
-  /** Signed electronic signal after upper saturation, before conversion/pedestal. */
+  /** Signed electronic signal after the upper (pre-ADC) clip, before conversion and the black pedestal. */
   electronEquivalentAfterPreAdcSaturation:
     number;
   preAdcSaturationApplied:
@@ -603,18 +607,14 @@ function parseNonNegativeFact(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
- * Signal ordering is expected charge → independent seeded photo/dark draws → signed electronic read
- * noise → upper pre-ADC threshold → black pedestal → nearest-half-up ADC quantization → unsigned code
- * limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
- * pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
- * regime.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorChargeSamplingProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * The profile sets how expected charge is sampled into random photo and dark counts.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseSensorChargeSamplingProfile(
   value: unknown
@@ -1132,18 +1132,14 @@ function parseRegime(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
- * Signal ordering is expected charge → independent seeded photo/dark draws → signed electronic read
- * noise → upper pre-ADC threshold → black pedestal → nearest-half-up ADC quantization → unsigned code
- * limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
- * pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
- * regime.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorReadoutConversionProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * The profile lists the declared conversion regimes. ISO never invents a regime.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function parseSensorReadoutConversionProfile(
   value: unknown
@@ -1235,18 +1231,12 @@ export function parseSensorReadoutConversionProfile(
 }
 
 /**
- * Select and validate a declared readout regime against exact channel/profile identity rather than
- * inferring it from ISO.
+ * Selects a declared readout regime and checks it against the exact channel and profile identity.
+ * The regime is never inferred from ISO.
+ * @param input - The input; see `ResolveSensorReadoutRegimeInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
- * Signal ordering is expected charge → independent seeded photo/dark draws → signed electronic read
- * noise → upper pre-ADC threshold → black pedestal → nearest-half-up ADC quantization → unsigned code
- * limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
- * pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
- * regime.
- * @param input - ResolveSensorReadoutRegimeInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns ResolvedSensorReadoutRegime. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
- *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function resolveSensorReadoutRegime(
   input:
@@ -1339,8 +1329,8 @@ function validateChargeIdentity(
       "Physical capacity assessment identity must match the accumulated charge."
     );
   }
-  // The assessment copies the complete expected stored-electron total verbatim from the charge it
-  // assessed, so the binding is exact: an assessment computed for any other charge is stale.
+  // The assessment copies the complete expected stored-electron total exactly from the charge it
+  // assessed. So the match must be exact: an assessment made for any other charge is out of date.
   if (
     charge
       .totalExpectedStoredElectronCount !==
@@ -1456,10 +1446,10 @@ function createRandom(
 }
 
 /**
- * Compute log(n!) without materializing an overflowing factorial. Small integer
- * counts sum logarithms directly; larger counts use the stated Stirling correction
- * terms 1/(12n) - 1/(360n³). This is internal to the Poisson rejection calculation,
- * not an independent physical accuracy or uncertainty claim.
+ * Computes log(n!) without forming the factorial, which would overflow. Small counts
+ * sum the logarithms directly. Larger counts use Stirling's formula with the
+ * correction terms 1/(12n) - 1/(360n³). This is internal to the Poisson rejection
+ * sampler; it is not a claim about physical accuracy or uncertainty.
  */
 function logFactorial(
   n: number
@@ -1499,13 +1489,18 @@ const POISSON_NORMAL_APPROXIMATION_MINIMUM_MEAN =
   1e9;
 
 /**
- * Sample a nonnegative integer from the declared Poisson expectation. Zero mean
- * returns exactly zero. Below mean 30, multiply uniforms until the exponential
- * threshold is crossed; means from 30 to below 1e9 use Hörmann's (1993) PTRS transformed
- * rejection and compare log probabilities to avoid overflow; means of 1e9 and above use a
- * continuity-corrected normal approximation because the log terms lose precision there. The same mean and stream reproduce a draw;
- * changing means does not guarantee monotonic individual samples. Internal export for the lean native
- * executor, which must draw exactly as simulateSensorChargeRealization does; not a root export.
+ * Draws a nonnegative integer from a Poisson distribution with the given mean.
+ *
+ * - Mean 0 returns exactly 0.
+ * - Mean below 30: multiply uniform random numbers until the product drops below e^(−mean).
+ * - Mean from 30 to below 1e9: Hörmann's (1993) PTRS transformed rejection, comparing log
+ *   probabilities to avoid overflow.
+ * - Mean of 1e9 and above: a continuity-corrected normal approximation, because the log terms lose
+ *   precision there.
+ *
+ * The same mean and random stream reproduce the same draw. Increasing the mean does not guarantee
+ * that each individual draw increases. Exported internally for the lean native executor, which must
+ * draw exactly as simulateSensorChargeRealization does; not exported from the package.
  */
 export function samplePoisson(
   mean: number,
@@ -1528,10 +1523,10 @@ export function samplePoisson(
     mean >=
     POISSON_NORMAL_APPROXIMATION_MINIMUM_MEAN
   ) {
-    // Above 1e9 the log-probability terms of the rejection test reach ~1e10 and cancel
-    // catastrophically (var/mean 1.012 at 1e14). The normal approximation with continuity
-    // correction has relative skewness error 1/sqrt(mean) <= 3.2e-5 here (Johnson, Kemp & Kotz,
-    // Univariate Discrete Distributions, 3rd ed., section 4.4).
+    // Above 1e9 the log-probability terms of the rejection test reach about 1e10 and cancel badly
+    // (variance/mean is 1.012 at 1e14). Here the continuity-corrected normal approximation has a
+    // relative skewness error of 1/sqrt(mean) <= 3.2e-5 (Johnson, Kemp & Kotz, Univariate Discrete
+    // Distributions, 3rd ed., section 4.4).
     return Math.max(
       0,
       Math.floor(
@@ -1632,8 +1627,8 @@ export function samplePoisson(
 }
 
 /**
- * Internal (not a root export): draw `count` Poisson samples of one mean from one seeded stream,
- * exactly as the charge realization does. Exists for distribution tests of the sampler.
+ * Internal (not exported from the package): draws `count` Poisson samples of one mean from one seeded
+ * stream, exactly as the charge realization does. Used by the sampler's distribution tests.
  */
 export function samplePoissonStreamForValidation(
   mean: number,
@@ -1653,8 +1648,8 @@ export function samplePoissonStreamForValidation(
 }
 
 /**
- * Internal (not a root export): draw `count` unit normals from one seeded stream exactly as the
- * electronic read-noise path does. Exists for distribution tests of the sampler.
+ * Internal (not exported from the package): draws `count` standard normal values from one seeded
+ * stream, exactly as the read-noise path does. Used by the sampler's distribution tests.
  */
 export function sampleStandardNormalStreamForValidation(
   seedUint32: number,
@@ -1679,18 +1674,15 @@ function sampleStandardNormal(
 }
 
 /**
- * Draw deterministic independently seeded photo/dark Poisson counts and explicit additional-component
- * policies from expected accumulated charge.
+ * Draws deterministic, separately seeded Poisson counts for photo and dark charge, and applies the
+ * declared policies for additional components, starting from the expected accumulated charge.
  *
- * Signal ordering is expected charge → independent seeded photo/dark draws → signed electronic read
- * noise → upper pre-ADC threshold → black pedestal → nearest-half-up ADC quantization → unsigned code
- * limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
- * pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
- * regime.
- * @param input - SimulateSensorChargeRealizationInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorChargeRealization>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * This is steps 1–2 of the readout order (see the module notes). Physical storage saturation is
+ * reported separately from later clipping.
+ * @param input - The input; see `SimulateSensorChargeRealizationInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function simulateSensorChargeRealization(
   input:
@@ -2023,18 +2015,12 @@ function validateCapacityAgainstRealization(
 }
 
 /**
- * Map expected charge through declared gain/offset/readout limits without stochastic sampling and
- * retain separate clipping domains.
+ * Maps the expected charge through the declared gain, offset and readout limits, with no random
+ * sampling. Each kind of clipping (physical storage, pre-ADC, digital) is reported separately.
+ * @param input - The input; see `CalculateExpectedSensorReadoutInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
- * Signal ordering is expected charge → independent seeded photo/dark draws → signed electronic read
- * noise → upper pre-ADC threshold → black pedestal → nearest-half-up ADC quantization → unsigned code
- * limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
- * pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
- * regime.
- * @param input - CalculateExpectedSensorReadoutInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorExpectedReadoutSignal>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
- *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function calculateExpectedSensorReadout(
   input:
@@ -2196,9 +2182,9 @@ export function calculateExpectedSensorReadout(
 }
 
 /**
- * Nearest integer with ties toward +infinity. Math.round is exact for every double (unlike
- * floor(x + 0.5), which returns 1 for 0.49999999999999994 because the addition rounds up);
- * adding 0 normalizes -0 to +0.
+ * Nearest integer, with ties going towards +infinity. Math.round is exact for every double. (In
+ * contrast, floor(x + 0.5) returns 1 for 0.49999999999999994, because the addition rounds up.)
+ * Adding 0 turns -0 into +0.
  */
 function roundHalfUp(
   value: number
@@ -2244,10 +2230,10 @@ function integralNonLinearityOffset(
 }
 
 /**
- * Shared ADC transfer: continuous input code (signal/gain + black + INL), round-half-up
- * quantization limited to the ADC code range, then optional post-ADC digital gain about black,
- * re-quantized. The final clamp to [0, digitalSaturationCode] is applied by the caller. Internal export
- * shared with the lean native executor; not a root export.
+ * Shared ADC transfer function: continuous input code (signal/gain + black + INL), rounded half up
+ * and limited to the ADC code range, then optional post-ADC digital gain about black, rounded again.
+ * The caller applies the final clamp to [0, digitalSaturationCode]. Exported internally for the lean
+ * native executor; not exported from the package.
  */
 export function adcTransfer(
   regime:
@@ -2320,18 +2306,14 @@ export function adcTransfer(
 }
 
 /**
- * Use the declared seed/regime to preserve signed electronic noise through pedestal and quantization,
- * then return the bounded native ADC code and stage diagnostics.
+ * Simulates one RAW code from a charge realization with the declared seed and regime: steps 3–7 of
+ * the readout order (see the module notes). Signed read noise is kept through the black pedestal and
+ * quantization, and only the final code is clamped. Returns the bounded native ADC code and per-step
+ * diagnostics.
+ * @param input - The input; see `SimulateSensorRawCodeInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
- * Signal ordering is expected charge → independent seeded photo/dark draws → signed electronic read
- * noise → upper pre-ADC threshold → black pedestal → nearest-half-up ADC quantization → unsigned code
- * limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
- * pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
- * regime.
- * @param input - SimulateSensorRawCodeInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorRawCodeSample>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
- *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function simulateSensorRawCode(
   input:
@@ -2445,8 +2427,8 @@ export function simulateSensorRawCode(
     readout.regime
       .preAdcSaturationElectronEquivalent
       .value;
-  // Stored charge is nonnegative; the downstream electronic signal is signed.
-  // Preserve negative read noise until the black pedestal and unsigned ADC boundary.
+  // Stored charge is nonnegative, but the electronic signal after it is signed.
+  // Keep negative read noise until the black pedestal and the unsigned ADC limit.
   const afterPreAdc =
     Math.min(
       afterReadNoise,

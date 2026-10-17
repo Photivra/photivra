@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Returns the versioned ideal camera basis, independent of rendering/serializer state.
- * Validates the entire capture and explicit transform policy across untrusted JSON boundaries.
- * @see docs/CAPTURE_COLOR.md for equations, coordinate/unit conventions, blockers and support limits.
+ * Colour for an ideal colorimetric capture: the versioned ideal camera basis, parsing of a capture
+ * and its colour transform policy from untrusted JSON, and conversion to linear sRGB.
+ *
+ * The basis does not depend on rendering or serializer state.
+ * @see docs/CAPTURE_COLOR.md for the equations, units, coordinate conventions, known blockers and
+ * support limits.
  */
 
 import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-validation.js";
@@ -17,7 +19,7 @@ import { parseSimulatedCapture, type SimulatedCapture, type CaptureLinearPlane, 
 export const CAPTURE_COLOR_MODEL_VERSION = "0.1.0" as const;
 /** Explicit ideal colorimetric camera, not measured spectral sensor channels. */
 export const VIRTUAL_COLOR_CAMERA_PROFILE = Object.freeze({ id: "photivra-colorimetric-rgb-d65", version: CAPTURE_COLOR_MODEL_VERSION });
-/** Linear light, sRGB primaries/D65; no sRGB transfer curve is applied. */
+/** Linear light with sRGB primaries and a D65 white. No sRGB transfer curve is applied. */
 export const LINEAR_CAPTURE_RGB_PROFILE = Object.freeze({ id: "linear-srgb-d65", version: CAPTURE_COLOR_MODEL_VERSION });
 const D65 = Object.freeze({ x: .3127/.3290, y: 1 as const, z: (1-.3127-.3290)/.3290 });
 type Vector = readonly [number, number, number];
@@ -32,7 +34,7 @@ function inverse(m: Matrix): Matrix {
   return [[e*i-f*h, c*h-b*i, b*f-c*e], [f*g-d*i, a*i-c*g, c*d-a*f], [d*h-e*g, b*g-a*h, a*e-b*d]]
     .map((r) => r.map((v) => v/determinant)) as unknown as Matrix;
 }
-// Independently derive the basis from public primary chromaticities, not a copied matrix.
+// Derive the basis independently from the published primary chromaticities, not from a copied matrix.
 const primaries: readonly (readonly [number, number])[] = [[.64, .33], [.30, .60], [.15, .06]];
 const columns = primaries.map(([x, y]): Vector => [x/y, 1, (1-x-y)/y]);
 const basis = [0, 1, 2].map((i) => columns.map((c) => c[i]!)) as unknown as Matrix;
@@ -41,17 +43,17 @@ const RGB_TO_XYZ = basis.map((row) => row.map((v, i) => v*scales[i]!)) as unknow
 const XYZ_TO_RGB = inverse(RGB_TO_XYZ);
 
 /**
- * Cone-space transform for adopted-white adaptation. Omitted keeps the original
- * XYZ-diagonal scaling (model id `photivra-xyz-diagonal-adaptation`) unchanged.
+ * Cone-space transform for adapting to the adopted white. If omitted, the original
+ * XYZ-diagonal scaling (model id `photivra-xyz-diagonal-adaptation`) is used unchanged.
  */
 export type CaptureChromaticAdaptationTransform = "bradford" | "cat02" | "cat16" | "von-kries-hpe";
 const CAPTURE_ADAPTATION_TRANSFORMS: readonly string[] = ["bradford", "cat02", "cat16", "von-kries-hpe"];
-/** One explicit color interpretation; gains and adaptation cannot silently double-apply WB. */
+/** One explicit colour interpretation. Gains and adaptation cannot both apply white balance by accident. */
 export type CaptureColorWhiteBalance =
   | { kind: "preserve-intent" }
   | { kind: "apply-resolved-rgb-gains"; channelBasis: CapturePublicProfileReference }
   | { kind: "adopted-white-xyz-scaling"; transform?: CaptureChromaticAdaptationTransform };
-/** IDs identify a new derived plane; source capture stays immutable. */
+/** IDs name a new derived plane. The source capture is never changed. */
 export interface CaptureColorTransformInput {
   capture: SimulatedCapture;
   sourcePlaneId: string;
@@ -59,7 +61,7 @@ export interface CaptureColorTransformInput {
   outputImageStateId: string;
   whiteBalance: CaptureColorWhiteBalance;
 }
-/** Profile data exposes complete row-major matrices and domain conditions to consumers. */
+/** Profile data gives callers the complete row-major matrices and the conditions where they apply. */
 export interface CaptureColorModel {
   version: typeof CAPTURE_COLOR_MODEL_VERSION;
   cameraProfile: CapturePublicProfileReference;
@@ -90,7 +92,7 @@ function record(v: unknown, keys: readonly string[]): Record<string, unknown> {
 function publicId(v: unknown): string {
   return requirePublicOpaqueId(v, "Invalid public color ID.");
 }
-/** Validates the entire capture and explicit transform policy across untrusted JSON boundaries. */
+/** Validates the whole capture and its explicit transform policy, read from untrusted JSON. */
 export function parseCaptureColorTransformInput(value: unknown): CaptureColorTransformInput {
   const r = record(value, ["capture", "sourcePlaneId", "outputPlaneId", "outputImageStateId", "whiteBalance"]);
   const w = record(r.whiteBalance, ["kind", "channelBasis", "transform"]);
@@ -117,7 +119,7 @@ export interface CaptureColorTransformResult {
   whiteBalance: CaptureColorWhiteBalance;
   /** Matrix on CIE XYZ, identity when no adaptation; row-major, dimensionless. */
   chromaticAdaptationMatrix: Matrix;
-  /** False: even adopted-white scaling is a camera choice under mixed illumination. */
+  /** False: under mixed lighting, even scaling to the adopted white is a choice the camera makes. */
   claimsUniqueSceneWhite: false;
 }
 function adaptationProfileId(whiteBalance: CaptureColorWhiteBalance): string {
@@ -126,10 +128,11 @@ function adaptationProfileId(whiteBalance: CaptureColorWhiteBalance): string {
     : "photivra-xyz-diagonal-adaptation";
 }
 /**
- * Converts a bounded inline XYZ/ideal-camera plane to unclamped linear sRGB.
- * Reuses resolved WB intent; never estimates illumination or changes exposure/noise.
- * Adopted-white adaptation (XYZ diagonal by default, or an explicit Bradford/CAT02/CAT16/
- * von Kries-HPE cone-space transform) is explicitly an approximation, distinct from RGB gains.
+ * Converts a bounded inline XYZ (ideal-camera) plane to unclamped linear sRGB.
+ * It reuses the resolved white-balance intent. It never estimates the lighting and never changes
+ * exposure or noise. Adapting to the adopted white (XYZ diagonal by default, or an explicit
+ * Bradford, CAT02, CAT16 or von Kries-HPE cone-space transform) is labelled an approximation, and
+ * is separate from RGB gains.
  */
 export function calculateCaptureColorTransform(input: CaptureColorTransformInput): CalculationResult<CaptureColorTransformResult> {
   const { capture, sourcePlaneId, outputPlaneId, outputImageStateId, whiteBalance } = parseCaptureColorTransformInput(input);
@@ -197,7 +200,7 @@ export function calculateCaptureColorTransform(input: CaptureColorTransformInput
     encodingReferenceWhiteXyz: { ...D65 }, appliedTransforms: transforms,
     whiteBalanceApplication: gains ? "applied-rgb-gains" : adapt ? "applied-chromatic-adaptation" : capture.whiteBalanceIntent ? "intent-only" : "not-applicable",
     storage: { kind: "inline-float64", samples } };
-  // Validation enforces capture-wide sample budget, identities and output finiteness.
+  // Validation enforces the capture-wide sample budget, the identities and finite output.
   const checked = parseSimulatedCapture({ ...capture, planes: [plane] }).planes[0]!;
   const result: CaptureColorTransformResult = { plane: checked, colorModel: resolveCaptureColorModel(), sourcePlaneId,
     sourceImageStateId: source.imageStateId, whiteBalance, chromaticAdaptationMatrix: adaptation.map((r) => [...r]) as unknown as Matrix,

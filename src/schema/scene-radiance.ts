@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses material-response metadata consumed by a scene-radiance provider. RGB/PBR data is
- * approximation-only. Spectral data describes a wavelength-preserving provider input and does not
- * itself calculate a BSDF, scene radiance, fluorescence, emission, volumetrics, or polarization.
- * Returns the conservative material fidelity represented by a profile.
+ * Contracts for scene-radiance providers: the renderer or other code that reports how much
+ * light leaves a scene point toward the camera.
+ *
+ * It covers material-response metadata, provider capability profiles, single evaluation
+ * requests and results, and identity checks between them. The engine validates this data
+ * but does not compute scene radiance itself.
  * @see docs/SCENE_RADIANCE_AND_ILLUMINATION.md for equations, coordinate/unit conventions, blockers
  * and support limits.
  */
@@ -595,11 +596,12 @@ function parseMaterialRepresentation(
 }
 
 /**
- * Parses material-response metadata consumed by a scene-radiance provider.
+ * Parses material-response metadata used by a scene-radiance provider.
  *
- * RGB/PBR data is approximation-only. Spectral data describes a
- * wavelength-preserving provider input and does not itself calculate a BSDF,
- * scene radiance, fluorescence, emission, volumetrics, or polarization.
+ * RGB or PBR (physically based rendering) material data is always an approximation.
+ * Spectral data is a per-wavelength provider input. It does not itself compute a BSDF
+ * (how a surface scatters light), scene radiance, fluorescence, emission, volumetric
+ * effects or polarization.
  */
 export function parseSceneMaterialResponseProfile(
   value: unknown
@@ -704,7 +706,7 @@ export function parseSceneMaterialResponseProfile(
 }
 
 /**
- * Returns the conservative material fidelity represented by a profile.
+ * Returns the material fidelity a profile supports, choosing the lower level when in doubt.
  */
 export function assessSceneMaterialResponseFidelity(
   profile: SceneMaterialResponseProfile
@@ -825,11 +827,11 @@ function parseProviderFidelity(
 }
 
 /**
- * Parses a renderer-neutral provider capability/profile declaration.
+ * Parses a provider's declaration of what it can do (its profile). Works with any renderer.
  *
- * Schema 0.1.0 is deliberately approximation-only. A provider may consume
- * calibrated inputs, but this contract does not authorize a calibrated
- * outgoing-radiance claim until later spectral/transport completeness work.
+ * Schema 0.1.0 is approximation-only by design. A provider may use calibrated inputs,
+ * but this contract cannot support a claim of calibrated outgoing radiance. That needs
+ * later work on complete spectral and light-transport models.
  */
 export function parseSceneRadianceProviderProfile(
   value: unknown
@@ -1094,11 +1096,11 @@ export function parseSceneRadianceEvaluationRequest(
 }
 
 /**
- * Parses one provider-produced outgoing spectral-radiance result.
+ * Parses one outgoing spectral-radiance result from a provider.
  *
- * The numeric value is accepted as provider output; parsing validates units,
- * finite/nonnegative value, provenance, and identity fields but does not prove
- * that the provider's transport calculation is physically correct.
+ * The number is accepted as the provider reported it. Parsing checks units, that the
+ * value is finite and nonnegative, provenance and identity fields. It does not prove
+ * the provider's light-transport calculation is physically correct.
  */
 export function parseSceneRadianceEvaluationResult(
   value: unknown
@@ -1202,10 +1204,10 @@ function requireEqual(
 }
 
 /**
- * Validates exact identity/binding relationships around provider output.
+ * Checks that a provider result matches its request and profile identities exactly.
  *
- * This function never recomputes the radiance value and never promotes the
- * provider's approximation to calibrated radiometry.
+ * It never recomputes the radiance value, and never upgrades the provider's
+ * approximation to calibrated radiometry.
  */
 export function validateSceneRadianceEvaluationBindings(
   input:

@@ -4,12 +4,12 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createSceneRadianceTemporalSamplingPlan
 
-Creates renderer/provider-neutral scene-radiance evaluation nodes over one
-authoritative local exposure window.
+Plans the times (nodes) at which a scene-radiance provider must report radiance
+during one local exposure window. Works with any renderer or provider.
 
-The plan deliberately carries capture time separately from the legacy #85
-request field name. Providers/renderers must evaluate scene/source radiance
-at node.captureTimeSecondsFromReference on the first-opening-boundary clock.
+Capture time is a separate field, not the older request field
+timeSecondsFromExposureStart. Providers must evaluate radiance at
+node.captureTimeSecondsFromReference, measured from the first opening boundary.
 
 ```ts
 export function createSceneRadianceTemporalSamplingPlan(
@@ -88,12 +88,11 @@ export interface ReducedSceneRadianceTemporalExposure {
 
 ## reduceSceneRadianceTemporalSamples
 
-Reduces provider-returned wavelength-resolved scene radiance over the
-authoritative local exposure window.
+Combines the provider's per-wavelength scene radiance over the local exposure window.
 
-Every sample must bind to the exact plan node/time/result identity. Numeric
-uncertainty is retained per node and explicitly not combined because no
-correlation/independence assumption is introduced.
+Each sample must match its planned node, time and result identity exactly.
+Uncertainty stays per node and is not combined, because no correlation or
+independence is assumed.
 
 ```ts
 export function reduceSceneRadianceTemporalSamples(

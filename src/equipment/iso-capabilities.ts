@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. ISO is an
- * exposure-index/control capability, not a source of photons or evidence of read noise.
- * Standard/expanded settings, capture-mode restrictions and Auto ISO availability are explicit;
- * unknown availability cannot authorize automatic control.
- * Resolve one standard/expanded/Auto ISO request under declared profile/capture-mode availability and
- * report explicit unavailable/unknown state. ISO is an exposure-index/control capability, not a source
- * of photons or evidence of read noise. Standard/expanded settings, capture-mode restrictions and Auto
- * ISO availability are explicit; unknown availability cannot authorize automatic control.
- * @see docs/GENERIC_TIER_PRESETS.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * ISO capabilities: which standard, expanded and Auto ISO settings a body offers, and in which
+ * capture modes.
+ *
+ * The parser validates untrusted input and returns the normalized typed contract. Unknown enum
+ * values, missing required fields and incompatible scientific data are rejected.
+ *
+ * ISO is an exposure-index (EI) control setting. It does not create photons and says nothing about
+ * read noise. Standard and expanded settings, limits per capture mode, and whether Auto ISO is
+ * available are all stated explicitly. If availability is unknown, automatic control is not allowed.
+ * @see docs/GENERIC_TIER_PRESETS.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -603,14 +602,14 @@ function parseCaptureModePolicy(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here.
  *
- * ISO is an exposure-index/control capability, not a source of photons or evidence of read noise.
- * Standard/expanded settings, capture-mode restrictions and Auto ISO availability are explicit;
- * unknown availability cannot authorize automatic control.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns IsoCapabilityProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * ISO is an exposure-index (EI) control setting. It does not create photons and says nothing about
+ * read noise. Standard and expanded settings, limits per capture mode, and whether Auto ISO is
+ * available are all stated explicitly. If availability is unknown, automatic control is not allowed.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns IsoCapabilityProfile. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -866,14 +865,14 @@ function resolveModePolicy(
 }
 
 /**
- * Resolve one standard/expanded/Auto ISO request under declared profile/capture-mode availability and
- * report explicit unavailable/unknown state.
+ * Resolves one standard, expanded or Auto ISO request against what the profile and capture mode
+ * declare as available. Reports "unavailable" or "unknown" explicitly.
  *
- * ISO is an exposure-index/control capability, not a source of photons or evidence of read noise.
- * Standard/expanded settings, capture-mode restrictions and Auto ISO availability are explicit;
- * unknown availability cannot authorize automatic control.
- * @param input - ResolveIsoCapabilityInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns ResolvedIsoCapability. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * ISO is an exposure-index (EI) control setting. It does not create photons and says nothing about
+ * read noise. Standard and expanded settings, limits per capture mode, and whether Auto ISO is
+ * available are all stated explicitly. If availability is unknown, automatic control is not allowed.
+ * @param input - ResolveIsoCapabilityInput. See that type for coordinates, units and profile binding.
+ * @returns ResolvedIsoCapability. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1186,14 +1185,14 @@ function gridWithinRange(
 }
 
 /**
- * Binds the detailed #7 ISO/EI capability contract into the numeric capability
- * envelope consumed by #99.
+ * Combines the detailed ISO/EI capability profile with the numeric capability
+ * envelope that the exposure-mode resolvers use.
  *
- * The existing equipment capability must agree exactly with the profile's
- * global standard ISO range/grid. An evidenced capture-mode policy may narrow
- * the standard manual envelope for that mode. Auto ISO may then be narrower
- * still. Expanded L/H-style settings remain outside #99's ordinary numeric
- * ISO grid and are resolved through resolveIsoCapability().
+ * The existing equipment capability must match the profile's global standard
+ * ISO range and grid exactly. A capture-mode policy backed by evidence may
+ * narrow the standard manual range for that mode. Auto ISO may be narrower
+ * still. Expanded settings (such as L and H) stay outside the resolvers'
+ * ordinary numeric ISO grid; use resolveIsoCapability() for them.
  */
 export function bindIsoCapabilityToExposureCapabilities(
   input:

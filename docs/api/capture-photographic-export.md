@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateProcessedSensorRaw
 
-Reconstruct exact attached RAW, develop color/WB once, correct, orient/crop and encode SDR; no file/display IO.
+Reconstructs the exact attached RAW, develops colour and WB once, corrects, orients and crops, and encodes SDR. No file or display I/O.
 
 ```ts
 export function calculateProcessedSensorRaw(input: ProcessedSensorRawInput): CalculationResult<ProcessedSensorRawResult>;
@@ -14,14 +14,14 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## createPhotographicExportPair
 
-Serialize one authoritative RAW capture to a lossless uncompressed CFA DNG and an independently
-packed baseline JPEG. Shared metadata comes from the committed capture; orientation/WB/rendering
-never rewrite native RAW codes.
+Writes one RAW capture as a lossless, uncompressed CFA DNG and a separately encoded baseline JPEG.
+Shared metadata comes from the committed capture. Orientation, WB and rendering never rewrite the
+native RAW codes.
 
-Paired export preserves one revalidated native post-ADC RAW frame for DNG and develops that same
-frame through explicit reconstruction, approximate sensor-channel color/WB and SDR policy for JPEG.
-File identity and RAW data identity are distinct. Hashing is asynchronous; input data is copied
-before the first await. Full-native execution is limited to 4096 sites.
+The DNG keeps one revalidated native RAW frame (after the ADC) unchanged. The JPEG develops that same
+frame through explicit reconstruction, an approximate sensor-channel colour and WB conversion, and SDR
+rendering. File identity and RAW data identity are separate. Hashing is asynchronous; input data is
+copied before the first await. The full sensor is limited to 4096 sites.
 
 ```ts
 export async function createPhotographicExportPair(input: PhotographicExportInput, options: PhotographicExportOptions = {}): Promise<PhotographicExportPair>;
@@ -31,7 +31,7 @@ This call is asynchronous; byte hashing uses the caller runtime's Web Crypto.
 
 ## ExportSensorColorProfile
 
-Explicit approximation of normalized camera-channel -> scene XYZ/D65, never inferred from RGB/CFA names.
+Explicit, approximate conversion from normalized camera channels to scene XYZ (D65). Never guessed from RGB or CFA channel names.
 
 ```ts
 export interface ExportSensorColorProfile {
@@ -50,7 +50,7 @@ export interface ExportSensorColorProfile {
 
 ## parseExportSensorColorProfile
 
-Validates independently supplied numeric profile evidence and binds the approximation to the exact CFA profile.
+Validates the separately supplied numeric colour-profile evidence, and ties the approximate profile to the exact CFA profile.
 
 ```ts
 export function parseExportSensorColorProfile(value: unknown): ExportSensorColorProfile;
@@ -60,7 +60,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parsePhotographicExportInput
 
-Adds file metadata/encoding validation to the shared processed RAW policy.
+Adds file metadata and encoding checks to the shared RAW processing settings.
 
 ```ts
 export function parsePhotographicExportInput(value: unknown): PhotographicExportInput;
@@ -70,11 +70,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parseProcessedSensorRawInput
 
-Revalidates one attached RAW snapshot and explicit processing policy.
-Crop sampling and reconstruction coverage fail here before
-per-pixel execution. Successful parsing does not establish kernel edge support,
-correction support or container encoding readiness; those retain execution
-checks. Input is copied; no file or display backend runs.
+Revalidates one attached RAW snapshot and the explicit processing settings.
+
+Crop sampling and reconstruction coverage problems fail here, before per-pixel work. Passing this
+check does not prove kernel support at the edges, correction support or that the file can be encoded;
+those are still checked during execution. The input is copied. No file or display code runs.
 
 ```ts
 export function parseProcessedSensorRawInput(value: unknown): ProcessedSensorRawInput;
@@ -84,9 +84,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION
 
-RAW/processed pipeline version recorded in XMP. 0.2.0: development normalizes to the effective white
-level, consumes saturation, fixes WB for non-white-normalized matrices; DNG WhiteLevel, AsShotNeutral,
-BlackLevel/CFA phase and the 1.4 tags ForwardMatrix1, BaselineExposure, NoiseProfile, AnalogBalance.
+Version of the RAW and processed pipeline, recorded in XMP.
+
+0.2.0: development scales to the effective white level, handles saturation, and fixes WB for colour
+matrices that are not white-normalized. DNG output fixes WhiteLevel, AsShotNeutral and BlackLevel/CFA
+phase, and adds the DNG 1.4 tags ForwardMatrix1, BaselineExposure, NoiseProfile and AnalogBalance.
 
 ```ts
 PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION = "0.2.0" as const
@@ -102,7 +104,7 @@ PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION = "0.1.0" as const
 
 ## PhotographicExportInput
 
-Optional explicit exporter boundary; no files, clocks, randomness, network or encoder dependency.
+Optional export settings. The engine uses no files, clocks, randomness, network or external encoder.
 
 ```ts
 export interface PhotographicExportInput {
@@ -111,13 +113,13 @@ export interface PhotographicExportInput {
   whiteBalance: "not-required" | "apply-resolved-sensor-gains";
   rendering: SdrRenderingProfile;
   metadata: Omit<CaptureExportMetadataInput, "capture">;
-  /** Caller-declared public scene/version, explicitly bound to the committed scene state. */
+  /** Public scene ID and version declared by the caller. They must match the committed scene state. */
   sceneProfile: { id: string; version: string; sceneStateId: string };
-  /** JPEG constant quantization step 1..255, not an emulated manufacturer's 'quality' scale. */
+  /** JPEG constant quantization step, 1..255. It is not an imitation of a manufacturer's "quality" scale. */
   jpegQuantizationStep: number;
-  /** Optional native-optical post-color correction; JPEG only, RAW records informational intent. */
+  /** Optional lens correction in native optical coordinates, applied after colour. JPEG only; the RAW records it as information. */
   correction?: CaptureCorrectedSdrInput["correction"];
-  /** RAW highlight handling before WB; default `clip`. See `prepareSensorColorDevelopment`. */
+  /** How RAW highlights are handled before WB; default `clip`. See `prepareSensorColorDevelopment`. */
   highlightMode?: RawHighlightMode;
 }
 ```
@@ -128,14 +130,14 @@ Options for {@link createPhotographicExportPair}.
 
 ```ts
 export interface PhotographicExportOptions {
-  /** Aborting rejects with a domain error at the next step boundary; no partial pair is returned. */
+  /** Aborting rejects with a domain error at the next step. No partial pair is returned. */
   signal?: AbortSignal;
 }
 ```
 
 ## PhotographicExportPair
 
-Owned byte arrays are mutable; identities/hashes refer to the exact bytes returned at creation.
+The byte arrays belong to the caller and can be changed. IDs and hashes refer to the exact bytes as first returned.
 
 ```ts
 export interface PhotographicExportPair {
@@ -148,11 +150,11 @@ export interface PhotographicExportPair {
   source: CalculationResult<RawFrameReconstruction>;
   rendering: CalculationResult<SdrRenderingResult>;
   nativeDefaultCrop: RasterRect;
-  /** Derived JPEG rectangle in the declared oriented output; never replaces the RAW default crop. */
+  /** The JPEG's rectangle in the oriented output. It never replaces the RAW's default crop. */
   processedOutputView: { rect: RasterRect; pixelWidth: number; pixelHeight: number };
   correction: CalculationResult<CaptureCorrectedSdrResult> | null;
   rawCorrectionIntent: CalculationResult<ResolvedLensCorrectionPlan> | null;
-  /** RAW saturation consumed before WB in the JPEG development. */
+  /** RAW saturation handled before WB in the JPEG development. */
   highlight: RawHighlightDiagnostics;
   imageDataPairing: "jpeg-generated-from-exact-attached-raw";
   dng: { mediaType: "image/dng"; bytes: Uint8Array; sha256: string };
@@ -163,7 +165,7 @@ export interface PhotographicExportPair {
 
 ## PROCESSED_SENSOR_RAW_MODEL_VERSION
 
-Version of the `processed-sensor-raw-sdr` model (0.2.0: effective-white normalization, saturation and WB fixes).
+Version of the `processed-sensor-raw-sdr` model (0.2.0: scaling to effective white, saturation and WB fixes).
 
 ```ts
 PROCESSED_SENSOR_RAW_MODEL_VERSION = "0.2.0" as const
@@ -171,7 +173,7 @@ PROCESSED_SENSOR_RAW_MODEL_VERSION = "0.2.0" as const
 
 ## ProcessedSensorRawInput
 
-Explicit post-ADC RAW development policy shared by preview and file output.
+Explicit RAW development settings (after the ADC), shared by the preview and the file output.
 
 ```ts
 export type ProcessedSensorRawInput = Pick<PhotographicExportInput,
@@ -180,11 +182,12 @@ export type ProcessedSensorRawInput = Pick<PhotographicExportInput,
 
 ## ProcessedSensorRawResult
 
-Owned derived preview/JPEG processing record for the exact attached native RAW.
-Child reconstruction/color/WB/correction/rendering results expose their input
-and output domains and independent clipping/cost diagnostics. The output view is
-oriented/cropped SDR, while the native default crop and physical capture history
-remain unchanged. Returned arrays are pre-file pixels, not a lossy JPEG decode.
+Processing record for the preview and JPEG, derived from the exact attached native RAW.
+
+Each step (reconstruction, colour, WB, correction, rendering) reports its input and output domains and
+its own clipping and cost diagnostics. The output view is oriented and cropped SDR. The native default
+crop and the physical capture history are unchanged. The returned arrays are the pixels before file
+encoding, not a decoded (lossy) JPEG.
 
 ```ts
 export interface ProcessedSensorRawResult {
@@ -201,7 +204,7 @@ export interface ProcessedSensorRawResult {
   processedOutputView: PhotographicExportPair["processedOutputView"];
   correction: CalculationResult<CaptureCorrectedSdrResult> | null;
   rawCorrectionIntent: CalculationResult<ResolvedLensCorrectionPlan> | null;
-  /** RAW saturation consumed before WB over the developed raster. */
+  /** RAW saturation handled before WB, over the developed image. */
   highlight: RawHighlightDiagnostics;
 }
 ```

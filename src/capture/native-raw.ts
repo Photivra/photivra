@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/** Metadata-only admission and bounded execution of the existing native scalar RAW model. */
+/**
+ * Native RAW capture with the existing per-site (scalar) RAW model: an up-front plan and limit check from
+ * metadata only, then bounded tile-by-tile execution.
+ */
 import { normalizeCaptureExposureMetadata, type SimulatedCaptureInput, type SimulatedCapture, type CaptureExposureSource } from "./simulated-capture.js";
 import { ENGINE_API_VERSION } from "../core/version.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -19,7 +22,7 @@ import { SENSOR_RAW_PRODUCER_NOISE_MODEL, calculateNativeRawSite, parseNativeRaw
 export const NATIVE_RAW_SCHEMA_VERSION = "0.1.0" as const;
 export const NATIVE_RAW_LIMITS = Object.freeze({ maximumPixels: 24_000_000, maximumDimension: 16_384,
   tileWidth: 256, tileHeight: 1, outputBytesPerPixel: 7 });
-/** A shooting event and source provenance, not a produced float master or committed RAW frame. */
+/** A shooting event and where its source came from. Not a finished float master or committed RAW frame. */
 export type NativeRawExposureInput = Omit<SimulatedCaptureInput, "planes" | "source"> & {source:CaptureExposureSource};
 export type NativeRawExposure = Omit<SimulatedCapture, "schemaVersion" | "planes" | "source"> & {source:CaptureExposureSource};
 export interface NativeRawInput {
@@ -31,7 +34,7 @@ export interface NativeRawInput {
   bindingProfile: NativeRawProducerFrameContext["bindingProfile"];
   exposureWindow?: SensorRawProducerExposureWindowInput;
   maximumOutputBytes: number;
-  /** Optional execution chunk width in native sites, 1–256; omission preserves 256. Not a sampling control. */
+  /** Optional tile width for execution, in native sites, 1–256. Default 256. It does not affect sampling. */
   tileWidth?: number;
 }
 export interface NativeRawPlan {
@@ -42,39 +45,41 @@ export interface NativeRawPlan {
   pixelCount: number;
   outputBytes: number;
   tileCount: number;
-  /** Present only for an explicit execution chunk width. Omission preserves legacy plan shape. */
+  /** Present only when an execution tile width was given. Otherwise the plan keeps its earlier shape. */
   tileWidth?: number;
   upstreamRadiometryVerified: false;
   seedSchedule: "murmur3-capture-seed-native-index-stream-v2";
 }
-/** Rectangle is absolute full-native CFA space, before orientation, active crop or output scaling. */
+/** Tile rectangle, in absolute full-sensor CFA coordinates, before orientation, active-area crop or output scaling. */
 export interface NativeRawTileRequest { captureId: string; frameId: string; x: number; y: number; width: number; height: number }
 export interface NativeRawTile extends NativeRawTileRequest { sites: readonly SensorRawProducerSiteInput[] }
 export interface NativeRawProvider {
   readTile(request: Readonly<NativeRawTileRequest>, signal: AbortSignal): Promise<NativeRawTile>;
   yieldControl(signal: AbortSignal): Promise<void>;
 }
-/** Sole-owner row-major arrays. They are not attachable to the bounded SensorRawFrame contract. */
+/** Row-major arrays owned only by the output. They cannot be attached to the bounded SensorRawFrame type. */
 export interface NativeRawOutput {
   plan: NativeRawPlan;
   codes: Uint16Array;
   blackLevels: Uint16Array;
   digitalSaturationCodes: Uint16Array;
-  /** Bits 0,1,2: physical scalar clamp, pre-ADC clamp, digital saturation respectively. */
+  /** Saturation flags. Bit 0: physical charge clamp; bit 1: pre-ADC clamp; bit 2: digital saturation. */
   saturationFlags: Uint8Array;
   /**
-   * Effective white (full-saturation) code per absolute CFA repeat phase, indexed
+   * Effective white (full-saturation) code for each absolute CFA repeat phase, indexed
    * `phaseY*repeatWidthSites+phaseX`: min(digital saturation, round(black + min(capacity, pre-ADC
-   * saturation)/gain)). See `calculateEffectiveSaturationCode`; a few bytes, not a per-pixel plane.
+   * saturation)/gain)). See `calculateEffectiveSaturationCode`. A few bytes, not one value per pixel.
    */
   effectiveSaturationCodes: Uint16Array;
 }
 /** Internal: lean per-site outputs of an engine-built site (see native-environment-lean.ts). */
 export interface NativeRawLeanOutput { rawCode: number; blackLevelCode: number; digitalSaturationCode: number; flags: number; whiteCode: number }
 /**
- * Internal hook for engine-built tiles (native environment RAW). claim() recognizes only entries the hook itself
- * created for sites whose parse and identity validation are provably redundant; compute() returns the outputs
- * calculateNativeRawSite would produce (falling back to it internally); observe() sees every fully computed site.
+ * Internal hook for tiles the engine builds itself (native environment RAW).
+ *
+ * claim() recognizes only entries the hook itself created, for sites whose parsing and identity checks are
+ * provably redundant. compute() returns the outputs calculateNativeRawSite would produce, falling back to it
+ * internally. observe() sees every fully computed site.
  */
 export interface NativeRawLeanSensorHook {
   claim(site: unknown): object | undefined;
@@ -104,7 +109,7 @@ function windows(exposure: NativeRawExposure, schedule: SensorRawProducerExposur
   if(result.value.nominalExposureDurationSeconds.value!==exposure.exposure.shutterSeconds)throw new InvalidConfigurationError("RAW schedule differs from exposure duration.");
   return result.value;
 }
-/** Full raster/resource/profile admission before callbacks or output allocation; no placeholder plane. */
+/** Plans the task and checks the image size, resources and profiles before any callback or output allocation. No placeholder plane is made. */
 export function calculateNativeRawPlan(input: NativeRawInput): NativeRawPlan {
   const r=requireAllowlistedRecord(input,["exposure","frameId","modeId","captureModeProfile","colorSamplingProfile","bindingProfile","exposureWindow","maximumOutputBytes","tileWidth"],"Invalid native RAW input.");
   if(r.tileWidth!==undefined&&(typeof r.tileWidth!=="number"||!Number.isSafeInteger(r.tileWidth)||r.tileWidth<1||r.tileWidth>NATIVE_RAW_LIMITS.tileWidth))
@@ -122,13 +127,13 @@ export function calculateNativeRawPlan(input: NativeRawInput): NativeRawPlan {
   if(exposure.noise.model.id!==SENSOR_RAW_PRODUCER_NOISE_MODEL.id||exposure.noise.model.version!==SENSOR_RAW_PRODUCER_NOISE_MODEL.version||
     frame.colorSamplingProfile.layout.kind!=="periodic-mosaic"||mode?.acquisition.kind!=="single-frame"||mode.perFrameSampling.kind!=="native-effective-raster"||(mode.reconstructionStages?.length??0)!==0)
     throw new InvalidConfigurationError("Native RAW requires exact noise identity and single-frame native periodic CFA.");
-  // Binding is global and affine; validate both corners before any provider work.
+  // The binding is one affine mapping for the whole frame, so checking both corners covers it. Do this before any provider work.
   for(const p of [{x:0,y:0},{x:native.pixelWidth-1,y:native.pixelHeight-1}]){
     const c=resolveCaptureModeColorSamplingContributors({nativeRaster:native,captureModeProfile:frame.captureModeProfile,modeId:frame.modeId,colorSamplingProfile:frame.colorSamplingProfile,bindingProfile:frame.bindingProfile,modeSampleIndexFullFrame:p});
     if(c.totalContributorSites!==1||c.channelComposition.kind!=="single-channel")throw new InvalidConfigurationError("Native RAW must preserve one native CFA site per sample.");
   }
   const schedule=r.exposureWindow===undefined?undefined:structuredClone(r.exposureWindow) as SensorRawProducerExposureWindowInput;
-  // Supported linear scan extrema occur at raster corners. Check them before acquisition.
+  // For the supported linear scans, the extreme values occur at the image corners. Check them before capture.
   if(schedule)windows(exposure,schedule,[{x:.5,y:.5},{x:native.pixelWidth-.5,y:.5},{x:.5,y:native.pixelHeight-.5},{x:native.pixelWidth-.5,y:native.pixelHeight-.5}]);
   return freezeOwnedData({schemaVersion:NATIVE_RAW_SCHEMA_VERSION,exposure,frame,pixelCount,outputBytes,
     tileCount:Math.ceil(native.pixelWidth/tileWidth)*native.pixelHeight,
@@ -137,19 +142,21 @@ export function calculateNativeRawPlan(input: NativeRawInput): NativeRawPlan {
     seedSchedule:"murmur3-capture-seed-native-index-stream-v2" as const});
 }
 /**
- * Executes validated EQE/dark/completeness events through the shared reference scalar physics.
- * Tiles are read and committed one at a time; the host yield runs at tile boundaries once about
- * 8 ms of work has elapsed since the previous yield, and after the final tile. Activity is checked
+ * Runs validated per-site events (EQE photo signal, dark signal, charge completeness) through the shared
+ * reference per-site physics.
+ *
+ * Tiles are read and committed one at a time. The task yields to the host at tile boundaries once about
+ * 8 ms of work has passed since the last yield, and after the final tile. It checks for cancellation
  * before every tile, after every read and after every yield.
  */
 export function createNativeRawTask(input: NativeRawInput,provider: NativeRawProvider): NativeRawTask {
   return createNativeRawTaskWithCadence(input,provider,DEFAULT_HOST_YIELD_CADENCE);
 }
-/** Internal: explicit host-yield cadence. Cadence never changes tiles, seeds or output. Not a root export. */
+/** Internal: the same task with an explicit host-yield timing. Timing never changes tiles, seeds or output. Not exported from the package. */
 export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: NativeRawProvider,cadence: HostYieldCadence,
-  /** Internal: a gate shared with a provider that also yields inside readTile, so both observe one budget. */
+  /** Internal: a yield timer shared with a provider that also yields inside readTile, so both use one time budget. */
   sharedGate?: HostYieldGate,
-  /** Internal: lean per-site sensor execution for engine-built tiles; never changes output or errors. */
+  /** Internal: faster ("lean") per-site sensor execution for engine-built tiles. It never changes output or errors. */
   leanSensor?: NativeRawLeanSensorHook): NativeRawTask {
   const plan=calculateNativeRawPlan(input);
   if(!provider||typeof provider.readTile!=="function"||typeof provider.yieldControl!=="function")throw new InvalidConfigurationError("Native RAW requires reader and host event-loop yield.");
@@ -174,12 +181,12 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
             for(const key of Object.keys(request) as (keyof NativeRawTileRequest)[])if(tile[key]!==request[key])throw new InvalidConfigurationError("Native RAW tile identity mismatch.");
             if(!Array.isArray(tile.sites)||tile.sites.length!==request.width||Array.from({length:request.width},(_,i)=>i in (tile.sites as unknown[])).includes(false))throw new InvalidConfigurationError("Native RAW tile needs exact dense coverage.");
             const timing=plan.exposureWindow?windows(plan.exposure,plan.exposureWindow,Array.from({length:request.width},(_,i)=>({x:x+i+.5,y:y+.5}))):undefined;
-            // Lean entries (engine-built, provably valid against an earlier verified template) skip parsing and identity
-            // validation; they are only claimed once the frame's first site is fixed.
+            // Lean entries (built by the engine, provably valid against an earlier verified template) skip parsing and
+            // identity checks. They are only claimed once the frame's first site is fixed.
             const lean=leanSensor&&first!==undefined?(tile.sites as unknown[]).map(site=>leanSensor.claim(site)):undefined;
             const sites=tile.sites.map((site,j)=>lean?.[j]?undefined:parseNativeRawProducerSite(site,y*native.pixelWidth+x+j,plan.frame,timing?.samples[j]));
             first??=sites[0];for(const s of sites)if(s)validateNativeRawReadoutIdentity(s,first!);
-            // Every site in this tile is validated before writing owned output. Failures never publish partial output.
+            // Every site in this tile is validated before any output is written. A failure never returns partial output.
             const seed=plan.exposure.noise.seedUint32;
             for(let j=0;j<sites.length;j++){
               const index=y*native.pixelWidth+x+j,handle=lean?.[j];
@@ -197,7 +204,7 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
             }
             count++;
           }
-          // Yield on the time budget and always after the final tile; cadence never alters output.
+          // Yield when the time budget is spent, and always after the final tile. Yield timing never changes output.
           if(gate.due()||(y===native.pixelHeight-1&&x+tileWidth>=native.pixelWidth)){await yieldControl(abort.signal);active();gate.restart();}
         }
         output.effectiveSaturationCodes.set(white.finish());first=undefined;state="completed";

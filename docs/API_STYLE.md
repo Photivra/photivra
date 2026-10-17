@@ -1,27 +1,27 @@
 # Public API Style
 
-Release context (dated historical note): written for the **package 1.3.0 candidate / root API 1.3.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_3_0.md).
+Release context (dated historical note): this page was written for the **package 1.3.0 candidate / root API 1.3.0**. It has not been re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem and model versions, and dated introduction or measurement records below, are independent historical identities. They are not distribution versions. See [developer navigation](DEVELOPERS.md) and the [release contract](RELEASE_1_3_0.md).
 
-The open engine should feel like one coherent library.
+The open engine should feel like one coherent library. These rules keep it that way.
 
 ## Rules
 
-- Use descriptive `camelCase` function names, normally beginning with a verb such as `calculate`, `estimate`, `parse`, `validate`, or `simulate`.
-- For calculations with more than one meaningful input, accept a single typed/config object rather than positional arguments.
-- Include units in property names when a quantity is not represented by a dedicated unit type: `focalLengthMm`, `distanceM`, `shutterSeconds`.
-- Never accept unitless ambiguous physical quantities.
-- Use the same property name for the same physical concept across modules.
-- Return plain serializable data from core calculations.
-- Public calculation envelopes must not contain `NaN` or numeric infinities; non-finite computed results fail with `InvalidScientificResultError` rather than relying on JSON coercion.
-- Keep deterministic functions synchronous. Use async only for actual asynchronous work.
-- Throw typed/domain errors for invalid configurations; do not silently coerce scientifically invalid values.
-- Public calculation functions and meaningful public contracts require concise JSDoc covering purpose, units, assumptions, and return meaning.
-- Do not expose renderer, framework, or UI-specific types through calculation APIs.
-- Public configuration interfaces that are expected to cross JSON/untrusted boundaries should have corresponding runtime parsers; TypeScript types alone are not a validation boundary.
-- Runtime parsers must reject unknown enum/string values rather than falling through to a default interpretation.
-- Prefer semantic role types over reusing a narrower type in the wrong stage. For example, use `RasterDimensions` for generic active/output rasters and reserve `NativeImageRaster` for the native sampling grid.
-- When a physical quantity is axis-dependent, preserve the axes explicitly instead of collapsing to a scalar unless the model documents and validates that simplification.
-- Preserve backward compatibility after 1.0 unless a documented major version changes the contract.
+- Use descriptive `camelCase` function names, normally starting with a verb such as `calculate`, `estimate`, `parse`, `validate` or `simulate`.
+- When a calculation has more than one meaningful input, take a single typed config object instead of positional arguments.
+- Put the unit in the property name when the quantity has no dedicated unit type: `focalLengthMm`, `distanceM`, `shutterSeconds`.
+- Never accept an ambiguous physical quantity without a unit.
+- Use the same property name for the same physical concept in every module.
+- Core calculations return plain, serializable data.
+- Public calculation envelopes must not contain `NaN` or numeric infinities. A non-finite computed result fails with `InvalidScientificResultError`; do not rely on JSON coercion.
+- Keep deterministic functions synchronous. Use async only for work that is actually asynchronous.
+- Throw typed domain errors for invalid configurations. Do not silently coerce scientifically invalid values.
+- Public calculation functions and meaningful public contracts need short JSDoc covering purpose, units, assumptions and what the return value means.
+- Do not expose renderer, framework or UI-specific types through calculation APIs.
+- Public configuration interfaces that will cross JSON or other untrusted boundaries should have runtime parsers. TypeScript types alone do not validate anything.
+- Runtime parsers must reject unknown enum and string values instead of falling through to a default meaning.
+- Pick types by their role, and do not reuse a narrower type in the wrong stage. For example, use `RasterDimensions` for generic active/output rasters, and keep `NativeImageRaster` for the native sampling grid.
+- When a physical quantity depends on the axis, keep the axes explicit. Collapse it to a scalar only when the model documents and validates that simplification.
+- After 1.0, preserve backward compatibility unless a documented major version changes the contract.
 
 ## Preferred shape
 
@@ -44,162 +44,170 @@ Avoid one-off positional signatures and inconsistent abbreviations.
 
 ## Coordinate and staged-geometry contracts
 
-Coordinate systems and image-formation stages are part of the API contract, not implementation details.
+Coordinate systems and image-formation stages are part of the API contract. They are not implementation details.
 
-- Native raster coordinates use a top-left origin with +X right and +Y down.
-- Raster rectangles use integer half-open extents.
-- Physical camera rotation does not redefine native sensor coordinates; transform points, vectors, and rectangles explicitly.
-- Physical active capture and later digital/output crop are distinct concepts and should have distinct fields/types.
-- Off-center physical capture must preserve position relative to the optical axis rather than being silently recentered.
-- Crossing between an oriented physical raster region (+Y down) and the pre-orientation optical image plane (+Y up) must use the exported coordinate bridge rather than ad-hoc axis swaps or sign changes.
-- Output resizing/cropping must not imply geometric stretching without an explicit transform or pixel-aspect contract.
-- Conventional 35 mm-equivalent focal length is derived from active physical capture geometry; it must not replace physical focal length or silently include later digital crop.
+- Native raster coordinates have a top-left origin, +X right and +Y down.
+- Raster rectangles use integer, half-open extents.
+- Physical camera rotation does not redefine native sensor coordinates. Transform points, vectors and rectangles explicitly.
+- Physical active capture and a later digital/output crop are different concepts and should have different fields or types.
+- Off-center physical capture must keep its position relative to the optical axis. Do not silently recenter it.
+- To cross between an oriented physical raster region (+Y down) and the pre-orientation optical image plane (+Y up), use the exported coordinate bridge. Do not use ad-hoc axis swaps or sign changes.
+- Output resizing or cropping must not imply geometric stretching unless an explicit transform or pixel-aspect contract says so.
+- Conventional 35 mm-equivalent focal length comes from the active physical capture geometry. It must not replace the physical focal length, and must not silently include a later digital crop.
 
 ## Image-formation ownership contracts
 
-Cross-cutting optical/sensor effects must use the public image-formation contract rather than defining one-off stage ordering in a renderer or downstream app.
+Optical and sensor effects that span several stages must follow the public image-formation contract. A renderer or downstream app must not invent its own stage order.
 
 - Treat `requiredUpstreamStages` as hard scientific dependencies.
-- Treat `coupledStages` as shared scientific state, not an instruction to serialize independent filters.
-- Coordinate spaces are part of the public semantic contract.
-- Time-dependent models use seconds from exposure start as the authoritative temporal coordinate.
-- A reserved stage does not imply an implemented capability.
-- Preview and reference implementations may differ in bounded fidelity but must consume the same engine-owned parameters and semantics.
+- Treat `coupledStages` as shared scientific state. It is not an instruction to run independent filters one after another.
+- Coordinate spaces are part of the public meaning of the contract.
+- Time-dependent models use seconds from exposure start as the authoritative time coordinate.
+- A reserved stage does not mean the capability is implemented.
+- Preview and reference implementations may differ in fidelity, within stated bounds, but must use the same engine-owned parameters and meanings.
 
 ## Result metadata
 
-Primitive public scientific calculation functions return `CalculationResult<T>`, which carries model provenance and optional quality metadata.
+Primitive public scientific calculations return `CalculationResult<T>`. It carries model provenance and optional quality metadata.
 
-Not every public API returns a `CalculationResult<T>`. Parsers return validated configuration values, and the composed `simulatePocCamera()` response exposes component and aggregate provenance directly because it combines many calculation results.
+Not every public API returns a `CalculationResult<T>`:
 
-Optional `quality` metadata is used only when there is defensible accuracy/uncertainty information to report; deterministic analytical results should omit it rather than inventing error bars.
+- Parsers return validated configuration values.
+- The composed `simulatePocCamera()` response combines many calculation results, so it exposes component and aggregate provenance directly.
+
+Use the optional `quality` metadata only when there is defensible accuracy or uncertainty information to report. Deterministic analytical results should leave it out rather than invent error bars.
 
 Quality metadata supports:
 
 - absolute uncertainty with an explicit unit;
 - relative uncertainty as a fractional magnitude;
-- uncertainty source classification: measurement, model approximation, or calibration;
-- optional confidence/coverage level only when its basis can be stated;
-- documented model/calibration valid ranges;
-- concise quality notes.
+- the source of the uncertainty: measurement, model approximation or calibration;
+- an optional confidence/coverage level, only when its basis can be stated;
+- documented model or calibration valid ranges;
+- short quality notes.
 
-Uncertainty entries identify the affected result with a JSON-style `quantityPath` such as `value.distanceM`. Valid ranges identify the relevant parameter with a path such as `input.focusDistanceM`.
+Uncertainty entries name the affected result with a JSON-style `quantityPath`, such as `value.distanceM`. Valid ranges name the relevant parameter with a path such as `input.focusDistanceM`.
 
-Do **not** automatically sum, average, add in quadrature, or otherwise collapse multiple uncertainty components. Combination is permitted only when the implementing model documents the mathematical method plus independence/correlation assumptions. Aggregate simulations should preserve component uncertainty or explicitly state that no combined uncertainty has been calculated.
+Do **not** automatically sum, average, add in quadrature, or otherwise collapse several uncertainty components. Combine them only when the model documents the mathematical method and its independence/correlation assumptions. Aggregate simulations should keep the component uncertainties, or state clearly that no combined uncertainty was calculated.
 
 ## Versioning
 
-From 1.0.1, Photivra aligns its release and root API identities:
+From 1.0.1, Photivra's release version and root API version are the same:
 
-- npm/package version: distribution/release version;
+- npm/package version: the distribution (release) version;
 - `ENGINE_API_VERSION`: the same full version as the npm package;
-- `POC_SIMULATION_API_VERSION`: composed `simulatePocCamera()` request/response contract;
-- schema-specific versions such as sensor-architecture or radiometry-readiness schemas.
+- `POC_SIMULATION_API_VERSION`: the request/response contract of the composed `simulatePocCamera()`;
+- schema-specific versions, such as the sensor-architecture or radiometry-readiness schemas.
 
-The release checker enforces package/root equality. Subsystem, schema and POC versions remain independent. A change to a parser/schema does not necessarily require changing the POC contract, and a POC response change does not necessarily mean the npm package has been released.
+The release checker enforces that the package and root versions are equal. Subsystem, schema and POC versions stay independent:
 
-Before 1.0, public APIs may evolve with documented changes. Breaking or semantically meaningful contract changes must update the relevant version surface, tests, changelog, and migration/compatibility documentation. After 1.0, breaking public-contract changes require an appropriate major-version transition.
+- A parser or schema change does not necessarily change the POC contract.
+- A POC response change does not necessarily mean a new npm package was released.
 
-For the browser-first dense-pupil qualification lane, a changed numerical method is governed by the [Path-B adoption and version gate](BROWSER_NATIVE_CAPTURE_PATH_B_ADOPTION.md). A scientifically meaningful method change can require version/migration treatment even when TypeScript signatures remain unchanged. Exact implementation optimization of the same committed Path-A discrete calculation does not become a new method merely because execution structure changes.
+Before 1.0, public APIs could change with documented notes. A breaking or meaningful contract change must update the relevant version number, tests, changelog, and migration/compatibility docs. After 1.0, a breaking public-contract change needs a major-version step.
+
+For browser-first dense-pupil native capture, a changed numerical method is governed by the [Path-B adoption and version gate](BROWSER_NATIVE_CAPTURE_PATH_B_ADOPTION.md). A scientifically meaningful method change can need version and migration handling even when the TypeScript signatures stay the same. An exact optimization of the same committed Path-A discrete calculation is not a new method just because the execution structure changed.
 
 
 ## Public function verb families
 
-Use the established verb family that matches the operation's semantics. Do not invent a new synonym when one of these already fits.
+Use the existing verb family that matches what the operation does. Do not invent a new synonym when one of these already fits.
 
-- `calculate*` — deterministic scientific/numeric calculation.
-- `estimate*` — explicit approximation/estimate.
-- `parse*` — validate and normalize a versioned/untrusted configuration boundary.
-- `validate*` — assert/check validity without changing semantic identity.
-- `resolve*` — derive one deterministic semantic state from already-defined inputs/profiles.
-- `assess*` — produce a compatibility/readiness/applicability assessment, including structured blockers.
-- `create*` — construct a new semantic record/snapshot/manifest whose identity is part of the contract.
-- `prepare*` — validate/canonicalize relatively static context for repeated later evaluation. Prepared state must own immutable validated dependencies and define reuse/invalidation; preparation is not permission to cache request-dependent scientific results. See the [browser-native prepared-state contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md) for the #224/#233 qualification lane.
-- `serialize*` — convert an authoritative semantic value to its documented deterministic serialized representation.
-- `compose*` — combine multiple independently meaningful inputs/stages into a higher-level semantic result.
-- `integrate*` / `reduce*` — mathematically aggregate explicit measures/samples under a documented model.
-- `distribute*` — allocate an integrated quantity across explicitly normalized fractions while preserving its quantity domain; this does not create a continuous density from discrete spectral lines.
-- `evaluate*` / `meter*` — evaluate a declared model/policy against current scene/capture data.
-- `map*` / `transform*` — coordinate/domain transformation with explicit source/destination semantics.
-- `bind*` — attach one already-defined result/state to another authoritative context without re-solving it.
-- `set*` — return an updated immutable semantic value for a narrowly defined state-setting operation.
-- `get*` — return a descriptive/static contract owned by the engine.
-- `simulate*` — intentionally composed simulation/orchestration API.
+- `calculate*` — deterministic scientific or numeric calculation.
+- `estimate*` — explicit approximation or estimate.
+- `parse*` — validate and normalize a versioned or untrusted configuration boundary.
+- `validate*` — check validity without changing the value's meaning or identity.
+- `resolve*` — derive one deterministic state from inputs and profiles that are already defined.
+- `assess*` — produce a compatibility, readiness or applicability assessment, including structured blockers.
+- `create*` — build a new record, snapshot or manifest whose identity is part of the contract.
+- `prepare*` — validate and canonicalize fairly static context for repeated later use. Prepared state must own its immutable validated dependencies and define when it can be reused and when it becomes invalid. Preparing is not permission to cache results that depend on the request. See the [browser-native prepared-state contract](BROWSER_NATIVE_CAPTURE_PREPARED_STATE.md) (issues #224/#233).
+- `serialize*` — convert an authoritative value to its documented, deterministic serialized form.
+- `compose*` — combine several independently meaningful inputs or stages into a higher-level result.
+- `integrate*` / `reduce*` — mathematically aggregate explicit measures or samples under a documented model.
+- `distribute*` — split an integrated quantity across explicitly normalized fractions, keeping its quantity domain. This does not create a continuous density from discrete spectral lines.
+- `evaluate*` / `meter*` — evaluate a declared model or policy against current scene or capture data.
+- `map*` / `transform*` — coordinate or domain transformation with explicit source and destination meanings.
+- `bind*` — attach a result or state that is already defined to another authoritative context, without solving it again.
+- `set*` — return an updated immutable value for a narrowly defined state-setting operation.
+- `get*` — return a descriptive or static contract owned by the engine.
+- `simulate*` — deliberately composed simulation or orchestration API.
 
-Existing result factories `calculatedResult`, `estimatedResult`, `approximationResult`, and `calibratedResult` are documented core helpers rather than new public verb families.
+The existing result factories `calculatedResult`, `estimatedResult`, `approximationResult` and `calibratedResult` are documented core helpers, not new verb families.
 
-A new verb family requires a concrete semantic distinction from the existing set and a documentation/update review.
+A new verb family needs a concrete difference in meaning from the existing set, and a documentation review.
 
 ## Input and return-shape consistency
 
-Choose API shape from semantic role, not module history.
+Choose an API's shape from its role, not from the module's history.
 
-- Public scientific calculations with multiple inputs accept one typed input object.
-- Parsers accept one value/configuration and return the validated semantic value or throw the appropriate typed/domain error.
-- Compatibility/readiness assessments should return structured blockers for scientifically incomplete-but-well-formed requests instead of converting every blocker into an exception.
-- Malformed schema/numeric input should fail fast with the established typed/domain error.
-- Calculations normally return `CalculationResult<T>`; do not wrap parsers merely to make every function look identical.
-- Immutable snapshots/plans/manifests may use their own versioned record contracts when provenance, identity, or serialization semantics require them.
-- Do not create module-specific aliases for shared concepts such as evidence, uncertainty, coordinate spaces, ranges, or scientific status unless the domain meaning actually differs.
+- Public scientific calculations with several inputs take one typed input object.
+- Parsers take one value or configuration and return the validated value, or throw the right typed domain error.
+- Compatibility and readiness assessments should return structured blockers for requests that are well-formed but scientifically incomplete. Do not turn every blocker into an exception.
+- Malformed schema or numeric input should fail fast with the established typed domain error.
+- Calculations normally return `CalculationResult<T>`. Do not wrap parsers just to make every function look the same.
+- Immutable snapshots, plans and manifests may use their own versioned record contracts when provenance, identity or serialization requires it.
+- Do not create module-specific aliases for shared concepts such as evidence, uncertainty, coordinate spaces, ranges or scientific status, unless the domain meaning really differs.
 
-Consistency must never erase a meaningful scientific distinction.
+Consistency must never erase a meaningful scientific difference.
 
-From package 2.0.0 every root function rejects a `null`, primitive or array argument where it requires an input object, and a missing required sub-object, with the domain `InvalidConfigurationError` rather than a raw `TypeError` from a property read (shared guards in `src/core/record-validation.ts`; `test/root-export-input-errors.test.ts` calls every root function with `null`, `undefined`, `{}`, `42`, `"x"` and `[]`). The simple scalar calculators (field of view, equivalent focal length, projected object size, thin lens, depth of field, defocus, equivalent-viewing circle of confusion, Airy disk, ideal aperture, pixel pitch, the exposure primitives and the all-numeric colorimetry calculators: Planckian radiance and locus chromaticity, HLG system gamma, BT.1886 and HLG display preparation) also reject unknown input fields, so a wrong-unit or misspelled field such as `focusDistanceMm` beside `focusDistanceM` fails instead of being ignored. `serializeProductionImageFormationPlan()` checks the plan version and recomputed fingerprint before serializing.
+From package 2.0.0, input errors are reported consistently:
+
+- Every root function that needs an input object rejects a `null`, primitive or array argument, and a missing required sub-object, with the domain `InvalidConfigurationError`. It no longer throws a raw `TypeError` from a property read. The shared guards are in `src/core/record-validation.ts`. `test/root-export-input-errors.test.ts` calls every root function with `null`, `undefined`, `{}`, `42`, `"x"` and `[]`.
+- The simple scalar calculators also reject unknown input fields. A wrong-unit or misspelled field, such as `focusDistanceMm` next to `focusDistanceM`, now fails instead of being ignored. These calculators are: field of view, equivalent focal length, projected object size, thin lens, depth of field, defocus, equivalent-viewing circle of confusion, Airy disk, ideal aperture, pixel pitch, the exposure primitives, and the all-numeric colorimetry calculators (Planckian radiance and locus chromaticity, HLG system gamma, BT.1886 and HLG display preparation).
+- `serializeProductionImageFormationPlan()` checks the plan version and the recomputed fingerprint before serializing.
 
 ### Naming conventions
 
-Existing field names are stable contracts and are not renamed for uniformity; new fields follow these suffix rules, which describe current usage:
+Existing field names are stable contracts and are not renamed for uniformity. New fields follow these suffix rules, which describe current usage:
 
 - A unit suffix names the public unit: `Mm` (millimetres), `M` (metres), `Micrometers`, `Seconds`, `Degrees`, `Rad` (radians), `RadPerSec`, `Mps` (metres per second), `Hz`, `Pixels`.
-- Wavelengths use `Nanometers` in spectral profiles, curves and samples (`wavelengthNanometers`) and the short `Nm` in scalar calculator inputs (`wavelengthNm`); both mean nanometres. Prefer `Nanometers` for new data records and `Nm` only beside existing scalar inputs.
-- Raster sizes use `pixelWidth`/`pixelHeight` on raster records, `widthPixels`/`heightPixels` for derived projected sizes measured in pixels, and bare `width`/`height` only inside integer raster rectangles (`{ x, y, width, height }`) whose coordinate space is named by the enclosing field.
-- Dimensionless factors, fractions, counts and codes carry no unit suffix; their meaning and range are documented on the field.
+- Wavelengths use `Nanometers` in spectral profiles, curves and samples (`wavelengthNanometers`), and the short `Nm` in scalar calculator inputs (`wavelengthNm`). Both mean nanometres. Prefer `Nanometers` for new data records; use `Nm` only next to existing scalar inputs.
+- Raster sizes use `pixelWidth`/`pixelHeight` on raster records, and `widthPixels`/`heightPixels` for derived projected sizes measured in pixels. Use bare `width`/`height` only inside integer raster rectangles (`{ x, y, width, height }`) whose coordinate space is named by the enclosing field.
+- Dimensionless factors, fractions, counts and codes have no unit suffix. Their meaning and range are documented on the field.
 
-Internal immutable-data mechanics are shared through `src/core/owned-data.ts`.
-Capture, RAW attachment/reconstruction, export metadata and equipment presets use
-its child-first freeze helper only on their owned plain-data trees. Each domain
-keeps its own validation and copy boundary; freezing is not parsing or cloning.
-Already-frozen parents still require descendant traversal in this helper. The
-production planner, focus and release helpers retain their distinct early-return
-behavior for already-frozen objects. This internal module is not a root export.
+Internal helpers for immutable data live in `src/core/owned-data.ts`. This module is not a root export.
 
-`src/core/canonical-json.ts` shares sorted-key finite-JSON mechanics while each
-caller supplies its existing omission and error policy. Production-plan records
-omit undefined object properties; capture comparison and export hashing reject
-them. Array order and JSON number/string representation are preserved. Planner
-FNV-1a fingerprints and export SHA-256 hashes remain separate identity contracts;
-the helper neither selects a hash nor changes either contract. Capture's public
-serialization keeps its existing validated JSON.stringify representation.
+- Capture, RAW attachment and reconstruction, export metadata and equipment presets use its child-first freeze helper, and only on plain-data trees they own.
+- Each domain keeps its own validation and copy boundary. Freezing is not parsing, and it is not cloning.
+- In this helper, a parent that is already frozen still has its descendants walked.
+- The production planner, focus and release helpers keep their own behaviour: they return early for objects that are already frozen.
+
+`src/core/canonical-json.ts` holds the shared code for sorted-key, finite-only JSON. Each caller keeps its own policy for omitted values and errors:
+
+- Production-plan records omit undefined object properties. Capture comparison and export hashing reject them.
+- Array order, and the JSON representation of numbers and strings, are preserved.
+- Planner FNV-1a fingerprints and export SHA-256 hashes stay separate identity contracts. The helper does not pick a hash and does not change either contract.
+- Capture's public serialization keeps its existing validated `JSON.stringify` representation.
 
 ## Compatibility and deprecation policy
 
-The package and root API share a release version. Update independent schema/model/POC versions only when their observable contracts change.
+The package and the root API share a release version. Update independent schema, model or POC versions only when their observable contracts change.
 
 ### Package version
 
-The npm package version identifies a published distribution. It is not a proxy for every internal/public contract version.
+The npm package version identifies a published distribution. It does not stand in for every internal or public contract version.
 
 ### `ENGINE_API_VERSION`
 
-Set to the npm package version for every release, including patches. New records use this creator identity; parsers preserve historical archive identities.
+Set to the npm package version for every release, including patches. New records use this as their creator identity. Parsers keep the identities of historical archives.
 
 ### Subsystem/schema versions
 
-Versioned schemas, production-plan contracts, POC contracts, and similar surfaces own their own versions. A change to one does not automatically bump unrelated contracts.
+Versioned schemas, production-plan contracts, POC contracts and similar surfaces own their own versions. A change to one does not automatically bump unrelated contracts.
 
 ### Before package 1.0
 
-The project may make breaking public changes when the scientific/architectural benefit justifies them, but such a change must:
+The project could make breaking public changes when the scientific or architectural benefit justified them. Such a change had to:
 
-- be intentional rather than incidental;
-- update the relevant API/schema/contract version;
+- be intentional, not incidental;
+- update the relevant API, schema or contract version;
 - update tests and public documentation;
-- describe migration/compatibility impact;
-- avoid silently reinterpreting previously valid serialized data.
+- describe the migration and compatibility impact;
+- avoid silently reinterpreting serialized data that was previously valid.
 
 ### After package 1.0
 
-Breaking root-package public-contract changes require the normal SemVer major-version process. Independently versioned schema/contract changes still follow their own documented compatibility rules.
+Breaking changes to the root package's public contract follow the normal SemVer major-version process. Independently versioned schemas and contracts still follow their own documented compatibility rules.
 
 ### Deprecation
 
@@ -207,42 +215,42 @@ When practical, prefer an additive migration period:
 
 1. introduce the replacement contract;
 2. document the migration;
-3. keep old behavior stable long enough for deliberate downstream migration;
-4. remove only through the appropriate breaking/versioned change.
+3. keep the old behaviour stable long enough for downstream users to migrate deliberately;
+4. remove it only through the appropriate breaking, versioned change.
 
-Do not keep an unsafe or scientifically false API solely to avoid a breaking change. Correctness remains the higher priority, but the break must be explicit.
+Do not keep an unsafe or scientifically false API just to avoid a breaking change. Correctness comes first, but the break must be explicit.
 
 ## Compatibility guard tests
 
-The repository should maintain representative compatibility sentinels rather than freezing every pre-1.0 export forever.
+The repository keeps a representative set of compatibility sentinel tests, instead of freezing every pre-1.0 export forever.
 
 Sentinels should cover:
 
-- root engine and composed POC version surfaces;
-- representative `calculate`, `parse`, composition, and simulation APIs;
+- the root engine and composed POC version numbers;
+- representative `calculate`, `parse`, composition and simulation APIs;
 - public function naming conventions;
-- typed error/result semantics where relevant.
+- typed error and result behaviour where relevant.
 
-Adding a legitimate new API may require extending the naming test. Removing or renaming a sentinel requires explicit compatibility/version review.
+Adding a legitimate new API may mean extending the naming test. Removing or renaming a sentinel needs an explicit compatibility and version review.
 
 ## OpenSource V1 API consistency audit
 
-The OpenSource V1 audit treats the existing engine conventions as the baseline rather than redesigning stable APIs.
+The OpenSource V1 audit takes the existing engine conventions as the baseline. It does not redesign stable APIs.
 
-The root runtime surface currently uses the documented verb families above, with the four result-factory helpers as explicit exceptions. Future OpenSource V1 work should follow these conventions at implementation time.
+The root runtime surface uses the verb families listed above. The four result-factory helpers are the explicit exceptions. Future OpenSource V1 work should follow these conventions when it is implemented.
 
 Audit rule:
 
-- preserve scientifically meaningful existing differences;
-- normalize accidental naming/shape drift when low risk;
-- do not perform broad cosmetic refactors solely for symmetry;
-- record/document any intentional exception;
-- keep private-app conventions from becoming public-engine contracts by accident.
+- keep existing differences that are scientifically meaningful;
+- fix accidental naming or shape drift when the risk is low;
+- do not do broad cosmetic refactors just for symmetry;
+- record and document any intentional exception;
+- do not let private-app conventions become public-engine contracts by accident.
 
 ## Stable 1.0 distribution transition
 
-Historically, package 1.0.0 retained `ENGINE_API_VERSION = "0.116.0"`: this independent root contract identity is already embedded in serialized captures and does not itself signal a published distribution. The package 1.0 policy now governs breaking changes despite that historical root ID. No schema/model/POC/plan version is reset. See [migration and release procedure](RELEASE_1_0.md).
+Historically, package 1.0.0 kept `ENGINE_API_VERSION = "0.116.0"`. That independent root contract identity was already embedded in serialized captures, and on its own it did not signal a published distribution. The package 1.0 policy governs breaking changes despite that historical root ID. No schema, model, POC or plan version was reset. See [migration and release procedure](RELEASE_1_0.md).
 
 ## Aligned 1.0.1 release transition
 
-Starting with 1.0.1, `ENGINE_API_VERSION` equals the full npm package version. Package and root API follow one SemVer release sequence; schema/model/POC/plan versions remain independent. Archived capture identities and measured artifacts are preserved. Newly created capture/plan bytes and identity hashes can change because their creator API field now records 1.0.1. See [migration and release procedure](RELEASE_1_0_1.md).
+Starting with 1.0.1, `ENGINE_API_VERSION` equals the full npm package version. The package and the root API follow one SemVer release sequence. Schema, model, POC and plan versions stay independent. Archived capture identities and measured artifacts are preserved. Newly created capture and plan bytes, and their identity hashes, can change, because their creator-API field now records 1.0.1. See [migration and release procedure](RELEASE_1_0_1.md).

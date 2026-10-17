@@ -29,7 +29,7 @@ export interface CalculateMechanicalVignettingInput {
   fieldAzimuthDegrees: number;
   /** One through eight clipping apertures. */
   apertures: readonly MechanicalVignettingAperture[];
-  /** Boundary samples per circle for the polygon, 16 through 4096 (default 256). */
+  /** Boundary samples per circle for the polygon, from 16 to 4096 (default 256). */
   boundarySamplesPerCircle?: number;
 }
 ```
@@ -71,7 +71,7 @@ export interface MechanicalVignetting {
   fieldAngleDegrees: number;
   fieldAzimuthDegrees: number;
   entrancePupilAreaSquareMm: number;
-  /** Exact open area for a single aperture; polygon area otherwise, mm^2. */
+  /** Open area in mm^2. Exact for a single aperture; the polygon area otherwise. */
   openAreaSquareMm: number;
   areaMethod: "exact-circle-circle-intersection" | "boundary-polygon";
   /** Open area / unclipped pupil area, in [0, 1]. */
@@ -96,8 +96,8 @@ export interface MechanicalVignettingAperture {
   /** Aperture radius referred to the entrance-pupil plane, mm. */
   radiusMm: number;
   /**
-   * Signed displacement of the aperture's projected centre per unit tan(field angle), mm, along
-   * the field azimuth (positive = toward the field point direction).
+   * Signed shift of the aperture's projected centre per unit tan(field angle), in mm, along the
+   * field azimuth. Positive means toward the field point.
    */
   shiftPerTanFieldMm: number;
 }
