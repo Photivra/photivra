@@ -84,8 +84,9 @@ Focus breathing derived from ideal focusing geometry, instead of a declared scal
   plane at v = f_infinity and shortens its focal length to f' = u v / (u + v). The angular field
   at the rear nodal point then stays the same, and the magnification is f_infinity / u.
 Both use paraxial Gaussian optics with the nodal points at the principal planes (unit pupil
-magnification; Kingslake & Johnson, Lens Design Fundamentals, 2nd ed., ch. 3; Ray, Applied
-Photographic Optics, 3rd ed., ch. 9 and 14). Real internal-focus lenses also move their pupils and
+magnification; Greivenkamp, OPTI-502 course notes, University of Arizona, sec. 3 and 5, free. Also
+see: Kingslake & Johnson, Lens Design Fundamentals, 2nd ed., ch. 3; Ray, Applied Photographic
+Optics, 3rd ed., ch. 9 and 14). Real internal-focus lenses also move their pupils and
 principal planes, so modelling their breathing needs a calibrated profile.
 
 ```ts

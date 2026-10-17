@@ -96,6 +96,8 @@ p(d) = (d · N / (GN_full · √(ISO/100)))²,  clamped to [p_min, 1]
 
 **Sources.** ISO 2827 (paid; no free equivalent found) specifies how a guide number is measured. Jacobson et al., *The Manual of Photography*, and Ray, *Applied Photographic Optics*, give the relation.
 
+**Free sources.** No free source was found that states GN = d·N directly. Both of its parts are freely sourced: the inverse-square law for the illuminance from a lamp ([NIST SP 250-37](https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication250-37.pdf)) and the camera equation, image irradiance ∝ L/(f/#)² (Greivenkamp, [OPTI-502 course notes, sec. 11](https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-11-Radiative-Transfer.pdf)). The two books above are kept as "also see".
+
 **Functions.** `calculateFlashGuideNumber()` and `calculateFlashPowerForDistance()` implement it. The second also reports whether the power was clamped, the error in stops (delivered minus required), and the full-power range `GN/N`.
 
 ### TTL with a pre-flash
@@ -177,7 +179,9 @@ Because a quantile is not a linear average, `highlight-priority` is rejected by 
 **References** (published methods only; nothing copied):
 
 - ISO 2827, *Photography — Electronic flash equipment — Determination of exposure guide number*.
-- R. E. Jacobson, S. F. Ray, G. G. Attridge and N. R. Axford, *The Manual of Photography*, 9th ed., Focal Press, 2000.
-- S. F. Ray, *Applied Photographic Optics*, 3rd ed., Focal Press, 2002.
+- Y. Ohno, *NIST Measurement Services: Photometric Calibrations*, NIST SP 250-37, 1997, free at <https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication250-37.pdf> (inverse-square law).
+- J. E. Greivenkamp, *OPTI-502 Optical Design and Instrumentation I*, sec. 11, University of Arizona, 2019, free at <https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-11-Radiative-Transfer.pdf> (camera equation).
+- Also see: R. E. Jacobson, S. F. Ray, G. G. Attridge and N. R. Axford, *The Manual of Photography*, 9th ed., Focal Press, 2000.
+- Also see: S. F. Ray, *Applied Photographic Optics*, 3rd ed., Focal Press, 2002.
 - R. J. Hyndman and Y. Fan, "Sample quantiles in statistical packages", *The American Statistician* 50(4), 1996.
 - ISO 12232:2019 (saturation-based speed; paid, no free equivalent found).

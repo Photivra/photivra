@@ -10,9 +10,10 @@
  * Natural vignetting (relative illumination of an aberration-free system with a uniform Lambertian
  * exit pupil):
  * - cosine-fourth: E(theta) / E(0) = cos^4(theta), theta the image-space chief-ray angle with
- *   tan(theta) = h / z for image height h and exit-pupil distance z (Slater 1980 Photographic
- *   Systems for Engineers; Kingslake, Lens Design Fundamentals, 2nd ed., sec. 6.5; Ray, Applied
- *   Photographic Optics, 3rd ed., sec. 12). It is the small-pupil limit of the next model.
+ *   tan(theta) = h / z for image height h and exit-pupil distance z (Greivenkamp, OPTI-502 course
+ *   notes, University of Arizona, sec. 11, free. Also see: Slater 1980 Photographic Systems for
+ *   Engineers; Kingslake, Lens Design Fundamentals, 2nd ed., sec. 6.5; Ray, Applied Photographic
+ *   Optics, 3rd ed., sec. 12). It is the small-pupil limit of the next model.
  * - finite-lambertian-pupil: exact irradiance from a uniform Lambertian disk of radius a at distance z
  *   onto a parallel plane at lateral offset h (Foote 1915, Bull. Bureau of Standards 12:583):
  *   E = (pi L / 2) [1 - (z^2 + h^2 - a^2) / sqrt((z^2 + h^2 + a^2)^2 - 4 a^2 h^2)],
@@ -23,8 +24,11 @@
  * - At field angle theta, each clipping aperture (a lens barrel or element rim, referred to the
  *   entrance-pupil plane) appears as a circle of its declared radius. The circle is shifted by
  *   shiftPerTanFieldMm * tan(theta) along the field azimuth.
- * - The open pupil is where the entrance-pupil circle overlaps every shifted circle (Kingslake, Lens
- *   Design Fundamentals, sec. 6.4; Smith, Modern Optical Engineering, 4th ed., sec. 6.3).
+ * - The open pupil is where the entrance-pupil circle overlaps every shifted circle. Off axis, the
+ *   bundle stays circular and centred on the chief ray, and an aperture passes only the part of it
+ *   that it covers (Greivenkamp, OPTI-502 course notes, University of Arizona, sec. 10, free. Also
+ *   see: Kingslake, Lens Design Fundamentals, sec. 6.4; Smith, Modern Optical Engineering, 4th ed.,
+ *   sec. 6.3).
  * - With one aperture, the area is the exact area of the two-circle overlap.
  * - With any number of apertures, the exact convex boundary is also returned, sampled as a polygon
  *   in pupil-plane mm (+X right, +Y up). Use it as a polygon pupil for

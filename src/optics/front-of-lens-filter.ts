@@ -10,8 +10,9 @@
  * Schema 0.2.0 adds one polarizing kind: a linear (partial) polarizer. It has a principal
  * transmittance k1, an extinction ratio k1/k2 and a transmission-axis angle. Polarization is carried
  * as linear Stokes parameters (S0, S1, S2). Filters are applied in order using the Mueller matrix of
- * a linear diattenuator (Chipman, Handbook of Optics vol. I ch. 22, 3rd ed., 2010; Goldstein,
- * Polarized Light, 3rd ed., ch. 4-5; Born & Wolf, Principles of Optics, sec. 1.4.2):
+ * a linear diattenuator (Gil, arXiv:2002.04105, eqs. 134-135, free; Malus's law: OpenStax University
+ * Physics Vol. 3, sec. 1.7, free. Also see: Chipman, Handbook of Optics vol. I ch. 22, 3rd ed., 2010;
+ * Goldstein, Polarized Light, 3rd ed., ch. 4-5; Born & Wolf, Principles of Optics, sec. 1.4.2):
  *   T = (k1 + k2)/2 + (k1 - k2)/2 * P * cos(2 (psi - theta))
  * Here P is the incident light's degree of linear polarization, psi its polarization angle and theta
  * the filter axis angle.

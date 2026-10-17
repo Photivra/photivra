@@ -1525,8 +1525,10 @@ export function samplePoisson(
   ) {
     // Above 1e9 the log-probability terms of the rejection test reach about 1e10 and cancel badly
     // (variance/mean is 1.012 at 1e14). Here the continuity-corrected normal approximation has a
-    // relative skewness error of 1/sqrt(mean) <= 3.2e-5 (Johnson, Kemp & Kotz, Univariate Discrete
-    // Distributions, 3rd ed., section 4.4).
+    // relative skewness error of 1/sqrt(mean) <= 3.2e-5 (Poisson skewness 1/sqrt(mean): NIST/SEMATECH
+    // e-Handbook of Statistical Methods, sec. 1.3.6.6.19, free; normal approximation with continuity
+    // correction: SOCR, University of Michigan, free. Also see: Johnson, Kemp & Kotz, Univariate
+    // Discrete Distributions, 3rd ed., section 4.4).
     return Math.max(
       0,
       Math.floor(

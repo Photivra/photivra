@@ -389,7 +389,7 @@ The thermal dark-current contract stays a population mean (`spatialDarkCurrentNo
 
 ### Dark-current temperature interpolation
 
-Thermally generated dark current rises roughly exponentially with temperature. This is Arrhenius behaviour, often summarised as doubling every few kelvin (Janesick, *Photon Transfer*, SPIE 2007; EMVA 1288 Release 4.0 dark-current temperature dependence).
+Thermally generated dark current rises roughly exponentially with temperature. This is Arrhenius behaviour, often summarised as doubling every few kelvin ([EMVA 1288 Release 4.0 Linear](https://www.emva.org/wp-content/uploads/EMVA1288Linear_4.0Release.pdf), §3.2, free. Also see: Janesick, *Photon Transfer*, SPIE 2007).
 
 The `log-linear-temperature-table` model interpolates ln(rate) linearly between neighbouring declared samples: r = r₀·(r₁/r₀)^α. Each interval follows its own two samples, and no single global doubling temperature is imposed. Rates must be positive, and extrapolation still fails closed.
 
@@ -421,10 +421,11 @@ References for the 2.0.0 readout additions (cited as published methods; no text,
 
 - CIPA DC-004-Translation-2020, *Sensitivity of Digital Cameras*, free at <https://www.cipa.jp/e/std/std-sec.html> (also ISO 12232:2019, *Photography — Digital still cameras — Determination of exposure index, ISO speed ratings, standard output sensitivity, and recommended exposure index*).
 - EMVA Standard 1288 Release 4.0, *Standard for Characterization of Image Sensors and Cameras* (linear model, PRNU, DSNU, linearity, dark current).
-- J. R. Janesick, *Photon Transfer*, SPIE Press, 2007.
+- Also see: J. R. Janesick, *Photon Transfer*, SPIE Press, 2007.
 - W. Hörmann, "The transformed rejection method for generating Poisson random variables", *Insurance: Mathematics and Economics* 12 (1993).
 - G. E. P. Box and M. E. Muller, "A note on the generation of random normal deviates", *Ann. Math. Statist.* 29 (1958).
-- N. L. Johnson, A. W. Kemp and S. Kotz, *Univariate Discrete Distributions*, 3rd ed., Wiley, 2005 (normal approximation to the Poisson distribution).
+- Poisson skewness 1/√μ: NIST/SEMATECH *e-Handbook of Statistical Methods*, §1.3.6.6.19, free at <https://www.itl.nist.gov/div898/handbook/eda/section3/eda366j.htm>. Normal approximation with continuity correction: SOCR, University of Michigan, free at <https://wiki.socr.umich.edu/index.php/AP_Statistics_Curriculum_2007_Limits_Norm2Poisson>.
+- Also see: N. L. Johnson, A. W. Kemp and S. Kotz, *Univariate Discrete Distributions*, 3rd ed., Wiley, 2005 (normal approximation to the Poisson distribution).
 
 References for the 2.0.0 rolling-shutter and video additions (published methods only; no code, text or data copied):
 

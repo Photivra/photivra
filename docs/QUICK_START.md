@@ -266,7 +266,8 @@ console.log(hdr.image.samples instanceof Uint16Array, hdr.assumptions.find((a) =
 
 - CIELAB L* and hue are held.
 - Chroma above 90 % of the gamut-boundary chroma is compressed with a smooth knee that never reaches
-  the boundary (Morovič 2008).
+  the boundary (constant-lightness, constant-hue chroma reduction as in W3C CSS Color 4 §13, free; also
+  see Morovič 2008).
 - Hue is kept, whereas a component clip shifts it. The cost: saturated in-gamut colours above the knee
   lose a little chroma, and CIELAB hue drifts for saturated blues.
 - `"clip"` (the default) leaves the output exactly as before.
@@ -467,7 +468,8 @@ provided, for rights reasons.
 - IEC 61966-2-1:1999 (sRGB); SMPTE EG 432-1:2010 (P3 primaries); ITU-R BT.2020-2; ITU-R BT.2100-3
   (PQ and HLG); SMPTE ST 2084; ITU-R BT.2408 (HDR reference white); SMPTE RP 177 (matrices from
   primaries); ITU-T H.273 (cICP code points); W3C PNG Specification, Third Edition (2025).
-- Adobe DNG Specification 1.7.1.0 (2023); J. Morovič, *Color Gamut Mapping*, Wiley 2008, §10.
+- Adobe DNG Specification 1.7.1.0 (2023); W3C CSS Color Module Level 4 §13 (free). Also see: J. Morovič,
+  *Color Gamut Mapping*, Wiley 2008, §10.
 - H. S. Malvar, L.-W. He, R. Cutler, "High-quality linear interpolation for demosaicing of
   Bayer-patterned color images", *Proc. IEEE ICASSP* 2004.
 - K. Miyamoto, "Fish eye lens", *JOSA* 54, 1964; J. Kannala, S. Brandt, *IEEE TPAMI* 28, 2006
