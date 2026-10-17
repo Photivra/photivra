@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Creates a deterministic renderer/reference consumption view over one finalized semantic production
- * plan. The consumer role changes execution responsibility only. It does not alter scientific
- * stage/effect identity, temporal sample count, seeds, or physical results.
- * @see docs/PRODUCTION_COMPOSITION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * A deterministic view of one finished production plan, for a renderer or a reference consumer.
+ *
+ * The consumer role only changes who is responsible for executing. It does not change the scientific
+ * stages or effects, the number of time samples, the seeds or any physical result.
+ * @see docs/PRODUCTION_COMPOSITION.md for the equations, units, coordinate conventions, known
+ * blockers and support limits.
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -55,7 +56,7 @@ export interface ProductionPlanConsumerManifest {
     }[];
   blockers:
     readonly ProductionImageFormationBlocker[];
-  /** Same immutable executed RAW and output results; consumers cannot re-render a different source. */
+  /** The same immutable RAW and output results that ran. A consumer cannot re-render from a different source. */
   environmentCaptureResult?: ProductionImageFormationPlan["environmentCaptureResult"];
   processedOutputResult?: ProductionImageFormationPlan["processedOutputResult"];
   physicalSceneToSensorResult:
@@ -120,12 +121,12 @@ function requirePlan(
 }
 
 /**
- * Creates a deterministic renderer/reference consumption view over one
- * finalized semantic production plan.
+ * Creates a deterministic view of one finished production plan, for a renderer
+ * or a reference consumer.
  *
- * The consumer role changes execution responsibility only. It does not alter
- * scientific stage/effect identity, temporal sample count, seeds, or physical
- * results.
+ * The consumer role only changes who is responsible for executing. It does not
+ * change the scientific stages or effects, the number of time samples, the
+ * seeds or any physical result.
  */
 export function createProductionPlanConsumerManifest(
   input:
