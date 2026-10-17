@@ -1,47 +1,33 @@
 # Irradiance to stationary EQE local exposure
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+> **Release context.** This page was written for package 1.2.0 (root API 1.2.0) and has not been re-reviewed for later releases. The [changelog](../CHANGELOG.md) describes the current release. Model and subsystem version numbers on this page, and any dated records, are separate from the package version. See also the [developer guide](DEVELOPERS.md) and the [1.2.0 release contract](RELEASE_1_2_0.md).
 
-`calculateSensorEqeLocalExposure()` is a bounded sensor-layer composition. It
-accepts explicit physical spectral irradiance samples in **W/m²/nm**, not RGB,
-and returns a photoelectron expectation suitable for the existing accumulated
-charge and RAW producer. It does not establish scene/optics origin, execute a
-renderer, or activate reserved production stages.
+`calculateSensorEqeLocalExposure()` turns light falling on one sensor site into an expected number of photoelectrons, assuming the light is constant during the exposure (stationary). EQE means external quantum efficiency: the fraction of incident photons that become electrons.
+
+- **Input:** explicit physical spectral irradiance samples in **W/m²/nm**, not RGB.
+- **Output:** a photoelectron expectation that the existing accumulated-charge step and RAW producer can use.
+- It does not establish where the scene or optics data came from, does not run a renderer, and does not turn on reserved production stages.
 
 ## Input ownership and order
 
-The caller supplies `colorSamplingProfile`, `spectralResponseProfile`,
-`spatialSampling`, `spectralSampling`, `irradianceSamples`,
-`responseApplication`, `operatingRangeProfile`, `localExposure`, and
-`stationarityProfile`. Optional `airPhotonEnergyContext` retains the EQE API's
-explicit air-to-vacuum photon-energy requirements; vacuum wavelengths need none.
+**Inputs.** The caller supplies `colorSamplingProfile`, `spectralResponseProfile`, `spatialSampling`, `spectralSampling`, `irradianceSamples`, `responseApplication`, `operatingRangeProfile`, `localExposure` and `stationarityProfile`.
 
-The adapter delegates in this order:
+The optional `airPhotonEnergyContext` keeps the EQE API's explicit requirements for converting air wavelengths to vacuum for photon energy. Vacuum wavelengths need none.
 
-1. Spatial midpoint/AA quadrature uses the supplied local timing's native raster
-   and binding profile, plus the explicit physical imaging area/aperture/lattice.
-2. Spectral midpoint quadrature checks response support and requested wavelength
-   measure. The caller must separately establish scene/optics spectral coverage.
-3. Reduction requires one identified irradiance value for every Cartesian node.
-   Ordering is irrelevant; missing, duplicate, nonfinite or negative inputs fail.
-   Values are evaluated at each node's `preAntiAliasingSourcePointMm` before AA
-   and sensor response. Spatial units and wavelength measure apply once.
-4. Application compatibility establishes response plane/scope, collection area,
-   uniform spatial response and reference conditions. Operating range checks the
-   specified radiant-power domain and spectral/spatial linearity evidence.
-5. EQE converts radiant power to photons and expected electrons. Responsivity
-   profiles are rejected by this EQE path. A channel filter is applied only when
-   the existing separable-response contract requires it.
-6. Local shutter binding validates the site/channel and computes its exact
-   one-to-one native exposure window. The stationarity profile must match that
-   site, binding and window before rate × duration integration.
+**Steps,** in order:
 
-Prepare sample identities with the existing public spatial/spectral quadrature
-functions and the same parameters. This composition recomputes those plans;
-caller-supplied result flags do not bypass these calculations or validity gates.
-The input is not frozen or mutated. Child results retain separate provenance,
-evidence and declared response uncertainty; no uncertainty combination or
-quadrature-convergence estimate is introduced.
+1. **Spatial quadrature.** Midpoint and anti-aliasing (AA) quadrature uses the native raster and binding profile from the supplied local timing, plus the explicit physical imaging area, aperture and lattice.
+2. **Spectral quadrature.** Midpoint quadrature checks response support and the requested wavelength measure. The caller must separately make sure the scene and optics cover the needed wavelengths.
+3. **Reduction.** One identified irradiance value is needed for every node of the spatial × spectral grid. Order does not matter. Missing, duplicate, non-finite or negative values fail. Values are evaluated at each node's `preAntiAliasingSourcePointMm`, before AA and sensor response. Spatial units and the wavelength measure are applied once.
+4. **Compatibility and range.** Application compatibility establishes the response plane and scope, collection area, uniform spatial response and reference conditions. The operating-range check covers the specified radiant-power domain, and the evidence for spectral and spatial linearity.
+5. **EQE.** Radiant power is converted to photons, then to expected electrons. Responsivity (A/W) profiles are rejected by this EQE path. A channel filter is applied only when the existing separable-response contract requires it.
+6. **Local shutter binding.** The site and channel are validated, and the exact one-to-one native exposure window is computed. The stationarity profile must match that site, binding and window before rate × duration integration.
+
+**Preparing samples.** Prepare sample identities with the existing public spatial and spectral quadrature functions, using the same parameters. This function recomputes those plans; result flags supplied by the caller cannot skip these calculations or checks.
+
+- The input is not frozen or changed.
+- Child results keep their own provenance, evidence and declared response uncertainty.
+- No combined uncertainty and no quadrature-convergence estimate are introduced.
 
 ## Downstream handoff
 
@@ -56,49 +42,43 @@ const charge = {
 // simulateSensorRawFrame(). Paired export consumes that returned RAW frame.
 ```
 
-Dark charge, other stored charge, completeness, capacity, stochastic realization
-and electronics are still separate downstream responsibilities. Do not insert
-fake zero-dark or completeness evidence to obtain RAW. A rolling schedule in the
-RAW producer must match the local event used here. Nonstationary scene motion or
-irradiance requires actual temporal integration, which this adapter does not
-implement; a stationarity declaration is not such integration.
+**Still downstream:** dark charge, other stored charge, completeness, capacity, random realisation and electronics.
 
-The result declares `upstreamOrigin: "declared-spatio-spectral-irradiance-samples"`
-and `upstreamSceneAndOpticsVerified: false`. It retains spatial/spectral plans,
-reduction, compatibility, operating range, electron rate, exposure binding and
-exposure **envelopes**. Aggregate provenance is approximation. The RAW producer
-and attachment/export origin flags stay conservative: executing this adapter
-cannot prove the irradiance provider's history or calibration.
+- Do not insert fake zero-dark or completeness evidence to get a RAW.
+- A rolling schedule in the RAW producer must match the local event used here.
+- Scene motion or changing irradiance needs real integration over time, which this function does not do. A stationarity declaration is not such an integration. (See [nonstationary sensor calculation](#nonstationary-sensor-calculation) below.)
+
+**What the result declares.**
+
+- `upstreamOrigin: "declared-spatio-spectral-irradiance-samples"` and `upstreamSceneAndOpticsVerified: false`.
+- It keeps detailed records of: the spatial and spectral plans, reduction, compatibility, operating range, electron rate, exposure binding and exposure.
+- Overall provenance is approximation.
+
+The RAW producer and the attachment and export origin flags stay conservative. Running this function cannot prove the history or calibration of whatever provided the irradiance.
 
 ## Evidence and compatibility
 
-`test/eqe-local-exposure.test.ts` independently predicts photon/electron counts
-using SI Planck/light-speed constants, µm²-to-m² conversion, two spectral
-midpoints and the synthetic QE curve. It checks order independence, exact rolling
-windows and duration scaling, invalid node/plane/range/channel/binding/window
-inputs, and all four native Bayer sites through deterministic RAW and paired
-DNG/JPEG. Fixtures are owned synthetic test declarations, not measured camera
-calibration or scene validation. Existing primitive tests remain in place.
+**Tests.** `test/eqe-local-exposure.test.ts` independently predicts photon and electron counts using:
 
-This additive entry point advances root API **0.106.0 → 0.107.0**. The composition
-model is 0.1.0; package, POC, production-plan, capture/RAW/producer schemas and
-noise identities remain unchanged. Newly created captures carry the new root
-API stamp, so their provenance-dependent export identities may differ. Historical
-capture replay preserves its stored root stamp and pinned paired-file hashes;
-no primitive equations, stochastic seeds or RAW readout arithmetic change.
+- SI values of the Planck constant and the speed of light;
+- conversion from µm² to m²;
+- two spectral midpoints;
+- the synthetic QE curve.
 
-Remaining #16/#178/#112 work includes committed scene/optics/PSF-to-node origin,
-production-stage activation and broader
-resolution/editor acceptance. This handoff does not close those tickets.
+It checks independence from order, exact rolling windows and scaling with duration, and invalid nodes, planes, ranges, channels, bindings and windows. It also runs all four native Bayer sites through deterministic RAW and paired DNG/JPEG. Fixtures are synthetic test declarations owned by Photivra, not measured camera calibration or scene validation. The existing primitive tests are still in place.
+
+**Versions.** This entry point moved the root API from **0.106.0 to 0.107.0**. The composition model is 0.1.0. Package, POC, production-plan, capture, RAW and producer schemas, and noise identities, did not change.
+
+- Newly created captures carry the new root API stamp, so their export identities, which depend on provenance, may differ.
+- Replaying historical captures keeps their stored root stamp and pinned paired-file hashes.
+- No primitive equations, random seeds or RAW readout arithmetic changed.
+
+Remaining work at the time (issues #16, #178, #112): committed origin of scene, optics and PSF data for each node; production-stage activation; and wider acceptance across resolutions and editors. This handoff did not close those issues.
 
 ## Optical-node producer
 
-[`calculateSceneToSensorIrradianceQuadrature()`](SCENE_SENSOR_QUADRATURE.md) produces the exact physical input node values from declared wavelength-resolved scene radiance through the existing optical bridge. Its output plane is sensor-package-incident; use matching effective package EQE and explicit source-plane evidence. Projection/PSF/source-truth and stationarity remain separate requirements.
+[`calculateSceneToSensorIrradianceQuadrature()`](SCENE_SENSOR_QUADRATURE.md) produces exactly these physical node values, from declared wavelength-resolved scene radiance through the existing optical bridge. Its output plane is light incident on the sensor package; use matching effective package EQE, and explicit evidence for the source plane. Projection, PSF, source truth and stationarity are still separate requirements.
 
 ## Nonstationary sensor calculation
 
-[`calculateSensorEqeTemporalExposure()`](SENSOR_EQE_TEMPORAL_EXPOSURE.md) reuses
-this adapter's instantaneous steps at every explicit local shutter midpoint.
-It returns a distinct nonstationary photo expectation, with no stationarity
-claim. The [temporal photo-signal handoff](TEMPORAL_PHOTO_RAW.md), added at API
-0.110.0, constructs a distinct compact record for dark/charge/RAW consumers.
+[`calculateSensorEqeTemporalExposure()`](SENSOR_EQE_TEMPORAL_EXPOSURE.md) reuses this function's instantaneous steps at every explicit local shutter midpoint. It returns a separate nonstationary photo expectation, with no stationarity claim. The [temporal photo-signal handoff](TEMPORAL_PHOTO_RAW.md), added at API 0.110.0, builds a separate compact record for dark-charge, charge and RAW consumers.
