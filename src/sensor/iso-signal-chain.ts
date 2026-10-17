@@ -2,8 +2,8 @@
 
 /**
  * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. The selected
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected. The selected
  * ISO/capture-mode state binds an explicit generic readout regime. Photons and photo/dark shot-noise
  * expectations remain upstream; regime gain, read noise and clipping are separately declared. Generic
  * tier labels do not calibrate or rank commercial equipment.
@@ -399,14 +399,14 @@ function parseCaptureModeBinding(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
  * The selected ISO/capture-mode state binds an explicit generic readout regime. Photons and photo/dark
  * shot-noise expectations remain upstream; regime gain, read noise and clipping are separately
  * declared. Generic tier labels do not calibrate or rank commercial equipment.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns GenericIsoSignalChainProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -616,8 +616,8 @@ function regimeIdForIso(
  * The selected ISO/capture-mode state binds an explicit generic readout regime. Photons and photo/dark
  * shot-noise expectations remain upstream; regime gain, read noise and clipping are separately
  * declared. Generic tier labels do not calibrate or rank commercial equipment.
- * @param input - ResolveGenericIsoSignalChainInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns ResolvedGenericIsoSignalChain. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - The input; see `ResolveGenericIsoSignalChainInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -753,14 +753,14 @@ const PRESETS =
   ]);
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
  * The selected ISO/capture-mode state binds an explicit generic readout regime. Photons and photo/dark
  * shot-noise expectations remain upstream; regime gain, read noise and clipping are separately
  * declared. Generic tier labels do not calibrate or rank commercial equipment.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns GenericIsoSignalChainPresetCatalog. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

@@ -2,8 +2,8 @@
 
 /**
  * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Response application
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected. Response application
  * checks exact profile/channel, source plane, incident-area basis, spatial uniformity and reference
  * conditions. Structural compatibility alone does not authorize signal conversion; per-bin
  * operating-range validity and the typed EQE/A-W path are separate gates.
@@ -387,14 +387,14 @@ function parseReferenceConditionPolicy(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
  * Response application checks exact profile/channel, source plane, incident-area basis, spatial
  * uniformity and reference conditions. Structural compatibility alone does not authorize signal
  * conversion; per-bin operating-range validity and the typed EQE/A-W path are separate gates.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorResponseApplicationProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -604,8 +604,8 @@ function validateReductionBoundary(
  * Response application checks exact profile/channel, source plane, incident-area basis, spatial
  * uniformity and reference conditions. Structural compatibility alone does not authorize signal
  * conversion; per-bin operating-range validity and the typed EQE/A-W path are separate gates.
- * @param input - AssessSensorResponseApplicationCompatibilityInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorResponseApplicationCompatibilityAssessment>. Read structured blockers before consuming an authorization.
+ * @param input - The input; see `AssessSensorResponseApplicationCompatibilityInput` for its fields, units and coordinates.
+ * @returns The assessment. Read its structured blockers before acting on an authorization.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

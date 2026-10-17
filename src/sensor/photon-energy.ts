@@ -2,8 +2,8 @@
 
 /**
  * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Photon energy uses
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected. Photon energy uses
  * exact SI h and c with vacuum wavelength. Air wavelength requires an exact-wavelength sourced phase
  * index and atmosphere compatibility; lambdaVacuum = n*lambdaAir. Retained refractive-index
  * uncertainty is not an automatically propagated photon-energy uncertainty.
@@ -379,14 +379,14 @@ function conditionsMatch(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
  * Photon energy uses exact SI h and c with vacuum wavelength. Air wavelength requires an
  * exact-wavelength sourced phase index and atmosphere compatibility; lambdaVacuum = n*lambdaAir.
  * Retained refractive-index uncertainty is not an automatically propagated photon-energy uncertainty.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SourcedAirPhaseRefractiveIndex. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -493,8 +493,8 @@ export function parseSourcedAirPhaseRefractiveIndex(
  * Photon energy uses exact SI h and c with vacuum wavelength. Air wavelength requires an
  * exact-wavelength sourced phase index and atmosphere compatibility; lambdaVacuum = n*lambdaAir.
  * Retained refractive-index uncertainty is not an automatically propagated photon-energy uncertainty.
- * @param input - CalculatePhotonEnergyFromWavelengthInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<PhotonEnergyFromWavelength>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - The input; see `CalculatePhotonEnergyFromWavelengthInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

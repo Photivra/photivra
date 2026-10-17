@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Photo, dark and
- * explicitly incremental stored-electron components must share the exact site/channel/local shutter
- * event. Completeness is an evidence-backed declaration, not the consequence of an empty component
- * array. Expected stored charge remains distinct from a stochastic realization or nonlinear full-well
- * clamp.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Photo, dark and
- * explicitly incremental stored-electron components must share the exact site/channel/local shutter
- * event. Completeness is an evidence-backed declaration, not the consequence of an empty component
- * array. Expected stored charge remains distinct from a stochastic realization or nonlinear full-well
- * clamp.
+ * Accumulated charge: adds up the expected electrons stored in one sensor site during one exposure.
+ *
+ * The parts are photo charge (from light), dark charge (from dark current) and any other stored
+ * charge declared explicitly as an addition. All parts must belong to the exact same site, colour
+ * channel and local shutter event. Whether the list of parts is complete is a declaration backed by
+ * evidence; an empty list does not mean "complete".
+ *
+ * The result is the expected (mean) charge. It is separate from a random (noise) realization and from
+ * the non-linear full-well clamp, which later steps apply.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -402,15 +398,11 @@ function parseWindowIdentity(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
- *
- * Photo, dark and explicitly incremental stored-electron components must share the exact
- * site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
- * consequence of an empty component array. Expected stored charge remains distinct from a stochastic
- * realization or nonlinear full-well clamp.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorAdditionalStoredChargeComponent. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * Validates an untrusted additional stored-charge component (charge other than photo and dark
+ * charge, declared explicitly as an addition) and returns it normalized. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -532,15 +524,13 @@ export function parseSensorAdditionalStoredChargeComponent(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates an untrusted completeness profile and returns it normalized. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
- * Photo, dark and explicitly incremental stored-electron components must share the exact
- * site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
- * consequence of an empty component array. Expected stored charge remains distinct from a stochastic
- * realization or nonlinear full-well clamp.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorAccumulatedChargeCompletenessProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * Completeness is a declaration backed by evidence. An empty list of components does not
+ * mean the charge accounting is complete.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -815,17 +805,14 @@ function validateComponentBinding(
 }
 
 /**
- * Compose photo, independently evaluated dark and explicitly incremental charge by exact local
- * exposure identity, retaining completeness assessment before capacity/noise.
+ * Adds photo charge, separately computed dark charge and any explicitly declared extra charge for
+ * one exact local exposure, and keeps the completeness assessment. Capacity and noise come later.
  *
- * Photo, dark and explicitly incremental stored-electron components must share the exact
- * site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
- * consequence of an empty component array. Expected stored charge remains distinct from a stochastic
- * realization or nonlinear full-well clamp.
- * @param input - Omit<ComposeSensorAccumulatedChargeInput, "photoSignal" | "darkCharge"> & {
-    photoSignal: SensorEqeExposureIntegration; darkCharge: SensorDarkCurrentCharge;
-  }. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorAccumulatedChargeComposition>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * All parts must belong to the exact same site, colour channel and local shutter event. The
+ * result is the expected charge, separate from a random realization or the full-well clamp.
+ * @param input - Charge input with a per-exposure photo signal (SensorEqeExposureIntegration) and
+ *   dark charge (SensorDarkCurrentCharge); see `ComposeSensorAccumulatedChargeInput`.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -835,17 +822,14 @@ export function composeSensorAccumulatedCharge(
   }
 ): CalculationResult<SensorAccumulatedChargeComposition>;
 /**
- * Compose photo, independently evaluated dark and explicitly incremental charge by exact local
- * exposure identity, retaining completeness assessment before capacity/noise.
+ * Adds photo charge, separately computed dark charge and any explicitly declared extra charge for
+ * one exact local exposure, and keeps the completeness assessment. Capacity and noise come later.
  *
- * Photo, dark and explicitly incremental stored-electron components must share the exact
- * site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
- * consequence of an empty component array. Expected stored charge remains distinct from a stochastic
- * realization or nonlinear full-well clamp.
- * @param input - Omit<ComposeSensorAccumulatedChargeInput, "photoSignal" | "darkCharge"> & {
-    photoSignal: SensorEqeTemporalPhotoSignal; darkCharge: SensorTemporalDarkCurrentCharge;
-  }. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorAccumulatedChargeComposition<SensorEqeTemporalPhotoSignal, SensorTemporalDarkCurrentCharge>>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * All parts must belong to the exact same site, colour channel and local shutter event. The
+ * result is the expected charge, separate from a random realization or the full-well clamp.
+ * @param input - Charge input with a time-resolved photo signal (SensorEqeTemporalPhotoSignal) and
+ *   dark charge (SensorTemporalDarkCurrentCharge); see `ComposeSensorAccumulatedChargeInput`.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -855,15 +839,13 @@ export function composeSensorAccumulatedCharge(
   }
 ): CalculationResult<SensorAccumulatedChargeComposition<SensorEqeTemporalPhotoSignal, SensorTemporalDarkCurrentCharge>>;
 /**
- * Compose photo, independently evaluated dark and explicitly incremental charge by exact local
- * exposure identity, retaining completeness assessment before capacity/noise.
+ * Adds photo charge, separately computed dark charge and any explicitly declared extra charge for
+ * one exact local exposure, and keeps the completeness assessment. Capacity and noise come later.
  *
- * Photo, dark and explicitly incremental stored-electron components must share the exact
- * site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
- * consequence of an empty component array. Expected stored charge remains distinct from a stochastic
- * realization or nonlinear full-well clamp.
- * @param input - ComposeSensorPhotoAccumulatedChargeInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorPhotoAccumulatedChargeComposition>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * All parts must belong to the exact same site, colour channel and local shutter event. The
+ * result is the expected charge, separate from a random realization or the full-well clamp.
+ * @param input - The input; see `ComposeSensorPhotoAccumulatedChargeInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -871,15 +853,13 @@ export function composeSensorAccumulatedCharge(
   input: ComposeSensorPhotoAccumulatedChargeInput
 ): CalculationResult<SensorPhotoAccumulatedChargeComposition>;
 /**
- * Compose photo, independently evaluated dark and explicitly incremental charge by exact local
- * exposure identity, retaining completeness assessment before capacity/noise.
+ * Adds photo charge, separately computed dark charge and any explicitly declared extra charge for
+ * one exact local exposure, and keeps the completeness assessment. Capacity and noise come later.
  *
- * Photo, dark and explicitly incremental stored-electron components must share the exact
- * site/channel/local shutter event. Completeness is an evidence-backed declaration, not the
- * consequence of an empty component array. Expected stored charge remains distinct from a stochastic
- * realization or nonlinear full-well clamp.
- * @param input - ComposeSensorPhotoAccumulatedChargeInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorPhotoAccumulatedChargeComposition>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * All parts must belong to the exact same site, colour channel and local shutter event. The
+ * result is the expected charge, separate from a random realization or the full-well clamp.
+ * @param input - The input; see `ComposeSensorPhotoAccumulatedChargeInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

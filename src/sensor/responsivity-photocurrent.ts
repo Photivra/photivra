@@ -2,8 +2,8 @@
 
 /**
  * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. A/W response
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected. A/W response
  * converts per-bin radiant power to quasi-static detector-terminal current magnitude. Electrical
  * bias/load applicability is explicit. This is not EQE, electron rate, transimpedance voltage or RAW;
  * rapidly varying current requires a separate temporal detector-response model.
@@ -515,14 +515,14 @@ function parseConditionPolicy(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
  * A/W response converts per-bin radiant power to quasi-static detector-terminal current magnitude.
  * Electrical bias/load applicability is explicit. This is not EQE, electron rate, transimpedance
  * voltage or RAW; rapidly varying current requires a separate temporal detector-response model.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorResponsivityElectricalApplicabilityProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1157,8 +1157,8 @@ function validateElectricalBinding(
  * A/W response converts per-bin radiant power to quasi-static detector-terminal current magnitude.
  * Electrical bias/load applicability is explicit. This is not EQE, electron rate, transimpedance
  * voltage or RAW; rapidly varying current requires a separate temporal detector-response model.
- * @param input - CalculateSensorResponsivityPhotocurrentInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorResponsivityPhotocurrent>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - The input; see `CalculateSensorResponsivityPhotocurrentInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

@@ -1027,8 +1027,8 @@ export function parseSensorSpectralResponseProfile(
  * channel data remain part of identity. The channel is parsed first and serialized with sorted object
  * keys, so property order never changes the binding and malformed channels throw. Do not infer
  * response from RGB labels or extrapolate outside sampled support.
- * @param response - SensorSpectralChannelResponse. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns SensorSpectralResponseChannelBinding. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param response - The input; see `SensorSpectralChannelResponse` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

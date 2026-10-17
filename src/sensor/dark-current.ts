@@ -2,8 +2,8 @@
 
 /**
  * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Dark current is an
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected. Dark current is an
  * independently declared pre-compensation thermal electron rate. Exact-temperature or sampled (log-linear or legacy linear)
  * interpolation is supported only within declared applicability; no universal doubling-temperature law
  * is inferred. Population means remain approximations and do not model hot-pixel/DCNU structure.
@@ -505,15 +505,15 @@ function parseTemperatureModel(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
  * Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
  * or sampled (log-linear or legacy linear) interpolation is supported only within declared applicability; no universal
  * doubling-temperature law is inferred. Population means remain approximations and do not model
  * hot-pixel/DCNU structure.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorDarkCurrentProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -827,7 +827,7 @@ function validateExposure(
  * doubling-temperature law is inferred. Population means remain approximations and do not model
  * hot-pixel/DCNU structure.
  * @param input - Omit<CalculateSensorDarkCurrentChargeInput, "exposure"> & { exposure: SensorEqeExposureIntegration }. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorDarkCurrentCharge>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -843,7 +843,7 @@ export function calculateSensorDarkCurrentCharge(
  * doubling-temperature law is inferred. Population means remain approximations and do not model
  * hot-pixel/DCNU structure.
  * @param input - Omit<CalculateSensorDarkCurrentChargeInput, "exposure"> & { exposure: SensorEqeTemporalPhotoSignal }. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorTemporalDarkCurrentCharge>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -859,7 +859,7 @@ export function calculateSensorDarkCurrentCharge(
  * doubling-temperature law is inferred. Population means remain approximations and do not model
  * hot-pixel/DCNU structure.
  * @param input - CalculateSensorDarkCurrentChargeInput<SensorEqePhotoExposure>. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorPhotoDarkCurrentCharge>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -875,7 +875,7 @@ export function calculateSensorDarkCurrentCharge(
  * doubling-temperature law is inferred. Population means remain approximations and do not model
  * hot-pixel/DCNU structure.
  * @param input - CalculateSensorDarkCurrentChargeInput<SensorEqePhotoExposure>. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorPhotoDarkCurrentCharge>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

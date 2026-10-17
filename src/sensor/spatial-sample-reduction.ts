@@ -266,8 +266,8 @@ function parseValueDomain(
  * and square-micrometre geometric area measures are separate. Negative/non-finite irradiance or
  * incomplete/duplicate coverage fail; geometry does not establish QE, radiometric collection area or
  * calibrated transport.
- * @param identity - SensorSpatialQuadratureNodeIdentity. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns string. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param identity - The input; see `SensorSpatialQuadratureNodeIdentity` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -351,8 +351,8 @@ function approximatelyEqual(
  * and square-micrometre geometric area measures are separate. Negative/non-finite irradiance or
  * incomplete/duplicate coverage fail; geometry does not establish QE, radiometric collection area or
  * calibrated transport.
- * @param quadrature - SensorSpatialSamplingQuadrature. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns Map<string, SensorSpatialSamplingQuadratureNode>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param quadrature - The input; see `SensorSpatialSamplingQuadrature` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

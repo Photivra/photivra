@@ -2,8 +2,8 @@
 
 /**
  * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Operating-range
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected. Operating-range
  * assessment preserves incident power versus irradiance, wavelength support, reference conditions and
  * declared nonlinearity criterion. Per-bin conversion requires spectral-bin applicability and spatial
  * linear superposition. Valid mean input must not conceal an invalid bright local sub-aperture.
@@ -793,15 +793,15 @@ function parseSpatialLinearityModel(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
  * Operating-range assessment preserves incident power versus irradiance, wavelength support, reference
  * conditions and declared nonlinearity criterion. Per-bin conversion requires spectral-bin
  * applicability and spatial linear superposition. Valid mean input must not conceal an invalid bright
  * local sub-aperture.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorResponseOperatingRangeProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1059,8 +1059,8 @@ function validateReductionIdentity(
  * conditions and declared nonlinearity criterion. Per-bin conversion requires spectral-bin
  * applicability and spatial linear superposition. Valid mean input must not conceal an invalid bright
  * local sub-aperture.
- * @param input - AssessSensorResponseOperatingRangeInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorResponseOperatingRangeAssessment>. Read structured blockers before consuming an authorization.
+ * @param input - The input; see `AssessSensorResponseOperatingRangeInput` for its fields, units and coordinates.
+ * @returns The assessment. Read its structured blockers before acting on an authorization.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

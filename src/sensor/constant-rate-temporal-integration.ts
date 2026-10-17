@@ -2,8 +2,8 @@
 
 /**
  * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Rate times duration
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected. Rate times duration
  * is allowed only by explicit stationarity bound to the exact site and local shutter interval. EQE
  * integrates to expected photons/electrons; A/W integrates current magnitude to coulombs without an
  * implicit carrier mapping. Counts remain fractional expectations before stochastic sampling.
@@ -228,15 +228,15 @@ function requireFinite(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
  * Rate times duration is allowed only by explicit stationarity bound to the exact site and local
  * shutter interval. EQE integrates to expected photons/electrons; A/W integrates current magnitude to
  * coulombs without an implicit carrier mapping. Counts remain fractional expectations before
  * stochastic sampling.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorRateTemporalStationarityProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

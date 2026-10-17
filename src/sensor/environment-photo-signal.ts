@@ -142,7 +142,7 @@ interface EnvironmentPhotoPlan {
  * @param retention - Internal. "full" (default) keeps every planned query envelope for "full" execution records.
  * "photo-only" keeps only each query's frozen request and image-plane point, the parts photo-only execution
  * reads; every query is still computed and validated at plan time, so admission and errors are unchanged.
- * @returns EnvironmentPhotoPlan. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

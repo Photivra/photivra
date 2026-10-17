@@ -112,7 +112,7 @@ function limitations(value: unknown): readonly string[] {
  * Validate an untrusted fixed-pattern noise declaration. Unknown keys, out-of-range parameters and
  * missing evidence fail closed. PRNU and DSNU relative standard deviations are limited to 0.5 and 5,
  * the hot-pixel multiplier to 1–1e6.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
  * @returns SensorFixedPatternNoiseProfile.
  * @see docs/MOTION_AND_SIGNAL.md for the model and its sources.
  */

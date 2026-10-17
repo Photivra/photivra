@@ -543,8 +543,8 @@ function approximatelyEqual(
  * Continuous spectral midpoint planning uses explicit nanometre measures and response-supported
  * intervals. Knot/breakpoint alignment does not prove convergence. Discrete/delta lines require their
  * own integrated measure and cannot be silently widened into continuous bins.
- * @param quadrature - SensorSpectralQuadrature. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns Map<number, SensorSpectralQuadratureNode>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param quadrature - The input; see `SensorSpectralQuadrature` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

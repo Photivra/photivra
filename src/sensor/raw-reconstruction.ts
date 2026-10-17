@@ -2,8 +2,8 @@
 
 /**
  * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Reconstruction
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected. Reconstruction
  * consumes explicitly bound native post-ADC samples and declared normalized channel kernels. Native
  * CFA phase is absolute and orientation/crop remain downstream. This structural linear reconstruction
  * does not infer spectral sensor primaries, calibrated color or a complete arbitrary demosaic
@@ -437,15 +437,15 @@ function parseKernel(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
  * Reconstruction consumes explicitly bound native post-ADC samples and declared normalized channel
  * kernels. Native CFA phase is absolute and orientation/crop remain downstream. This structural linear
  * reconstruction does not infer spectral sensor primaries, calibrated color or a complete arbitrary
  * demosaic algorithm.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorRawReconstructionProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -583,8 +583,8 @@ export function parseSensorRawReconstructionProfile(
  * kernels. Native CFA phase is absolute and orientation/crop remain downstream. This structural linear
  * reconstruction does not infer spectral sensor primaries, calibrated color or a complete arbitrary
  * demosaic algorithm.
- * @param input - CreateSensorRawCaptureSampleInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns SensorRawCaptureSample. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - The input; see `CreateSensorRawCaptureSampleInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -780,8 +780,8 @@ function requireCenterSite(
  * kernels. Native CFA phase is absolute and orientation/crop remain downstream. This structural linear
  * reconstruction does not infer spectral sensor primaries, calibrated color or a complete arbitrary
  * demosaic algorithm.
- * @param input - ResolveSensorRawReconstructionInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorRawReconstructedPixel>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - The input; see `ResolveSensorRawReconstructionInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

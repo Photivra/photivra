@@ -1,17 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Camera saturation
- * capacity is a dark-corrected photo-signal electron-equivalent limit. It is not physical total-charge
- * storage capacity, ADC maximum or evidence of the limiting hardware stage. This assessment compares
- * expectations and does not synthesize post-saturation codes.
- * Compare dark-corrected expected photo signal with the declared camera response-chain capacity
- * without adding dark charge or identifying a hardware clamp. Camera saturation capacity is a
- * dark-corrected photo-signal electron-equivalent limit. It is not physical total-charge storage
- * capacity, ADC maximum or evidence of the limiting hardware stage. This assessment compares
- * expectations and does not synthesize post-saturation codes.
+ * Camera saturation capacity: checks whether the expected photo signal would exceed the camera's
+ * declared saturation limit.
+ *
+ * Camera saturation capacity is the largest photo signal, in electron equivalents and after dark
+ * correction, that the whole camera response chain records before saturating. It is not the
+ * physical charge a pixel can store, not the ADC maximum, and does not say which hardware stage
+ * limits it. The check compares expected values only; it does not make up codes beyond saturation.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -416,14 +412,14 @@ function parseTemperatureApplicability(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
- * Camera saturation capacity is a dark-corrected photo-signal electron-equivalent limit. It is not
- * physical total-charge storage capacity, ADC maximum or evidence of the limiting hardware stage. This
- * assessment compares expectations and does not synthesize post-saturation codes.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorCameraSaturationCapacityProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * Camera saturation capacity is a limit on the dark-corrected photo signal, in electron
+ * equivalents. It is not the physical charge storage capacity or the ADC maximum, and does not
+ * identify which hardware stage limits it.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -622,14 +618,12 @@ function validateCharge(
 }
 
 /**
- * Compare dark-corrected expected photo signal with the declared camera response-chain capacity
- * without adding dark charge or identifying a hardware clamp.
+ * Compares the expected photo signal (dark-corrected) with the camera's declared saturation
+ * capacity. Dark charge is not added, and no hardware clamp is identified.
  *
- * Camera saturation capacity is a dark-corrected photo-signal electron-equivalent limit. It is not
- * physical total-charge storage capacity, ADC maximum or evidence of the limiting hardware stage. This
- * assessment compares expectations and does not synthesize post-saturation codes.
- * @param input - AssessSensorCameraSaturationCapacityInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorCameraSaturationCapacityAssessment>. Read structured blockers before consuming an authorization.
+ * This compares expected values only. It does not make up codes beyond saturation.
+ * @param input - The input; see `AssessSensorCameraSaturationCapacityInput` for its fields, units and coordinates.
+ * @returns The assessment. Read its structured blockers before acting on an authorization.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

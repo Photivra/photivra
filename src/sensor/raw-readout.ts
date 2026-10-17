@@ -2,14 +2,14 @@
 
 /**
  * Module boundary and integration notes.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Signal ordering is
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected. Signal ordering is
  * expected charge → independent seeded photo/dark draws → signed electronic read noise → upper pre-ADC
  * threshold → black pedestal → nearest-half-up ADC quantization → unsigned code limits. Signed
  * below-black values survive until the final code clamp. Physical storage saturation, pre-ADC clipping
  * and digital clipping have distinct diagnostics; ISO never invents a conversion regime.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Signal ordering is
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected. Signal ordering is
  * expected charge → independent seeded photo/dark draws → signed electronic read noise → upper pre-ADC
  * threshold → black pedestal → nearest-half-up ADC quantization → unsigned code limits. Signed
  * below-black values survive until the final code clamp. Physical storage saturation, pre-ADC clipping
@@ -603,16 +603,16 @@ function parseNonNegativeFact(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
  * Signal ordering is expected charge → independent seeded photo/dark draws → signed electronic read
  * noise → upper pre-ADC threshold → black pedestal → nearest-half-up ADC quantization → unsigned code
  * limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
  * pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
  * regime.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorChargeSamplingProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1132,16 +1132,16 @@ function parseRegime(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+ * missing required fields and inconsistent scientific data are rejected.
  *
  * Signal ordering is expected charge → independent seeded photo/dark draws → signed electronic read
  * noise → upper pre-ADC threshold → black pedestal → nearest-half-up ADC quantization → unsigned code
  * limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
  * pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
  * regime.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SensorReadoutConversionProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - Untrusted data. TypeScript types alone are not validation.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1243,8 +1243,8 @@ export function parseSensorReadoutConversionProfile(
  * limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
  * pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
  * regime.
- * @param input - ResolveSensorReadoutRegimeInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns ResolvedSensorReadoutRegime. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - The input; see `ResolveSensorReadoutRegimeInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1687,8 +1687,8 @@ function sampleStandardNormal(
  * limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
  * pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
  * regime.
- * @param input - SimulateSensorChargeRealizationInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorChargeRealization>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - The input; see `SimulateSensorChargeRealizationInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -2031,8 +2031,8 @@ function validateCapacityAgainstRealization(
  * limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
  * pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
  * regime.
- * @param input - CalculateExpectedSensorReadoutInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorExpectedReadoutSignal>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - The input; see `CalculateExpectedSensorReadoutInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -2328,8 +2328,8 @@ export function adcTransfer(
  * limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
  * pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
  * regime.
- * @param input - SimulateSensorRawCodeInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<SensorRawCodeSample>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - The input; see `SimulateSensorRawCodeInput` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
