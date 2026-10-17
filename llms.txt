@@ -1,0 +1,35 @@
+# Photivra (@photivra/engine)
+
+> Photivra is an Apache-2.0 TypeScript library for the science of photography: camera geometry, optics, focus and depth of field, exposure, motion, diffraction, sensor signal and noise, colour, RAW and image formation. It runs in browsers and Node 22.13 or later, makes no network calls and needs no API key. Most functions take one input object with units in the field names (`focalLengthMm`, `focusDistanceM`, `shutterSeconds`) and return `{ value, provenance }`. `provenance.kind` says whether a result is `calculated` or an `approximation`. The built-in camera tiers are synthetic educational designs, not real cameras.
+
+## Start here
+
+- [Agent guide](https://github.com/Photivra/photivra/blob/main/docs/AGENT_GUIDE.md): which function to call, units, reading results, errors and limits
+- [Quick start](https://github.com/Photivra/photivra/blob/main/docs/QUICK_START.md): `simulateCapture()` inputs, defaults, chart presets and output formats
+- [Usage guide](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md): worked examples for every public area
+- [API reference](https://github.com/Photivra/photivra/blob/main/docs/API_REFERENCE.md): every root export, with a task-to-function index
+
+## One call: a full simulated photo
+
+- [simulateCapture()](https://github.com/Photivra/photivra/blob/main/docs/api/facade-simulate-capture.md#simulatecapture): async; camera tier, lens, exposure and chart scene in, developed image plus `assumptions` and `provenance` out
+
+## Single calculations by task
+
+- [calculateExposureValue100()](https://github.com/Photivra/photivra/blob/main/docs/api/exposure-exposure.md#calculateexposurevalue100): EV at ISO 100 from f-number and shutter seconds
+- [calculateEquivalentIso()](https://github.com/Photivra/photivra/blob/main/docs/api/exposure-exposure.md#calculateequivalentiso): ISO that keeps the same brightness after an aperture or shutter change
+- [calculateDepthOfField()](https://github.com/Photivra/photivra/blob/main/docs/api/optics-depth-of-field.md#calculatedepthoffield): near and far limits and hyperfocal distance (thin lens)
+- [calculateDefocusCircle()](https://github.com/Photivra/photivra/blob/main/docs/api/optics-depth-of-field.md#calculatedefocuscircle): blur-circle size for an out-of-focus subject
+- [calculateFieldOfView()](https://github.com/Photivra/photivra/blob/main/docs/api/camera-field-of-view.md#calculatefieldofview): angle of view from focal length and sensor size
+- [calculateEquivalentFocalLength35Mm()](https://github.com/Photivra/photivra/blob/main/docs/api/camera-equivalent-focal-length.md#calculateequivalentfocallength35mm): crop factor and 35 mm-equivalent focal length
+- [calculateCenteredCrop()](https://github.com/Photivra/photivra/blob/main/docs/api/output-crop.md#calculatecenteredcrop): pixels left after a centred crop
+- [calculateProjectedMotionBlur()](https://github.com/Photivra/photivra/blob/main/docs/api/motion-projected-motion.md#calculateprojectedmotionblur): how far a moving subject smears on the sensor during the shutter time
+- [calculateAiryDisk()](https://github.com/Photivra/photivra/blob/main/docs/api/optics-diffraction.md#calculateairydisk): diffraction spot size from f-number and wavelength
+- [calculateSignalToNoise()](https://github.com/Photivra/photivra/blob/main/docs/api/sensor-signal-noise.md#calculatesignaltonoise): expected SNR from signal and read noise in electrons
+- [calculateChromaticityFromCorrelatedColorTemperature()](https://github.com/Photivra/photivra/blob/main/docs/api/color-illuminants.md#calculatechromaticityfromcorrelatedcolortemperature): white point for a colour temperature in kelvin
+- [resolveColorTemperatureWhiteBalance()](https://github.com/Photivra/photivra/blob/main/docs/api/color-white-balance.md#resolvecolortemperaturewhitebalance): Kelvin + tint white balance to camera channel gains
+
+## Reference
+
+- [Per-module API pages](https://github.com/Photivra/photivra/tree/main/docs/api): generated signatures and doc comments for each source module
+- [Error types](https://github.com/Photivra/photivra/blob/main/docs/api/core-validation.md#invalidscientificinputerror): `InvalidScientificInputError` (RangeError) and `InvalidConfigurationError` (TypeError)
+- [README](https://github.com/Photivra/photivra/blob/main/README.md): overview and "Important scientific limits"
