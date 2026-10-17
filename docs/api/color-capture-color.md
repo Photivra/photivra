@@ -7,7 +7,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 Converts a bounded inline XYZ (ideal-camera) plane to unclamped linear sRGB.
 It reuses the resolved white-balance intent. It never estimates the lighting and never changes
 exposure or noise. Adapting to the adopted white (XYZ diagonal by default, or an explicit
-Bradford, CAT02, CAT16 or von Kries-HPE cone-space transform) is labelled an approximation, and
+Bradford, CAT16 or von Kries-HPE cone-space transform) is labelled an approximation, and
 is separate from RGB gains.
 
 ```ts
@@ -30,7 +30,7 @@ Cone-space transform for adapting to the adopted white. If omitted, the original
 XYZ-diagonal scaling (model id `photivra-xyz-diagonal-adaptation`) is used unchanged.
 
 ```ts
-export type CaptureChromaticAdaptationTransform = "bradford" | "cat02" | "cat16" | "von-kries-hpe";
+export type CaptureChromaticAdaptationTransform = "bradford" | "cat16" | "von-kries-hpe";
 ```
 
 ## CaptureColorModel

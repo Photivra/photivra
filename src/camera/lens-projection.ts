@@ -39,7 +39,7 @@ import {
   InvalidScientificInputError,
   requirePositiveFinite
 } from "../core/validation.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { rejectUnknownFields, requireInputKeys } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** Ideal projection model discriminator. `rectilinear` is the engine default. */
@@ -305,6 +305,7 @@ export function calculateLensProjectionImagePoint(
   requireInputKeys(input, "calculateLensProjectionImagePoint", ["projectionModel", "focalLengthMm", "direction"]);
   const model = validateCommon(input, "input");
   requireRecord("direction", input.direction);
+  rejectUnknownFields(input.direction, ["x", "y", "z"], "direction");
   const x = requireFinite("direction.x", input.direction.x);
   const y = requireFinite("direction.y", input.direction.y);
   const z = requireFinite("direction.z", input.direction.z);
@@ -346,6 +347,7 @@ export function calculateLensProjectionDirection(
   requireInputKeys(input, "calculateLensProjectionDirection", ["projectionModel", "focalLengthMm", "imagePointMm"]);
   const model = validateCommon(input, "input");
   requireRecord("imagePointMm", input.imagePointMm);
+  rejectUnknownFields(input.imagePointMm, ["x", "y"], "imagePointMm");
   const px = requireFinite("imagePointMm.x", input.imagePointMm.x);
   const py = requireFinite("imagePointMm.y", input.imagePointMm.y);
   const imageRadiusMm = Math.hypot(px, py);

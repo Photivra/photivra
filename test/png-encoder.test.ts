@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from "vitest";
 import { inflateSync, crc32 } from "node:zlib";
+import { createHash } from "node:crypto";
 import { serializePngImage, InvalidConfigurationError, createSrgbIccProfile, type PngEncodeInput } from "../src/index.js";
 import { deflateZlib } from "../src/output/png-encoder.js";
 
@@ -106,6 +107,38 @@ describe("PNG encoder", () => {
     for (const data of inputs) for (const mode of ["stored", "fixed-huffman"] as const) expect(inflateSync(deflateZlib(data, mode)).equals(Buffer.from(data.buffer, data.byteOffset, data.length))).toBe(true);
     expect(deflateZlib(new Uint8Array(70_000).fill(7), "fixed-huffman").length).toBeLessThan(1000);
   }, 60_000);
+
+  it("keeps its output bytes: hash lock over every filter and compression mode (2.0.0 encoder speed-up)", () => {
+    // Digest of the encoder before the precomputed-code / specialised-filter rewrite; any byte change fails here.
+    const next = random(2026), all = createHash("sha256");
+    for (const [width, height, bitDepth] of [[37, 23, 8], [29, 17, 16], [300, 4, 8], [1, 40, 16]] as const) {
+      const max = bitDepth === 8 ? 255 : 65535, samples = bitDepth === 8 ? new Uint8Array(width * height * 3) : new Uint16Array(width * height * 3);
+      for (let i = 0; i < samples.length; i++) samples[i] = next() < 0.3 ? Math.floor(next() * (max + 1)) : ((i % (width * 3)) * 97 + Math.floor(i / (width * 3)) * 13) % (max + 1);
+      for (const filter of ["none", "sub", "up", "average", "paeth", "adaptive"] as const) for (const compression of ["stored", "fixed-huffman"] as const) {
+        all.update(serializePngImage({ width, height, bitDepth, samples, colourEncoding: { kind: "srgb", renderingIntent: "perceptual" }, filter, compression }));
+      }
+    }
+    const long = Uint8Array.from({ length: 200_000 }, (_, i) => (next() < 0.02 ? Math.floor(next() * 256) : (i * 7) % 251));
+    all.update(deflateZlib(long, "fixed-huffman"));
+    expect(all.digest("hex")).toBe("7c64b64255a3d2a9acec97e78f590379d13b0a496cf6b5a5d8c30c8ea15a0141");
+  }, 60_000);
+
+  it("rejects Object.prototype names as code points and unknown colour-encoding or metadata fields", () => {
+    const base: PngEncodeInput = { width: 1, height: 1, bitDepth: 8, samples: new Uint8Array(3), colourEncoding: { kind: "srgb", renderingIntent: "perceptual" } };
+    const cicp = { kind: "cicp", primaries: "bt709", transfer: "srgb", fullRange: true } as const;
+    const bad: unknown[] = [
+      { ...base, colourEncoding: { ...cicp, primaries: "constructor" } }, { ...base, colourEncoding: { ...cicp, transfer: "toString" } },
+      { ...base, colourEncoding: { ...cicp, primaries: "__proto__" } }, { ...base, colourEncoding: { kind: "srgb", renderingIntent: "toString" } },
+      { ...base, colourEncoding: { kind: "srgb", renderingIntent: "hasOwnProperty" } }, { ...base, colourEncoding: { kind: "toString" } },
+      { ...base, colourEncoding: { ...cicp, extra: 1 } }, { ...base, colourEncoding: { kind: "srgb", renderingIntent: "perceptual", primaries: "bt709" } },
+      { ...base, colourEncoding: { kind: "icc", profileName: "x", profile: createSrgbIccProfile(), renderingIntent: "perceptual" } },
+      { ...base, colourEncoding: cicp, contentLightLevel: { maximumContentLightLevelCdPerSquareMeter: 100, maximumFrameAverageLightLevelCdPerSquareMeter: 50, extra: 1 } },
+      { ...base, colourEncoding: cicp, masteringDisplay: { redXy: [.708, .292], greenXy: [.17, .797], blueXy: [.131, .046], whiteXy: [.3127, .329],
+        maximumLuminanceCdPerSquareMeter: 1000, minimumLuminanceCdPerSquareMeter: .005, maxLuminance: 1 } }
+    ];
+    for (const input of bad) expect(() => serializePngImage(input as PngEncodeInput), JSON.stringify((input as PngEncodeInput).colourEncoding)).toThrow(InvalidConfigurationError);
+    expect(() => serializePngImage({ ...base, colourEncoding: cicp })).not.toThrow();
+  });
 
   it("rejects invalid shapes, values and metadata combinations", () => {
     const base: PngEncodeInput = { width: 2, height: 1, bitDepth: 8, samples: new Uint8Array(6), colourEncoding: { kind: "srgb", renderingIntent: "perceptual" } };

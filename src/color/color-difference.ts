@@ -33,7 +33,7 @@ import {
   requireRecordValue,
   type CieXyzTristimulus
 } from "./colorimetry-math.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { rejectUnknownFields, requireInputKeys } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** CIE 1976 L*a*b* coordinates. */
@@ -74,6 +74,7 @@ export function xyzOfCielab(lab: CielabColor, white: CieXyzTristimulus): CieXyzT
 
 function parseLab(value: unknown, path: string): CielabColor {
   const r = requireRecordValue(value, path);
+  rejectUnknownFields(r, ["lStar", "aStar", "bStar"], path);
   return { lStar: requireFiniteNumber(r.lStar, path + ".lStar"), aStar: requireFiniteNumber(r.aStar, path + ".aStar"), bStar: requireFiniteNumber(r.bStar, path + ".bStar") };
 }
 
@@ -121,6 +122,7 @@ export function calculateCielchFromCielab(input: { lab: CielabColor }): Calculat
 export function calculateCielabFromCielch(input: { lch: CielchColor }): CalculationResult<CielabColor> {
   requireInputKeys(input, "calculateCielabFromCielch", ["lch"]);
   const r = requireRecordValue(input.lch, "lch");
+  rejectUnknownFields(r, ["lStar", "chromaStar", "hueDegrees"], "lch");
   const lch = {
     lStar: requireFiniteNumber(r.lStar, "lch.lStar"),
     chromaStar: requireFiniteNumber(r.chromaStar, "lch.chromaStar"),
@@ -255,6 +257,7 @@ export function calculateColorDifference(input: CalculateColorDifferenceInput): 
       let k: Ciede2000ParametricFactors | undefined;
       if (input.parametricFactors !== undefined) {
         const r = requireRecordValue(input.parametricFactors, "parametricFactors");
+        requireInputKeys(r, "calculateColorDifference parametricFactors", ["lightness", "chroma", "hue"]);
         k = { lightness: requirePositiveNumber(r.lightness, "parametricFactors.lightness"), chroma: requirePositiveNumber(r.chroma, "parametricFactors.chroma"), hue: requirePositiveNumber(r.hue, "parametricFactors.hue") };
       }
       deltaE = deltaE2000(reference, sample, k);

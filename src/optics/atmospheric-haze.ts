@@ -32,7 +32,7 @@ import {
   InvalidScientificInputError,
   requirePositiveFinite
 } from "../core/validation.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { rejectUnknownFields, requireInputKeys } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export interface AtmosphericExtinctionModel {
@@ -116,6 +116,8 @@ export function calculateAtmosphericHaze(
   if (typeof model !== "object" || model === null) {
     throw new InvalidConfigurationError("extinction must be an object.");
   }
+  // A misspelt optional field (for example rayleighExponet) must not silently fall back to the default.
+  rejectUnknownFields(model, ["referenceWavelengthNm", "rayleighExtinctionPerMeter", "aerosolExtinctionPerMeter", "angstromExponent", "rayleighExponent"], "extinction");
   requirePositiveFinite("extinction.referenceWavelengthNm", model.referenceWavelengthNm);
   const betaR = requireNonNegativeFinite(
     "extinction.rayleighExtinctionPerMeter",

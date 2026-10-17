@@ -194,7 +194,7 @@ A few abbreviations used below: FOV (field of view), PSF (point-spread function:
   - spectral integration;
   - Planckian, illuminant A and CIE daylight illuminants;
   - CCT and Duv;
-  - Bradford, CAT02 and CAT16 chromatic adaptation;
+  - Bradford and CAT16 chromatic adaptation;
   - Kelvin + tint WB gains;
   - CIELAB and ΔE76/94/2000;
   - camera-matrix fitting;

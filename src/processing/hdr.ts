@@ -71,6 +71,16 @@ export interface HdrBracketMergeOutput {
   provenance: ProcessingProvenance;
 }
 
+/**
+ * Shortest accepted bracket exposure, 1 ns. Far below any photographic shutter (about 1/32000 s ≈ 3·10⁻⁵ s for
+ * fast electronic shutters), it keeps every merge quantity finite: t² ≥ 10⁻¹⁸ cannot underflow (at 10⁻¹⁷⁰ s it
+ * does, and the weights become 0/0), and the largest rate (white − black)·K/t ≤ 2⁵³ · 10⁹ / 10⁻⁹ ≈ 9·10³³ e⁻/s
+ * stays inside the float32 output range (≈ 3.4·10³⁸).
+ */
+const HDR_MINIMUM_EXPOSURE_TIME_SECONDS = 1e-9;
+/** Largest finite float32. */
+const FLOAT32_MAX = 3.4028234663852886e38;
+
 interface ParsedFrame { t: number; codes: Uint16Array | Float32Array; black: number; white: number; flags: Uint8Array | null; k: number; read2: number }
 
 /** Noise-optimal merge of linear RAW exposure brackets into a scene-linear photo-electron rate. */
@@ -92,7 +102,7 @@ export function createHdrBracketMergeTask(input: HdrBracketMergeInput, provider:
     const black = requireFiniteIn(f.blackLevelCode, "frames[" + i + "].blackLevelCode", 0, Number.MAX_SAFE_INTEGER);
     const white = requireFiniteIn(f.whiteLevelCode, "frames[" + i + "].whiteLevelCode", black, Number.MAX_SAFE_INTEGER, true);
     const read = requireFiniteIn(f.readNoiseElectrons, "frames[" + i + "].readNoiseElectrons", 0, 1e9);
-    return { t: requireFiniteIn(f.exposureTimeSeconds, "frames[" + i + "].exposureTimeSeconds", 0, 1e6, true), codes: f.codes, black, white,
+    return { t: requireFiniteIn(f.exposureTimeSeconds, "frames[" + i + "].exposureTimeSeconds", HDR_MINIMUM_EXPOSURE_TIME_SECONDS, 1e6), codes: f.codes, black, white,
       flags: (f.saturationFlags as Uint8Array | undefined) ?? null,
       k: requireFiniteIn(f.conversionGainElectronsPerCode, "frames[" + i + "].conversionGainElectronsPerCode", 0, 1e9, true), read2: read * read };
   });
@@ -132,7 +142,12 @@ export function createHdrBracketMergeTask(input: HdrBracketMergeInput, provider:
             }
             if (it < iterations) phi = num / weightSum;
           }
-          rate[j] = phi; sd[j] = Math.sqrt(1 / weightSum); count[j] = used;
+          const deviation = Math.sqrt(1 / weightSum);
+          // Fail closed rather than store NaN or ±Infinity (for example with a near-zero conversion gain).
+          if (!(Math.abs(phi) <= FLOAT32_MAX) || !(deviation <= FLOAT32_MAX)) {
+            throw new InvalidScientificInputError("HDR merge gives a non-finite rate at sample " + j + "; check exposure times, conversion gains and read noise.");
+          }
+          rate[j] = phi; sd[j] = deviation; count[j] = used;
         }
         yield;
       }

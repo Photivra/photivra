@@ -94,13 +94,15 @@ On the colour step, the zipper metric (summed alternation along the edge, where 
 
 The merge requires pre-aligned (registered) frames and does no alignment itself. Apps that add frame alignment before the merge should check Disney's US 9,275,445 (see the patent review in `THIRD_PARTY.md`).
 
-`createHdrBracketMergeTask({ sampleCount, frames, iterations? })` merges registered linear RAW exposures. Each frame supplies `codes`, `exposureTimeSeconds`, `blackLevelCode`, `whiteLevelCode`, optional `saturationFlags`, `conversionGainElectronsPerCode` (K) and `readNoiseElectrons`. Samples at or above white, or flagged, are excluded. For the remaining frames:
+`createHdrBracketMergeTask({ sampleCount, frames, iterations? })` merges registered linear RAW exposures. Each frame supplies `codes`, `exposureTimeSeconds` (1 ns to 10⁶ s), `blackLevelCode`, `whiteLevelCode`, optional `saturationFlags`, `conversionGainElectronsPerCode` (K) and `readNoiseElectrons`. Samples at or above white, or flagged, are excluded. For the remaining frames:
 
 - e_k = (code_k − black_k)·K_k
 - Φ̂_k = e_k / t_k (photo-electrons per second)
 - Var[e_k] = max(Φ, 0)·t_k + σ_read,k² + K_k²/12
 
 The variance combines Poisson shot noise and read noise, as in `calculateSignalToNoise`, with the EMVA 1288 uniform quantization term. The estimates are combined with the noise-optimal inverse-variance weights w_k = t_k² / Var[e_k], Φ̂ = Σw_kΦ̂_k / Σw_k and Var[Φ̂] = 1/Σw_k (Granados et al., CVPR 2010; Hasinoff, Durand & Freeman, CVPR 2010). Because Φ enters the variance, the estimate starts from the shot-noise maximum-likelihood estimate Σe_k/Σt_k. It is then refined by `iterations` reweightings (default 2).
+
+**Exposure-time limit.** Exposure times must be at least 1 ns. That is far below any photographic shutter (fast electronic shutters reach about 1/32000 s ≈ 3·10⁻⁵ s), and it keeps every merge quantity finite: t² ≥ 10⁻¹⁸ cannot underflow (at 10⁻¹⁷⁰ s it does, and the weights become 0/0), and the largest rate, (white − black)·K/t ≤ 2⁵³ · 10⁹ / 10⁻⁹ ≈ 9·10³³ e⁻/s, fits the float32 output (largest value about 3.4·10³⁸). Any merge that still yields NaN or a value beyond float32 (for example a gain so small that the variance underflows to 0) fails with `InvalidScientificInputError` instead of storing it.
 
 Samples saturated in every frame receive the largest representable rate, max_k (white_k − black_k)·K_k / t_k, as a lower bound, with `contributingFrameCount` 0. Each bracket is merged sample by sample, so the merge works on CFA mosaics (demosaic the merged mosaic afterwards) and on RGB data alike.
 
@@ -109,6 +111,7 @@ Tests check:
 - exact noise-free recovery;
 - exclusion of saturated and flagged samples;
 - reduction to Σe/Σt without read and quantization noise;
+- finite output: exposure times below 1 ns are rejected, and a merge that would produce NaN or a value outside float32 fails with `InvalidScientificInputError`;
 - on 20,000 simulated samples, an unbiased mean and the predicted variance within 5%. The variance is about 210 (e⁻/s)², against about 857 for equal weighting.
 
 Not modelled: dark current, fixed-pattern noise, inter-frame motion and registration. Inputs must be linear, so non-linear (camera-response) inputs and Debevec–Malik response recovery are not supported.

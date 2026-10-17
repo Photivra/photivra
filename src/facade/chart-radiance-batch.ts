@@ -137,8 +137,11 @@ export function mapEnvironmentDirectionsToChartPoints(input: { directions: Float
     const lz = -d[3 * i + 2]!;
     if (!(lz > 0)) throw new InvalidConfigurationError("Planar scene query does not point toward the scene plane.");
     const t = distance / lz;
-    points[2 * i] = -d[3 * i]! * t / scale;
-    points[2 * i + 1] = -d[3 * i + 1]! * t / scale;
+    const x = -d[3 * i]! * t / scale, y = -d[3 * i + 1]! * t / scale;
+    // A grazing direction (lz near 0, e.g. 1e-320) or a non-finite component would give ±Infinity or NaN.
+    if (!Number.isFinite(x) || !Number.isFinite(y)) throw new InvalidConfigurationError("Planar scene query maps to a non-finite chart point (grazing or non-finite direction).");
+    points[2 * i] = x;
+    points[2 * i + 1] = y;
   }
   return points;
 }
