@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Resolves a capture-specific native sensor readout scan schedule. Rolling readout uses a
- * uniform-linear single-axis approximation across the declared active capture. The caller supplies the
- * spatial timing span explicitly; it is never inferred from total data-readout duration, active crop
- * dimensions, native raster density, output resolution, sensor architecture metadata, or shutter
- * mechanism. Global readout has no spatial phase skew in this model even when a non-zero data-readout
- * duration is declared. This foundation does not define local exposure start/end times, mechanical
- * curtain travel, EFCS curtain behavior, rolling-shutter image distortion, flash/flicker interactions,
- * or motion integration.
+ * Sensor readout timing: when each position on the sensor is read out during one capture.
+ *
+ * Rolling readout is modelled as a uniform linear scan along one axis of the declared active capture.
+ * The caller supplies the scan's time span (skew) explicitly. It is never worked out from the total
+ * data-readout time, the crop size, pixel density, output resolution, sensor-architecture metadata or
+ * the shutter mechanism. Global readout has no skew in this model, even when a non-zero data-readout
+ * time is declared.
+ *
+ * Not covered here: local exposure start and end times, mechanical curtain travel, EFCS (electronic
+ * first-curtain shutter) behaviour, rolling-shutter image distortion, flash or flicker, and motion
+ * integration.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -26,11 +28,11 @@ import type { SensorReadoutArchitecture } from "./architecture.js";
 import { requireInputObject } from "../core/record-validation.js";
 
 /**
- * Readout architecture selected for one capture.
+ * The readout mode chosen for one capture.
  *
- * This reuses the architecture vocabulary but is not a hardware-capability
- * assertion. SensorArchitectureProfile.readoutCapabilities remains descriptive
- * metadata and is not consulted automatically.
+ * It uses the same names as the architecture metadata, but does not claim the
+ * hardware supports it. SensorArchitectureProfile.readoutCapabilities is
+ * descriptive only and is not checked automatically.
  */
 export type SensorReadoutMode = SensorReadoutArchitecture;
 
@@ -58,9 +60,9 @@ export type SourcedSensorReadoutFact<T> = EvidenceBackedFact<T>;
 export interface GlobalSensorReadoutTimingDeclaration {
   readoutMode: "global";
   /**
-   * Capture-specific sensor data-readout duration.
+   * Sensor data-readout time for this capture.
    *
-   * This is deliberately not interpreted as spatial exposure/readout skew.
+   * It is deliberately not treated as the spatial exposure or readout skew.
    */
   captureReadoutDurationSeconds: SourcedSensorTimingSeconds;
   scanDirectionNative?: never;
@@ -70,11 +72,10 @@ export interface GlobalSensorReadoutTimingDeclaration {
 export interface RollingSensorReadoutTimingDeclaration {
   readoutMode: "rolling";
   /**
-   * Capture-specific sensor data-readout duration.
+   * Sensor data-readout time for this capture.
    *
-   * This fact is retained independently from spatial sampling skew because
-   * published/declared readout duration and the spatial timing span need not be
-   * treated as the same quantity.
+   * It is kept separate from the spatial skew, because a published readout time
+   * and the scan's time span are not necessarily the same quantity.
    */
   captureReadoutDurationSeconds: SourcedSensorTimingSeconds;
   /**
@@ -82,8 +83,8 @@ export interface RollingSensorReadoutTimingDeclaration {
    */
   scanDirectionNative: SourcedSensorReadoutFact<NativeSensorReadoutScanDirection>;
   /**
-   * Time difference between the first and last spatial scan positions in the
-   * uniform-linear timing approximation.
+   * Time between the first and last scan positions, in the uniform linear
+   * timing approximation (the readout skew).
    */
   spatialSamplingSkewSeconds: SourcedSensorTimingSeconds;
 }
@@ -95,23 +96,23 @@ export type SensorReadoutTimingDeclaration =
 export interface CalculateSensorReadoutTimingInput {
   nativeRaster: NativeImageRaster;
   /**
-   * Active capture rectangle in invariant native raster coordinates.
+   * Active capture rectangle, in fixed native pixel coordinates.
    *
-   * Defaults to the complete native raster. Timing is never inferred by
-   * scaling a full-frame value to this rectangle.
+   * Defaults to the whole native image. Timing is never worked out by scaling
+   * a full-frame value to this rectangle.
    */
   activeCaptureRect?: RasterRect;
   /**
-   * Selected shutter mechanism for the capture.
+   * The shutter mechanism chosen for the capture.
    *
-   * It is reported independently and does not modify the sensor timing
-   * schedule in this foundation.
+   * It is reported separately and does not change the sensor readout timing
+   * in this model.
    */
   shutterMechanism: CaptureShutterMechanism;
   readout: SensorReadoutTimingDeclaration;
   /**
-   * Optional continuous native raster edge-coordinate points for timing
-   * diagnostics. Pixel centers may be represented with +0.5 offsets.
+   * Optional points, in continuous native pixel coordinates measured from pixel
+   * edges, to report timing for. A pixel centre is at +0.5.
    */
   samplePointsNative?: readonly RasterPoint[];
 }
@@ -120,10 +121,9 @@ export interface SensorReadoutTimingSample {
   pointNative: RasterPoint;
   normalizedScanPosition: number | null;
   /**
-   * Relative native-sensor readout phase in seconds.
+   * Readout time of this point, in seconds, relative to the first scan position (0).
    *
-   * Zero is the first spatial scan position. This is not automatically an
-   * exposure-start time or shutter-curtain time.
+   * It is not automatically an exposure-start time or a shutter-curtain time.
    */
   readoutPhaseOffsetSeconds: number;
 }
@@ -388,20 +388,20 @@ function normalizedScanPosition(
 }
 
 /**
- * Resolves a capture-specific native sensor readout scan schedule.
+ * Resolves the sensor readout scan schedule for one capture.
  *
- * Rolling readout uses a uniform-linear single-axis approximation across the
- * declared active capture. The caller supplies the spatial timing span
- * explicitly; it is never inferred from total data-readout duration, active
- * crop dimensions, native raster density, output resolution, sensor
- * architecture metadata, or shutter mechanism.
+ * Rolling readout is modelled as a uniform linear scan along one axis of the
+ * declared active capture. The caller supplies the scan's time span (skew)
+ * explicitly. It is never worked out from the total data-readout time, crop
+ * size, pixel density, output resolution, sensor-architecture metadata or the
+ * shutter mechanism.
  *
- * Global readout has no spatial phase skew in this model even when a non-zero
- * data-readout duration is declared.
+ * Global readout has no skew in this model, even when a non-zero data-readout
+ * time is declared.
  *
- * This foundation does not define local exposure start/end times, mechanical
- * curtain travel, EFCS curtain behavior, rolling-shutter image distortion,
- * flash/flicker interactions, or motion integration.
+ * Not covered: local exposure start and end times, mechanical curtain travel,
+ * EFCS (electronic first-curtain shutter) behaviour, rolling-shutter image
+ * distortion, flash or flicker, and motion integration.
  */
 export function calculateSensorReadoutTiming(
   input: CalculateSensorReadoutTimingInput

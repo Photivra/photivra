@@ -1,18 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
- * missing required fields and inconsistent scientific data are rejected. Reconstruction
- * consumes explicitly bound native post-ADC samples and declared normalized channel kernels. Native
- * CFA phase is absolute and orientation/crop remain downstream. This structural linear reconstruction
- * does not infer spectral sensor primaries, calibrated color or a complete arbitrary demosaic
- * algorithm.
- * Commit one validated native RAW sample with exact site/channel/event identity for declared
- * reconstruction. Reconstruction consumes explicitly bound native post-ADC samples and declared
- * normalized channel kernels. Native CFA phase is absolute and orientation/crop remain downstream.
- * This structural linear reconstruction does not infer spectral sensor primaries, calibrated color or
- * a complete arbitrary demosaic algorithm.
+ * RAW reconstruction (demosaicing): estimates every colour channel at each pixel from the RAW samples
+ * of nearby CFA (colour filter array) sites, using declared linear kernels.
+ *
+ * It uses native RAW samples (after the ADC) that are explicitly bound to their sites, and declared
+ * normalized kernels for each channel. The CFA phase is absolute; orientation and crop are applied
+ * later. This is a fixed linear reconstruction. It does not infer the sensor's spectral primaries or
+ * calibrated colour, and is not a general demosaic algorithm. Built-in bilinear and Malvar–He–Cutler
+ * Bayer kernels are provided.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -58,8 +54,8 @@ export interface CreateSensorRawCaptureSampleInput {
   contributors:
     ResolvedCaptureModeColorSamplingContributors;
   /**
-   * The selected readout regime's declared ADC integral non-linearity, when it has one. The code
-   * sample records INL only at its own code; the effective white level needs it at saturation.
+   * The selected readout regime's declared ADC integral non-linearity (INL), if any. The code sample
+   * records INL only at its own code, but the effective white level needs it at saturation.
    */
   adcIntegralNonLinearity?:
     SensorAdcIntegralNonLinearity;
@@ -90,7 +86,7 @@ export interface SensorRawCaptureSample {
   effectiveSaturationCode: number;
   /** Regime system conversion gain, e⁻ per code (DNG NoiseProfile input). */
   systemConversionGainElectronsPerCode: number;
-  /** sqrt of the summed squared regime read-noise RMS components, e⁻ (DNG NoiseProfile input). */
+  /** Total read noise in e⁻: the square root of the sum of the squared RMS components (DNG NoiseProfile input). */
   readNoiseRmsElectrons: number;
   readoutProfileId: string;
   readoutRegimeId: string;
@@ -440,10 +436,8 @@ function parseKernel(
  * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
  * missing required fields and inconsistent scientific data are rejected.
  *
- * Reconstruction consumes explicitly bound native post-ADC samples and declared normalized channel
- * kernels. Native CFA phase is absolute and orientation/crop remain downstream. This structural linear
- * reconstruction does not infer spectral sensor primaries, calibrated color or a complete arbitrary
- * demosaic algorithm.
+ * The profile declares a normalized linear kernel for each output channel. It does not infer the
+ * sensor's spectral primaries or calibrated colour.
  * @param value - Untrusted data. TypeScript types alone are not validation.
  * @returns The result. Success does not imply calibration.
  *
@@ -576,13 +570,8 @@ export function parseSensorRawReconstructionProfile(
 }
 
 /**
- * Commit one validated native RAW sample with exact site/channel/event identity for declared
- * reconstruction.
- *
- * Reconstruction consumes explicitly bound native post-ADC samples and declared normalized channel
- * kernels. Native CFA phase is absolute and orientation/crop remain downstream. This structural linear
- * reconstruction does not infer spectral sensor primaries, calibrated color or a complete arbitrary
- * demosaic algorithm.
+ * Commits one validated native RAW sample, with its exact site, channel and exposure event, for use
+ * in reconstruction.
  * @param input - The input; see `CreateSensorRawCaptureSampleInput` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
@@ -773,13 +762,11 @@ function requireCenterSite(
 }
 
 /**
- * Gather exactly supplied native channel contributions through explicit normalized kernels while
- * preserving CFA identity and signed black-subtracted values.
+ * Combines the supplied native samples through explicit normalized kernels, keeping CFA identity
+ * and signed black-subtracted values.
  *
- * Reconstruction consumes explicitly bound native post-ADC samples and declared normalized channel
- * kernels. Native CFA phase is absolute and orientation/crop remain downstream. This structural linear
- * reconstruction does not infer spectral sensor primaries, calibrated color or a complete arbitrary
- * demosaic algorithm.
+ * The CFA phase is absolute; orientation and crop come later. This fixed linear reconstruction does
+ * not infer spectral primaries or calibrated colour, and is not a general demosaic algorithm.
  * @param input - The input; see `ResolveSensorRawReconstructionInput` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
@@ -930,9 +917,10 @@ export function resolveSensorRawReconstruction(
 }
 
 /**
- * Internal prepared scalar accumulation; reference and packed execution share operation order.
- * With `mirrorBounds`, a contribution site outside the native frame is read at its whole-sample
- * (reflect-101) mirror image `reflectRawSiteIndex`; without it (the default) such a site fails closed.
+ * Internal: sums one channel's weighted contributions. The reference and packed paths use the same
+ * order of operations. With `mirrorBounds`, a contribution site outside the native frame is read from
+ * its mirror image (reflect-101, see `reflectRawSiteIndex`). Without it (the default), such a site is
+ * rejected.
  */
 export function calculateRawReconstructionChannel(kernel: SensorRawReconstructionChannelKernel,
   center: {x:number;y:number}, read: (x:number,y:number,channelId:string)=>number,
@@ -956,9 +944,9 @@ export function calculateRawReconstructionChannel(kernel: SensorRawReconstructio
 export type RawReconstructionBorderHandling = "reject" | "mirror";
 
 /**
- * Whole-sample symmetric ("reflect-101") index: −1 → 1, −2 → 2, n → n−2. The edge site itself is
- * not repeated, so for a period-2 CFA (Bayer) every reflected site keeps the channel of the virtual
- * periodic site it replaces. Requires size ≥ 1; for size 1 every index maps to 0.
+ * Mirror index ("reflect-101"): −1 → 1, −2 → 2, n → n−2. The edge site itself is not repeated, so
+ * for a CFA that repeats every 2 sites (Bayer) each mirrored site has the same channel as the site the
+ * repeating pattern would put there. Requires size ≥ 1; for size 1 every index maps to 0.
  */
 export function reflectRawSiteIndex(index: number, size: number): number {
   if (index >= 0 && index < size) return index;
@@ -968,9 +956,10 @@ export function reflectRawSiteIndex(index: number, size: number): number {
 }
 
 /**
- * Internal: proves that mirror (reflect-101) border reads return the channel the periodic CFA would
- * place at every virtual site within `reach` of each frame edge, for every row/column phase. Mirroring
- * acts per axis, so per-axis checks over every phase also cover corners. Throws otherwise.
+ * Internal: proves that mirrored (reflect-101) reads at the border return the channel the repeating
+ * CFA would put at every virtual site within `reach` of each frame edge, for every row and column
+ * phase. Mirroring works per axis, so checking each axis over every phase also covers the corners.
+ * Throws otherwise.
  */
 export function validateMirrorBorderCfaConsistency(layout: { repeatWidthSites: number; repeatHeightSites: number;
   siteChannelIds: readonly string[] }, width: number, height: number, reach: number): void {
@@ -1007,7 +996,7 @@ export interface CreateBuiltInBayerDemosaicProfilesInput {
   captureModeId: string;
   /** Must be a 2×2 periodic Bayer mosaic: one red, one blue and two diagonal green sites. */
   colorSamplingProfile: SensorColorSamplingProfile;
-  /** CFA channel ids playing the red, green and blue roles; also the output channel order. */
+  /** CFA channel IDs for the red, green and blue roles. This is also the output channel order. */
   channelRoles: { red: string; green: string; blue: string };
 }
 
@@ -1029,11 +1018,15 @@ function bayerTaps(points: readonly (readonly [number, number])[], role: BayerRo
 }
 
 /**
- * Kernels at one site kind. `own` is the site's channel; `horizontal` is the chroma channel on the same
- * row for a green site. Bilinear: average of the nearest same-channel sites. Malvar–He–Cutler (ICASSP
- * 2004): bilinear estimate plus a gain-scaled discrete Laplacian of the site's own channel, with gains
- * α = 1/2 (green at red/blue), β = 5/8 (red/blue at green) and γ = 3/4 (red at blue / blue at red).
- * Every kernel sums to one and reproduces affine channel signals exactly.
+ * Kernels for one kind of site. `own` is the site's channel; `horizontal` is the colour channel on the
+ * same row, for a green site.
+ *
+ * - Bilinear: the average of the nearest sites of the wanted channel.
+ * - Malvar–He–Cutler (ICASSP 2004): the bilinear estimate plus a scaled discrete Laplacian of the
+ *   site's own channel, with gains α = 1/2 (green at red/blue), β = 5/8 (red/blue at green) and
+ *   γ = 3/4 (red at blue / blue at red).
+ *
+ * Every kernel sums to one and reproduces signals that vary linearly (affine) exactly.
  */
 function bayerSiteKernels(kernel: BuiltInBayerDemosaicKernel, own: BayerRole, horizontal: BayerRole | null): Record<BayerRole, BayerTap[]> {
   const mhc = kernel === "malvar-he-cutler-2004";
@@ -1069,15 +1062,17 @@ const BAYER_DEMOSAIC_EVIDENCE: Readonly<Record<BuiltInBayerDemosaicKernel, reado
 };
 
 /**
- * Builds the explicit per-phase linear reconstruction profiles of a built-in Bayer demosaic kernel:
- * bilinear, or the Malvar–He–Cutler (2004) gradient-corrected 5×5 linear filters. The result is the
- * ordinary `explicit-linear-native-neighborhood` contract consumed by RAW frame reconstruction, native
- * RAW development and `createCfaPlaneReconstructionTask`, so it gains no special execution path. Edge
- * pixels need either a region whose neighbourhood stays inside the frame or mirror border handling.
+ * Builds the per-phase linear reconstruction profiles of a built-in Bayer demosaic kernel: bilinear,
+ * or the Malvar–He–Cutler (2004) gradient-corrected 5×5 linear filters.
+ *
+ * The result is the ordinary `explicit-linear-native-neighborhood` profile used by RAW frame
+ * reconstruction, native RAW development and `createCfaPlaneReconstructionTask`; there is no special
+ * code path. Edge pixels need either a region whose neighbourhood stays inside the frame, or mirror
+ * border handling.
  *
  * Approximation: fixed linear interpolation, not a calibrated or adaptive demosaic. Bilinear blurs
- * and zippers at edges; Malvar–He–Cutler reduces but does not remove colour fringes. Aliasing and
- * moiré are not modelled.
+ * and shows "zipper" artefacts at edges; Malvar–He–Cutler reduces colour fringes but does not remove
+ * them. Aliasing and moiré are not modelled.
  */
 export function createBuiltInBayerDemosaicProfiles(input: CreateBuiltInBayerDemosaicProfilesInput): CalculationResult<BuiltInBayerDemosaicProfiles> {
   requireInputObject(input, "createBuiltInBayerDemosaicProfiles input");
