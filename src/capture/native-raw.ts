@@ -69,6 +69,18 @@ export interface NativeRawOutput {
    */
   effectiveSaturationCodes: Uint16Array;
 }
+/** Internal: lean per-site outputs of an engine-built site (see native-environment-lean.ts). */
+export interface NativeRawLeanOutput { rawCode: number; blackLevelCode: number; digitalSaturationCode: number; flags: number; whiteCode: number }
+/**
+ * Internal hook for engine-built tiles (native environment RAW). claim() recognizes only entries the hook itself
+ * created for sites whose parse and identity validation are provably redundant; compute() returns the outputs
+ * calculateNativeRawSite would produce (falling back to it internally); observe() sees every fully computed site.
+ */
+export interface NativeRawLeanSensorHook {
+  claim(site: unknown): object | undefined;
+  compute(handle: object, index: number, seed: number, timing: ReturnType<typeof calculateCaptureExposureWindows>["value"]["samples"][number] | undefined): NativeRawLeanOutput;
+  observe(index: number, parsed: SensorRawProducerSiteInput, result: ReturnType<typeof calculateNativeRawSite>, whiteCode: number, seed: number): void;
+}
 export type NativeRawTaskState = "ready" | "running" | "completed" | "cancelled" | "failed" | "disposed" | "transferred";
 export interface NativeRawTask {
   readonly plan: NativeRawPlan;
@@ -136,7 +148,9 @@ export function createNativeRawTask(input: NativeRawInput,provider: NativeRawPro
 /** Internal: explicit host-yield cadence. Cadence never changes tiles, seeds or output. Not a root export. */
 export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: NativeRawProvider,cadence: HostYieldCadence,
   /** Internal: a gate shared with a provider that also yields inside readTile, so both observe one budget. */
-  sharedGate?: HostYieldGate): NativeRawTask {
+  sharedGate?: HostYieldGate,
+  /** Internal: lean per-site sensor execution for engine-built tiles; never changes output or errors. */
+  leanSensor?: NativeRawLeanSensorHook): NativeRawTask {
   const plan=calculateNativeRawPlan(input);
   if(!provider||typeof provider.readTile!=="function"||typeof provider.yieldControl!=="function")throw new InvalidConfigurationError("Native RAW requires reader and host event-loop yield.");
   const read=provider.readTile.bind(provider),yieldControl=provider.yieldControl.bind(provider),abort=new AbortController();
@@ -160,14 +174,26 @@ export function createNativeRawTaskWithCadence(input: NativeRawInput,provider: N
             for(const key of Object.keys(request) as (keyof NativeRawTileRequest)[])if(tile[key]!==request[key])throw new InvalidConfigurationError("Native RAW tile identity mismatch.");
             if(!Array.isArray(tile.sites)||tile.sites.length!==request.width||Array.from({length:request.width},(_,i)=>i in (tile.sites as unknown[])).includes(false))throw new InvalidConfigurationError("Native RAW tile needs exact dense coverage.");
             const timing=plan.exposureWindow?windows(plan.exposure,plan.exposureWindow,Array.from({length:request.width},(_,i)=>({x:x+i+.5,y:y+.5}))):undefined;
-            const sites=tile.sites.map((site,j)=>parseNativeRawProducerSite(site,y*native.pixelWidth+x+j,plan.frame,timing?.samples[j]));
-            first??=sites[0];for(const s of sites)validateNativeRawReadoutIdentity(s,first!);
+            // Lean entries (engine-built, provably valid against an earlier verified template) skip parsing and identity
+            // validation; they are only claimed once the frame's first site is fixed.
+            const lean=leanSensor&&first!==undefined?(tile.sites as unknown[]).map(site=>leanSensor.claim(site)):undefined;
+            const sites=tile.sites.map((site,j)=>lean?.[j]?undefined:parseNativeRawProducerSite(site,y*native.pixelWidth+x+j,plan.frame,timing?.samples[j]));
+            first??=sites[0];for(const s of sites)if(s)validateNativeRawReadoutIdentity(s,first!);
             // Every site in this tile is validated before writing owned output. Failures never publish partial output.
+            const seed=plan.exposure.noise.seedUint32;
             for(let j=0;j<sites.length;j++){
-              const index=y*native.pixelWidth+x+j,r=calculateNativeRawSite(sites[j]!,plan.exposure.noise.seedUint32,index).readout.value;
+              const index=y*native.pixelWidth+x+j,handle=lean?.[j];
+              if(handle){
+                const o=leanSensor!.compute(handle,index,seed,timing?.samples[j]);
+                output.codes[index]=o.rawCode;output.blackLevels[index]=o.blackLevelCode;output.digitalSaturationCodes[index]=o.digitalSaturationCode;
+                output.saturationFlags[index]=o.flags;white.record(index,o.whiteCode);continue;
+              }
+              const result=calculateNativeRawSite(sites[j]!,seed,index),r=result.readout.value;
               output.codes[index]=r.rawCode;output.blackLevels[index]=r.blackLevelCode;output.digitalSaturationCodes[index]=r.digitalSaturationCode;
               output.saturationFlags[index]=Number(r.physicalScalarSaturationApplied)|Number(r.preAdcSaturationApplied)<<1|Number(r.digitalSaturationApplied)<<2;
-              white.record(index,calculateSiteEffectiveSaturationCode(r,sites[j]!.readoutProfile,sites[j]!.regimeId));
+              const whiteCode=calculateSiteEffectiveSaturationCode(r,sites[j]!.readoutProfile,sites[j]!.regimeId);
+              white.record(index,whiteCode);
+              leanSensor?.observe(index,sites[j]!,result,whiteCode,seed);
             }
             count++;
           }

@@ -1504,9 +1504,10 @@ const POISSON_NORMAL_APPROXIMATION_MINIMUM_MEAN =
  * threshold is crossed; means from 30 to below 1e9 use Hörmann's (1993) PTRS transformed
  * rejection and compare log probabilities to avoid overflow; means of 1e9 and above use a
  * continuity-corrected normal approximation because the log terms lose precision there. The same mean and stream reproduce a draw;
- * changing means does not guarantee monotonic individual samples.
+ * changing means does not guarantee monotonic individual samples. Internal export for the lean native
+ * executor, which must draw exactly as simulateSensorChargeRealization does; not a root export.
  */
-function samplePoisson(
+export function samplePoisson(
   mean: number,
   random:
     DeterministicRandom
@@ -2245,9 +2246,10 @@ function integralNonLinearityOffset(
 /**
  * Shared ADC transfer: continuous input code (signal/gain + black + INL), round-half-up
  * quantization limited to the ADC code range, then optional post-ADC digital gain about black,
- * re-quantized. The final clamp to [0, digitalSaturationCode] is applied by the caller.
+ * re-quantized. The final clamp to [0, digitalSaturationCode] is applied by the caller. Internal export
+ * shared with the lean native executor; not a root export.
  */
-function adcTransfer(
+export function adcTransfer(
   regime:
     SensorReadoutConversionRegime,
   adcMaximumCode: number,

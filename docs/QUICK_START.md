@@ -339,23 +339,25 @@ console.log(pan.assumptions.find((a) => a.id === "sensor.shutter")?.value, pan.e
 
 ## Performance
 
-The facade runs every sensor site through the full validated environment pipeline. Its cost is
-almost entirely engine time per site, not facade overhead. Measured on a shared 4-core Linux host
-running Node 24 under heavy load (slanted edge, JPEG output, default settings):
+The facade's cost is almost entirely engine time per sensor site, not facade overhead. Since 2.0 the
+native environment task runs most sites through a lean executor that skips provably redundant per-site
+re-validation while producing byte-identical output (described in the repository's
+`docs/NATIVE_RAW_AND_PRINT.md`). Measured on
+a 4-core Linux host running Node 24 (slanted edge, default settings and sRGB 8-bit output):
 
 | Output | Native sites | Wall time | CPU time | CPU per site |
 | --- | --- | --- | --- | --- |
-| 256 × 256 | 66 564 | 277 s | 118 s | 1.8 ms |
-| 1000 × 1000 | 1 004 004 | about 54 min (extrapolated) | about 30 min (extrapolated) | — |
+| 64 × 64 | 4 356 | 0.6 s | 0.87 s | 0.20 ms |
+| 128 × 128 | 16 900 | 1.6 s | 2.2 s | 0.13 ms |
+| 256 × 256 | 66 564 | 5.7 s | 6.9 s | 0.10 ms |
+| 1000 × 1000 | 1 004 004 | — | about 2 min (extrapolated) | — |
 
-The 1000 × 1000 row is not a completed measurement. A run reached 1579 of 4008 RAW tiles in 1269 s
-(about 1.24 tiles per second) before the host was restarted; the wall time extrapolates that rate, and
-the CPU time multiplies the 256 × 256 CPU cost per site by the site count. Development and JPEG
-encoding are under 1 % of the total. Almost all of the time is spent in per-site validation and
-result envelopes inside the existing environment pipeline.
+The 1000 × 1000 row is not a measurement; it multiplies the 256 × 256 CPU cost per site by the site
+count. Before the lean executor the same 64 × 64 capture took about 6.0 s of CPU and 128 × 128 about
+20.6 s on this host. Development and encoding are a small part of the total.
 
-These numbers come from one run on a noisy machine. They are not a performance claim. Small captures
-(up to about 64 × 64) take seconds. Use them while you explore, and render large images only when
+These numbers come from one run on one machine. They are not a performance claim. Small captures
+(up to about 128 × 128) take a few seconds. Use them while you explore, and render large images only when
 you need them.
 
 ## Not available
