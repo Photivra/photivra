@@ -12,13 +12,13 @@
 
 ## Candidate details
 
-**Candidate base:** `origin/main` at `28f8b61` (#314), the last code change. This record update changes `CHANGELOG.md`, this file, `THIRD_PARTY.md`, `README.md` (the Adobe DNG notice) and one source comment (the same notice in `src/capture/dng-import.ts`); the comment-stripped build is unchanged.
+**Candidate base:** `origin/main` at `34f687d` (#328), the last merged change before this record update. This update also carries three small code changes, reviewed in its own PR: the owner's decision to remove the von Kries HPE transform and the CIECAM02 degree-of-adaptation helper, and a `nativeRaster` input check in `calculateSensorGeometryMetrics`. The tag goes on the `main` commit that merges this update, once its CI is green.
 
 - `npm run release:prepare -- 2.0.0` had already aligned `package.json`, both lockfile root versions, `ENGINE_API_VERSION`, `CITATION.cff`, the current-release lines in `README.md` and `docs/DEVELOPERS.md`, and the generated `docs/api`.
 - After the merge, the API reference was regenerated.
 - No citation release date is stated before publication.
 
-**All streams merged:** the lean per-site executor (#305), the `simulateCapture()` integration of the 2.0 features (#306) and the native RAW DNG writer (#307) are merged, as are the AGENTS.md reset (#308), the plain-language pass (#309–#312), the agent docs (#313) and the free-source citations (#314). All are listed in the [changelog](https://github.com/Photivra/photivra/blob/main/CHANGELOG.md).
+**All streams merged:** the lean per-site executor (#305), the `simulateCapture()` integration of the 2.0 features (#306) and the native RAW DNG writer (#307) are merged, as are the AGENTS.md reset (#308), the plain-language pass (#309–#312), the agent docs (#313), the free-source citations (#314), the WebGPU completion (#316, #323), strict inputs (#317, #322), the licence cleanup (#318, #320), further native RAW speed-ups (#319), the faster CCT/Duv (#321), the licence guard (#324) and the final review fixes (#325–#328). All are listed in the [changelog](https://github.com/Photivra/photivra/blob/main/CHANGELOG.md).
 
 ## Scope
 
@@ -55,6 +55,20 @@ Changes since `v1.5.0`, all merged to `main`. In the "Kind" column, *Breaking* m
 | [#309](https://github.com/Photivra/photivra/pull/309)–[#312](https://github.com/Photivra/photivra/pull/312) | — | Plain-language source comments and docs | Docs only (comment-stripped build identical) |
 | [#313](https://github.com/Photivra/photivra/pull/313) | — | `llms.txt`, agent guide and task index for AI agents | Docs, package contents |
 | [#314](https://github.com/Photivra/photivra/pull/314) | — | Free-source citations, runtime source strings, DC-004 facade exposure anchor, inventory fixes | Breaking (facade default illuminance), text |
+| [#315](https://github.com/Photivra/photivra/pull/315) | — | Release record: CI on `28f8b61`, owner decisions, DNG licence check | Docs only |
+| [#316](https://github.com/Photivra/photivra/pull/316) | #277 | WebGPU accuracy contract, sensor stage and temporal exposure sum | Additive |
+| [#317](https://github.com/Photivra/photivra/pull/317) | #276 | Strict inputs everywhere, read-only results, one rule for error classes | Breaking (strictness, error classes) |
+| [#318](https://github.com/Photivra/photivra/pull/318), [#320](https://github.com/Photivra/photivra/pull/320) | — | Licence cleanup: own CMF fit, Planck-law locus, Malvar–He–Cutler, PQ and HLG removed; caller CIE94 factors; SPDX headers | Breaking (values, removals) |
+| [#319](https://github.com/Photivra/photivra/pull/319) | #275 | Lean PSF, lens-mapped and pupil sites; worker row-band partitions; batched light sampling | Performance (identical output), additive API |
+| [#321](https://github.com/Photivra/photivra/pull/321) | — | CCT/Duv by Newton root-find on the analytic derivative | Values (≤ 0.089 K), performance |
+| [#322](https://github.com/Photivra/photivra/pull/322) | #276 | Strict versioned records: every `parse*()` parser and record-taking function rejects unknown fields | Breaking (strictness) |
+| [#323](https://github.com/Photivra/photivra/pull/323) | #277 | WebGPU: FPN on the GPU sensor stage, luminance tone curves, PSF-profile kernels, chart radiance, per-fixture rollout | Additive |
+| [#324](https://github.com/Photivra/photivra/pull/324) | — | Licence guard: ScanCode CI job with a reviewed allowlist; PR-template rights line; free CAT16 citation | CI, docs |
+| [#325](https://github.com/Photivra/photivra/pull/325) | #277 | WebGPU fixes: tiny-weight error bounds, per-band memory, late-device destroy | Fix (GPU values unchanged) |
+| [#326](https://github.com/Photivra/photivra/pull/326) | — | Durand–Dorsey zero-luminance pixels; PSF kernel memory and corner lookup | Fix (values), performance (bit-identical) |
+| [#327](https://github.com/Photivra/photivra/pull/327) | — | CAT02 removed; CCT+Duv domain; strict nested colour and optics records; PNG enums and speed; HDR and chart-point finiteness | Breaking (removal, strictness), performance (byte-identical) |
+| [#328](https://github.com/Photivra/photivra/pull/328) | — | Sub-object errors; strict nested facade records; scene digest covers spectra; JPEG progress; faster auto white balance; unclamped host yields | Breaking (strictness, digests with caller spectra, JPEG XMP bytes), performance |
+| This update | — | Von Kries HPE transform and CIECAM02 degree-of-adaptation helper removed (owner decision); `calculateSensorGeometryMetrics` input check; record refresh | Removal, fix, docs |
 
 Commits #243–#267, between `v1.5.0` and the first review, are guidance, CI, documentation, hooks, `release:prepare` and repository-internal browser-native reference work. They change no public root contract. The full release notes, with a migration for each breaking change, are in the [changelog](../CHANGELOG.md).
 
@@ -128,7 +142,7 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
   - RGB↔XYZ matrices: derived from the ITU-R BT.709-6 / BT.2020-2 and CSS Color 4 primaries and D65; equal to the W3C CSS Color 4 matrices within 1e-12.
   - Planckian locus: Planck's law integrated against the engine's CMFs. McCamy, *Color Res. Appl.* 17(2) (1992), with its measured deviation documented.
   - CCT/Duv (correlated colour temperature and distance from the Planckian locus): Smet et al., LEUKOS 2023 (free DOE copy). Duv sign (positive above the locus): Ohno, CORM 2011 slides (free), slide 5; the engine documents and tests it.
-  - Chromatic adaptation: Lam (1985), ICC.1:2010 Annex E (free, permissive ICC licence; the Bradford test follows it), Moroney et al. CIC10 2002, Li et al. *Color Res. Appl.* 42(6) (2017).
+  - Chromatic adaptation: Lam (1985), ICC.1:2010 Annex E (free, permissive ICC licence; the Bradford test follows it); CAT16 from Li et al., IS&T CIC24 2016, Eq. (15) (free; all nine coefficients checked), journal version *Color Res. Appl.* 42(6) (2017). CAT02, the von Kries HPE matrix and the CIECAM02 formula for D were removed (owner decisions, 2026-10-17): no free source we could confirm prints them. D is caller-supplied (default 1).
   - CIELAB: W3C CSS Color 4. CIEDE2000: Sharma, Wu & Dalal 2005 (free implementation notes; their test pairs are not used).
   - Camera matrix fit: Finlayson & Drew, CIC5 1997.
   - Gamut mapping: CSS Color 4 §14 (free); also see Morovič 2008.
@@ -283,7 +297,7 @@ In the Status column: **Replaced** means a free source now backs the fact. **Rem
 | CIE 018:2019 | K_m = 683 lm/W | BIPM SI Brochure, 9th ed., definition of the candela (K_cd = 683 lm/W) — <https://www.bipm.org/en/publications/si-brochure> | Replaced |
 | CIE 116-1995 | CIE94 ΔE weights | No free primary source. The engine uses the formula's published reference conditions (k_L = k_C = k_H = 1, K₁ = 0.045, K₂ = 0.015) by default and accepts caller-supplied factors; the textiles preset and the Wikipedia citation were removed (second licence audit, 2026-10-17). The tests check closed-form cases computed from the equations. | Replaced (owner decision 6; second audit) |
 | CIE 142-2001 / ISO/CIE 11664-6 | CIEDE2000 | Sharma, Wu & Dalal (2005) implementation notes — <https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/>; CSS Color 4 `deltaE2000`. Their test data file has no licence, so it is not used; the tests check closed forms instead. | Replaced |
-| CIE 159:2004 | CAT02 and HPE matrices; degree of adaptation D | Moroney et al., "The CIECAM02 color appearance model", CIC10 2002, in the RIT open repository — <https://repository.rit.edu/other/143>. Automated download was refused (HTTP 403), so free availability is listed but was not confirmed from this host. | Replaced (needs human confirmation) |
+| CIE 159:2004 | CAT02 and HPE matrices; degree of adaptation D | Not applicable: CAT02, the von Kries HPE transform and the CIECAM02 degree-of-adaptation helper were removed from 2.0. The free CAT16 paper (Li et al., IS&T CIC24 2016) names M02 and M_HPE but prints neither matrix nor the D formula, and the free RIT copy of Moroney et al. (2002) sits behind a bot check, so it could not be confirmed. | Removed (owner decisions, 2026-10-17) |
 | SMPTE ST 2084 | PQ EOTF and constants | Not applicable: PQ and HLG were removed from 2.0 (patent declarations are licence-on-request only) | Removed (owner decision) |
 | SMPTE ST 2086 | Mastering display colour volume fields | W3C PNG Third Edition `mDCV` — <https://www.w3.org/TR/png-3/>; ITU-T H.265 Annex D SEI — <https://www.itu.int/rec/T-REC-H.265> | Replaced |
 | CTA-861.3 | MaxCLL/MaxFALL | W3C PNG Third Edition `cLLI`; ITU-T H.265 Annex D content light level SEI | Replaced |
@@ -353,6 +367,8 @@ The owner's free-sources rule also covers paid textbooks. For each fact a paid b
   - The #295 correction, which takes BlackLevel and CFAPattern phases relative to the ActiveArea origin, and the DNG importer both follow this rule.
   - Compatibility Issue 2 (16-bit lossless JPEG before DNG 1.1.0.0) is as cited in `docs/IMPORT_AND_PNG.md`.
   - The specification is free to download. It is © Adobe, and only factual tag definitions are used.
+- **Colour constants without a confirmed free source removed (owner decisions, 2026-10-17):** CAT02, the von Kries Hunt–Pointer–Estévez matrix and the CIECAM02 degree-of-adaptation formula. Bradford (ICC.1:2010 Annex E) and CAT16 (free IS&T CIC24 2016 paper, Eq. (15)) remain.
+- **Licence guard (#324).** CI runs ScanCode Toolkit 32.5.0 (Apache-2.0; every package pinned by version and SHA-256) and `scripts/check-scancode-policy.mjs`. The build fails on any licence other than Apache-2.0, any copyright holder other than the owner or Photivra contributors, scan errors, or stale allowlist entries. Each exception is one file plus one exact licence or holder, with a reason; adding or widening one needs owner review. The PR template asks every PR to state the source, licence and patent check of new algorithms, constants, datasets and file formats.
 - **MurmurHash3** is an independent implementation of the public-domain algorithm (Austin Appleby, SMHasher), checked against published test vectors and recorded in `THIRD_PARTY.md`.
 - **No third-party code, model weights or calibration data added.**
   - The JPEG DCT constants are computed by the engine.
@@ -408,11 +424,12 @@ Other contract changes:
 
 - new required RAW and sensor result fields;
 - `createNativeRawDevelopmentTask` takes ownership of `input.raw`;
-- stricter input validation (non-plain JSON, unknown scalar fields, plan version/fingerprint mismatches);
+- stricter input validation: non-plain JSON, unknown fields at every level (scalar inputs, `parse*()` records and nested sub-objects), missing or null sub-objects (now `InvalidConfigurationError`), plan version/fingerprint mismatches;
+- removed before release: the `"cat02"` and `"von-kries-hpe"` chromatic-adaptation transforms and `calculateDegreeOfAdaptation` (never in 1.x);
 - widened unions (white-balance source, metering policy, readout synchronization, filter polarization, geometric transforms, blocker codes);
 - a smaller package, without `prepare`, declaration maps or internal guides.
 
-Root exports grow from 1,227 to 1,648 symbols. Comparing the generated `docs/api/exports.json` against `v1.5.0` shows none removed. New captures and plans record creator identity 2.0.0. Existing archives keep their identities, and fail closed where a bound identity changed.
+Root exports grow from 1,227 to 1,668 symbols. Comparing the generated `docs/api/exports.json` against `v1.5.0` shows none removed. New captures and plans record creator identity 2.0.0. Existing archives keep their identities, and fail closed where a bound identity changed.
 
 ## Known historical evidence not regenerated
 
@@ -433,6 +450,7 @@ Work that is known and deliberately left for later:
   - an adapter from `NativeEnvironmentRawProvider.evaluateRadianceBatch` (#319) to `evaluateChartRadiance` (the seam, `mapEnvironmentDirectionsToChartPoints`, is built), and GPU radiance for caller scene functions;
   - hardware-GPU conformance runs and timings at 6–24 MP (`npm run test:webgpu:hardware` and `npm run bench:webgpu:hardware` are ready; nothing has been measured, because the development container has no GPU);
   - running `npm run test:webgpu` in CI.
+- **#328 follow-up:** the browser speed-up from the unclamped host yields (avoiding the 4 ms nested-timer clamp) is expected but was not measured; in Node the gain is within run-to-run noise.
 - **Optics follow-ups from #303:** lens field mapping in the browser-native executor, mappings combined with ideal pupil rays, calibrated finite-focus fisheye scale.
 - **Motion follow-ups from #297:** derived rolling exposure schedules in tier presets; time-varying angular velocity (rolling-shutter wobble).
 
@@ -445,30 +463,29 @@ Work that is known and deliberately left for later:
    - the owner approves anything that goes to production.
 
    `docs/AGENT_DOMAIN_RULES.md`, `docs/AUTOMATION_COORDINATION.md` and the `.github` agent files were retired. Their scientific content already lives in the domain guides, and `.github/node-lts-policy.mjs` still enforces the CI Node policy.
-3. **Human review** of the AI-assisted changes and of this record. The third-party inputs were decided on 2026-10-17: the Wyman et al. CMF coefficients were replaced by the engine's own fit; the Kang et al. locus by Planck's law; CIE table values were removed from the tests; the Malvar–He–Cutler demosaic, PQ and HLG were removed; DNG is kept under Adobe's royalty-free licence, with a licence record file (`docs/licenses/adobe-dng-patent-license-record.txt`).
+3. **Human review** of the AI-assisted changes and of this record. The third-party inputs were decided on 2026-10-17: the Wyman et al. CMF coefficients were replaced by the engine's own fit; the Kang et al. locus by Planck's law; CIE table values were removed from the tests; the Malvar–He–Cutler demosaic, PQ and HLG were removed; CAT02, the von Kries HPE matrix and the CIECAM02 degree-of-adaptation formula were removed; DNG is kept under Adobe's royalty-free licence, with a licence record file (`docs/licenses/adobe-dng-patent-license-record.txt`). The owner also chose the ScanCode licence guard (#324) after a local full-repository ScanCode run found no licence or copyright other than the reviewed ones.
+4. **JPEG file bytes from #328.** Correcting the JPEG progress total also corrects the read budget recorded in the XMP `PrintExportPlan`, so JPEG files taller than 32 rows or wider than 256 columns change bytes (image data identical from the quantization tables on). This was kept as a fix; the alternative is to correct only the progress counter.
 
 ## Release gates
 
-The authoritative result is GitHub CI on the exact commit that is tagged. The last code change is `28f8b61` (#314); its push CI on `main` is recorded below. This record update changes no code (documentation and one source comment), and gets its own CI run on its PR and again on `main` after merge. Tag the `main` commit whose CI is green.
+The authoritative result is GitHub CI on the exact commit that is tagged: the `main` commit that merges this record update. This update changes code (the HPE/degree-of-adaptation removal and one input check), so it gets full CI on its PR and again on `main` after merge. Tag that `main` commit only when its CI is green.
 
-| Gate | Result on `28f8b61` |
+| Gate | Result |
 | --- | --- |
-| Exact head SHA | `28f8b614af9d0aef59fd121f6ad02b0a77643d2a` |
-| GitHub CI (all jobs, all Node versions) | Passed: [CI run 793](https://github.com/Photivra/photivra/actions/runs/38996058927) and [Native performance run 66](https://github.com/Photivra/photivra/actions/runs/38996058972) |
-| `npm run check` (full vitest suite) | Passed on Node 22.13.0, lts/-1 and current (`verify` jobs) |
-| `npm run coverage` (thresholds) | Passed (`verify (lts/*)` coverage gate) |
-| `npm run build`, `pack:check`, `docs:check`, `release:consumer-check` | Passed (`verify` jobs: build, generated documentation, packed consumer acceptance, package dry run) |
-| Informational macOS hash-lock job | Passed |
+| Base before this update | `34f687da64e177a194fde8be0f25f681f282f1f1` (#328). Its pull-request CI passed on every job, including the licence scan; push CI on `main`: [CI run 832](https://github.com/Photivra/photivra/actions/runs/39042289305) and [Native performance run 90](https://github.com/Photivra/photivra/actions/runs/39042289319). |
+| GitHub CI on this update's PR (all jobs, all Node versions, licence scan, macOS hash locks) | Recorded on the PR. |
+| GitHub CI on `main` after merge | To check before tagging. |
 
-**Local results on this candidate** (`28f8b61` plus this record update, Node 24.21.0, linux/x64). The host was memory-limited, so the full vitest suite and coverage were not run locally; CI provides them.
+**Local results on this candidate** (`34f687d` plus this record update, Node 24.21.0, linux/x64). The host was memory-limited, so the full vitest suite and coverage were not run locally; CI provides them.
 
 | Command | Result |
 | --- | --- |
-| `npm run check:static` | Passed: eslint, tsc, dependency licences (Apache-2.0 15, BlueOak-1.0.0 1, BSD-2-Clause 6, BSD-3-Clause 2, ISC 7, MIT 125, MPL-2.0 12), SPDX headers, identity, browser surface across 195 reachable modules. |
+| `npm run check:static` | Passed: eslint, tsc, dependency licences (Apache-2.0 15, BlueOak-1.0.0 1, BSD-2-Clause 6, BSD-3-Clause 2, ISC 7, MIT 125, MPL-2.0 12), SPDX headers, identity, browser surface across 206 reachable modules. |
 | `npm run build` | Passed (`tsc -p tsconfig.build.json`, from a clean `dist/`). |
-| `npm run pack:check` | Passed: 776 files, 2,557,468 bytes packed, 11,809,315 unpacked; root export plus `./package.json`; 193 reachable modules; inline-source maps; no lifecycle scripts; local POC API excluded. |
-| `npm run docs:check` | Passed: API reference current (1,637 root symbols across 176 modules); 280 Markdown files, 3,216 repository and local links, 103 importing examples, 26 explicit fragments. |
-| `npm run release:consumer-check` | Passed: packed `@photivra/engine@2.0.0`; `require(esm)` and `lib: es2022`/DOM declaration consumers, 103 typed and running doc snippets, and the quick-start, simulate-capture and production/paired-export consumers. |
+| `npm run pack:check` | Passed: 813 files, 2,780,837 bytes packed, 12,678,150 unpacked; root export plus `./package.json`; 204 reachable modules; inline-source maps; no lifecycle scripts; local POC API excluded. |
+| `npm run docs:check` | Passed: API reference current (1,668 root symbols across 180 modules); 284 Markdown files, 3,285 repository and local links, 105 importing examples, 26 explicit fragments. |
+| `npm run release:consumer-check` | Passed: packed `@photivra/engine@2.0.0`; `require(esm)` and `lib: es2022`/DOM declaration consumers, 105 typed and running doc snippets, and the quick-start, simulate-capture and production/paired-export consumers. |
+| ScanCode 32.5.0 plus `scripts/check-scancode-policy.mjs` on `git archive` of this candidate | SCANCODE_RESULT |
 
 ## Remaining release checklist
 
@@ -476,7 +493,9 @@ The authoritative result is GitHub CI on the exact commit that is tagged. The la
 - [x] 2.0.0 changelog with breaking changes and migrations, additions, fixes, performance, tests and tooling.
 - [x] Generated API reference regenerated after the merge.
 - [x] Citation audit, with doc comments and docs updated to free sources.
-- [x] All streams merged (#305–#314) and changelog entries written.
+- [x] All streams merged (#305–#328) and changelog entries written.
+- [x] Final pre-release review: bugs and performance findings fixed with regression tests (#325–#328, this update).
+- [x] Licence guard in CI (#324); local ScanCode run on this candidate recorded above.
 - [x] Owner decisions on citations (decision 1).
 - [ ] Owner's substantive human review of the AI-assisted changes and of this record.
 - [ ] Green exact-head CI on the release PR, recorded above; then green CI on `main` after merge.
