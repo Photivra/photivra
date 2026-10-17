@@ -5,8 +5,8 @@
  * plane stored in typed arrays, for example black-subtracted normalized RAW values or a merged HDR
  * mosaic.
  * - `createCfaPlaneReconstructionTask` runs explicit linear kernels, one per CFA phase. It uses the
- *   existing `explicit-linear-native-neighborhood` contract, including the built-in bilinear and
- *   Malvar–He–Cutler factories. Borders either reject or mirror (reflect-101). The summation order is
+ *   existing `explicit-linear-native-neighborhood` contract, including the built-in bilinear
+ *   factory. Borders either reject or mirror (reflect-101). The summation order is
  *   the same as `calculateRawReconstructionChannel`, so values match the reference resolver exactly
  *   before float32 storage.
  * - `createAhdDemosaicTask` is a separate, non-linear, adaptive method: adaptive

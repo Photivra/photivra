@@ -9,7 +9,7 @@ import { mulberry32 } from "./helpers/processing-fixture.js";
 
 const noYield = { yieldControl: async (): Promise<void> => {} };
 
-function input(width: number, height: number, orientation: CaptureOrientation, kernel: "bilinear" | "malvar-he-cutler-2004", seed: number,
+function input(width: number, height: number, orientation: CaptureOrientation, kernel: "bilinear", seed: number,
   active?: { x: number; y: number; width: number; height: number }): NativeRawDevelopmentInput {
   const f = nativeRawFixture(width, height), policy = loadPhotographicExportInput(), random = mulberry32(seed), portrait = orientation.startsWith("portrait");
   const aw = active?.width ?? width, ah = active?.height ?? height;
@@ -34,7 +34,7 @@ async function develop(v: NativeRawDevelopmentInput): Promise<NativeRawDevelopme
 
 describe("native RAW development with built-in kernels and mirror borders", () => {
   it("rejects full-frame edges by default and develops them with mirror borders", async () => {
-    const v = input(8, 6, "landscape", "malvar-he-cutler-2004", 1);
+    const v = input(8, 6, "landscape", "bilinear", 1);
     expect(() => createNativeRawDevelopmentTask(copy(v), noYield)).toThrow(InvalidConfigurationError);
     expect(() => createNativeRawDevelopmentTask({ ...copy(v), borderHandling: "wrap" as "mirror" }, noYield)).toThrow(InvalidConfigurationError);
     const out = await develop({ ...copy(v), borderHandling: "mirror" });
@@ -44,7 +44,7 @@ describe("native RAW development with built-in kernels and mirror borders", () =
   it("typed mirrored kernel is byte-identical to the per-object reference for every orientation and kernel", async () => {
     let seed = 10;
     for (const orientation of ["landscape", "portrait-clockwise", "landscape-inverted", "portrait-counter-clockwise"] as const)
-      for (const kernel of ["bilinear", "malvar-he-cutler-2004"] as const) {
+      for (const kernel of ["bilinear"] as const) {
         const v = { ...input(6 + 2 * (seed % 2), 6, orientation, kernel, seed++), borderHandling: "mirror" as const };
         const reference = developNativeRawReference(copy(v)), out = await develop(v);
         expect(Array.from(out.integerSamples)).toEqual(reference.integerSamples);
@@ -53,7 +53,7 @@ describe("native RAW development with built-in kernels and mirror borders", () =
   });
 
   it("leaves pixels whose neighbourhood is inside the frame byte-identical to reject handling", async () => {
-    for (const kernel of ["bilinear", "malvar-he-cutler-2004"] as const) {
+    for (const kernel of ["bilinear"] as const) {
       const v = input(12, 10, "landscape", kernel, 3, { x: 2, y: 2, width: 8, height: 6 });
       const rejected = await develop(copy(v)), mirrored = await develop({ ...copy(v), borderHandling: "mirror" });
       expect(rejected.borderHandling).toBe("reject");

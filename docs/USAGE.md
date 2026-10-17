@@ -1809,7 +1809,7 @@ const quadratureNodes = createColorimetricMidpointQuadrature({
   wavelengthRangeNanometers: { minimum: 360, maximum: 830 },
   maximumSubintervalWidthNanometers: 1
 });
-const colorMatchingFunctions = { kind: "wyman-2013-cie-1931-multi-lobe-fit" } as const;
+const colorMatchingFunctions = { kind: "analytic-cie-1931-multi-lobe-fit" } as const;
 
 const illuminantA = integrateSpectrumToXyz({
   quadratureNodes,
@@ -1850,24 +1850,24 @@ const tungsten = resolveColorTemperatureWhiteBalance({
 console.log(tungsten.channelGains); // red < 1 < blue for a warm declared white
 ```
 
-### Chromatic adaptation, HDR transfer and gamut mapping
+### Chromatic adaptation, transfer functions and gamut mapping
 
 ```ts
 import {
   calculateChromaticAdaptationMatrix,
   calculateGamutMappedColor,
-  evaluatePqInverseEotf,
+  evaluateSrgbEncoding,
   resolveRgbColorSpace
 } from "@photivra/engine";
 
 const bradford = calculateChromaticAdaptationMatrix({
   transform: "bradford",
   sourceWhiteXyz: { x: 1.0985, y: 1, z: 0.3558 },
-  destinationWhiteXyz: { x: 0.95047, y: 1, z: 1.08883 }
+  destinationWhiteXyz: resolveRgbColorSpace("srgb").value.whiteXyz // D65 from its chromaticity
 }).value.matrix;
 
 const rec2020 = resolveRgbColorSpace("rec2020").value.rgbToXyz;
-const pqCodeFor100Nits = evaluatePqInverseEotf(100); // ≈ 0.5081
+const srgbCodeForMidGrey = evaluateSrgbEncoding(0.18); // ≈ 0.4614
 
 const mapped = calculateGamutMappedColor({
   colorSpace: "srgb",
@@ -1875,7 +1875,7 @@ const mapped = calculateGamutMappedColor({
   kneeFraction: 0.9,
   xyz: { x: rec2020[0][1], y: rec2020[1][1], z: rec2020[2][1] } // Rec.2020 green primary
 });
-console.log(bradford, pqCodeFor100Nits, mapped.value.linearRgb);
+console.log(bradford, srgbCodeForMidGrey, mapped.value.linearRgb);
 ```
 
 Scene adaptation inside `calculateCaptureColorTransform()` can opt in to a cone-space transform with `whiteBalance: { kind: "adopted-white-xyz-scaling", transform: "bradford" }`. Leaving out `transform` keeps the original diagonal scaling in XYZ.
@@ -6863,7 +6863,7 @@ See [Local POC Simulation API](https://github.com/Photivra/photivra/blob/main/do
 ## DNG import and PNG output
 
 - `parseDngRawImage` reads a DNG or TIFF-EP CFA/LinearRaw file (uncompressed or lossless JPEG, 8–16 bits). It returns the stored raw codes plus the CFA, black/white levels, active area, default crop, colour matrices, as-shot neutral and orientation. Nothing is applied to the codes.
-- `serializePngImage` writes an 8- or 16-bit RGB PNG with an sRGB, ICC or cICP (Display P3, BT.2020, PQ, HLG) colour description, and optional mDCV/cLLI HDR metadata.
+- `serializePngImage` writes an 8- or 16-bit RGB PNG with an sRGB, ICC or cICP (Display P3, BT.2020; sRGB, BT.709 or linear transfer) colour description, and optional mDCV/cLLI display metadata. PQ and HLG are not part of 2.0 (see the patent review in `THIRD_PARTY.md`).
 
 See [DNG import and PNG output](https://github.com/Photivra/photivra/blob/main/docs/IMPORT_AND_PNG.md) for supported subsets, limits and sources.
 
@@ -7339,10 +7339,10 @@ const plane = { width: 64, height: 48, captureModeId: "native", colorSamplingPro
   samples: new Float32Array(64 * 48).fill(0.25) };
 const channelRoles = { red: "red", green: "green", blue: "blue" };
 
-// Malvar–He–Cutler linear kernels with mirror borders (also accepted by createNativeRawDevelopmentTask).
-const mhc = createBuiltInBayerDemosaicProfiles({ kernel: "malvar-he-cutler-2004", captureModeId: "native",
+// Bilinear linear kernels with mirror borders (also accepted by createNativeRawDevelopmentTask).
+const bilinear = createBuiltInBayerDemosaicProfiles({ kernel: "bilinear", captureModeId: "native",
   colorSamplingProfile: cfa, channelRoles }).value;
-const linearTask = createCfaPlaneReconstructionTask({ plane, phaseProfiles: mhc.phaseProfiles, borderHandling: "mirror" }, provider);
+const linearTask = createCfaPlaneReconstructionTask({ plane, phaseProfiles: bilinear.phaseProfiles, borderHandling: "mirror" }, provider);
 await linearTask.run();
 console.log(linearTask.takeOutput().channelIds);
 
@@ -7352,7 +7352,7 @@ await ahd.run();
 console.log(ahd.takeOutput().direction.length);
 ```
 
-Merge linear RAW brackets with noise-optimal weights, tone map and encode HDR:
+Merge linear RAW brackets with noise-optimal weights, convert to linear BT.2020 and tone map:
 
 ```ts
 import {
@@ -7370,9 +7370,9 @@ await merge.run();
 const merged = merge.takeOutput();
 const radiance = { width: 32, height: 32, data: merged.radianceElectronsPerSecond.map((v) => v / 3000) };
 
-const pq = createHdrImageEncodingTask({ image: radiance, inputColorSpace: "linear-srgb-d65", transfer: "pq", bitDepth: 10 }, provider);
-await pq.run();
-console.log(pq.takeOutput().codes?.slice(0, 3));
+const rec2020 = createHdrImageEncodingTask({ image: radiance, inputColorSpace: "linear-srgb-d65", transfer: "linear-float32" }, provider);
+await rec2020.run();
+console.log(rec2020.takeOutput().linear.slice(0, 3));
 
 const sdr = createReinhardGlobalToneMappingTask({ image: radiance, inputColorSpace: "linear-srgb-d65", key: 0.18 }, provider);
 await sdr.run();
@@ -7466,8 +7466,8 @@ Each 2.0 option is opt-in and uses an existing public contract. Without them, th
 byte-identical to 1.0.
 
 - `output.format: "png"` writes `serializePngImage` output. That is either the developed sRGB samples, or,
-  with `colorEncoding`, the unclipped linear development converted through CIE XYZ to Display P3, Rec. 2020
-  or Rec. 2100 PQ/HLG (`createHdrImageEncodingTask`), signalled with cICP.
+  with `colorEncoding`, the unclipped linear development converted through CIE XYZ to Display P3 or Rec. 2020,
+  signalled with cICP.
 - `output.gamutMapping: "perceptual"` replaces the component clip with `prepareRgbGamutMapping`.
 - `format: "dng"` writes the packed native RAW with `serializeNativeRawDng`.
 
@@ -7486,7 +7486,7 @@ console.log(p3.image.png?.length, p3.image.colorEncoding, p3.provenance.composed
 ```ts
 import { simulateCapture } from "@photivra/engine";
 
-const mirrored = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 6, height: 4, demosaic: "malvar-he-cutler", borderHandling: "mirror" } });
+const mirrored = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 6, height: 4, demosaic: "bilinear", borderHandling: "mirror" } });
 console.log(mirrored.plan.exposure.geometry.nativeRaster, mirrored.assumptions.find((a) => a.id === "output.demosaic")?.value);
 ```
 

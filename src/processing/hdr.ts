@@ -20,21 +20,18 @@
  * - Works with any per-sample layout (CFA mosaic or RGB).
  *
  * Encoding (`createHdrImageEncodingTask`): linear RGB is converted to BT.2020 primaries (matrices from
- * `resolveRgbColorSpace`). Then one of:
- * - ITU-R BT.2100 PQ (also SMPTE ST 2084), where relative 1.0 = the reference white in cd/m² (default
- *   203, ITU-R BT.2408);
- * - BT.2100 HLG, where relative 1.0 = the HLG reference-white signal (default 0.75, BT.2408);
- * - float32 linear BT.2020.
- * PQ and HLG are quantized as BT.2100 full-range or narrow-range integer codes.
+ * `resolveRgbColorSpace`) and returned as unclipped float32 linear BT.2020. The PQ and HLG transfer
+ * functions are not part of 2.0 (owner decision, 2026-10-17: their patent holders offer only
+ * licence-on-request declarations; see THIRD_PARTY.md).
  * @see docs/PROCESSING.md for equations, sources and limits.
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { InvalidScientificInputError } from "../core/validation.js";
-import { evaluateHlgInverseOetf, evaluateHlgOetf, evaluatePqInverseEotf, resolveRgbColorSpace } from "../color/rgb-color-spaces.js";
+import { resolveRgbColorSpace } from "../color/rgb-color-spaces.js";
 import { rgbSpaceOf } from "./image-ops.js";
 import {
-  createProcessingTask, finiteRows, maximumWorkingBytes, optionalFiniteIn, optionalIntegerIn, processingProvenance, requireEnum, requireFiniteIn,
+  createProcessingTask, finiteRows, maximumWorkingBytes, optionalIntegerIn, processingProvenance, requireEnum, requireFiniteIn,
   requireImage, requireIntegerIn, requireOptions, PROCESSING_MAX_FRAMES, PROCESSING_MAX_PIXELS,
   type ProcessingBody, type ProcessingLinearColorSpace, type ProcessingProvenance, type ProcessingProvider, type ProcessingRgbImage, type ProcessingTask
 } from "./processing-task.js";
@@ -151,20 +148,13 @@ export function createHdrBracketMergeTask(input: HdrBracketMergeInput, provider:
 
 // ------------------------------------------------------------------ HDR output encoding
 
-export type HdrTransfer = "pq" | "hlg" | "linear-float32";
+/** The only output transfer in 2.0: unclipped float32 linear values (PQ and HLG are not shipped). */
+export type HdrTransfer = "linear-float32";
 
 export interface HdrImageEncodingInput {
   image: ProcessingRgbImage;
   inputColorSpace: ProcessingLinearColorSpace;
   transfer: HdrTransfer;
-  /** PQ: luminance of relative value 1.0, cd/m². Default 203 (ITU-R BT.2408 HDR reference white). */
-  referenceWhiteLuminanceCdPerSquareMeter?: number;
-  /** HLG: signal of relative value 1.0. Default 0.75 (ITU-R BT.2408 HLG reference white). */
-  hlgReferenceWhiteSignal?: number;
-  /** PQ/HLG integer depth: 10 (default), 12 or 16. */
-  bitDepth?: 10 | 12 | 16;
-  /** BT.2100 full range D = round((2ⁿ−1)E′) (default) or narrow range D = round((219E′ + 16)·2ⁿ⁻⁸). */
-  signalRange?: "full" | "narrow";
   maximumWorkingBytes?: number;
 }
 
@@ -173,75 +163,40 @@ export interface HdrImageEncodingOutput {
   height: number;
   colorSpace: "rec2020";
   transfer: HdrTransfer;
-  /** Interleaved RGB codes for PQ/HLG. */
-  codes: Uint16Array | null;
-  /** Interleaved linear BT.2020 RGB (relative, unclipped) for `linear-float32`. */
-  linear: Float32Array | null;
-  bitDepth: number | null;
-  signalRange: "full" | "narrow" | null;
-  /** Components below 0 after conversion to BT.2020 that were clipped (PQ/HLG). */
-  negativeClippedSampleCount: number;
-  /** Components above the PQ 10000 cd/m² or HLG E = 1 limit that were clipped. */
-  overRangeClippedSampleCount: number;
+  /** Interleaved linear BT.2020 RGB (relative, unclipped). */
+  linear: Float32Array;
   provenance: ProcessingProvenance;
 }
 
-/** Encodes linear RGB as BT.2020/BT.2100 PQ or HLG integer codes, or as float32 linear BT.2020. */
+/** Converts linear RGB to unclipped float32 linear BT.2020 (relative values, no transfer function or quantization). */
 export function createHdrImageEncodingTask(input: HdrImageEncodingInput, provider: ProcessingProvider): ProcessingTask<HdrImageEncodingOutput> {
-  const r = requireOptions(input, ["image", "inputColorSpace", "transfer", "referenceWhiteLuminanceCdPerSquareMeter", "hlgReferenceWhiteSignal",
-    "bitDepth", "signalRange", "maximumWorkingBytes"], "createHdrImageEncodingTask input");
+  const r = requireOptions(input, ["image", "inputColorSpace", "transfer", "maximumWorkingBytes"], "createHdrImageEncodingTask input");
   const image = requireImage(r.image, "image");
   const space = requireEnum(r.inputColorSpace, ["linear-srgb-d65", "linear-display-p3-d65", "linear-rec2020-d65"] as const, "inputColorSpace");
-  const transfer = requireEnum(r.transfer, ["pq", "hlg", "linear-float32"] as const, "transfer");
-  const whiteNits = optionalFiniteIn(r.referenceWhiteLuminanceCdPerSquareMeter, 203, "referenceWhiteLuminanceCdPerSquareMeter", 0, 10000, true);
-  const hlgWhite = optionalFiniteIn(r.hlgReferenceWhiteSignal, 0.75, "hlgReferenceWhiteSignal", 0, 1, true);
-  const bitDepth = r.bitDepth === undefined ? 10 : r.bitDepth;
-  if (bitDepth !== 10 && bitDepth !== 12 && bitDepth !== 16) throw new InvalidConfigurationError("bitDepth must be 10, 12 or 16.");
-  const range = requireEnum(r.signalRange, ["full", "narrow"] as const, "signalRange", "full");
+  const transfer = requireEnum(r.transfer, ["linear-float32"] as const, "transfer");
   const src = resolveRgbColorSpace(rgbSpaceOf(space)).value, dst = resolveRgbColorSpace("rec2020").value;
   const m = [0, 1, 2].map((i) => [0, 1, 2].map((j) => dst.xyzToRgb[i]![0] * src.rgbToXyz[0][j]! + dst.xyzToRgb[i]![1] * src.rgbToXyz[1][j]! +
     dst.xyzToRgb[i]![2] * src.rgbToXyz[2][j]!));
   if (space === "linear-rec2020-d65") for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) m[i]![j] = i === j ? 1 : 0;
-  const hlgScale = evaluateHlgInverseOetf(hlgWhite), max = 2 ** bitDepth - 1, samples = image.width * image.height * 3;
+  const samples = image.width * image.height * 3;
   return createProcessingTask({
-    provider, totalTileCount: 2 * image.height, estimatedWorkingBytes: samples * (transfer === "linear-float32" ? 4 : 2),
+    provider, totalTileCount: 2 * image.height, estimatedWorkingBytes: samples * 4,
     maximumWorkingBytes: maximumWorkingBytes(r.maximumWorkingBytes),
     body: function* (): ProcessingBody<HdrImageEncodingOutput> {
       yield* finiteRows(image.data, image.width, image.height, 3, "image");
-      const linear = transfer === "linear-float32" ? new Float32Array(samples) : null, codes = linear === null ? new Uint16Array(samples) : null;
-      let negative = 0, over = 0;
+      const linear = new Float32Array(samples);
       const d = image.data, stride = image.width * 3;
       for (let y = 0; y < image.height; y++) {
         for (let i = y * stride; i < (y + 1) * stride; i += 3) {
           const a = d[i]!, b = d[i + 1]!, c = d[i + 2]!;
-          for (let k = 0; k < 3; k++) {
-            const v = m[k]![0]! * a + m[k]![1]! * b + m[k]![2]! * c;
-            if (linear !== null) { linear[i + k] = v; continue; }
-            let signal: number;
-            if (v < 0) negative++;
-            if (transfer === "pq") {
-              let nits = Math.max(0, v) * whiteNits;
-              if (nits > 10000) { nits = 10000; over++; }
-              signal = evaluatePqInverseEotf(nits);
-            } else {
-              let e = Math.max(0, v) * hlgScale;
-              if (e > 1) { e = 1; over++; }
-              signal = evaluateHlgOetf(e);
-            }
-            codes![i + k] = range === "full" ? Math.floor(max * signal + 0.5) : Math.floor((219 * signal + 16) * 2 ** (bitDepth - 8) + 0.5);
-          }
+          for (let k = 0; k < 3; k++) linear[i + k] = m[k]![0]! * a + m[k]![1]! * b + m[k]![2]! * c;
         }
         yield;
       }
-      return { width: image.width, height: image.height, colorSpace: "rec2020", transfer, codes, linear,
-        bitDepth: linear === null ? bitDepth : null, signalRange: linear === null ? range : null,
-        negativeClippedSampleCount: negative, overRangeClippedSampleCount: over,
-        provenance: processingProvenance("hdr-bt2100-output-encoding", [
+      return { width: image.width, height: image.height, colorSpace: "rec2020", transfer, linear,
+        provenance: processingProvenance("hdr-linear-rec2020-output", [
           "Linear input converted to BT.2020 primaries through XYZ with matrices derived from the published primaries and D65 (ITU-R BT.2020-2; method as in W3C CSS Color 4).",
-          transfer === "pq" ? "ITU-R BT.2100 PQ inverse EOTF with relative 1.0 = " + whiteNits + " cd/m2; components clipped to [0, 10000] cd/m2." :
-            transfer === "hlg" ? "BT.2100 HLG OETF with relative 1.0 at signal " + hlgWhite + "; scene-linear E clipped to [0, 1]." :
-              "Unclipped float32 linear BT.2020; no transfer function or quantization.",
-          "Component clipping is not perceptual gamut mapping; no display adaptation or metadata (e.g. MaxCLL) is produced."]) };
+          "Unclipped float32 linear BT.2020; no transfer function or quantization."]) };
     }
   });
 }

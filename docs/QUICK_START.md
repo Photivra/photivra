@@ -81,11 +81,11 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `illuminanceLux` | 21 481 (π·80 000/11.7) | See [Exposure](#exposure). |
 | `output.width`, `output.height` | 64 × 64 | Output pixels. The sensor has one extra site on each side for demosaicing (see `output.borderHandling`). |
 | `output.format` | `"srgb-8"` | Also `"srgb-16"`, `"jpeg"`, `"png"` and `"dng"` (see [Output formats](#output-formats)). |
-| `output.colorEncoding` | `"srgb"` | PNG only: also `"display-p3"`, `"rec2020"`, `"rec2100-pq"` and `"rec2100-hlg"`. |
-| `output.bitDepth` | 8 (16 for PQ/HLG) | PNG only: 8 or 16. |
-| `output.gamutMapping` | `"clip"` | PNG SDR encodings only: or `"perceptual"`. |
+| `output.colorEncoding` | `"srgb"` | PNG only: also `"display-p3"` and `"rec2020"`. |
+| `output.bitDepth` | 8 | PNG only: 8 or 16. |
+| `output.gamutMapping` | `"clip"` | PNG only: or `"perceptual"`. |
 | `output.dng.capturedAtUtc` | none | DNG only: capture time for the date tags. |
-| `output.demosaic` | the 1.0 bilinear kernels | `"bilinear"` or `"malvar-he-cutler"` (see [Demosaic](#demosaic)). |
+| `output.demosaic` | the 1.0 bilinear kernels | `"bilinear"` (see [Demosaic](#demosaic)). |
 | `output.borderHandling` | `"margin"` | Or `"mirror"`. |
 | `output.toneCurve` | `"identity"` | Any `SdrToneCurve`, for example `"positive-reinhard-per-channel"`. |
 | `output.toneCurveParameters` | none | Required by the luminance curves (`extended-reinhard-luminance`, `naka-rushton-luminance`); the facade invents no curve parameters. |
@@ -209,8 +209,8 @@ console.log(vignette.request.whiteBalanceState?.source);
 These choices appear in `assumptions` as `kind: "model"` entries:
 
 - **Sensor colour.** The facade uses an idealized colorimetric sensor. Channel quantum efficiency is
-  a·{x̄, ȳ, z̄}(λ)·555 nm/λ from the engine's analytic CIE 1931 colour-matching functions
-  (Wyman, Sloan & Shirley 2013). The λ factor converts the energy-based functions into a
+  a·{x̄, ȳ, z̄}(λ)·555 nm/λ from the engine's own analytic fit of the CIE 1931 colour-matching
+  functions (an approximation; see Colorimetry). The λ factor converts the energy-based functions into a
   photon-counting response. RAW channels are then proportional to CIE XYZ (the Luther–Ives
   condition), and the camera matrix is diagonal. No real camera has this response.
 - **Lens.** The tier lens's spectrally flat transmission is used at every f-number and focus in the
@@ -240,30 +240,26 @@ in-house zlib, and the colour encoding signalled in the file.
 | `"srgb"` | Exactly the developed sRGB samples (the `srgb-8` / `srgb-16` output). | sRGB chunk (perceptual intent) with its prescribed gAMA/cHRM values |
 | `"display-p3"` | Linear colour converted to Display P3 primaries (W3C CSS Color 4 `display-p3`, D65), sRGB transfer. | cICP 12/13/0/1 |
 | `"rec2020"` | Linear colour converted to ITU-R BT.2020 primaries, BT.2020 OETF (the BT.709 curve). | cICP 9/1/0/1 |
-| `"rec2100-pq"` | BT.2020 primaries, ITU-R BT.2100 PQ, 16-bit full range. | cICP 9/16/0/1 |
-| `"rec2100-hlg"` | BT.2020 primaries, ARIB STD-B67 HLG, 16-bit full range. | cICP 9/18/0/1 |
+
+The BT.2100 PQ and HLG encodings are not part of 2.0: their patent holders offer only
+licence-on-request declarations (see the patent review in `THIRD_PARTY.md`).
 
 What is converted, and where:
 
 - The sRGB output path develops each pixel to linear sRGB/D65. That covers demosaic, a per-site clip
   at the RAW white level, white balance, highlight mode, the camera→XYZ matrix and the XYZ→sRGB
   matrix. It then clips each component to [0, 1].
-- The wide-gamut and HDR encodings use the same development operator but stop before that clip. So
+- The wide-gamut encodings use the same development operator but stop before that clip. So
   colours outside sRGB survive, as negative or above-one sRGB components.
 - They convert that linear colour back to CIE XYZ and on to the target primaries (matrices from the
   primaries and the D65 white, as in W3C CSS Color 4; see [Colorimetry](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md)).
 - Gamut mapping then happens only once, in the target space. Components are clipped to [0, 1] for
-  Display P3 and Rec. 2020. For PQ and HLG, negative BT.2020 components are clipped by
-  `createHdrImageEncodingTask`.
+  Display P3 and Rec. 2020.
 - No perceptual gamut compression is applied by default (see `output.gamutMapping` below).
 - Tone curves other than `identity` are sRGB-only, and are refused with a wide-gamut encoding.
 
-For PQ and HLG, relative value 1.0 (the RAW white level) sits at the ITU-R BT.2408 HDR reference
-white: 203 cd/m² in PQ, signal 0.75 in HLG.
-
-- A single capture has no signal above its RAW white, so these files have no highlight headroom above
-  reference white. For extended range, merge a bracket with `createHdrBracketMergeTask` (see
-  [PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)).
+- RAW white maps to display white. For extended range, merge a bracket with
+  `createHdrBracketMergeTask` (see [PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)).
 - No mDCV or cLLI metadata is written.
 - With the facade's colorimetric sensor, the wide-gamut colours are exact up to the spectral
   quadrature (numerical integration over wavelength). With 5 nm spectral steps, a test reproduces an
@@ -278,11 +274,11 @@ const wide = await simulateCapture({
 });
 console.log(wide.image.colorEncoding, wide.image.png?.length, wide.diagnostics.rendering.gamutClippedLowSampleCount);
 
-const hdr = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "png", colorEncoding: "rec2100-pq" } });
-console.log(hdr.image.samples instanceof Uint16Array, hdr.assumptions.find((a) => a.id === "output.colorEncoding.conversion")?.value);
+const rec2020 = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "png", colorEncoding: "rec2020", bitDepth: 16 } });
+console.log(rec2020.image.samples instanceof Uint16Array, rec2020.assumptions.find((a) => a.id === "output.colorEncoding.conversion")?.value);
 ```
 
-`output.gamutMapping: "perceptual"` replaces the component clip for the SDR encodings (`srgb`,
+`output.gamutMapping: "perceptual"` replaces the component clip for the PNG encodings (`srgb`,
 `display-p3`, `rec2020`) with `prepareRgbGamutMapping`:
 
 - CIELAB L* and hue are held.
@@ -293,7 +289,7 @@ console.log(hdr.image.samples instanceof Uint16Array, hdr.assumptions.find((a) =
   lose a little chroma, and CIELAB hue drifts for saturated blues.
 - `"clip"` (the default) leaves the output exactly as before.
 - `diagnostics.gamutMapping` counts the pixels the mapping changed.
-- It cannot be combined with tone curves or the PQ/HLG encodings.
+- It cannot be combined with tone curves.
 
 `output.format: "dng"` writes the packed native RAW itself with `serializeNativeRawDng`: a lossless,
 uncompressed 16-bit CFA DNG. `samples` are the developed 8-bit sRGB image and `image.dng` holds the file.
@@ -328,15 +324,14 @@ console.log(dng.width, dng.activeArea, dng.whiteLevel, dng.codes.length === shot
 ## Demosaic
 
 `output.demosaic` selects the built-in Bayer kernels of `createBuiltInBayerDemosaicProfiles`:
-`"bilinear"` (nearest same-channel averages; pixel-identical to the default) or `"malvar-he-cutler"`
-(Malvar, He & Cutler 2004: bilinear plus the own-channel Laplacian with gains 1/2, 5/8 and 3/4). The
-Malvar–He–Cutler kernels sharpen luminance edges, but on saturated colour edges they can fringe more
-than bilinear (measured in [PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)).
+`"bilinear"` (nearest same-channel averages; pixel-identical to the default). The Malvar–He–Cutler
+kernels are not in 2.0 (a patent is still in force; see
+[PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)).
 
 `output.borderHandling` decides how edge pixels get their neighbours:
 
 - `"margin"` (the default) renders the kernel's reach as extra sensor sites around the output: one site
-  for bilinear, two for Malvar–He–Cutler.
+  for bilinear.
 - `"mirror"` renders exactly the output, and reads reflect-101 mirror images of the missing sites. The
   engine first checks that every reflected site keeps its CFA colour. Mirror saves the radiance work for
   the border, so small captures need no extra sites. Its edge pixels use mirrored neighbours rather than
@@ -345,11 +340,11 @@ than bilinear (measured in [PROCESSING.md](https://github.com/Photivra/photivra/
 ```ts
 import { simulateCapture } from "@photivra/engine";
 
-const mhc = await simulateCapture({
+const mirrored = await simulateCapture({
   scene: { preset: "slanted-edge" },
-  output: { width: 8, height: 8, demosaic: "malvar-he-cutler", borderHandling: "mirror" }
+  output: { width: 8, height: 8, demosaic: "bilinear", borderHandling: "mirror" }
 });
-console.log(mhc.plan.exposure.geometry.nativeRaster, mhc.request.development.borderHandling);
+console.log(mirrored.plan.exposure.geometry.nativeRaster, mirrored.request.development.borderHandling);
 ```
 
 ## Optics
@@ -482,18 +477,16 @@ provided, for rights reasons.
   and the daylight polynomial come from CIE 015:2018 (paid); computed values are checked against the
   free CIE datasets at <https://cie.co.at/data-tables> (see [Colorimetry](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md)).
 - C. Wyman, P.-P. Sloan, P. Shirley, "Simple analytic approximations to the CIE XYZ color matching
-  functions", *Journal of Computer Graphics Techniques* 2(2), 2013.
+  functions", *Journal of Computer Graphics Techniques* 2(2), 2013 (the piecewise-Gaussian model form;
+  the engine fits its own coefficients to the CIE 1931 data, see Colorimetry).
 - R. Luther, "Aus dem Gebiet der Farbreizmetrik", *Zeitschrift für technische Physik* 8, 1927
   (the Luther condition for colorimetric cameras).
 - W3C CSS Color Module Level 4 (`srgb` and `display-p3`; RGB↔XYZ matrices from primaries and white),
   free at <https://www.w3.org/TR/css-color-4/>; ITU-R BT.709-6 and BT.2020-2 (primaries and luminance
-  coefficients), BT.2100-3 (PQ and HLG) and BT.2408 (HDR reference white), free at
-  <https://www.itu.int/rec/R-REC-BT>; ITU-T H.273 (cICP code points); W3C PNG Specification, Third
+  coefficients), free at <https://www.itu.int/rec/R-REC-BT>; ITU-T H.273 (cICP code points); W3C PNG Specification, Third
   Edition (2025).
 - Adobe DNG Specification 1.7.1.0 (2023); W3C CSS Color Module Level 4 §14 (free). Also see: J. Morovič,
   *Color Gamut Mapping*, Wiley 2008, §10.
-- H. S. Malvar, L.-W. He, R. Cutler, "High-quality linear interpolation for demosaicing of
-  Bayer-patterned color images", *Proc. IEEE ICASSP* 2004.
 - K. Miyamoto, "Fish eye lens", *JOSA* 54, 1964; J. Kannala, S. Brandt, *IEEE TPAMI* 28, 2006
   (projections); A. E. Conrady, *MNRAS* 79, 1919; D. C. Brown, *Photogrammetric Engineering* 32, 1966
   (distortion).

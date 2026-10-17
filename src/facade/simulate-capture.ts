@@ -16,10 +16,10 @@
  *
  * The 2.0 options are opt-in and only combine existing public contracts. If none is given, the
  * request, RAW, samples and JPEG are byte-identical to the 1.0 facade:
- * - output formats: `png` (`serializePngImage`; sRGB, or Display P3 / Rec. 2020 / Rec. 2100 PQ / HLG through
- *   the colorimetry matrices and transfer functions and `createHdrImageEncodingTask`) and `dng`
+ * - output formats: `png` (`serializePngImage`; sRGB, or Display P3 / Rec. 2020 through the colorimetry
+ *   matrices and transfer functions) and `dng`
  *   (`serializeNativeRawDng` of the packed native RAW; no linear master is declared);
- * - demosaic: `createBuiltInBayerDemosaicProfiles` (bilinear, Malvar–He–Cutler) and mirror borders;
+ * - demosaic: `createBuiltInBayerDemosaicProfiles` (bilinear) and mirror borders;
  * - optics: the environment `lensFieldMapping` (projection, radial / Brown–Conrady distortion), radial
  *   illumination vignetting as field throughput and a caller sampled lens PSF;
  * - motion: constant camera angular velocity and the electronic rolling-shutter exposure schedule.
@@ -61,7 +61,6 @@ import { BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION as BUILT_IN_DEMOSAIC_VERSION, cre
 import { transformOrientedRasterPointToNative } from "../output/capture-geometry.js";
 import { resolveCaptureColorModel } from "../color/capture-color.js";
 import { evaluateBt709Oetf, evaluateSrgbEncoding, resolveRgbColorSpace } from "../color/rgb-color-spaces.js";
-import { createHdrImageEncodingTask } from "../processing/hdr.js";
 import { serializePngImage, type PngColourEncoding } from "../output/png-encoder.js";
 import { parseLensProjectionModel, type LensProjectionModel } from "../camera/lens-projection.js";
 import { prepareEnvironmentLensFieldMapping, type EnvironmentLensFieldMapping } from "../optics/sensor-environment-query.js";
@@ -98,13 +97,12 @@ export type SimulateCaptureWhiteBalance =
  * primaries:
  * - `display-p3`: Display P3 primaries (W3C CSS Color 4 `display-p3`; also SMPTE EG 432-1) with the
  *   sRGB transfer function;
- * - `rec2020`: ITU-R BT.2020 primaries and OETF;
- * - `rec2100-pq` / `rec2100-hlg`: BT.2020 primaries with ITU-R BT.2100 PQ (also SMPTE ST 2084) or
- *   BT.2100 HLG (also ARIB STD-B67), 16-bit full range.
+ * - `rec2020`: ITU-R BT.2020 primaries and OETF.
+ * PQ and HLG (BT.2100) are not part of 2.0; see THIRD_PARTY.md.
  */
-export type SimulateCaptureColorEncoding = "srgb" | "display-p3" | "rec2020" | "rec2100-pq" | "rec2100-hlg";
+export type SimulateCaptureColorEncoding = "srgb" | "display-p3" | "rec2020";
 /** Built-in Bayer demosaic kernels (`createBuiltInBayerDemosaicProfiles`). */
-export type SimulateCaptureDemosaic = "bilinear" | "malvar-he-cutler";
+export type SimulateCaptureDemosaic = "bilinear";
 /**
  * `margin` renders extra native sites around the output, as far as the kernel reaches. `mirror` renders
  * exactly the output and reads mirrored (reflect-101) copies of the missing border sites. Mirroring is
@@ -183,7 +181,7 @@ export interface SimulateCaptureOptions {
     jpegQuantizationStep?: number;
     /** PNG only. Default "srgb". */
     colorEncoding?: SimulateCaptureColorEncoding;
-    /** PNG only: 8 or 16 bits per sample. Default 8, or 16 for the PQ/HLG encodings (which require 16). */
+    /** PNG only: 8 or 16 bits per sample. Default 8. */
     bitDepth?: 8 | 16;
     /**
      * PNG SDR encodings only. Default "clip" (per-component clip to the target gamut). "perceptual" maps
@@ -430,8 +428,7 @@ function defaultProgramLine(): ExposureProgramLineProfile {
 function pngColourEncoding(encoding: SimulateCaptureColorEncoding): PngColourEncoding {
   if (encoding === "srgb") return { kind: "srgb", renderingIntent: "perceptual" };
   if (encoding === "display-p3") return { kind: "cicp", primaries: "display-p3", transfer: "srgb", fullRange: true };
-  if (encoding === "rec2020") return { kind: "cicp", primaries: "bt2020", transfer: "bt709", fullRange: true };
-  return { kind: "cicp", primaries: "bt2020", transfer: encoding === "rec2100-pq" ? "pq" : "hlg", fullRange: true };
+  return { kind: "cicp", primaries: "bt2020", transfer: "bt709", fullRange: true };
 }
 /**
  * Develops the packed RAW to unclipped linear sRGB/D65, using the exact operator inside
@@ -609,24 +606,21 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   if (format === "png") {
     colorEncoding = pick<SimulateCaptureColorEncoding>(outputOptions, "colorEncoding", "output.colorEncoding", "srgb",
       "sRGB (W3C CSS Color 4 srgb) samples signalled with the PNG sRGB chunk (perceptual intent) and its prescribed gAMA/cHRM values.");
-    if (!["srgb", "display-p3", "rec2020", "rec2100-pq", "rec2100-hlg"].includes(colorEncoding)) fail("output.colorEncoding must be srgb, display-p3, rec2020, rec2100-pq or rec2100-hlg.");
-    const hdr = colorEncoding === "rec2100-pq" || colorEncoding === "rec2100-hlg";
-    pngBitDepth = pick<8 | 16>(outputOptions, "bitDepth", "output.bitDepth", hdr ? 16 : 8, hdr ? "16 bits per sample, the only PNG depth that holds PQ/HLG codes without banding." : "8 bits per sample.");
+    if (!["srgb", "display-p3", "rec2020"].includes(colorEncoding)) fail("output.colorEncoding must be srgb, display-p3 or rec2020.");
+    pngBitDepth = pick<8 | 16>(outputOptions, "bitDepth", "output.bitDepth", 8, "8 bits per sample.");
     if (pngBitDepth !== 8 && pngBitDepth !== 16) fail("output.bitDepth must be 8 or 16.");
-    if (hdr && pngBitDepth !== 16) fail("output.colorEncoding " + colorEncoding + " needs output.bitDepth 16.");
   } else if (outputOptions.colorEncoding !== undefined || outputOptions.bitDepth !== undefined) fail("output.colorEncoding and output.bitDepth apply only to output.format \"png\".");
   let perceptual = false;
   if (format === "png") {
     const gamutMapping = pick<"clip" | "perceptual">(outputOptions, "gamutMapping", "output.gamutMapping", "clip", "Out-of-gamut components are clipped to [0, 1] in the target space.");
     if (gamutMapping !== "clip" && gamutMapping !== "perceptual") fail("output.gamutMapping must be clip or perceptual.");
     perceptual = gamutMapping === "perceptual";
-    if (perceptual && (colorEncoding === "rec2100-pq" || colorEncoding === "rec2100-hlg")) fail("output.gamutMapping \"perceptual\" applies to the SDR encodings (srgb, display-p3, rec2020) only.");
   } else if (outputOptions.gamutMapping !== undefined) fail("output.gamutMapping applies only to output.format \"png\".");
   const wideGamut = colorEncoding !== undefined && colorEncoding !== "srgb";
-  // The linear development path serves wide-gamut/HDR encodings and perceptual gamut mapping.
+  // The linear development path serves wide-gamut encodings and perceptual gamut mapping.
   const linearPath = wideGamut || perceptual;
   const toneCurve = pick<SdrToneCurve>(outputOptions, "toneCurve", "output.toneCurve", DEFAULTS.toneCurve, "Identity tone curve: scene-linear values are clipped at display white, then sRGB-encoded.");
-  if (linearPath && toneCurve !== "identity") fail("output.toneCurve other than identity is available only for sRGB output; wide-gamut and HDR encodings are converted from the linear developed colour.");
+  if (linearPath && toneCurve !== "identity") fail("output.toneCurve other than identity is available only for sRGB output; wide-gamut encodings are converted from the linear developed colour.");
   const highlightMode = pick<RawHighlightMode>(outputOptions, "highlightMode", "output.highlightMode", DEFAULTS.highlightMode, "Saturated RAW highlights are clipped to neutral.");
   const whiteBalanceOption = pick<SimulateCaptureWhiteBalance>(outputOptions, "whiteBalance", "output.whiteBalance", DEFAULTS.whiteBalance,
     "White balance measured from a perfect white diffuser under the scene illuminant (a custom/grey-card white balance).");
@@ -650,9 +644,9 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   // Demosaic (2.0): built-in Bayer kernels and border handling. Omitted, the 1.0 bilinear kernels and a
   // one-site rendered border are used unchanged.
   const demosaicOption = outputOptions.demosaic as SimulateCaptureDemosaic | undefined, borderOption = outputOptions.borderHandling as SimulateCaptureBorderHandling | undefined;
-  if (demosaicOption !== undefined && demosaicOption !== "bilinear" && demosaicOption !== "malvar-he-cutler") fail("output.demosaic must be bilinear or malvar-he-cutler.");
+  if (demosaicOption !== undefined && demosaicOption !== "bilinear") fail("output.demosaic must be bilinear.");
   if (borderOption !== undefined && borderOption !== "margin" && borderOption !== "mirror") fail("output.borderHandling must be margin or mirror.");
-  const builtInDemosaic = demosaicOption === undefined ? undefined : createBuiltInBayerDemosaicProfiles({ kernel: demosaicOption === "bilinear" ? "bilinear" : "malvar-he-cutler-2004",
+  const builtInDemosaic = demosaicOption === undefined ? undefined : createBuiltInBayerDemosaicProfiles({ kernel: "bilinear",
     captureModeId: IDS.mode, colorSamplingProfile, channelRoles: { red: "red", green: "green", blue: "blue" } }).value;
   const mirrorBorder = borderOption === "mirror";
   const margin = mirrorBorder ? 0 : builtInDemosaic ? builtInDemosaic.kernelReachSites : MARGIN;
@@ -674,8 +668,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   } else {
     if (demosaicOption === undefined) assume("output.demosaic", "default", "bilinear-rggb", "The 1.0 facade's bilinear RGGB kernels (explicit linear neighbourhood weights).");
     else assume("output.demosaic", "model", { kernel: builtInDemosaic!.kernel, modelVersion: BUILT_IN_DEMOSAIC_VERSION, kernelReachSites: builtInDemosaic!.kernelReachSites },
-      demosaicOption === "bilinear" ? "Built-in bilinear Bayer kernels (createBuiltInBayerDemosaicProfiles): nearest same-channel averages." :
-        "Built-in Malvar–He–Cutler (ICASSP 2004) gradient-corrected linear kernels (createBuiltInBayerDemosaicProfiles): bilinear plus the own-channel Laplacian with gains 1/2, 5/8, 3/4. It sharpens luminance edges but can fringe more than bilinear on saturated colour edges (docs/PROCESSING.md).");
+      "Built-in bilinear Bayer kernels (createBuiltInBayerDemosaicProfiles): nearest same-channel averages.");
     if (borderOption === undefined) assume("output.borderHandling", "default", "margin", "The native raster adds the kernel reach (" + margin + " site(s)) on each side, so every output pixel is reconstructed from rendered sites.");
     else assume("output.borderHandling", "model", borderOption, mirrorBorder ?
       "No rendered border: the native raster equals the output and reconstruction reads reflect-101 mirror images of the missing sites (CFA consistency validated), so edge pixels use mirrored rather than rendered neighbours." :
@@ -716,7 +709,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const provider: PlanarSceneRadianceProvider = buildPlanarSceneRadianceProvider({ scene: chart ?? callerScene!, sceneId: IDS.scene, providerProfileId: IDS.provider,
     illuminant, irradianceScale, geometry: { distanceM: subjectDistanceM, metresPerFrameUnit }, evidence: FACADE_EVIDENCE,
     limitations: ["Planar Lambertian scene under uniform illumination; no shadows, inter-reflection, gloss or fluorescence."] });
-  assume("model.scene-radiometry", "model", "lambertian-plane", "Radiance = reflectance × irradiance / π on one plane; illuminance from K_m = 683 lm/W and the analytic CIE 1931 ȳ (Wyman et al. 2013).");
+  assume("model.scene-radiometry", "model", "lambertian-plane", "Radiance = reflectance × irradiance / π on one plane; illuminance from K_m = 683 lm/W and the engine's analytic CIE 1931 ȳ fit.");
 
   // Metering (CIPA DC-004 standard output sensitivity and camera equation) and exposure-mode resolution
   const exposureOptions = allowKeys(top.exposure, "exposure", ["mode", "iso", "shutterSeconds", "compensationStops"]);
@@ -795,7 +788,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   assume("sensor.darkCurrent", "model", { electronsPerSecond: DARK_CURRENT_ELECTRONS_PER_SECOND, temperatureC: OPERATING_TEMPERATURE_C },
     "Synthetic uniform dark current of 1 e⁻/s per site at 20 °C (the tier presets declare none); dark shot noise follows from it.");
   assume("sensor.spectralResponse", "model", { kind: "colorimetric-cmf-eqe", peakScale: EQE_SCALE },
-    "Idealized colorimetric sensor: channel EQE = a·{x̄, ȳ, z̄}(λ)·555/λ (CIE 1931 analytic fit, Wyman et al. 2013), so RAW channels are proportional to CIE XYZ (Luther–Ives) and the camera matrix is diagonal. Not a real camera's response; CMF air wavelengths are used as vacuum wavelengths (difference about 0.03 %).");
+    "Idealized colorimetric sensor: channel EQE = a·{x̄, ȳ, z̄}(λ)·555/λ (the engine's analytic CIE 1931 fit), so RAW channels are proportional to CIE XYZ (Luther–Ives) and the camera matrix is diagonal. Not a real camera's response; CMF air wavelengths are used as vacuum wavelengths (difference about 0.03 %).");
   assume("sensor.fillFactor", "model", 1, "Square sensitive aperture equal to the pixel pitch; no microlens or anti-aliasing filter.");
   // Shutter (2.0): the electronic rolling-shutter schedule derived from the body's rolling readout declaration.
   let rollingSchedule: ElectronicRollingShutterExposureSchedule | undefined;
@@ -1074,15 +1067,15 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     await runTask(devTask);
     developed = devTask.takeOutput();
   } else {
-    // Wide gamut / HDR: the native development operator up to linear sRGB/D65 (unclipped), then XYZ → target primaries.
+    // Wide gamut: the native development operator up to linear sRGB/D65 (unclipped), then XYZ → target primaries.
     let lastYield = Date.now();
     const linear = await developLinearSrgb({ ...development, raw: rawOutput.raw }, async (completed, total) => {
       onProgress?.({ stage: "development", completedTileCount: completed, totalTileCount: total });
       if (Date.now() - lastYield >= 8) { await yieldControl(); checkAbort(); lastYield = Date.now(); }
     });
-    if (colorEncoding === "srgb" || colorEncoding === "display-p3" || colorEncoding === "rec2020") {
-      const mapping = perceptual ? prepareRgbGamutMapping({ colorSpace: colorEncoding, method: "cielab-hue-preserving-chroma-compression", kneeFraction: PERCEPTUAL_GAMUT_KNEE_FRACTION }) : undefined;
-      const encoded = encodeSdrFromLinear(linear.rgb, colorEncoding, pngBitDepth!, mapping);
+    {
+      const mapping = perceptual ? prepareRgbGamutMapping({ colorSpace: colorEncoding!, method: "cielab-hue-preserving-chroma-compression", kneeFraction: PERCEPTUAL_GAMUT_KNEE_FRACTION }) : undefined;
+      const encoded = encodeSdrFromLinear(linear.rgb, colorEncoding!, pngBitDepth!, mapping);
       developed = { raw: rawOutput.raw, integerSamples: encoded.samples, highlight: linear.highlight, diagnostics: encoded.diagnostics };
       if (mapping) {
         gamutMappingDiagnostics = { method: "cielab-hue-preserving-chroma-compression", kneeFraction: PERCEPTUAL_GAMUT_KNEE_FRACTION,
@@ -1095,20 +1088,6 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
         "Developed with the native development operator (demosaic, per-site white-level clip, WB, highlight mode, diagonal camera→XYZ, XYZ→linear sRGB) but before any sRGB clipping, so colours outside sRGB are kept; converted to " +
         colorEncoding + " through XYZ (matrices from primaries and D65, as in W3C CSS Color 4), " + (perceptual ? "gamut-mapped perceptually (output.gamutMapping)" : "components clipped to [0, 1] in the target gamut") +
         ", then encoded and rounded to nearest. RAW white maps to display white, as in the sRGB path.");
-    } else {
-      const m = linearSrgbToTarget("rec2020"), data = new Float32Array(linear.rgb.length);
-      for (let i = 0; i < data.length; i += 3) for (let k = 0; k < 3; k++) { const row = m[k]!; data[i + k] = row[0]! * linear.rgb[i]! + row[1]! * linear.rgb[i + 1]! + row[2]! * linear.rgb[i + 2]!; }
-      const hdrTask = createHdrImageEncodingTask({ image: { width, height, data }, inputColorSpace: "linear-rec2020-d65", transfer: colorEncoding === "rec2100-pq" ? "pq" : "hlg",
-        bitDepth: 16, signalRange: "full" }, { yieldControl });
-      await runTask(hdrTask);
-      const hdr = hdrTask.takeOutput();
-      developed = { raw: rawOutput.raw, integerSamples: hdr.codes!, highlight: linear.highlight, diagnostics: { renderingNegativeSampleCount: hdr.negativeClippedSampleCount,
-        renderingAboveReferenceSampleCount: 0, toneChangedSampleCount: 0, gamutClippedLowSampleCount: hdr.negativeClippedSampleCount, gamutClippedHighSampleCount: hdr.overRangeClippedSampleCount,
-        captureSaturation: "consumed-in-raw-development" } };
-      assume("output.colorEncoding.conversion", "model", { from: "linear-srgb-d65 (unclipped)", via: "CIE XYZ", to: "linear-rec2020-d65", encoder: "createHdrImageEncodingTask",
-        transfer: colorEncoding === "rec2100-pq" ? "pq" : "hlg", referenceWhite: colorEncoding === "rec2100-pq" ? "203 cd/m²" : "HLG signal 0.75", bitDepth: 16, signalRange: "full" },
-        "Linear developed colour converted through XYZ to BT.2020 primaries and encoded by createHdrImageEncodingTask (ITU-R BT.2100). Relative value 1.0 (the RAW white level) is placed at the ITU-R BT.2408 HDR reference white (" +
-        (colorEncoding === "rec2100-pq" ? "203 cd/m² in PQ" : "HLG signal 0.75") + "). A single capture holds no signal above its RAW white, so there is no highlight headroom above reference white; use createHdrBracketMergeTask for extended range. Negative BT.2020 components are clipped.");
     }
   }
   const devMs = Date.now() - devStarted, jpegStarted = Date.now();
@@ -1158,7 +1137,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
         ...(rollingSchedule ? ["resolveElectronicRollingShutterExposureSchedule", "createRollingShutterCaptureExposureSchedule"] : []),
         "resolveGenericIsoSignalChain", "createNativeEnvironmentRawTask", ...(needsAuto ? ["estimateAutoWhiteBalance", "createNativeEnvironmentSensorStageTask"] : []),
         ...(builtInDemosaic ? ["createBuiltInBayerDemosaicProfiles"] : []),
-        ...(linearPath ? ["native RAW development operator (linear, pre-clip)", "resolveRgbColorSpace", ...(perceptual ? ["prepareRgbGamutMapping"] : []), ...(colorEncoding === "rec2100-pq" || colorEncoding === "rec2100-hlg" ? ["createHdrImageEncodingTask"] : [])] : ["createNativeRawDevelopmentTask"]),
+        ...(linearPath ? ["native RAW development operator (linear, pre-clip)", "resolveRgbColorSpace", ...(perceptual ? ["prepareRgbGamutMapping"] : [])] : ["createNativeRawDevelopmentTask"]),
         ...(jpeg ? ["createPrintJpegTask"] : []), ...(png ? ["serializePngImage"] : []), ...(dng ? ["resolveSensorReadoutRegime", "serializeNativeRawDng"] : [])],
       limitations: ["Educational approximation: synthetic tier sensor values, idealized colorimetric sensor, planar Lambertian scene and point optics; not a calibrated camera emulation.",
         "Not offered by the facade: atmospheric haze and polarizers (the scene-radiance provider contract declares no volumetric transport or polarization), flash, video, HDR brackets and processing operators; compose those APIs directly."] },

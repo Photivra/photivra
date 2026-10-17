@@ -126,7 +126,7 @@ describe("Zernike (Noll) wavefront parameterisation", () => {
     const engine = calculateDefocusCircle({ focalLengthMm: f, aperture: n, focusDistanceM: focus, subjectDistanceM: subject }).value.diameterMm;
     expect(Math.abs(blurRadiusMm)).toBeCloseTo(engine / 2, 12);
     // The same defocus through the longitudinal-CA path at the reference wavelength.
-    const lca = calculateLongitudinalChromaticFocus({ focalLengthMm: f, referenceWavelengthNm: 550, wavelengthNm: 550, apertureFNumber: n, focusDistanceM: focus, subjectDistanceM: subject, dispersion: { kind: "thin-singlet-abbe", refractiveIndexD: 1.5168, abbeNumberD: 64.17 } }).value;
+    const lca = calculateLongitudinalChromaticFocus({ focalLengthMm: f, referenceWavelengthNm: 550, wavelengthNm: 550, apertureFNumber: n, focusDistanceM: focus, subjectDistanceM: subject, dispersion: { kind: "thin-singlet-abbe", refractiveIndexD: 1.5, abbeNumberD: 60 } }).value;
     expect(lca.geometricBlurDiameterMm).toBeCloseTo(engine, 12);
     expect(lca.zernikeZ4Micrometers).toBeCloseTo(wave.zernikeZ4Micrometers, 12);
   });
@@ -179,12 +179,13 @@ describe("Zernike (Noll) wavefront parameterisation", () => {
 });
 
 describe("longitudinal chromatic aberration", () => {
-  const glass = { kind: "thin-singlet-abbe" as const, refractiveIndexD: 1.5168, abbeNumberD: 64.17 };
+  // Synthetic glass (n_d = 1.5, V_d = 60), not catalogue data.
+  const glass = { kind: "thin-singlet-abbe" as const, refractiveIndexD: 1.5, abbeNumberD: 60 };
 
   it("fits the two-term Cauchy dispersion exactly to n_d and V_d", () => {
-    const n = (wavelengthNm: number): number => calculateCauchyRefractiveIndex({ refractiveIndexD: 1.5168, abbeNumberD: 64.17, wavelengthNm }).value.refractiveIndex;
-    expect(n(FRAUNHOFER_D_LINE_NM)).toBeCloseTo(1.5168, 14);
-    expect((n(FRAUNHOFER_D_LINE_NM) - 1) / (n(FRAUNHOFER_F_LINE_NM) - n(FRAUNHOFER_C_LINE_NM))).toBeCloseTo(64.17, 10);
+    const n = (wavelengthNm: number): number => calculateCauchyRefractiveIndex({ refractiveIndexD: 1.5, abbeNumberD: 60, wavelengthNm }).value.refractiveIndex;
+    expect(n(FRAUNHOFER_D_LINE_NM)).toBeCloseTo(1.5, 14);
+    expect((n(FRAUNHOFER_D_LINE_NM) - 1) / (n(FRAUNHOFER_F_LINE_NM) - n(FRAUNHOFER_C_LINE_NM))).toBeCloseTo(60, 10);
     expect(n(450)).toBeGreaterThan(n(650));
     expect(() => n(300)).toThrow(/360-830/);
   });
@@ -192,8 +193,8 @@ describe("longitudinal chromatic aberration", () => {
   it("gives the classical singlet secondary focal difference f_C - f_F ~ f / V", () => {
     const at = (wavelengthNm: number): number => calculateLongitudinalChromaticFocus({ focalLengthMm: 100, referenceWavelengthNm: FRAUNHOFER_D_LINE_NM, wavelengthNm, apertureFNumber: 4, focusDistanceM: 1e6, dispersion: glass }).value.focalLengthAtWavelengthMm;
     const difference = at(FRAUNHOFER_C_LINE_NM) - at(FRAUNHOFER_F_LINE_NM);
-    expect(difference / (100 / 64.17)).toBeGreaterThan(0.98);
-    expect(difference / (100 / 64.17)).toBeLessThan(1.02);
+    expect(difference / (100 / 60)).toBeGreaterThan(0.98);
+    expect(difference / (100 / 60)).toBeLessThan(1.02);
   });
 
   it("has zero defocus at the reference wavelength in the focus plane and grows away from it", () => {

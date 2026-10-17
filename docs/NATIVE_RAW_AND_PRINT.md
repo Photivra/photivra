@@ -55,7 +55,7 @@ The equations are in [photographic export](PHOTOGRAPHIC_EXPORT.md#development-mo
 - By default (`borderHandling: "reject"`), every phase and kernel halo used must lie inside real native support. There is no padding and no weight renormalisation.
 - With `borderHandling: "mirror"`, sites outside the frame are read at their reflect-101 mirror position, when that provably keeps the same CFA channel (always true for 2×2 Bayer). Interior pixels are byte-identical to `reject`.
 
-Built-in bilinear and Malvar–He–Cutler kernels come from `createBuiltInBayerDemosaicProfiles` ([image processing](PROCESSING.md#demosaicing)).
+Built-in bilinear kernels come from `createBuiltInBayerDemosaicProfiles` ([image processing](PROCESSING.md#demosaicing)).
 
 **Other rules.**
 

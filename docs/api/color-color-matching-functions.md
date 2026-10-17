@@ -2,6 +2,14 @@
 
 The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
+## ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS
+
+Wavelength domain over which the analytic CIE 1931 fit is accepted (the domain it was fitted on).
+
+```ts
+ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS: Readonly<SpectralWavelengthRangeNanometers> = Object.freeze({ minimum: 360, maximum: 830 })
+```
+
 ## ColorimetricObserver
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -51,7 +59,7 @@ export type ColorimetricSpectrum =
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
 
 ```ts
-COLORIMETRY_MODEL_VERSION = "1.0.0" as const
+COLORIMETRY_MODEL_VERSION = "2.0.0" as const
 ```
 
 ## ColorMatchingFunctionsSource
@@ -60,7 +68,7 @@ Selects a colour-matching-function source.
 
 ```ts
 export type ColorMatchingFunctionsSource =
-  | { kind: "wyman-2013-cie-1931-multi-lobe-fit" }
+  | { kind: "analytic-cie-1931-multi-lobe-fit" }
   | {
       kind: "tabulated";
       observer: ColorimetricObserver;
@@ -95,9 +103,9 @@ export interface CreateColorimetricMidpointQuadratureInput {
 
 ## estimateCie1931ColorMatchingFunctions
 
-Evaluates the Wyman–Sloan–Shirley (2013) multi-lobe analytic approximation of the CIE
-1931 2° colour-matching functions at one wavelength (nm, standard-air wavelength as in
-the CIE tables). Approximation: see the module notes for the published error.
+Evaluates the engine's multi-lobe analytic approximation of the CIE 1931 2° colour-matching
+functions at one wavelength (nm, standard-air wavelength as in the CIE tables). Approximation:
+see the module notes for the measured fit error. The values are non-negative over the domain.
 
 ```ts
 export function estimateCie1931ColorMatchingFunctions(wavelengthNanometers: number): CieXyzTristimulus;
@@ -248,12 +256,4 @@ Normalization of integrated tristimulus values.
 
 ```ts
 export type TristimulusNormalization = { kind: "white-luminance-one" } | { kind: "scale"; factor: number };
-```
-
-## WYMAN_2013_CMF_DOMAIN_NANOMETERS
-
-Wavelength domain over which the analytic CIE 1931 fit is accepted (CIE table domain).
-
-```ts
-WYMAN_2013_CMF_DOMAIN_NANOMETERS: Readonly<SpectralWavelengthRangeNanometers> = Object.freeze({ minimum: 360, maximum: 830 })
 ```

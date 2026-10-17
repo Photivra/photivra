@@ -58,6 +58,11 @@
       "kind": "type"
     },
     {
+      "name": "ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "AntiAliasingPointSplitComponent",
       "source": "src/sensor/optical-stack.ts",
       "kind": "type"
@@ -695,11 +700,6 @@
     {
       "name": "calculateHighlightPriorityPlacementSignal",
       "source": "src/exposure/metering.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "calculateHlgSystemGamma",
-      "source": "src/color/rgb-color-spaces.ts",
       "kind": "runtime"
     },
     {
@@ -2588,26 +2588,6 @@
       "kind": "runtime"
     },
     {
-      "name": "evaluateHlgInverseOetf",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "evaluateHlgOetf",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "evaluatePqEotf",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "evaluatePqInverseEotf",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
       "name": "evaluateSceneIlluminationTemporalMultiplier",
       "source": "src/schema/illumination-temporal.ts",
       "kind": "runtime"
@@ -3293,16 +3273,6 @@
       "kind": "type"
     },
     {
-      "name": "HLG_CONSTANTS",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "HlgReferenceDisplay",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "type"
-    },
-    {
       "name": "IdealApertureGeometry",
       "source": "src/optics/aperture.ts",
       "kind": "type"
@@ -3671,11 +3641,6 @@
       "name": "IsoStandardSettingGrid",
       "source": "src/equipment/iso-capabilities.ts",
       "kind": "type"
-    },
-    {
-      "name": "KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN",
-      "source": "src/color/illuminants.ts",
-      "kind": "runtime"
     },
     {
       "name": "LateralCaLensCorrection",
@@ -4983,6 +4948,11 @@
       "kind": "runtime"
     },
     {
+      "name": "PLANCKIAN_LOCUS_RANGE_KELVIN",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "PlanckianLocusModel",
       "source": "src/color/illuminants.ts",
       "kind": "type"
@@ -5078,11 +5048,6 @@
       "kind": "type"
     },
     {
-      "name": "PQ_CONSTANTS",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
       "name": "prepareBt1886Eotf",
       "source": "src/color/rgb-color-spaces.ts",
       "kind": "runtime"
@@ -5130,11 +5095,6 @@
     {
       "name": "prepareGeometricMapping",
       "source": "src/output/geometric-transforms.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "prepareHlgReferenceDisplay",
-      "source": "src/color/rgb-color-spaces.ts",
       "kind": "runtime"
     },
     {
@@ -8256,11 +8216,6 @@
       "name": "WidestAvailableFNumberCapability",
       "source": "src/equipment/exposure-capabilities.ts",
       "kind": "type"
-    },
-    {
-      "name": "WYMAN_2013_CMF_DOMAIN_NANOMETERS",
-      "source": "src/color/color-matching-functions.ts",
-      "kind": "runtime"
     },
     {
       "name": "ZERNIKE_MAXIMUM_NOLL_INDEX",

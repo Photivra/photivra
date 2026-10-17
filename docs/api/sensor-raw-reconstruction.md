@@ -15,7 +15,7 @@ BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION = "1.0.0" as const
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
 
 ```ts
-export type BuiltInBayerDemosaicKernel = "bilinear" | "malvar-he-cutler-2004";
+export type BuiltInBayerDemosaicKernel = "bilinear";
 ```
 
 ## BuiltInBayerDemosaicProfiles
@@ -28,15 +28,14 @@ export interface BuiltInBayerDemosaicProfiles {
   /** One profile per absolute CFA phase, row-major (`phaseY`, then `phaseX`). */
   phaseProfiles: { phaseX: number; phaseY: number; profile: SensorRawReconstructionProfile }[];
   outputChannelIds: [string, string, string];
-  /** Largest |offset| of any contribution: 1 for bilinear, 2 for Malvar–He–Cutler. */
+  /** Largest |offset| of any contribution: 1 for bilinear. */
   kernelReachSites: number;
 }
 ```
 
 ## createBuiltInBayerDemosaicProfiles
 
-Builds the per-phase linear reconstruction profiles of a built-in Bayer demosaic kernel: bilinear,
-or the Malvar–He–Cutler (2004) gradient-corrected 5×5 linear filters.
+Builds the per-phase linear reconstruction profiles of the built-in bilinear Bayer demosaic kernel.
 
 The result is the ordinary `explicit-linear-native-neighborhood` profile used by RAW frame
 reconstruction, native RAW development and `createCfaPlaneReconstructionTask`; there is no special
@@ -44,8 +43,8 @@ code path. Edge pixels need either a region whose neighbourhood stays inside the
 border handling.
 
 Approximation: fixed linear interpolation, not a calibrated or adaptive demosaic. Bilinear blurs
-and shows "zipper" artefacts at edges; Malvar–He–Cutler reduces colour fringes but does not remove
-them. Aliasing and moiré are not modelled.
+and shows "zipper" artefacts at edges. Aliasing and moiré are not modelled. The adaptive AHD method
+is `createAhdDemosaicTask`.
 
 ```ts
 export function createBuiltInBayerDemosaicProfiles(input: CreateBuiltInBayerDemosaicProfilesInput): CalculationResult<BuiltInBayerDemosaicProfiles>;

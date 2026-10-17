@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
-import { createHdrBracketMergeTask, createHdrImageEncodingTask, evaluateHlgOetf, evaluatePqInverseEotf, InvalidConfigurationError,
+import { createHdrBracketMergeTask, createHdrImageEncodingTask, InvalidConfigurationError,
   InvalidScientificInputError, type HdrBracketFrame } from "../src/index.js";
 import { gaussian, mulberry32, rgbImage, runTask } from "./helpers/processing-fixture.js";
 
@@ -68,30 +68,20 @@ describe("HDR bracket merge", () => {
 });
 
 describe("HDR output encoding", () => {
-  it("encodes reference white per ITU-R BT.2408 in PQ and HLG, full and narrow range", async () => {
-    const white = rgbImage(1, 1, () => 1);
-    const pq = await runTask((p) => createHdrImageEncodingTask({ image: white, inputColorSpace: "linear-srgb-d65", transfer: "pq" }, p));
-    const expected = Math.floor(1023 * evaluatePqInverseEotf(203) + 0.5);
-    expect(Array.from(pq.codes!)).toEqual([expected, expected, expected]);
-    expect(evaluatePqInverseEotf(203)).toBeCloseTo(0.58, 2);
-    const hlg = await runTask((p) => createHdrImageEncodingTask({ image: white, inputColorSpace: "linear-rec2020-d65", transfer: "hlg", bitDepth: 12 }, p));
-    expect(Array.from(hlg.codes!)).toEqual([3071, 3071, 3071]);
-    const narrow = await runTask((p) => createHdrImageEncodingTask({ image: rgbImage(2, 1, (x) => x === 0 ? 0 : 1e6), inputColorSpace: "linear-rec2020-d65",
-      transfer: "pq", signalRange: "narrow" }, p));
-    expect(Array.from(narrow.codes!)).toEqual([64, 64, 64, 940, 940, 940]); expect(narrow.overRangeClippedSampleCount).toBe(3);
-    expect(evaluateHlgOetf(0)).toBe(0);
-  });
-
-  it("converts to BT.2020 primaries (BT.2087 matrix) and counts negative clipping", async () => {
+  it("converts to BT.2020 primaries (BT.2087 matrix) as unclipped float32 linear values", async () => {
     const lin = await runTask((p) => createHdrImageEncodingTask({ image: rgbImage(3, 1, (x, _y, c) => x === c ? 1 : 0), inputColorSpace: "linear-srgb-d65",
       transfer: "linear-float32" }, p));
     // Columns of the sRGB → BT.2020 matrix (ITU-R BT.2087 publishes 0.6274, 0.3293, 0.0433 / 0.0691, 0.9195, 0.0114 / 0.0164, 0.0880, 0.8956).
-    expect(lin.linear![0]).toBeCloseTo(0.6274, 3); expect(lin.linear![3]).toBeCloseTo(0.3293, 3); expect(lin.linear![8]).toBeCloseTo(0.8956, 3);
-    expect(lin.codes).toBeNull();
-    const neg = await runTask((p) => createHdrImageEncodingTask({ image: rgbImage(1, 1, (_x, _y, c) => c === 0 ? -0.1 : 0.5), inputColorSpace: "linear-rec2020-d65",
-      transfer: "hlg" }, p));
-    expect(neg.codes![0]).toBe(0); expect(neg.negativeClippedSampleCount).toBe(1);
-    expect(() => createHdrImageEncodingTask({ image: rgbImage(1, 1, () => 1), inputColorSpace: "linear-srgb-d65", transfer: "pq", bitDepth: 8 as 10 },
+    expect(lin.linear[0]).toBeCloseTo(0.6274, 3); expect(lin.linear[3]).toBeCloseTo(0.3293, 3); expect(lin.linear[8]).toBeCloseTo(0.8956, 3);
+    expect(lin.colorSpace).toBe("rec2020"); expect(lin.transfer).toBe("linear-float32");
+    // Negative and over-range values are kept (no clipping without a transfer function).
+    const kept = await runTask((p) => createHdrImageEncodingTask({ image: rgbImage(1, 1, (_x, _y, c) => c === 0 ? -0.1 : 5), inputColorSpace: "linear-rec2020-d65",
+      transfer: "linear-float32" }, p));
+    expect(Array.from(kept.linear)).toEqual([Math.fround(-0.1), 5, 5]);
+    // PQ and HLG are not part of 2.0 (licence-on-request patent declarations; THIRD_PARTY.md).
+    for (const transfer of ["pq", "hlg"]) expect(() => createHdrImageEncodingTask({ image: rgbImage(1, 1, () => 1), inputColorSpace: "linear-srgb-d65",
+      transfer: transfer as "linear-float32" }, { yieldControl: async () => {} })).toThrow(InvalidConfigurationError);
+    expect(() => createHdrImageEncodingTask({ image: rgbImage(1, 1, () => 1), inputColorSpace: "linear-srgb-d65", transfer: "linear-float32", bitDepth: 10 } as never,
       { yieldControl: async () => {} })).toThrow(InvalidConfigurationError);
   });
 });

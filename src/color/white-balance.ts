@@ -160,7 +160,7 @@ export interface ResolvedColorTemperatureWhiteBalance {
   tint: number;
   whiteLocus: WhiteLocus;
   tintInterpretation: "duv-cie-1960-uv";
-  planckianLocusModel: "kim-2002-cubic-spline" | "planck-integration";
+  planckianLocusModel: "planck-analytic-cmf" | "planck-integration";
   /** CIE 1931 xy of the declared white (CCT + Duv). */
   adoptedWhiteChromaticity: CieXyChromaticity;
   /** Pre-WB camera response to that white (XYZ with Y = 1 through xyzToCameraRgb). */
@@ -182,7 +182,7 @@ export interface ResolveColorTemperatureWhiteBalanceInput {
   whiteLocus: WhiteLocus;
   /** Tint is read as Duv in the CIE 1960 UCS (positive = above the Planckian locus, greenish). */
   tintInterpretation: "duv-cie-1960-uv";
-  /** Defaults to the Kim et al. (2002) cubic-spline locus. */
+  /** Defaults to Planck's law integrated against the engine's analytic CIE 1931 CMFs (`planck-analytic-cmf`). */
   planckianLocus?: PlanckianLocusModel;
   camera: ColorTemperatureWhiteBalanceCameraModel;
 }
@@ -726,7 +726,7 @@ export function resolveColorTemperatureWhiteBalance(
   const profileId = requireScientificNonEmptyString(camera.profileId, "camera.profileId");
   const profileVersion = requireScientificNonEmptyString(camera.profileVersion, "camera.profileVersion");
   const matrix = parseMatrix3x3(camera.xyzToCameraRgb, "camera.xyzToCameraRgb");
-  const locus: PlanckianLocusModel = input.planckianLocus ?? { kind: "kim-2002-cubic-spline" };
+  const locus: PlanckianLocusModel = input.planckianLocus ?? { kind: "planck-analytic-cmf" };
   const white = calculateChromaticityFromCorrelatedColorTemperature({
     correlatedColorTemperatureKelvin: kelvin,
     duv: tint,
@@ -1116,7 +1116,7 @@ function parseResolvedColorTemperature(
     throw new InvalidConfigurationError(path + ".tintInterpretation is invalid.");
   }
   if (
-    record.planckianLocusModel !== "kim-2002-cubic-spline" &&
+    record.planckianLocusModel !== "planck-analytic-cmf" &&
     record.planckianLocusModel !== "planck-integration"
   ) {
     throw new InvalidConfigurationError(path + ".planckianLocusModel is invalid.");

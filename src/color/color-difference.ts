@@ -9,13 +9,14 @@
  * - ΔE*94: asymmetric (first colour is the reference: S_C = 1 + K₁C*₁, S_H = 1 + K₂C*₁), graphic-arts
  *   (k_L = 1, K₁ = 0.045, K₂ = 0.015) or textiles (k_L = 2, K₁ = 0.048, K₂ = 0.014), k_C = k_H = 1.
  *   Secondary source; the primary CIE 116-1995 is not free: Wikipedia, "Color difference", §CIE94
- *   (https://en.wikipedia.org/wiki/Color_difference#CIE94). Checked against the worked values in the
- *   colour-science `delta_E_CIE1994` documentation (BSD-3-Clause).
+ *   (https://en.wikipedia.org/wiki/Color_difference#CIE94). The tests check its closed forms for pure
+ *   lightness, chroma and hue differences and the reference asymmetry.
  * - CIEDE2000, implemented from the formula and implementation notes in Sharma, Wu & Dalal
- *   (2005), Color Res. Appl. 30(1):21–30 (paper and test data free at
+ *   (2005), Color Res. Appl. 30(1):21–30 (paper free at
  *   https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/; also CIE 142-2001, ISO/CIE 11664-6).
- *   This includes the hue-angle averaging and the handling of the hue discontinuity. It is checked
- *   against the published test pairs.
+ *   This includes the hue-angle averaging and the handling of the hue discontinuity. The tests check
+ *   its closed forms for pure lightness, chroma and hue differences (computed in the test), symmetry
+ *   and identity; the published test pairs are not used (their data file has no licence).
  * @see docs/COLORIMETRY.md for equations, coordinate/unit conventions and limits.
  */
 

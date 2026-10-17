@@ -14,7 +14,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## createHdrImageEncodingTask
 
-Encodes linear RGB as BT.2020/BT.2100 PQ or HLG integer codes, or as float32 linear BT.2020.
+Converts linear RGB to unclipped float32 linear BT.2020 (relative values, no transfer function or quantization).
 
 ```ts
 export function createHdrImageEncodingTask(input: HdrImageEncodingInput, provider: ProcessingProvider): ProcessingTask<HdrImageEncodingOutput>;
@@ -84,14 +84,6 @@ export interface HdrImageEncodingInput {
   image: ProcessingRgbImage;
   inputColorSpace: ProcessingLinearColorSpace;
   transfer: HdrTransfer;
-  /** PQ: luminance of relative value 1.0, cd/m². Default 203 (ITU-R BT.2408 HDR reference white). */
-  referenceWhiteLuminanceCdPerSquareMeter?: number;
-  /** HLG: signal of relative value 1.0. Default 0.75 (ITU-R BT.2408 HLG reference white). */
-  hlgReferenceWhiteSignal?: number;
-  /** PQ/HLG integer depth: 10 (default), 12 or 16. */
-  bitDepth?: 10 | 12 | 16;
-  /** BT.2100 full range D = round((2ⁿ−1)E′) (default) or narrow range D = round((219E′ + 16)·2ⁿ⁻⁸). */
-  signalRange?: "full" | "narrow";
   maximumWorkingBytes?: number;
 }
 ```
@@ -106,24 +98,16 @@ export interface HdrImageEncodingOutput {
   height: number;
   colorSpace: "rec2020";
   transfer: HdrTransfer;
-  /** Interleaved RGB codes for PQ/HLG. */
-  codes: Uint16Array | null;
-  /** Interleaved linear BT.2020 RGB (relative, unclipped) for `linear-float32`. */
-  linear: Float32Array | null;
-  bitDepth: number | null;
-  signalRange: "full" | "narrow" | null;
-  /** Components below 0 after conversion to BT.2020 that were clipped (PQ/HLG). */
-  negativeClippedSampleCount: number;
-  /** Components above the PQ 10000 cd/m² or HLG E = 1 limit that were clipped. */
-  overRangeClippedSampleCount: number;
+  /** Interleaved linear BT.2020 RGB (relative, unclipped). */
+  linear: Float32Array;
   provenance: ProcessingProvenance;
 }
 ```
 
 ## HdrTransfer
 
-The exact contract is declared below; use the domain guide for assumptions and staged integration.
+The only output transfer in 2.0: unclipped float32 linear values (PQ and HLG are not shipped).
 
 ```ts
-export type HdrTransfer = "pq" | "hlg" | "linear-float32";
+export type HdrTransfer = "linear-float32";
 ```

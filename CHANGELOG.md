@@ -4,7 +4,7 @@
 
 A major release.
 
-**In short.** 2.0.0 fixes correctness problems found in the first 2.0 review, makes several parts much faster without changing their output, and adds a large set of new features. Some of the fixes change numbers that 1.x produced, change stored identities (hashes and seeds), or reject input that 1.x accepted. Any of those can break existing users, so the version number goes from 1 to 2. Root exports grow from 1,227 to 1,637 symbols, and none is removed.
+**In short.** 2.0.0 fixes correctness problems found in the first 2.0 review, makes several parts much faster without changing their output, and adds a large set of new features. Some of the fixes change numbers that 1.x produced, change stored identities (hashes and seeds), or reject input that 1.x accepted. Any of those can break existing users, so the version number goes from 1 to 2. Root exports grow from 1,227 to 1,647 symbols, and none is removed.
 
 What it contains:
 
@@ -151,6 +151,19 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - No longer shipped: declaration maps; docs other than USAGE, API_REFERENCE, QUICK_START, `api/` and examples; and the unreachable `browser-native-reference-*` and `schema/{camera,scene}.js` modules.
   - *Migration:* read the other guides in the repository.
 
+**Colorimetry: third-party coefficients removed (owner decision, 2026-10-17)**
+
+- **Own CIE 1931 colour-matching-function fit replaces the Wyman et al. (2013) coefficients.**
+  - *Why:* the Wyman, Sloan & Shirley paper is CC BY-ND. The owner decided to remove third-party numbers with any licence question.
+  - *What changed:* `estimateCie1931ColorMatchingFunctions` uses coefficients the engine fitted itself to the CIE 1931 2° data (same kind of model: a sum of piecewise Gaussians). The CMF source kind `"wyman-2013-cie-1931-multi-lobe-fit"` is now `"analytic-cie-1931-multi-lobe-fit"`, and `WYMAN_2013_CMF_DOMAIN_NANOMETERS` is now `ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS` (still 360–830 nm). The provenance model is `cie-xyz-spectral-integration-analytic-cmf`, and `COLORIMETRY_MODEL_VERSION` is 2.0.0. The fit is still an approximation, slightly closer to the CIE data (maximum error 0.0122/0.00733/0.0221 for x̄/ȳ/z̄, was 0.0140/0.00800/0.0222; see `docs/COLORIMETRY.md`).
+  - *Effect:* colour outputs change slightly. Illuminant A integrates to xy (0.4480, 0.4074), was (0.4463, 0.4087). `simulateCapture()` RAW codes move by up to about 0.5 % (mean +1 to +5 codes), so its pinned output digests changed.
+  - *Migration:* replace the old kind and constant names. Re-render anything that must match 2.0.0 colour exactly.
+- **Planckian locus computed from Planck's law; the Kim et al. (2002) spline is removed.**
+  - *Why:* the cubic-spline coefficients come from Kang et al. (2002), which is also claimed in a (lapsed) patent. The owner decided to remove them.
+  - *What changed:* the locus is the chromaticity of Planck's law integrated against the engine's analytic CMFs on 1 nm nodes, 1000–100000 K. The locus kind `"kim-2002-cubic-spline"` is now `"planck-analytic-cmf"`, the default of `resolveColorTemperatureWhiteBalance`. `KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN` (1667–25000 K) is now `PLANCKIAN_LOCUS_RANGE_KELVIN` (1000–100000 K). `estimatePlanckianLocusChromaticity` keeps its name and uses the new locus. Resolved white-balance states record `planckianLocusModel: "planck-analytic-cmf"`, and states with `"kim-2002-cubic-spline"` are rejected.
+  - *Effect:* locus points move by up to 7.0e-4 in CIE 1960 uv from 2000 to 25000 K (1.4e-3 at 1667 K). The CCT of the daylight-locus point at 6504 K becomes 6516.6 K (was 6500.0 K), and Kelvin white-balance gains change by up to 0.5 %. A CCT/Duv search costs about 0.4 ms instead of 0.02 ms (`scripts/benchmark-planckian-locus.mjs`).
+  - *Migration:* replace `{ kind: "kim-2002-cubic-spline" }` with `{ kind: "planck-analytic-cmf" }` (or omit it for the default) and the range constant name. Re-resolve stored Kelvin/tint white-balance states. For a locus from tabulated CIE CMFs, use `{ kind: "planck-integration", colorMatchingFunctions, quadratureNodes }`.
+
 ### Added
 
 - **`simulateCapture()` (#300).** A full capture from a few options.
@@ -160,11 +173,11 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - Output: `srgb-8`, `srgb-16` or `jpeg`.
   - Procedural chart presets (uniform, slanted edge, Siemens star, step wedge, grey ramp, checkerboard, point grid, caller-spectrum patches) with `resolveChartScene` and helpers.
   - `SIMULATE_CAPTURE_FACADE_VERSION` 1.0.0; `docs/QUICK_START.md` (shipped) and `docs/examples/simulate-capture.mjs`.
-- **`simulateCapture()` uses the 2.0 features (#306, #307).** All opt-in. Without the new options, the 1.0 facade output is byte-identical at the same illuminance (the default illuminance changed; see *Free-source citations* below). Every choice is listed in `assumptions`.
-  - `output.format: "png"` with `colorEncoding` `srgb`, `display-p3`, `rec2020`, `rec2100-pq` or `rec2100-hlg`. The unclipped linear development is converted through CIE XYZ, clipped once in the target gamut, and signalled with cICP. PQ/HLG place RAW white at the BT.2408 reference white.
+- **`simulateCapture()` uses the 2.0 features (#306, #307).** All opt-in. Without the new options, the 1.0 facade output is byte-identical at the same illuminance (the default illuminance changed; see *Free-source citations* below), apart from the colour-matching-function change under *Breaking changes*. Every choice is listed in `assumptions`.
+  - `output.format: "png"` with `colorEncoding` `srgb`, `display-p3` or `rec2020`. The unclipped linear development is converted through CIE XYZ, clipped once in the target gamut, and signalled with cICP. The `rec2100-pq` and `rec2100-hlg` encodings prepared for 2.0 were removed before release: pQ and HLG (ITU-R BT.2100) are not shipped in 2.0 because their patent holders offer only licence-on-request declarations (owner decision, 2026-10-17; see the patent review in `THIRD_PARTY.md`).
   - Optional `gamutMapping: "perceptual"` (constant CIELAB L* and hue).
   - `output.format: "dng"`.
-  - `output.demosaic` (`bilinear`, `malvar-he-cutler`) and `borderHandling` (`margin`, `mirror`).
+  - `output.demosaic` (`bilinear`) and `borderHandling` (`margin`, `mirror`).
   - `lens.projection`, `lens.distortion` (radial or Brown–Conrady), `lens.vignetting` and `lens.psf`.
   - `motion.angularVelocityRadPerSec` and `motion.shutter: "rolling"`.
 - **Native RAW DNG (#307).** `serializeNativeRawDng()` writes a lossless 16-bit CFA (colour filter array) DNG directly from packed native RAW.
@@ -172,12 +185,12 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - It declares no linear master, and counts the saturation flags DNG cannot carry.
   - `NATIVE_RAW_DNG_SCHEMA_VERSION` 1.0.0.
 - **Colorimetry (#291).**
-  - Analytic CIE 1931 colour-matching functions (Wyman et al. 2013, labelled approximation) or caller-tabulated CMFs; `integrateSpectrumToXyz`.
-  - Planck radiance, illuminant A, CIE daylight with caller-supplied basis spectra, the Kim et al. Planckian locus, McCamy CCT, and nearest-locus CCT/Duv with its inverse. (CCT = correlated colour temperature.)
+  - Analytic CIE 1931 colour-matching functions (the engine's own fit, labelled approximation) or caller-tabulated CMFs; `integrateSpectrumToXyz`.
+  - Planck radiance, illuminant A, CIE daylight with caller-supplied basis spectra, the Planckian locus from Planck's law, McCamy CCT, and nearest-locus CCT/Duv with its inverse. (CCT = correlated colour temperature.)
   - Chromatic adaptation: Bradford, CAT02, CAT16, von Kries-HPE, XYZ scaling, degree of adaptation.
   - CIELAB/LCh, and ΔE76, CIE94 and CIEDE2000.
   - `estimateCameraColorMatrix`.
-  - RGB colour spaces (sRGB, Rec.709, Display P3, Rec.2020) and sRGB, BT.709, BT.1886, PQ and HLG transfers; gamut mapping.
+  - RGB colour spaces (sRGB, Rec.709, Display P3, Rec.2020) and sRGB, BT.709 and BT.1886 transfers; gamut mapping. PQ and HLG (ITU-R BT.2100) are not shipped in 2.0 because their patent holders offer only licence-on-request declarations (owner decision, 2026-10-17; see the patent review in `THIRD_PARTY.md`). The PQ/HLG functions and constants prepared for 2.0 (`evaluatePqEotf`, `evaluatePqInverseEotf`, `PQ_CONSTANTS`, `evaluateHlgOetf`, `evaluateHlgInverseOetf`, `HLG_CONSTANTS`, `calculateHlgSystemGamma`, `prepareHlgReferenceDisplay`, `HlgReferenceDisplay`) never ship. `resolveRgbColorSpace("rec2020").sources` lists only ITU-R BT.2020-2.
   - `resolveColorTemperatureWhiteBalance` turns Kelvin + tint into channel gains. `calculateCaptureColorTransform` takes an optional adaptation `transform`.
 - **Sensor (#290).**
   - `createIsoGainReadoutRegimes()`: ISO-dependent analog and digital gain, with read noise per conversion gain.
@@ -212,13 +225,13 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
 - **Export formats (#298).**
   - `parseDngRawImage`: a bounded DNG/TIFF-EP reader (uncompressed and lossless JPEG, 8–16 bit), with `DNG_IMPORT_SCHEMA_VERSION` 1.0.0 and `DNG_IMPORT_LIMITS`.
   - `parseLosslessJpeg` (ITU-T T.81 Annex H).
-  - `serializePngImage`: 8/16-bit RGB PNG with sRGB, iCCP or cICP for Display P3, BT.2020, PQ and HLG; mDCV/cLLI metadata; deterministic in-house zlib.
+  - `serializePngImage`: 8/16-bit RGB PNG with sRGB, iCCP or cICP for Display P3 and BT.2020 (sRGB, BT.709 or linear transfer); mDCV/cLLI metadata; deterministic in-house zlib. No PQ or HLG code points.
   - `EXPORT_JPEG_ENCODER_ID`.
   - AVIF and HEIC are not provided.
 - **Processing (#302).** All opt-in. See `docs/PROCESSING.md`.
-  - Bilinear and Malvar–He–Cutler Bayer demosaic profiles, AHD demosaicing and CFA-plane reconstruction.
+  - Bilinear Bayer demosaic profiles, AHD demosaicing and CFA-plane reconstruction. The Malvar–He–Cutler kernels prepared for 2.0 were removed before release (owner decision, 2026-10-17): Microsoft's US 7,502,505 is in force until about January 25, 2027, and its claim 1 closely matches the method. The `malvar-he-cutler-2004` kernel and the `simulateCapture()` option `output.demosaic: "malvar-he-cutler"` never ship. They may return after the patent expires (about 25 Jan 2027). Bilinear (the default) and AHD are unchanged, and the hash-lock tests confirm the default output is unchanged. See the patent review in `THIRD_PARTY.md`.
   - `borderHandling: "mirror"` for RAW development.
-  - Noise-optimal HDR bracket merge, and BT.2020 PQ/HLG encoding.
+  - Noise-optimal HDR bracket merge, and conversion to float32 linear BT.2020 (`createHdrImageEncodingTask`, `transfer: "linear-float32"` only). Its PQ/HLG modes and their integer-code options were removed before release; the SDR outputs are unchanged, as the hash-lock tests confirm.
   - Reinhard and Durand–Dorsey tone mapping, exposure fusion, focus stacking and known-rotation panoramas.
   - Bilateral and non-local-means denoise, unsharp mask, and an explicitly synthetic film grain.
   - A shared `ProcessingTask` contract.
@@ -252,7 +265,7 @@ The engine now relies on free-to-read sources wherever one was found. See the ci
   - The `calculateCorrelatedColorTemperature` error for |Duv| > 0.05 is reworded.
   - Limitation and error strings that used internal ticket numbers as model names (#12, #14, #85, #110) now name the model: exposure-window model, sensor pipeline, scene-radiance provider, and the scene-radiance-to-sensor-irradiance optical bridge (stabilization, extended-object projection, flash, temporal metering, RAW frame and production image-formation plan).
   - *Migration:* code that matches these strings exactly must update them. Result model ids are unchanged.
-- **Documentation and tests.** The flash guide-number relations are derived in full from the inverse-square law and the camera equation (the guide-number measurement standard is no longer cited). Tristimulus integration cites Wyman, Sloan & Shirley (2013), Eq. 1; Planck's law cites the BIPM kelvin *mise en pratique*. CIE94 cites a free secondary source and is checked against its worked values. The RGB↔XYZ derivation is written out in `docs/COLORIMETRY.md`, and a new test shows the engine's matrices equal the W3C CSS Color 4 matrices within 1e-12. The Duv sign (positive above the Planckian locus) cites Ohno's free CORM 2011 slides (slide 5); the engine documents it, and a new test checks that a greenish light has a positive Duv. The ISO-brightness test uses the DC-004 mid-grey reference (0.18 of white) instead of a paid saturation-speed ratio.
+- **Documentation and tests.** The flash guide-number relations are derived in full from the inverse-square law and the camera equation (the guide-number measurement standard is no longer cited). Tristimulus integration cites Wyman, Sloan & Shirley (2013), Eq. 1; Planck's law cites the BIPM kelvin *mise en pratique*. CIE94 cites a free secondary source and is checked by closed-form cases computed in the test. The RGB↔XYZ derivation is written out in `docs/COLORIMETRY.md`, and a new test shows the engine's matrices equal the W3C CSS Color 4 matrices within 1e-12. The Duv sign (positive above the Planckian locus) cites Ohno's free CORM 2011 slides (slide 5); the engine documents it, and a new test checks that a greenish light has a positive Duv. The ISO-brightness test uses the DC-004 mid-grey reference (0.18 of white) instead of a paid saturation-speed ratio.
 
 ### Fixed
 
@@ -314,6 +327,9 @@ Unless marked otherwise, output is bit-identical to the code before the change, 
 - `NUMERICAL_CORRECTNESS.md` documents the cross-engine determinism policy and the test hash locks; `API_STYLE.md` documents naming conventions (#293, #299).
 - Plain-language rewrite of the source comments and docs: shorter sentences, jargon defined at first use, internal ticket chatter removed. Comments and prose only; the comment-stripped build is identical (#309–#312).
 - For AI agents: `llms.txt` and `docs/AGENT_GUIDE.md` ship in the package, and the API reference opens with a task-to-function index that its generator checks against the root exports (#313).
+- No CIE table values in tests (owner decision, 2026-10-17). The CMF, illuminant A, daylight and locus tests now check internal consistency, normalization, round trips and values computed from Planck's law and the daylight formula. The CIEDE2000 tests replace the Sharma et al. (2005) published pairs, whose data file carries no licence, with closed-form special cases computed from the formula. `scripts/fit-cie-1931-cmf.mjs` reproduces the CMF fit (it downloads the CIE table at fit time only), and `scripts/benchmark-planckian-locus.mjs` times the locus functions.
+- No unclear-licence test inputs (owner rule, 2026-10-17): the MurmurHash3 vectors copied from a Stack Overflow answer are replaced by SMHasher's public-domain verification procedure (expected 0xB0F57EE3); the Bradford test follows ICC.1:2010 Annex E with computed D65/D50 whites instead of a secondary website's matrix; the CIE94 worked values from the colour-science documentation are replaced by closed-form cases; the longitudinal-chromatic-aberration test uses a synthetic glass (n_d = 1.5, V_d = 60) instead of catalogue values.
+- `docs/licenses/adobe-dng-patent-license-record.txt` records where the Adobe DNG patent licence was read (URL, date, page SHA-256), its exact required notice and a summary. It is not a copy of the licence: Adobe's Terms of Use do not clearly allow copying its website text.
 - `AGENTS.md` is reset to a short standard file with three rules: evidence-based changes, free-to-use sources only, and owner approval for anything that goes to production (#308, #313).
 
 ## 1.5.0 — published October 7, 2026

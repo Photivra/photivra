@@ -1,0 +1,52 @@
+Adobe DNG Specification patent licence: retrieval record
+==========================================================
+
+This file records where the Adobe DNG patent licence was read and what it requires.
+It is not a copy of the licence. Adobe's General Terms of Use (published and
+effective October 3, 2025; https://www.adobe.com/legal/terms.html, read 2026-10-17)
+cover Adobe's websites as part of its "Services" and say users must not copy them
+(section 6.2) and that Adobe grants no copyright in them beyond those terms
+(section 3.2). The licence page gives no separate permission to reproduce its text,
+so keeping a full copy here is not clearly allowed. Read the licence at the URL below.
+
+Source
+------
+URL:             https://helpx.adobe.com/camera-raw/desktop/dng-and-file-formats/digital-negative.html
+Section:         "Digital Negative (DNG) Specification patent license"
+Retrieved:       2026-10-17
+SHA-256 of the fetched HTML page (182,843 bytes):
+                 948f780377d39f66b8eec8244820d1bbb314728f0b7150b1f240479134772109
+                 (the page is dynamic, so a later fetch may hash differently even
+                 when the licence text is unchanged)
+Terms of Use checked: https://www.adobe.com/legal/terms.html (content served from
+                 https://www.adobe.com/cc-shared/fragments/legal/terms-existing.plain.html,
+                 SHA-256 8ecbb42a3a42f61dfe20418381126a3ef7f37d32827db053f912fd409358224e,
+                 retrieved 2026-10-17)
+
+Required notice (exact quote)
+-----------------------------
+"This product includes DNG technology under license by Adobe."
+
+The licence requires this sentence, displayed prominently, in the source code and
+documentation of any distributed implementation. Photivra carries it in NOTICE,
+README.md, src/capture/dng-import.ts, src/capture/native-raw-dng.ts and
+src/capture/photographic-export.ts.
+
+Summary (our words, not legal advice)
+-------------------------------------
+- Who receives it: anyone. Adobe grants the licence directly to every person and
+  organization, so Photivra does not need to pass it on under Apache-2.0.
+- What it covers: only the patent claims Adobe can license free of charge that cannot
+  be avoided when software reads or writes files that follow any public version of
+  the DNG Specification. It does not cover other technology the specification only
+  refers to (for example TIFF, JPEG, Exif, ICC or XMP), general enabling technology,
+  or other file formats.
+- What it allows: making, using, selling, importing and distributing the parts of a
+  product that read or write DNG files, worldwide, with no royalty. The right cannot
+  be transferred and is not exclusive.
+- Conditions: include the notice above; Adobe may withdraw the licence from anyone
+  (or their affiliates) who brings a patent action against Adobe about reading or
+  writing DNG files.
+- No warranty: Adobe makes no promise that any patent is valid, maintained or
+  enforced, or that an implementation infringes no other patent. Adobe keeps all
+  rights it does not grant.
