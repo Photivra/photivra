@@ -108,7 +108,7 @@ export interface DurandDorseyToneMappingInput {
 }
 
 export interface DurandDorseyToneMappingOutput extends ToneMappedImage {
-  /** Bilateral base layer (log₁₀ luminance) per pixel. */
+  /** Bilateral base layer (log₁₀ luminance) per pixel; −Infinity for pixels with luminance ≤ 0, which are excluded from the filter. */
   baseLog10: Float32Array;
   compressionFactor: number;
 }
@@ -141,11 +141,12 @@ export function createDurandDorseyToneMappingTask(input: DurandDorseyToneMapping
     body: function* (): ProcessingBody<DurandDorseyToneMappingOutput> {
       yield* finiteRows(image.data, W, H, 3, "image");
       const d = image.data, logL = new Float32Array(n);
-      // Luminance floor keeps log₁₀ finite for black pixels.
+      // Pixels with luminance ≤ 0 have no finite log₁₀; they are marked −∞, excluded from the filter and from the
+      // ranges below, and output as 0 by the colour pass.
       for (let y = 0; y < H; y++) {
         for (let x = 0; x < W; x++) {
           const i = y * W + x, l = wr * d[3 * i]! + wg * d[3 * i + 1]! + wb * d[3 * i + 2]!;
-          logL[i] = Math.log10(Math.max(l, 1e-30));
+          logL[i] = l > 0 ? Math.log10(l) : -Infinity;
         }
         yield;
       }
@@ -154,20 +155,29 @@ export function createDurandDorseyToneMappingTask(input: DurandDorseyToneMapping
       for (let y = 0; y < ch; y++) {
         for (let x = 0; x < cw; x++) {
           let s = 0, c = 0;
-          for (let yy = y * z; yy < Math.min(H, (y + 1) * z); yy++) for (let xx = x * z; xx < Math.min(W, (x + 1) * z); xx++) { s += logL[yy * W + xx]!; c++; }
-          const v = (coarse[y * cw + x] = s / c);
-          lo = Math.min(lo, v); hi = Math.max(hi, v);
+          for (let yy = y * z; yy < Math.min(H, (y + 1) * z); yy++) for (let xx = x * z; xx < Math.min(W, (x + 1) * z); xx++) {
+            const v = logL[yy * W + xx]!;
+            if (v > -Infinity) { s += v; c++; }
+          }
+          // A cell with no positive-luminance pixel is NaN and carries zero filter weight.
+          const v = (coarse[y * cw + x] = c > 0 ? s / c : NaN);
+          if (c > 0) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
         }
         yield;
       }
-      for (let i = 0; i < n; i++) { lo = Math.min(lo, logL[i]!); hi = Math.max(hi, logL[i]!); }
+      for (let i = 0; i < n; i++) if (logL[i]! > -Infinity) { lo = Math.min(lo, logL[i]!); hi = Math.max(hi, logL[i]!); }
+      if (!(hi >= lo)) { lo = 0; hi = 0; } // all-zero image
       const nodes = hi > lo ? Math.min(maxNodes, Math.ceil((hi - lo) / sigmaR) + 1) : 1;
       const step = nodes > 1 ? (hi - lo) / (nodes - 1) : 0, J: Float32Array[] = [];
       const g = new Float32Array(cw * ch), hgt = new Float32Array(cw * ch), tmp = new Float32Array(cw * ch), gs = new Float32Array(cw * ch), hs = new Float32Array(cw * ch);
       for (let j = 0; j < maxNodes; j++) {
         if (j >= nodes) { for (let k = 0; k < nodeRows; k++) yield; continue; }
         const node = lo + j * step;
-        for (let i = 0; i < cw * ch; i++) { const w = Math.exp(-((coarse[i]! - node) ** 2) / (2 * sigmaR * sigmaR)); g[i] = w; hgt[i] = w * coarse[i]!; }
+        for (let i = 0; i < cw * ch; i++) {
+          const c = coarse[i]!;
+          if (Number.isNaN(c)) { g[i] = 0; hgt[i] = 0; continue; }
+          const w = Math.exp(-((c - node) ** 2) / (2 * sigmaR * sigmaR)); g[i] = w; hgt[i] = w * c;
+        }
         yield* convolveSeparable(g, cw, ch, 1, kernel, tmp, gs);
         yield* convolveSeparable(hgt, cw, ch, 1, kernel, tmp, hs);
         const out = new Float32Array(cw * ch);
@@ -187,6 +197,7 @@ export function createDurandDorseyToneMappingTask(input: DurandDorseyToneMapping
       for (let y = 0; y < H; y++) {
         for (let x = 0; x < W; x++) {
           const i = y * W + x, v = logL[i]!;
+          if (!(v > -Infinity)) { base[i] = -Infinity; continue; }
           let b: number;
           if (nodes === 1) b = sample(J[0]!, x, y);
           else {
@@ -197,6 +208,7 @@ export function createDurandDorseyToneMappingTask(input: DurandDorseyToneMapping
         }
         yield;
       }
+      if (!(bHi >= bLo)) { bLo = 0; bHi = 0; } // all-zero image
       const factor = bHi > bLo ? Math.log10(contrast) / (bHi - bLo) : 1, offset = bHi * factor, out = new Float32Array(3 * n);
       let above = 0;
       for (let y = 0; y < H; y++) {

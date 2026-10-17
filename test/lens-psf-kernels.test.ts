@@ -83,6 +83,35 @@ describe("resolveLensPsfConvolutionKernels", () => {
     const b = resolveLensPsfConvolutionKernels(input(profile, { spectralWeights: [{ wavelengthNm: 650, weight: 1 }], kernelRadius: 5 })).value;
     for (let i = 0; i < mixed.kernels.length; i++) expect(mixed.kernels[i]).toBeCloseTo((a.kernels[i]! + 3 * b.kernels[i]!) / 4, 15);
   });
+  it("equals a direct per-tap splat sum bit for bit (taps in kernel order, then the four corners), at any radius", () => {
+    const profile = gaussianPsfProfile({ pitchMicrometers: 2.5, halfWidth: 9, fieldXmm: FIELD, fieldYmm: FIELD, wavelengthNm: [400, 700], focalLengthMm: 50,
+      apertureFNumber: 4, shape: (fx, fy, nm) => ({ sigmaX: (3 + Math.hypot(fx, fy)) * nm / 550, sigmaY: 4 * nm / 550, shiftX: 1.3 * fx, shiftY: -0.7 * fy }) });
+    const spectralWeights = [{ wavelengthNm: 450, weight: 1 }, { wavelengthNm: 520, weight: 0 }, { wavelengthNm: 650, weight: 3 }];
+    const grid = { width: 75, height: 45, sitePitchMicrometers: { x: 6, y: 5.5 }, opticalAxisSite: { x: 37.2, y: 22.9 } };
+    for (const kernelRadius of [undefined, 9]) {
+      const out = resolveLensPsfConvolutionKernels(input(profile, { spectralWeights, grid, ...(kernelRadius === undefined ? {} : { kernelRadius }) })).value;
+      const r = out.kernelRadius, size = 2 * r + 1;
+      if (kernelRadius === undefined) expect(r).toBeLessThan(9);
+      out.patches.forEach((patch, p) => {
+        const expected = new Float64Array(size * size);
+        for (const { wavelengthNm, weight } of spectralWeights) {
+          if (weight === 0) continue;
+          const k = resolveLensSampledPsf({ profile, focalLengthMm: 50, focus: { kind: "infinity" }, apertureFNumber: 4, signedDefocusImagePlaneMicrometers: 0,
+            wavelengthNm, fieldPointMm: patch.fieldPointMm }).value.kernel;
+          for (let ky = 0; ky < k.heightSamples; ky++) for (let kx = 0; kx < k.widthSamples; kx++) {
+            const intensity = k.normalizedIntensity[ky * k.widthSamples + kx]!;
+            if (intensity === 0) continue;
+            const u = (kx - k.centerSampleX) * k.samplePitchMicrometersX / 6, v = -(ky - k.centerSampleY) * k.samplePitchMicrometersY / 5.5;
+            const u0 = Math.floor(u), v0 = Math.floor(v), fu = u - u0, fv = v - v0, w = (weight / 4) * intensity;
+            for (const [du, dv, b] of [[0, 0, (1 - fu) * (1 - fv)], [1, 0, fu * (1 - fv)], [0, 1, (1 - fu) * fv], [1, 1, fu * fv]] as const) {
+              if (b !== 0) expected[(v0 + dv + r) * size + u0 + du + r]! += w * b;
+            }
+          }
+        }
+        for (let t = 0; t < size * size; t++) expect(Object.is(out.kernels[p * size * size + t], expected[t])).toBe(true);
+      });
+    }
+  });
   it("feeds the webgpu-f32 convolution", async () => {
     const out = resolveLensPsfConvolutionKernels(input(exactProfile())).value, random = corpusRandom(9);
     const conv = { schemaVersion: "0.1.0" as const, width: 75, height: 45, samples: Float64Array.from({ length: 75 * 45 }, () => random() * 1e4),
