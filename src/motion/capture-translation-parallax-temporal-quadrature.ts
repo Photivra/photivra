@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Evaluates depth-dependent translational parallax at deterministic midpoint nodes over each scene
- * point's authoritative local exposure window. The model is deliberately per point. Camera translation
- * and optional subject translation coexist through relative linear motion; neither is redefined as the
- * other. Camera rotation and visibility/occlusion remain separate models.
- * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * Parallax from camera movement (translation): nearer points shift more in the image than distant
+ * ones. It is evaluated at deterministic midpoint time samples across each scene point's local
+ * exposure window.
+ *
+ * The model works point by point, on purpose. Camera movement and optional subject movement combine
+ * as relative linear motion; neither is recast as the other. Camera rotation, and visibility or
+ * occlusion, are separate models.
+ * @see docs/MOTION_AND_SIGNAL.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {
@@ -36,19 +39,19 @@ import { requireInputObject } from "../core/record-validation.js";
 export interface CaptureTranslationParallaxSceneSample {
   sampleId: string;
   /**
-   * Native destination point whose authoritative local exposure window applies
-   * to this scene sample.
+   * Native destination point. Its local exposure window applies to this scene
+   * sample.
    */
   destinationPointNative:
     RasterPoint;
   /**
-   * Metric point position in the camera axes at the first-opening-boundary
-   * phase. +X right, +Y up, +Z forward/away from the camera.
+   * Point position in metres, in the camera axes at the first opening-boundary
+   * phase. +X right, +Y up, +Z forward (away from the camera).
    */
   positionCameraM: Vector3;
   /**
-   * Optional constant subject/world-point velocity in the same initial camera
-   * axes. Omitted means stationary world point.
+   * Optional constant velocity of the subject (world point), in the same
+   * starting camera axes. If omitted, the world point is still.
    */
   subjectVelocityMps?: Vector3;
 }
@@ -63,8 +66,8 @@ export interface CalculateCaptureTranslationParallaxTemporalQuadratureInput {
   orientation:
     CaptureOrientation;
   /**
-   * Constant physical camera-center translation in camera axes at the capture
-   * reference phase. Rotation is intentionally separate.
+   * Constant movement of the camera centre, in camera axes at the capture
+   * reference phase. Rotation is handled separately, on purpose.
    */
   cameraTranslationVelocityMps:
     Vector3;
@@ -266,12 +269,13 @@ function localExposureForPoint(
 }
 
 /**
- * Evaluates depth-dependent translational parallax at deterministic midpoint
- * nodes over each scene point's authoritative local exposure window.
+ * Evaluates depth-dependent parallax from camera movement at deterministic
+ * midpoint time samples across each scene point's local exposure window.
  *
- * The model is deliberately per point. Camera translation and optional subject
- * translation coexist through relative linear motion; neither is redefined as
- * the other. Camera rotation and visibility/occlusion remain separate models.
+ * The model works point by point, on purpose. Camera movement and optional
+ * subject movement combine as relative linear motion; neither is recast as
+ * the other. Camera rotation, and visibility or occlusion, are separate
+ * models.
  */
 export function calculateCaptureTranslationParallaxTemporalQuadrature(
   input:

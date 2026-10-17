@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Generic
- * stabilization evaluates declared angular disturbance with per-axis response, latency, limits and
- * panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
- * calibration, arbitrary stop rating or inferred coordination is supplied.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Generic
- * stabilization evaluates declared angular disturbance with per-axis response, latency, limits and
- * panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
- * calibration, arbitrary stop rating or inferred coordination is supplied.
- * @see docs/STABILIZATION.md for equations, coordinate/unit conventions, blockers and support limits.
+ * Generic image stabilization: profiles, disturbance trajectories, the stabilized rotation and its
+ * effect on capture timing samples.
+ *
+ * The parsers validate untrusted input and return the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected.
+ *
+ * The generic stabilizer takes a declared angular disturbance (camera shake) and applies a per-axis
+ * response, latency, travel limits and a panning policy. The leftover (residual) motion feeds the
+ * existing temporal mapping. No commercial IBIS (in-body) or OIS (optical) calibration is supplied,
+ * no arbitrary "stops" rating is used, and body/lens coordination is never inferred.
+ * @see docs/STABILIZATION.md for the equations, units, coordinate conventions, known blockers and
+ * support limits.
  */
 
 import {
@@ -634,14 +635,15 @@ function parseCoordinatedAllocation(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here.
  *
- * Generic stabilization evaluates declared angular disturbance with per-axis response, latency, limits
- * and panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
- * calibration, arbitrary stop rating or inferred coordination is supplied.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns StabilizationSystemProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * The generic stabilizer takes a declared angular disturbance (camera shake) and applies a per-axis
+ * response, latency, travel limits and a panning policy. The leftover (residual) motion feeds the
+ * existing temporal mapping. No commercial IBIS (in-body) or OIS (optical) calibration is supplied,
+ * no arbitrary "stops" rating is used, and body/lens coordination is never inferred.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns StabilizationSystemProfile. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -906,14 +908,15 @@ function parseAngularState(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here.
  *
- * Generic stabilization evaluates declared angular disturbance with per-axis response, latency, limits
- * and panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
- * calibration, arbitrary stop rating or inferred coordination is supplied.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns StabilizationDisturbanceTrajectory. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * The generic stabilizer takes a declared angular disturbance (camera shake) and applies a per-axis
+ * response, latency, travel limits and a panning policy. The leftover (residual) motion feeds the
+ * existing temporal mapping. No commercial IBIS (in-body) or OIS (optical) calibration is supplied,
+ * no arbitrary "stops" rating is used, and body/lens coordination is never inferred.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns StabilizationDisturbanceTrajectory. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1049,9 +1052,9 @@ export function parseStabilizationDisturbanceTrajectory(
 }
 
 /**
- * Evaluation-time index over a parsed disturbance trajectory. Support times are copied once into a
- * Float64Array (exact IEEE-754 values) so each lookup is an O(log n) binary search instead of the
- * former O(n) scan; interpolation arithmetic is unchanged.
+ * Lookup index over a parsed disturbance trajectory, built for evaluation. Support times are copied
+ * once into a Float64Array (exact IEEE-754 values). Each lookup is then an O(log n) binary search
+ * instead of an O(n) scan. The interpolation arithmetic is unchanged.
  */
 interface DisturbanceIndex {
   readonly samples:
@@ -1084,10 +1087,10 @@ function indexDisturbance(
 }
 
 /**
- * Return the left index of the support segment used for `timeSeconds`, or -1 for the final support
- * time (which returns its stored value). The selected segment is exactly the one the original
- * first-match linear scan chose: the smallest `i` with `t[i] <= timeSeconds <= t[i + 1]`. Support
- * times are strictly increasing, so an interior support time resolves to the segment on its left.
+ * Returns the left index of the support segment used for `timeSeconds`. Returns -1 for the final support
+ * time, which uses its stored value. The chosen segment is exactly the one a first-match linear scan
+ * would pick: the smallest `i` with `t[i] <= timeSeconds <= t[i + 1]`. Support times strictly
+ * increase, so a time that equals an interior support time uses the segment on its left.
  */
 function locateDisturbanceSegment(
   disturbance: DisturbanceIndex,
@@ -1249,7 +1252,7 @@ type AxisResponseIndex = ReadonlyMap<
   StabilizationSystemProfile["axisResponses"][number]
 >;
 
-/** Built once per calculation; identical last-wins semantics to the former per-evaluation Map. */
+/** Built once per calculation. Later entries win, as with a per-evaluation Map. */
 function indexAxisResponses(
   profile:
     StabilizationSystemProfile
@@ -1453,14 +1456,15 @@ function evaluateAtTime(
 }
 
 /**
- * Evaluate the declared generic per-axis controller against an explicit angular disturbance trajectory
- * and return residual motion with latency/limit diagnostics.
+ * Runs the declared generic per-axis controller against an explicit angular disturbance trajectory.
+ * Returns the residual motion, with diagnostics for latency and travel limits.
  *
- * Generic stabilization evaluates declared angular disturbance with per-axis response, latency, limits
- * and panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
- * calibration, arbitrary stop rating or inferred coordination is supplied.
- * @param input - CalculateStabilizedRotationTrajectoryInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<StabilizedRotationTrajectory>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * The generic stabilizer takes a declared angular disturbance (camera shake) and applies a per-axis
+ * response, latency, travel limits and a panning policy. The leftover (residual) motion feeds the
+ * existing temporal mapping. No commercial IBIS (in-body) or OIS (optical) calibration is supplied,
+ * no arbitrary "stops" rating is used, and body/lens coordination is never inferred.
+ * @param input - CalculateStabilizedRotationTrajectoryInput. See that type for coordinates, units and profile binding.
+ * @returns CalculationResult<StabilizedRotationTrajectory>. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1557,9 +1561,9 @@ type ExposureWindowIndex = ReadonlyMap<
 >;
 
 /**
- * Group committed exposure-window samples by native point once per calculation, preserving their
- * order. Map keys use SameValueZero, so lookups are re-filtered with the original `===` test (NaN
- * never matches; signed zeros do).
+ * Groups the committed exposure-window samples by native point, once per calculation, and keeps their
+ * order. Map keys compare with SameValueZero, so lookups are filtered again with the original `===`
+ * test: NaN never matches, and +0 matches -0.
  */
 function indexExposureWindows(
   timing:
@@ -1636,14 +1640,15 @@ function localExposureForPoint(
 }
 
 /**
- * Feed the residual stabilized rotation into the existing local-exposure temporal mapping without
- * changing shutter timing or inventing a blur radius.
+ * Feeds the residual stabilized rotation into the existing local-exposure temporal mapping. Shutter
+ * timing is not changed, and no blur radius is invented.
  *
- * Generic stabilization evaluates declared angular disturbance with per-axis response, latency, limits
- * and panning policy. Residual motion feeds the existing temporal mapping; no commercial IBIS/OIS
- * calibration, arbitrary stop rating or inferred coordination is supplied.
- * @param input - CalculateStabilizedCaptureTemporalSamplesInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<StabilizedCaptureTemporalSamples>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * The generic stabilizer takes a declared angular disturbance (camera shake) and applies a per-axis
+ * response, latency, travel limits and a panning policy. The leftover (residual) motion feeds the
+ * existing temporal mapping. No commercial IBIS (in-body) or OIS (optical) calibration is supplied,
+ * no arbitrary "stops" rating is used, and body/lens coordination is never inferred.
+ * @param input - CalculateStabilizedCaptureTemporalSamplesInput. See that type for coordinates, units and profile binding.
+ * @returns CalculationResult<StabilizedCaptureTemporalSamples>. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

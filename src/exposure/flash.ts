@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Manual flash is a
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here. Manual flash is a
  * registered relative pulse/source overlay on the capture opening-reference clock. Ordinary front/rear
  * sync requires a real whole-frame opening interval. High-speed sync (schema 0.2.0 sync profiles) is a
  * separate quasi-continuous burst spanning the travelling slit (resolveHighSpeedFlashSync). TTL
@@ -536,15 +536,15 @@ function validateSourceTemplate(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here.
  *
  * Manual flash is a registered relative pulse/source overlay on the capture opening-reference clock.
  * Ordinary front/rear sync requires a real whole-frame opening interval. HSS/TTL and flash metering
  * are unsupported here; source magnitude, optical transport and sensor integration retain their own
  * contracts.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns ManualFlashProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns ManualFlashProfile. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -707,15 +707,15 @@ export function parseManualFlashProfile(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here.
  *
  * Manual flash is a registered relative pulse/source overlay on the capture opening-reference clock.
  * Ordinary front/rear sync requires a real whole-frame opening interval. HSS/TTL and flash metering
  * are unsupported here; source magnitude, optical transport and sensor integration retain their own
  * contracts.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns FlashSyncCapabilityProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns FlashSyncCapabilityProfile. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -957,8 +957,8 @@ function validateReleaseBinding(
  * Ordinary front/rear sync requires a real whole-frame opening interval. HSS/TTL and flash metering
  * are unsupported here; source magnitude, optical transport and sensor integration retain their own
  * contracts.
- * @param input - ResolveManualFlashSyncInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns ResolvedManualFlashSync. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - ResolveManualFlashSyncInput. See that type for coordinates, units and profile binding.
+ * @returns ResolvedManualFlashSync. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1197,8 +1197,8 @@ function scaledFlashSource(
  * Ordinary front/rear sync requires a real whole-frame opening interval. HSS/TTL and flash metering
  * are unsupported here; source magnitude, optical transport and sensor integration retain their own
  * contracts.
- * @param input - CreateManualFlashIlluminationOverlayInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns ManualFlashIlluminationOverlay. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - CreateManualFlashIlluminationOverlayInput. See that type for coordinates, units and profile binding.
+ * @returns ManualFlashIlluminationOverlay. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

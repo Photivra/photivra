@@ -1017,8 +1017,8 @@ function parseOwnedOrUntrustedProfile(value: unknown): LensSampledPsfProfile {
  * position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
  * the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
  * has no phase or spatial information, so it cannot justify rendering one unique PSF.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns LensSampledPsfProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns LensSampledPsfProfile. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1871,8 +1871,8 @@ function weightedScalar(
  * position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
  * the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
  * has no phase or spatial information, so it cannot justify rendering one unique PSF.
- * @param input - ResolveLensSampledPsfInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<ResolvedLensSampledPsf>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - ResolveLensSampledPsfInput. See that type for coordinates, units and profile binding.
+ * @returns CalculationResult<ResolvedLensSampledPsf>. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -2055,8 +2055,8 @@ export function resolveLensSampledPsf(
  * position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
  * the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
  * has no phase or spatial information, so it cannot justify rendering one unique PSF.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns LensMtfDiagnosticProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns LensMtfDiagnosticProfile. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -2235,8 +2235,8 @@ export function parseLensMtfDiagnosticProfile(
  * position, wavelength and signed defocus. Interpolation stays inside those declared ranges. It keeps
  * the normalized shape separate from the throughput. MTF (modulation transfer function) data alone
  * has no phase or spatial information, so it cannot justify rendering one unique PSF.
- * @param profile - LensMtfDiagnosticProfile. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns MtfOnlyPsfRenderabilityAssessment. Read structured blockers before consuming an authorization.
+ * @param profile - LensMtfDiagnosticProfile. See that type for coordinates, units and profile binding.
+ * @returns MtfOnlyPsfRenderabilityAssessment. Read the structured blockers before relying on any authorization.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

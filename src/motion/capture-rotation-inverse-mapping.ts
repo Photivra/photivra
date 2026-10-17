@@ -1,16 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Calculates an instantaneous inverse capture-scan mapping for stationary world rays under pure camera
- * rotation. The destination native sensor location is authoritative for local exposure timing. At an
- * explicit phase within that local window, the captured image-plane ray is analytically mapped back to
- * the reference image plane at the first opening-boundary phase. No fixed-point/iterative solve is
- * used because pure rotation under the existing constant-axis model has an analytic inverse once
- * destination location and local capture time are known. This function is not a finite-exposure
- * renderer and does not integrate blur. Sensor data-readout timing is deliberately absent; exposure
- * boundaries are the only timing source.
- * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * Instantaneous inverse mapping for a rotating camera whose sensor exposes different points at
+ * different times (for example a rolling shutter). Applies to still world rays under pure camera
+ * rotation.
+ *
+ * The destination point on the native sensor sets the local exposure timing. At a chosen phase within
+ * that local window, the captured image-plane ray is mapped back analytically to the reference image
+ * plane at the first opening-boundary phase (when the shutter starts to open). No iterative solve is
+ * needed: once the destination and local capture time are known, pure rotation under this
+ * constant-axis model has an analytic inverse.
+ *
+ * This is not a renderer for a finite exposure, and it does not integrate blur. Sensor data-readout
+ * timing is deliberately not used; exposure boundaries are the only timing source.
+ * @see docs/MOTION_AND_SIGNAL.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {
@@ -53,17 +57,18 @@ export interface CalculateCaptureRotationInverseMappingsInput
   focusDistanceM?: number;
   angularVelocityRadPerSec: CameraAngularVelocityRadPerSec;
   /**
-   * Fraction of each point's local exposure interval at which the
-   * instantaneous mapping is evaluated.
+   * Where in each point's local exposure interval to evaluate the
+   * instantaneous mapping, as a fraction.
    *
    * 0 = local exposure start, 0.5 = local midpoint, 1 = local exposure end.
-   * A phase is required because finite exposure has no single sharp geometry.
+   * A phase is required because a finite exposure has no single sharp
+   * geometry.
    */
   localExposurePhase: number;
   /**
-   * Physical capture orientation used only to rotate the reported native
-   * inverse sample-displacement vector into oriented-capture coordinates.
-   * It does not alter the native exposure schedule.
+   * Physical capture orientation. It is used only to rotate the reported
+   * native inverse displacement (in samples) into oriented-capture
+   * coordinates. It does not change the native exposure schedule.
    */
   orientation: CaptureOrientation;
   samplePointsNative: readonly RasterPoint[];
@@ -80,8 +85,8 @@ export interface CaptureRotationInverseMappingSample {
   localExposurePhase: number;
   captureTimeSecondsFromReference: number;
   /**
-   * Same stationary world ray expressed in the exposure-start reference image
-   * plane. This may lie outside the active capture; it is intentionally not
+   * The same still world ray on the reference image plane at exposure start.
+   * It may lie outside the active capture area; it is deliberately not
    * clamped.
    */
   referenceImagePointMm: ImagePlanePointMm;
@@ -91,8 +96,8 @@ export interface CaptureRotationInverseMappingSample {
     distance: number;
   };
   /**
-   * Reference-minus-destination displacement in continuous native effective
-   * raster-sample units (+X right, +Y down).
+   * Reference minus destination displacement, in continuous native effective
+   * raster samples (+X right, +Y down).
    */
   inverseDisplacementNativeSamples: RasterVector & {
     distance: number;
@@ -182,21 +187,21 @@ function captureTimeAtPhase(
 }
 
 /**
- * Calculates an instantaneous inverse capture-scan mapping for stationary
- * world rays under pure camera rotation.
+ * Calculates an instantaneous inverse capture-scan mapping for still world
+ * rays under pure camera rotation.
  *
- * The destination native sensor location is authoritative for local exposure
- * timing. At an explicit phase within that local window, the captured
- * image-plane ray is analytically mapped back to the reference image plane at
- * the first opening-boundary phase.
+ * The destination point on the native sensor sets the local exposure timing.
+ * At a chosen phase within that local window, the captured image-plane ray is
+ * mapped back analytically to the reference image plane at the first
+ * opening-boundary phase.
  *
- * No fixed-point/iterative solve is used because pure rotation under the
- * existing constant-axis model has an analytic inverse once destination
- * location and local capture time are known.
+ * No iterative solve is needed. Once the destination and local capture time
+ * are known, pure rotation under this constant-axis model has an analytic
+ * inverse.
  *
- * This function is not a finite-exposure renderer and does not integrate blur.
- * Sensor data-readout timing is deliberately absent; exposure boundaries are
- * the only timing source.
+ * This is not a renderer for a finite exposure, and it does not integrate
+ * blur. Sensor data-readout timing is deliberately not used; exposure
+ * boundaries are the only timing source.
  */
 export function calculateCaptureRotationInverseMappings(
   input: CalculateCaptureRotationInverseMappingsInput

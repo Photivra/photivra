@@ -560,8 +560,8 @@ function calculateInverseRadialDistortionMappingValue(
 /**
  * Inverts the declared monotonic radial field mapping inside its supported range, using the existing
  * bounded root solver. Optical coordinates are kept explicit.
- * @param input - CalculateInverseRadialDistortionMappingInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<InverseRadialDistortionMapping>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - CalculateInverseRadialDistortionMappingInput. See that type for coordinates, units and profile binding.
+ * @returns CalculationResult<InverseRadialDistortionMapping>. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

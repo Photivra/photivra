@@ -514,8 +514,8 @@ function parseGrid(
  * pupil grid. The PSF shape is normalized separately from the pupil throughput. A single blur radius
  * cannot stand in for coherent phase, pupil energy, or the wavelength and field range where the
  * profile applies. Numeric profiles need provenance showing the data is owned or reusable.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns LensComplexPupilProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns LensComplexPupilProfile. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1047,8 +1047,8 @@ function calculateDiscreteFraunhoferKernel(
  * pupil grid. The PSF shape is normalized separately from the pupil throughput. A single blur radius
  * cannot stand in for coherent phase, pupil energy, or the wavelength and field range where the
  * profile applies. Numeric profiles need provenance showing the data is owned or reusable.
- * @param input - CalculateLensComplexPupilPsfInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns CalculationResult<LensComplexPupilPsf>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - CalculateLensComplexPupilPsfInput. See that type for coordinates, units and profile binding.
+ * @returns CalculationResult<LensComplexPupilPsf>. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

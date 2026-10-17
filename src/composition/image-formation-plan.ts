@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. The planner owns
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here. The planner owns
  * scientific stage ordering, immutable capture identity and reproducibility. Well-formed unsupported
  * combinations produce structured blockers; malformed declarations throw. The bounded environment
  * route executes supplied radiance through native RAW and optional output, while sample-only and
  * attached-RAW routes retain missing upstream blockers. FNV fingerprints are reproducibility keys, not
  * cryptographic integrity proofs.
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. The planner owns
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here. The planner owns
  * scientific stage ordering, immutable capture identity and reproducibility. Well-formed unsupported
  * combinations produce structured blockers; malformed declarations throw. The bounded environment
  * route executes supplied radiance through native RAW and optional output, while sample-only and
@@ -819,16 +819,16 @@ function parseUniqueEffectIds(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here.
  *
  * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
  * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
  * bounded environment route executes supplied radiance through native RAW and optional output, while
  * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
  * reproducibility keys, not cryptographic integrity proofs.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns RendererCapabilityDeclaration. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns RendererCapabilityDeclaration. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1003,16 +1003,16 @@ export function parseRendererCapabilityDeclaration(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here.
  *
  * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
  * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
  * bounded environment route executes supplied radiance through native RAW and optional output, while
  * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
  * reproducibility keys, not cryptographic integrity proofs.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns ImageFormationFidelityProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns ImageFormationFidelityProfile. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1381,8 +1381,8 @@ function fingerprintValue(
  * bounded environment route executes supplied radiance through native RAW and optional output, while
  * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
  * reproducibility keys, not cryptographic integrity proofs.
- * @param plan - ProductionImageFormationPlan. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns string. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param plan - ProductionImageFormationPlan. See that type for coordinates, units and profile binding.
+ * @returns string. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1412,16 +1412,16 @@ export function serializeProductionImageFormationPlan(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here.
  *
  * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
  * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
  * bounded environment route executes supplied radiance through native RAW and optional output, while
  * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
  * reproducibility keys, not cryptographic integrity proofs.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns PreparedImageFormationContext. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns PreparedImageFormationContext. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1508,8 +1508,8 @@ export function parsePreparedImageFormationContext(
  * bounded environment route executes supplied radiance through native RAW and optional output, while
  * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
  * reproducibility keys, not cryptographic integrity proofs.
- * @param input - PrepareImageFormationContextInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns PreparedImageFormationContext. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - PrepareImageFormationContextInput. See that type for coordinates, units and profile binding.
+ * @returns PreparedImageFormationContext. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -2263,8 +2263,8 @@ function validateCommittedWhiteBalanceState(
  * bounded environment route executes supplied radiance through native RAW and optional output, while
  * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
  * reproducibility keys, not cryptographic integrity proofs.
- * @param input - CreateProductionCaptureSnapshotInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns ProductionCaptureSnapshot. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - CreateProductionCaptureSnapshotInput. See that type for coordinates, units and profile binding.
+ * @returns ProductionCaptureSnapshot. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -2532,16 +2532,16 @@ export function createProductionCaptureSnapshotFromReleaseFrame(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here.
  *
  * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
  * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
  * bounded environment route executes supplied radiance through native RAW and optional output, while
  * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
  * reproducibility keys, not cryptographic integrity proofs.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns ProductionCaptureSnapshot. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns ProductionCaptureSnapshot. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -4725,8 +4725,8 @@ function computeEnvironmentCapture(input: ProductionEnvironmentCaptureInput | un
  * bounded environment route executes supplied radiance through native RAW and optional output, while
  * sample-only and attached-RAW routes retain missing upstream blockers. FNV fingerprints are
  * reproducibility keys, not cryptographic integrity proofs.
- * @param input - CreateProductionImageFormationPlanInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns ProductionImageFormationPlan. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - CreateProductionImageFormationPlanInput. See that type for coordinates, units and profile binding.
+ * @returns ProductionImageFormationPlan. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

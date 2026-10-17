@@ -810,8 +810,8 @@ function parseFocusApplicability(
  * - Spectral transmission and an effective working T-stop are alternative paths; use one.
  * - Field throughput is applied exactly once.
  * - Sensor response and PSF (point-spread function) blur happen later in the pipeline.
- * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
- * @returns SceneToSensorIrradianceProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param value - unknown. Untrusted input; TypeScript types alone are not validation.
+ * @returns SceneToSensorIrradianceProfile. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -1245,10 +1245,10 @@ function validateSceneIdentity(
  * - Spectral transmission and an effective working T-stop are alternative paths; use one.
  * - Field throughput is applied exactly once.
  * - Sensor response and PSF (point-spread function) blur happen later in the pipeline.
- * @param input - CalculateSceneRadianceToSensorIrradianceInput. See the linked contract for coordinate, unit and profile binding semantics.
+ * @param input - CalculateSceneRadianceToSensorIrradianceInput. See that type for coordinates, units and profile binding.
  * @returns CalculationResult<
   SceneToSensorIrradianceResult
->. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+>. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */

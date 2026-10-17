@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Calculates sensor-plane motion during an exposure using ideal rectilinear projection and constant
- * linear object velocity. Without focusDistanceM, nominal focal length is the backwards-compatible
- * pinhole projection distance. With focusDistanceM, the selected thin-lens sensor-plane image distance
- * is used. The calculation projects the object's shutter-open and shutter-close positions onto the
- * image plane and measures the displacement between them. It therefore handles lateral and
- * depth-direction motion without relying on a generic "subject speed" category.
- * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * How far a moving object travels across the sensor during an exposure. Uses ideal rectilinear
+ * projection and a constant straight-line object velocity.
+ * - Without focusDistanceM, the projection distance is the nominal focal length (the older pinhole
+ *   behaviour).
+ * - With focusDistanceM, it is the thin-lens image distance for that focus.
+ *
+ * The object's positions when the shutter opens and closes are both projected onto the image plane,
+ * and the distance between them is measured. So sideways motion and motion toward or away from the
+ * camera are both handled, without a generic "subject speed" category.
+ * @see docs/MOTION_AND_SIGNAL.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {
@@ -61,14 +64,14 @@ function requireFiniteVector3(name: string, value: Vector3): void {
  * Calculates sensor-plane motion during an exposure using ideal rectilinear
  * projection and constant linear object velocity.
  *
- * Without focusDistanceM, nominal focal length is the backwards-compatible
- * pinhole projection distance. With focusDistanceM, the selected thin-lens
- * sensor-plane image distance is used.
+ * Without focusDistanceM, the projection distance is the nominal focal length
+ * (the older pinhole behaviour). With focusDistanceM, it is the thin-lens
+ * image distance for that focus.
  *
- * The calculation projects the object's shutter-open and shutter-close
- * positions onto the image plane and measures the displacement between them.
- * It therefore handles lateral and depth-direction motion without relying on a
- * generic "subject speed" category.
+ * The object's positions when the shutter opens and closes are both projected
+ * onto the image plane, and the distance between them is measured. So
+ * sideways motion and motion toward or away from the camera are both handled,
+ * without a generic "subject speed" category.
  *
  * @param input Camera, exposure, object-position, and velocity inputs.
  * @returns Projected sensor-plane displacement.

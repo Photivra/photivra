@@ -1,19 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Maps one stationary-world ray to its image-plane location after pure camera rotation at an arbitrary
- * physical time from exposure start. The initial image point defines the world ray in the camera frame
- * at t=0. Constant angular velocity is integrated as one axis-angle rotation vector, avoiding
- * Euler-order dependence. The stationary world ray is then expressed in the rotated camera frame using
- * the inverse camera rotation and projected rectilinearly back onto the image plane. This function
- * models rotation only. It deliberately excludes camera translation because translational optical flow
- * depends on scene depth.
- * Maps a captured stationary-world ray at one non-negative capture time back to its image-plane
- * location at exposure start. For the existing constant-axis pure-rotation model this inverse is
- * analytic: the captured ray is transformed by the forward camera rotation before rectilinear
- * projection. No iterative solver is required.
- * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * Where a still point in the world appears on the image plane while the camera rotates.
+ *
+ * Forward mapping: given the point's image position at exposure start (t=0), find its image position
+ * at a later time t.
+ * - The starting image point defines the world ray in the camera frame at t=0.
+ * - Constant angular velocity is integrated as a single axis-angle rotation vector. This avoids any
+ *   dependence on Euler-angle order.
+ * - The world ray is expressed in the rotated camera frame with the inverse camera rotation, then
+ *   projected rectilinearly back onto the image plane.
+ * Only rotation is modelled. Camera translation is deliberately left out, because the image motion it
+ * causes (optical flow) depends on scene depth.
+ *
+ * Inverse mapping: given a ray captured at a non-negative time, find where it was at exposure start.
+ * For this constant-axis, pure-rotation model the inverse is analytic: apply the forward camera
+ * rotation to the captured ray, then project rectilinearly. No iterative solver is needed.
+ * @see docs/MOTION_AND_SIGNAL.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {
@@ -31,16 +35,16 @@ import { requireInputObject } from "../core/record-validation.js";
  * Camera angular velocity in radians per second about the exposure-start
  * camera axes (+X right, +Y up, +Z forward along the optical axis).
  *
- * Signs follow the physical right-hand rule about each named axis. That basis
- * is left-handed, so a positive rotation is the mirror of what the plain
- * component Rodrigues/cross-product formula would give in it:
+ * Signs follow the physical right-hand rule about each named axis. These axes
+ * form a left-handed basis. So a positive rotation is the mirror image of what
+ * the plain component Rodrigues (cross-product) formula would give in it:
  *
- * - positive pitch tilts the optical axis up; stationary scene content moves
- *   toward image -Y (down);
- * - positive yaw turns the optical axis to the left (counter-clockwise seen
- *   from above); stationary scene content moves toward image +X (right);
- * - positive roll rotates the camera clockwise as seen by the photographer
- *   looking along +Z; stationary scene content rotates counter-clockwise in the
+ * - Positive pitch tilts the optical axis up. Still scene content moves
+ *   toward image -Y (down).
+ * - Positive yaw turns the optical axis left (counter-clockwise seen from
+ *   above). Still scene content moves toward image +X (right).
+ * - Positive roll turns the camera clockwise, as seen by the photographer
+ *   looking along +Z. Still scene content rotates counter-clockwise in the
  *   +X-right/+Y-up image plane.
  */
 export interface CameraAngularVelocityRadPerSec {
@@ -70,7 +74,7 @@ export interface CalculateCameraRotationImageMappingInput {
   /**
    * Stationary-world-ray image-plane position at exposure start.
    *
-   * Image-plane coordinates use optical-axis origin, +X right, +Y up.
+   * Image-plane coordinates have their origin on the optical axis, +X right, +Y up.
    */
   imagePointMm: ImagePlanePointMm;
   /**
@@ -80,19 +84,20 @@ export interface CalculateCameraRotationImageMappingInput {
   /**
    * Constant camera angular-velocity vector in radians per second.
    *
-   * Components are resolved in the camera axes at exposure start and follow
-   * the physical right-hand rule: pitch about +X (positive tilts up, content
-   * moves toward image -Y), yaw about +Y (positive turns left, content moves
-   * toward image +X), roll about +Z (positive is clockwise seen from behind
-   * the camera). See CameraAngularVelocityRadPerSec.
+   * Components are given in the camera axes at exposure start and follow the
+   * physical right-hand rule:
+   * - pitch about +X: positive tilts up; content moves toward image -Y;
+   * - yaw about +Y: positive turns left; content moves toward image +X;
+   * - roll about +Z: positive is clockwise seen from behind the camera.
+   * See CameraAngularVelocityRadPerSec.
    */
   angularVelocityRadPerSec: CameraAngularVelocityRadPerSec;
   /** Optional focus distance in metres for thin-lens projection distance. */
   focusDistanceM?: number;
   /**
-   * Optional axis-aware geometric sampling pitch for reporting sample-domain
-   * displacement. This is geometric sample spacing, not photosite collection
-   * area.
+   * Optional sampling pitch per axis, used to also report the displacement in
+   * samples. This is the geometric spacing of samples, not the light-collecting
+   * area of a photosite.
    */
   samplingPitchMicrometers?: AxisSamplingPitchMicrometers;
 }
@@ -114,8 +119,8 @@ export interface CameraRotationImageMapping {
     distance: number;
   };
   /**
-   * Optional geometric sample displacement in the image-plane basis
-   * (+X right, +Y up). This is not a native-raster vector.
+   * Optional displacement in samples, in image-plane axes (+X right, +Y up).
+   * This is not a vector in native raster axes.
    */
   deltaImagePlaneSamples?: {
     x: number;
@@ -129,7 +134,7 @@ export interface CalculateInverseCameraRotationImageMappingInput {
   focalLengthMm: number;
   /**
    * Captured image-plane location of a stationary world ray at the requested
-   * time. Coordinates use optical-axis origin, +X right and +Y up.
+   * time. Coordinates have their origin on the optical axis, +X right, +Y up.
    */
   imagePointMm: ImagePlanePointMm;
   /**
@@ -145,8 +150,8 @@ export interface CalculateInverseCameraRotationImageMappingInput {
   /** Optional focus distance in metres for thin-lens projection distance. */
   focusDistanceM?: number;
   /**
-   * Optional axis-aware geometric sampling pitch for reporting sample-domain
-   * inverse displacement.
+   * Optional sampling pitch per axis, used to also report the inverse
+   * displacement in samples.
    */
   samplingPitchMicrometers?: AxisSamplingPitchMicrometers;
 }
@@ -198,12 +203,12 @@ function requireNonNegativeFinite(name: string, value: number): void {
 }
 
 /**
- * Internal component-form Rodrigues rotation (v cos a + (k x v) sin a +
- * k (k . v)(1 - cos a)), with the cross product evaluated by its usual
- * component formula. In the left-handed camera basis this is a physical
- * left-hand rotation; camera-rotation callers must use
- * applyPhysicalCameraRotation() instead so the right-hand sign convention
- * stays in one place.
+ * Internal Rodrigues rotation in component form:
+ * v cos a + (k x v) sin a + k (k . v)(1 - cos a), with the cross product
+ * computed by its usual component formula. In the left-handed camera basis
+ * this is a physical left-hand rotation. Camera-rotation code must call
+ * applyPhysicalCameraRotation() instead, so the right-hand sign convention
+ * lives in one place.
  */
 export function rotateVectorByAxisAngle(
   vector: Vector3,
@@ -281,7 +286,7 @@ export function applyPhysicalCameraRotation(
   );
 }
 
-/** Internal: projection distance shared with the lean native environment executor. Not a root export. */
+/** Internal: projection distance, shared with the lean native environment executor. Not exported from the package root. */
 export function resolveProjectionDistanceMm(
   focalLengthMm: number,
   focusDistanceM: number | undefined
@@ -308,14 +313,14 @@ export function resolveProjectionDistanceMm(
  * Maps one stationary-world ray to its image-plane location after pure camera
  * rotation at an arbitrary physical time from exposure start.
  *
- * The initial image point defines the world ray in the camera frame at t=0.
- * Constant angular velocity is integrated as one axis-angle rotation vector,
- * avoiding Euler-order dependence. The stationary world ray is then expressed
- * in the rotated camera frame using the inverse camera rotation and projected
- * rectilinearly back onto the image plane.
+ * The starting image point defines the world ray in the camera frame at t=0.
+ * Constant angular velocity is integrated as a single axis-angle rotation
+ * vector, which avoids any dependence on Euler-angle order. The world ray is
+ * then expressed in the rotated camera frame with the inverse camera rotation,
+ * and projected rectilinearly back onto the image plane.
  *
- * This function models rotation only. It deliberately excludes camera
- * translation because translational optical flow depends on scene depth.
+ * Only rotation is modelled. Camera translation is deliberately left out,
+ * because the image motion it causes depends on scene depth.
  *
  * @returns Field-position-dependent image-plane mapping and displacement.
  */
@@ -467,9 +472,9 @@ export function calculateCameraRotationImageMapping(
  * Maps a captured stationary-world ray at one non-negative capture time back
  * to its image-plane location at exposure start.
  *
- * For the existing constant-axis pure-rotation model this inverse is analytic:
- * the captured ray is transformed by the forward camera rotation before
- * rectilinear projection. No iterative solver is required.
+ * For this constant-axis, pure-rotation model the inverse is analytic: apply
+ * the forward camera rotation to the captured ray, then project
+ * rectilinearly. No iterative solver is needed.
  */
 export function calculateInverseCameraRotationImageMapping(
   input: CalculateInverseCameraRotationImageMappingInput

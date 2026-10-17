@@ -3127,8 +3127,8 @@ function buildPriorityAutoIsoBlocked<
  * reference anchor. Compensation is already included in the immutable meter target. Manual axes remain
  * unchanged; automatic axes use declared setting grids and expose signed residual stops and limit
  * diagnostics. A zero-signal target cannot authorize an invented exposure.
- * @param input - ResolveAperturePriorityAutoIsoExposureModeInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns AperturePriorityAutoIsoExposureModeResolution. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - ResolveAperturePriorityAutoIsoExposureModeInput. See that type for coordinates, units and profile binding.
+ * @returns AperturePriorityAutoIsoExposureModeResolution. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -3479,8 +3479,8 @@ export function resolveAperturePriorityAutoIsoExposureMode(
  * reference anchor. Compensation is already included in the immutable meter target. Manual axes remain
  * unchanged; automatic axes use declared setting grids and expose signed residual stops and limit
  * diagnostics. A zero-signal target cannot authorize an invented exposure.
- * @param input - ResolveShutterPriorityExposureModeInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns ShutterPriorityExposureModeResolution. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - ResolveShutterPriorityExposureModeInput. See that type for coordinates, units and profile binding.
+ * @returns ShutterPriorityExposureModeResolution. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -3799,8 +3799,8 @@ export function resolveShutterPriorityExposureMode(
  * reference anchor. Compensation is already included in the immutable meter target. Manual axes remain
  * unchanged; automatic axes use declared setting grids and expose signed residual stops and limit
  * diagnostics. A zero-signal target cannot authorize an invented exposure.
- * @param input - ResolveProgramAutoExposureModeInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns ProgramAutoExposureModeResolution. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - ResolveProgramAutoExposureModeInput. See that type for coordinates, units and profile binding.
+ * @returns ProgramAutoExposureModeResolution. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
@@ -4103,8 +4103,8 @@ export function resolveProgramAutoExposureMode(
  * reference anchor. Compensation is already included in the immutable meter target. Manual axes remain
  * unchanged; automatic axes use declared setting grids and expose signed residual stops and limit
  * diagnostics. A zero-signal target cannot authorize an invented exposure.
- * @param input - ResolveFullAutoExposureModeInput. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns FullAutoExposureModeResolution. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * @param input - ResolveFullAutoExposureModeInput. See that type for coordinates, units and profile binding.
+ * @returns FullAutoExposureModeResolution. The result states its shape and scientific status; a successful call does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
  */
