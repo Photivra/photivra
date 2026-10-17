@@ -14,6 +14,13 @@ export interface FakeGpuControls {
   /** Buffers created / destroyed so far. */
   created: number;
   destroyed: number;
+  /** Bytes in buffers that are not yet destroyed, and the largest value seen. */
+  liveBytes: number;
+  peakLiveBytes: number;
+  /** Calls to `device.destroy()`. */
+  deviceDestroyCalls: number;
+  /** With `device: "deferred"`: resolves the pending `requestDevice` promise. */
+  resolveDevice(): void;
   dispatches: number;
   /** Resolve `device.lost` (simulated loss). */
   loseDevice(): void;
@@ -25,7 +32,8 @@ export interface FakeGpuControls {
 }
 export interface FakeGpuOptions {
   adapter?: "none" | "throws";
-  device?: "throws";
+  /** `deferred`: `requestDevice` stays pending until `controls.resolveDevice()`. */
+  device?: "throws" | "deferred";
   maxStorageBufferBindingSize?: number;
   maxComputeWorkgroupsPerDimension?: number;
 }
@@ -33,11 +41,14 @@ export interface FakeGpuOptions {
 class FakeBuffer {
   data: ArrayBuffer;
   destroyed = false;
-  constructor(readonly size: number, readonly label: string, private readonly controls: FakeGpuControls) { this.data = new ArrayBuffer(size); controls.created++; }
+  constructor(readonly size: number, readonly label: string, private readonly controls: FakeGpuControls) {
+    this.data = new ArrayBuffer(size); controls.created++;
+    controls.liveBytes += size; controls.peakLiveBytes = Math.max(controls.peakLiveBytes, controls.liveBytes);
+  }
   mapAsync(): Promise<void> { return this.destroyed ? Promise.reject(new Error("destroyed")) : Promise.resolve(); }
   getMappedRange(offset = 0, size = this.size - offset): ArrayBuffer { return this.data.slice(offset, offset + size); }
   unmap(): void {}
-  destroy(): void { if (!this.destroyed) { this.destroyed = true; this.controls.destroyed++; } }
+  destroy(): void { if (!this.destroyed) { this.destroyed = true; this.controls.destroyed++; this.controls.liveBytes -= this.size; } }
 }
 interface Entry { binding: number; resource: { buffer: FakeBuffer } }
 
@@ -211,7 +222,9 @@ function emulate(label: string, buffers: Map<number, FakeBuffer>): void {
 /** Returns a `navigator.gpu`-shaped object and its controls. */
 export function createFakeGpu(options: FakeGpuOptions = {}): { gpu: unknown; controls: FakeGpuControls } {
   let loseDevice = (): void => undefined;
-  const controls: FakeGpuControls = { created: 0, destroyed: 0, dispatches: 0, loseDevice: () => loseDevice(), failNextScope: null, failPipeline: false };
+  let resolveDevice = (): void => undefined;
+  const controls: FakeGpuControls = { created: 0, destroyed: 0, liveBytes: 0, peakLiveBytes: 0, deviceDestroyCalls: 0, dispatches: 0,
+    loseDevice: () => loseDevice(), resolveDevice: () => resolveDevice(), failNextScope: null, failPipeline: false };
   const storage = options.maxStorageBufferBindingSize ?? 128 * 1024 * 1024;
   const limits = { maxStorageBufferBindingSize: storage, maxBufferSize: storage, maxComputeWorkgroupsPerDimension: options.maxComputeWorkgroupsPerDimension ?? 65535 };
   const scopes: string[] = [];
@@ -254,10 +267,11 @@ export function createFakeGpu(options: FakeGpuOptions = {}): { gpu: unknown; con
       if (controls.failNextScope && controls.failNextScope === filter) { controls.failNextScope = null; return Promise.resolve({ message: "scope" }); }
       return Promise.resolve(null);
     },
-    destroy(): void { loseDevice(); }
+    destroy(): void { controls.deviceDestroyCalls++; loseDevice(); }
   };
   (device.queue as { submit: (buffers: { run: () => void }[]) => void }).submit = (buffers): void => buffers.forEach(b => b.run());
-  const adapter = { limits, requestDevice: (): Promise<unknown> => options.device === "throws" ? Promise.reject(new Error("no device")) : Promise.resolve(device) };
+  const adapter = { limits, requestDevice: (): Promise<unknown> => options.device === "throws" ? Promise.reject(new Error("no device"))
+    : options.device === "deferred" ? new Promise(resolve => { resolveDevice = (): void => resolve(device); }) : Promise.resolve(device) };
   const gpu = { requestAdapter: (): Promise<unknown> => options.adapter === "throws" ? Promise.reject(new Error("adapter")) : Promise.resolve(options.adapter === "none" ? null : adapter) };
   return { gpu, controls };
 }

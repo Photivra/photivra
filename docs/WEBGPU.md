@@ -45,9 +45,9 @@ accelerator.dispose();
 - **Bit-exact identities are CPU-only.** SHA-256 artifact bindings, byte-parity fixtures, export evidence and cross-engine determinism hashes must be computed from `cpu-reference` output only. A `webgpu-f32` result is never bit-identical to the reference, and it states so.
 - **Runtime resources:**
   - Single flight: an overlapping call rejects with `busy`.
-  - `signal` (an `AbortSignal`) aborts acquisition or a run. Pending GPU waits race the signal and device loss, and every buffer is destroyed when the operation settles.
+  - `signal` (an `AbortSignal`) aborts acquisition or a run. Pending GPU waits race the signal and device loss, and every buffer is destroyed when the operation settles. A device that arrives after acquisition was aborted is destroyed on arrival.
   - `dispose()` destroys the device. `state` reports `ready`, `lost` or `disposed`.
-  - `maximumBandBytes` (at least 4 KiB, default min(64 MiB, the device limit)) bounds each band buffer. Banding changes memory use only, never results. The conformance suite checks that banded and unbanded GPU output are identical.
+  - `maximumBandBytes` (at least 4 KiB, default min(64 MiB, the device limit)) bounds each band buffer. Each band's buffers, readback included, are destroyed before the next band, so peak GPU memory follows the band size, not the image size. Banding changes memory use only, never results. The conformance suite checks that banded and unbanded GPU output are identical.
 - The package stays dependency-free and browser-safe. WebGPU typings come from TypeScript's DOM library at build time, and no WebGPU type appears in the published declarations. In Node or any runtime without `navigator.gpu`, the backend reports `webgpu-unavailable`. You can pass a worker's `navigator.gpu` explicitly through `gpu`.
 
 ## Stages
@@ -189,7 +189,8 @@ A saturated site normalizes to exactly 1, while every unsaturated value is ≤ 1
 
 Let u = 2^-24 (binary32 unit roundoff) and γ_k = k·u/(1 − k·u). These are the standard forward-error bounds for recursive summation and dot products (Rump & Jeannerod, *SIAM J. Matrix Anal. Appl.* 35(2), 2014, sec. 1, [free author copy](https://www.tuhh.de/ti3/paper/rump/RuJea13.pdf). Also see: Higham, *Accuracy and Stability of Numerical Algorithms*, 2nd ed., SIAM 2002, §2–§3). They assume a conforming WebGPU implementation: correctly rounded f32 `+ − × ÷`, and the WGSL accuracy table for `pow` (W3C WGSL, *Floating Point Accuracy*).
 
-- **Convolution (`relative-to-reference`).** Every term is non-negative, so for every sample `|v_gpu − v_ref| ≤ (γ_{T+3} + 2^-40)·v_ref + 2·T·2^-126`, where T = (2r+1)² taps. The three extra roundings cover the f32 conversion of the sample, the weight and the product. The absolute term covers subnormal flush-to-zero.
+- **Convolution (`relative-to-reference`).** Every term is non-negative, so for every sample `|v_gpu − v_ref| ≤ (γ_{T+3} + 2^-40)·v_ref + 2·T·2^-126 + 2·S_max·Σ_t max_p w̃_{p,t}`, where T = (2r+1)² taps. The three extra roundings cover the f32 conversion of the sample, the weight and the product. The 2·T·2^-126 term covers subnormal flush-to-zero of samples and products.
+  - The last term covers kernel weights below the float32 normal range. w̃_{p,t} is weight t of patch p when it lies in (0, 2^-126), and 0 otherwise; S_max is the largest input sample. The host conversion can round such a weight to zero or to a subnormal (an error of at most w), and the GPU may flush it, so the whole product w·s is at risk. The factor 2 covers that and the later roundings. The term is 0 when no weight lies in that range, so ordinary kernels keep the bound above. Gaussian tails do reach this range (the conformance corpora have weights near 10^-108), so the backend widens the bound instead of rejecting them.
 - **Integer codes (`integer-code-difference`).** If the float32 linear value entering the transfer is within δ_L of the reference, then `|Δcode| ≤ ⌊max·(12.92·δ_L + δ_E)⌋ + 1`, capped at the code maximum.
   - 12.92 is the largest slope of the sRGB encode on [0, 1].
   - δ_E = 2^-17 is the declared bound on the WGSL encode. The worst case derived from the WGSL `log2`/`exp2` accuracy is about 2.5e-6, so the bound keeps a 3× margin. The sRGB segment join is discontinuous by only −2.85e-8.
@@ -210,7 +211,8 @@ Let u = 2^-24 (binary32 unit roundoff) and γ_k = k·u/(1 − k·u). These are t
   - luminance curves: a ratio h within its bound of 1 (the tone-changed count), a luminance inside its branch band, or a toned value whose bound interval straddles 0 or 1.
 
   Every diagnostic count then differs from the reference by at most `diagnosticUncertaintySampleCount`. When that count is 0, `diagnosticsExact` is true and the counts equal the reference.
-- **Temporal exposure sum (`relative-to-reference`).** Every term is non-negative and carries at most K + 7 roundings (sample, bilinear weight, their product, three inner additions, row weight, its product, K − 1 outer additions). So `|v_gpu − v_ref| ≤ (γ_{K+8} + 2^-40)·v_ref + K·(8·w_max + 2)·2^-126`, where K is the node count and w_max the largest row weight.
+- **Temporal exposure sum (`relative-to-reference`).** Every term is non-negative and carries at most K + 7 roundings (sample, bilinear weight, their product, three inner additions, row weight, its product, K − 1 outer additions). So `|v_gpu − v_ref| ≤ (γ_{K+8} + 2^-40)·v_ref + K·(8·w_max + 2)·2^-126 + R`, where K is the node count and w_max the largest row weight.
+  - R covers weights below the float32 normal range, for the same reason as the convolution's last term: `R = 2·S_max·Σ_k (max_y ρ̃_k(y) + w_max·Σ_j β̃_{k,j})`. Here ρ̃_k(y) is node k's row weight for row y and β̃_{k,j} its four bilinear weights, each counted only when it lies in (0, 2^-126). R is 0 when no weight lies in that range.
 - **Sensor stage (`exact-except-flagged-sites`).** Not a numeric tolerance. Every unflagged site has exactly the reference code and saturation flags. Only flagged sites (`errorBound.flaggedSiteCount`, listed in `flaggedSiteIndices`) may differ. Each diagnostic count differs by at most the flagged count. The per-decision margins are derived from u and the WGSL accuracy table, then doubled; they are listed in `src/gpu/wgsl-sensor-kernel.ts`. Recomputing only the flagged sites with the reference makes the region bit-identical, and the tests do exactly that.
 
 ## Accuracy contract
@@ -228,8 +230,8 @@ This section states what the `webgpu-f32` path promises for each stage, relative
 
 | Stage | Quantity | `errorBound.kind` | Bound (a priori) | Tests |
 | --- | --- | --- | --- | --- |
-| Optics: convolution | expected irradiance or photons per site | `relative-to-reference` | (γ_{T+3} + 2^-40)·v + 2T·2^-126 | `test/image-kernel-accelerator.test.ts`, `test/webgpu/conformance.webgpu.ts` |
-| Exposure and motion: temporal sum | expected exposure (photons or electrons) per site | `relative-to-reference` | (γ_{K+8} + 2^-40)·v + K·(8·w_max + 2)·2^-126 | `test/temporal-exposure-sum.test.ts`, `test/webgpu/stages.webgpu.ts` |
+| Optics: convolution | expected irradiance or photons per site | `relative-to-reference` | (γ_{T+3} + 2^-40)·v + 2T·2^-126 (+ a term for weights below 2^-126, see above) | `test/image-kernel-accelerator.test.ts`, `test/webgpu/conformance.webgpu.ts` |
+| Exposure and motion: temporal sum | expected exposure (photons or electrons) per site | `relative-to-reference` | (γ_{K+8} + 2^-40)·v + K·(8·w_max + 2)·2^-126 + R (R = 0 unless a weight is below 2^-126) | `test/temporal-exposure-sum.test.ts`, `test/webgpu/stages.webgpu.ts` |
 | Sensor | RAW codes, saturation counts, noise moments | `exact-except-flagged-sites` | unflagged sites identical; counts within ± flagged; flagged sites listed | `test/packed-sensor-raw.test.ts`, `test/webgpu/stages.webgpu.ts` |
 | Native capture SDR | 8- or 16-bit codes | `integer-code-difference` | 1 code | `test/image-kernel-accelerator.test.ts`, `test/webgpu/conformance.webgpu.ts` |
 | RAW development | 8- or 16-bit codes | `integer-code-difference` | propagated per run (see above) | same |

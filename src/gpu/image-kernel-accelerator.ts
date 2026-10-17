@@ -25,7 +25,7 @@ import { calculateNativeCaptureSdrPlan, createNativeCaptureSdrTask, sdrOutputEnc
   type NativeCaptureSdrInput, type NativeCaptureSdrOutput, type NativeCaptureSdrProvider, type NativeCaptureSdrTileRequest } from "../output/native-capture-sdr.js";
 import { convolveIrradianceRows, calculateIrradianceConvolutionPlan, type IrradianceConvolutionInput, type IrradianceConvolutionPlan } from "../optics/irradiance-convolution.js";
 import { ImageKernelExecutionError, cpuExecution, float32Gamma, integerCodeBound, webGpuExecution,
-  type ImageKernelBackend, type ImageKernelExecution, type ImageKernelFallbackReason } from "./image-kernel-execution.js";
+  type ImageKernelBackend, type ImageKernelExecution, type ImageKernelFallbackReason, type ImageKernelRelativeErrorBound } from "./image-kernel-execution.js";
 import { BUFFER_USAGE, GpuResourceScope, abortedError, acquireWebGpuRuntime, createComputePipeline, linearDispatch, runComputePass,
   type WebGpuRuntime } from "./webgpu-runtime.js";
 import { CONVOLUTION_WORKGROUP_EDGE, IRRADIANCE_CONVOLUTION_WGSL, LINEAR_WORKGROUP_SIZE, RAW_DEVELOPMENT_WGSL, SDR_COUNTER, SDR_COUNTER_SLOTS,
@@ -309,6 +309,7 @@ async function convolveOnGpu(runtime: WebGpuRuntime, bandBytes: number, plan: Ir
   abort: AbortController, yieldControl: ImageKernelRunOptions["yieldControl"], pipelines: PipelineSource): Promise<IrradianceConvolutionResult> {
   const { width, height, kernelRadius: r, tapCount } = plan;
   const samples = new Float32Array(input.samples), kernels = new Float32Array(input.kernels), inputSum = sumOf(input.samples);
+  const errorBound = irradianceConvolutionErrorBound(plan, input.kernels);
   if (kernels.byteLength > runtime.maximumStorageBindingBytes) {
     throw new ImageKernelExecutionError("insufficient-limits", "PSF kernels exceed the device's storage binding limit.");
   }
@@ -331,25 +332,51 @@ async function convolveOnGpu(runtime: WebGpuRuntime, bandBytes: number, plan: Ir
       const y1 = Math.min(height, y0 + rows), in0 = Math.max(0, y0 - r), in1 = Math.min(height, y1 + r);
       const params = new Uint32Array([width, height, r, 2 * r + 1, plan.patchWidth, plan.patchHeight, plan.patchColumns, plan.patchRows,
         y0, y1 - y0, in0, tapCount]);
-      const band = scope.upload("photivra-irradiance-band", samples.subarray(in0 * width, in1 * width), BUFFER_USAGE.STORAGE);
-      const result = scope.buffer("photivra-irradiance-result", (y1 - y0) * rowBytes, BUFFER_USAGE.STORAGE | BUFFER_USAGE.COPY_SRC);
-      const uniform = scope.upload("photivra-irradiance-params", params, BUFFER_USAGE.UNIFORM);
-      const bindGroup = runtime.device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [
-        { binding: 0, resource: { buffer: uniform } }, { binding: 1, resource: { buffer: band } },
-        { binding: 2, resource: { buffer: kernelBuffer } }, { binding: 3, resource: { buffer: result } }] });
-      const groups: [number, number] = [Math.ceil(width / CONVOLUTION_WORKGROUP_EDGE), Math.ceil((y1 - y0) / CONVOLUTION_WORKGROUP_EDGE)];
-      const [data] = await runComputePass(runtime, scope, pipeline, bindGroup, groups, [{ buffer: result, bytes: (y1 - y0) * rowBytes }], abort.signal);
-      values.set(new Float32Array(data!, 0, (y1 - y0) * width), y0 * width);
-      for (const buffer of [band, result, uniform]) buffer.destroy();
+      // Per-band scope: every buffer of the band, its readback included, is destroyed before the next band.
+      const bandScope = new GpuResourceScope(runtime);
+      try {
+        const band = bandScope.upload("photivra-irradiance-band", samples.subarray(in0 * width, in1 * width), BUFFER_USAGE.STORAGE);
+        const result = bandScope.buffer("photivra-irradiance-result", (y1 - y0) * rowBytes, BUFFER_USAGE.STORAGE | BUFFER_USAGE.COPY_SRC);
+        const uniform = bandScope.upload("photivra-irradiance-params", params, BUFFER_USAGE.UNIFORM);
+        const bindGroup = runtime.device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [
+          { binding: 0, resource: { buffer: uniform } }, { binding: 1, resource: { buffer: band } },
+          { binding: 2, resource: { buffer: kernelBuffer } }, { binding: 3, resource: { buffer: result } }] });
+        const groups: [number, number] = [Math.ceil(width / CONVOLUTION_WORKGROUP_EDGE), Math.ceil((y1 - y0) / CONVOLUTION_WORKGROUP_EDGE)];
+        const [data] = await runComputePass(runtime, bandScope, pipeline, bindGroup, groups, [{ buffer: result, bytes: (y1 - y0) * rowBytes }], abort.signal);
+        values.set(new Float32Array(data!, 0, (y1 - y0) * width), y0 * width);
+      } finally {
+        bandScope.release();
+      }
       if (yieldControl && gate.due()) { await yieldControl(abort.signal); gate.restart(); }
     }
   } finally {
     scope.release();
   }
   checkAbort(abort);
-  const execution = webGpuExecution({ kind: "relative-to-reference", relative: float32Gamma(tapCount + 3) + 2 ** -40,
-    absolute: 2 * tapCount * FLOAT32_SUBNORMAL_LIMIT }, 0);
+  const execution = webGpuExecution(errorBound, 0);
   return { plan, values, inputSum, outputSum: sumOf(values), execution };
+}
+
+/**
+ * A-priori float32 bound for every convolution output (all terms are non-negative):
+ * |v_f32 − v_ref| ≤ (γ_{T+3} + 2^-40)·v_ref + 2T·2^-126 + 2·S_max·Σ_t max_p w_{p,t}·[0 < w_{p,t} < 2^-126].
+ * The last term covers weights below the float32 normal range: the host conversion may round them to zero or
+ * a subnormal (|f32(w) − w| ≤ w) and the GPU may flush them, so their whole product w·s (s ≤ S_max) is at risk,
+ * with a factor 2 for the conversion and the later roundings. It is zero when no such weight exists.
+ */
+export function irradianceConvolutionErrorBound(plan: IrradianceConvolutionPlan, kernels: Float32Array | Float64Array): ImageKernelRelativeErrorBound {
+  const { tapCount } = plan, patches = kernels.length / tapCount;
+  let atRisk = 0;
+  for (let t = 0; t < tapCount; t++) {
+    let largest = 0;
+    for (let p = 0; p < patches; p++) {
+      const w = kernels[p * tapCount + t]!;
+      if (w < FLOAT32_SUBNORMAL_LIMIT && w > largest) largest = w;
+    }
+    atRisk += largest;
+  }
+  return { kind: "relative-to-reference", relative: float32Gamma(tapCount + 3) + 2 ** -40,
+    absolute: 2 * tapCount * FLOAT32_SUBNORMAL_LIMIT + 2 * plan.maximumSampleMagnitude * atRisk };
 }
 
 /** Uniform values of a tone curve for the float32 kernels (see wgsl-kernels.ts, LUMINANCE_FUNCTIONS). */
