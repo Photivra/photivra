@@ -2,8 +2,8 @@
 
 /**
  * Repository-only benchmark of opt-in parallel native environment RAW (#275): one capture run as a single task,
- * then split into row bands (partitionNativeRawRows) run in Node worker threads
- * (createNativeEnvironmentRawPartitionTask) and merged (mergeNativeEnvironmentRawPartitions).
+ * then split into row bands (calculateNativeRawRowBands) run in Node worker threads
+ * (createNativeEnvironmentRawPartitionTask) and merged (composeNativeEnvironmentRawPartitions).
  *
  * The capture is the `simulateCapture()` request of a benchmark case (scripts/lib/native-environment-cases.mjs) with
  * an analytic radiance provider. Workers receive the site inputs once, at start-up (timed separately as setup);
@@ -22,7 +22,7 @@ import process from "node:process";
 import { setImmediate } from "node:timers/promises";
 import { URL } from "node:url";
 import { Worker, isMainThread, parentPort, workerData } from "node:worker_threads";
-import { createNativeEnvironmentRawPartitionTask, createNativeEnvironmentRawTask, mergeNativeEnvironmentRawPartitions, partitionNativeRawRows,
+import { createNativeEnvironmentRawPartitionTask, createNativeEnvironmentRawTask, composeNativeEnvironmentRawPartitions, calculateNativeRawRowBands,
   simulateCapture } from "../dist/index.js";
 import { analyticRadiance, nativeEnvironmentCases } from "./lib/native-environment-cases.mjs";
 
@@ -86,12 +86,12 @@ if (!isMainThread) {
       const setupStart = performance.now();
       const workers = Array.from({ length: count }, () => new Worker(new URL(import.meta.url), { workerData: { input, sites, width } }));
       await Promise.all(workers.map((worker) => new Promise((resolve, reject) => { worker.once("online", resolve); worker.once("error", reject); })));
-      const setupMs = performance.now() - setupStart, bands = partitionNativeRawRows(capture.plan, count);
+      const setupMs = performance.now() - setupStart, bands = calculateNativeRawRowBands(capture.plan, count);
       const runOnce = async () => {
         const parts = await Promise.all(bands.map((band, i) => new Promise((resolve, reject) => {
           workers[i].once("message", resolve); workers[i].once("error", reject); workers[i].postMessage(band);
         })));
-        return mergeNativeEnvironmentRawPartitions(input, parts);
+        return composeNativeEnvironmentRawPartitions(input, parts);
       };
       await runOnce();
       const parallelMs = [];

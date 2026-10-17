@@ -264,9 +264,9 @@ Differences from per-query callbacks: all of a tile's queries are evaluated befo
 
 `createNativeEnvironmentRawTask` runs on one thread. A capture can instead be split into bands of whole native rows and run in parallel:
 
-1. `partitionNativeRawRows(plan, count)` returns at most `count` contiguous bands of nearly equal height, in row order. It depends only on the raster height and `count`.
+1. `calculateNativeRawRowBands(plan, count)` returns at most `count` contiguous bands of nearly equal height, in row order. It depends only on the raster height and `count`.
 2. `createNativeEnvironmentRawPartitionTask(input, band, provider)` runs one band. It takes the same input as the single task, and its provider is built where it runs (functions cannot be posted between workers). Its `takeOutput()` returns a `NativeEnvironmentRawPartition`: plain data plus four typed arrays for the band's rows, which can be posted with their buffers transferred.
-3. `mergeNativeEnvironmentRawPartitions(input, partitions)` joins the partitions, in row order, into the `NativeEnvironmentRawOutput` the single task returns.
+3. `composeNativeEnvironmentRawPartitions(input, partitions)` joins the partitions, in row order, into the `NativeEnvironmentRawOutput` the single task returns.
 
 The package bundles no worker code, so the root package stays browser-safe and the package surface is unchanged. The caller creates the workers (Web Workers, Node worker threads, or none: partitions can also run one after another).
 

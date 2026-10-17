@@ -913,6 +913,11 @@
       "kind": "runtime"
     },
     {
+      "name": "calculateNativeRawRowBands",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateNaturalVignetting",
       "source": "src/optics/pupil-vignetting.ts",
       "kind": "runtime"
@@ -1961,6 +1966,11 @@
       "name": "ComposeFrontOfLensFilterTransmissionInput",
       "source": "src/optics/front-of-lens-filter.ts",
       "kind": "type"
+    },
+    {
+      "name": "composeNativeEnvironmentRawPartitions",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "runtime"
     },
     {
       "name": "composeRelativeErrorBounds",
@@ -3978,11 +3988,6 @@
       "kind": "type"
     },
     {
-      "name": "mergeNativeEnvironmentRawPartitions",
-      "source": "src/capture/native-environment-raw.ts",
-      "kind": "runtime"
-    },
-    {
       "name": "MeteringCapabilityCompatibilityAssessment",
       "source": "src/equipment/metering-capabilities.ts",
       "kind": "type"
@@ -4900,11 +4905,6 @@
     {
       "name": "parseWhiteBalanceProfile",
       "source": "src/color/white-balance.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "partitionNativeRawRows",
-      "source": "src/capture/native-environment-raw.ts",
       "kind": "runtime"
     },
     {

@@ -2,12 +2,41 @@
 
 The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
+## calculateNativeRawRowBands
+
+Splits a plan's native rows into at most `count` contiguous bands of nearly equal height (the first
+`height % count` bands are one row taller), in row order. Deterministic: it depends only on the raster height and
+`count`. Use one band per worker with createNativeEnvironmentRawPartitionTask.
+
+```ts
+export function calculateNativeRawRowBands(plan:Pick<NativeRawPlan,"exposure">,count:number):NativeRawRowBand[];
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
+## composeNativeEnvironmentRawPartitions
+
+Assembles the partitions of one capture into the output createNativeEnvironmentRawTask would have returned for
+the same input (byte-identical RAW arrays and white levels, the summed provider evaluation count).
+
+The partitions must be in row order and cover every native row exactly once, and each must come from
+createNativeEnvironmentRawPartitionTask with this same input. It rejects, with InvalidConfigurationError, a
+different input, a gap or overlap, wrong array types or lengths, a second shared state or readout identity, two
+white levels for one CFA phase, a missing phase, or a total evaluation count above the input's budget. It cannot
+verify how a partition was computed: posted partitions are the caller's own data.
+
+```ts
+export function composeNativeEnvironmentRawPartitions(input:NativeEnvironmentRawInput,partitions:readonly NativeEnvironmentRawPartition[]):NativeEnvironmentRawOutput;
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
 ## createNativeEnvironmentRawPartitionTask
 
 Creates the task for one row band of a native environment capture (opt-in parallel execution, 2.0).
 
 Run one partition per worker (or one after another) with the same input, each worker using its own provider, then
-merge them with mergeNativeEnvironmentRawPartitions. The merged output is byte-identical to the single
+merge them with composeNativeEnvironmentRawPartitions. The merged output is byte-identical to the single
 createNativeEnvironmentRawTask output for the same input and a deterministic provider: noise seeds use absolute
 native indices, and tiles, plans and per-site values are those of the whole-frame task.
 
@@ -63,23 +92,6 @@ providerEvaluationCount is 0. The caller still owns the stage; it is not used up
 ```ts
 export function createNativeEnvironmentSensorStageTask(input:NativeEnvironmentSensorStageInput,opticalStage:NativeEnvironmentOpticalStage,
   provider:NativeEnvironmentSensorStageProvider):NativeEnvironmentRawTask;
-```
-
-This call is synchronous; any supplied provider must follow its explicit synchronous contract.
-
-## mergeNativeEnvironmentRawPartitions
-
-Assembles the partitions of one capture into the output createNativeEnvironmentRawTask would have returned for
-the same input (byte-identical RAW arrays and white levels, the summed provider evaluation count).
-
-The partitions must be in row order and cover every native row exactly once, and each must come from
-createNativeEnvironmentRawPartitionTask with this same input. It rejects, with InvalidConfigurationError, a
-different input, a gap or overlap, wrong array types or lengths, a second shared state or readout identity, two
-white levels for one CFA phase, a missing phase, or a total evaluation count above the input's budget. It cannot
-verify how a partition was computed: posted partitions are the caller's own data.
-
-```ts
-export function mergeNativeEnvironmentRawPartitions(input:NativeEnvironmentRawInput,partitions:readonly NativeEnvironmentRawPartition[]):NativeEnvironmentRawOutput;
 ```
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
@@ -143,7 +155,7 @@ export interface NativeEnvironmentRawOutput {
 ## NativeEnvironmentRawPartition
 
 One partition's result: plain data and typed arrays only, so it can be posted from a worker (transfer the four
-arrays' buffers). Merge every partition of a capture with mergeNativeEnvironmentRawPartitions.
+arrays' buffers). Merge every partition of a capture with composeNativeEnvironmentRawPartitions.
 
 ```ts
 export interface NativeEnvironmentRawPartition {
@@ -231,15 +243,3 @@ A band of whole native rows, [y, y + height), in absolute full-sensor coordinate
 ```ts
 export interface NativeRawRowBand { y: number; height: number }
 ```
-
-## partitionNativeRawRows
-
-Splits a plan's native rows into at most `count` contiguous bands of nearly equal height (the first
-`height % count` bands are one row taller), in row order. Deterministic: it depends only on the raster height and
-`count`. Use one band per worker with createNativeEnvironmentRawPartitionTask.
-
-```ts
-export function partitionNativeRawRows(plan:Pick<NativeRawPlan,"exposure">,count:number):NativeRawRowBand[];
-```
-
-This call is synchronous; any supplied provider must follow its explicit synchronous contract.

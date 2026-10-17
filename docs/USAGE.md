@@ -7255,9 +7255,9 @@ console.log(calculateGeometricFocusBreathing({
 ## Parallel native environment RAW (row-band partitions, 2.0)
 
 `createNativeEnvironmentRawTask` runs on one thread. For several cores, split the capture into row bands with
-`partitionNativeRawRows`, run each band with `createNativeEnvironmentRawPartitionTask` (one per Web Worker or Node
+`calculateNativeRawRowBands`, run each band with `createNativeEnvironmentRawPartitionTask` (one per Web Worker or Node
 worker thread, each with its own provider), post the partitions back, and join them with
-`mergeNativeEnvironmentRawPartitions`. The merged output is byte-identical to the single task's for the same input
+`composeNativeEnvironmentRawPartitions`. The merged output is byte-identical to the single task's for the same input
 and a deterministic provider. The package ships no worker code; the caller owns the workers. See
 [parallel execution](https://github.com/Photivra/photivra/blob/main/docs/NATIVE_RAW_AND_PRINT.md#opt-in-parallel-execution-row-band-partitions-20) for the checks and limits.
 
@@ -7267,7 +7267,7 @@ callbacks with the same results; see
 [batched light sampling](https://github.com/Photivra/photivra/blob/main/docs/NATIVE_RAW_AND_PRINT.md#batched-light-sampling-evaluateradiancebatch-20).
 
 ```ts
-import { createNativeEnvironmentRawPartitionTask, mergeNativeEnvironmentRawPartitions, partitionNativeRawRows, simulateCapture,
+import { createNativeEnvironmentRawPartitionTask, composeNativeEnvironmentRawPartitions, calculateNativeRawRowBands, simulateCapture,
   type NativeEnvironmentRawProvider } from "@photivra/engine";
 
 const capture = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 8, height: 8 } });
@@ -7282,12 +7282,12 @@ const provider: NativeEnvironmentRawProvider = {
     evidence: [{ sourceOrigin: "photivra", sourceReference: "photivra:usage-example", reuseStatus: "photivra-owned" }], limitations: ["Example field."] }),
   yieldControl: async () => {}
 };
-const partitions = await Promise.all(partitionNativeRawRows(capture.plan, 2).map(async (band) => {
+const partitions = await Promise.all(calculateNativeRawRowBands(capture.plan, 2).map(async (band) => {
   const task = createNativeEnvironmentRawPartitionTask(input, band, provider); // inside a worker
   await task.run();
   return task.takeOutput(); // postMessage(partition, [partition.codes.buffer, ...])
 }));
-const merged = mergeNativeEnvironmentRawPartitions(input, partitions);
+const merged = composeNativeEnvironmentRawPartitions(input, partitions);
 console.log(merged.raw.codes.length, merged.providerEvaluationCount);
 ```
 

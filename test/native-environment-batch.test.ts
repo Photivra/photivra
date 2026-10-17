@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
-import { createNativeEnvironmentRawPartitionTask, createNativeEnvironmentRawTask, mergeNativeEnvironmentRawPartitions, partitionNativeRawRows,
+import { createNativeEnvironmentRawPartitionTask, createNativeEnvironmentRawTask, composeNativeEnvironmentRawPartitions, calculateNativeRawRowBands,
   simulateCapture, type NativeEnvironmentRadianceQuery, type NativeEnvironmentRawInput, type NativeEnvironmentRawOutput,
   type NativeEnvironmentRawProvider, type NativeEnvironmentRawTile, type SceneRadianceEvaluationRequest, type SceneRadianceEvaluationResult,
   type SensorApertureRay } from "../src/index.js";
@@ -132,10 +132,10 @@ describe("batched light sampling (evaluateRadianceBatch)", () => {
     const expected = (await run(input, provider, "per-query")).summary;
     const batchProvider: NativeEnvironmentRawProvider = { ...provider, evaluateRadianceBatch: queries => queries.map(q => result(q.request, q.apertureRay)) };
     const plan = createNativeEnvironmentRawTask(input, provider).plan;
-    const parts = await Promise.all(partitionNativeRawRows(plan, 3).map(async band => {
+    const parts = await Promise.all(calculateNativeRawRowBands(plan, 3).map(async band => {
       const task = createNativeEnvironmentRawPartitionTask(input, band, batchProvider); await task.run(); return task.takeOutput();
     }));
-    const merged = mergeNativeEnvironmentRawPartitions(input, parts);
+    const merged = composeNativeEnvironmentRawPartitions(input, parts);
     expect({ codes: sha(merged.raw.codes), evaluations: merged.providerEvaluationCount }).toEqual({ codes: expected.codes, evaluations: expected.evaluations });
   }, scaledTimeout(120_000));
 });

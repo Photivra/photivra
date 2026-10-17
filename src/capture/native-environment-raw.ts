@@ -348,7 +348,7 @@ export interface NativeRawRowBand { y: number; height: number }
  * `height % count` bands are one row taller), in row order. Deterministic: it depends only on the raster height and
  * `count`. Use one band per worker with createNativeEnvironmentRawPartitionTask.
  */
-export function partitionNativeRawRows(plan:Pick<NativeRawPlan,"exposure">,count:number):NativeRawRowBand[] {
+export function calculateNativeRawRowBands(plan:Pick<NativeRawPlan,"exposure">,count:number):NativeRawRowBand[] {
   const height=plan?.exposure?.geometry?.nativeRaster?.pixelHeight;
   if(typeof height!=="number"||!Number.isSafeInteger(height)||height<1)throw new InvalidConfigurationError("Native RAW partitioning requires a native RAW plan.");
   if(typeof count!=="number"||!Number.isSafeInteger(count)||count<1||count>1024)throw new InvalidConfigurationError("Native RAW partition count must be an integer from 1 to 1024.");
@@ -358,7 +358,7 @@ export function partitionNativeRawRows(plan:Pick<NativeRawPlan,"exposure">,count
 }
 /**
  * One partition's result: plain data and typed arrays only, so it can be posted from a worker (transfer the four
- * arrays' buffers). Merge every partition of a capture with mergeNativeEnvironmentRawPartitions.
+ * arrays' buffers). Merge every partition of a capture with composeNativeEnvironmentRawPartitions.
  */
 export interface NativeEnvironmentRawPartition {
   rows: NativeRawRowBand;
@@ -395,7 +395,7 @@ function parseRowBand(value:unknown,height:number):NativeRawRowBand {
  * Creates the task for one row band of a native environment capture (opt-in parallel execution, 2.0).
  *
  * Run one partition per worker (or one after another) with the same input, each worker using its own provider, then
- * merge them with mergeNativeEnvironmentRawPartitions. The merged output is byte-identical to the single
+ * merge them with composeNativeEnvironmentRawPartitions. The merged output is byte-identical to the single
  * createNativeEnvironmentRawTask output for the same input and a deterministic provider: noise seeds use absolute
  * native indices, and tiles, plans and per-site values are those of the whole-frame task.
  *
@@ -435,7 +435,7 @@ export function createNativeEnvironmentRawPartitionTask(input:NativeEnvironmentR
  * white levels for one CFA phase, a missing phase, or a total evaluation count above the input's budget. It cannot
  * verify how a partition was computed: posted partitions are the caller's own data.
  */
-export function mergeNativeEnvironmentRawPartitions(input:NativeEnvironmentRawInput,partitions:readonly NativeEnvironmentRawPartition[]):NativeEnvironmentRawOutput {
+export function composeNativeEnvironmentRawPartitions(input:NativeEnvironmentRawInput,partitions:readonly NativeEnvironmentRawPartition[]):NativeEnvironmentRawOutput {
   const {plan,sceneBinding,retention,maximum}=admitNativeEnvironmentInput(input);
   if(retention)throw new InvalidConfigurationError("A native environment partition cannot retain the optical stage.");
   const native=plan.exposure.geometry.nativeRaster,width=native.pixelWidth,layout=plan.frame.colorSamplingProfile.layout;
