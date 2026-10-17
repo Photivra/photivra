@@ -1148,14 +1148,6 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`SimulateCaptureResult`](api/facade-simulate-capture.md#simulatecaptureresult) | Type |
 | [`SimulateCaptureWhiteBalance`](api/facade-simulate-capture.md#simulatecapturewhitebalance) | Type |
 
-## gpu/chart-radiance-gpu.ts
-
-[Detailed contracts](api/gpu-chart-radiance-gpu.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/gpu/chart-radiance-gpu.ts)
-
-| Export | Kind |
-| --- | --- |
-| [`ChartRadianceResult`](api/gpu-chart-radiance-gpu.md#chartradianceresult) | Type |
-
 ## gpu/image-kernel-accelerator.ts
 
 [Detailed contracts](api/gpu-image-kernel-accelerator.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/gpu/image-kernel-accelerator.ts)
@@ -1165,6 +1157,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`AcceleratedNativeCaptureSdrOutput`](api/gpu-image-kernel-accelerator.md#acceleratednativecapturesdroutput) | Type |
 | [`AcceleratedNativeRawDevelopmentOutput`](api/gpu-image-kernel-accelerator.md#acceleratednativerawdevelopmentoutput) | Type |
 | [`AcceleratedPackedSensorRawResult`](api/gpu-image-kernel-accelerator.md#acceleratedpackedsensorrawresult) | Type |
+| [`ChartRadianceResult`](api/gpu-image-kernel-accelerator.md#chartradianceresult) | Type |
 | [`createImageKernelAccelerator`](api/gpu-image-kernel-accelerator.md#createimagekernelaccelerator) | Runtime |
 | [`ImageKernelAccelerator`](api/gpu-image-kernel-accelerator.md#imagekernelaccelerator) | Type |
 | [`ImageKernelAcceleratorOptions`](api/gpu-image-kernel-accelerator.md#imagekernelacceleratoroptions) | Type |

@@ -33,6 +33,25 @@ export interface AcceleratedPackedSensorRawResult extends PackedSensorRawResult 
 }
 ```
 
+## ChartRadianceResult
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface ChartRadianceResult {
+  plan: ChartRadianceBatchPlan;
+  /** Row-major (query, column): float64 for `cpu-reference`, float32 for `webgpu-f32`. */
+  values: Float64Array | Float32Array;
+  columns: number;
+  execution: ImageKernelExecution;
+  /**
+   * Queries whose float32 classification fell inside its bound, recomputed on the host with the
+   * reference (then rounded to float32). Empty for `cpu-reference`.
+   */
+  hostRecomputedQueryIndices: Uint32Array;
+}
+```
+
 ## createImageKernelAccelerator
 
 Requests a backend. Never swaps backends silently: a fallback must be set in the options and is shown in every result label.

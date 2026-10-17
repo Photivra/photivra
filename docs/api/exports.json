@@ -1804,7 +1804,7 @@
     },
     {
       "name": "ChartRadianceResult",
-      "source": "src/gpu/chart-radiance-gpu.ts",
+      "source": "src/gpu/image-kernel-accelerator.ts",
       "kind": "type"
     },
     {

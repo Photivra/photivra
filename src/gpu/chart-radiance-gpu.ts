@@ -10,6 +10,7 @@ import { createHostYieldGate } from "../capture/host-yield-cadence.js";
 import { calculateChartRadianceBatchPlan, type ChartRadianceBatchInput, type ChartRadianceBatchPlan } from "../facade/chart-radiance-batch.js";
 import { calculatePointGridCenters } from "../facade/chart-scenes.js";
 import { ImageKernelExecutionError, webGpuExecution, type ImageKernelExecution } from "./image-kernel-execution.js";
+import type { ChartRadianceResult } from "./image-kernel-accelerator.js";
 import { BUFFER_USAGE, GpuResourceScope, abortedError, linearDispatch, runComputePass, type WebGpuRuntime } from "./webgpu-runtime.js";
 import { CHART_PRESET_CODE, CHART_RADIANCE_WGSL, CHART_WORKGROUP_SIZE } from "./wgsl-chart-kernel.js";
 
@@ -20,18 +21,6 @@ type YieldControl = ((signal: AbortSignal) => Promise<void>) | undefined;
 export const CHART_GPU_MAXIMUM_COORDINATE = 2 ** 20;
 const FLOAT32_SAFE_MAGNITUDE = 2 ** 120;
 
-export interface ChartRadianceResult {
-  plan: ChartRadianceBatchPlan;
-  /** Row-major (query, column): float64 for `cpu-reference`, float32 for `webgpu-f32`. */
-  values: Float64Array | Float32Array;
-  columns: number;
-  execution: ImageKernelExecution;
-  /**
-   * Queries whose float32 classification fell inside its bound, recomputed on the host with the
-   * reference (then rounded to float32). Empty for `cpu-reference`.
-   */
-  hostRecomputedQueryIndices: Uint32Array;
-}
 
 function checkAbort(signal: AbortSignal): void {
   if (signal.aborted) throw abortedError();

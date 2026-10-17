@@ -34,10 +34,21 @@ import type { PackedSensorRawInput, PackedSensorRawResult } from "../capture/pac
 import { simulateSensorRawOnCpu, simulateSensorRawOnGpu } from "./sensor-stage-gpu.js";
 import { calculateTemporalExposureSumPlan, type TemporalExposureSumInput, type TemporalExposureSumPlan } from "../motion/temporal-exposure-sum.js";
 import { sumTemporalExposureOnCpu, sumTemporalExposureOnGpu } from "./temporal-sum-gpu.js";
-import type { ChartRadianceBatchInput } from "../facade/chart-radiance-batch.js";
-import { evaluateChartRadianceOnCpu, evaluateChartRadianceOnGpu, type ChartRadianceResult } from "./chart-radiance-gpu.js";
+import type { ChartRadianceBatchInput, ChartRadianceBatchPlan } from "../facade/chart-radiance-batch.js";
+import { evaluateChartRadianceOnCpu, evaluateChartRadianceOnGpu } from "./chart-radiance-gpu.js";
 
-export type { ChartRadianceResult } from "./chart-radiance-gpu.js";
+export interface ChartRadianceResult {
+  plan: ChartRadianceBatchPlan;
+  /** Row-major (query, column): float64 for `cpu-reference`, float32 for `webgpu-f32`. */
+  values: Float64Array | Float32Array;
+  columns: number;
+  execution: ImageKernelExecution;
+  /**
+   * Queries whose float32 classification fell inside its bound, recomputed on the host with the
+   * reference (then rounded to float32). Empty for `cpu-reference`.
+   */
+  hostRecomputedQueryIndices: Uint32Array;
+}
 
 export interface AcceleratedPackedSensorRawResult extends PackedSensorRawResult {
   execution: ImageKernelExecution;
