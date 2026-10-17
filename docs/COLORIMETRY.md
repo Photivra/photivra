@@ -8,28 +8,35 @@ These are standalone primitives. They do not change scene radiance, exposure, se
 
 The CIE distributes its tabulated datasets under **CC BY-SA 4.0**. These include the CIE 1931/1964 CMFs, the daylight basis S₀/S₁/S₂ and the D65/A tables; the dataset metadata (for example DOI 10.25039/CIE.DS.xvudnb9b) declares this licence. The ShareAlike condition would bind adaptations of those tables, and this conflicts with distributing the package under Apache-2.0 alone. **No CIE table is therefore bundled.** Instead:
 
-- CIE 1931 2° CMFs are available as a published **analytic approximation** (see below), or as caller-supplied tables (`{ kind: "tabulated", … }`). A caller may load the official CIE CSV themselves under its licence.
+- CIE 1931 2° CMFs are available as the engine's own **analytic approximation** (see below), or as caller-supplied tables (`{ kind: "tabulated", … }`). A caller may load the official CIE CSV themselves under its licence.
 - CIE daylight spectra need a caller-supplied S₀/S₁/S₂ basis (`createCieDaylightSpectrum`). The daylight-locus chromaticity and the M₁/M₂ weights are equations and are built in.
 - Illuminant A and Planckian radiators are computed from their defining formulas.
 - The engine bundles no ColorChecker or other reflectance tables, because their licences are unclear. Training reflectances for matrix fitting are supplied by the caller.
 
-The tests use a handful of individual published values, each cited in the test. They do not reproduce any table.
+The tests assert no values taken from CIE tables (owner decision, October 17, 2026). They check internal consistency, normalization, round trips, and values computed inside the test from Planck's law and the daylight formula. The comparisons with CIE data below were computed once, outside the repository.
 
 ## Colour-matching functions and spectral integration
 
-`estimateCie1931ColorMatchingFunctions(λ)` evaluates the multi-lobe piecewise-Gaussian fit of Wyman, Sloan & Shirley (2013), *Simple Analytic Approximations to the CIE XYZ Color Matching Functions*, JCGT 2(2), Eq. 4 / Table 1, using the fitted coefficients:
+`estimateCie1931ColorMatchingFunctions(λ)` evaluates the engine's own analytic **approximation** of the CIE 1931 2° observer. Each function is a sum of split Gaussian lobes. A lobe has an amplitude a, a centre μ, and one standard deviation for wavelengths below the centre and another for wavelengths above it:
 
-x̄(λ) = Σᵢ αᵢ exp(−½[(λ − βᵢ)·S(λ − βᵢ, γᵢ, δᵢ)]²), where S selects γ left of βᵢ and δ right of it. ȳ and z̄ have the same form.
+x̄(λ) = Σᵢ aᵢ exp(−½((λ − μᵢ)/σᵢ)²), with σᵢ = σᵢ,below for λ < μᵢ and σᵢ,above otherwise.
 
-**Approximation error (from the paper's Table 2, relative to the 1 nm CIE 1931 tables):**
+x̄ has three lobes (one of them negative), and ȳ and z̄ have two each. This kind of model, a sum of piecewise Gaussians, was proposed by Wyman, Sloan & Shirley (2013, JCGT 2(2)). The engine does not use that paper's coefficients (the paper is CC BY-ND 3.0; owner decision, October 17, 2026). It fits its own:
+
+- **Data:** the CIE 1931 2° table, DOI 10.25039/CIE.DS.xvudnb9b (CC BY-SA 4.0), at 1 nm from 360 to 830 nm. `scripts/fit-cie-1931-cmf.mjs` downloads it into a temporary directory, checks its SHA-256, uses it and deletes it. No CIE value is stored in the repository.
+- **Fit:** least squares with equal weights over the 471 samples, solved by Levenberg–Marquardt from 400 deterministic pseudo-random starts per function. A penalty keeps every function non-negative (checked on a 0.01 nm grid). The coefficients are rounded to six significant digits.
+- **Domain:** accepted on 360–830 nm; fails closed outside it.
+
+**Measured fit error**, our fit against the CIE 1931 table at its 471 wavelengths. The Wyman et al. (2013) coefficients were evaluated the same way, once and outside the repository, for comparison only:
 
 | | x̄ | ȳ | z̄ |
 | --- | --- | --- | --- |
-| Maximum squared error | 2.0e-4 | 6.4e-5 | 4.9e-4 |
-| Maximum absolute error | ≈ 0.014 | ≈ 0.008 | ≈ 0.022 |
-| Mean squared error | 3.1e-5 | 7.1e-6 | 1.6e-5 |
+| Engine fit: maximum absolute error | 0.0122 (516 nm) | 0.00733 (528 nm) | 0.0221 (434 nm) |
+| Engine fit: RMS error | 0.00426 | 0.00265 | 0.00397 |
+| Wyman et al. 2013: maximum absolute error | 0.0140 (631 nm) | 0.00800 (528 nm) | 0.0222 (434 nm) |
+| Wyman et al. 2013: RMS error | 0.00559 | 0.00267 | 0.00399 |
 
-Integrated with this fit, illuminant A comes out at xy ≈ (0.4463, 0.4087), against the CIE value (0.44758, 0.40745). That is an error of about 1.3e-3 in xy. Use caller-tabulated CMFs when you need colorimetric agreement better than about 2e-3 in xy. The fit is accepted on 360–830 nm and fails closed outside that range.
+Integrated with 1 nm nodes over 360–830 nm, the engine fit gives chromaticities that differ from those integrated with the CIE table by (Δx, Δy) = (+4.0e-4, −0.7e-4) for illuminant A and (+3.0e-4, −0.8e-4) for the equal-energy white. The Wyman fit gave (−1.3e-3, +1.2e-3) and (−3.6e-4, +3.8e-4). Use caller-tabulated CMFs when you need closer colorimetric agreement.
 
 `integrateSpectrumToXyz()` evaluates X = k Σ S(λᵢ) R(λᵢ) x̄(λᵢ) Δλᵢ with caller-explicit quadrature nodes `{ wavelengthNanometers, wavelengthMeasureNanometers }`. This is a quadrature of the tristimulus integral X = ∫ L(λ) x̄(λ) dλ (and likewise Y, Z), as defined in Wyman, Sloan & Shirley (2013), Eq. 1 (free; also CIE 15:2018 §7), with the stimulus L = S·R. The normalization k and the nodes are explicit engine choices:
 
@@ -52,17 +59,28 @@ Spectra are either tabulated (linear interpolation, fail-closed outside the tabl
 | `calculateCieIlluminantARelativeSpectralPower`, `createCieIlluminantASpectrum` | Planck's law relative to 560 nm, S_A(λ) = 100·(560/λ)⁵·(exp(c₂/(560·T)) − 1)/(exp(c₂/(λ·T)) − 1), with the CIE's defining constants c₂ = 1.435e-2 m·K and T = 2848 K (not the exact c₂; 2848 K × 1.438 776 877/1.435 ≈ 2855.5 K with the exact one), 300–830 nm. The constants are CIE 015:2018 Eq. 4.1 (paid); see the check below | calculated |
 | `calculateCieDaylightComponentWeights` | CIE daylight-locus x_D(T) polynomials (4000–7000 K and 7000–25000 K), y_D = −3x² + 2.87x − 0.275, and the M₁/M₂ weights, from CIE 015:2018 §4.1.2 (paid; no free text found, see below). Optional CIE three-decimal rounding of M₁, M₂ | calculated |
 | `createCieDaylightSpectrum` | S = S₀ + M₁S₁ + M₂S₂ from a caller basis | calculated from caller data |
-| `estimatePlanckianLocusChromaticity` | Kim et al. cubic spline (Kang et al., J. Korean Phys. Soc. 41(6):865–871, 2002; US 7,024,034), 1667–25000 K | approximation |
-| `calculatePlanckianChromaticity` | Kim spline, or exact Planck × CMF integration (`planck-integration`) | approximation / calculated |
+| `estimatePlanckianLocusChromaticity` | Planck's law integrated against the engine's analytic CIE 1931 CMFs, 1 nm nodes 360–830 nm, 1000–100000 K (the default locus, `planck-analytic-cmf`) | approximation (from the CMF fit) |
+| `calculatePlanckianChromaticity` | The default locus, or Planck × CMF integration with caller CMFs and nodes (`planck-integration`) | approximation / calculated |
 | `estimateCorrelatedColorTemperatureMcCamy` | McCamy (1992), Color Res. Appl. 17(2):142–144: n = (x − 0.3320)/(0.1858 − y), CCT = 449n³ + 3525n² + 6823.3n + 5520.33 | approximation |
 | `calculateCorrelatedColorTemperature` | Nearest point on the chosen Planckian locus in CIE 1960 uv (the CCT/Duv definition as stated in Smet et al. 2023, free; also CIE 15:2018), golden-section search in mired. Signed Duv: positive above the locus (greenish), negative below (magenta). The sign follows Ohno (CORM 2011 slides, free, slide 5), and the engine documents and tests it. Fails closed for \|Duv\| > 0.05, the range over which Smet et al. evaluate CCT methods (CIE 15:2018, paid, gives the same limit) | follows the locus model |
 | `calculateChromaticityFromCorrelatedColorTemperature` | Locus point (Planckian or CIE daylight) offset by Duv along the unit normal of the Planckian locus in uv | follows the locus model |
 
-Measured in the tests:
+**The Planckian locus** is the chromaticity of a Planckian radiator, x(T) = X/(X + Y + Z) and y(T) = Y/(X + Y + Z) with X = Σ L(λᵢ, T) x̄(λᵢ) Δλᵢ (and likewise Y, Z), where L is Planck's law above. The constant 2hc² cancels. The default locus samples the CMFs and 1/λ⁵ once, so each temperature costs one exponential per node, and the CCT search caches its 201-point coarse scan per locus. The 2.0.0 default replaced the Kim et al. (2002) cubic spline, whose coefficients were removed by owner decision (October 17, 2026).
 
-- **Kim spline:** for the published CIE A chromaticity the spline gives CCT within 10 K of 2856 K and |Duv| < 2e-4. For D65 it gives about 6501 K and Duv ≈ +0.0032.
-- **Daylight polynomial:** at 6504 K it reproduces the CIE D65 chromaticity within 1.5e-4.
+Measured in the tests (no CIE table values):
+
+- **Locus:** u decreases monotonically with T from 1000 to 100000 K, and the default locus equals the explicit Planck integral (`planck-integration` with the analytic CMFs on the same nodes) and `integrateSpectrumToXyz` of a Planckian spectrum.
+- **Illuminant A:** its spectrum is proportional to Planck's law at 2848 K × c₂/1.435e-2 ≈ 2855.5 K, its chromaticity is the locus point at that temperature, and the CCT search recovers that temperature with |Duv| < 1e-9.
+- **McCamy cross-check:** on the default locus McCamy's cubic agrees within 20 K over 2856–6504 K (measured maximum 15 K). McCamy's cubic itself deviates from a locus integrated with the CIE table by up to 10 K over that range (computed once, outside the repository).
+- **Round trips:** CCT + Duv → chromaticity → CCT + Duv returns the inputs (CCT to 1e-4 relative, Duv to 1e-6) from 2000 to 40000 K.
+- **Daylight polynomial:** it satisfies y = −3x² + 2.87x − 0.275, x falls with T, and the daylight locus lies above the Planckian locus (0 < Duv < 0.01) over 4000–25000 K.
 - **A greenish light has a positive Duv:** chromaticities moved from the locus toward the BT.709 green primary give Duv > 0, and moved away give Duv < 0, at 2700, 4000 and 6500 K.
+
+**Accuracy of the default locus** (computed once, outside the repository, against a locus integrated with the CIE 1931 1 nm table on the same nodes): the uv distance is at most 1.05e-3 at 1667 K, 5.5e-4 at 2000 K, and 2.83e-4 from 2856 to 25000 K. The removed Kim spline was within 3.7e-4 of that table locus over 1667–25000 K, so it was closer above about 3000 K. For an exact table-based locus, pass CIE CMFs as `planck-integration`.
+
+**Change from the Kim spline default of earlier 2.0.0 drafts**: uv moves by at most 1.42e-3 at 1667 K and 7.0e-4 from 2000 to 25000 K. The CCT of the daylight-locus point at 6504 K moves from 6500.0 K (Duv 0.00323) to 6516.6 K (Duv 0.00345), and at 5000 K from 4996.2 K to 5011.5 K. Kelvin white-balance gains for an XYZ camera change by at most 0.5 % (blue at 2856 K).
+
+**Cost** (`node scripts/benchmark-planckian-locus.mjs`, Node 24.21, linux-x64 container, median of 9 × 200 calls): locus point 0.5 → 6.8 µs, CCT/Duv search 21 → 391 µs, chromaticity from CCT + Duv 1.1 → 19 µs, Kelvin white balance 4.1 → 20.9 µs, and the first CCT call (which prepares the default locus) 0.9 → 7.0 ms. A `planck-integration` CCT call with caller CMFs on 471 nodes fell from 9.7 to 2.3 ms.
 
 **Checks against the free CIE datasets** (CC BY-SA 4.0; downloaded from <https://cie.co.at/data-tables> on October 17, 2026 for the check only, not bundled or copied):
 
@@ -70,7 +88,6 @@ Measured in the tests:
 - *Daylight M₁/M₂* (components DOI 10.25039/CIE.DS.w7zunnny; D55 DOI 10.25039/CIE.DS.qewfb3kp; D65 DOI 10.25039/CIE.DS.hjfjmt59): with the polynomial at 5503.06 K and 6503.62 K (5500 K and 6500 K × 1.4388/1.4380) and three-decimal rounding, M₁, M₂ = (−0.785, −0.198) for D55 and (−0.295, −0.689) for D65. S₀ + M₁S₁ + M₂S₂ then reproduces the D55 table within 5.0e-4 and the D65 table within 8.5e-4 at every 5 nm node, which is their rounding.
 
 These checks confirm the coefficients, but not their source text. The daylight polynomial and M₁/M₂ come from Judd, MacAdam & Wyszecki (1964), *JOSA* 54(8):1031, and CIE 015:2018. No free-to-read copy of either was found (the publisher lists the paper as subscription-only), so this part of the citation audit stays open.
-- **Kim spline against exact integration:** compared with exact Planck integration through the analytic CMFs, the spline differs by less than 1e-3 in uv at 4000 K. Near 1667 K the difference is up to about 4.5e-3, and that figure includes the CMF-fit error.
 
 ## Chromatic adaptation
 
@@ -106,11 +123,11 @@ The review measured how far XYZ scaling departs from Bradford for illuminant A �
 
 `createColorTemperatureWhiteBalanceIntent()` still only records intent. `resolveColorTemperatureWhiteBalance()` turns that intent into channel gains for an explicit camera colour model `{ profileId, profileVersion, xyzToCameraRgb }`:
 
-1. white xy = locus(CCT) offset by Duv = `tint` (`tintInterpretation: "duv-cie-1960-uv"`, |Duv| ≤ 0.05), using the `planckian` or `cie-daylight` locus. The default Planckian locus model is the Kim et al. spline; `planck-integration` is the exact alternative.
+1. white xy = locus(CCT) offset by Duv = `tint` (`tintInterpretation: "duv-cie-1960-uv"`, |Duv| ≤ 0.05), using the `planckian` or `cie-daylight` locus. The default Planckian locus model is `planck-analytic-cmf` (Planck integrated against the analytic CMFs); `planck-integration` with tabulated CMFs is the exact alternative.
 2. camera neutral n = M_XYZ→camera · XYZ(white, Y = 1).
 3. gains = (n_G/n_R, 1, n_G/n_B).
 
-The result is a `ResolvedWhiteBalanceState` with `source: "color-temperature"`. Its `colorTemperature` record keeps the white chromaticity and the camera neutral, and its `sourceProfile` is the camera profile. A grey card lit by a Planckian illuminant of the same temperature comes out neutral to 1e-10 when the locus and the camera matrix share the CMFs. With the Kim spline the residual cast stays within a few percent, and it is reported in the tests. The CCT/tint describes the white the photographer declares, not a measured scene illuminant. Accuracy is bounded by the camera matrix, which is exact only under the Luther–Ives condition.
+The result is a `ResolvedWhiteBalanceState` with `source: "color-temperature"`. Its `colorTemperature` record keeps the white chromaticity and the camera neutral, and its `sourceProfile` is the camera profile. A grey card lit by a Planckian illuminant of the same temperature comes out neutral to 1e-10 when the locus and the camera matrix share the CMFs. With the default locus (1 nm nodes) and a camera integrated on 5 nm nodes, the residual cast is below 0.1 % in the tests. The CCT/tint describes the white the photographer declares, not a measured scene illuminant. Accuracy is bounded by the camera matrix, which is exact only under the Luther–Ives condition.
 
 ## Colour difference and CIELAB
 
@@ -118,9 +135,9 @@ The result is a `ResolvedWhiteBalanceState` with `source: "color-temperature"`. 
 - **`calculateColorDifference`** supports four formulas:
   - `cie76`: Euclidean ΔE*ab.
   - `cie94-graphic-arts` and `cie94-textiles`: ΔE*94 = √((ΔL*/(k_L S_L))² + (ΔC*/(k_C S_C))² + (ΔH*/(k_H S_H))²) with S_L = 1, S_C = 1 + K₁C*₁, S_H = 1 + K₂C*₁ and k_C = k_H = 1; graphic arts k_L = 1, K₁ = 0.045, K₂ = 0.015; textiles k_L = 2, K₁ = 0.048, K₂ = 0.014. C*₁ is the chroma of `reference`, so the formula is asymmetric in it, and ΔH*² = Δa*² + Δb*² − ΔC*². *Secondary source; the primary CIE 116-1995 is not free:* Wikipedia, ["Color difference", §CIE94](https://en.wikipedia.org/wiki/Color_difference#CIE94), which states these equations and weights. The tests also reproduce the worked values in the free colour-science documentation (`delta_E_CIE1994`, BSD-3-Clause): 1.6711191 (graphic arts) and 0.8404677 (textiles) for its example pair.
-  - `ciede2000`: implemented following the notes and test data of Sharma, Wu & Dalal (2005), Color Res. Appl. 30(1):21–30, freely available from the first author (also CIE 142-2001 / ISO/CIE 11664-6), with optional parametric factors k_L, k_C, k_H.
+  - `ciede2000`: implemented following the implementation notes of Sharma, Wu & Dalal (2005), Color Res. Appl. 30(1):21–30, freely available from the first author (also CIE 142-2001 / ISO/CIE 11664-6), with optional parametric factors k_L, k_C, k_H.
 
-The tests reproduce 13 of Sharma et al.'s published test pairs to 4 decimals, including the hue-discontinuity pairs.
+The tests no longer use Sharma et al.'s published test pairs: their data file carries no licence, and the page's only terms limit the authors' program and spreadsheet to personal or research use. Instead the tests check that CIEDE2000 reduces to its closed forms for pure lightness differences (ΔE00 = |ΔL*|/S_L), pure chroma differences on the a* axis and equal-chroma hue differences (including a pair whose hues straddle 0°), all written out in the test from the formula's definitions, plus symmetry, identity and the parametric factors.
 
 ## Camera colour-matrix fitting
 
@@ -186,15 +203,15 @@ PQ and HLG accept signals only in [0, 1] and fail closed outside that range. The
 ## References
 
 - CIE 15:2018 *Colorimetry*, 4th ed.; CIE 018:2019; ISO/CIE 11664-1/-2/-4/-6 (paid; see the free sources below and the citation audit in [RELEASE_2_0_0.md](RELEASE_2_0_0.md#citation-audit-free-sources)). Free CIE datasets (CC BY-SA 4.0, not bundled) at <https://cie.co.at/data-tables> are used only to check computed values.
-- C. Wyman, P.-P. Sloan, P. Shirley (2013), JCGT 2(2):1–11.
-- B. Kang, O. Moon, C. Hong, H. Lee, B. Cho, Y. Kim (2002), J. Korean Phys. Soc. 41(6):865–871; US Patent 7,024,034.
+- C. Wyman, P.-P. Sloan, P. Shirley (2013), JCGT 2(2):1–11 (the piecewise-Gaussian model form and the tristimulus integral, Eq. 1; its coefficients are not used).
+- CIE 1931 2° colour-matching functions, DOI 10.25039/CIE.DS.xvudnb9b (CC BY-SA 4.0), used at fit time only by `scripts/fit-cie-1931-cmf.mjs`.
 - C. S. McCamy (1992), Color Res. Appl. 17(2):142–144.
 - K. A. G. Smet et al. (2023), "Recommended method for determining the correlated color temperature and distance from the Planckian locus of a light source", LEUKOS, doi:10.1080/15502724.2023.2248397; free archival copy: <https://www.energy.gov/sites/default/files/2023-09/ssl-smet-etal-2023_method-cct-duv-light-source.pdf> (CCT and signed Duv, Duv range ±0.05).
 - Y. Ohno (2011), "Calculation of CCT and Duv and Practical Conversion Formulae", slides, CORM 2011 Conference, Gaithersburg, MD, May 3–5, 2011, slide 5 (Duv sign: "+ sign for above and - sign for below the Planckian locus"); free at <https://cormusa.org/wp-content/uploads/2018/04/CORM_2011_Calculation_of_CCT_and_Duv_and_Practical_Conversion_Formulae.pdf>.
 - K. M. Lam (1985), PhD thesis, University of Bradford; M. R. Luo, P. A. Rhodes (1999); ICC.1:2010 Annex E (ICC specifications are free at <https://www.color.org/>).
 - N. Moroney et al. (2002), IS&T/SID 10th Color Imaging Conference, listed in the RIT open repository <https://repository.rit.edu/other/143>; also CIE 159:2004.
 - C. Li et al. (2017), Color Res. Appl. 42(6):703–718.
-- G. Sharma, W. Wu, E. N. Dalal (2005), Color Res. Appl. 30(1):21–30; paper and test data at <https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/>. Also CIE 142-2001.
+- G. Sharma, W. Wu, E. N. Dalal (2005), Color Res. Appl. 30(1):21–30; paper at <https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/>. Also CIE 142-2001.
 - CIE94: Wikipedia, "Color difference", §CIE94, <https://en.wikipedia.org/wiki/Color_difference#CIE94> (secondary source; the primary CIE 116-1995 is not free). Worked values: colour-science, `colour.difference.delta_E_CIE1994` documentation, <https://github.com/colour-science/colour/blob/develop/colour/difference/delta_e.py> (BSD-3-Clause).
 - G. D. Finlayson, M. S. Drew (1997), IS&T/SID 5th Color Imaging Conference.
 - W3C CSS Color Module Level 4 §14 (free). Also see: J. Morovič (2008), *Color Gamut Mapping*, Wiley.

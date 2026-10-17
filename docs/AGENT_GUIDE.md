@@ -77,7 +77,7 @@ Most single calculations return a `CalculationResult`: `{ value, provenance, qua
 - `value` holds the numbers.
 - `provenance.kind` is `calculated`, `calibrated`, `estimated` or `approximation`.
   - `calculated`: an exact result of the stated model, such as the thin-lens equations.
-  - `approximation`: a simplified model, such as a fitted curve for the Planckian locus.
+  - `approximation`: a simplified model, such as the fitted analytic colour-matching functions.
 - `provenance.model` and `provenance.modelVersion` name the equation set. `provenance.assumptions`
   lists what the model leaves out, for example "Lens transmission (T-stop) is not modeled".
 - `quality` appears only when the engine can defend an uncertainty or valid range. Its absence does

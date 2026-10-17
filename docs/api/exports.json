@@ -53,6 +53,11 @@
       "kind": "type"
     },
     {
+      "name": "ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "AntiAliasingPointSplitComponent",
       "source": "src/sensor/optical-stack.ts",
       "kind": "type"
@@ -3643,11 +3648,6 @@
       "kind": "type"
     },
     {
-      "name": "KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN",
-      "source": "src/color/illuminants.ts",
-      "kind": "runtime"
-    },
-    {
       "name": "LateralCaLensCorrection",
       "source": "src/output/lens-corrections.ts",
       "kind": "type"
@@ -4919,6 +4919,11 @@
     },
     {
       "name": "PLANCK_CONSTANT_JOULE_SECONDS",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PLANCKIAN_LOCUS_RANGE_KELVIN",
       "source": "src/color/illuminants.ts",
       "kind": "runtime"
     },
@@ -8161,11 +8166,6 @@
       "name": "WidestAvailableFNumberCapability",
       "source": "src/equipment/exposure-capabilities.ts",
       "kind": "type"
-    },
-    {
-      "name": "WYMAN_2013_CMF_DOMAIN_NANOMETERS",
-      "source": "src/color/color-matching-functions.ts",
-      "kind": "runtime"
     },
     {
       "name": "ZERNIKE_MAXIMUM_NOLL_INDEX",

@@ -437,6 +437,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS`](api/color-color-matching-functions.md#analytic_cie_1931_cmf_domain_nanometers) | Runtime |
 | [`ColorimetricObserver`](api/color-color-matching-functions.md#colorimetricobserver) | Type |
 | [`ColorimetricQuadratureNode`](api/color-color-matching-functions.md#colorimetricquadraturenode) | Type |
 | [`ColorimetricSpectralSample`](api/color-color-matching-functions.md#colorimetricspectralsample) | Type |
@@ -458,7 +459,6 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`PreparedColorMatchingFunctions`](api/color-color-matching-functions.md#preparedcolormatchingfunctions) | Type |
 | [`TabulatedColorMatchingSample`](api/color-color-matching-functions.md#tabulatedcolormatchingsample) | Type |
 | [`TristimulusNormalization`](api/color-color-matching-functions.md#tristimulusnormalization) | Type |
-| [`WYMAN_2013_CMF_DOMAIN_NANOMETERS`](api/color-color-matching-functions.md#wyman_2013_cmf_domain_nanometers) | Runtime |
 
 ## color/colorimetry-math.ts
 
@@ -508,9 +508,9 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`createPlanckianSpectrum`](api/color-illuminants.md#createplanckianspectrum) | Runtime |
 | [`estimateCorrelatedColorTemperatureMcCamy`](api/color-illuminants.md#estimatecorrelatedcolortemperaturemccamy) | Runtime |
 | [`estimatePlanckianLocusChromaticity`](api/color-illuminants.md#estimateplanckianlocuschromaticity) | Runtime |
-| [`KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN`](api/color-illuminants.md#kim_2002_planckian_locus_range_kelvin) | Runtime |
 | [`MAX_CORRELATED_COLOR_TEMPERATURE_DUV`](api/color-illuminants.md#max_correlated_color_temperature_duv) | Runtime |
 | [`PLANCK_CONSTANT_JOULE_SECONDS`](api/color-illuminants.md#planck_constant_joule_seconds) | Runtime |
+| [`PLANCKIAN_LOCUS_RANGE_KELVIN`](api/color-illuminants.md#planckian_locus_range_kelvin) | Runtime |
 | [`PlanckianLocusModel`](api/color-illuminants.md#planckianlocusmodel) | Type |
 | [`SECOND_RADIATION_CONSTANT_METER_KELVIN`](api/color-illuminants.md#second_radiation_constant_meter_kelvin) | Runtime |
 | [`SPEED_OF_LIGHT_METERS_PER_SECOND`](api/color-illuminants.md#speed_of_light_meters_per_second) | Runtime |

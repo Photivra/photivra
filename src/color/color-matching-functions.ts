@@ -4,13 +4,13 @@
  * CIE colour-matching functions (CMFs) and spectrum → CIE XYZ integration.
  *
  * Two CMF sources are supported:
- * 1. The multi-lobe piecewise-Gaussian analytic fit of the CIE 1931 2° observer by
- *    Wyman, Sloan & Shirley (2013), "Simple Analytic Approximations to the CIE XYZ
- *    Color Matching Functions", JCGT 2(2):1–11, Eq. 4 and Table 1. Independently
- *    implemented from the published equation; it is an APPROXIMATION. The paper's
- *    Table 2 reports, relative to the 1 nm CIE 1931 tables, maximum squared errors of
- *    2.0e-4 (x̄), 6.4e-5 (ȳ), 4.9e-4 (z̄) (maximum absolute error ≈ 0.014, 0.008,
- *    0.022) and mean squared errors of 3.1e-5, 7.1e-6, 1.6e-5.
+ * 1. The engine's own analytic APPROXIMATION of the CIE 1931 2° observer. Each of x̄, ȳ, z̄ is a sum
+ *    of split Gaussian lobes (a lobe has an amplitude, a centre, and separate widths below and above
+ *    the centre): three lobes for x̄, two each for ȳ and z̄. The engine fitted the coefficients itself
+ *    by non-negative least squares to the CIE 1931 2° table (DOI 10.25039/CIE.DS.xvudnb9b) at 1 nm
+ *    from 360 to 830 nm, with `scripts/fit-cie-1931-cmf.mjs`. The table is used only when the fit is
+ *    run and is not stored in the repository. Measured fit error (maximum absolute / RMS): x̄ 0.0122 /
+ *    0.00426, ȳ 0.00733 / 0.00265, z̄ 0.0221 / 0.00397; see docs/COLORIMETRY.md.
  * 2. Caller-supplied tabulated CMFs, for example the official CIE datasets. The CIE
  *    distributes those under CC BY-SA 4.0, so they are NOT bundled with this Apache-2.0
  *    package. Tables are linearly interpolated. Outside their declared range they throw
@@ -38,14 +38,14 @@ import {
 } from "./colorimetry-math.js";
 import { requireInputObject } from "../core/record-validation.js";
 
-export const COLORIMETRY_MODEL_VERSION = "1.0.0" as const;
+export const COLORIMETRY_MODEL_VERSION = "2.0.0" as const;
 /** Upper bound on quadrature nodes per integration call. */
 export const MAX_COLORIMETRIC_QUADRATURE_NODES = 100_000;
 /** Upper bound on samples in a caller-supplied tabulated spectrum or CMF table. */
 export const MAX_COLORIMETRIC_TABLE_SAMPLES = 100_000;
 
-/** Wavelength domain over which the analytic CIE 1931 fit is accepted (CIE table domain). */
-export const WYMAN_2013_CMF_DOMAIN_NANOMETERS: Readonly<SpectralWavelengthRangeNanometers> = Object.freeze({ minimum: 360, maximum: 830 });
+/** Wavelength domain over which the analytic CIE 1931 fit is accepted (the domain it was fitted on). */
+export const ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS: Readonly<SpectralWavelengthRangeNanometers> = Object.freeze({ minimum: 360, maximum: 830 });
 
 /** One wavelength quadrature node; d-lambda is in nanometres. */
 export interface ColorimetricQuadratureNode {
@@ -81,7 +81,7 @@ export type ColorimetricObserver = "cie-1931-2-degree" | "cie-1964-10-degree" | 
 
 /** Selects a colour-matching-function source. */
 export type ColorMatchingFunctionsSource =
-  | { kind: "wyman-2013-cie-1931-multi-lobe-fit" }
+  | { kind: "analytic-cie-1931-multi-lobe-fit" }
   | {
       kind: "tabulated";
       observer: ColorimetricObserver;
@@ -101,18 +101,18 @@ export interface PreparedColorMatchingFunctions {
   evaluate(wavelengthNanometers: number): CieXyzTristimulus;
 }
 
-// Wyman, Sloan & Shirley (2013) Table 1: α (amplitude), β (centre, nm), γ / δ
-// (inverse widths, 1/nm, used left / right of β). Factual model coefficients.
-type Lobe = readonly [alpha: number, beta: number, gamma: number, delta: number];
-const X_LOBES: readonly Lobe[] = [[0.362, 442.0, 0.0624, 0.0374], [1.056, 599.8, 0.0264, 0.0323], [-0.065, 501.1, 0.0490, 0.0382]];
-const Y_LOBES: readonly Lobe[] = [[0.821, 568.8, 0.0213, 0.0247], [0.286, 530.9, 0.0613, 0.0322]];
-const Z_LOBES: readonly Lobe[] = [[1.217, 437.0, 0.0845, 0.0278], [0.681, 459.0, 0.0385, 0.0725]];
+// The engine's own fit (scripts/fit-cie-1931-cmf.mjs): per lobe the amplitude, the centre (nm),
+// and the standard deviation (nm) used below and above the centre.
+type Lobe = readonly [amplitude: number, centreNanometers: number, sigmaBelowNanometers: number, sigmaAboveNanometers: number];
+const X_LOBES: readonly Lobe[] = [[0.375817, 441.559, 15.3475, 94.5181], [-0.322164, 497.643, 23.3464, 30.5255], [0.968784, 600.86, 33.6528, 29.7704]];
+const Y_LOBES: readonly Lobe[] = [[0.285798, 530.874, 16.3146, 31.077], [0.820879, 568.79, 46.8848, 40.4965]];
+const Z_LOBES: readonly Lobe[] = [[1.2165, 436.962, 11.8408, 35.9867], [0.681263, 459.034, 25.9609, 13.7926]];
 
 function lobes(wavelength: number, set: readonly Lobe[]): number {
   let sum = 0;
-  for (const [alpha, beta, gamma, delta] of set) {
-    const t = (wavelength - beta) * (wavelength < beta ? gamma : delta);
-    sum += alpha * Math.exp(-0.5 * t * t);
+  for (const [amplitude, centre, sigmaBelow, sigmaAbove] of set) {
+    const t = (wavelength - centre) / (wavelength < centre ? sigmaBelow : sigmaAbove);
+    sum += amplitude * Math.exp(-0.5 * t * t);
   }
   return sum;
 }
@@ -124,12 +124,12 @@ function requireWavelengthIn(wavelength: number, range: SpectralWavelengthRangeN
 }
 
 /**
- * Evaluates the Wyman–Sloan–Shirley (2013) multi-lobe analytic approximation of the CIE
- * 1931 2° colour-matching functions at one wavelength (nm, standard-air wavelength as in
- * the CIE tables). Approximation: see the module notes for the published error.
+ * Evaluates the engine's multi-lobe analytic approximation of the CIE 1931 2° colour-matching
+ * functions at one wavelength (nm, standard-air wavelength as in the CIE tables). Approximation:
+ * see the module notes for the measured fit error. The values are non-negative over the domain.
  */
 export function estimateCie1931ColorMatchingFunctions(wavelengthNanometers: number): CieXyzTristimulus {
-  requireWavelengthIn(wavelengthNanometers, WYMAN_2013_CMF_DOMAIN_NANOMETERS, "Analytic CIE 1931 CMF wavelength");
+  requireWavelengthIn(wavelengthNanometers, ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS, "Analytic CIE 1931 CMF wavelength");
   return { x: lobes(wavelengthNanometers, X_LOBES), y: lobes(wavelengthNanometers, Y_LOBES), z: lobes(wavelengthNanometers, Z_LOBES) };
 }
 
@@ -175,13 +175,13 @@ function bracket(samples: readonly SpectralWavelengthSample[], wavelength: numbe
  */
 export function prepareColorMatchingFunctions(source: ColorMatchingFunctionsSource): PreparedColorMatchingFunctions {
   const record = requireRecordValue(source, "colorMatchingFunctions");
-  if (record.kind === "wyman-2013-cie-1931-multi-lobe-fit") {
+  if (record.kind === "analytic-cie-1931-multi-lobe-fit") {
     return Object.freeze({
       observer: "cie-1931-2-degree" as const,
-      sourceKind: "wyman-2013-cie-1931-multi-lobe-fit" as const,
-      datasetId: "wyman-sloan-shirley-2013-jcgt-2-2-eq4",
+      sourceKind: "analytic-cie-1931-multi-lobe-fit" as const,
+      datasetId: "photivra-cie-1931-multi-lobe-fit-2026-10-17",
       scientificStatus: "approximation" as const,
-      wavelengthRangeNanometers: { ...WYMAN_2013_CMF_DOMAIN_NANOMETERS },
+      wavelengthRangeNanometers: { ...ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS },
       evaluate: estimateCie1931ColorMatchingFunctions
     });
   }
@@ -419,8 +419,8 @@ export function integrateSpectrumToXyz(input: IntegrateSpectrumToXyzInput): Calc
     "Caller owns quadrature convergence and wavelength coverage; tabulated inputs are linearly interpolated and fail closed outside their range"
   ];
   return cmf.scientificStatus === "approximation"
-    ? approximationResult(value, "cie-xyz-spectral-integration-wyman-2013-cmf", COLORIMETRY_MODEL_VERSION,
-      [...assumptions, "CIE 1931 2° CMFs from the Wyman–Sloan–Shirley (2013) multi-lobe analytic fit (max abs CMF error ≈ 0.014/0.008/0.022)"])
+    ? approximationResult(value, "cie-xyz-spectral-integration-analytic-cmf", COLORIMETRY_MODEL_VERSION,
+      [...assumptions, "CIE 1931 2° CMFs from the engine's multi-lobe analytic fit (measured max abs CMF error 0.0122/0.00733/0.0221)"])
     : calculatedResult(value, "cie-xyz-spectral-integration-tabulated-cmf", COLORIMETRY_MODEL_VERSION,
       [...assumptions, "Caller-supplied tabulated CMFs: " + cmf.datasetId]);
 }

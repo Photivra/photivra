@@ -1807,7 +1807,7 @@ const quadratureNodes = createColorimetricMidpointQuadrature({
   wavelengthRangeNanometers: { minimum: 360, maximum: 830 },
   maximumSubintervalWidthNanometers: 1
 });
-const colorMatchingFunctions = { kind: "wyman-2013-cie-1931-multi-lobe-fit" } as const;
+const colorMatchingFunctions = { kind: "analytic-cie-1931-multi-lobe-fit" } as const;
 
 const illuminantA = integrateSpectrumToXyz({
   quadratureNodes,

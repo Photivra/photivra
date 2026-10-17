@@ -197,23 +197,15 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## estimatePlanckianLocusChromaticity
 
-Planckian-locus chromaticity from the Kim et al. (2002) cubic spline, 1667–25000 K.
-It approximates the exact Planck/CMF integral. The test suite measures its deviation from
-exact integration; no accuracy figure is claimed here.
+Planckian-locus chromaticity at T (1000–100000 K): Planck's law integrated against the engine's
+analytic CIE 1931 CMFs with 1 nm nodes from 360 to 830 nm. An approximation, because the CMFs are
+an analytic fit; with tabulated CMFs use {@link calculatePlanckianChromaticity}.
 
 ```ts
 export function estimatePlanckianLocusChromaticity(input: { temperatureKelvin: number }): CalculationResult<CieXyChromaticity>;
 ```
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
-
-## KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN
-
-Kim et al. (2002) spline validity, K.
-
-```ts
-KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN = Object.freeze({ minimum: 1667, maximum: 25000 })
-```
 
 ## MAX_CORRELATED_COLOR_TEMPERATURE_DUV
 
@@ -232,13 +224,24 @@ Exact SI defining constants (BIPM SI Brochure, 9th edition, 2019).
 PLANCK_CONSTANT_JOULE_SECONDS = 6.62607015e-34
 ```
 
+## PLANCKIAN_LOCUS_RANGE_KELVIN
+
+Temperature range of the Planckian-locus models, K.
+
+```ts
+PLANCKIAN_LOCUS_RANGE_KELVIN = Object.freeze({ minimum: 1000, maximum: 100000 })
+```
+
 ## PlanckianLocusModel
 
 Selects how the Planckian locus is evaluated.
 
 ```ts
 export type PlanckianLocusModel =
-  | { kind: "kim-2002-cubic-spline" }
+  | {
+      /** Planck's law integrated against the engine's analytic CIE 1931 CMFs, 1 nm nodes 360–830 nm (the default). */
+      kind: "planck-analytic-cmf";
+    }
   | {
       kind: "planck-integration";
       colorMatchingFunctions: ColorMatchingFunctionsSource;

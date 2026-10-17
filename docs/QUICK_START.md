@@ -209,8 +209,8 @@ console.log(vignette.request.whiteBalanceState?.source);
 These choices appear in `assumptions` as `kind: "model"` entries:
 
 - **Sensor colour.** The facade uses an idealized colorimetric sensor. Channel quantum efficiency is
-  a·{x̄, ȳ, z̄}(λ)·555 nm/λ from the engine's analytic CIE 1931 colour-matching functions
-  (Wyman, Sloan & Shirley 2013). The λ factor converts the energy-based functions into a
+  a·{x̄, ȳ, z̄}(λ)·555 nm/λ from the engine's own analytic fit of the CIE 1931 colour-matching
+  functions (an approximation; see Colorimetry). The λ factor converts the energy-based functions into a
   photon-counting response. RAW channels are then proportional to CIE XYZ (the Luther–Ives
   condition), and the camera matrix is diagonal. No real camera has this response.
 - **Lens.** The tier lens's spectrally flat transmission is used at every f-number and focus in the
@@ -482,7 +482,8 @@ provided, for rights reasons.
   and the daylight polynomial come from CIE 015:2018 (paid); computed values are checked against the
   free CIE datasets at <https://cie.co.at/data-tables> (see [Colorimetry](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md)).
 - C. Wyman, P.-P. Sloan, P. Shirley, "Simple analytic approximations to the CIE XYZ color matching
-  functions", *Journal of Computer Graphics Techniques* 2(2), 2013.
+  functions", *Journal of Computer Graphics Techniques* 2(2), 2013 (the piecewise-Gaussian model form;
+  the engine fits its own coefficients to the CIE 1931 data, see Colorimetry).
 - R. Luther, "Aus dem Gebiet der Farbreizmetrik", *Zeitschrift für technische Physik* 8, 1927
   (the Luther condition for colorimetric cameras).
 - W3C CSS Color Module Level 4 (`srgb` and `display-p3`; RGB↔XYZ matrices from primaries and white),

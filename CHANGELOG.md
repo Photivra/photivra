@@ -132,6 +132,19 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - No longer shipped: declaration maps; docs other than USAGE, API_REFERENCE, QUICK_START, `api/` and examples; and the unreachable `browser-native-reference-*` and `schema/{camera,scene}.js` modules.
   - *Migration:* read the other guides in the repository.
 
+**Colorimetry: third-party coefficients removed (owner decision, 2026-10-17)**
+
+- **Own CIE 1931 colour-matching-function fit replaces the Wyman et al. (2013) coefficients.**
+  - *Why:* the Wyman, Sloan & Shirley paper is CC BY-ND. The owner decided to remove third-party numbers with any licence question.
+  - *What changed:* `estimateCie1931ColorMatchingFunctions` uses coefficients the engine fitted itself to the CIE 1931 2° data (same kind of model: a sum of piecewise Gaussians). The CMF source kind `"wyman-2013-cie-1931-multi-lobe-fit"` is now `"analytic-cie-1931-multi-lobe-fit"`, and `WYMAN_2013_CMF_DOMAIN_NANOMETERS` is now `ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS` (still 360–830 nm). The provenance model is `cie-xyz-spectral-integration-analytic-cmf`, and `COLORIMETRY_MODEL_VERSION` is 2.0.0. The fit is still an approximation, slightly closer to the CIE data (maximum error 0.0122/0.00733/0.0221 for x̄/ȳ/z̄, was 0.0140/0.00800/0.0222; see `docs/COLORIMETRY.md`).
+  - *Effect:* colour outputs change slightly. Illuminant A integrates to xy (0.4480, 0.4074), was (0.4463, 0.4087). `simulateCapture()` RAW codes move by up to about 0.5 % (mean +1 to +5 codes), so its pinned output digests changed.
+  - *Migration:* replace the old kind and constant names. Re-render anything that must match 2.0.0 colour exactly.
+- **Planckian locus computed from Planck's law; the Kim et al. (2002) spline is removed.**
+  - *Why:* the cubic-spline coefficients come from Kang et al. (2002), which is also claimed in a (lapsed) patent. The owner decided to remove them.
+  - *What changed:* the locus is the chromaticity of Planck's law integrated against the engine's analytic CMFs on 1 nm nodes, 1000–100000 K. The locus kind `"kim-2002-cubic-spline"` is now `"planck-analytic-cmf"`, the default of `resolveColorTemperatureWhiteBalance`. `KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN` (1667–25000 K) is now `PLANCKIAN_LOCUS_RANGE_KELVIN` (1000–100000 K). `estimatePlanckianLocusChromaticity` keeps its name and uses the new locus. Resolved white-balance states record `planckianLocusModel: "planck-analytic-cmf"`, and states with `"kim-2002-cubic-spline"` are rejected.
+  - *Effect:* locus points move by up to 7.0e-4 in CIE 1960 uv from 2000 to 25000 K (1.4e-3 at 1667 K). The CCT of the daylight-locus point at 6504 K becomes 6516.6 K (was 6500.0 K), and Kelvin white-balance gains change by up to 0.5 %. A CCT/Duv search costs about 0.4 ms instead of 0.02 ms (`scripts/benchmark-planckian-locus.mjs`).
+  - *Migration:* replace `{ kind: "kim-2002-cubic-spline" }` with `{ kind: "planck-analytic-cmf" }` (or omit it for the default) and the range constant name. Re-resolve stored Kelvin/tint white-balance states. For a locus from tabulated CIE CMFs, use `{ kind: "planck-integration", colorMatchingFunctions, quadratureNodes }`.
+
 ### Added
 
 - **`simulateCapture()` (#300).** A full capture from a few options.
@@ -141,7 +154,7 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - Output: `srgb-8`, `srgb-16` or `jpeg`.
   - Procedural chart presets (uniform, slanted edge, Siemens star, step wedge, grey ramp, checkerboard, point grid, caller-spectrum patches) with `resolveChartScene` and helpers.
   - `SIMULATE_CAPTURE_FACADE_VERSION` 1.0.0; `docs/QUICK_START.md` (shipped) and `docs/examples/simulate-capture.mjs`.
-- **`simulateCapture()` uses the 2.0 features (#306, #307).** All opt-in. Without the new options, the 1.0 facade output is byte-identical at the same illuminance (the default illuminance changed; see *Free-source citations* below). Every choice is listed in `assumptions`.
+- **`simulateCapture()` uses the 2.0 features (#306, #307).** All opt-in. Without the new options, the 1.0 facade output is byte-identical at the same illuminance (the default illuminance changed; see *Free-source citations* below), apart from the colour-matching-function change under *Breaking changes*. Every choice is listed in `assumptions`.
   - `output.format: "png"` with `colorEncoding` `srgb`, `display-p3`, `rec2020`, `rec2100-pq` or `rec2100-hlg`. The unclipped linear development is converted through CIE XYZ, clipped once in the target gamut, and signalled with cICP. PQ/HLG place RAW white at the BT.2408 reference white.
   - Optional `gamutMapping: "perceptual"` (constant CIELAB L* and hue).
   - `output.format: "dng"`.
@@ -153,8 +166,8 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - It declares no linear master, and counts the saturation flags DNG cannot carry.
   - `NATIVE_RAW_DNG_SCHEMA_VERSION` 1.0.0.
 - **Colorimetry (#291).**
-  - Analytic CIE 1931 colour-matching functions (Wyman et al. 2013, labelled approximation) or caller-tabulated CMFs; `integrateSpectrumToXyz`.
-  - Planck radiance, illuminant A, CIE daylight with caller-supplied basis spectra, the Kim et al. Planckian locus, McCamy CCT, and nearest-locus CCT/Duv with its inverse. (CCT = correlated colour temperature.)
+  - Analytic CIE 1931 colour-matching functions (the engine's own fit, labelled approximation) or caller-tabulated CMFs; `integrateSpectrumToXyz`.
+  - Planck radiance, illuminant A, CIE daylight with caller-supplied basis spectra, the Planckian locus from Planck's law, McCamy CCT, and nearest-locus CCT/Duv with its inverse. (CCT = correlated colour temperature.)
   - Chromatic adaptation: Bradford, CAT02, CAT16, von Kries-HPE, XYZ scaling, degree of adaptation.
   - CIELAB/LCh, and ΔE76, CIE94 and CIEDE2000.
   - `estimateCameraColorMatrix`.
@@ -290,6 +303,8 @@ Unless marked otherwise, output is bit-identical to the code before the change, 
 - `NUMERICAL_CORRECTNESS.md` documents the cross-engine determinism policy and the test hash locks; `API_STYLE.md` documents naming conventions (#293, #299).
 - Plain-language rewrite of the source comments and docs: shorter sentences, jargon defined at first use, internal ticket chatter removed. Comments and prose only; the comment-stripped build is identical (#309–#312).
 - For AI agents: `llms.txt` and `docs/AGENT_GUIDE.md` ship in the package, and the API reference opens with a task-to-function index that its generator checks against the root exports (#313).
+- No CIE table values in tests (owner decision, 2026-10-17). The CMF, illuminant A, daylight and locus tests now check internal consistency, normalization, round trips and values computed from Planck's law and the daylight formula. The CIEDE2000 tests replace the Sharma et al. (2005) published pairs, whose data file carries no licence, with closed-form special cases computed from the formula. `scripts/fit-cie-1931-cmf.mjs` reproduces the CMF fit (it downloads the CIE table at fit time only), and `scripts/benchmark-planckian-locus.mjs` times the locus functions.
+- `docs/licenses/adobe-dng-patent-license-record.txt` records where the Adobe DNG patent licence was read (URL, date, page SHA-256), its exact required notice and a summary. It is not a copy of the licence: Adobe's Terms of Use do not clearly allow copying its website text.
 - `AGENTS.md` is reset to a short standard file with three rules: evidence-based changes, free-to-use sources only, and owner approval for anything that goes to production (#308, #313).
 
 ## 1.5.0 — published October 7, 2026
