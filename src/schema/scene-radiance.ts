@@ -29,7 +29,7 @@ import type {
   SceneIlluminationTemporalProfile
 } from "./illumination-temporal.js";
 import type { Vector3 } from "./scene.js";
-import { requireInputObject, requireInputArray, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputArray, requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -242,7 +242,8 @@ export interface SceneRadianceEvaluationBindingAssessment {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -253,6 +254,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -318,7 +320,7 @@ function parseVector3(
   value: unknown,
   path: string
 ): Vector3 {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["x", "y", "z"]);
   return {
     x: requireFinite(record.x, path + ".x"),
     y: requireFinite(record.y, path + ".y"),
@@ -352,7 +354,8 @@ function parseUncertainty(
   value: unknown,
   path: string
 ): SceneRadianceUncertainty {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", UNCERTAINTY_VARIANT_FIELDS, path);
   if (record.kind === "relative") {
     return {
       kind: "relative",
@@ -411,7 +414,7 @@ function parseArtifact(
   value: unknown,
   path: string
 ): SceneRadianceDataArtifactReference {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["checksumSha256", "id"]);
   const checksumSha256 =
     requireNonEmptyString(
       record.checksumSha256,
@@ -441,7 +444,13 @@ function parseMaterialRepresentation(
   value: unknown,
   path: string
 ): SceneMaterialResponseRepresentation {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", {
+    unresolved: ["kind", "limitation"],
+    "rgb-pbr-approximation": ["kind", "colorSpace", "baseColor", "metallic", "roughness", "limitation"],
+    "spectral-wavelength-preserving-data": ["kind", "dataArtifact", "wavelengthBasis", "wavelengthRangeNanometers", "scatteringModel",
+      "scientificStatus", "uncertainty", "wavelengthChangingBehaviorModeled", "emissionModeled"]
+  }, path);
 
   if (record.kind === "unresolved") {
     return {
@@ -465,7 +474,7 @@ function parseMaterialRepresentation(
     }
     const baseColor = requireRecord(
       record.baseColor,
-      path + ".baseColor"
+      path + ".baseColor", ["red", "green", "blue"]
     );
     return {
       kind: "rgb-pbr-approximation",
@@ -608,7 +617,7 @@ export function parseSceneMaterialResponseProfile(
 ): SceneMaterialResponseProfile {
   const record = requireRecord(
     value,
-    "sceneMaterialResponseProfile"
+    "sceneMaterialResponseProfile", ["schemaVersion", "materials", "fluorescenceModeled", "volumetricMaterialTransportModeled", "polarizationModeled", "profileId", "sceneId", "evidence"]
   );
   if (
     record.schemaVersion !==
@@ -634,7 +643,7 @@ export function parseSceneMaterialResponseProfile(
         "]";
       const material = requireRecord(
         entry,
-        path
+        path, ["materialResponseId", "evidence", "representation"]
       );
       return {
         materialResponseId:
@@ -712,6 +721,8 @@ export function assessSceneMaterialResponseFidelity(
   profile: SceneMaterialResponseProfile
 ): SceneMaterialResponseFidelity {
   requireInputObject(profile, "assessSceneMaterialResponseFidelity input");
+  // 2.0.0: the whole profile is validated, so an unknown field at any level is rejected.
+  parseSceneMaterialResponseProfile(profile);
   requireInputArray(profile.materials, "profile.materials");
   if (
     profile.materials.some(
@@ -755,7 +766,7 @@ function parseProviderFidelity(
   value: unknown,
   path: string
 ): SceneRadianceProviderProfile["fidelity"] {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["spectral", "material", "visibility", "directTransport", "indirectTransport"]);
   const spectral = record.spectral;
   if (
     spectral !== "wavelength-resolved" &&
@@ -838,7 +849,7 @@ export function parseSceneRadianceProviderProfile(
 ): SceneRadianceProviderProfile {
   const record = requireRecord(
     value,
-    "sceneRadianceProviderProfile"
+    "sceneRadianceProviderProfile", ["schemaVersion", "outputQuantity", "outputUnit", "scientificStatus", "wavelengthChangingTransportModeled", "volumetricTransportModeled", "polarizationModeled", "profileId", "sceneId", "illuminationProfileId", "illuminationTemporalProfileId", "materialResponseProfileId", "uncertainty", "fidelity", "evidence", "limitations"]
   );
   if (
     record.schemaVersion !==
@@ -981,7 +992,11 @@ function parseEvaluationTarget(
   value: unknown,
   path: string
 ): SceneRadianceEvaluationTarget {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", {
+    "surface-point": ["kind", "sceneObjectId", "materialResponseId", "positionM", "outgoingDirectionUnitVector"],
+    "environment-direction": ["kind", "outgoingDirectionUnitVector"]
+  }, path);
   if (record.kind === "surface-point") {
     return {
       kind: "surface-point",
@@ -1034,7 +1049,7 @@ export function parseSceneRadianceEvaluationRequest(
 ): SceneRadianceEvaluationRequest {
   const record = requireRecord(
     value,
-    "sceneRadianceEvaluationRequest"
+    "sceneRadianceEvaluationRequest", ["schemaVersion", "sampleId", "providerProfileId", "sceneId", "illuminationProfileId", "materialResponseProfileId", "target", "timeSecondsFromExposureStart", "wavelengthNanometers", "wavelengthBasis"]
   );
   if (
     record.schemaVersion !==
@@ -1107,7 +1122,7 @@ export function parseSceneRadianceEvaluationResult(
 ): SceneRadianceEvaluationResult {
   const record = requireRecord(
     value,
-    "sceneRadianceEvaluationResult"
+    "sceneRadianceEvaluationResult", ["schemaVersion", "quantity", "unit", "scientificStatus", "sampleId", "providerProfileId", "sceneId", "wavelengthNanometers", "wavelengthBasis", "spectralRadianceWattsPerSquareMeterSteradianNanometer", "uncertainty", "evidence", "limitations"]
   );
   if (
     record.schemaVersion !==

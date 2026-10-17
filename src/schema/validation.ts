@@ -6,6 +6,7 @@
  * and support limits.
  */
 
+import { rejectUnknownFields, rejectUnknownVariantFields } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 export { InvalidConfigurationError } from "../core/configuration-error.js";
 
@@ -38,10 +39,15 @@ const SCENE_CAPABILITIES = new Set<SceneCapability>([
   "absolute-radiometry"
 ]);
 
-function requireRecord(value: unknown, path: string): UnknownRecord {
+function requireRecord(
+  value: unknown,
+  path: string,
+  allowedKeys: readonly string[] | null
+): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new InvalidConfigurationError(`${path} must be an object.`);
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -102,7 +108,7 @@ function requirePositiveIntegerValue(
 }
 
 function assertVector3(value: unknown, path: string): void {
-  const vector = requireRecord(value, path);
+  const vector = requireRecord(value, path, ["x", "y", "z"]);
   for (const component of ["x", "y", "z"] as const) {
     const coordinate = vector[component];
     if (typeof coordinate !== "number" || !Number.isFinite(coordinate)) {
@@ -143,29 +149,29 @@ function assertUniqueStrings(values: readonly string[], path: string): void {
 export function parseCameraConfiguration(
   value: unknown
 ): CameraConfiguration {
-  const camera = requireRecord(value, "camera");
+  const camera = requireRecord(value, "camera", ["sensor", "lens", "exposure", "focus", "stabilization"]);
 
-  const sensor = requireRecord(camera.sensor, "camera.sensor");
+  const sensor = requireRecord(camera.sensor, "camera.sensor", ["widthMm", "heightMm", "pixelWidth", "pixelHeight"]);
   requirePositiveNumber(sensor, "widthMm", "camera.sensor");
   requirePositiveNumber(sensor, "heightMm", "camera.sensor");
   requirePositiveIntegerValue(sensor, "pixelWidth", "camera.sensor");
   requirePositiveIntegerValue(sensor, "pixelHeight", "camera.sensor");
 
-  const lens = requireRecord(camera.lens, "camera.lens");
+  const lens = requireRecord(camera.lens, "camera.lens", ["focalLengthMm", "aperture"]);
   requirePositiveNumber(lens, "focalLengthMm", "camera.lens");
   requirePositiveNumber(lens, "aperture", "camera.lens");
 
-  const exposure = requireRecord(camera.exposure, "camera.exposure");
+  const exposure = requireRecord(camera.exposure, "camera.exposure", ["shutterSeconds", "iso"]);
   requirePositiveNumber(exposure, "shutterSeconds", "camera.exposure");
   requirePositiveNumber(exposure, "iso", "camera.exposure");
 
-  const focus = requireRecord(camera.focus, "camera.focus");
+  const focus = requireRecord(camera.focus, "camera.focus", ["focusDistanceM"]);
   requirePositiveNumber(focus, "focusDistanceM", "camera.focus");
 
   if (camera.stabilization !== undefined) {
     const stabilization = requireRecord(
       camera.stabilization,
-      "camera.stabilization"
+      "camera.stabilization", ["bodyEnabled", "lensEnabled", "support"]
     );
     requireBoolean(stabilization, "bodyEnabled", "camera.stabilization");
     requireBoolean(stabilization, "lensEnabled", "camera.stabilization");
@@ -191,12 +197,13 @@ export function parseCameraConfiguration(
  * @returns The original value narrowed to SceneDefinition.
  */
 export function parseSceneDefinition(value: unknown): SceneDefinition {
-  const scene = requireRecord(value, "scene");
+  const scene = requireRecord(value, "scene", ["schemaVersion", "id", "version", "radiometry", "capabilities", "objects", "focusTargetIds"]);
   requireString(scene, "schemaVersion", "scene");
   requireString(scene, "id", "scene");
   requireString(scene, "version", "scene");
 
-  const radiometry = requireRecord(scene.radiometry, "scene.radiometry");
+  const radiometry = requireRecord(scene.radiometry, "scene.radiometry", null);
+  rejectUnknownVariantFields(radiometry, "kind", { "relative-linear": ["kind", "referenceValue"], "absolute-luminance": ["kind", "referenceValue", "referenceLuminanceCdM2"] }, "scene.radiometry");
   const radiometryKind = requireString(
     radiometry,
     "kind",
@@ -234,7 +241,7 @@ export function parseSceneDefinition(value: unknown): SceneDefinition {
   const objectIds: string[] = [];
   scene.objects.forEach((objectValue, index) => {
     const path = `scene.objects[${index}]`;
-    const object = requireRecord(objectValue, path);
+    const object = requireRecord(objectValue, path, ["id", "distanceM", "label", "tags", "motion"]);
     objectIds.push(requireString(object, "id", path));
     requirePositiveNumber(object, "distanceM", path);
 
@@ -245,7 +252,7 @@ export function parseSceneDefinition(value: unknown): SceneDefinition {
       assertStringArray(object.tags, `${path}.tags`);
     }
     if (object.motion !== undefined) {
-      const motion = requireRecord(object.motion, `${path}.motion`);
+      const motion = requireRecord(object.motion, `${path}.motion`, ["linearVelocityMps", "angularVelocityRadPerSec"]);
       assertVector3(
         motion.linearVelocityMps,
         `${path}.motion.linearVelocityMps`

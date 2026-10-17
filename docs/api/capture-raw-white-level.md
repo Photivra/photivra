@@ -6,6 +6,10 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 W as documented above; throws unless B < W ≤ D. Ties round up, matching the ADC.
 
+Accepts an `EffectiveSaturationReadout` or a whole `SensorRawCodeSample`, optionally with the
+regime's `integralNonLinearity`. From 2.0.0 any other field is rejected with
+`InvalidConfigurationError`, and the `integralNonLinearity` record and its knots are checked too.
+
 ```ts
 export function calculateEffectiveSaturationCode(readout: EffectiveSaturationReadout): number;
 ```

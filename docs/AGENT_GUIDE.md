@@ -65,8 +65,8 @@ Other conventions:
 - Most calls take one input object. Every calculator that takes an input object, including
   `simulateCapture()`, `calculateDepthOfField()` and `calculateSignalToNoise()`, rejects unknown
   fields, so a typo or a wrong unit suffix fails loudly with `InvalidConfigurationError`. Check field
-  names against the reference. The versioned-record parsers (`parse*()`) still read only the fields
-  they know.
+  names against the reference. The versioned-record parsers (`parse*()`) and the functions that take
+  a whole record are strict too: an unknown field at any level fails, and the error names it.
 - `null` stands for an infinite or undefined value that JSON cannot store, for example
   `farLimitM` beyond the hyperfocal distance.
 - The 35 mm reference frame is 36 × 24 mm.

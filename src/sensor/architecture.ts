@@ -17,6 +17,7 @@ import {
   type EvidenceReuseStatus,
   type EvidenceSourceOrigin
 } from "../core/evidence-provenance.js";
+import { rejectUnknownFields } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 type UnknownRecord = Record<string, unknown>;
@@ -119,10 +120,15 @@ const COLOR_SAMPLING_VALUES = new Set<SensorColorSamplingFamily>([
   "layered-color"
 ]);
 
-function requireRecord(value: unknown, path: string): UnknownRecord {
+function requireRecord(
+  value: unknown,
+  path: string,
+  allowedKeys: readonly string[] | null
+): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new InvalidConfigurationError(`${path} must be an object.`);
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -145,7 +151,7 @@ function parseScalarFact<T extends string>(
   path: string,
   allowed: ReadonlySet<T>
 ): SourcedSensorArchitectureFact<T> {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["value", "evidence"]);
   const factValue = requireNonEmptyString(record, "value", path);
   if (!allowed.has(factValue as T)) {
     throw new InvalidConfigurationError(`${path}.value is invalid.`);
@@ -244,7 +250,7 @@ function parseSharedArchitectureFields(
 export function parseSensorArchitectureProfile(
   value: unknown
 ): SensorArchitectureProfile {
-  const profile = requireRecord(value, "sensorArchitecture");
+  const profile = requireRecord(value, "sensorArchitecture", ["illumination", "integration", "readoutCapabilities", "colorSamplingFamily", "schemaVersion", "technologyFamily"]);
   const shared = parseSharedArchitectureFields(profile);
 
   if (

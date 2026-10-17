@@ -12,6 +12,7 @@
  * limits.
  */
 
+import { rejectUnknownFields } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,
@@ -48,7 +49,8 @@ export interface ExposureProgramLineProfile {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -59,6 +61,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -149,7 +152,7 @@ export function parseExposureProgramLineProfile(
 ): ExposureProgramLineProfile {
   const record = requireRecord(
     value,
-    "exposureProgramLineProfile"
+    "exposureProgramLineProfile", ["schemaVersion", "scientificStatus", "policyKind", "interpolation", "nodes", "profileId", "profileVersion", "evidence", "limitations"]
   );
 
   if (
@@ -206,7 +209,7 @@ export function parseExposureProgramLineProfile(
         index +
         "]";
       const node =
-        requireRecord(entry, path);
+        requireRecord(entry, path, ["nodeId", "opticalExposureStopsFromReference", "aperture", "shutterSeconds"]);
       const nodeId =
         requireNonEmptyString(
           node.nodeId,

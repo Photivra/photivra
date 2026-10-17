@@ -14,6 +14,7 @@ import {
   parseEvidenceList,
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
+import { rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 type UnknownRecord = Record<string, unknown>;
@@ -174,10 +175,15 @@ const SCIENTIFIC_STATUSES = new Set<RadiometryScientificStatus>([
   "approximation"
 ]);
 
-function requireRecord(value: unknown, path: string): UnknownRecord {
+function requireRecord(
+  value: unknown,
+  path: string,
+  allowedKeys: readonly string[] | null
+): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new InvalidConfigurationError(`${path} must be an object.`);
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -233,7 +239,7 @@ function parseArtifact(
   value: unknown,
   path: string
 ): CalibrationArtifactReference {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["id", "checksumSha256"]);
   const id = requireString(record, "id", path);
   const checksumSha256 = requireString(
     record,
@@ -252,7 +258,8 @@ function parseUncertainty(
   value: unknown,
   path: string
 ): RadiometryUncertaintyDeclaration {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", { ...UNCERTAINTY_VARIANT_FIELDS, absolute: ["kind", "plusMinus", "unit", "basis"] }, path);
   const kind = requireString(record, "kind", path);
 
   if (kind === "relative") {
@@ -350,7 +357,7 @@ function parseRequirement(
   value: unknown,
   path: string
 ): RadiometryRequirement {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["requirement", "scientificStatus", "modelId", "modelVersion", "evidence", "uncertainty", "representation", "dataArtifact", "tStop", "areaModel", "geometricPitchXMicrometers", "geometricPitchYMicrometers", "effectiveCollectionAreaSquareMicrometers", "geometricCellAreaSquareMicrometers", "fillFactor", "integrationModel", "responseRepresentation", "effectiveQuantumEfficiency"]);
   const requirement = requireString(record, "requirement", path);
   if (!REQUIREMENT_IDS.has(requirement as RadiometryRequirementId)) {
     throw new InvalidConfigurationError(
@@ -562,7 +569,7 @@ function parseRequirement(
 export function parseRadiometryReadinessProfile(
   value: unknown
 ): RadiometryReadinessProfile {
-  const profile = requireRecord(value, "radiometryReadiness");
+  const profile = requireRecord(value, "radiometryReadiness", ["schemaVersion", "components"]);
   if (profile.schemaVersion !== "0.1.0") {
     throw new InvalidConfigurationError(
       'radiometryReadiness.schemaVersion must be "0.1.0".'

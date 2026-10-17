@@ -1,6 +1,6 @@
 import { correctionProfile as executedCorrectionProfile, state as executedCorrectionState } from "./optics-group-fixtures.js";
 import { frameInput as environmentFrameInput, evaluator as environmentEvaluator } from "./helpers/environment-raw-fixture.js";
-import { simulateEnvironmentSensorRawFrame } from "../src/index.js";
+import { InvalidConfigurationError, simulateEnvironmentSensorRawFrame } from "../src/index.js";
 import { loadSensorRawFrameInput } from "./helpers/sensor-raw-frame-fixture.js";
 import { loadPhotographicExportInput } from "./helpers/photographic-export-fixture.js";
 import { describe, expect, it } from "vitest";
@@ -630,6 +630,15 @@ describe("production image-formation preparation", () => {
   it("round-trips only when the prepared fingerprint matches content", () => {
     const context = prepared();
 
+    // 2.0.0: the JSON form of a prepared context parses again, and unknown fields are named at any level.
+    expect(parsePreparedImageFormationContext(JSON.parse(JSON.stringify(context)))).toEqual(context);
+    expect(() => parsePreparedImageFormationContext({ ...context, unexpectedField: 1 } as never))
+      .toThrow(new InvalidConfigurationError('preparedImageFormationContext has unknown field "unexpectedField".'));
+    expect(() => parsePreparedImageFormationContext({ ...context, renderer: { ...context.renderer, unexpectedField: 1 } } as never))
+      .toThrow(/rendererCapability has unknown field "unexpectedField"/);
+    expect(() => parsePreparedImageFormationContext({ ...context, fingerprint: { ...context.fingerprint, note: "x" } } as never))
+      .toThrow(new InvalidConfigurationError('preparedImageFormationContext.fingerprint has unknown field "note".'));
+
     expect(
       parsePreparedImageFormationContext(
         context
@@ -1085,6 +1094,17 @@ describe("ready physical production plan", () => {
     const edited = { ...structuredClone(first), status: first.status === "ready" ? "blocked" : "ready" } as typeof first;
     expect(() => serializeProductionImageFormationPlan(edited)).toThrow(/fingerprint does not match/);
     expect(JSON.parse(serializeProductionImageFormationPlan(structuredClone(first)))).toEqual(JSON.parse(serializeProductionImageFormationPlan(first)));
+    // 2.0.0: a serialized plan parses back from JSON and serializes identically; unknown fields are named.
+    const json = serializeProductionImageFormationPlan(first);
+    expect(serializeProductionImageFormationPlan(JSON.parse(json) as typeof first)).toBe(json);
+    expect(() => serializeProductionImageFormationPlan({ ...first, unexpectedField: 1 } as typeof first))
+      .toThrow(new InvalidConfigurationError('productionImageFormationPlan has unknown field "unexpectedField".'));
+    expect(() => serializeProductionImageFormationPlan({ ...first, fingerprint: { ...first.fingerprint, note: "x" } } as typeof first))
+      .toThrow(new InvalidConfigurationError('productionImageFormationPlan.fingerprint has unknown field "note".'));
+    // Nested content is bound by the recomputed fingerprint, so an added nested field is rejected too.
+    const nested = structuredClone(first) as unknown as { stochastic: Record<string, unknown> };
+    nested.stochastic.unexpectedField = 1;
+    expect(() => serializeProductionImageFormationPlan(nested as unknown as typeof first)).toThrow(/fingerprint does not match/);
   });
 
   it("changes reproducibility identity when material uncertainty metadata changes", () => {

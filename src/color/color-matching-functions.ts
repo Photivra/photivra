@@ -36,7 +36,7 @@ import {
   type CieXyChromaticity,
   type CieXyzTristimulus
 } from "./colorimetry-math.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { rejectUnknownFields, requireInputKeys } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export const COLORIMETRY_MODEL_VERSION = "2.0.0" as const;
@@ -137,6 +137,7 @@ export function estimateCie1931ColorMatchingFunctions(wavelengthNanometers: numb
 function parseIncreasingSamples<T extends SpectralWavelengthSample>(
   samples: unknown,
   path: string,
+  sampleKeys: readonly string[],
   parseValue: (sample: Record<string, unknown>, samplePath: string) => T
 ): T[] {
   if (!Array.isArray(samples) || samples.length < 2 || samples.length > MAX_COLORIMETRIC_TABLE_SAMPLES) {
@@ -147,6 +148,7 @@ function parseIncreasingSamples<T extends SpectralWavelengthSample>(
   samples.forEach((raw: unknown, i) => {
     const samplePath = path + "[" + i + "]";
     const record = requireRecordValue(raw, samplePath);
+    rejectUnknownFields(record, sampleKeys, samplePath);
     const wavelength = requirePositiveNumber(record.wavelengthNanometers, samplePath + ".wavelengthNanometers");
     if (!(wavelength > previous)) throw new InvalidScientificInputError(path + " wavelengths must be strictly increasing.");
     previous = wavelength;
@@ -176,7 +178,9 @@ function bracket(samples: readonly SpectralWavelengthSample[], wavelength: numbe
  */
 export function prepareColorMatchingFunctions(source: ColorMatchingFunctionsSource): PreparedColorMatchingFunctions {
   const record = requireRecordValue(source, "colorMatchingFunctions");
+  rejectUnknownFields(record, ["kind", "observer", "datasetId", "samples"], "colorMatchingFunctions");
   if (record.kind === "analytic-cie-1931-multi-lobe-fit") {
+    rejectUnknownFields(record, ["kind"], "colorMatchingFunctions");
     return Object.freeze({
       observer: "cie-1931-2-degree" as const,
       sourceKind: "analytic-cie-1931-multi-lobe-fit" as const,
@@ -187,6 +191,7 @@ export function prepareColorMatchingFunctions(source: ColorMatchingFunctionsSour
     });
   }
   if (record.kind !== "tabulated") throw new InvalidConfigurationError("colorMatchingFunctions.kind is not supported.");
+  rejectUnknownFields(record, ["kind", "observer", "datasetId", "samples"], "colorMatchingFunctions");
   const observer = record.observer;
   if (observer !== "cie-1931-2-degree" && observer !== "cie-1964-10-degree" && observer !== "caller-defined") {
     throw new InvalidConfigurationError("colorMatchingFunctions.observer is not supported.");
@@ -195,7 +200,8 @@ export function prepareColorMatchingFunctions(source: ColorMatchingFunctionsSour
     throw new InvalidConfigurationError("colorMatchingFunctions.datasetId must be a non-empty string.");
   }
   const signed = observer === "caller-defined";
-  const samples = parseIncreasingSamples<TabulatedColorMatchingSample>(record.samples, "colorMatchingFunctions.samples", (s, p) => {
+  const samples = parseIncreasingSamples<TabulatedColorMatchingSample>(record.samples, "colorMatchingFunctions.samples",
+    ["wavelengthNanometers", "xBar", "yBar", "zBar"], (s, p) => {
     const v = (key: "xBar" | "yBar" | "zBar"): number => {
       const n = requireFiniteNumber(s[key], p + "." + key);
       if (!signed && n < 0) throw new InvalidScientificInputError(p + "." + key + " must not be negative for a CIE observer.");
@@ -229,8 +235,11 @@ export interface PreparedColorimetricSpectrum {
 /** Validates a tabulated or functional spectrum (values must be finite; sign is not restricted). */
 export function prepareColorimetricSpectrum(spectrum: ColorimetricSpectrum, path = "spectrum"): PreparedColorimetricSpectrum {
   const record = requireRecordValue(spectrum, path);
+  rejectUnknownFields(record, ["kind", "samples", "wavelengthRangeNanometers", "evaluate"], path);
   if (record.kind === "function") {
+    rejectUnknownFields(record, ["kind", "wavelengthRangeNanometers", "evaluate"], path);
     const range = requireRecordValue(record.wavelengthRangeNanometers, path + ".wavelengthRangeNanometers");
+    rejectUnknownFields(range, ["minimum", "maximum"], path + ".wavelengthRangeNanometers");
     const minimum = requirePositiveNumber(range.minimum, path + ".wavelengthRangeNanometers.minimum");
     const maximum = requirePositiveNumber(range.maximum, path + ".wavelengthRangeNanometers.maximum");
     if (!(minimum < maximum)) throw new InvalidScientificInputError(path + ".wavelengthRangeNanometers.minimum must be less than maximum.");
@@ -248,7 +257,8 @@ export function prepareColorimetricSpectrum(spectrum: ColorimetricSpectrum, path
     };
   }
   if (record.kind !== "tabulated") throw new InvalidConfigurationError(path + ".kind is not supported.");
-  const samples = parseIncreasingSamples<ColorimetricSpectralSample>(record.samples, path + ".samples", (s, p) => ({
+  rejectUnknownFields(record, ["kind", "samples"], path);
+  const samples = parseIncreasingSamples<ColorimetricSpectralSample>(record.samples, path + ".samples", ["wavelengthNanometers", "value"], (s, p) => ({
     wavelengthNanometers: s.wavelengthNanometers as number,
     value: requireFiniteNumber(s.value, p + ".value")
   }));
@@ -297,6 +307,7 @@ export function parseColorimetricQuadratureNodes(nodes: unknown): ColorimetricQu
   }
   return nodes.map((raw: unknown, i) => {
     const r = requireRecordValue(raw, "quadratureNodes[" + i + "]");
+    rejectUnknownFields(r, ["wavelengthNanometers", "wavelengthMeasureNanometers"], "quadratureNodes[" + i + "]");
     return {
       wavelengthNanometers: requirePositiveNumber(r.wavelengthNanometers, "quadratureNodes[" + i + "].wavelengthNanometers"),
       wavelengthMeasureNanometers: requirePositiveNumber(r.wavelengthMeasureNanometers, "quadratureNodes[" + i + "].wavelengthMeasureNanometers")

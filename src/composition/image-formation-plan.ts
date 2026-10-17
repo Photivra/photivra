@@ -103,7 +103,7 @@ import {
   type SceneRadianceEvaluationResult,
   type SceneRadianceUncertainty
 } from "../schema/scene-radiance.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -631,7 +631,8 @@ const COMPOSER_SUPPORTED_EFFECTS =
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -642,6 +643,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -843,7 +845,7 @@ export function parseRendererCapabilityDeclaration(
   const record =
     requireRecord(
       value,
-      "rendererCapability"
+      "rendererCapability", ["schemaVersion", "consumerKind", "spectralCapability", "temporalSampling", "depthCapability", "alphaRepresentation", "inverseFieldMapping", "preservesDepthOrderAcrossWarps", "sensorDomainProcessing", "rendererId", "rendererVersion", "supportedStages", "supportedEffects"]
     );
   if (
     record.schemaVersion !==
@@ -884,8 +886,9 @@ export function parseRendererCapabilityDeclaration(
   const temporal =
     requireRecord(
       record.temporalSampling,
-      "rendererCapability.temporalSampling"
+      "rendererCapability.temporalSampling", null
     );
+  rejectUnknownVariantFields(temporal, "kind", { none: ["kind"], bounded: ["kind", "maximumSamples"] }, "rendererCapability.temporalSampling");
   let temporalSampling:
     RendererCapabilityDeclaration["temporalSampling"];
   if (temporal.kind === "none") {
@@ -1028,7 +1031,7 @@ export function parseImageFormationFidelityProfile(
   const record =
     requireRecord(
       value,
-      "imageFormationFidelityProfile"
+      "imageFormationFidelityProfile", ["schemaVersion", "requiredEffects", "rendererRequirements", "profileId", "profileVersion", "requiredStages"]
     );
   if (
     record.schemaVersion !==
@@ -1064,7 +1067,7 @@ export function parseImageFormationFidelityProfile(
         const effect =
           requireRecord(
             entry,
-            path
+            path, ["effectId", "modelId", "modelVersion"]
           );
         const effectId =
           effect.effectId;
@@ -1132,7 +1135,7 @@ export function parseImageFormationFidelityProfile(
   const requirements =
     requireRecord(
       record.rendererRequirements,
-      "imageFormationFidelityProfile.rendererRequirements"
+      "imageFormationFidelityProfile.rendererRequirements", ["spectral", "sensorDomainProcessing", "depth"]
     );
   const spectral =
     requirements.spectral;
@@ -1376,6 +1379,12 @@ function fingerprintValue(
   );
 }
 
+/** Top-level fields of `ProductionImageFormationPlan`. */
+const PRODUCTION_PLAN_FIELDS = ["version", "status", "versions", "contextIdentity", "captureIdentity", "rendererIdentity",
+  "fidelityIdentity", "stagePlan", "effectPlan", "blockers", "environmentCaptureRequestFingerprint", "environmentCaptureResult",
+  "processedOutputResult", "physicalSceneToSensorResult", "temporalCaptureResult", "scientificAssurance", "stochastic",
+  "immutableCaptureSnapshot", "legacyPocModified", "fingerprint"] as const;
+
 /**
  * Returns deterministic canonical JSON for a validated production plan. Object keys are sorted;
  * array order is kept. The JSON holds data only and leaves out provider callbacks. The plan version
@@ -1398,7 +1407,12 @@ export function serializeProductionImageFormationPlan(
     ProductionImageFormationPlan
 ): string {
   requireInputObject(plan, "serializeProductionImageFormationPlan input");
+  // 2.0.0: unknown top-level and fingerprint fields are named. Nested content is bound by the recomputed fingerprint.
+  rejectUnknownFields(plan, PRODUCTION_PLAN_FIELDS, "productionImageFormationPlan");
   const { fingerprint, ...core } = plan as unknown as Record<string, unknown> & { fingerprint?: unknown };
+  if (isPlainObjectValue(fingerprint)) {
+    rejectUnknownFields(fingerprint, ["algorithm", "value", "purpose"], "productionImageFormationPlan.fingerprint");
+  }
   if (core.version !== PRODUCTION_IMAGE_FORMATION_PLAN_VERSION) {
     throw new InvalidConfigurationError(
       `Production plan version must be "${PRODUCTION_IMAGE_FORMATION_PLAN_VERSION}".`
@@ -1439,7 +1453,7 @@ export function parsePreparedImageFormationContext(
   const record =
     requireRecord(
       value,
-      "preparedImageFormationContext"
+      "preparedImageFormationContext", ["version", "contextId", "sceneId", "sceneRadianceProviderProfileId", "outputGeometryProfileId", "equipmentCapabilities", "opticalBridgeProfile", "renderer", "fidelity", "fingerprint"]
     );
   if (
     record.version !==
@@ -1492,7 +1506,7 @@ export function parsePreparedImageFormationContext(
   const supplied =
     requireRecord(
       record.fingerprint,
-      "preparedImageFormationContext.fingerprint"
+      "preparedImageFormationContext.fingerprint", ["algorithm", "value"]
     );
   if (
     supplied.algorithm !==
@@ -1620,12 +1634,48 @@ export function prepareImageFormationContext(
   );
 }
 
+/**
+ * Rejects unknown fields in the optical-bridge focus and field-throughput declarations carried by a
+ * physical scene sample. Values that are not objects are left to the optical bridge, which reports
+ * them; the vignetting `result` is an engine result and is checked where it is used.
+ */
+function rejectUnknownOpticalBridgeFields(focus: unknown, fieldThroughput: unknown, path: string): void {
+  if (isPlainObjectValue(focus)) {
+    rejectUnknownVariantFields(focus, "kind", {
+      "infinity-focus": ["kind"],
+      "ideal-symmetric-thin-lens": ["kind", "objectDistanceM", "pupilMagnificationAssumption"],
+      "supplied-working-f-number": ["kind", "focus", "workingFNumber", "basis"]
+    }, path + ".focus");
+    if (focus.kind === "supplied-working-f-number") {
+      if (isPlainObjectValue(focus.focus)) {
+        rejectUnknownVariantFields(focus.focus, "kind", { infinity: ["kind"], finite: ["kind", "objectDistanceM"] }, path + ".focus.focus");
+      }
+      if (isPlainObjectValue(focus.workingFNumber)) {
+        rejectUnknownFields(focus.workingFNumber, ["value", "evidence"], path + ".focus.workingFNumber");
+      }
+    }
+  }
+  if (isPlainObjectValue(fieldThroughput)) {
+    rejectUnknownVariantFields(fieldThroughput, "kind", {
+      unity: ["kind"],
+      "illumination-vignetting-result": ["kind", "result"]
+    }, path + ".fieldThroughput");
+  }
+}
+
+function isPlainObjectValue(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function validatePhysicalSceneSample(
   sample:
     ProductionPhysicalSceneSample,
   sceneTimeSecondsFromExposureStart:
     number
 ): ProductionPhysicalSceneSample {
+  requireRecord(sample, "physicalSceneSample", ["sceneRadianceRequest", "sceneRadianceResult", "focus", "imagePointMm",
+    "fieldThroughput", "frontOfLensFilters"]);
+  rejectUnknownOpticalBridgeFields(sample.focus, sample.fieldThroughput, "physicalSceneSample");
   const request =
     parseSceneRadianceEvaluationRequest(
       sample.sceneRadianceRequest
@@ -1648,7 +1698,7 @@ function validatePhysicalSceneSample(
   const imagePoint =
     requireRecord(
       sample.imagePointMm,
-      "physicalSceneSample.imagePointMm"
+      "physicalSceneSample.imagePointMm", ["x", "y"]
     );
 
   return cloneJson({
@@ -1699,6 +1749,16 @@ function validateTemporalCaptureInput(
     ProductionTemporalCaptureInput,
   shutterSeconds: number
 ): ProductionTemporalCaptureInput {
+  requireRecord(input, "temporalCapture", ["exposureWindowInput", "imagingArea", "orientation", "readout",
+    "readoutExposureLinkage", "rotation"]);
+  requireRecord(input.imagingArea, "temporalCapture.imagingArea", ["widthMm", "heightMm"]);
+  if (isPlainObjectValue(input.readoutExposureLinkage)) {
+    rejectUnknownFields(input.readoutExposureLinkage, ["kind", "evidence"], "temporalCapture.readoutExposureLinkage");
+  }
+  if (input.rotation !== undefined) {
+    requireRecord(input.rotation, "temporalCapture.rotation", ["angularVelocityRadPerSec", "focusDistanceM", "temporalSampleCount"]);
+    requireRecord(input.rotation.angularVelocityRadPerSec, "temporalCapture.rotation.angularVelocityRadPerSec", ["pitch", "yaw", "roll"]);
+  }
   const exposureWindows =
     calculateCaptureExposureWindows(
       input.exposureWindowInput
@@ -1903,6 +1963,9 @@ function validateProductionReleaseFrameBinding(
   },
   stochasticSeedUint32: number
 ): ProductionReleaseFrameBinding {
+  requireRecord(binding, "releaseFrameBinding", ["releaseSequenceVersion", "sequenceId", "releaseFrameId", "frameIndex", "exposure",
+    "stochasticSeedUint32", "exposureStartTimeSeconds", "exposureEndTimeSeconds", "sceneTimeSecondsFromSequenceStart",
+    "startIntervalFromPreviousSeconds", "timingConstraints", "focus", "automation", "whiteBalanceStateId"]);
   if (
     binding.releaseSequenceVersion !==
     RELEASE_SEQUENCE_VERSION
@@ -2029,7 +2092,7 @@ function validateProductionReleaseFrameBinding(
   const automationRecord =
     requireRecord(
       binding.automation,
-      "releaseFrameBinding.automation"
+      "releaseFrameBinding.automation", ["ae", "af", "awb"]
     );
   const automation = {
     ae:
@@ -2061,7 +2124,7 @@ function validateProductionReleaseFrameBinding(
   const exposureRecord =
     requireRecord(
       binding.exposure,
-      "releaseFrameBinding.exposure"
+      "releaseFrameBinding.exposure", ["aperture", "shutterSeconds", "iso"]
     );
   const parsedExposure = {
     aperture:
@@ -2302,6 +2365,7 @@ export function createProductionCaptureSnapshot(
       input.releaseFrameId,
       "releaseFrameId"
     );
+  requireRecord(input.exposure, "exposure", null);
   const exposure = {
     aperture:
       requirePositiveFinite(
@@ -2564,7 +2628,7 @@ export function parseProductionCaptureSnapshot(
   const record =
     requireRecord(
       value,
-      "productionCaptureSnapshot"
+      "productionCaptureSnapshot", ["version", "captureId", "releaseFrameId", "sceneStateId", "sceneTimeSecondsFromExposureStart", "outputStateId", "exposure", "stochasticSeedUint32", "releaseFrameBinding", "whiteBalanceState", "physicalSceneSample", "temporalCapture", "fingerprint"]
     );
   if (
     record.version !==
@@ -2576,6 +2640,7 @@ export function parseProductionCaptureSnapshot(
         '".'
     );
   }
+  requireRecord(record.exposure, "productionCaptureSnapshot.exposure", ["aperture", "shutterSeconds", "iso"]);
   const parsed =
     createProductionCaptureSnapshot({
       captureId:
@@ -2638,7 +2703,7 @@ export function parseProductionCaptureSnapshot(
   const supplied =
     requireRecord(
       record.fingerprint,
-      "productionCaptureSnapshot.fingerprint"
+      "productionCaptureSnapshot.fingerprint", ["algorithm", "value"]
     );
   if (
     supplied.algorithm !==
@@ -4626,7 +4691,7 @@ function computeProcessedOutput(input: ProductionProcessedOutputInput | undefine
   snapshot: ProductionCaptureSnapshot, required: ReadonlySet<ImageFormationStageId>, blockers: ProductionImageFormationBlocker[]): ReturnType<typeof calculateProcessedSensorRaw> | undefined {
   if (input === undefined) return undefined;
   try {
-    const declaration=requireRecord(input,"processedOutput");
+    const declaration=requireRecord(input,"processedOutput", null);
     if (Object.keys(declaration).some(key=>key!=="outputStateId" && key!=="processing")) throw new InvalidConfigurationError("Unknown processed output declaration fields.");
     if (!required.has("display-processing") || !prepared.renderer.sensorDomainProcessing) throw new InvalidConfigurationError("Processed RAW requires requested display processing and renderer sensor-domain support.");
     if (input.outputStateId!==snapshot.outputStateId) throw new InvalidConfigurationError("Processed RAW output state differs from the immutable production snapshot.");
@@ -4660,7 +4725,7 @@ function computeEnvironmentCapture(input: ProductionEnvironmentCaptureInput | un
   blockers: ProductionImageFormationBlocker[]): { result: ReturnType<typeof simulateEnvironmentSensorRawFrame>; requestFingerprint: string } | undefined {
   if (input === undefined) return undefined;
   try {
-    const declaration = requireRecord(input, "environmentCapture");
+    const declaration = requireRecord(input, "environmentCapture", null);
     if (Object.keys(declaration).some(key => key !== "capture" && key !== "processing")) {
       throw new InvalidConfigurationError("Unknown environment capture declaration fields.");
     }

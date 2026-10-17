@@ -23,7 +23,8 @@
  * @see docs/PHOTOGRAPHIC_EXPORT.md
  */
 import { InvalidConfigurationError } from "../core/configuration-error.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { parseEvidenceList } from "../core/evidence-provenance.js";
+import { rejectUnknownFields, requireInputKeys, requireInputObject } from "../core/record-validation.js";
 import type { SensorReadoutConversionProfile } from "../sensor/raw-readout.js";
 
 /** Readout fields the white level depends on; a `SensorRawCodeSample` satisfies this shape. */
@@ -53,8 +54,58 @@ function inlOffset(inl: EffectiveSaturationReadout["integralNonLinearity"], code
   return a.offsetCodes+(code-a.code)/(b.code-a.code)*(b.offsetCodes-a.offsetCodes);
 }
 
-/** W as documented above; throws unless B < W ≤ D. Ties round up, matching the ADC. */
+/** Fields of `EffectiveSaturationReadout`. */
+const EFFECTIVE_SATURATION_READOUT_FIELDS = ["physicalChargeCapacityElectrons", "preAdcSaturationElectronEquivalent",
+  "systemConversionGainElectronsPerCode", "blackLevelCode", "digitalSaturationCode", "adcMaximumCode", "digitalGain",
+  "integralNonLinearity"] as const;
+/**
+ * The other fields of a `SensorRawCodeSample` (the result of `simulateSensorRawCode`). The white level
+ * does not read them, but a whole sample is accepted as input, so they are known fields too.
+ */
+const SENSOR_RAW_CODE_SAMPLE_FIELDS = ["readoutProfileId", "regimeId", "samplingProfileId", "completenessProfileId",
+  "capacityProfileId", "colorSamplingProfileId", "channelId", "site", "bindingId", "chargeSeedUint32", "readNoiseSeedUint32",
+  "realizedStoredElectronEquivalentCountBeforePhysicalCapacity", "electronEquivalentAfterPhysicalScalarSaturation",
+  "physicalScalarSaturationApplied", "overflowElectronEquivalentDiagnostic", "bloomingModeled", "electronicReadNoiseComponents",
+  "totalElectronicReadNoiseElectrons", "fixedPatternNoiseProfileId", "fixedPatternReadoutOffsetElectrons",
+  "electronEquivalentAfterReadNoise", "electronEquivalentAfterPreAdcSaturation", "preAdcSaturationApplied", "codeBeforeQuantization",
+  "adcIntegralNonLinearityOffsetCodes", "adcCodeBeforeDigitalGain", "quantizedCodeBeforeDigitalClamp", "adcBitDepth", "rawCode",
+  "digitalSaturationApplied", "lowerCodeClampApplied", "adcTransfer", "physicalSaturationApplied", "electronicReadNoiseApplied",
+  "conversionGainApplied", "adcQuantizationApplied", "rawCodeValueProduced", "isoUsedToInferRegime",
+  "deterministicSeededRealization"] as const;
+const ACCEPTED_READOUT_FIELDS: readonly string[] = [...EFFECTIVE_SATURATION_READOUT_FIELDS, ...SENSOR_RAW_CODE_SAMPLE_FIELDS];
+
+/**
+ * W as documented above; throws unless B < W ≤ D. Ties round up, matching the ADC.
+ *
+ * Accepts an `EffectiveSaturationReadout` or a whole `SensorRawCodeSample`, optionally with the
+ * regime's `integralNonLinearity`. From 2.0.0 any other field is rejected with
+ * `InvalidConfigurationError`, and the `integralNonLinearity` record and its knots are checked too.
+ */
 export function calculateEffectiveSaturationCode(readout: EffectiveSaturationReadout): number {
+  requireInputKeys(readout, "calculateEffectiveSaturationCode", ACCEPTED_READOUT_FIELDS);
+  const inl: unknown = readout.integralNonLinearity;
+  if (inl !== undefined) {
+    requireInputObject(inl, "calculateEffectiveSaturationCode input.integralNonLinearity");
+    rejectUnknownFields(inl as object, ["kind", "knots", "evidence"], "calculateEffectiveSaturationCode input.integralNonLinearity");
+    const knots = (inl as { knots?: unknown }).knots;
+    if (Array.isArray(knots)) {
+      knots.forEach((knot: unknown, index) => {
+        const path = `calculateEffectiveSaturationCode input.integralNonLinearity.knots[${index}]`;
+        requireInputObject(knot, path);
+        rejectUnknownFields(knot as object, ["code", "offsetCodes"], path);
+      });
+    }
+    const inlEvidence = (inl as { evidence?: unknown }).evidence;
+    if (inlEvidence !== undefined) parseEvidenceList(inlEvidence, "calculateEffectiveSaturationCode input.integralNonLinearity.evidence");
+  }
+  return computeEffectiveSaturationCode(readout);
+}
+
+/**
+ * The white-level calculation without the field checks, for engine-internal per-site calls whose
+ * readout the engine produced itself. Not a root export.
+ */
+export function computeEffectiveSaturationCode(readout: EffectiveSaturationReadout): number {
   requireInputObject(readout, "Effective RAW white-level readout");
   const c = readout.physicalChargeCapacityElectrons, p = readout.preAdcSaturationElectronEquivalent,
     g = readout.systemConversionGainElectronsPerCode, b = readout.blackLevelCode, d = readout.digitalSaturationCode;
@@ -79,7 +130,7 @@ export function calculateSiteEffectiveSaturationCode(readout: EffectiveSaturatio
   const regime = readoutProfile.regimes.find((r) => r.regimeId === regimeId);
   if (!regime) throw new InvalidConfigurationError("Effective RAW white level requires the selected readout regime.");
   const inl = regime.adc.integralNonLinearity;
-  return calculateEffectiveSaturationCode(inl === undefined ? readout : { ...readout, integralNonLinearity: inl });
+  return computeEffectiveSaturationCode(inl === undefined ? readout : { ...readout, integralNonLinearity: inl });
 }
 
 /** Index of the absolute native CFA repeat phase of row-major native index `i`. */

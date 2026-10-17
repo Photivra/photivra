@@ -10,6 +10,7 @@
  * and support limits.
  */
 
+import { rejectUnknownFields, rejectUnknownVariantFields, requireFixedFieldsWhenPresent } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,
@@ -196,7 +197,8 @@ export interface SceneIlluminationProfile {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -207,6 +209,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -295,7 +298,7 @@ function parseVector3(
   value: unknown,
   path: string
 ): Vector3 {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["x", "y", "z"]);
   return {
     x: requireFinite(record.x, path + ".x"),
     y: requireFinite(record.y, path + ".y"),
@@ -343,9 +346,10 @@ function parseUncertainty(
   value: unknown,
   path: string
 ): SceneIlluminationUncertainty {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, null);
 
   if (record.kind === "relative") {
+    rejectUnknownFields(record, ["kind", "fraction", "basis"], path);
     return {
       kind: "relative",
       fraction: requireNonNegativeFinite(
@@ -360,6 +364,7 @@ function parseUncertainty(
   }
 
   if (record.kind === "not-quantified") {
+    rejectUnknownFields(record, ["kind", "limitation"], path);
     return {
       kind: "not-quantified",
       limitation: requireNonEmptyString(
@@ -403,9 +408,10 @@ function parsePointOrigin(
       kind: "scene-object-binding";
       sceneObjectId: string;
     } {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, null);
 
   if (record.kind === "point-position") {
+    rejectUnknownFields(record, ["kind", "positionM"], path);
     return {
       kind: "point-position",
       positionM: parseVector3(
@@ -416,6 +422,7 @@ function parsePointOrigin(
   }
 
   if (record.kind === "scene-object-binding") {
+    rejectUnknownFields(record, ["kind", "sceneObjectId"], path);
     return {
       kind: "scene-object-binding",
       sceneObjectId: requireNonEmptyString(
@@ -435,7 +442,8 @@ function parseGeometry(
   value: unknown,
   path: string
 ): SceneIlluminationSourceGeometry {
-  const record = requireRecord(value, path);
+  // The allowed fields depend on the source family; parsePointOrigin checks the point geometry.
+  const record = requireRecord(value, path, null);
 
   if (family === "point") {
     return parsePointOrigin(record, path);
@@ -447,6 +455,7 @@ function parseGeometry(
         path + '.kind must be "spot" for a spot source.'
       );
     }
+    rejectUnknownFields(record, ["kind", "origin", "directionUnitVector", "outerConeAngleDegrees"], path);
     const outerConeAngleDegrees =
       requirePositiveFinite(
         record.outerConeAngleDegrees,
@@ -480,6 +489,7 @@ function parseGeometry(
           '.kind must be "scene-object-binding" for an area source so emitting geometry remains scene-owned.'
       );
     }
+    rejectUnknownFields(record, ["kind", "sceneObjectId"], path);
     return {
       kind: "scene-object-binding",
       sceneObjectId: requireNonEmptyString(
@@ -496,6 +506,7 @@ function parseGeometry(
           '.kind must be "directional" for a directional source.'
       );
     }
+    rejectUnknownFields(record, ["kind", "directionUnitVector"], path);
     return {
       kind: "directional",
       directionUnitVector:
@@ -512,6 +523,7 @@ function parseGeometry(
         '.kind must be "environment" for an environment source.'
     );
   }
+  rejectUnknownFields(record, ["kind"], path);
   return { kind: "environment" };
 }
 
@@ -520,7 +532,13 @@ function parseMagnitude(
   value: unknown,
   path: string
 ): SceneIlluminationMagnitude {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", {
+    "relative-linear-scale": ["kind", "scale", "scientificStatus", "limitation"],
+    "radiant-intensity": ["kind", "wattsPerSteradian", "scientificStatus", "uncertainty", "evidence"],
+    "surface-radiance": ["kind", "wattsPerSquareMeterSteradian", "scientificStatus", "uncertainty", "evidence"],
+    "reference-plane-irradiance": ["kind", "wattsPerSquareMeter", "referencePlaneId", "scientificStatus", "uncertainty", "evidence"]
+  }, path);
 
   if (record.kind === "relative-linear-scale") {
     if (record.scientificStatus !== "approximation") {
@@ -658,7 +676,15 @@ function parseSpectrum(
   value: unknown,
   path: string
 ): SceneIlluminationSpectrum {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", {
+    unresolved: ["kind", "limitation"],
+    "rgb-preview-approximation": ["kind", "colorSpace", "red", "green", "blue", "limitation"],
+    "blackbody-temperature-approximation": ["kind", "temperatureKelvin", "limitation"],
+    "discrete-relative-lines": ["kind", "spectrumId", "wavelengthUnit", "scientificStatus", "uncertainty", "evidence", "distribution"],
+    "continuous-relative-spectrum": ["kind", "spectrumId", "wavelengthUnit", "wavelengthBasis", "interpolation", "outsideRangeBehavior",
+      "normalization", "scientificStatus", "uncertainty", "evidence", "samples"]
+  }, path);
 
   if (record.kind === "unresolved") {
     return {
@@ -883,7 +909,7 @@ function parseSpectrum(
     (entry, index) => {
       const sample = requireRecord(
         entry,
-        path + ".samples[" + index + "]"
+        path + ".samples[" + index + "]", ["wavelengthNanometers", "relativeDensityPerNanometer"]
       );
       const wavelengthNanometers =
         requirePositiveFinite(
@@ -993,11 +1019,12 @@ function parseFamily(
   return value;
 }
 
-function parseSource(
+/** Parses one source of a scene illumination profile (also used by record-taking helpers). Not a root export. */
+export function parseSceneIlluminationSource(
   value: unknown,
   path: string
 ): SceneIlluminationSource {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["family", "temporalBehavior", "sourceId", "enabled", "geometry", "magnitude", "spectrum", "evidence", "limitations"]);
   const family = parseFamily(
     record.family,
     path + ".family"
@@ -1006,7 +1033,7 @@ function parseSource(
   const temporalBehavior =
     requireRecord(
       record.temporalBehavior,
-      path + ".temporalBehavior"
+      path + ".temporalBehavior", ["kind"]
     );
   if (
     temporalBehavior.kind !==
@@ -1060,6 +1087,13 @@ function parseSource(
   };
 }
 
+/** Fixed flags the parser writes; a parsed profile may carry them back in unchanged. */
+const ILLUMINATION_PROFILE_FIXED_FIELDS = {
+  sceneRadianceCalculated: false, materialResponseApplied: false, visibilityEvaluated: false,
+  indirectTransportEvaluated: false, fluorescenceModeled: false, volumetricTransportModeled: false,
+  polarizationModeled: false
+} as const;
+
 /**
  * Parses a renderer-independent scene illumination profile.
  *
@@ -1072,8 +1106,9 @@ export function parseSceneIlluminationProfile(
 ): SceneIlluminationProfile {
   const record = requireRecord(
     value,
-    "sceneIlluminationProfile"
+    "sceneIlluminationProfile", ["schemaVersion", "sources", "profileId", "sceneId", "evidence", ...Object.keys(ILLUMINATION_PROFILE_FIXED_FIELDS)]
   );
+  requireFixedFieldsWhenPresent(record, ILLUMINATION_PROFILE_FIXED_FIELDS, "sceneIlluminationProfile");
 
   if (
     record.schemaVersion !==
@@ -1094,7 +1129,7 @@ export function parseSceneIlluminationProfile(
 
   const sources = record.sources.map(
     (source, index) =>
-      parseSource(
+      parseSceneIlluminationSource(
         source,
         "sceneIlluminationProfile.sources[" +
           index +

@@ -25,7 +25,7 @@ import { InvalidScientificInputError, requirePositiveInteger } from "../core/val
 import type { RasterPoint, RasterRect } from "../output/capture-geometry.js";
 import type { NativeImageRaster } from "./sensor-geometry.js";
 import type { SensorReadoutArchitecture } from "./architecture.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /**
@@ -162,10 +162,15 @@ const SHUTTER_MECHANISMS = new Set<CaptureShutterMechanism>([
   "electronic"
 ]);
 
-function requireRecord(value: unknown, path: string): UnknownRecord {
+function requireRecord(
+  value: unknown,
+  path: string,
+  allowedKeys: readonly string[] | null
+): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new InvalidConfigurationError(path + " must be an object.");
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -200,7 +205,7 @@ function parseSecondsFact(
   path: string,
   positive: boolean
 ): SourcedSensorTimingSeconds {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["unit", "value", "evidence"]);
   if (record.unit !== "s") {
     throw new InvalidConfigurationError(path + '.unit must be "s".');
   }
@@ -220,7 +225,7 @@ function parseDirectionFact(
   value: unknown,
   path: string
 ): SourcedSensorReadoutFact<NativeSensorReadoutScanDirection> {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["value", "evidence"]);
   if (
     typeof record.value !== "string" ||
     !SCAN_DIRECTIONS.has(
@@ -239,7 +244,7 @@ function parseDirectionFact(
 function parseReadoutDeclaration(
   value: unknown
 ): SensorReadoutTimingDeclaration {
-  const record = requireRecord(value, "readout");
+  const record = requireRecord(value, "readout", ["readoutMode", "captureReadoutDurationSeconds", "scanDirectionNative", "spatialSamplingSkewSeconds"]);
   if (
     typeof record.readoutMode !== "string" ||
     !READOUT_MODES.has(record.readoutMode as SensorReadoutMode)

@@ -10,6 +10,7 @@
  * and support limits.
  */
 
+import { rejectUnknownFields } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import {
   parseEvidenceList,
@@ -84,7 +85,8 @@ const BRACKET_AXES =
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -95,6 +97,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -189,7 +192,7 @@ function parseFact<T>(
   ) => T
 ): EvidenceBackedFact<T> {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["value", "evidence"]);
   return {
     value:
       parseValue(
@@ -297,7 +300,7 @@ export function parseGenericReleaseCapabilityProfile(
   const record =
     requireRecord(
       value,
-      "genericReleaseCapabilityProfile"
+      "genericReleaseCapabilityProfile", ["schemaVersion", "scientificStatus", "overlappingOrdinaryStillExposures", "exposureBracketing", "focusBracketing", "profileId", "profileVersion", "evidence", "supportedDriveModes", "maximumLogicalFramesPerSequence", "maximumCadenceFps", "minimumInterFrameGapSeconds"]
     );
 
   if (
@@ -330,12 +333,12 @@ export function parseGenericReleaseCapabilityProfile(
   const exposureBracketing =
     requireRecord(
       record.exposureBracketing,
-      "genericReleaseCapabilityProfile.exposureBracketing"
+      "genericReleaseCapabilityProfile.exposureBracketing", ["availability", "supportedAxes"]
     );
   const focusBracketing =
     requireRecord(
       record.focusBracketing,
-      "genericReleaseCapabilityProfile.focusBracketing"
+      "genericReleaseCapabilityProfile.focusBracketing", ["availability"]
     );
 
   const exposureAvailability =
