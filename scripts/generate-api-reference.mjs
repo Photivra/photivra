@@ -32,7 +32,33 @@ for (const exported of exports) {
   grouped.set(file, rows);
 }
 const header = `# Public API reference\n\nGenerated from the exact root exports for **@photivra/engine ${packageVersion} / root contract ${version}** by \`node scripts/generate-api-reference.mjs\`. No module deep import is supported.\n\nUse [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md) for executable paths and scientific boundaries. Types are contracts, not runtime validation: parse untrusted data, preserve units/reference frames, read assessment blockers, and retain evidence/limitations. Optional properties do not imply a universal default. Model/schema IDs remain independent of the distribution.\n\n`;
-let reference = header;
+// A short fixed task index for people and agents. Every name must be a runtime root export, and its
+// link is derived from the export's resolved source file, so the index cannot go stale silently.
+const TASK_INDEX = [
+  ["Simulate a full photo (async)", ["simulateCapture"]],
+  ["Exposure value and equivalent settings", ["calculateExposureValue100", "calculateEquivalentIso", "calculateRelativeRenderedExposure"]],
+  ["Depth of field, hyperfocal distance and defocus blur", ["calculateDepthOfField", "calculateDefocusCircle"]],
+  ["Field of view", ["calculateFieldOfView"]],
+  ["Crop factor, 35 mm-equivalent focal length and crops", ["calculateEquivalentFocalLength35Mm", "calculateCenteredCrop"]],
+  ["Motion blur and shutter speed", ["calculateProjectedMotionBlur", "calculateShutterAngleExposureSeconds"]],
+  ["Diffraction", ["calculateAiryDisk"]],
+  ["Sensor signal, noise and SNR", ["calculatePhotoelectrons", "calculateSignalToNoise"]],
+  ["Colour temperature", ["calculateChromaticityFromCorrelatedColorTemperature", "calculateCorrelatedColorTemperature"]],
+  ["White balance from Kelvin and tint", ["createColorTemperatureWhiteBalanceIntent", "resolveColorTemperatureWhiteBalance"]]
+];
+const apiPage = (file) => `api/${file.slice(4).replace(/\.ts$/u, "").replaceAll("/", "-")}.md`;
+const exportFiles = new Map();
+for (const [file, rows] of grouped) for (const row of rows) exportFiles.set(row.name, { file, runtime: row.runtime });
+let taskIndex = "## Task index\n\nStart here to find a function by task. [Using Photivra from an agent](AGENT_GUIDE.md) gives units, result reading and errors.\n\n| Task | Functions |\n| --- | --- |\n";
+for (const [task, names] of TASK_INDEX) {
+  const links = names.map((name) => {
+    const entry = exportFiles.get(name);
+    if (!entry || !entry.runtime) throw new Error(`Task index names ${name}, which is not a runtime root export.`);
+    return `[\`${name}\`](${apiPage(entry.file)}#${name.toLowerCase()})`;
+  });
+  taskIndex += `| ${task} | ${links.join(", ")} |\n`;
+}
+let reference = header + taskIndex + "\n";
 const manifest = [];
 mkdirSync("docs/api", { recursive: true });
 for (const [file, rows] of [...grouped].sort(([a], [b]) => a.localeCompare(b))) {
