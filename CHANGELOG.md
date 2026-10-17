@@ -4,7 +4,7 @@
 
 A major release.
 
-**In short.** 2.0.0 fixes correctness problems found in the first 2.0 review, makes several parts much faster without changing their output, and adds a large set of new features. Some of the fixes change numbers that 1.x produced, change stored identities (hashes and seeds), or reject input that 1.x accepted. Any of those can break existing users, so the version number goes from 1 to 2. Root exports grow from 1,227 to 1,627 symbols, and none is removed.
+**In short.** 2.0.0 fixes correctness problems found in the first 2.0 review, makes several parts much faster without changing their output, and adds a large set of new features. Some of the fixes change numbers that 1.x produced, change stored identities (hashes and seeds), or reject input that 1.x accepted. Any of those can break existing users, so the version number goes from 1 to 2. Root exports grow from 1,227 to 1,637 symbols, and none is removed.
 
 What it contains:
 
@@ -226,6 +226,11 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - `createImageKernelAccelerator()` runs isoplanatic PSF convolution, native capture SDR and packed RAW development as `webgpu-f32`.
   - Results are labelled with a float32 error bound stated in advance, and are never claimed to be bit-identical. The CPU float64 reference stays the default.
   - Also `calculateIrradianceConvolution()` and its plan (schema 0.1.0), `ImageKernelExecutionError`, and the repository-only `npm run test:webgpu`.
+- **WebGPU image-formation stages and accuracy contract (#277).** See `docs/WEBGPU.md`.
+  - **Accuracy contract:** per-stage a-priori bounds, kept separate from method error, and `composeRelativeErrorBounds()` for chaining linear stages.
+  - **Sensor stage:** `simulatePackedSensorRaw()` (schema 0.1.0) is the per-site producer's charge, noise and ADC on typed arrays. It is bit-identical to `calculateNativeRawSite`. `accelerator.simulateSensorRaw()` runs it on `webgpu-f32` with the same seeded noise model (`photivra-native-raw-noise` 0.4.0, MurmurHash3 per-site seeds). The new `exact-except-flagged-sites` label means every unflagged site equals the reference exactly. Flagged sites are listed in `flaggedSiteIndices` and covered by a statistical-equivalence test.
+  - **Exposure and motion:** `calculateTemporalExposureSum()` (schema 0.1.0) is a weighted sum of shifted frames with per-row weights, for rolling or global readout. Sub-site shifts use bilinear interpolation, a labelled approximation. `accelerator.sumTemporalExposure()` runs it on `webgpu-f32` with a relative bound.
+  - **Timings:** the repository-only `npm run bench:webgpu` times the stages at 6–24 MP on the owner's hardware. No hardware timings have been measured yet.
 - **Optical-stage reuse (#288).** `NativeEnvironmentRawInput.opticalStage` returns an opaque optical stage. `createNativeEnvironmentSensorStageTask()` then re-runs only dark charge, capacity, noise and ADC after edits that come after the optics. Optical changes are refused.
 - **Smaller additions.**
   - `PrintJpegInput.pixelsPerInch` (1–65535; #278).
@@ -247,7 +252,7 @@ The engine now relies on free-to-read sources wherever one was found. See the ci
   - The `calculateCorrelatedColorTemperature` error for |Duv| > 0.05 is reworded.
   - Limitation and error strings that used internal ticket numbers as model names (#12, #14, #85, #110) now name the model: exposure-window model, sensor pipeline, scene-radiance provider, and the scene-radiance-to-sensor-irradiance optical bridge (stabilization, extended-object projection, flash, temporal metering, RAW frame and production image-formation plan).
   - *Migration:* code that matches these strings exactly must update them. Result model ids are unchanged.
-- **Documentation and tests.** The flash guide-number relations are derived in full from the inverse-square law and the camera equation (the guide-number measurement standard is no longer cited). Tristimulus integration cites Wyman, Sloan & Shirley (2013), Eq. 1; Planck's law cites the BIPM kelvin *mise en pratique*. CIE94 cites a free secondary source and is checked against its worked values. The RGB↔XYZ derivation is written out in `docs/COLORIMETRY.md`, and a new test shows the engine's matrices equal the W3C CSS Color 4 matrices within 1e-12. A new test checks that a greenish light has a positive Duv. The ISO-brightness test uses the DC-004 mid-grey reference (0.18 of white) instead of a paid saturation-speed ratio.
+- **Documentation and tests.** The flash guide-number relations are derived in full from the inverse-square law and the camera equation (the guide-number measurement standard is no longer cited). Tristimulus integration cites Wyman, Sloan & Shirley (2013), Eq. 1; Planck's law cites the BIPM kelvin *mise en pratique*. CIE94 cites a free secondary source and is checked against its worked values. The RGB↔XYZ derivation is written out in `docs/COLORIMETRY.md`, and a new test shows the engine's matrices equal the W3C CSS Color 4 matrices within 1e-12. The Duv sign (positive above the Planckian locus) cites Ohno's free CORM 2011 slides (slide 5); the engine documents it, and a new test checks that a greenish light has a positive Duv. The ISO-brightness test uses the DC-004 mid-grey reference (0.18 of white) instead of a paid saturation-speed ratio.
 
 ### Fixed
 
@@ -304,9 +309,12 @@ Unless marked otherwise, output is bit-identical to the code before the change, 
 
 - Coverage rose from 92.4 % to 94.4 % of lines and from 88.7 % to 91.0 % of branches. `npm run coverage` scales timeouts under V8 coverage (#299).
 - New independent checks (#299): spot values beside the bit-identity hash locks, an independent camera-equation RAW oracle, a non-linear temporal-quadrature convergence test, and table-driven rejection tests for public parsers.
-- An informational, non-blocking macOS CI job runs the hash-lock tests (#299). `npm run test:webgpu` runs conformance on a real GPU (#304).
+- An informational, non-blocking macOS CI job runs the hash-lock tests (#299). `npm run test:webgpu` runs conformance on a real GPU (#304). It now also covers the sensor stage and the temporal sum (43 tests in two files) and passes on SwiftShader (#277).
 - Benchmark scripts that import `dist/` fail when the build is missing or stale (#292).
 - `NUMERICAL_CORRECTNESS.md` documents the cross-engine determinism policy and the test hash locks; `API_STYLE.md` documents naming conventions (#293, #299).
+- Plain-language rewrite of the source comments and docs: shorter sentences, jargon defined at first use, internal ticket chatter removed. Comments and prose only; the comment-stripped build is identical (#309–#312).
+- For AI agents: `llms.txt` and `docs/AGENT_GUIDE.md` ship in the package, and the API reference opens with a task-to-function index that its generator checks against the root exports (#313).
+- `AGENTS.md` is reset to a short standard file with three rules: evidence-based changes, free-to-use sources only, and owner approval for anything that goes to production (#308, #313).
 
 ## 1.5.0 — published October 7, 2026
 

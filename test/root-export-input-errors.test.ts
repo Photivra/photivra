@@ -90,7 +90,8 @@ describe("root exports reject malformed input with domain errors (API review #4)
   const STRICT_WITH_DOMAIN_MESSAGE = new Set([
     // Reject unknown fields through their own allowlist parser, with a domain message.
     "calculateCaptureColorTransform", "calculateCaptureCorrectedSdr", "calculateCaptureSdr", "calculateIdealPolygonDiffractionPsf",
-    "calculateIrradianceConvolution", "calculateIrradianceConvolutionPlan", "calculateLinearCaptureEncoding", "calculateNativeCaptureSdrPlan",
+    "calculateIrradianceConvolution", "calculateIrradianceConvolutionPlan", "calculatePackedSensorRawPlan", "calculateTemporalExposureSum",
+    "calculateTemporalExposureSumPlan", "calculateLinearCaptureEncoding", "calculateNativeCaptureSdrPlan",
     "calculateNativeRawPlan", "calculatePrintContrastReference", "calculatePrintPlan", "calculatePrintRegionDetail",
     "calculatePrintRegionDifference", "calculatePrintRegionNoise", "calculatePrintSizeLimit", "calculateProcessedSensorRaw",
     "calculateSdrRendering", "createAhdDemosaicTask", "createBilateralFilterTask", "createCaptureExportMetadataPair",
@@ -101,11 +102,11 @@ describe("root exports reject malformed input with domain errors (API review #4)
     "createPrintJpegTask", "createReinhardGlobalToneMappingTask", "createSensorRawFrame", "createSimulatedCapture",
     "createSyntheticFilmGrainTask", "createUnsharpMaskTask", "resolveCaptureIlluminant", "resolveGenericEquipmentTierCatalog",
     "resolveGenericEquipmentTierLensProfiles", "resolveRawFrameReconstruction", "serializeNativeRawDng", "serializePngImage",
-    "simulateCapture", "simulateSensorRawFrame"
+    "simulateCapture", "simulatePackedSensorRaw", "simulateSensorRawFrame"
   ]);
   const NO_INPUT_OBJECT = new Set([
-    // Positional scalars, a string id, raw bytes, result factories or no argument at all.
-    "approximationResult", "assessShutterAngleRule", "calculateCieIlluminantARelativeSpectralPower", "calculateHighlightPriorityPlacementSignal",
+    // Positional scalars or bound objects, a string id, raw bytes, result factories or no argument at all.
+    "approximationResult", "composeRelativeErrorBounds", "assessShutterAngleRule", "calculateCieIlluminantARelativeSpectralPower", "calculateHighlightPriorityPlacementSignal",
     "calculateShutterAngleExposureSeconds", "calculateShutterAngleFromExposureSeconds", "calculatedResult", "calibratedResult",
     "createCieIlluminantASpectrum", "createSrgbIccProfile", "estimateCie1931ColorMatchingFunctions", "estimatedResult",
     "evaluateBt709InverseOetf", "evaluateBt709Oetf", "evaluateHlgInverseOetf", "evaluateHlgOetf", "evaluatePqEotf", "evaluatePqInverseEotf",

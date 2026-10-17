@@ -21,8 +21,10 @@
  *   Planck integration against caller-selected CMFs.
  * - CCT from chromaticity: McCamy (1992) cubic (approximation), or a nearest-point
  *   search on the Planckian locus in the CIE 1960 UCS (CCT and signed Duv as defined in Smet et al.,
- *   LEUKOS 2023, free archival copy from the US DOE; also CIE 15:2018). Duv sign: the engine's own
- *   documented convention, positive above the locus (toward green), negative below (toward magenta).
+ *   LEUKOS 2023, free archival copy from the US DOE; also CIE 15:2018). Duv sign: positive above the
+ *   locus (toward green), negative below (toward magenta), following Ohno, "Calculation of CCT and Duv
+ *   and Practical Conversion Formulae", CORM 2011 slides (free), slide 5; the engine documents and
+ *   tests it.
  * @see docs/COLORIMETRY.md for equations, coordinate/unit conventions and limits.
  */
 
