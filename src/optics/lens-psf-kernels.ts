@@ -117,15 +117,18 @@ export function resolveLensPsfConvolutionKernels(input: LensPsfConvolutionKernel
   markEngineOwnedLensSampledPsfProfile(profile);
   const state = { ...(psf as unknown as Omit<ResolveLensSampledPsfInput, "fieldPointMm" | "wavelengthNm">), profile } as Omit<ResolveLensSampledPsfInput, "fieldPointMm" | "wavelengthNm">;
 
-  // Resolve every patch and wavelength, splatting into displacement maps; the radius is found first.
-  interface Splat { u: number; v: number; w: number }
-  const splats: Splat[][] = [], patches: LensPsfConvolutionKernels["patches"][number][] = [];
-  let reach = 0, exact = true;
+  // Resolve every patch and wavelength, splatting straight into one scratch displacement map sized for the largest
+  // allowed radius; each patch keeps a copy cropped to its own reach. The common radius is known only at the end.
+  // Every cell receives its weights in the same order as a direct sum (taps in kernel order, then the four
+  // bilinear corners), so the kernels do not depend on the scratch layout.
+  const M = L.maximumKernelRadius, scratchSize = 2 * M + 1, scratch = new Float64Array(scratchSize * scratchSize);
+  const cropped: { reach: number; values: Float64Array }[] = [], patches: LensPsfConvolutionKernels["patches"][number][] = [];
+  let reach = 0, exact = true, overflow = false;
   for (let pr = 0; pr < rows; pr++) for (let pc = 0; pc < columns; pc++) {
     const x0 = pc * patchWidth, y0 = pr * patchHeight, x1 = Math.min(width, x0 + patchWidth), y1 = Math.min(height, y0 + patchHeight);
     const nativeX = ((x0 + x1) / 2 - axis.x) * sx / 1000, nativeY = ((y0 + y1) / 2 - axis.y) * sy / 1000;
-    const fieldPointMm = { x: nativeX, y: -nativeY }, taps: Splat[] = [];
-    let throughput = 0, interpolated = false;
+    const fieldPointMm = { x: nativeX, y: -nativeY };
+    let throughput = 0, interpolated = false, patchReach = 0;
     for (const { wavelengthNm, weight } of spectral) {
       if (weight === 0) continue;
       const resolved = resolveLensSampledPsf({ ...state, fieldPointMm, wavelengthNm }).value, k = resolved.kernel, share = weight / totalWeight;
@@ -137,14 +140,28 @@ export function resolveLensPsfConvolutionKernels(input: LensPsfConvolutionKernel
         const u = (kx - k.centerSampleX) * k.samplePitchMicrometersX / sx, v = -(ky - k.centerSampleY) * k.samplePitchMicrometersY / sy;
         const u0 = Math.floor(u), v0 = Math.floor(v), fu = u - u0, fv = v - v0, w = share * intensity;
         if (fu !== 0 || fv !== 0) exact = false;
-        for (const [du, dv, b] of [[0, 0, (1 - fu) * (1 - fv)], [1, 0, fu * (1 - fv)], [0, 1, (1 - fu) * fv], [1, 1, fu * fv]] as const) {
+        for (let corner = 0; corner < 4; corner++) {
+          const du = corner & 1, dv = corner >> 1;
+          const b = du === 0 ? (dv === 0 ? (1 - fu) * (1 - fv) : (1 - fu) * fv) : (dv === 0 ? fu * (1 - fv) : fu * fv);
           if (b === 0) continue;
-          taps.push({ u: u0 + du, v: v0 + dv, w: w * b });
-          reach = Math.max(reach, Math.abs(u0 + du), Math.abs(v0 + dv));
+          const cu = u0 + du, cv = v0 + dv;
+          patchReach = Math.max(patchReach, Math.abs(cu), Math.abs(cv));
+          // Past the largest radius the call is rejected below; resolving continues so errors keep their order.
+          if (patchReach > M) { overflow = true; continue; }
+          if (!overflow) scratch[(cv + M) * scratchSize + cu + M]! += w * b;
         }
       }
     }
-    splats.push(taps);
+    reach = Math.max(reach, patchReach);
+    if (!overflow) {
+      const n = 2 * patchReach + 1, values = new Float64Array(n * n);
+      for (let v = -patchReach; v <= patchReach; v++) {
+        const row = (v + M) * scratchSize + M;
+        values.set(scratch.subarray(row - patchReach, row + patchReach + 1), (v + patchReach) * n);
+        scratch.fill(0, row - patchReach, row + patchReach + 1);
+      }
+      cropped.push({ reach: patchReach, values });
+    }
     patches.push(Object.freeze({ fieldPointMm: Object.freeze(fieldPointMm), relativePupilThroughputFactor: throughput, interpolated }));
   }
   const radius = r.kernelRadius === undefined ? reach : integer(r.kernelRadius, 0, L.maximumKernelRadius, "Invalid kernel radius.");
@@ -154,9 +171,10 @@ export function resolveLensPsfConvolutionKernels(input: LensPsfConvolutionKernel
   if (columns * rows * taps > L.maximumKernelWeights) throw new InvalidConfigurationError("Too many kernel weights.");
   const kernels = new Float64Array(columns * rows * taps);
   let maximumKernelSum = 0;
-  splats.forEach((list, p) => {
+  cropped.forEach(({ reach: q, values }, p) => {
+    const n = 2 * q + 1;
     let sum = 0;
-    for (const { u, v, w } of list) kernels[p * taps + (v + radius) * size + u + radius]! += w;
+    for (let v = 0; v < n; v++) kernels.set(values.subarray(v * n, (v + 1) * n), p * taps + (v - q + radius) * size + radius - q);
     for (let t = 0; t < taps; t++) sum += kernels[p * taps + t]!;
     maximumKernelSum = Math.max(maximumKernelSum, sum);
   });
