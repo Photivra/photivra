@@ -31,6 +31,8 @@ console.log(result.quality);
 
 `quality` is optional. It is left out when the engine has no defensible, quantified uncertainty or accuracy to report.
 
+From 2.0.0 results are read-only: the envelope, `provenance` and `quality` are frozen, and so is the top level of `value`. Copy a value (`{ ...result.value }`) before changing it. Every calculator that takes an input object rejects unknown fields with `InvalidConfigurationError`. A wrong shape throws `InvalidConfigurationError` and a bad number throws `InvalidScientificInputError`; see [Error classes](https://github.com/Photivra/photivra/blob/main/docs/API_STYLE.md#error-classes) and [Read-only results](https://github.com/Photivra/photivra/blob/main/docs/API_STYLE.md#read-only-results).
+
 ## Standalone digital optics
 
 See [Digital optics foundations](https://github.com/Photivra/photivra/blob/main/docs/DIGITAL_OPTICS_FOUNDATION.md) for stray-light and correction profiles tied to an exact lens state, and for their scientific limits. You can prepare a compatible geometric map separately from its sampling filter:

@@ -35,7 +35,8 @@ import {
 import { calculateThinLensImageDistance } from "./thin-lens.js";
 import { parseSceneRadianceEvaluationRequest, type SceneRadianceEvaluationRequest } from "../schema/scene-radiance.js";
 import { parseFocusPlane, type FocusPlane } from "./focus-state.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /**
  * Lens field mapping between the physical (distorted) sensor point and the scene ray (2.0).
@@ -62,21 +63,21 @@ export interface PreparedEnvironmentLensFieldMapping {
 /** @internal Strict parse and validation of a lens field mapping. Unknown fields are rejected. */
 export function prepareEnvironmentLensFieldMapping(value: unknown): PreparedEnvironmentLensFieldMapping {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new InvalidScientificInputError("lensFieldMapping must be an object.");
+    throw new InvalidConfigurationError("lensFieldMapping must be an object.");
   }
   const record = value as Record<string, unknown>;
   for (const key of Object.keys(record)) {
     if (!["projectionModel", "distortion", "radiometricAreaCorrection"].includes(key)) {
-      throw new InvalidScientificInputError(`lensFieldMapping has unknown field ${JSON.stringify(key)}.`);
+      throw new InvalidConfigurationError(`lensFieldMapping has unknown field ${JSON.stringify(key)}.`);
     }
   }
   if (record.radiometricAreaCorrection !== "inverse-distortion-jacobian") {
-    throw new InvalidScientificInputError("lensFieldMapping.radiometricAreaCorrection must be \"inverse-distortion-jacobian\".");
+    throw new InvalidConfigurationError("lensFieldMapping.radiometricAreaCorrection must be \"inverse-distortion-jacobian\".");
   }
   const projectionModel = parseLensProjectionModel(record.projectionModel);
   const distortion = record.distortion as EnvironmentLensFieldMapping["distortion"] | undefined;
   if (typeof distortion !== "object" || distortion === null) {
-    throw new InvalidScientificInputError("lensFieldMapping.distortion must be an object.");
+    throw new InvalidConfigurationError("lensFieldMapping.distortion must be an object.");
   }
   if (distortion.kind === "none") {
     return { mapping: { projectionModel, distortion: { kind: "none" }, radiometricAreaCorrection: "inverse-distortion-jacobian" } };
@@ -91,7 +92,7 @@ export function prepareEnvironmentLensFieldMapping(value: unknown): PreparedEnvi
     return { mapping: { projectionModel, distortion: { kind: "brown-conrady", profile: distortion.profile },
       radiometricAreaCorrection: "inverse-distortion-jacobian" }, brownConrady };
   }
-  throw new InvalidScientificInputError("lensFieldMapping.distortion.kind must be none, radial or brown-conrady.");
+  throw new InvalidConfigurationError("lensFieldMapping.distortion.kind must be none, radial or brown-conrady.");
 }
 
 export interface CalculateSensorEnvironmentRadianceQueryInput {
@@ -150,7 +151,7 @@ export interface SensorEnvironmentRadianceQuery {
 export function calculateSensorEnvironmentRadianceQuery(
   input: CalculateSensorEnvironmentRadianceQueryInput
 ): CalculationResult<SensorEnvironmentRadianceQuery> {
-  requireInputObject(input, "calculateSensorEnvironmentRadianceQuery input");
+  requireInputKeys(input, "calculateSensorEnvironmentRadianceQuery", ["sourcePointNativeSensorMm", "focalLengthMm", "focus", "angularVelocityRadPerSec", "timeReference", "timeSecondsFromOpeningReference", "environmentDirectionConvention", "request", "lensFieldMapping"]);
   if (input.lensFieldMapping !== undefined) {
     return calculateMappedSensorEnvironmentRadianceQuery(input, prepareEnvironmentLensFieldMapping(input.lensFieldMapping));
   }

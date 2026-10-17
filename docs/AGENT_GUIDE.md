@@ -62,10 +62,11 @@ The unit is part of the field name. Read it there; do not guess.
 
 Other conventions:
 
-- Most calls take one input object. `simulateCapture()` and many single calculations, such as
-  `calculateDepthOfField()` and `calculateFieldOfView()`, reject unknown fields, so a typo fails
-  loudly. Some older calls, such as `calculateSignalToNoise()`, ignore extra fields, so check your
-  field names against the reference.
+- Most calls take one input object. Every calculator that takes an input object, including
+  `simulateCapture()`, `calculateDepthOfField()` and `calculateSignalToNoise()`, rejects unknown
+  fields, so a typo or a wrong unit suffix fails loudly with `InvalidConfigurationError`. Check field
+  names against the reference. The versioned-record parsers (`parse*()`) still read only the fields
+  they know.
 - `null` stands for an infinite or undefined value that JSON cannot store, for example
   `farLimitM` beyond the hyperfocal distance.
 - The 35 mm reference frame is 36 × 24 mm.
@@ -82,6 +83,10 @@ Most single calculations return a `CalculationResult`: `{ value, provenance, qua
   lists what the model leaves out, for example "Lens transmission (T-stop) is not modeled".
 - `quality` appears only when the engine can defend an uncertainty or valid range. Its absence does
   not mean the result is exact.
+- Results are read-only. The envelope, `provenance` and `quality` are frozen, and so is the top
+  level of `value`. Assigning to them throws a `TypeError`. Copy a value (`{ ...result.value }` or
+  `structuredClone(result.value)`) before you change it. Nested objects inside `value` are not
+  frozen by the envelope, and typed arrays can never be frozen.
 
 `simulateCapture()` returns a richer object:
 
@@ -123,8 +128,8 @@ Invalid input throws. Nothing returns NaN or Infinity.
 
 | Error | Base class | `code` | Thrown when |
 | --- | --- | --- | --- |
-| `InvalidScientificInputError` | `RangeError` | `INVALID_SCIENTIFIC_INPUT` | A value is out of its valid range: a zero or negative f-number, a focus distance inside the focal length, an f-number or ISO outside the camera tier's capability. |
-| `InvalidConfigurationError` | `TypeError` | `INVALID_CONFIGURATION` | The input has the wrong shape: not an object, an unknown field (where the call checks for them), or a malformed option such as a negative `exposure.iso` in `simulateCapture()`. |
+| `InvalidScientificInputError` | `RangeError` | `INVALID_SCIENTIFIC_INPUT` | A number is missing, not finite or out of its valid range: a zero or negative f-number, a focus distance inside the focal length, an f-number or ISO outside the camera tier's capability. |
+| `InvalidConfigurationError` | `TypeError` | `INVALID_CONFIGURATION` | The input has the wrong shape: not an object or array, an unknown field, an unknown kind, mode or version string, or a malformed identifier. Also any defect inside a versioned record or options object, such as a profile or a negative `exposure.iso` in `simulateCapture()`. |
 | `InvalidScientificResultError` | `RangeError` | `INVALID_SCIENTIFIC_RESULT` | A result would not be finite. |
 
 All three are root exports, so you can test them with `instanceof`. `simulateCapture()` is async, so

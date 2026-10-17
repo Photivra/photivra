@@ -33,7 +33,7 @@ import type {
   LensPsfScientificStatus,
   LensPsfUncertainty
 } from "./lens-psf-profile.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1058,7 +1058,7 @@ export function calculateLensComplexPupilPsf(
   input:
     CalculateLensComplexPupilPsfInput
 ): CalculationResult<LensComplexPupilPsf> {
-  requireInputObject(input, "calculateLensComplexPupilPsf input");
+  requireInputKeys(input, "calculateLensComplexPupilPsf", ["profile", "propagationDistanceMm"]);
   const profile =
     parseLensComplexPupilProfile(
       input.profile

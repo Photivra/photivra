@@ -125,12 +125,16 @@ export interface CalculationQuality {
  * Deterministic analytical results stay lightweight. They omit `quality` when
  * there is no defensible uncertainty or accuracy metadata to report.
  *
+ * Read-only from 2.0.0: the envelope, `provenance` and `quality` are frozen deeply and `value`
+ * at its top level. Copy a value before changing it. Typed arrays inside a value stay mutable.
+ * See docs/API_STYLE.md "Read-only results".
+ *
  * @typeParam T Serializable value returned by the calculation.
  */
 export interface CalculationResult<T> {
-  value: T;
-  provenance: CalculationProvenance;
-  quality?: CalculationQuality;
+  readonly value: T;
+  readonly provenance: CalculationProvenance;
+  readonly quality?: CalculationQuality;
 }
 
 const UNCERTAINTY_SOURCES = new Set<UncertaintySource>([
@@ -478,6 +482,46 @@ function requireQuality(
   return quality;
 }
 
+/** True for a plain record (prototype Object.prototype or null) or an array: the nodes a result freezes. */
+function isFreezableResultNode(node: unknown): node is object {
+  if (node === null || typeof node !== "object") {
+    return false;
+  }
+  if (Array.isArray(node)) {
+    return true;
+  }
+  const prototype: unknown = Object.getPrototypeOf(node);
+  return prototype === Object.prototype || prototype === null;
+}
+
+/**
+ * Deep-freezes the plain records and arrays of provenance or quality metadata in place. A node
+ * that is already frozen is not walked again, which also ends any cycle.
+ */
+function freezeMetadataTree(node: unknown): void {
+  if (!isFreezableResultNode(node) || Object.isFrozen(node)) {
+    return;
+  }
+  Object.freeze(node);
+  for (const entry of Object.values(node)) {
+    freezeMetadataTree(entry);
+  }
+}
+
+/**
+ * Read-only result envelopes (from 2.0.0). The envelope, its provenance (with assumptions) and
+ * its quality metadata are frozen deeply. `value` is frozen at its top level only:
+ *
+ * - Every public calculation builds at least one envelope, many per call on hot paths. A generic
+ *   deep walk of `value` made a small scalar call about 3× slower; this shallow freeze costs
+ *   about 1.4× (measured, docs/API_STYLE.md "Read-only results").
+ * - A deep freeze would also freeze any caller-owned object that a value holds by reference.
+ *   test/result-envelope-freeze.test.ts checks that a calculation leaves its input as it was.
+ * - Typed arrays, DataViews and ArrayBuffers cannot be frozen and stay mutable. Class
+ *   instances, Maps and Sets are not frozen.
+ * - Domains that own their data still deep-freeze it (captures, RAW attachments, presets and
+ *   export metadata use freezeOwnedData), so those values are read-only all the way down.
+ */
 function createResult<T>(
   value: T,
   provenance: CalculationProvenance,
@@ -487,11 +531,21 @@ function createResult<T>(
   assertFiniteCalculationValue(value);
   validateCalculationQuality(quality);
 
-  return {
-    value,
-    provenance,
-    ...(quality === undefined ? {} : { quality })
-  };
+  if (isFreezableResultNode(value)) {
+    Object.freeze(value);
+  }
+  // Provenance holds only strings and the assumptions array of strings, so freezing those two
+  // objects freezes it completely. This avoids a generic walk on every result (a measured hot
+  // path; see docs/API_STYLE.md "Read-only results").
+  Object.freeze(provenance);
+  const assumptions = provenance.assumptions;
+  if (assumptions !== undefined && !Object.isFrozen(assumptions)) {
+    Object.freeze(assumptions);
+  }
+  if (quality !== undefined) {
+    freezeMetadataTree(quality);
+  }
+  return Object.freeze(quality === undefined ? { value, provenance } : { value, provenance, quality });
 }
 
 /**

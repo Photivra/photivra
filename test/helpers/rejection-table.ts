@@ -9,6 +9,13 @@ export type Json = any;
 export type RejectionCase = readonly [name: string, mutate: (input: Json) => void, messageFragment: string];
 
 /**
+ * A rejection row for a table whose rows expect different error classes: the class is given when it
+ * differs from the table's default (from 2.0.0 shape problems are configuration errors).
+ */
+export type MixedRejectionCase = [name: string, mutate: (input: Json) => void, messageFragment: string,
+  errorClass?: new (...args: never[]) => Error];
+
+/**
  * Applies `mutate` to a fresh valid input and asserts that `run` throws the declared domain error
  * class with a message containing `messageFragment` (the fail-closed branch, not an incidental error).
  */

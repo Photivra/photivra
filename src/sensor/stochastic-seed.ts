@@ -17,6 +17,8 @@
  * correlation tests, not this hash alone, show that the resulting noise is statistically acceptable.
  */
 
+import { InvalidScientificInputError } from "../core/validation.js";
+
 /** Stream IDs. Changing them changes every simulated RAW code. */
 export const NATIVE_SITE_CHARGE_STREAM_ID = 0 as const;
 export const NATIVE_SITE_READ_NOISE_STREAM_ID = 1 as const;
@@ -59,7 +61,7 @@ export function deriveNativeSiteStreamSeedUint32(
   streamId: number
 ): number {
   if (!isUint32(captureSeedUint32) || !isUint32(nativeSiteIndex) || !isUint32(streamId)) {
-    throw new RangeError("Stochastic stream seed inputs must be uint32 integers.");
+    throw new InvalidScientificInputError("Stochastic stream seed inputs must be uint32 integers.");
   }
   let h = 0;
   h = mixBlock(h, captureSeedUint32);
@@ -135,7 +137,7 @@ export function deriveSensorFixedPatternSeedUint32(
   streamId: number
 ): number {
   if (!isUint32(sensorInstanceSeedUint32) || !isUint32(siteX) || !isUint32(siteY) || !isUint32(streamId)) {
-    throw new RangeError("Fixed-pattern seed inputs must be uint32 integers.");
+    throw new InvalidScientificInputError("Fixed-pattern seed inputs must be uint32 integers.");
   }
   let h = 0;
   h = mixBlock(h, sensorInstanceSeedUint32);

@@ -37,7 +37,7 @@ import type {
   SensorSpectralResponseScientificStatus,
   SensorSpectralResponseUncertainty
 } from "./spectral-response.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -866,7 +866,7 @@ export function composeSensorAccumulatedCharge(
 export function composeSensorAccumulatedCharge(
   input: ComposeSensorPhotoAccumulatedChargeInput
 ): CalculationResult<SensorPhotoAccumulatedChargeComposition> {
-  requireInputObject(input, "composeSensorAccumulatedCharge input");
+  requireInputKeys(input, "composeSensorAccumulatedCharge", ["photoSignal", "darkCharge", "additionalChargeComponents", "completenessProfile"]);
   validatePhoto(input.photoSignal);
   validateDarkBinding(
     input.photoSignal,

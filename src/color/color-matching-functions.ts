@@ -36,7 +36,8 @@ import {
   type CieXyChromaticity,
   type CieXyzTristimulus
 } from "./colorimetry-math.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export const COLORIMETRY_MODEL_VERSION = "2.0.0" as const;
 /** Upper bound on quadrature nodes per integration call. */
@@ -185,13 +186,13 @@ export function prepareColorMatchingFunctions(source: ColorMatchingFunctionsSour
       evaluate: estimateCie1931ColorMatchingFunctions
     });
   }
-  if (record.kind !== "tabulated") throw new InvalidScientificInputError("colorMatchingFunctions.kind is not supported.");
+  if (record.kind !== "tabulated") throw new InvalidConfigurationError("colorMatchingFunctions.kind is not supported.");
   const observer = record.observer;
   if (observer !== "cie-1931-2-degree" && observer !== "cie-1964-10-degree" && observer !== "caller-defined") {
-    throw new InvalidScientificInputError("colorMatchingFunctions.observer is not supported.");
+    throw new InvalidConfigurationError("colorMatchingFunctions.observer is not supported.");
   }
   if (typeof record.datasetId !== "string" || record.datasetId.trim().length === 0) {
-    throw new InvalidScientificInputError("colorMatchingFunctions.datasetId must be a non-empty string.");
+    throw new InvalidConfigurationError("colorMatchingFunctions.datasetId must be a non-empty string.");
   }
   const signed = observer === "caller-defined";
   const samples = parseIncreasingSamples<TabulatedColorMatchingSample>(record.samples, "colorMatchingFunctions.samples", (s, p) => {
@@ -233,7 +234,7 @@ export function prepareColorimetricSpectrum(spectrum: ColorimetricSpectrum, path
     const minimum = requirePositiveNumber(range.minimum, path + ".wavelengthRangeNanometers.minimum");
     const maximum = requirePositiveNumber(range.maximum, path + ".wavelengthRangeNanometers.maximum");
     if (!(minimum < maximum)) throw new InvalidScientificInputError(path + ".wavelengthRangeNanometers.minimum must be less than maximum.");
-    if (typeof record.evaluate !== "function") throw new InvalidScientificInputError(path + ".evaluate must be a function.");
+    if (typeof record.evaluate !== "function") throw new InvalidConfigurationError(path + ".evaluate must be a function.");
     const evaluate = record.evaluate as (w: number) => number;
     const declared = { minimum, maximum };
     return {
@@ -246,7 +247,7 @@ export function prepareColorimetricSpectrum(spectrum: ColorimetricSpectrum, path
       }
     };
   }
-  if (record.kind !== "tabulated") throw new InvalidScientificInputError(path + ".kind is not supported.");
+  if (record.kind !== "tabulated") throw new InvalidConfigurationError(path + ".kind is not supported.");
   const samples = parseIncreasingSamples<ColorimetricSpectralSample>(record.samples, path + ".samples", (s, p) => ({
     wavelengthNanometers: s.wavelengthNanometers as number,
     value: requireFiniteNumber(s.value, p + ".value")
@@ -275,7 +276,7 @@ export interface CreateColorimetricMidpointQuadratureInput {
  * node carries its d-lambda measure in nm; the measures sum to the range width.
  */
 export function createColorimetricMidpointQuadrature(input: CreateColorimetricMidpointQuadratureInput): ColorimetricQuadratureNode[] {
-  requireInputObject(input, "createColorimetricMidpointQuadrature input");
+  requireInputKeys(input, "createColorimetricMidpointQuadrature", ["wavelengthRangeNanometers", "maximumSubintervalWidthNanometers"]);
   const range = requireRecordValue(input.wavelengthRangeNanometers, "wavelengthRangeNanometers");
   const minimum = requirePositiveNumber(range.minimum, "wavelengthRangeNanometers.minimum");
   const maximum = requirePositiveNumber(range.maximum, "wavelengthRangeNanometers.maximum");
@@ -383,7 +384,7 @@ export function resolveNormalizationFactor(normalization: TristimulusNormalizati
     return 1 / unnormalizedWhiteY;
   }
   if (r.kind === "scale") return requirePositiveNumber(r.factor, "normalization.factor");
-  throw new InvalidScientificInputError("normalization.kind is not supported.");
+  throw new InvalidConfigurationError("normalization.kind is not supported.");
 }
 
 function scaleXyz(xyz: CieXyzTristimulus, k: number): CieXyzTristimulus {
@@ -398,7 +399,7 @@ function scaleXyz(xyz: CieXyzTristimulus, k: number): CieXyzTristimulus {
  * caller-tabulated CMFs. Either way, the caller chooses the quadrature.
  */
 export function integrateSpectrumToXyz(input: IntegrateSpectrumToXyzInput): CalculationResult<IntegratedSpectrumXyz> {
-  requireInputObject(input, "integrateSpectrumToXyz input");
+  requireInputKeys(input, "integrateSpectrumToXyz", ["quadratureNodes", "spectralDistribution", "spectralFactor", "colorMatchingFunctions", "normalization"]);
   const cmf = prepareColorMatchingFunctions(input.colorMatchingFunctions);
   const distribution = prepareColorimetricSpectrum(input.spectralDistribution, "spectralDistribution");
   const factor = input.spectralFactor === undefined ? undefined : prepareColorimetricSpectrum(input.spectralFactor, "spectralFactor");

@@ -33,7 +33,7 @@ import type {
 import type {
   SensorResponsivityPhotocurrent
 } from "./responsivity-photocurrent.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -630,7 +630,7 @@ export function integrateStationarySensorRateOverLocalExposure(
   input:
     IntegrateStationarySensorRateInput
 ): CalculationResult<SensorStationaryRateExposureIntegration> {
-  requireInputObject(input, "integrateStationarySensorRateOverLocalExposure input");
+  requireInputKeys(input, "integrateStationarySensorRateOverLocalExposure", ["rate", "exposureBinding", "stationarityProfile"]);
   const binding =
     validateBinding(
       input.rate,

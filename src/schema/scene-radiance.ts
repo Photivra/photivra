@@ -29,7 +29,7 @@ import type {
   SceneIlluminationTemporalProfile
 } from "./illumination-temporal.js";
 import type { Vector3 } from "./scene.js";
-import { requireInputObject, requireInputArray } from "../core/record-validation.js";
+import { requireInputObject, requireInputArray, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1213,7 +1213,7 @@ export function validateSceneRadianceEvaluationBindings(
   input:
     ValidateSceneRadianceEvaluationBindingsInput
 ): SceneRadianceEvaluationBindingAssessment {
-  requireInputObject(input, "validateSceneRadianceEvaluationBindings input");
+  requireInputKeys(input, "validateSceneRadianceEvaluationBindings", ["providerProfile", "illuminationProfile", "illuminationTemporalProfile", "materialResponseProfile", "request", "result"]);
   const {
     providerProfile,
     illuminationProfile,

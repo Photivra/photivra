@@ -17,7 +17,7 @@ import { bindSensorTemporalSamples } from "./temporal-sample-binding.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import { calculateSensorEqeLocalRate, type CalculateSensorEqeLocalExposureInput } from "./eqe-local-exposure.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 /** Input: shared response, site and shutter settings, plus the light evaluated separately at each time. */
 export interface CalculateSensorEqeTemporalExposureInput
@@ -74,7 +74,7 @@ export interface SensorEqeTemporalExposure {
 export function calculateSensorEqeTemporalExposure(
   input: CalculateSensorEqeTemporalExposureInput
 ): CalculationResult<SensorEqeTemporalExposure> {
-  requireInputObject(input, "calculateSensorEqeTemporalExposure input");
+  requireInputKeys(input, "calculateSensorEqeTemporalExposure", ["samples", "spatialSampling", "spectralSampling", "responseApplication", "operatingRangeProfile", "colorSamplingProfile", "spectralResponseProfile", "airPhotonEnergyContext", "localExposure"]);
   const ordered = bindSensorTemporalSamples(input.samples, sample => sample.irradianceSamples);
   const count = ordered.length;
   const samples: SensorEqeTemporalExposure["samples"][number][] = [];

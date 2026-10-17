@@ -29,7 +29,7 @@ import {
   requirePositiveFinite
 } from "../core/validation.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 /**
  * Camera angular velocity in radians per second about the exposure-start
@@ -327,7 +327,7 @@ export function resolveProjectionDistanceMm(
 export function calculateCameraRotationImageMapping(
   input: CalculateCameraRotationImageMappingInput
 ): CalculationResult<CameraRotationImageMapping> {
-  requireInputObject(input, "calculateCameraRotationImageMapping input");
+  requireInputKeys(input, "calculateCameraRotationImageMapping", ["focalLengthMm", "imagePointMm", "timeSecondsFromExposureStart", "angularVelocityRadPerSec", "focusDistanceM", "samplingPitchMicrometers"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requireFinite("imagePointMm.x", input.imagePointMm.x);
   requireFinite("imagePointMm.y", input.imagePointMm.y);
@@ -479,7 +479,7 @@ export function calculateCameraRotationImageMapping(
 export function calculateInverseCameraRotationImageMapping(
   input: CalculateInverseCameraRotationImageMappingInput
 ): CalculationResult<InverseCameraRotationImageMapping> {
-  requireInputObject(input, "calculateInverseCameraRotationImageMapping input");
+  requireInputKeys(input, "calculateInverseCameraRotationImageMapping", ["focalLengthMm", "imagePointMm", "timeSecondsFromExposureStart", "angularVelocityRadPerSec", "focusDistanceM", "samplingPitchMicrometers"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requireFinite("imagePointMm.x", input.imagePointMm.x);
   requireFinite("imagePointMm.y", input.imagePointMm.y);

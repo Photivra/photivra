@@ -14,6 +14,7 @@
 import { freezeOwnedData } from "../core/owned-data.js";
 import { requirePublicOpaqueId } from "../core/record-validation.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export const BROWSER_NATIVE_REFERENCE_GEOMETRY_VERSION = "0.1.0" as const;
 
@@ -152,7 +153,7 @@ function prepareRigidTransform(
 ): BrowserNativeReferenceRigidTransform | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "object" || value === null) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "Reference rigid transform must be an object."
     );
   }
@@ -222,7 +223,7 @@ function validatePrimitive(
   primitive: BrowserNativeReferencePrimitive
 ): BrowserNativeReferencePrimitive {
   if (typeof primitive !== "object" || primitive === null) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "Reference geometry primitive must be an object."
     );
   }
@@ -366,7 +367,7 @@ function validateRay(ray: BrowserNativeReferenceRay): {
   directionMagnitude: number;
 } {
   if (typeof ray !== "object" || ray === null) {
-    throw new InvalidScientificInputError("Reference ray must be an object.");
+    throw new InvalidConfigurationError("Reference ray must be an object.");
   }
   const originM = requireFiniteVector(ray.originM, "Reference ray origin");
   const directionUnitVector = requireFiniteVector(

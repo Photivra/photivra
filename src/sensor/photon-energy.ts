@@ -27,7 +27,7 @@ import type {
   SensorSpectralResponseUncertainty,
   SpectralWavelengthBasis
 } from "./spectral-response.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -497,12 +497,15 @@ export function calculatePhotonEnergyFromWavelength(
   input:
     CalculatePhotonEnergyFromWavelengthInput
 ): CalculationResult<PhotonEnergyFromWavelength> {
-  requireInputObject(input, "calculatePhotonEnergyFromWavelength input");
-  const wavelengthNanometers =
-    requirePositiveFinite(
-      input.wavelengthNanometers,
-      "wavelengthNanometers"
-    );
+  requireInputKeys(input, "calculatePhotonEnergyFromWavelength", ["wavelengthNanometers", "wavelengthBasis", "airPhaseRefractiveIndex", "airOperatingConditions", "airConditionPolicy"]);
+  const wavelengthNanometers = input.wavelengthNanometers;
+  // A calculation input, not a configuration record, so a bad value is a scientific-input error.
+  if (typeof wavelengthNanometers !== "number" || !Number.isFinite(wavelengthNanometers)) {
+    throw new InvalidScientificInputError("wavelengthNanometers must be finite.");
+  }
+  if (wavelengthNanometers <= 0) {
+    throw new InvalidScientificInputError("wavelengthNanometers must be greater than zero.");
+  }
 
   if (
     input.wavelengthBasis ===
@@ -517,7 +520,7 @@ export function calculatePhotonEnergyFromWavelength(
     input.wavelengthBasis !== "air" &&
     input.wavelengthBasis !== "vacuum"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "wavelengthBasis is invalid."
     );
   }

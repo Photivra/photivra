@@ -29,7 +29,8 @@ import {
   parseExposureProgramLineProfile,
   type ExposureProgramLineProfile
 } from "./program-line.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -872,7 +873,7 @@ function requireRecord(
     value === null ||
     Array.isArray(value)
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path + " must be an object."
     );
   }
@@ -957,7 +958,7 @@ function validateTarget(
     record.schemaVersion !==
     EXPOSURE_METER_TARGET_SCHEMA_VERSION
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       'target.schemaVersion must be "' +
         EXPOSURE_METER_TARGET_SCHEMA_VERSION +
         '".'
@@ -985,7 +986,7 @@ function validateTarget(
     typeof targetId !== "string" ||
     targetId.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "target.targetId must be a non-empty string."
     );
   }
@@ -1019,7 +1020,7 @@ function validateTarget(
   } else if (
     record.status !== "no-signal"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "target.status is invalid."
     );
   }
@@ -1035,7 +1036,7 @@ function requireNonEmptyString(
     typeof value !== "string" ||
     value.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path + " must be a non-empty string."
     );
   }
@@ -1059,7 +1060,7 @@ function validateResolvedGrid(
     !Array.isArray(grid.values) ||
     grid.values.length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path +
         " must be a continuous grid or a non-empty discrete-values grid."
     );
@@ -1243,7 +1244,7 @@ function validateCapabilities(
       .autoIsoAvailability !==
       "unknown"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "capabilities.iso.autoIsoAvailability is invalid."
     );
   }
@@ -2550,7 +2551,7 @@ export function resolveManualExposureMode(
   input:
     ResolveManualExposureModeInput
 ): ManualExposureModeResolution {
-  requireInputObject(input, "resolveManualExposureMode input");
+  requireInputKeys(input, "resolveManualExposureMode", ["target", "capabilities", "referenceExposure", "manualAperture", "manualShutterSeconds", "isoControl"]);
   const target =
     validateTarget(input.target);
   validateCapabilities(
@@ -2656,7 +2657,7 @@ export function resolveManualExposureMode(
     input.isoControl.kind !==
       "automatic"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "isoControl.kind is invalid."
     );
   }
@@ -2667,7 +2668,7 @@ export function resolveManualExposureMode(
       .quantizationPolicy !==
       "nearest-log2-lower-on-tie"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       'isoControl.quantizationPolicy must be "nearest-log2-lower-on-tie".'
     );
   }
@@ -2852,7 +2853,7 @@ export function resolveAperturePriorityExposureMode(
   input:
     ResolveAperturePriorityExposureModeInput
 ): AperturePriorityExposureModeResolution {
-  requireInputObject(input, "resolveAperturePriorityExposureMode input");
+  requireInputKeys(input, "resolveAperturePriorityExposureMode", ["target", "capabilities", "referenceExposure", "manualAperture", "manualIso", "shutterQuantizationPolicy"]);
   const target =
     validateTarget(input.target);
   validateCapabilities(
@@ -2898,7 +2899,7 @@ export function resolveAperturePriorityExposureMode(
     input.shutterQuantizationPolicy !==
     "nearest-log2-shorter-on-tie"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       'shutterQuantizationPolicy must be "nearest-log2-shorter-on-tie".'
     );
   }
@@ -3143,7 +3144,7 @@ export function resolveAperturePriorityAutoIsoExposureMode(
   input:
     ResolveAperturePriorityAutoIsoExposureModeInput
 ): AperturePriorityAutoIsoExposureModeResolution {
-  requireInputObject(input, "resolveAperturePriorityAutoIsoExposureMode input");
+  requireInputKeys(input, "resolveAperturePriorityAutoIsoExposureMode", ["target", "capabilities", "referenceExposure", "manualAperture", "policy"]);
   const target = validateTarget(input.target);
   validateCapabilities(input.capabilities);
   const referenceExposure =
@@ -3182,7 +3183,7 @@ export function resolveAperturePriorityAutoIsoExposureMode(
       policy.afterMaximumIso !==
         "hold-preferred-shutter")
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "Aperture Priority Auto ISO policy is invalid."
     );
   }
@@ -3496,7 +3497,7 @@ export function resolveShutterPriorityExposureMode(
   input:
     ResolveShutterPriorityExposureModeInput
 ): ShutterPriorityExposureModeResolution {
-  requireInputObject(input, "resolveShutterPriorityExposureMode input");
+  requireInputKeys(input, "resolveShutterPriorityExposureMode", ["target", "capabilities", "referenceExposure", "manualShutterSeconds", "isoControl"]);
   const target = validateTarget(input.target);
   validateCapabilities(input.capabilities);
   const referenceExposure =
@@ -3556,7 +3557,7 @@ export function resolveShutterPriorityExposureMode(
         .apertureQuantizationPolicy !==
       "nearest-log2-narrower-on-tie"
     ) {
-      throw new InvalidScientificInputError(
+      throw new InvalidConfigurationError(
         'isoControl.apertureQuantizationPolicy must be "nearest-log2-narrower-on-tie".'
       );
     }
@@ -3648,7 +3649,7 @@ export function resolveShutterPriorityExposureMode(
     input.isoControl.kind !==
     "automatic"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "isoControl.kind is invalid for Shutter Priority."
     );
   }
@@ -3665,7 +3666,7 @@ export function resolveShutterPriorityExposureMode(
     policy.apertureSelectionPolicy !==
       "not-wider-than-target"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "Shutter Priority Auto ISO policy is invalid."
     );
   }
@@ -3817,7 +3818,7 @@ export function resolveProgramAutoExposureMode(
   input:
     ResolveProgramAutoExposureModeInput
 ): ProgramAutoExposureModeResolution {
-  requireInputObject(input, "resolveProgramAutoExposureMode input");
+  requireInputKeys(input, "resolveProgramAutoExposureMode", ["target", "capabilities", "referenceExposure", "programLine", "isoControl"]);
   const target =
     validateTarget(input.target);
   validateCapabilities(
@@ -3841,7 +3842,7 @@ export function resolveProgramAutoExposureMode(
     input.isoControl.kind !==
       "automatic"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "isoControl.kind is invalid for Program Auto."
     );
   }
@@ -3978,7 +3979,7 @@ export function resolveProgramAutoExposureMode(
       .isoQuantizationPolicy !==
       "nearest-log2-lower-on-tie"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "Program Auto ISO policy is invalid."
     );
   }
@@ -4122,7 +4123,7 @@ export function resolveFullAutoExposureMode(
   input:
     ResolveFullAutoExposureModeInput
 ): FullAutoExposureModeResolution {
-  requireInputObject(input, "resolveFullAutoExposureMode input");
+  requireInputKeys(input, "resolveFullAutoExposureMode", ["target", "capabilities", "referenceExposure", "policy"]);
   const target =
     validateTarget(input.target);
   validateCapabilities(
@@ -4143,7 +4144,7 @@ export function resolveFullAutoExposureMode(
       .isoQuantizationPolicy !==
       "nearest-log2-lower-on-tie"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "Full Auto exposure policy is invalid."
     );
   }

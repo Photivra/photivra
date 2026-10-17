@@ -41,6 +41,8 @@ import {
   type LensFieldPointMm,
   type ValidatedRadialProfile
 } from "./radial-distortion.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export interface BrownConradyDistortionCoefficients {
   /** Radial r^2 coefficient. */
@@ -118,7 +120,7 @@ function requireFinite(name: string, value: unknown): number {
 
 function requirePoint(name: string, point: unknown): LensFieldPointMm {
   if (typeof point !== "object" || point === null) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       `${name} must be an object with finite numeric x and y coordinates.`
     );
   }
@@ -169,10 +171,10 @@ function validateProfile(
   profile: BrownConradyDistortionProfile
 ): ValidatedBrownConradyProfile {
   if (typeof profile !== "object" || profile === null) {
-    throw new InvalidScientificInputError("profile must be an object.");
+    throw new InvalidConfigurationError("profile must be an object.");
   }
   if (typeof profile.coefficients !== "object" || profile.coefficients === null) {
-    throw new InvalidScientificInputError("profile.coefficients must be an object.");
+    throw new InvalidConfigurationError("profile.coefficients must be an object.");
   }
   const coefficients: BrownConradyDistortionCoefficients = {
     k1: requireFinite("profile.coefficients.k1", profile.coefficients.k1),
@@ -372,9 +374,7 @@ function solveInverseBrownConrady(
 export function calculateBrownConradyDistortionMapping(
   input: CalculateBrownConradyDistortionMappingInput
 ): CalculationResult<BrownConradyDistortionMapping> {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
+  requireInputKeys(input, "calculateBrownConradyDistortionMapping", ["imagePointMm", "profile"]);
   const point = requirePoint("imagePointMm", input.imagePointMm);
   const profile = validateProfile(input.profile);
   const scale = profile.radial.normalizationRadiusMm;
@@ -415,9 +415,7 @@ export function calculateBrownConradyDistortionMapping(
 export function calculateInverseBrownConradyDistortionMapping(
   input: CalculateInverseBrownConradyDistortionMappingInput
 ): CalculationResult<InverseBrownConradyDistortionMapping> {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
+  requireInputKeys(input, "calculateInverseBrownConradyDistortionMapping", ["distortedImagePointMm", "profile"]);
   const point = requirePoint("distortedImagePointMm", input.distortedImagePointMm);
   const profile = validateProfile(input.profile);
   const solved = solveInverseBrownConrady(profile, point);

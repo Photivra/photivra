@@ -40,7 +40,8 @@ describe("native environment shared-state admission (2.0 performance)", () => {
     const reference = await runWithSite(-1, () => {});
     expect(Array.isArray(reference)).toBe(true);
     // An undefined property and a non-index array property are omitted by the canonical comparison.
-    expect(await runWithSite(2, e => { (e.optics as Record<string, unknown>).omitted = undefined; })).toEqual(reference);
+    // From 2.0.0 calculators reject unknown fields even when undefined, so use a declared optional field.
+    expect(await runWithSite(2, e => { (e.optics as Record<string, unknown>).frontOfLensFilters = undefined; })).toEqual(reference);
     expect(await runWithSite(3, e => { const evidence = (e.fieldThroughput as { evidence: unknown[] & { note?: string } }).evidence; evidence.note = "kept"; }))
       .toEqual(reference);
   });

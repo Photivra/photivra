@@ -20,7 +20,7 @@ import {
   type ProductionImageFormationPlan,
   type RendererConsumerKind
 } from "./image-formation-plan.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 export const PRODUCTION_PLAN_CONSUMER_MANIFEST_VERSION =
   "0.2.0" as const;
@@ -132,7 +132,7 @@ export function createProductionPlanConsumerManifest(
   input:
     CreateProductionPlanConsumerManifestInput
 ): ProductionPlanConsumerManifest {
-  requireInputObject(input, "createProductionPlanConsumerManifest input");
+  requireInputKeys(input, "createProductionPlanConsumerManifest", ["plan", "consumerKind"]);
   requirePlan(input.plan);
   const consumerKind =
     requireConsumerKind(

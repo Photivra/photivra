@@ -30,7 +30,7 @@ import {
   type ResolvedSensorReadoutRegime,
   type SensorReadoutConversionProfile
 } from "./raw-readout.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -616,7 +616,7 @@ export function resolveGenericIsoSignalChain(
   input:
     ResolveGenericIsoSignalChainInput
 ): ResolvedGenericIsoSignalChain {
-  requireInputObject(input, "resolveGenericIsoSignalChain input");
+  requireInputKeys(input, "resolveGenericIsoSignalChain", ["profile", "isoCapability", "requestedIsoSetting", "captureModeId", "readoutProfile"]);
   const profile =
     parseGenericIsoSignalChainProfile(
       input.profile
@@ -652,7 +652,7 @@ export function resolveGenericIsoSignalChain(
     input.captureModeId.trim()
       .length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "captureModeId must be a non-empty string."
     );
   }
@@ -900,7 +900,7 @@ export function resolveGenericIsoSignalChainPreset(
   realCameraRankingClaimed:
     false;
 } {
-  requireInputObject(input, "resolveGenericIsoSignalChainPreset input");
+  requireInputKeys(input, "resolveGenericIsoSignalChainPreset", ["catalog", "preset"]);
   const catalog =
     parseGenericIsoSignalChainPresetCatalog(
       input.catalog
@@ -910,7 +910,7 @@ export function resolveGenericIsoSignalChainPreset(
       input.preset
     )
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "preset must be good, better, or best."
     );
   }

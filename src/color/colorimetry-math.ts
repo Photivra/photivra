@@ -8,6 +8,7 @@
  */
 
 import { InvalidScientificInputError, InvalidScientificResultError } from "../core/validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** Three-component vector (dimensionless unless documented otherwise). */
 export type ColorVector3 = readonly [number, number, number];
@@ -57,7 +58,7 @@ export function requireNonNegativeNumber(value: unknown, path: string): number {
 
 export function requireRecordValue(value: unknown, path: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new InvalidScientificInputError(path + " must be an object.");
+    throw new InvalidConfigurationError(path + " must be an object.");
   }
   return value as Record<string, unknown>;
 }

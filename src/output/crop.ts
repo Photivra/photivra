@@ -16,7 +16,7 @@ import {
   requirePositiveFinite,
   requirePositiveInteger
 } from "../core/validation.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 /** How close a quotient may be to the next whole pixel, in ULPs (units in the last place), and still count as it. */
 const WHOLE_PIXEL_SNAP_ULPS = 4;
@@ -75,7 +75,7 @@ export interface CenteredCrop {
 export function calculateCenteredCrop(
   input: CalculateCenteredCropInput
 ): CalculationResult<CenteredCrop> {
-  requireInputObject(input, "calculateCenteredCrop input");
+  requireInputKeys(input, "calculateCenteredCrop", ["pixelWidth", "pixelHeight", "cropFactor"]);
   requirePositiveInteger("pixelWidth", input.pixelWidth);
   requirePositiveInteger("pixelHeight", input.pixelHeight);
   requirePositiveFinite("cropFactor", input.cropFactor);

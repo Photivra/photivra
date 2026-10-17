@@ -21,7 +21,8 @@ import {
   InvalidScientificInputError,
   requirePositiveFinite
 } from "../core/validation.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export interface RadialDistortionCoefficients {
   /** Dimensionless r² coefficient. */
@@ -307,7 +308,7 @@ export function validateRadialDistortionProfile(
 
 function requirePoint(name: string, point: LensFieldPointMm): void {
   if (typeof point !== "object" || point === null) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       `${name} must be an object with finite numeric x and y coordinates.`
     );
   }
@@ -351,7 +352,7 @@ function mappingAssumptions(): readonly string[] {
 export function calculateRadialDistortionMapping(
   input: CalculateRadialDistortionMappingInput
 ): CalculationResult<RadialDistortionMapping> {
-  requireInputObject(input, "calculateRadialDistortionMapping input");
+  requireInputKeys(input, "calculateRadialDistortionMapping", ["imagePointMm", "profile"]);
   requirePoint("imagePointMm", input.imagePointMm);
   const profile = validateRadialDistortionProfile(input.profile);
 
@@ -568,7 +569,7 @@ function calculateInverseRadialDistortionMappingValue(
 export function calculateInverseRadialDistortionMapping(
   input: CalculateInverseRadialDistortionMappingInput
 ): CalculationResult<InverseRadialDistortionMapping> {
-  requireInputObject(input, "calculateInverseRadialDistortionMapping input");
+  requireInputKeys(input, "calculateInverseRadialDistortionMapping", ["distortedImagePointMm", "profile"]);
   const profile = validateRadialDistortionProfile(input.profile);
   const mapping = calculateInverseRadialDistortionMappingValue(
     input.distortedImagePointMm,
@@ -597,10 +598,10 @@ export function calculateInverseRadialDistortionMapping(
 export function calculateInverseRadialDistortionMappings(
   input: CalculateInverseRadialDistortionMappingsInput
 ): CalculationResult<InverseRadialDistortionMappings> {
-  requireInputObject(input, "calculateInverseRadialDistortionMappings input");
+  requireInputKeys(input, "calculateInverseRadialDistortionMappings", ["distortedImagePointsMm", "profile"]);
   const profile = validateRadialDistortionProfile(input.profile);
   if (!Array.isArray(input.distortedImagePointsMm)) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "distortedImagePointsMm must be an array of image-plane points."
     );
   }

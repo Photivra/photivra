@@ -49,7 +49,7 @@ import {
   type SceneRadianceEvaluationRequest,
   type SceneRadianceEvaluationResult
 } from "../schema/scene-radiance.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1024,7 +1024,7 @@ function workingFNumber(
     };
   }
 
-  throw new InvalidScientificInputError(
+  throw new InvalidConfigurationError(
     "focus.kind is invalid."
   );
 }
@@ -1204,7 +1204,7 @@ function fieldFactor(
     }
     return factor;
   }
-  throw new InvalidScientificInputError(
+  throw new InvalidConfigurationError(
     "fieldThroughput.kind is invalid."
   );
 }
@@ -1258,7 +1258,7 @@ export function calculateSceneRadianceToSensorIrradiance(
 ): CalculationResult<
   SceneToSensorIrradianceResult
 > {
-  requireInputObject(input, "calculateSceneRadianceToSensorIrradiance input");
+  requireInputKeys(input, "calculateSceneRadianceToSensorIrradiance", ["sceneRadianceRequest", "sceneRadianceResult", "profile", "focalLengthMm", "nominalFNumber", "focus", "imagePointMm", "fieldThroughput", "frontOfLensFilters"]);
   const request =
     parseSceneRadianceEvaluationRequest(
       input.sceneRadianceRequest

@@ -153,8 +153,30 @@ Consistency must never erase a meaningful scientific difference.
 From package 2.0.0, input errors are reported consistently:
 
 - Every root function that needs an input object rejects a `null`, primitive or array argument, and a missing required sub-object, with the domain `InvalidConfigurationError`. It no longer throws a raw `TypeError` from a property read. The shared guards are in `src/core/record-validation.ts`. `test/root-export-input-errors.test.ts` calls every root function with `null`, `undefined`, `{}`, `42`, `"x"` and `[]`.
-- The simple scalar calculators also reject unknown input fields. A wrong-unit or misspelled field, such as `focusDistanceMm` next to `focusDistanceM`, now fails instead of being ignored. These calculators are: field of view, equivalent focal length, projected object size, thin lens, depth of field, defocus, equivalent-viewing circle of confusion, Airy disk, ideal aperture, pixel pitch, the exposure primitives, and the all-numeric colorimetry calculators (Planckian radiance and locus chromaticity, BT.1886 display preparation).
+- Every root calculator that takes an input object rejects unknown top-level input fields with `InvalidConfigurationError`. A wrong-unit or misspelled field, such as `focusDistanceMm` next to `focusDistanceM`, fails instead of being ignored. Most use the shared message `<name> input has unknown field "<field>".` (the `requireInputKeys` guard); some reject through their own allowlist parser with a domain message. Nested records are checked by their own parsers.
+- Not yet top-level strict: the versioned-record parsers (`parse*()`), and the few functions that take a whole engine or versioned record rather than an input object (for example `assessRadiometryReadiness(profile)`, `calculateEffectiveSaturationCode(sample)`, which accepts a `SensorRawCodeSample` by design, and `serializeProductionImageFormationPlan(plan)`). `test/root-export-input-errors.test.ts` classifies every root function, so a new export must be strict or listed with its reason.
+- `prepareImageFormationContext()` and `createProductionCaptureSnapshot()` also accept the `version` and `fingerprint` fields of a record they produced, so a record can be passed back with changes. Both fields are recomputed.
 - `serializeProductionImageFormationPlan()` checks the plan version and the recomputed fingerprint before serializing.
+
+### Error classes
+
+From package 2.0.0 the two input error classes follow one rule. `test/error-class-consistency.test.ts` scans the source for violations.
+
+- `InvalidConfigurationError` (`TypeError`, `code: "INVALID_CONFIGURATION"`): the input has the wrong shape. An argument or nested field that must be an object, array, string, boolean or function is something else; a required sub-object is missing; a field is unknown; a kind, mode, policy, version or other enumerated string is not one of the allowed values; or an identifier is malformed. Any defect found while parsing a versioned configuration record (a profile, schema record or `simulateCapture()` options) is also a configuration error, including an out-of-range number inside it.
+- `InvalidScientificInputError` (`RangeError`, `code: "INVALID_SCIENTIFIC_INPUT"`): a numeric input of a calculation is missing, not finite, or outside its physical or mathematical domain, including cross-field constraints such as a focus distance inside the focal length. A well-formed request that the selected capability profile cannot serve (an unsupported drive mode, bracket axis, ISO setting or flash sync mode) also stays a scientific-input error.
+- `InvalidScientificResultError` (`RangeError`, `code: "INVALID_SCIENTIFIC_RESULT"`): a computed result would not be finite.
+- The published source throws no plain `Error`, `TypeError` or `RangeError`. The one internal exception is the lean native executor's "outside lean scope" signal, which is caught at once and falls back to the full path.
+
+### Read-only results
+
+From package 2.0.0 every envelope built by `calculatedResult`, `approximationResult`, `estimatedResult` or `calibratedResult` is read-only. The engine builds every `CalculationResult` through these factories.
+
+- The envelope, `provenance` (with its `assumptions`) and `quality` are frozen all the way down. The `value` object or array is frozen at its top level. Writing to any of them throws a `TypeError` in strict-mode code. The TypeScript type marks `value`, `provenance` and `quality` as `readonly`.
+- Nested objects inside `value` are not frozen by the envelope. Domains that own their data still freeze it deeply: captures, RAW attachments and reconstructions, export metadata and equipment presets use the internal child-first freeze helper described below.
+- Typed arrays, `DataView`s and `ArrayBuffer`s inside a value stay mutable, because JavaScript cannot freeze a typed array that has elements. Class instances, Maps and Sets are not frozen.
+- Cost: a few `Object.freeze` calls per result. Measured A/B against 28f8b61 (shared 4-vCPU host, Node 24.21): per-point mapping calls 1.2–1.9× slower, batch mapping calls within noise, `simulatePocCamera()` 1.62–1.69× slower, native environment RAW within noise. See the CHANGELOG 2.0.0 entry for the figures.
+- Why not a deep freeze of `value`: it costs too much on hot paths. On the 33×33 grid of `npm run bench:image-formation` (Node 24, shared 4-vCPU Linux host), a direct micro-measurement of `calculateCameraRotationImageMapping()` (two envelopes per call) took about 0.74 µs per call without freezing, about 1.05–1.12 µs with the chosen freeze, and about 2.2–2.6 µs with a generic deep walk of `value`. A deep freeze would also freeze any caller-owned object that a value holds by reference.
+- Copy a value (`{ ...result.value }` or `structuredClone(result.value)`) before you change it.
 
 ### Naming conventions
 

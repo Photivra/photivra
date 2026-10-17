@@ -42,7 +42,8 @@ import type {
   NativeSensorReadoutScanDirection,
   SourcedSensorTimingSeconds
 } from "./readout-timing.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export type CaptureExposureBoundaryActuator = "mechanical" | "electronic";
 
@@ -159,7 +160,7 @@ const BOUNDARY_KINDS = new Set<ExposureBoundarySchedule["kind"]>([
 
 function requireRecord(value: unknown, path: string): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new InvalidScientificInputError(path + " must be an object.");
+    throw new InvalidConfigurationError(path + " must be an object.");
   }
   return value as UnknownRecord;
 }
@@ -187,7 +188,7 @@ function parseSecondsFact(
 ): SourcedCaptureTimingSeconds {
   const record = requireRecord(value, path);
   if (record.unit !== "s") {
-    throw new InvalidScientificInputError(path + '.unit must be "s".');
+    throw new InvalidConfigurationError(path + '.unit must be "s".');
   }
 
   return {
@@ -208,7 +209,7 @@ function parseDirectionFact(
       record.value as NativeSensorReadoutScanDirection
     )
   ) {
-    throw new InvalidScientificInputError(path + ".value is invalid.");
+    throw new InvalidConfigurationError(path + ".value is invalid.");
   }
 
   return {
@@ -226,7 +227,7 @@ function parseBoundarySchedule(
     typeof record.kind !== "string" ||
     !BOUNDARY_KINDS.has(record.kind as ExposureBoundarySchedule["kind"])
   ) {
-    throw new InvalidScientificInputError(path + ".kind is invalid.");
+    throw new InvalidConfigurationError(path + ".kind is invalid.");
   }
 
   if (record.kind === "simultaneous") {
@@ -299,7 +300,7 @@ function validateShutterMechanism(
     typeof value !== "string" ||
     !SHUTTER_MECHANISMS.has(value as CaptureShutterMechanism)
   ) {
-    throw new InvalidScientificInputError("shutterMechanism is invalid.");
+    throw new InvalidConfigurationError("shutterMechanism is invalid.");
   }
 }
 
@@ -497,7 +498,7 @@ function activeRectCorners(rect: RasterRect): readonly RasterPoint[] {
 export function calculateCaptureExposureWindows(
   input: CalculateCaptureExposureWindowsInput
 ): CalculationResult<CaptureExposureWindows> {
-  requireInputObject(input, "calculateCaptureExposureWindows input");
+  requireInputKeys(input, "calculateCaptureExposureWindows", ["nativeRaster", "activeCaptureRect", "shutterMechanism", "nominalExposureDurationSeconds", "opening", "closing", "samplePointsNative"]);
   validateNativeRaster(input.nativeRaster);
   validateShutterMechanism(input.shutterMechanism);
 
@@ -516,7 +517,7 @@ export function calculateCaptureExposureWindows(
     input.samplePointsNative !== undefined &&
     !Array.isArray(input.samplePointsNative)
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "samplePointsNative must be an array when supplied."
     );
   }

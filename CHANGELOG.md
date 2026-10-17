@@ -107,11 +107,30 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
 
 - **Stricter input validation (#276, #282, #293).**
   - Canonical JSON rejects non-plain objects (Map, Set, Date, typed arrays, class instances and similar) and array holes, instead of hashing them as `{}`. Output for plain JSON is byte-identical.
-  - Root functions throw `InvalidConfigurationError` for null, primitive, array or missing sub-object input. The 15 scalar calculators reject unknown fields.
+  - Root functions throw `InvalidConfigurationError` for null, primitive, array or missing sub-object input. Every calculator rejects unknown fields (next item).
   - `estimatedResult`/`calibratedResult` require `quality`, and result factories reject empty provenance identities.
   - `calculateSensorResponsivityPhotocurrent` always validates `operatingElectricalConditions` and returns them parsed.
   - `serializeProductionImageFormationPlan` rejects objects whose version or fingerprint does not match.
   - *Migration:* pass plain JSON, remove extra fields, and give factories a quality and a provenance.
+- **Every calculator rejects unknown input fields (#276).**
+  - *Why:* 1.x ignored an unknown field on 196 root functions, for example `calculateSignalToNoise()` and `calculateProjectedMotionBlur()`. A typo or a wrong unit suffix (`focusDistanceMm` for `focusDistanceM`) then fell back to a default without any error.
+  - *What changed:* every root function that takes an input object now throws `InvalidConfigurationError` for an unknown top-level field, most with the message `<name> input has unknown field "<field>".` `test/root-export-input-errors.test.ts` lists every root function. Not yet strict: the `parse*()` record parsers and 13 functions that take a whole engine or versioned record, such as `calculateEffectiveSaturationCode()`, which accepts a `SensorRawCodeSample` by design.
+  - *Effect:* calls with extra fields now fail. `prepareImageFormationContext()` and `createProductionCaptureSnapshot()` still accept the `version` and `fingerprint` of a record they produced, and recompute both.
+  - *Migration:* remove extra fields, and fix misspelled or wrong-unit field names. To change an engine result and pass it back, copy only the documented input fields.
+- **Read-only result envelopes (#276).**
+  - *Why:* a caller could change a result that another caller or a cache shared.
+  - *What changed:* every `CalculationResult` is frozen. The envelope, `provenance` (with `assumptions`) and `quality` are frozen all the way down; `value` is frozen at its top level. `CalculationResult` marks `value`, `provenance` and `quality` as `readonly`. Nested objects inside `value` and typed arrays stay mutable; domains that own their data (captures, RAW, export metadata, presets) already freeze it deeply.
+  - *Effect:* writing to a result throws a `TypeError` in strict-mode code (and fails silently in sloppy-mode scripts). The result factories also freeze the value, assumptions and quality objects you pass them. Every result costs a few `Object.freeze` calls (measured A/B against 28f8b61 on a shared 4-vCPU Xeon host, Node 24.21, medians of 3–5 alternating runs; indicative only):
+    - per-point mapping calls (`npm run bench:image-formation`): about 0.3–0.45 µs more per call, 1.2–1.9× slower; the batch mapping APIs 0.91–1.08× (within noise);
+    - `simulatePocCamera()` (`scripts/benchmark-composed-baseline.mjs`), which builds many internal results per request: 1.62–1.69× slower (11.9 → 19.6 µs per base request). Freezing only the envelope measured 1.15–1.28×; no freezing measured 0.97–1.20×;
+    - native environment RAW (`scripts/benchmark-v1-environment.mjs`): 0.84–1.08×, within noise, because its lean executor builds few envelopes;
+    - a generic deep freeze of `value` made a small scalar call about 3× slower and was not adopted. See `docs/API_STYLE.md` "Read-only results".
+  - *Migration:* copy a value before changing it (`{ ...result.value }` or `structuredClone(result.value)`). Use the batch mapping APIs in per-point loops.
+- **Consistent error classes (#276).**
+  - *Why:* the same kind of mistake threw different classes in different modules. For example a non-object input threw `InvalidScientificInputError` in some calculators and `InvalidConfigurationError` in others, and a negative flash guide number threw `InvalidConfigurationError`.
+  - *What changed:* one rule (`docs/API_STYLE.md` "Error classes"). A wrong shape is an `InvalidConfigurationError`: a non-object or non-array, a missing sub-object, an unknown field, an unknown kind, mode, policy or version string, or a malformed identifier. A bad number in a calculation is an `InvalidScientificInputError`. Defects inside a versioned record or options object stay configuration errors. About 190 throw sites moved from `InvalidScientificInputError` to `InvalidConfigurationError`. The scalar flash (`calculateFlashGuideNumber`, `calculateFlashPowerForDistance`, `resolveTtlFlashExposure` numbers), shutter-angle and video (`calculateShutterAngleExposureSeconds`, `calculateShutterAngleFromExposureSeconds`, `assessShutterAngleRule`, `resolveVideoFrameSequence` numbers), `calculateHighlightPriorityPlacementSignal` and `calculatePhotonEnergyFromWavelength` wavelength checks moved the other way. Internal seed-derivation errors are `InvalidScientificInputError` instead of a plain `RangeError`. Messages and `code` fields are unchanged. `test/error-class-consistency.test.ts` scans the source for violations.
+  - *Effect:* `instanceof` checks and `code` comparisons on these errors can change. `InvalidScientificInputError` still extends `RangeError` and `InvalidConfigurationError` still extends `TypeError`.
+  - *Migration:* catch both domain classes, or branch on `error.code`: `INVALID_CONFIGURATION` means fix the shape or field names, `INVALID_SCIENTIFIC_INPUT` means fix the value.
 - **Spectral channel binding format v2 (#276, #282, #293).**
   - `SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT` is `photivra-spectral-channel-response-canonical-json-v2` (sorted-key JSON of the parsed channel).
   - v1 bindings from 1.5.0 and earlier are rejected with a version error.
