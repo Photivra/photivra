@@ -237,8 +237,8 @@ export function createHdrImageEncodingTask(input: HdrImageEncodingInput, provide
         bitDepth: linear === null ? bitDepth : null, signalRange: linear === null ? range : null,
         negativeClippedSampleCount: negative, overRangeClippedSampleCount: over,
         provenance: processingProvenance("hdr-bt2100-output-encoding", [
-          "Linear input converted to BT.2020 primaries through XYZ with matrices derived from the published primaries (SMPTE RP 177).",
-          transfer === "pq" ? "SMPTE ST 2084 inverse EOTF with relative 1.0 = " + whiteNits + " cd/m2; components clipped to [0, 10000] cd/m2." :
+          "Linear input converted to BT.2020 primaries through XYZ with matrices derived from the published primaries and D65 (ITU-R BT.2020-2; method as in W3C CSS Color 4).",
+          transfer === "pq" ? "ITU-R BT.2100 PQ inverse EOTF with relative 1.0 = " + whiteNits + " cd/m2; components clipped to [0, 10000] cd/m2." :
             transfer === "hlg" ? "BT.2100 HLG OETF with relative 1.0 at signal " + hlgWhite + "; scene-linear E clipped to [0, 1]." :
               "Unclipped float32 linear BT.2020; no transfer function or quantization.",
           "Component clipping is not perceptual gamut mapping; no display adaptation or metadata (e.g. MaxCLL) is produced."]) };

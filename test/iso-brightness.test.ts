@@ -2,14 +2,14 @@
 
 /**
  * Science review finding 3 (repro r4-iso-white.mjs): ISO must change RAW brightness like a camera's
- * programmable gain. With an exposure that is correct for each ISO (ISO 12232: reference exposure
- * proportional to 1/S), mid-grey must land on the same fraction of the effective saturation code at
- * every ISO, a clipped pixel must reach the full white level, and brightness at a fixed exposure must
- * be monotonic in ISO.
+ * programmable gain. With an exposure that is correct for each ISO (CIPA DC-004-2020 standard output
+ * sensitivity: reference exposure H = 10/S, so proportional to 1/S), mid-grey must land on the same
+ * fraction of the effective saturation code at every ISO, a clipped pixel must reach the full white
+ * level, and brightness at a fixed exposure must be monotonic in ISO.
  */
 import { describe, expect, it } from "vitest";
 import {
-  GENERIC_EQUIPMENT_TIERS, assessSensorPhysicalChargeCapacity, calculateExpectedSensorReadout, parseSensorChargeSamplingProfile,
+  GENERIC_EQUIPMENT_TIERS, assessSensorPhysicalChargeCapacity, calculateExpectedSensorReadout, evaluateSrgbEncoding, parseSensorChargeSamplingProfile,
   resolveGenericEquipmentTierCatalog, resolveGenericIsoSignalChain, simulateSensorChargeRealization, simulateSensorRawCode,
   type SensorAccumulatedChargeComposition, type SensorReadoutConversionProfile, type SensorReadoutConversionRegime
 } from "../src/index.js";
@@ -17,8 +17,14 @@ import {
 const catalog = resolveGenericEquipmentTierCatalog({ presetVersion: "2.0.0" });
 const evidence = [{ sourceOrigin: "photivra", sourceReference: "test:iso-brightness", reuseStatus: "photivra-owned" }] as const;
 const site = { x: 1, y: 0 };
-/** ISO 12232: S_sat = 78/H_sat and the metered mid-grey exposure H_m = 10/S, so H_m/H_sat = 10/78. */
-const MID_GREY_FRACTION_OF_SATURATION = 10 / 78;
+/**
+ * CIPA DC-004-2020 standard output sensitivity (free at https://www.cipa.jp/e/std/std-sec.html): S = 10/H_m (§3.2),
+ * where H_m gives the reference level MAX·0.461 of the sRGB-encoded output (§5.2). That level is an 18 % grey when
+ * MAX corresponds to a 100 % reflector (Explanation 1 and 2.2), so in linear terms the reference exposure H_m = 10/S
+ * puts mid-grey at 0.18 of the exposure that reaches white. Any fixed fraction tests the invariance; this one is
+ * the DC-004 one.
+ */
+const MID_GREY_FRACTION_OF_SATURATION = 0.18;
 /** Documented tolerance for the continuous expectation: floating-point only. */
 const EXPECTATION_TOLERANCE = 1e-9;
 
@@ -77,7 +83,10 @@ function normalizedExpected(tier: (typeof GENERIC_EQUIPMENT_TIERS)[number], iso:
     (effectiveSaturationCode(regime) - regime.adc.blackLevelCode);
 }
 
-describe("ISO changes RAW brightness through explicit analog/digital gain (ISO 12232, EMVA 1288)", () => {
+describe("ISO changes RAW brightness through explicit analog/digital gain (CIPA DC-004, EMVA 1288)", () => {
+  it("uses the DC-004 reference level: the sRGB encoding of linear 0.18 is MAX·0.461", () => {
+    expect(evaluateSrgbEncoding(MID_GREY_FRACTION_OF_SATURATION)).toBeCloseTo(0.461, 3);
+  });
   it.each(GENERIC_EQUIPMENT_TIERS)("%s: base-ISO clip lands on the ADC full-scale white level", (tier) => {
     const { regime } = regimeFor(tier, 100);
     expect(effectiveSaturationCode(regime)).toBe(2 ** regime.adc.bitDepth - 1);

@@ -466,7 +466,7 @@ export function meterSceneRadianceTemporalExposure(
     "scene-radiance-relative-temporal-metering",
     "1.0.0",
     [
-      "Each temporal sample is a renderer/provider-supplied relative pre-exposure reduction bound to the same #85 scene-radiance context.",
+      "Each temporal sample is a renderer/provider-supplied relative pre-exposure reduction bound to the same scene-radiance provider context.",
       "Spectral radiance is not converted to calibrated luminance or a camera spectral-meter response by this model.",
       "Time averaging is explicit and linear in the declared relative pre-exposure signal domain.",
       "Temporal sample weights are caller-declared, positive, normalized to one, and are not inferred from source waveform frequency or sensor readout timing.",

@@ -117,10 +117,13 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
 - **Model and version:** `COLORIMETRY_MODEL_VERSION` 1.0.0.
 - **Accepted science and sources:**
   - Analytic colour-matching functions (CMFs): Wyman, Sloan & Shirley, JCGT 2(2) 2013 (free; labelled approximation).
-  - Planck's law with exact SI constants (BIPM SI Brochure, 9th ed., free).
-  - Illuminant A and the daylight locus: CIE 15:2018 (paid; values checked against the free CIE datasets).
+  - Planck's law (BIPM *Mise en pratique* for the kelvin, Absolute Primary Radiometry, Eq. 1, free) with exact SI constants (BIPM SI Brochure, 9th ed., free).
+  - Illuminant A: Planck's law with the CIE's constants c₂ = 1.435e-2 m·K and T = 2848 K; it reproduces the free CIE 1 nm table to its rounding. Daylight locus and M₁/M₂: CIE 15:2018 (paid; no free text found; values checked against the free CIE D55 and D65 datasets).
+  - Tristimulus integral: Wyman, Sloan & Shirley 2013, Eq. 1 (free).
+  - CIE94: Wikipedia, "Color difference" (secondary source; the primary CIE 116-1995 is not free), checked against the colour-science worked values.
+  - RGB↔XYZ matrices: derived from the ITU-R BT.709-6 / BT.2020-2 and CSS Color 4 primaries and D65; equal to the W3C CSS Color 4 matrices within 1e-12.
   - Planckian locus: Kang et al., *J. Korean Phys. Soc.* 41(6) (2002). McCamy, *Color Res. Appl.* 17(2) (1992).
-  - CCT/Duv (correlated colour temperature and distance from the Planckian locus): Smet et al., LEUKOS 2023 (free DOE copy).
+  - CCT/Duv (correlated colour temperature and distance from the Planckian locus): Smet et al., LEUKOS 2023 (free DOE copy). Duv sign: the engine's documented convention (positive above the locus).
   - Chromatic adaptation: Lam (1985), ICC.1 Annex E (free), Moroney et al. CIC10 2002, Li et al. *Color Res. Appl.* 42(6) (2017).
   - CIELAB: W3C CSS Color 4. CIEDE2000: Sharma, Wu & Dalal 2005 (free notes and test data).
   - Camera matrix fit: Finlayson & Drew, CIC5 1997.
@@ -187,7 +190,7 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
 - **Model and version:** facade 1.0.0.
 - **Accepted science and sources:**
   - Composes existing models.
-  - Exposure anchor by the reflected-light meter equation N²/t = L·S/K with K = 12.5 (ISO 2720; no free equivalent found, flagged below).
+  - Exposure anchor by CIPA DC-004-2020 (free): standard output sensitivity S = 10/H and the camera equation H = 0.65·L·t/N², with the 18 % grey as the reference. The default illuminance is π·10·N²/(0.65·t·S·0.18) ≈ 21 480.98 lux.
   - Luther condition (Luther 1927).
   - Slanted-edge geometry after Burns, IS&T PICS 2000 (free).
   - K_cd = 683 lm/W (BIPM SI Brochure).
@@ -232,39 +235,41 @@ The owner's rule is that releases rely only on free-to-use sources. Every paid o
 
 Free standards bodies and documents already in use need no change: CIPA (DC-003, DC-004, DC-008), ITU-R and ITU-T recommendations, EMVA 1288, the Adobe DNG and TIFF 6.0 specifications, ICC specifications, W3C recommendations, IETF RFCs, the BIPM SI Brochure, and the CIE free datasets.
 
-In the Status column: **Replaced** means a free source now backs the fact. **Flagged** means no free equivalent was found, and the owner must decide what to do (see [pending owner decisions](#pending-owner-decisions)).
+In the Status column: **Replaced** means a free source now backs the fact. **Removed** means the engine no longer depends on the paid source: the fact is derived in the documentation or stated as the engine's own convention. **Flagged** means no free equivalent was found, and the owner must decide what to do (see [pending owner decisions](#pending-owner-decisions)).
 
 | Paid source | Fact used | Free replacement | Status |
 | --- | --- | --- | --- |
 | ISO 12232:2019 | Exposure index S = 10/H; H ∝ 1/S; H = 0.65·L·t/N² | CIPA DC-004-Translation-2020, *Sensitivity of Digital Cameras*, §3.2–3.3 and §5.5 — <https://www.cipa.jp/e/std/std-sec.html> | Replaced |
-| ISO 12232:2019 | Saturation-based speed S_sat = 78/H_sat (test oracle, Quick Start remark, highlight-priority headroom remark) | No free equivalent found. DC-004 adopts only SOS and REI. | **Flagged** |
-| ISO 2720:1974 | Reflected-light meter constant K = 12.5 cd·s/m² | No free normative equivalent found. The Exif APEX annex (CIPA DC-008 Annex C) gives only Bv = log₂(B/NK) without a value. | **Flagged** |
+| ISO 12232:2019 | Saturation-based speed S_sat = 78/H_sat (test oracle, Quick Start remark, highlight-priority headroom remark) | Removed. The ISO-brightness test now uses the CIPA DC-004-2020 standard output sensitivity H_m = 10/S (§3.2), whose reference level is an 18 % grey (§5.2, Explanation 1 and 2.2), so mid-grey is 0.18 of the white exposure — <https://www.cipa.jp/e/std/std-sec.html>. The Quick Start and highlight-priority remarks cite DC-004 and state the half-stop headroom as the engine's own documented choice. No engine output changed. | Replaced (owner decision 1) |
+| ISO 2720:1974 | Reflected-light meter constant K = 12.5 cd·s/m² (facade exposure anchor) | Removed. The facade uses CIPA DC-004-2020 S = 10/H (§3.2) and H = 0.65·L·t/N² (§5.5 (4), Explanation 4) — <https://www.cipa.jp/e/std/std-sec.html>. This is equivalent to K = 10/0.65 ≈ 15.38. The default illuminance changes from π·12.5·64·125/18 ≈ 17 453.29 lux to π·80 000/11.7 ≈ 21 480.98 lux (recorded in `CHANGELOG.md`). | Replaced (owner decision 2) |
 | ISO 12233:2017 | Slanted-edge chart geometry | P. D. Burns, "Slanted-Edge MTF for Digital Camera and Scanner Analysis", IS&T PICS 2000 — <https://www.imaging.org/common/uploaded%20files/pdfs/Papers/2000/PICS-0-81/1621.pdf> | Replaced |
-| ISO 2827 | Guide-number measurement | No free equivalent found. The engine uses only GN = d·N, which follows from the inverse-square law and the camera equation. | **Flagged** (measurement procedure only) |
+| ISO 2827 | Guide-number measurement | Citation removed. `docs/SCENE_SENSOR_TEMPORAL_EXPOSURE.md` derives GN = d·N, the √p and the √(ISO/100) scaling from the inverse-square law and the DC-004 camera equation. The engine does not model how a guide number is measured; the caller supplies it. | Removed (owner decision 3) |
 | ISO 7944 | Fraunhofer d, F, C line wavelengths | SCHOTT Technical Information TIE-29, *Refractive Index and Dispersion* (August 2023) — <https://media.schott.com/api/public/content/aaa572afd854434fb7b3faa4bc46103f> (587.5618, 486.1327, 656.2725 nm confirmed) | Replaced |
 | ISO 12234-2 (TIFF/EP) | CFARepeatPatternDim, CFAPattern | Adobe DNG 1.7.1.0 and CIPA DC-008 (Exif CFAPattern) — <https://helpx.adobe.com/camera-raw/digital-negative.html>, <https://www.cipa.jp/e/std/std-sec.html> | Replaced |
 | ISO/IEC 10918-1 | JPEG DCT, Huffman, lossless | ITU-T T.81 (identical text) — <https://www.w3.org/Graphics/JPEG/itu-t81.pdf> | Replaced |
 | IEC 61966-2-1 | sRGB primaries, transfer and matrix | W3C CSS Color Module Level 4, `srgb` — <https://www.w3.org/TR/css-color-4/>; ICC sRGB registry — <https://registry.color.org/rgb-registry/files/sRGB.pdf>; ITU-R BT.709-6 | Replaced |
 | CIE 15:2018 / ISO/CIE 11664-4 | CIELAB with exact ε, κ | W3C CSS Color 4 §9 (Lab) | Replaced |
-| CIE 15:2018 / ISO/CIE 11664-1, -2 | Tristimulus summation, illuminant A formula, daylight-locus polynomial and M₁/M₂ | No free text of the formulas found. Computed values are checked against the free CIE datasets (CC BY-SA 4.0, not bundled) — <https://cie.co.at/data-tables> | **Flagged** (formulas); values verifiable for free |
+| CIE 15:2018 / ISO/CIE 11664-1 | Tristimulus integration X = k Σ S R x̄ Δλ | Wyman, Sloan & Shirley 2013, JCGT 2(2), Eq. 1 (X = ∫ L(λ) x̄(λ) dλ; open access, CC BY-ND 3.0) — <https://jcgt.org/published/0002/02/01/paper.pdf>. The quadrature and the normalization k are explicit engine choices. | Replaced (owner decision 4) |
+| CIE 15:2018 / ISO/CIE 11664-2 | Illuminant A formula | Planck's law: BIPM *Mise en pratique* for the kelvin, Absolute Primary Radiometry (2018), Eq. 1 — <https://www.bipm.org/utils/en/pdf/si-mep/MeP-K-2018_Absolute_Primary_Radiometry.pdf>. The engine uses the CIE's constants c₂ = 1.435e-2 m·K and T = 2848 K (the exact c₂ = hc/k = 1.438 776 877…e-2 m·K, NIST CODATA 2022, is used only for the Planckian radiator). These two constants have no free source text, but the formula reproduces all 531 values of the free CIE 1 nm table (DOI 10.25039/CIE.DS.8jsxjrsn) within 4.8e-6 relative, the table's rounding. | Replaced (owner decision 4); constants verified for free |
+| CIE 15:2018 | Daylight-locus polynomial and M₁/M₂ | No free copy found. The source paper, Judd, MacAdam & Wyszecki, *JOSA* 54(8):1031 (1964), doi:10.1364/JOSA.54.001031, is subscription-only on the publisher's site; the only other copy found was an unauthorized upload. Per the owner's decision no alternative was chosen. The coefficients were checked against the free CIE datasets: with three-decimal rounding they reproduce D55 within 5.0e-4 and D65 within 8.5e-4 at every 5 nm node (the tables' rounding). | **Flagged** (formula text only); values verified for free |
 | CIE 15:2018 | CCT as the nearest Planckian point in (u, v); signed Duv | Smet et al., LEUKOS 2023, doi:10.1080/15502724.2023.2248397; free DOE copy — <https://www.energy.gov/sites/default/files/2023-09/ssl-smet-etal-2023_method-cct-duv-light-source.pdf> | Replaced |
-| ANSI C78.377 | Duv sign (positive above the locus) | Smet et al. define Duv as a signed distance but do not state the direction in prose. | **Flagged** (sign convention only) |
+| ANSI C78.377 | Duv sign (positive above the locus) | Ohno, LEUKOS 10(1), 2014 could not be used: NIST's record of it (<https://www.nist.gov/publications/practical-use-and-calculation-cct-and-duv>) links only to the paywalled publisher copy, and no free NIST copy was found. Per the owner's decision, the sign is now stated as the engine's own documented convention (docs, runtime assumption text), and a test checks that a greenish light gives a positive Duv. Ohno's free CORM 2011 slides state the same sign but are not cited. | Removed (owner decision 5) |
 | CIE 018:2019 | K_m = 683 lm/W | BIPM SI Brochure, 9th ed., definition of the candela (K_cd = 683 lm/W) — <https://www.bipm.org/en/publications/si-brochure> | Replaced |
-| CIE 116-1995 | CIE94 ΔE weights | No free equivalent found. | **Flagged** |
+| CIE 116-1995 | CIE94 ΔE weights | Secondary source (the primary CIE 116-1995 is not free): Wikipedia, "Color difference", §CIE94 — <https://en.wikipedia.org/wiki/Color_difference#CIE94> (equations, S_C = 1 + K₁C*₁, S_H = 1 + K₂C*₁, and the graphic-arts and textiles weights). The engine also reproduces the worked values in the colour-science `delta_E_CIE1994` documentation (1.6711191 and 0.8404677). Lindbloom's page could not be reached from the host. | Replaced (secondary source; owner decision 6) |
 | CIE 142-2001 / ISO/CIE 11664-6 | CIEDE2000 | Sharma, Wu & Dalal (2005) implementation notes and test data — <https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/>; CSS Color 4 `deltaE2000` | Replaced |
 | CIE 159:2004 | CAT02 and HPE matrices; degree of adaptation D | Moroney et al., "The CIECAM02 color appearance model", CIC10 2002, in the RIT open repository — <https://repository.rit.edu/other/143>. Automated download was refused (HTTP 403), so free availability is listed but was not confirmed from this host. | Replaced (needs human confirmation) |
 | SMPTE ST 2084 | PQ EOTF and constants | ITU-R BT.2100-3 — <https://www.itu.int/rec/R-REC-BT.2100> | Replaced |
 | SMPTE ST 2086 | Mastering display colour volume fields | W3C PNG Third Edition `mDCV` — <https://www.w3.org/TR/png-3/>; ITU-T H.265 Annex D SEI — <https://www.itu.int/rec/T-REC-H.265> | Replaced |
 | CTA-861.3 | MaxCLL/MaxFALL | W3C PNG Third Edition `cLLI`; ITU-T H.265 Annex D content light level SEI | Replaced |
 | SMPTE EG 432-1 | Display P3 primaries with D65 | W3C CSS Color 4 `display-p3`; ITU-T H.273 ColourPrimaries 12 — <https://www.itu.int/rec/T-REC-H.273> | Replaced |
-| SMPTE RP 177-1993 | Deriving RGB↔XYZ matrices from primaries and white | No free text of the method found. It is standard linear algebra, and the results are checked against the free ITU-R BT.709-6 and BT.2020-2 luminance coefficients. | **Flagged** (method text) |
+| SMPTE RP 177-1993 | Deriving RGB↔XYZ matrices from primaries and white | W3C CSS Color 4 (method and matrices, §2, §11 and §19) — <https://www.w3.org/TR/css-color-4/>; ITU-R BT.709-6 and BT.2020-2 (primaries, D65 and luminance coefficients) — <https://www.itu.int/rec/R-REC-BT>. The derivation is written out in `docs/COLORIMETRY.md`, and a test shows the engine's matrices equal the CSS Color 4 matrices within 1e-12 (largest difference 1.8e-15). | Replaced (owner decision 7) |
 | IEEE Std 1789-2015 | Lamps modulate at twice the mains frequency | Follows from P ∝ sin²ωt = (1 − cos 2ωt)/2; context on the US DOE flicker pages — <https://www.energy.gov/eere/ssl/flicker> | Replaced |
 
 **What changed:** doc comments in `src/`, and the reference lists in `docs/` and `THIRD_PARTY.md`, now cite the free source first. The paid standard is kept only as "also specified in".
 
-**What did not change:** runtime strings still name the paid standards. These are the provenance `assumptions`, error messages, and the `sources` arrays of RGB colour-space results. Changing them would change output, and the rule was not to change behaviour. Test comments are not shipped and were left as they were.
+**Runtime strings (owner decision).** Provenance `sources` arrays, `assumptions` text and error messages that named paid standards now name the free sources above. This is a text-only output change; no number changed. Limitation and error strings that used internal ticket numbers as model names (#12, #14, #85, #110) now use the model names. See `CHANGELOG.md`. Test comments are not shipped and were left as they were. The result model id `rgb-xyz-matrix-smpte-rp177` of `calculateRgbToXyzMatrices` is an identifier, not a citation, and was not renamed.
 
-**Open:** seven flagged items have no free equivalent. The owner decides whether to accept them as "also specified in" facts, find a source, or remove the dependence.
+**Open:** one flagged item remains: the formula text of the CIE daylight locus and M₁/M₂. Its values are verified against free data.
 
 ## Rights and licensing
 
@@ -364,7 +369,7 @@ Work that is known and deliberately left for later:
 
 ## Pending owner decisions
 
-1. **Flagged citations.** Accept, replace or remove the seven items marked **Flagged** in the [citation audit](#citation-audit-free-sources). Also decide whether the runtime strings that name paid standards should change in a later, versioned release.
+1. **Flagged citations.** The owner decided the seven flagged items; six are now replaced or removed (see the [citation audit](#citation-audit-free-sources)). One remains open: no free copy of Judd, MacAdam & Wyszecki (1964) or other free text of the daylight-locus formula was found. The owner decides whether to accept it as a CIE fact verified against the free CIE datasets, or to name another source. Runtime strings now name free sources (decided).
 2. **`docs/AGENT_DOMAIN_RULES.md`.** Two statements in it are out of date:
    - Its spatial camera rotation section still says `estimateCameraShakeBlur()` keeps its legacy sign semantics. That is no longer true for pitch.
    - It still says not to compose distortion into the production plan without a contract review. #303 wrote that review, in `docs/PHYSICS_FOUNDATION.md`.

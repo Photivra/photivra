@@ -116,7 +116,7 @@ Not modelled: dark current, fixed-pattern noise, inter-frame motion and registra
 
 ### HDR output
 
-`createHdrImageEncodingTask({ image, inputColorSpace, transfer, ... })` first converts linear RGB to BT.2020 primaries. The matrices come from `resolveRgbColorSpace` (SMPTE RP 177 derivation); for sRGB this reproduces the ITU-R BT.2087 matrix. It then encodes:
+`createHdrImageEncodingTask({ image, inputColorSpace, transfer, ... })` first converts linear RGB to BT.2020 primaries. The matrices come from `resolveRgbColorSpace` (derived from primaries and white as in W3C CSS Color 4; see COLORIMETRY.md); for sRGB this reproduces the ITU-R BT.2087 matrix. It then encodes:
 
 - **`pq`**: the ITU-R BT.2100 PQ inverse EOTF (also SMPTE ST 2084) (`evaluatePqInverseEotf`), with relative 1.0 at `referenceWhiteLuminanceCdPerSquareMeter`. The default is 203 cd/m², the ITU-R BT.2408 HDR reference white. Luminance is clipped to [0, 10000] cd/m².
 - **`hlg`**: the BT.2100 HLG OETF (`evaluateHlgOetf`), with relative 1.0 at signal `hlgReferenceWhiteSignal`. The default is 0.75, the BT.2408 HLG reference white. Scene-linear E is clipped to [0, 1].

@@ -163,7 +163,7 @@ export interface SimulateCaptureOptions {
   subjectDistanceM?: number;
   /** Default: Planckian 6500 K (a blackbody stand-in for daylight; CIE D65 is not bundled). */
   illuminant?: CaptureIlluminant;
-  /** Illuminance on the scene plane, lux. Default 17 453 lux (see assumptions). */
+  /** Illuminance on the scene plane, lux. Default about 21 481 lux (see `SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX` and the assumptions). */
   illuminanceLux?: number;
   output?: {
     /** Output pixels; the native sensor raster adds a one-site demosaic border on each side. Defaults 64 × 64. */
@@ -306,13 +306,23 @@ const DEFAULTS = Object.freeze({ camera: "professional" as const, fNumber: 8, sh
   subjectDistanceM: 5, width: 64, height: 64, format: "srgb-8" as const, toneCurve: "identity" as const, highlightMode: "clip" as const,
   whiteBalance: "scene-illuminant" as const, jpegQuantizationStep: 2, pixelPitchMicrometers: 6, spectralStepNanometers: 20,
   temporalSampleCount: 1, noiseSeed: 1, illuminantKelvin: 6500 });
-/** Reflected-light meter calibration constant K (ISO 2720), cd·s/m². */
-const METER_CALIBRATION_K = 12.5;
-/** Neutral reference reflectance for the default illuminance. */
+/** Standard output sensitivity S = 10 / H (CIPA DC-004-2020 §3.2): the reference exposure in lx·s is 10 / S. */
+const SOS_REFERENCE_EXPOSURE_NUMERATOR_LUX_SECONDS = 10;
+/** Camera equation H = 0.65·L·t/N² (CIPA DC-004-2020 §5.5 (4); 0.65 = τ·π/4 with τ = 0.828, Explanation 4). */
+const CAMERA_EQUATION_CONSTANT = 0.65;
+/** Neutral reference reflectance: DC-004 ties the SOS reference level to an 18 % grey (Explanation 1 and 2.2). */
 const GREY_CARD_REFLECTANCE = 0.18;
-/** Default illuminance: an 18 % grey card is at the ISO 2720 metered exposure for f/8, 1/125 s, ISO 100. */
-export const SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX = Math.PI * METER_CALIBRATION_K * DEFAULTS.fNumber ** 2 /
-  (DEFAULTS.shutterSeconds * DEFAULTS.iso * GREY_CARD_REFLECTANCE);
+/** Scene luminance (cd/m²) whose focal-plane exposure 0.65·L·t/N² equals the SOS reference exposure 10/S. */
+function sosReferenceLuminance(fNumber: number, shutterSeconds: number, iso: number): number {
+  return SOS_REFERENCE_EXPOSURE_NUMERATOR_LUX_SECONDS * fNumber ** 2 / (CAMERA_EQUATION_CONSTANT * shutterSeconds * iso);
+}
+/**
+ * Default illuminance, lux: an 18 % Lambertian grey card (L = 0.18·E/π) then gets exactly the CIPA DC-004 standard
+ * output sensitivity reference exposure H = 10/S at f/8, 1/125 s, ISO 100:
+ * E = π·10·N²/(0.65·t·S·0.18) = π·80 000/11.7 ≈ 21 480.98 lux.
+ */
+export const SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX = Math.PI * sosReferenceLuminance(DEFAULTS.fNumber, DEFAULTS.shutterSeconds, DEFAULTS.iso) /
+  GREY_CARD_REFLECTANCE;
 /** Demosaic border, native sites per side. */
 const MARGIN = 1;
 
@@ -598,7 +608,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   let colorEncoding: SimulateCaptureColorEncoding | undefined, pngBitDepth: 8 | 16 | undefined;
   if (format === "png") {
     colorEncoding = pick<SimulateCaptureColorEncoding>(outputOptions, "colorEncoding", "output.colorEncoding", "srgb",
-      "sRGB (IEC 61966-2-1) samples signalled with the PNG sRGB chunk (perceptual intent) and its prescribed gAMA/cHRM values.");
+      "sRGB (W3C CSS Color 4 srgb) samples signalled with the PNG sRGB chunk (perceptual intent) and its prescribed gAMA/cHRM values.");
     if (!["srgb", "display-p3", "rec2020", "rec2100-pq", "rec2100-hlg"].includes(colorEncoding)) fail("output.colorEncoding must be srgb, display-p3, rec2020, rec2100-pq or rec2100-hlg.");
     const hdr = colorEncoding === "rec2100-pq" || colorEncoding === "rec2100-hlg";
     pngBitDepth = pick<8 | 16>(outputOptions, "bitDepth", "output.bitDepth", hdr ? 16 : 8, hdr ? "16 bits per sample, the only PNG depth that holds PQ/HLG codes without banding." : "8 bits per sample.");
@@ -687,7 +697,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     "Planckian (blackbody) 6500 K as a stand-in for daylight. CIE D65 is not bundled; pass its S0/S1/S2 basis as a daylight illuminant to use it.");
   const illuminant = resolveCaptureIlluminant(illuminantOption);
   const illuminanceLux = positive(pick(top, "illuminanceLux", "illuminanceLux", SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX,
-    "π·K·N²/(t·S·0.18) lux with K = 12.5 (ISO 2720) at f/8, 1/125 s, ISO 100: an 18 % grey card is then at the metered exposure for the default settings. It does not follow the caller's exposure settings."), "illuminanceLux");
+    "π·10·N²/(0.65·t·S·0.18) lux at f/8, 1/125 s, ISO 100 (CIPA DC-004 standard output sensitivity H = 10/S and camera equation H = 0.65·L·t/N²): an 18 % grey card then gets the reference exposure for the default settings. It does not follow the caller's exposure settings."), "illuminanceLux");
   const irradianceScale = calculateIlluminantIrradianceScale(illuminant.shape, illuminanceLux);
   let chart: ResolvedChartScene | undefined, callerScene: CallerReflectanceScene | CallerRadianceScene | undefined;
   const sceneRecord = sceneOption as Record<string, unknown>;
@@ -708,7 +718,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     limitations: ["Planar Lambertian scene under uniform illumination; no shadows, inter-reflection, gloss or fluorescence."] });
   assume("model.scene-radiometry", "model", "lambertian-plane", "Radiance = reflectance × irradiance / π on one plane; illuminance from K_m = 683 lm/W and the analytic CIE 1931 ȳ (Wyman et al. 2013).");
 
-  // Metering (ISO 2720 reflected-light relation) and exposure-mode resolution
+  // Metering (CIPA DC-004 standard output sensitivity and camera equation) and exposure-mode resolution
   const exposureOptions = allowKeys(top.exposure, "exposure", ["mode", "iso", "shutterSeconds", "compensationStops"]);
   const mode = pick<SimulateCaptureExposureMode>(exposureOptions, "mode", "exposure.mode", "manual", "Manual exposure.");
   if (!["manual", "aperture-priority", "shutter-priority", "program"].includes(mode)) fail("Unknown exposure mode.");
@@ -717,9 +727,9 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   if (typeof compensation !== "number" || !Number.isFinite(compensation) || Math.abs(compensation) > 10) fail("exposure.compensationStops must be within ±10.");
   if (exposureOptions.compensationStops === undefined) assume("exposure.compensationStops", "default", 0, "No exposure compensation.");
   const reference = { aperture: DEFAULTS.fNumber, shutterSeconds: DEFAULTS.shutterSeconds, iso: DEFAULTS.iso };
-  const referenceLuminance = METER_CALIBRATION_K * reference.aperture ** 2 / (reference.shutterSeconds * reference.iso);
+  const referenceLuminance = sosReferenceLuminance(reference.aperture, reference.shutterSeconds, reference.iso);
   assume("exposure.referenceExposure", "model", { ...reference, meteredLuminanceCdPerSquareMeter: referenceLuminance },
-    "Exposure anchor: f/8, 1/125 s, ISO 100 is the correct exposure for an average scene luminance of K·N²/(t·S) = 1000 cd/m² (reflected-light meter, ISO 2720, K = 12.5).");
+    "Exposure anchor: f/8, 1/125 s, ISO 100 gives the CIPA DC-004 standard output sensitivity reference exposure H = 10/S = 0.1 lx·s for an average scene luminance of 10·N²/(0.65·t·S) ≈ 1230.77 cd/m² (camera equation H = 0.65·L·t/N²).");
   const meterProfile = body.metering[0]!.profile, zones = 16, zoneSamples = [];
   let luminanceSum = 0;
   for (let j = 0; j < zones; j++) for (let i = 0; i < zones; i++) {
@@ -1081,9 +1091,9 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
           "prepareRgbGamutMapping: CIELAB L* and hue held, chroma above 90 % of the boundary chroma C_max(L*, h) compressed with a tanh knee so it never reaches C_max (Morovič 2008, §10). In-gamut colours below the knee are unchanged; saturated in-gamut colours above it are desaturated slightly. L* ≥ 100 (above the RAW white) maps to white. CIELAB hue is not perceptually constant for saturated blues, so they can shift toward purple.");
       }
       assume("output.colorEncoding.conversion", "model", { from: "linear-srgb-d65 (unclipped)", via: "CIE XYZ", to: colorEncoding, gamutHandling: perceptual ? "cielab-hue-preserving-chroma-compression" : "clip-components",
-        transfer: colorEncoding === "rec2020" ? "bt2020-oetf (= BT.709 OETF)" : "srgb (IEC 61966-2-1)" },
+        transfer: colorEncoding === "rec2020" ? "bt2020-oetf (= BT.709 OETF)" : "srgb (W3C CSS Color 4)" },
         "Developed with the native development operator (demosaic, per-site white-level clip, WB, highlight mode, diagonal camera→XYZ, XYZ→linear sRGB) but before any sRGB clipping, so colours outside sRGB are kept; converted to " +
-        colorEncoding + " through XYZ (matrices from primaries and D65, SMPTE RP 177), " + (perceptual ? "gamut-mapped perceptually (output.gamutMapping)" : "components clipped to [0, 1] in the target gamut") +
+        colorEncoding + " through XYZ (matrices from primaries and D65, as in W3C CSS Color 4), " + (perceptual ? "gamut-mapped perceptually (output.gamutMapping)" : "components clipped to [0, 1] in the target gamut") +
         ", then encoded and rounded to nearest. RAW white maps to display white, as in the sRGB path.");
     } else {
       const m = linearSrgbToTarget("rec2020"), data = new Float32Array(linear.rgb.length);

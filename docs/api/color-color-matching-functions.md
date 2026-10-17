@@ -124,7 +124,8 @@ export interface IntegratedSpectrumXyz {
 ## integrateSpectrumToXyz
 
 Integrates a spectrum (optionally multiplied by a reflectance/transmittance factor)
-against colour-matching functions with caller-explicit quadrature (CIE 15:2018 §7).
+against colour-matching functions with caller-explicit quadrature (the tristimulus integral of
+Wyman, Sloan & Shirley 2013, Eq. 1; also CIE 15:2018 §7).
 Provenance is `approximation` for the analytic CMF fit and `calculated` for
 caller-tabulated CMFs. Either way, the caller chooses the quadrature.
 
@@ -241,7 +242,7 @@ export interface TabulatedColorMatchingSample extends SpectralWavelengthSample {
 
 Normalization of integrated tristimulus values.
 - `white-luminance-one`: k = 1 / Σ S ȳ Δλ, so the perfect reflecting diffuser (or the
-  illuminant itself) has Y = 1 (CIE 15:2018 relative colorimetry with Y scaled to 1).
+  illuminant itself) has Y = 1 (relative colorimetry with Y scaled to 1; also CIE 15:2018).
 - `scale`: X = factor · Σ …; for example 683.002 lm/W with spectral radiance in
   W·m⁻²·sr⁻¹·nm⁻¹ yields luminance in cd/m² (the caller owns the unit semantics).
 

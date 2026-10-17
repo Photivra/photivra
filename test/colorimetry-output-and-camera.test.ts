@@ -73,6 +73,34 @@ describe("RGB colour spaces and transfer functions", () => {
     expect(() => resolveRgbColorSpace("adobe" as "srgb")).toThrow();
     expect(() => calculateRgbToXyzMatrices({ primaries: { red: { x: 0.64, y: 0.33 }, green: { x: 0.3, y: 0.6 }, blue: { x: 0.15, y: 0.06 } }, whiteChromaticity: { x: 0.7, y: 0.29 } })).toThrow();
   });
+  it("derives exactly the matrices published in W3C CSS Color 4 (sample code, CRD 9 October 2026)", () => {
+    // Rational matrices from https://www.w3.org/TR/css-color-4/ §"Sample code for color conversions":
+    // lin_sRGB_to_XYZ / XYZ_to_lin_sRGB, lin_P3_to_XYZ / XYZ_to_lin_P3, lin_2020_to_XYZ / XYZ_to_lin_2020 (D65 = 0.3127/0.3290).
+    const css: Record<"srgb" | "display-p3" | "rec2020", { toXyz: number[][]; fromXyz: number[][] }> = {
+      srgb: {
+        toXyz: [[506752 / 1228815, 87881 / 245763, 12673 / 70218], [87098 / 409605, 175762 / 245763, 12673 / 175545], [7918 / 409605, 87881 / 737289, 1001167 / 1053270]],
+        fromXyz: [[12831 / 3959, -329 / 214, -1974 / 3959], [-851781 / 878810, 1648619 / 878810, 36519 / 878810], [705 / 12673, -2585 / 12673, 705 / 667]]
+      },
+      "display-p3": {
+        toXyz: [[608311 / 1250200, 189793 / 714400, 198249 / 1000160], [35783 / 156275, 247089 / 357200, 198249 / 2500400], [0, 32229 / 714400, 5220557 / 5000800]],
+        fromXyz: [[446124 / 178915, -333277 / 357830, -72051 / 178915], [-14852 / 17905, 63121 / 35810, 423 / 17905], [11844 / 330415, -50337 / 660830, 316169 / 330415]]
+      },
+      rec2020: {
+        toXyz: [[63426534 / 99577255, 20160776 / 139408157, 47086771 / 278816314], [26158966 / 99577255, 472592308 / 697040785, 8267143 / 139408157],
+          [0, 19567812 / 697040785, 295819943 / 278816314]],
+        fromXyz: [[30757411 / 17917100, -6372589 / 17917100, -4539589 / 17917100], [-19765991 / 29648200, 47925759 / 29648200, 467509 / 29648200],
+          [792561 / 44930125, -1921689 / 44930125, 42328811 / 44930125]]
+      }
+    };
+    const TOLERANCE = 1e-12;
+    for (const [id, published] of [["srgb", css.srgb], ["rec709", css.srgb], ["display-p3", css["display-p3"]], ["rec2020", css.rec2020]] as const) {
+      const space = resolveRgbColorSpace(id).value;
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+        expect(Math.abs(space.rgbToXyz[i]![j]! - published.toXyz[i]![j]!), id + " rgbToXyz " + i + j).toBeLessThan(TOLERANCE);
+        expect(Math.abs(space.xyzToRgb[i]![j]! - published.fromXyz[i]![j]!), id + " xyzToRgb " + i + j).toBeLessThan(TOLERANCE);
+      }
+    }
+  });
 
   it("implements sRGB, BT.709 OETF and BT.1886 EOTF", () => {
     for (const v of [0, 0.001, 0.0031308, 0.2, 1]) expect(evaluateSrgbDecoding(evaluateSrgbEncoding(v))).toBeCloseTo(v, 12);

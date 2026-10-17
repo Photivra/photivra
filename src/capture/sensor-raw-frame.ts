@@ -74,7 +74,7 @@ function sample(value: unknown): SensorRawCaptureSample {
       s.cfaPhasePreservedInNativeCoordinates !== true || ["physicalOrientationApplied", "outputRotationApplied",
         "groupedModeCombinationApplied", "reconstructionApplied", "aliasingModeled", "moireModeled"].some((key) => s[key] !== false) ||
       typeof s.physicalScalarSaturationApplied !== "boolean" || typeof s.digitalSaturationApplied !== "boolean") {
-    throw new InvalidConfigurationError("RAW-frame requires native unreconstructed #14 samples with explicit flags.");
+    throw new InvalidConfigurationError("RAW-frame requires native unreconstructed sensor-pipeline samples with explicit flags.");
   }
   const rawCode = integer(s.rawCode, 65535), blackLevelCode = integer(s.blackLevelCode, 65535),
     digitalSaturationCode = integer(s.digitalSaturationCode, 65535);

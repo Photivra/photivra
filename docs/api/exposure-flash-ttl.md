@@ -8,8 +8,10 @@ Effective guide number GN = GN_full · √p · √(ISO/100).
 
 The guide number relation GN = d·N follows from the inverse-square law. Light on the subject from a
 point-like flash falls as 1/d², and sensor exposure falls as 1/N². So exposure stays correct while
-d·N is constant (ISO 2827 defines how GN is measured). Exposure grows linearly with emitted energy
-(power fraction p), and the exposure needed falls inversely with ISO speed. So GN ∝ √p·√ISO.
+d·N is constant (camera equation H = 0.65·L·t/N² and reference exposure H = 10/S, CIPA DC-004-2020,
+free). Exposure grows linearly with emitted energy (power fraction p), and the exposure needed falls
+inversely with ISO speed. So GN ∝ √p·√ISO. The engine does not model how a guide number is measured;
+the caller supplies it.
 
 ```ts
 export function calculateFlashGuideNumber(input: FlashGuideNumberInput): number;

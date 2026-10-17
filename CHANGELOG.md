@@ -141,7 +141,7 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - Output: `srgb-8`, `srgb-16` or `jpeg`.
   - Procedural chart presets (uniform, slanted edge, Siemens star, step wedge, grey ramp, checkerboard, point grid, caller-spectrum patches) with `resolveChartScene` and helpers.
   - `SIMULATE_CAPTURE_FACADE_VERSION` 1.0.0; `docs/QUICK_START.md` (shipped) and `docs/examples/simulate-capture.mjs`.
-- **`simulateCapture()` uses the 2.0 features (#306, #307).** All opt-in. Without the new options, the 1.0 facade output is byte-identical. Every choice is listed in `assumptions`.
+- **`simulateCapture()` uses the 2.0 features (#306, #307).** All opt-in. Without the new options, the 1.0 facade output is byte-identical at the same illuminance (the default illuminance changed; see *Free-source citations* below). Every choice is listed in `assumptions`.
   - `output.format: "png"` with `colorEncoding` `srgb`, `display-p3`, `rec2020`, `rec2100-pq` or `rec2100-hlg`. The unclipped linear development is converted through CIE XYZ, clipped once in the target gamut, and signalled with cICP. PQ/HLG place RAW white at the BT.2408 reference white.
   - Optional `gamutMapping: "perceptual"` (constant CIELAB L* and hue).
   - `output.format: "dng"`.
@@ -213,6 +213,22 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - The `LensComplexPupilPsf.sampling` field (#284).
   - `SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT` (#293).
   - A `"default"` export condition so Node ≥ 22.12 can `require()` the package; the `./package.json` export; JS source maps with inline sources; and declarations that type-check with `lib: ["es2022"]` alone (#293).
+
+### Free-source citations (owner decisions)
+
+The engine now relies on free-to-read sources wherever one was found. See the citation audit in the 2.0.0 release record.
+
+- **Numeric change: `simulateCapture()` exposure anchor.**
+  - *What changed:* the anchor no longer uses the reflected-light meter constant K = 12.5 cd·s/m² of a paid standard. It uses CIPA DC-004-2020 (free): standard output sensitivity S = 10/H and the camera equation H = 0.65·L·t/N², with an 18 % grey as the reference. This is equivalent to K = 10/0.65 ≈ 15.38 cd·s/m².
+  - *Effect:* `SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX` changes from π·12.5·64·125/18 ≈ 17 453.29 lux to π·10·64·125/(0.65·100·0.18) = π·80 000/11.7 ≈ 21 480.98 lux, a factor of 10/(0.65·12.5) ≈ 1.231 (about 0.30 EV). The metered reference luminance for f/8, 1/125 s, ISO 100 changes from 1000 cd/m² to 80 000/65 ≈ 1230.77 cd/m², so `exposure.meteredSceneLuminanceCdPerSquareMeter` of the default grey card changes by the same factor. Default captures are brighter: the green RAW level of the 18 % grey card goes from about 10.6 % to about 13.1 % of RAW white. Auto-exposure modes resolve N²/t = 0.65·L·S/10 instead of L·S/12.5. The `illuminanceLux` and `exposure.referenceExposure` assumption texts change.
+  - *Unchanged:* with `illuminanceLux` set to the old default, every 1.0 facade output (samples, RAW codes, JPEG, request, scene digest) is byte-identical; a test checks that, and pins the new default digests.
+  - *Migration:* pass `illuminanceLux: Math.PI * 12.5 * 64 * 125 / 18` to reproduce earlier captures.
+- **Text-only output change: runtime strings.** No number changes.
+  - Provenance and assumption strings that named paid standards now name free sources: RGB colour-space `sources` (`srgb`: "W3C CSS Color Module Level 4 srgb"; `display-p3`: "W3C CSS Color Module Level 4 display-p3 (…)", "ITU-T H.273 ColourPrimaries 12"), the matrix-derivation assumption of `resolveRgbColorSpace`, the CIELAB assumptions, the daylight-locus assumption, the CCT Duv-sign assumption (now the engine's own convention), the HDR encoding assumptions (ITU-R BT.2100 PQ; BT.2020 matrices), the facade's PNG colour-encoding texts, and the illuminant A scene description.
+  - The `calculateCorrelatedColorTemperature` error for |Duv| > 0.05 is reworded.
+  - Limitation and error strings that used internal ticket numbers as model names (#12, #14, #85, #110) now name the model: exposure-window model, sensor pipeline, scene-radiance provider, and the scene-radiance-to-sensor-irradiance optical bridge (stabilization, extended-object projection, flash, temporal metering, RAW frame and production image-formation plan).
+  - *Migration:* code that matches these strings exactly must update them. Result model ids are unchanged.
+- **Documentation and tests.** The flash guide-number relations are derived in full from the inverse-square law and the camera equation (the guide-number measurement standard is no longer cited). Tristimulus integration cites Wyman, Sloan & Shirley (2013), Eq. 1; Planck's law cites the BIPM kelvin *mise en pratique*. CIE94 cites a free secondary source and is checked against its worked values. The RGB↔XYZ derivation is written out in `docs/COLORIMETRY.md`, and a new test shows the engine's matrices equal the W3C CSS Color 4 matrices within 1e-12. A new test checks that a greenish light has a positive Duv. The ISO-brightness test uses the DC-004 mid-grey reference (0.18 of white) instead of a paid saturation-speed ratio.
 
 ### Fixed
 

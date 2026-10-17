@@ -19,11 +19,31 @@ function digest(r: SimulateCaptureResult): Record<string, string> {
     sites: sha(JSON.stringify(sites)), sourceSha256: r.scene.sourceSha256
   };
 }
+/**
+ * The 1.0 facade's default illuminance, π·K·N²/(t·S·0.18) with the reflected-light meter constant K = 12.5 cd·s/m².
+ * The default now comes from CIPA DC-004 (see simulate-capture.test.ts), so the baseline cases pass the old value
+ * explicitly; everything else must still reproduce the 1.0 bytes.
+ */
+const FACADE_1_0_DEFAULT_ILLUMINANCE_LUX = Math.PI * 12.5 * 64 * 125 / (100 * 0.18);
 const BASELINE_CASES: Record<string, SimulateCaptureOptions> = {
-  uniform: { scene: { preset: "uniform" }, output: { width: 4, height: 4 } },
-  edge16: { scene: { preset: "slanted-edge" }, output: { width: 6, height: 4, format: "srgb-16" } },
-  jpegAuto: { scene: { preset: "checkerboard" }, output: { width: 8, height: 8, format: "jpeg", whiteBalance: "auto" } },
-  pupil: { scene: { preset: "siemens-star" }, lens: { pupilSampling: { radialSamples: 1, angularSamples: 4 }, focusDistanceM: 3 }, output: { width: 4, height: 4 } }
+  uniform: { scene: { preset: "uniform" }, output: { width: 4, height: 4 }, illuminanceLux: FACADE_1_0_DEFAULT_ILLUMINANCE_LUX },
+  edge16: { scene: { preset: "slanted-edge" }, output: { width: 6, height: 4, format: "srgb-16" }, illuminanceLux: FACADE_1_0_DEFAULT_ILLUMINANCE_LUX },
+  jpegAuto: { scene: { preset: "checkerboard" }, output: { width: 8, height: 8, format: "jpeg", whiteBalance: "auto" },
+    illuminanceLux: FACADE_1_0_DEFAULT_ILLUMINANCE_LUX },
+  pupil: { scene: { preset: "siemens-star" }, lens: { pupilSampling: { radialSamples: 1, angularSamples: 4 }, focusDistanceM: 3 }, output: { width: 4, height: 4 },
+    illuminanceLux: FACADE_1_0_DEFAULT_ILLUMINANCE_LUX }
+};
+/** Digests of the `uniform` case at the CIPA DC-004 default illuminance, π·80 000/11.7 ≈ 21 480.98 lux. */
+const DC004_DEFAULT_UNIFORM: Record<string, string> = {
+  samples: "7023e9aa363f3dd8b99e1ddf7b503fe95d040290ba3cc4e097b166e8d721f51a",
+  codes: "356a9bfd984ff4bc0c65cff15562cdb3dde266c79782ebec7bee04e96b9266c6",
+  blackLevels: "85d8c8cdf03881458c326e5ea9b9d1993a0a13a1eab0eafb4f3bf9aa60d25f6b",
+  flags: "6db65fd59fd356f6729140571b5bcd6bb3b83492a16e1bf0a3884442fc3c8a0e",
+  jpeg: "none",
+  environmentRaw: "491c849c8d2925b045538bf58bbb9a8c4b0c3ed6176253050e4e7d3603c04e9c",
+  development: "5eb9d20168ba577baf2523450c593d4f18edcd6b60f4cde1f68a07f88470b108",
+  sites: "1f058459ebe13125bf9f0574ccb8437c2e8988762b650124d854550132411493",
+  sourceSha256: "02ea939bf5f2d449f69412d899629de5ed061b0e6ce8f5a2107ba778c3dfbdfb"
 };
 
 /** Digests recorded from the 1.0 facade (origin/main 09e4262) before any 2.0 option existed. */
@@ -75,8 +95,15 @@ const BASELINE: Record<string, Record<string, string>> = {
 };
 
 describe("simulateCapture 2.0 integration", { timeout: 120_000 }, () => {
-  it("keeps every 1.0 output byte-identical when no 2.0 option is given", async () => {
+  it("keeps every 1.0 output byte-identical when no 2.0 option is given (at the 1.0 default illuminance)", async () => {
     for (const [name, options] of Object.entries(BASELINE_CASES)) expect(digest(await simulateCapture(options)), name).toEqual(BASELINE[name]);
+  });
+  it("changes only the scene light with the CIPA DC-004 default illuminance", async () => {
+    const current = digest(await simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4 } }));
+    expect(current).toEqual(DC004_DEFAULT_UNIFORM);
+    expect(current.development).toBe(BASELINE.uniform!.development);
+    expect(current.blackLevels).toBe(BASELINE.uniform!.blackLevels);
+    expect(current.codes).not.toBe(BASELINE.uniform!.codes);
   });
 });
 

@@ -29,9 +29,12 @@ describe("simulateCapture facade", { timeout: 60_000 }, () => {
     expect(r.image.width).toBe(4);
     expect(r.image.samples).toBeInstanceOf(Uint8Array);
     expect(r.exposure.settings).toEqual({ fNumber: 8, shutterSeconds: 1 / 125, iso: 100 });
-    expect(r.exposure.meteredSceneLuminanceCdPerSquareMeter).toBeCloseTo(1000, 1);
-    expect(SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX).toBeCloseTo(Math.PI * 12.5 * 64 * 125 / (100 * 0.18), 9);
-    // ISO 12232 saturation speed puts mid grey near 0.18·0.65·…/H_sat ≈ 10 % of RAW white; the chain lands there without tuning.
+    // CIPA DC-004: the 18 % grey card gets H = 10/S, so its luminance is L = 10·N²/(0.65·t·S) = 80 000/65 cd/m².
+    expect(r.exposure.meteredSceneLuminanceCdPerSquareMeter).toBeCloseTo(80_000 / 65, 1);
+    // E = π·L/0.18 = π·10·N²/(0.65·t·S·0.18) = π·80 000/11.7 ≈ 21 480.98 lux (was π·12.5·64·125/18 ≈ 17 453.29 lux).
+    expect(SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX).toBeCloseTo(Math.PI * 10 * 64 * 125 / (0.65 * 100 * 0.18), 9);
+    expect(SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX).toBeCloseTo(21_480.97540916098, 9);
+    // Mid grey lands near 13 % of RAW white, so a 100 % reflector sits about half a stop below clipping (0.18·2^-0.5 ≈ 12.7 %); the tier values are not tuned for it.
     for (const c of ["red", "green"] as const) expect(rawLevel(r, c)).toBeGreaterThan(0.08);
     // Blue EQE is scaled by 0.25 instead of 0.5, so its RAW level is about half.
     expect(rawLevel(r, "blue") * 2).toBeGreaterThan(0.08);
@@ -70,8 +73,8 @@ describe("simulateCapture facade", { timeout: 60_000 }, () => {
       const r = await simulateCapture({ scene: { preset: "uniform" }, ...small, ...options });
       levels.push(rawLevel(r, "green"));
       const { fNumber, shutterSeconds } = r.exposure.settings, lux = options.illuminanceLux ?? SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX;
-      // ISO 2720: N²/t = L·S/K with L = 0.18·E/π.
-      expect(Math.log2(fNumber ** 2 / shutterSeconds)).toBeCloseTo(Math.log2(0.18 * lux / Math.PI * 100 / 12.5), 3);
+      // CIPA DC-004: 10/S = 0.65·L·t/N², so N²/t = 0.65·L·S/10, with L = 0.18·E/π.
+      expect(Math.log2(fNumber ** 2 / shutterSeconds)).toBeCloseTo(Math.log2(0.65 * (0.18 * lux / Math.PI) * 100 / 10), 3);
     }
     for (const level of levels) expect(level / levels[0]!).toBeCloseTo(1, 1);
     await expect(simulateCapture({ scene: { preset: "uniform" }, ...small, exposure: { mode: "program" }, lens: { fNumber: 8 } })).rejects.toThrow(InvalidConfigurationError);

@@ -3,21 +3,26 @@
 /**
  * Illuminant spectra and correlated-colour-temperature (CCT) helpers.
  *
- * - Planckian radiator: exact Planck law with the exact SI defining constants
- *   (h, c, k; BIPM SI Brochure 9th ed. 2019). Wavelength is the vacuum wavelength.
- * - CIE standard illuminant A: the CIE 15:2018 / ISO/CIE 11664-2 defining formula
+ * - Planckian radiator: exact Planck law (BIPM Mise en pratique for the kelvin, Absolute Primary
+ *   Radiometry 2018, Eq. 1, free) with the exact SI defining constants (h, c, k; BIPM SI Brochure
+ *   9th ed. 2019), so c₂ = hc/k = 1.438776877…e-2 m·K (NIST CODATA 2022). Wavelength is the vacuum
+ *   wavelength.
+ * - CIE standard illuminant A: Planck's law relative to 560 nm with the CIE's defining constants
+ *   c₂ = 1.435e-2 m·K and T = 2848 K (also CIE 15:2018 Eq. 4.1 / ISO/CIE 11664-2, paid):
  *   S_A(λ) = 100 (560/λ)^5 (exp(1.435e7/(2848·560)) − 1)/(exp(1.435e7/(2848 λ)) − 1)
- *   (≈ 2856 K with the current c₂). Computed from the formula, not a copied table.
- * - CIE daylight: the CIE 15:2018 daylight-locus chromaticity polynomial and the
- *   M₁/M₂ weights. The S₀/S₁/S₂ basis is a CIE dataset (CC BY-SA 4.0, not bundled);
+ *   (≈ 2856 K with the exact c₂). Computed from the formula, not a copied table; it reproduces the
+ *   free CIE 1 nm table (DOI 10.25039/CIE.DS.8jsxjrsn) to its six significant digits.
+ * - CIE daylight: the CIE daylight-locus chromaticity polynomial and the M₁/M₂ weights (CIE 15:2018,
+ *   paid; no free text of the formulas found). With three-decimal rounding they reproduce the free
+ *   CIE D55 and D65 tables. The S₀/S₁/S₂ basis is a CIE dataset (CC BY-SA 4.0, not bundled);
  *   callers supply it.
  * - Planckian locus: Kim et al. cubic spline (Kang et al., J. Korean Phys. Soc. 41(6)
  *   865–871, 2002; US 7,024,034), an APPROXIMATION valid 1667–25000 K, or exact
  *   Planck integration against caller-selected CMFs.
  * - CCT from chromaticity: McCamy (1992) cubic (approximation), or a nearest-point
  *   search on the Planckian locus in the CIE 1960 UCS (CCT and signed Duv as defined in Smet et al.,
- *   LEUKOS 2023, free archival copy from the US DOE; also CIE 15:2018; Duv sign per ANSI C78.377:
- *   positive Duv lies above the locus, toward green).
+ *   LEUKOS 2023, free archival copy from the US DOE; also CIE 15:2018). Duv sign: the engine's own
+ *   documented convention, positive above the locus (toward green), negative below (toward magenta).
  * @see docs/COLORIMETRY.md for equations, coordinate/unit conventions and limits.
  */
 
@@ -60,7 +65,10 @@ const FIRST_RADIATION_CONSTANT_RADIANCE = 2 * PLANCK_CONSTANT_JOULE_SECONDS * SP
 export const KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN = Object.freeze({ minimum: 1667, maximum: 25000 });
 /** CIE daylight-locus validity, K. */
 export const CIE_DAYLIGHT_LOCUS_RANGE_KELVIN = Object.freeze({ minimum: 4000, maximum: 25000 });
-/** CIE 15:2018 §9.5: CCT should not be quoted beyond |Duv| = 0.05. */
+/**
+ * Engine limit: no CCT beyond |Duv| = 0.05, the range over which Smet et al. (2023, free) evaluate CCT
+ * methods for nominally white light (CIE 15:2018 §9.5, paid, gives the same limit).
+ */
 export const MAX_CORRELATED_COLOR_TEMPERATURE_DUV = 0.05;
 
 /**
@@ -139,8 +147,9 @@ export interface CieDaylightComponentWeights {
 
 /**
  * CIE daylight-locus chromaticity and S₁/S₂ weights for a CCT in 4000–25000 K
- * (CIE 15:2018 §4.1.2). The CIE notes that M₁, M₂ are rounded to three decimals to
- * reproduce the tabulated D50/D55/D65/D75; `coefficientRounding` makes that explicit.
+ * (CIE 15:2018 §4.1.2, paid; no free text of the formulas found). M₁, M₂ rounded to three decimals
+ * reproduce the free CIE D55 and D65 tables (DOI 10.25039/CIE.DS.qewfb3kp, 10.25039/CIE.DS.hjfjmt59)
+ * to their rounding; `coefficientRounding` makes that rounding explicit.
  * The temperature is used as given: D65's nominal 6500 K corresponds to 6504 K here.
  */
 export function calculateCieDaylightComponentWeights(input: {
@@ -161,7 +170,7 @@ export function calculateCieDaylightComponentWeights(input: {
     m2 = Math.round(m2 * 1000) / 1000;
   }
   return calculatedResult({ correlatedColorTemperatureKelvin: t, chromaticity: xy, m1, m2, coefficientRounding: input.coefficientRounding },
-    "cie-daylight-locus", COLORIMETRY_MODEL_VERSION, ["CIE 15:2018 daylight-locus polynomial and M1/M2 weights; valid 4000–25000 K"]);
+    "cie-daylight-locus", COLORIMETRY_MODEL_VERSION, ["CIE daylight-locus polynomial and M1/M2 weights, checked against the free CIE D55 and D65 datasets (no free formula text found); valid 4000–25000 K"]);
 }
 
 /** Caller-supplied CIE daylight basis S₀, S₁, S₂ (tabulated; CIE dataset not bundled). */
@@ -306,7 +315,7 @@ function locusFrame(locus: PreparedLocus, t: number): { point: Cie1960UvChromati
 
 export interface CorrelatedColorTemperatureResult {
   correlatedColorTemperatureKelvin: number;
-  /** Signed CIE 1960 uv distance from the locus; positive above (greenish), ANSI C78.377. */
+  /** Signed CIE 1960 uv distance from the locus; positive above (greenish), negative below (the engine's convention). */
   duv: number;
 }
 
@@ -314,7 +323,8 @@ export interface CorrelatedColorTemperatureResult {
  * CCT and Duv of a chromaticity as the nearest point of the Planckian locus in the CIE
  * 1960 UCS (Smet et al. 2023; also CIE 15:2018). Uses a golden-section search in reciprocal
  * temperature (mired). Throws (fails closed) when the nearest point is at the model's range limit,
- * or when |Duv| > 0.05, where CIE 15 advises not to use CCT.
+ * or when |Duv| > 0.05 (see {@link MAX_CORRELATED_COLOR_TEMPERATURE_DUV}). Duv is positive above the
+ * locus (toward green) and negative below it, the engine's documented sign convention.
  */
 export function calculateCorrelatedColorTemperature(input: { chromaticity: CieXyChromaticity; locus: PlanckianLocusModel }): CalculationResult<CorrelatedColorTemperatureResult> {
   requireInputObject(input, "calculateCorrelatedColorTemperature input");
@@ -350,10 +360,10 @@ export function calculateCorrelatedColorTemperature(input: { chromaticity: CieXy
   const du = target.u - frame.point.u, dv = target.v - frame.point.v;
   const duv = du * frame.normal.u + dv * frame.normal.v;
   if (Math.abs(duv) > MAX_CORRELATED_COLOR_TEMPERATURE_DUV) {
-    throw new InvalidScientificInputError("|Duv| exceeds 0.05; CCT is not meaningful for this chromaticity (CIE 15:2018).");
+    throw new InvalidScientificInputError("|Duv| exceeds 0.05; no CCT is reported this far from the Planckian locus (the range evaluated by Smet et al. 2023).");
   }
   const value = { correlatedColorTemperatureKelvin: t, duv };
-  const assumptions = ["Nearest point on the Planckian locus in CIE 1960 uv; locus model: " + locus.model, "Duv sign: positive above the locus (ANSI C78.377)"];
+  const assumptions = ["Nearest point on the Planckian locus in CIE 1960 uv; locus model: " + locus.model, "Duv sign: positive above the locus (toward green), negative below (engine convention)"];
   return locus.approximation
     ? approximationResult(value, "cct-duv-locus-search", COLORIMETRY_MODEL_VERSION, assumptions)
     : calculatedResult(value, "cct-duv-locus-search", COLORIMETRY_MODEL_VERSION, assumptions);

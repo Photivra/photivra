@@ -712,7 +712,7 @@ describe("capture-local stabilization sampling", () => {
         temporalSampleCount: 2
       })
     ).toThrow(
-      "must match exactly one committed #12 exposure-window sample point"
+      "must match exactly one committed exposure-window sample point"
     );
   });
 

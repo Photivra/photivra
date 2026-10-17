@@ -3152,7 +3152,7 @@ Quantization rounds to the nearest code, with exact ties going towards +∞. A r
 ### ISO-dependent gain regimes
 
 `createIsoGainReadoutRegimes()` derives one explicit regime per ISO setting from declared sensor parameters. ISO then
-changes RAW brightness the way analog/digital gain does (exposure index of CIPA DC-004 / ISO 12232; EMVA 1288 linear model):
+changes RAW brightness the way analog/digital gain does (exposure index of CIPA DC-004; EMVA 1288 linear model):
 
 ```ts
 import { createIsoGainReadoutRegimes, parseSensorReadoutConversionProfile } from "@photivra/engine";
@@ -7415,7 +7415,7 @@ console.log(star.assumptions.filter((a) => a.kind === "default").map((a) => a.id
 console.log(star.request.siteInput(0).environment.optics.nominalFNumber);
 ```
 
-In `aperture-priority` mode, the shutter comes from the meter (ISO 2720 relation with K = 12.5) through
+In `aperture-priority` mode, the shutter comes from the meter (CIPA DC-004 relations S = 10/H and H = 0.65·L·t/N²) through
 `resolveAperturePriorityExposureMode()`.
 
 The chart presets are also available on their own:

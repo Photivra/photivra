@@ -186,6 +186,21 @@ describe("illuminants and correlated colour temperature", () => {
     expect(() => calculateCorrelatedColorTemperature({ chromaticity: { x: 0.65, y: 0.33 }, locus: kim })).toThrow();
   });
 
+  it("gives a greenish light a positive Duv and a magenta light a negative one (the engine's sign convention)", () => {
+    const kim = { kind: "kim-2002-cubic-spline" as const };
+    for (const t of [2700, 4000, 6500]) {
+      const onLocus = estimatePlanckianLocusChromaticity({ temperatureKelvin: t }).value;
+      // Move toward the BT.709 green primary (0.30, 0.60) and away from it (toward magenta) by a small step in xy.
+      const step = 0.02, g = { x: 0.30 - onLocus.x, y: 0.60 - onLocus.y }, len = Math.hypot(g.x, g.y);
+      const greenish = { x: onLocus.x + step * g.x / len, y: onLocus.y + step * g.y / len };
+      const magenta = { x: onLocus.x - step * g.x / len, y: onLocus.y - step * g.y / len };
+      const green = calculateCorrelatedColorTemperature({ chromaticity: greenish, locus: kim });
+      expect(green.value.duv, String(t)).toBeGreaterThan(0.002);
+      expect(calculateCorrelatedColorTemperature({ chromaticity: magenta, locus: kim }).value.duv, String(t)).toBeLessThan(-0.002);
+      expect(green.provenance.assumptions).toContain("Duv sign: positive above the locus (toward green), negative below (engine convention)");
+    }
+  });
+
   it("round-trips CCT + Duv through chromaticity with the documented sign convention", () => {
     const kim = { kind: "kim-2002-cubic-spline" as const };
     for (const t of [2000, 3200, 5000, 6500, 12000]) {
@@ -290,6 +305,12 @@ describe("CIELAB and colour difference", () => {
     const h = calculateColorDifference({ reference: lab(50, 10, 0), sample: lab(50, 10 * Math.cos(0.1), 10 * Math.sin(0.1)), formula: "cie94-graphic-arts" }).value.deltaE;
     expect(h).toBeCloseTo((20 * Math.sin(0.05)) / 1.15, 12);
     expect(calculateColorDifference({ reference: lab(40, 0, 0), sample: lab(44, 0, 0), formula: "cie94-textiles" }).value.deltaE).toBeCloseTo(2, 14);
+    // Worked values of the free secondary source (colour-science `delta_E_CIE1994` documentation, BSD-3-Clause,
+    // https://github.com/colour-science/colour/blob/develop/colour/difference/delta_e.py): Lab_1 is the reference.
+    // The documentation prints 7 decimals, so the comparison is to 6.
+    const r94 = lab(48.99183622, -0.10561667, 400.65619925), s94 = lab(50.65907324, -0.11671910, 402.82235718);
+    expect(calculateColorDifference({ reference: r94, sample: s94, formula: "cie94-graphic-arts" }).value.deltaE).toBeCloseTo(1.6711191, 6);
+    expect(calculateColorDifference({ reference: r94, sample: s94, formula: "cie94-textiles" }).value.deltaE).toBeCloseTo(0.8404677, 6);
   });
   it("converts XYZ ↔ CIELAB ↔ LCh exactly and continuously at the linear segment", () => {
     const white = { x: 0.95047, y: 1, z: 1.08883 };

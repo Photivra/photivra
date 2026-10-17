@@ -345,11 +345,11 @@ ISO is never an equation inside the readout. Instead, an ISO signal chain (`reso
 | pre-ADC threshold | Q_preADC(S) = Q₀ / a |
 | electrons reaching digital white | Q₀ · S₀ / S |
 
-**Why brightness stays consistent.** Every exposure-index definition puts its reference exposure at H ∝ 1/S. Examples: standard output sensitivity and recommended exposure index S = 10/H in CIPA DC-004, and ISO 12232's saturation-based S_sat = 78/H_sat (no free source was found for the latter). Under this model, an exposure that is correct for S gives the same black-subtracted fraction of the white level at every S. At a fixed exposure, the RAW code doubles per stop until it clips.
+**Why brightness stays consistent.** The exposure indices of CIPA DC-004, standard output sensitivity (SOS) and recommended exposure index, both put the reference exposure at H = 10/S, so H ∝ 1/S. Under this model, an exposure that is correct for S gives the same black-subtracted fraction of the white level at every S. At a fixed exposure, the RAW code doubles per stop until it clips.
 
 `test/iso-brightness.test.ts` checks, for every generic tier and ISO:
 
-- that a metered mid-grey exposure (H_m/H_sat = 10/78) normalises to 10/78, within 1e-9 in the expectation, and within 6σ shot noise plus quantisation in noise-free quantised codes;
+- that an SOS mid-grey exposure H_m = 10/S, which DC-004 places at an 18 % grey when white corresponds to a 100 % reflector (so 0.18 of the white exposure), normalises to 0.18, within 1e-9 in the expectation, and within 6σ shot noise plus quantisation in noise-free quantised codes;
 - that a clipped site normalises to 1;
 - that brightness is monotonic.
 
@@ -419,7 +419,7 @@ The equations here were implemented independently from established projective ge
 
 References for the 2.0.0 readout additions (cited as published methods; no text, tables or data are copied):
 
-- CIPA DC-004-Translation-2020, *Sensitivity of Digital Cameras*, free at <https://www.cipa.jp/e/std/std-sec.html> (also ISO 12232:2019, *Photography — Digital still cameras — Determination of exposure index, ISO speed ratings, standard output sensitivity, and recommended exposure index*).
+- CIPA DC-004-Translation-2020, *Sensitivity of Digital Cameras*, free at <https://www.cipa.jp/e/std/std-sec.html> (standard output sensitivity and recommended exposure index S = 10/H, §3.2–3.3).
 - EMVA Standard 1288 Release 4.0, *Standard for Characterization of Image Sensors and Cameras* (linear model, PRNU, DSNU, linearity, dark current).
 - J. R. Janesick, *Photon Transfer*, SPIE Press, 2007.
 - W. Hörmann, "The transformed rejection method for generating Poisson random variables", *Insurance: Mathematics and Economics* 12 (1993).

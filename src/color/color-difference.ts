@@ -6,8 +6,11 @@
  * - CIELAB (W3C CSS Color 4 Lab; also CIE 15:2018 §8.2.1) with the exact rational constants ε = (6/29)³ and
  *   κ = (29/3)³ in the linear segment.
  * - ΔE*ab 1976: Euclidean CIELAB distance.
- * - ΔE*94 (CIE 116-1995): asymmetric (first colour is the reference), graphic-arts
- *   (k_L = 1, K₁ = 0.045, K₂ = 0.015) or textiles (k_L = 2, K₁ = 0.048, K₂ = 0.014).
+ * - ΔE*94: asymmetric (first colour is the reference: S_C = 1 + K₁C*₁, S_H = 1 + K₂C*₁), graphic-arts
+ *   (k_L = 1, K₁ = 0.045, K₂ = 0.015) or textiles (k_L = 2, K₁ = 0.048, K₂ = 0.014), k_C = k_H = 1.
+ *   Secondary source; the primary CIE 116-1995 is not free: Wikipedia, "Color difference", §CIE94
+ *   (https://en.wikipedia.org/wiki/Color_difference#CIE94). Checked against the worked values in the
+ *   colour-science `delta_E_CIE1994` documentation (BSD-3-Clause).
  * - CIEDE2000, implemented from the formula and implementation notes in Sharma, Wu & Dalal
  *   (2005), Color Res. Appl. 30(1):21–30 (paper and test data free at
  *   https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/; also CIE 142-2001, ISO/CIE 11664-6).
@@ -82,7 +85,7 @@ export function calculateCielabFromXyz(input: { xyz: CieXyzTristimulus; referenc
   requireInputObject(input, "calculateCielabFromXyz input");
   const lab = cielabOfXyz(parseXyz(input.xyz, "xyz"), parseWhite(input.referenceWhiteXyz));
   requireFiniteResult([lab.lStar, lab.aStar, lab.bStar], "CIELAB conversion");
-  return calculatedResult(lab, "cielab-1976", COLORIMETRY_MODEL_VERSION, ["CIE 15:2018 CIELAB with exact (6/29)³ and (29/3)³ constants"]);
+  return calculatedResult(lab, "cielab-1976", COLORIMETRY_MODEL_VERSION, ["CIELAB as defined in W3C CSS Color 4 (Lab) with exact (6/29)³ and (29/3)³ constants"]);
 }
 
 /** CIELAB → CIE XYZ relative to a reference white. */
@@ -90,7 +93,7 @@ export function calculateXyzFromCielab(input: { lab: CielabColor; referenceWhite
   requireInputObject(input, "calculateXyzFromCielab input");
   const xyz = xyzOfCielab(parseLab(input.lab, "lab"), parseWhite(input.referenceWhiteXyz));
   requireFiniteResult([xyz.x, xyz.y, xyz.z], "CIELAB inverse");
-  return calculatedResult(xyz, "cielab-1976-inverse", COLORIMETRY_MODEL_VERSION, ["CIE 15:2018 CIELAB inverse"]);
+  return calculatedResult(xyz, "cielab-1976-inverse", COLORIMETRY_MODEL_VERSION, ["CIELAB inverse as defined in W3C CSS Color 4 (Lab)"]);
 }
 
 /** Internal: CIELAB → LCh(ab). */

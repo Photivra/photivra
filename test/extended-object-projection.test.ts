@@ -632,7 +632,7 @@ describe("capture-local extended-object projection", () => {
         }]
       })
     ).toThrow(
-      "must match exactly one committed #12 exposure-window sample point"
+      "must match exactly one committed exposure-window sample point"
     );
   });
 });

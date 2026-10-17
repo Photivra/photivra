@@ -14,11 +14,9 @@
  *   Q_preADC(S) = Q0 / a            electrons that drive the ADC to digital saturation
  * So the electrons needed to reach digital saturation are Q0 * S0 / S.
  *
- * Every exposure-index definition (CIPA DC-004; ISO 12232) puts the reference exposure H_ref in
- * proportion to 1/S: standard output sensitivity and REI (recommended exposure index) use S = 10 / H in
- * CIPA DC-004, and ISO 12232's saturation-based speed uses S_sat = 78 / H_sat (no free source was found
- * for the latter). So a correct exposure for S gives the same black-subtracted fraction of digital
- * saturation at every S.
+ * The exposure indices of CIPA DC-004 put the reference exposure H_ref in proportion to 1/S: standard
+ * output sensitivity (SOS) and REI (recommended exposure index) both use S = 10 / H (§3.2, §3.3). So a
+ * correct exposure for S gives the same black-subtracted fraction of digital saturation at every S.
  *
  * Read noise in electrons is declared per conversion-gain mode, never derived from S. (With dual
  * conversion gain, the high-conversion-gain mode used at high S has lower input-referred read noise.)
