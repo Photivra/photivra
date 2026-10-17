@@ -1732,6 +1732,14 @@ export { NATIVE_CAPTURE_SDR_SCHEMA_VERSION, NATIVE_CAPTURE_SDR_LIMITS, calculate
 export type { NativeCaptureSdrInput, NativeCaptureSdrTileRequest, NativeCaptureSdrTile, NativeCaptureSdrProvider, NativeCaptureSdrPlan,
   NativeCaptureSdrOutput, NativeCaptureSdrTaskState, NativeCaptureSdrTask, NativeTaskProgress } from "./output/native-capture-sdr.js";
 
+export { IRRADIANCE_CONVOLUTION_SCHEMA_VERSION, IRRADIANCE_CONVOLUTION_LIMITS, calculateIrradianceConvolutionPlan, calculateIrradianceConvolution } from "./optics/irradiance-convolution.js";
+export type { IrradianceConvolutionInput, IrradianceConvolutionPlan } from "./optics/irradiance-convolution.js";
+export { ImageKernelExecutionError, WEBGPU_F32_UNIT_ROUNDOFF, WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND } from "./gpu/image-kernel-execution.js";
+export type { ImageKernelBackend, ImageKernelFallbackReason, ImageKernelFailureReason, ImageKernelExecution, ImageKernelCodeErrorBound,
+  ImageKernelRelativeErrorBound } from "./gpu/image-kernel-execution.js";
+export { createImageKernelAccelerator } from "./gpu/image-kernel-accelerator.js";
+export type { ImageKernelAccelerator, ImageKernelAcceleratorOptions, ImageKernelAcceleratorState, ImageKernelRunOptions,
+  AcceleratedNativeCaptureSdrOutput, AcceleratedNativeRawDevelopmentOutput, IrradianceConvolutionResult } from "./gpu/image-kernel-accelerator.js";
 export { BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION, createBuiltInBayerDemosaicProfiles, type BuiltInBayerDemosaicKernel, type BuiltInBayerDemosaicProfiles,
   type CreateBuiltInBayerDemosaicProfilesInput, type RawReconstructionBorderHandling } from "./sensor/raw-reconstruction.js";
 export { PROCESSING_MAX_PIXELS, PROCESSING_MAX_FRAMES, PROCESSING_DEFAULT_MAXIMUM_WORKING_BYTES, PROCESSING_MODEL_VERSION,

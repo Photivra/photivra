@@ -40,6 +40,7 @@ Rows were last reviewed for package/root API 1.3.0; the later 1.4.0 and 1.5.0 mi
 | Read DNG/TIFF-EP raw files; write wide-gamut/HDR PNG | [DNG import and PNG output](IMPORT_AND_PNG.md) | Stored codes and metadata only; bounded untrusted input; caller-encoded PNG code values with sRGB/ICC/cICP signalling; no AVIF/HEIC |
 | Commit capture, ideal virtual-camera color, linear encoding | [Capture](SIMULATED_CAPTURE.md), [ideal color](CAPTURE_COLOR.md), [encoding](LINEAR_CAPTURE_ENCODING.md) | Ideal XYZ encoding differs from approximate sensor-channel development |
 | Generic tiers and correction cost | [Presets](GENERIC_TIER_PRESETS.md), [tier acceptance](TIER_ACCEPTANCE.md), [correction](DIGITAL_OPTICS_FOUNDATION.md) | Versioned owned synthetic assets; no universal quality ranking |
+| Opt-in WebGPU acceleration of PSF convolution, native SDR and RAW development | [WebGPU backend](WEBGPU.md), [usage](USAGE.md#optional-webgpu-image-kernels) | Labelled float32 approximation with a-priori bounds tested on a real adapter; CPU float64 stays the reference and the only bit-exact path |
 | Reproduce conformance/performance | [Scientific suite](SCIENTIFIC_CONFORMANCE.md), [performance disposition](V1_PERFORMANCE_DISPOSITION.md) | CI science gates; Node measurements do not establish browser or megapixel performance |
 | Optional local HTTP development transport | [Repository POC](POC_API.md) | Node-only checkout tooling, excluded from root/package; unauthenticated loopback |
 

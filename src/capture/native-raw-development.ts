@@ -120,14 +120,21 @@ function own<T extends Uint8Array<ArrayBuffer>|Uint16Array<ArrayBuffer>>(array: 
   const buffer=array.buffer as ArrayBuffer&{transfer?:()=>ArrayBuffer};
   return typeof buffer.transfer==="function"?make(buffer.transfer()):make(buffer.slice(0));
 }
-interface PreparedDevelopment {
+/** Takes the validated packed RAW's arrays (zero-copy detach where supported). Not a root export. */
+export function takeNativeRawOwnership(given: NativeRawOutput, plan: NativeRawOutput["plan"]): NativeRawOutput {
+  return {plan,codes:own(given.codes as Uint16Array<ArrayBuffer>,b=>new Uint16Array(b)),blackLevels:own(given.blackLevels as Uint16Array<ArrayBuffer>,b=>new Uint16Array(b)),
+    digitalSaturationCodes:own(given.digitalSaturationCodes as Uint16Array<ArrayBuffer>,b=>new Uint16Array(b)),saturationFlags:own(given.saturationFlags as Uint8Array<ArrayBuffer>,b=>new Uint8Array(b)),
+    effectiveSaturationCodes:given.effectiveSaturationCodes.slice()};
+}
+/** Validated development metadata (internal; shared with the image-kernel accelerator). Not a root export. */
+export interface PreparedDevelopment {
   plan: NativeRawOutput["plan"]; phases: RawFrameReconstructionPhaseProfile[]; color: ExportSensorColorProfile; profile: SdrRenderingProfile;
   whiteBalance: NativeRawDevelopmentInput["whiteBalance"]; highlightMode: RawHighlightMode; development: SensorColorDevelopment;
   crop: {x:number;y:number;width:number;height:number}; raster: {pixelWidth:number;pixelHeight:number};
   border: RawReconstructionBorderHandling; mirror: {nativeHeight:number;reach:number}|undefined;
 }
-/** Synchronous metadata/halo/CFA validation shared by the task and the reference. No pixel loop. */
-function prepare(input: NativeRawDevelopmentInput): PreparedDevelopment {
+/** Synchronous metadata/halo/CFA validation shared by the task, the reference and the accelerator. No pixel loop. Not a root export. */
+export function prepareNativeRawDevelopment(input: NativeRawDevelopmentInput): PreparedDevelopment {
   const r=requireAllowlistedRecord(input,["raw","phaseProfiles","colorProfile","whiteBalance","rendering","highlightMode","borderHandling","maximumRetainedPayloadBytes"],"Invalid native RAW development input.");
   const plan=validateRaw(input.raw),g=plan.exposure.resolvedGeometry,native=plan.exposure.geometry.nativeRaster;
   const phases=freezeOwnedData(parseRawReconstructionPhaseProfiles(r.phaseProfiles,plan.frame.modeId,plan.frame.colorSamplingProfile));
@@ -175,8 +182,8 @@ function prepare(input: NativeRawDevelopmentInput): PreparedDevelopment {
   }
   return {plan,phases,color,profile,whiteBalance:r.whiteBalance,highlightMode,development,crop,raster,border,mirror};
 }
-/** Numeric integrity of rows [y0,y1): signed values below black are preserved; spans are positive. */
-function checkIntegrity(raw: NativeRawOutput, nativeWidth: number, repeatWidth: number, repeatHeight: number, y0: number, y1: number): void {
+/** Numeric integrity of rows [y0,y1): signed values below black are preserved; spans are positive. Not a root export. */
+export function checkNativeRawIntegrity(raw: NativeRawOutput, nativeWidth: number, repeatWidth: number, repeatHeight: number, y0: number, y1: number): void {
   const codes=raw.codes,blacks=raw.blackLevels,digital=raw.digitalSaturationCodes,flags=raw.saturationFlags,white=raw.effectiveSaturationCodes;
   for(let y=y0;y<y1;y++){
     const row=(y%repeatHeight)*repeatWidth;
@@ -205,8 +212,8 @@ function highlightOf(mode: RawHighlightMode, counts: RawDevelopmentCounts): RawH
  * 256-pixel rows with the reference `calculateSdrRendering`. It does not take RAW ownership.
  */
 export function developNativeRawReference(input: NativeRawDevelopmentInput): {integerSamples:number[];diagnostics:SdrRenderingResult["diagnostics"];highlight:RawHighlightDiagnostics} {
-  const v=prepare(input),plan=v.plan,g=plan.exposure.resolvedGeometry,active=g.activeCapture.nativeRect,src=source(input.raw,plan);
-  checkIntegrity(input.raw,src.nativeWidth,src.repeatWidth,src.repeatHeight,0,plan.exposure.geometry.nativeRaster.pixelHeight);
+  const v=prepareNativeRawDevelopment(input),plan=v.plan,g=plan.exposure.resolvedGeometry,active=g.activeCapture.nativeRect,src=source(input.raw,plan);
+  checkNativeRawIntegrity(input.raw,src.nativeWidth,src.repeatWidth,src.repeatHeight,0,plan.exposure.geometry.nativeRaster.pixelHeight);
   const counts=createRawDevelopmentCounts(),diagnostics=emptyDiagnostics(),out:number[]=[];
   for(let y=0;y<v.raster.pixelHeight;y++)for(let x=0;x<v.raster.pixelWidth;x+=TILE_WIDTH){
     const width=Math.min(TILE_WIDTH,v.raster.pixelWidth-x),rgb:number[]=[];
@@ -255,13 +262,10 @@ export function createNativeRawDevelopmentTaskWithCadence(input: NativeRawDevelo
   const hooks=typeof provider==="function"?{yieldControl:provider}:provider;
   if(!hooks||typeof hooks.yieldControl!=="function"||(hooks.onProgress!==undefined&&typeof hooks.onProgress!=="function"))throw new InvalidConfigurationError("Development requires a host event-loop yield.");
   const yieldControl=hooks.yieldControl.bind(hooks),onProgress=hooks.onProgress?.bind(hooks);
-  const v=prepare(input),plan=v.plan,g=plan.exposure.resolvedGeometry,active=g.activeCapture.nativeRect,raster=v.raster,crop=v.crop;
+  const v=prepareNativeRawDevelopment(input),plan=v.plan,g=plan.exposure.resolvedGeometry,active=g.activeCapture.nativeRect,raster=v.raster,crop=v.crop;
   const nativeHeight=plan.exposure.geometry.nativeRaster.pixelHeight;
   // Ownership transfer happens only after every synchronous check passed.
-  const given=input.raw;
-  const raw:NativeRawOutput={plan,codes:own(given.codes as Uint16Array<ArrayBuffer>,b=>new Uint16Array(b)),blackLevels:own(given.blackLevels as Uint16Array<ArrayBuffer>,b=>new Uint16Array(b)),
-    digitalSaturationCodes:own(given.digitalSaturationCodes as Uint16Array<ArrayBuffer>,b=>new Uint16Array(b)),saturationFlags:own(given.saturationFlags as Uint8Array<ArrayBuffer>,b=>new Uint8Array(b)),
-    effectiveSaturationCodes:given.effectiveSaturationCodes.slice()};
+  const raw=takeNativeRawOwnership(input.raw,plan);
   const src=source(raw,plan),tilesPerRow=Math.ceil(raster.pixelWidth/TILE_WIDTH),totalTileCount=tilesPerRow*raster.pixelHeight;
   const abort=new AbortController();let state:NativeRawTaskState="ready",output:NativeRawDevelopmentOutput|null=null,codes:Uint8Array|Uint16Array|null=null,completed=0;
   function release(): void {raw.codes.fill(0);raw.blackLevels.fill(0);raw.digitalSaturationCodes.fill(0);raw.saturationFlags.fill(0);raw.effectiveSaturationCodes.fill(0);codes?.fill(0);codes=null;output=null;}
@@ -280,7 +284,7 @@ export function createNativeRawDevelopmentTaskWithCadence(input: NativeRawDevelo
         const gate=createHostYieldGate(cadence);
         const rowsPerChunk=Math.max(1,Math.floor(INTEGRITY_CHUNK_SITES/src.nativeWidth));
         for(let y=0;y<nativeHeight;y+=rowsPerChunk){
-          check();checkIntegrity(raw,src.nativeWidth,src.repeatWidth,src.repeatHeight,y,Math.min(nativeHeight,y+rowsPerChunk));
+          check();checkNativeRawIntegrity(raw,src.nativeWidth,src.repeatWidth,src.repeatHeight,y,Math.min(nativeHeight,y+rowsPerChunk));
           if(gate.due()){await yieldControl(abort.signal);check();gate.restart();}
         }
         codes=v.profile.bitDepth===8?new Uint8Array(raster.pixelWidth*raster.pixelHeight*3):new Uint16Array(raster.pixelWidth*raster.pixelHeight*3);

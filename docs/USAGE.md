@@ -7105,6 +7105,27 @@ console.log(calculateGeometricFocusBreathing({
 }).value.deltaDegrees);
 ```
 
+## Optional WebGPU image kernels
+
+`createImageKernelAccelerator()` runs isoplanatic PSF convolution, native capture SDR and packed RAW development either on the float64 CPU reference (the default) or, when the caller opts in, on the `webgpu-f32` backend. Every result's `execution` label names the backend that actually ran, any fallback reason, and the a-priori error bound against the reference. See [WebGPU backend](https://github.com/Photivra/photivra/blob/main/docs/WEBGPU.md) for the bounds, the supported domain and the browser test.
+
+```ts
+import { createImageKernelAccelerator, calculateIrradianceConvolution } from "@photivra/engine";
+
+const width = 16, height = 8, kernelRadius = 1;
+const input = { schemaVersion: "0.1.0" as const, width, height, kernelRadius, patchWidth: width, patchHeight: height,
+  boundary: "zero-outside-grid" as const, samples: new Float64Array(width * height).fill(2),
+  kernels: Float64Array.from([0, .1, 0, .1, .6, .1, 0, .1, 0]) };
+
+const accelerator = await createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "cpu-reference" });
+const result = await accelerator.convolveIrradiance(input);
+// Without WebGPU (e.g. Node) this ran the reference and says so.
+console.log(result.execution.backend, result.execution.fallbackReason, result.execution.bitIdenticalToReference);
+// Bit-exact identities and fixtures must come from the CPU reference.
+const reference = calculateIrradianceConvolution(input).values;
+console.log(result.execution.backend === "cpu-reference" ? result.values.every((v, i) => v === reference[i]) : result.execution.errorBound);
+accelerator.dispose();
+```
 ## Image processing operators
 
 Standalone cancellable operators for demosaicing, HDR merge/encoding, tone mapping, exposure fusion, focus stacking, panorama stitching from known rotations, denoising, sharpening and synthetic grain. All results are labelled approximations; see [Image processing operators](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md) for equations, sources, measured PSNR and limits. Every factory takes `(input, { yieldControl, onProgress? })` and returns a single-use task.

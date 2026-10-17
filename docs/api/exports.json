@@ -8,6 +8,16 @@
       "kind": "type"
     },
     {
+      "name": "AcceleratedNativeCaptureSdrOutput",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AcceleratedNativeRawDevelopmentOutput",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
       "name": "ActiveCaptureFieldOfView",
       "source": "src/output/capture-geometry.ts",
       "kind": "type"
@@ -781,6 +791,16 @@
       "name": "CalculateInverseRadialDistortionMappingsInput",
       "source": "src/optics/radial-distortion.ts",
       "kind": "type"
+    },
+    {
+      "name": "calculateIrradianceConvolution",
+      "source": "src/optics/irradiance-convolution.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateIrradianceConvolutionPlan",
+      "source": "src/optics/irradiance-convolution.ts",
+      "kind": "runtime"
     },
     {
       "name": "calculateLateralChromaticAberrationMapping",
@@ -2088,6 +2108,11 @@
       "kind": "runtime"
     },
     {
+      "name": "createImageKernelAccelerator",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "createIsoGainReadoutRegimes",
       "source": "src/sensor/iso-gain.ts",
       "kind": "runtime"
@@ -3358,6 +3383,61 @@
       "kind": "type"
     },
     {
+      "name": "ImageKernelAccelerator",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelAcceleratorOptions",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelAcceleratorState",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelBackend",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelCodeErrorBound",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelExecution",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelExecutionError",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ImageKernelFailureReason",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelFallbackReason",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelRelativeErrorBound",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelRunOptions",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
       "name": "ImagePlaneMetricPointMm",
       "source": "src/output/capture-geometry.ts",
       "kind": "type"
@@ -3485,6 +3565,31 @@
     {
       "name": "InverseRadialDistortionMappings",
       "source": "src/optics/radial-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IRRADIANCE_CONVOLUTION_LIMITS",
+      "source": "src/optics/irradiance-convolution.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "IRRADIANCE_CONVOLUTION_SCHEMA_VERSION",
+      "source": "src/optics/irradiance-convolution.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "IrradianceConvolutionInput",
+      "source": "src/optics/irradiance-convolution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IrradianceConvolutionPlan",
+      "source": "src/optics/irradiance-convolution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IrradianceConvolutionResult",
+      "source": "src/gpu/image-kernel-accelerator.ts",
       "kind": "type"
     },
     {
@@ -7946,6 +8051,16 @@
       "name": "WavefrontPupilGrid",
       "source": "src/optics/zernike-wavefront.ts",
       "kind": "type"
+    },
+    {
+      "name": "WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "WEBGPU_F32_UNIT_ROUNDOFF",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "runtime"
     },
     {
       "name": "WHITE_BALANCE_PROFILE_SCHEMA_VERSION",
