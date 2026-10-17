@@ -123,7 +123,7 @@ at the metered exposure for the default f/8, 1/125 s, ISO 100. The light does no
 settings: changing the shutter in manual mode changes the image brightness, as on a real camera.
 
 With these defaults the green RAW level of an 18 % grey card is about 10.5 % of RAW white. This is
-close to the ISO 12232 saturation-based speed relation. The tier values were not tuned to get it.
+close to the ISO 12232 saturation-based speed relation (no free source for that relation was found; see the citation audit in the 2.0.0 release record). The tier values were not tuned to get it.
 
 ## Scene presets
 
@@ -133,7 +133,7 @@ planar Lambertian reflector. Neutral reflectances are spectrally flat.
 | Preset | Parameters (defaults) | Definition |
 | --- | --- | --- |
 | `uniform` | `reflectance` (0.18) | One reflectance or caller spectrum everywhere. |
-| `slanted-edge` | `angleDegrees` (5), `darkReflectance` (0.15), `lightReflectance` (0.6) | An edge through the centre, tilted clockwise from vertical: light where u·cos θ − v·sin θ ≥ 0. The geometry follows the ISO 12233 edge target (a few degrees of slant, 4:1 contrast by default). |
+| `slanted-edge` | `angleDegrees` (5), `darkReflectance` (0.15), `lightReflectance` (0.6) | An edge through the centre, tilted clockwise from vertical: light where u·cos θ − v·sin θ ≥ 0. The geometry follows the slanted-edge method described by Burns (2000), also used by ISO 12233 (a few degrees of slant, 4:1 contrast by default). |
 | `siemens-star` | `cycles` (36), `radiusFraction` (0.9), `darkReflectance` (0.05), `lightReflectance` (0.8), `backgroundReflectance` (0.18) | Alternating sectors of angular width π/cycles inside radius `radiusFraction` × frame half-height. |
 | `step-wedge` | `steps` (11), `minimumReflectance` (0.03), `maximumReflectance` (0.9), `spacing` (`equal-density`) | Equal-width vertical steps from left to right. Equal density spaces D = −log₁₀ R evenly; `linear` spaces R evenly. |
 | `grey-ramp` | `minimumReflectance` (0.03), `maximumReflectance` (0.9) | Reflectance linear in u, represented by 1024 equal levels. |
@@ -400,12 +400,20 @@ directly. Real camera and lens presets are not provided, for rights reasons.
 ## Sources
 
 - ISO 2720:1974, *General purpose photographic exposure meters (photoelectric type) — Guide to
-  product specification* (reflected-light calibration constant K).
+  product specification* (reflected-light calibration constant K; paid, no free equivalent found).
+- CIPA DC-004-Translation-2020, *Sensitivity of Digital Cameras*, free at
+  <https://www.cipa.jp/e/std/std-sec.html> (exposure index S = 10/H and focal-plane exposure
+  H = 0.65·L·t/N²).
 - ISO 12232:2019, *Photography — Digital still cameras — Determination of exposure index, ISO speed
-  ratings, standard output sensitivity, and recommended exposure index* (saturation-based speed).
-- ISO 12233:2017, *Photography — Electronic still picture imaging — Resolution and spatial frequency
-  responses* (slanted-edge geometry).
-- CIE 015:2018, *Colorimetry*, 4th ed. (K_m = 683 lm/W, illuminant A, daylight).
+  ratings, standard output sensitivity, and recommended exposure index* (saturation-based speed; paid,
+  no free equivalent found).
+- P. D. Burns, "Slanted-Edge MTF for Digital Camera and Scanner Analysis", Proc. IS&T PICS 2000,
+  free at <https://www.imaging.org/common/uploaded%20files/pdfs/Papers/2000/PICS-0-81/1621.pdf>
+  (slanted-edge geometry; also ISO 12233:2017).
+- BIPM, *The International System of Units*, 9th ed. (2019), free at
+  <https://www.bipm.org/en/publications/si-brochure> (K_cd = 683 lm/W, the definition of the candela).
+- CIE 015:2018, *Colorimetry*, 4th ed. (illuminant A, daylight; paid). Computed values are checked
+  against the free CIE datasets at <https://cie.co.at/data-tables>.
 - C. Wyman, P.-P. Sloan, P. Shirley, "Simple analytic approximations to the CIE XYZ color matching
   functions", *Journal of Computer Graphics Techniques* 2(2), 2013.
 - R. Luther, "Aus dem Gebiet der Farbreizmetrik", *Zeitschrift für technische Physik* 8, 1927

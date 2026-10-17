@@ -58,7 +58,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 ## calculateCorrelatedColorTemperature
 
 CCT and Duv of a chromaticity as the nearest point of the Planckian locus in the CIE
-1960 UCS (CIE 15:2018 definition), by golden-section search in reciprocal temperature
+1960 UCS (Smet et al. 2023; also CIE 15:2018), by golden-section search in reciprocal temperature
 (mired). Fails closed when the nearest point lies at the model's range limit or when
 |Duv| > 0.05, where CIE 15 advises CCT should not be used.
 

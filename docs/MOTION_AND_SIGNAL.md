@@ -178,7 +178,7 @@ Consequences that now emerge from per-site sampling, with no image warp drawn af
 - **Flicker banding.** A periodic source waveform of period `P` integrated over `[s·τ, s·τ + T]` varies with
   `s`; the band pattern repeats every `H·P/τ` rows and disappears when `T` is a whole multiple of `P` (the
   integral of a periodic waveform over whole periods is phase independent). Mains-powered lamps commonly
-  modulate at twice the mains frequency (IEEE Std 1789-2015); the banding mechanism in line-sequential CMOS
+  modulate at twice the mains frequency, because emitted power follows the square of a sinusoidal current or voltage (sin²ωt = (1 − cos 2ωt)/2; context in the US DOE temporal light modulation pages; also IEEE Std 1789-2015); the banding mechanism in line-sequential CMOS
   capture is described by Poplin (2006).
 
 Limits: uniform line rate, no reset jitter, no global-reset-release or mechanical-close hybrids, and `τ` is a
@@ -334,7 +334,7 @@ These two scalar primitives do not model dark current, fixed-pattern noise, PRNU
 ISO is still never an equation inside the readout: an ISO signal chain (`resolveGenericIsoSignalChain`) binds each
 exposure-index setting to an explicitly declared readout regime. `createIsoGainReadoutRegimes()` derives one regime per
 setting from declared parameters, using the linear camera model of EMVA Standard 1288 Release 4.0 (system gain K in
-DN/e⁻; here stored as its reciprocal, electrons per code) and the exposure index of ISO 12232:2019:
+DN/e⁻; here stored as its reciprocal, electrons per code) and the exposure index S = 10/H of CIPA DC-004-2020 (free; also ISO 12232:2019):
 
 | Quantity | Equation |
 |---|---|
@@ -345,8 +345,8 @@ DN/e⁻; here stored as its reciprocal, electrons per code) and the exposure ind
 | pre-ADC threshold | Q_preADC(S) = Q₀ / a |
 | electrons reaching digital white | Q₀ · S₀ / S |
 
-Every ISO 12232 speed definition places its reference exposure at H ∝ 1/S (saturation-based S_sat = 78/H_sat; standard
-output sensitivity S_SOS = 10/H_SOS). Under this model an exposure that is correct for S therefore produces the same
+Every exposure-index definition places its reference exposure at H ∝ 1/S (standard output sensitivity and recommended
+exposure index S = 10/H in CIPA DC-004; ISO 12232's saturation-based S_sat = 78/H_sat, for which no free source was found). Under this model an exposure that is correct for S therefore produces the same
 black-subtracted fraction of the white level at every S, and at a fixed exposure the RAW code doubles per stop until it
 clips. `test/iso-brightness.test.ts` (the review repro `r4-iso-white.mjs`) checks, for every generic tier and ISO, that a
 metered mid-grey exposure (H_m/H_sat = 10/78) normalizes to 10/78 within 1e-9 in the expectation and within 6σ shot noise
@@ -422,8 +422,9 @@ Geometric pixel/sample pitch is not accepted as photon-collection area. An expli
 The equations in this slice are independently implemented from established projective geometry, exposure relations, and elementary photon/statistical noise models. No third-party source code or calibration dataset is incorporated by these modules.
 
 References for the 2.0.0 readout additions (cited as published methods; no text, tables or data are copied):
+CIPA DC-004-Translation-2020, *Sensitivity of Digital Cameras*, free at <https://www.cipa.jp/e/std/std-sec.html> (also
 ISO 12232:2019, *Photography — Digital still cameras — Determination of exposure index, ISO speed ratings, standard
-output sensitivity, and recommended exposure index*; EMVA Standard 1288 Release 4.0, *Standard for Characterization of
+output sensitivity, and recommended exposure index*); EMVA Standard 1288 Release 4.0, *Standard for Characterization of
 Image Sensors and Cameras* (linear model, PRNU, DSNU, linearity, dark current); J. R. Janesick, *Photon Transfer*,
 SPIE Press, 2007; W. Hörmann, "The transformed rejection method for generating Poisson random variables", *Insurance:
 Mathematics and Economics* 12 (1993); G. E. P. Box and M. E. Muller, "A note on the generation of random normal
@@ -437,6 +438,7 @@ effect", *IEEE Transactions on Image Processing* 17(8), 2008; M. Meingast, C. Ge
 rolling-shutter cameras", OMNIVIS 2005 (arXiv:cs/0503076); O. Ait-Aider, N. Andreff, J. M. Lavest and P. Martinet,
 "Simultaneous object pose and velocity computation using a single view from a rolling shutter camera", ECCV 2006;
 D. Poplin, "An automatic flicker detection method for embedded camera systems", *IEEE Transactions on Consumer
-Electronics* 52(2), 2006; IEEE Std 1789-2015, *Recommended Practices for Modulating Current in High-Brightness LEDs for
-Mitigating Health Risks to Viewers* (light modulation at twice the mains frequency); *American Cinematographer Manual*,
+Electronics* 52(2), 2006; US DOE, temporal light modulation (flicker) research pages, <https://www.energy.gov/eere/ssl/flicker> (also IEEE Std
+1789-2015, *Recommended Practices for Modulating Current in High-Brightness LEDs for Mitigating Health Risks to
+Viewers*); *American Cinematographer Manual*,
 ASC Press (shutter angle and the 180° convention).

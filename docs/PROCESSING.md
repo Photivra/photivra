@@ -55,7 +55,7 @@ With `"mirror"`, a contribution site outside the frame is read at its reflect-10
 
 1. Green is interpolated along rows and along columns with the directional 5-tap filter [−1/4, 1/2, 1/2, 1/2, −1/4]. This is the bilinear green plus the own-channel second difference. The paper's optimized filter design is not reproduced.
 2. Red and blue are filled from bilinearly interpolated colour differences (R−G, B−G) against each directional green. This gives two full-colour candidates.
-3. Both candidates are converted to CIELAB (CIE 15) through `cameraToXyz`. The default is the sRGB/D65 matrix, and it is used only for the metric.
+3. Both candidates are converted to CIELAB (W3C CSS Color 4; also CIE 15) through `cameraToXyz`. The default is the sRGB/D65 matrix, and it is used only for the metric.
 4. Homogeneity is the number of 4-neighbours within the adaptive tolerances ε_L and ε_C. These are the smaller of the two directions' largest along-direction luminance and chroma differences.
 5. Homogeneity is summed over 3×3, and the more homogeneous candidate is selected. Ties average the two candidates.
 
@@ -98,7 +98,7 @@ Not modelled: dark current, fixed-pattern noise, inter-frame motion and registra
 
 `createHdrImageEncodingTask({ image, inputColorSpace, transfer, ... })` first converts linear RGB to BT.2020 primaries. The matrices come from `resolveRgbColorSpace` (SMPTE RP 177 derivation); for sRGB this reproduces the ITU-R BT.2087 matrix. It then encodes:
 
-- **`pq`**: the SMPTE ST 2084 inverse EOTF (`evaluatePqInverseEotf`), with relative 1.0 at `referenceWhiteLuminanceCdPerSquareMeter`. The default is 203 cd/m², the ITU-R BT.2408 HDR reference white. Luminance is clipped to [0, 10000] cd/m².
+- **`pq`**: the ITU-R BT.2100 PQ inverse EOTF (also SMPTE ST 2084) (`evaluatePqInverseEotf`), with relative 1.0 at `referenceWhiteLuminanceCdPerSquareMeter`. The default is 203 cd/m², the ITU-R BT.2408 HDR reference white. Luminance is clipped to [0, 10000] cd/m².
 - **`hlg`**: the BT.2100 HLG OETF (`evaluateHlgOetf`), with relative 1.0 at signal `hlgReferenceWhiteSignal`. The default is 0.75, the BT.2408 HLG reference white. Scene-linear E is clipped to [0, 1].
 - **`linear-float32`**: unclipped float32 linear BT.2020.
 
@@ -167,14 +167,14 @@ All filters use one global parameter set. Linear RAW noise is signal-dependent, 
 - Burt, P. J. & Kolczynski, R. J. (1993). Enhanced image capture through fusion. *Proc. ICCV 1993*.
 - Brown, M. & Lowe, D. G. (2007). Automatic panoramic image stitching using invariant features. *IJCV* 74(1), 59–73. Gain compensation and multi-band blending only.
 - Buades, A., Coll, B. & Morel, J.-M. (2005). A non-local algorithm for image denoising. *Proc. CVPR 2005*, vol. 2, 60–65; and Buades et al. (2011), Non-local means denoising, *Image Processing On Line* 1.
-- CIE 15 (Colorimetry): CIELAB.
+- W3C CSS Color Module Level 4, Lab (free); also CIE 15 (Colorimetry): CIELAB.
 - Durand, F. & Dorsey, J. (2002). Fast bilateral filtering for the display of high-dynamic-range images. *ACM TOG* 21(3), 257–266.
 - EMVA Standard 1288: linear camera model and quantization noise variance 1/12 DN².
 - Granados, M., Ajdin, B., Wand, M., Theobalt, C., Seidel, H.-P. & Lensch, H. P. A. (2010). Optimal HDR reconstruction with linear digital cameras. *Proc. CVPR 2010*.
 - Gunturk, B. K., Glotzbach, J., Altunbasak, Y., Schafer, R. W. & Mersereau, R. M. (2005). Demosaicking: color filter array interpolation. *IEEE Signal Processing Magazine* 22(1).
 - Hasinoff, S. W., Durand, F. & Freeman, W. T. (2010). Noise-optimal capture for high dynamic range photography. *Proc. CVPR 2010*.
 - Hirakawa, K. & Parks, T. W. (2005). Adaptive homogeneity-directed demosaicing algorithm. *IEEE Trans. Image Processing* 14(3), 360–369.
-- ITU-R BT.2020-2, BT.2087, BT.2100-3 and BT.2408; SMPTE ST 2084.
+- ITU-R BT.2020-2, BT.2087, BT.2100-3 and BT.2408 (free); also SMPTE ST 2084.
 - Knutsson, H. & Westin, C.-F. (1993). Normalized and differential convolution. *Proc. CVPR 1993*.
 - Malvar, H. S., He, L. & Cutler, R. (2004). High-quality linear interpolation for demosaicing of Bayer-patterned color images. *Proc. IEEE ICASSP 2004*, vol. 3.
 - Mertens, T., Kautz, J. & Van Reeth, F. (2007). Exposure fusion. *Proc. Pacific Graphics 2007*.

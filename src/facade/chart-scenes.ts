@@ -11,7 +11,8 @@
  * The facade places the chart perpendicular to the optical axis at the subject distance and sizes it so
  * that this rectangle exactly fills the active capture (see `SimulateCaptureResult.assumptions`).
  *
- * The slanted edge follows the geometry of the ISO 12233 edge-SFR target (a near-vertical edge rotated by
+ * The slanted edge follows the slanted-edge geometry described by P. D. Burns, "Slanted-Edge MTF for Digital
+ * Camera and Scanner Analysis", IS&T PICS 2000 (free from imaging.org; also ISO 12233) (a near-vertical edge rotated by
  * a few degrees, 5 degrees by default, with a 4:1 light/dark reflectance ratio by default). It is a
  * geometric description only; no measured chart or ISO test procedure is reproduced.
  * @see docs/QUICK_START.md for the chart catalogue and their analytic definitions.

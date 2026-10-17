@@ -100,7 +100,7 @@ p(d) = (d · N / (GN_full · √(ISO/100)))²,  clamped to [p_min, 1]
 ```
 
 The relation follows from the inverse-square law (subject illuminance ∝ 1/d²) and the camera equation (sensor
-exposure ∝ 1/N²); emitted energy scales with the power fraction `p`. ISO 2827 specifies how a guide number
+exposure ∝ 1/N²); emitted energy scales with the power fraction `p`. ISO 2827 (paid; no free equivalent found) specifies how a guide number
 is measured; Jacobson et al., *The Manual of Photography*, and Ray, *Applied Photographic Optics*, give the
 relation. `calculateFlashGuideNumber()` and `calculateFlashPowerForDistance()` implement it; the latter reports
 the clamp status, the delivered-minus-required error in stops and the full-power range `GN/N`.
@@ -188,4 +188,4 @@ References (published methods only; nothing copied): ISO 2827, *Photography — 
 Determination of exposure guide number*; R. E. Jacobson, S. F. Ray, G. G. Attridge and N. R. Axford, *The
 Manual of Photography*, 9th ed., Focal Press, 2000; S. F. Ray, *Applied Photographic Optics*, 3rd ed., Focal
 Press, 2002; R. J. Hyndman and Y. Fan, "Sample quantiles in statistical packages", *The American Statistician*
-50(4), 1996; ISO 12232:2019 (saturation-based speed).
+50(4), 1996; ISO 12232:2019 (saturation-based speed; paid, no free equivalent found).

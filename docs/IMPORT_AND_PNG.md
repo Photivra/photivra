@@ -95,20 +95,20 @@ cICP code points (H.273; matching the PNG specification's examples):
 | Option | Code | Standard |
 | --- | --- | --- |
 | `primaries: 'bt709'` | 1 | ITU-R BT.709 (same primaries as sRGB) |
-| `primaries: 'display-p3'` | 12 | SMPTE EG 432-1 (P3 primaries, D65 white) |
+| `primaries: 'display-p3'` | 12 | P3 primaries, D65 white (W3C CSS Color 4 `display-p3`; also SMPTE EG 432-1) |
 | `primaries: 'bt2020'` | 9 | ITU-R BT.2020 / BT.2100 |
 | `transfer: 'bt709'` | 1 | ITU-R BT.709 |
 | `transfer: 'linear'` | 8 | Linear |
-| `transfer: 'srgb'` | 13 | IEC 61966-2-1 sRGB |
-| `transfer: 'pq'` | 16 | SMPTE ST 2084 / BT.2100 PQ |
+| `transfer: 'srgb'` | 13 | sRGB (W3C CSS Color 4; also IEC 61966-2-1) |
+| `transfer: 'pq'` | 16 | ITU-R BT.2100 PQ (also SMPTE ST 2084) |
 | `transfer: 'hlg'` | 18 | ARIB STD-B67 / BT.2100 HLG |
 
 So Display P3 is `{ primaries: 'display-p3', transfer: 'srgb', fullRange: true }` (cICP `0C 0D 00 01`), BT.2100 PQ is `09 10 00 01` and BT.2100 HLG is `09 12 00 01`.
 
 HDR static metadata is written only with `cicp`, as the PNG specification requires a cICP chunk alongside mDCV:
 
-- `masteringDisplay` → `mDCV` (SMPTE ST 2086): R, G, B and white CIE 1931 xy chromaticities stored in units of 0.00002, maximum and minimum luminance in units of 0.0001 cd/m².
-- `contentLightLevel` → `cLLI` (CTA-861.3): MaxCLL and MaxFALL in units of 0.0001 cd/m²; 0 means unknown. MaxFALL above a known MaxCLL is rejected.
+- `masteringDisplay` → `mDCV` (W3C PNG Third Edition; also SMPTE ST 2086): R, G, B and white CIE 1931 xy chromaticities stored in units of 0.00002, maximum and minimum luminance in units of 0.0001 cd/m².
+- `contentLightLevel` → `cLLI` (W3C PNG Third Edition; also CTA-861.3): MaxCLL and MaxFALL in units of 0.0001 cd/m²; 0 means unknown. MaxFALL above a known MaxCLL is rejected.
 
 The engine does not compute MaxCLL/MaxFALL or mastering metadata; the caller supplies them.
 
@@ -128,11 +128,11 @@ AVIF and HEIC still images are AV1 and HEVC intra frames inside an ISO-BMFF (HEI
 
 - Adobe, *Digital Negative (DNG) Specification*, version 1.7.1.0, September 2023 — tag definitions, BitsPerSample packing, lossless JPEG use, ActiveArea/CFA/BlackLevel origin, Compatibility Issue 2.
 - Adobe, *TIFF Revision 6.0*, 1992 — file structure, IFDs, field types, strips and tiles.
-- ISO 12234-2 (TIFF/EP) — CFARepeatPatternDim and CFAPattern tags.
-- ITU-T Recommendation T.81 | ISO/IEC 10918-1 (1992), Annex H (lossless processes), Annex C and F.2.2.3 (Huffman tables and decoding), F.1.2.3 (restart).
+- CIPA DC-008 (Exif 2.32 / 3.0), free at <https://www.cipa.jp/e/std/std-sec.html> — CFAPattern; the DNG specification above defines CFARepeatPatternDim/CFAPattern use and origin. The TIFF/EP tags are also specified in ISO 12234-2.
+- ITU-T Recommendation T.81 (1992), free at <https://www.w3.org/Graphics/JPEG/itu-t81.pdf> (identical text: ISO/IEC 10918-1), Annex H (lossless processes), Annex C and F.2.2.3 (Huffman tables and decoding), F.1.2.3 (restart).
 - W3C, *Portable Network Graphics (PNG) Specification (Third Edition)*, W3C Recommendation 24 June 2025 — chunks, filters, cICP, mDCV, cLLI, sRGB gAMA/cHRM values.
 - IETF RFC 1950 (zlib) and RFC 1951 (DEFLATE).
 - ITU-T Recommendation H.273 — colour primaries and transfer characteristics code points.
-- SMPTE ST 2086 (mastering display colour volume), CTA-861.3 (content light level), SMPTE ST 2084 and ITU-R BT.2100 (PQ, HLG), SMPTE EG 432-1 (Display P3 primaries) — meaning of the signalled values.
+- ITU-R BT.2100 (PQ, HLG); ITU-T H.265 Annex D (mastering display colour volume and content light level SEI semantics); W3C CSS Color 4 `display-p3` (P3 primaries) — meaning of the signalled values, all free. Also specified in SMPTE ST 2086, CTA-861.3, SMPTE ST 2084 and SMPTE EG 432-1.
 
 Only factual identifiers (tag numbers, code points, chunk layouts, fixed values) are taken from these standards.

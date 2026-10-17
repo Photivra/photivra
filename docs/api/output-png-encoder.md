@@ -20,7 +20,7 @@ PNG_ENCODER_LIMITS = Object.freeze({ maximumDimension: 65535, maximumPixels: 100
 
 ## PngCicpPrimaries
 
-ITU-T H.273 ColourPrimaries: bt709 = 1 (also sRGB), display-p3 = 12 (SMPTE EG 432-1, D65), bt2020 = 9 (BT.2020/BT.2100).
+ITU-T H.273 ColourPrimaries: bt709 = 1 (also sRGB), display-p3 = 12 (P3 primaries with D65 white; W3C CSS Color 4, also SMPTE EG 432-1), bt2020 = 9 (BT.2020/BT.2100).
 
 ```ts
 export type PngCicpPrimaries = "bt709" | "display-p3" | "bt2020";
@@ -28,7 +28,7 @@ export type PngCicpPrimaries = "bt709" | "display-p3" | "bt2020";
 
 ## PngCicpTransfer
 
-ITU-T H.273 TransferCharacteristics: bt709 = 1, linear = 8, srgb = 13 (IEC 61966-2-1), pq = 16 (SMPTE ST 2084), hlg = 18 (ARIB STD-B67).
+ITU-T H.273 TransferCharacteristics: bt709 = 1, linear = 8, srgb = 13 (sRGB), pq = 16 (ITU-R BT.2100 PQ), hlg = 18 (ARIB STD-B67).
 
 ```ts
 export type PngCicpTransfer = "bt709" | "linear" | "srgb" | "pq" | "hlg";
@@ -47,7 +47,7 @@ export type PngColourEncoding =
 
 ## PngContentLightLevel
 
-CTA-861.3 content light level in cd/m²; 0 means unknown.
+Content light level in cd/m² (W3C PNG cLLI; ITU-T H.265 content light level SEI; also CTA-861.3); 0 means unknown.
 
 ```ts
 export interface PngContentLightLevel {
@@ -79,7 +79,7 @@ export interface PngEncodeInput {
 
 ## PngMasteringDisplay
 
-SMPTE ST 2086 mastering display colour volume: CIE 1931 xy chromaticities and luminance in cd/m².
+Mastering display colour volume (W3C PNG mDCV; ITU-T H.265 Annex D SEI; also SMPTE ST 2086): CIE 1931 xy chromaticities and luminance in cd/m².
 
 ```ts
 export interface PngMasteringDisplay {

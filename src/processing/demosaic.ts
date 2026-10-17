@@ -231,7 +231,7 @@ export function createAhdDemosaicTask(input: AhdDemosaicInput, provider: Process
         }
         yield;
       }
-      // 3. CIELAB (CIE 15:2004) of both candidates.
+      // 3. CIELAB (W3C CSS Color 4 Lab definition; also CIE 15) of both candidates.
       const lab = [new Float32Array(3 * n), new Float32Array(3 * n)];
       const f = (t: number): number => t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116;
       for (let y = 0; y < H; y++) {

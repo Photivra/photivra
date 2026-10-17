@@ -42,7 +42,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## calculateDegreeOfAdaptation
 
-CIECAM02 degree of adaptation D = F[1 − (1/3.6) exp((−L_A − 42)/92)] (CIE 159:2004),
+CIECAM02 degree of adaptation D = F[1 − (1/3.6) exp((−L_A − 42)/92)] (Moroney et al. 2002; also CIE 159:2004),
 clamped to [0, 1]. L_A is the adapting-field luminance in cd/m².
 
 ```ts

@@ -3080,7 +3080,7 @@ applied about black after quantization and re-quantized) and `adc.integralNonLin
 ### ISO-dependent gain regimes
 
 `createIsoGainReadoutRegimes()` derives one explicit regime per ISO setting from declared sensor parameters, so ISO
-changes RAW brightness like analog/digital gain (ISO 12232 exposure index, EMVA 1288 linear model):
+changes RAW brightness like analog/digital gain (exposure index of CIPA DC-004 / ISO 12232, EMVA 1288 linear model):
 
 ```ts
 import { createIsoGainReadoutRegimes, parseSensorReadoutConversionProfile } from "@photivra/engine";

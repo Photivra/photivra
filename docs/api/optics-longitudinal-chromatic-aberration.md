@@ -62,7 +62,7 @@ FRAUNHOFER_C_LINE_NM = 656.2725
 
 ## FRAUNHOFER_D_LINE_NM
 
-Fraunhofer spectral-line wavelengths in nm (ISO 7944 reference wavelengths).
+Fraunhofer spectral-line wavelengths in nm (SCHOTT TIE-29 table; also ISO 7944 reference wavelengths).
 
 ```ts
 FRAUNHOFER_D_LINE_NM = 587.5618
