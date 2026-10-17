@@ -99,7 +99,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `motion.angularVelocityRadPerSec` | still | `{ pitch?, yaw?, roll? }` in rad/s (see [Motion](#motion)). |
 | `motion.shutter` | `"global"` | Or `"rolling"`. |
 | `motion.rollingShutterSkewSeconds` | the body's readout skew | Rolling only. |
-| `signal`, `onProgress` | none | An `AbortSignal` cancels the running task; `onProgress` reports `raw`, `white-balance`, `development` and `jpeg` tiles. The last event of each stage has `completedTileCount === totalTileCount`. |
+| `signal`, `onProgress` | none | An `AbortSignal` cancels the running task; `onProgress` reports `raw`, `white-balance`, `development` and `jpeg` tiles. The last event of each stage has `completedTileCount === totalTileCount`. The capture yields to the host about every 8 ms with a `MessageChannel` message (else `setImmediate`, else `setTimeout`), so other queued tasks run in between: an abort sent from another task, such as a Web Worker `message` event, takes effect at the next yield. |
 
 Unknown fields are rejected, so a typo never silently falls back to a default.
 

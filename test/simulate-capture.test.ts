@@ -143,6 +143,29 @@ describe("simulateCapture facade", { timeout: 60_000 }, () => {
     expect(rawLevel(r, "green")).toBeGreaterThan(0.01);
   });
 
+  it("sees an abort queued as a separate task even when the host has a continuation-priority scheduler.yield", async () => {
+    // Engine 2.0.0 yielded through scheduler.yield(), whose continuations run ahead of queued tasks, so a Web Worker's
+    // cancel message was not handled until the capture finished. This fake scheduler.yield resolves on microtasks only.
+    const g = globalThis as { scheduler?: unknown }, had = "scheduler" in g, previous = g.scheduler;
+    g.scheduler = { yield: (): Promise<void> => Promise.resolve() };
+    try {
+      const controller = new AbortController();
+      let tiles = 0, tilesAtQueue = -1, tilesAtAbort = -1;
+      const capture = simulateCapture({ scene: { preset: "uniform" }, output: { width: 16, height: 16 }, signal: controller.signal,
+        onProgress: () => {
+          // Once the RAW tile loop is running, the cancel arrives as its own macrotask, like a worker message event.
+          if (++tiles === 1) { tilesAtQueue = tiles; setTimeout(() => { tilesAtAbort = tiles; controller.abort(); }, 0); }
+        } });
+      await expect(capture).rejects.toThrow("aborted");
+      // The queued cancel task ran at the next host yield (a few tiles at most), and the capture stopped right after it.
+      expect(tilesAtAbort).toBeGreaterThanOrEqual(tilesAtQueue);
+      expect(tilesAtAbort - tilesAtQueue).toBeLessThanOrEqual(4);
+      expect(tiles - tilesAtAbort).toBeLessThanOrEqual(4);
+    } finally {
+      if (had) g.scheduler = previous; else delete g.scheduler;
+    }
+  });
+
   it("cancels through AbortSignal and reports progress", async () => {
     const aborted = new AbortController();
     aborted.abort();

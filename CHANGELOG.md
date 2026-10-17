@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0 — unreleased
+
+### Fixed
+
+- **`simulateCapture` cancellation in Web Workers.** 2.0.0 yielded to the host with `scheduler.yield()` where available. Its continuations run ahead of ordinary queued tasks (WICG Prioritized Task Scheduling, continuation priorities), so a worker's cancel message waited until the whole capture finished. The facade now yields with a `MessageChannel` message, else `setImmediate`, else `setTimeout`; queued tasks, including the caller's abort, run at the next yield, and the 4 ms timer clamp is still avoided (`src/facade/host-yield.ts`). Output is unchanged. Chromium 141 worker, 128 px capture cancelled after 100 ms, three rounds: 2.0.0 ignored the cancel and finished (2.12–2.34 s), now it aborts after one tile and the next 16 px request returns 0.15–0.20 s after the cancel; an uncancelled 128 px capture takes the same time (medians 2.17 s before, 2.16 s after, six alternating rounds).
+
 ## 2.0.0 — published October 17, 2026
 
 A major release.
