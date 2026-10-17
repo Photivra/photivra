@@ -14,12 +14,12 @@
  * - Bradford (linearized): Lam (1985) thesis, University of Bradford; Luo & Rhodes
  *   (1999); as used in ICC.1:2010 Annex E. The original blue-channel non-linearity is
  *   omitted, as in common practice.
- * - CAT02: Moroney et al. (2002), "The CIECAM02 color appearance model", IS&T/SID CIC10;
- *   CIE 159:2004.
+ * - CAT02: Moroney et al. (2002), "The CIECAM02 color appearance model", IS&T/SID CIC10
+ *   (also CIE 159:2004).
  * - CAT16: Li, Li, Wang, Xu, Luo, Cui, Melgosa, Brill & Pointer (2017), "Comprehensive
  *   color solutions: CAM16, CAT16, and CAM16-UCS", Color Res. Appl. 42(6):703–718.
  * - von Kries with Hunt–Pointer–Estévez cones (equal-energy normalized), as used in
- *   CIECAM02 (CIE 159:2004).
+ *   CIECAM02 (Moroney et al. 2002; also CIE 159:2004).
  * - XYZ scaling: identity cone matrix (diagonal scaling in XYZ; the weakest model).
  * Degree of adaptation: CIECAM02 D = F[1 − (1/3.6) exp((−L_A − 42)/92)], F = 1.0
  * (average), 0.9 (dim), 0.8 (dark) surround.
@@ -140,7 +140,7 @@ export function calculateChromaticallyAdaptedXyz(input: CalculateChromaticAdapta
 export type ViewingSurround = "average" | "dim" | "dark";
 
 /**
- * CIECAM02 degree of adaptation D = F[1 − (1/3.6) exp((−L_A − 42)/92)] (CIE 159:2004),
+ * CIECAM02 degree of adaptation D = F[1 − (1/3.6) exp((−L_A − 42)/92)] (Moroney et al. 2002; also CIE 159:2004),
  * clamped to [0, 1]. L_A is the adapting-field luminance in cd/m².
  */
 export function calculateDegreeOfAdaptation(input: { adaptingLuminanceCdPerSquareMeter: number; surround: ViewingSurround }): CalculationResult<{ degreeOfAdaptation: number }> {

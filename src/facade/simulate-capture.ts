@@ -146,7 +146,7 @@ export interface SimulateCaptureResult {
     width: number;
     height: number;
     format: SimulateCaptureOutputFormat;
-    /** Interleaved RGB, sRGB-encoded (IEC 61966-2-1), row-major from the top-left. */
+    /** Interleaved RGB, sRGB-encoded (W3C CSS Color 4 sRGB; also IEC 61966-2-1), row-major from the top-left. */
     samples: Uint8Array | Uint16Array;
     /** Baseline JPEG bytes when format is "jpeg". */
     jpeg?: Uint8Array;

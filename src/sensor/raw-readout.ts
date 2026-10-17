@@ -162,7 +162,7 @@ export interface SensorAdcIntegralNonLinearity {
 }
 
 /**
- * Optional descriptive ISO-gain derivation of one regime (ISO 12232 exposure index relative to the
+ * Optional descriptive ISO-gain derivation of one regime (exposure index of CIPA DC-004 / ISO 12232 relative to the
  * base exposure index). The numbers that enter the readout equations remain
  * systemConversionGainElectronsPerCode (analog, pre-ADC) and adc.digitalGain (post-ADC); this
  * record must agree with them and never replaces them.

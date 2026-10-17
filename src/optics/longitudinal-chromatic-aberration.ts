@@ -12,7 +12,8 @@
  *   6.3). Lensmaker scaling gives f(lambda) = f_ref (n_ref - 1) / (n(lambda) - 1), so
  *   f_C - f_F ~ f_d / V_d (Hecht sec. 6.3.2; Kingslake & Johnson, Lens Design Fundamentals, 2nd ed.,
  *   ch. 5). The Fraunhofer d, F and C wavelengths (587.5618, 486.1327, 656.2725 nm) are standard
- *   spectral-line constants (ISO 7944). A real multi-element lens is not a singlet; this is an
+ *   spectral-line constants (SCHOTT Technical Information TIE-29, 2023, free;
+ *   also specified in ISO 7944). A real multi-element lens is not a singlet; this is an
  *   educational approximation.
  * - declared-focal-shift: a caller-supplied table of focal-length shift versus wavelength
  *   (for example a corrected lens's secondary spectrum), interpolated linearly without extrapolation.
@@ -37,7 +38,7 @@ import {
 } from "../core/validation.js";
 import { calculateDefocusWavefront } from "./zernike-wavefront.js";
 
-/** Fraunhofer spectral-line wavelengths in nm (ISO 7944 reference wavelengths). */
+/** Fraunhofer spectral-line wavelengths in nm (SCHOTT TIE-29 table; also ISO 7944 reference wavelengths). */
 export const FRAUNHOFER_D_LINE_NM = 587.5618;
 export const FRAUNHOFER_F_LINE_NM = 486.1327;
 export const FRAUNHOFER_C_LINE_NM = 656.2725;

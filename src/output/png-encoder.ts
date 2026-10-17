@@ -8,7 +8,8 @@
  * - Colour: exactly one of an sRGB chunk (plus the gAMA/cHRM compatibility values the PNG specification
  *   lists), an iCCP embedded ICC profile, or a cICP chunk with ITU-T H.273 code points (BT.709/sRGB,
  *   Display P3, BT.2020/BT.2100 primaries; sRGB, BT.709, linear, PQ or HLG transfer).
- * - HDR static metadata: mDCV (SMPTE ST 2086 mastering display) and cLLI (MaxCLL/MaxFALL), only with cICP.
+ * - HDR static metadata: mDCV (mastering display colour volume) and cLLI (MaxCLL/MaxFALL), only with cICP, as
+ *   defined in the W3C PNG Third Edition and ITU-T H.265 Annex D (also SMPTE ST 2086 and CTA-861.3).
  * - Compression: zlib with stored or fixed-Huffman DEFLATE blocks and a bounded greedy LZ77 matcher.
  *   Output bytes are a pure function of the input; no platform CompressionStream is used.
  *
@@ -23,15 +24,15 @@ export const PNG_ENCODER_ID = "photivra-png-rgb-v1" as const;
 /** Bounds checked before allocation. 100 MP of 16-bit RGB is about 600 MB of filtered scanlines. */
 export const PNG_ENCODER_LIMITS = Object.freeze({ maximumDimension: 65535, maximumPixels: 100_000_000, maximumIccProfileBytes: 4_000_000 });
 
-/** ITU-T H.273 ColourPrimaries: bt709 = 1 (also sRGB), display-p3 = 12 (SMPTE EG 432-1, D65), bt2020 = 9 (BT.2020/BT.2100). */
+/** ITU-T H.273 ColourPrimaries: bt709 = 1 (also sRGB), display-p3 = 12 (P3 primaries with D65 white; W3C CSS Color 4, also SMPTE EG 432-1), bt2020 = 9 (BT.2020/BT.2100). */
 export type PngCicpPrimaries = "bt709" | "display-p3" | "bt2020";
-/** ITU-T H.273 TransferCharacteristics: bt709 = 1, linear = 8, srgb = 13 (IEC 61966-2-1), pq = 16 (SMPTE ST 2084), hlg = 18 (ARIB STD-B67). */
+/** ITU-T H.273 TransferCharacteristics: bt709 = 1, linear = 8, srgb = 13 (sRGB), pq = 16 (ITU-R BT.2100 PQ), hlg = 18 (ARIB STD-B67). */
 export type PngCicpTransfer = "bt709" | "linear" | "srgb" | "pq" | "hlg";
 export type PngColourEncoding =
   | { kind: "srgb"; renderingIntent: "perceptual" | "relative-colorimetric" | "saturation" | "absolute-colorimetric" }
   | { kind: "icc"; profileName: string; profile: Uint8Array }
   | { kind: "cicp"; primaries: PngCicpPrimaries; transfer: PngCicpTransfer; fullRange: boolean };
-/** SMPTE ST 2086 mastering display colour volume: CIE 1931 xy chromaticities and luminance in cd/m². */
+/** Mastering display colour volume (W3C PNG mDCV; ITU-T H.265 Annex D SEI; also SMPTE ST 2086): CIE 1931 xy chromaticities and luminance in cd/m². */
 export interface PngMasteringDisplay {
   redXy: readonly [number, number];
   greenXy: readonly [number, number];
@@ -40,7 +41,7 @@ export interface PngMasteringDisplay {
   maximumLuminanceCdPerSquareMeter: number;
   minimumLuminanceCdPerSquareMeter: number;
 }
-/** CTA-861.3 content light level in cd/m²; 0 means unknown. */
+/** Content light level in cd/m² (W3C PNG cLLI; ITU-T H.265 content light level SEI; also CTA-861.3); 0 means unknown. */
 export interface PngContentLightLevel {
   maximumContentLightLevelCdPerSquareMeter: number;
   maximumFrameAverageLightLevelCdPerSquareMeter: number;

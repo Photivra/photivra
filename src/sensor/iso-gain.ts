@@ -5,16 +5,18 @@
  * Derive one explicit readout regime per exposure-index (ISO) setting from declared sensor
  * parameters, so that ISO changes RAW brightness the way a camera's programmable gain does.
  *
- * Model (ISO 12232:2019 exposure index; EMVA Standard 1288 Release 4.0 linear camera model,
+ * Model (exposure index S = 10 / H of CIPA DC-004-2020, free at https://www.cipa.jp/e/std/std-sec.html,
+ * also specified in ISO 12232:2019; EMVA Standard 1288 Release 4.0 linear camera model,
  * where the system gain K in DN/e- multiplies the electron signal):
  *   R = S / S0                      exposure-index ratio to the base exposure index S0
  *   a = min(R, A_max)               analog (pre-ADC) gain relative to the base regime
  *   d = R / a                       post-ADC digital gain beyond the analog range
  *   g(S) = Q0 / (span * a)          electrons per code (1/K), span = digitalSaturation - black
  *   Q_preADC(S) = Q0 / a            electrons that drive the ADC to digital saturation
- * so the electrons that reach digital saturation are Q0 * S0 / S. Because every ISO 12232 speed
- * definition puts the reference exposure at H_ref proportional to 1/S (saturation-based
- * S_sat = 78 / H_sat; standard output sensitivity S_SOS = 10 / H_SOS), an exposure that is correct
+ * so the electrons that reach digital saturation are Q0 * S0 / S. Because every exposure-index
+ * definition (CIPA DC-004; ISO 12232) puts the reference exposure at H_ref proportional to 1/S (standard output
+ * sensitivity and REI S = 10 / H in CIPA DC-004; ISO 12232's saturation-based S_sat = 78 / H_sat, for
+ * which no free source was found), an exposure that is correct
  * for S produces the same black-subtracted code fraction of digital saturation at every S. Read
  * noise in electrons is declared per conversion-gain mode (dual conversion gain: a high-conversion-gain
  * mode at high S has lower input-referred read noise); it is never derived from S.

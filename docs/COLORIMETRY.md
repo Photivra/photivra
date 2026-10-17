@@ -55,7 +55,7 @@ Spectra are either tabulated (linear interpolation, fail-closed outside the tabl
 | `estimatePlanckianLocusChromaticity` | Kim et al. cubic spline (Kang et al., J. Korean Phys. Soc. 41(6):865–871, 2002; US 7,024,034), 1667–25000 K | approximation |
 | `calculatePlanckianChromaticity` | Kim spline, or exact Planck × CMF integration (`planck-integration`) | approximation / calculated |
 | `estimateCorrelatedColorTemperatureMcCamy` | McCamy (1992), Color Res. Appl. 17(2):142–144: n = (x − 0.3320)/(0.1858 − y), CCT = 449n³ + 3525n² + 6823.3n + 5520.33 | approximation |
-| `calculateCorrelatedColorTemperature` | Nearest point on the chosen Planckian locus in CIE 1960 uv (CIE 15:2018 definition), golden-section search in mired. Signed Duv per ANSI C78.377 (positive = above the locus, greenish). Fails closed for \|Duv\| > 0.05, where CIE 15 advises against quoting a CCT | follows the locus model |
+| `calculateCorrelatedColorTemperature` | Nearest point on the chosen Planckian locus in CIE 1960 uv (the CCT/Duv definition as stated in Smet et al. 2023, free; also CIE 15:2018), golden-section search in mired. Signed Duv per ANSI C78.377 (positive = above the locus, greenish). Fails closed for \|Duv\| > 0.05, where CIE 15 advises against quoting a CCT | follows the locus model |
 | `calculateChromaticityFromCorrelatedColorTemperature` | Locus point (Planckian or CIE daylight) offset by Duv along the unit normal of the Planckian locus in uv | follows the locus model |
 
 Measured in the tests:
@@ -75,9 +75,9 @@ This is the one-step two-illuminant form of Li et al. (2017), applied to every c
 | `transform` | Cone matrix C (published constants) |
 | --- | --- |
 | `bradford` | Linearized Bradford: Lam (1985), Univ. of Bradford thesis; Luo & Rhodes (1999); ICC.1:2010 Annex E |
-| `cat02` | Moroney et al. (2002), *The CIECAM02 color appearance model*, IS&T/SID CIC10; CIE 159:2004 |
+| `cat02` | Moroney et al. (2002), *The CIECAM02 color appearance model*, IS&T/SID CIC10 (also CIE 159:2004) |
 | `cat16` | Li, Li, Wang, Xu, Luo, Cui, Melgosa, Brill & Pointer (2017), Color Res. Appl. 42(6):703–718 |
-| `von-kries-hpe` | Hunt–Pointer–Estévez cones (equal-energy normalized) as used in CIECAM02 (CIE 159:2004) |
+| `von-kries-hpe` | Hunt–Pointer–Estévez cones (equal-energy normalized) as used in CIECAM02 (Moroney et al. 2002; also CIE 159:2004) |
 | `xyz-scaling` | Identity: diagonal scaling in XYZ (the weakest model) |
 
 `calculateDegreeOfAdaptation()` implements the CIECAM02 formula D = F[1 − (1/3.6)·exp((−L_A − 42)/92)], with F = 1.0, 0.9 or 0.8 for average, dim or dark surround. The matrix is calculated exactly. How well a linear CAT predicts corresponding colours is a property of that model and is not claimed here. The test suite reproduces the widely published Bradford D65→D50 matrix to 1e-6.
@@ -106,11 +106,11 @@ The result is a `ResolvedWhiteBalanceState` with `source: "color-temperature"`. 
 
 ## Colour difference and CIELAB
 
-- **CIELAB and LCh:** `calculateCielabFromXyz` / `calculateXyzFromCielab` and `calculateCielchFromCielab` / `calculateCielabFromCielch` implement CIE 15:2018 CIELAB with the exact constants ε = (6/29)³ and κ = (29/3)³.
+- **CIELAB and LCh:** `calculateCielabFromXyz` / `calculateXyzFromCielab` and `calculateCielchFromCielab` / `calculateCielabFromCielch` implement CIELAB as defined in W3C CSS Color 4 §9 (also CIE 15:2018) with the exact constants ε = (6/29)³ and κ = (29/3)³.
 - **`calculateColorDifference`** supports four formulas:
   - `cie76`: Euclidean ΔE*ab.
   - `cie94-graphic-arts` and `cie94-textiles`: CIE 116-1995, asymmetric in `reference`.
-  - `ciede2000`: CIE 142-2001 / ISO/CIE 11664-6, implemented following the notes of Sharma, Wu & Dalal (2005), Color Res. Appl. 30(1):21–30, with optional parametric factors k_L, k_C, k_H.
+  - `ciede2000`: implemented following the notes and test data of Sharma, Wu & Dalal (2005), Color Res. Appl. 30(1):21–30, freely available from the first author (also CIE 142-2001 / ISO/CIE 11664-6), with optional parametric factors k_L, k_C, k_H.
 
 The tests reproduce 13 of Sharma et al.'s published test pairs to 4 decimals, including the hue-discontinuity pairs.
 
@@ -129,8 +129,8 @@ The report gives per-patch CIEDE2000, computed with CIELAB relative to the illum
 
 | Space | Primaries (x, y) R / G / B | White | Source |
 | --- | --- | --- | --- |
-| `srgb`, `rec709` | (0.64, 0.33) / (0.30, 0.60) / (0.15, 0.06) | D65 (0.3127, 0.3290) | IEC 61966-2-1, ITU-R BT.709-6 |
-| `display-p3` | (0.680, 0.320) / (0.265, 0.690) / (0.150, 0.060) | D65 | SMPTE EG 432-1; W3C CSS Color 4 `display-p3` |
+| `srgb`, `rec709` | (0.64, 0.33) / (0.30, 0.60) / (0.15, 0.06) | D65 (0.3127, 0.3290) | ITU-R BT.709-6; W3C CSS Color 4 `srgb` (also IEC 61966-2-1) |
+| `display-p3` | (0.680, 0.320) / (0.265, 0.690) / (0.150, 0.060) | D65 | W3C CSS Color 4 `display-p3`; ITU-T H.273 ColourPrimaries 12 (also SMPTE EG 432-1) |
 | `rec2020` | (0.708, 0.292) / (0.170, 0.797) / (0.131, 0.046) | D65 | ITU-R BT.2020-2, BT.2100-3 |
 
 The derived luminance rows match the published coefficients to 1e-4: BT.709 0.2126/0.7152/0.0722, BT.2020 0.2627/0.6780/0.0593 and P3 0.2290/0.6917/0.0793.
@@ -140,7 +140,7 @@ Transfer functions, all using the constants published in each standard:
 - **sRGB / Display P3:** `evaluateSrgbEncoding` / `evaluateSrgbDecoding`.
 - **BT.709 OETF:** `evaluateBt709Oetf` / `evaluateBt709InverseOetf`.
 - **BT.1886 EOTF:** `prepareBt1886Eotf` (γ = 2.4, with the display's white and black luminance).
-- **SMPTE ST 2084 / BT.2100 PQ:** `evaluatePqEotf` / `evaluatePqInverseEotf`, with m₁ = 2610/16384, m₂ = 2523/4096·128, c₁ = 3424/4096, c₂ = 2413/4096·32 and c₃ = 2392/4096·32.
+- **ITU-R BT.2100 PQ (also SMPTE ST 2084):** `evaluatePqEotf` / `evaluatePqInverseEotf`, with m₁ = 2610/16384, m₂ = 2523/4096·128, c₁ = 3424/4096, c₂ = 2413/4096·32 and c₃ = 2392/4096·32.
 - **BT.2100 HLG:**
   - `evaluateHlgOetf` / `evaluateHlgInverseOetf`, with a = 0.17883277, b = 1 − 4a and c = 0.5 − a·ln(4a).
   - `calculateHlgSystemGamma`: γ = 1.2 + 0.42·log₁₀(L_W/1000) for 400–2000 cd/m², otherwise the extended form 1.2·1.111^log₂(L_W/1000).
@@ -165,16 +165,16 @@ PQ and HLG accept signals only in [0, 1] and fail closed outside that range. The
 
 ## References
 
-- CIE 15:2018 *Colorimetry*, 4th ed.; CIE 018:2019; ISO/CIE 11664-1/-2/-4/-6.
+- CIE 15:2018 *Colorimetry*, 4th ed.; CIE 018:2019; ISO/CIE 11664-1/-2/-4/-6 (paid; see the free sources below and the citation audit in [RELEASE_2_0_0.md](RELEASE_2_0_0.md#citation-audit-free-sources)). Free CIE datasets (CC BY-SA 4.0, not bundled) at <https://cie.co.at/data-tables> are used only to check computed values.
 - C. Wyman, P.-P. Sloan, P. Shirley (2013), JCGT 2(2):1–11.
 - B. Kang, O. Moon, C. Hong, H. Lee, B. Cho, Y. Kim (2002), J. Korean Phys. Soc. 41(6):865–871; US Patent 7,024,034.
 - C. S. McCamy (1992), Color Res. Appl. 17(2):142–144.
-- ANSI C78.377 (Duv definition).
-- K. M. Lam (1985), PhD thesis, University of Bradford; M. R. Luo, P. A. Rhodes (1999); ICC.1:2010 Annex E.
-- N. Moroney et al. (2002), IS&T/SID 10th Color Imaging Conference; CIE 159:2004.
+- K. A. G. Smet et al. (2023), "Recommended method for determining the correlated color temperature and distance from the Planckian locus of a light source", LEUKOS, doi:10.1080/15502724.2023.2248397; free archival copy: <https://www.energy.gov/sites/default/files/2023-09/ssl-smet-etal-2023_method-cct-duv-light-source.pdf> (CCT and signed Duv). ANSI C78.377 (Duv sign convention; paid, no free equivalent found).
+- K. M. Lam (1985), PhD thesis, University of Bradford; M. R. Luo, P. A. Rhodes (1999); ICC.1:2010 Annex E (ICC specifications are free at <https://www.color.org/>).
+- N. Moroney et al. (2002), IS&T/SID 10th Color Imaging Conference, listed in the RIT open repository <https://repository.rit.edu/other/143>; also CIE 159:2004.
 - C. Li et al. (2017), Color Res. Appl. 42(6):703–718.
-- G. Sharma, W. Wu, E. N. Dalal (2005), Color Res. Appl. 30(1):21–30; CIE 116-1995; CIE 142-2001.
+- G. Sharma, W. Wu, E. N. Dalal (2005), Color Res. Appl. 30(1):21–30; paper and test data at <https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/>. Also CIE 142-2001. CIE 116-1995 (CIE94; paid, no free equivalent found).
 - G. D. Finlayson, M. S. Drew (1997), IS&T/SID 5th Color Imaging Conference.
 - J. Morovič (2008), *Color Gamut Mapping*, Wiley; W3C CSS Color Module Level 4 §13.
-- IEC 61966-2-1:1999; ITU-R BT.709-6, BT.1886, BT.2020-2, BT.2100-3, BT.2408; SMPTE ST 2084; SMPTE EG 432-1; SMPTE RP 177-1993.
+- ITU-R BT.709-6, BT.1886, BT.2020-2, BT.2100-3 (PQ and HLG), BT.2408 (free at <https://www.itu.int/rec/R-REC-BT>); W3C CSS Color Module Level 4 (`srgb`, `display-p3`, Lab) <https://www.w3.org/TR/css-color-4/>; ITU-T H.273. Also specified in IEC 61966-2-1:1999, SMPTE ST 2084 and SMPTE EG 432-1. SMPTE RP 177-1993 (matrix derivation method; paid, no free equivalent found: the derivation is standard linear algebra and its results are checked against the free ITU-R BT.709-6 and BT.2020-2 luminance coefficients).
 - BIPM, *The International System of Units*, 9th ed. (2019).

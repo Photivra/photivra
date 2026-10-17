@@ -16,8 +16,9 @@
  *   865–871, 2002; US 7,024,034), an APPROXIMATION valid 1667–25000 K, or exact
  *   Planck integration against caller-selected CMFs.
  * - CCT from chromaticity: McCamy (1992) cubic (approximation), or a nearest-point
- *   search on the Planckian locus in the CIE 1960 UCS (CIE 15:2018 definition of CCT,
- *   Duv per ANSI C78.377; positive Duv lies above the locus, toward green).
+ *   search on the Planckian locus in the CIE 1960 UCS (CCT and signed Duv as defined in Smet et al.,
+ *   LEUKOS 2023, free archival copy from the US DOE; also CIE 15:2018; Duv sign per ANSI C78.377:
+ *   positive Duv lies above the locus, toward green).
  * @see docs/COLORIMETRY.md for equations, coordinate/unit conventions and limits.
  */
 
@@ -312,7 +313,7 @@ export interface CorrelatedColorTemperatureResult {
 
 /**
  * CCT and Duv of a chromaticity as the nearest point of the Planckian locus in the CIE
- * 1960 UCS (CIE 15:2018 definition), by golden-section search in reciprocal temperature
+ * 1960 UCS (Smet et al. 2023; also CIE 15:2018), by golden-section search in reciprocal temperature
  * (mired). Fails closed when the nearest point lies at the model's range limit or when
  * |Duv| > 0.05, where CIE 15 advises CCT should not be used.
  */

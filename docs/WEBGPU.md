@@ -80,7 +80,7 @@ Here `p(s)` is the isoplanatic patch containing the *source* site, and `K_p(u, v
 - The grid is the whole source support. Quantity scattered outside it is lost; there is no padding or renormalization. `inputSum − outputSum` reports the loss.
 - Kernel sampling from a lens PSF profile is the caller's responsibility; no PSF profile is inferred.
 
-**SDR** is exactly the `calculateSdrRendering` chain in the same order: rendering exposure, then per-channel tone, then gamut handling, then the sRGB transfer (IEC 61966-2-1), then nearest-ties-up quantization.
+**SDR** is exactly the `calculateSdrRendering` chain in the same order: rendering exposure, then per-channel tone, then gamut handling, then the sRGB transfer (W3C CSS Color 4; also IEC 61966-2-1), then nearest-ties-up quantization.
 
 **RAW development** follows `raw-development-kernel.ts` and `prepareSensorColorDevelopment`:
 

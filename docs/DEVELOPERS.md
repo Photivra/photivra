@@ -1,6 +1,6 @@
 # Developer guide
 
-This is the entry point for **@photivra/engine 2.0.0** (release candidate prepared October 12, 2026; publication is separate), root API contract **2.0.0**. Repository `main` may later describe newer development; use a published release's packaged docs or its exact tag for the stable contract. [Release notes and migration](RELEASE_1_3_0.md) explain the transition to aligned package/root versions.
+This is the entry point for **@photivra/engine 2.0.0** (release candidate prepared October 17, 2026; publication is separate), root API contract **2.0.0**. Repository `main` may later describe newer development; use a published release's packaged docs or its exact tag for the stable contract. [Release notes and migration](RELEASE_1_3_0.md) explain the transition to aligned package/root versions.
 
 Photivra is an Apache-2.0 ESM TypeScript calculation library with no runtime npm dependencies. It exposes explicit units, deterministic data, provenance and bounded scientific approximations. The package supplies no hosted API, renderer installation, UI, commercial camera calibration or automatic agent service. [Photivra's public site](https://photivra.com) is separate from the engine's license; public engine documentation is available here without an application account.
 

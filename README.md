@@ -294,7 +294,7 @@ The calling application can then use those results while keeping the underlying 
 
 ## Status
 
-- Repository package version: `2.0.0` (release candidate prepared October 12, 2026; publication is separate)
+- Repository package version: `2.0.0` (release candidate prepared October 17, 2026; publication is separate)
 - Engine API contract: `2.0.0`
 - Versioned generic tier reference assets: [GENERIC_TIER_PRESETS.md](https://github.com/Photivra/photivra/blob/main/docs/GENERIC_TIER_PRESETS.md).
 - Composed POC simulation API contract: `1.0.0`

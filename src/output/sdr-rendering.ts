@@ -93,7 +93,7 @@ function parseToneCurveParameters(curve: unknown, value: unknown): SdrToneCurveP
   }
   throw new InvalidConfigurationError("Unsupported SDR rendering profile.");
 }
-/** Linear-sRGB/D65 relative-luminance weights: the Y row of the engine's sRGB to XYZ matrix (IEC 61966-2-1). */
+/** Linear-sRGB/D65 relative-luminance weights: the Y row of the engine's sRGB to XYZ matrix (W3C CSS Color 4 sRGB; also IEC 61966-2-1). */
 const LUMINANCE = resolveCaptureColorModel().cameraRgbToXyz[1]! as readonly number[];
 /** Writes the three tone-mapped samples of one exposed pixel. Exposed values are finite. */
 export type SdrPixelTone = (red: number, green: number, blue: number, out: Float64Array | number[]) => void;

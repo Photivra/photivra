@@ -18,7 +18,7 @@
  * Debevec–Malik response recovery is performed. Works on any per-sample layout (CFA mosaic or RGB).
  *
  * Encoding (`createHdrImageEncodingTask`): linear RGB → BT.2020 primaries (matrices from
- * `resolveRgbColorSpace`), then SMPTE ST 2084 PQ with relative 1.0 = reference white in cd/m² (default
+ * `resolveRgbColorSpace`), then ITU-R BT.2100 PQ (also SMPTE ST 2084) with relative 1.0 = reference white in cd/m² (default
  * 203, ITU-R BT.2408), or BT.2100 HLG with relative 1.0 at the HLG reference-white signal (default 0.75,
  * BT.2408), quantized as BT.2100 full or narrow range integer codes; or float32 linear BT.2020.
  * @see docs/PROCESSING.md for equations, sources and limits.

@@ -6,11 +6,11 @@
  * SDR/export stages):
  * - RGB ↔ XYZ matrices derived numerically from primary and white chromaticities
  *   (SMPTE RP 177-1993 method), never copied matrices.
- *   sRGB / BT.709: IEC 61966-2-1:1999, ITU-R BT.709-6; Display P3: SMPTE EG 432-1:2010
- *   primaries with D65 white (as specified for `display-p3` in W3C CSS Color 4);
+ *   sRGB / BT.709: ITU-R BT.709-6 and W3C CSS Color 4 `srgb` (also IEC 61966-2-1:1999); Display P3:
+ *   P3 primaries with D65 white as specified for `display-p3` in W3C CSS Color 4 (also SMPTE EG 432-1:2010);
  *   BT.2020 / BT.2100: ITU-R BT.2020-2, BT.2100-3. All use D65 (0.3127, 0.3290).
- * - Transfer functions: sRGB (IEC 61966-2-1; also Display P3), BT.709 OETF, BT.1886 EOTF
- *   (ITU-R BT.1886), SMPTE ST 2084 / BT.2100 PQ EOTF and inverse, BT.2100 HLG OETF,
+ * - Transfer functions: sRGB (W3C CSS Color 4; also IEC 61966-2-1; also Display P3), BT.709 OETF, BT.1886 EOTF
+ *   (ITU-R BT.1886), ITU-R BT.2100 PQ (also SMPTE ST 2084) EOTF and inverse, BT.2100 HLG OETF,
  *   inverse OETF and reference EOTF/OOTF with system gamma (BT.2100-3 Table 5, Note 5f).
  * Constants are the published values of those standards.
  * @see docs/COLORIMETRY.md for equations, coordinate/unit conventions and limits.
@@ -121,7 +121,7 @@ export function resolveRgbColorSpace(id: RgbColorSpaceId): CalculationResult<Rgb
 
 // ---------------------------------------------------------------- transfers
 
-/** sRGB / Display P3 encoding (IEC 61966-2-1) of one linear component; negative values use the linear segment. */
+/** sRGB / Display P3 encoding (W3C CSS Color 4; also IEC 61966-2-1) of one linear component; negative values use the linear segment. */
 export function evaluateSrgbEncoding(linear: number): number {
   return encodeSrgbComponent(requireFiniteNumber(linear, "linear"));
 }
@@ -174,7 +174,7 @@ export function prepareBt1886Eotf(input: { whiteLuminanceCdPerSquareMeter: numbe
   });
 }
 
-/** SMPTE ST 2084 / ITU-R BT.2100 PQ constants. */
+/** ITU-R BT.2100 PQ constants (also SMPTE ST 2084). */
 export const PQ_CONSTANTS = Object.freeze({
   m1: 2610 / 16384,
   m2: (2523 / 4096) * 128,

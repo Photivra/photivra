@@ -2,8 +2,8 @@
 
 /**
  * Browser-safe reader for DNG and TIFF-EP CFA raw files. Independently written from the published
- * TIFF 6.0, TIFF/EP (ISO 12234-2) tag definitions and the Adobe Digital Negative (DNG) Specification
- * 1.7.1.0; no third-party reader source. It returns the stored raw codes plus the metadata that the
+ * TIFF 6.0 tag definitions, the Adobe Digital Negative (DNG) Specification 1.7.1.0 and the Exif 2.32/3.0
+ * CFAPattern definition (CIPA DC-008; the TIFF/EP tags are also specified in ISO 12234-2); no third-party reader source. It returns the stored raw codes plus the metadata that the
  * engine's RAW development path needs (CFA pattern, black/white levels, active area, default crop,
  * colour matrices, as-shot neutral, calibration illuminants, orientation). It never applies
  * linearization, black subtraction, white balance, demosaicing or colour transforms.

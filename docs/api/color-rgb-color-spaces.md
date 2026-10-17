@@ -117,7 +117,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## evaluateSrgbEncoding
 
-sRGB / Display P3 encoding (IEC 61966-2-1) of one linear component; negative values use the linear segment.
+sRGB / Display P3 encoding (W3C CSS Color 4; also IEC 61966-2-1) of one linear component; negative values use the linear segment.
 
 ```ts
 export function evaluateSrgbEncoding(linear: number): number;
@@ -157,7 +157,7 @@ export interface HlgReferenceDisplay {
 
 ## PQ_CONSTANTS
 
-SMPTE ST 2084 / ITU-R BT.2100 PQ constants.
+ITU-R BT.2100 PQ constants (also SMPTE ST 2084).
 
 ```ts
 PQ_CONSTANTS = Object.freeze({
