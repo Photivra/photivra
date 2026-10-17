@@ -4033,6 +4033,11 @@
       "kind": "runtime"
     },
     {
+      "name": "NATIVE_RAW_DNG_SCHEMA_VERSION",
+      "source": "src/capture/native-raw-dng.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "NATIVE_RAW_LIMITS",
       "source": "src/capture/native-raw.ts",
       "kind": "runtime"
@@ -4180,6 +4185,16 @@
     {
       "name": "NativeRawDevelopmentTask",
       "source": "src/capture/native-raw-development.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawDng",
+      "source": "src/capture/native-raw-dng.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawDngChannelNoise",
+      "source": "src/capture/native-raw-dng.ts",
       "kind": "type"
     },
     {
@@ -7468,6 +7483,16 @@
       "kind": "type"
     },
     {
+      "name": "serializeNativeRawDng",
+      "source": "src/capture/native-raw-dng.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SerializeNativeRawDngInput",
+      "source": "src/capture/native-raw-dng.ts",
+      "kind": "type"
+    },
+    {
       "name": "serializePngImage",
       "source": "src/output/png-encoder.ts",
       "kind": "runtime"
@@ -7558,7 +7583,32 @@
       "kind": "type"
     },
     {
+      "name": "SimulateCaptureBorderHandling",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureColorEncoding",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureDemosaic",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
       "name": "SimulateCaptureExposureMode",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureLensDistortion",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureMotion",
       "source": "src/facade/simulate-capture.ts",
       "kind": "type"
     },

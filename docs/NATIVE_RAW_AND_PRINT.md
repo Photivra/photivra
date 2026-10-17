@@ -22,6 +22,18 @@ Native environment acquisition also applies that budget between sites inside a t
 
 Within one native environment event every site must declare the same shared source, optics, motion, PSF, pupil and field-throughput state. A site whose cloned shared state is strictly equal to the first admitted site's (same plain records and arrays, keys in the same order, `Object.is` primitives) reuses that site's engine-owned copy, so a sampled PSF is parsed and frozen once per event instead of once per site. Any other site is compared by canonical serialization as before, which decides acceptance and the error. This changes no value, callback or error. Because native environment execution reads only each planned query's frozen provider request and image-plane point, its per-site plans keep just those two parts of every query once it is computed and validated at plan time, instead of the complete query envelope. With a 375-node 31×31 sampled PSF (15,376 queries per site) this lowers a site plan from about 25 MB to about 8 MB of JavaScript heap (Node; host-dependent). `simulateEnvironmentSensorRawFrame` and the other full-record paths keep the complete envelopes.
 
+### Lean per-site execution (2.0 performance)
+
+`createNativeEnvironmentRawTask`, and therefore `simulateCapture()`, runs most sites through a lean executor (`src/capture/native-environment-lean.ts`). It produces byte-identical RAW codes, black levels, saturation codes and flags, white levels, photo expectations, provider callbacks (the same frozen requests and aperture rays, in the same order) and errors. It only removes per-site re-validation and result-envelope construction that is provably redundant:
+
+- **Templates.** The first site of each CFA phase whose environment has not been seen runs the full planner and executor and becomes a template. A later site is lean only when its cloned environment is strictly equal to the template's (plain data, same keys in the same order, `Object.is` leaves) except for the two index-bound fields `temporalIntegrationId` and `sensor.spatialSampling.site`, and it has the same CFA phase. Every site-independent check therefore passes exactly as it did for the template. The sensor stage has its own templates: the dark-current, charge-completeness and readout inputs must be strictly equal except for `site` fields equal to the site's own coordinates and completeness offsets equal to its local exposure window.
+- **Site-dependent work is recomputed** with the full chain's arithmetic in the same floating-point order: aperture centre and bounds, spatial quadrature points, the local exposure window, field throughput, aperture rays, the focus-aware rotated query and its request; then scene-to-sensor acceptance, spatio-spectral reduction, operating range, EQE electron rate (Kahan sums), temporal midpoint sums, dark and total charge, Poisson charge draws, read noise, fixed-pattern values and the ADC transfer. Every provider result is validated by the same parser.
+- **Every data-dependent check is kept.** When one fails (for example an out-of-range operating input, a non-finite irradiance or a provider identity mismatch), the lean path calls the full engine function with the exact same inputs, so it throws the same error after the same callbacks. Planning falls back before any callback; checks the full path runs while composing or parsing a site are evaluated at that same point.
+- **Self-verification.** Each template's own site is planned and executed by both paths, and every lean value must match bit for bit (`Object.is`) before another site uses the template. A mismatch disables the template, and its sites run the full path.
+- **Not lean-eligible, always full path:** sampled PSFs, `lensFieldMapping` sites, non-one-to-one colour-site bindings, additional stored-charge components, and anything outside these rules (for example reordered keys, `-0` coordinates or a site whose inputs differ from every template; at most 64 templates per event).
+
+Measured in Node 24 on one host (CPU time, so host-dependent): the facade's default 64×64 capture fell from about 6.0 s to 0.87 s in total (6.9×), and a 128×128 slanted-edge capture from 20.6 s to 2.2 s (9.4×, 1.22 ms to 0.13 ms per native site). For the RAW stage alone at 64×64, cost per site fell from about 950 µs to 120 µs (8×), and from about 2.6 ms to 0.21 ms with four temporal samples. The remaining time is mostly the private clone of each supplied tile, provider-result parsing, template comparison and the provider callbacks themselves.
+
 
 ### Optional smaller execution chunks (unreleased)
 
@@ -56,6 +68,39 @@ opticalStage!.dispose();
 **Memory.** Retention stores `NATIVE_ENVIRONMENT_OPTICAL_STAGE_LIMITS.fixedBytesPerSite` (58) plus `bytesPerTemporalSamplePerSite` (24) per temporal midpoint for every native site: 106 bytes per site with two midpoints, about 2.5 GB for 24 million sites. `maximumRetainedBytes` must admit `pixelCount × (58 + 24 × temporalSampleCount)`; the check runs after the first tile is planned and before any radiance callback. One temporal sample count per event is required. Distinct site environments (ignoring the absolute site and integration ID) and distinct photo identity/evidence records are interned, each capped at 256. `retainedBytes` reports the typed-array total. `dispose()` zeroes and releases the storage; a disposed or forged stage is refused, and disposal during a running reuse stops it at the next tile. Cancelling, disposing or failing the producing task before `takeOutput()` releases the stage; after transfer the caller owns it. A stage can be reused any number of times.
 
 `createNativeEnvironmentSensorStageTask` reports `providerEvaluationCount: 0`; `opticalStage.providerEvaluationCount` records the producing task's count. `test/native-environment-optical-stage.test.ts` checks reuse against full recomputes for PSF with radial field, flat emitter, pupil rays and eight temporal midpoints across seed, ISO with readout gain, white balance, rendering exposure and dark-current edits, and checks refusal for every optical input listed above, the memory bound and disposal.
+
+## Native RAW DNG
+
+`serializeNativeRawDng({ raw, colorProfile, noise?, baselineExposureEv?, capturedAtUtc? })` writes a packed
+`NativeRawOutput` as a lossless, uncompressed 16-bit CFA DNG (DNG 1.4 tags, Adobe DNG Specification
+1.7.1.0) with the TIFF/DNG tag writers of the paired photographic export. Unlike `createPhotographicExportPair`
+it needs no bounded `SensorRawFrame` or `SimulatedCapture` linear-master record, and it declares none: the
+ImageDescription states that the file holds a simulated packed RAW without a linear master or rendering,
+and the result reports `source: "packed-native-raw"`, `linearMasterDeclared: false`.
+
+- **Validation.** The packed RAW is revalidated (`validatePackedNativeRaw`, the same check native development
+  runs) and its code spans checked. 2 × 2 RGB Bayer CFAs only. The colour profile must be bound to the RAW's CFA.
+- **Levels.** BlackLevel (BlackLevelRepeatDim 2 × 2) and CFAPattern are phases relative to the ActiveArea
+  origin, as DNG applies them to the ActiveArea-cropped image; the per-site black levels must repeat with the
+  CFA tile. WhiteLevel is the smallest per-phase effective white code. Sites flagged saturated below
+  WhiteLevel cannot be represented and are counted in `unrepresentedSaturationFlagCount`.
+- **Geometry.** ActiveArea is the capture's active native rectangle; DefaultCropOrigin/Size is the oriented
+  output crop mapped back to stored coordinates (relative to ActiveArea); Orientation 1, 6, 3 or 8.
+- **Colour.** ColorMatrix1 = (camera→XYZ)⁻¹ with CalibrationIlluminant1 21 (D65); ForwardMatrix1 =
+  Bradford(D65→D50)·M·diag(w); AnalogBalance 1; AsShotNeutral from the capture's white-balance intent through
+  the native development operator; BaselineExposure as declared (default 0).
+- **Noise.** NoiseProfile per CFA plane, var(x) = S·x + O with S = 1/(G·span) and
+  O = (σ²/G² + 1/12)/span², only when `noise` gives each channel's output-referred gain G (electrons per
+  code) and read noise σ (electrons). It includes Poisson shot noise, Gaussian read noise and quantization,
+  not PRNU, DSNU or fixed-pattern noise.
+- **Exif.** ExposureTime, FNumber, ISO (as the recommended exposure index), FocalLength, ColorSpace
+  uncalibrated and PixelX/YDimension; date tags only when `capturedAtUtc` is given.
+- **Identity.** RawDataUniqueID is the first 128 bits of SHA-256 over a fixed header and the little-endian codes.
+
+The input arrays are copied before the first await and never modified. `test/native-raw-dng.test.ts`
+round-trips codes and every written tag through `parseDngRawImage` for odd, even and zero ActiveArea origins.
+LibRaw 0.22.1 decodes identical codes. Pillow 12 parses every tag but cannot decode CFA (photometric
+32803) images at all.
 
 ## Print stage
 

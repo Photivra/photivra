@@ -203,6 +203,18 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`NativeRawDevelopmentTask`](api/capture-native-raw-development.md#nativerawdevelopmenttask) | Type |
 | [`RawHighlightDiagnostics`](api/capture-native-raw-development.md#rawhighlightdiagnostics) | Type |
 
+## capture/native-raw-dng.ts
+
+[Detailed contracts](api/capture-native-raw-dng.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/native-raw-dng.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`NATIVE_RAW_DNG_SCHEMA_VERSION`](api/capture-native-raw-dng.md#native_raw_dng_schema_version) | Runtime |
+| [`NativeRawDng`](api/capture-native-raw-dng.md#nativerawdng) | Type |
+| [`NativeRawDngChannelNoise`](api/capture-native-raw-dng.md#nativerawdngchannelnoise) | Type |
+| [`serializeNativeRawDng`](api/capture-native-raw-dng.md#serializenativerawdng) | Runtime |
+| [`SerializeNativeRawDngInput`](api/capture-native-raw-dng.md#serializenativerawdnginput) | Type |
+
 ## capture/native-raw.ts
 
 [Detailed contracts](api/capture-native-raw.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/native-raw.ts)
@@ -1085,7 +1097,12 @@ Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DE
 | [`SIMULATE_CAPTURE_FACADE_VERSION`](api/facade-simulate-capture.md#simulate_capture_facade_version) | Runtime |
 | [`simulateCapture`](api/facade-simulate-capture.md#simulatecapture) | Runtime |
 | [`SimulateCaptureAssumption`](api/facade-simulate-capture.md#simulatecaptureassumption) | Type |
+| [`SimulateCaptureBorderHandling`](api/facade-simulate-capture.md#simulatecaptureborderhandling) | Type |
+| [`SimulateCaptureColorEncoding`](api/facade-simulate-capture.md#simulatecapturecolorencoding) | Type |
+| [`SimulateCaptureDemosaic`](api/facade-simulate-capture.md#simulatecapturedemosaic) | Type |
 | [`SimulateCaptureExposureMode`](api/facade-simulate-capture.md#simulatecaptureexposuremode) | Type |
+| [`SimulateCaptureLensDistortion`](api/facade-simulate-capture.md#simulatecapturelensdistortion) | Type |
+| [`SimulateCaptureMotion`](api/facade-simulate-capture.md#simulatecapturemotion) | Type |
 | [`SimulateCaptureOptions`](api/facade-simulate-capture.md#simulatecaptureoptions) | Type |
 | [`SimulateCaptureOutputFormat`](api/facade-simulate-capture.md#simulatecaptureoutputformat) | Type |
 | [`SimulateCaptureProgress`](api/facade-simulate-capture.md#simulatecaptureprogress) | Type |

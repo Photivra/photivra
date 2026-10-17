@@ -91,7 +91,8 @@ const INTEGRITY_CHUNK_SITES = 1 << 18;
 function canonical(value: unknown): string {
   return stringifyCanonicalJson(value,{undefinedObjectProperties:"reject",nonFiniteNumberMessage:"Invalid RAW metadata.",unsupportedValueMessage:"Invalid RAW metadata."});
 }
-function validateRaw(raw: NativeRawOutput): NativeRawOutput["plan"] {
+/** Validates packed RAW storage and re-derives its plan; shared with the native DNG writer. Not a root export. */
+export function validatePackedNativeRaw(raw: NativeRawOutput): NativeRawOutput["plan"] {
   requireAllowlistedRecord(raw,["plan","codes","blackLevels","digitalSaturationCodes","saturationFlags","effectiveSaturationCodes"],"Invalid packed RAW output.");
   const p=raw.plan;
   if(!p?.exposure||!p.frame)throw new InvalidConfigurationError("Packed RAW requires complete exposure and frame metadata.");
@@ -136,7 +137,7 @@ export interface PreparedDevelopment {
 /** Synchronous metadata/halo/CFA validation shared by the task, the reference and the accelerator. No pixel loop. Not a root export. */
 export function prepareNativeRawDevelopment(input: NativeRawDevelopmentInput): PreparedDevelopment {
   const r=requireAllowlistedRecord(input,["raw","phaseProfiles","colorProfile","whiteBalance","rendering","highlightMode","borderHandling","maximumRetainedPayloadBytes"],"Invalid native RAW development input.");
-  const plan=validateRaw(input.raw),g=plan.exposure.resolvedGeometry,native=plan.exposure.geometry.nativeRaster;
+  const plan=validatePackedNativeRaw(input.raw),g=plan.exposure.resolvedGeometry,native=plan.exposure.geometry.nativeRaster;
   const phases=freezeOwnedData(parseRawReconstructionPhaseProfiles(r.phaseProfiles,plan.frame.modeId,plan.frame.colorSamplingProfile));
   const color=freezeOwnedData(parseExportSensorColorProfile(r.colorProfile)),profile=freezeOwnedData(parseSdrRenderingProfile(r.rendering));
   const crop=g.output.cropRect,raster=g.output.raster,active=g.activeCapture.nativeRect,intent=plan.exposure.whiteBalanceIntent;

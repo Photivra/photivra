@@ -11,6 +11,16 @@
  * Everything the facade decides on the caller's behalf — defaults, derived values and fixed modelling
  * choices — is listed in `result.assumptions`, so nothing is hidden. The complete underlying request is
  * returned in `result.request` (the per-site inputs through `request.siteInput(index)`).
+ *
+ * 2.0 options are opt-in and compose existing public contracts only; with none of them given the request,
+ * RAW, samples and JPEG are byte-identical to the 1.0 facade:
+ * - output formats: `png` (`serializePngImage`; sRGB, or Display P3 / Rec. 2020 / Rec. 2100 PQ / HLG through
+ *   the colorimetry matrices and transfer functions and `createHdrImageEncodingTask`) and `dng`
+ *   (`serializeNativeRawDng` of the packed native RAW; no linear master is declared);
+ * - demosaic: `createBuiltInBayerDemosaicProfiles` (bilinear, Malvar–He–Cutler) and mirror borders;
+ * - optics: the environment `lensFieldMapping` (projection, radial / Brown–Conrady distortion), radial
+ *   illumination vignetting as field throughput and a caller sampled lens PSF;
+ * - motion: constant camera angular velocity and the electronic rolling-shutter exposure schedule.
  * @see docs/QUICK_START.md
  */
 
@@ -43,6 +53,27 @@ import { parseSdrRenderingProfile, type SdrRenderingProfile, type SdrToneCurve, 
 import type { RawHighlightMode } from "../color/sensor-color-development.js";
 import { createPrintJpegTask } from "../output/print-jpeg.js";
 import type { SimulateEnvironmentSensorRawFrameInput } from "../capture/environment-raw-producer.js";
+import { checkNativeRawIntegrity, prepareNativeRawDevelopment } from "../capture/native-raw-development.js";
+import { createRawPixelDeveloper } from "../capture/raw-development-kernel.js";
+import { BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION as BUILT_IN_DEMOSAIC_VERSION, createBuiltInBayerDemosaicProfiles } from "../sensor/raw-reconstruction.js";
+import { transformOrientedRasterPointToNative } from "../output/capture-geometry.js";
+import { resolveCaptureColorModel } from "../color/capture-color.js";
+import { evaluateBt709Oetf, evaluateSrgbEncoding, resolveRgbColorSpace } from "../color/rgb-color-spaces.js";
+import { createHdrImageEncodingTask } from "../processing/hdr.js";
+import { serializePngImage, type PngColourEncoding } from "../output/png-encoder.js";
+import { parseLensProjectionModel, type LensProjectionModel } from "../camera/lens-projection.js";
+import { prepareEnvironmentLensFieldMapping, type EnvironmentLensFieldMapping } from "../optics/sensor-environment-query.js";
+import type { RadialDistortionProfile } from "../optics/radial-distortion.js";
+import type { BrownConradyDistortionProfile } from "../optics/brown-conrady-distortion.js";
+import type { IlluminationVignettingProfile } from "../optics/illumination-vignetting.js";
+import type { CalculateEnvironmentSensorPhotoSignalInput } from "../sensor/environment-photo-signal.js";
+import { createRollingShutterCaptureExposureSchedule, resolveElectronicRollingShutterExposureSchedule,
+  type ElectronicRollingShutterExposureSchedule } from "../sensor/readout-exposure-linkage.js";
+import { calculateCaptureExposureWindows } from "../sensor/exposure-window.js";
+import { multiplyMatrices, type ColorMatrix3x3, type ColorVector3 } from "../color/colorimetry-math.js";
+import { prepareRgbGamutMapping, type PreparedRgbGamutMapping } from "../color/gamut-mapping.js";
+import { serializeNativeRawDng, type NativeRawDng } from "../capture/native-raw-dng.js";
+import { resolveSensorReadoutRegime } from "../sensor/raw-readout.js";
 import { resolveChartScene, CHART_SCENE_PRESETS, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
 import { resolveCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlanarSceneRadianceProvider, requireCallerScene, FACADE_SPECTRAL_RANGE_NANOMETERS,
   PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, type CaptureIlluminant, type CallerRadianceScene, type CallerReflectanceScene,
@@ -52,13 +83,38 @@ import { resolveCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlan
 export const SIMULATE_CAPTURE_FACADE_VERSION = "1.0.0" as const;
 
 export type SimulateCaptureExposureMode = "manual" | "aperture-priority" | "shutter-priority" | "program";
-export type SimulateCaptureOutputFormat = "srgb-8" | "srgb-16" | "jpeg";
+export type SimulateCaptureOutputFormat = "srgb-8" | "srgb-16" | "jpeg" | "png" | "dng";
 export type SimulateCaptureWhiteBalance =
   | "scene-illuminant"
   | "auto"
   | "none"
   | { kelvin: number; tint?: number }
   | { channelGains: { red: number; green: number; blue: number } };
+/**
+ * PNG colour encoding. `srgb` is the developed sRGB output. The others convert the developed linear
+ * colour (camera → XYZ → linear sRGB/D65, unclipped) through CIE XYZ into the target primaries:
+ * `display-p3` (SMPTE EG 432-1 primaries, sRGB transfer), `rec2020` (ITU-R BT.2020 primaries and OETF),
+ * `rec2100-pq` / `rec2100-hlg` (BT.2020 primaries, SMPTE ST 2084 PQ / ARIB STD-B67 HLG, 16-bit full range).
+ */
+export type SimulateCaptureColorEncoding = "srgb" | "display-p3" | "rec2020" | "rec2100-pq" | "rec2100-hlg";
+/** Built-in Bayer demosaic kernels (`createBuiltInBayerDemosaicProfiles`). */
+export type SimulateCaptureDemosaic = "bilinear" | "malvar-he-cutler";
+/**
+ * `margin` renders the kernel reach as extra native sites around the output; `mirror` renders exactly the
+ * output and reads reflect-101 images of the missing border sites (CFA-consistency validated).
+ */
+export type SimulateCaptureBorderHandling = "margin" | "mirror";
+export type SimulateCaptureLensDistortion =
+  | { kind: "radial"; profile: RadialDistortionProfile }
+  | { kind: "brown-conrady"; profile: BrownConradyDistortionProfile };
+export interface SimulateCaptureMotion {
+  /** Constant camera angular velocity, rad/s, in the engine's pitch/yaw/roll convention. Missing axes are 0. */
+  angularVelocityRadPerSec?: { pitch?: number; yaw?: number; roll?: number };
+  /** Default "global". `rolling` derives the exposure schedule from the body's rolling readout declaration. */
+  shutter?: "global" | "rolling";
+  /** Rolling only: first-to-last line skew over the simulated frame, s. Default: the body's declared readout skew. */
+  rollingShutterSkewSeconds?: number;
+}
 
 export interface SimulateCaptureOptions {
   /** Generic tier preset id or a full preset record (for example a modified copy of a catalog entry). Default "professional". */
@@ -72,6 +128,17 @@ export interface SimulateCaptureOptions {
     focusDistanceM?: number;
     /** Opt-in ideal circular-pupil ray sampling (defocus/depth of field). Default off (central ray only). */
     pupilSampling?: { radialSamples: number; angularSamples: number };
+    /** Ideal lens projection (`LENS_PROJECTION_MODELS`). Default "rectilinear". Not combinable with pupilSampling. */
+    projection?: LensProjectionModel;
+    /** Caller-declared radial or Brown–Conrady distortion profile. Default none. Not combinable with pupilSampling. */
+    distortion?: SimulateCaptureLensDistortion;
+    /** Caller-declared radial relative-illumination (vignetting) profile, applied as environment field throughput. */
+    vignetting?: IlluminationVignettingProfile;
+    /**
+     * Caller sampled lens PSF, passed unchanged to the environment contract. Its focal length, f-number and
+     * focus must equal the resolved capture settings exactly. Not combinable with pupilSampling.
+     */
+    psf?: Extract<CalculateEnvironmentSensorPhotoSignalInput["psf"], { kind: "sampled-local" }>;
   };
   exposure?: {
     /** Default "manual". */
@@ -107,7 +174,24 @@ export interface SimulateCaptureOptions {
     whiteBalance?: SimulateCaptureWhiteBalance;
     /** JPEG constant quantization step 1-255 (not a manufacturer 'quality'). Default 2. */
     jpegQuantizationStep?: number;
+    /** PNG only. Default "srgb". */
+    colorEncoding?: SimulateCaptureColorEncoding;
+    /** PNG only: 8 or 16 bits per sample. Default 8, or 16 for the PQ/HLG encodings (which require 16). */
+    bitDepth?: 8 | 16;
+    /**
+     * PNG SDR encodings only. Default "clip" (per-component clip to the target gamut). "perceptual" maps
+     * through `prepareRgbGamutMapping`: constant CIELAB L* and hue, chroma above 90 % of the boundary compressed.
+     */
+    gamutMapping?: "clip" | "perceptual";
+    /** Default: the 1.0 facade's bilinear RGGB kernels. */
+    demosaic?: SimulateCaptureDemosaic;
+    /** Default "margin". */
+    borderHandling?: SimulateCaptureBorderHandling;
+    /** DNG only: optional capture-event time (YYYY-MM-DDTHH:mm:ss.sssZ); without it no date tags are written. */
+    dng?: { capturedAtUtc?: string };
   };
+  /** Camera motion and shutter type. Default: still camera, global electronic shutter. */
+  motion?: SimulateCaptureMotion;
   sensor?: {
     /** Pixel pitch in micrometres. Default 6. */
     pixelPitchMicrometers?: number;
@@ -146,10 +230,16 @@ export interface SimulateCaptureResult {
     width: number;
     height: number;
     format: SimulateCaptureOutputFormat;
-    /** Interleaved RGB, sRGB-encoded (W3C CSS Color 4 sRGB; also IEC 61966-2-1), row-major from the top-left. */
+    /** Interleaved RGB, row-major from the top-left; sRGB-encoded (W3C CSS Color 4 sRGB; also IEC 61966-2-1) unless `colorEncoding` says otherwise. */
     samples: Uint8Array | Uint16Array;
     /** Baseline JPEG bytes when format is "jpeg". */
     jpeg?: Uint8Array;
+    /** PNG file bytes when format is "png". */
+    png?: Uint8Array;
+    /** Encoding of `samples` and `png` when format is "png". */
+    colorEncoding?: SimulateCaptureColorEncoding;
+    /** Lossless uncompressed CFA DNG of the packed RAW when format is "dng" (`serializeNativeRawDng`); `samples` are then sRGB 8-bit. */
+    dng?: Uint8Array;
   };
   /** Packed native RAW (codes, black levels, saturation flags) as produced by the native environment RAW task. */
   raw: NativeRawOutput;
@@ -187,6 +277,8 @@ export interface SimulateCaptureResult {
     providerEvaluationCount: number;
     highlight: RawHighlightDiagnostics;
     rendering: SdrRenderingResult["diagnostics"];
+    /** Present with output.gamutMapping "perceptual": pixels whose chroma or lightness the mapping changed. */
+    gamutMapping?: { method: "cielab-hue-preserving-chroma-compression"; kneeFraction: number; adjustedPixelCount: number; lightnessClippedPixelCount: number };
     timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number };
   };
   provenance: {
@@ -216,6 +308,9 @@ export const SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX = Math.PI * METER_CALIBRAT
   (DEFAULTS.shutterSeconds * DEFAULTS.iso * GREY_CARD_REFLECTANCE);
 /** Demosaic border, native sites per side. */
 const MARGIN = 1;
+
+/** Default temporal midpoints when the camera rotates (2.0 motion option). */
+const ROTATING_TEMPORAL_SAMPLE_COUNT = 8;
 const IDS = Object.freeze({ frame: "facade-frame", mode: "native-still", cfa: "photivra-generic-bayer", binding: "facade-native-cfa",
   sceneState: "facade-scene-state", scene: "facade-scene", provider: "facade-provider", lights: "facade-lights", materials: "facade-materials",
   capture: "facade-capture", spectral: "facade-colorimetric-eqe", sampling: "facade-sampling", stack: "facade-no-aa",
@@ -312,6 +407,80 @@ function defaultProgramLine(): ExposureProgramLineProfile {
     ] });
 }
 
+/** PNG colour signalling: the sRGB chunk for sRGB, ITU-T H.273 code points through cICP otherwise. */
+function pngColourEncoding(encoding: SimulateCaptureColorEncoding): PngColourEncoding {
+  if (encoding === "srgb") return { kind: "srgb", renderingIntent: "perceptual" };
+  if (encoding === "display-p3") return { kind: "cicp", primaries: "display-p3", transfer: "srgb", fullRange: true };
+  if (encoding === "rec2020") return { kind: "cicp", primaries: "bt2020", transfer: "bt709", fullRange: true };
+  return { kind: "cicp", primaries: "bt2020", transfer: encoding === "rec2100-pq" ? "pq" : "hlg", fullRange: true };
+}
+/**
+ * Develops the packed RAW to unclipped linear sRGB/D65 with the exact operator inside
+ * `createNativeRawDevelopmentTask` (same validation, demosaic kernels, border handling, per-site white-level
+ * clipping, white balance, highlight mode and camera→XYZ→linear-sRGB matrices), stopping before tone,
+ * gamut clipping and quantization. It reads the RAW without taking ownership.
+ */
+async function developLinearSrgb(input: NativeRawDevelopmentInput, afterRow: (completed: number, total: number) => Promise<void>):
+  Promise<{ rgb: Float64Array; highlight: RawHighlightDiagnostics }> {
+  const v = prepareNativeRawDevelopment(input), plan = v.plan, raw = input.raw, layout = plan.frame.colorSamplingProfile.layout;
+  if (layout.kind !== "periodic-mosaic") fail("Development requires a periodic CFA.");
+  const native = plan.exposure.geometry.nativeRaster, g = plan.exposure.resolvedGeometry, active = g.activeCapture.nativeRect;
+  checkNativeRawIntegrity(raw, native.pixelWidth, layout.repeatWidthSites, layout.repeatHeightSites, 0, native.pixelHeight);
+  const developer = createRawPixelDeveloper({ nativeWidth: native.pixelWidth, repeatWidth: layout.repeatWidthSites, repeatHeight: layout.repeatHeightSites,
+    codes: raw.codes, blackLevels: raw.blackLevels, saturationFlags: raw.saturationFlags, whiteByPhase: raw.effectiveSaturationCodes }, v.phases, v.development, v.mirror);
+  const width = v.raster.pixelWidth, height = v.raster.pixelHeight, rgb = new Float64Array(width * height * 3), row = new Float64Array(width * 3);
+  const at = (x: number, y: number): { x: number; y: number } => {
+    const q = transformOrientedRasterPointToNative({ point: { x: v.crop.x + x + 0.5, y: v.crop.y + y + 0.5 }, nativeRaster: g.activeCapture.raster, orientation: plan.exposure.geometry.orientation });
+    return { x: Math.floor(q.x) + active.x, y: Math.floor(q.y) + active.y };
+  };
+  for (let y = 0; y < height; y++) {
+    const first = at(0, y), second = width > 1 ? at(1, y) : first;
+    developer.developRun(first.x, first.y, second.x - first.x, second.y - first.y, width, row);
+    rgb.set(row, y * width * 3);
+    await afterRow(y + 1, height);
+  }
+  const c = developer.counts;
+  return { rgb, highlight: { mode: v.highlightMode, saturatedPixelCount: c.saturatedPixelCount, whiteBalanceClippedSampleCount: c.whiteBalanceClippedSampleCount,
+    reconstructedPixelCount: c.reconstructedPixelCount } };
+}
+/** Linear sRGB/D65 → CIE XYZ (inverse of the development's XYZ → sRGB matrix) → linear target RGB/D65. */
+function linearSrgbToTarget(target: "srgb" | "display-p3" | "rec2020"): readonly (readonly number[])[] {
+  return multiplyMatrices(resolveRgbColorSpace(target).value.xyzToRgb, resolveCaptureColorModel().cameraRgbToXyz as unknown as ColorMatrix3x3);
+}
+/** Knee of the `perceptual` gamut mapping: chroma below 90 % of the gamut-boundary chroma (at constant L*, h) is untouched. */
+const PERCEPTUAL_GAMUT_KNEE_FRACTION = 0.9;
+/**
+ * SDR encoding from linear sRGB/D65: matrix to the target primaries; either component clip to [0, 1] or, with
+ * `mapping`, CIELAB hue/lightness-preserving chroma compression (`prepareRgbGamutMapping`); then the target
+ * transfer and nearest-ties-up codes.
+ */
+function encodeSdrFromLinear(rgb: Float64Array, encoding: "srgb" | "display-p3" | "rec2020", bitDepth: 8 | 16, mapping?: PreparedRgbGamutMapping):
+  { samples: Uint8Array | Uint16Array; diagnostics: SdrRenderingResult["diagnostics"]; adjustedPixelCount: number; lightnessClippedPixelCount: number } {
+  const m = linearSrgbToTarget(encoding), toXyz = resolveCaptureColorModel().cameraRgbToXyz, maximum = 2 ** bitDepth - 1;
+  const transfer = encoding === "rec2020" ? evaluateBt709Oetf : evaluateSrgbEncoding;
+  const samples = bitDepth === 8 ? new Uint8Array(rgb.length) : new Uint16Array(rgb.length);
+  let low = 0, high = 0, adjusted = 0, lightnessClipped = 0;
+  for (let i = 0; i < rgb.length; i += 3) {
+    const r = rgb[i]!, g = rgb[i + 1]!, b = rgb[i + 2]!;
+    if (mapping) {
+      const xyz = [0, 1, 2].map((k) => toXyz[k]![0]! * r + toXyz[k]![1]! * g + toXyz[k]![2]! * b) as unknown as ColorVector3;
+      const mapped = mapping.map(xyz);
+      if (mapped.adjusted) adjusted++;
+      if (mapped.lightnessClipped) lightnessClipped++;
+      for (let k = 0; k < 3; k++) samples[i + k] = Math.floor(transfer(mapped.linearRgb[k]!) * maximum + 0.5);
+      continue;
+    }
+    for (let k = 0; k < 3; k++) {
+      const row = m[k]!;
+      let value = row[0]! * r + row[1]! * g + row[2]! * b;
+      if (value < 0) { value = 0; low++; } else if (value > 1) { value = 1; high++; }
+      samples[i + k] = Math.floor(transfer(value) * maximum + 0.5);
+    }
+  }
+  return { samples, adjustedPixelCount: adjusted, lightnessClippedPixelCount: lightnessClipped, diagnostics: { renderingNegativeSampleCount: low,
+    renderingAboveReferenceSampleCount: high, toneChangedSampleCount: 0, gamutClippedLowSampleCount: low, gamutClippedHighSampleCount: high, captureSaturation: "consumed-in-raw-development" } };
+}
+
 /**
  * Simulates one still capture of a planar scene and returns the developed image, the packed RAW, the full
  * underlying request/plan, provenance and every assumption made. See docs/QUICK_START.md.
@@ -320,7 +489,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const started = Date.now();
   requireInputObject(options, "simulateCapture options");
   const top = allowKeys(options, "simulateCapture options", ["camera", "lens", "exposure", "scene", "subjectDistanceM", "illuminant",
-    "illuminanceLux", "output", "sensor", "signal", "onProgress"]);
+    "illuminanceLux", "output", "sensor", "motion", "signal", "onProgress"]);
   const signal = top.signal as AbortSignal | undefined, onProgress = top.onProgress as SimulateCaptureOptions["onProgress"];
   if (signal !== undefined && (typeof signal !== "object" || signal === null || typeof (signal as AbortSignal).aborted !== "boolean")) fail("signal must be an AbortSignal.");
   if (onProgress !== undefined && typeof onProgress !== "function") fail("onProgress must be a function.");
@@ -343,7 +512,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const body = preset.body, lens = preset.lens;
 
   // Lens
-  const lensOptions = allowKeys(top.lens, "lens", ["focalLengthMm", "fNumber", "focusDistanceM", "pupilSampling"]);
+  const lensOptions = allowKeys(top.lens, "lens", ["focalLengthMm", "fNumber", "focusDistanceM", "pupilSampling", "projection", "distortion", "vignetting", "psf"]);
   const focalDefault = lens.exposure.focalLengthMmRange.value.minimum;
   const focalLengthMm = positive(pick(lensOptions, "focalLengthMm", "lens.focalLengthMm", focalDefault, "The preset lens's focal length (the generic primes are 50 mm)."), "lens.focalLengthMm");
   const capabilities = resolveGenericEquipmentExposureCapabilities({ bodyProfile: body.exposure, lensProfile: lens.exposure, selectedFocalLengthMm: focalLengthMm });
@@ -356,16 +525,87 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     "No pupil sampling: each scene query follows the central (chief) ray, so defocus and depth of field are not rendered. Enable lens.pupilSampling for an ideal circular pupil.");
   else {
     const p = allowKeys(lensOptions.pupilSampling, "lens.pupilSampling", ["radialSamples", "angularSamples"]);
-    pupil = { radialSamples: integerIn(p.radialSamples, "lens.pupilSampling.radialSamples", 1, 16), angularSamples: integerIn(p.angularSamples, "lens.pupilSampling.angularSamples", 1, 64) };
+    // The environment pupil contract admits 4..64 azimuthal midpoints and at most 256 rays.
+    pupil = { radialSamples: integerIn(p.radialSamples, "lens.pupilSampling.radialSamples", 1, 16), angularSamples: integerIn(p.angularSamples, "lens.pupilSampling.angularSamples", 4, 64) };
+    if (pupil.radialSamples * pupil.angularSamples > 256) fail("lens.pupilSampling needs at most 256 rays (radialSamples × angularSamples).");
+  }
+  // 2.0 optics hooks: only what the environment site contract accepts.
+  const projection: LensProjectionModel | undefined = lensOptions.projection === undefined ? undefined : parseLensProjectionModel(lensOptions.projection);
+  let distortion: SimulateCaptureLensDistortion | undefined;
+  if (lensOptions.distortion !== undefined) {
+    const d = allowKeys(lensOptions.distortion, "lens.distortion", ["kind", "profile"]);
+    if (d.kind !== "radial" && d.kind !== "brown-conrady") fail("lens.distortion.kind must be radial or brown-conrady.");
+    distortion = d as unknown as SimulateCaptureLensDistortion;
+  }
+  const lensFieldMapping: EnvironmentLensFieldMapping | undefined = projection === undefined && distortion === undefined ? undefined :
+    { projectionModel: projection ?? "rectilinear", distortion: distortion ?? { kind: "none" }, radiometricAreaCorrection: "inverse-distortion-jacobian" };
+  if (lensFieldMapping) {
+    if (pupil) fail("lens.projection and lens.distortion cannot be combined with lens.pupilSampling: ideal pupil rays use the rectilinear, distortion-free projection.");
+    try { prepareEnvironmentLensFieldMapping(lensFieldMapping); } catch (error) { fail("Invalid lens projection or distortion: " + (error as Error).message); }
+  }
+  let vignetting: IlluminationVignettingProfile | undefined;
+  if (lensOptions.vignetting !== undefined) { requireInputObject(lensOptions.vignetting, "lens.vignetting"); vignetting = lensOptions.vignetting as IlluminationVignettingProfile; }
+  let lensPsf: NonNullable<NonNullable<SimulateCaptureOptions["lens"]>["psf"]> | undefined;
+  if (lensOptions.psf !== undefined) {
+    const p = allowKeys(lensOptions.psf, "lens.psf", ["kind", "configuration"]);
+    if (p.kind !== "sampled-local") fail("lens.psf.kind must be sampled-local.");
+    requireInputObject(p.configuration, "lens.psf.configuration");
+    if (pupil) fail("lens.psf cannot be combined with lens.pupilSampling: geometric defocus would be counted twice.");
+    lensPsf = p as unknown as typeof lensPsf;
   }
 
+  // Motion (2.0): constant camera rotation and the shutter type.
+  const motionOptions = allowKeys(top.motion, "motion", ["angularVelocityRadPerSec", "shutter", "rollingShutterSkewSeconds"]);
+  const angular = { pitch: 0, yaw: 0, roll: 0 };
+  if (motionOptions.angularVelocityRadPerSec !== undefined) {
+    const a = allowKeys(motionOptions.angularVelocityRadPerSec, "motion.angularVelocityRadPerSec", ["pitch", "yaw", "roll"]);
+    for (const axis of ["pitch", "yaw", "roll"] as const) if (a[axis] !== undefined) {
+      const value = a[axis];
+      if (typeof value !== "number" || !Number.isFinite(value) || Math.abs(value) > 100) fail("motion.angularVelocityRadPerSec." + axis + " must be a finite number within ±100 rad/s.");
+      angular[axis] = value as number;
+    }
+  }
+  const rotating = angular.pitch !== 0 || angular.yaw !== 0 || angular.roll !== 0;
+  const shutterKind = motionOptions.shutter === undefined ? "global" : motionOptions.shutter;
+  if (shutterKind !== "global" && shutterKind !== "rolling") fail("motion.shutter must be global or rolling.");
+  if (motionOptions.rollingShutterSkewSeconds !== undefined && shutterKind !== "rolling") fail("motion.rollingShutterSkewSeconds needs motion.shutter \"rolling\".");
+  const rollingSkewOption = motionOptions.rollingShutterSkewSeconds === undefined ? undefined : positive(motionOptions.rollingShutterSkewSeconds, "motion.rollingShutterSkewSeconds");
+
   // Output and sensor
-  const outputOptions = allowKeys(top.output, "output", ["width", "height", "format", "toneCurve", "toneCurveParameters", "highlightMode", "whiteBalance", "jpegQuantizationStep"]);
+  const outputOptions = allowKeys(top.output, "output", ["width", "height", "format", "toneCurve", "toneCurveParameters", "highlightMode", "whiteBalance", "jpegQuantizationStep",
+    "colorEncoding", "bitDepth", "gamutMapping", "demosaic", "borderHandling", "dng"]);
   const width = integerIn(pick(outputOptions, "width", "output.width", DEFAULTS.width, "64 × 64 output pixels."), "output.width", 1, 4094);
   const height = integerIn(pick(outputOptions, "height", "output.height", DEFAULTS.height, "64 × 64 output pixels."), "output.height", 1, 4094);
   const format = pick<SimulateCaptureOutputFormat>(outputOptions, "format", "output.format", DEFAULTS.format, "8-bit sRGB samples.");
-  if (format !== "srgb-8" && format !== "srgb-16" && format !== "jpeg") fail("output.format must be srgb-8, srgb-16 or jpeg (DNG and PNG writers for native captures are not available yet).");
+  if (!["srgb-8", "srgb-16", "jpeg", "png", "dng"].includes(format)) fail("output.format must be srgb-8, srgb-16, jpeg, png or dng.");
+  let dngCapturedAtUtc: string | undefined;
+  if (format === "dng") {
+    const d = allowKeys(outputOptions.dng, "output.dng", ["capturedAtUtc"]);
+    dngCapturedAtUtc = d.capturedAtUtc as string | undefined;
+    if (dngCapturedAtUtc === undefined) assume("output.dng.capturedAtUtc", "default", null, "No capture time: the DNG carries no DateTimeOriginal (the engine never invents a wall clock).");
+  } else if (outputOptions.dng !== undefined) fail("output.dng applies only to output.format \"dng\".");
+  let colorEncoding: SimulateCaptureColorEncoding | undefined, pngBitDepth: 8 | 16 | undefined;
+  if (format === "png") {
+    colorEncoding = pick<SimulateCaptureColorEncoding>(outputOptions, "colorEncoding", "output.colorEncoding", "srgb",
+      "sRGB (IEC 61966-2-1) samples signalled with the PNG sRGB chunk (perceptual intent) and its prescribed gAMA/cHRM values.");
+    if (!["srgb", "display-p3", "rec2020", "rec2100-pq", "rec2100-hlg"].includes(colorEncoding)) fail("output.colorEncoding must be srgb, display-p3, rec2020, rec2100-pq or rec2100-hlg.");
+    const hdr = colorEncoding === "rec2100-pq" || colorEncoding === "rec2100-hlg";
+    pngBitDepth = pick<8 | 16>(outputOptions, "bitDepth", "output.bitDepth", hdr ? 16 : 8, hdr ? "16 bits per sample, the only PNG depth that holds PQ/HLG codes without banding." : "8 bits per sample.");
+    if (pngBitDepth !== 8 && pngBitDepth !== 16) fail("output.bitDepth must be 8 or 16.");
+    if (hdr && pngBitDepth !== 16) fail("output.colorEncoding " + colorEncoding + " needs output.bitDepth 16.");
+  } else if (outputOptions.colorEncoding !== undefined || outputOptions.bitDepth !== undefined) fail("output.colorEncoding and output.bitDepth apply only to output.format \"png\".");
+  let perceptual = false;
+  if (format === "png") {
+    const gamutMapping = pick<"clip" | "perceptual">(outputOptions, "gamutMapping", "output.gamutMapping", "clip", "Out-of-gamut components are clipped to [0, 1] in the target space.");
+    if (gamutMapping !== "clip" && gamutMapping !== "perceptual") fail("output.gamutMapping must be clip or perceptual.");
+    perceptual = gamutMapping === "perceptual";
+    if (perceptual && (colorEncoding === "rec2100-pq" || colorEncoding === "rec2100-hlg")) fail("output.gamutMapping \"perceptual\" applies to the SDR encodings (srgb, display-p3, rec2020) only.");
+  } else if (outputOptions.gamutMapping !== undefined) fail("output.gamutMapping applies only to output.format \"png\".");
+  const wideGamut = colorEncoding !== undefined && colorEncoding !== "srgb";
+  // The linear development path serves wide-gamut/HDR encodings and perceptual gamut mapping.
+  const linearPath = wideGamut || perceptual;
   const toneCurve = pick<SdrToneCurve>(outputOptions, "toneCurve", "output.toneCurve", DEFAULTS.toneCurve, "Identity tone curve: scene-linear values are clipped at display white, then sRGB-encoded.");
+  if (linearPath && toneCurve !== "identity") fail("output.toneCurve other than identity is available only for sRGB output; wide-gamut and HDR encodings are converted from the linear developed colour.");
   const highlightMode = pick<RawHighlightMode>(outputOptions, "highlightMode", "output.highlightMode", DEFAULTS.highlightMode, "Saturated RAW highlights are clipped to neutral.");
   const whiteBalanceOption = pick<SimulateCaptureWhiteBalance>(outputOptions, "whiteBalance", "output.whiteBalance", DEFAULTS.whiteBalance,
     "White balance measured from a perfect white diffuser under the scene illuminant (a custom/grey-card white balance).");
@@ -378,22 +618,54 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const spectralStep = positive(pick(sensorOptions, "spectralStepNanometers", "sensor.spectralStepNanometers", DEFAULTS.spectralStepNanometers,
     "Spectral midpoint quadrature over 380-780 nm with subintervals of at most 20 nm."), "sensor.spectralStepNanometers");
   if (spectralStep < 1 || spectralStep > 100) fail("sensor.spectralStepNanometers must be 1-100.");
-  const temporalSampleCount = integerIn(pick(sensorOptions, "temporalSampleCount", "sensor.temporalSampleCount", DEFAULTS.temporalSampleCount,
-    "One temporal sample: the static scene and still camera make more samples unnecessary."), "sensor.temporalSampleCount", 1, 256);
+  const temporalSampleCount = integerIn(rotating ? pick(sensorOptions, "temporalSampleCount", "sensor.temporalSampleCount", ROTATING_TEMPORAL_SAMPLE_COUNT,
+    "Eight temporal midpoints across each site's exposure window sample the camera rotation (motion blur); raise it for long exposures or fast rotation.") :
+    pick(sensorOptions, "temporalSampleCount", "sensor.temporalSampleCount", DEFAULTS.temporalSampleCount,
+      "One temporal sample: the static scene and still camera make more samples unnecessary."), "sensor.temporalSampleCount", 1, 256);
   const noiseSeed = integerIn(pick(sensorOptions, "noiseSeed", "sensor.noiseSeed", DEFAULTS.noiseSeed, "Fixed noise seed 1 (deterministic output)."), "sensor.noiseSeed", 0, 0xffffffff);
 
-  // Geometry: one demosaic border site per side; output crop is the active area.
-  const nativeWidth = width + 2 * MARGIN, nativeHeight = height + 2 * MARGIN;
+  const colorSamplingProfile = { schemaVersion: "0.1.0" as const, profileId: IDS.cfa, evidence: FACADE_EVIDENCE, coordinateSystem: "native-sensor-color-sampling-site-index" as const,
+    layout: { kind: "periodic-mosaic" as const, repeatWidthSites: 2, repeatHeightSites: 2, siteChannelIds: ["red", "green", "green", "blue"], anchor: "native-sensor-top-left-site" as const } };
+  // Demosaic (2.0): built-in Bayer kernels and border handling. Omitted, the 1.0 bilinear kernels and a
+  // one-site rendered border are used unchanged.
+  const demosaicOption = outputOptions.demosaic as SimulateCaptureDemosaic | undefined, borderOption = outputOptions.borderHandling as SimulateCaptureBorderHandling | undefined;
+  if (demosaicOption !== undefined && demosaicOption !== "bilinear" && demosaicOption !== "malvar-he-cutler") fail("output.demosaic must be bilinear or malvar-he-cutler.");
+  if (borderOption !== undefined && borderOption !== "margin" && borderOption !== "mirror") fail("output.borderHandling must be margin or mirror.");
+  const builtInDemosaic = demosaicOption === undefined ? undefined : createBuiltInBayerDemosaicProfiles({ kernel: demosaicOption === "bilinear" ? "bilinear" : "malvar-he-cutler-2004",
+    captureModeId: IDS.mode, colorSamplingProfile, channelRoles: { red: "red", green: "green", blue: "blue" } }).value;
+  const mirrorBorder = borderOption === "mirror";
+  const margin = mirrorBorder ? 0 : builtInDemosaic ? builtInDemosaic.kernelReachSites : MARGIN;
+  if (mirrorBorder && (width < 2 || height < 2)) fail("output.borderHandling \"mirror\" needs an output of at least 2 × 2 pixels.");
+
+  // Geometry: the demosaic border (if any) on each side; output crop is the active area.
+  const nativeWidth = width + 2 * margin, nativeHeight = height + 2 * margin;
   const imagingArea = { widthMm: nativeWidth * pitch / 1000, heightMm: nativeHeight * pitch / 1000 };
   const geometry = { imagingArea, nativeRaster: { pixelWidth: nativeWidth, pixelHeight: nativeHeight }, orientation: "landscape" as const,
-    activeCaptureRect: { x: MARGIN, y: MARGIN, width, height }, outputRaster: { pixelWidth: width, pixelHeight: height } };
+    activeCaptureRect: { x: margin, y: margin, width, height }, outputRaster: { pixelWidth: width, pixelHeight: height } };
   const resolvedGeometry = resolveCaptureGeometry(geometry).value;
   const imageDistanceMm = focalLengthMm * focusDistanceM * 1000 / (focusDistanceM * 1000 - focalLengthMm);
   const metresPerFrameUnit = (width * pitch / 2000) * subjectDistanceM / imageDistanceMm;
   const aspect = height / width;
   assume("scene.framing", "derived", { framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect },
     "The scene plane is perpendicular to the optical axis and the chart is sized to fill the active frame exactly.");
-  assume("output.demosaic", "model", "bilinear-rggb", "Bilinear RGGB demosaic through explicit linear kernels; the native raster has a one-site border on each side so every output pixel has full support.");
+  if (demosaicOption === undefined && borderOption === undefined) {
+    assume("output.demosaic", "model", "bilinear-rggb", "Bilinear RGGB demosaic through explicit linear kernels; the native raster has a one-site border on each side so every output pixel has full support.");
+  } else {
+    if (demosaicOption === undefined) assume("output.demosaic", "default", "bilinear-rggb", "The 1.0 facade's bilinear RGGB kernels (explicit linear neighbourhood weights).");
+    else assume("output.demosaic", "model", { kernel: builtInDemosaic!.kernel, modelVersion: BUILT_IN_DEMOSAIC_VERSION, kernelReachSites: builtInDemosaic!.kernelReachSites },
+      demosaicOption === "bilinear" ? "Built-in bilinear Bayer kernels (createBuiltInBayerDemosaicProfiles): nearest same-channel averages." :
+        "Built-in Malvar–He–Cutler (ICASSP 2004) gradient-corrected linear kernels (createBuiltInBayerDemosaicProfiles): bilinear plus the own-channel Laplacian with gains 1/2, 5/8, 3/4. It sharpens luminance edges but can fringe more than bilinear on saturated colour edges (docs/PROCESSING.md).");
+    if (borderOption === undefined) assume("output.borderHandling", "default", "margin", "The native raster adds the kernel reach (" + margin + " site(s)) on each side, so every output pixel is reconstructed from rendered sites.");
+    else assume("output.borderHandling", "model", borderOption, mirrorBorder ?
+      "No rendered border: the native raster equals the output and reconstruction reads reflect-101 mirror images of the missing sites (CFA consistency validated), so edge pixels use mirrored rather than rendered neighbours." :
+      "The native raster adds the kernel reach (" + margin + " site(s)) on each side, so every output pixel is reconstructed from rendered sites.");
+  }
+
+  // Radiance queries per native site: spectral subintervals × temporal midpoints × pupil rays × PSF taps.
+  const psfTaps = lensPsf ? Math.max(1, ...((lensPsf.configuration.psf.profile.nodes ?? []) as readonly { kernel?: { widthSamples?: unknown; heightSamples?: unknown } }[])
+    .map((node) => Number(node.kernel?.widthSamples) * Number(node.kernel?.heightSamples)).filter((taps) => Number.isSafeInteger(taps) && taps > 0)) : 1;
+  const queriesPerSite = temporalSampleCount * (Math.ceil((FACADE_SPECTRAL_RANGE_NANOMETERS.maximum - FACADE_SPECTRAL_RANGE_NANOMETERS.minimum) / spectralStep) + 1) *
+    (pupil ? pupil.radialSamples * pupil.angularSamples : 1) * psfTaps;
 
   // Scene and illuminant
   // The scene is the one required input: the facade never guesses what is being photographed.
@@ -504,11 +776,36 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   assume("sensor.spectralResponse", "model", { kind: "colorimetric-cmf-eqe", peakScale: EQE_SCALE },
     "Idealized colorimetric sensor: channel EQE = a·{x̄, ȳ, z̄}(λ)·555/λ (CIE 1931 analytic fit, Wyman et al. 2013), so RAW channels are proportional to CIE XYZ (Luther–Ives) and the camera matrix is diagonal. Not a real camera's response; CMF air wavelengths are used as vacuum wavelengths (difference about 0.03 %).");
   assume("sensor.fillFactor", "model", 1, "Square sensitive aperture equal to the pixel pitch; no microlens or anti-aliasing filter.");
-  assume("sensor.shutter", "model", "global-electronic", "Global electronic shutter: every site integrates the same exposure window.");
-  assume("lens.psf", "model", "not-applied", "No lens PSF or diffraction blur is applied (point optics); the generic tiers' optical data are declared only at f/4.");
+  // Shutter (2.0): the electronic rolling-shutter schedule derived from the body's rolling readout declaration.
+  let rollingSchedule: ElectronicRollingShutterExposureSchedule | undefined;
+  if (shutterKind === "rolling") {
+    const declared = (body as { rollingReadoutTiming?: { profile: unknown } }).rollingReadoutTiming?.profile as Parameters<typeof resolveElectronicRollingShutterExposureSchedule>[0]["readout"] | undefined;
+    if (!declared || declared.readoutMode !== "rolling") fail("motion.shutter \"rolling\" needs a camera body with a rolling readout timing declaration.");
+    const readout = rollingSkewOption === undefined ? declared : { ...declared, spatialSamplingSkewSeconds: { value: rollingSkewOption, unit: "s" as const, evidence: FACADE_EVIDENCE } };
+    rollingSchedule = resolveElectronicRollingShutterExposureSchedule({ readout, linkageEvidence: FACADE_EVIDENCE,
+      nominalExposureDurationSeconds: { value: shutterSeconds, unit: "s", evidence: FACADE_EVIDENCE } });
+    assume("sensor.shutter", "model", { kind: "electronic-rolling", modelId: rollingSchedule.modelId, modelVersion: rollingSchedule.modelVersion,
+      lineScanSkewSeconds: rollingSchedule.lineScanSkewSeconds, scanDirection: readout.scanDirectionNative.value },
+      "Electronic rolling shutter (line reset/read linkage): a site at normalized scan position s integrates over [s·τ, s·τ + T]. " +
+      (rollingSkewOption === undefined ? "τ is the body's declared full-frame data-readout skew, applied unchanged across the simulated frame (it is not scaled to the cropped sensor), so a small frame shows the skew of a full-sensor readout." :
+        "τ is the caller-declared skew across the simulated frame."));
+  } else assume("sensor.shutter", "model", "global-electronic", "Global electronic shutter: every site integrates the same exposure window.");
+  if (rotating) assume("motion.angularVelocityRadPerSec", "model", { ...angular },
+    "Constant camera angular velocity applied to every scene ray at each temporal midpoint of each site's exposure window (engine rotation convention, docs/SENSOR_ENVIRONMENT_QUERY.md); motion blur is the midpoint quadrature over sensor.temporalSampleCount samples.");
+  if (lensPsf) assume("lens.psf", "model", { kind: "sampled-local" }, "Caller-supplied sampled lens PSF redistributes irradiance through the environment PSF quadrature; its evidence and limits are the caller's.");
+  else assume("lens.psf", "model", "not-applied", "No lens PSF or diffraction blur is applied (point optics); the generic tiers' optical data are declared only at f/4.");
   assume("lens.transmission", "model", lens.matchedReference.transmission,
     "The tier lens's spectrally flat transmission is used at every f-number and focus in the lens capability; the tier declares it only at its f/4, 5 m reference state.");
-  assume("lens.fieldThroughput", "model", "unity", "No vignetting, distortion, lateral colour or stray light.");
+  if (!vignetting && !lensFieldMapping) assume("lens.fieldThroughput", "model", "unity", "No vignetting, distortion, lateral colour or stray light.");
+  else {
+    if (vignetting) assume("lens.vignetting", "model", { kind: "radial-illumination-vignetting", profile: vignetting },
+      "Caller-declared radial relative illumination 1 + r2·ρ² + r4·ρ⁴ + r6·ρ⁶, applied once as environment field throughput at the physical sensor point before any PSF.");
+    else assume("lens.fieldThroughput", "model", "unity", "No vignetting, lateral colour or stray light.");
+    if (distortion) assume("lens.distortion", "model", distortion,
+      "Caller-declared " + distortion.kind + " distortion: each sensor point is inverse-distorted before the scene-ray query and irradiance is multiplied exactly once by the area factor 1/det(J).");
+  }
+  if (projection === undefined) assume("lens.projection", "default", "rectilinear", "Ideal rectilinear (pinhole) projection.");
+  else assume("lens.projection", "model", projection, "Ideal " + projection + " projection through the environment lens field mapping. At finite focus its scale is the thin-lens image distance (an approximation); the chart is still sized with the rectilinear thin-lens scale, so its edges move with the projection.");
 
   // White balance
   let whiteBalanceState: ResolvedWhiteBalanceState | null = null, needsAuto = false;
@@ -532,25 +829,28 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
 
   const rendering: SdrRenderingProfile = { schemaVersion: "0.1.0", profileId: "facade-sdr", profileVersion: "1", renderingExposureEv: 0, toneCurve,
     ...(outputOptions.toneCurveParameters === undefined ? {} : { toneCurveParameters: outputOptions.toneCurveParameters as SdrToneCurveParameters }),
-    gamutHandling: "clip-components", outputDynamicRange: "sdr", transferFunction: "srgb", bitDepth: format === "srgb-16" ? 16 : 8, rounding: "nearest-ties-up", dither: "none" };
-  assume("output.rendering", "model", { renderingExposureEv: 0, gamutHandling: "clip-components" },
+    gamutHandling: "clip-components", outputDynamicRange: "sdr", transferFunction: "srgb", bitDepth: format === "srgb-16" || (format === "png" && !wideGamut && pngBitDepth === 16) ? 16 : 8, rounding: "nearest-ties-up", dither: "none" };
+  if (!linearPath) assume("output.rendering", "model", { renderingExposureEv: 0, gamutHandling: "clip-components" },
     "Developed linear sRGB/D65 with the RAW white level mapped to display white, no exposure push, out-of-gamut components clipped.");
+  else assume("output.rendering", "model", { renderingExposureEv: 0, gamutHandling: "clip-components-in-target-gamut", sdrRendererUsed: false },
+    "The sRGB SDR renderer is not used: the linear development (RAW white level = relative 1.0, no exposure push) is converted to the target encoding; request.development.rendering is validated but only its exposure and tone curve (identity) apply.");
   // Rendering choices are validated before any radiance work, so a bad tone curve fails fast.
   parseSdrRenderingProfile(rendering);
   if (highlightMode !== "clip" && highlightMode !== "reconstruct") fail("output.highlightMode must be clip or reconstruct.");
 
   // Frame profiles
   const evidence = FACADE_EVIDENCE;
-  const colorSamplingProfile = { schemaVersion: "0.1.0" as const, profileId: IDS.cfa, evidence, coordinateSystem: "native-sensor-color-sampling-site-index" as const,
-    layout: { kind: "periodic-mosaic" as const, repeatWidthSites: 2, repeatHeightSites: 2, siteChannelIds: ["red", "green", "green", "blue"], anchor: "native-sensor-top-left-site" as const } };
   const nativeRaster = { pixelWidth: nativeWidth, pixelHeight: nativeHeight };
   const captureModeProfile = { schemaVersion: "0.1.0" as const, modes: [{ modeId: IDS.mode, evidence, acquisition: { kind: "single-frame" as const },
     perFrameSampling: { kind: "native-effective-raster" as const }, reconstructionStages: [], processedImageRaster: { value: nativeRaster, evidence },
     dependencies: ["color-sampling-model"] }] } as unknown as NativeRawInput["captureModeProfile"];
   const bindingProfile = { schemaVersion: "0.1.0" as const, bindingId: IDS.binding, colorSamplingProfileId: IDS.cfa, nativeRaster, evidence,
     relationship: { kind: "regular-native-effective-sample-blocks" as const, sitesPerNativeSampleX: 1, sitesPerNativeSampleY: 1, anchor: "shared-native-top-left" as const } };
-  const exposureWindow = { shutterMechanism: "electronic" as const, nominalExposureDurationSeconds: { value: shutterSeconds, unit: "s" as const, evidence },
-    opening: { kind: "simultaneous" as const }, closing: { kind: "simultaneous" as const } };
+  const exposureWindow = rollingSchedule ? createRollingShutterCaptureExposureSchedule(rollingSchedule) as unknown as {
+    shutterMechanism: "electronic"; nominalExposureDurationSeconds: { value: number; unit: "s"; evidence: readonly EvidenceProvenance[] };
+    opening: { kind: "simultaneous" }; closing: { kind: "simultaneous" } } :
+    { shutterMechanism: "electronic" as const, nominalExposureDurationSeconds: { value: shutterSeconds, unit: "s" as const, evidence },
+      opening: { kind: "simultaneous" as const }, closing: { kind: "simultaneous" as const } };
   const buildRawInput = (intent: CaptureWhiteBalanceIntent | null): NativeRawInput => ({
     exposure: { captureId: IDS.capture, sceneStateId: IDS.sceneState, sceneTimeSeconds: 0, geometry,
       exposure: { focalLengthMm, aperture: fNumber, shutterSeconds, iso: resolvedIso }, focus: { kind: "finite", distanceM: focusDistanceM },
@@ -628,9 +928,11 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     evidence: preset.evidence, limitations: [...lens.limitations, "Flat transmission applied across the lens capability by the capture facade."] };
   const optics = { profile: opticsProfile, focalLengthMm, nominalFNumber: fNumber,
     focus: { kind: "ideal-symmetric-thin-lens" as const, objectDistanceM: focusDistanceM, pupilMagnificationAssumption: "unity" as const } };
-  const motion = { angularVelocityRadPerSec: { pitch: 0, yaw: 0, roll: 0 }, timeReference: "first-opening-boundary-phase" as const, environmentDirectionConvention: "outgoing-radiance-toward-camera" as const };
-  const fieldThroughput = { kind: "unity" as const, evidence, limitation: "No vignetting or field throughput loss applied by the facade." };
-  const psf = { kind: "not-applied" as const, evidence, limitation: "No lens PSF (point optics)." };
+  const motion = { angularVelocityRadPerSec: angular, timeReference: "first-opening-boundary-phase" as const, environmentDirectionConvention: "outgoing-radiance-toward-camera" as const };
+  const fieldThroughput = vignetting ? { kind: "radial-illumination-vignetting" as const, profile: vignetting, evidence,
+    limitation: "Caller-declared radial relative illumination applied by the capture facade; not a measured lens." } :
+    { kind: "unity" as const, evidence, limitation: "No vignetting or field throughput loss applied by the facade." };
+  const psf = lensPsf ?? { kind: "not-applied" as const, evidence, limitation: "No lens PSF (point optics)." };
   const pupilRecord = pupil ? { kind: "ideal-uniform-circular-pupil" as const, radialSampleCount: pupil.radialSamples, angularSampleCount: pupil.angularSamples, evidence,
     limitation: "Ideal uniform circular pupil; finite ray sampling, no convergence claim." } : undefined;
   const spectralSamplingByChannel = Object.fromEntries(CHANNELS.map((channelId) => [channelId, { channelId, wavelengthBasis: "vacuum" as const, wavelengthRangeNanometers: range,
@@ -645,14 +947,18 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       sensor: { spatialSampling: { imagingArea, samplingApertureProfile, opticalStackProfile, site, spatialSampleCountX: 1, spatialSampleCountY: 1 },
         spectralSampling: spectralSamplingByChannel[channel], colorSamplingProfile, spectralResponseProfile: spectralResponseProfiles[channel],
         responseApplication: { applicationProfile: c.applicationProfile, sourcePlane, operatingConditions }, operatingRangeProfile: c.operatingRangeProfile, localExposure },
-      sceneBindings, optics, motion, temporalSampleCount, fieldThroughput, psf, ...(pupilRecord ? { pupil: pupilRecord } : {}) };
+      sceneBindings, optics, motion, temporalSampleCount, fieldThroughput, psf, ...(pupilRecord ? { pupil: pupilRecord } : {}), ...(lensFieldMapping ? { lensFieldMapping } : {}) };
+    // Charge completeness must cover the site's own exposure window (shifted by s·τ under a rolling shutter).
+    const window = rollingSchedule ? calculateCaptureExposureWindows({ ...exposureWindow, nativeRaster, samplePointsNative: [{ x: x + 0.5, y: y + 0.5 }] }).value.samples[0]! :
+      { startOffsetSecondsFromOpeningReference: 0, endOffsetSecondsFromOpeningReference: shutterSeconds };
     return { environment, operatingTemperatureC: OPERATING_TEMPERATURE_C,
       darkCurrentProfile: { schemaVersion: "0.1.0", profileId: IDS.dark, colorSamplingProfileId: IDS.cfa, channelId: channel, scientificStatus: "approximation", evidence,
         uncertainty: { kind: "not-quantified", limitation: "Synthetic dark current for the capture facade." }, chargeMeaning: "pre-compensation-thermally-generated-electrons",
         siteApplicability: { kind: "exact-site", site }, temperatureModel: { kind: "fixed-reference-temperature", referenceTemperatureC: OPERATING_TEMPERATURE_C,
           darkCurrentElectronsPerSecond: DARK_CURRENT_ELECTRONS_PER_SECOND }, darkCurrentCompensationIncluded: false, spatialDarkCurrentNonuniformityModeled: false },
       charge: { completenessProfile: { schemaVersion: "0.1.0", profileId: IDS.completeness, colorSamplingProfileId: IDS.cfa, channelId: channel, site, bindingId: IDS.binding,
-        timeReference: "first-opening-boundary-phase", startOffsetSecondsFromOpeningReference: 0, endOffsetSecondsFromOpeningReference: shutterSeconds,
+        timeReference: "first-opening-boundary-phase", startOffsetSecondsFromOpeningReference: window.startOffsetSecondsFromOpeningReference,
+        endOffsetSecondsFromOpeningReference: window.endOffsetSecondsFromOpeningReference,
         darkCurrentProfileId: IDS.dark, includedAdditionalComponentIds: [], coverageMeaning: "all-material-stored-electron-contributors-accounted-for",
         scientificStatus: "approximation", evidence, limitation: "Photo and dark charge only." } },
       readout: { samplingProfile: chargeSamplingProfile, capacityProfile: { schemaVersion: "0.1.0", profileId: IDS.capacity, colorSamplingProfileId: IDS.cfa, channelId: channel,
@@ -664,7 +970,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const readTile = async (request: { captureId: string; frameId: string; x: number; y: number; width: number; height: number }): Promise<NativeEnvironmentRawTile> =>
     ({ ...request, sites: Array.from({ length: request.width }, (_, j) => siteInput(request.y * nativeWidth + request.x + j)) });
   const yieldControl = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
-  const perSite = temporalSampleCount * (Math.ceil((range.maximum - range.minimum) / spectralStep) + 1) * (pupil ? pupil.radialSamples * pupil.angularSamples : 1);
+  const perSite = queriesPerSite;
   const evaluations = nativeWidth * nativeHeight * perSite;
   // The native task admits at most 100 000 radiance queries per tile.
   const tileWidth = Math.max(1, Math.min(256, Math.floor(100_000 / perSite)));
@@ -695,7 +1001,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   if (needsAuto) {
     // Grey-world AWB over pre-WB RAW: black-subtracted, white-normalized channel means of each 2×2 CFA block on a coarse grid.
     const raw = rawOutput.raw, step = Math.max(2, 2 * Math.floor(Math.sqrt(width * height / 4096) / 1)), samples = [];
-    for (let y = MARGIN - (MARGIN % 2); y + 1 < nativeHeight; y += step) for (let x = MARGIN - (MARGIN % 2); x + 1 < nativeWidth; x += step) {
+    for (let y = margin - (margin % 2); y + 1 < nativeHeight; y += step) for (let x = margin - (margin % 2); x + 1 < nativeWidth; x += step) {
       const value = (dx: number, dy: number): number => { const i = (y + dy) * nativeWidth + x + dx; return (raw.codes[i]! - raw.blackLevels[i]!) / (raw.effectiveSaturationCodes[dy * 2 + dx]! - raw.blackLevels[i]!); };
       let clipped = false;
       for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) if (raw.saturationFlags[(y + dy!) * nativeWidth + x + dx!]! !== 0) clipped = true;
@@ -713,18 +1019,77 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     try { await runTask(stageTask); rawOutput = stageTask.takeOutput(); } finally { opticalStage!.dispose(); }
   }
   const wbMs = Date.now() - wbStarted, devStarted = Date.now();
-
-  // Development
   const colorProfile: ExportSensorColorProfile = { schemaVersion: "0.1.0", profileId: IDS.spectral, profileVersion: SIMULATE_CAPTURE_FACADE_VERSION, colorSamplingProfileId: IDS.cfa,
     channelIds: ["red", "green", "blue"], scientificStatus: "approximation", referenceIlluminant: "D65", normalizedCameraChannelsToXyz: CAMERA_TO_XYZ,
     evidence, limitations: ["Diagonal camera→XYZ matrix of the idealized colorimetric (Luther–Ives) sensor; exact up to spectral quadrature."] };
-  const development: Omit<NativeRawDevelopmentInput, "raw"> = { phaseProfiles: bilinearPhaseProfiles(), colorProfile,
-    whiteBalance: whiteBalanceState ? "apply-resolved-sensor-gains" : "not-required", rendering, highlightMode,
+  const phaseProfiles = builtInDemosaic ? builtInDemosaic.phaseProfiles : bilinearPhaseProfiles();
+  const developmentWhiteBalance = whiteBalanceState ? "apply-resolved-sensor-gains" as const : "not-required" as const;
+
+
+  // DNG (2.0): the packed native RAW itself, before development takes ownership of it.
+  let dng: NativeRawDng | undefined;
+  if (format === "dng") {
+    const noise = Object.fromEntries(CHANNELS.map((channel) => {
+      const resolved = resolveSensorReadoutRegime({ profile: regimeByChannel[channel].readoutProfile as Parameters<typeof resolveSensorReadoutRegime>[0]["profile"], regimeId: regimeByChannel[channel].regimeId });
+      return [channel, { conversionGainElectronsPerCode: resolved.regime.systemConversionGainElectronsPerCode.value / (resolved.regime.adc.digitalGain ?? 1),
+        readNoiseRmsElectrons: resolved.combinedReadNoiseRmsElectrons }];
+    }));
+    dng = await serializeNativeRawDng({ raw: rawOutput.raw, colorProfile, noise, ...(dngCapturedAtUtc === undefined ? {} : { capturedAtUtc: dngCapturedAtUtc }) });
+    checkAbort();
+    assume("output.dng", "model", { writer: "serializeNativeRawDng", schemaVersion: dng.schemaVersion, whiteLevel: dng.whiteLevel, blackLevels: dng.blackLevels,
+      noiseProfile: dng.noiseProfile, unrepresentedSaturationFlagCount: dng.unrepresentedSaturationFlagCount },
+      "Lossless uncompressed 16-bit CFA DNG of exactly the packed native RAW codes: per-phase BlackLevel, WhiteLevel = smallest per-phase effective white, ActiveArea and DefaultCrop from the capture geometry, ColorMatrix1/ForwardMatrix1 from the facade's diagonal camera→XYZ profile (D65), AsShotNeutral from the white-balance intent, BaselineExposure 0, and NoiseProfile from each channel's readout regime (conversion gain ÷ digital gain, combined read noise; Poisson + Gaussian + quantization only). No linear master or developed image is declared; saturation flags below WhiteLevel are not representable and are counted.");
+  }
+
+  // Development
+  const development: Omit<NativeRawDevelopmentInput, "raw"> = { phaseProfiles, colorProfile,
+    whiteBalance: developmentWhiteBalance, rendering, highlightMode, ...(mirrorBorder ? { borderHandling: "mirror" as const } : {}),
     maximumRetainedPayloadBytes: plan.outputBytes + width * height * 3 * (rendering.bitDepth / 8) };
-  const devTask = createNativeRawDevelopmentTask({ ...development, raw: rawOutput.raw }, { yieldControl,
-    onProgress: (p) => onProgress?.({ stage: "development", completedTileCount: p.completedTileCount, totalTileCount: p.totalTileCount }) });
-  await runTask(devTask);
-  const developed = devTask.takeOutput();
+  let developed: { raw: NativeRawOutput; integerSamples: Uint8Array | Uint16Array; highlight: RawHighlightDiagnostics; diagnostics: SdrRenderingResult["diagnostics"] };
+  let gamutMappingDiagnostics: { method: "cielab-hue-preserving-chroma-compression"; kneeFraction: number; adjustedPixelCount: number; lightnessClippedPixelCount: number } | undefined;
+  if (!linearPath) {
+    const devTask = createNativeRawDevelopmentTask({ ...development, raw: rawOutput.raw }, { yieldControl,
+      onProgress: (p) => onProgress?.({ stage: "development", completedTileCount: p.completedTileCount, totalTileCount: p.totalTileCount }) });
+    await runTask(devTask);
+    developed = devTask.takeOutput();
+  } else {
+    // Wide gamut / HDR: the native development operator up to linear sRGB/D65 (unclipped), then XYZ → target primaries.
+    let lastYield = Date.now();
+    const linear = await developLinearSrgb({ ...development, raw: rawOutput.raw }, async (completed, total) => {
+      onProgress?.({ stage: "development", completedTileCount: completed, totalTileCount: total });
+      if (Date.now() - lastYield >= 8) { await yieldControl(); checkAbort(); lastYield = Date.now(); }
+    });
+    if (colorEncoding === "srgb" || colorEncoding === "display-p3" || colorEncoding === "rec2020") {
+      const mapping = perceptual ? prepareRgbGamutMapping({ colorSpace: colorEncoding, method: "cielab-hue-preserving-chroma-compression", kneeFraction: PERCEPTUAL_GAMUT_KNEE_FRACTION }) : undefined;
+      const encoded = encodeSdrFromLinear(linear.rgb, colorEncoding, pngBitDepth!, mapping);
+      developed = { raw: rawOutput.raw, integerSamples: encoded.samples, highlight: linear.highlight, diagnostics: encoded.diagnostics };
+      if (mapping) {
+        gamutMappingDiagnostics = { method: "cielab-hue-preserving-chroma-compression", kneeFraction: PERCEPTUAL_GAMUT_KNEE_FRACTION,
+          adjustedPixelCount: encoded.adjustedPixelCount, lightnessClippedPixelCount: encoded.lightnessClippedPixelCount };
+        assume("output.gamutMapping", "model", { method: "cielab-hue-preserving-chroma-compression", kneeFraction: PERCEPTUAL_GAMUT_KNEE_FRACTION, colorSpace: colorEncoding },
+          "prepareRgbGamutMapping: CIELAB L* and hue held, chroma above 90 % of the boundary chroma C_max(L*, h) compressed with a tanh knee so it never reaches C_max (Morovič 2008, §10). In-gamut colours below the knee are unchanged; saturated in-gamut colours above it are desaturated slightly. L* ≥ 100 (above the RAW white) maps to white. CIELAB hue is not perceptually constant for saturated blues, so they can shift toward purple.");
+      }
+      assume("output.colorEncoding.conversion", "model", { from: "linear-srgb-d65 (unclipped)", via: "CIE XYZ", to: colorEncoding, gamutHandling: perceptual ? "cielab-hue-preserving-chroma-compression" : "clip-components",
+        transfer: colorEncoding === "rec2020" ? "bt2020-oetf (= BT.709 OETF)" : "srgb (IEC 61966-2-1)" },
+        "Developed with the native development operator (demosaic, per-site white-level clip, WB, highlight mode, diagonal camera→XYZ, XYZ→linear sRGB) but before any sRGB clipping, so colours outside sRGB are kept; converted to " +
+        colorEncoding + " through XYZ (matrices from primaries and D65, SMPTE RP 177), " + (perceptual ? "gamut-mapped perceptually (output.gamutMapping)" : "components clipped to [0, 1] in the target gamut") +
+        ", then encoded and rounded to nearest. RAW white maps to display white, as in the sRGB path.");
+    } else {
+      const m = linearSrgbToTarget("rec2020"), data = new Float32Array(linear.rgb.length);
+      for (let i = 0; i < data.length; i += 3) for (let k = 0; k < 3; k++) { const row = m[k]!; data[i + k] = row[0]! * linear.rgb[i]! + row[1]! * linear.rgb[i + 1]! + row[2]! * linear.rgb[i + 2]!; }
+      const hdrTask = createHdrImageEncodingTask({ image: { width, height, data }, inputColorSpace: "linear-rec2020-d65", transfer: colorEncoding === "rec2100-pq" ? "pq" : "hlg",
+        bitDepth: 16, signalRange: "full" }, { yieldControl });
+      await runTask(hdrTask);
+      const hdr = hdrTask.takeOutput();
+      developed = { raw: rawOutput.raw, integerSamples: hdr.codes!, highlight: linear.highlight, diagnostics: { renderingNegativeSampleCount: hdr.negativeClippedSampleCount,
+        renderingAboveReferenceSampleCount: 0, toneChangedSampleCount: 0, gamutClippedLowSampleCount: hdr.negativeClippedSampleCount, gamutClippedHighSampleCount: hdr.overRangeClippedSampleCount,
+        captureSaturation: "consumed-in-raw-development" } };
+      assume("output.colorEncoding.conversion", "model", { from: "linear-srgb-d65 (unclipped)", via: "CIE XYZ", to: "linear-rec2020-d65", encoder: "createHdrImageEncodingTask",
+        transfer: colorEncoding === "rec2100-pq" ? "pq" : "hlg", referenceWhite: colorEncoding === "rec2100-pq" ? "203 cd/m²" : "HLG signal 0.75", bitDepth: 16, signalRange: "full" },
+        "Linear developed colour converted through XYZ to BT.2020 primaries and encoded by createHdrImageEncodingTask (ITU-R BT.2100). Relative value 1.0 (the RAW white level) is placed at the ITU-R BT.2408 HDR reference white (" +
+        (colorEncoding === "rec2100-pq" ? "203 cd/m² in PQ" : "HLG signal 0.75") + "). A single capture holds no signal above its RAW white, so there is no highlight headroom above reference white; use createHdrBracketMergeTask for extended range. Negative BT.2020 components are clipped.");
+    }
+  }
   const devMs = Date.now() - devStarted, jpegStarted = Date.now();
   let jpeg: Uint8Array | undefined;
   if (format === "jpeg") {
@@ -746,10 +1111,16 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     assume("output.jpeg", "model", { encoder: "photivra-print-jpeg", iccProfile: "photivra-srgb" }, "Baseline JPEG from the existing print JPEG encoder with an embedded sRGB ICC profile; the source digest covers a sample prefix, length and scene digest.");
   }
   const jpegMs = Date.now() - jpegStarted;
+  let png: Uint8Array | undefined;
+  if (format === "png") {
+    png = serializePngImage({ width, height, bitDepth: pngBitDepth!, samples: developed.integerSamples, colourEncoding: pngColourEncoding(colorEncoding!) });
+    assume("output.png", "model", { encoder: "serializePngImage", bitDepth: pngBitDepth, colourEncoding: pngColourEncoding(colorEncoding!) },
+      "Deterministic PNG (8/16-bit RGB, in-house zlib) with the colour encoding signalled in the file: the sRGB chunk for sRGB, otherwise a cICP chunk with ITU-T H.273 primaries/transfer code points. No mastering-display (mDCV) or content-light-level (cLLI) metadata is written.");
+  }
 
   return Object.freeze({
     facadeVersion: SIMULATE_CAPTURE_FACADE_VERSION, engineApiVersion: ENGINE_API_VERSION,
-    image: { width, height, format, samples: developed.integerSamples, ...(jpeg ? { jpeg } : {}) },
+    image: { width, height, format, samples: developed.integerSamples, ...(jpeg ? { jpeg } : {}), ...(png ? { png, colorEncoding: colorEncoding! } : {}), ...(dng ? { dng: dng.bytes } : {}) },
     raw: developed.raw, plan,
     request: { environmentRaw: finalRawInput, siteInput, development, whiteBalanceState },
     exposure: { mode, settings: { fNumber, shutterSeconds, iso: resolvedIso }, ev100: Math.log2(fNumber ** 2 / shutterSeconds),
@@ -757,16 +1128,19 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     scene: { sceneId: chart ? "chart:" + chart.preset : callerScene!.sceneId, preset: scenePreset, parameters: chart ? chart.parameters : {},
       illuminant: { id: illuminant.id, description: illuminant.description, illuminanceLux }, distanceM: subjectDistanceM,
       framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect, sourceSha256 },
-    diagnostics: { providerEvaluationCount, highlight: developed.highlight, rendering: developed.diagnostics,
+    diagnostics: { providerEvaluationCount, highlight: developed.highlight, rendering: developed.diagnostics, ...(gamutMappingDiagnostics ? { gamutMapping: gamutMappingDiagnostics } : {}),
       timingsMs: { raw: rawMs, whiteBalance: wbMs, development: devMs, jpeg: jpegMs, total: Date.now() - started } },
     provenance: { scientificStatus: "approximation" as const, cameraPresetId: preset.presetId, cameraPresetVersion: preset.presetVersion,
       evidence: [...FACADE_EVIDENCE, ...preset.evidence],
       composedContracts: ["resolveGenericEquipmentExposureCapabilities", "meterRelativeExposure", "createExposureMeterTargetFromMeteringResult",
         "resolve" + (mode === "manual" ? "Manual" : mode === "aperture-priority" ? "AperturePriority" : mode === "shutter-priority" ? "ShutterPriority" : "ProgramAuto") + "ExposureMode",
+        ...(rollingSchedule ? ["resolveElectronicRollingShutterExposureSchedule", "createRollingShutterCaptureExposureSchedule"] : []),
         "resolveGenericIsoSignalChain", "createNativeEnvironmentRawTask", ...(needsAuto ? ["estimateAutoWhiteBalance", "createNativeEnvironmentSensorStageTask"] : []),
-        "createNativeRawDevelopmentTask", ...(jpeg ? ["createPrintJpegTask"] : [])],
+        ...(builtInDemosaic ? ["createBuiltInBayerDemosaicProfiles"] : []),
+        ...(linearPath ? ["native RAW development operator (linear, pre-clip)", "resolveRgbColorSpace", ...(perceptual ? ["prepareRgbGamutMapping"] : []), ...(colorEncoding === "rec2100-pq" || colorEncoding === "rec2100-hlg" ? ["createHdrImageEncodingTask"] : [])] : ["createNativeRawDevelopmentTask"]),
+        ...(jpeg ? ["createPrintJpegTask"] : []), ...(png ? ["serializePngImage"] : []), ...(dng ? ["resolveSensorReadoutRegime", "serializeNativeRawDng"] : [])],
       limitations: ["Educational approximation: synthetic tier sensor values, idealized colorimetric sensor, planar Lambertian scene and point optics; not a calibrated camera emulation.",
-        "Not available yet through the facade: lens PSF/diffraction, vignetting/distortion, motion blur, rolling shutter, DNG and PNG output."] },
+        "Not offered by the facade: atmospheric haze and polarizers (the scene-radiance provider contract declares no volumetric transport or polarization), flash, video, HDR brackets and processing operators; compose those APIs directly."] },
     assumptions: Object.freeze(assumptions.map((a) => Object.freeze(a)))
   });
 }
