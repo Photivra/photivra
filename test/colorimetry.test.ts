@@ -13,7 +13,6 @@ import {
   calculateCielchFromCielab,
   calculateColorDifference,
   calculateCorrelatedColorTemperature,
-  calculateDegreeOfAdaptation,
   calculatePlanckianChromaticity,
   calculatePlanckianSpectralRadiance,
   calculateXyzFromCielab,
@@ -40,6 +39,7 @@ import {
   type ColorimetricQuadratureNode,
   type PlanckianLocusModel
 } from "../src/index.js";
+import * as engine from "../src/index.js";
 
 const ANALYTIC: ColorMatchingFunctionsSource = { kind: "analytic-cie-1931-multi-lobe-fit" };
 /** CIE 15 summation convention: 1 nm nodes at 360…830 nm, Δλ = 1 nm. */
@@ -406,11 +406,13 @@ describe("chromatic adaptation", () => {
     expect(() => resolveChromaticAdaptationConeMatrix("cat02" as "cat16")).toThrow(/transform must be one of/);
     expect(() => calculateChromaticAdaptationMatrix({ transform: "bradford", sourceWhiteXyz: { x: 0, y: 1, z: 0 }, destinationWhiteXyz: d50 })).toThrow();
   });
-  it("computes the CIECAM02 degree of adaptation", () => {
-    expect(calculateDegreeOfAdaptation({ adaptingLuminanceCdPerSquareMeter: 0, surround: "average" }).value.degreeOfAdaptation).toBeCloseTo(1 - Math.exp(-42 / 92) / 3.6, 14);
-    expect(calculateDegreeOfAdaptation({ adaptingLuminanceCdPerSquareMeter: 1e4, surround: "dark" }).value.degreeOfAdaptation).toBeCloseTo(0.8, 10);
-    expect(calculateDegreeOfAdaptation({ adaptingLuminanceCdPerSquareMeter: 100, surround: "dim" }).value.degreeOfAdaptation).toBeCloseTo(0.9 * (1 - Math.exp(-142 / 92) / 3.6), 14);
-    expect(() => calculateDegreeOfAdaptation({ adaptingLuminanceCdPerSquareMeter: 100, surround: "bright" as "dim" })).toThrow();
+  it("rejects the von Kries-HPE transform and has no CIECAM02 degree-of-adaptation helper (not part of 2.0)", () => {
+    // No free source we could confirm prints the HPE matrix or the CIECAM02 D formula (owner decision, 2026-10-17).
+    expect(CHROMATIC_ADAPTATION_TRANSFORMS).toEqual(["bradford", "cat16", "xyz-scaling"]);
+    expect(() => calculateChromaticAdaptationMatrix({ transform: "von-kries-hpe" as "cat16", sourceWhiteXyz: d65, destinationWhiteXyz: d50 }))
+      .toThrow(/transform must be one of/);
+    expect(() => resolveChromaticAdaptationConeMatrix("von-kries-hpe" as "cat16")).toThrow(/transform must be one of/);
+    expect("calculateDegreeOfAdaptation" in engine).toBe(false);
   });
 });
 

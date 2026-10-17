@@ -40,23 +40,12 @@ export function calculateChromaticallyAdaptedXyz(input: CalculateChromaticAdapta
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
 
-## calculateDegreeOfAdaptation
-
-CIECAM02 degree of adaptation D = F[1 − (1/3.6) exp((−L_A − 42)/92)] (Moroney et al. 2002; also CIE 159:2004),
-clamped to [0, 1]. L_A is the adapting-field luminance in cd/m².
-
-```ts
-export function calculateDegreeOfAdaptation(input: { adaptingLuminanceCdPerSquareMeter: number; surround: ViewingSurround }): CalculationResult<{ degreeOfAdaptation: number }>;
-```
-
-This call is synchronous; any supplied provider must follow its explicit synchronous contract.
-
 ## CHROMATIC_ADAPTATION_TRANSFORMS
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
 
 ```ts
-CHROMATIC_ADAPTATION_TRANSFORMS: readonly ChromaticAdaptationTransform[] = Object.freeze(["bradford", "cat16", "von-kries-hpe", "xyz-scaling"])
+CHROMATIC_ADAPTATION_TRANSFORMS: readonly ChromaticAdaptationTransform[] = Object.freeze(["bradford", "cat16", "xyz-scaling"])
 ```
 
 ## ChromaticAdaptationMatrix
@@ -79,7 +68,7 @@ export interface ChromaticAdaptationMatrix {
 Supported linear chromatic-adaptation transforms.
 
 ```ts
-export type ChromaticAdaptationTransform = "bradford" | "cat16" | "von-kries-hpe" | "xyz-scaling";
+export type ChromaticAdaptationTransform = "bradford" | "cat16" | "xyz-scaling";
 ```
 
 ## resolveChromaticAdaptationConeMatrix
@@ -91,11 +80,3 @@ export function resolveChromaticAdaptationConeMatrix(transform: ChromaticAdaptat
 ```
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
-
-## ViewingSurround
-
-CIECAM02 surround factor F.
-
-```ts
-export type ViewingSurround = "average" | "dim" | "dark";
-```

@@ -431,12 +431,10 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`calculateChromaticAdaptationMatrix`](api/color-chromatic-adaptation.md#calculatechromaticadaptationmatrix) | Runtime |
 | [`CalculateChromaticAdaptationMatrixInput`](api/color-chromatic-adaptation.md#calculatechromaticadaptationmatrixinput) | Type |
 | [`calculateChromaticallyAdaptedXyz`](api/color-chromatic-adaptation.md#calculatechromaticallyadaptedxyz) | Runtime |
-| [`calculateDegreeOfAdaptation`](api/color-chromatic-adaptation.md#calculatedegreeofadaptation) | Runtime |
 | [`CHROMATIC_ADAPTATION_TRANSFORMS`](api/color-chromatic-adaptation.md#chromatic_adaptation_transforms) | Runtime |
 | [`ChromaticAdaptationMatrix`](api/color-chromatic-adaptation.md#chromaticadaptationmatrix) | Type |
 | [`ChromaticAdaptationTransform`](api/color-chromatic-adaptation.md#chromaticadaptationtransform) | Type |
 | [`resolveChromaticAdaptationConeMatrix`](api/color-chromatic-adaptation.md#resolvechromaticadaptationconematrix) | Runtime |
-| [`ViewingSurround`](api/color-chromatic-adaptation.md#viewingsurround) | Type |
 
 ## color/color-difference.ts
 

@@ -7293,7 +7293,7 @@ console.log(merged.raw.codes.length, merged.providerEvaluationCount);
 
 ## Optional WebGPU image kernels
 
-`createImageKernelAccelerator()` runs five heavy image operations: isoplanatic PSF convolution (one PSF per image patch), the temporal exposure sum, the sensor stage, native capture SDR, and packed RAW development.
+`createImageKernelAccelerator()` runs six heavy image operations: isoplanatic PSF convolution (one PSF per image patch), the temporal exposure sum, the sensor stage, native capture SDR, packed RAW development, and chart radiance.
 
 - By default they run on the float64 CPU reference.
 - If you opt in, they run on the `webgpu-f32` backend (WebGPU, 32-bit floats).

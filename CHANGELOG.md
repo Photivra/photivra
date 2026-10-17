@@ -9,7 +9,9 @@ A major release.
 What it contains:
 
 - the correctness fixes and bit-identical performance work of the first 2.0 review (#270–#288);
-- the 2.0 feature streams (#290–#304): sensor gain and fixed-pattern noise, colorimetry, RAW development fixes, optics, rolling shutter and flash, export formats, image processing, the `simulateCapture()` facade (a single simple entry point), and an opt-in WebGPU backend.
+- the 2.0 feature streams (#290–#304): sensor gain and fixed-pattern noise, colorimetry, RAW development fixes, optics, rolling shutter and flash, export formats, image processing, the `simulateCapture()` facade (a single simple entry point), and an opt-in WebGPU backend;
+- the completion work (#305–#323): the lean native RAW executor and further native RAW speed-ups, the `simulateCapture()` integration, the native RAW DNG writer, the agent guide, free-source citations, strict inputs everywhere, the licence cleanup, and the finished WebGPU backend;
+- the licence guard (#324) and the final pre-release review fixes (#325–#328 and this record's update).
 
 See [the 2.0.0 release record](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_2_0_0.md) for the science evidence and the compatibility table.
 
@@ -153,7 +155,7 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - *Migration:* handle 413, 422 and 500 as well as 400.
 - **Package contents (#293).**
   - The manifest has no `prepare` or other install scripts. Git installs need `npm ci && npm run build`; contributors run `npm run hooks:install`.
-  - No longer shipped: declaration maps; docs other than USAGE, API_REFERENCE, QUICK_START, `api/` and examples; and the unreachable `browser-native-reference-*` and `schema/{camera,scene}.js` modules.
+  - No longer shipped: declaration maps; docs other than USAGE, API_REFERENCE, QUICK_START, AGENT_GUIDE (#313), `llms.txt` (#313), `api/` and examples; and the unreachable `browser-native-reference-*` and `schema/{camera,scene}.js` modules.
   - *Migration:* read the other guides in the repository.
 
 **Colorimetry: third-party coefficients removed (owner decision, 2026-10-17)**
@@ -197,7 +199,7 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
 - **Colorimetry (#291).**
   - Analytic CIE 1931 colour-matching functions (the engine's own fit, labelled approximation) or caller-tabulated CMFs; `integrateSpectrumToXyz`.
   - Planck radiance, illuminant A, CIE daylight with caller-supplied basis spectra, the Planckian locus from Planck's law, McCamy CCT, and nearest-locus CCT/Duv with its inverse. (CCT = correlated colour temperature.)
-  - Chromatic adaptation: Bradford, CAT16, von Kries-HPE, XYZ scaling, degree of adaptation. CAT02 is not part of 2.0: no free source prints its matrix (owner decision, 2026-10-17). The `"cat02"` transform prepared for 2.0 never ships, in `calculateChromaticAdaptationMatrix` or in `calculateCaptureColorTransform`. CAT16 has a free source, IS&T CIC24 2016 Eq. (15).
+  - Chromatic adaptation: Bradford, CAT16 and XYZ scaling, with a caller-supplied degree of adaptation. CAT02, the von Kries Hunt–Pointer–Estévez transform and a CIECAM02 degree-of-adaptation helper are not part of 2.0: no free source we could confirm prints the CAT02 or HPE matrix or the CIECAM02 formula for D (owner decisions, 2026-10-17). The `"cat02"` and `"von-kries-hpe"` transforms and `calculateDegreeOfAdaptation` prepared for 2.0 never ship, in `calculateChromaticAdaptationMatrix` or in `calculateCaptureColorTransform`. CAT16 has a free source, IS&T CIC24 2016 Eq. (15).
   - CIELAB/LCh, and ΔE76, CIE94 and CIEDE2000.
   - `estimateCameraColorMatrix`.
   - RGB colour spaces (sRGB, Rec.709, Display P3, Rec.2020) and sRGB, BT.709 and BT.1886 transfers; gamut mapping. PQ and HLG (ITU-R BT.2100) are not shipped in 2.0 because their patent holders offer only licence-on-request declarations (owner decision, 2026-10-17; see the patent review in `THIRD_PARTY.md`). The PQ/HLG functions and constants prepared for 2.0 (`evaluatePqEotf`, `evaluatePqInverseEotf`, `PQ_CONSTANTS`, `evaluateHlgOetf`, `evaluateHlgInverseOetf`, `HLG_CONSTANTS`, `calculateHlgSystemGamma`, `prepareHlgReferenceDisplay`, `HlgReferenceDisplay`) never ship. `resolveRgbColorSpace("rec2020").sources` lists only ITU-R BT.2020-2.
