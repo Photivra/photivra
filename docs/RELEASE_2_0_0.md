@@ -12,13 +12,13 @@
 
 ## Candidate details
 
-**Candidate base:** `origin/main` at `09e4262` (#304), merged into the release branch.
+**Candidate base:** `origin/main` at `28f8b61` (#314), the last code change. This record update changes only `CHANGELOG.md` and this file.
 
 - `npm run release:prepare -- 2.0.0` had already aligned `package.json`, both lockfile root versions, `ENGINE_API_VERSION`, `CITATION.cff`, the current-release lines in `README.md` and `docs/DEVELOPERS.md`, and the generated `docs/api`.
 - After the merge, the API reference was regenerated.
 - No citation release date is stated before publication.
 
-**All streams merged:** the lean per-site executor (#305), the `simulateCapture()` integration of the 2.0 features (#306) and the native RAW DNG writer (#307) are merged and listed in the [changelog](https://github.com/Photivra/photivra/blob/main/CHANGELOG.md).
+**All streams merged:** the lean per-site executor (#305), the `simulateCapture()` integration of the 2.0 features (#306) and the native RAW DNG writer (#307) are merged, as are the AGENTS.md reset (#308), the plain-language pass (#309–#312), the agent docs (#313) and the free-source citations (#314). All are listed in the [changelog](https://github.com/Photivra/photivra/blob/main/CHANGELOG.md).
 
 ## Scope
 
@@ -51,6 +51,10 @@ Changes since `v1.5.0`, all merged to `main`. In the "Kind" column, *Breaking* m
 | [#305](https://github.com/Photivra/photivra/pull/305) | #275 | Lean per-site executor for native environment RAW | Performance (identical output) |
 | [#306](https://github.com/Photivra/photivra/pull/306) | — | `simulateCapture()` uses the 2.0 features | Additive |
 | [#307](https://github.com/Photivra/photivra/pull/307) | — | Native RAW DNG writer, perceptual gamut mapping, PSF throughput rounding fix | Additive, fix |
+| [#308](https://github.com/Photivra/photivra/pull/308) | — | `AGENTS.md` reset to a short standard file; retired agent rule files | Repository only |
+| [#309](https://github.com/Photivra/photivra/pull/309)–[#312](https://github.com/Photivra/photivra/pull/312) | — | Plain-language source comments and docs | Docs only (comment-stripped build identical) |
+| [#313](https://github.com/Photivra/photivra/pull/313) | — | `llms.txt`, agent guide and task index for AI agents | Docs, package contents |
+| [#314](https://github.com/Photivra/photivra/pull/314) | — | Free-source citations, runtime source strings, DC-004 facade exposure anchor, inventory fixes | Breaking (facade default illuminance), text |
 
 Commits #243–#267, between `v1.5.0` and the first review, are guidance, CI, documentation, hooks, `release:prepare` and repository-internal browser-native reference work. They change no public root contract. The full release notes, with a migration for each breaking change, are in the [changelog](../CHANGELOG.md).
 
@@ -387,7 +391,7 @@ Other contract changes:
 - widened unions (white-balance source, metering policy, readout synchronization, filter polarization, geometric transforms, blocker codes);
 - a smaller package, without `prepare`, declaration maps or internal guides.
 
-Root exports grow from 1,227 to 1,627 symbols. Comparing the generated `docs/api/exports.json` against `v1.5.0` shows none removed. New captures and plans record creator identity 2.0.0. Existing archives keep their identities, and fail closed where a bound identity changed.
+Root exports grow from 1,227 to 1,637 symbols. Comparing the generated `docs/api/exports.json` against `v1.5.0` shows none removed. New captures and plans record creator identity 2.0.0. Existing archives keep their identities, and fail closed where a bound identity changed.
 
 ## Known historical evidence not regenerated
 
@@ -421,29 +425,26 @@ Work that is known and deliberately left for later:
 
 ## Release gates
 
-The authoritative result is the **exact-head GitHub CI run on the release PR** (CI run on the exact final commit). It is to be recorded here once the in-flight streams merge and this record is final:
+The authoritative result is GitHub CI on the exact commit that is tagged. The last code change is `28f8b61` (#314); its push CI on `main` is recorded below. This record update changes only `CHANGELOG.md` and this file, and gets its own CI run on its PR and again on `main` after merge. Tag the `main` commit whose CI is green.
 
-| Gate | Exact-head result |
+| Gate | Result on `28f8b61` |
 | --- | --- |
-| Exact head SHA | *to be filled* |
-| GitHub CI (all jobs, all Node versions) | *to be filled with the run URL and result* |
-| `npm run check` (full vitest suite) | *to be filled from CI* |
-| `npm run coverage` (thresholds) | *to be filled from CI* |
-| `npm run build`, `pack:check`, `docs:check`, `release:consumer-check` | *to be filled from CI* |
-| Informational macOS hash-lock job | *to be filled from CI* |
+| Exact head SHA | `28f8b614af9d0aef59fd121f6ad02b0a77643d2a` |
+| GitHub CI (all jobs, all Node versions) | Passed: [CI run 793](https://github.com/Photivra/photivra/actions/runs/38996058927) and [Native performance run 66](https://github.com/Photivra/photivra/actions/runs/38996058972) |
+| `npm run check` (full vitest suite) | Passed on Node 22.13.0, lts/-1 and current (`verify` jobs) |
+| `npm run coverage` (thresholds) | Passed (`verify (lts/*)` coverage gate) |
+| `npm run build`, `pack:check`, `docs:check`, `release:consumer-check` | Passed (`verify` jobs: build, generated documentation, packed consumer acceptance, package dry run) |
+| Informational macOS hash-lock job | Passed |
 
-**Local results on this candidate** (merge of `09e4262`, Node 24.21.0, linux/x64). The host was memory-limited, so the full vitest suite and coverage were not run locally; CI must provide them.
+**Local results on this candidate** (`28f8b61` plus this record update, Node 24.21.0, linux/x64). The host was memory-limited, so the full vitest suite and coverage were not run locally; CI provides them.
 
 | Command | Result |
 | --- | --- |
-| `npm run check:static` | Passed: eslint, tsc, dependency licences (Apache-2.0 15, BlueOak-1.0.0 1, BSD-2-Clause 6, BSD-3-Clause 2, ISC 7, MIT 125, MPL-2.0 12), SPDX headers, identity, browser surface across 193 reachable modules. |
+| `npm run check:static` | Passed: eslint, tsc, dependency licences (Apache-2.0 15, BlueOak-1.0.0 1, BSD-2-Clause 6, BSD-3-Clause 2, ISC 7, MIT 125, MPL-2.0 12), SPDX headers, identity, browser surface across 195 reachable modules. |
 | `npm run build` | Passed (`tsc -p tsconfig.build.json`, from a clean `dist/`). |
-| `npm run pack:check` | Passed: 767 files, 2,403,767 bytes packed, 11,429,321 unpacked; root export plus `./package.json`; inline-source maps; no lifecycle scripts; local POC API excluded. |
-| `npm run docs:check` | Passed: API reference current (1,627 root symbols across 175 modules); 282 Markdown files, 3,080 repository and local links, 92 importing examples, 26 explicit fragments. |
-| `npm run release:consumer-check` | Passed: packed `@photivra/engine@2.0.0`; `require(esm)` and `lib: es2022`/DOM declaration consumers, 92 typed and running doc snippets, and the quick-start, simulate-capture and production/paired-export consumers. |
-| Focused vitest (`--maxWorkers=1`) | Passed: colorimetry, PNG encoder, ISO brightness and chart-scene tests (4 files, 42 tests), covering the modules whose comments changed in the citation audit. |
-
-A first `pack:check` run failed for two reasons: stale declaration maps left in a reused `dist/`, and a relative link from the packed `CHANGELOG.md` to the unpacked release record. The link now uses the repository URL, and the rebuild from a clean `dist/` passed.
+| `npm run pack:check` | Passed: 776 files, 2,557,468 bytes packed, 11,809,315 unpacked; root export plus `./package.json`; 193 reachable modules; inline-source maps; no lifecycle scripts; local POC API excluded. |
+| `npm run docs:check` | Passed: API reference current (1,637 root symbols across 176 modules); 280 Markdown files, 3,216 repository and local links, 103 importing examples, 26 explicit fragments. |
+| `npm run release:consumer-check` | Passed: packed `@photivra/engine@2.0.0`; `require(esm)` and `lib: es2022`/DOM declaration consumers, 103 typed and running doc snippets, and the quick-start, simulate-capture and production/paired-export consumers. |
 
 ## Remaining release checklist
 
@@ -451,7 +452,7 @@ A first `pack:check` run failed for two reasons: stale declaration maps left in 
 - [x] 2.0.0 changelog with breaking changes and migrations, additions, fixes, performance, tests and tooling.
 - [x] Generated API reference regenerated after the merge.
 - [x] Citation audit, with doc comments and docs updated to free sources.
-- [x] All streams merged (#305, #306, #307) and changelog entries written.
+- [x] All streams merged (#305–#314) and changelog entries written.
 - [ ] Owner decisions above.
 - [ ] Owner's substantive human review of the AI-assisted changes and of this record.
 - [ ] Green exact-head CI on the release PR, recorded above; then green CI on `main` after merge.

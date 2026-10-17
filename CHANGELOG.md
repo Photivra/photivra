@@ -4,7 +4,7 @@
 
 A major release.
 
-**In short.** 2.0.0 fixes correctness problems found in the first 2.0 review, makes several parts much faster without changing their output, and adds a large set of new features. Some of the fixes change numbers that 1.x produced, change stored identities (hashes and seeds), or reject input that 1.x accepted. Any of those can break existing users, so the version number goes from 1 to 2. Root exports grow from 1,227 to 1,627 symbols, and none is removed.
+**In short.** 2.0.0 fixes correctness problems found in the first 2.0 review, makes several parts much faster without changing their output, and adds a large set of new features. Some of the fixes change numbers that 1.x produced, change stored identities (hashes and seeds), or reject input that 1.x accepted. Any of those can break existing users, so the version number goes from 1 to 2. Root exports grow from 1,227 to 1,637 symbols, and none is removed.
 
 What it contains:
 
@@ -288,6 +288,9 @@ Unless marked otherwise, output is bit-identical to the code before the change, 
 - An informational, non-blocking macOS CI job runs the hash-lock tests (#299). `npm run test:webgpu` runs conformance on a real GPU (#304).
 - Benchmark scripts that import `dist/` fail when the build is missing or stale (#292).
 - `NUMERICAL_CORRECTNESS.md` documents the cross-engine determinism policy and the test hash locks; `API_STYLE.md` documents naming conventions (#293, #299).
+- Plain-language rewrite of the source comments and docs: shorter sentences, jargon defined at first use, internal ticket chatter removed. Comments and prose only; the comment-stripped build is identical (#309–#312).
+- For AI agents: `llms.txt` and `docs/AGENT_GUIDE.md` ship in the package, and the API reference opens with a task-to-function index that its generator checks against the root exports (#313).
+- `AGENTS.md` is reset to a short standard file with three rules: evidence-based changes, free-to-use sources only, and owner approval for anything that goes to production (#308, #313).
 
 ## 1.5.0 — published October 7, 2026
 
