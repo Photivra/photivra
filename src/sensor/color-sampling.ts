@@ -1,21 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses an exact color-sampling topology declaration without binding it to NativeImageRaster,
- * physical photodiodes, spectral response, or a manufacturer-specific family enum. Periodic mosaics
- * use an abstract native sensor color-sampling-site lattice with zero-based integer indices, top-left
- * origin, +X right and +Y down. The repeat phase is anchored to the sensor lattice, so later active
- * crops or orientation transforms must preserve the original native site indices. Layered layouts are
- * structural-only in this first contract because real layered sensors may use unequal spatial sampling
- * density/registration across layers. No per-site layered resolver is exposed until that relationship
- * is modeled explicitly.
- * Resolves the semantic measurement-channel assignment at one abstract native sensor
- * color-sampling-site index for monochrome or periodic-mosaic layouts. This API intentionally has no
- * NativeImageRaster input. A later explicit binding must establish how a selected capture mode's
- * effective raster maps to this color-sampling-site lattice before RAW/CFA sampling can be simulated.
- * Layered layouts fail closed because their per-layer spatial relationship is not resolved by the
- * first structural contract.
+ * Colour-sampling layout: which colour channel each sensor site measures. Examples are monochrome,
+ * a repeating mosaic such as a Bayer CFA (colour filter array), or a layered (stacked) sensor.
+ *
+ * Sites form an abstract grid with zero-based integer indices, origin at the top left, +X right and
+ * +Y down. A site is not necessarily one physical photodiode. The mosaic's repeat pattern is fixed to
+ * this grid, so later crops or orientation changes must keep the original native site indices.
+ * Layered layouts are described structurally only, because real layered sensors may sample each layer
+ * at different densities or offsets.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -41,8 +34,8 @@ export interface NativeColorSamplingSiteIndex {
   /**
    * Zero-based integer site index from the native sensor's left edge.
    *
-   * This is an abstract color-sampling-site lattice index. It is not a
-   * NativeImageRaster coordinate and does not assert one site = one physical
+   * It indexes the abstract grid of colour-sampling sites. It is not a
+   * NativeImageRaster coordinate and does not claim one site is one physical
    * photodiode.
    */
   x: number;
@@ -57,8 +50,8 @@ export interface NativeColorSamplingSiteIndex {
 export interface MonochromeColorSamplingLayout {
   kind: "monochrome";
   /**
-   * Semantic measurement-channel identifier only. It is not a spectral
-   * response curve, wavelength, colorimetric primary, or calibration.
+   * A name for the measured channel only. It is not a spectral response
+   * curve, wavelength, colour primary or calibration.
    */
   channelId: string;
 }
@@ -74,15 +67,15 @@ export interface PeriodicMosaicColorSamplingLayout {
    */
   repeatHeightSites: number;
   /**
-   * Row-major semantic channel IDs for one repeating tile.
+   * Channel IDs for one repeating tile, in row-major order.
    *
    * Length must equal repeatWidthSites × repeatHeightSites.
    */
   siteChannelIds: readonly string[];
   /**
-   * The repeat tile is anchored at native sensor sampling-site index (0, 0).
+   * The repeat tile starts at native sensor site (0, 0).
    *
-   * Active crops and physical orientation must not silently reset this phase.
+   * Active-area crops and camera orientation must not silently reset this phase.
    */
   anchor: "native-sensor-top-left-site";
 }
@@ -90,13 +83,13 @@ export interface PeriodicMosaicColorSamplingLayout {
 export interface LayeredColorSamplingLayout {
   kind: "layered";
   /**
-   * Semantic layer/channel identifiers only. They do not define spectral
-   * response, depth ordering, spatial sampling density, or registration.
+   * Names for the layers or channels only. They do not define spectral
+   * response, depth order, sampling density or alignment between layers.
    */
   layerChannelIds: readonly string[];
   /**
-   * The first layered representation is deliberately structural only because
-   * real layered sensors may use unequal per-layer spatial sampling.
+   * Layered layouts are described structurally only for now, because real
+   * layered sensors may sample each layer differently.
    */
   spatialSamplingRelationship: "not-resolved";
 }
@@ -110,9 +103,9 @@ export interface SensorColorSamplingProfile {
   schemaVersion: "0.1.0";
   profileId: string;
   /**
-   * Evidence supporting this exact topology declaration.
+   * Evidence for this exact layout.
    *
-   * Descriptive architecture-family metadata remains a separate contract.
+   * Descriptive sensor-architecture metadata is a separate type.
    */
   evidence: readonly EvidenceProvenance[];
   coordinateSystem: SensorColorSamplingProfileCoordinateSystem;
@@ -144,7 +137,7 @@ export interface ResolvedColorSamplingSite {
         repeatHeightSites: number;
       };
   /**
-   * Explicit scientific boundaries for downstream consumers.
+   * States what this profile does not establish, for downstream code.
    */
   spectralResponseEstablished: false;
   nativeImageRasterBindingEstablished: false;
@@ -369,19 +362,17 @@ function parseLayout(
 }
 
 /**
- * Parses an exact color-sampling topology declaration without binding it to
- * NativeImageRaster, physical photodiodes, spectral response, or a
- * manufacturer-specific family enum.
+ * Parses an exact colour-sampling layout. It is not tied to NativeImageRaster,
+ * physical photodiodes, spectral response or a manufacturer's layout name.
  *
- * Periodic mosaics use an abstract native sensor color-sampling-site lattice
- * with zero-based integer indices, top-left origin, +X right and +Y down.
- * The repeat phase is anchored to the sensor lattice, so later active crops or
- * orientation transforms must preserve the original native site indices.
+ * Repeating mosaics use an abstract grid of native sensor sites with zero-based
+ * integer indices, origin at the top left, +X right and +Y down. The repeat
+ * pattern is fixed to this grid, so later crops or orientation changes must keep
+ * the original native site indices.
  *
- * Layered layouts are structural-only in this first contract because real
- * layered sensors may use unequal spatial sampling density/registration across
- * layers. No per-site layered resolver is exposed until that relationship is
- * modeled explicitly.
+ * Layered layouts are described structurally only, because real layered sensors
+ * may sample each layer at different densities or offsets. There is no per-site
+ * lookup for layered layouts until that is modelled explicitly.
  */
 export function parseSensorColorSamplingProfile(
   value: unknown
@@ -449,15 +440,15 @@ function requireNativeSiteIndex(
 }
 
 /**
- * Resolves the semantic measurement-channel assignment at one abstract native
- * sensor color-sampling-site index for monochrome or periodic-mosaic layouts.
+ * Returns which channel one native site measures, for monochrome or repeating
+ * mosaic layouts.
  *
- * This API intentionally has no NativeImageRaster input. A later explicit
- * binding must establish how a selected capture mode's effective raster maps
- * to this color-sampling-site lattice before RAW/CFA sampling can be simulated.
+ * It deliberately takes no NativeImageRaster. A separate binding
+ * (capture-color-sampling-binding) must say how a capture mode's sample grid
+ * maps onto this site grid before RAW or CFA sampling can be simulated.
  *
- * Layered layouts fail closed because their per-layer spatial relationship is
- * not resolved by the first structural contract.
+ * Layered layouts are rejected, because how their layers line up spatially is
+ * not defined yet.
  */
 export function resolveColorSamplingSite(
   input: ResolveColorSamplingSiteInput

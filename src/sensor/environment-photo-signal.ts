@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Preflight all optical, spatial, spectral and temporal support into an internal owned execution plan
- * without invoking provider code. Planning checks complete spatial/spectral/temporal support before
- * invoking supplied synchronous radiance code. Queries use explicit environment directions, vacuum/air
- * wavelength and opening-reference seconds. Optical throughput, optional local PSF and typed EQE
- * produce photo expectations; callback invocation does not verify transport, visibility or
- * calibration.
- * Internal executor consumes a completed bounded geometric plan; returns no partial success on
- * failure.
+ * Photo signal for one sensor site from a scene-radiance provider (the "environment"): asks the
+ * provider for radiance along each sampled direction, then applies optics and the sensor response.
+ *
+ * Work is split into a plan and an execution step. Planning checks spatial, spectral and temporal
+ * coverage and builds an internal plan before any provider code runs. Each query gives an explicit
+ * scene direction, a wavelength (air or vacuum) and a time in seconds from the shutter's opening
+ * reference. Optical throughput, an optional local PSF (point-spread function) and the EQE (external
+ * quantum efficiency) response then give the expected photo signal. Calling the provider does not
+ * verify its light transport, visibility or calibration.
  * @see docs/ENVIRONMENT_RAW_CAPTURE.md for equations, coordinate/unit conventions, blockers and
  * support limits.
  */
@@ -40,7 +40,7 @@ import { createSensorEqeTemporalPhotoSignal } from "./temporal-photo-signal.js";
 import type { CalculateSensorEqeTemporalExposureInput } from "./eqe-temporal-exposure.js";
 import type { CalculateSceneToSensorIrradianceQuadratureInput } from "../optics/scene-to-sensor-quadrature.js";
 
-/** Supplied synchronous code executes locally. Invocation does not prove physical transport. */
+/** Caller-supplied synchronous radiance function, run locally. Calling it does not prove its light transport is physical. */
 export type EnvironmentRadianceEvaluator = (request: Readonly<SceneRadianceEvaluationRequest>) => SceneRadianceEvaluationResult;
 export type EnvironmentApertureRadianceEvaluator = (request: Readonly<SceneRadianceEvaluationRequest>, apertureRay: Readonly<SensorApertureRay>) => SceneRadianceEvaluationResult;
 export interface CalculateEnvironmentSensorPhotoSignalInput {
@@ -52,15 +52,16 @@ export interface CalculateEnvironmentSensorPhotoSignalInput {
   motion: Pick<CalculateSensorEnvironmentRadianceQueryInput,
     "angularVelocityRadPerSec" | "timeReference" | "environmentDirectionConvention">;
   temporalSampleCount: number;
-  /** Optional ideal geometric DOF/visibility support; cannot combine with a sampled PSF. */
+  /** Optional ideal circular pupil, for geometric depth of field (DOF) and visibility. Cannot be combined with a sampled PSF. */
   pupil?: IdealCircularPupil;
   /**
-   * Optional 2.0 lens field mapping (projection model and radial/Brown-Conrady distortion) for the
-   * scene-ray query; its distortion area factor is applied to irradiance exactly once. Omitted keeps
-   * the ideal rectilinear, distortion-free path unchanged. Not combinable with `pupil`.
+   * Optional lens field mapping (added in 2.0): a projection model and radial or Brown-Conrady
+   * distortion for the scene-ray query. Its distortion area factor is applied to irradiance exactly
+   * once. If omitted, the ideal rectilinear, distortion-free path is unchanged. Cannot be combined
+   * with `pupil`.
    */
   lensFieldMapping?: EnvironmentLensFieldMapping;
-  /** Explicit source-field attenuation, applied once before PSF redistribution. */
+  /** Explicit attenuation across the field (such as vignetting), applied once before the PSF spreads the light. */
   fieldThroughput: { kind: "unity"; evidence: readonly EvidenceProvenance[]; limitation: string } | {
     kind: "radial-illumination-vignetting"; profile: IlluminationVignettingProfile;
     evidence: readonly EvidenceProvenance[]; limitation: string;
@@ -70,7 +71,7 @@ export interface CalculateEnvironmentSensorPhotoSignalInput {
     configuration: Pick<CalculateSensorPsfIrradianceQuadratureInput, "psf" | "psfWavelengthBasis" | "spatialModel">;
   };
   evaluateRadiance: EnvironmentRadianceEvaluator;
-  /** Required with pupil; origin-aware scene intersections cannot use direction-only code. */
+  /** Required with `pupil`: rays start at different points on the aperture, so a direction-only function cannot be used. */
   evaluateApertureRadiance?: EnvironmentApertureRadianceEvaluator;
 }
 export interface EnvironmentSensorPhotoSignal {
@@ -103,7 +104,7 @@ export interface EnvironmentSensorPhotoSignal {
   }[];
 }
 
-/** Internal preflight is shared with the full-frame composer to bound all work before callbacks. */
+/** Internal plan, shared with the full-frame composer, so all work is bounded before any callback runs. */
 interface EnvironmentPhotoPlan {
   owned: Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance" | "evaluateApertureRadiance">;
   sceneBindings: CalculateSceneToSensorIrradianceQuadratureInput["sceneBindings"];
@@ -119,29 +120,29 @@ interface EnvironmentPhotoPlan {
       request: SceneRadianceEvaluationRequest;
       /** The planned query's image-plane source point (the same object as query.value.sourcePointImagePlaneMm). */
       sourcePointImagePlaneMm: { x: number; y: number };
-      /** The complete query envelope; retained only by "full" plans, whose per-evaluation records embed it. */
+      /** The complete query result. Kept only by "full" plans, whose per-evaluation records include it. */
       query?: ReturnType<typeof calculateSensorEnvironmentRadianceQuery>;
       apertureRays?: readonly SensorApertureRay[];
-      /** 1 / det(d distorted / d ideal); present only with a lens field mapping. */
+      /** 1 / det(d distorted / d ideal), the change in area from distortion. Present only with a lens field mapping. */
       distortionAreaFactor?: number;
       fieldThroughput: CalculateSceneRadianceToSensorIrradianceInput["fieldThroughput"] }[];
   }[] }[];
 }
 /**
- * Preflight all optical, spatial, spectral and temporal support into an internal owned execution plan
- * without invoking provider code.
+ * Builds an internal execution plan covering all optical, spatial, spectral and temporal sampling,
+ * without calling any provider code.
  *
- * Planning checks complete spatial/spectral/temporal support before invoking supplied synchronous
- * radiance code. Queries use explicit environment directions, vacuum/air wavelength and
- * opening-reference seconds. Optical throughput, optional local PSF and typed EQE produce photo
- * expectations; callback invocation does not verify transport, visibility or calibration.
- * @param input - Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance" | "evaluateApertureRadiance">. See the linked contract for coordinate, unit and profile binding semantics.
- * @param ownership - Internal. "copy" (default) structured-clones input. "engine-owned" adopts input as the plan's
- * owned data without a second clone; only engine callers that already hold a private structured clone, never
- * exposed to supplied code or mutated afterwards, may pass it.
- * @param retention - Internal. "full" (default) keeps every planned query envelope for "full" execution records.
- * "photo-only" keeps only each query's frozen request and image-plane point, the parts photo-only execution
- * reads; every query is still computed and validated at plan time, so admission and errors are unchanged.
+ * Coverage is checked completely before any supplied radiance function runs. Each query gives an
+ * explicit scene direction, a wavelength (air or vacuum) and seconds from the opening reference.
+ * @param input - The photo-signal input without its radiance functions; see
+ *   `CalculateEnvironmentSensorPhotoSignalInput`.
+ * @param ownership - Internal. "copy" (default) makes a structured clone of the input. "engine-owned"
+ * uses the input as the plan's own data without cloning again. Only engine callers that already hold a
+ * private structured clone, never shown to supplied code and never changed afterwards, may pass it.
+ * @param retention - Internal. "full" (default) keeps every planned query result for "full" execution
+ * records. "photo-only" keeps only each query's frozen request and image-plane point, which is all that
+ * photo-only execution reads. Every query is still computed and validated at plan time, so limit checks
+ * and errors are unchanged.
  * @returns The result. Success does not imply calibration.
  *
  * @see docs/API_REFERENCE.md for the root export and exact type graph.
@@ -190,7 +191,7 @@ export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmen
   } else if (owned.psf.kind !== "sampled-local") throw new InvalidScientificInputError("Unknown environment PSF selection.");
   if (owned.psf.kind === "sampled-local") {
     const p = owned.psf.configuration.psf;
-    // The owned profile is private to this plan, so its parse can be cached across nodes and instants.
+    // The profile belongs only to this plan, so its parse can be cached across nodes and time instants.
     markEngineOwnedLensSampledPsfProfile(p.profile);
     if (p.focalLengthMm !== owned.optics.focalLengthMm || p.apertureFNumber !== owned.optics.nominalFNumber ||
       p.focus.kind !== focus.kind || (p.focus.kind === "finite" && focus.kind === "finite" && p.focus.distanceM !== focus.distanceM)) {
@@ -244,7 +245,7 @@ export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmen
       const query = freezePlannedRequest(lensMapping === undefined ? calculateSensorEnvironmentRadianceQuery(queryInput)
         : calculateMappedSensorEnvironmentRadianceQuery(queryInput, lensMapping));
       const areaFactor = query.value.lensFieldMapping?.distortionAreaFactor;
-      // Photo-only plans drop the query envelope (projection result, diagnostics) once validated (2.0 retention).
+      // Photo-only plans drop the query result (projection, diagnostics) once it is validated (a 2.0 memory saving).
       return { ...p, ...(apertureRays === undefined ? {} : { apertureRays }),
         ...(areaFactor === undefined ? {} : { distortionAreaFactor: areaFactor }), request: query.value.request,
         sourcePointImagePlaneMm: query.value.sourcePointImagePlaneMm, ...(retention === "full" ? { query } : {}) };
@@ -267,9 +268,10 @@ function freezePlannedRequest<T extends { value: { request: object } }>(query: T
 }
 
 /**
- * Internal executor consumes a completed bounded geometric plan; returns no partial success on failure.
- * retention "full" (default) keeps every per-evaluation record in value.instants[].evaluations; "photo-only"
- * leaves those lists empty for engine callers that consume only value.photo. Photo values are identical.
+ * Internal: runs a completed, bounded plan. On failure nothing partial is returned.
+ * With retention "full" (default), every per-evaluation record is kept in value.instants[].evaluations.
+ * With "photo-only", those lists are empty, for engine callers that read only value.photo. Photo values
+ * are identical either way.
  */
 export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof planEnvironmentSensorPhotoSignal>, evaluate: EnvironmentRadianceEvaluator, evaluateAperture?: EnvironmentApertureRadianceEvaluator,
   retention: "full" | "photo-only" = "full"): CalculationResult<EnvironmentSensorPhotoSignal> {
@@ -304,7 +306,7 @@ export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof plan
         integratedIrradiance += optics.value.sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer*(ray?.weight ?? 1);
       }
       if (tap.distortionAreaFactor !== undefined) {
-        // Distortion compresses or spreads the ideal image; flux is conserved, so irradiance scales by 1/det once.
+        // Distortion squeezes or stretches the ideal image. Flux is conserved, so irradiance scales by 1/det, once.
         integratedIrradiance *= tap.distortionAreaFactor;
       }
       return { kernelSampleX: tap.kernelSampleX, kernelSampleY: tap.kernelSampleY, sourcePointNativeSensorMm: tap.point,
@@ -337,7 +339,7 @@ export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof plan
   ]);
 }
 
-/** Generate, evaluate and integrate one site's actual local midpoint environment support. */
+/** Plans, queries the provider and integrates the photo signal for one site, at the site's own midpoint sample positions. */
 export function calculateEnvironmentSensorPhotoSignal(input: CalculateEnvironmentSensorPhotoSignalInput): CalculationResult<EnvironmentSensorPhotoSignal> {
   requireInputObject(input, "calculateEnvironmentSensorPhotoSignal input");
   const { evaluateRadiance, evaluateApertureRadiance, ...data } = input;
