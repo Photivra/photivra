@@ -3,7 +3,7 @@
 Photivra (/foʊˈtɪvɹə/) is `@photivra/engine`: an Apache-2.0 TypeScript library for camera
 optics, exposure, sensor, RAW and image-formation science. It runs in browsers and Node.
 
-## Two rules that always apply
+## Rules that always apply
 
 1. **Evidence-based.** Every change and every recommendation must be backed by evidence:
    a cited, reputable source for any scientific model or equation, and a test, measurement
@@ -17,6 +17,10 @@ optics, exposure, sensor, RAW and image-formation science. It runs in browsers a
    licence fees. Do not depend on paywalled sources, paid services, restricted datasets
    or encumbered algorithms. Record any third-party material and its licence in
    `THIRD_PARTY.md`.
+3. **The owner approves anything that goes to production.** Get the owner's explicit approval
+   before any action that reaches production: a release, a release tag (a tag publishes to npm),
+   package publication, or production data, infrastructure or DNS. Ask for each such action
+   separately; an earlier approval does not carry over. Everything else needs no approval.
 
 ## Setup and commands
 
@@ -45,6 +49,5 @@ Run the relevant tests while working and the full set above before merging.
 
 - Work on a branch and open a pull request; merge when CI is green.
 - Sign off commits (`git commit -s`, DCO).
-- Releasing, tagging (a tag publishes to npm) or anything else that reaches production
-  needs the owner's go-ahead. Everything else does not.
+- Releasing, tagging or publishing follows rule 3: the owner approves it first.
 - Never commit secrets or credentials.
