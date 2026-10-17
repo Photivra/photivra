@@ -3,6 +3,8 @@
 Status: **frozen robust-geometry and precision-fallback contract for Photivra
 engine issue #233**.
 
+**In plain terms.** For each ray traced from the lens, the browser-based capture (#224) must know which surface it hits first. A faster, lower-precision implementation might get that wrong when two surfaces are very close or a ray grazes an edge. This page says how to detect those ambiguous cases, and requires the implementation to fall back to the exact float64 reference, or to reject the capture as unsupported, instead of guessing. Terms such as "fail closed" are defined in the [qualification envelope](BROWSER_NATIVE_CAPTURE_ENVELOPE.md).
+
 This document defines the geometry-correctness boundary for the browser-first
 dense-pupil native-capture work tracked by #224.
 

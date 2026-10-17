@@ -2,6 +2,8 @@
 
 Status: **final reconciled #233 implementation handoff to #234**.
 
+**In plain terms.** Six contracts (listed below) set the rules for the browser-based, full-resolution capture work (#224). This page checks that those rules agree with each other, and turns them into one concrete target for the first implementation: a compact, float64 reference executor (issue #234) that follows the approved calculation exactly ("Path A", defined in the [qualification envelope](BROWSER_NATIVE_CAPTURE_ENVELOPE.md)).
+
 This document is the canonical implementation handoff produced after the merged
 #233 governing work for the browser-first dense-pupil native-capture qualification
 tracked by #224.

@@ -1,48 +1,142 @@
 # Regional Print detail diagnostic — model specification 0.1.0
 
-This is the bounded mathematical first slice of #196, using the [Print geometry contract published in 1.1.0](PRINT_PLANNING.md). This diagnostic is not full #196 acceptance, a natural-image sharpness evaluator, a visibility threshold or an overall print pass. The [validation protocol](PRINT_DETAIL_VALIDATION.md) and [capability ledger](validation/print-196-candidate-capabilities.json) identify what is tested and what remains blocked. The additive [regional statistics protocols](PRINT_REGION_STATISTICS.md) separately measure processing differences and repeat-capture sample variance; they do not change this diagnostic's qualification or exclusions.
+This diagnostic measures how much contrast of a known test pattern survives in one region of an image. It is the first, strictly mathematical part of the Print detail work (issue #196). It uses the [Print geometry contract published in 1.1.0](PRINT_PLANNING.md).
+
+It is **not**:
+
+- full acceptance of issue #196;
+- a sharpness evaluator for natural images;
+- a visibility threshold;
+- an overall print pass.
+
+Related documents:
+
+- The [validation protocol](PRINT_DETAIL_VALIDATION.md) and [capability ledger](validation/print-196-candidate-capabilities.json) say what is tested and what is still blocked.
+- The [regional statistics protocols](PRINT_REGION_STATISTICS.md) separately measure differences caused by processing, and sample variance across repeat captures. They do not change this diagnostic's status or exclusions.
 
 ## Supported model and domain
 
-Measure one declared coherent sinusoidal fundamental in one explicitly selected rectangular region of a scalar **relative linear luminance** raster. The target declares integral signed cycle counts `(kx,ky)` across region dimensions `(W,H)` and positive reference modulation at most one. Pixel index `(0,0)` is the first region sample center. The target phase is arbitrary. At least one cycle count must be nonzero and both component frequencies must lie strictly inside the per-axis Nyquist interval. DC and self-conjugate/Nyquist bins are unsupported; two equal samples at Nyquist cannot establish phase-independent fundamental amplitude.
+**What is measured.** One declared, coherent sine-wave fundamental, in one explicitly selected rectangular region of a scalar raster in **relative linear luminance**.
 
-The caller supplies a dense row-major sample array for that region, at most 65,536 finite values. Signed values are retained; capture noise and processing can produce negatives. Successful parsing does not establish that a photograph actually depicts the declared target or that an acquisition is qualified. A positive numerically supported DC mean is required for relative modulation. Arbitrary photographs, nonperiodic windows, automatic target detection, gamma-encoded luma, unknown luminance extraction, correction/warp registration and mixed/nonuniform target frequencies are outside this first model.
+**The target.**
+
+- It declares whole-number signed cycle counts `(kx,ky)` across the region dimensions `(W,H)`, and a positive reference modulation of at most one.
+- Pixel index `(0,0)` is the centre of the region's first sample. The target's phase can be anything.
+- At least one cycle count must be nonzero, and both frequency components must be strictly inside the Nyquist limit for their axis.
+- DC and self-conjugate (Nyquist) frequency bins are unsupported. Two equal samples at Nyquist cannot establish the fundamental's amplitude independently of phase.
+
+**The samples.**
+
+- The caller supplies a dense row-major array for the region, of at most 65,536 finite values.
+- Signed values are kept, because capture noise and processing can produce negatives.
+- A positive DC mean that can be represented numerically is required to compute relative modulation.
+- Successful parsing does not prove that a photograph actually shows the declared target, or that the acquisition is valid.
+
+**Out of scope for this first model:** arbitrary photographs, non-periodic windows, automatic target detection, gamma-encoded luma, unknown luminance extraction, registration through correction or warping, and mixed or non-uniform target frequencies.
 
 ## Mathematical quantity
 
-Let `phi(x,y) = 2 pi (kx x/W + ky y/H)`, `m = mean(samples)`, `a = 2 mean(samples cos(phi))` and `b = 2 mean(samples sin(phi))`. Then fundamental amplitude is `sqrt(a²+b²)`, fundamental modulation is amplitude divided by positive `m`, and the reported transfer of the **declared input grating** is modulation divided by reference modulation. Values above one remain above one; they do not establish quality uplift or a qualified MTF. A single frequency does not determine a full response, MTF50, PSF, effective megapixels, perceived sharpness or resolution limit. No defocus/diffraction/motion equation or blur-diameter conversion is added.
+**Definitions.**
 
-Return the residual RMS after the fitted mean/fundamental, relative to DC. It is unexplained residual energy, not a noise variance, halo classifier, compression measure or model-accuracy bound. Realization noise can project into the fundamental and bias amplitude. No ensemble estimate, confidence or combined uncertainty is fabricated.
+- `phi(x,y) = 2 pi (kx x/W + ky y/H)`
+- `m = mean(samples)`
+- `a = 2 mean(samples cos(phi))`
+- `b = 2 mean(samples sin(phi))`
 
-Normalize samples by their maximum absolute magnitude before coefficient accumulation, and use compensated summation that retains corrections when large signed terms cancel. Reject any nonzero sample that underflows to zero during normalization. Accumulate the residual norm with stable hypot operations rather than squaring tiny/large residuals directly. Reduce phase modulo one cycle before trigonometry. Restore units only for mean/amplitude. Nonpositive DC, nonfinite/underflowed restored quantities or nonfinite derived ratios produce an unsupported numeric/domain state; do not clamp tiny nonzero energy into identity or loosen tolerances to manufacture a pass. Transcendental conformance tolerances belong to the independent protocol, not to a quality decision.
+**Results.**
+
+- Fundamental amplitude is `sqrt(a²+b²)`.
+- Fundamental modulation is the amplitude divided by the (positive) mean `m`.
+- The reported transfer **of the declared input grating** is that modulation divided by the reference modulation.
+
+Values above one stay above one. They do not mean quality has improved, and they are not a validated MTF (modulation transfer function). One frequency does not determine a full response, MTF50, PSF, effective megapixels, perceived sharpness or a resolution limit. No defocus, diffraction or motion equation, and no conversion to blur diameter, is added.
+
+**Residual.** The diagnostic also returns the RMS of what is left after fitting the mean and the fundamental, relative to DC. This is unexplained residual energy. It is not a noise variance, a halo classifier, a compression measure or a bound on model accuracy. Noise in one realisation can leak into the fundamental and bias the amplitude. No ensemble estimate, confidence value or combined uncertainty is made up.
+
+**Numerical care.**
+
+- Samples are normalised by their largest absolute value before the coefficients are accumulated.
+- Compensated summation keeps corrections when large signed terms cancel.
+- Any nonzero sample that underflows to zero during normalisation is rejected.
+- The residual norm is accumulated with stable hypot operations, rather than squaring very small or very large residuals directly.
+- Phase is reduced modulo one cycle before trigonometric functions are applied.
+- Units are restored only for the mean and amplitude.
+
+A non-positive DC, non-finite or underflowed restored quantities, or non-finite derived ratios give an unsupported numeric or domain state. Tiny nonzero energy is never clamped to an identity result, and tolerances are never loosened to manufacture a pass. Tolerances for transcendental functions belong to the independent test protocol, not to any quality decision.
 
 ## Region, stage and identity
 
-The input records an assessment ID, immutable capture ID, exact representation ID and declared SHA-256, actual raster, source stage, processing/decoder ID and version, optional noise-realization ID, reusable sample provenance, region ID/rectangle/role, declared subject/focus distances (or explicit null), and target identity/version. SHA-256 and provenance are caller declarations; the engine neither fetches the artifact nor verifies full-file decoding from an ROI array. Retain this distinction in downstream evidence. The returned frozen owned input includes the exact ROI samples. New region, content, processing, target or print/viewing conditions require a new assessment ID; labels alone do not prove equality.
+**What the input records.**
 
-Coordinates are oriented retained-image raster coordinates, top-left, +X right, +Y down. Source stages are native-retained linear, post-resampling linear, and post-encoding decoded linear. Native stage must match the authoritative retained native dimensions from existing capture geometry. Later stages must preserve that exact aspect ratio and must not enlarge either native axis. The first registration is oriented retained, unwarped; correction/warp requires an independently supported coordinate registration. Existing geometry maps ROI center to the optical image plane (+Y up), preserving off-center capture/crop and all four orientations. Field position is descriptive and does not create a field-dependent optical model. Only the explicitly selected region is measured; an intentionally defocused background is never aggregated into a frame verdict.
+- an assessment ID;
+- the immutable capture ID;
+- the exact representation ID and its declared SHA-256;
+- the actual raster;
+- the source stage;
+- the processing or decoder ID and version;
+- an optional noise-realisation ID;
+- provenance of the reusable samples;
+- the region's ID, rectangle and role;
+- declared subject and focus distances (or an explicit null);
+- the target's identity and version.
 
-Printed dimensions/viewing distance come from `calculatePrintPlan()`; no consumer equation is introduced. The regional fundamental vector converts to cycles/mm using ROI's physical span within the declared represented image. Report its physical period and the exact angular period **at the normal viewing reference at image center**: `2 atan(period/(2 distance))`. This is a reference-period angle, not a spatially uniform cycles/degree grid, an off-center retinal calculation or perceptual threshold. Retain field and ROI location separately. Changing viewing conditions changes angular projection, not measured captured samples/modulation.
+SHA-256 and provenance are declarations by the caller. The engine does not fetch the artifact, and does not check that a whole-file decode matches the region array. Keep this distinction in downstream evidence.
 
-A result also states whether the assessed actual raster equals the current recommendation. A pre-encoding diagnostic never certifies JPEG compression. A post-encoding declared source records the exact artifact/decoder identity but still does not qualify compression, decoding, color or overall quality. Actual delivery remains independent of native sufficiency.
+The returned frozen copy of the input includes the exact region samples. A new region, content, processing, target, or print and viewing conditions need a new assessment ID; matching labels alone do not prove the inputs are equal.
+
+**Coordinates and stages.**
+
+- Coordinates are in the oriented retained-image raster: top left, +X right, +Y down.
+- Source stages are: native-retained linear, post-resampling linear, and post-encoding decoded linear.
+- The native stage must match the authoritative retained native dimensions from the existing capture geometry.
+- Later stages must keep exactly that aspect ratio, and must not enlarge either native axis.
+- The first registration is oriented, retained and unwarped. Correction or warping needs an independently supported coordinate registration.
+
+**Field position.** The existing geometry maps the region centre to the optical image plane (+Y up), keeping off-centre capture and crop and all four orientations. Field position is descriptive only; it does not create a field-dependent optical model. Only the explicitly selected region is measured. An intentionally out-of-focus background is never folded into a whole-frame verdict.
+
+**Print size and viewing.** Printed dimensions and viewing distance come from `calculatePrintPlan()`; no new consumer equation is added.
+
+- The region's fundamental frequency vector is converted to cycles/mm, using the region's physical span within the declared represented image.
+- The diagnostic reports its physical period, and the exact angular period **at the normal viewing reference at the image centre**: `2 atan(period/(2 distance))`.
+- This is the angle of a reference period. It is not an evenly spaced cycles-per-degree grid, an off-centre retinal calculation or a perceptual threshold.
+- Field position and region location are kept separately.
+- Changing viewing conditions changes the angular projection. It does not change the measured samples or modulation.
+
+**Raster and encoding.** A result also says whether the assessed raster equals the current recommendation.
+
+- A diagnostic before encoding never certifies JPEG compression.
+- A declared post-encoding source records the exact artifact and decoder identity, but still does not validate compression, decoding, colour or overall quality.
+- Actual delivery stays independent of native sufficiency.
 
 ## Assurance and explicit exclusions
 
-Use existing calculation envelopes, finite-number validation, strict allowlists, public-ID grammar, shared owned-data freezing, evidence provenance and composed scientific assurance. Mathematical coefficients are calculated. Acquisition/registration/target truth remain scientifically unknown in this contract; evidence metadata never promotes them to calibration. Result capabilities for captured MTF, optical attribution, visibility/perceived quality, noise, aliasing, halos, compression and color remain unassessed. No automatic print pass is exposed.
+The diagnostic reuses existing building blocks: calculation records, finite-number validation, strict allow-lists, the public-ID grammar, shared freezing of owned data, evidence provenance and composed scientific assurance.
 
-Malformed structural/numeric data throw typed existing errors. Well-formed incompatible identities, aspect, stage or registration return blockers; unsupported frequency/domain/numeric cases return explicit unsupported status. Missing authoritative native geometry remains a blocker. Provider shortfalls and sampling shortfalls do not disappear when a regional contrast coefficient exists.
+- The mathematical coefficients are `calculated`.
+- Whether the acquisition, registration and target are true stays scientifically unknown in this contract. Evidence metadata never promotes them to calibration.
+- These result capabilities stay unassessed: captured MTF, attribution to optics, visibility and perceived quality, noise, aliasing, halos, compression and colour.
+- No automatic print pass is offered.
+
+**Errors.**
+
+- Malformed structure or numbers throw the existing typed errors.
+- Well-formed but incompatible identities, aspect ratio, stage or registration return blockers.
+- Unsupported frequency, domain or numeric cases return an explicit unsupported status.
+- Missing authoritative native geometry stays a blocker.
+- Provider shortfalls and sampling shortfalls do not go away just because a regional contrast coefficient exists.
 
 ## References and reuse review
 
-- [Boone, Yu and Seibert (1996), sinusoidal modulation measurement](https://pubmed.ncbi.nlm.nih.gov/8994160/), DOI 10.1118/1.597840: primary research motivating explicit sinusoidal input, processing and sampling context. No commercial target, numeric table, PIRT code or procedure is copied or implemented.
-- [Campbell and Robson (1968), grating visibility](https://physoc.onlinelibrary.wiley.com/doi/10.1113/jphysiol.1968.sp008574): primary research motivating the separation of a Fourier coefficient from a qualified perceptual model. No observer thresholds/curves/data are incorporated.
-- The issue's Imatest sharpness guide is background terminology only. No proprietary algorithm, chart or source expression is used. [Westheimer (1977), acuity and hyperacuity](https://pubmed.ncbi.nlm.nih.gov/839301/), DOI 10.1364/josa.67.000207, distinguishes resolution and localization tasks; it supplies no universal print visibility threshold. No psychophysical thresholds or observer data are incorporated.
+- [Boone, Yu and Seibert (1996), sinusoidal modulation measurement](https://pubmed.ncbi.nlm.nih.gov/8994160/), DOI 10.1118/1.597840: primary research motivating an explicit sinusoidal input, with its processing and sampling context. No commercial target, numeric table, PIRT code or procedure is copied or implemented.
+- [Campbell and Robson (1968), grating visibility](https://physoc.onlinelibrary.wiley.com/doi/10.1113/jphysiol.1968.sp008574): primary research motivating keeping a Fourier coefficient separate from a validated perceptual model. No observer thresholds, curves or data are included.
+- The Imatest sharpness guide cited in the issue is background terminology only. No proprietary algorithm, chart or source text is used.
+- [Westheimer (1977), acuity and hyperacuity](https://pubmed.ncbi.nlm.nih.gov/839301/), DOI 10.1364/josa.67.000207, distinguishes resolution tasks from localisation tasks. It provides no universal print visibility threshold. No psychophysical thresholds or observer data are included.
 
-All specification, code and analytic targets/reference calculations are independently authored. Mathematical identities and self-owned procedural targets are the numeric evidence; public references are factual-reference-only. Actual supplied sample arrays require Photivra ownership or declared reusable-data licensing. No third-party numeric material, private assets or runtime dependencies are incorporated. Human scientific/source, licensing and DCO review remains required; AI declarations alone do not certify provenance or patent clearance.
+All the specification, code, analytic targets and reference calculations were written independently. The numeric evidence is mathematical identities and procedural targets owned by Photivra; public references are used as factual references only. Real supplied sample arrays must be Photivra-owned or carry a declared reusable-data licence. No third-party numeric material, private assets or runtime dependencies are included. Human review of science, sources, licensing and DCO is still required. AI declarations alone do not certify provenance or patent clearance.
 
 ## Complete packed mathematical example
 
-This self-owned procedural target validates the coefficient path; it is not acquired-image or renderer evidence.
+This procedural target, owned by Photivra, checks the coefficient calculation. It is not evidence from an acquired image or a renderer.
 
 ```ts
 import { calculatePrintRegionDetail, type PrintRegionDetailInput } from "@photivra/engine";
@@ -78,4 +172,4 @@ if (assessment.assurance.scientificStatus !== "unknown" || assessment.overallPri
 console.log(assessment.measurement, assessment.unassessed);
 ```
 
-The repeated `a` hash is an explicit placeholder declaration, not a verified digest. Real acquired evidence must replace it with a verified exact representation hash and qualify the target/ROI, processing and active backend independently.
+The repeated `a` hash is an explicit placeholder, not a verified digest. Real acquired evidence must replace it with a verified hash of the exact representation, and must validate the target, region, processing and active backend independently.

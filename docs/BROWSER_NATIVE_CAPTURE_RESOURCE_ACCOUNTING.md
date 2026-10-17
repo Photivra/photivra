@@ -2,6 +2,8 @@
 
 Status: **frozen resource/accounting contract for Photivra engine issue #233**.
 
+**In plain terms.** The browser-based capture (#224) does a very large amount of work per photo. This page defines how that work is counted: the work the approved calculation logically requires, the work actually executed, memory, and what happens on failure or cancellation. Its purpose is to stop an optimisation from hiding work, or from getting around the existing limits, for example by splitting one capture into several smaller "events". Terms such as Path A are defined in the [qualification envelope](BROWSER_NATIVE_CAPTURE_ENVELOPE.md).
+
 This document defines the resource-accounting boundary for the browser-first
 dense-pupil native-capture work tracked by #224.
 

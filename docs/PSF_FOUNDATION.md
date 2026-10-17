@@ -1,202 +1,276 @@
 # PSF and Pupil Foundation
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+> **Release context.** This page was written for package 1.2.0 (root API 1.2.0) and has not been re-reviewed for later releases. The [changelog](../CHANGELOG.md) describes the current release. Model and subsystem version numbers on this page, and any dated records, are separate from the package version. See also the [developer guide](DEVELOPERS.md) and the [1.2.0 release contract](RELEASE_1_2_0.md).
 
-Photivra has two complementary PSF layers.
+A PSF (point-spread function) is the image a lens makes of a single point of light. Photivra has two PSF layers that work together:
 
-The legacy foundation keeps the ideal **geometric defocus-circle** and **circular Airy first-zero** diagnostics separately named and independently testable. The #113 real-lens framework adds explicitly profiled or pupil-derived **combined primary-optical PSFs** without converting those older diagnostics into a synthetic blur score.
+- **Legacy diagnostics.** These keep two ideal measures separate, named and independently testable: the **geometric defocus circle** and the **circular Airy first-zero diameter**.
+- **Real-lens framework** (introduced in issue #113). This adds **combined PSFs of the main optics**, either from an explicit profile or derived from the pupil. It never turns the older diagnostics into a synthetic blur score.
 
 ## Legacy diagnostics
 
-Use `getPsfFoundationContract()` and `calculatePsfFoundationComponents()` for the established diagnostics and common field/depth/wavelength/pupil context.
+Use `getPsfFoundationContract()` and `calculatePsfFoundationComponents()` for the established diagnostics. They share one context for field position, depth, wavelength and pupil.
 
 The foundation contract is version `0.3.0`.
 
-Implemented diagnostic contributions:
+Diagnostic contributions:
 
 - geometric defocus circle;
 - circular diffraction first-zero diameter.
 
-Implemented framework contributions:
+Framework contributions:
 
 - ideal regular-polygon diffraction density (on-axis, in focus);
-- mechanical pupil clipping / cat-eye PSF shape;
+- mechanical pupil clipping / cat's-eye PSF shape;
 - field curvature;
-- field-dependent aberration;
-- field-dependent bokeh / signed-defocus response.
+- aberration that varies across the field;
+- bokeh and signed-defocus response that vary across the field.
 
-Arbitrary curved-blade, off-axis and clipped-pupil diffraction is not inferred by the ideal polygon API.
+The ideal polygon API does not infer diffraction for curved blades, off-axis positions or clipped pupils.
 
-The legacy component calculator still returns no combined PSF. That is intentional: a combined PSF is available only when an explicit #113 profile or complex pupil supplies the information needed to justify one.
+The legacy component calculator still returns no combined PSF. This is deliberate. A combined PSF is available only when an explicit real-lens profile or complex pupil supplies enough information to justify it.
 
 ## Ideal polygon diffraction
 
-`calculateIdealPolygonDiffractionPsf()` reuses the regular-polygon geometry and image-plane conventions, but evaluates its continuous Fourier transform analytically rather than rasterizing the pupil into the bounded #113 DFT grid. This avoids a second sampled approximation of the same ideal aperture; #113 still owns arbitrary complex sampled pupils and aberration phase.
+`calculateIdealPolygonDiffractionPsf()` computes the diffraction pattern of an ideal regular-polygon aperture. It reuses the regular-polygon geometry and image-plane conventions. It evaluates the continuous Fourier transform analytically, rather than drawing the pupil onto the real-lens framework's bounded DFT (discrete Fourier transform) grid. That avoids a second sampled approximation of the same ideal aperture. Arbitrary sampled complex pupils and aberration phase still belong to the real-lens framework.
 
-Inputs are explicit: equal-area physical pupil diameter, pupil-to-image propagation distance, wavelength and resolved air/vacuum basis, blade count/orientation, and image-plane displacements in micrometres (+X right, +Y up). A nonzero displacement is a location within the **on-axis PSF**, not an off-axis source field position. There is no implicit wavelength conversion or focus-to-propagation-distance conversion.
+**Inputs** are all explicit:
 
-For unit-circumradius area `A_unit = n sin(2π/n)/2`, the physical radius is `sqrt(A/A_unit)`, with `A = π(D_equal_area/2)²`. This fixes equal area, not equal circumradius/inradius. Under a declared nominal-area convention, a caller may use `D_equal_area = f/N`; that convention is not an inferred real-lens pupil calibration.
+- equal-area physical pupil diameter;
+- pupil-to-image propagation distance;
+- wavelength, with its air or vacuum basis resolved;
+- blade count and orientation;
+- image-plane displacements in micrometres (+X right, +Y up).
 
-For dimensionless pupil coordinates `u`, the independently derived boundary integral follows the divergence theorem:
+A nonzero displacement is a position within the **on-axis PSF**. It is not an off-axis source position in the field. There is no implicit wavelength conversion, and no implicit conversion from focus to propagation distance.
+
+**Pupil size.** For a polygon with unit circumradius, the area is `A_unit = n sin(2π/n)/2`. The physical radius is `sqrt(A/A_unit)`, with `A = π(D_equal_area/2)²`. This fixes the polygon's area, not its circumradius or inradius. Under a declared nominal-area convention, a caller may use `D_equal_area = f/N`. That convention is not a calibrated pupil for a real lens.
+
+**Method.** In dimensionless pupil coordinates `u`, the boundary integral comes from the divergence theorem:
 
 `F(q) = i/|q|² Σ_edges (qx Δy − qy Δx) exp(−i q·midpoint) sinc(q·edge/2)`.
 
-The phase coordinate is `q = 2π R x/(λ L)`. The center uses the exact area limit. Subtracting each edge's constant term (which sums to zero on a closed contour), a cancellation-safe sinc-minus-one series and `cos(t)−1 = −2 sin²(t/2)` keep near-origin evaluation stable. There is no FFT, pupil rasterization or hidden pupil-grid convergence parameter.
+The phase coordinate is `q = 2π R x/(λ L)`. At the centre, the exact area limit is used. Near the origin, three steps keep the evaluation numerically stable:
 
-Output gives both `|F/A_unit|²` (unity at center) and continuous intensity density `A |F/A_unit|²/(λ L)²`, converted from 1/mm² to **1/µm²**. Parseval's identity gives unit integral over the infinite image plane. Neither the density nor the peak-normalized intensity is a discrete probability weight. A finite point list is **not** renormalized to sum to one. Renderer quadrature must multiply density by image-plane area, measure support truncation and convergence, and explicitly own any finite-kernel normalization. Throughput stays separate.
+- each edge's constant term is subtracted (these sum to zero around a closed contour);
+- a sinc-minus-one series avoids cancellation error;
+- `cos(t)−1 = −2 sin²(t/2)` is used.
 
-Bounds: 3–1024 blades, 1–4096 image points per request, finite positive scales and dimensionless phase radius at most `1e6` (a computational envelope, not a calibrated accuracy claim). Unsupported fields, including aberration/clipping/field inputs, fail closed. Uniform unit amplitude and zero phase are fixed ideal-model assumptions; there is no defocus, curved-blade, field, polarization, sensor, stray-light or polychromatic claim. No quantified physical uncertainty is asserted.
+There is no FFT, no pupil rasterisation and no hidden grid-convergence parameter.
 
-Validation independently checks square sinc-squared response (absolute tolerance `5e-13`), rotated odd/even apertures, direct triangular-pupil quadrature refinement, the equal-area many-blade circular limit (absolute intensity tolerance `1e-7` at the tested points), and finite-support energy integration/refinement. Those tolerances describe test evidence, not universal real-lens accuracy bounds.
+**Output.**
 
-Mathematical reference: [Sillitto, Fraunhofer diffraction at straight-edged apertures (1979)](https://doi.org/10.1364/JOSA.69.000765), whose abstract establishes analytical polygon Fourier methods. The implementation and tests are independently authored from Fourier integration, the divergence theorem and Parseval's identity; no third-party implementation, tabulated data or protected exposition is incorporated. AI-assisted draft work still requires substantive human provenance/science review under `PROVENANCE.md` and DCO certification before inclusion.
+- `|F/A_unit|²`, which equals 1 at the centre.
+- Continuous intensity density `A |F/A_unit|²/(λ L)²`, converted from 1/mm² to **1/µm²**. By Parseval's identity it integrates to 1 over the infinite image plane.
 
-The circular Airy diagnostic remains separate and unchanged. Do not convolve this diffraction PSF over a #113 kernel that already includes diffraction. This standalone API does not enable an uncomposed production-plan stage or change the POC.
+Neither value is a discrete probability weight. A finite list of points is **not** renormalised to sum to one. A renderer that integrates numerically must multiply density by image-plane area, measure how much support is cut off and whether it converges, and handle any finite-kernel normalisation itself. Throughput stays separate.
+
+**Limits.**
+
+- 3–1024 blades.
+- 1–4096 image points per request.
+- Finite positive scales, and a dimensionless phase radius of at most `1e6`. This is a computational limit, not a calibrated accuracy claim.
+- Unsupported fields, including aberration, clipping and field inputs, are rejected (fail closed).
+- Uniform unit amplitude and zero phase are fixed assumptions of the ideal model. There is no claim about defocus, curved blades, field position, polarisation, sensor, stray light or multiple wavelengths. No quantified physical uncertainty is asserted.
+
+**Validation.** Tests independently check:
+
+- the square aperture's sinc-squared response (absolute tolerance `5e-13`);
+- rotated odd and even apertures;
+- direct numerical integration over a triangular pupil, with refinement;
+- the circular limit for many blades at equal area (absolute intensity tolerance `1e-7` at the tested points);
+- energy integration and refinement over finite support.
+
+These tolerances describe test evidence. They are not general accuracy bounds for real lenses.
+
+**Reference.** [Sillitto, Fraunhofer diffraction at straight-edged apertures (1979)](https://doi.org/10.1364/JOSA.69.000765); its abstract establishes analytical Fourier methods for polygons. The implementation and tests were written independently from Fourier integration, the divergence theorem and Parseval's identity. No third-party implementation, tabulated data or protected text is included. AI-assisted draft work still needs substantive human review of provenance and science under `PROVENANCE.md`, and DCO certification, before inclusion.
+
+The circular Airy diagnostic is separate and unchanged. Do not convolve this diffraction PSF with a real-lens kernel that already includes diffraction. This standalone API does not turn on a production-plan stage, and does not change the POC (proof-of-concept simulation API).
 
 ## Sampled real-lens PSFs
 
-`LensSampledPsfProfile` stores full 2D intensity PSFs on an explicit regular calibration/simulation grid.
+`LensSampledPsfProfile` stores full 2D intensity PSFs on an explicit regular grid, from calibration or simulation.
 
 Profile axes:
 
 - focal length;
-- focus diopters (`0` = #103 optical infinity);
+- focus in diopters (`0` = optical infinity, as in `FocusPlane`);
 - f-number;
 - image-plane field X/Y;
 - wavelength;
 - signed image-plane defocus.
 
-Every node declares a unit-energy PSF kernel with physical X/Y sample pitch. All nodes in one interpolated profile must share the same kernel grid geometry.
+Every node declares a PSF kernel with unit energy and a physical X/Y sample pitch. All nodes in one interpolated profile must share the same kernel grid.
 
-`resolveLensSampledPsf()` reports either:
+`resolveLensSampledPsf()` reports one of:
 
 - `exact-grid-sample`; or
 - `interpolated`.
 
-No extrapolation is permitted.
+Extrapolation is not allowed.
 
-The full 2D kernel preserves image-plane +X right / +Y up orientation, allowing off-axis sagittal/tangential/asymmetric structure instead of forcing radial symmetry.
+The full 2D kernel keeps the image-plane orientation (+X right, +Y up). That lets it represent off-axis sagittal, tangential and asymmetric structure, instead of forcing radial symmetry.
 
 ### Field interpolation methods (2.0)
 
-The profile's `interpolation` field selects how node kernels are blended:
+The profile's `interpolation` field chooses how node kernels are blended:
 
-- `bounded-regular-grid-multilinear` (unchanged, model `lens-sampled-psf-bounded-interpolation`): a weighted sum of kernel values. Blending kernels whose peaks sit at different positions gives multiple peaks.
-- `bounded-regular-grid-centroid-aligned` (model `lens-sampled-psf-centroid-aligned-interpolation`): each node kernel is translated so its intensity centroid lands on the weighted centroid, then the same weights apply. Shifted or asymmetric PSFs blend into one peak at the interpolated position.
-- `rotationally-symmetric-radial-field-centroid-aligned` (model `lens-sampled-psf-rotational-centroid-aligned-interpolation`): for a rotationally symmetric lens, nodes are declared only along +X (`fieldYmm = [0]`, `fieldXmm ≥ 0`, square sample pitch). A query at `(x, y)` is interpolated at radius `hypot(x, y)` and the kernel is rotated by `atan2(y, x)`.
+- `bounded-regular-grid-multilinear` (unchanged; model `lens-sampled-psf-bounded-interpolation`): a weighted sum of kernel values. Blending kernels whose peaks are in different places gives several peaks.
+- `bounded-regular-grid-centroid-aligned` (model `lens-sampled-psf-centroid-aligned-interpolation`): each node kernel is first shifted so its intensity centroid lands on the weighted centroid; then the same weights are applied. Shifted or asymmetric PSFs blend into one peak at the interpolated position.
+- `rotationally-symmetric-radial-field-centroid-aligned` (model `lens-sampled-psf-rotational-centroid-aligned-interpolation`): for a rotationally symmetric lens. Nodes are declared only along +X (`fieldYmm = [0]`, `fieldXmm ≥ 0`, square sample pitch). A query at `(x, y)` is interpolated at radius `hypot(x, y)`, and the kernel is rotated by `atan2(y, x)`.
 
-Translations and rotations use bilinear resampling, which smooths the kernel by up to about one sample; samples outside the kernel are zero and the result is renormalised to unit energy. An exact grid node is returned unchanged. Existing profiles keep the multilinear method and identical output; the new methods are opt-in, and schema `0.1.0` is unchanged apart from the enlarged enum.
+Shifts and rotations use bilinear resampling. This smooths the kernel by up to about one sample. Samples outside the kernel are treated as zero, and the result is renormalised to unit energy. An exact grid node is returned unchanged.
+
+Existing profiles keep the multilinear method and give identical output. The new methods are opt-in. Schema `0.1.0` is unchanged apart from the larger enum.
 
 ## Field curvature and longitudinal chromatic focus
 
-Each sampled node carries `bestFocusImagePlaneOffsetMicrometers`.
+Each sampled node carries `bestFocusImagePlaneOffsetMicrometers`. It can vary with:
 
-That quantity may vary with:
+- field position (field curvature);
+- wavelength (longitudinal, or axial, chromatic focus);
+- focal length, aperture and focus setting.
 
-- field position — field curvature;
-- wavelength — longitudinal/axial chromatic focus;
-- focal/aperture/focus configuration.
+It is a focus/PSF quantity. It does not change geometric distortion, lateral chromatic aberration (CA) or the camera's focus-control state.
 
-It is a focus/PSF quantity. It does not modify geometric distortion, lateral CA, or the selected camera focus-control state.
-
-For lenses without a sampled profile, `calculateLongitudinalChromaticFocus()` (2.0) derives the per-wavelength defocus from a thin-singlet Abbe model or a declared focal-shift table and returns the matching Z4 coefficient for `createWavefrontPupilGrid()`; see [Physics foundation](PHYSICS_FOUNDATION.md#longitudinal-chromatic-aberration-20).
+For lenses without a sampled profile, `calculateLongitudinalChromaticFocus()` (2.0) derives the defocus for each wavelength. It uses a thin-singlet Abbe model or a declared focal-shift table, and returns the matching Z4 coefficient for `createWavefrontPupilGrid()`. See [Physics foundation](PHYSICS_FOUNDATION.md#longitudinal-chromatic-aberration-20).
 
 ## Complex pupil / wavefront reference
 
-`LensComplexPupilProfile` represents one explicit primary-optical state as:
+`LensComplexPupilProfile` describes one explicit state of the main optics as:
 
 - relative pupil amplitude; and
-- optical-path difference in micrometres.
+- optical path difference (OPD) in micrometres.
 
-`calculateLensComplexPupilPsf()` performs deterministic scalar Fraunhofer propagation of that complex pupil.
+`calculateLensComplexPupilPsf()` propagates that complex pupil with deterministic scalar Fraunhofer diffraction.
 
-The optional `propagationDistanceMm` explicitly sets the physical image sample pitch `wavelengthMm * propagationDistanceMm / (transformSampleCount * pupilPitchMm)` per axis. The result returns the resolved distance and whether it was explicit. Omission preserves the existing nominal focal-plane reference using `focalLengthMm`; finite-focus profile metadata alone does not replace that scale. For an owned ideal thin-lens principal-plane fixture, resolve the finite image distance with `calculateThinLensImageDistance()` and pass it explicitly. A real exit-pupil geometry requires its own qualified distance and applicability evidence. Model 1.1.0 added this input/result binding. Pupil schema remains 0.1.0.
+**Image sample pitch.** The optional `propagationDistanceMm` sets the physical image sample pitch on each axis:
+
+`wavelengthMm * propagationDistanceMm / (transformSampleCount * pupilPitchMm)`
+
+The result returns the distance used and whether it was explicit.
+
+- If you omit it, the existing nominal focal-plane reference (`focalLengthMm`) is kept. Finite-focus metadata in the profile does not replace that scale on its own.
+- For an ideal thin-lens fixture referenced to the principal plane, compute the finite image distance with `calculateThinLensImageDistance()` and pass it explicitly.
+- A real exit-pupil geometry needs its own justified distance and evidence that it applies.
+
+Model 1.1.0 added this input and result field. The pupil schema is still 0.1.0.
 
 ### Sampling guard (model 2.0.0)
 
-The intensity PSF is the Fourier transform of the pupil autocorrelation, whose support is twice the pupil diameter D. Sampling it without aliasing needs Goodman's sampling factor `Q = λN / Δu ≥ 2`, where `N = z/D` and `Δu = λz / (M·Δp)` is the image pitch of an M-point transform over pupil pitch Δp; equivalently `M·Δp ≥ 2D` (Goodman, *Introduction to Fourier Optics*, 4th ed., 2017, discrete Fourier-transform sampling of Fraunhofer propagation). For a pupil whose non-zero amplitude spans S samples per axis, `D = (S − 1)·Δp` (centre-to-centre) and the discrete autocorrelation has `2S − 1` lags, so the evaluator zero pads each axis to `M = max(grid, 2S − 1)`. That is the exact no-wrap-around condition for the discrete intensity and gives `Q = M/(S − 1) > 2`. The kernel grows to M samples with a finer pitch; its physical window `λz/Δp` is unchanged. The result's `sampling` record reports S, D, the declared f/N diameter, M, whether padding was applied and the achieved Q (null on an axis with single-sample support).
+**Why padding is needed.** The intensity PSF is the Fourier transform of the pupil's autocorrelation, which is twice as wide as the pupil diameter D. To sample it without aliasing, Goodman's sampling factor must satisfy `Q = λN / Δu ≥ 2`. Here `N = z/D`, and `Δu = λz / (M·Δp)` is the image pitch of an M-point transform over pupil pitch Δp. Equivalently, `M·Δp ≥ 2D` (Goodman, *Introduction to Fourier Optics*, 4th ed., 2017, discrete Fourier-transform sampling of Fraunhofer propagation).
 
-The evaluator also rejects a pupil whose non-zero support spans more than `propagationDistanceMm / apertureFNumber` on either axis, because its image-side cone `D/z` would then be wider than the declared `1/N` and contradict the declared aperture. With the nominal focal-plane reference (`z = f`) this is the `focalLengthMm / apertureFNumber` diameter; an exit pupil declared at its own distance (for example `D = 30 mm` at `z = 60 mm`, `f = 50 mm`, f/2) is bounded by its own cone, and `sampling.declaredPupilDiameterMm` reports `z/N`.
+**What the evaluator does.** Suppose the pupil's non-zero amplitude spans S samples on an axis. Then `D = (S − 1)·Δp` (centre to centre), and the discrete autocorrelation has `2S − 1` lags. So the evaluator zero-pads each axis to `M = max(grid, 2S − 1)`. This is exactly the condition for the discrete intensity not to wrap around, and it gives `Q = M/(S − 1) > 2`. The kernel grows to M samples with a finer pitch. Its physical window, `λz/Δp`, does not change.
 
-Breaking change in 2.0.0: a grid that previously filled its own transform (for example the 5×5 generic tier pupils, or a 3×3 uniform pupil whose unpadded 3-point DFT put all energy in one sample) now returns a larger, alias-free kernel with a different `widthSamples`, `heightSamples`, centre index and pitch. Grids already padded to at least 2S − 1 return the same kernel values up to floating-point summation order. Wavefront (phase) sampling across the pupil is not checked here; it remains the profile author's responsibility.
+The result's `sampling` record reports S, D, the declared f/N diameter, M, whether padding was applied, and the achieved Q (null on an axis whose support is a single sample).
 
-This path evaluates diffraction and aberration in one pupil calculation. Do not stack another independent Airy or diffraction blur over its output.
+**Aperture consistency check.** The evaluator also rejects a pupil whose non-zero support is wider than `propagationDistanceMm / apertureFNumber` on either axis. Such a pupil's image-side cone `D/z` would be wider than the declared `1/N`, contradicting the declared aperture. With the nominal focal-plane reference (`z = f`), the limit is the `focalLengthMm / apertureFNumber` diameter. An exit pupil declared at its own distance is limited by its own cone; for example `D = 30 mm` at `z = 60 mm`, `f = 50 mm`, f/2. In that case `sampling.declaredPupilDiameterMm` reports `z/N`.
+
+**Breaking change in 2.0.0.** A grid that used to fill its own transform now returns a larger, alias-free kernel, with different `widthSamples`, `heightSamples`, centre index and pitch. Examples are the 5×5 generic tier pupils, and a 3×3 uniform pupil whose unpadded 3-point DFT put all its energy in one sample. Grids already padded to at least 2S − 1 return the same kernel values, up to floating-point summation order.
+
+This guard does not check how finely the wavefront (phase) is sampled across the pupil. That remains the profile author's job.
+
+This path evaluates diffraction and aberration in one pupil calculation. Do not add another independent Airy or diffraction blur on top of its output.
 
 ### Zernike and Seidel wavefronts (2.0)
 
-`createWavefrontPupilGrid()` builds the `LensComplexPupilGrid` this evaluator consumes; the propagation code is unchanged. The grid is an odd `N × N` (3–63) sampling of a circular pupil of the declared diameter, optionally masked by a polygon, with OPD in micrometres from:
+`createWavefrontPupilGrid()` builds the `LensComplexPupilGrid` that this evaluator consumes; the propagation code is unchanged. The grid samples a circular pupil of the declared diameter on an odd `N × N` grid (3–63), optionally masked by a polygon. Its OPD, in micrometres, comes from either:
 
-- Zernike polynomials in Noll's single index (Noll 1976, *JOSA* 66:207), unit-RMS normalised: `Z_j = √(n+1) R_n^0` for `m = 0` and `√(2(n+1)) R_n^|m| cos(mθ)` (even `j`) or `sin(mθ)` (odd `j`), `j ≤ 66`. The RMS of `Σ c_j Z_j` (piston excluded) is `√Σ c_j²`.
-- Primary (Seidel) wave-aberration coefficients `W020, W111, W040, W131, W222, W220, W311` in normalised field height `H` and pupil `(ρ, φ)`, with `φ` measured from the field azimuth (Hopkins, *Wave Theory of Aberrations*, 1950; Wyant & Creath 1992, *Applied Optics and Optical Engineering* XI ch. 1).
+- **Zernike polynomials** in Noll's single index (Noll 1976, *JOSA* 66:207), normalised to unit RMS: `Z_j = √(n+1) R_n^0` for `m = 0`, and `√(2(n+1)) R_n^|m| cos(mθ)` (even `j`) or `sin(mθ)` (odd `j`), for `j ≤ 66`. The RMS of `Σ c_j Z_j` (excluding piston) is `√Σ c_j²`.
+- **Primary (Seidel) wave-aberration coefficients** `W020, W111, W040, W131, W222, W220, W311`, in normalised field height `H` and pupil coordinates `(ρ, φ)`, with `φ` measured from the field azimuth (Hopkins, *Wave Theory of Aberrations*, 1950; Wyant & Creath 1992, *Applied Optics and Optical Engineering* XI ch. 1).
 
-`calculateDefocusWavefront()` converts an image-plane defocus `dz` at working f-number `N` into `W020 = dz/(8N²)` and Z4 = `W020/(2√3)` (Goodman, *Introduction to Fourier Optics*; Mahajan, *Optical Imaging and Aberrations* Part I). `estimateMarechalStrehlRatio()` gives the Maréchal/Mahajan approximation `exp(−(2πσ/λ)²)` (Mahajan 1982, *JOSA* 72:1258), valid roughly for Strehl above 0.3.
+Two helpers:
 
-Tests check Noll indexing, closed-form low orders, numerical orthonormality over the disk, that zero coefficients reproduce the aberration-free circular-pupil PSF bit for bit, that the centre intensity ratio follows Maréchal within 0.01 for σ ≈ 0.05λ, that the Z4/W020 transverse ray aberration `4N·W020` equals the engine's geometric defocus radius, and four-orientation covariance of field-dependent Seidel terms. The grid's sampled RMS differs slightly from the continuous RMS because the disk is discrete.
+- `calculateDefocusWavefront()` converts an image-plane defocus `dz` at working f-number `N` into `W020 = dz/(8N²)` and Z4 = `W020/(2√3)` (Goodman, *Introduction to Fourier Optics*; Mahajan, *Optical Imaging and Aberrations* Part I).
+- `estimateMarechalStrehlRatio()` gives the Maréchal/Mahajan approximation `exp(−(2πσ/λ)²)` (Mahajan 1982, *JOSA* 72:1258). It is roughly valid for Strehl ratios above 0.3.
+
+Tests check:
+
+- Noll indexing and the closed forms of the low orders;
+- numerical orthonormality over the disk;
+- that zero coefficients reproduce the aberration-free circular-pupil PSF bit for bit;
+- that the centre intensity ratio follows Maréchal within 0.01 for σ ≈ 0.05λ;
+- that the Z4/W020 transverse ray aberration `4N·W020` equals the engine's geometric defocus radius;
+- that field-dependent Seidel terms transform correctly under all four orientations.
+
+The grid's sampled RMS differs slightly from the continuous RMS, because the disk is discrete.
 
 ### Cat's-eye pupil and arbitrary polygon diffraction (2.0)
 
-`calculatePolygonPupilFraunhoferPsf()` generalises the ideal regular-polygon model to any simple polygon pupil in pupil-plane millimetres, using the same analytic divergence-theorem boundary integral (no pupil-grid aliasing, unit integral over the infinite plane). It reproduces the regular-polygon result for regular vertices. Its intended input is the cat's-eye pupil polygon from `calculateMechanicalVignetting()` (see [Physics foundation](PHYSICS_FOUNDATION.md#physical-natural-and-mechanical-vignetting-20)); the same polygon can also mask `createWavefrontPupilGrid()` to combine clipping with aberrations. The PSF is centred on the geometric image point; the clipped pupil's throughput is reported separately (`openAreaRatio`) and never folded into the normalised PSF.
+`calculatePolygonPupilFraunhoferPsf()` extends the ideal regular-polygon model to any simple polygon pupil, in pupil-plane millimetres. It uses the same analytic divergence-theorem boundary integral, so there is no pupil-grid aliasing, and it integrates to 1 over the infinite plane. For regular vertices it reproduces the regular-polygon result.
 
-The output intensity PSF is normalized to unit energy.
+Its intended input is the cat's-eye pupil polygon from `calculateMechanicalVignetting()` (see [Physics foundation](PHYSICS_FOUNDATION.md#physical-natural-and-mechanical-vignetting-20)). The same polygon can also mask `createWavefrontPupilGrid()`, combining clipping with aberrations.
+
+The PSF is centred on the geometric image point. The clipped pupil's throughput is reported separately (`openAreaRatio`) and is never folded into the normalised PSF.
+
+The output intensity PSF is normalised to unit energy.
 
 ## Pupil clipping and throughput
 
-PSF energy normalization and optical throughput are separate.
+Normalising a PSF's energy and computing optical throughput are separate steps.
 
-A clipped pupil can change:
+A clipped pupil can change two things:
 
-1. the pupil/PSF shape; and
-2. the relative amount of transmitted light.
+1. the shape of the pupil and PSF; and
+2. how much light gets through.
 
-The #113 profiles therefore keep `relativePupilThroughputFactor` separate from the normalized PSF kernel. The throughput factor belongs in the optical-throughput path (including #110 integration) and must be applied exactly once.
+Real-lens profiles therefore keep `relativePupilThroughputFactor` separate from the normalised PSF kernel. The throughput factor belongs in the optical-throughput path (including field-throughput integration), and must be applied exactly once.
 
-An interpolated throughput factor is the same weighted blend as the kernel. Because the blend is a convex combination it cannot mathematically exceed its largest node value, but its floating-point weights can sum to a few ulps above 1, so nodes that all declare exactly 1 could interpolate to 1 + 2⁻⁵². A blended value above 1 that lies within 8·ε·(node count)·max(1, largest node) of the largest contributing node is that rounding and resolves to the largest node value (at most 1). Every value that already lay in [0, 1] is returned unchanged, and node values above 1 are still rejected when the profile is parsed.
+**Interpolated throughput.** An interpolated throughput factor uses the same weighted blend as the kernel. A convex blend cannot mathematically exceed its largest node value. However, its floating-point weights can sum to a few ulps (units in the last place) above 1, so nodes that all declare exactly 1 could interpolate to 1 + 2⁻⁵². The engine treats this as rounding: a blended value above 1 that lies within 8·ε·(node count)·max(1, largest node) of the largest contributing node resolves to the largest node value (at most 1). Values already in [0, 1] are returned unchanged. Node values above 1 are still rejected when the profile is parsed.
 
-The existing illumination-vignetting primitive remains a separate throughput-only approximation; it does not become pupil clipping automatically. The 2.0 mechanical-vignetting model computes the clipped pupil shape and its area ratio explicitly; apply its throughput once, in place of (not in addition to) another field-throughput model.
+The existing illumination-vignetting primitive stays a separate, throughput-only approximation; it does not automatically become pupil clipping. The 2.0 mechanical-vignetting model computes the clipped pupil shape and its area ratio explicitly. Apply its throughput once, instead of (not as well as) another field-throughput model.
 
 ## MTF boundary
 
-MTF magnitude is useful validation evidence, including sagittal/tangential trends.
+MTF (modulation transfer function) magnitude is useful validation evidence, including sagittal and tangential trends.
 
-It does **not** uniquely determine a PSF without phase.
+Without phase, it does **not** determine a unique PSF.
 
-`assessMtfOnlyPsfRenderability()` therefore always blocks unique PSF reconstruction from magnitude-only MTF data while allowing diagnostic use.
+So `assessMtfOnlyPsfRenderability()` always blocks unique PSF reconstruction from magnitude-only MTF data. It still allows diagnostic use.
 
 ## Sensor and stray-light boundaries
 
-V1 lens PSF profiles are `lens-primary-optical-path-only`.
+V1 lens PSF profiles are `lens-primary-optical-path-only`. They exclude:
 
-They exclude:
-
-- sensor OLPF;
+- the sensor's optical low-pass filter (OLPF);
 - microlens response;
-- CFA/spectral sensor response;
+- CFA (colour filter array) and spectral sensor response;
 - sensor crosstalk;
 - sensor sampling;
-- RAW reconstruction/demosaic;
-- sharpening/denoise;
+- RAW reconstruction / demosaic;
+- sharpening and denoising;
 - ghosting, flare and veiling glare.
 
-A future combined camera-system response must be labeled separately rather than silently stored as a lens PSF.
+A future combined camera-system response must be labelled as such, not quietly stored as a lens PSF.
 
-#114 owns stray light.
+Stray light is modelled separately (issue #114); see [Stray light and digital lens correction foundations](DIGITAL_OPTICS_FOUNDATION.md).
 
 ## Preview and reference use
 
-The sampled-profile contract can be consumed by both preview and reference paths.
+Both preview and reference paths can use the sampled-profile contract.
 
-The complex-pupil scalar Fraunhofer evaluator is a deterministic reference calculation. A preview implementation may use a validated approximation, but it must preserve the same profile semantics, field orientation, throughput ownership and limitations.
+The complex-pupil scalar Fraunhofer evaluator is a deterministic reference calculation. A preview implementation may use a validated approximation. It must keep the same profile meaning, field orientation, throughput ownership and limitations.
 
 ## Independent pupil sampling pilot
 
-The candidate Print qualification includes `test/print-depth-pupil-convergence.test.ts`. A separately authored factored finite DFT and continuous shifted-complex-pupil overlap integral compare the actual public backend at 25 cycles/mm, 500 nm, focus 5 m, subject distances 2/5/10 m and f/8,16,32. The focused continuous integral also agrees with the analytic ideal circular-pupil transfer. Independent Simpson evaluations at 4,096 and 16,384 intervals differ by less than `1e-11` for this domain.
+The candidate Print checks include `test/print-depth-pupil-convergence.test.ts`. It compares the actual public backend against two independently written calculations: a factored finite DFT, and a continuous overlap integral of shifted complex pupils. The test conditions are 25 cycles/mm, 500 nm, focus at 5 m, subject distances of 2, 5 and 10 m, and f/8, f/16 and f/32. When focused, the continuous integral also agrees with the analytic transfer of an ideal circular pupil. Independent Simpson evaluations at 4,096 and 16,384 intervals differ by less than `1e-11` in this domain.
 
-An unpadded pupil grid can sample intensity too coarsely even when amplitude propagation is numerically correct. Increasing pupil resolution without expanding the zero-padded grid does not necessarily converge to continuous intensity transfer. Before 2.0.0 the historical 9×9 finite reference had absolute transfer errors exceeding 0.14 in the f/32 cases. Since the 2.0.0 sampling guard the evaluator pads that declaration to 17×17, so it now matches the explicit 17×17 pilot; the regenerated references record this and are still not physical convergence evidence.
+**Padding matters.** An unpadded pupil grid can sample intensity too coarsely, even when the amplitude propagation is numerically correct. Raising pupil resolution without enlarging the zero-padded grid does not necessarily converge to the continuous intensity transfer. Before 2.0.0, the historical 9×9 finite reference had absolute transfer errors above 0.14 in the f/32 cases. Since the 2.0.0 sampling guard, the evaluator pads that declaration to 17×17, so it now matches the explicit 17×17 pilot. The regenerated references record this; they are still not evidence of physical convergence.
 
-The pilot separately varies pupil resolution and padding: padded grids 9/17/33/61 with pupil-radius samples 2/4/8/15. Errors need not decrease monotonically at each finite circular-boundary raster. The final 61×61 grid has absolute transfer error below 0.01 at the tested frequency for all nine combinations. This is a candidate computational criterion informed by the pilot, not a predeclared physical calibration tolerance, quality threshold, all-frequency certificate, support-truncation guarantee for other stimuli, or real-lens validation. The declared finite pupil contract and its bounds remain unchanged. New frequencies, source support, fields, profiles or imaging domains require their own independent evidence.
+The pilot varies pupil resolution and padding separately: padded grids of 9, 17, 33 and 61, with 2, 4, 8 and 15 samples across the pupil radius. Errors do not have to fall steadily at each finite raster of the circular boundary. The final 61×61 grid has an absolute transfer error below 0.01 at the tested frequency, for all nine combinations.
+
+This is a candidate computational criterion based on the pilot. It is not:
+
+- a physical calibration tolerance declared in advance;
+- a quality threshold;
+- a guarantee for all frequencies;
+- a guarantee about support truncation for other stimuli;
+- real-lens validation.
+
+The declared finite pupil contract and its limits are unchanged. New frequencies, source support, fields, profiles or imaging domains need their own independent evidence.
 
 ## No scalar lens quality
 
 Photivra does not produce a universal lens sharpness or bokeh-quality score.
 
-Real optical response remains field-, focus-, aperture-, wavelength-, pupil- and defocus-dependent. Generic equipment tiers may later choose different versioned profiles, but the tier label is not itself an optical algorithm.
+Real optical response depends on field position, focus, aperture, wavelength, pupil and defocus. Generic equipment tiers may later choose different versioned profiles, but a tier label is not an optical algorithm.

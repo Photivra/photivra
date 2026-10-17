@@ -3,6 +3,8 @@
 Status: **frozen numerical-acceptance contract for Photivra engine issue #233,
 deliverable 2**.
 
+**In plain terms.** For the browser-based, full-resolution capture work (#224), this page sorts every result into one of four kinds: values that must match exactly; values that may differ within a stated tolerance; values that need evidence that they converge as sampling gets finer; and cases that must be rejected ("fail closed") rather than answered approximately. The scope itself is fixed by the [qualification envelope](BROWSER_NATIVE_CAPTURE_ENVELOPE.md), which also defines the terms Path A and Path B.
+
 This document defines which #224 browser-first dense-pupil capture results are
 exact contracts, which are tolerance-governed numerical quantities, which require
 refinement/convergence evidence, and which must fail closed.

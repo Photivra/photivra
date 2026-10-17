@@ -1,42 +1,124 @@
 # Bounded native capture SDR execution
 
-`calculateNativeCaptureSdrPlan` and `createNativeCaptureSdrTask` are additive schema 0.1.0 APIs for authoritative external linear RGB manifests. They do not widen the unchanged `calculateCaptureSdr` or `calculateSdrRendering` reference guards. This is engine-declared tiling, with whole-capture identity and explicit ownership, rather than consumer request splitting.
+`calculateNativeCaptureSdrPlan` and `createNativeCaptureSdrTask` render a large linear capture to an SDR (standard dynamic range) image, one tile at a time. They are additional APIs at schema 0.1.0, for authoritative linear RGB image manifests stored outside the engine.
+
+- They do not loosen the unchanged guards on the reference functions `calculateCaptureSdr` and `calculateSdrRendering`.
+- The engine decides the tiling. Identity stays tied to the whole capture, and ownership is explicit. This is not the consumer splitting a request into pieces.
 
 ## Supported domain
 
-The selected `SimulatedCapture` plane must already be color-transformed linear sRGB/D65, exact profile version 0.1.0, co-sited RGB with resolved upstream WB or no WB required. All planes in the manifest must use external float32/float64 storage. The provider decodes declared little-endian bytes to the matching native typed numeric array. Precision is preserved; float32 is not promoted to a claim of original float64 fidelity. Reference white, signed values, headroom, capture saturation and source dynamic-range history stay distinct.
+**What the input must be.**
 
-XYZ, unresolved sensor/virtual RGB, pending WB, HDR, resampling, lens corrections and RAW generation are unsupported here. Complete color/WB through the engine-owned upstream contract before handing over this master. This executor never applies WB twice or generates a source from a preview. The upstream renderer/source still needs qualification; structural metadata is not proof of correct pixels or calibration.
+- The selected `SimulatedCapture` plane must already be colour-transformed linear sRGB/D65, with exact profile version 0.1.0.
+- RGB must be co-sited, with white balance (WB) already resolved upstream, or not required.
+- All planes in the manifest must use external float32 or float64 storage.
+- The provider decodes the declared little-endian bytes into the matching native typed array.
+- Precision is kept as is; float32 is never presented as if it had original float64 fidelity.
+- Reference white, signed values, headroom, capture saturation and source dynamic-range history stay separate.
 
-Coordinates are absolute top-left, +X right/+Y down in the plane's declared `oriented-active-capture` or `output` raster. Crop and physical orientation are already committed in the capture geometry and represented by the provider's plane. The executor preserves them without re-cropping, rotating, padding image edges or resampling. The output dimensions exactly equal the selected plane. Geometry includes later output intent even when the selected active-capture plane precedes that intent; this call does not execute that later crop.
+**Not supported here:** XYZ, unresolved sensor or virtual-camera RGB, pending WB, HDR, resampling, lens corrections and RAW generation.
+
+Complete colour and WB through the engine's own upstream contract before handing over this master image. This executor never applies WB twice, and never generates a source from a preview. The upstream renderer or source still needs validating; structural metadata does not prove the pixels or calibration are correct.
+
+**Coordinates.** Absolute, from the top left, +X right and +Y down, in the plane's declared `oriented-active-capture` or `output` raster.
+
+- Crop and physical orientation are already committed in the capture geometry, and are already reflected in the provider's plane.
+- The executor keeps them as they are. It does not re-crop, rotate, pad edges or resample.
+- The output dimensions are exactly those of the selected plane.
+- The geometry includes later output intent even when the selected active-capture plane comes before that intent. This call does not apply that later crop.
 
 ## Limits and ownership
 
-Maximum raster is 24,000,000 pixels, each dimension at most 16,384. Every tile is at most 256 × 32 pixels; right/bottom tiles use their actual remaining dimensions. A tile has RGB row stride in component samples, at least width × 3. Its length must exactly equal stride × height. Padding is ignored. The entire backing buffer, including offset/slack, is bounded to 32,768 components in the declared float precision. SharedArrayBuffer is rejected; provider must not mutate, detach or reuse its returned tile. No tile/output network, persistence or decoder is built into the engine.
+**Size limits.**
 
-A task allocates one tightly packed Uint8Array or Uint16Array output only after admission planning. `maximumOutputBytes` must admit the exact width × height × 3 × bytes-per-code. The maximum retained output is 72 MB at 8 bits or 144 MB at 16 bits, decimal units. The input master remains external and is not retained/copied wholesale. At most one tile read is in flight.
+- Maximum raster: 24,000,000 pixels, with each dimension at most 16,384.
+- Every tile is at most 256 × 32 pixels. Right and bottom edge tiles use whatever size remains.
 
-`maximumScratchPayloadBytes` is 1,441,792 bytes: one maximum float64 provider payload plus six bounded double-array payloads (packed input, parsed input, tone, gamut, transfer, codes). This declared bound is unchanged from the earlier reference-delegating executor; the typed-array tile kernel now retains only the provider payload, so it remains a conservative upper bound. This counts logical numeric payloads, not JS array headers, temporary validation booleans, GC retention, decoder/GPU memory or platform overhead. It is **not** a heap/process/device peak guarantee. Callers must budget output plus measured runtime/decoder/source retention and reject unsupported devices before starting. No full-size floating-point diagnostic arrays are retained.
+**Tile format.**
+
+- A tile has an RGB row stride, counted in component samples, of at least width × 3.
+- Its length must be exactly stride × height. Padding is ignored.
+- The whole backing buffer, including offset and slack, is limited to 32,768 components at the declared float precision.
+- SharedArrayBuffer is rejected. The provider must not change, detach or reuse a tile after returning it.
+- The engine has no built-in network, persistence or decoder for tiles or output.
+
+**Output memory.** A task allocates one tightly packed Uint8Array or Uint16Array for output, and only after planning has accepted the job.
+
+- `maximumOutputBytes` must allow exactly width × height × 3 × bytes-per-code.
+- The largest retained output is 72 MB at 8 bits, or 144 MB at 16 bits (decimal units).
+- The input master stays outside the engine and is never kept or copied as a whole.
+- At most one tile read is in progress at a time.
+
+**Scratch memory.** `maximumScratchPayloadBytes` is 1,441,792 bytes. That is one maximum float64 provider payload plus six bounded double-array payloads (packed input, parsed input, tone, gamut, transfer, codes).
+
+- This declared bound is unchanged from the earlier executor that delegated to the reference. The typed-array tile kernel now keeps only the provider payload, so the bound is conservative.
+- It counts logical numeric payloads only. It does not count JavaScript array headers, temporary validation booleans, garbage-collector retention, decoder or GPU memory, or platform overhead.
+- It is **not** a guarantee of peak heap, process or device memory.
+
+Callers must budget for the output plus measured runtime, decoder and source memory, and reject unsupported devices before starting. No full-size floating-point diagnostic arrays are kept.
 
 ## Processing and identity
 
-Each tile runs an engine-owned typed-array kernel that applies the bounded SDR reference (`calculateSdrRendering`) equations in the same per-sample floating-point operation order and error precedence, writing integer codes directly into the packed output. Validation happens once at the task boundary (tile identity, precision, stride and finite image samples) rather than through the generic deep result walker. Exposure normalization → selected tone curve → gamut policy → sRGB transfer → nearest-ties-up integer quantization is pointwise, so tiling adds no halo, seam or altered rounding; `test/native-capture-sdr-kernel-parity.test.ts` proves identical codes, diagnostics and error precedence against the unchanged reference. Counts are aggregated over actual image components; capture saturation is preserved in the plan and remains `not-consumed` in downstream rendering diagnostics. The reference's output encoding and external display-adaptation declaration accompany the output.
+**The kernel.** Each tile runs a typed-array kernel owned by the engine. It applies the equations of the bounded SDR reference (`calculateSdrRendering`), with the same per-sample floating-point order of operations and the same error precedence. It writes integer codes straight into the packed output.
 
-The frozen plan retains the full parsed capture: creator/schema, source artifact/hash/history, scene/time, seed/noise/model/evidence, exposure/focus/WB, geometry/plane/color/transform identities, new output state ID and complete rendering profile. Every request and response must match capture ID, plane ID, source artifact/hash and exact rectangle. A digest match is an identity declaration, not verification of sample bytes: the provider owns authenticating the external artifact against its whole-file hash before decoding. No partial-file hash is relabeled as a full source hash.
+- Validation happens once, at the task boundary (tile identity, precision, stride and finite image samples), instead of through the generic deep result walker.
+- The steps are: exposure normalisation → selected tone curve → gamut policy → sRGB transfer → integer quantisation (nearest, ties up). Each step works on one sample at a time, so tiling adds no halo, seam or change in rounding.
+- `test/native-capture-sdr-kernel-parity.test.ts` proves identical codes, diagnostics and error precedence against the unchanged reference.
+- Counts are totalled over actual image components.
+- Capture saturation is kept in the plan, and stays `not-consumed` in downstream rendering diagnostics.
+- The reference's output encoding, and its declaration about external display adaptation, come with the output.
+
+**The plan.** The frozen plan keeps the full parsed capture:
+
+- creator and schema;
+- source artifact, hash and history;
+- scene and time;
+- seed, noise, model and evidence;
+- exposure, focus and WB;
+- identities of geometry, plane, colour and transform;
+- the new output state ID;
+- the complete rendering profile.
+
+**Matching.** Every request and response must match the capture ID, plane ID, source artifact and hash, and exact rectangle. A digest match only declares identity; it does not verify the sample bytes. The provider is responsible for authenticating the external artifact against its whole-file hash before decoding. A hash of part of a file is never relabelled as a full source hash.
 
 ## Task lifecycle
 
-`ready → running → completed → transferred` is single-use. `run()` resolves without publishing a buffer. `takeOutput()` transfers the retained buffer once, along with its plan/encoding/diagnostics. Caller owns the returned mutable integer array; an immutable capture manifest does not make output bytes immutable. Dispose/cancel cannot revoke a transferred buffer.
+**States.** `ready → running → completed → transferred`. Each task is used once.
 
-Before transfer, cancel/dispose aborts the provider signal, clears/releases any engine output, and prevents publication. `run()` rejects after a pending read/yield settles; providers must honor abort and release their resources. A non-cooperative pending callback cannot be forcibly stopped by this API. Caller must await settlement before reclaiming shared provider resources or launching replacement work on them. Failed tasks release partial output and abort the provider signal. A fresh admitted task is the recovery path; no automatic retry/fallback exists.
+- `run()` resolves without publishing a buffer.
+- `takeOutput()` hands over the retained buffer once, with its plan, encoding and diagnostics.
+- The caller owns the returned integer array and can change it. An immutable capture manifest does not make the output bytes immutable.
+- Dispose or cancel cannot take back a buffer that has been handed over.
 
-The provider's required `yieldControl(signal)` must yield to the host event loop between tiles (for example an abort-aware timer, scheduler or worker handoff). A resolved promise alone does not let browser input/timer cancellation run. Host scheduling is external to the scientific package. Check current application capture identity before transferring/installing a completed output; a disposed older task cannot publish late.
+**Cancelling.** Before the handover, cancel or dispose aborts the provider's signal, clears and releases any engine output, and prevents publication.
+
+- `run()` rejects after a pending read or yield settles. Providers must respect the abort and release their resources.
+- This API cannot forcibly stop a pending callback that does not cooperate. The caller must wait for it to settle before reusing shared provider resources or starting replacement work on them.
+- A failed task releases partial output and aborts the provider signal.
+- To recover, create a fresh task. There is no automatic retry or fallback.
+
+**Yielding.** The provider's required `yieldControl(signal)` must give control back to the host event loop between tiles, for example with an abort-aware timer, a scheduler or a worker handoff. A resolved promise alone does not let browser input or timer-based cancellation run. Host scheduling is outside the scientific package.
+
+Before using a completed output, check that it still belongs to the application's current capture. A disposed older task cannot publish late.
 
 ## Acceptance and release
 
-`test/native-capture-sdr.test.ts` and `test/native-capture-sdr-kernel-parity.test.ts` compare the unchanged capture/SDR reference across tile edges, row padding, 8/16-bit encoding, upstream WB and all four committed orientations/off-center crops. It checks invalid/stale/oversized domains, finite image data, float precision, pending-read cancellation, between-tile cancellation, disposal, ownership transfer and recovery, plus independently predicted pixels in a 1.2 MP synthetic raster.
+`test/native-capture-sdr.test.ts` and `test/native-capture-sdr-kernel-parity.test.ts` compare against the unchanged capture/SDR reference across:
 
-See [the validation record](NATIVE_CAPTURE_SDR_VALIDATION.md) for measured host-specific evidence and [the technical review](NATIVE_CAPTURE_SDR_REVIEW.md) for the remaining human/source certification gates. Run `node --expose-gc scripts/benchmark-native-capture-sdr.mjs` after build for deterministic 6 MP/24 MP timing and sampled process memory at both 8 and 16 bits. Measurements are host-specific and use owned analytic samples, not licensed photographs or calibration. The packed example below runs through the real root package during consumer acceptance.
+- tile edges and row padding;
+- 8- and 16-bit encoding;
+- upstream WB;
+- all four committed orientations, and off-centre crops.
+
+They also check invalid, stale and oversized inputs, finite image data, float precision, cancellation during a pending read and between tiles, disposal, ownership transfer and recovery. Pixels in a 1.2 MP synthetic raster are predicted independently.
+
+**More evidence.**
+
+- [The validation record](NATIVE_CAPTURE_SDR_VALIDATION.md) has measured, host-specific evidence.
+- [The technical review](NATIVE_CAPTURE_SDR_REVIEW.md) lists the remaining human and source certification steps.
+- After building, run `node --expose-gc scripts/benchmark-native-capture-sdr.mjs` for deterministic 6 MP and 24 MP timings and sampled process memory, at 8 and 16 bits. Measurements depend on the host, and use analytic samples owned by Photivra, not licensed photographs or calibration.
+
+The packed example below runs against the real root package during consumer acceptance testing.
 
 ```ts
 import { createSimulatedCapture, createNativeCaptureSdrTask, LINEAR_CAPTURE_RGB_PROFILE, resolveCaptureColorModel } from "@photivra/engine";
@@ -67,4 +149,4 @@ const output = task.takeOutput();
 if (output.integerSamples.join(",") !== "0,188,255,255,188,0") throw new Error("Native SDR example failed");
 ```
 
-Human review, merge, version/tag and npm publication are separate release steps. Consumer activation requires the published reviewed contract, a qualified native producer and measured device budgets. This API does not activate a production plan or qualify app fixtures, Print/JPEG delivery, GPU rendering or devices.
+Human review, merge, versioning and tagging, and npm publication are separate release steps. Using this in a product needs the published, reviewed contract, a validated native producer, and measured device budgets. This API does not turn on a production plan, and does not validate app fixtures, Print/JPEG delivery, GPU rendering or devices.

@@ -1,14 +1,21 @@
-# Authoritative simulated capture: #15A/#15B
+# Authoritative simulated capture
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+> **Release context.** This page was written for package 1.2.0 (root API 1.2.0) and has not been re-reviewed for later releases. The [changelog](../CHANGELOG.md) describes the current release. Model and subsystem version numbers on this page, and any dated records, are separate from the package version. See also the [developer guide](DEVELOPERS.md) and the [1.2.0 release contract](RELEASE_1_2_0.md).
 
-The container commits a format-neutral float master manifest before tone mapping/LDR conversion. It does not itself generate or convert pixels. The separate [#15B color API](CAPTURE_COLOR.md) converts supported planes and [#15C encoding API](LINEAR_CAPTURE_ENCODING.md) quantizes them without mutating the master. TIFF/DNG serialization and production-stage activation remain separate. #15, #112 and #16 are merged. Their explicit adapters own rendering and paired export; the container alone performs neither.
+A `SimulatedCapture` is the record of one simulated shot (issues #15A/#15B). It commits a floating-point master image manifest, in no particular file format, **before** any tone mapping or conversion to LDR (low dynamic range).
+
+The container itself does not create or convert pixels:
+
+- the separate [colour API](CAPTURE_COLOR.md) converts supported planes;
+- the [encoding API](LINEAR_CAPTURE_ENCODING.md) quantises them, without changing the master.
+
+TIFF/DNG serialisation and turning on production stages are separate. The related capture, processed-output and export work (#15, #112, #16) is merged. Their explicit adapters own rendering and paired export; the container on its own does neither.
 
 ## Image state and storage
 
-`createSimulatedCapture()` validates, copies and deeply freezes input. Its calculated provenance describes structural commitment; upstream model status/evidence identities are preserved independently, never upgraded to calibrated/radiometry-ready.
+**Creating a capture.** `createSimulatedCapture()` validates, copies and deeply freezes its input. Its `calculated` provenance describes this structural commitment. The status and evidence identities of upstream models are kept separately, and are never upgraded to calibrated or radiometry-ready.
 
-Planes have separate IDs/image-state IDs, exact raster binding and co-sited, tightly interleaved channels. Row order is top-left origin, +X right/+Y down. Native CFA/mosaic semantics are not inferred from multiple channels.
+**Planes.** Each plane has its own ID and image-state ID, an exact raster binding, and co-sited, tightly interleaved channels. Rows start at the top left, with +X right and +Y down. A CFA mosaic is never inferred just because there are several channels.
 
 | State | Required meaning |
 | --- | --- |
@@ -16,23 +23,45 @@ Planes have separate IDs/image-state IDs, exact raster binding and co-sited, tig
 | virtual-sensor-channels | Declared channels/source profile; colorimetric transform/encoding white unresolved |
 | color-transformed-linear-rgb | red,green,blue order; encoding profile/white and explicit linear-color transform history |
 
-Samples are relative linear values normalized by referenceWhiteValue, not absolute radiance, photons, electrons or measured commercial-camera RGB. Finite negative values/headroom remain unchanged; NaN/Infinity and sparse arrays fail. Inline signed zero becomes ordinary zero for semantic serialization.
+**Sample values.**
 
-Inline Float64-valued JavaScript number arrays have a one-million-sample aggregate budget. Large images use external-float32/64 references: IEEE 754 little-endian scalars, no header/padding, tightly interleaved row/channel order, complete-plane sample count, opaque public artifact ID and lowercase SHA-256 over exact bytes. No path/URL/runtime IO is introduced. The engine does not read/verify external bytes, finite values, digest or source quality; a future loader must do so before consuming samples. Declared storage precision is not an assertion about renderer precision.
+- Samples are relative linear values, normalised by `referenceWhiteValue`. They are not absolute radiance, photons, electrons or measured commercial-camera RGB.
+- Finite negative values and headroom above white are kept unchanged.
+- NaN, Infinity and sparse arrays fail.
+- Inline signed zero becomes ordinary zero for serialisation.
 
-XYZ observer identity documents meaning without spectral integration or copied color tables. RGB profile references are preserved, not resolved into a transform by #15A. A serializer cannot infer color coefficients from a profile name. `resolveSimulatedCapturePlane()` requires the exact requested image state.
+**Inline versus external storage.**
+
+- Inline planes are JavaScript number arrays (Float64 values), with a total budget of one million samples.
+- Large images use `external-float32` or `external-float64` references: IEEE 754 little-endian values with no header or padding, tightly interleaved in row and channel order, with the complete plane's sample count, an opaque public artifact ID, and a lowercase SHA-256 over the exact bytes.
+- No path, URL or runtime IO is involved. The engine does not read or verify external bytes, finite values, the digest or source quality. A future loader must do that before using the samples.
+- The declared storage precision says nothing about the precision of the renderer.
+
+**Colour identity.**
+
+- The XYZ observer identity documents meaning, without spectral integration or copied colour tables.
+- RGB profile references are kept, but are not turned into a transform here. A serialiser cannot infer colour coefficients from a profile name.
+- `resolveSimulatedCapturePlane()` requires the exact requested image state.
 
 ## Geometry and deterministic commitment
 
-Reuse of ResolveCaptureGeometryInput preserves native, active, oriented and output geometry, off-center regions and four orientations. Planes must match oriented active capture or output dimensions. Exposure/focal metadata and finite/infinity focus remain explicit. The existing diagonal equivalent-focal-length calculator uses active physical capture; output crop never rewrites it.
+**Geometry.** The capture reuses `ResolveCaptureGeometryInput`, so it keeps native, active, oriented and output geometry, off-centre regions and all four orientations.
 
-Scene time is seconds on the producer's scene clock. Fixed uint32 noise seed, realization/model identity, source checksums, public profile/evidence IDs and engine API version are retained. A seed alone does not prove pixel reproduction; the container does not rerun a renderer/noise generator.
+- Planes must match the dimensions of the oriented active capture or of the output.
+- Exposure and focal metadata, and finite or infinity focus, stay explicit.
+- The existing diagonal equivalent-focal-length calculator uses the active physical capture area; an output crop never changes it.
 
-`parseSimulatedCapture()` recomputes and verifies derived geometry/focal equivalence and preserves historical creator API identity. `serializeSimulatedCapture()` emits normalized allowlisted JSON independent of input object property order; list order remains semantic. This is a manifest, not TIFF/DNG or a new cryptographic semantic hash.
+**Time and noise.** Scene time is in seconds on the producer's scene clock. The capture keeps a fixed uint32 noise seed, the noise realisation and model identity, source checksums, public profile and evidence IDs, and the engine API version. A seed alone does not prove the pixels can be reproduced; the container does not rerun a renderer or noise generator.
+
+**Parsing and serialising.**
+
+- `parseSimulatedCapture()` recomputes and checks the derived geometry and focal equivalence, and keeps the historical creator API identity.
+- `serializeSimulatedCapture()` writes normalised JSON with only allowed fields. The output does not depend on the order of object properties in the input; list order still matters.
+- This is a manifest. It is not TIFF/DNG, and not a new cryptographic hash of meaning.
 
 ## WB, whites and saturation
 
-`createCaptureWhiteBalanceIntent()` consumes #108 resolved state and copies public state/profile identity, source, lock and gains; measurement/debug/free-text extras are discarded. It introduces no AWB estimator or true-illumination oracle:
+**White-balance (WB) intent.** `createCaptureWhiteBalanceIntent()` takes a resolved WB state, and copies its public state and profile identity, source, lock and gains. Measurement, debug and free-text extras are dropped. It adds no AWB estimator and no oracle for the "true" illumination:
 
 ```ts
 import { resolveManualWhiteBalance, createCaptureWhiteBalanceIntent } from "@photivra/engine";
@@ -42,24 +71,60 @@ const state = resolveManualWhiteBalance({
 const intent = createCaptureWhiteBalanceIntent({ state });
 ```
 
-Intent and plane application are separate: intent-only, applied-rgb-gains, applied-chromatic-adaptation or not-applicable. Applied gains require compatible RGB channels/resolved intent. Applied adaptation requires adopted white, transformed RGB and explicit adaptation history, independently of RGB intent. Recording does not verify upstream application; the separate #15B API performs actual conversion. Camera RGB gains cannot be directly declared applied to XYZ.
+**Intent versus application.** Recording an intent is separate from applying it to a plane. A plane's WB status is one of: intent-only, applied-rgb-gains, applied-chromatic-adaptation or not-applicable.
 
-Adopted white and encoding white remain separate normalized XYZ records (Y=1, positive X/Z). Null adopted white is unresolved, not an implicit D65/encoding white. No single physically unique white is claimed under mixed illumination.
+- Applied gains need compatible RGB channels and a resolved intent.
+- Applied adaptation needs an adopted white, transformed RGB and explicit adaptation history, independently of any RGB intent.
+- Recording a status does not verify that upstream really applied it; the separate [colour API](CAPTURE_COLOR.md) does the actual conversion.
+- Camera RGB gains cannot be declared as applied to XYZ.
 
-Source dynamic-range history is unknown, no-loss-declared or upstream-clipped. Float64 cannot recover prior clipping. Capture saturation is independently unmodeled or a declared virtual white level/upstream clipped-sample count. Reference white, capture saturation, future integer limits, rendering exposure and display white are separate. This API neither clamps samples nor infers clipped counts from values equal to white.
+**Two kinds of white.** The adopted white and the encoding white are separate normalised XYZ records (Y=1, positive X and Z). A null adopted white means unresolved; it does not silently mean D65 or the encoding white. No single physically unique white is claimed under mixed lighting.
+
+**Dynamic range and saturation.**
+
+- Source dynamic-range history is one of: unknown, no-loss-declared or upstream-clipped. Float64 storage cannot recover earlier clipping.
+- Capture saturation is, separately, either unmodelled, or a declared virtual white level or count of samples clipped upstream.
+- Reference white, capture saturation, future integer limits, rendering exposure and display white are all separate.
+- This API never clamps samples, and never infers clipped counts from values equal to white.
 
 ## Public metadata and limits
 
-Unknown fields fail at capture/source/geometry/exposure/model/plane/transform/storage/WB-manifest boundaries. Public opaque IDs/versions permit ASCII alphanumerics plus dot/underscore/colon/hyphen, maximum 128 characters. Paths, slash-bearing URLs and emails fail. No private paths, prompts, internal URLs, proprietary manifests, names/emails, precise locations or hidden debug fields are supported.
+**Strict fields.** Unknown fields fail at every boundary: capture, source, geometry, exposure, model, plane, transform, storage and WB manifest.
 
-Producers must select genuinely public, non-personal IDs. Syntax cannot prove an otherwise valid ID is non-sensitive. Public-ID registry/provenance review remains the producer's responsibility; no arbitrary free-text metadata bag exists.
+**ID syntax.** Public opaque IDs and versions may use ASCII letters and digits plus dot, underscore, colon and hyphen, up to 128 characters. Paths, URLs containing slashes, and email addresses fail. There is no support for private paths, prompts, internal URLs, proprietary manifests, names or emails, precise locations or hidden debug fields.
+
+Producers must choose IDs that are genuinely public and non-personal. Syntax rules cannot prove that an otherwise valid ID is not sensitive. Reviewing the public-ID registry and provenance is the producer's job. There is no free-text metadata bag.
 
 ## Versioning and evidence
 
-Schema is 0.2.0; legacy 0.1.0 archives normalize to 0.2.0 while preserving creator API identity. The new applied-chromatic-adaptation state cannot be declared in a 0.1.0 archive. Re-serialization emits the current schema, so archive bytes change on migration. Root API advances main 0.95.0 to 0.96.0. Package, POC and production contracts are unchanged. This independent branch consumes no pending #157/#158 code; reconcile API identity in final merge order.
+**Schema.** The schema is 0.2.0.
 
-Tests reuse #130's canonical fixture for geometry/settings/seed, and cover unclamped data, immutable/canonical archive round trips, four orientations/off-center capture, active/output equivalence, WB sanitization/intent/application, image-state substitution, RGB history, large external planes, saturation distinction, private/malformed metadata, infinity and historical identity.
+- Legacy 0.1.0 archives are normalised to 0.2.0, keeping the creator API identity.
+- The new applied-chromatic-adaptation state cannot be declared in a 0.1.0 archive.
+- Re-serialisation writes the current schema, so archive bytes change on migration.
 
-Implementation/tests are independently authored; no third-party code, calibration data, color tables or protected prose included. Factual references: [CIE 1931 system](https://www.cie.co.at/eilvterm/17-23-045) establishes XYZ/observer semantics; [Academy encoding documentation](https://docs.acescentral.com/encodings/introduction/) distinguishes linear/interchange and downstream encoding. Neither provides coefficients or imposes ACES.
+When introduced, root API on main moved from 0.95.0 to 0.96.0. Package, POC and production contracts did not change.
 
-AI-assisted draft requires substantive human science/provenance review and DCO certification under CONTRIBUTING.md/PROVENANCE.md before inclusion.
+**Tests** reuse the canonical shared fixture (issue #130) for geometry, settings and seed. They cover:
+
+- unclamped data;
+- immutable, canonical archive round trips;
+- all four orientations and off-centre capture;
+- active and output focal equivalence;
+- cleaning, intent and application of WB;
+- substituting the wrong image state;
+- RGB history;
+- large external planes;
+- keeping saturation concepts separate;
+- private or malformed metadata;
+- infinity focus;
+- historical identity.
+
+**Sources.** The implementation and tests were written independently. No third-party code, calibration data, colour tables or protected prose is included. Factual references:
+
+- [CIE 1931 system](https://www.cie.co.at/eilvterm/17-23-045) establishes the meaning of XYZ and the standard observer.
+- [Academy encoding documentation](https://docs.acescentral.com/encodings/introduction/) distinguishes linear interchange encodings from downstream encodings.
+
+Neither provides coefficients, and neither imposes ACES.
+
+AI-assisted draft material needs substantive human review of science and provenance, and DCO certification under CONTRIBUTING.md and PROVENANCE.md, before inclusion.

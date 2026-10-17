@@ -1,6 +1,12 @@
 # WebGPU image-kernel backend (`webgpu-f32`)
 
-Status: **2.0.0 development, optional and opt-in.** The float64 CPU paths stay the engine reference and the default. The `webgpu-f32` backend is a distinct, explicitly labelled float32 approximation of three per-pixel stages. Its results carry an a-priori error bound against the reference, and a real-GPU conformance suite tests that bound on fixed corpora. It is the first, bounded step of the image-formation path proposed in [#277](https://github.com/Photivra/photivra/issues/277). It is not that whole path: there is no scene radiance, exposure/motion or sensor stage on the GPU yet.
+Status: **2.0.0 development, optional and opt-in.**
+
+- The float64 CPU paths stay the engine reference, and the default.
+- The `webgpu-f32` backend is a separate, explicitly labelled float32 approximation of three per-pixel stages.
+- Its results carry an error bound against the reference, worked out in advance (a priori). A conformance suite on a real WebGPU device tests that bound on fixed test images.
+
+It is the first, bounded step of the GPU image-formation path proposed in [#277](https://github.com/Photivra/photivra/issues/277). It is not that whole path: there is no scene radiance, exposure/motion or sensor stage on the GPU yet.
 
 ## Contract
 
@@ -44,7 +50,7 @@ accelerator.dispose();
 
 ## Stages and why these three
 
-The choice follows measured CPU cost per pixel. The measurements come from the 2.0 performance review (`findings-perf`, Node 24, single run) and this branch's in-browser CPU timings (Chromium, loaded 4-core host).
+The three stages were chosen because they cost the most CPU time per pixel. The measurements come from the 2.0 performance review (`findings-perf`, Node 24, single run), and from in-browser CPU timings taken while developing this backend (Chromium, loaded 4-core host).
 
 | Stage | CPU reference | Measured CPU cost | GPU mapping |
 | --- | --- | --- | --- |
@@ -113,7 +119,7 @@ Let u = 2^-24 (binary32 unit roundoff) and γ_k = k·u/(1 − k·u). These are t
 
 ## Measured conformance (SwiftShader, Chromium 141 headless)
 
-`npm run test:webgpu` (31 tests) runs the WGSL kernels on a real WebGPU device. It compares every sample against the float64 reference computed in Node and asserts the bound. Measured on this branch with Google SwiftShader (a Vulkan CPU implementation):
+`npm run test:webgpu` (31 tests) runs the WGSL kernels on a real WebGPU device. It compares every sample against the float64 reference computed in Node and asserts the bound. Measured during development of this backend with Google SwiftShader (a Vulkan CPU implementation):
 
 | Stage | Corpus | Measured maximum | Reported bound |
 | --- | --- | --- | --- |

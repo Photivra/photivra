@@ -2,6 +2,8 @@
 
 Status: **frozen numerical-method adoption contract for Photivra engine issue #233**.
 
+**In plain terms.** When someone wants to make the browser-based capture (#224) faster, this page decides whether the change only speeds up the same calculation (Path A, allowed under the existing evidence) or actually changes the numerical method (Path B, which needs its own evidence, versioning and approval). The deciding question is whether the maths changes, not whether the code gets faster.
+
 This document defines the final #233 governance boundary between:
 
 - **Path A** — implementation optimization of the already approved discrete

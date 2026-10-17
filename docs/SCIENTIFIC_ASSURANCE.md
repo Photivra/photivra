@@ -1,12 +1,18 @@
 # Scientific Assurance and Uncertainty Composition
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+> **Release context.** This page was written for package 1.2.0 (root API 1.2.0) and has not been re-reviewed for later releases. The [changelog](../CHANGELOG.md) describes the current release. Model and subsystem version numbers on this page, and any dated records, are separate from the package version. See also the [developer guide](DEVELOPERS.md) and the [1.2.0 release contract](RELEASE_1_2_0.md).
 
-Photivra keeps **scientific status**, **source evidence**, **uncertainty**, **limitations**, and **reproducibility identity** as related but distinct concepts.
+When Photivra combines several scientific modules into one result, it has to say how trustworthy the combined result is. This page defines the rules for that, across the whole engine.
 
-This document defines the cross-engine composition contract used when independently valid scientific modules are combined into a higher-level result.
+Photivra treats these as related but separate ideas:
 
-The public contract is exposed as:
+- **scientific status** (calibrated, approximation or unknown);
+- **source evidence**;
+- **uncertainty**;
+- **limitations**;
+- **reproducibility identity** (what makes a result repeatable).
+
+The public contract is:
 
 - `SCIENTIFIC_ASSURANCE_CONTRACT_VERSION`;
 - `ScientificAssuranceComponent`;
@@ -17,30 +23,28 @@ The first contract version is `0.1.0`.
 
 ## Core rule
 
-A composed result must not appear more scientifically certain than the required inputs that produced it.
+A combined result must never look more certain than the required inputs it was made from.
 
-Photivra therefore:
+So Photivra:
 
-1. preserves each component's source/profile identity;
-2. preserves component evidence records;
-3. preserves component uncertainty declarations;
+1. keeps each component's source and profile identity;
+2. keeps each component's evidence records;
+3. keeps each component's uncertainty declarations;
 4. identifies the weakest required scientific status;
 5. reports missing required evidence explicitly;
-6. refuses to invent an aggregate numeric uncertainty without a defensible propagation rule.
+6. refuses to invent a combined numeric uncertainty without a defensible propagation rule.
 
-A composition helper does **not** turn provenance into a confidence score.
+Combining results does **not** turn provenance into a confidence score.
 
 ## Scientific status
 
-Composition-level status uses:
+The combined status is one of:
 
-- `calibrated` — every required component supports calibrated status and all required evidence is present;
-- `approximation` — at least one required component is an explicit approximation and none is unknown/missing required evidence;
-- `unknown` — at least one required component has unknown status or required evidence is missing.
+- `calibrated`: every required component supports calibrated status, and all required evidence is present.
+- `approximation`: at least one required component is an explicit approximation, and none is unknown or missing required evidence.
+- `unknown`: at least one required component has unknown status, or required evidence is missing.
 
-A downstream composition cannot promote an approximation to calibrated merely because a later mathematical operation is exact.
-
-For example:
+A later step cannot upgrade an approximation to calibrated just because its own maths is exact. For example:
 
 ```text
 calibrated radiance
@@ -49,7 +53,7 @@ calibrated radiance
   = approximation
 ```
 
-If a required evidence-backed component declares no evidence, the composition status becomes `unknown` and the missing component ID remains visible.
+If a required component that should be evidence-backed declares no evidence, the combined status becomes `unknown`, and the ID of that component stays visible.
 
 ## Evidence basis
 
@@ -61,18 +65,18 @@ Each component declares one basis:
 
 An `evidence-backed-fact` requires evidence.
 
-A Photivra model assumption may cite explanatory/reference evidence, but it remains explicitly a model assumption rather than being upgraded into a measured fact.
+A Photivra model assumption may cite explanatory or reference evidence. It is still explicitly a model assumption; citing a source does not upgrade it into a measured fact.
 
-Evidence continues to use the existing `EvidenceProvenance` contract:
+Evidence uses the existing `EvidenceProvenance` contract:
 
-- source origin and reuse rights remain separate;
-- factual-reference-only material is not reusable numeric data;
-- reusable data requires a license;
-- Photivra-owned evidence must originate from Photivra.
+- where a source came from, and whether it may be reused, are recorded separately;
+- material usable only as a factual reference is not reusable numeric data;
+- reusable data requires a licence;
+- Photivra-owned evidence must come from Photivra.
 
 ## Uncertainty states
 
-Component uncertainty has explicit semantic states.
+Each component's uncertainty is in one of these explicit states.
 
 ### Quantified relative uncertainty
 
@@ -97,7 +101,7 @@ Component uncertainty has explicit semantic states.
 
 ### Existing CalculationQuality
 
-Modules that already expose multiple quantified `CalculationQuality.uncertainty` components may preserve the whole validated quality object:
+Modules that already expose several quantified `CalculationQuality.uncertainty` components can keep the whole validated quality object:
 
 ```ts
 {
@@ -106,7 +110,7 @@ Modules that already expose multiple quantified `CalculationQuality.uncertainty`
 }
 ```
 
-This prevents a multi-component uncertainty description from being flattened into one invented scalar.
+This stops an uncertainty description with several parts from being squashed into one invented number.
 
 ### Not quantified
 
@@ -128,7 +132,7 @@ This prevents a multi-component uncertainty description from being flattened int
 }
 ```
 
-Use `unknown` when the uncertainty state itself is unavailable, not merely when a known approximation lacks a numeric error bound.
+Use `unknown` when nothing is known about the uncertainty at all. If the model is a known approximation that just lacks a numeric error bound, use `not-quantified` instead.
 
 ### Not applicable
 
@@ -141,16 +145,16 @@ Use `unknown` when the uncertainty state itself is unavailable, not merely when 
 
 ## Composed uncertainty
 
-`composeScientificAssurance()` preserves all component declarations but does not automatically calculate a combined numeric uncertainty.
+`composeScientificAssurance()` keeps every component's declaration, but does not automatically calculate a combined numeric uncertainty.
 
-Its aggregate uncertainty state is:
+The combined uncertainty state is the first of these that applies:
 
-1. `unknown` if any required component uncertainty is unknown;
-2. otherwise `not-quantified` if any required component has known-but-unquantified uncertainty;
-3. otherwise `not-propagated` when one or more required components have quantified uncertainty but no explicit propagation model has been supplied;
+1. `unknown`, if any required component's uncertainty is unknown;
+2. otherwise `not-quantified`, if any required component has a known but unquantified uncertainty;
+3. otherwise `not-propagated`, when one or more required components have quantified uncertainty but no explicit propagation model has been supplied;
 4. otherwise `not-applicable`.
 
-This ordering prevents a quantified component from hiding a less-characterized required component.
+This order stops a well-quantified component from hiding a required component that is less well understood.
 
 ### Why no automatic quadrature
 
@@ -161,120 +165,120 @@ Do not automatically:
 - add relative errors;
 - add variances in quadrature;
 - choose worst-case sums;
-- publish an aggregate confidence interval.
+- publish a combined confidence interval.
 
-A module may perform analytic propagation when the model, covariance/independence assumptions, and affected quantities are explicitly defined. That propagated result should remain traceable to the component uncertainties it consumed.
+A module may propagate uncertainty analytically when the model, the covariance or independence assumptions, and the affected quantities are all explicitly defined. The propagated result should stay traceable to the component uncertainties it used.
 
-Monte Carlo simulation is not required where an analytic treatment or an explicit `not-propagated` state is scientifically more appropriate.
+Monte Carlo simulation is not required where an analytic treatment, or an explicit `not-propagated` state, is scientifically more appropriate.
 
 ## Source identity and reproducibility
 
-Each assurance component has a stable source identity:
+Each assurance component has a stable source identity, which is one of:
 
 - profile;
 - result;
 - model;
 - fixture.
 
-IDs and versions are preserved where available.
+IDs and versions are kept where available.
 
-Material evidence/uncertainty changes must participate in the owning result/snapshot/plan's reproducibility identity. The production-plan tests verify that changing scene-radiance uncertainty changes both capture and plan fingerprints.
+A meaningful change to evidence or uncertainty must change the reproducibility identity of the result, snapshot or plan that owns it. The production-plan tests check that changing scene-radiance uncertainty changes both the capture and plan fingerprints.
 
 The canonical `basic-reference-scene` fixture is covered as a Photivra-owned `fixture` assurance source.
 
 ## Production composition (#111)
 
-Production image-formation plan contract `0.4.0` adds `scientificAssurance` when the plan has composed scientific results.
+Production image-formation plan contract `0.4.0` adds `scientificAssurance` whenever the plan has composed scientific results.
 
-The current physical path records required components for:
+The physical path records required components for:
 
-- scene-radiance result;
-- optical throughput profile;
-- Photivra primary-optics bridge model;
+- the scene-radiance result;
+- the optical throughput profile;
+- the Photivra primary-optics bridge model;
 - each selected front-of-lens filter;
-- non-unity field-throughput model when present.
+- the field-throughput model, when it is not unity.
 
-The temporal path records the capture temporal-schedule approximation when temporal composition is active.
+When temporal composition is active, the temporal path records the capture's temporal-schedule approximation.
 
-The primary optics bridge remains an approximation, so calibrated upstream data alone cannot cause the current scene-radiance → sensor-irradiance composition to claim calibrated status.
+The primary-optics bridge is an approximation. So calibrated upstream data alone can never make the scene-radiance → sensor-irradiance result claim calibrated status.
 
-Optimized and reference consumer manifests receive the same assurance object unchanged.
+Optimised and reference consumer manifests receive the same assurance object, unchanged.
 
 ## Cross-engine audit
 
 ### Scene radiance
 
-Scene-radiance/provider contracts already distinguish:
+Scene-radiance and provider contracts already distinguish:
 
-- calibrated vs approximation status where supported;
-- relative quantified uncertainty;
+- calibrated versus approximation status, where supported;
+- quantified relative uncertainty;
 - `not-quantified`;
 - evidence and limitations.
 
-#111 maps those declarations into the common assurance component without reinterpreting them.
+Production composition maps those declarations into the common assurance component without reinterpreting them.
 
 ### Optics
 
-The scene-to-sensor optical bridge already preserves:
+The scene-to-sensor optical bridge already keeps:
 
-- profile/transmission status;
-- profile/transmission/working-f-number evidence;
+- profile and transmission status;
+- evidence for the profile, transmission and working f-number;
 - relative or unquantified uncertainty;
 - explicit limitations.
 
-The bridge itself is still an approximation and is represented as a separate Photivra-model component.
+The bridge itself is still an approximation. It is represented as a separate Photivra-model component.
 
-Front-of-lens filters preserve each filter's identity, status, evidence and uncertainty separately.
+Front-of-lens filters keep each filter's identity, status, evidence and uncertainty separately.
 
 ### Sensor
 
-Sensor modules use several domain-specific readiness/profile/result contracts plus `CalculationQuality` where appropriate.
+Sensor modules use several sensor-specific readiness, profile and result contracts, plus `CalculationQuality` where it fits.
 
-Those domain contracts remain authoritative. The common assurance layer must preserve them rather than replacing sensor-specific physical applicability with one generic score.
+Those sensor contracts stay authoritative. The common assurance layer must keep them, not replace sensor-specific physical applicability with one generic score.
 
-When a sensor result exposes multiple `CalculationQuality` uncertainty components, the common contract can retain the whole validated quality object.
+When a sensor result exposes several `CalculationQuality` uncertainty components, the common contract can keep the whole validated quality object.
 
 ### Exposure and metering
 
-Current relative exposure/metering/control paths are deterministic model/policy outputs, often without a calibrated real-camera error distribution.
+The current relative exposure, metering and control paths produce deterministic model or policy outputs. They usually have no calibrated error distribution from a real camera.
 
-Do not invent numeric uncertainty merely because an exposure offset or setting is numeric.
+Do not invent a numeric uncertainty just because an exposure offset or setting is a number.
 
-Where the source is an educational/generic approximation, composed consumers should use explicit approximation + not-quantified semantics unless a future calibration contract supplies a real uncertainty model.
+Where the source is an educational or generic approximation, consumers should use `approximation` status with `not-quantified` uncertainty, unless a future calibration contract supplies a real uncertainty model.
 
 ### Processed output (#112)
 
-The bounded processed-camera/output pipeline is merged. It retains reconstruction/rendering/correction child envelopes and conservative upstream assurance; it does not infer calibrated color from deterministic processing.
+The bounded processed camera output pipeline is in place. It keeps the detailed records of reconstruction, rendering and correction, and conservative upstream assurance. It does not infer calibrated colour from deterministic processing.
 
-When the processed output path composes source scientific results, it must:
+When the processed output path combines source scientific results, it must:
 
-- carry upstream assurance/evidence/uncertainty forward;
+- carry upstream assurance, evidence and uncertainty forward;
 - add its own processing-model components;
 - never upgrade scientific status because the output transform is deterministic;
-- distinguish calibrated color/output transforms from generic approximations;
-- keep display/encoding choices from erasing upstream limitations.
+- distinguish calibrated colour or output transforms from generic approximations;
+- not let display or encoding choices erase upstream limitations.
 
-These requirements govern the merged shared processed-RAW/paired-JPEG path. Unsupported wider output/color combinations remain explicit; see [processed output](PROCESSED_OUTPUT.md).
+These requirements apply to the shared processed-RAW / paired-JPEG path. Wider output and colour combinations that are unsupported stay explicitly unsupported; see [processed output](PROCESSED_OUTPUT.md).
 
 ## Relationship to provenance
 
-`docs/PROVENANCE.md` remains the source of truth for legal/scientific source provenance and reuse rights.
+`docs/PROVENANCE.md` is still the source of truth for legal and scientific source provenance and reuse rights.
 
-This contract adds **composition semantics**. It does not replace:
+This contract adds rules for **combining** results. It does not replace:
 
 - `CalculationResult.provenance`;
 - `CalculationResult.quality`;
 - `EvidenceProvenance`;
-- module-specific calibration/readiness/applicability contracts.
+- module-specific calibration, readiness and applicability contracts.
 
 ## Release rule
 
 A public composed result must not:
 
-- convert `not-quantified` or `unknown` into zero uncertainty;
+- turn `not-quantified` or `unknown` into zero uncertainty;
 - silently discard required evidence;
-- promote scientific status above a weaker required component;
-- fabricate a numeric aggregate uncertainty;
-- remove materially relevant uncertainty/evidence identity from deterministic serialization.
+- raise scientific status above a weaker required component;
+- fabricate a combined numeric uncertainty;
+- remove relevant uncertainty or evidence identity from deterministic serialisation.
 
-Violations are scientific correctness defects, not documentation-only issues.
+Breaking these rules is a scientific correctness defect, not just a documentation issue.
