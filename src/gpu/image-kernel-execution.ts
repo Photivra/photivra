@@ -54,6 +54,20 @@ export interface ImageKernelRelativeErrorBound {
   absolute: number;
 }
 
+/**
+ * Seeded stochastic stages (the sensor stage). Random states are integer arithmetic and bit-identical to
+ * the reference. A site is flagged when any float32 decision (sampling test, saturation limit, rounding)
+ * fell inside its a-priori bound. Every unflagged site has exactly the reference code and flags; only
+ * flagged sites may differ, and the statistical-equivalence tests cover them (docs/WEBGPU.md).
+ */
+export interface ImageKernelSeededRealizationBound {
+  kind: "exact-except-flagged-sites";
+  /** Number of flagged sites; equal to the execution's `diagnosticUncertaintySampleCount`. */
+  flaggedSiteCount: number;
+  noiseModel: { id: string; version: string };
+  seedSchedule: string;
+}
+
 /** Label attached to every accelerated result. */
 export interface ImageKernelExecution {
   backend: ImageKernelBackend;
@@ -66,7 +80,7 @@ export interface ImageKernelExecution {
    * cross-engine determinism hashes) are CPU-only and must never be computed from a `webgpu-f32` result.
    */
   bitIdenticalToReference: boolean;
-  errorBound: ImageKernelCodeErrorBound | ImageKernelRelativeErrorBound | null;
+  errorBound: ImageKernelCodeErrorBound | ImageKernelRelativeErrorBound | ImageKernelSeededRealizationBound | null;
   /**
    * Diagnostic counts equal the reference when no sample fell inside a float32 classification band
    * (`diagnosticUncertaintySampleCount === 0`). Otherwise each count differs by at most that many
@@ -101,6 +115,22 @@ export function integerCodeBound(maximum: number, linearAbsoluteBound: number): 
   const real = maximum * (SRGB_ENCODE_LIPSCHITZ * linear + WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND);
   return { kind: "integer-code-difference", maximumAbsoluteCodeDifference: Math.min(maximum, Math.floor(real) + 1),
     linearAbsoluteBound: linear, transferAbsoluteBound: WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND };
+}
+
+/**
+ * Composes two `relative-to-reference` bounds through a pipeline `second ∘ first`, where the second
+ * stage is linear with non-negative weights summing to at most `secondWeightSum` per output (convolution,
+ * temporal sums). With |ã − a| ≤ r₁a + a₁ elementwise and |B̃x − Bx| ≤ r₂Bx + a₂:
+ * |B̃ã − Ba| ≤ |B̃ã − Bã| + |B(ã − a)| ≤ r₂(1 + r₁)Ba + r₂W·a₁ + a₂ + r₁Ba + W·a₁,
+ * so r = r₁ + r₂ + r₁r₂ and a = a₂ + W·a₁·(1 + r₂). See docs/WEBGPU.md, "Accuracy contract".
+ */
+export function composeRelativeErrorBounds(first: ImageKernelRelativeErrorBound, second: ImageKernelRelativeErrorBound,
+  secondWeightSum: number): ImageKernelRelativeErrorBound {
+  for (const v of [first.relative, first.absolute, second.relative, second.absolute, secondWeightSum]) {
+    if (!(v >= 0 && v <= Number.MAX_VALUE)) throw new RangeError("Error bounds and weight sums must be finite and non-negative.");
+  }
+  return { kind: "relative-to-reference", relative: first.relative + second.relative + first.relative * second.relative,
+    absolute: second.absolute + secondWeightSum * first.absolute * (1 + second.relative) };
 }
 
 export const CPU_REFERENCE_LIMITATIONS = Object.freeze(["Float64 engine reference execution; results are the reference by definition"]);

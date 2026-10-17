@@ -18,6 +18,21 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface AcceleratedNativeRawDevelopmentOutput extends NativeRawDevelopmentOutput { execution: ImageKernelExecution }
 ```
 
+## AcceleratedPackedSensorRawResult
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface AcceleratedPackedSensorRawResult extends PackedSensorRawResult {
+  execution: ImageKernelExecution;
+  /**
+   * Region-relative indices of the flagged sites, ascending (empty for `cpu-reference`). Every other site
+   * equals the reference; recomputing these sites with the reference makes the whole region bit-identical.
+   */
+  flaggedSiteIndices: Uint32Array;
+}
+```
+
 ## createImageKernelAccelerator
 
 Requests a backend. Never swaps backends silently: a fallback must be set in the options and is shown in every result label.
@@ -43,6 +58,10 @@ export interface ImageKernelAccelerator {
   developNativeRaw(input: NativeRawDevelopmentInput, provider: NativeRawDevelopmentProvider | ((signal: AbortSignal) => Promise<void>),
     options?: ImageKernelRunOptions): Promise<AcceleratedNativeRawDevelopmentOutput>;
   convolveIrradiance(input: IrradianceConvolutionInput, options?: ImageKernelRunOptions): Promise<IrradianceConvolutionResult>;
+  /** Sensor stage on typed arrays: seeded charge, read noise and ADC to RAW codes (see `simulatePackedSensorRaw`). */
+  simulateSensorRaw(input: PackedSensorRawInput, options?: ImageKernelRunOptions): Promise<AcceleratedPackedSensorRawResult>;
+  /** Exposure and motion as a weighted sum of shifted frames (see `calculateTemporalExposureSum`). */
+  sumTemporalExposure(input: TemporalExposureSumInput, options?: ImageKernelRunOptions): Promise<TemporalExposureSumResult>;
   dispose(): void;
 }
 ```
@@ -82,7 +101,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface ImageKernelRunOptions {
   signal?: AbortSignal;
-  /** Yields to the host event loop between CPU reference chunks and GPU bands. Convolution only; tasks keep their own yields. */
+  /** Yields to the host event loop between CPU reference chunks and GPU bands. Convolution, sensor and temporal stages; tasks keep their own yields. */
   yieldControl?: (signal: AbortSignal) => Promise<void>;
 }
 ```
@@ -99,6 +118,19 @@ export interface IrradianceConvolutionResult {
   /** Float64 sums of the input and output samples. Their difference is the amount lost across the grid edge. */
   inputSum: number;
   outputSum: number;
+  execution: ImageKernelExecution;
+}
+```
+
+## TemporalExposureSumResult
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface TemporalExposureSumResult {
+  plan: TemporalExposureSumPlan;
+  /** Float64 for `cpu-reference`, float32 for `webgpu-f32`; row-major, same grid as the input. */
+  values: Float64Array | Float32Array;
   execution: ImageKernelExecution;
 }
 ```
