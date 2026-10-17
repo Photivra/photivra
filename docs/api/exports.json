@@ -428,6 +428,16 @@
       "kind": "type"
     },
     {
+      "name": "calculateChartRadianceBatch",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateChartRadianceBatchPlan",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateChromaticAdaptationMatrix",
       "source": "src/color/chromatic-adaptation.ts",
       "kind": "runtime"
@@ -1758,6 +1768,16 @@
       "kind": "type"
     },
     {
+      "name": "CHART_RADIANCE_BATCH_LIMITS",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CHART_RADIANCE_BATCH_SCHEMA_VERSION",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "CHART_SCENE_DEFAULTS",
       "source": "src/facade/chart-scenes.ts",
       "kind": "runtime"
@@ -1771,6 +1791,21 @@
       "name": "CHART_SPECTRAL_RANGE_NANOMETERS",
       "source": "src/facade/chart-scenes.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "ChartRadianceBatchInput",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartRadianceBatchPlan",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartRadianceResult",
+      "source": "src/gpu/chart-radiance-gpu.ts",
+      "kind": "type"
     },
     {
       "name": "ChartReflectance",
@@ -4966,6 +5001,11 @@
       "name": "PixelPitch",
       "source": "src/sensor/pixel-pitch.ts",
       "kind": "type"
+    },
+    {
+      "name": "planarChartPointsFromDirections",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "runtime"
     },
     {
       "name": "PlanarSceneRadianceProvider",

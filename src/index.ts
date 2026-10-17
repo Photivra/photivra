@@ -1739,7 +1739,7 @@ export type { ImageKernelBackend, ImageKernelFallbackReason, ImageKernelFailureR
 export { createImageKernelAccelerator } from "./gpu/image-kernel-accelerator.js";
 export type { ImageKernelAccelerator, ImageKernelAcceleratorOptions, ImageKernelAcceleratorState, ImageKernelRunOptions,
   AcceleratedNativeCaptureSdrOutput, AcceleratedNativeRawDevelopmentOutput, IrradianceConvolutionResult, AcceleratedPackedSensorRawResult,
-  TemporalExposureSumResult } from "./gpu/image-kernel-accelerator.js";
+  TemporalExposureSumResult, ChartRadianceResult } from "./gpu/image-kernel-accelerator.js";
 export { BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION, createBuiltInBayerDemosaicProfiles, type BuiltInBayerDemosaicKernel, type BuiltInBayerDemosaicProfiles,
   type CreateBuiltInBayerDemosaicProfilesInput, type RawReconstructionBorderHandling } from "./sensor/raw-reconstruction.js";
 export { PROCESSING_MAX_PIXELS, PROCESSING_MAX_FRAMES, PROCESSING_DEFAULT_MAXIMUM_WORKING_BYTES, PROCESSING_MODEL_VERSION,
@@ -1771,6 +1771,8 @@ export { CHART_SCENE_PRESETS, CHART_SCENE_DEFAULTS, CHART_SPECTRAL_RANGE_NANOMET
 export { PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, resolveCaptureIlluminant, createPlanarSceneRadianceProvider,
   type CaptureIlluminant, type ResolvedCaptureIlluminant, type CallerReflectanceScene, type CallerRadianceScene, type ScenePlanePoint,
   type PlanarSceneRadianceProvider } from "./facade/scene-radiance.js";
+export { CHART_RADIANCE_BATCH_SCHEMA_VERSION, CHART_RADIANCE_BATCH_LIMITS, calculateChartRadianceBatchPlan, calculateChartRadianceBatch,
+  planarChartPointsFromDirections, type ChartRadianceBatchInput, type ChartRadianceBatchPlan } from "./facade/chart-radiance-batch.js";
 export { EXPORT_JPEG_ENCODER_ID } from "./capture/export-jpeg.js";
 export { DNG_IMPORT_SCHEMA_VERSION, DNG_IMPORT_LIMITS, parseDngRawImage } from "./capture/dng-import.js";
 export { NATIVE_RAW_DNG_SCHEMA_VERSION, serializeNativeRawDng, type SerializeNativeRawDngInput, type NativeRawDng, type NativeRawDngChannelNoise } from "./capture/native-raw-dng.js";

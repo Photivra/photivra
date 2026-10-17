@@ -1071,6 +1071,20 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`ExposureProgramLineProfile`](api/exposure-program-line.md#exposureprogramlineprofile) | Type |
 | [`parseExposureProgramLineProfile`](api/exposure-program-line.md#parseexposureprogramlineprofile) | Runtime |
 
+## facade/chart-radiance-batch.ts
+
+[Detailed contracts](api/facade-chart-radiance-batch.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/chart-radiance-batch.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateChartRadianceBatch`](api/facade-chart-radiance-batch.md#calculatechartradiancebatch) | Runtime |
+| [`calculateChartRadianceBatchPlan`](api/facade-chart-radiance-batch.md#calculatechartradiancebatchplan) | Runtime |
+| [`CHART_RADIANCE_BATCH_LIMITS`](api/facade-chart-radiance-batch.md#chart_radiance_batch_limits) | Runtime |
+| [`CHART_RADIANCE_BATCH_SCHEMA_VERSION`](api/facade-chart-radiance-batch.md#chart_radiance_batch_schema_version) | Runtime |
+| [`ChartRadianceBatchInput`](api/facade-chart-radiance-batch.md#chartradiancebatchinput) | Type |
+| [`ChartRadianceBatchPlan`](api/facade-chart-radiance-batch.md#chartradiancebatchplan) | Type |
+| [`planarChartPointsFromDirections`](api/facade-chart-radiance-batch.md#planarchartpointsfromdirections) | Runtime |
+
 ## facade/chart-scenes.ts
 
 [Detailed contracts](api/facade-chart-scenes.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/chart-scenes.ts)
@@ -1133,6 +1147,14 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`SimulateCaptureProgress`](api/facade-simulate-capture.md#simulatecaptureprogress) | Type |
 | [`SimulateCaptureResult`](api/facade-simulate-capture.md#simulatecaptureresult) | Type |
 | [`SimulateCaptureWhiteBalance`](api/facade-simulate-capture.md#simulatecapturewhitebalance) | Type |
+
+## gpu/chart-radiance-gpu.ts
+
+[Detailed contracts](api/gpu-chart-radiance-gpu.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/gpu/chart-radiance-gpu.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`ChartRadianceResult`](api/gpu-chart-radiance-gpu.md#chartradianceresult) | Type |
 
 ## gpu/image-kernel-accelerator.ts
 

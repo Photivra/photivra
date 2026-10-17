@@ -424,7 +424,7 @@ Work that is known and deliberately left for later:
 - **#275:** planning once per CFA phase; worker parallelism; a different native RAW default tile width (a plan-shape change); per-tap request retention (about 8 MB per site with a large PSF).
 - **#276 follow-up:** the `parse*()` versioned-record parsers and 13 record-taking functions still drop unknown top-level fields instead of rejecting them (each schema needs its own review, and this changes which stored records parse). Result values are frozen only at their top level (a deep freeze measured about 3× on hot scalar calls).
 - **#277 and follow-ups from #304:**
-  - scene radiance on the GPU and the batched provider API;
+  - an adapter from `NativeEnvironmentRawProvider.evaluateRadianceBatch` (#319) to `evaluateChartRadiance` (the seam, `planarChartPointsFromDirections`, is built), and GPU radiance for caller scene functions;
   - the per-fixture rollout, with method-error comparisons against the per-site engine;
   - hardware-GPU timings at 6–24 MP (the script `npm run bench:webgpu` exists; nothing has been measured);
   - hardware-GPU conformance runs and CI wiring.

@@ -66,7 +66,7 @@ Two image-formation stages were added later for #277. Their CPU references are n
 | Temporal exposure sum (exposure, motion, rolling or global readout) | `calculateTemporalExposureSum` (new, float64) | One invocation per output site; K nodes × 4 bilinear taps |
 | Sensor stage (seeded Poisson charge, capacity, read noise, pre-ADC limit, ADC) | `simulatePackedSensorRaw` (new, float64; bit-identical to the per-site producer) | One invocation per site; integer random streams |
 
-Per-site radiance and pupil sampling (the 75-hour path in #277) stay on the CPU. They need the batched provider API, which is not built yet.
+Two more stages were added for #277 in 2.0, scene radiance of the engine's chart scenes and the spectral integration of that radiance (`calculateChartRadianceBatch`, see [Scene radiance on the GPU](#scene-radiance-on-the-gpu)). The per-site engine's own radiance and pupil sampling for arbitrary providers stays on the CPU.
 
 ### Supported domain (fails closed outside it)
 
@@ -171,6 +171,19 @@ A saturated site normalizes to exactly 1, while every unsaturated value is ≤ 1
   - Deterministic components make the stored charge non-integer. Their sum enters as an exact integer part plus a float32 fraction, and the capacity test becomes a float32 difference with its own bound (both fractions' roundings and the reference's rounding of the total), so a near-tie at the capacity is flagged.
   - With either feature, the noise-free exact-tie mode is off, so every ADC rounding decision carries its bound.
 
+## Scene radiance on the GPU
+
+`accelerator.evaluateChartRadiance(input)` (2.0) answers many radiance queries on the engine's procedural chart scenes in one call. The float64 reference is `calculateChartRadianceBatch` (schema 0.1.0), and the query shape mirrors a batched provider: queries in, results in the same order.
+
+- **Queries:** frame points (u right, v up, as in `resolveChartScene`), with either one wavelength index per point (spectral radiance in W·m⁻²·sr⁻¹·nm⁻¹) or 1–4 rows of channel weights over 1–256 wavelengths (the spectral integral Σ_j w_cj·L(u, v, λ_j), summed in wavelength order). `planarChartPointsFromDirections` turns environment-direction queries into frame points exactly as the planar provider's `evaluateRadiance` does.
+- **Reference:** every value comes from the planar provider's own `radianceAt`: a Lambertian reflectance ρ(λ) under the scaled illuminant, L = ρ·k·S(λ)/π (see `createPlanarSceneRadianceProvider`).
+- **How the GPU evaluates it:** the charts are uniform-illuminant Lambertian patterns, so a query's value depends only on its material and wavelength (or channel). The host computes each material's value in float64 with the reference's own operations and order. The GPU classifies each point's material in float32 and reads the table.
+- **Classification bounds:** every decision (half-plane, disk, sector, cell and gap boundaries) carries an a-priori bound on the distance between the float32 decision value and the float64 reference value. The bound covers the point's float32 rounding, each float32 operation (u = 2^-24), the constants' float32 rounding and the reference's own float64 rounding (10^-14 relative slack). A point within four times its bound of a boundary is flagged. Siemens-star sectors are found from a rough `atan2` and then decided by the signs of cross products with the sector boundary directions, so WGSL's 4096-ULP `atan2` bound does not enter.
+- **Flagged points are recomputed on the host** with the reference (`hostRecomputedQueryIndices`), and so are points whose material spectrum fails, which then raise the reference's own error.
+- **Bound (`relative-to-reference`):** every value, flagged or not, is the reference value rounded once to float32: |v_gpu − v_ref| ≤ 2^-24·|v_ref| + 2^-126. This holds for negative channel weights too.
+- **Domain (`unsupported-float32-domain` otherwise):** |u|, |v| ≤ 2^20 frame units; table values ≤ 2^120.
+- **Measured on SwiftShader** (`test/webgpu/stages.webgpu.ts`, all eight presets, 60 000 random points plus boundary points, radiance and three-channel integration): every value equalled the reference rounded once to float32 (largest relative difference 5.9e-8). Boundary points were flagged and recomputed as designed. Random points were recomputed at most 1 in 60 000 times, except for the 1024-level grey ramp (42 in 60 000).
+
 ## Error bounds (a priori, reported per result)
 
 Let u = 2^-24 (binary32 unit roundoff) and γ_k = k·u/(1 − k·u). These are the standard forward-error bounds for recursive summation and dot products (Rump & Jeannerod, *SIAM J. Matrix Anal. Appl.* 35(2), 2014, sec. 1, [free author copy](https://www.tuhh.de/ti3/paper/rump/RuJea13.pdf). Also see: Higham, *Accuracy and Stability of Numerical Algorithms*, 2nd ed., SIAM 2002, §2–§3). They assume a conforming WebGPU implementation: correctly rounded f32 `+ − × ÷`, and the WGSL accuracy table for `pow` (W3C WGSL, *Floating Point Accuracy*).
@@ -220,6 +233,7 @@ This section states what the `webgpu-f32` path promises for each stage, relative
 | Native capture SDR | 8- or 16-bit codes | `integer-code-difference` | 1 code | `test/image-kernel-accelerator.test.ts`, `test/webgpu/conformance.webgpu.ts` |
 | RAW development | 8- or 16-bit codes | `integer-code-difference` | propagated per run (see above) | same |
 | Luminance tone curves (SDR and RAW development) | 8- or 16-bit codes | `integer-code-difference` | largest per-sample bound of the run (see above) | `test/webgpu-luminance-tone.test.ts`, `test/webgpu/conformance.webgpu.ts` |
+| Scene radiance and spectral integration (chart presets) | spectral radiance or its channel integrals per query | `relative-to-reference` | 2^-24·v + 2^-126 (flagged points recomputed on the host) | `test/chart-radiance-batch.test.ts`, `test/webgpu/stages.webgpu.ts` |
 
 **How the bounds compose:**
 

@@ -62,6 +62,8 @@ export interface ImageKernelAccelerator {
   simulateSensorRaw(input: PackedSensorRawInput, options?: ImageKernelRunOptions): Promise<AcceleratedPackedSensorRawResult>;
   /** Exposure and motion as a weighted sum of shifted frames (see `calculateTemporalExposureSum`). */
   sumTemporalExposure(input: TemporalExposureSumInput, options?: ImageKernelRunOptions): Promise<TemporalExposureSumResult>;
+  /** Chart scene radiance or its spectral integral at many frame points (see `calculateChartRadianceBatch`). */
+  evaluateChartRadiance(input: ChartRadianceBatchInput, options?: ImageKernelRunOptions): Promise<ChartRadianceResult>;
   dispose(): void;
 }
 ```

@@ -34,6 +34,10 @@ import type { PackedSensorRawInput, PackedSensorRawResult } from "../capture/pac
 import { simulateSensorRawOnCpu, simulateSensorRawOnGpu } from "./sensor-stage-gpu.js";
 import { calculateTemporalExposureSumPlan, type TemporalExposureSumInput, type TemporalExposureSumPlan } from "../motion/temporal-exposure-sum.js";
 import { sumTemporalExposureOnCpu, sumTemporalExposureOnGpu } from "./temporal-sum-gpu.js";
+import type { ChartRadianceBatchInput } from "../facade/chart-radiance-batch.js";
+import { evaluateChartRadianceOnCpu, evaluateChartRadianceOnGpu, type ChartRadianceResult } from "./chart-radiance-gpu.js";
+
+export type { ChartRadianceResult } from "./chart-radiance-gpu.js";
 
 export interface AcceleratedPackedSensorRawResult extends PackedSensorRawResult {
   execution: ImageKernelExecution;
@@ -95,6 +99,8 @@ export interface ImageKernelAccelerator {
   simulateSensorRaw(input: PackedSensorRawInput, options?: ImageKernelRunOptions): Promise<AcceleratedPackedSensorRawResult>;
   /** Exposure and motion as a weighted sum of shifted frames (see `calculateTemporalExposureSum`). */
   sumTemporalExposure(input: TemporalExposureSumInput, options?: ImageKernelRunOptions): Promise<TemporalExposureSumResult>;
+  /** Chart scene radiance or its spectral integral at many frame points (see `calculateChartRadianceBatch`). */
+  evaluateChartRadiance(input: ChartRadianceBatchInput, options?: ImageKernelRunOptions): Promise<ChartRadianceResult>;
   dispose(): void;
 }
 
@@ -241,6 +247,13 @@ function createAccelerator(requested: ImageKernelBackend, fallbackReason: ImageK
         if (!runtime) return sumTemporalExposureOnCpu(plan, input, abort, run.yieldControl, cpuLabel());
         return sumTemporalExposureOnGpu(runtime, bandBytes, plan, input, abort, run.yieldControl,
           (label, code) => pipeline(runtime, label, code, abort.signal));
+      });
+    },
+    async evaluateChartRadiance(input, options): Promise<ChartRadianceResult> {
+      const run = runOptions(options);
+      return operate(run.signal, async (abort) => {
+        if (!runtime) return evaluateChartRadianceOnCpu(input, abort, run.yieldControl, cpuLabel());
+        return evaluateChartRadianceOnGpu(runtime, bandBytes, input, abort, run.yieldControl, (label, code) => pipeline(runtime, label, code, abort.signal));
       });
     },
     dispose(): void {

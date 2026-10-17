@@ -7,7 +7,8 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
-import { calculateTemporalExposureSum, simulatePackedSensorRaw, type ImageKernelExecution, type ImageKernelRelativeErrorBound,
+import { chartBatchInput, chartPoints, CHART_PRESET_SCENES } from "../helpers/chart-radiance-fixtures.js";
+import { calculateChartRadianceBatch, calculateTemporalExposureSum, simulatePackedSensorRaw, type ImageKernelExecution, type ImageKernelRelativeErrorBound,
   type PackedSensorRawDiagnostics, type PackedSensorRawInput } from "../../src/index.js";
 import { calculatePackedSensorRawPlan, createPackedFixedPattern, simulatePackedSensorSite } from "../../src/capture/packed-sensor-raw.js";
 import { fixedPatternCorpus, readoutProfile, sensorCorpus, sensorStageInput, temporalCorpus } from "../helpers/sensor-stage-fixtures.js";
@@ -125,6 +126,25 @@ describe("webgpu-f32 sensor stage vs float64 reference", () => {
       rows.push({ level, gpuMean: g.mean, referenceMean: c.mean, expectedMean, gpuVariance: g.variance, referenceVariance: c.variance, expectedVariance });
     });
     report.push({ stage: "sensor-statistics", flaggedSites: gpu.flaggedSiteIndices.length, patches: rows });
+  });
+});
+
+describe("webgpu-f32 chart radiance vs float64 reference", () => {
+  it.each(CHART_PRESET_SCENES)("%s: unflagged values are the reference rounded once; flagged points recomputed", async (name, scene) => {
+    if (guard()) return;
+    for (const mode of ["radiance", "spectral-integral"] as const) {
+      const input = chartBatchInput(scene, chartPoints(scene, 2 / 3, 60_000, name.length), mode), reference = calculateChartRadianceBatch(input).values;
+      const gpu = await call<{ values: Float32Array; execution: ImageKernelExecution; hostRecomputedQueryIndices: Uint32Array }>("chartRadiance", { input });
+      expect(gpu.execution.errorBound).toMatchObject({ kind: "relative-to-reference", relative: 2 ** -24 });
+      let worst = 0;
+      for (let i = 0; i < reference.length; i++) {
+        expect(gpu.values[i], `value ${i}`).toBe(Math.fround(reference[i]!));
+        if (reference[i]! !== 0) worst = Math.max(worst, Math.abs(gpu.values[i]! - reference[i]!) / Math.abs(reference[i]!));
+      }
+      const random = Array.from(gpu.hostRecomputedQueryIndices).filter(i => i < 60_000).length;
+      report.push({ stage: "chart-radiance", preset: name, mode, queries: input.points.length / 2, recomputed: gpu.hostRecomputedQueryIndices.length,
+        recomputedRandomPoints: random, measuredMaximumRelative: worst });
+    }
   });
 });
 
