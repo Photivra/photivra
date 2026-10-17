@@ -1,22 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Internal shared count accumulation; time measures are seconds, never normalized weights.
+ * Internal: sums rate × time step over time samples to get expected photon and electron counts.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
 
-/** Internal shared count accumulation; time measures are seconds, never normalized weights. */
+/** Internal: sums expected counts over time samples. Time steps are in seconds, never normalized weights. */
 export function sumTemporalEqeRateExpectations(samples: readonly {
   incidentPhotonRatePerSecond: number;
   expectedGeneratedElectronRatePerSecond: number;
 }[], integrationMeasureSeconds: number): { photonCount: number; electronCount: number } {
   let photonCount = 0, electronCount = 0, photonCorrection = 0, electronCorrection = 0;
 /**
- * Separate compensated sums preserve small photon/electron contributions beside
- * large terms. Multiply rates by seconds-valued measure, never by normalized time
- * average weight: those weights describe a different mathematical quantity.
+ * Separate compensated sums keep small photon and electron contributions from being
+ * lost next to large ones. Multiply rates by the time step in seconds, never by a
+ * normalized time-average weight, which is a different quantity.
  */
   for (const sample of samples) {
     const photons = sample.incidentPhotonRatePerSecond * integrationMeasureSeconds;
