@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { InvalidConfigurationError, estimateCie1931ColorMatchingFunctions, evaluateBt709InverseOetf, evaluateHlgInverseOetf, evaluatePqEotf, evaluateSrgbDecoding, resolveRgbColorSpace,
+import { InvalidConfigurationError, estimateCie1931ColorMatchingFunctions, evaluateBt709InverseOetf, parseDngRawImage, evaluateHlgInverseOetf, evaluatePqEotf, evaluateSrgbDecoding, resolveRgbColorSpace,
   simulateCapture, type LensSampledPsfProfile, type SimulateCaptureOptions, type SimulateCaptureResult } from "../src/index.js";
 
 function sha(data: ArrayBufferView | string): string {
@@ -126,7 +126,7 @@ function facadePsf(): NonNullable<NonNullable<SimulateCaptureOptions["lens"]>["p
     reconstructionIncluded: false, strayLightIncluded: false, axes, evidence, limitations: ["Synthetic binomial kernel for a facade test."],
     nodes: axes.fieldXmm.flatMap((x) => axes.fieldYmm.flatMap((y) => axes.wavelengthNm.map((nm) => ({ nodeId: "n-" + x + "-" + y + "-" + nm,
       coordinate: { focalLengthMm: 50, focusDiopters: 0.2, apertureFNumber: 8, fieldXmm: x, fieldYmm: y, wavelengthNm: nm, signedDefocusImagePlaneMicrometers: 0 },
-      kernel, bestFocusImagePlaneOffsetMicrometers: 0, relativePupilThroughputFactor: 0.9, evidence, uncertainty: { kind: "not-quantified" as const, limitation: "Synthetic." } })))) };
+      kernel, bestFocusImagePlaneOffsetMicrometers: 0, relativePupilThroughputFactor: 1, evidence, uncertainty: { kind: "not-quantified" as const, limitation: "Synthetic." } })))) };
   return { kind: "sampled-local", configuration: { psf: { profile, focalLengthMm: 50, focus: { kind: "finite", distanceM: 5 }, apertureFNumber: 8, signedDefocusImagePlaneMicrometers: 0 },
     psfWavelengthBasis: { value: "vacuum", evidence }, spatialModel: { kind: "destination-local-shift-invariant-approximation", evidence, limitation: "Synthetic local kernel." } } };
 }
@@ -193,8 +193,17 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
     expect(pq.assumptions.find((x) => x.id === "output.colorEncoding.conversion")!.explanation).toMatch(/no highlight headroom/);
   });
 
-  it("refuses DNG output with the reason instead of declaring a linear master that never existed", async () => {
-    await expect(simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "dng" as never } })).rejects.toThrow(/linear-master source/);
+  it("writes the packed native RAW as a DNG that round-trips through parseDngRawImage", async () => {
+    const r = await simulateCapture({ scene: { preset: "siemens-star" }, output: { width: 6, height: 4, format: "dng", dng: { capturedAtUtc: "2026-10-17T12:00:00.000Z" } } });
+    const parsed = parseDngRawImage({ bytes: r.image.dng! });
+    expect([parsed.width, parsed.height]).toEqual([8, 6]);
+    expect(Array.from(parsed.codes)).toEqual(Array.from(r.raw.codes));
+    expect(parsed.activeArea).toEqual({ x: 1, y: 1, width: 6, height: 4 });
+    expect(parsed.defaultCrop).toEqual({ x: 0, y: 0, width: 6, height: 4 });
+    expect(r.image.samples).toBeInstanceOf(Uint8Array);
+    expect(r.provenance.composedContracts).toContain("serializeNativeRawDng");
+    const a = r.assumptions.find((x) => x.id === "output.dng")!.value as { noiseProfile: number[] | null };
+    expect(a.noiseProfile).toHaveLength(6);
   });
 
   it("selects built-in demosaic kernels and mirror borders", async () => {
@@ -278,7 +287,7 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
       { scene, output: { colorEncoding: "display-p3" } },
       { scene, output: { format: "png", colorEncoding: "rec2100-pq", bitDepth: 8 } },
       { scene, output: { format: "png", colorEncoding: "rec2020", toneCurve: "positive-reinhard-per-channel" } },
-      { scene, output: { format: "dng" as never } },
+      { scene, output: { format: "png", dng: {} } },
       { scene, output: { format: "png", bitDepth: 12 as never } },
       { scene, output: { demosaic: "ahd" as never } },
       { scene, output: { borderHandling: "wrap" as never } },
@@ -293,5 +302,43 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
     ];
     for (const options of bad) await expect(simulateCapture(options), JSON.stringify(options, (_k, v: unknown) => typeof v === "function" ? "fn" : v)).rejects.toThrow(InvalidConfigurationError);
     expect(calls).toBe(0);
+  });
+});
+
+describe("simulateCapture perceptual gamut mapping", { timeout: 300_000 }, () => {
+  /** CIELAB hue angle (degrees) of an XYZ colour relative to D65. */
+  function hue(xyz: number[]): number {
+    const white = [0.95047, 1, 1.08883], f = (t: number): number => (t > (6 / 29) ** 3 ? Math.cbrt(t) : t / (3 * (6 / 29) ** 2) + 4 / 29);
+    const [fx, fy, fz] = xyz.map((v, i) => f(v / white[i]!)) as [number, number, number];
+    return Math.atan2(200 * (fy - fz), 500 * (fx - fy)) * 180 / Math.PI;
+  }
+  it("keeps clip as the unchanged default and maps out-of-gamut colour at constant hue", async () => {
+    const plain = await simulateCapture({ scene: { preset: "checkerboard" }, output: { width: 4, height: 4, format: "png" } });
+    const clip = await simulateCapture({ scene: { preset: "checkerboard" }, output: { width: 4, height: 4, format: "png", gamutMapping: "clip" } });
+    expect(Array.from(clip.image.png!)).toEqual(Array.from(plain.image.png!));
+    expect(plain.assumptions.find((a) => a.id === "output.gamutMapping")!.value).toBe("clip");
+    const scene = { kind: "radiance-function" as const, sceneId: "green-emitter", evaluate: (p: { wavelengthNanometers: number }): number => 5e-2 * (0.15 + Math.exp(-(((p.wavelengthNanometers - 530) / 30) ** 2))) };
+    const base = { scene, sensor: { spectralStepNanometers: 5 }, output: { width: 4, height: 4, whiteBalance: "none" as const, format: "png" as const, bitDepth: 16 as const } };
+    const clipped = await simulateCapture(base), mapped = await simulateCapture({ ...base, output: { ...base.output, gamutMapping: "perceptual" } });
+    expect(clipped.diagnostics.rendering.gamutClippedLowSampleCount).toBeGreaterThan(0);
+    expect(mapped.diagnostics.gamutMapping).toMatchObject({ method: "cielab-hue-preserving-chroma-compression", kneeFraction: 0.9, adjustedPixelCount: 16 });
+    expect(mapped.provenance.composedContracts).toContain("prepareRgbGamutMapping");
+    const decode = (r: SimulateCaptureResult): number[] => {
+      const rgb = [0, 1, 2].map((c) => evaluateSrgbDecoding(meanOf(r.image.samples, c) / 65535)), m = resolveRgbColorSpace("srgb").value.rgbToXyz;
+      return m.map((row) => row[0]! * rgb[0]! + row[1]! * rgb[1]! + row[2]! * rgb[2]!);
+    };
+    const truth = [0, 0, 0];
+    for (let nm = 380; nm <= 780; nm++) { const e = scene.evaluate({ wavelengthNanometers: nm }), c = estimateCie1931ColorMatchingFunctions(nm); truth[0]! += e * c.x; truth[1]! += e * c.y; truth[2]! += e * c.z; }
+    const hueError = (r: SimulateCaptureResult): number => Math.abs(hue(decode(r)) - hue(truth));
+    expect(hueError(mapped)).toBeLessThan(1);
+    expect(hueError(mapped)).toBeLessThan(hueError(clipped));
+    // Neutral colours are untouched by the mapping.
+    const grey = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "png", gamutMapping: "perceptual" } });
+    expect(grey.diagnostics.gamutMapping!.adjustedPixelCount).toBe(0);
+    const greyClip = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "png" } });
+    for (let i = 0; i < greyClip.image.samples.length; i++) expect(Math.abs(grey.image.samples[i]! - greyClip.image.samples[i]!)).toBeLessThanOrEqual(1);
+    for (const bad of [{ format: "png", colorEncoding: "rec2100-pq", gamutMapping: "perceptual" }, { format: "srgb-8", gamutMapping: "perceptual" },
+      { format: "png", gamutMapping: "perceptual", toneCurve: "positive-reinhard-per-channel" }, { format: "png", gamutMapping: "hue" }])
+      await expect(simulateCapture({ scene: { preset: "uniform" }, output: bad as never })).rejects.toThrow(InvalidConfigurationError);
   });
 });

@@ -171,7 +171,7 @@ describe("simulateCapture facade", { timeout: 60_000 }, () => {
   });
 
   it("rejects malformed input with domain errors", async () => {
-    for (const bad of [undefined, null, {}, { scene: { preset: "uniform" }, colour: 1 }, { scene: { preset: "uniform" }, output: { format: "dng" } },
+    for (const bad of [undefined, null, {}, { scene: { preset: "uniform" }, colour: 1 }, { scene: { preset: "uniform" }, output: { format: "tiff" } },
       { scene: { preset: "uniform" }, output: { width: 0 } }, { scene: { preset: "uniform" }, camera: "flagship" }, { scene: { preset: "uniform" }, exposure: { mode: "bulb" } },
       { scene: { preset: "uniform" }, lens: { focalLengthMm: 35 } }, { scene: { preset: "uniform" }, output: { whiteBalance: "daylight" } },
       { scene: { kind: "radiance-function", sceneId: "x" } }, { scene: { preset: "uniform" }, subjectDistanceM: 0.05 }])

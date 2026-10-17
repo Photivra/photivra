@@ -7273,8 +7273,9 @@ Each 2.0 option is opt-in and composes an existing public contract; without them
 is byte-identical to 1.0. `output.format: "png"` writes `serializePngImage` output, either the
 developed sRGB samples or, with `colorEncoding`, the unclipped linear development converted through
 CIE XYZ to Display P3, Rec. 2020 or Rec. 2100 PQ/HLG (`createHdrImageEncodingTask`), signalled with
-cICP. DNG is refused, because the engine's DNG writer needs a linear-master capture that a native
-environment capture does not have. See [Output formats](QUICK_START.md#output-formats).
+cICP; `output.gamutMapping: "perceptual"` swaps the component clip for `prepareRgbGamutMapping`.
+`format: "dng"` writes the packed native RAW with `serializeNativeRawDng`. See
+[Output formats](QUICK_START.md#output-formats).
 
 ```ts
 import { simulateCapture } from "@photivra/engine";
