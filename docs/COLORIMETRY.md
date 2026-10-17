@@ -55,7 +55,7 @@ Spectra are either tabulated (linear interpolation, fail-closed outside the tabl
 | `estimatePlanckianLocusChromaticity` | Kim et al. cubic spline (Kang et al., J. Korean Phys. Soc. 41(6):865–871, 2002; US 7,024,034), 1667–25000 K | approximation |
 | `calculatePlanckianChromaticity` | Kim spline, or exact Planck × CMF integration (`planck-integration`) | approximation / calculated |
 | `estimateCorrelatedColorTemperatureMcCamy` | McCamy (1992), Color Res. Appl. 17(2):142–144: n = (x − 0.3320)/(0.1858 − y), CCT = 449n³ + 3525n² + 6823.3n + 5520.33 | approximation |
-| `calculateCorrelatedColorTemperature` | Nearest point on the chosen Planckian locus in CIE 1960 uv (the CCT/Duv definition as stated in Smet et al. 2023, free; also CIE 15:2018), golden-section search in mired. Signed Duv: positive above the locus (greenish), negative below (magenta); this sign is the engine's own documented convention. Fails closed for \|Duv\| > 0.05, the range over which Smet et al. evaluate CCT methods (CIE 15:2018, paid, gives the same limit) | follows the locus model |
+| `calculateCorrelatedColorTemperature` | Nearest point on the chosen Planckian locus in CIE 1960 uv (the CCT/Duv definition as stated in Smet et al. 2023, free; also CIE 15:2018), golden-section search in mired. Signed Duv: positive above the locus (greenish), negative below (magenta). The sign follows Ohno (CORM 2011 slides, free, slide 5), and the engine documents and tests it. Fails closed for \|Duv\| > 0.05, the range over which Smet et al. evaluate CCT methods (CIE 15:2018, paid, gives the same limit) | follows the locus model |
 | `calculateChromaticityFromCorrelatedColorTemperature` | Locus point (Planckian or CIE daylight) offset by Duv along the unit normal of the Planckian locus in uv | follows the locus model |
 
 Measured in the tests:
@@ -189,7 +189,8 @@ PQ and HLG accept signals only in [0, 1] and fail closed outside that range. The
 - C. Wyman, P.-P. Sloan, P. Shirley (2013), JCGT 2(2):1–11.
 - B. Kang, O. Moon, C. Hong, H. Lee, B. Cho, Y. Kim (2002), J. Korean Phys. Soc. 41(6):865–871; US Patent 7,024,034.
 - C. S. McCamy (1992), Color Res. Appl. 17(2):142–144.
-- K. A. G. Smet et al. (2023), "Recommended method for determining the correlated color temperature and distance from the Planckian locus of a light source", LEUKOS, doi:10.1080/15502724.2023.2248397; free archival copy: <https://www.energy.gov/sites/default/files/2023-09/ssl-smet-etal-2023_method-cct-duv-light-source.pdf> (CCT and signed Duv, Duv range ±0.05). The Duv sign (positive above the locus) is the engine's documented convention.
+- K. A. G. Smet et al. (2023), "Recommended method for determining the correlated color temperature and distance from the Planckian locus of a light source", LEUKOS, doi:10.1080/15502724.2023.2248397; free archival copy: <https://www.energy.gov/sites/default/files/2023-09/ssl-smet-etal-2023_method-cct-duv-light-source.pdf> (CCT and signed Duv, Duv range ±0.05).
+- Y. Ohno (2011), "Calculation of CCT and Duv and Practical Conversion Formulae", slides, CORM 2011 Conference, Gaithersburg, MD, May 3–5, 2011, slide 5 (Duv sign: "+ sign for above and - sign for below the Planckian locus"); free at <https://cormusa.org/wp-content/uploads/2018/04/CORM_2011_Calculation_of_CCT_and_Duv_and_Practical_Conversion_Formulae.pdf>.
 - K. M. Lam (1985), PhD thesis, University of Bradford; M. R. Luo, P. A. Rhodes (1999); ICC.1:2010 Annex E (ICC specifications are free at <https://www.color.org/>).
 - N. Moroney et al. (2002), IS&T/SID 10th Color Imaging Conference, listed in the RIT open repository <https://repository.rit.edu/other/143>; also CIE 159:2004.
 - C. Li et al. (2017), Color Res. Appl. 42(6):703–718.
