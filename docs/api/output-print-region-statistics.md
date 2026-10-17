@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculatePrintRegionDifference
 
-Measure registered processing changes; residual is not automatically compression/noise.
+Measures how processing changed aligned samples. The residual is not automatically compression or noise.
 
 ```ts
 export function calculatePrintRegionDifference(value: PrintRegionDifferenceInput): CalculationResult<PrintRegionStatisticsAssessment<PrintRegionDifferenceInput, PrintRegionDifferenceMeasurement>>;
@@ -14,7 +14,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## calculatePrintRegionNoise
 
-Measure n-1 per-site temporal sample variance, independently of scene spatial texture.
+Measures the sample variance over time at each site (n-1 denominator), separately from spatial scene texture.
 
 ```ts
 export function calculatePrintRegionNoise(value: PrintRegionNoiseInput): CalculationResult<PrintRegionStatisticsAssessment<PrintRegionNoiseInput, PrintRegionNoiseMeasurement>>;
@@ -24,7 +24,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## MAX_PRINT_REGION_STATISTICS_SAMPLES
 
-Maximum scalar samples across every frame/reference in one request.
+Maximum number of single-channel samples across all frames and references in one request.
 
 ```ts
 MAX_PRINT_REGION_STATISTICS_SAMPLES = MAX_PRINT_DETAIL_REGION_SAMPLES
@@ -32,7 +32,7 @@ MAX_PRINT_REGION_STATISTICS_SAMPLES = MAX_PRINT_DETAIL_REGION_SAMPLES
 
 ## parsePrintRegionDifferenceInput
 
-Parse/copy an untrusted paired scalar ROI request.
+Parses and copies an untrusted request that pairs two single-channel ROIs.
 
 ```ts
 export function parsePrintRegionDifferenceInput(v: unknown): PrintRegionDifferenceInput;
@@ -42,7 +42,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parsePrintRegionNoiseInput
 
-Parse/copy an untrusted repeat-capture ensemble with a total scalar work bound.
+Parses and copies an untrusted set of repeat captures, with a limit on the total number of samples.
 
 ```ts
 export function parsePrintRegionNoiseInput(v: unknown): PrintRegionNoiseInput;
@@ -52,7 +52,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## PRINT_REGION_STATISTICS_MODEL_VERSION
 
-Independent of the root distribution and coherent-detail protocol.
+Version of this protocol. Independent of the package version and of the print-detail protocol.
 
 ```ts
 PRINT_REGION_STATISTICS_MODEL_VERSION = "0.1.0" as const
@@ -60,7 +60,7 @@ PRINT_REGION_STATISTICS_MODEL_VERSION = "0.1.0" as const
 
 ## PrintRegionDifferenceInput
 
-Compare identical sample sites through processing, without mixing noise draws.
+Compares the same sample sites before and after processing, from the same noise draw.
 A known range is a declared reference signal range, never a clipping threshold.
 
 ```ts
@@ -83,7 +83,7 @@ export interface PrintRegionDifferenceMeasurement {
   meanSignedDifferenceRelativeLuminance: number;
   rmsDifferenceRelativeLuminance: number;
   maximumAbsoluteDifferenceRelativeLuminance: number;
-  /** Null unless the caller supplied a reference range; not a halo classifier. */
+  /** Null unless the caller supplied a reference range. It does not classify halos. */
   rangeExcursions: {
     beforeBelowRangeCount: number;
     beforeAboveRangeCount: number;
@@ -99,8 +99,8 @@ export interface PrintRegionDifferenceMeasurement {
 
 ## PrintRegionNoiseInput
 
-Sample statistics at registered sites over independently acquired repeats.
-Stationarity/independence are declarations; a single frame is never a noise ensemble.
+Statistics at aligned sites across separately acquired repeat captures.
+Stationarity and independence are declared by the caller. A single frame is never treated as a noise sample set.
 
 ```ts
 export interface PrintRegionNoiseInput {
@@ -124,7 +124,7 @@ export interface PrintRegionNoiseMeasurement {
   /** Mean of per-site sample variances with n-1 denominator, in squared linear units. */
   meanTemporalSampleVarianceRelativeLuminanceSquared: number;
   temporalRmsRelativeLuminance: number;
-  /** Separately retained so scene texture/fixed pattern is not relabelled temporal noise. */
+  /** Kept separate so scene texture and fixed-pattern variation are not mislabelled as temporal noise. */
   perSiteMeansRelativeLuminance: readonly number[];
   perSiteSampleVariancesRelativeLuminanceSquared: readonly number[];
 }
@@ -132,7 +132,7 @@ export interface PrintRegionNoiseMeasurement {
 
 ## PrintRegionRaster
 
-Exact, unwarped scalar linear ROI; sample and hash verification remains external.
+An exact, unwarped, single-channel linear region of interest (ROI). Checking the samples and their hash is up to the caller.
 
 ```ts
 export interface PrintRegionRaster {
@@ -145,7 +145,7 @@ export interface PrintRegionRaster {
 
 ## PrintRegionStatisticsAssessment
 
-Measurements remain diagnostic. No physical-noise calibration or print verdict.
+The measurements are diagnostics only. They are not a physical noise calibration or a print verdict.
 
 ```ts
 export interface PrintRegionStatisticsAssessment<TInput, TMeasurement> {

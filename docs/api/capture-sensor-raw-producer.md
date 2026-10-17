@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## parseSensorRawProducerInput
 
-Validates complete native exposure inputs; no charge/noise/RAW code is accepted as a shortcut.
+Validates the complete per-site exposure inputs. Charge, noise or RAW codes are never accepted as a shortcut.
 
 ```ts
 export function parseSensorRawProducerInput(value: unknown): SensorRawProducerInput;
@@ -14,9 +14,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## SENSOR_RAW_PRODUCER_NOISE_MODEL
 
-Capture noise model identity binds the hashed per-site seed schedule and signed electronic readout behavior.
-0.4.0: exact ties-up ADC rounding, normal-approximation Poisson draws for means of 1e9 and above, optional
-post-ADC digital gain/INL and optional per-sensor fixed-pattern noise.
+Version of the capture noise model. It fixes the hashed per-site seed schedule and the signed electronic
+readout behaviour.
+
+0.4.0: exact ADC rounding with ties up, normal-approximation Poisson draws for means of 1e9 and above,
+optional post-ADC digital gain and INL (integral non-linearity), and optional per-sensor fixed-pattern noise.
 
 ```ts
 SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.4.0" } as const)
@@ -32,7 +34,7 @@ SENSOR_RAW_PRODUCER_SCHEMA_VERSION = "0.3.0" as const
 
 ## SensorRawProducerExposureWindowInput
 
-Full-native exposure schedule; sampling coordinates belong to the producer.
+Exposure schedule for the full sensor. The producer owns the sampling coordinates.
 
 ```ts
 export type SensorRawProducerExposureWindowInput = Omit<CalculateCaptureExposureWindowsInput,
@@ -41,20 +43,20 @@ export type SensorRawProducerExposureWindowInput = Omit<CalculateCaptureExposure
 
 ## SensorRawProducerInput
 
-Bounded single-frame handoff, never a conversion from independent RGB pixels.
+Input for one bounded frame. It is never a conversion from separate RGB pixels.
 
 ```ts
 export interface SensorRawProducerInput {
   frame: Omit<SensorRawFrameInput, "samples">;
   sites: readonly SensorRawProducerSiteInput[];
-  /** Omission preserves the existing global 0..shutterSeconds event contract. */
+  /** If omitted, every event uses the existing global window 0..shutterSeconds. */
   exposureWindow?: SensorRawProducerExposureWindowInput;
 }
 ```
 
 ## SensorRawProducerResult
 
-Engine-produced codes and child diagnostics; upstream radiance/response truth remains declared.
+Codes produced by the engine, with per-step diagnostics. The upstream radiance and response are as declared, not verified.
 
 ```ts
 export interface SensorRawProducerResult {
@@ -76,7 +78,7 @@ export interface SensorRawProducerResult {
 
 ## SensorRawProducerSiteInput
 
-One declared EQE/dark/completeness event and explicit readout state per native site.
+For each native site: one declared exposure event (EQE photo signal, dark signal, charge completeness) and its readout state.
 
 ```ts
 export interface SensorRawProducerSiteInput {
@@ -86,14 +88,14 @@ export interface SensorRawProducerSiteInput {
   operatingStateId: string;
   readoutProfile: SensorReadoutConversionProfile;
   regimeId: string;
-  /** Optional per-sensor-instance fixed pattern; one profile for the whole frame. Omission disables FPN. */
+  /** Optional fixed-pattern noise (FPN) for this sensor; one profile for the whole frame. Omit it to disable FPN. */
   fixedPatternNoise?: SensorFixedPatternNoiseProfile;
 }
 ```
 
 ## simulateSensorRawFrame
 
-Composes existing accumulated-charge → capacity → Poisson → read noise/ADC → native sample → immutable frame contracts.
+Runs accumulated charge → capacity → Poisson noise → read noise and ADC → native sample → immutable frame.
 
 ```ts
 export function simulateSensorRawFrame(input: SensorRawProducerInput): CalculationResult<SensorRawProducerResult>;

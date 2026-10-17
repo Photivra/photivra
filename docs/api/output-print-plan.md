@@ -4,9 +4,9 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculatePrintPlan
 
-Resolve the minimum exact-native-ratio file under declared sampling/lab constraints.
-Angular guidance is approximate as a usage criterion; geometry is calculated.
-No source detail, perceived quality, serializer or resource availability is assessed.
+Finds the smallest file, at the exact native aspect ratio, that meets the declared sampling and lab constraints.
+The angular guidance is an approximate rule of thumb; the geometry itself is calculated exactly.
+It does not assess source detail, perceived quality, file writing or available resources.
 
 ```ts
 export function calculatePrintPlan(value: PrintPlanInput): CalculationResult<PrintPlan>;
@@ -16,8 +16,8 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## calculatePrintSizeLimit
 
-Calculate a conditional size bound. Lab constraints require individual plans;
-this first size-query contract reports them as unsupported rather than ignoring them.
+Calculates the largest print size under the stated conditions. Lab constraints need individual plans,
+so this size query reports them as unsupported rather than ignoring them.
 
 ```ts
 export function calculatePrintSizeLimit(value: PrintSizeLimitInput): CalculationResult<PrintSizeLimit>;
@@ -27,7 +27,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parsePrintPlanInput
 
-Validate and copy an untrusted Print request; never infer native authority.
+Validates and copies an untrusted print request. It never assumes the source is native if that is not declared.
 
 ```ts
 export function parsePrintPlanInput(value: unknown): PrintPlanInput;
@@ -37,7 +37,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## PrintedImageSize
 
-Flat printed image area; excludes paper, borders and wraps.
+The flat printed image area. It excludes paper margins, borders and canvas wraps.
 
 ```ts
 export interface PrintedImageSize { width: number; height: number; unit: PrintLength["unit"] }
@@ -45,7 +45,7 @@ export interface PrintedImageSize { width: number; height: number; unit: PrintLe
 
 ## PrintLength
 
-Physical length, separate from raster pixels and printer dots.
+A physical length. Not to be confused with image pixels or printer dots.
 
 ```ts
 export interface PrintLength { value: number; unit: "mm" | "cm" | "inches" | "m" }
@@ -53,7 +53,7 @@ export interface PrintLength { value: number; unit: "mm" | "cm" | "inches" | "m"
 
 ## PrintNativeSource
 
-Declared authoritative geometry, not a preview or resampled pixel count.
+The declared native source geometry. Not a preview or a resampled pixel count.
 
 ```ts
 export type PrintNativeSource =
@@ -63,7 +63,7 @@ export type PrintNativeSource =
 
 ## PrintPlan
 
-Finite conditional plan. Null recommendation never authorizes an upscale.
+A plan, valid only under its stated conditions. A null recommendation never means it is fine to upscale.
 
 ```ts
 export interface PrintPlan {
@@ -88,7 +88,7 @@ export interface PrintPlan {
 
 ## PrintPlanInput
 
-Exact-ratio output policy. Physical aspect tolerance is explicit and reported.
+Plan input. The output keeps the exact native aspect ratio; the allowed physical aspect error is explicit and reported.
 
 ```ts
 export interface PrintPlanInput {
@@ -103,7 +103,7 @@ export interface PrintPlanInput {
 
 ## PrintProviderConstraints
 
-Caller-supplied lab constraints; no vendor catalog or delivery guarantee.
+Print lab requirements supplied by the caller. There is no vendor catalogue and no guarantee of what a lab will accept.
 
 ```ts
 export interface PrintProviderConstraints {
@@ -116,7 +116,7 @@ export interface PrintProviderConstraints {
 
 ## PrintRasterSampling
 
-Per-axis density and angular pitch; angular values are geometry, not acuity.
+Pixel density and angular pixel pitch for each axis. The angles are pure geometry, not a measure of visual acuity.
 
 ```ts
 export interface PrintRasterSampling {
@@ -128,7 +128,7 @@ export interface PrintRasterSampling {
 
 ## PrintSamplingCriterion
 
-Explicit angular convention; manual PPI starts a different plan.
+How to choose pixel density: one of three angular criteria at the viewing distance, or a manual PPI (pixels per inch), which gives a different kind of plan.
 
 ```ts
 export type PrintSamplingCriterion =
@@ -140,7 +140,7 @@ export type PrintSamplingCriterion =
 
 ## PrintSizeLimit
 
-Semantic bounds avoid Infinity sentinels; no-positive-size differs from invalid input.
+Result of the size query. A status says "unbounded" rather than using Infinity. "no-positive-size" is a valid answer, not an input error.
 
 ```ts
 export interface PrintSizeLimit {
@@ -154,8 +154,8 @@ export interface PrintSizeLimit {
 
 ## PrintSizeLimitInput
 
-Size-limit query retains the reference image aspect and criterion.
-Proportional viewing scales the supplied reference distance with both image axes.
+Input for the largest-print-size query. It keeps the reference plan's aspect ratio and criterion.
+With proportional viewing, the reference viewing distance scales with the image size.
 
 ```ts
 export interface PrintSizeLimitInput {

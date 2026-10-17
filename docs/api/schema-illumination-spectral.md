@@ -4,11 +4,11 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createSceneIlluminationSpectralCoverageParticipant
 
-Adapts a continuous scene-illumination spectrum into the shared spectral
-coverage contract.
+Converts a continuous light-source spectrum into the shared spectral coverage
+type (wavelength range plus breakpoints).
 
-Discrete-line spectra intentionally use their own measure path and are never
-broadened into continuous breakpoints.
+Discrete-line spectra are handled separately and are never widened into
+continuous breakpoints.
 
 ```ts
 export function createSceneIlluminationSpectralCoverageParticipant(
@@ -32,13 +32,12 @@ export interface CreateSceneIlluminationSpectralCoverageParticipantInput {
 
 ## resolveSceneIlluminationDiscreteLineMeasure
 
-Resolves a discrete illumination spectrum into integrated per-line source
-quantities.
+Splits a discrete-line light source into the amount carried by each line.
 
-Relative line weights are fractions of the declared wavelength-integrated
-source magnitude. A disabled source resolves to zero contribution. This
-helper does not evaluate visibility, material response, transport, outgoing
-scene radiance, optics, or sensor response.
+Each relative line weight is a fraction of the source's declared total (integrated
+over wavelength). A disabled source contributes zero. This helper does not handle
+visibility, material response, light transport, outgoing scene radiance, optics or
+sensor response.
 
 ```ts
 export function resolveSceneIlluminationDiscreteLineMeasure(

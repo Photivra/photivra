@@ -4,11 +4,11 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createSensorSpectralCoverageParticipant
 
-Adapts one parsed sensor response channel into the shared continuous
-spectral-coverage contract.
+Converts one parsed sensor response channel into the shared continuous
+spectral-coverage format.
 
-This exposes support and interpolation knots only. It does not apply QE or
-A/W responsivity and does not establish scene/optics coverage.
+It gives only the wavelength range and interpolation breakpoints. It does not
+apply QE or A/W responsivity, and says nothing about scene or optics coverage.
 
 ```ts
 export function createSensorSpectralCoverageParticipant(

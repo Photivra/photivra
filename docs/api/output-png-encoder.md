@@ -12,7 +12,7 @@ PNG_ENCODER_ID = "photivra-png-rgb-v1" as const
 
 ## PNG_ENCODER_LIMITS
 
-Bounds checked before allocation. 100 MP of 16-bit RGB is about 600 MB of filtered scanlines.
+Limits, checked before allocation. 100 MP (megapixels) of 16-bit RGB is about 600 MB of filtered scanlines.
 
 ```ts
 PNG_ENCODER_LIMITS = Object.freeze({ maximumDimension: 65535, maximumPixels: 100_000_000, maximumIccProfileBytes: 4_000_000 })

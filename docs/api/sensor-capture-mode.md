@@ -21,30 +21,30 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface CaptureModeDefinition {
   modeId: string;
   /**
-   * Evidence supporting the existence/overall acquisition behavior of this
-   * mode. Field-level facts below retain their own evidence when needed.
+   * Evidence that this mode exists and for how it captures overall. Facts in
+   * the fields below keep their own evidence where needed.
    */
   evidence: readonly EvidenceProvenance[];
   acquisition: CaptureModeAcquisition;
   perFrameSampling: CaptureModePerFrameSampling;
   /**
-   * Optional ordered sensor-displacement sequence for fixed multi-frame modes.
-   * The whole sequence is one evidence-backed fact because published mode
-   * documentation commonly describes the sequence as a unit.
+   * Optional ordered sequence of sensor shifts, for modes with a fixed number
+   * of frames. The whole sequence is one evidence-backed fact, because
+   * published documentation usually describes it as a unit.
    */
   interFrameSensorOffsetsNativeSamples?: SourcedCaptureModeFact<
     readonly CaptureModeSensorOffsetNativeSamples[]
   >;
   /**
-   * Ordered reconstruction/combination stages owned by later reconstruction
-   * work. These labels reserve semantics; they do not implement algorithms.
+   * Ordered reconstruction or combination stages. These labels only name the
+   * stages for later reconstruction models; they implement no algorithm.
    */
   reconstructionStages?: readonly SourcedCaptureModeFact<CaptureModeReconstructionStage>[];
   /**
-   * Image raster produced by the capture-mode/reconstruction pipeline before
-   * final output crop/resampling.
+   * Image size produced by the capture mode and reconstruction, before the
+   * final output crop or resampling.
    *
-   * This raster does not redefine physical sensor geometry or field of view.
+   * It does not change the physical sensor geometry or field of view.
    */
   processedImageRaster: SourcedCaptureModeFact<RasterDimensions>;
   /**
@@ -117,13 +117,13 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface CaptureModeSensorOffsetNativeSamples {
   /**
-   * Horizontal sensor displacement in units of the native effective sampling
-   * pitch. This is not a claim about physical photodiode pitch.
+   * Horizontal sensor shift, in units of the native sample pitch. This says
+   * nothing about the physical photodiode pitch.
    */
   x: number;
   /**
-   * Vertical sensor displacement in units of the native effective sampling
-   * pitch. This is not a claim about physical photodiode pitch.
+   * Vertical sensor shift, in units of the native sample pitch. This says
+   * nothing about the physical photodiode pitch.
    */
   y: number;
 }
@@ -137,8 +137,8 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface DeclaredEffectiveCaptureSampling {
   kind: "declared-effective-raster";
   /**
-   * Per-frame effective sampling raster for a mode whose sampling relationship
-   * to the native grid is not safely expressible as simple integer grouping.
+   * Sample grid per frame, for a mode whose relationship to the native grid
+   * cannot safely be written as simple integer grouping.
    */
   raster: SourcedCaptureModeFact<RasterDimensions>;
 }
@@ -165,8 +165,8 @@ export interface GroupedNativeCaptureSampling {
   groupWidthSamples: SourcedCaptureModeFact<number>;
   groupHeightSamples: SourcedCaptureModeFact<number>;
   /**
-   * Omitted means unknown/unasserted. Do not infer where combination occurs
-   * from the word "binning" or from the raster ratio.
+   * Omitted means "unknown, not stated". Do not guess where samples are
+   * combined from the word "binning" or from the ratio of image sizes.
    */
   combinationDomain?: SourcedCaptureModeFact<CaptureModeSampleCombinationDomain>;
 }
@@ -184,12 +184,12 @@ export interface NativeEffectiveCaptureSampling {
 
 ## parseCaptureModeProfile
 
-Parses a capture-mode profile without inferring sensor physics from output
+Parses a capture-mode profile. Sensor physics is never guessed from output
 resolution or marketing mode names.
 
-The profile is intentionally orthogonal: acquisition frame sequence,
-per-frame sampling, optional inter-frame sensor shift, reconstruction stages,
-processed raster and downstream dependencies are independent axes.
+The profile's parts are independent of each other: the frame sequence,
+sampling within each frame, optional sensor shift between frames,
+reconstruction stages, the processed image size and downstream dependencies.
 
 ```ts
 export function parseCaptureModeProfile(
@@ -201,12 +201,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## resolveCaptureMode
 
-Resolves one capture mode against the selected sensor's native effective
-image-sampling raster.
+Resolves one capture mode against the selected sensor's native pixel grid.
 
-Resolution changes do not mutate physical sensor geometry. The returned
-processed raster is pre-output geometry and must not be used to infer crop
-factor, field of view or physical photosite count.
+Resolution changes do not change the physical sensor geometry. The returned
+processed image size is before output, and must not be used to work out crop
+factor, field of view or the physical photosite count.
 
 ```ts
 export function resolveCaptureMode(
@@ -311,8 +310,8 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface VariableMultiFrameCaptureAcquisition {
   kind: "variable-multi-frame";
   /**
-   * Evidence that the mode is variable/multi-frame, even when exact count
-   * bounds are not published.
+   * Evidence that the mode uses a variable number of frames, even when the
+   * exact frame-count limits are not published.
    */
   evidence: readonly EvidenceProvenance[];
   minimumFrameCount?: SourcedCaptureModeFact<number>;

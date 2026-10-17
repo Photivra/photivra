@@ -35,15 +35,17 @@ export interface BuiltInBayerDemosaicProfiles {
 
 ## createBuiltInBayerDemosaicProfiles
 
-Builds the explicit per-phase linear reconstruction profiles of a built-in Bayer demosaic kernel:
-bilinear, or the Malvar–He–Cutler (2004) gradient-corrected 5×5 linear filters. The result is the
-ordinary `explicit-linear-native-neighborhood` contract consumed by RAW frame reconstruction, native
-RAW development and `createCfaPlaneReconstructionTask`, so it gains no special execution path. Edge
-pixels need either a region whose neighbourhood stays inside the frame or mirror border handling.
+Builds the per-phase linear reconstruction profiles of a built-in Bayer demosaic kernel: bilinear,
+or the Malvar–He–Cutler (2004) gradient-corrected 5×5 linear filters.
+
+The result is the ordinary `explicit-linear-native-neighborhood` profile used by RAW frame
+reconstruction, native RAW development and `createCfaPlaneReconstructionTask`; there is no special
+code path. Edge pixels need either a region whose neighbourhood stays inside the frame, or mirror
+border handling.
 
 Approximation: fixed linear interpolation, not a calibrated or adaptive demosaic. Bilinear blurs
-and zippers at edges; Malvar–He–Cutler reduces but does not remove colour fringes. Aliasing and
-moiré are not modelled.
+and shows "zipper" artefacts at edges; Malvar–He–Cutler reduces colour fringes but does not remove
+them. Aliasing and moiré are not modelled.
 
 ```ts
 export function createBuiltInBayerDemosaicProfiles(input: CreateBuiltInBayerDemosaicProfilesInput): CalculationResult<BuiltInBayerDemosaicProfiles>;
@@ -62,20 +64,15 @@ export interface CreateBuiltInBayerDemosaicProfilesInput {
   captureModeId: string;
   /** Must be a 2×2 periodic Bayer mosaic: one red, one blue and two diagonal green sites. */
   colorSamplingProfile: SensorColorSamplingProfile;
-  /** CFA channel ids playing the red, green and blue roles; also the output channel order. */
+  /** CFA channel IDs for the red, green and blue roles. This is also the output channel order. */
   channelRoles: { red: string; green: string; blue: string };
 }
 ```
 
 ## createSensorRawCaptureSample
 
-Commit one validated native RAW sample with exact site/channel/event identity for declared
-reconstruction.
-
-Reconstruction consumes explicitly bound native post-ADC samples and declared normalized channel
-kernels. Native CFA phase is absolute and orientation/crop remain downstream. This structural linear
-reconstruction does not infer spectral sensor primaries, calibrated color or a complete arbitrary
-demosaic algorithm.
+Commits one validated native RAW sample, with its exact site, channel and exposure event, for use
+in reconstruction.
 
 ```ts
 export function createSensorRawCaptureSample(
@@ -97,8 +94,8 @@ export interface CreateSensorRawCaptureSampleInput {
   contributors:
     ResolvedCaptureModeColorSamplingContributors;
   /**
-   * The selected readout regime's declared ADC integral non-linearity, when it has one. The code
-   * sample records INL only at its own code; the effective white level needs it at saturation.
+   * The selected readout regime's declared ADC integral non-linearity (INL), if any. The code sample
+   * records INL only at its own code, but the effective white level needs it at saturation.
    */
   adcIntegralNonLinearity?:
     SensorAdcIntegralNonLinearity;
@@ -107,13 +104,11 @@ export interface CreateSensorRawCaptureSampleInput {
 
 ## parseSensorRawReconstructionProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
-Reconstruction consumes explicitly bound native post-ADC samples and declared normalized channel
-kernels. Native CFA phase is absolute and orientation/crop remain downstream. This structural linear
-reconstruction does not infer spectral sensor primaries, calibrated color or a complete arbitrary
-demosaic algorithm.
+The profile declares a normalized linear kernel for each output channel. It does not infer the
+sensor's spectral primaries or calibrated colour.
 
 ```ts
 export function parseSensorRawReconstructionProfile(
@@ -133,13 +128,11 @@ export type RawReconstructionBorderHandling = "reject" | "mirror";
 
 ## resolveSensorRawReconstruction
 
-Gather exactly supplied native channel contributions through explicit normalized kernels while
-preserving CFA identity and signed black-subtracted values.
+Combines the supplied native samples through explicit normalized kernels, keeping CFA identity
+and signed black-subtracted values.
 
-Reconstruction consumes explicitly bound native post-ADC samples and declared normalized channel
-kernels. Native CFA phase is absolute and orientation/crop remain downstream. This structural linear
-reconstruction does not infer spectral sensor primaries, calibrated color or a complete arbitrary
-demosaic algorithm.
+The CFA phase is absolute; orientation and crop come later. This fixed linear reconstruction does
+not infer spectral primaries or calibrated colour, and is not a general demosaic algorithm.
 
 ```ts
 export function resolveSensorRawReconstruction(
@@ -217,7 +210,7 @@ export interface SensorRawCaptureSample {
   effectiveSaturationCode: number;
   /** Regime system conversion gain, e⁻ per code (DNG NoiseProfile input). */
   systemConversionGainElectronsPerCode: number;
-  /** sqrt of the summed squared regime read-noise RMS components, e⁻ (DNG NoiseProfile input). */
+  /** Total read noise in e⁻: the square root of the sum of the squared RMS components (DNG NoiseProfile input). */
   readNoiseRmsElectrons: number;
   readoutProfileId: string;
   readoutRegimeId: string;

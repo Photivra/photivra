@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createSensorRawFrame
 
-Commits native RAW samples and capture metadata; no demosaic, WB, tone or format packing.
+Commits native RAW samples and capture metadata. No demosaicing, WB, tone mapping or file packing.
 
 ```ts
 export function createSensorRawFrame(input: SensorRawFrameInput): SensorRawFrame;
@@ -14,7 +14,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parseSensorRawFrameInput
 
-Validates dense bounded native coverage and exact CFA/mode/site/code identity, without IO.
+Checks that every native site has one sample, within limits, and that CFA, mode, site and code identities match exactly. No I/O.
 
 ```ts
 export function parseSensorRawFrameInput(value: unknown): SensorRawFrameInput;
@@ -32,7 +32,7 @@ SENSOR_RAW_FRAME_SCHEMA_VERSION = "0.1.0" as const
 
 ## SensorRawFrame
 
-Immutable RAW attachment. Structural validation does not prove producer truth or DNG compatibility.
+Immutable attached RAW frame. Passing the structural checks does not prove the producer was correct or that the data is DNG-compatible.
 
 ```ts
 export interface SensorRawFrame extends SensorRawFrameInput {
@@ -49,7 +49,7 @@ export interface SensorRawFrame extends SensorRawFrameInput {
 
 ## SensorRawFrameInput
 
-Declared attachment of #14 native CFA samples to a committed photographic capture.
+Declares that native CFA samples from the sensor model belong to a committed photographic capture.
 
 ```ts
 export interface SensorRawFrameInput {
@@ -60,7 +60,7 @@ export interface SensorRawFrameInput {
   colorSamplingProfile: SensorColorSamplingProfile;
   bindingProfile: NativeEffectiveRasterColorSamplingBindingProfile;
   containerBitDepth: 16;
-  /** Exactly one sample per full native site, row-major; no processed RGB masking. */
+  /** Exactly one sample per native site, row-major. Not processed RGB with a mask applied. */
   samples: readonly SensorRawCaptureSample[];
 }
 ```

@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateCenteredCrop
 
-Calculates dimensions remaining after a centered, same-aspect-ratio crop.
+Calculates the dimensions left after a centred crop that keeps the aspect ratio.
 
 ```ts
 export function calculateCenteredCrop(
@@ -25,11 +25,11 @@ export interface CalculateCenteredCropInput {
   /** Original image height in pixels. */
   pixelHeight: number;
   /**
-   * Linear crop factor. 1 means no crop; 1.5 retains at most 1 / 1.5 of each
-   * dimension. The shorter axis is floor(dimension / cropFactor); the longer
-   * axis is the integer nearest the source aspect ratio, capped at
-   * floor(dimension / cropFactor), so the aspect ratio is preserved as closely
-   * as whole pixels allow.
+   * Linear crop factor. 1 means no crop; 1.5 keeps at most 1 / 1.5 of each
+   * dimension. The shorter axis is floor(dimension / cropFactor). The longer
+   * axis is the integer that best matches the source aspect ratio, capped at
+   * floor(dimension / cropFactor). This keeps the aspect ratio as close as
+   * whole pixels allow.
    */
   cropFactor: number;
 }

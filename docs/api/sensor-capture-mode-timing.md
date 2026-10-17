@@ -41,11 +41,11 @@ export interface CaptureModeTimingProfile {
 
 ## parseCaptureModeTimingProfile
 
-Parses timing facts that are explicitly bound to one exact capture mode.
+Parses timing facts tied to one exact capture mode.
 
-Schema 0.1.0 intentionally admits only the timing schedule families already
-owned by #12: simultaneous/global or uniform-linear native scans. Unsupported
-non-uniform/segmented schedules fail closed instead of being approximated.
+Schema 0.1.0 accepts only the schedules the readout-timing and exposure-window
+models already support: global (simultaneous) or uniform linear native scans.
+Non-uniform or segmented schedules are rejected rather than approximated.
 
 ```ts
 export function parseCaptureModeTimingProfile(
@@ -57,11 +57,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## resolveCaptureModeTiming
 
-Resolves the authoritative exposure/readout timing for one exact capture
-mode and timing-profile identity.
+Resolves the exposure and readout timing for one exact capture mode and
+timing profile.
 
-Readout timing remains distinct from exposure-boundary timing. No absolute
-readout/exposure synchronization is inferred.
+Readout timing stays separate from the exposure opening and closing times.
+No absolute sync between readout and exposure is assumed.
 
 ```ts
 export function resolveCaptureModeTiming(

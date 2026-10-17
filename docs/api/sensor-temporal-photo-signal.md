@@ -4,9 +4,9 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createSensorEqeTemporalPhotoSignal
 
-Re-evaluate physical input at every time before committing an owned compact
-photo signal. Detailed child evidence/uncertainty stays in the returned
-exposure diagnostics. This does not establish renderer/source execution.
+Re-evaluates the physical input at every time, then commits a compact photo
+signal. Detailed per-step evidence and uncertainty stay in the returned
+exposure diagnostics. This does not show that a renderer or source actually ran.
 
 ```ts
 export function createSensorEqeTemporalPhotoSignal(input: {
@@ -19,7 +19,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parseSensorEqeTemporalPhotoSignal
 
-Recompute exact midpoint count sums; declarations do not prove source truth.
+Parses a time-resolved photo signal and recomputes its midpoint sums exactly. Declarations do not prove the source is correct.
 
 ```ts
 export function parseSensorEqeTemporalPhotoSignal(value: unknown): SensorEqeTemporalPhotoSignal;
@@ -37,7 +37,7 @@ export type SensorEqePhotoExposure = SensorEqeExposureIntegration | SensorEqeTem
 
 ## SensorEqeTemporalPhotoSignal
 
-Compact untreated photo expectation; temporal identity is not stationarity evidence.
+Compact expected photo signal, before any processing. Being tied to a time window is not evidence that the light was constant.
 
 ```ts
 export interface SensorEqeTemporalPhotoSignal extends Omit<SensorEqeExposureIntegration,

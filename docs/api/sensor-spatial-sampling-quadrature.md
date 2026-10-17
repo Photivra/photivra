@@ -4,33 +4,31 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateSensorSpatialSamplingQuadrature
 
-Builds deterministic spatial quadrature nodes for one CFA/color-sampling site.
+Builds the deterministic spatial sample points (quadrature nodes) for one CFA
+(colour filter array) site.
 
-The quadrature composes:
+It combines:
 
-1. the resolved geometric sensitive aperture from the sampling-aperture
-   foundation; and
-2. the resolved effective AA point-splitting kernel from the optical-stack
-   foundation.
+1. the site's geometric light-sensitive aperture (from sampling-aperture); and
+2. the anti-aliasing (AA) point-splitting kernel (from optical-stack).
 
-The first aperture integration uses a tensor-product uniform midpoint rule.
-For an AA component that moves optical energy by +delta on the sensor plane,
-a destination aperture point samples the pre-AA optical field at
-destination - delta. This inverse-source convention prevents applying the AA
-shift twice.
+The aperture is integrated with a grid of evenly spaced midpoints (a
+tensor-product midpoint rule). If an AA component moves light by +delta on
+the sensor, a destination point samples the light field before AA at
+destination − delta. Working backwards like this means the shift is never
+applied twice.
 
-The destination sensor site's CFA channel applies to every node. The
-pre-AA source coordinate is an optical-field location, not another CFA site;
-therefore shifted source coordinates never reassign the destination channel.
+The destination site's CFA channel applies to every node. The pre-AA source
+point is a position in the light field, not another CFA site, so a shifted
+source point never changes the destination channel.
 
-Nodes whose pre-AA source coordinates fall outside the active imaging area
-are retained. They are neither clamped nor dropped/renormalized. A renderer
-or optical-field provider owns source-coverage policy.
+Nodes whose pre-AA source point falls outside the active imaging area are
+kept. They are neither clamped nor dropped (and weights are not
+renormalized). The renderer or light-field provider decides how to cover them.
 
-normalized weights approximate a spatial average. Square-micrometre measures
-approximate a geometric area integral. Neither includes radiometric
-throughput, QE, photon conversion, microlenses, diffusion/crosstalk, or
-temporal integration.
+Normalized weights approximate a spatial average. Square-micrometre measures
+approximate a geometric area integral. Neither includes throughput, QE,
+photon conversion, microlenses, diffusion, crosstalk or integration over time.
 
 ```ts
 export function calculateSensorSpatialSamplingQuadrature(
@@ -93,7 +91,7 @@ export interface SensorSpatialSamplingQuadrature {
   sourceCoveragePolicy: "not-applied";
   nodes: readonly SensorSpatialSamplingQuadratureNode[];
   /**
-   * Hard scientific boundaries.
+   * Fixed statements of what this result does not include.
    */
   opticalFieldValuesIncluded: false;
   radianceIncluded: false;
@@ -129,17 +127,17 @@ export interface SensorSpatialSamplingQuadratureNode {
   apertureSampleXIndex: number;
   apertureSampleYIndex: number;
   /**
-   * Destination point inside the geometric sensitive aperture after the
-   * declared AA point-splitting response.
+   * Destination point inside the geometric sensitive aperture, after the
+   * declared AA point splitting.
    *
-   * Native sensor physical coordinates, millimetres from the optical axis.
+   * Native sensor physical coordinates, in millimetres from the optical axis.
    */
   destinationAperturePointMm: {
     x: number;
     y: number;
   };
   /**
-   * Declared AA displacement of optical energy on the sensor plane.
+   * How far the declared AA component moves light on the sensor plane.
    *
    * +X right, +Y down; micrometres.
    */
@@ -148,8 +146,8 @@ export interface SensorSpatialSamplingQuadratureNode {
     y: number;
   };
   /**
-   * Pre-AA source point that maps to destinationAperturePointMm under the
-   * declared split component:
+   * The point in the light field before AA that lands on
+   * destinationAperturePointMm through this split component:
    *
    * source = destination - AA offset
    */
@@ -158,9 +156,9 @@ export interface SensorSpatialSamplingQuadratureNode {
     y: number;
   };
   /**
-   * Whether the pre-AA source point lies inside the active physical imaging
-   * area. False is not an error; downstream source-coverage policy decides how
-   * to handle valid optical support outside the active sampling area.
+   * Whether the pre-AA source point is inside the active physical imaging
+   * area. False is not an error; downstream code decides how to handle valid
+   * light from outside the active sampling area.
    */
   preAntiAliasingSourceInsideImagingArea: boolean;
   /** Dimensionless midpoint weight for the aperture-area average. */
@@ -168,20 +166,20 @@ export interface SensorSpatialSamplingQuadratureNode {
   /** Dimensionless normalized weight from the AA split component. */
   normalizedAntiAliasingWeight: number;
   /**
-   * Dimensionless product used for a spatial average of a downstream optical
-   * field under this quadrature approximation.
+   * Product of the two weights (dimensionless), used to average a light field
+   * over the site with this quadrature.
    */
   combinedNormalizedSpatialWeight: number;
   /**
-   * Geometric area measure represented by this aperture midpoint before the
-   * AA component weight is applied. Units: square micrometres.
+   * Geometric area this aperture midpoint stands for, before the AA component
+   * weight is applied. Units: square micrometres.
    */
   apertureAreaMeasureSquareMicrometers: number;
   /**
-   * Geometric area measure multiplied by the dimensionless AA component
-   * weight. Units remain square micrometres.
+   * Geometric area multiplied by the (dimensionless) AA component weight.
+   * Units are still square micrometres.
    *
-   * This is not an effective radiometric collection area.
+   * This is not an effective light-collection area.
    */
   combinedAreaMeasureSquareMicrometers: number;
 }

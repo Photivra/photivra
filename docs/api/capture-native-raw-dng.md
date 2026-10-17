@@ -55,8 +55,8 @@ export interface NativeRawDngChannelNoise {
 
 ## serializeNativeRawDng
 
-Serializes packed native RAW codes to a lossless uncompressed CFA DNG (see the module notes for every
-tag and its source). The input arrays are copied before the first await.
+Writes packed native RAW codes as a lossless, uncompressed CFA DNG. The module notes list every tag and
+where its value comes from. The input arrays are copied before the first await.
 
 ```ts
 export async function serializeNativeRawDng(input: SerializeNativeRawDngInput): Promise<NativeRawDng>;
@@ -70,15 +70,15 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 export interface SerializeNativeRawDngInput {
-  /** Packed native RAW; read, never consumed or modified. */
+  /** Packed native RAW. It is read, never taken over or modified. */
   raw: NativeRawOutput;
-  /** Declared camera→XYZ (D65) profile bound to the RAW's CFA, the same profile native development uses. */
+  /** Declared camera→XYZ (D65) colour profile for the RAW's CFA. Native development uses the same profile. */
   colorProfile: ExportSensorColorProfile;
-  /** Optional NoiseProfile parameters by channel id; omitted means no NoiseProfile tag. */
+  /** Optional NoiseProfile parameters by channel ID. If omitted, no NoiseProfile tag is written. */
   noise?: Readonly<Record<string, NativeRawDngChannelNoise>>;
-  /** BaselineExposure in EV. Default 0 (the RAW white level maps to display white, as in native development). */
+  /** BaselineExposure in EV (exposure value stops). Default 0: the RAW white level maps to display white, as in native development. */
   baselineExposureEv?: number;
-  /** Optional capture-event UTC time, exactly YYYY-MM-DDTHH:mm:ss.sssZ; omitted means no date tags (the engine invents no wall clock). */
+  /** Optional UTC time of the capture, exactly YYYY-MM-DDTHH:mm:ss.sssZ. If omitted, no date tags are written; the engine never makes up a clock time. */
   capturedAtUtc?: string;
 }
 ```
