@@ -31,7 +31,7 @@ it("uses finite-focus thin-lens image distance without changing physical focal l
   const r=request();r.focus={kind:"finite",distanceM:5};
   const result=calculateSensorEnvironmentRadianceQuery(r).value;
   const z=50*5000/(5000-50),length=Math.hypot(4,3,z);
-  expect(result.projection.value.projectionDistanceMm).toBeCloseTo(z,13);
+  expect(result.projection!.value.projectionDistanceMm).toBeCloseTo(z,13);
   expect(result.referenceLookDirectionUnitVector.z).toBeCloseTo(z/length,14);
 });
 
@@ -39,7 +39,7 @@ it.each(["pitch","yaw","roll"] as const)("reuses the analytic %s rotation and ro
   const r=request();r.angularVelocityRadPerSec[axis]=2;
   const result=calculateSensorEnvironmentRadianceQuery(r).value;
   const forward=calculateCameraRotationImageMapping({focalLengthMm:r.focalLengthMm,
-    imagePointMm:result.projection.value.referenceImagePointMm,
+    imagePointMm:result.projection!.value.referenceImagePointMm,
     angularVelocityRadPerSec:r.angularVelocityRadPerSec,timeSecondsFromExposureStart:r.timeSecondsFromOpeningReference}).value;
   expect(forward.mappedImagePointMm.x).toBeCloseTo(4,12);
   expect(forward.mappedImagePointMm.y).toBeCloseTo(-3,12);

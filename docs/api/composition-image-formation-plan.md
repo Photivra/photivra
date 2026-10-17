@@ -523,6 +523,7 @@ export type ProductionImageFormationBlockerCode =
   | "missing-temporal-capture-input"
   | "temporal-evaluation-blocked"
   | "missing-camera-rotation-model"
+  | "missing-lens-field-mapping"
   | "missing-sensor-readout-timing"
   | "renderer-temporal-sampling-insufficient";
 ```

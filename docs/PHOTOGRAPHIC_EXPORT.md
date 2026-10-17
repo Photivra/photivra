@@ -185,6 +185,31 @@ Each coefficient is the direct 64-term sum accumulated in a fixed order; row
 products are shared across vertical frequencies without reassociating the sum,
 because a factored row/column DCT changes rounded coefficients (and bytes) for a
 small fraction of blocks. The step is not a manufacturer's quality scale. JPEG remains lossy at step 1.
+
+Encoder version 2 (`EXPORT_JPEG_ENCODER_ID` = `photivra-baseline-jpeg-444-v2`, engine 2.0.0)
+makes the bytes independent of the JavaScript engine and fixes the rounding policy:
+
+- The 64 DCT cosines C(u,x) = cos((2x+1)uπ/16) come from a fixed table of correctly rounded
+  binary64 constants (`JPEG_DCT_COSINES`), computed offline with 130-digit decimal arithmetic
+  (Gauss–Legendre π and a Taylor series) and checked so that no neighbouring double is closer
+  to the exact value. Version 1 used runtime `Math.cos` of the rounded argument
+  `(2x+1)·u·Math.PI/16`, which differs from the exact cosine in 43 of 64 entries by an ulp or
+  two, and differs between V8 and JavaScriptCore in 2 entries. A coefficient whose exact value is a
+  half-integer can therefore round differently than in version 1 (for example −19.5 now gives −20,
+  where V8's table gave −19.499999999999996 and −19). The table keeps the exact symmetries
+  C(u,7−x) = (−1)^u C(u,x). JPEG bytes from a 1024 × 1024 corpus at steps 1, 2, 3, 4 and 8 are
+  identical under Node (V8) and Bun (JavaScriptCore).
+- Quantized coefficients round to nearest with ties **half away from zero** (−2.5 → −3), so
+  positive and negative coefficients round symmetrically. Version 1 used `Math.round`, which sends
+  −2.5 to −2.
+- The output buffer grows by doubling from 64 KiB up to the caller's byte budget instead of being
+  allocated and zero-filled at the full budget, so a 384-byte JPEG with a 256 MB budget no longer
+  commits 256 MB or blocks for about 130 ms in `finish()`. The budget limit itself is unchanged.
+
+Version 1 and 2 bytes differ only where a pre-rounding coefficient lies within about an ulp of
+a half-integer or is exactly a negative half-integer; `test/export-jpeg-byte-identity.test.ts` proves the optimized encoder equals a
+straightforward version-2 reference on randomized corpora, and `test/export-jpeg-v2.test.ts`
+checks the table, the rounding and the buffer budget.
 JFIF and EXIF ColorSpace=1 declare rendered sRGB; DNG is unclassified and carries
 the explicit virtual-camera matrix.
 
@@ -194,6 +219,14 @@ Integer selected virtual ISO ≤65535 is recorded as RecommendedExposureIndex
 with SensitivityType=REI: a simulation setting, not measured ISO speed or
 standard-output-sensitivity calibration. Make/Model identify Photivra's virtual
 camera, not a commercial device.
+
+Exif 2.32 (CIPA DC-008-2019, Tables 17–18) also makes these tags mandatory for a compressed
+primary image: IFD0 XResolution, YResolution, ResolutionUnit and YCbCrPositioning, and Exif
+FlashpixVersion and ComponentsConfiguration. Since 2.0.0 the paired-export JPEG writes them
+through `packExportJpegExif` (shared with the Print JPEG) using the standard's defaults: 72/1 dpi
+with ResolutionUnit 2 (the Exif value for an unknown resolution, not a print size; JFIF keeps
+units 0), YCbCrPositioning 1 (centered), FlashpixVersion `0100` and ComponentsConfiguration
+Y Cb Cr. Only the APP1 Exif segment changes; pixels, entropy data and SimulationHash do not.
 
 XMP contains distinct xmpMM DocumentID/InstanceID and IPTC DigitalImageGUID per
 file, the caller-selected non-generative IPTC workflow type and the namespace

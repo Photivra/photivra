@@ -95,6 +95,7 @@ The colorimetry modules in `src/color/` (see [docs/COLORIMETRY.md](https://githu
 | Bradford, CAT02, CAT16 and Hunt–Pointer–Estévez matrices (`chromatic-adaptation.ts`) | Lam (1985) / ICC.1:2010 Annex E; Moroney et al. (2002) / CIE 159:2004; Li et al. (2017); CIE 159:2004 | Published 3×3 model constants. |
 | Primaries and white points; PQ, HLG, BT.709 and BT.1886 constants (`rgb-color-spaces.ts`) | IEC 61966-2-1, ITU-R BT.709-6, BT.1886, BT.2020-2, BT.2100-3, SMPTE ST 2084, SMPTE EG 432-1 | Standardized numeric constants; the ITU-R recommendations are freely published. |
 | h, c, k | BIPM SI Brochure (2019) | Exact SI defining constants (facts). |
+| K = 12.5 cd·s/m² reflected-light meter constant, K_m = 683 lm/W (`src/facade/`) | ISO 2720:1974; CIE 15:2018 / SI definition of the candela | Standardized scalar constants used as facts. The capture facade's charts (slanted edge, Siemens star, step wedge, grey ramp, checkerboard, point grid) are engine-authored analytic patterns; the slanted edge only follows the ISO 12233 geometry (a few degrees of slant, 4:1 contrast) and reproduces no chart artwork or data. |
 
 The following datasets are deliberately **excluded**:
 
@@ -102,6 +103,18 @@ The following datasets are deliberately **excluded**:
 - **ColorChecker or other chart reflectances.** Their licence is unclear, so they are not included. Reflectances are supplied by the caller.
 
 The tests assert a few individual published values (for example one CMF sample at 479 nm, the column sums from the CIE metadata, 13 CIEDE2000 test pairs, and standard luminance coefficients) as cited facts. They do not reproduce any table.
+
+## Image-processing published parameters
+
+The processing operators in `src/processing/` and the built-in Bayer kernels in `src/sensor/raw-reconstruction.ts` (see [docs/PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)) are independently written from published algorithm descriptions. They contain only short factual parameters. No third-party source code (including GPL demosaicing implementations), table, figure, image or prose is copied, and no runtime dependency or test image is added.
+
+| Parameters | Source | Basis for use |
+| --- | --- | --- |
+| Demosaic gains α = 1/2, β = 5/8, γ = 3/4 and their 5×5 Laplacian correction structure | Malvar, He & Cutler (ICASSP 2004) | Published algorithm parameters; the weights are rebuilt from them. |
+| Burt–Adelson generating kernel [1, 4, 6, 4, 1]/16 (a = 0.375) | Burt & Adelson (1983) | Published equation parameter. |
+| Well-exposedness σ = 0.2; key 0.18; range σ 0.4 and spatial σ 2% defaults | Mertens et al. (2007); Reinhard et al. (2002); Durand & Dorsey (2002) | Published default parameters. |
+| Gain-compensation σ_N ≈ 10/255, σ_g = 0.1 | Brown & Lowe (2007) | Published parameters, rescaled to normalized intensity. |
+| HDR reference white 203 cd/m² and HLG signal 0.75; full and narrow range quantization | ITU-R BT.2408, BT.2100-3 | Standardized numeric constants; the ITU-R recommendations are freely published. |
 
 ## Print contrast numerical model material
 
@@ -116,9 +129,16 @@ The owned PDF geometry reference is generated with ReportLab 4.4.9 and independe
 
 ## Automated license policy
 
-The bounded DNG/TIFF and baseline JPEG encoders are independently authored.
-No Adobe SDK, external encoder source, default quantization/Huffman tables,
-calibration dataset or runtime dependency is incorporated. Numeric test profiles
+The bounded DNG/TIFF and baseline JPEG encoders, the DNG/TIFF-EP reader, the
+lossless JPEG (T.81 Annex H) decoder and the PNG/zlib/DEFLATE encoder are
+independently authored. No Adobe SDK, external encoder or decoder source, default
+quantization/Huffman tables, calibration dataset or runtime dependency is
+incorporated. Only factual identifiers from the standards are used: tag numbers,
+field types, marker codes, PNG chunk layouts, the sRGB gAMA/cHRM values the PNG
+specification prescribes, H.273 code points, RFC 1951 fixed-code and length/distance
+base tables, and the Exif 2.32 default values (72 dpi, `0100`, `0232`, Y Cb Cr).
+The 64 JPEG DCT cosine constants are correctly rounded values of
+cos((2x+1)uπ/16), computed by the project; they are mathematical facts. Numeric test profiles
 and custom coding tables are owned synthetic fixtures, not camera calibration.
 
 Format references:
@@ -129,6 +149,10 @@ Format references:
 - JFIF: https://www.w3.org/Graphics/JPEG/jfif3.pdf
 - Adobe XMP: https://developer.adobe.com/xmp/docs/xmp-specifications/
 - CIPA Exif: https://www.cipa.jp/std/documents/e/DC-X008-Translation-2019-E.pdf
+- TIFF 6.0: https://www.itu.int/itudoc/itu-t/com16/tiff-fx/docs/tiff6.pdf
+- PNG Third Edition (W3C Recommendation 24 June 2025): https://www.w3.org/TR/png-3/
+- zlib (RFC 1950) and DEFLATE (RFC 1951): https://www.rfc-editor.org/rfc/rfc1950, https://www.rfc-editor.org/rfc/rfc1951
+- ITU-T H.273 code points: https://www.itu.int/rec/T-REC-H.273
 
 RAW development and tone-mapping references (2.0; published equations and
 factual constants only, independently implemented; no code or data copied):

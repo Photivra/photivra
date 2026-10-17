@@ -28,6 +28,12 @@ export interface CalculateEnvironmentSensorPhotoSignalInput {
   temporalSampleCount: number;
   /** Optional ideal geometric DOF/visibility support; cannot combine with a sampled PSF. */
   pupil?: IdealCircularPupil;
+  /**
+   * Optional 2.0 lens field mapping (projection model and radial/Brown-Conrady distortion) for the
+   * scene-ray query; its distortion area factor is applied to irradiance exactly once. Omitted keeps
+   * the ideal rectilinear, distortion-free path unchanged. Not combinable with `pupil`.
+   */
+  lensFieldMapping?: EnvironmentLensFieldMapping;
   /** Explicit source-field attenuation, applied once before PSF redistribution. */
   fieldThroughput: { kind: "unity"; evidence: readonly EvidenceProvenance[]; limitation: string } | {
     kind: "radial-illumination-vignetting"; profile: IlluminationVignettingProfile;

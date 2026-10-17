@@ -25,7 +25,31 @@ Install the published ESM package below. The [1.5.0 release record](https://gith
 npm install @photivra/engine@1.5.0
 ```
 
-Calculate horizontal field of view for a 36 mm sensor dimension and 50 mm focal length:
+Simulate a photograph of a test chart with a generic camera, then read the developed sRGB pixels:
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const capture = await simulateCapture({
+  camera: "professional",
+  lens: { fNumber: 8 },
+  exposure: { mode: "manual", iso: 100, shutterSeconds: 1 / 125 },
+  scene: { preset: "slanted-edge" },
+  output: { width: 16, height: 16 }
+});
+
+console.log(capture.image.samples.length, capture.exposure.settings);
+console.log(capture.assumptions.map((a) => `${a.id}: ${a.explanation}`));
+```
+
+`simulateCapture()` runs the full physical pipeline (scene radiance, lens, spectral sensor, noise,
+RAW readout, RAW development and optional JPEG) through the engine's existing contracts, and lists
+every default and modelling choice it made in `assumptions`. The [Quick Start](https://github.com/Photivra/photivra/blob/main/docs/QUICK_START.md)
+covers the inputs, chart presets (slanted edge, Siemens star, step wedge, grey ramp, checkerboard,
+point grid, caller patches), illuminants, white balance and limits.
+
+The individual calculations remain available as small functions. For example, the horizontal field
+of view for a 36 mm sensor dimension and 50 mm focal length:
 
 ```ts
 import { calculateFieldOfView } from "@photivra/engine";
@@ -43,6 +67,7 @@ Start with the [Developer Guide](https://github.com/Photivra/photivra/blob/main/
 
 ## Documentation
 
+- [Quick Start: simulate a capture](https://github.com/Photivra/photivra/blob/main/docs/QUICK_START.md)
 - [Usage Guide](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md)
 - [Architecture](https://github.com/Photivra/photivra/blob/main/docs/ARCHITECTURE.md)
 - [Contributor Guide](https://github.com/Photivra/photivra/blob/main/CONTRIBUTING.md)
@@ -125,6 +150,7 @@ The root package exports deterministic or explicitly labeled approximate models 
 ### Color controls
 
 - [white-balance control and Auto WB](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md#white-balance-and-auto-wb), including generic profile-owned presets, manual gains, independent CCT+tint intent, custom measurement, deterministic AWB priorities, and AWB lock without modifying scene illumination or RAW-like capture;
+- [image processing](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md): built-in bilinear/Malvar–He–Cutler Bayer kernels with mirror borders, AHD demosaic, noise-optimal linear RAW HDR bracket merge, PQ/HLG HDR encoding, Reinhard and Durand–Dorsey tone mapping, Mertens exposure fusion, focus stacking, panorama from known rotations, bilateral/non-local-means denoise, unsharp mask and clearly synthetic film grain — all cancellable approximations.
 - [colorimetry](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md): a labelled analytic CIE 1931 CMF approximation or caller-supplied CMF tables, spectral integration, Planckian/illuminant A/CIE daylight illuminants, CCT and Duv, Bradford/CAT02/CAT16 adaptation, Kelvin + tint WB gains, CIELAB and ΔE76/94/2000, camera-matrix fitting, Display P3/Rec.2020 matrices, PQ/HLG/BT.1886 transfers and hue-preserving gamut mapping. CIE and ColorChecker tables are not bundled.
 
 ### Sensor and output

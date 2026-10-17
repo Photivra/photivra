@@ -14,6 +14,9 @@ For bounded same-RAW paired DNG/JPEG byte export, see
 [Photographic export](https://github.com/Photivra/photivra/blob/main/docs/PHOTOGRAPHIC_EXPORT.md). It requires an explicit approximate
 sensor-color profile; bounded external acceptance and its evidence limits are recorded in [Export acceptance](https://github.com/Photivra/photivra/blob/main/docs/EXPORT_ACCEPTANCE.md).
 
+New to the engine? Start with [`simulateCapture()`](#simulate-a-capture-with-the-facade), which builds
+and runs a complete capture from a few options; the [Quick Start](QUICK_START.md) explains it in full.
+
 This guide shows how to call the capabilities exported by the root `@photivra/engine` package.
 
 The package is ESM; CommonJS code on Node 22.12 or later can also `require()` it. Primitive scientific calculations generally return a `CalculationResult<T>`:
@@ -6724,6 +6727,21 @@ Additional named defocus, sampling, and motion samples can be supplied when a re
 
 See [Local POC Simulation API](https://github.com/Photivra/photivra/blob/main/docs/POC_API.md#simulate) for the complete composed request/response semantics. That HTTP transport is repository-only contributor tooling and is not shipped as a package subpath; `simulatePocCamera()` itself is part of the browser-safe root package.
 
+## DNG import and PNG output
+
+`parseDngRawImage` reads a DNG or TIFF-EP CFA/LinearRaw file (uncompressed or lossless JPEG, 8–16 bits) into stored raw codes plus CFA, black/white levels, active area, default crop, colour matrices, as-shot neutral and orientation. Nothing is applied to the codes. `serializePngImage` writes 8- or 16-bit RGB PNG with an sRGB, ICC or cICP (Display P3, BT.2020, PQ, HLG) colour description and optional mDCV/cLLI HDR metadata. See [DNG import and PNG output](https://github.com/Photivra/photivra/blob/main/docs/IMPORT_AND_PNG.md) for supported subsets, limits and sources.
+
+```ts
+import { serializePngImage, parseDngRawImage } from '@photivra/engine';
+
+// Encode a 1 x 1 Display P3 pixel (sRGB transfer), then show that a PNG is not a DNG.
+const png = serializePngImage({ width: 1, height: 1, bitDepth: 8, samples: Uint8Array.of(255, 128, 0),
+  colourEncoding: { kind: 'cicp', primaries: 'display-p3', transfer: 'srgb', fullRange: true } });
+let rejected = false;
+try { parseDngRawImage({ bytes: png }); } catch { rejected = true; }
+if (!rejected) throw new Error('A PNG must not parse as a DNG');
+```
+
 ## Native-only Print planning
 
 Use [registered linear statistics](https://github.com/Photivra/photivra/blob/main/docs/PRINT_REGION_STATISTICS.md) to distinguish same-realization processing changes from per-site repeat-capture variance. The [static neutral Gabor contrast reference](https://github.com/Photivra/photivra/blob/main/docs/PRINT_CONTRAST_REFERENCE.md) requires explicit stimulus, luminance and observer conditions and does not accept an arbitrary photographic ROI as a qualified stimulus. See the [#195/#196 candidate evidence review](https://github.com/Photivra/photivra/blob/main/docs/PRINT_195_196_REVIEW.md) before integrating either diagnostic.
@@ -7086,3 +7104,165 @@ console.log(calculateGeometricFocusBreathing({
   focusingMethod: "unit-focus"
 }).value.deltaDegrees);
 ```
+
+## Optional WebGPU image kernels
+
+`createImageKernelAccelerator()` runs isoplanatic PSF convolution, native capture SDR and packed RAW development either on the float64 CPU reference (the default) or, when the caller opts in, on the `webgpu-f32` backend. Every result's `execution` label names the backend that actually ran, any fallback reason, and the a-priori error bound against the reference. See [WebGPU backend](https://github.com/Photivra/photivra/blob/main/docs/WEBGPU.md) for the bounds, the supported domain and the browser test.
+
+```ts
+import { createImageKernelAccelerator, calculateIrradianceConvolution } from "@photivra/engine";
+
+const width = 16, height = 8, kernelRadius = 1;
+const input = { schemaVersion: "0.1.0" as const, width, height, kernelRadius, patchWidth: width, patchHeight: height,
+  boundary: "zero-outside-grid" as const, samples: new Float64Array(width * height).fill(2),
+  kernels: Float64Array.from([0, .1, 0, .1, .6, .1, 0, .1, 0]) };
+
+const accelerator = await createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "cpu-reference" });
+const result = await accelerator.convolveIrradiance(input);
+// Without WebGPU (e.g. Node) this ran the reference and says so.
+console.log(result.execution.backend, result.execution.fallbackReason, result.execution.bitIdenticalToReference);
+// Bit-exact identities and fixtures must come from the CPU reference.
+const reference = calculateIrradianceConvolution(input).values;
+console.log(result.execution.backend === "cpu-reference" ? result.values.every((v, i) => v === reference[i]) : result.execution.errorBound);
+accelerator.dispose();
+```
+## Image processing operators
+
+Standalone cancellable operators for demosaicing, HDR merge/encoding, tone mapping, exposure fusion, focus stacking, panorama stitching from known rotations, denoising, sharpening and synthetic grain. All results are labelled approximations; see [Image processing operators](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md) for equations, sources, measured PSNR and limits. Every factory takes `(input, { yieldControl, onProgress? })` and returns a single-use task.
+
+```ts
+import {
+  createBuiltInBayerDemosaicProfiles,
+  createCfaPlaneReconstructionTask,
+  createAhdDemosaicTask,
+  type SensorColorSamplingProfile
+} from "@photivra/engine";
+
+const provider = { yieldControl: async () => {} };
+const cfa: SensorColorSamplingProfile = {
+  schemaVersion: "0.1.0", profileId: "rggb", coordinateSystem: "native-sensor-color-sampling-site-index",
+  evidence: [{ sourceOrigin: "photivra", sourceReference: "example", reuseStatus: "photivra-owned" }],
+  layout: { kind: "periodic-mosaic", repeatWidthSites: 2, repeatHeightSites: 2,
+    siteChannelIds: ["red", "green", "green", "blue"], anchor: "native-sensor-top-left-site" }
+};
+const plane = { width: 64, height: 48, captureModeId: "native", colorSamplingProfile: cfa,
+  samples: new Float32Array(64 * 48).fill(0.25) };
+const channelRoles = { red: "red", green: "green", blue: "blue" };
+
+// Malvar–He–Cutler linear kernels with mirror borders (also accepted by createNativeRawDevelopmentTask).
+const mhc = createBuiltInBayerDemosaicProfiles({ kernel: "malvar-he-cutler-2004", captureModeId: "native",
+  colorSamplingProfile: cfa, channelRoles }).value;
+const linearTask = createCfaPlaneReconstructionTask({ plane, phaseProfiles: mhc.phaseProfiles, borderHandling: "mirror" }, provider);
+await linearTask.run();
+console.log(linearTask.takeOutput().channelIds);
+
+// Adaptive homogeneity-directed (non-linear) demosaic.
+const ahd = createAhdDemosaicTask({ plane, channelRoles }, provider);
+await ahd.run();
+console.log(ahd.takeOutput().direction.length);
+```
+
+Merge linear RAW brackets with noise-optimal weights, tone map and encode HDR:
+
+```ts
+import {
+  createHdrBracketMergeTask,
+  createHdrImageEncodingTask,
+  createReinhardGlobalToneMappingTask
+} from "@photivra/engine";
+
+const provider = { yieldControl: async () => {} };
+const n = 32 * 32 * 3;
+const frame = (seconds: number) => ({ exposureTimeSeconds: seconds, codes: new Uint16Array(n).fill(64 + Math.round(2000 * seconds)),
+  blackLevelCode: 64, whiteLevelCode: 4000, conversionGainElectronsPerCode: 1.5, readNoiseElectrons: 3 });
+const merge = createHdrBracketMergeTask({ sampleCount: n, frames: [frame(1), frame(1 / 8), frame(1 / 64)] }, provider);
+await merge.run();
+const merged = merge.takeOutput();
+const radiance = { width: 32, height: 32, data: merged.radianceElectronsPerSecond.map((v) => v / 3000) };
+
+const pq = createHdrImageEncodingTask({ image: radiance, inputColorSpace: "linear-srgb-d65", transfer: "pq", bitDepth: 10 }, provider);
+await pq.run();
+console.log(pq.takeOutput().codes?.slice(0, 3));
+
+const sdr = createReinhardGlobalToneMappingTask({ image: radiance, inputColorSpace: "linear-srgb-d65", key: 0.18 }, provider);
+await sdr.run();
+console.log(sdr.takeOutput().logAverageLuminance);
+```
+
+`createDurandDorseyToneMappingTask`, `createExposureFusionTask`, `createFocusStackTask`, `createBilateralFilterTask`, `createNonLocalMeansTask`, `createUnsharpMaskTask` and `createSyntheticFilmGrainTask` follow the same pattern. Panorama stitching uses each frame's known rotation in the engine's pitch/yaw/roll convention:
+
+```ts
+import { createPanoramaTask } from "@photivra/engine";
+
+const image = { width: 48, height: 36, data: new Float32Array(48 * 36 * 3).fill(0.5) };
+const panorama = createPanoramaTask({
+  frames: [-0.5, 0, 0.5].map((yaw) => ({ image, focalLengthPixels: 40, rotationRad: { pitch: 0, yaw, roll: 0 } })),
+  canvas: { projection: "equirectangular", width: 160, height: 48, longitudeRangeRad: [-1.1, 1.1], latitudeRangeRad: [-0.4, 0.4] },
+  blending: "multi-band", exposureCompensation: "gain"
+}, { yieldControl: async () => {} });
+await panorama.run();
+console.log(panorama.takeOutput().gains);
+```
+### Fisheye-to-rectilinear and Brown–Conrady geometric mappings
+
+```ts
+import {
+  calculateComposedGeometricMapping,
+  calculateForwardGeometricMapping,
+  prepareGeometricMapping
+} from "@photivra/engine";
+
+// Destination-to-source: a rectilinear 10 mm view sampled from an 8 mm equidistant fisheye capture,
+// after a Brown–Conrady correction of the fisheye's residual distortion.
+const mapping = prepareGeometricMapping({
+  frameTimeSeconds: 0,
+  transforms: [
+    {
+      id: "fisheye-to-rectilinear", version: "1", domain: "reconstructed-linear", purpose: "projection",
+      kind: "projection-remap",
+      destinationProjection: { projectionModel: "rectilinear", focalLengthMm: 10 },
+      sourceProjection: { projectionModel: "fisheye-equidistant", focalLengthMm: 8 }
+    },
+    {
+      id: "residual-distortion", version: "1", domain: "reconstructed-linear", purpose: "distortion",
+      kind: "brown-conrady",
+      profile: { normalizationRadiusMm: 12, maximumNormalizedRadius: 1,
+        coefficients: { k1: -0.02, k2: 0, k3: 0, p1: 0.001, p2: 0 } }
+    }
+  ]
+}).value;
+const point = calculateComposedGeometricMapping({ mapping, destinationPointMm: { x: 4, y: -2 } }).value;
+console.log(mapping.schemaVersion, point.sourcePointMm, point.determinant);
+console.log(calculateForwardGeometricMapping({ mapping, sourcePointMm: point.sourcePointMm }).value);
+```
+## Simulate a capture with the facade
+
+`simulateCapture()` composes the generic tier presets, scene metering, the exposure-mode resolver,
+the native environment RAW task, native RAW development and, optionally, the print JPEG encoder.
+It returns the image, the packed RAW, the complete request and plan it executed, provenance and an
+`assumptions` list naming every default and modelling choice. See the [Quick Start](QUICK_START.md)
+for every option, the chart catalogue and the limits.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const star = await simulateCapture({
+  camera: "prosumer",
+  exposure: { mode: "aperture-priority", iso: 200 },
+  lens: { fNumber: 5.6 },
+  scene: { preset: "siemens-star", cycles: 24 },
+  illuminant: { kind: "planckian", temperatureKelvin: 5000 },
+  illuminanceLux: 8000,
+  output: { width: 12, height: 8, toneCurve: "positive-reinhard-per-channel", whiteBalance: { kelvin: 5000 } }
+});
+
+console.log(star.exposure.settings.shutterSeconds, star.exposure.ev100);
+console.log(star.assumptions.filter((a) => a.kind === "default").map((a) => a.id));
+console.log(star.request.siteInput(0).environment.optics.nominalFNumber);
+```
+
+In `aperture-priority` mode the shutter comes from the meter (ISO 2720 relation with K = 12.5) through
+`resolveAperturePriorityExposureMode()`. The chart presets are also available on their own:
+`resolveChartScene()` gives analytic reflectance at any frame point, and
+`createPlanarSceneRadianceProvider()` turns a chart into an `evaluateRadiance` callback for the native
+environment RAW contract.
