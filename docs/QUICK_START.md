@@ -50,7 +50,7 @@ the example above is [simulate-capture.mjs](examples/simulate-capture.mjs).
 | `request` | The complete underlying request: `environmentRaw` (the native environment RAW input), `siteInput(index)` (rebuilds the physical input of any sensor site), `development` (the RAW development input) and `whiteBalanceState` |
 | `exposure` | Mode, resolved settings, EV100, metered scene luminance and the exposure-mode resolver's full output |
 | `scene` | Chart parameters, illuminant, distance, framed size and the scene's SHA-256 digest (it covers caller illuminant and reflectance spectra; see `sourceSha256`) |
-| `diagnostics` | Radiance query count, highlight and rendering counters, and timings |
+| `diagnostics` | Radiance query count, highlight and rendering counters, per-stage timings (`timingsMs`) and, from 2.1, the opt-ins that ran (`options`); see [Cost of each option](#cost-of-each-option) |
 | `provenance` | Status (`approximation`), camera preset identity, evidence, the composed contracts in order, and limitations |
 | `assumptions` | Every default, derived value and fixed modelling choice, each with an explanation |
 
@@ -97,6 +97,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `sensor.spectralStepNanometers` | 20 | Spectral quadrature over 380–780 nm. |
 | `sensor.temporalSampleCount` | 1, or 8 when the camera rotates | Midpoints across each site's exposure window. |
 | `sensor.noiseSeed` | 1 | Output is deterministic for a given seed. |
+| `sensor.antiAliasing` | off | 2.1: an optical low-pass (anti-aliasing) filter: `{ kind: "four-spot", separationSites? }`, `{ kind: "two-spot", axis, separationSites? }` or `{ kind: "point-splitting", components }` (see [Anti-aliasing filter](#anti-aliasing-filter)). |
 | `motion.angularVelocityRadPerSec` | still | `{ pitch?, yaw?, roll? }` in rad/s (see [Motion](#motion)). |
 | `motion.shutter` | `"global"` | Or `"rolling"`. |
 | `motion.rollingShutterSkewSeconds` | the body's readout skew | Rolling only. |
@@ -105,7 +106,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 Unknown fields are rejected, so a typo never silently falls back to a default.
 
 Every option added in 2.0 (PNG, demosaic, optics and motion) and in 2.1 (`lens.diffraction`,
-`output.demosaic: "ahd"`) is opt-in. With none of them given, the
+`output.demosaic: "ahd"`, `sensor.antiAliasing`) is opt-in. With none of them given, the
 request, RAW, samples and JPEG are byte-identical to the 1.0 facade at the same illuminance, and a
 test checks that. (The default illuminance changed before release; see [Exposure](#exposure).)
 
@@ -444,6 +445,53 @@ const stoppedDown = await simulateCapture({
 console.log(stoppedDown.request.diffraction?.execution, stoppedDown.request.diffraction?.profile.maximumTruncatedEnergyFraction);
 ```
 
+### Anti-aliasing filter
+
+`sensor.antiAliasing` (2.1) puts an optical low-pass filter in front of the sensor. Most real cameras
+with a Bayer sensor carry one; the generic tiers declare none, so it is off by default. It is modelled
+the way a birefringent quartz filter works: every image point is split into equally bright copies, and
+each site collects the light that would otherwise have landed at its centre minus each offset (the
+engine's `normalized-point-splitting-kernel` optical-stack response, resolved by
+`resolveAntiAliasingSpatialKernel`).
+
+- `{ kind: "four-spot", separationSites }`: two crossed plates, four spots at (±d/2, ±d/2) with weight
+  1/4 each. Its MTF is |cos(π·f_x·d)·cos(π·f_y·d)|. The most common filter in digital cameras.
+- `{ kind: "two-spot", axis: "horizontal" | "vertical", separationSites }`: one plate, two spots at
+  ±d/2 along the axis, MTF |cos(π·f·d)|.
+- `{ kind: "point-splitting", components }`: your own kernel, offsets in micrometres (+x right, +y
+  down) and positive weights that sum to 1; at most 16 components, each within 4 sites.
+- d = `separationSites` × pixel pitch, 0 < `separationSites` ≤ 4. The default 1 puts the first MTF
+  zero at the sensor's Nyquist frequency 1/(2·pitch): a four-spot filter one pixel wide cuts off at
+  Nyquist (Palum 2006). Above Nyquist the cosine rises again, so a lens (for example
+  `lens.diffraction`) is still needed to suppress the highest frequencies.
+
+Measured at f/8 on 128 × 128 neutral charts (mean false colour |R − G| + |B − G| in 8-bit codes):
+Siemens star 100.8 → 52.2 with bilinear and 68.7 → 25.1 with AHD; slanted edge 4.9 → 3.8 (bilinear).
+The price is sharpness: the slanted-edge 10–90 % width grows from 1.49 to 2.34 px (bilinear).
+
+Each site queries the scene once per spot, so the radiance work grows by the number of spots (4 for
+`four-spot`). With `lens.diffraction` the object-space convolution still applies: the taps around
+each split point lie on the site lattice shifted by its offset, so the engine convolves once per
+distinct sub-site shift (one half-site lattice for the default four-spot filter). A test checks it
+against the per-tap environment quadrature to 1e-12 per site.
+
+Approximations, listed in the `sensor.antiAliasing` assumption: the split is the same at every
+wavelength, field point and polarization (birefringence dispersion is ignored), the spots are exact
+points of equal weight for unpolarized light, and the filter's transmission, reflections and focus
+shift are not modelled. It is not a measured filter.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const filtered = await simulateCapture({
+  scene: { preset: "siemens-star" },
+  sensor: { antiAliasing: { kind: "four-spot" } },
+  lens: { diffraction: "circular-aperture" },
+  output: { width: 48, height: 48, demosaic: "ahd" }
+});
+console.log(filtered.assumptions.find((a) => a.id === "sensor.antiAliasing")?.value);
+```
+
 ## Motion
 
 `motion.angularVelocityRadPerSec` rotates the camera at a constant rate during the exposure, in the
@@ -501,11 +549,73 @@ The 2.1 options, measured on the same kind of host (4-vCPU Intel Xeon 2.80 GHz, 
 runs, slanted edge and Siemens star): at 48 × 48, default 0.38–0.45 s, `lens.diffraction` 0.49–0.71 s
 (f/4–f/16), `"ahd"` 0.48–0.63 s, both 0.60–0.87 s; at 128 × 128, default 2.1–2.3 s, diffraction
 2.5–3.4 s, AHD 2.4–2.5 s, both 2.8–4.0 s. The same diffraction through the per-tap environment quadrature
-took 13.1 s at 48 × 48, f/8.
+took 13.1 s at 48 × 48, f/8. [Cost of each option](#cost-of-each-option) covers every opt-in.
 
 These numbers come from one run on one machine. They are not a performance claim. Small captures
 (up to about 128 × 128) take a few seconds. Use them while you explore, and render large images only
 when you need them.
+
+## Cost of each option
+
+Slow options are opt-in, so an application can decide which ones it can afford: a feature that is
+too slow for a phone today may be cheap on the next generation of hardware. The table gives the
+measured wall time of each opt-in that affects run time, relative to the default capture of the same
+size.
+
+**Method.** Slanted-edge chart, every other option at its default (f/8, 1/125 s, ISO 100, sRGB 8-bit,
+bilinear demosaic). One fresh Node process per row and size; one 16 × 16 warm-up capture, then three
+timed captures (`performance.now()` around `simulateCapture`), median reported. Built `dist`, Node
+24.21.0, 4-vCPU Intel Xeon 2.80 GHz, Linux, nothing else running. One run on one machine: not a
+performance claim, but the ratios carry over roughly.
+
+| Option | 48 × 48 | 128 × 128 | What it buys |
+| --- | --- | --- | --- |
+| default | 0.50 s (1×) | 2.49 s (1×) | Point optics, bilinear demosaic, sRGB samples |
+| `lens.diffraction: "circular-aperture"` | 0.65 s (1.3×) | 2.84 s (1.1×) | Aperture-dependent sharpness (Airy blur); convolution 0.38 s at 128 |
+| `output.demosaic: "ahd"` | 0.65 s (1.3×) | 2.60 s (1.0×) | About half the false colour on sharp edges; 5-site margin, demosaic 0.05 s at 128 |
+| `sensor.antiAliasing: { kind: "four-spot" }` | 0.94 s (1.9×) | 4.96 s (2.0×) | Optical low-pass filter: false colour halved again, at a cost in sharpness |
+| anti-aliasing + diffraction | 1.16 s (2.3×) | 6.02 s (2.4×) | Both, still on the fast convolution path |
+| anti-aliasing + diffraction + AHD | 1.42 s (2.8×) | 6.99 s (2.8×) | The most faithful still image of a planar chart |
+| `lens.pupilSampling` 1 × 4 rays | 1.79 s (3.6×) | 11.5 s (4.6×) | Defocus and depth of field, coarse |
+| `lens.pupilSampling` 2 × 8 rays | 5.20 s (10×) | 33.1 s (13×) | Defocus and depth of field, smoother bokeh |
+| `lens.psf` (caller 3 × 3 kernel) | 2.11 s (4.2×) | 12.4 s (5.0×) | Any sampled lens PSF; runs per tap, so cost grows with the kernel size (a 9 × 9 diffraction kernel took 13.1 s at 48 × 48) |
+| `motion` yaw 0.01 rad/s (8 temporal samples) | 1.70 s (3.4×) | 8.74 s (3.5×) | Motion blur; cost grows with `sensor.temporalSampleCount` |
+| rotation + `shutter: "rolling"` | 1.79 s (3.6×) | 9.24 s (3.7×) | Rolling-shutter skew of moving content |
+| `motion.shutter: "rolling"` (still camera) | 0.47 s (0.9×) | 2.51 s (1.0×) | Per-row exposure windows; no cost alone |
+| `output.format: "png"` | 0.50 s (1.0×) | 2.63 s (1.1×) | PNG file bytes; encode 16 ms at 128 |
+| `output.format: "jpeg"` | 0.52 s (1.0×) | 2.59 s (1.0×) | Baseline JPEG; encode 45 ms at 128 |
+| `output.format: "dng"` | 0.50 s (1.0×) | 2.27 s (0.9×) | Lossless CFA DNG of the RAW; encode 4 ms at 128 |
+| `output.highlightMode: "reconstruct"` | 0.50 s (1.0×) | 2.20 s (0.9×) | Near-clipped highlights blend smoothly toward neutral instead of clipping per channel; no measurable cost |
+| `output.whiteBalance: "auto"` | 0.77 s (1.6×) | 4.76 s (1.9×) | Grey-world white balance; renders the RAW a second time (2.24 s at 128) |
+
+Ratios below about 1.1× are within the run-to-run spread (the three default runs at 128 × 128 took
+2.23–2.50 s). The radiance work dominates: options that multiply the scene queries per site
+(anti-aliasing spots, pupil rays, PSF taps, temporal samples) multiply the run time by about the same
+factor, and output-side options cost almost nothing.
+
+### Measuring cost on the user's device
+
+From 2.1 every result says what ran and how long each stage took, so an application can decide on the
+user's own device which options to offer:
+
+- `diagnostics.options` lists the opt-ins that changed the work of the run, in the fixed order of
+  `SIMULATE_CAPTURE_COST_OPTIONS` (for example `["lens.diffraction", "sensor.antiAliasing",
+  "output.demosaic.ahd", "output.format.png"]`). It is empty when every default is used.
+- `diagnostics.timingsMs` has `raw`, `whiteBalance` (the second RAW pass of `whiteBalance: "auto"`),
+  `development` (includes DNG writing), `jpeg` and `total` in whole milliseconds, and, where the stage
+  ran, `diffraction` (the object-space convolution, part of `raw`), `demosaic` (the AHD demosaic, part
+  of `development`) and `encode` (PNG, JPEG or DNG serialization), with sub-millisecond resolution where
+  the host has `performance.now()`.
+
+Timings change from run to run, but nothing else does: they never enter the scene digest, the RAW,
+the samples or the encoded files, and a test checks that two runs differ only in `timingsMs`.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const probe = await simulateCapture({ scene: { preset: "slanted-edge" }, output: { width: 32, height: 32, demosaic: "ahd" } });
+console.log(probe.diagnostics.options, probe.diagnostics.timingsMs.total, probe.diagnostics.timingsMs.demosaic);
+```
 
 ## Not available
 
@@ -515,6 +625,11 @@ provided, for rights reasons.
 
 ## Sources
 
+- R. Palum, "Anti-Aliasing Filter Analysis for Digital Cameras", Proc. IS&T International Congress of
+  Imaging Science (ICIS '06), 2006, free at
+  <https://www.imaging.org/common/uploaded%20files/pdfs/Papers/2006/ICIS-0-736/33683.pdf>
+  (birefringent quartz four-spot filter; one pixel wide in each direction cuts off at Nyquist; its MTF
+  is the modulus of a cosine that returns to one at the sampling frequency).
 - CIPA DC-004-Translation-2020, *Sensitivity of Digital Cameras*, free at
   <https://www.cipa.jp/e/std/std-sec.html> (standard output sensitivity S = 10/H, §3.2; reference
   level tied to 18 % grey, §5.2 and Explanation 1, 2.2; focal-plane exposure H = 0.65·L·t/N², §5.5

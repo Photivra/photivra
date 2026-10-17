@@ -56,6 +56,8 @@ describe("simulateCapture without the 2.1 options is byte-identical to 2.0.0", (
     dng: [{ scene: { preset: "point-grid" }, output: { width: 12, height: 12, format: "dng" }, exposure: { mode: "program" } },
       "faaf9e2bf9ae86261adb153f4aea04a29476b4e38c3e3acc616d4aee3fe3a106", "ef701613a0b0790895c4652840af0ab5fe64aa5623b65fa02409dae8cbc33392"]
   };
+  const expectedOptions: Record<string, readonly string[]> = { edge: [], star: ["output.format.png"], jpeg: ["output.whiteBalance.auto", "output.format.jpeg"],
+    mirror: ["output.borderHandling.mirror"], p3: ["output.colorEncoding.wide-gamut", "output.format.png"], dng: ["output.format.dng"] };
   const hex = (data: Buffer | string): string => createHash("sha256").update(data).digest("hex");
   for (const [name, [options, bytes, meta]] of Object.entries(cases)) {
     it(name, async () => {
@@ -63,7 +65,9 @@ describe("simulateCapture without the 2.1 options is byte-identical to 2.0.0", (
       const parts = [r.raw.codes, r.image.samples, r.image.jpeg, r.image.png, r.image.dng].filter((a) => a !== undefined)
         .map((a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength));
       expect(hex(Buffer.concat(parts))).toBe(bytes);
-      expect(hex(JSON.stringify({ a: r.assumptions, c: r.provenance.composedContracts, d: { ...r.diagnostics, timingsMs: 0 } }))).toBe(meta);
+      // diagnostics.options (2.1, additive) is checked by name below and left out of the 2.0.0 digest, like the timings.
+      expect(hex(JSON.stringify({ a: r.assumptions, c: r.provenance.composedContracts, d: { ...r.diagnostics, timingsMs: 0, options: undefined } }))).toBe(meta);
+      expect(r.diagnostics.options).toEqual(expectedOptions[name]);
     });
   }
 });
@@ -154,5 +158,31 @@ describe("simulateCapture output.demosaic \"ahd\" (2.1)", () => {
     expect(bright.diagnostics.highlight.saturatedPixelCount).toBeGreaterThan(0);
     await expect(simulateCapture({ scene: { preset: "uniform" }, output: { width: 2, height: 2, demosaic: "ahd", borderHandling: "mirror" } })).rejects.toThrow(InvalidConfigurationError);
     await expect(simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, demosaic: "lmmse" as never } })).rejects.toThrow(InvalidConfigurationError);
+  });
+});
+
+describe("simulateCapture per-run cost diagnostics (2.1)", () => {
+  it("lists the opt-ins that ran and times their stages, without changing any output", async () => {
+    const plain = await simulateCapture({ scene, output: { width: 8, height: 8 } });
+    expect(plain.diagnostics.options).toEqual([]);
+    expect(Object.keys(plain.diagnostics.timingsMs).sort()).toEqual(["development", "jpeg", "raw", "total", "whiteBalance"]);
+    const options: SimulateCaptureOptions = { scene, output: { width: 8, height: 8, demosaic: "ahd", format: "png" }, lens: { diffraction: "circular-aperture" },
+      sensor: { antiAliasing: { kind: "four-spot" } } };
+    const a = await simulateCapture(options), b = await simulateCapture(options);
+    expect(a.diagnostics.options).toEqual(["lens.diffraction", "sensor.antiAliasing", "output.demosaic.ahd", "output.format.png"]);
+    for (const key of ["diffraction", "demosaic", "encode"] as const) {
+      expect(a.diagnostics.timingsMs[key]).toBeGreaterThanOrEqual(0);
+      expect(Number.isFinite(a.diagnostics.timingsMs[key])).toBe(true);
+    }
+    // Two runs differ only in their timings: every byte, digest, request and other diagnostic is the same.
+    expect(Buffer.from(a.image.png!).equals(Buffer.from(b.image.png!))).toBe(true);
+    expect(Array.from(a.raw.codes)).toEqual(Array.from(b.raw.codes));
+    expect(a.scene.sourceSha256).toBe(b.scene.sourceSha256);
+    const strip = (r: typeof a): string => JSON.stringify({ ...r, image: undefined, raw: undefined, diagnostics: { ...r.diagnostics, timingsMs: undefined } });
+    expect(strip(a)).toBe(strip(b));
+    const jpeg = await simulateCapture({ scene, output: { width: 8, height: 8, format: "jpeg" } });
+    expect(jpeg.diagnostics.timingsMs.encode).toBeGreaterThanOrEqual(0);
+    const moving = await simulateCapture({ scene, output: { width: 4, height: 4, highlightMode: "reconstruct", whiteBalance: "auto" }, motion: { angularVelocityRadPerSec: { yaw: 0.01 }, shutter: "rolling" } });
+    expect(moving.diagnostics.options).toEqual(["sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.whiteBalance.auto", "output.highlightMode.reconstruct"]);
   });
 });

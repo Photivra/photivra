@@ -7723,6 +7723,11 @@
       "kind": "type"
     },
     {
+      "name": "SIMULATE_CAPTURE_COST_OPTIONS",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX",
       "source": "src/facade/simulate-capture.ts",
       "kind": "runtime"
@@ -7749,6 +7754,11 @@
     },
     {
       "name": "SimulateCaptureColorEncoding",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureCostOption",
       "source": "src/facade/simulate-capture.ts",
       "kind": "type"
     },
@@ -7789,6 +7799,11 @@
     },
     {
       "name": "SimulateCaptureResult",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureSensorAntiAliasing",
       "source": "src/facade/simulate-capture.ts",
       "kind": "type"
     },

@@ -2,6 +2,18 @@
 
 The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
+## SIMULATE_CAPTURE_COST_OPTIONS
+
+Options reported in `diagnostics.options` (2.1), in this order, when they ran: the ones that change how much work
+a capture does. `motion.rotation` is a non-zero angular velocity; `sensor.temporalSampleCount` a count above 1.
+
+```ts
+SIMULATE_CAPTURE_COST_OPTIONS = Object.freeze(["lens.pupilSampling", "lens.projection", "lens.distortion", "lens.vignetting", "lens.psf",
+  "lens.diffraction", "sensor.antiAliasing", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror",
+  "output.whiteBalance.auto", "output.demosaic.ahd", "output.highlightMode.reconstruct", "output.colorEncoding.wide-gamut", "output.gamutMapping.perceptual",
+  "output.format.jpeg", "output.format.png", "output.format.dng"] as const)
+```
+
 ## SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX
 
 Default illuminance, lux: an 18 % Lambertian grey card (L = 0.18·E/π) then gets exactly the CIPA DC-004 standard
@@ -68,6 +80,14 @@ PQ and HLG (BT.2100) are not part of 2.0; see THIRD_PARTY.md.
 
 ```ts
 export type SimulateCaptureColorEncoding = "srgb" | "display-p3" | "rec2020";
+```
+
+## SimulateCaptureCostOption
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export type SimulateCaptureCostOption = typeof SIMULATE_CAPTURE_COST_OPTIONS[number];
 ```
 
 ## SimulateCaptureDemosaic
@@ -210,6 +230,11 @@ export interface SimulateCaptureOptions {
     temporalSampleCount?: number;
     /** Noise seed (uint32). Default 1. */
     noiseSeed?: number;
+    /**
+     * Opt-in (2.1) optical anti-aliasing filter (birefringent point splitting, `SimulateCaptureSensorAntiAliasing`).
+     * Multiplies the scene queries by the number of split points. Default off (the tiers declare no filter).
+     */
+    antiAliasing?: SimulateCaptureSensorAntiAliasing;
   };
   /** Aborting cancels the running task; the promise rejects with a domain error and returns no partial image. */
   signal?: AbortSignal;
@@ -312,7 +337,20 @@ export interface SimulateCaptureResult {
     rendering: SdrRenderingResult["diagnostics"];
     /** Present with output.gamutMapping "perceptual": pixels whose chroma or lightness the mapping changed. */
     gamutMapping?: { method: "cielab-hue-preserving-chroma-compression"; kneeFraction: number; adjustedPixelCount: number; lightnessClippedPixelCount: number };
-    timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number };
+    /**
+     * Wall-clock milliseconds per stage. `raw`, `whiteBalance` (the second RAW pass of auto white balance), `development`
+     * (includes DNG writing), `jpeg` and `total` are whole milliseconds (`Date.now()`). Since 2.1, where a stage ran:
+     * `diffraction` (the object-space convolution of `lens.diffraction`; part of `raw` and `whiteBalance`), `demosaic`
+     * (the AHD demosaic; part of `development`) and `encode` (PNG, JPEG or DNG serialization), with sub-millisecond
+     * resolution where the host has `performance.now()`. Timings vary from run to run and never enter any digest or output byte.
+     */
+    timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number; diffraction?: number; demosaic?: number; encode?: number };
+    /**
+     * 2.1: the opt-in options that changed the work of this run, in a fixed order (see `SIMULATE_CAPTURE_COST_OPTIONS`).
+     * Empty for a capture with every default. With `timingsMs` it lets an application measure each option's cost on
+     * the user's device.
+     */
+    options: readonly SimulateCaptureCostOption[];
   };
   provenance: {
     scientificStatus: "approximation";
@@ -325,6 +363,24 @@ export interface SimulateCaptureResult {
   };
   assumptions: readonly SimulateCaptureAssumption[];
 }
+```
+
+## SimulateCaptureSensorAntiAliasing
+
+Optical anti-aliasing (low-pass) filter (2.1), modelled as birefringent point splitting: each image point is
+split into equally bright copies (the engine's `normalized-point-splitting-kernel` optical-stack response).
+- `four-spot`: two crossed birefringent plates; copies at (±d/2, ±d/2), weight 1/4 each, MTF |cos(π·f_x·d)·cos(π·f_y·d)|.
+- `two-spot`: one plate splitting along `axis`; copies at ±d/2, weight 1/2 each, MTF |cos(π·f·d)|.
+- `point-splitting`: the engine contract itself, offsets in micrometres (+x right, +y down) and positive weights
+  summing to 1 (at most 16 components, each within 4 sites).
+d = `separationSites` × pixel pitch, 0 < separationSites ≤ 4, default 1 (first MTF zero at the sensor's Nyquist
+frequency 1/(2·pitch)).
+
+```ts
+export type SimulateCaptureSensorAntiAliasing =
+  | { kind: "four-spot"; separationSites?: number }
+  | { kind: "two-spot"; axis: "horizontal" | "vertical"; separationSites?: number }
+  | { kind: "point-splitting"; components: readonly AntiAliasingPointSplitComponent[] };
 ```
 
 ## SimulateCaptureWhiteBalance

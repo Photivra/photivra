@@ -35,7 +35,7 @@ A capture yields every ~8 ms, so the continuations keep the worker's `message` t
 
 **Problem.** By default `simulateCapture()` applies no lens PSF, so the aperture changed only exposure, never sharpness; and with no optical blur the bilinear demosaic showed strong zipper and false colour on sharp chart edges. The only way to add blur was a caller `lens.psf`, and no engine function built a sampled profile for a diffraction-limited lens. The per-tap PSF path was also slow: 13.1 s for a 48 × 48 capture at f/8 with 9 × 9 kernels.
 
-**Change.** `createDiffractionLimitedPsfProfile` (new root export), `lens.diffraction` and `output.demosaic: "ahd"` in the facade (opt-in), and an object-space convolution execution of the diffraction (`src/facade/diffraction-provider.ts`). The anti-aliasing (optical low-pass) filter was investigated and not added; see below.
+**Change.** `createDiffractionLimitedPsfProfile` (new root export), `lens.diffraction` and `output.demosaic: "ahd"` in the facade (opt-in), and an object-space convolution execution of the diffraction (`src/facade/diffraction-provider.ts`). The anti-aliasing (optical low-pass) filter, first investigated here and left out, is added below as `sensor.antiAliasing`.
 
 ### Science evidence: diffraction-limited PSF
 
@@ -93,10 +93,80 @@ Without diffraction the sharpness does not depend on the aperture; with it, the 
 | slanted edge | 32 × 32 | 11.4 | 5.3 | 9.4 | 4.3 |
 | slanted edge | 128 × 128 | 4.9 | 2.9 | 4.4 | 2.6 |
 
-### Investigated, not added: anti-aliasing filter
+## Added: optical anti-aliasing filter in `simulateCapture`
 
-The generic tier presets declare no optical low-pass filter (the facade's optical stack declares `effectiveAntiAliasingSpatialResponse: absent`), so there is no tier value to apply. The engine models an AA filter as a caller-declared `normalized-point-splitting-kernel` (resolved by `resolveAntiAliasingSpatialKernel`) that the per-site spatial quadrature applies. A facade pass-through is feasible but (1) multiplies the scene queries by the number of split points (4 for a two-plate birefringent filter), about 4× the capture time, and (2) moves the quadrature points half a site off the lattice, so it would force diffraction back onto the per-tap path. Plan: accept `sensor.antiAliasing: { components }` passed to the optical stack, and extend the object-space convolution to a half-site lattice when every split offset is a multiple of half the pitch (then the split is one more convolution of the same kind).
+**Problem.** The 2.1 diffraction work found that the tier presets declare no optical low-pass (anti-aliasing, AA) filter (the facade's optical stack declared `effectiveAntiAliasingSpatialResponse: absent`), so there was no way to render one, although most Bayer cameras carry one and it is the main physical defence against false colour. It was first left out because it is slow (one scene query per split point). The owner's principle (2026-10-17) is to offer slow but physically meaningful options as opt-ins that the consuming application turns on or off, with their measured cost documented.
+
+**Change.** `sensor.antiAliasing` (opt-in, default off): `{ kind: "four-spot", separationSites? }`, `{ kind: "two-spot", axis, separationSites? }` or `{ kind: "point-splitting", components }`. The facade puts the resulting point-splitting kernel into the sensor optical stack as the engine's existing `normalized-point-splitting-kernel` response (`resolveAntiAliasingSpatialKernel`, applied by the per-site spatial quadrature); it adds no new physics. Caller components are validated by the engine's optical-stack parser (positive weights summing to 1 within 1e-12), plus facade limits of 16 components and 4 sites per offset. New type export `SimulateCaptureSensorAntiAliasing`.
+
+### Science evidence
+
+- **Model.** A birefringent plate (crystal quartz, optic axis tilted about 45°) splits an unpolarized ray into an ordinary and an extraordinary ray of equal power displaced by d; two crossed plates with a retarder between them give four equal spots. This is "the most common quartz filter", and "the four spot filter only has to be one pixel wide in each direction to cut off at the Nyquist frequency"; its MTF is "the modulus of a cosine that goes back to one at the sampling frequency" (R. Palum, Eastman Kodak, "Anti-Aliasing Filter Analysis for Digital Cameras", Proc. IS&T ICIS '06, 2006, free at https://www.imaging.org/common/uploaded%20files/pdfs/Papers/2006/ICIS-0-736/33683.pdf). Two equal impulses at ±d/2 have the Fourier transform cos(π·f·d) (Fourier shift theorem; [MIT OpenCourseWare 2.71 Optics, Spring 2009](https://ocw.mit.edu/courses/2-71-optics-spring-2009/), free), so the four-spot MTF is |cos(π·f_x·d)·cos(π·f_y·d)|, first zero at f = 1/(2d). The default d = 1 pixel pitch puts it at Nyquist.
+- **Labelled approximations** (in the `sensor.antiAliasing` assumption): the split is the same at every wavelength, field point and polarization (the engine scope `field-wavelength-polarization-invariant-approximation`; birefringence dispersion and the thickness-dependent displacement are not modelled); spots are exact points with equal weights for unpolarized light; the filter's transmission, reflections and focus shift are not modelled; not a measured filter.
+- **Measurements** (f/8, neutral charts, linear luminance of the decoded sRGB output; false colour = mean |R − G| + |B − G| in 8-bit codes; star modulation (p95 − p5)/(p95 + p5) on a circle of the 36-cycle star; edge = median 10–90 % rise per row of the 5° slanted edge). For comparison, the ideal four-spot MTF along an axis at the star's frequency is |cos(π/period)|: 0.93 (8.38 px), 0.73 (4.19 px), 0.07 (2.09 px), 0.62 (1.40 px, above Nyquist, where it rises again).
+
+| Chart | Size | Demosaic | Diffraction | AA | False colour | Star mod. r = 8 (1.40 px) | r = 12 (2.09 px) | r = 24 (4.19 px) | r = 48 (8.38 px) | Edge 10–90 % (px) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Siemens star | 128 | bilinear | off | off | 100.8 | 0.497 | 0.514 | 0.625 | 0.882 | — |
+| Siemens star | 128 | bilinear | off | four-spot | 52.2 | 0.407 | 0.359 | 0.535 | 0.866 | — |
+| Siemens star | 128 | bilinear | on | off | 88.0 | 0.462 | 0.457 | 0.550 | 0.828 | — |
+| Siemens star | 128 | bilinear | on | four-spot | 43.2 | 0.381 | 0.302 | 0.458 | 0.806 | — |
+| Siemens star | 128 | AHD | off | off | 68.7 | 0.746 | 0.679 | 0.862 | 0.885 | — |
+| Siemens star | 128 | AHD | off | four-spot | 25.1 | 0.480 | 0.391 | 0.726 | 0.888 | — |
+| Siemens star | 128 | AHD | on | off | 53.5 | 0.673 | 0.552 | 0.732 | 0.842 | — |
+| Siemens star | 128 | AHD | on | four-spot | 21.1 | 0.442 | 0.328 | 0.601 | 0.839 | — |
+| slanted edge | 128 | bilinear | off | off | 4.9 | — | — | — | — | 1.49 |
+| slanted edge | 128 | bilinear | off | four-spot | 3.8 | — | — | — | — | 2.34 |
+| slanted edge | 128 | bilinear | on | off | 4.4 | — | — | — | — | 1.68 |
+| slanted edge | 128 | bilinear | on | four-spot | 3.5 | — | — | — | — | 2.69 |
+| slanted edge | 128 | AHD | off | off | 2.9 | — | — | — | — | 0.80 |
+| slanted edge | 128 | AHD | off | four-spot | 2.4 | — | — | — | — | 1.60 |
+| slanted edge | 128 | AHD | on | off | 2.6 | — | — | — | — | 0.98 |
+| slanted edge | 128 | AHD | on | four-spot | 2.3 | — | — | — | — | 1.80 |
+
+  At 32 × 32 the false colour falls to 20–30 % (star: 209.4 → 63.6 bilinear, 138.5 → 37.4 AHD, 111.9 → 22.4 AHD + diffraction) and 62–74 % (edge) of its value without the filter. The filter removes most of the near-Nyquist modulation (r = 12 px) that the sampling would otherwise turn into aliasing and false colour, costs some contrast below Nyquist and widens the edge by about 0.85 px, as the cosine MTF predicts; above Nyquist it suppresses less, since its MTF rises again (Palum: the lens must attenuate there). These are measurements of the synthetic model, not of a real camera. Test: `test/simulate-capture-antialiasing.test.ts` (false colour and r = 12 modulation fall in every combination with diffraction and AHD at 32 × 32).
+
+### Diffraction with the filter: convolution per shifted lattice
+
+The environment PSF quadrature takes its taps around each pre-filter source point q − a (a = split offset). With kernels on the site pitch those taps lie on the site lattice shifted by a, so the 2.1 object-space argument holds on each shifted lattice. `createDiffractedPlanarProvider` now convolves once per distinct fractional shift (offsets that differ by whole sites share a lattice) over the native raster widened by the largest offset, and the environment's spatial quadrature forms the weighted split sum as before. The default four-spot filter (offsets ±½ site) needs one half-site lattice; arbitrary offsets work, at one extra convolution set per distinct shift. Without a filter the provider computes exactly what it did before (same sample positions and order).
+
+- **Tests** (`test/simulate-capture-antialiasing.test.ts`): expected generated electrons at every site of 9 × 7 captures at f/8 agree with the per-site engine using `request.diffraction.psf` and the plain scene provider to a relative 1e-12, for the four-spot filter at d = 1 (one shifted lattice) and d = 0.8 (four lattices) and a horizontal two-spot at d = 1.5 (two lattices), on the slanted edge and point grid; RAW codes equal those of the facade's per-tap path. An odd frame keeps the lattices off the frame centre, where both charts have a material boundary; with an even native size the half-site lattice hits it and taps exactly on the boundary pick their material by the last bit of the coordinate (measured up to 1.6e-4 at 3 of 120 sites), the same point-sampling ambiguity documented for diffraction above.
+- **Fix found by the test:** the per-tap path resolves the PSF at the pre-filter point, which for an edge site can lie up to the largest offset outside the imaging area; the facade's Airy profile field grid is widened by that offset when a filter is present (unchanged otherwise).
+
+## Added: per-run cost diagnostics in `simulateCapture`
+
+`result.diagnostics.timingsMs` already had `raw`, `whiteBalance`, `development`, `jpeg` and `total`. It now also has, where the stage ran, `diffraction` (object-space convolution time; part of `raw`/`whiteBalance`), `demosaic` (AHD; part of `development`) and `encode` (PNG, JPEG or DNG serialization), measured with `performance.now()` where present. `diagnostics.options` lists the opt-ins that changed the run's work, in the fixed order of the new constant `SIMULATE_CAPTURE_COST_OPTIONS` (empty with every default). Both are additive.
+
+Timings stay out of everything digested: the scene digest is computed from the scene description before any work, the JPEG source digest from samples and the scene digest, and no timing reaches the RAW, samples or encoded bytes. Evidence: the 2.0.0 hash lock (`test/simulate-capture-optics.test.ts`) passes with its digests unchanged; as before it zeroes `timingsMs`, and it now also leaves the new `options` field out of the digest and checks it by name per case; a new test runs the same capture twice and finds every byte, digest and the whole result except `timingsMs` identical. The five engine hash locks pass.
+
+## Added: cost of each option (docs/QUICK_START.md)
+
+Owner principle (2026-10-17): slow but physically meaningful features ship as opt-ins with their measured cost, so the consuming application decides; computer capability changes over time. `docs/QUICK_START.md` § Cost of each option lists each opt-in that affects run time.
+
+**Method.** Slanted edge, all other options default (f/8, 1/125 s, ISO 100, sRGB 8-bit, bilinear). One fresh Node process per option and size, one 16 × 16 warm-up capture, then three timed captures (`performance.now()` around `simulateCapture`), median reported. Built `dist` of this branch, Node 24.21.0, 4-vCPU Intel Xeon 2.80 GHz, Linux, idle. The measuring script is kept outside the repository; `lens.psf` is the 3 × 3 Airy profile that `lens.diffraction` builds at f/8 for the same frame (run per tap).
+
+| Option | 48 × 48 (s) | 128 × 128 (s) | 128 × 128 runs (ms) | Scene queries at 128 × 128 |
+| --- | --- | --- | --- | --- |
+| default | 0.50 | 2.49 | 2228 / 2486 / 2501 | 338 000 |
+| `lens.diffraction` | 0.65 | 2.84 | 2760 / 2838 / 2940 | 338 000 |
+| `output.demosaic: "ahd"` | 0.65 | 2.60 | 2548 / 2597 / 2750 | 380 880 |
+| `sensor.antiAliasing` four-spot | 0.94 | 4.96 | 4755 / 4959 / 5088 | 1 352 000 |
+| anti-aliasing + diffraction | 1.16 | 6.02 | 5893 / 6017 / 6082 | 1 352 000 |
+| anti-aliasing + diffraction + AHD | 1.42 | 6.99 | 6655 / 6986 / 6994 | 1 523 520 |
+| `lens.pupilSampling` 1 × 4 | 1.79 | 11.46 | 10966 / 11460 / 11578 | 1 352 000 |
+| `lens.pupilSampling` 2 × 8 | 5.20 | 33.09 | 32707 / 33088 / 34327 | 5 408 000 |
+| `lens.psf` 3 × 3 (per tap) | 2.11 | 12.43 | 11549 / 12433 / 12687 | 3 042 000 |
+| yaw 0.01 rad/s, 8 temporal samples | 1.70 | 8.74 | 8584 / 8742 / 9049 | 2 704 000 |
+| rotation + rolling shutter | 1.79 | 9.24 | 9233 / 9237 / 9711 | 2 704 000 |
+| rolling shutter, still | 0.47 | 2.51 | 2466 / 2510 / 2660 | 338 000 |
+| `png` | 0.50 | 2.63 | 2384 / 2630 / 2743 | 338 000 |
+| `jpeg` | 0.52 | 2.59 | 2295 / 2589 / 2607 | 338 000 |
+| `dng` | 0.50 | 2.27 | 2135 / 2267 / 2425 | 338 000 |
+| `highlightMode: "reconstruct"` | 0.50 | 2.20 | 2087 / 2203 / 2388 | 338 000 |
+| `whiteBalance: "auto"` | 0.77 | 4.76 | 4560 / 4757 / 4767 | 338 000 (counted once; the RAW is rendered twice) |
+
+Run time follows the scene queries per site; differences below about 10 % are within the run-to-run spread. With anti-aliasing the run time grows 2.0× for 4× the queries, because each query of the lean executor costs less than the per-site fixed work. The new per-stage diagnostics reported, at 128 × 128: diffraction convolution 377–443 ms, AHD demosaic 42–52 ms, encode 4 ms (DNG), 16 ms (PNG), 45 ms (JPEG), auto white balance second pass 2241 ms.
 
 ### Compatibility
 
-All three options are opt-in. Captures that do not use them are byte-identical to 2.0.0: a hash lock in `test/simulate-capture-optics.test.ts` checks the RAW codes, every output byte, the assumptions, composed contracts and diagnostics of six captures (sRGB, PNG, JPEG with auto white balance, mirror borders with 16-bit output, Display P3, DNG in program mode) against digests recorded from the 2.0.0 source. The integration test's unknown-demosaic case now uses `"lmmse"`, because `"ahd"` is accepted.
+The 2.1 options (`lens.diffraction`, `output.demosaic: "ahd"`, `sensor.antiAliasing`) are opt-in. Captures that do not use them are byte-identical to 2.0.0: a hash lock in `test/simulate-capture-optics.test.ts` checks the RAW codes, every output byte, the assumptions, composed contracts and diagnostics of six captures (sRGB, PNG, JPEG with auto white balance, mirror borders with 16-bit output, Display P3, DNG in program mode) against digests recorded from the 2.0.0 source. The integration test's unknown-demosaic case now uses `"lmmse"`, because `"ahd"` is accepted.

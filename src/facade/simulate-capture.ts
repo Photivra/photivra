@@ -23,6 +23,8 @@
  * - optics: the environment `lensFieldMapping` (projection, radial / Brown–Conrady distortion), radial
  *   illumination vignetting as field throughput and a caller sampled lens PSF;
  * - motion: constant camera angular velocity and the electronic rolling-shutter exposure schedule.
+ * The 2.1 options are opt-in in the same way: `lens.diffraction`, `output.demosaic: "ahd"` and
+ * `sensor.antiAliasing` (a birefringent point-splitting low-pass filter in the sensor optical stack).
  * @see docs/QUICK_START.md
  */
 
@@ -78,6 +80,7 @@ import { calculateCaptureExposureWindows } from "../sensor/exposure-window.js";
 import { calculateSensorSpectralQuadrature } from "../sensor/spectral-quadrature.js";
 import { createDiffractionLimitedPsfProfile, type DiffractionLimitedPsfProfile } from "../optics/diffraction-psf-profile.js";
 import { createDiffractedPlanarProvider } from "./diffraction-provider.js";
+import { resolveAntiAliasingSpatialKernel, type AntiAliasingPointSplitComponent, type SensorOpticalStackProfile } from "../sensor/optical-stack.js";
 import { multiplyMatrices, type ColorMatrix3x3, type ColorVector3 } from "../color/colorimetry-math.js";
 import { prepareRgbGamutMapping, type PreparedRgbGamutMapping } from "../color/gamut-mapping.js";
 import { serializeNativeRawDng, type NativeRawDng } from "../capture/native-raw-dng.js";
@@ -125,6 +128,20 @@ export type SimulateCaptureLensDistortion =
   | { kind: "brown-conrady"; profile: BrownConradyDistortionProfile };
 /** Diffraction model (2.1): the shorthand or a record with an explicit kernel radius in sites. */
 export type SimulateCaptureLensDiffraction = "circular-aperture" | { aperture: "circular-aperture"; kernelRadiusSamples?: number };
+/**
+ * Optical anti-aliasing (low-pass) filter (2.1), modelled as birefringent point splitting: each image point is
+ * split into equally bright copies (the engine's `normalized-point-splitting-kernel` optical-stack response).
+ * - `four-spot`: two crossed birefringent plates; copies at (±d/2, ±d/2), weight 1/4 each, MTF |cos(π·f_x·d)·cos(π·f_y·d)|.
+ * - `two-spot`: one plate splitting along `axis`; copies at ±d/2, weight 1/2 each, MTF |cos(π·f·d)|.
+ * - `point-splitting`: the engine contract itself, offsets in micrometres (+x right, +y down) and positive weights
+ *   summing to 1 (at most 16 components, each within 4 sites).
+ * d = `separationSites` × pixel pitch, 0 < separationSites ≤ 4, default 1 (first MTF zero at the sensor's Nyquist
+ * frequency 1/(2·pitch)).
+ */
+export type SimulateCaptureSensorAntiAliasing =
+  | { kind: "four-spot"; separationSites?: number }
+  | { kind: "two-spot"; axis: "horizontal" | "vertical"; separationSites?: number }
+  | { kind: "point-splitting"; components: readonly AntiAliasingPointSplitComponent[] };
 export interface SimulateCaptureMotion {
   /** Constant camera angular velocity, rad/s, in the engine's pitch/yaw/roll convention. Missing axes are 0. */
   angularVelocityRadPerSec?: { pitch?: number; yaw?: number; roll?: number };
@@ -226,12 +243,27 @@ export interface SimulateCaptureOptions {
     temporalSampleCount?: number;
     /** Noise seed (uint32). Default 1. */
     noiseSeed?: number;
+    /**
+     * Opt-in (2.1) optical anti-aliasing filter (birefringent point splitting, `SimulateCaptureSensorAntiAliasing`).
+     * Multiplies the scene queries by the number of split points. Default off (the tiers declare no filter).
+     */
+    antiAliasing?: SimulateCaptureSensorAntiAliasing;
   };
   /** Aborting cancels the running task; the promise rejects with a domain error and returns no partial image. */
   signal?: AbortSignal;
   /** Called after each committed RAW, development or JPEG tile. Cannot change output. */
   onProgress?: (progress: SimulateCaptureProgress) => void;
 }
+
+/**
+ * Options reported in `diagnostics.options` (2.1), in this order, when they ran: the ones that change how much work
+ * a capture does. `motion.rotation` is a non-zero angular velocity; `sensor.temporalSampleCount` a count above 1.
+ */
+export const SIMULATE_CAPTURE_COST_OPTIONS = Object.freeze(["lens.pupilSampling", "lens.projection", "lens.distortion", "lens.vignetting", "lens.psf",
+  "lens.diffraction", "sensor.antiAliasing", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror",
+  "output.whiteBalance.auto", "output.demosaic.ahd", "output.highlightMode.reconstruct", "output.colorEncoding.wide-gamut", "output.gamutMapping.perceptual",
+  "output.format.jpeg", "output.format.png", "output.format.dng"] as const);
+export type SimulateCaptureCostOption = typeof SIMULATE_CAPTURE_COST_OPTIONS[number];
 
 export interface SimulateCaptureProgress {
   stage: "raw" | "white-balance" | "development" | "jpeg";
@@ -317,7 +349,20 @@ export interface SimulateCaptureResult {
     rendering: SdrRenderingResult["diagnostics"];
     /** Present with output.gamutMapping "perceptual": pixels whose chroma or lightness the mapping changed. */
     gamutMapping?: { method: "cielab-hue-preserving-chroma-compression"; kneeFraction: number; adjustedPixelCount: number; lightnessClippedPixelCount: number };
-    timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number };
+    /**
+     * Wall-clock milliseconds per stage. `raw`, `whiteBalance` (the second RAW pass of auto white balance), `development`
+     * (includes DNG writing), `jpeg` and `total` are whole milliseconds (`Date.now()`). Since 2.1, where a stage ran:
+     * `diffraction` (the object-space convolution of `lens.diffraction`; part of `raw` and `whiteBalance`), `demosaic`
+     * (the AHD demosaic; part of `development`) and `encode` (PNG, JPEG or DNG serialization), with sub-millisecond
+     * resolution where the host has `performance.now()`. Timings vary from run to run and never enter any digest or output byte.
+     */
+    timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number; diffraction?: number; demosaic?: number; encode?: number };
+    /**
+     * 2.1: the opt-in options that changed the work of this run, in a fixed order (see `SIMULATE_CAPTURE_COST_OPTIONS`).
+     * Empty for a capture with every default. With `timingsMs` it lets an application measure each option's cost on
+     * the user's device.
+     */
+    options: readonly SimulateCaptureCostOption[];
   };
   provenance: {
     scientificStatus: "approximation";
@@ -365,13 +410,57 @@ const AHD_MARGIN = 5;
 /** Sites whose values enter an AHD output pixel (interpolation reach), for the saturated-pixel count. */
 const AHD_VALUE_REACH = 3;
 
+/** Anti-aliasing filter limits: split points, and the largest offset in sites (bounds the scene work and the convolution margin). */
+const AA_MAXIMUM_COMPONENTS = 16;
+const AA_MAXIMUM_OFFSET_SITES = 4;
+/** Default birefringent separation in sites: the two-spot MTF |cos(π·f·d)| then has its first zero at Nyquist, f = 1/(2·pitch). */
+const AA_DEFAULT_SEPARATION_SITES = 1;
+interface ParsedAntiAliasing { kind: SimulateCaptureSensorAntiAliasing["kind"]; separationSites?: number; axis?: "horizontal" | "vertical";
+  components: AntiAliasingPointSplitComponent[] }
+/** Parses `sensor.antiAliasing` into engine point-splitting components (offsets in µm, +x right, +y down). */
+function parseAntiAliasing(value: unknown, pitch: number): ParsedAntiAliasing {
+  requireInputObject(value, "sensor.antiAliasing");
+  const kind = (value as { kind?: unknown }).kind;
+  const separation = (record: Record<string, unknown>): number => {
+    if (record.separationSites === undefined) return AA_DEFAULT_SEPARATION_SITES;
+    const d = positive(record.separationSites, "sensor.antiAliasing.separationSites");
+    if (d > AA_MAXIMUM_OFFSET_SITES) fail("sensor.antiAliasing.separationSites must be greater than 0 and at most " + AA_MAXIMUM_OFFSET_SITES + ".");
+    return d;
+  };
+  if (kind === "four-spot") {
+    const record = allowKeys(value, "sensor.antiAliasing", ["kind", "separationSites"]), d = separation(record), h = d * pitch / 2;
+    return { kind, separationSites: d, components: [[-h, -h], [h, -h], [-h, h], [h, h]].map(([x, y]) => ({ offsetMicrometers: { x: x!, y: y! }, normalizedWeight: 0.25 })) };
+  }
+  if (kind === "two-spot") {
+    const record = allowKeys(value, "sensor.antiAliasing", ["kind", "axis", "separationSites"]), d = separation(record), h = d * pitch / 2;
+    if (record.axis !== "horizontal" && record.axis !== "vertical") fail("sensor.antiAliasing.axis must be horizontal or vertical.");
+    const axis = record.axis as "horizontal" | "vertical";
+    return { kind, axis, separationSites: d, components: [-h, h].map((o) => ({ offsetMicrometers: axis === "horizontal" ? { x: o, y: 0 } : { x: 0, y: o }, normalizedWeight: 0.5 })) };
+  }
+  if (kind === "point-splitting") {
+    const record = allowKeys(value, "sensor.antiAliasing", ["kind", "components"]);
+    if (!Array.isArray(record.components) || record.components.length === 0 || record.components.length > AA_MAXIMUM_COMPONENTS) {
+      fail("sensor.antiAliasing.components must be an array of 1 to " + AA_MAXIMUM_COMPONENTS + " components.");
+    }
+    // The engine's optical-stack parser checks shape, finiteness, positive weights and the unit sum (1e-12).
+    const kernel = resolveAntiAliasingSpatialKernel({ schemaVersion: "0.1.0", profileId: "facade-aa-check", evidence: FACADE_EVIDENCE,
+      effectiveAntiAliasingSpatialResponse: { kind: "normalized-point-splitting-kernel", evidence: FACADE_EVIDENCE, coordinateSystem: "native-sensor-physical",
+        scope: "field-wavelength-polarization-invariant-approximation", components: record.components as AntiAliasingPointSplitComponent[] } });
+    for (const c of kernel.components) if (Math.max(Math.abs(c.offsetMicrometers.x), Math.abs(c.offsetMicrometers.y)) > AA_MAXIMUM_OFFSET_SITES * pitch) {
+      fail("sensor.antiAliasing.components offsets must lie within " + AA_MAXIMUM_OFFSET_SITES + " sites (" + AA_MAXIMUM_OFFSET_SITES * pitch + " µm) of the site centre.");
+    }
+    return { kind, components: kernel.components.map((c) => ({ offsetMicrometers: { ...c.offsetMicrometers }, normalizedWeight: c.normalizedWeight })) };
+  }
+  return fail("sensor.antiAliasing.kind must be four-spot, two-spot or point-splitting.");
+}
+
 /** Third dark ring of the Airy pattern in units of λ·N_w (j₁,₃/π, j₁,₃ = 10.1734681351): the default diffraction kernel reach. */
 const AIRY_THIRD_ZERO_PER_LAMBDA_N = 10.173468135062722 / Math.PI;
 /** Default temporal midpoints when the camera rotates (2.0 motion option). */
 const ROTATING_TEMPORAL_SAMPLE_COUNT = 8;
 const IDS = Object.freeze({ frame: "facade-frame", mode: "native-still", cfa: "photivra-generic-bayer", binding: "facade-native-cfa",
   sceneState: "facade-scene-state", scene: "facade-scene", provider: "facade-provider", lights: "facade-lights", materials: "facade-materials",
-  capture: "facade-capture", spectral: "facade-colorimetric-eqe", sampling: "facade-sampling", stack: "facade-no-aa",
+  capture: "facade-capture", spectral: "facade-colorimetric-eqe", sampling: "facade-sampling", stack: "facade-no-aa", stackAa: "facade-aa",
   stationarity: "facade-stationarity", operatingState: "facade-operating-state", dark: "facade-dark", completeness: "facade-completeness",
   chargeSampling: "facade-charge-sampling", capacity: "facade-capacity" });
 const CHANNELS = ["red", "green", "blue"] as const;
@@ -391,6 +480,8 @@ const DARK_CURRENT_ELECTRONS_PER_SECOND = 1;
 const OPERATING_TEMPERATURE_C = 20;
 
 function fail(message: string): never { throw new InvalidConfigurationError(message); }
+/** Diagnostic clock for the 2.1 stage timings: `performance.now()` where the host has it. Never affects output. */
+function clockMs(): number { return globalThis.performance?.now() ?? Date.now(); }
 function positive(value: unknown, name: string): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) fail(name + " must be a positive finite number.");
   return value as number;
@@ -494,7 +585,7 @@ function pngColourEncoding(encoding: SimulateCaptureColorEncoding): PngColourEnc
  * stops before tone mapping, gamut clipping and quantization. It reads the RAW without taking ownership.
  */
 async function developLinearSrgb(input: NativeRawDevelopmentInput, afterRow: (completed: number, total: number) => Promise<void>,
-  ahd?: { yieldControl: () => Promise<void>; checkAbort: () => void }): Promise<{ rgb: Float64Array; highlight: RawHighlightDiagnostics }> {
+  ahd?: { yieldControl: () => Promise<void>; checkAbort: () => void; onDemosaicMs?: (milliseconds: number) => void }): Promise<{ rgb: Float64Array; highlight: RawHighlightDiagnostics }> {
   const v = prepareNativeRawDevelopment(input), plan = v.plan, raw = input.raw, layout = plan.frame.colorSamplingProfile.layout;
   if (layout.kind !== "periodic-mosaic") fail("Development requires a periodic CFA.");
   const native = plan.exposure.geometry.nativeRaster, g = plan.exposure.resolvedGeometry, active = g.activeCapture.nativeRect;
@@ -527,7 +618,7 @@ async function developLinearSrgb(input: NativeRawDevelopmentInput, afterRow: (co
  */
 async function developAhd(v: ReturnType<typeof prepareNativeRawDevelopment>, raw: NativeRawOutput, repeatWidth: number, repeatHeight: number, width: number, height: number,
   at: (x: number, y: number) => { x: number; y: number }, afterRow: (completed: number, total: number) => Promise<void>,
-  host: { yieldControl: () => Promise<void>; checkAbort: () => void }): Promise<{ rgb: Float64Array; highlight: RawHighlightDiagnostics }> {
+  host: { yieldControl: () => Promise<void>; checkAbort: () => void; onDemosaicMs?: (milliseconds: number) => void }): Promise<{ rgb: Float64Array; highlight: RawHighlightDiagnostics }> {
   const native = v.plan.exposure.geometry.nativeRaster, W = native.pixelWidth, H = native.pixelHeight;
   const source: RawDevelopmentSource = { nativeWidth: W, repeatWidth, repeatHeight, codes: raw.codes, blackLevels: raw.blackLevels,
     saturationFlags: raw.saturationFlags, whiteByPhase: raw.effectiveSaturationCodes };
@@ -541,7 +632,9 @@ async function developAhd(v: ReturnType<typeof prepareNativeRawDevelopment>, raw
   const cameraToXyz = [0, 1, 2].map((r) => [0, 1, 2].map((c) => m[r]![c]! * gains[c]!)) as unknown as ColorMatrix3x3;
   const task = createAhdDemosaicTask({ plane: { width: W, height: H, captureModeId: v.plan.frame.modeId, colorSamplingProfile: v.plan.frame.colorSamplingProfile, samples },
     channelRoles: { red: "red", green: "green", blue: "blue" }, cameraToXyz }, { yieldControl: async () => { await host.yieldControl(); host.checkAbort(); } });
+  const demosaicStarted = clockMs();
   await task.run();
+  host.onDemosaicMs?.(clockMs() - demosaicStarted);
   const demosaiced = task.takeOutput().data, rgb = new Float64Array(width * height * 3);
   const counts = { saturatedPixelCount: 0, whiteBalanceClippedSampleCount: 0, reconstructedPixelCount: 0 };
   for (let y = 0; y < height; y++) {
@@ -744,7 +837,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const jpegStep = format === "jpeg" ? integerIn(pick(outputOptions, "jpegQuantizationStep", "output.jpegQuantizationStep", DEFAULTS.jpegQuantizationStep,
     "Constant JPEG quantization step 2 (not a manufacturer quality scale)."), "output.jpegQuantizationStep", 1, 255) : undefined;
   if (format !== "jpeg" && outputOptions.jpegQuantizationStep !== undefined) fail("output.jpegQuantizationStep applies only to output.format \"jpeg\".");
-  const sensorOptions = allowKeys(top.sensor, "sensor", ["pixelPitchMicrometers", "spectralStepNanometers", "temporalSampleCount", "noiseSeed"]);
+  const sensorOptions = allowKeys(top.sensor, "sensor", ["pixelPitchMicrometers", "spectralStepNanometers", "temporalSampleCount", "noiseSeed", "antiAliasing"]);
   const pitch = positive(pick(sensorOptions, "pixelPitchMicrometers", "sensor.pixelPitchMicrometers", DEFAULTS.pixelPitchMicrometers,
     "6 µm pixels (about a 24 MP full-frame sensor). The simulated sensor is width × pitch wide, so small images are a central crop of a large sensor, not a downscaled full frame."), "sensor.pixelPitchMicrometers");
   if (pitch < 0.5 || pitch > 100) fail("sensor.pixelPitchMicrometers must be 0.5-100.");
@@ -756,6 +849,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     pick(sensorOptions, "temporalSampleCount", "sensor.temporalSampleCount", DEFAULTS.temporalSampleCount,
       "One temporal sample: the static scene and still camera make more samples unnecessary."), "sensor.temporalSampleCount", 1, 256);
   const noiseSeed = integerIn(pick(sensorOptions, "noiseSeed", "sensor.noiseSeed", DEFAULTS.noiseSeed, "Fixed noise seed 1 (deterministic output)."), "sensor.noiseSeed", 0, 0xffffffff);
+  const antiAliasing = sensorOptions.antiAliasing === undefined ? undefined : parseAntiAliasing(sensorOptions.antiAliasing, pitch);
 
   const colorSamplingProfile = { schemaVersion: "0.1.0" as const, profileId: IDS.cfa, evidence: FACADE_EVIDENCE, coordinateSystem: "native-sensor-color-sampling-site-index" as const,
     layout: { kind: "periodic-mosaic" as const, repeatWidthSites: 2, repeatHeightSites: 2, siteChannelIds: ["red", "green", "green", "blue"], anchor: "native-sensor-top-left-site" as const } };
@@ -801,7 +895,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const psfTaps = lensPsf ? Math.max(1, ...((lensPsf.configuration.psf.profile.nodes ?? []) as readonly { kernel?: { widthSamples?: unknown; heightSamples?: unknown } }[])
     .map((node) => Number(node.kernel?.widthSamples) * Number(node.kernel?.heightSamples)).filter((taps) => Number.isSafeInteger(taps) && taps > 0)) : 1;
   const queriesPerSite = temporalSampleCount * (Math.ceil((FACADE_SPECTRAL_RANGE_NANOMETERS.maximum - FACADE_SPECTRAL_RANGE_NANOMETERS.minimum) / spectralStep) + 1) *
-    (pupil ? pupil.radialSamples * pupil.angularSamples : 1) * psfTaps;
+    (pupil ? pupil.radialSamples * pupil.angularSamples : 1) * psfTaps * (antiAliasing ? antiAliasing.components.length : 1);
 
   // Scene and illuminant
   // The scene is the one required input: the facade never guesses what is being photographed.
@@ -922,7 +1016,19 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     "Synthetic uniform dark current of 1 e⁻/s per site at 20 °C (the tier presets declare none); dark shot noise follows from it.");
   assume("sensor.spectralResponse", "model", { kind: "colorimetric-cmf-eqe", peakScale: EQE_SCALE },
     "Idealized colorimetric sensor: channel EQE = a·{x̄, ȳ, z̄}(λ)·555/λ (the engine's analytic CIE 1931 fit), so RAW channels are proportional to CIE XYZ (Luther–Ives) and the camera matrix is diagonal. Not a real camera's response; CMF air wavelengths are used as vacuum wavelengths (difference about 0.03 %).");
-  assume("sensor.fillFactor", "model", 1, "Square sensitive aperture equal to the pixel pitch; no microlens or anti-aliasing filter.");
+  if (!antiAliasing) assume("sensor.fillFactor", "model", 1, "Square sensitive aperture equal to the pixel pitch; no microlens or anti-aliasing filter.");
+  else {
+    assume("sensor.fillFactor", "model", 1, "Square sensitive aperture equal to the pixel pitch; no microlens.");
+    assume("sensor.antiAliasing", "model", { kind: antiAliasing.kind, ...(antiAliasing.axis ? { axis: antiAliasing.axis } : {}),
+      ...(antiAliasing.separationSites === undefined ? {} : { separationSites: antiAliasing.separationSites, separationMicrometers: antiAliasing.separationSites * pitch }),
+      components: antiAliasing.components },
+      "Optical low-pass (anti-aliasing) filter as a normalized point-splitting kernel in the sensor optical stack (resolveAntiAliasingSpatialKernel): every site integrates the light that would " +
+      "otherwise land at its centre minus each offset, weighted. " + (antiAliasing.kind === "point-splitting" ? "Caller-declared components. " :
+        "This is the ideal birefringent " + (antiAliasing.kind === "four-spot" ? "two-plate (crossed) splitter: four equal spots at (±d/2, ±d/2), MTF |cos(π·f_x·d)·cos(π·f_y·d)|" :
+          "single-plate splitter: two equal spots at ±d/2 along the " + antiAliasing.axis + " axis, MTF |cos(π·f·d)|") + ", d = " + antiAliasing.separationSites + " site(s); first zero at f = 1/(2d). ") +
+      "Approximations: the split is the same at every wavelength, field point and polarization (birefringence dispersion and the thickness-dependent displacement are not modelled), the spots are exact points with equal weights for unpolarized light, " +
+      "and the filter's transmission, reflections and focus shift are not modelled. Not a measured filter; the tier presets declare none. The scene queries are multiplied by " + antiAliasing.components.length + ".");
+  }
   // Shutter (2.0): the electronic rolling-shutter schedule derived from the body's rolling readout declaration.
   let rollingSchedule: ElectronicRollingShutterExposureSchedule | undefined;
   if (shutterKind === "rolling") {
@@ -1032,10 +1138,13 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     siteCenterLattice: { kind: "regular-rectangular-site-center-lattice" as const, coordinateSystem: "native-sensor-physical" as const, pitchXMicrometers: pitch, pitchYMicrometers: pitch,
       firstSiteCenterFromImagingAreaTopLeftMicrometers: { x: pitch / 2, y: pitch / 2 }, evidence },
     geometricSensitiveAperture: { kind: "uniform-axis-aligned-rectangle" as const, widthMicrometers: pitch, heightMicrometers: pitch, centerOffsetFromSiteCenterMicrometers: { x: 0, y: 0 }, evidence } };
-  const opticalStackProfile = { schemaVersion: "0.1.0" as const, profileId: IDS.stack, evidence, effectiveAntiAliasingSpatialResponse: { kind: "absent" as const, evidence } };
+  const stackId = antiAliasing ? IDS.stackAa : IDS.stack;
+  const opticalStackProfile: SensorOpticalStackProfile = antiAliasing ? { schemaVersion: "0.1.0", profileId: stackId, evidence, effectiveAntiAliasingSpatialResponse: {
+    kind: "normalized-point-splitting-kernel", evidence, coordinateSystem: "native-sensor-physical", scope: "field-wavelength-polarization-invariant-approximation",
+    components: antiAliasing.components } } : { schemaVersion: "0.1.0" as const, profileId: IDS.stack, evidence, effectiveAntiAliasingSpatialResponse: { kind: "absent" as const, evidence } };
   const perChannel = Object.fromEntries(CHANNELS.map((channelId) => [channelId, {
     applicationProfile: { schemaVersion: "0.1.0" as const, profileId: "facade-application-" + channelId, spectralResponseProfileId: IDS.spectral, colorSamplingProfileId: IDS.cfa, channelId,
-      samplingApertureProfileId: IDS.sampling, opticalStackProfileId: IDS.stack, evidence, incidentAreaBasis: { kind: "geometric-sensitive-aperture" as const, areaSquareMicrometers: apertureArea },
+      samplingApertureProfileId: IDS.sampling, opticalStackProfileId: stackId, evidence, incidentAreaBasis: { kind: "geometric-sensitive-aperture" as const, areaSquareMicrometers: apertureArea },
       spatialResponseModel: { kind: "uniform-over-geometric-sensitive-aperture" as const, scientificStatus: "approximation" as const, evidence, limitation: "Uniform response over the square aperture." },
       referenceConditionPolicy: { kind: "exact-match-required" as const } },
     operatingRangeProfile: { schemaVersion: "0.1.0" as const, profileId: "facade-linearity-" + channelId, responseApplicationProfileId: "facade-application-" + channelId,
@@ -1092,9 +1201,12 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       wavelengthBasis: "vacuum"; wavelengthRangeNanometers: { minimum: number; maximum: number }; maximumSubintervalWidthNanometers: number }), colorSamplingProfile,
     spectralResponseProfile: spectralResponseProfiles[channelId] as never }).value.nodes.map((node) => node.wavelengthNanometers)))].sort((a, b) => a - b);
     const lambdaN = wavelengths[wavelengths.length - 1]! / 1000 * fNumber * imageDistanceMm / focalLengthMm;
+    // The environment resolves the PSF at each pre-filter source point, up to the largest split offset outside the imaging area.
+    const aaReachMm = antiAliasing ? Math.max(...antiAliasing.components.map((c) => Math.max(Math.abs(c.offsetMicrometers.x), Math.abs(c.offsetMicrometers.y)))) / 1000 : 0;
     const kernelRadiusSamples = diffractionRadiusOption ?? Math.min(32, Math.max(1, Math.ceil(AIRY_THIRD_ZERO_PER_LAMBDA_N * lambdaN / pitch)));
     diffraction = createDiffractionLimitedPsfProfile({ aperture: "circular", focalLengthMm, apertureFNumber: fNumber, focus: { kind: "finite", distanceM: focusDistanceM },
-      wavelengthsNm: wavelengths, samplePitchMicrometers: pitch, kernelRadiusSamples, fieldHalfExtentMm: { x: imagingArea.widthMm / 2, y: imagingArea.heightMm / 2 },
+      wavelengthsNm: wavelengths, samplePitchMicrometers: pitch, kernelRadiusSamples, fieldHalfExtentMm: aaReachMm === 0 ? { x: imagingArea.widthMm / 2, y: imagingArea.heightMm / 2 } :
+        { x: imagingArea.widthMm / 2 + aaReachMm, y: imagingArea.heightMm / 2 + aaReachMm },
       profileId: "facade-diffraction-airy" }).value;
     diffractionPsf = { kind: "sampled-local", configuration: { psf: { profile: diffraction.profile, focalLengthMm, focus: { kind: "finite", distanceM: focusDistanceM },
       apertureFNumber: fNumber, signedDefocusImagePlaneMicrometers: 0 }, psfWavelengthBasis: { value: "vacuum", evidence },
@@ -1149,9 +1261,13 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     ({ ...request, sites: Array.from({ length: request.width }, (_, j) => siteInput(request.y * nativeWidth + request.x + j)) });
   const yieldControl = createHostYield().yieldControl;
   const perSite = queriesPerSite * (diffraction && psf === diffractionPsf ? (2 * diffraction.kernelRadiusSamples + 1) ** 2 : 1);
+  let diffractionMs = 0, demosaicMs: number | undefined, encodeMs: number | undefined;
   const rawProvider = diffraction && diffractionObjectSpace ? createDiffractedPlanarProvider({ base: provider, psf: diffractionPsf!.configuration.psf,
     wavelengthsNm: diffraction.profile.axes.wavelengthNm, kernelRadius: diffraction.kernelRadiusSamples, nativeWidth, nativeHeight, outputWidth: width,
-    sitePitchMicrometers: pitch, distanceM: subjectDistanceM, metresPerFrameUnit }) : provider;
+    sitePitchMicrometers: pitch, distanceM: subjectDistanceM, metresPerFrameUnit, onConvolution: (ms) => { diffractionMs += ms; },
+    // The environment queries each site at its centre minus each split offset (sites, +x right, +y down).
+    ...(antiAliasing ? { queryOffsetsSites: antiAliasing.components.map((c) => ({ x: -c.offsetMicrometers.x / pitch, y: -c.offsetMicrometers.y / pitch })) } : {}) }) : provider;
+  if (antiAliasing && perSite > 100_000) fail("sensor.antiAliasing with these options needs " + perSite + " scene queries per site; the environment admits at most 100000.");
   const evaluations = nativeWidth * nativeHeight * perSite;
   // The native task admits at most 100 000 radiance queries per tile.
   const tileWidth = Math.max(1, Math.min(256, Math.floor(100_000 / perSite)));
@@ -1218,7 +1334,9 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       return [channel, { conversionGainElectronsPerCode: resolved.regime.systemConversionGainElectronsPerCode.value / (resolved.regime.adc.digitalGain ?? 1),
         readNoiseRmsElectrons: resolved.combinedReadNoiseRmsElectrons }];
     }));
+    const dngStarted = clockMs();
     dng = await serializeNativeRawDng({ raw: rawOutput.raw, colorProfile, noise, ...(dngCapturedAtUtc === undefined ? {} : { capturedAtUtc: dngCapturedAtUtc }) });
+    encodeMs = clockMs() - dngStarted;
     checkAbort();
     assume("output.dng", "model", { writer: "serializeNativeRawDng", schemaVersion: dng.schemaVersion, whiteLevel: dng.whiteLevel, blackLevels: dng.blackLevels,
       noiseProfile: dng.noiseProfile, unrepresentedSaturationFlagCount: dng.unrepresentedSaturationFlagCount },
@@ -1236,7 +1354,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     const linear = await developLinearSrgb({ ...development, raw: rawOutput.raw }, async (completed, total) => {
       onProgress?.({ stage: "development", completedTileCount: completed, totalTileCount: total });
       if (Date.now() - lastYield >= 8) { await yieldControl(); checkAbort(); lastYield = Date.now(); }
-    }, { yieldControl: () => yieldControl(), checkAbort });
+    }, { yieldControl: () => yieldControl(), checkAbort, onDemosaicMs: (ms) => { demosaicMs = ms; } });
     if (!linearPath) {
       // The native development's SDR kernel, row by row, on the AHD-developed linear sRGB.
       const maximum = 2 ** rendering.bitDepth - 1, tone = prepareSdrPixelTone(rendering), scratch = new Float64Array(3);
@@ -1298,18 +1416,30 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
         for (let row = 0; row < request.height; row++) out.set(samples.subarray(((request.y + row) * width + request.x) * 3, ((request.y + row) * width + request.x + request.width) * 3), row * request.width * 3);
         return { ...request, samples: out };
       }, yieldControl });
+    const jpegEncodeStarted = clockMs();
     await runTask(jpegTask);
     jpeg = jpegTask.takeOutput().bytes;
+    encodeMs = clockMs() - jpegEncodeStarted;
     assume("output.jpeg", "model", { encoder: "photivra-print-jpeg", iccProfile: "photivra-srgb" }, "Baseline JPEG from the existing print JPEG encoder with an embedded sRGB ICC profile; the source digest covers a sample prefix, length and scene digest.");
   }
   const jpegMs = Date.now() - jpegStarted;
   let png: Uint8Array | undefined;
   if (format === "png") {
+    const pngStarted = clockMs();
     png = serializePngImage({ width, height, bitDepth: pngBitDepth!, samples: developed.integerSamples, colourEncoding: pngColourEncoding(colorEncoding!) });
+    encodeMs = clockMs() - pngStarted;
     assume("output.png", "model", { encoder: "serializePngImage", bitDepth: pngBitDepth, colourEncoding: pngColourEncoding(colorEncoding!) },
       "Deterministic PNG (8/16-bit RGB, in-house zlib) with the colour encoding signalled in the file: the sRGB chunk for sRGB, otherwise a cICP chunk with ITU-T H.273 primaries/transfer code points. No mastering-display (mDCV) or content-light-level (cLLI) metadata is written.");
   }
 
+  const ranOptions = new Set<SimulateCaptureCostOption>([...(pupil ? ["lens.pupilSampling" as const] : []), ...(projection !== undefined ? ["lens.projection" as const] : []),
+    ...(distortion ? ["lens.distortion" as const] : []), ...(vignetting ? ["lens.vignetting" as const] : []), ...(lensPsf ? ["lens.psf" as const] : []),
+    ...(diffraction ? ["lens.diffraction" as const] : []), ...(antiAliasing ? ["sensor.antiAliasing" as const] : []),
+    ...(temporalSampleCount > 1 ? ["sensor.temporalSampleCount" as const] : []), ...(rotating ? ["motion.rotation" as const] : []),
+    ...(rollingSchedule ? ["motion.shutter.rolling" as const] : []), ...(mirrorBorder ? ["output.borderHandling.mirror" as const] : []),
+    ...(needsAuto ? ["output.whiteBalance.auto" as const] : []), ...(ahd ? ["output.demosaic.ahd" as const] : []),
+    ...(highlightMode === "reconstruct" ? ["output.highlightMode.reconstruct" as const] : []), ...(wideGamut ? ["output.colorEncoding.wide-gamut" as const] : []),
+    ...(perceptual ? ["output.gamutMapping.perceptual" as const] : []), ...(format === "jpeg" || format === "png" || format === "dng" ? ["output.format." + format as SimulateCaptureCostOption] : [])]);
   return Object.freeze({
     facadeVersion: SIMULATE_CAPTURE_FACADE_VERSION, engineApiVersion: ENGINE_API_VERSION,
     image: { width, height, format, samples: developed.integerSamples, ...(jpeg ? { jpeg } : {}), ...(png ? { png, colorEncoding: colorEncoding! } : {}), ...(dng ? { dng: dng.bytes } : {}) },
@@ -1322,14 +1452,17 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       illuminant: { id: illuminant.id, description: illuminant.description, illuminanceLux }, distanceM: subjectDistanceM,
       framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect, sourceSha256 },
     diagnostics: { providerEvaluationCount, highlight: developed.highlight, rendering: developed.diagnostics, ...(gamutMappingDiagnostics ? { gamutMapping: gamutMappingDiagnostics } : {}),
-      timingsMs: { raw: rawMs, whiteBalance: wbMs, development: devMs, jpeg: jpegMs, total: Date.now() - started } },
+      timingsMs: { raw: rawMs, whiteBalance: wbMs, development: devMs, jpeg: jpegMs, total: Date.now() - started,
+        ...(diffraction && diffractionObjectSpace ? { diffraction: diffractionMs } : {}), ...(demosaicMs === undefined ? {} : { demosaic: demosaicMs }),
+        ...(encodeMs === undefined ? {} : { encode: encodeMs }) },
+      options: Object.freeze(SIMULATE_CAPTURE_COST_OPTIONS.filter((option) => ranOptions.has(option))) },
     provenance: { scientificStatus: "approximation" as const, cameraPresetId: preset.presetId, cameraPresetVersion: preset.presetVersion,
       evidence: [...FACADE_EVIDENCE, ...preset.evidence],
       composedContracts: ["resolveGenericEquipmentExposureCapabilities", "meterRelativeExposure", "createExposureMeterTargetFromMeteringResult",
         "resolve" + (mode === "manual" ? "Manual" : mode === "aperture-priority" ? "AperturePriority" : mode === "shutter-priority" ? "ShutterPriority" : "ProgramAuto") + "ExposureMode",
         ...(rollingSchedule ? ["resolveElectronicRollingShutterExposureSchedule", "createRollingShutterCaptureExposureSchedule"] : []),
         ...(diffraction ? ["createDiffractionLimitedPsfProfile", ...(diffractionObjectSpace ? ["resolveLensPsfConvolutionKernels", "calculateIrradianceConvolution"] : [])] : []),
-        "resolveGenericIsoSignalChain", "createNativeEnvironmentRawTask", ...(needsAuto ? ["estimateAutoWhiteBalance"] : []),
+        ...(antiAliasing ? ["resolveAntiAliasingSpatialKernel"] : []), "resolveGenericIsoSignalChain", "createNativeEnvironmentRawTask", ...(needsAuto ? ["estimateAutoWhiteBalance"] : []),
         ...(builtInDemosaic ? ["createBuiltInBayerDemosaicProfiles"] : []), ...(ahd ? ["createAhdDemosaicTask"] : []),
         ...(ahd ? ["native RAW development operator (colour, after AHD)", ...(linearPath ? ["resolveRgbColorSpace", ...(perceptual ? ["prepareRgbGamutMapping"] : [])] : ["SDR rendering kernel"])] : linearPath ? ["native RAW development operator (linear, pre-clip)", "resolveRgbColorSpace", ...(perceptual ? ["prepareRgbGamutMapping"] : [])] : ["createNativeRawDevelopmentTask"]),
         ...(jpeg ? ["createPrintJpegTask"] : []), ...(png ? ["serializePngImage"] : []), ...(dng ? ["resolveSensorReadoutRegime", "serializeNativeRawDng"] : [])],
