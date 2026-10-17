@@ -6,6 +6,7 @@
  * Real-GPU conformance lives in test/webgpu (npm run test:webgpu).
  */
 import { SDR_COUNTER } from "../../src/gpu/wgsl-kernels.js";
+import { emulateSensor, emulateTemporalSum } from "./fake-webgpu-stages.js";
 
 const f = Math.fround;
 
@@ -130,6 +131,11 @@ function emulate(label: string, buffers: Map<number, FakeBuffer>): void {
       const xyz = [row3(28, b), row3(32, b), row3(36, b)], rgb = [row3(40, xyz), row3(44, xyz), row3(48, xyz)];
       for (let j = 0; j < 3; j++) codes[i * 3 + j] = renderSample(f(rgb[j]! * scale!), false, band0!, band1!, reinhard !== 0, reject !== 0, maximum!, counters);
     }
+  } else if (label === "photivra-sensor-raw") {
+    const means = buffers.get(1)!.data;
+    emulateSensor(u32(0), i32(0), f32(0), new Uint32Array(means), new Float32Array(means), f32(2), u32(3));
+  } else if (label === "photivra-temporal-sum") {
+    emulateTemporalSum(u32(0), f32(1), buffers.get(2)!.data, f32(3), f32(4));
   } else {
     throw new Error(`No emulator for ${label}`);
   }

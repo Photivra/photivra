@@ -7252,7 +7252,7 @@ console.log(calculateGeometricFocusBreathing({
 
 ## Optional WebGPU image kernels
 
-`createImageKernelAccelerator()` runs three heavy image operations: isoplanatic PSF convolution (one PSF for the whole image), native capture SDR, and packed RAW development.
+`createImageKernelAccelerator()` runs five heavy image operations: isoplanatic PSF convolution (one PSF per image patch), the temporal exposure sum, the sensor stage, native capture SDR, and packed RAW development.
 
 - By default they run on the float64 CPU reference.
 - If you opt in, they run on the `webgpu-f32` backend (WebGPU, 32-bit floats).
@@ -7275,6 +7275,40 @@ console.log(result.execution.backend, result.execution.fallbackReason, result.ex
 // Bit-exact identities and fixtures must come from the CPU reference.
 const reference = calculateIrradianceConvolution(input).values;
 console.log(result.execution.backend === "cpu-reference" ? result.values.every((v, i) => v === reference[i]) : result.execution.errorBound);
+accelerator.dispose();
+```
+
+Two image-formation stages use the same accelerator:
+
+- `sumTemporalExposure()` is exposure and motion as a weighted sum of shifted frames, with per-row weights for rolling or global readout.
+- `simulateSensorRaw()` is the sensor stage: seeded Poisson charge, read noise and ADC to RAW codes. It uses the same noise model and per-site seeds as the per-site producer.
+
+On `webgpu-f32`, every sensor site not listed in `flaggedSiteIndices` equals the reference exactly. Recompute the listed sites with the reference if you need bit identity.
+
+```ts
+import { createImageKernelAccelerator, simulatePackedSensorRaw, type PackedSensorRawInput, type TemporalExposureSumInput } from "@photivra/engine";
+
+const evidence = [{ sourceOrigin: "photivra" as const, sourceReference: "example", reuseStatus: "photivra-owned" as const }];
+const width = 8, height = 4;
+// Static scene, global shutter: three temporal nodes of 1/3000 s each, the image moving 0.5 site to the right per node.
+const motion: TemporalExposureSumInput = { schemaVersion: "0.1.0", width, height, boundary: "zero-outside-grid",
+  samples: new Float64Array(width * height).fill(9e6), // electrons per second
+  displacements: Float64Array.from([0, 0, 0.5, 0, 1, 0]), rowWeights: new Float64Array(3 * height).fill(1 / 3000) };
+const sensor = (photoElectrons: Float64Array): PackedSensorRawInput => ({ schemaVersion: "0.1.0", nativeWidth: width, nativeHeight: height,
+  region: { x: 0, y: 0, width, height }, captureSeedUint32: 42, photoElectrons, darkElectrons: new Float64Array(width * height),
+  physicalChargeCapacityElectrons: 30_000, regimeId: "base", readoutProfile: { schemaVersion: "0.1.0", profileId: "readout", colorSamplingProfileId: "cfa",
+    channelId: "green", regimeSelectionOwnedBy: "explicit-upstream-camera-state-not-inferred-from-iso", evidence, regimes: [{ regimeId: "base",
+      scientificStatus: "approximation", systemConversionGainElectronsPerCode: { value: 2, evidence },
+      preAdcSaturationElectronEquivalent: { value: 32_000, evidence }, readNoiseComponents: [{ componentId: "read", rmsElectrons: { value: 2.5, evidence }, evidence }],
+      adc: { bitDepth: 14, blackLevelCode: 512, digitalSaturationCode: 16_383, transfer: "uniform-round-half-up" }, evidence, limitations: ["Example regime."] }] } });
+
+const accelerator = await createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "cpu-reference" });
+const exposure = await accelerator.sumTemporalExposure(motion);
+const raw = await accelerator.simulateSensorRaw(sensor(Float64Array.from(exposure.values)));
+console.log(exposure.execution.errorBound, raw.execution.errorBound, raw.flaggedSiteIndices.length);
+// The CPU reference gives the same codes at every unflagged site.
+const reference = simulatePackedSensorRaw(sensor(Float64Array.from(exposure.values))).codes;
+console.log(raw.execution.backend === "cpu-reference" ? raw.codes.every((c, i) => c === reference[i]) : raw.diagnostics);
 accelerator.dispose();
 ```
 ## Image processing operators

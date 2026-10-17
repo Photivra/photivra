@@ -253,6 +253,21 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`NativeRawTile`](api/capture-native-raw.md#nativerawtile) | Type |
 | [`NativeRawTileRequest`](api/capture-native-raw.md#nativerawtilerequest) | Type |
 
+## capture/packed-sensor-raw.ts
+
+[Detailed contracts](api/capture-packed-sensor-raw.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/packed-sensor-raw.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculatePackedSensorRawPlan`](api/capture-packed-sensor-raw.md#calculatepackedsensorrawplan) | Runtime |
+| [`PACKED_SENSOR_RAW_LIMITS`](api/capture-packed-sensor-raw.md#packed_sensor_raw_limits) | Runtime |
+| [`PACKED_SENSOR_RAW_SCHEMA_VERSION`](api/capture-packed-sensor-raw.md#packed_sensor_raw_schema_version) | Runtime |
+| [`PackedSensorRawDiagnostics`](api/capture-packed-sensor-raw.md#packedsensorrawdiagnostics) | Type |
+| [`PackedSensorRawInput`](api/capture-packed-sensor-raw.md#packedsensorrawinput) | Type |
+| [`PackedSensorRawPlan`](api/capture-packed-sensor-raw.md#packedsensorrawplan) | Type |
+| [`PackedSensorRawResult`](api/capture-packed-sensor-raw.md#packedsensorrawresult) | Type |
+| [`simulatePackedSensorRaw`](api/capture-packed-sensor-raw.md#simulatepackedsensorraw) | Runtime |
+
 ## capture/photographic-export.ts
 
 [Detailed contracts](api/capture-photographic-export.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/photographic-export.ts)
@@ -1125,12 +1140,14 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | --- | --- |
 | [`AcceleratedNativeCaptureSdrOutput`](api/gpu-image-kernel-accelerator.md#acceleratednativecapturesdroutput) | Type |
 | [`AcceleratedNativeRawDevelopmentOutput`](api/gpu-image-kernel-accelerator.md#acceleratednativerawdevelopmentoutput) | Type |
+| [`AcceleratedPackedSensorRawResult`](api/gpu-image-kernel-accelerator.md#acceleratedpackedsensorrawresult) | Type |
 | [`createImageKernelAccelerator`](api/gpu-image-kernel-accelerator.md#createimagekernelaccelerator) | Runtime |
 | [`ImageKernelAccelerator`](api/gpu-image-kernel-accelerator.md#imagekernelaccelerator) | Type |
 | [`ImageKernelAcceleratorOptions`](api/gpu-image-kernel-accelerator.md#imagekernelacceleratoroptions) | Type |
 | [`ImageKernelAcceleratorState`](api/gpu-image-kernel-accelerator.md#imagekernelacceleratorstate) | Type |
 | [`ImageKernelRunOptions`](api/gpu-image-kernel-accelerator.md#imagekernelrunoptions) | Type |
 | [`IrradianceConvolutionResult`](api/gpu-image-kernel-accelerator.md#irradianceconvolutionresult) | Type |
+| [`TemporalExposureSumResult`](api/gpu-image-kernel-accelerator.md#temporalexposuresumresult) | Type |
 
 ## gpu/image-kernel-execution.ts
 
@@ -1138,6 +1155,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`composeRelativeErrorBounds`](api/gpu-image-kernel-execution.md#composerelativeerrorbounds) | Runtime |
 | [`ImageKernelBackend`](api/gpu-image-kernel-execution.md#imagekernelbackend) | Type |
 | [`ImageKernelCodeErrorBound`](api/gpu-image-kernel-execution.md#imagekernelcodeerrorbound) | Type |
 | [`ImageKernelExecution`](api/gpu-image-kernel-execution.md#imagekernelexecution) | Type |
@@ -1145,6 +1163,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`ImageKernelFailureReason`](api/gpu-image-kernel-execution.md#imagekernelfailurereason) | Type |
 | [`ImageKernelFallbackReason`](api/gpu-image-kernel-execution.md#imagekernelfallbackreason) | Type |
 | [`ImageKernelRelativeErrorBound`](api/gpu-image-kernel-execution.md#imagekernelrelativeerrorbound) | Type |
+| [`ImageKernelSeededRealizationBound`](api/gpu-image-kernel-execution.md#imagekernelseededrealizationbound) | Type |
 | [`WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND`](api/gpu-image-kernel-execution.md#webgpu_f32_transfer_absolute_bound) | Runtime |
 | [`WEBGPU_F32_UNIT_ROUNDOFF`](api/gpu-image-kernel-execution.md#webgpu_f32_unit_roundoff) | Runtime |
 
@@ -1242,6 +1261,20 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`calculateProjectedMotionBlur`](api/motion-projected-motion.md#calculateprojectedmotionblur) | Runtime |
 | [`CalculateProjectedMotionBlurInput`](api/motion-projected-motion.md#calculateprojectedmotionblurinput) | Type |
 | [`ProjectedMotionBlur`](api/motion-projected-motion.md#projectedmotionblur) | Type |
+
+## motion/temporal-exposure-sum.ts
+
+[Detailed contracts](api/motion-temporal-exposure-sum.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/motion/temporal-exposure-sum.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateTemporalExposureSum`](api/motion-temporal-exposure-sum.md#calculatetemporalexposuresum) | Runtime |
+| [`calculateTemporalExposureSumPlan`](api/motion-temporal-exposure-sum.md#calculatetemporalexposuresumplan) | Runtime |
+| [`TEMPORAL_EXPOSURE_SUM_LIMITS`](api/motion-temporal-exposure-sum.md#temporal_exposure_sum_limits) | Runtime |
+| [`TEMPORAL_EXPOSURE_SUM_SCHEMA_VERSION`](api/motion-temporal-exposure-sum.md#temporal_exposure_sum_schema_version) | Runtime |
+| [`TemporalExposureSumInput`](api/motion-temporal-exposure-sum.md#temporalexposuresuminput) | Type |
+| [`TemporalExposureSumNode`](api/motion-temporal-exposure-sum.md#temporalexposuresumnode) | Type |
+| [`TemporalExposureSumPlan`](api/motion-temporal-exposure-sum.md#temporalexposuresumplan) | Type |
 
 ## motion/video-sequence.ts
 

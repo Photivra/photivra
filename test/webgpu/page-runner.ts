@@ -5,10 +5,57 @@
  */
 import { createImageKernelAccelerator, ImageKernelExecutionError, type ImageKernelAccelerator, type IrradianceConvolutionInput,
   type NativeCaptureSdrInput, type NativeCaptureSdrProvider, type NativeCaptureSdrTile, type NativeCaptureSdrTileRequest,
-  type NativeRawDevelopmentInput } from "../../src/index.js";
+  type NativeRawDevelopmentInput, type PackedSensorRawInput, type TemporalExposureSumInput } from "../../src/index.js";
 import { decodeTransport, encodeTransport } from "./codec.js";
 
 interface RunRequest<T> { input: T; maximumBandBytes?: number; timeCpu?: boolean; repeat?: number }
+
+export async function simulateSensor(payload: string): Promise<string> {
+  const request = decodeTransport<RunRequest<PackedSensorRawInput>>(payload);
+  const gpu = await timed("webgpu-f32", request.maximumBandBytes, request.repeat ?? 1, a => a.simulateSensorRaw(request.input));
+  const cpu = request.timeCpu ? await timed("cpu-reference", undefined, 1, a => a.simulateSensorRaw(request.input)) : null;
+  return encodeTransport({ codes: gpu.result.codes, diagnostics: gpu.result.diagnostics, execution: gpu.result.execution,
+    flaggedSiteIndices: gpu.result.flaggedSiteIndices, gpuMilliseconds: gpu.milliseconds, cpuMilliseconds: cpu?.milliseconds ?? null });
+}
+
+export async function sumTemporal(payload: string): Promise<string> {
+  const request = decodeTransport<RunRequest<TemporalExposureSumInput>>(payload);
+  const gpu = await timed("webgpu-f32", request.maximumBandBytes, request.repeat ?? 1, a => a.sumTemporalExposure(request.input));
+  const cpu = request.timeCpu ? await timed("cpu-reference", undefined, 1, a => a.sumTemporalExposure(request.input)) : null;
+  return encodeTransport({ values: gpu.result.values, execution: gpu.result.execution, gpuMilliseconds: gpu.milliseconds, cpuMilliseconds: cpu?.milliseconds ?? null });
+}
+
+/**
+ * Timing workload for `npm run bench:webgpu`, built in the page so no large payload crosses the DevTools
+ * socket: one width×height frame through the temporal sum (8 nodes), the convolution (radius 7) and the
+ * sensor stage. Each GPU stage is timed on its second run (warm pipelines, upload and readback included);
+ * CPU reference timings only on request. The adapter is reported so a software adapter is visible.
+ */
+export async function timeStages(payload: string): Promise<string> {
+  const { width, height, timeCpu, readoutProfile } = decodeTransport<{ width: number; height: number; timeCpu: boolean;
+    readoutProfile: PackedSensorRawInput["readoutProfile"] }>(payload);
+  const count = width * height, rate = new Float64Array(count);
+  for (let i = 0; i < count; i++) rate[i] = 1000 + 900 * Math.sin(i * 0.37) * Math.cos(Math.floor(i / width) * 0.21);
+  const nodes = 8, displacements = new Float64Array(2 * nodes), rowWeights = new Float64Array(nodes * height).fill(1 / 1000);
+  for (let k = 0; k < nodes; k++) { displacements[2 * k] = 0.7 * k; displacements[2 * k + 1] = -0.3 * k; }
+  const temporal: TemporalExposureSumInput = { schemaVersion: "0.1.0", width, height, samples: rate, displacements, rowWeights, boundary: "zero-outside-grid" };
+  const r = 7, size = 2 * r + 1, patch = Math.min(256, width, height), patches = Math.ceil(width / patch) * Math.ceil(height / patch);
+  const convolution: IrradianceConvolutionInput = { schemaVersion: "0.1.0", width, height, kernelRadius: r, patchWidth: patch, patchHeight: patch,
+    boundary: "zero-outside-grid", samples: rate, kernels: new Float64Array(patches * size * size).fill(0.999 / (size * size)) };
+  const sensor: PackedSensorRawInput = { schemaVersion: "0.1.0", nativeWidth: width, nativeHeight: height, region: { x: 0, y: 0, width, height },
+    captureSeedUint32: 7, photoElectrons: rate.map(v => v * 12), darkElectrons: new Float64Array(count).fill(3), physicalChargeCapacityElectrons: 50_000,
+    readoutProfile, regimeId: "base" };
+  const stages: Record<string, { gpuMilliseconds: number; cpuMilliseconds: number | null }> = {};
+  const run = async (name: string, body: (a: ImageKernelAccelerator) => Promise<unknown>): Promise<void> => {
+    const gpu = await timed("webgpu-f32", undefined, 2, body);
+    const cpu = timeCpu ? await timed("cpu-reference", undefined, 1, body) : null;
+    stages[name] = { gpuMilliseconds: gpu.milliseconds, cpuMilliseconds: cpu?.milliseconds ?? null };
+  };
+  await run("temporalSum8Nodes", a => a.sumTemporalExposure(temporal));
+  await run("convolutionRadius7", a => a.convolveIrradiance(convolution));
+  await run("sensorStage", a => a.simulateSensorRaw(sensor));
+  return encodeTransport({ adapter: (await probe()).adapter, width, height, megapixels: count / 1e6, stages });
+}
 
 export async function probe(): Promise<{ available: boolean; adapter?: { vendor: string; architecture: string; isFallbackAdapter: boolean } }> {
   const gpu = (navigator as Navigator & { gpu?: GPU }).gpu;

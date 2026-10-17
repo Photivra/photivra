@@ -18,6 +18,11 @@
       "kind": "type"
     },
     {
+      "name": "AcceleratedPackedSensorRawResult",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
       "name": "ActiveCaptureFieldOfView",
       "source": "src/output/capture-geometry.ts",
       "kind": "type"
@@ -928,6 +933,11 @@
       "kind": "type"
     },
     {
+      "name": "calculatePackedSensorRawPlan",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculatePeripheralIlluminationCorrection",
       "source": "src/output/lens-corrections.ts",
       "kind": "runtime"
@@ -1301,6 +1311,16 @@
       "name": "CalculateSubjectFramingCropInput",
       "source": "src/output/subject-framing-crop.ts",
       "kind": "type"
+    },
+    {
+      "name": "calculateTemporalExposureSum",
+      "source": "src/motion/temporal-exposure-sum.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateTemporalExposureSumPlan",
+      "source": "src/motion/temporal-exposure-sum.ts",
+      "kind": "runtime"
     },
     {
       "name": "calculateThinLensImageDistance",
@@ -1941,6 +1961,11 @@
       "name": "ComposeFrontOfLensFilterTransmissionInput",
       "source": "src/optics/front-of-lens-filter.ts",
       "kind": "type"
+    },
+    {
+      "name": "composeRelativeErrorBounds",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "runtime"
     },
     {
       "name": "composeScientificAssurance",
@@ -3408,6 +3433,11 @@
       "kind": "type"
     },
     {
+      "name": "ImageKernelSeededRealizationBound",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
       "name": "ImagePlaneMetricPointMm",
       "source": "src/output/capture-geometry.ts",
       "kind": "type"
@@ -4320,6 +4350,36 @@
     {
       "name": "OutputFieldOfView",
       "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PACKED_SENSOR_RAW_LIMITS",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PACKED_SENSOR_RAW_SCHEMA_VERSION",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PackedSensorRawDiagnostics",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PackedSensorRawInput",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PackedSensorRawPlan",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PackedSensorRawResult",
+      "source": "src/capture/packed-sensor-raw.ts",
       "kind": "type"
     },
     {
@@ -7623,6 +7683,11 @@
       "kind": "type"
     },
     {
+      "name": "simulatePackedSensorRaw",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "simulatePocCamera",
       "source": "src/simulation/poc-simulation.ts",
       "kind": "runtime"
@@ -7900,6 +7965,36 @@
     {
       "name": "TabulatedColorMatchingSample",
       "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
+      "name": "TEMPORAL_EXPOSURE_SUM_LIMITS",
+      "source": "src/motion/temporal-exposure-sum.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "TEMPORAL_EXPOSURE_SUM_SCHEMA_VERSION",
+      "source": "src/motion/temporal-exposure-sum.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "TemporalExposureSumInput",
+      "source": "src/motion/temporal-exposure-sum.ts",
+      "kind": "type"
+    },
+    {
+      "name": "TemporalExposureSumNode",
+      "source": "src/motion/temporal-exposure-sum.ts",
+      "kind": "type"
+    },
+    {
+      "name": "TemporalExposureSumPlan",
+      "source": "src/motion/temporal-exposure-sum.ts",
+      "kind": "type"
+    },
+    {
+      "name": "TemporalExposureSumResult",
+      "source": "src/gpu/image-kernel-accelerator.ts",
       "kind": "type"
     },
     {

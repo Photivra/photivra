@@ -1,0 +1,118 @@
+# capture/packed-sensor-raw.ts public contracts
+
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+
+## calculatePackedSensorRawPlan
+
+Validates the request (every array value once) and returns its plan.
+
+```ts
+export function calculatePackedSensorRawPlan(input: PackedSensorRawInput): PackedSensorRawPlan;
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
+## PACKED_SENSOR_RAW_LIMITS
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+PACKED_SENSOR_RAW_LIMITS = Object.freeze({
+  maximumRegionSites: 24_000_000,
+  maximumNativeSites: 0xffffffff,
+  maximumDimension: 65_535,
+  maximumAdcBitDepth: 16,
+  maximumReadNoiseComponents: 16
+})
+```
+
+## PACKED_SENSOR_RAW_SCHEMA_VERSION
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+PACKED_SENSOR_RAW_SCHEMA_VERSION = "0.1.0" as const
+```
+
+## PackedSensorRawDiagnostics
+
+Per-region saturation and clamp counts, as in the per-site readout diagnostics.
+
+```ts
+export interface PackedSensorRawDiagnostics {
+  physicalSaturationSiteCount: number;
+  preAdcSaturationSiteCount: number;
+  digitalSaturationSiteCount: number;
+  lowerClampSiteCount: number;
+}
+```
+
+## PackedSensorRawInput
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface PackedSensorRawInput {
+  schemaVersion: typeof PACKED_SENSOR_RAW_SCHEMA_VERSION;
+  /** Full native raster. Site seeds use the absolute index `(region.y + row) * nativeWidth + region.x + column`. */
+  nativeWidth: number;
+  nativeHeight: number;
+  /** Region of the native raster to simulate, in native sites. */
+  region: { x: number; y: number; width: number; height: number };
+  /** The committed capture's noise seed (`capture.noise.seedUint32`). */
+  captureSeedUint32: number;
+  /** Expected photo-generated electrons per region site (EQE and local exposure applied), row-major. Finite, ≥ 0. */
+  photoElectrons: Float32Array | Float64Array;
+  /** Expected dark electrons per region site, row-major. Finite, ≥ 0. */
+  darkElectrons: Float32Array | Float64Array;
+  /** Physical charge storage capacity in electrons, the same at every site. */
+  physicalChargeCapacityElectrons: number;
+  readoutProfile: SensorReadoutConversionProfile;
+  regimeId: string;
+}
+```
+
+## PackedSensorRawPlan
+
+Validated plan. Arrays are borrowed, not copied.
+
+```ts
+export interface PackedSensorRawPlan {
+  nativeWidth: number;
+  nativeHeight: number;
+  region: Readonly<{ x: number; y: number; width: number; height: number }>;
+  siteCount: number;
+  captureSeedUint32: number;
+  physicalChargeCapacityElectrons: number;
+  readout: ResolvedSensorReadoutRegime;
+  noiseModel: typeof SENSOR_RAW_PRODUCER_NOISE_MODEL;
+  seedSchedule: "murmur3-capture-seed-native-index-stream-v2";
+  /** Largest expected photo and dark electron counts in the region. */
+  maximumPhotoElectrons: number;
+  maximumDarkElectrons: number;
+}
+```
+
+## PackedSensorRawResult
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface PackedSensorRawResult {
+  plan: PackedSensorRawPlan;
+  /** RAW codes, row-major over the region. */
+  codes: Uint16Array;
+  diagnostics: PackedSensorRawDiagnostics;
+}
+```
+
+## simulatePackedSensorRaw
+
+Synchronous float64 reference for a bounded region. Use the image-kernel accelerator for large
+regions, host yields or the `webgpu-f32` backend.
+
+```ts
+export function simulatePackedSensorRaw(input: PackedSensorRawInput): PackedSensorRawResult;
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
