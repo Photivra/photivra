@@ -1,39 +1,16 @@
-## Automation coordination
-
-- Owner lane: <!-- Engine Science | Export & Performance | Human -->
-- Closes/advances: <!-- #issue -->
-- Depends on: <!-- merged issue/PR/commit, or None -->
-- Shared resources touched: <!-- shared:ci, shared:package, shared:api-version, shared:changelog, path:..., or None -->
-- [ ] No other automation lane owns the active branch/resources
-- [ ] Cross-lane prerequisites are merged to `main` or an explicit owner-approved exception is documented
-
 ## Summary
 
-<!-- What changed and why? -->
+<!-- What changed and why? Link the issue it closes or advances. -->
 
-## Validation
+## Evidence
 
-- [ ] Tests added/updated where meaningful
-- [ ] `npm run check` passes
-- [ ] Coverage remains above required thresholds when scientific/runtime code changes
-- [ ] Public API remains consistent or migration is documented
-- [ ] Relevant version surfaces are updated/documented (`ENGINE_API_VERSION`, `POC_SIMULATION_API_VERSION`, schema version, package version)
-- [ ] Documentation, assumptions, coordinate conventions, and known limitations are current
-- [ ] Browser-safe root-package boundary is preserved
-- [ ] Sensor/capture changes preserve native-coordinate, active-capture/output-crop, optical-axis, and X/Y sampling semantics
-- [ ] Radiometry/sensor-metadata changes preserve evidence/reuse-rights and approximation/calibration boundaries
+<!-- Every change needs evidence: cite the source for any model or equation, and show the test,
+measurement or reproduction for any fix, behaviour change or performance claim. Label approximations. -->
 
-## Contributor certification
+## Checklist
 
-- [ ] Every commit intended for inclusion is signed off under the Developer Certificate of Origin 1.1 (`git commit -s`)
-
-## Scientific/IP provenance
-
-- [ ] Implementation is independently written, or incorporated material has an explicitly compatible license
-- [ ] No proprietary/publicly-viewable-only code, tables, datasets, model weights, or protected expression were copied
-- [ ] Relevant third-party patent/licensing considerations were reviewed
-- [ ] Scientific references/assumptions/units are documented where applicable
-- [ ] Third-party licenses/provenance are recorded where applicable
-- [ ] Publicly viewable factual references were not mistaken for reusable calibration data
-- [ ] No geometric sample/pixel pitch was treated as photon-collection area without an explicit collection-area model
-- [ ] AI-assisted material received substantive human review; no AI claim of originality/licensing was treated as evidence
+- [ ] `npm run check`, `npm run coverage`, `npm run build` and `npm run pack:check` pass
+- [ ] Tests added or updated for new behaviour and regressions
+- [ ] Docs and `docs/USAGE.md` updated if public behaviour changed; breaking changes have a migration note
+- [ ] Only free-to-use sources, data, code and methods; third-party material recorded in `THIRD_PARTY.md`
+- [ ] Commits signed off (`git commit -s`, DCO)

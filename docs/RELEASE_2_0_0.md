@@ -167,7 +167,7 @@ These committed records are dated evidence bound to pre-2.0.0 outputs. They are 
 ## Pending owner decisions
 
 1. **Flagged citations.** Accept, replace or remove the seven items marked **Flagged** in the [citation audit](#citation-audit-free-sources), and decide whether the runtime strings that name paid standards should change in a later, versioned release.
-2. **`docs/AGENT_DOMAIN_RULES.md`.** Its spatial camera rotation section still says `estimateCameraShakeBlur()` keeps its legacy sign semantics, which is out of date for pitch. It also still says not to compose distortion into the production plan without a contract review; #303 wrote that review in `docs/PHYSICS_FOUNDATION.md`. That file holds shared agent rules, so changing it needs the owner's approval; this candidate does not edit it.
+2. **Agent instructions reset.** At the owner's request (2026-10-16) `AGENTS.md` was replaced with a short standard file that keeps two rules: changes and recommendations must be evidence-based, and only free-to-use sources, data, code and methods may be used. `docs/AGENT_DOMAIN_RULES.md`, `docs/AUTOMATION_COORDINATION.md` and the `.github` agent files were retired; their scientific content already lives in the domain guides, and the CI Node policy is still enforced by `.github/node-lts-policy.mjs`.
 3. **Human review** of the colorimetry constants recorded in `THIRD_PARTY.md` (CC BY-ND parameters, the patent record finding) and of the AI-assisted changes.
 
 ## Release gates
