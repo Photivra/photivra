@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Binds one engine-produced sensor response-rate result to the local exposure window at the same
- * color-sampling site. This first temporal binding supports only the explicit one-to-one
- * native-effective-sample ↔ color-site relationship. A multi-site block binding proves contributor
- * membership but does not prove each color site's sub-sample timing coordinate, so spatially varying
- * shutter timing fails closed rather than inventing fractional positions. The result establishes
- * timing only. It deliberately does not establish that the optical/electrical rate is stationary
- * through the local exposure window, so rate×duration integration remains unauthorized.
+ * Links one sensor response-rate result (made by the engine) to the local exposure window of the
+ * same colour-sampling site.
+ *
+ * Only a one-to-one link between native image samples and colour sites is supported. A block
+ * binding (several sites per sample) shows which sites contribute, but not where each one sits
+ * within the sample in time. So shutter timing that varies across the sensor is rejected rather
+ * than guessing fractional positions.
+ *
+ * The result fixes timing only. It does not establish that the rate is constant through the window,
+ * so it does not by itself allow rate × duration integration.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -54,8 +56,8 @@ export interface BindSensorRateToLocalExposureInput {
   bindingProfile:
     NativeEffectiveRasterColorSamplingBindingProfile;
   /**
-   * One capture/exposure event. samplePointsNative is owned by this binding
-   * function and therefore intentionally excluded.
+   * One capture (exposure) event. samplePointsNative is left out on purpose,
+   * because this function sets it.
    */
   exposureWindowInput:
     Omit<
@@ -228,18 +230,17 @@ function boundaryEvidence(
 }
 
 /**
- * Binds one engine-produced sensor response-rate result to the local exposure
- * window at the same color-sampling site.
+ * Links one engine-made sensor response-rate result to the local exposure
+ * window of the same colour-sampling site.
  *
- * This first temporal binding supports only the explicit one-to-one
- * native-effective-sample ↔ color-site relationship. A multi-site block
- * binding proves contributor membership but does not prove each color site's
- * sub-sample timing coordinate, so spatially varying shutter timing fails
- * closed rather than inventing fractional positions.
+ * Only a one-to-one link between native image samples and colour sites is
+ * supported. A block binding shows which sites contribute, but not each site's
+ * timing position within the sample. So shutter timing that varies across the
+ * sensor is rejected rather than guessing fractional positions.
  *
- * The result establishes timing only. It deliberately does not establish that
- * the optical/electrical rate is stationary through the local exposure window,
- * so rate×duration integration remains unauthorized.
+ * The result fixes timing only. It does not establish that the optical or
+ * electrical rate is constant through the window, so it does not by itself
+ * allow rate × duration integration.
  */
 export function bindSensorRateToLocalExposure(
   input:

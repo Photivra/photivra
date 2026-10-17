@@ -4,12 +4,11 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateSubjectFramingCrop
 
-Calculates the same-aspect-ratio crop needed for a subject to occupy a
-requested fraction of frame height.
+Calculates the crop (keeping the aspect ratio) that makes a subject fill a
+requested fraction of the frame height.
 
-This calculation assumes a centered/positionable crop with enough spatial
-margin around the subject. It does not validate subject position against
-image edges.
+It assumes the crop can be centred or moved freely, with enough room around
+the subject. It does not check the subject's position against the image edges.
 
 ```ts
 export function calculateSubjectFramingCrop(

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * The single browser-safe ESM root aggregates explicit scientific contracts. No deep import, transport
- * server or renderer backend is a supported package surface.
+ * The package entry point: one browser-safe ES module that exports every public API.
+ *
+ * Import only from here. Deep imports into other files, the transport server and renderer
+ * backends are not supported package APIs.
  * @see docs/DEVELOPERS.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
@@ -1781,9 +1782,10 @@ export type { PngEncodeInput, PngColourEncoding, PngCicpPrimaries, PngCicpTransf
 
 declare global {
   /**
-   * Minimal ambient AbortSignal so the published declarations type-check with `lib: ["es2022"]` and
-   * no DOM or `@types/node` (task and yield callbacks receive an engine-created signal). It merges
-   * with the DOM, WebWorker and Node declarations, which declare the identical `aborted` member.
+   * Minimal global AbortSignal type. It lets the published declarations type-check with
+   * `lib: ["es2022"]` and no DOM or `@types/node` types. (Task and yield callbacks receive a signal
+   * the engine creates.) It merges cleanly with the DOM, WebWorker and Node declarations, which
+   * declare the same `aborted` member.
    */
   interface AbortSignal {
     readonly aborted: boolean;

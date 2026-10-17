@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses timing facts that are explicitly bound to one exact capture mode. Schema 0.1.0 intentionally
- * admits only the timing schedule families already owned by #12: simultaneous/global or uniform-linear
- * native scans. Unsupported non-uniform/segmented schedules fail closed instead of being approximated.
- * Resolves the authoritative exposure/readout timing for one exact capture mode and timing-profile
- * identity. Readout timing remains distinct from exposure-boundary timing. No absolute
- * readout/exposure synchronization is inferred.
+ * Capture-mode timing: exposure and readout timing facts tied to one exact capture mode.
+ *
+ * Only the schedules the readout-timing and exposure-window models already support are accepted:
+ * global (all rows at once) or a uniform linear scan (rolling, row by row). Non-uniform or segmented
+ * schedules are rejected, not approximated. Readout timing is kept separate from the exposure
+ * opening and closing times, and no absolute sync between them is assumed.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -365,11 +364,11 @@ function parseReadout(
 }
 
 /**
- * Parses timing facts that are explicitly bound to one exact capture mode.
+ * Parses timing facts tied to one exact capture mode.
  *
- * Schema 0.1.0 intentionally admits only the timing schedule families already
- * owned by #12: simultaneous/global or uniform-linear native scans. Unsupported
- * non-uniform/segmented schedules fail closed instead of being approximated.
+ * Schema 0.1.0 accepts only the schedules the readout-timing and exposure-window
+ * models already support: global (simultaneous) or uniform linear native scans.
+ * Non-uniform or segmented schedules are rejected rather than approximated.
  */
 export function parseCaptureModeTimingProfile(
   value: unknown
@@ -481,11 +480,11 @@ export function parseCaptureModeTimingProfile(
 }
 
 /**
- * Resolves the authoritative exposure/readout timing for one exact capture
- * mode and timing-profile identity.
+ * Resolves the exposure and readout timing for one exact capture mode and
+ * timing profile.
  *
- * Readout timing remains distinct from exposure-boundary timing. No absolute
- * readout/exposure synchronization is inferred.
+ * Readout timing stays separate from the exposure opening and closing times.
+ * No absolute sync between readout and exposure is assumed.
  */
 export function resolveCaptureModeTiming(
   input:

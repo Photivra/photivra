@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Evaluate response validity and EQE independently at each declared shutter midpoint, then sum rates
- * times seconds. This is quadrature, not a stationarity claim or convergence proof. Shared
- * profile/geometry state prevents combining rates from different sites or shutter events. No renderer
- * executes here.
+ * Photo signal for one site over one exposure when the light changes over time.
+ *
+ * The response checks and EQE (external quantum efficiency) conversion run separately at each
+ * declared midpoint time of the shutter interval. The rates are then multiplied by their time steps
+ * and summed (numerical quadrature). This does not claim the light is constant, and does not prove
+ * the sum has converged. All samples share one profile and geometry, so rates from different sites
+ * or shutter events cannot be mixed. No renderer runs here.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -17,20 +19,20 @@ import { InvalidScientificInputError } from "../core/validation.js";
 import { calculateSensorEqeLocalRate, type CalculateSensorEqeLocalExposureInput } from "./eqe-local-exposure.js";
 import { requireInputObject } from "../core/record-validation.js";
 
-/** Shared response/site/shutter state, with separately evaluated physical light at each time. */
+/** Input: shared response, site and shutter settings, plus the light evaluated separately at each time. */
 export interface CalculateSensorEqeTemporalExposureInput
   extends Omit<CalculateSensorEqeLocalExposureInput, "irradianceSamples" | "stationarityProfile"> {
-  /** Complete uniform-midpoint coverage; array order is not temporal identity. */
+  /** One sample for every uniform midpoint time. Array order does not define which time a sample is. */
   samples: readonly {
     temporalSampleIndex: number;
-    /** Seconds on the shutter's first-opening-boundary-phase reference. */
+    /** Seconds from the shutter's reference time (the first opening boundary). */
     timeSecondsFromOpeningReference: number;
-    /** Complete W/m²/nm Cartesian irradiance coverage for this instant. */
+    /** Irradiance in W/m²/nm at every spatial × spectral node, for this instant. */
     irradianceSamples: CalculateSensorEqeLocalExposureInput["irradianceSamples"];
   }[];
 }
 
-/** Nonstationary photo expectation, deliberately distinct from stationary RAW producer inputs. */
+/** Expected photo signal with light that varies over time. Kept separate from the constant-rate inputs of the RAW producer. */
 export interface SensorEqeTemporalExposure {
   kind: "eqe-temporal-quadrature-expected-counts";
   colorSamplingProfileId: string;
@@ -52,7 +54,7 @@ export interface SensorEqeTemporalExposure {
   physicalFullWellAssessmentAuthorized: false;
   shotNoiseApplied: false;
   rawCodeValueProduced: false;
-  /** Canonical order, seconds-valued integration measures and independent child evidence. */
+  /** Samples in canonical order, each with its time step in seconds and its own evidence. */
   samples: readonly {
     temporalSampleIndex: number;
     timeSecondsFromOpeningReference: number;
@@ -63,10 +65,11 @@ export interface SensorEqeTemporalExposure {
 }
 
 /**
- * Evaluate response validity and EQE independently at each declared shutter
- * midpoint, then sum rates times seconds. This is quadrature, not a stationarity
- * claim or convergence proof. Shared profile/geometry state prevents combining
- * rates from different sites or shutter events. No renderer executes here.
+ * Runs the response checks and EQE conversion separately at each declared
+ * midpoint time, then sums rate × time step. This is numerical quadrature. It does
+ * not claim the light is constant or prove convergence. Shared profile and
+ * geometry stop rates from different sites or shutter events being mixed. No
+ * renderer runs here.
  */
 export function calculateSensorEqeTemporalExposure(
   input: CalculateSensorEqeTemporalExposureInput
@@ -83,7 +86,7 @@ export function calculateSensorEqeTemporalExposure(
     const start = binding.localExposureWindow.startOffsetSecondsFromOpeningReference;
     const measure = binding.localExposureDurationSeconds / count;
     const time = start + (index + 0.5) * measure;
-    // Exact shared construction rejects stale/global-clock samples without an implicit tolerance.
+    // Times are built the same way and must match exactly, so a stale sample or one on a global clock is rejected with no hidden tolerance.
     if (sample.timeSecondsFromOpeningReference !== time || !Number.isFinite(measure) || measure <= 0 ||
       !(time > start && time > previousTime && time < binding.localExposureWindow.endOffsetSecondsFromOpeningReference)) {
       throw new InvalidScientificInputError("Temporal sample must match its representable local shutter midpoint exactly.");

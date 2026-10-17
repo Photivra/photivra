@@ -9,9 +9,9 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface CaptureModeFullFrameSampleIndex {
   /**
-   * Zero-based index in the selected mode's full-frame per-frame effective
-   * sampling raster. Crop-local coordinates must be translated to absolute
-   * full-frame mode indices before calling this API.
+   * Zero-based index in the selected mode's full-frame sample grid (per frame).
+   * Convert crop-relative coordinates to absolute full-frame indices before
+   * calling this API.
    */
   x: number;
   y: number;
@@ -90,34 +90,35 @@ export interface NativeEffectiveRasterColorSamplingBindingProfile {
   bindingId: string;
   colorSamplingProfileId: string;
   /**
-   * Exact canonical native effective raster this binding was evidenced for.
-   * The binding must not be reused against a different raster merely because
-   * another sensor/mode has similar dimensions or a matching aspect ratio.
+   * The exact native image grid this binding has evidence for. Do not reuse
+   * the binding with another grid just because another sensor or mode has
+   * similar dimensions or the same aspect ratio.
    */
   nativeRaster: NativeImageRaster;
   /**
-   * Evidence supporting the native-effective-grid ↔ color-site-grid
-   * relationship itself.
+   * Evidence for the link between the native image grid and the colour-site
+   * grid itself.
    *
-   * Capture-mode and color-topology facts retain separate provenance.
+   * Capture-mode and colour-layout facts keep their own separate evidence.
    */
   evidence: readonly EvidenceProvenance[];
   relationship: {
     kind: "regular-native-effective-sample-blocks";
     /**
-     * Number of abstract color-sampling sites spanned horizontally by one
-     * native effective image sample.
+     * Number of colour-sampling sites one native image sample spans
+     * horizontally.
      */
     sitesPerNativeSampleX: number;
     /**
-     * Number of abstract color-sampling sites spanned vertically by one
-     * native effective image sample.
+     * Number of colour-sampling sites one native image sample spans
+     * vertically.
      */
     sitesPerNativeSampleY: number;
     /**
-     * Both grids are anchored to the same native sensor top-left.
+     * Both grids start at the same native sensor top-left corner.
      *
-     * This keeps phase absolute across later active crops/orientation.
+     * This keeps the CFA phase absolute through later active-area crops and
+     * orientation changes.
      */
     anchor: "shared-native-top-left";
   };
@@ -139,12 +140,12 @@ export interface NativeEffectiveSampleRect {
 
 ## parseNativeEffectiveRasterColorSamplingBindingProfile
 
-Parses the explicit relationship between the canonical native effective image
-raster and the separate native sensor color-sampling-site lattice.
+Parses the explicit link between the native image pixel grid and the separate
+grid of colour-sampling sites.
 
-This first binding supports only regular rectangular site blocks with a
-shared native top-left anchor. Irregular mappings, sparse exceptions and
-mode-specific declared-effective rasters require later explicit contracts.
+This first version supports only regular rectangular blocks of sites that
+share the native top-left corner. Irregular mappings, sparse exceptions and
+mode-specific declared grids would need new, explicit contracts.
 
 ```ts
 export function parseNativeEffectiveRasterColorSamplingBindingProfile(
@@ -156,28 +157,24 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## resolveCaptureModeColorSamplingContributors
 
-Resolves which color-sampling sites form the pre-reconstruction structural source region for one selected
-capture-mode effective sample.
+Finds which colour-sampling sites lie under one capture-mode sample, before any
+reconstruction (demosaicing).
 
-The mode sample index is always absolute in the selected mode's full-frame
-per-frame raster. The API intentionally does not accept crop-local indices,
-preventing active-crop origins from silently resetting CFA phase.
+The sample index is always absolute in the selected mode's full-frame grid. Crop-relative
+indices are not accepted, so an active-area crop can never silently reset the CFA phase.
 
-For grouped-native-sample modes, the returned site rectangle covers all
-native effective samples in the declared regular group. This is a structural
-pre-reconstruction association only: the engine reports channel-site counts
-but never claims complete downstream digital-pixel dependency or invents
-signal-combination weights, sum/average semantics, spectral response, or
-photon/electron values.
+For modes that group native samples, the returned rectangle covers every native sample in
+the declared regular group. This only describes which sites lie under the sample. The engine
+reports how many sites of each channel there are, but does not claim this is every dependency
+of the final digital pixel. It never makes up combination weights, sum or average rules,
+spectral response, or photon or electron values.
 
-Declared-effective-raster modes fail closed because #68 explicitly says
-their relationship to the native effective grid is not safely expressible as
-simple integer grouping.
+Modes with a declared sample grid are rejected, because the capture-mode profile says their
+relationship to the native grid cannot safely be written as simple integer grouping.
 
-Inter-frame sensor shifts are preserved as capture-mode metadata only. The
-sensor and CFA move together, so those offsets do not change site channel
-assignment; their optical-registration effect belongs to a later spatial
-sampling/image-formation contract.
+Sensor shifts between frames are kept as capture-mode metadata only. The sensor and CFA move
+together, so the shifts do not change which channel a site belongs to. Their effect on optical
+registration belongs to a later spatial-sampling or image-formation model.
 
 ```ts
 export function resolveCaptureModeColorSamplingContributors(
@@ -200,8 +197,8 @@ export interface ResolveCaptureModeColorSamplingContributorsInput {
   bindingProfile: NativeEffectiveRasterColorSamplingBindingProfile;
   modeSampleIndexFullFrame: CaptureModeFullFrameSampleIndex;
   /**
-   * Required for grouped-native-samples modes because #68 declares grouping
-   * factors but does not itself prove the grouping phase/origin.
+   * Required for modes that group native samples, because the capture-mode
+   * profile declares grouping factors but does not prove where the groups start.
    */
   groupedSamplingAnchor?: GroupedCaptureModeSamplingAnchorDeclaration;
 }
@@ -232,8 +229,8 @@ export interface ResolvedCaptureModeColorSamplingContributors {
   channelSiteCounts: readonly ColorSamplingChannelSiteCount[];
   channelComposition: ColorSamplingChannelComposition;
   /**
-   * Present only when the selected capture mode groups native effective
-   * samples before producing one per-frame effective sample.
+   * Present only when the selected capture mode groups several native samples
+   * into one sample per frame.
    */
   grouping:
     | {
@@ -245,10 +242,10 @@ export interface ResolvedCaptureModeColorSamplingContributors {
       }
     | null;
   /**
-   * Sensor-shift sequence remains attached to the sensor/capture mode.
+   * The sensor-shift sequence stays attached to the sensor and capture mode.
    *
-   * The sensor and its CFA move together, so these offsets must not be applied
-   * as changes to color-site channel assignment.
+   * The sensor and its CFA move together, so these offsets must not change
+   * which colour channel a site belongs to.
    */
   interFrameSensorOffsetsNativeSamples?: SourcedCaptureModeFact<
     readonly CaptureModeSensorOffsetNativeSamples[]
@@ -303,12 +300,11 @@ export interface ResolvedNativeEffectiveRasterColorSamplingBinding {
 
 ## resolveNativeEffectiveRasterColorSamplingBinding
 
-Validates and resolves the sensor-level binding between NativeImageRaster and
-an exact monochrome/periodic color-sampling topology.
+Validates and resolves the link between NativeImageRaster and an exact colour
+sampling layout (monochrome or a repeating pattern such as a CFA).
 
-Matching dimensions are never treated as proof of a 1:1 relationship. The
-relationship exists only because the caller supplied this evidence-backed
-binding profile.
+Matching dimensions are never taken as proof of a one-to-one link. The link
+exists only because the caller supplied this evidence-backed binding profile.
 
 ```ts
 export function resolveNativeEffectiveRasterColorSamplingBinding(

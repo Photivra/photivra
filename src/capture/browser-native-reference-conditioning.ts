@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Repository-internal #234 binary64 geometry conditioning evidence.
+ * Internal diagnostics on how well-conditioned the double-precision (float64) reference geometry is,
+ * for the browser-native capture reference (see docs/BROWSER_NATIVE_CAPTURE_ROBUST_GEOMETRY.md).
  *
- * This records operation/request-specific values around the authoritative
- * float64 reference. It deliberately does not define a universal epsilon,
- * error interval, or lower-precision backend acceptance criterion.
+ * It records values for each operation and request around the float64 reference result. It
+ * deliberately does not define a universal epsilon, an error interval, or a pass criterion for
+ * lower-precision backends.
  */
 import {
   intersectBrowserNativeReferenceGeometry,
@@ -32,8 +33,8 @@ export interface BrowserNativeReferenceGeometryConditioningEvidence {
     distanceM: number;
   }[];
   /**
-   * Raw representable distance separation between the first two distinct finite
-   * hit distances when present. This is evidence only, not a tolerance/bound.
+   * The raw gap between the first two distinct finite hit distances, when there
+   * are two. It is a recorded observation only, not a tolerance or bound.
    */
   firstDistinctHitDistanceSeparationM: number | null;
   conditioningClaim:
@@ -59,9 +60,9 @@ function singlePrimitiveGeometry(
 }
 
 /**
- * Run the authoritative full-scene reference and isolated primitive probes.
+ * Runs the full-scene reference intersection, plus probes against each primitive on its own.
  *
- * Isolated probes are diagnostic only; they never replace the full-scene result.
+ * The single-primitive probes are diagnostics only; they never replace the full-scene result.
  */
 export function evaluateBrowserNativeReferenceGeometryConditioning(
   prepared: PreparedBrowserNativeReferenceGeometry,

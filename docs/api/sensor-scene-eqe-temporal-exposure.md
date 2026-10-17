@@ -4,9 +4,10 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateSceneSensorEqeTemporalExposure
 
-Compose declared scene radiance through paraxial optics and instantaneous EQE
-at every exact local shutter midpoint. Light is never averaged before response
-validity. No projection, renderer, PSF, charge/noise or production stage executes.
+Runs declared scene radiance through paraxial optics and the instantaneous EQE
+response at every exact local shutter midpoint time. Light is never averaged
+before the response checks. No projection, renderer, PSF, charge, noise or
+production stage runs.
 
 ```ts
 export function calculateSceneSensorEqeTemporalExposure(
@@ -18,15 +19,15 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## CalculateSceneSensorEqeTemporalExposureInput
 
-Declared physical scene radiance at every spatial/wavelength/local-shutter midpoint.
+Input: declared physical scene radiance at every spatial position, wavelength and local shutter midpoint time.
 
 ```ts
 export interface CalculateSceneSensorEqeTemporalExposureInput {
-  /** One destination site, response and local shutter event; no stationarity declaration. */
+  /** One destination site, its response and one local shutter event. No constant-rate declaration is needed. */
   sensor: Omit<CalculateSensorEqeTemporalExposureInput, "samples">;
   sceneBindings: CalculateSceneToSensorIrradianceQuadratureInput["sceneBindings"];
   optics: CalculateSceneToSensorIrradianceQuadratureInput["optics"];
-  /** Explicitly binds scene query seconds to the shutter's first-opening boundary. */
+  /** States that scene query times are seconds from the shutter's first opening boundary. */
   timeReference: "first-opening-boundary-phase";
   samples: readonly {
     temporalSampleIndex: number;
@@ -38,7 +39,7 @@ export interface CalculateSceneSensorEqeTemporalExposureInput {
 
 ## SceneSensorEqeTemporalExposure
 
-Child optical and sensor envelopes retain approximation/evidence independently.
+Result. The optical and sensor results each keep their own approximation labels and evidence.
 
 ```ts
 export interface SceneSensorEqeTemporalExposure {

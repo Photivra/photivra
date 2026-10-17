@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Serializes a parsed, acyclic plain-data tree with sorted enumerable object keys, original array
- * order and finite JSON numbers. JSON escaping and negative zero representation follow JSON.stringify.
- * The source is never mutated. Undefined object properties follow the explicit domain policy;
- * undefined array entries, array holes, non-plain objects (any prototype other than Object.prototype
- * or null, e.g. Map, Set, Date, typed arrays, class instances) and unsupported scalar types always
- * fail. Callers own cycle validation. This is serialization mechanics, not a general input parser,
- * cryptographic hash or standardized canonical-JSON claim.
+ * Deterministic JSON text for engine-owned plain data, with object keys sorted.
+ *
+ * The same data always gives the same text, so records can be compared by identity.
+ * This is serialization only. It is not a general input parser, a cryptographic hash or
+ * an implementation of a canonical-JSON standard.
  * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
@@ -22,16 +19,20 @@ export interface CanonicalJsonPolicy {
 }
 
 /**
- * Serializes a parsed, acyclic plain-data tree with sorted enumerable object
- * keys, original array order and finite JSON numbers. JSON escaping and negative
- * zero representation follow JSON.stringify. The source is never mutated.
+ * Serializes a parsed, acyclic tree of plain data to JSON text.
  *
- * Undefined object properties follow the explicit domain policy; undefined array
- * entries, array holes, non-plain objects (Map, Set, Date, typed arrays, class
- * instances or any prototype other than Object.prototype/null) and unsupported
- * scalar types always fail with the policy's unsupported-value message. Callers
- * own cycle validation. This is serialization mechanics, not a
- * general input parser, cryptographic hash or standardized canonical-JSON claim.
+ * Object keys (enumerable) are sorted. Arrays keep their order. Numbers must be finite.
+ * String escaping and negative zero follow JSON.stringify. The input is never changed.
+ *
+ * The domain policy decides what happens to undefined object properties. These always
+ * fail with the policy's unsupported-value message:
+ * - undefined array entries and array holes;
+ * - non-plain objects (Map, Set, Date, typed arrays, class instances, or any prototype
+ *   other than Object.prototype or null);
+ * - unsupported scalar types.
+ *
+ * The caller must rule out cycles first. This is serialization only. It is not a general
+ * input parser, a cryptographic hash or an implementation of a canonical-JSON standard.
  */
 export function stringifyCanonicalJson(value: unknown, policy: CanonicalJsonPolicy): string {
   if (value === null || typeof value === "string" || typeof value === "boolean") {

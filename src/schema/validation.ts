@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses and validates an untrusted camera configuration.
- * Parses and validates an untrusted renderer-independent scene definition.
+ * Runtime parsers for untrusted camera configurations and scene definitions.
  * @see docs/SCENE_RADIANCE_AND_ILLUMINATION.md for equations, coordinate/unit conventions, blockers
  * and support limits.
  */

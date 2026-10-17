@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validates decoded HTTP JSON before it enters the scientific simulation. This parser checks request
- * structure and JSON value types only. Domain/range rules remain owned by the scientific calculation
- * modules.
+ * Checks the shape of a decoded POC HTTP request before it reaches the simulation. It checks
+ * structure and JSON value types only. Valid ranges are checked by the calculation modules.
  * @see docs/POC_API.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
@@ -53,10 +51,10 @@ function requireFiniteNumber(
 }
 
 /**
- * Transport magnitude envelope for fields whose finite-but-extreme values otherwise overflow inside
- * the simulation (InvalidScientificResultError). It is a request-shape guard, not a scientific
- * domain: zero/negative values and physical validity inside the envelope remain owned by the
- * calculation modules.
+ * Upper size limits for request fields whose finite but extreme values would otherwise overflow
+ * inside the simulation (InvalidScientificResultError). This is a request-shape guard, not a
+ * scientific range. Zero, negative values and physical validity within these limits are still
+ * checked by the calculation modules.
  */
 export const POC_REQUEST_MAGNITUDE_LIMITS = Object.freeze({
   "lens.aperture": Object.freeze({ smallestPositive: 0.01, maximum: 10_000 }),
@@ -241,10 +239,10 @@ function assertMotionSamples(value: unknown): void {
 }
 
 /**
- * Validates decoded HTTP JSON before it enters the scientific simulation.
+ * Checks decoded HTTP JSON before it reaches the simulation.
  *
- * This parser checks request structure and JSON value types, plus the transport magnitude envelope
- * POC_REQUEST_MAGNITUDE_LIMITS. Domain/range rules remain owned by the scientific calculation modules.
+ * It checks request structure, JSON value types and the size limits in
+ * POC_REQUEST_MAGNITUDE_LIMITS. Valid ranges are checked by the calculation modules.
  *
  * @param value Decoded request body from the HTTP server.
  * @returns Structurally valid POC simulation request.

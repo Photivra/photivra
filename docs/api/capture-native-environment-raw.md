@@ -4,10 +4,12 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createNativeEnvironmentRawTask
 
-Every tile is planned and admission-checked before its radiance callbacks; no partial output escapes. The
-host yield also runs between sites inside a tile once about 8 ms of work has elapsed (one budget shared with
-the tile loop), and cancellation is checked after each such yield, so cancel() takes effect within about one
-site's work. Yield cadence never changes tile requests, admission, callbacks or output.
+Creates the native RAW task. Every tile is planned and checked against the limits before its radiance
+callbacks run, and no partial output is ever returned.
+
+The task also yields to the host between sites inside a tile once about 8 ms of work has passed (one budget
+shared with the tile loop). Cancellation is checked after each such yield, so cancel() takes effect within
+about one site's work. Yield timing never changes tile requests, limit checks, callbacks or output.
 
 ```ts
 export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,provider:NativeEnvironmentRawProvider):NativeEnvironmentRawTask;
@@ -17,15 +19,21 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## createNativeEnvironmentSensorStageTask
 
-Re-runs only the sensor stage from a retained optical stage: no radiance callback is invoked. Use it when only
-post-optics settings change (noise seed, ISO and its bound readout regime/gain, fixed-pattern noise, charge/dark/capacity profiles,
-white-balance intent, capture identity or tile width); white balance and rendering are then applied by
-createNativeRawDevelopmentTask as usual. RAW codes are bit-identical to a full createNativeEnvironmentRawTask
-with the same final inputs, provided the radiance provider is a deterministic function of its request. Any
-optical difference (scene binding, geometry or orientation, focal length, aperture, shutter or exposure window,
-focus, frame/CFA/binding profiles, or any site environment field such as PSF, field throughput, pupil, motion,
-spectral or temporal sampling and provider profiles) refuses with InvalidConfigurationError before output.
-providerEvaluationCount is 0; the stage remains owned by the caller and is not consumed.
+Re-runs only the sensor stage from a retained optical stage. No radiance callback is called.
+
+Use it when only post-optics settings change: noise seed, ISO and its readout regime and gain,
+fixed-pattern noise, charge, dark-current and capacity profiles, white-balance intent, capture identity
+or tile width. White balance and rendering are then applied by createNativeRawDevelopmentTask as usual.
+
+RAW codes are bit-identical to a full createNativeEnvironmentRawTask with the same final inputs, as long
+as the radiance provider is a deterministic function of its request.
+
+Any optical difference is rejected with InvalidConfigurationError before output. That includes scene
+binding, geometry or orientation, focal length, aperture, shutter or exposure window, focus,
+frame/CFA/binding profiles, and any site environment field such as PSF, field throughput, pupil, motion,
+spectral or temporal sampling and provider profiles.
+
+providerEvaluationCount is 0. The caller still owns the stage; it is not used up.
 
 ```ts
 export function createNativeEnvironmentSensorStageTask(input:NativeEnvironmentSensorStageInput,opticalStage:NativeEnvironmentOpticalStage,
@@ -52,11 +60,11 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface NativeEnvironmentRawInput {
   raw: NativeRawInput;
   sceneBinding: SimulateEnvironmentSensorRawFrameInput["sceneBinding"];
-  /** Full-event admission budget; maximum 2 billion calls. No convergence is inferred. */
+  /** Budget of provider calls for the whole capture, checked before work starts; at most 2 billion. Staying within it does not imply convergence. */
   maximumProviderEvaluations: number;
   /**
-   * Opt-in: retain the optical stage (per-site photo-signal expectations bound to every optical input) on the
-   * output for createNativeEnvironmentSensorStageTask. Omission keeps the original behavior and output shape.
+   * Optional: keep the optical stage (per-site expected photo signal, tied to every optical input) on the
+   * output, for createNativeEnvironmentSensorStageTask. If omitted, behaviour and output shape are unchanged.
    */
   opticalStage?: NativeEnvironmentOpticalStageRetention;
 }
@@ -89,7 +97,7 @@ export interface NativeEnvironmentRawProvider {
   readTile(request: Readonly<NativeRawTileRequest>,signal:AbortSignal):Promise<NativeEnvironmentRawTile>;
   evaluateRadiance: SimulateEnvironmentSensorRawFrameInput["evaluateRadiance"];
   evaluateApertureRadiance?: SimulateEnvironmentSensorRawFrameInput["evaluateApertureRadiance"];
-  /** Optional bounded diagnostic observer; counts are expectation values before any noise/clamp/ADC. */
+  /** Optional, bounded diagnostic callback. Counts are expected values before any noise, clipping or ADC (analogue-to-digital conversion). */
   observePhotoTile?(tile:Readonly<NativeEnvironmentPhotoTile>,signal:AbortSignal):void|Promise<void>;
   yieldControl(signal:AbortSignal):Promise<void>;
 }

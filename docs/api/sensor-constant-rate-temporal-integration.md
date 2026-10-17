@@ -19,11 +19,12 @@ export interface IntegrateStationarySensorRateInput {
 
 ## integrateStationarySensorRateOverLocalExposure
 
-Integrates one explicitly stationary response-rate result over its exact
-bound local exposure window.
+Integrates one response rate, declared constant, over its exact local
+exposure window.
 
-This function is intentionally limited to the constant-rate approximation.
-It does not sample or integrate a time-varying signal.
+This is the constant-rate approximation only. It does not sample or
+integrate a time-varying signal. EQE rates give expected photons and
+electrons; A/W rates give coulombs. Counts stay fractional.
 
 ```ts
 export function integrateStationarySensorRateOverLocalExposure(
@@ -36,13 +37,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parseSensorRateTemporalStationarityProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
-Rate times duration is allowed only by explicit stationarity bound to the exact site and local
-shutter interval. EQE integrates to expected photons/electrons; A/W integrates current magnitude to
-coulombs without an implicit carrier mapping. Counts remain fractional expectations before
-stochastic sampling.
+The profile declares that a rate is constant (stationary) for an exact site and local shutter
+interval, which is what allows rate × duration.
 
 ```ts
 export function parseSensorRateTemporalStationarityProfile(

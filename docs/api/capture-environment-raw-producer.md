@@ -4,11 +4,14 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## EnvironmentSensorRawFrame
 
-Approximate executed provider-to-RAW lineage. sites retain per-site optical/EQE
-results; raw retains charge, capacity, seeded-noise/readout diagnostics and exact
-native frame. providerEvaluationCount is actual bounded work, not a quality score.
-Conservative verification/activation flags belong to this standalone adapter;
-a parent production plan records its own graph execution without upgrading them.
+Result: the approximate record of what ran, from provider to RAW.
+
+- `sites` keeps the per-site optics and EQE results.
+- `raw` keeps charge, capacity, seeded-noise and readout diagnostics, and the exact native frame.
+- `providerEvaluationCount` is the actual (bounded) work done, not a quality score.
+
+The cautious verification and activation flags belong to this standalone function. A parent
+production plan records its own execution and does not upgrade them.
 
 ```ts
 export interface EnvironmentSensorRawFrame {
@@ -24,9 +27,12 @@ export interface EnvironmentSensorRawFrame {
 
 ## simulateEnvironmentSensorRawFrame
 
-Preflight complete native coverage and aggregate support before invoking supplied
-provider code, then reuse dark/completeness/capacity/noise/ADC ownership. The
-returned RAW frame feeds the existing reconstruction and paired export APIs.
+Simulates a RAW frame from a scene-radiance provider.
+
+Before calling any provider code, it checks that the sites cover the full native
+frame and that all inputs are supported. Dark current, charge completeness,
+capacity, noise and ADC use the existing sensor modules. The returned RAW frame
+works with the existing reconstruction and paired-export APIs.
 
 ```ts
 export function simulateEnvironmentSensorRawFrame(input: SimulateEnvironmentSensorRawFrameInput): CalculationResult<EnvironmentSensorRawFrame>;
@@ -36,13 +42,13 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## SimulateEnvironmentSensorRawFrameInput
 
-Full native site order; generated photo/dark charge cannot be supplied as a shortcut.
+All native sites, in native order. Generated photo or dark charge cannot be passed in as a shortcut.
 
 ```ts
 export interface SimulateEnvironmentSensorRawFrameInput {
   frame: SensorRawProducerInput["frame"];
   sceneBinding: { sceneStateId: string; providerSceneId: string; evidence: readonly EvidenceProvenance[] };
-  /** Shared shutter schedule is bound to the committed frame duration. */
+  /** The shared shutter schedule, tied to the committed frame duration. */
   exposureWindow: NonNullable<SensorRawProducerInput["exposureWindow"]>;
   sites: readonly {
     environment: Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance" | "evaluateApertureRadiance">;

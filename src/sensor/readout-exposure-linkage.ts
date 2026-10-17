@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Assesses an explicitly declared relationship between rolling sensor readout spatial phase and one or
- * more electronic exposure-boundary scans. This contract is deliberately weaker than temporal
- * synchronization. It can establish that two schedules traverse the same native spatial phase ordering
- * (or its reverse), but it does not establish when sensor data readout occurs relative to exposure
- * start/end. The total capture data-readout duration is preserved diagnostically and is never used to
- * validate the relationship. Different rolling-readout spatial skew and exposure-boundary traversal
- * durations are allowed; their ratio is reported without implying a shared clock origin.
+ * Links rolling sensor readout to electronic shutter scans, and derives the exposure schedule of a
+ * fully electronic rolling shutter.
+ *
+ * A declared link says that the readout scan and one or more exposure-boundary scans move across the
+ * sensor in the same order (or in reverse). That is deliberately weaker than time synchronization: it
+ * does not say when readout happens relative to the start or end of exposure. The total data-readout
+ * time is kept for diagnostics but never used to check the link. The readout skew and the boundary
+ * sweep times may differ; their ratio is reported without implying a shared clock.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -51,8 +51,8 @@ export type ReadoutExposureSpatialPhaseOrientation =
 export interface ReadoutExposureBoundarySpatialLink {
   boundary: ReadoutExposureBoundaryId;
   /**
-   * Relationship between normalized rolling-readout scan phase and the
-   * selected electronic exposure-boundary scan phase.
+   * How the normalized position of the rolling readout scan relates to that
+   * of the selected electronic exposure-boundary scan.
    *
    * "same": boundary normalized phase = readout normalized phase.
    * "reversed": boundary normalized phase = 1 - readout normalized phase.
@@ -61,10 +61,10 @@ export interface ReadoutExposureBoundarySpatialLink {
    */
   phaseOrientation: ReadoutExposureSpatialPhaseOrientation;
   /**
-   * Evidence supporting the relationship itself.
+   * Evidence for the link itself.
    *
-   * The readout direction/timing and exposure-boundary direction/timing retain
-   * their own separate evidence.
+   * The readout direction and timing, and the exposure-boundary direction and
+   * timing, keep their own separate evidence.
    */
   evidence: readonly EvidenceProvenance[];
 }
@@ -72,7 +72,7 @@ export interface ReadoutExposureBoundarySpatialLink {
 export type ReadoutExposureTimingLinkageDeclaration =
   | {
       /**
-       * Photivra asserts no readout↔exposure relationship for this capture.
+       * No link between readout and exposure is stated for this capture.
        * This is not evidence that the physical processes are independent.
        */
       kind: "unlinked";
@@ -80,8 +80,8 @@ export type ReadoutExposureTimingLinkageDeclaration =
     }
   | {
       /**
-       * One or more exposure boundaries are explicitly related to rolling
-       * readout by normalized native-sensor spatial phase.
+       * One or more exposure boundaries are explicitly linked to the rolling
+       * readout by their normalized position across the native sensor.
        */
       kind: "spatial-phase-linked";
       links: readonly ReadoutExposureBoundarySpatialLink[];
@@ -110,15 +110,15 @@ export interface ReadoutExposureBoundarySpatialLinkAssessment {
   readoutDirectionNative: NativeSensorReadoutScanDirection;
   boundaryDirectionNative: NativeSensorReadoutScanDirection;
   /**
-   * First-to-last rolling sensor spatial sampling skew.
+   * Rolling readout skew: time from the first to the last scan position.
    */
   readoutSpatialSamplingSkewSeconds: SourcedSensorTimingSeconds;
   /**
-   * First-to-last exposure-boundary traversal duration.
+   * Time for the exposure boundary to sweep from first to last position.
    */
   boundaryTraversalDurationSeconds: SourcedCaptureTimingSeconds;
   /**
-   * Derived descriptive ratio only. A value of 1 does not prove temporal
+   * A descriptive ratio only. A value of 1 does not prove time
    * synchronization or a common clock origin.
    */
   boundaryTraversalToReadoutSpatialSkewRatio: number;
@@ -135,8 +135,8 @@ export interface ReadoutExposureTimingLinkageAssessment {
   activeCaptureRect: RasterRect;
   absoluteTemporalAlignment: "not-established";
   /**
-   * Capture data-readout duration is preserved for diagnostics but is not used
-   * to validate any exposure-boundary linkage.
+   * Data-readout time for the capture. Kept for diagnostics, but never used to
+   * check an exposure-boundary link.
    */
   captureReadoutDurationSeconds: SourcedSensorTimingSeconds;
   links: readonly ReadoutExposureBoundarySpatialLinkAssessment[];
@@ -267,18 +267,16 @@ function expectedBoundaryDirection(
 }
 
 /**
- * Assesses an explicitly declared relationship between rolling sensor readout
- * spatial phase and one or more electronic exposure-boundary scans.
+ * Checks an explicitly declared link between the rolling readout scan and one
+ * or more electronic exposure-boundary scans.
  *
- * This contract is deliberately weaker than temporal synchronization. It can
- * establish that two schedules traverse the same native spatial phase ordering
- * (or its reverse), but it does not establish when sensor data readout occurs
- * relative to exposure start/end.
+ * This is deliberately weaker than time synchronization. It can show that two
+ * schedules sweep the native sensor in the same order (or in reverse), but not
+ * when readout happens relative to the start or end of exposure.
  *
- * The total capture data-readout duration is preserved diagnostically and is
- * never used to validate the relationship. Different rolling-readout spatial
- * skew and exposure-boundary traversal durations are allowed; their ratio is
- * reported without implying a shared clock origin.
+ * The total data-readout time is kept for diagnostics and never used to check
+ * the link. The readout skew and the boundary sweep time may differ; their
+ * ratio is reported without implying a shared clock.
  */
 export function assessReadoutExposureTimingLinkage(
   input: AssessReadoutExposureTimingLinkageInput
@@ -461,9 +459,9 @@ export interface ResolveElectronicRollingShutterExposureScheduleInput {
   /** Per-line integration time between line reset and line read. */
   nominalExposureDurationSeconds: SourcedCaptureTimingSeconds;
   /**
-   * Evidence that this capture uses a fully electronic line-sequential (rolling) shutter whose reset
-   * scan runs at the readout line rate. This is the explicit linkage contract the domain rules require
-   * before sensor readout timing may drive exposure-window timing.
+   * Evidence that this capture uses a fully electronic, line-by-line (rolling) shutter whose reset
+   * scan runs at the readout line rate. This explicit link is required before sensor readout timing
+   * may set the exposure-window timing.
    */
   linkageEvidence: readonly EvidenceProvenance[];
 }
@@ -485,7 +483,7 @@ export interface ElectronicRollingShutterExposureSchedule {
   closing: UniformLinearExposureBoundarySchedule;
   /** Explicit linkage declaration accepted by {@link assessReadoutExposureTimingLinkage}. */
   linkage: Extract<ReadoutExposureTimingLinkageDeclaration, { kind: "spatial-phase-linked" }>;
-  /** τ: first-to-last exposure-start offset (equal to the readout spatial sampling skew). */
+  /** τ: offset between the first and last exposure starts (equal to the readout skew). */
   lineScanSkewSeconds: number;
   /** Every point integrates for exactly the nominal exposure duration T. */
   localExposureDurationSeconds: number;
@@ -506,19 +504,21 @@ export function createRollingShutterCaptureExposureSchedule(
  * Derives the exposure-window schedule of a fully electronic rolling shutter from its rolling readout
  * declaration.
  *
- * In a line-sequential CMOS rolling shutter each line is reset, integrates for the exposure time T and
- * is then read; the reset pointer leads the read pointer by T and both advance at the line rate
- * (El Gamal & Eltoukhy 2005; Liang, Chang & Chen 2008). With the uniform-linear scan used throughout
- * this engine, a native point at normalized scan position s ∈ [0, 1] (measured along the declared scan
- * direction over the active capture) integrates over [s·τ, s·τ + T], where τ is the declared
- * first-to-last spatial sampling skew. Both boundaries therefore become uniform-linear scans in the
- * readout direction with traversal τ. Feeding this schedule to the per-site exposure windows makes every
- * consumer that samples motion, moving sources or temporal illumination at local exposure times
- * (environment RAW, rotation quadrature, temporal illumination integration) form rolling-shutter skew,
- * wobble, partial exposure and flicker banding.
+ * In a CMOS rolling shutter, each line is reset, collects light for the exposure time T and is then
+ * read. The reset pointer runs T ahead of the read pointer, and both move at the line rate (El Gamal &
+ * Eltoukhy 2005; Liang, Chang & Chen 2008). With the uniform linear scan used throughout this engine, a
+ * native point at normalized scan position s ∈ [0, 1] (along the declared scan direction, over the
+ * active capture) collects light over [s·τ, s·τ + T], where τ is the declared first-to-last readout
+ * skew. So both boundaries become uniform linear scans in the readout direction that take τ to sweep.
  *
- * Approximation: uniform line rate, no line-reset jitter, no global-reset/mechanical-close hybrid, and
- * the active-capture skew is caller-declared (never scaled from a full-frame value).
+ * When this schedule feeds the per-site exposure windows, everything that samples motion, moving
+ * sources or time-varying light at local exposure times (environment RAW, rotation quadrature,
+ * temporal illumination integration) produces rolling-shutter skew, wobble, partial exposure and
+ * flicker banding.
+ *
+ * Approximation: constant line rate, no line-reset jitter, no hybrid of global reset with a mechanical
+ * closing shutter, and the active-capture skew is declared by the caller (never scaled from a
+ * full-frame value).
  * @see docs/MOTION_AND_SIGNAL.md#electronic-rolling-shutter-image-formation
  */
 export function resolveElectronicRollingShutterExposureSchedule(
@@ -533,7 +533,7 @@ export function resolveElectronicRollingShutterExposureSchedule(
   }
   const linkageEvidence = parseEvidenceList(input.linkageEvidence, "rollingShutter.linkageEvidence");
   const rolling = input.readout;
-  // Validate the declaration and the exposure fact through the authoritative calculators.
+  // Check the declaration and the exposure fact with the existing readout and exposure-window calculators.
   const probeRaster = { pixelWidth: 2, pixelHeight: 2 };
   calculateSensorReadoutTiming({ nativeRaster: probeRaster, shutterMechanism: "electronic", readout: rolling });
   const opening: UniformLinearExposureBoundarySchedule = {
@@ -567,8 +567,8 @@ export function resolveElectronicRollingShutterExposureSchedule(
 
 /**
  * True when an exposure schedule is exactly the electronic rolling-shutter schedule derived from this
- * readout declaration (electronic mechanism, both boundaries scanning in the readout direction with
- * traversal equal to the readout spatial skew).
+ * readout declaration: an electronic mechanism, with both boundaries scanning in the readout direction
+ * and taking the readout skew to sweep.
  */
 export function isElectronicRollingShutterExposureSchedule(
   schedule: Pick<CalculateCaptureExposureWindowsInput, "shutterMechanism" | "opening" | "closing">,

@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateNativeRawPlan
 
-Full raster/resource/profile admission before callbacks or output allocation; no placeholder plane.
+Plans the task and checks the image size, resources and profiles before any callback or output allocation. No placeholder plane is made.
 
 ```ts
 export function calculateNativeRawPlan(input: NativeRawInput): NativeRawPlan;
@@ -14,9 +14,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## createNativeRawTask
 
-Executes validated EQE/dark/completeness events through the shared reference scalar physics.
-Tiles are read and committed one at a time; the host yield runs at tile boundaries once about
-8 ms of work has elapsed since the previous yield, and after the final tile. Activity is checked
+Runs validated per-site events (EQE photo signal, dark signal, charge completeness) through the shared
+reference per-site physics.
+
+Tiles are read and committed one at a time. The task yields to the host at tile boundaries once about
+8 ms of work has passed since the last yield, and after the final tile. It checks for cancellation
 before every tile, after every read and after every yield.
 
 ```ts
@@ -52,7 +54,7 @@ export type NativeRawExposure = Omit<SimulatedCapture, "schemaVersion" | "planes
 
 ## NativeRawExposureInput
 
-A shooting event and source provenance, not a produced float master or committed RAW frame.
+A shooting event and where its source came from. Not a finished float master or committed RAW frame.
 
 ```ts
 export type NativeRawExposureInput = Omit<SimulatedCaptureInput, "planes" | "source"> & {source:CaptureExposureSource};
@@ -72,14 +74,14 @@ export interface NativeRawInput {
   bindingProfile: NativeRawProducerFrameContext["bindingProfile"];
   exposureWindow?: SensorRawProducerExposureWindowInput;
   maximumOutputBytes: number;
-  /** Optional execution chunk width in native sites, 1–256; omission preserves 256. Not a sampling control. */
+  /** Optional tile width for execution, in native sites, 1–256. Default 256. It does not affect sampling. */
   tileWidth?: number;
 }
 ```
 
 ## NativeRawOutput
 
-Sole-owner row-major arrays. They are not attachable to the bounded SensorRawFrame contract.
+Row-major arrays owned only by the output. They cannot be attached to the bounded SensorRawFrame type.
 
 ```ts
 export interface NativeRawOutput {
@@ -87,12 +89,12 @@ export interface NativeRawOutput {
   codes: Uint16Array;
   blackLevels: Uint16Array;
   digitalSaturationCodes: Uint16Array;
-  /** Bits 0,1,2: physical scalar clamp, pre-ADC clamp, digital saturation respectively. */
+  /** Saturation flags. Bit 0: physical charge clamp; bit 1: pre-ADC clamp; bit 2: digital saturation. */
   saturationFlags: Uint8Array;
   /**
-   * Effective white (full-saturation) code per absolute CFA repeat phase, indexed
+   * Effective white (full-saturation) code for each absolute CFA repeat phase, indexed
    * `phaseY*repeatWidthSites+phaseX`: min(digital saturation, round(black + min(capacity, pre-ADC
-   * saturation)/gain)). See `calculateEffectiveSaturationCode`; a few bytes, not a per-pixel plane.
+   * saturation)/gain)). See `calculateEffectiveSaturationCode`. A few bytes, not one value per pixel.
    */
   effectiveSaturationCodes: Uint16Array;
 }
@@ -111,7 +113,7 @@ export interface NativeRawPlan {
   pixelCount: number;
   outputBytes: number;
   tileCount: number;
-  /** Present only for an explicit execution chunk width. Omission preserves legacy plan shape. */
+  /** Present only when an execution tile width was given. Otherwise the plan keeps its earlier shape. */
   tileWidth?: number;
   upstreamRadiometryVerified: false;
   seedSchedule: "murmur3-capture-seed-native-index-stream-v2";
@@ -163,7 +165,7 @@ export interface NativeRawTile extends NativeRawTileRequest { sites: readonly Se
 
 ## NativeRawTileRequest
 
-Rectangle is absolute full-native CFA space, before orientation, active crop or output scaling.
+Tile rectangle, in absolute full-sensor CFA coordinates, before orientation, active-area crop or output scaling.
 
 ```ts
 export interface NativeRawTileRequest { captureId: string; frameId: string; x: number; y: number; width: number; height: number }

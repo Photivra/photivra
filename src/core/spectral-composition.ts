@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses one continuous spectral-coverage participant. This contract describes support and
- * interpolation breakpoints only. It does not carry spectral values, transmission, response, radiance,
- * or uncertainty.
- * Intersects continuous spectral support and unions all interpolation breakpoints inside the common
- * range. Air/vacuum conversion is never implicit. Discrete lines are deliberately excluded because
- * delta-like line measures require a different integration path from continuous per-nanometre
- * densities.
+ * Combines the wavelength coverage of several spectral inputs (light source, filters, sensor
+ * response) before they are multiplied and integrated.
+ *
+ * Continuous spectra (values per nanometre) and discrete lines (narrow emission lines treated as
+ * delta functions) are handled separately, because they integrate differently. This module
+ * describes wavelength ranges and interpolation breakpoints only, not spectral values.
  * @see docs/SCENE_RADIANCE_AND_ILLUMINATION.md for equations, coordinate/unit conventions, blockers
  * and support limits.
  */
@@ -274,10 +272,10 @@ function parseBreakpoints(
 }
 
 /**
- * Parses one continuous spectral-coverage participant.
+ * Parses the wavelength coverage of one continuous spectral input.
  *
- * This contract describes support and interpolation breakpoints only. It does
- * not carry spectral values, transmission, response, radiance, or uncertainty.
+ * It describes only the wavelength range (support) and interpolation breakpoints. It
+ * carries no spectral values, transmission, response, radiance or uncertainty.
  */
 export function parseSpectralCoverageParticipant(
   value: unknown,
@@ -321,12 +319,12 @@ export function parseSpectralCoverageParticipant(
 }
 
 /**
- * Intersects continuous spectral support and unions all interpolation
- * breakpoints inside the common range.
+ * Finds the wavelength range that all continuous inputs share, and collects every
+ * interpolation breakpoint inside it.
  *
- * Air/vacuum conversion is never implicit. Discrete lines are deliberately
- * excluded because delta-like line measures require a different integration
- * path from continuous per-nanometre densities.
+ * Air and vacuum wavelengths are never converted implicitly. Discrete lines are not
+ * accepted here: a delta-like line is integrated differently from a continuous
+ * per-nanometre density.
  */
 export function composeSpectralCoverage(
   input: ComposeSpectralCoverageInput
@@ -448,10 +446,10 @@ export function composeSpectralCoverage(
 const LINE_WEIGHT_TOLERANCE = 1e-9;
 
 /**
- * Parses a normalized set of delta-like discrete spectral lines.
+ * Parses a normalized set of discrete spectral lines (each treated as a delta function).
  *
- * Each weight is an integrated line fraction, not a per-nanometre spectral
- * density sample. The weights must sum to one.
+ * Each weight is the fraction of the total carried by that line. It is not a
+ * per-nanometre density sample. The weights must sum to one.
  */
 export function parseNormalizedDiscreteSpectralLineDistribution(
   value: unknown,
@@ -655,8 +653,8 @@ export function distributeIntegratedQuantityAcrossDiscreteSpectralLines(
 }
 
 /**
- * Integrates a discrete line measure by summing already wavelength-integrated
- * line contributions. No d-lambda factor is applied.
+ * Integrates over discrete lines by summing their contributions, which are already
+ * integrated over wavelength. No dλ (wavelength step) factor is applied.
  */
 export function integrateDiscreteSpectralLineMeasure(
   measure:

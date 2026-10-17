@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Effective RAW white (saturation) level: the single engine source for the code at which a native
- * site is fully saturated, used by RAW development normalization and DNG `WhiteLevel`.
+ * Effective RAW white (saturation) level: the code at which a native site is fully saturated. This
+ * is the engine's only source for it. RAW development scales by it, and DNG writes it as `WhiteLevel`.
  *
- * The readout model clips charge at physical capacity, adds read noise, clips at the pre-ADC
- * electron-equivalent threshold, converts with the system conversion gain, adds the black pedestal,
- * adds any declared ADC integral non-linearity, rounds, limits to the ADC code range, applies any
- * post-ADC digital gain about black, re-rounds and clamps at the digital saturation code
- * (`simulateSensorRawCode`). A signal at the lower of the two electron thresholds therefore encodes to
+ * The readout model (`simulateSensorRawCode`) does this, in order: clips charge at physical capacity,
+ * adds read noise, clips at the pre-ADC threshold (in electron equivalents), converts with the system
+ * conversion gain, adds the black pedestal, adds any declared ADC integral non-linearity (INL), rounds,
+ * limits to the ADC code range, applies any post-ADC digital gain about black, rounds again and clamps
+ * at the digital saturation code. So a signal at the lower of the two electron thresholds encodes to
  *
  *   I = B + min(C, P)/G,   A = min(Amax, round(I + INL(I))),   W = min(D, round((A − B)·d + B))
  *
@@ -18,8 +18,8 @@
  * omitted) and D the digital saturation code. With d = 1 and no INL, W = min(D, round(B + min(C, P)/G)).
  * This is the "fully saturated encoding level" of DNG 1.7 `WhiteLevel` (Adobe DNG Specification
  * 1.7.1.0, tag 50717) and the saturation point of EMVA 1288 Release 4.0 (signal at which the camera
- * saturates). Read noise added after physical clipping may scatter individual clipped codes slightly
- * above or below W; development therefore also consumes the per-site saturation flags.
+ * saturates). Read noise added after physical clipping can push individual clipped codes slightly
+ * above or below W, so development also uses the per-site saturation flags.
  * @see docs/PHOTOGRAPHIC_EXPORT.md
  */
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -40,7 +40,7 @@ export interface EffectiveSaturationReadout {
   /** Declared ADC integral non-linearity, the readout regime's `adc.integralNonLinearity`. */
   integralNonLinearity?: { kind: "piecewise-linear-code-offset"; knots: readonly { code: number; offsetCodes: number }[] };
 }
-/** Piecewise-linear INL offset at continuous input code `code`, held constant beyond the end knots. */
+/** Piecewise-linear INL offset at continuous input code `code`. Beyond the end points it stays constant. */
 function inlOffset(inl: EffectiveSaturationReadout["integralNonLinearity"], code: number): number {
   if (inl === undefined) return 0;
   const knots = inl.knots, first = knots[0], last = knots[knots.length-1];
@@ -89,9 +89,10 @@ export function nativeCfaPhaseIndex(index: number, nativeWidth: number, repeatWi
 }
 
 /**
- * Per-CFA-phase accumulator for packed native RAW. White level is a readout/capacity constant, so
- * it is retained once per absolute CFA phase (indexed `phaseY*repeatWidth+phaseX`, like the
- * reconstruction phase table) instead of per pixel. A phase whose sites disagree fails closed.
+ * Collects the white level per CFA phase for packed native RAW. White level depends only on readout
+ * and capacity settings, so it is stored once per absolute CFA phase (indexed
+ * `phaseY*repeatWidth+phaseX`, like the reconstruction phase table) instead of per pixel. If sites in
+ * one phase disagree, it throws.
  */
 export function createPhaseWhiteLevelAccumulator(nativeWidth: number, repeatWidth: number, repeatHeight: number): {
   record(index: number, code: number): void; finish(): Uint16Array;

@@ -4,11 +4,10 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateImagingAreaMetrics
 
-Calculates physical imaging-area metrics independently from native raster
-density.
+Calculates metrics of the physical imaging area, independent of pixel count.
 
-Crop factor uses the diagonal ratio to a 36 × 24 mm reference frame.
-Digital/output crops are not part of this physical imaging-area quantity.
+Crop factor is the ratio of diagonals to a 36 × 24 mm reference frame. It
+does not include any digital or output crop.
 
 ```ts
 export function calculateImagingAreaMetrics(
@@ -20,12 +19,12 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## calculateSensorGeometryMetrics
 
-Calculates physical imaging-area, native-raster, and geometric sampling
-metrics without coupling sensor size to resolution.
+Calculates metrics of the physical imaging area, the native pixel grid and
+the sample spacing, keeping sensor size and resolution independent.
 
-The supplied raster is assumed to span the supplied imaging area. Derived
-sampling pitch is geometric sample spacing only and must not be interpreted
-as photosite fill factor or photon-collection area.
+The grid is assumed to cover the whole imaging area. The derived pitch is
+only the spacing between samples. Do not read it as the photosite's fill
+factor or light-collecting area.
 
 ```ts
 export function calculateSensorGeometryMetrics(
@@ -59,8 +58,8 @@ export interface ImagingAreaMetrics {
   /**
    * Diagonal crop factor relative to a 36 × 24 mm reference frame.
    *
-   * This is a physical imaging-area quantity and does not include later
-   * digital/output cropping.
+   * It describes the physical imaging area only, and does not include any
+   * later digital or output crop.
    */
   cropFactor35Mm: number;
 }
@@ -68,10 +67,10 @@ export interface ImagingAreaMetrics {
 
 ## NativeImageRaster
 
-Native effective image-sampling raster associated with an imaging area.
+The native pixel grid of an imaging area.
 
-This alias identifies semantic role; generic active/output rasters should
-use RasterDimensions instead.
+This alias names the role. For other grids, such as active or output
+images, use RasterDimensions.
 
 ```ts
 export type NativeImageRaster = RasterDimensions;
@@ -79,10 +78,10 @@ export type NativeImageRaster = RasterDimensions;
 
 ## RasterDimensions
 
-Native effective image-sampling raster associated with an imaging area.
+Width and height of an image grid in pixels.
 
-The raster describes effective image samples. It does not imply that each
-sample corresponds one-to-one with a physical photodiode/photosite.
+Pixels here are image samples. That does not mean each sample matches one
+physical photodiode (photosite).
 
 ```ts
 export interface RasterDimensions {
@@ -110,15 +109,15 @@ export interface SensorGeometryMetrics {
   };
   sampling: {
     /**
-     * Horizontal geometric sampling pitch in micrometres.
+     * Horizontal sample spacing (pitch) in micrometres.
      *
-     * This is image-sample spacing, not physical photodiode active area.
+     * This is the spacing between image samples, not the photodiode's active area.
      */
     pitchXMicrometers: number;
     /**
-     * Vertical geometric sampling pitch in micrometres.
+     * Vertical sample spacing (pitch) in micrometres.
      *
-     * This is image-sample spacing, not physical photodiode active area.
+     * This is the spacing between image samples, not the photodiode's active area.
      */
     pitchYMicrometers: number;
     /** Horizontal sampling pitch divided by vertical sampling pitch. */
@@ -129,9 +128,9 @@ export interface SensorGeometryMetrics {
 
 ## SensorImagingArea
 
-Physical photosensitive imaging area used for image formation.
+The physical light-sensitive imaging area used for image formation.
 
-This is deliberately not a sensor package/die dimension.
+It is deliberately not the size of the sensor package or die.
 
 ```ts
 export interface SensorImagingArea {

@@ -4,8 +4,8 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculatePrintRegionDetail
 
-Calculate one coherent regional fundamental and its print reference scale.
-Acquisition remains unknown; no MTF, noise, compression or perceptual pass is produced.
+Calculates the strength of one grating frequency in a region and its print reference scale.
+How the image was acquired stays unknown. No MTF, noise, compression or perceptual pass is reported.
 
 ```ts
 export function calculatePrintRegionDetail(value: PrintRegionDetailInput): CalculationResult<PrintRegionDetailAssessment>;
@@ -15,7 +15,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## MAX_PRINT_DETAIL_REGION_SAMPLES
 
-Work bound for one dense ROI, not an actual-device capability claim.
+Work limit for one dense region of interest (ROI). It does not say what a real device can handle.
 
 ```ts
 MAX_PRINT_DETAIL_REGION_SAMPLES = 65536
@@ -23,8 +23,8 @@ MAX_PRINT_DETAIL_REGION_SAMPLES = 65536
 
 ## parsePrintRegionDetailInput
 
-Parse/copy bounded, untrusted region/source/target data and existing Print geometry.
-Unknowns, sparse arrays and factual-reference-only numeric samples fail closed.
+Parses and copies untrusted, bounded region, source and target data and the existing print geometry.
+Unknown fields, sparse arrays and samples marked factual-reference-only are rejected.
 
 ```ts
 export function parsePrintRegionDetailInput(value: unknown): PrintRegionDetailInput;
@@ -34,7 +34,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## PRINT_REGION_DETAIL_MODEL_VERSION
 
-Metric/protocol identity; independent of the root creator version.
+Version of this metric and protocol. Independent of the engine version.
 
 ```ts
 PRINT_REGION_DETAIL_MODEL_VERSION = "0.1.0" as const
@@ -42,8 +42,8 @@ PRINT_REGION_DETAIL_MODEL_VERSION = "0.1.0" as const
 
 ## PrintDetailRegion
 
-Selected half-open rectangle in the represented oriented retained raster.
-Depth is descriptive, in metres; null explicitly means unknown.
+The selected half-open rectangle in the oriented, retained source image.
+Depth is descriptive, in metres; null means unknown.
 
 ```ts
 export interface PrintDetailRegion {
@@ -57,7 +57,7 @@ export interface PrintDetailRegion {
 
 ## PrintDetailSource
 
-Exact represented source; content hash and decoding are caller assertions.
+The exact source image. The caller asserts the content hash and decoding; the engine does not check them.
 
 ```ts
 export interface PrintDetailSource {
@@ -76,7 +76,7 @@ export interface PrintDetailSource {
 
 ## PrintRegionDetailAssessment
 
-Immutable snapshot with no full-system, artifact, perception or print-quality pass.
+Frozen result. It never reports a pass for the full system, artefacts, perception or print quality.
 
 ```ts
 export interface PrintRegionDetailAssessment {
@@ -104,7 +104,7 @@ export interface PrintRegionDetailAssessment {
 
 ## PrintRegionDetailInput
 
-Own/reusable scalar relative-linear ROI samples; no RGB/luma conversion is inferred.
+Input: single-channel, relative-linear ROI samples that are the caller's own or reusable data. No RGB or luma conversion is assumed.
 
 ```ts
 export interface PrintRegionDetailInput {
@@ -119,7 +119,7 @@ export interface PrintRegionDetailInput {
 
 ## PrintSinusoidalMeasurement
 
-Calculated coefficients for one declared grating; residual is not a noise metric.
+Fitted coefficients for one declared grating. The residual is not a noise measurement.
 
 ```ts
 export interface PrintSinusoidalMeasurement {
@@ -133,7 +133,7 @@ export interface PrintSinusoidalMeasurement {
 
 ## PrintSinusoidalTarget
 
-Coherent integer Fourier mode; x right/y down, arbitrary phase at first ROI sample.
+The target grating: a whole-number Fourier mode across the ROI (x right, y down), with any phase at the first ROI sample.
 Input modulation is dimensionless, positive and at most one.
 
 ```ts

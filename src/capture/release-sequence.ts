@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Resolves one deterministic logical still-release sequence. Sensor capture-mode internals remain
- * separate. This function schedules logical exposures only and never uses render speed/frame rate as
- * capture timing.
- * Produces an explicit cancelled sequence state without mutating the scheduled source sequence or
- * leaving the completed/omitted frame boundary ambiguous.
+ * Shutter-release sequences for stills (single, burst, self-timer, bracketing), scheduled as logical exposures, and
+ * cancelling a sequence part-way.
+ *
+ * This only schedules exposures; how the sensor captures each one is handled elsewhere. Render speed
+ * or frame rate is never used as capture timing.
  * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -755,11 +754,10 @@ function intervalForPreviousFrame(
 }
 
 /**
- * Resolves one deterministic logical still-release sequence.
+ * Resolves one deterministic still-release sequence.
  *
- * Sensor capture-mode internals remain separate. This function schedules
- * logical exposures only and never uses render speed/frame rate as capture
- * timing.
+ * It schedules logical exposures only; how the sensor captures each one is
+ * handled elsewhere. Render speed or frame rate is never used as capture timing.
  */
 export function resolveReleaseSequence(
   input:
@@ -1042,8 +1040,8 @@ export function resolveReleaseSequence(
 }
 
 /**
- * Produces an explicit cancelled sequence state without mutating the scheduled
- * source sequence or leaving the completed/omitted frame boundary ambiguous.
+ * Returns a cancelled copy of a sequence. The original scheduled sequence is not
+ * changed, and it is always clear which frames were completed and which were dropped.
  */
 export function createCancelledReleaseSequence(
   input:

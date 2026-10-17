@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Calculates dimensions remaining after a centered, same-aspect-ratio crop.
+ * Centred crop that keeps the aspect ratio: the pixel dimensions left after cropping by a
+ * linear crop factor.
  * @see docs/PROCESSED_OUTPUT.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -18,19 +18,21 @@ import {
 } from "../core/validation.js";
 import { requireInputObject } from "../core/record-validation.js";
 
-/** Quotient rounding noise, in ulps of the quotient, that still counts as the next whole pixel. */
+/** How close a quotient may be to the next whole pixel, in ULPs (units in the last place), and still count as it. */
 const WHOLE_PIXEL_SNAP_ULPS = 4;
 
 /**
- * Largest whole-pixel count not exceeding `length` (at least 1). Only a value
- * at most 4 ulps below the next integer counts as that integer, because a
- * quotient such as 4480 / (7 / 3) = 1919.9999999999998 is the exact 1920 with
- * the divisor's rounding error; floorWholePixels(4480 / (7 / 3)) therefore gives
- * 1920 rather than dropping a pixel. The tolerance scales with the binary64
- * spacing of `length`, not with an absolute fraction of it, so a genuinely
- * fractional count (6000 / 1.0000000001, or 1e9 / 1.5) is always floored and the
- * result never exceeds `length` by more than that rounding noise.
- * Repository-internal helper; not a root package export.
+ * The largest whole-pixel count not exceeding `length` (at least 1).
+ *
+ * A value at most 4 ULPs below the next integer counts as that integer. For example,
+ * 4480 / (7 / 3) = 1919.9999999999998 is really 1920 plus the divisor's rounding
+ * error, so floorWholePixels(4480 / (7 / 3)) returns 1920 instead of losing a pixel.
+ *
+ * The tolerance scales with the double-precision spacing of `length`, not with a
+ * fixed fraction of it. So a truly fractional count (6000 / 1.0000000001, or
+ * 1e9 / 1.5) is always rounded down, and the result never exceeds `length` by more
+ * than that rounding error.
+ * Internal to the repository; not exported from the package.
  */
 export function floorWholePixels(length: number): number {
   const floor = Math.floor(length);
@@ -47,11 +49,11 @@ export interface CalculateCenteredCropInput {
   /** Original image height in pixels. */
   pixelHeight: number;
   /**
-   * Linear crop factor. 1 means no crop; 1.5 retains at most 1 / 1.5 of each
-   * dimension. The shorter axis is floor(dimension / cropFactor); the longer
-   * axis is the integer nearest the source aspect ratio, capped at
-   * floor(dimension / cropFactor), so the aspect ratio is preserved as closely
-   * as whole pixels allow.
+   * Linear crop factor. 1 means no crop; 1.5 keeps at most 1 / 1.5 of each
+   * dimension. The shorter axis is floor(dimension / cropFactor). The longer
+   * axis is the integer that best matches the source aspect ratio, capped at
+   * floor(dimension / cropFactor). This keeps the aspect ratio as close as
+   * whole pixels allow.
    */
   cropFactor: number;
 }
@@ -65,7 +67,7 @@ export interface CenteredCrop {
 }
 
 /**
- * Calculates dimensions remaining after a centered, same-aspect-ratio crop.
+ * Calculates the dimensions left after a centred crop that keeps the aspect ratio.
  *
  * @param input Original dimensions and linear crop factor.
  * @returns Remaining pixel dimensions and area fraction.
@@ -84,10 +86,10 @@ export function calculateCenteredCrop(
     );
   }
 
-  // Floor the shorter axis (never exceeding 1 / cropFactor of it), then derive
-  // the longer axis from that integer so the ratio is as close as integers
-  // allow. The derived axis is also capped at floor(longer / cropFactor), so a
-  // crop never keeps more than 1 / cropFactor of either dimension.
+  // Round the shorter axis down (never more than 1 / cropFactor of it). Then
+  // derive the longer axis from that integer so the ratio is as close as whole
+  // pixels allow. The longer axis is also capped at floor(longer / cropFactor),
+  // so a crop never keeps more than 1 / cropFactor of either dimension.
   const landscape = input.pixelWidth >= input.pixelHeight;
   const shortSource = landscape ? input.pixelHeight : input.pixelWidth;
   const longSource = landscape ? input.pixelWidth : input.pixelHeight;

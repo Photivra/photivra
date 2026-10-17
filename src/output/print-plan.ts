@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/** Native-only print geometry. No image generation or perceived-quality certification.
+/** Print planning: how many native pixels a print of a given size and viewing distance needs.
+ * It uses native capture pixels only. It does not make an image or certify perceived quality.
  * @see docs/PRINT_PLANNING.md for equations, rounding and support limits.
  */
 import { calculatedResult, approximationResult, type CalculationResult } from "../core/calculation-result.js";
@@ -11,28 +12,28 @@ import { ENGINE_API_VERSION } from "../core/version.js";
 import { resolveCaptureGeometry, type ResolveCaptureGeometryInput } from "./capture-geometry.js";
 import type { RasterDimensions } from "../sensor/sensor-geometry.js";
 
-/** Physical length, separate from raster pixels and printer dots. */
+/** A physical length. Not to be confused with image pixels or printer dots. */
 export interface PrintLength { value: number; unit: "mm" | "cm" | "inches" | "m" }
-/** Flat printed image area; excludes paper, borders and wraps. */
+/** The flat printed image area. It excludes paper margins, borders and canvas wraps. */
 export interface PrintedImageSize { width: number; height: number; unit: PrintLength["unit"] }
-/** Explicit angular convention; manual PPI starts a different plan. */
+/** How to choose pixel density: one of three angular criteria at the viewing distance, or a manual PPI (pixels per inch), which gives a different kind of plan. */
 export type PrintSamplingCriterion =
   | { kind: "angular-pixel-pitch"; maximumArcminutesPerPixel: number }
   | { kind: "angular-stroke"; strokeWidthArcminutes: number; samplesPerStroke: number }
   | { kind: "angular-line-pair"; periodArcminutes: number; samplesPerPeriod: number }
   | { kind: "manual-ppi"; pixelsPerInch: number };
-/** Declared authoritative geometry, not a preview or resampled pixel count. */
+/** The declared native source geometry. Not a preview or a resampled pixel count. */
 export type PrintNativeSource =
   | { kind: "native-retained"; captureId: string; geometry: ResolveCaptureGeometryInput }
   | { kind: "unavailable"; reason: "missing-native-raster" | "unverified-native-identity" };
-/** Caller-supplied lab constraints; no vendor catalog or delivery guarantee. */
+/** Print lab requirements supplied by the caller. There is no vendor catalogue and no guarantee of what a lab will accept. */
 export interface PrintProviderConstraints {
   minimumRaster?: RasterDimensions;
   exactRaster?: RasterDimensions;
   minimumPpi?: number;
   exactPpi?: number;
 }
-/** Exact-ratio output policy. Physical aspect tolerance is explicit and reported. */
+/** Plan input. The output keeps the exact native aspect ratio; the allowed physical aspect error is explicit and reported. */
 export interface PrintPlanInput {
   source: PrintNativeSource;
   printedImage: PrintedImageSize;
@@ -41,13 +42,13 @@ export interface PrintPlanInput {
   fit: { kind: "confirmed-native-aspect"; maximumRelativeAspectError: number };
   provider?: PrintProviderConstraints;
 }
-/** Per-axis density and angular pitch; angular values are geometry, not acuity. */
+/** Pixel density and angular pixel pitch for each axis. The angles are pure geometry, not a measure of visual acuity. */
 export interface PrintRasterSampling {
   raster: RasterDimensions;
   pixelsPerInch: { x: number; y: number };
   angularPixelPitchArcminutes: { x: number; y: number };
 }
-/** Finite conditional plan. Null recommendation never authorizes an upscale. */
+/** A plan, valid only under its stated conditions. A null recommendation never means it is fine to upscale. */
 export interface PrintPlan {
   engineApiVersion: string;
   input: PrintPlanInput;
@@ -97,7 +98,7 @@ function geometry(value: unknown): ResolveCaptureGeometryInput {
     if (g[key] !== undefined) record(g[key], ["x", "y", "width", "height"]);
   }
   if (g.outputRaster !== undefined) raster(g.outputRaster);
-  // Existing geometry owns units, orientations, bounds and optical-axis semantics.
+  // The capture geometry module defines units, orientations, bounds and the optical axis.
   const parsed = g as unknown as ResolveCaptureGeometryInput;
   resolveCaptureGeometry(parsed);
   return structuredCloneGeometry(parsed);
@@ -145,7 +146,7 @@ function angularLimit(s: Exclude<PrintSamplingCriterion, { kind: "manual-ppi" }>
   }
 }
 
-/** Validate and copy an untrusted Print request; never infer native authority. */
+/** Validates and copies an untrusted print request. It never assumes the source is native if that is not declared. */
 export function parsePrintPlanInput(value: unknown): PrintPlanInput {
   const r = record(value, ["source", "printedImage", "viewingDistance", "sampling", "fit", "provider"]);
   const source = record(r.source, ["kind", "captureId", "geometry", "reason"]);
@@ -175,7 +176,7 @@ export function parsePrintPlanInput(value: unknown): PrintPlanInput {
 }
 function gcd(a: number, b: number): number { while (b !== 0) { const next = a % b; a = b; b = next; } return a; }
 function positiveSupported(...values: number[]): boolean { return values.every(v => Number.isFinite(v) && v > 0); }
-// Adjacent binary64 values implement outward rounding, not a criterion epsilon.
+// Stepping to the adjacent double rounds outward. It is not a tolerance on the criterion.
 function adjacentPositive(value: number, direction: "up" | "down"): number {
   const view = new DataView(new ArrayBuffer(8)); view.setFloat64(0, value);
   view.setBigUint64(0, view.getBigUint64(0) + (direction === "up" ? 1n : -1n));
@@ -196,9 +197,9 @@ function diagnostics(raster: RasterDimensions, width: number, height: number, di
   return { raster, pixelsPerInch: { x: 25.4 / px, y: 25.4 / py }, angularPixelPitchArcminutes: { x: 2 * Math.atan((px / distance) / 2) / RAD_PER_ARCMIN, y: 2 * Math.atan((py / distance) / 2) / RAD_PER_ARCMIN } };
 }
 
-/** Resolve the minimum exact-native-ratio file under declared sampling/lab constraints.
- * Angular guidance is approximate as a usage criterion; geometry is calculated.
- * No source detail, perceived quality, serializer or resource availability is assessed.
+/** Finds the smallest file, at the exact native aspect ratio, that meets the declared sampling and lab constraints.
+ * The angular guidance is an approximate rule of thumb; the geometry itself is calculated exactly.
+ * It does not assess source detail, perceived quality, file writing or available resources.
  */
 export function calculatePrintPlan(value: PrintPlanInput): CalculationResult<PrintPlan> {
   const input = parsePrintPlanInput(value);
@@ -242,7 +243,7 @@ export function calculatePrintPlan(value: PrintPlanInput): CalculationResult<Pri
     const candidate = input.sampling.kind === "manual-ppi" ? minimumRaster(native, w / 25.4 * ppi, h / 25.4 * ppi) : minimumRaster(native, w / p, h / p);
     return candidate !== null && candidate.pixelWidth <= native.pixelWidth && candidate.pixelHeight <= native.pixelHeight;
   };
-  // Return alternatives that survive their own documented integer policy.
+  // Return only alternatives that still pass their own documented integer rule.
   for (let i = 0; i < 8 && !fits(maxWidth, maxHeight, pitch); i++) {
     maxScale = adjacentPositive(maxScale, "down"); maxWidth = width * maxScale; maxHeight = height * maxScale;
   }
@@ -279,14 +280,14 @@ export function calculatePrintPlan(value: PrintPlanInput): CalculationResult<Pri
   return finish();
 }
 
-/** Size-limit query retains the reference image aspect and criterion.
- * Proportional viewing scales the supplied reference distance with both image axes.
+/** Input for the largest-print-size query. It keeps the reference plan's aspect ratio and criterion.
+ * With proportional viewing, the reference viewing distance scales with the image size.
  */
 export interface PrintSizeLimitInput {
   plan: PrintPlanInput;
   viewingDistancePolicy: "fixed" | "proportional-to-image-size";
 }
-/** Semantic bounds avoid Infinity sentinels; no-positive-size differs from invalid input. */
+/** Result of the size query. A status says "unbounded" rather than using Infinity. "no-positive-size" is a valid answer, not an input error. */
 export interface PrintSizeLimit {
   engineApiVersion: string;
   status: "finite" | "unbounded" | "no-positive-size" | "cannot-assess" | "unsupported";
@@ -294,8 +295,8 @@ export interface PrintSizeLimit {
   reasons: string[];
   referencePlan: PrintPlan;
 }
-/** Calculate a conditional size bound. Lab constraints require individual plans;
- * this first size-query contract reports them as unsupported rather than ignoring them.
+/** Calculates the largest print size under the stated conditions. Lab constraints need individual plans,
+ * so this size query reports them as unsupported rather than ignoring them.
  */
 export function calculatePrintSizeLimit(value: PrintSizeLimitInput): CalculationResult<PrintSizeLimit> {
   const r = record(value, ["plan", "viewingDistancePolicy"]);

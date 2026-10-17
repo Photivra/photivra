@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses reusable wavelength-dependent response data for semantic sensor channels without inferring
- * response from channel names or CFA family. Embedded multi-point curves require reusable-data or
- * Photivra-owned evidence. Public/factual references without reuse permission may support metadata but
- * cannot by themselves authorize copying numeric curve data into the engine.
- * Create an exact canonical-data binding to one parsed response channel so numeric curve substitution
- * cannot hide behind unchanged profile IDs. Channel IDs bind an explicit effective EQE or A/W curve,
- * or a separately evidenced filter-times-detector EQE representation. Support/interpolation/wavelength
- * basis and exact canonical channel data remain part of identity. Do not infer response from RGB
- * labels or extrapolate outside sampled support.
+ * Sensor spectral response: how strongly each sensor channel responds at each wavelength, as an EQE
+ * (external quantum efficiency) curve, an A/W responsivity curve, or a colour-filter curve times a
+ * detector EQE curve.
+ *
+ * Responses are never guessed from channel names (such as "red") or the CFA type, and are never
+ * extrapolated outside the sampled range. A numeric curve can be embedded only with evidence that the
+ * data is reusable or owned by Photivra; a public reference without reuse permission can support
+ * metadata but does not by itself allow copying its numbers into the engine.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -138,9 +136,9 @@ export type SensorSpectralChannelResponse =
     });
 
 /**
- * Current channel-binding format. v2 (package 2.0.0) serializes the parsed channel with sorted keys;
- * v1 (package 1.5.0 and earlier) used insertion-order JSON of the unparsed channel and is rejected
- * with an explicit version error rather than compared.
+ * Current channel-binding format. v2 (package 2.0.0) serializes the parsed channel with sorted keys.
+ * v1 (package 1.5.0 and earlier) used the unparsed channel's JSON in insertion order; it is rejected
+ * with an explicit version error instead of being compared.
  */
 export const SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT =
   "photivra-spectral-channel-response-canonical-json-v2" as const;
@@ -152,11 +150,12 @@ export interface SensorSpectralResponseChannelBinding {
 }
 
 /**
- * Versioned channel-response data linked to one exact color-sampling profile.
- * Each channel declares effective EQE, effective A/W response or separable filter
- * and detector EQE, sampled support/interpolation and an explicit wavelength basis.
- * Reference conditions, evidence and uncertainty retain their own validity. Names
- * such as red/green/blue never supply missing curves or justify extrapolation.
+ * Versioned response data for the channels of one exact colour-sampling profile.
+ * Each channel declares an effective EQE, an effective A/W response, or separate
+ * filter and detector EQE curves, with its sampled range, interpolation and an
+ * explicit wavelength basis (air or vacuum). Reference conditions, evidence and
+ * uncertainty each keep their own validity. Names such as red, green or blue
+ * never fill in a missing curve or justify extrapolation.
  */
 export interface SensorSpectralResponseProfile {
   schemaVersion: "0.1.0";
@@ -944,12 +943,12 @@ function parseChannelResponse(
 }
 
 /**
- * Parses reusable wavelength-dependent response data for semantic sensor
- * channels without inferring response from channel names or CFA family.
+ * Parses wavelength-dependent response data for sensor channels. Responses are
+ * never guessed from channel names or the CFA type.
  *
- * Embedded multi-point curves require reusable-data or Photivra-owned evidence.
- * Public/factual references without reuse permission may support metadata but
- * cannot by themselves authorize copying numeric curve data into the engine.
+ * An embedded multi-point curve needs evidence that the data is reusable or
+ * owned by Photivra. A public reference without reuse permission can support
+ * metadata, but does not by itself allow copying numeric curve data into the engine.
  */
 export function parseSensorSpectralResponseProfile(
   value: unknown
@@ -1019,18 +1018,17 @@ export function parseSensorSpectralResponseProfile(
 }
 
 /**
- * Create an exact canonical-data binding to one parsed response channel so numeric curve substitution
- * cannot hide behind unchanged profile IDs.
+ * Creates an exact binding to one parsed response channel's data, so a swapped numeric curve cannot
+ * hide behind an unchanged profile ID.
  *
- * Channel IDs bind an explicit effective EQE or A/W curve, or a separately evidenced
- * filter-times-detector EQE representation. Support/interpolation/wavelength basis and exact canonical
- * channel data remain part of identity. The channel is parsed first and serialized with sorted object
- * keys, so property order never changes the binding and malformed channels throw. Do not infer
- * response from RGB labels or extrapolate outside sampled support.
- * @param response - SensorSpectralChannelResponse. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns SensorSpectralResponseChannelBinding. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * The binding includes the channel's EQE or A/W curve (or its separately evidenced filter × detector
+ * EQE curves), its range, interpolation and wavelength basis, and the exact canonical channel data.
+ * The channel is parsed first and serialized with sorted object keys, so property order never changes
+ * the binding and a malformed channel throws.
+ * @param response - The input; see `SensorSpectralChannelResponse` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function createSensorSpectralResponseChannelBinding(
   response: SensorSpectralChannelResponse
@@ -1038,8 +1036,8 @@ export function createSensorSpectralResponseChannelBinding(
   return {
     format:
       SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT,
-    // Parse first so the binding never echoes unvalidated input, then sort keys
-    // so semantically equal channels bind identically regardless of key order.
+    // Parse first so the binding never repeats unvalidated input, then sort keys
+    // so channels with the same content bind identically whatever their key order.
     canonicalJson:
       stringifyCanonicalJson(
         parseChannelResponse(
@@ -1058,11 +1056,11 @@ export function createSensorSpectralResponseChannelBinding(
 }
 
 /**
- * Rejects a channel binding carried by a reduction unless it uses the current format. A v1 binding
- * from package 1.5.0 or earlier fails with an explicit version error: its content was computed by a
- * different serializer, so comparing it would report a misleading data mismatch. Recompute the
- * spectral quadrature and reduction with this release to obtain a v2 binding.
- * Repository-internal helper; not a root package export.
+ * Rejects a channel binding stored in a reduction unless it uses the current format. A v1 binding from
+ * package 1.5.0 or earlier fails with an explicit version error: a different serializer produced it, so
+ * comparing it would report a misleading data mismatch. Recompute the spectral quadrature and reduction
+ * with this release to get a v2 binding.
+ * Internal to the repository; not exported from the package.
  */
 export function requireCurrentSensorSpectralResponseChannelBinding(
   binding: unknown
@@ -1204,15 +1202,15 @@ function interpolateCurve<T extends {
 }
 
 /**
- * Resolves one semantic sensor-channel response at one wavelength.
+ * Returns one sensor channel's response at one wavelength.
  *
- * The resolver validates the response profile against the exact color-sampling
- * profile, refuses unresolved layered sampling, performs only declared
+ * It checks the response profile against the exact colour-sampling profile,
+ * rejects layered layouts whose sampling is not defined, uses only the declared
  * piecewise-linear interpolation, and never extrapolates.
  *
- * Direct effective response and separable filter×detector-QE are both supported.
- * QE and A/W responsivity remain distinct physical representations; this API
- * does not convert between them.
+ * Both a direct effective response and separate filter × detector QE curves are
+ * supported. QE and A/W responsivity are different physical quantities; this
+ * API does not convert between them.
  */
 export function resolveParsedSensorSpectralResponseAtWavelength(
   input:
@@ -1523,11 +1521,11 @@ export function resolveParsedSensorSpectralResponseAtWavelength(
 
 
 /**
- * Public spectral-response resolver for untrusted/raw profile inputs.
+ * Public spectral-response lookup for untrusted, unparsed profiles.
  *
- * Profiles are parsed once here. Internal composition code that has already
- * parsed both profiles may use resolveParsedSensorSpectralResponseAtWavelength
- * to avoid repeating full profile parsing for every wavelength node.
+ * The profiles are parsed here, once. Internal code that has already parsed
+ * both profiles can call resolveParsedSensorSpectralResponseAtWavelength, to
+ * avoid parsing them again for every wavelength node.
  */
 export function resolveSensorSpectralResponseAtWavelength(
   input:

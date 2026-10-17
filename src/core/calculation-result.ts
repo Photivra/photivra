@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validates result-quality metadata before it enters a public result envelope.
- * Creates a deterministic calculated-result envelope.
+ * The standard result envelope that every public calculation returns.
+ *
+ * An envelope pairs a value with provenance (how it was produced) and, when it can be
+ * stated, quality metadata (uncertainty and validity range). This module defines those
+ * types, validates quality metadata, and provides one constructor per provenance kind.
  * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
@@ -44,8 +46,8 @@ export type UncertaintySource =
 /**
  * Optional confidence metadata for a quantified uncertainty estimate.
  *
- * A confidence level is only meaningful when the basis can be stated. It must
- * not be used as a generic subjective confidence score.
+ * Give a confidence level only when you can state its basis. Do not use it as a
+ * general, subjective confidence score.
  */
 export interface UncertaintyConfidence {
   /** Confidence/coverage level as a fraction in the interval (0, 1]. */
@@ -90,8 +92,8 @@ export type UncertaintyEstimate =
   | RelativeUncertaintyEstimate;
 
 /**
- * Documented parameter range over which a model/calibration is considered
- * valid. This is model applicability metadata, not a statistical interval.
+ * The documented parameter range in which a model or calibration is valid.
+ * It says where the model applies. It is not a statistical interval.
  */
 export interface CalculationValidRange {
   /** JSON-style input/model parameter path, e.g. input.focusDistanceM. */
@@ -106,10 +108,10 @@ export interface CalculationValidRange {
 /**
  * Optional quality metadata for a calculation result.
  *
- * Components remain separate by default. Callers must not add, combine in
- * quadrature, or otherwise collapse uncertainty components unless a
- * scientifically justified composition method explicitly documents
- * independence/correlation assumptions.
+ * Uncertainty components stay separate. Do not add them, combine them in
+ * quadrature (root-sum-of-squares) or merge them in any other way, unless you use
+ * a scientifically justified method that documents its independence and
+ * correlation assumptions.
  */
 export interface CalculationQuality {
   uncertainty?: readonly UncertaintyEstimate[];
@@ -120,8 +122,8 @@ export interface CalculationQuality {
 /**
  * Standard result envelope for public scientific calculations.
  *
- * Deterministic analytical results remain lightweight: quality is omitted when
- * there is no defensible uncertainty/accuracy metadata to report.
+ * Deterministic analytical results stay lightweight. They omit `quality` when
+ * there is no defensible uncertainty or accuracy metadata to report.
  *
  * @typeParam T Serializable value returned by the calculation.
  */
@@ -333,11 +335,12 @@ function assertFiniteNumbers(
 }
 
 /**
- * Allocation-light pre-check with the same traversal as assertFiniteNumbers: own enumerable
- * string keys (Object.keys order, as Object.entries), array indices present in the array (as
- * forEach) and each object visited once. It builds no per-node path strings. The diagnostic
- * walk runs only when this finds a non-finite number, so the thrown error type and path
- * message are unchanged.
+ * Fast check for a non-finite number anywhere in a value tree. It builds no path strings.
+ *
+ * It walks the tree exactly as assertFiniteNumbers does: own enumerable string keys in
+ * Object.keys order (as Object.entries), array indices that are present (as forEach), and
+ * each object once. The slower diagnostic walk runs only when this finds a non-finite
+ * number, so the thrown error type and path message are unchanged.
  */
 function containsNonFiniteNumber(value: unknown, seen: WeakSet<object>): boolean {
   if (typeof value === "number") {
@@ -374,13 +377,17 @@ const FAST_SCAN_FINITE = 0, FAST_SCAN_NON_FINITE = 1, FAST_SCAN_UNDECIDED = 2;
 let fastFiniteScanBudget = 0;
 
 /**
- * Memo-free pre-scan (#3, 2.0 performance): the same traversal as containsNonFiniteNumber (own
- * enumerable string keys in Object.keys order, present array indices) without a WeakSet. It may
- * revisit shared nodes, so it stops as UNDECIDED once FAST_FINITE_SCAN_MAX_OBJECT_VISITS objects or
- * FAST_FINITE_SCAN_MAX_DEPTH nesting are reached (any cycle reaches the depth bound). Revisiting
- * cannot change the answer: the set of reachable numbers is the same with or without the memo. A
- * found non-finite number is reachable, and a completed scan saw every reachable number, so a
- * decided answer always equals the exact scan's; UNDECIDED falls back to that exact scan.
+ * Faster pre-scan that skips the visited-object WeakSet (a 2.0 performance change).
+ *
+ * It walks the tree like containsNonFiniteNumber (own enumerable string keys in Object.keys
+ * order, present array indices). Without a WeakSet it may visit a shared node more than once.
+ * So it gives up and returns UNDECIDED after FAST_FINITE_SCAN_MAX_OBJECT_VISITS objects or
+ * FAST_FINITE_SCAN_MAX_DEPTH levels of nesting. Any cycle hits the depth limit.
+ *
+ * Revisiting cannot change the answer, because the set of reachable numbers is the same
+ * either way. A non-finite number it finds is reachable, and a finished scan has seen every
+ * reachable number. So any decided answer equals the exact scan's answer. UNDECIDED falls
+ * back to the exact scan.
  */
 function scanNonFiniteWithoutMemo(value: unknown, depth: number): number {
   if (typeof value === "number") {
@@ -456,8 +463,8 @@ function validateProvenanceIdentity(provenance: CalculationProvenance): void {
 }
 
 /**
- * Estimated and calibrated results carry mandatory quality metadata; the
- * TypeScript signature alone does not stop JavaScript callers from omitting it.
+ * Estimated and calibrated results must carry quality metadata. The TypeScript
+ * signature alone cannot stop a JavaScript caller from leaving it out, so check at runtime.
  */
 function requireQuality(
   quality: CalculationQuality | undefined,

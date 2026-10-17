@@ -33,12 +33,12 @@ export interface AirRefractiveIndexReferenceConditions {
 
 ## calculatePhotonEnergyFromWavelength
 
-Convert a valid vacuum wavelength, or explicitly atmosphere-bound air wavelength, into optical
-frequency and photon energy using exact SI constants.
+Converts a vacuum wavelength, or an air wavelength with its stated atmosphere, into optical
+frequency and photon energy using the exact SI constants h and c.
 
-Photon energy uses exact SI h and c with vacuum wavelength. Air wavelength requires an
-exact-wavelength sourced phase index and atmosphere compatibility; lambdaVacuum = n*lambdaAir.
-Retained refractive-index uncertainty is not an automatically propagated photon-energy uncertainty.
+An air wavelength needs a sourced phase refractive index for that exact wavelength and matching
+atmosphere; λ_vacuum = n·λ_air. The index's uncertainty is kept but not automatically carried
+through to the photon energy.
 
 ```ts
 export function calculatePhotonEnergyFromWavelength(
@@ -69,12 +69,11 @@ export interface CalculatePhotonEnergyFromWavelengthInput {
 
 ## parseSourcedAirPhaseRefractiveIndex
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
-Photon energy uses exact SI h and c with vacuum wavelength. Air wavelength requires an
-exact-wavelength sourced phase index and atmosphere compatibility; lambdaVacuum = n*lambdaAir.
-Retained refractive-index uncertainty is not an automatically propagated photon-energy uncertainty.
+The index is the phase refractive index n of air at one exact wavelength, from a cited source, for
+stated atmospheric conditions. It converts air to vacuum wavelength: λ_vacuum = n·λ_air.
 
 ```ts
 export function parseSourcedAirPhaseRefractiveIndex(

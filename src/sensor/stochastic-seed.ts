@@ -1,24 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Deterministic stochastic-stream seed derivation for seeded sensor noise.
+ * Seeds for the random-number streams behind simulated sensor noise. The same inputs always give
+ * the same noise.
  *
- * Every per-site stream seed is a strong 32-bit hash of the capture seed, the absolute
- * native row-major site index and a fixed stream identifier. The hash is
- * MurmurHash3_x86_32 (Austin Appleby, placed in the public domain) applied to the
- * 12-byte little-endian message `[captureSeed, siteIndex, streamId]` with hash seed 0.
- * Its avalanche finalizer (`fmix32`) makes a one-bit input change flip each output bit
- * with probability close to 1/2, so neighbouring sites, the two streams of one site and
- * captures with nearby seeds receive unrelated stream seeds. A linear schedule such as
- * `seed + 2*index` fed into a linear generator (xorshift) does not have this property and
- * produced correlated, variance-deficient noise (issue #270).
+ * Each per-site stream seed is a strong 32-bit hash of the capture seed, the absolute native
+ * row-major site index and a fixed stream ID. The hash is MurmurHash3_x86_32 (Austin Appleby,
+ * placed in the public domain) of the 12-byte little-endian message `[captureSeed, siteIndex,
+ * streamId]` with hash seed 0. Its avalanche finalizer (`fmix32`) makes a one-bit input change flip
+ * each output bit with probability close to 1/2. So neighbouring sites, the two streams of one site
+ * and captures with nearby seeds get unrelated seeds. A linear schedule such as `seed + 2*index` fed
+ * into a linear generator (xorshift) lacks this property, and produced correlated noise with too
+ * little variance (issue #270).
  *
- * This is deterministic, non-cryptographic seed ownership. It is not a claim of
- * cryptographic unpredictability, and the statistical acceptance of the realized noise
- * is established by the moment/correlation tests, not by this hash alone.
+ * This is deterministic and not cryptographic; it does not claim unpredictability. The moment and
+ * correlation tests, not this hash alone, show that the resulting noise is statistically acceptable.
  */
 
-/** Stream identifiers. Changing them changes every realized RAW code. */
+/** Stream IDs. Changing them changes every simulated RAW code. */
 export const NATIVE_SITE_CHARGE_STREAM_ID = 0 as const;
 export const NATIVE_SITE_READ_NOISE_STREAM_ID = 1 as const;
 
@@ -50,9 +49,9 @@ function isUint32(value: number): boolean {
 }
 
 /**
- * Return the uint32 seed of one stochastic stream for one absolute native site.
- * All inputs must be uint32 integers; the site index is the full-frame native row-major
- * index, never a tile- or chunk-relative index, so execution chunking cannot alter it.
+ * Returns the uint32 seed of one random stream for one absolute native site.
+ * All inputs must be uint32 integers. The site index is the full-frame native row-major
+ * index, never relative to a tile or chunk, so how the work is split cannot change it.
  */
 export function deriveNativeSiteStreamSeedUint32(
   captureSeedUint32: number,
@@ -75,13 +74,15 @@ export interface DeterministicUniformStream {
 }
 
 /**
- * Create the deterministic non-cryptographic xorshift32 stream for one charge, read-noise or
- * fixed-pattern identity. The seed is first scrambled by the MurmurHash3 `fmix32` avalanche
- * finalizer: xorshift32 is linear over GF(2), so an unmixed (affine) seed would give nearby seeds
- * nearly identical first draws and spatially correlated, variance-deficient noise (issue #270). The
- * nonzero fallback avoids the absorbing zero state. Adding 0.5 before division produces values
- * strictly inside (0,1), so logarithmic Poisson/normal transforms never receive a zero or one
- * endpoint. Changing these mechanics changes realized RAW and requires model/replay review.
+ * Creates the deterministic, non-cryptographic xorshift32 random stream for one charge, read-noise
+ * or fixed-pattern identity.
+ *
+ * The seed is first scrambled by the MurmurHash3 `fmix32` avalanche finalizer. xorshift32 is linear
+ * over GF(2), so an unscrambled seed would give nearby seeds almost identical first draws, and noise
+ * that is correlated across the sensor with too little variance (issue #270). The nonzero fallback
+ * avoids the zero state, which xorshift can never leave. Adding 0.5 before dividing gives values
+ * strictly inside (0,1), so the logarithms in the Poisson and normal transforms never see 0 or 1.
+ * Changing any of this changes simulated RAW output and needs a model and replay review.
  */
 export function createDeterministicUniformStream(seedUint32: number): DeterministicUniformStream {
   let state = fmix32((seedUint32 ^ 0x9e3779b9) >>> 0);
@@ -100,8 +101,9 @@ export function createDeterministicUniformStream(seedUint32: number): Determinis
 }
 
 /**
- * Box–Muller transform of two open-interval uniforms (Box & Muller 1958). Each call consumes two
- * values and returns one signed unit-normal sample; no cached partner changes the seed schedule.
+ * Box–Muller transform of two uniform values in (0,1) (Box & Muller 1958). Each call uses two values
+ * and returns one standard normal sample. The second possible sample is not cached, so the order of
+ * draws from the stream never shifts.
  */
 export function sampleDeterministicStandardNormal(random: DeterministicUniformStream): number {
   const u1 = random.next();
@@ -110,8 +112,8 @@ export function sampleDeterministicStandardNormal(random: DeterministicUniformSt
 }
 
 /**
- * Fixed-pattern stream identifiers. They seed per-sensor-instance spatial patterns, never per-capture
- * temporal noise, and are hashed with the sensor-instance seed rather than the capture seed.
+ * Fixed-pattern stream IDs. They seed spatial patterns that belong to one physical sensor, never
+ * per-capture noise, and are hashed with the sensor-instance seed instead of the capture seed.
  */
 export const SENSOR_FIXED_PATTERN_PRNU_STREAM_ID = 16 as const;
 export const SENSOR_FIXED_PATTERN_DSNU_STREAM_ID = 17 as const;
@@ -120,11 +122,11 @@ export const SENSOR_FIXED_PATTERN_ROW_STREAM_ID = 19 as const;
 export const SENSOR_FIXED_PATTERN_COLUMN_STREAM_ID = 20 as const;
 
 /**
- * Return the uint32 seed of one fixed-pattern stream for one physical colour-sampling site.
- * MurmurHash3_x86_32 (hash seed 0) of the 16-byte little-endian message
- * `[sensorInstanceSeed, siteX, siteY, streamId]`. Site coordinates are absolute colour-sampling
- * lattice indices, so a pattern belongs to the sensor instance and is unchanged by crop, tiling or
- * the per-capture seed. Deterministic and non-cryptographic.
+ * Returns the uint32 seed of one fixed-pattern stream for one physical colour-sampling site: the
+ * MurmurHash3_x86_32 hash (hash seed 0) of the 16-byte little-endian message
+ * `[sensorInstanceSeed, siteX, siteY, streamId]`. Site coordinates are absolute indices in the
+ * colour-sampling grid, so the pattern belongs to the physical sensor and does not change with crop,
+ * tiling or the per-capture seed. Deterministic and not cryptographic.
  */
 export function deriveSensorFixedPatternSeedUint32(
   sensorInstanceSeedUint32: number,

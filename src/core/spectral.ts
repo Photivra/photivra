@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses a wavelength basis without inferring air/vacuum conversion.
- * Parses one positive wavelength coordinate in nanometres.
+ * Wavelength types and parsers: a wavelength basis (air or vacuum), a single wavelength and a
+ * wavelength interval, all in nanometres.
  * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
@@ -12,11 +11,11 @@ import { InvalidConfigurationError } from "./configuration-error.js";
 type UnknownRecord = Record<string, unknown>;
 
 /**
- * Explicit wavelength coordinate basis used by renderer-neutral spectral data.
+ * Whether wavelengths are measured in air or in vacuum.
  *
- * "unspecified" is permitted only where a downstream contract explicitly
- * allows unresolved/approximate wavelength coordinates. Calibrated physical
- * composition must resolve the basis before use.
+ * "unspecified" is allowed only where a downstream contract explicitly accepts
+ * unresolved or approximate wavelengths. Calibrated physical calculations must
+ * resolve the basis first.
  */
 export type SpectralWavelengthBasis =
   | "air"
@@ -71,7 +70,7 @@ function requirePositiveFinite(
 }
 
 /**
- * Parses a wavelength basis without inferring air/vacuum conversion.
+ * Parses a wavelength basis. It never converts between air and vacuum.
  */
 export function parseSpectralWavelengthBasis(
   value: unknown,

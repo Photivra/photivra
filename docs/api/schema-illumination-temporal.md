@@ -4,11 +4,10 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## evaluateSceneIlluminationTemporalMultiplier
 
-Evaluates one explicitly registered time-varying source multiplier at one
-physical capture time.
+Returns one registered source's time-varying multiplier at one capture time.
 
-Capture time is seconds from the first opening-boundary phase. Sensor data
-readout timing is not used as a time surrogate.
+Capture time is in seconds from the first opening boundary of the exposure. Sensor
+readout timing is never used in place of capture time.
 
 ```ts
 export function evaluateSceneIlluminationTemporalMultiplier(
@@ -53,11 +52,11 @@ export interface IntegrateSceneIlluminationTemporalMultiplierInput {
 
 ## integrateSceneIlluminationTemporalMultiplierOverExposureWindow
 
-Integrates one time-varying source multiplier over one authoritative local
-exposure window from #12 using deterministic midpoint quadrature.
+Integrates one source's time-varying multiplier over one local exposure window
+(from sensor/exposure-window), using the deterministic midpoint rule.
 
-This integrates relative temporal modulation only. It does not apply source
-magnitude, scene transport, optics, sensor response, or metering policy.
+It integrates only the relative modulation over time. It does not apply source
+magnitude, scene light transport, optics, sensor response or metering policy.
 
 ```ts
 export function integrateSceneIlluminationTemporalMultiplierOverExposureWindow(
@@ -70,12 +69,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parseSceneIlluminationTemporalProfile
 
-Parses time-varying illumination metadata as an additive overlay on one
-existing illumination profile.
+Parses a time-varying illumination profile that sits on top of one existing
+illumination profile.
 
-The base source magnitude/spectrum remain authoritative. Each binding applies
-one relative temporal multiplier waveform to one source. Unbound sources
-remain time-invariant.
+The base source magnitude and spectrum still apply. Each binding multiplies one
+source by one relative waveform over time. Sources with no binding stay constant.
 
 ```ts
 export function parseSceneIlluminationTemporalProfile(
@@ -244,7 +242,7 @@ export interface SceneIlluminationTemporalSourceBinding {
   captureTimeReference:
     "first-opening-boundary-phase";
   /**
-   * Capture-reference time at which waveform-local t=0 occurs.
+   * The capture time at which the waveform's own t=0 falls.
    *
    * waveformTime = captureTime - waveformTimeZeroSecondsFromCaptureReference
    */

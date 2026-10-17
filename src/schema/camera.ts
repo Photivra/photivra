@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * The legacy CameraConfiguration is a finite unit-bearing POC setting record, not a complete
- * equipment capability profile. Its parser lives in schema/validation; newer ISO/exposure
- * capabilities remain separate so adding a control policy does not reinterpret saved POC data.
+ * The legacy CameraConfiguration: one set of camera settings, with units, for the
+ * proof-of-concept (POC) simulation. It is not a full description of what a camera can do.
+ *
+ * Its parser is in schema/validation. Newer ISO and exposure capabilities are separate types,
+ * so adding a control policy never changes the meaning of saved POC data.
  * @see docs/RELEASE_1_0.md and the corresponding domain guide.
  */
 

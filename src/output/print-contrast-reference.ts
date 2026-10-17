@@ -3,7 +3,9 @@
 // group - University of Cambridge. MIT terms retained in NOTICE and
 // docs/licenses/castleCSF-MIT.txt. Original bounded TypeScript adapter.
 
-/** Static D65 neutral Gabor detection reference; no photographic visibility verdict.
+/** Contrast detection threshold for a static, neutral (D65 white) Gabor patch, from the castleCSF
+ * contrast sensitivity function (CSF) model. A Gabor patch is a sine grating under a Gaussian envelope.
+ * It does not say whether detail in a photograph will be visible.
  * @see docs/PRINT_CONTRAST_REFERENCE.md for exact source, applicability and review gates.
  */
 import { estimatedResult, type CalculationResult } from "../core/calculation-result.js";
@@ -13,23 +15,23 @@ import { requireAllowlistedRecord, requirePublicOpaqueId } from "../core/record-
 import { ENGINE_API_VERSION } from "../core/version.js";
 
 export const PRINT_CONTRAST_REFERENCE_MODEL_VERSION = "0.1.0" as const;
-/** Exact MIT-licensed numerical-model source, not a local calibration identity. */
+/** Identifies the exact MIT-licensed model source. It is not a local calibration. */
 export const PRINT_CONTRAST_REFERENCE_UPSTREAM_REVISION = "f4b0b722af83001d7af979281e06ca642d36e4e8" as const;
 
-/** Narrow reference stimulus, separate from any measured photographic ROI.
- * Positive but out-of-domain quantities return unsupported rather than extrapolation.
+/** The narrow reference stimulus. It is separate from any measured photographic region of interest (ROI).
+ * Positive values outside the model's range return "unsupported" instead of being extrapolated.
  */
 export interface PrintContrastReferenceInput {
   referenceId: string;
   stimulus: "static-neutral-d65-gabor";
   observer: "published-binocular-natural-pupil-reference";
-  /** Uniform D65 background/carrier mean; not the average of a finite photographic ROI. */
+  /** Mean luminance of the uniform D65 background and grating. Not the average of a photographic ROI. */
   meanLuminanceCdPerSquareMeter: number;
   spatialFrequencyCyclesPerDegree: number;
   gaussianEnvelopeSigmaDegrees: number;
   temporalFrequencyHz: number;
   eccentricityDegrees: number;
-  /** Neutral carrier fractional amplitude before the Gaussian envelope; not arbitrary ROI extrema. */
+  /** Fractional amplitude of the neutral grating before the Gaussian envelope. Not taken from ROI minimum and maximum values. */
   modulationMichelson: number;
 }
 export interface PrintContrastReference {
@@ -48,7 +50,7 @@ export interface PrintContrastReference {
   overallPrintVerdict: "not-offered";
 }
 
-/** Strictly parse/copy explicit reference conditions; no defaults infer an observer. */
+/** Strictly parses and copies the explicit reference conditions. No defaults are filled in to imply an observer. */
 export function parsePrintContrastReferenceInput(value: unknown): PrintContrastReferenceInput {
   const r = requireAllowlistedRecord(value, ["referenceId", "stimulus", "observer", "meanLuminanceCdPerSquareMeter", "spatialFrequencyCyclesPerDegree",
     "gaussianEnvelopeSigmaDegrees", "temporalFrequencyHz", "eccentricityDegrees", "modulationMichelson"], "Invalid Print contrast reference fields.");
@@ -66,8 +68,8 @@ export function parsePrintContrastReferenceInput(value: unknown): PrintContrastR
     eccentricityDegrees: number("eccentricityDegrees", false), modulationMichelson };
 }
 
-// Separately authored scalar evaluation of the licensed numerical model.
-// Stable log1p/expm1 evaluation retains the small hyperbolic saturation term.
+// Independently written scalar evaluation of the licensed numerical model.
+// Using log1p/expm1 keeps the small hyperbolic saturation term accurate.
 function luminanceDependency(p: readonly number[], luminance: number): number {
   if (p.length === 2) return p[1]! * luminance ** p[0]!;
   const first = p[0]! * Math.exp(-p[2]! * Math.log1p(p[1]! / luminance));
@@ -89,14 +91,14 @@ function staticNeutralSensitivity(luminance: number, frequency: number): number 
   const achromatic = sustained + transient * Math.exp(-((omegaPeak ** .1898) ** 2) / .0844836);
   const redGreen = component(frequency, area, luminanceDependency([681.434, 38.0038, .480386], luminance), .0178364, 2.42104, 1, 2816.44, .0711058);
   const yellowViolet = component(frequency, area, luminanceDependency([166.683, 62.8974, .41193], luminance), .00425753, 2.68197, 1, 2.82789e7, .000635093);
-  // Equal fractional modulation of the upstream D65 LMS background [L,M,S].
-  // All three mechanism responses remain, including nonzero opponent projections.
+  // Modulate each cone channel of the D65 LMS background [L,M,S] by the same fraction.
+  // All three mechanism responses are kept, including nonzero colour-opponent parts.
   const redGreenProjection = Math.abs(.6991 - 2.3112 * .3009);
   const yellowVioletProjection = Math.abs(-.6991 - .3009 + 50.9875 * .0198);
   return Math.hypot(achromatic, redGreenProjection * redGreen, yellowVioletProjection * yellowViolet);
 }
 
-/** Estimate the restricted published-model threshold; no individual invisibility claim. */
+/** Estimates the detection threshold from the published model, within its limited range. It does not claim that detail is invisible to any particular person. */
 export function calculatePrintContrastReference(value: PrintContrastReferenceInput): CalculationResult<PrintContrastReference> {
   const input = parsePrintContrastReferenceInput(value), l = input.meanLuminanceCdPerSquareMeter, f = input.spatialFrequencyCyclesPerDegree;
   const result: PrintContrastReference = { referenceId: input.referenceId, engineApiVersion: ENGINE_API_VERSION, modelVersion: PRINT_CONTRAST_REFERENCE_MODEL_VERSION,

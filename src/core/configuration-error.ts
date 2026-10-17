@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Configuration failure is distinct from a scientifically well-formed unsupported request. Parsers
- * throw this typed error rather than coercing invalid schema/policy data; assessment/production
- * layers retain structured blockers for their declared incomplete capability cases.
+ * The typed error for malformed configuration data.
+ *
+ * A malformed configuration is different from a valid request the engine cannot yet
+ * serve. Parsers throw this error instead of guessing at invalid schema or policy data.
+ * A valid but unsupported request does not throw; it returns structured blockers.
  * @see docs/RELEASE_1_0.md and the corresponding domain guide.
  */
 

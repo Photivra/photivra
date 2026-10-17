@@ -4,14 +4,8 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateExpectedSensorReadout
 
-Map expected charge through declared gain/offset/readout limits without stochastic sampling and
-retain separate clipping domains.
-
-Signal ordering is expected charge → independent seeded photo/dark draws → signed electronic read
-noise → upper pre-ADC threshold → black pedestal → nearest-half-up ADC quantization → unsigned code
-limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
-pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
-regime.
+Maps the expected charge through the declared gain, offset and readout limits, with no random
+sampling. Each kind of clipping (physical storage, pre-ADC, digital) is reported separately.
 
 ```ts
 export function calculateExpectedSensorReadout(
@@ -40,14 +34,10 @@ export interface CalculateExpectedSensorReadoutInput {
 
 ## parseSensorChargeSamplingProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
-Signal ordering is expected charge → independent seeded photo/dark draws → signed electronic read
-noise → upper pre-ADC threshold → black pedestal → nearest-half-up ADC quantization → unsigned code
-limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
-pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
-regime.
+The profile sets how expected charge is sampled into random photo and dark counts.
 
 ```ts
 export function parseSensorChargeSamplingProfile(
@@ -59,14 +49,10 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parseSensorReadoutConversionProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
-Signal ordering is expected charge → independent seeded photo/dark draws → signed electronic read
-noise → upper pre-ADC threshold → black pedestal → nearest-half-up ADC quantization → unsigned code
-limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
-pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
-regime.
+The profile lists the declared conversion regimes. ISO never invents a regime.
 
 ```ts
 export function parseSensorReadoutConversionProfile(
@@ -97,14 +83,8 @@ export interface ResolvedSensorReadoutRegime {
 
 ## resolveSensorReadoutRegime
 
-Select and validate a declared readout regime against exact channel/profile identity rather than
-inferring it from ISO.
-
-Signal ordering is expected charge → independent seeded photo/dark draws → signed electronic read
-noise → upper pre-ADC threshold → black pedestal → nearest-half-up ADC quantization → unsigned code
-limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
-pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
-regime.
+Selects a declared readout regime and checks it against the exact channel and profile identity.
+The regime is never inferred from ISO.
 
 ```ts
 export function resolveSensorReadoutRegime(
@@ -147,9 +127,9 @@ SENSOR_READOUT_CONVERSION_PROFILE_SCHEMA_VERSION =
 
 ## SensorAdcIntegralNonLinearity
 
-Optional ADC integral non-linearity: a piecewise-linear offset in code units (LSB) as a function
-of the ideal continuous ADC input code, added before quantization. Knots must start at code 0 and
-end at the ADC maximum code. Omission is an ideal uniform ADC.
+Optional ADC integral non-linearity (INL): an offset in code units (LSB, least significant bit),
+piecewise linear in the ideal continuous ADC input code, added before quantization. The points must
+start at code 0 and end at the ADC maximum code. If omitted, the ADC is ideal and uniform.
 
 ```ts
 export interface SensorAdcIntegralNonLinearity {
@@ -379,7 +359,7 @@ export interface SensorRawCodeSample {
     number;
   preAdcSaturationElectronEquivalent:
     number;
-  /** Signed electronic signal after upper saturation, before conversion/pedestal. */
+  /** Signed electronic signal after the upper (pre-ADC) clip, before conversion and the black pedestal. */
   electronEquivalentAfterPreAdcSaturation:
     number;
   preAdcSaturationApplied:
@@ -444,11 +424,12 @@ export interface SensorReadoutConversionProfile {
 
 ## SensorReadoutConversionRegime
 
-One explicitly selected electronic conversion regime, with sourced electrons
-per code, upper pre-ADC electron-equivalent threshold, independent RMS-electron
-read-noise components and unsigned ADC coding policy. Black pedestal and digital
-saturation are code-domain quantities. The regime does not infer its hardware
-mechanism or selection from ISO and does not replace physical storage capacity.
+One explicitly selected electronic conversion regime. It has a sourced number of
+electrons per code, an upper pre-ADC threshold in electron equivalents, separate
+read-noise components (RMS electrons) and an unsigned ADC coding policy. The black
+pedestal and digital saturation are in code units. The regime does not guess its
+hardware mechanism, is not chosen from ISO automatically, and does not replace
+physical storage capacity.
 
 ```ts
 export interface SensorReadoutConversionRegime {
@@ -485,10 +466,10 @@ export interface SensorReadoutConversionRegime {
 
 ## SensorReadoutExposureIndexGain
 
-Optional descriptive ISO-gain derivation of one regime (exposure index of CIPA DC-004 / ISO 12232 relative to the
-base exposure index). The numbers that enter the readout equations remain
-systemConversionGainElectronsPerCode (analog, pre-ADC) and adc.digitalGain (post-ADC); this
-record must agree with them and never replaces them.
+Optional record of how one regime's ISO gain was derived (the exposure index of CIPA DC-004 /
+ISO 12232, relative to the base exposure index). The readout equations still use
+systemConversionGainElectronsPerCode (analog, before the ADC) and adc.digitalGain (after the ADC).
+This record must agree with them and never replaces them.
 
 ```ts
 export interface SensorReadoutExposureIndexGain {
@@ -508,14 +489,11 @@ export interface SensorReadoutExposureIndexGain {
 
 ## simulateSensorChargeRealization
 
-Draw deterministic independently seeded photo/dark Poisson counts and explicit additional-component
-policies from expected accumulated charge.
+Draws deterministic, separately seeded Poisson counts for photo and dark charge, and applies the
+declared policies for additional components, starting from the expected accumulated charge.
 
-Signal ordering is expected charge → independent seeded photo/dark draws → signed electronic read
-noise → upper pre-ADC threshold → black pedestal → nearest-half-up ADC quantization → unsigned code
-limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
-pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
-regime.
+This is steps 1–2 of the readout order (see the module notes). Physical storage saturation is
+reported separately from later clipping.
 
 ```ts
 export function simulateSensorChargeRealization(
@@ -538,8 +516,9 @@ export interface SimulateSensorChargeRealizationInput {
     SensorChargeSamplingProfile;
   seedUint32: number;
   /**
-   * Optional per-sensor-instance fixed pattern. PRNU scales the photo Poisson mean and DSNU/hot
-   * pixels scale the dark Poisson mean. Omission is exactly the uniform population model.
+   * Optional fixed-pattern noise for this sensor. PRNU (photo-response non-uniformity) scales the
+   * photo Poisson mean; DSNU (dark-signal non-uniformity) and hot pixels scale the dark Poisson mean.
+   * If omitted, the result is exactly the uniform population model.
    */
   fixedPatternNoise?:
     SensorFixedPatternNoiseProfile;
@@ -548,14 +527,10 @@ export interface SimulateSensorChargeRealizationInput {
 
 ## simulateSensorRawCode
 
-Use the declared seed/regime to preserve signed electronic noise through pedestal and quantization,
-then return the bounded native ADC code and stage diagnostics.
-
-Signal ordering is expected charge → independent seeded photo/dark draws → signed electronic read
-noise → upper pre-ADC threshold → black pedestal → nearest-half-up ADC quantization → unsigned code
-limits. Signed below-black values survive until the final code clamp. Physical storage saturation,
-pre-ADC clipping and digital clipping have distinct diagnostics; ISO never invents a conversion
-regime.
+Simulates one RAW code from a charge realization with the declared seed and regime: steps 3–7 of
+the readout order (see the module notes). Signed read noise is kept through the black pedestal and
+quantization, and only the final code is clamped. Returns the bounded native ADC code and per-step
+diagnostics.
 
 ```ts
 export function simulateSensorRawCode(

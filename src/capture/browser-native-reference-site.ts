@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Repository-internal #234 dynamic site preparation.
+ * Internal: prepares one native sensor site (pixel) for the browser-native reference executor.
  *
- * One native site's environment, dark-current, charge-completeness and readout
- * dependencies are validated, copied, canonically identified and frozen once.
- * Photo/dark signal realization, accumulated charge, stochastic noise and RAW
- * remain execution-time state.
+ * The site's environment, dark-current, charge-completeness and readout inputs are validated,
+ * copied, given a canonical identity and frozen once. Photo and dark signal, accumulated charge,
+ * random noise and RAW values are still computed at execution time.
  */
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { freezeOwnedData } from "../core/owned-data.js";
@@ -285,9 +284,9 @@ function validateCapacityApplicability(
 }
 
 /**
- * Prepare one native site without retaining the existing per-sample execution
- * graph. planEnvironmentRawSite() remains the authoritative environment parser
- * and cross-binding validator for this bounded slice.
+ * Prepares one native site without keeping the per-sample execution graph.
+ * planEnvironmentRawSite() still parses the environment and checks that its
+ * bindings agree.
  */
 export function prepareBrowserNativeReferenceSite(
   eventPlan: PreparedBrowserNativeReferenceEventPlan,
@@ -344,7 +343,7 @@ export function prepareBrowserNativeReferenceSite(
 
   if (environmentPlan.owned.lensFieldMapping !== undefined) {
     // The browser-native executor integrates irradiance itself and does not apply the distortion
-    // area factor; fail closed rather than silently dropping it.
+    // area factor. Reject the input rather than silently dropping that factor.
     throw new InvalidConfigurationError(
       "Browser-native prepared sites do not yet support an environment lens field mapping."
     );

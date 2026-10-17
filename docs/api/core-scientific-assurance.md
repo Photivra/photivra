@@ -4,11 +4,13 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## ComposedScientificAssurance
 
-Cross-stage status and retained evidence for one declared scientific result.
-Required incomplete/approximate children constrain the aggregate; deterministic
-processing cannot upgrade approximation to calibration. Uncertainty components
-remain independently identified unless an explicit mathematical propagation model
-justifies a combination. A count of successful stages is not an accuracy bound.
+Combined status and kept evidence for one declared scientific result across stages.
+
+- A required input that is incomplete or approximate limits the combined status.
+- Deterministic processing cannot turn an approximation into a calibration.
+- Uncertainty components stay separate unless an explicit mathematical propagation
+  model justifies combining them.
+- A count of successful stages is not an accuracy bound.
 
 ```ts
 export interface ComposedScientificAssurance {
@@ -70,11 +72,11 @@ export type ComposedScientificUncertaintyStatus =
 
 ## composeScientificAssurance
 
-Composes scientific-status, evidence and uncertainty semantics without
-inventing a numeric aggregate uncertainty.
+Combines the scientific status, evidence and uncertainty of several inputs into one
+record, without inventing a single numeric uncertainty.
 
-Required downstream status is bounded by the weakest required input.
-Component evidence/uncertainty is preserved verbatim after validation.
+The combined status can be no better than the weakest required input. Each component's
+evidence and uncertainty is kept exactly as given, after validation.
 
 ```ts
 export function composeScientificAssurance(

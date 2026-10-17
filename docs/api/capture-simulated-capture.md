@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## CaptureExposureSource
 
-A procedural/physical source identity without a manufactured linear-master plane.
+Identifies a procedural or physical source, without making up a linear master plane.
 
 ```ts
 export type CaptureExposureSource = SimulatedCaptureInput["source"] | (Omit<SimulatedCaptureInput["source"], "kind"> & {kind:"scene-radiance-source"});
@@ -12,7 +12,7 @@ export type CaptureExposureSource = SimulatedCaptureInput["source"] | (Omit<Simu
 
 ## CaptureFloatStorage
 
-External bytes are caller-owned; the engine never reads a path or URL.
+External bytes belong to the caller. The engine never reads a path or URL.
 
 ```ts
 export type CaptureFloatStorage =
@@ -22,7 +22,7 @@ export type CaptureFloatStorage =
 
 ## CaptureLinearImageState
 
-Distinct linear domains, not one interchangeable 'linear' flag.
+Which kind of linear data a plane holds. These are different domains, not one interchangeable "linear" flag.
 
 ```ts
 export type CaptureLinearImageState = "scene-referred-xyz" | "virtual-sensor-channels" | "color-transformed-linear-rgb";
@@ -30,7 +30,7 @@ export type CaptureLinearImageState = "scene-referred-xyz" | "virtual-sensor-cha
 
 ## CaptureLinearPlane
 
-Linear float plane; all channels are co-sited and interleaved in row-major order.
+Linear float plane. All channels are sampled at the same positions and interleaved in row-major order.
 
 ```ts
 export interface CaptureLinearPlane {
@@ -42,9 +42,9 @@ export interface CaptureLinearPlane {
   pixelHeight: number;
   channelIds: readonly string[];
   colorProfile: CapturePublicProfileReference | null;
-  /** Defined for colorimetric/RGB encodings; null for unresolved sensor channels. */
+  /** Set for colorimetric (RGB) encodings; null for raw sensor channels with no colour meaning yet. */
   encodingReferenceWhiteXyz: CaptureWhiteXyz | null;
-  /** Value normalization, independent of capture saturation or eventual integer white. */
+  /** How values are normalized. Independent of capture saturation and of any later integer white level. */
   referenceWhiteValue: number;
   whiteBalanceApplication: "intent-only" | "applied-rgb-gains" | "applied-chromatic-adaptation" | "not-applicable";
   captureSaturation:
@@ -65,7 +65,7 @@ export interface CapturePublicProfileReference { id: string; version: string }
 
 ## CaptureWhiteBalanceIntent
 
-A resolved #108 choice, sanitized for public metadata. No estimator is rerun.
+A resolved white-balance state (ResolvedWhiteBalanceState), cleaned for public metadata. No WB estimator is rerun.
 
 ```ts
 export interface CaptureWhiteBalanceIntent {
@@ -87,7 +87,7 @@ export interface CaptureWhiteXyz { x: number; y: 1; z: number }
 
 ## createCaptureWhiteBalanceIntent
 
-Converts validated shooting WB into a public metadata allowlist, discarding private extras.
+Converts the validated shooting WB to the allowed public metadata fields, dropping private extras.
 
 ```ts
 export function createCaptureWhiteBalanceIntent(input: { state: ResolvedWhiteBalanceState }): CaptureWhiteBalanceIntent;
@@ -97,7 +97,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## createSimulatedCapture
 
-Commits a format-neutral float master manifest; no radiance generation, clamp, WB or export encoding.
+Commits a capture with a manifest of float master planes. No radiance generation, clipping, WB or file encoding.
 
 ```ts
 export function createSimulatedCapture(input: SimulatedCaptureInput): CalculationResult<SimulatedCapture>;
@@ -117,7 +117,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## resolveSimulatedCapturePlane
 
-Requires an exact plane image state; callers may not substitute another kind of 'linear'.
+Requires the exact image state of the plane. Callers cannot substitute another kind of "linear".
 
 ```ts
 export function resolveSimulatedCapturePlane(input: {
@@ -129,7 +129,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## serializeSimulatedCapture
 
-Canonical allowlisted JSON, including semantic samples/IDs, not private caches or file layout.
+Canonical JSON of the allowed fields, including sample values and IDs. Excludes private caches and file layout.
 
 ```ts
 export function serializeSimulatedCapture(input: { capture: SimulatedCapture }): string;
@@ -147,7 +147,7 @@ SIMULATED_CAPTURE_SCHEMA_VERSION = "0.2.0" as const
 
 ## SimulatedCapture
 
-Immutable committed value. Geometry/focal equivalence are derived, never caller overrides.
+The immutable committed capture. Geometry and equivalent focal length are computed, never taken from the caller.
 
 ```ts
 export interface SimulatedCapture extends SimulatedCaptureInput {
@@ -160,7 +160,7 @@ export interface SimulatedCapture extends SimulatedCaptureInput {
 
 ## SimulatedCaptureInput
 
-Format-neutral input from an upstream master/capture provider, not a preview image.
+Input from an upstream master or capture provider, independent of file format. Not a preview image.
 
 ```ts
 export interface SimulatedCaptureInput {
@@ -179,7 +179,7 @@ export interface SimulatedCaptureInput {
     dynamicRangeHistory: "unknown" | "no-loss-declared" | "upstream-clipped";
   };
   whiteBalanceIntent: CaptureWhiteBalanceIntent | null;
-  /** Adopted/WB white is a camera choice, not automatically the encoding white. */
+  /** The adopted (WB) white is a camera choice. It is not automatically the encoding white. */
   adoptedWhiteXyz: CaptureWhiteXyz | null;
   models: readonly { profile: CapturePublicProfileReference; scientificStatus: ProvenanceKind; publicEvidenceIds: readonly string[] }[];
   planes: readonly CaptureLinearPlane[];

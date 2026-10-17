@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Repository-internal #234 prepared-event scaffold.
+ * Internal: the prepared record for one browser-native capture event.
  *
- * This module freezes the event-level dependencies that are already knowable
- * before dynamic site/profile acquisition. It intentionally does not claim that
- * site-local optical/sensor/readout profiles are prepared yet; those unresolved
- * dependencies are named explicitly so cache/reuse cannot silently ignore them.
+ * It freezes the capture-wide inputs that are known before any per-site profile is
+ * read. It does not prepare the per-site optical, sensor or readout profiles; those
+ * are listed explicitly as unresolved, so caching or reuse cannot silently ignore them.
  */
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { parseEvidenceList } from "../core/evidence-provenance.js";
@@ -59,8 +58,8 @@ export interface PreparedBrowserNativeReferenceEventPlan {
     "site-readout-profile"
   ];
   /**
-   * Collision-free canonical identity for the owned prepared dependencies in
-   * this scaffold. This is an internal equality key, not a security digest.
+   * Collision-free canonical identity of the prepared inputs in this record.
+   * It is an internal equality key, not a security hash.
    */
   identityJson: string;
 }
@@ -100,11 +99,12 @@ function parseSceneBinding(
 }
 
 /**
- * Freeze event-level Path-A identity before scientific source execution.
+ * Freezes the capture-wide identity for the reference executor before any source
+ * light is computed.
  *
- * Dynamic site-local profiles remain explicit unresolved dependencies. This
- * scaffold therefore cannot be reused as if it were a complete prepared capture
- * plan; later #234 work must own/validate those profiles before execution.
+ * Per-site profiles stay listed as unresolved. So this record cannot be reused as
+ * a complete prepared capture plan; those profiles must be prepared and validated
+ * (browser-native-reference-site) before execution.
  */
 export function prepareBrowserNativeReferenceEventPlan(
   input: PrepareBrowserNativeReferenceEventPlanInput

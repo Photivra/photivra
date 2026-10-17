@@ -1,17 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Create the deterministic matching key for a spatial quadrature node; this is sample identity, not a
- * cryptographic checksum. Spatial node identity binds supplied values to deterministic AA/aperture
- * quadrature. Average weights and square-micrometre geometric area measures are separate.
- * Negative/non-finite irradiance or incomplete/duplicate coverage fail; geometry does not establish
- * QE, radiometric collection area or calibrated transport.
- * Revalidate node coordinates, weights, geometric measures and coverage before using a spatial plan as
- * a trusted scientific input. Spatial node identity binds supplied values to deterministic AA/aperture
- * quadrature. Average weights and square-micrometre geometric area measures are separate.
- * Negative/non-finite irradiance or incomplete/duplicate coverage fail; geometry does not establish
- * QE, radiometric collection area or calibrated transport.
+ * Spatial sample reduction: combines values sampled at the spatial quadrature nodes of one sensor site
+ * (its aperture plus the anti-aliasing (AA) split) into a site average and an area integral.
+ *
+ * Each supplied value is matched to its node by an explicit identity key. Average weights and
+ * geometric area measures (in square micrometres) are kept separate. Negative or non-finite irradiance,
+ * and missing or duplicate nodes, are rejected. The geometry does not establish QE (quantum
+ * efficiency), an effective light-collection area or calibrated light transport.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -53,10 +49,9 @@ export interface SensorSpatialQuadratureNodeIdentity {
 export interface SensorSpatialQuadratureNodeValue {
   node: SensorSpatialQuadratureNodeIdentity;
   /**
-   * Nonnegative finite scalar in the declared value domain.
+   * A nonnegative, finite number in the declared value domain.
    *
-   * Values are evaluated at the corresponding quadrature node's
-   * preAntiAliasingSourcePointMm.
+   * It is evaluated at the matching node's preAntiAliasingSourcePointMm.
    */
   value: number;
 }
@@ -65,9 +60,9 @@ export interface ReduceSensorSpatialSamplingQuadratureInput {
   quadrature: SensorSpatialSamplingQuadrature;
   valueDomain: SensorSpatialSampleValueDomain;
   /**
-   * Exactly one explicitly identified value per quadrature node.
+   * Exactly one value per quadrature node, each with its node identity.
    *
-   * Ordering is not significant; node identity is.
+   * Order does not matter; the node identity does.
    */
   nodeValues: readonly SensorSpatialQuadratureNodeValue[];
 }
@@ -79,13 +74,13 @@ export type SensorSpatialSampleReductionValue =
       semantic:
         "nonnegative-sensor-plane-irradiance-proxy";
       /**
-       * Dimensionless weighted spatial average in the same relative domain.
+       * Weighted spatial average (dimensionless), in the same relative domain.
        */
       normalizedSpatialAverageRelative: number;
       /**
        * Relative value × square micrometres.
        *
-       * This is a geometric area-weighted diagnostic, not radiometric power.
+       * A geometric, area-weighted diagnostic, not a radiometric power.
        */
       geometricAreaIntegralRelativeSquareMicrometers: number;
     }
@@ -94,18 +89,17 @@ export type SensorSpatialSampleReductionValue =
       unit: "W/m^2";
       semantic: "sensor-plane-irradiance";
       /**
-       * Weighted mean irradiance over the geometric aperture after applying
-       * the declared normalized AA spatial redistribution.
+       * Weighted mean irradiance over the geometric aperture, after the
+       * declared normalized AA spreading.
        */
       normalizedSpatialAverageIrradianceWattsPerSquareMeter: number;
       /**
-       * Incident radiant flux represented by integrating the supplied
-       * irradiance over the geometric aperture under the declared normalized
-       * AA redistribution. Units: watts.
+       * Incident radiant flux: the supplied irradiance integrated over the
+       * geometric aperture, with the declared normalized AA spreading.
+       * Units: watts.
        *
-       * This remains pre-CFA-response, pre-QE, pre-microlens-response and
-       * excludes any optical-stack throughput not already present in the
-       * caller-supplied irradiance values.
+       * It is before any CFA response, QE or microlens response, and excludes
+       * any optical-stack throughput not already in the caller's irradiance values.
        */
       geometricApertureIncidentFluxWatts: number;
     };
@@ -116,9 +110,9 @@ export interface SensorSpatialSampleReduction {
     y: number;
   };
   /**
-   * Semantic destination CFA/color-site label only.
+   * Label of the destination CFA (colour filter array) site only.
    *
-   * No spectral filter response is applied by this reducer.
+   * This reducer applies no spectral filter response.
    */
   channelId: string;
   outputMeaning:
@@ -259,17 +253,12 @@ function parseValueDomain(
 }
 
 /**
- * Create the deterministic matching key for a spatial quadrature node; this is sample identity, not a
- * cryptographic checksum.
+ * Makes the deterministic key used to match a value to its spatial quadrature node. It identifies the
+ * sample; it is not a cryptographic checksum.
+ * @param identity - The input; see `SensorSpatialQuadratureNodeIdentity` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
- * Spatial node identity binds supplied values to deterministic AA/aperture quadrature. Average weights
- * and square-micrometre geometric area measures are separate. Negative/non-finite irradiance or
- * incomplete/duplicate coverage fail; geometry does not establish QE, radiometric collection area or
- * calibrated transport.
- * @param identity - SensorSpatialQuadratureNodeIdentity. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns string. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
- *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function sensorSpatialQuadratureNodeIdentityKey(
   identity: SensorSpatialQuadratureNodeIdentity
@@ -344,17 +333,15 @@ function approximatelyEqual(
 }
 
 /**
- * Revalidate node coordinates, weights, geometric measures and coverage before using a spatial plan as
- * a trusted scientific input.
+ * Rechecks node coordinates, weights, geometric measures and coverage before a spatial plan is trusted
+ * as scientific input.
  *
- * Spatial node identity binds supplied values to deterministic AA/aperture quadrature. Average weights
- * and square-micrometre geometric area measures are separate. Negative/non-finite irradiance or
- * incomplete/duplicate coverage fail; geometry does not establish QE, radiometric collection area or
- * calibrated transport.
- * @param quadrature - SensorSpatialSamplingQuadrature. See the linked contract for coordinate, unit and profile binding semantics.
- * @returns Map<string, SensorSpatialSamplingQuadratureNode>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
+ * Average weights and geometric area measures are kept separate. The geometry does not establish QE,
+ * an effective light-collection area or calibrated light transport.
+ * @param quadrature - The input; see `SensorSpatialSamplingQuadrature` for its fields, units and coordinates.
+ * @returns The result. Success does not imply calibration.
  *
- * @see docs/API_REFERENCE.md for the root export and exact type graph.
+ * @see docs/API_REFERENCE.md for the package export and its full type definitions.
  */
 export function validateSensorSpatialSamplingQuadrature(
   quadrature: SensorSpatialSamplingQuadrature
@@ -601,23 +588,22 @@ function parseNodeValues(
 }
 
 /**
- * Reduces explicitly identified nonnegative linear scalar values over a
+ * Combines nonnegative linear values, each tagged with its node, over a
  * validated sensor spatial quadrature.
  *
- * This function does not sample a renderer or optical model itself. Callers
- * evaluate one value at every quadrature node's preAntiAliasingSourcePointMm
- * and provide those values with exact node identity. Ordering is deliberately
- * irrelevant.
+ * It does not sample a renderer or optical model itself. Callers evaluate one
+ * value at every node's preAntiAliasingSourcePointMm and pass the values with
+ * their exact node identity. Order does not matter.
  *
- * Two domains are supported:
+ * Two value domains are supported:
  *
- * - relative-linear: dimensionless nonnegative irradiance-like proxy for
- *   deterministic renderer/science regression;
- * - radiometric-irradiance: physical sensor-plane irradiance in W/m^2.
+ * - relative-linear: a dimensionless, nonnegative stand-in for irradiance, for
+ *   deterministic renderer and science regression tests;
+ * - radiometric-irradiance: physical irradiance on the sensor plane in W/m^2.
  *
- * The destination site's channelId is metadata only. No CFA spectral
- * transmittance/sensitivity is applied, so the output must not be called a
- * physically color-filtered mosaic sample or RAW value.
+ * The destination site's channelId is a label only. No CFA spectral
+ * transmittance or sensitivity is applied, so do not call the output a
+ * colour-filtered mosaic sample or a RAW value.
  */
 export function reduceSensorSpatialSamplingQuadrature(
   input: ReduceSensorSpatialSamplingQuadratureInput

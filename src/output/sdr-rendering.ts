@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validates every explicit rendering/encoding policy; unknown HDR/display modes fail.
- * Validates declared image state and a bounded finite inline raster; never resolves WB/color.
+ * The SDR (standard dynamic range) reference renderer: linear sRGB → rendering exposure → tone
+ * curve → gamut handling → sRGB transfer → integer codes.
+ *
+ * It takes linear RGB that already has colour and white balance (WB) applied. Unknown HDR or
+ * display modes are rejected.
  * @see docs/SDR_RENDERING.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
@@ -16,14 +18,14 @@ import { InvalidScientificResultError } from "../core/validation.js";
 
 export const SDR_RENDERING_SCHEMA_VERSION = "0.1.0" as const;
 /**
- * Version of the `generic-sdr-rendering-reference` model. 0.2.0: correct nearest-ties-up rounding
- * (`Math.round`; `Math.floor(x+.5)` rounded 0.49999999999999994 up) and luminance tone curves.
+ * Version of the `generic-sdr-rendering-reference` model. 0.2.0 added luminance tone curves and fixed
+ * round-to-nearest, ties up (`Math.round`; the old `Math.floor(x+.5)` rounded 0.49999999999999994 up).
  */
 export const SDR_RENDERING_MODEL_VERSION = "0.2.0" as const;
 /**
- * Tone curves. Per-channel curves act on each exposed component; luminance curves scale all three
- * components of a pixel by f(L)/L, with L the linear-sRGB/D65 relative luminance, so chromaticity is
- * preserved before gamut handling.
+ * Tone curves. A per-channel curve acts on each exposed component separately. A luminance curve
+ * scales all three components of a pixel by f(L)/L, where L is the linear-sRGB/D65 relative
+ * luminance, so the colour (chromaticity) is kept before gamut handling.
  * - `identity`: f(x)=x.
  * - `positive-reinhard-per-channel`: f(x)=x/(1+x) for x>0 (Reinhard et al. 2002, eq. 3), per channel.
  * - `extended-reinhard-luminance`: f(L)=L(1+L/Lw²)/(1+L) (Reinhard et al. 2002, eq. 4); L=Lw maps to 1.
@@ -35,7 +37,7 @@ export type SdrToneCurve = "identity" | "positive-reinhard-per-channel" | "exten
 export type SdrToneCurveParameters =
   | { whiteLuminance: number }
   | { exponent: number; semiSaturation: number; whiteLuminance: number };
-/** First-party rendering choices, independent of physical exposure and display calibration. */
+/** Rendering choices made by the engine user. They are independent of physical exposure and display calibration. */
 export interface SdrRenderingProfile {
   schemaVersion: typeof SDR_RENDERING_SCHEMA_VERSION;
   profileId: string;
@@ -51,7 +53,7 @@ export interface SdrRenderingProfile {
   rounding: "nearest-ties-up";
   dither: "none";
 }
-/** Only an explicitly color-transformed, co-sited linear-sRGB/D65 raster is accepted. */
+/** Only linear-sRGB/D65 data that has been explicitly colour-transformed, with all three channels at each pixel, is accepted. */
 export interface SdrRenderingInput {
   sourceImageStateId: string;
   inputImageState: "color-transformed-linear-rgb";
@@ -98,8 +100,8 @@ const LUMINANCE = resolveCaptureColorModel().cameraRgbToXyz[1]! as readonly numb
 /** Writes the three tone-mapped samples of one exposed pixel. Exposed values are finite. */
 export type SdrPixelTone = (red: number, green: number, blue: number, out: Float64Array | number[]) => void;
 /**
- * Internal shared tone operator: the reference renderer, the native SDR kernel and RAW development call
- * this one function, so every path has the same per-pixel operation order. Not a root export.
+ * Internal shared tone operator. The reference renderer, the native SDR kernel and RAW development all
+ * call this one function, so every path uses the same per-pixel operation order. Not exported from the package.
  */
 export function prepareSdrPixelTone(profile: Pick<SdrRenderingProfile, "toneCurve" | "toneCurveParameters">): SdrPixelTone {
   const curve = profile.toneCurve, p = profile.toneCurveParameters;
@@ -127,7 +129,7 @@ export function prepareSdrPixelTone(profile: Pick<SdrRenderingProfile, "toneCurv
     out[0] = mr; out[1] = mg; out[2] = mb;
   };
 }
-/** Validates every explicit rendering/encoding policy; unknown HDR/display modes fail. */
+/** Validates a rendering and encoding profile. Unknown HDR or display modes are rejected. */
 export function parseSdrRenderingProfile(value: unknown): SdrRenderingProfile {
   const r = object(value, ["schemaVersion", "profileId", "profileVersion", "renderingExposureEv", "toneCurve", "toneCurveParameters", "gamutHandling",
     "outputDynamicRange", "transferFunction", "bitDepth", "rounding", "dither"]);
@@ -142,7 +144,7 @@ export function parseSdrRenderingProfile(value: unknown): SdrRenderingProfile {
     ...(toneCurveParameters === undefined ? {} : { toneCurveParameters }), gamutHandling: r.gamutHandling, outputDynamicRange: r.outputDynamicRange, transferFunction: r.transferFunction,
     bitDepth: r.bitDepth, rounding: r.rounding, dither: r.dither };
 }
-/** Validates declared image state and a bounded finite inline raster; never resolves WB/color. */
+/** Validates the declared image state and a bounded, finite, inline image. It never applies white balance or colour conversion. */
 export function parseSdrRenderingInput(value: unknown): SdrRenderingInput {
   const r = object(value, ["sourceImageStateId", "inputImageState", "inputColorSpace", "whiteBalanceHandling",
     "pixelWidth", "pixelHeight", "referenceWhiteValue", "samples", "profile"]);
@@ -189,18 +191,20 @@ export interface SdrRenderingResult {
     gamutClippedLowSampleCount: number;
     gamutClippedHighSampleCount: number;
     /**
-     * `not-consumed`: upstream full-well/ADC/RAW saturation is unavailable, never inferred from output.
-     * `consumed-in-raw-development`: RAW development clipped or reconstructed flagged and white-level
-     * samples before white balance (see its highlight diagnostics).
+     * `not-consumed`: no upstream saturation data (full well, ADC or RAW) is available, and it is never
+     * guessed from the output.
+     * `consumed-in-raw-development`: RAW development already clipped or reconstructed flagged and
+     * white-level samples before white balance (see its highlight diagnostics).
      */
     captureSaturation: "not-consumed" | "consumed-in-raw-development";
   };
-  /** Platform color management follows this encoded output; no actual display is assessed. */
+  /** Describes the encoded output for the platform's colour management. No real display is assessed. */
   displayAdaptation: { kind: "external-platform"; applied: false; displayCapabilities: "unknown" };
 }
 /**
  * Standalone SDR rendering: rendering exposure → tone → gamut → sRGB transfer → quantization.
- * No physical capture, metering, WB/color/correction integration or display adaptation runs.
+ * No physical capture, metering, white balance, colour conversion, lens correction or display
+ * adaptation runs.
  */
 export function calculateSdrRendering(input: SdrRenderingInput): CalculationResult<SdrRenderingResult> {
   const value = parseSdrRenderingInput(input), p = value.profile;
