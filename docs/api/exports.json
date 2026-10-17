@@ -523,11 +523,6 @@
       "kind": "type"
     },
     {
-      "name": "calculateDegreeOfAdaptation",
-      "source": "src/color/chromatic-adaptation.ts",
-      "kind": "runtime"
-    },
-    {
       "name": "calculateDepthOfField",
       "source": "src/optics/depth-of-field.ts",
       "kind": "runtime"
@@ -8255,11 +8250,6 @@
     {
       "name": "VideoFrameSequence",
       "source": "src/motion/video-sequence.ts",
-      "kind": "type"
-    },
-    {
-      "name": "ViewingSurround",
-      "source": "src/color/chromatic-adaptation.ts",
       "kind": "type"
     },
     {

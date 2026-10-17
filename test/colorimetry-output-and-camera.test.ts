@@ -306,6 +306,7 @@ describe("capture-colour cone-space adaptation option", () => {
     expect(() => parseCaptureColorTransformInput({ ...r, whiteBalance: { kind: "adopted-white-xyz-scaling", transform: "hunt" } })).toThrow();
     // CAT02 is not part of 2.0 (no free source prints its matrix).
     expect(() => parseCaptureColorTransformInput({ ...r, whiteBalance: { kind: "adopted-white-xyz-scaling", transform: "cat02" } })).toThrow();
+    expect(() => parseCaptureColorTransformInput({ ...r, whiteBalance: { kind: "adopted-white-xyz-scaling", transform: "von-kries-hpe" } })).toThrow();
     expect(() => parseCaptureColorTransformInput({ ...r, whiteBalance: { kind: "preserve-intent", transform: "bradford" } })).toThrow();
     expect(parseCaptureColorTransformInput(r).whiteBalance).toEqual({ kind: "adopted-white-xyz-scaling", transform: "bradford" });
   });

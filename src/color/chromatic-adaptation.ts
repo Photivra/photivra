@@ -18,11 +18,10 @@
  *   doi:10.2352/ISSN.2169-2629.2017.32.208 (free from the IS&T library). Journal version:
  *   Li et al. (2017), "Comprehensive color solutions: CAM16, CAT16, and CAM16-UCS",
  *   Color Res. Appl. 42(6):703–718.
- * - von Kries with Hunt–Pointer–Estévez cones (equal-energy normalized), as used in
- *   CIECAM02 (Moroney et al. 2002; also CIE 159:2004).
  * - XYZ scaling: identity cone matrix (diagonal scaling in XYZ; the weakest model).
- * Degree of adaptation: CIECAM02 D = F[1 − (1/3.6) exp((−L_A − 42)/92)], F = 1.0
- * (average), 0.9 (dim), 0.8 (dark) surround.
+ * The degree of adaptation D is supplied by the caller (default 1, complete adaptation).
+ * CAT02, the von Kries Hunt–Pointer–Estévez matrix and the CIECAM02 formula for D are not
+ * part of 2.0: no free source we could confirm prints them (owner decisions, 2026-10-17).
  * @see docs/COLORIMETRY.md for equations, coordinate/unit conventions and limits.
  */
 
@@ -37,7 +36,6 @@ import {
   multiplyMatrixVector,
   parseWhiteXyz,
   parseXyz,
-  requireFiniteNumber,
   requireFiniteResult,
   requireNonNegativeNumber,
   vectorToXyz,
@@ -49,14 +47,13 @@ import { requireInputKeys } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** Supported linear chromatic-adaptation transforms. */
-export type ChromaticAdaptationTransform = "bradford" | "cat16" | "von-kries-hpe" | "xyz-scaling";
+export type ChromaticAdaptationTransform = "bradford" | "cat16" | "xyz-scaling";
 
-export const CHROMATIC_ADAPTATION_TRANSFORMS: readonly ChromaticAdaptationTransform[] = Object.freeze(["bradford", "cat16", "von-kries-hpe", "xyz-scaling"]);
+export const CHROMATIC_ADAPTATION_TRANSFORMS: readonly ChromaticAdaptationTransform[] = Object.freeze(["bradford", "cat16", "xyz-scaling"]);
 
 const CONE_MATRICES: Readonly<Record<ChromaticAdaptationTransform, ColorMatrix3x3>> = Object.freeze({
   bradford: [[0.8951, 0.2664, -0.1614], [-0.7502, 1.7135, 0.0367], [0.0389, -0.0685, 1.0296]],
   cat16: [[0.401288, 0.650173, -0.051461], [-0.250268, 1.204414, 0.045854], [-0.002079, 0.048952, 0.953127]],
-  "von-kries-hpe": [[0.38971, 0.68898, -0.07868], [-0.22981, 1.18340, 0.04641], [0, 0, 1]],
   "xyz-scaling": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 });
 
@@ -134,22 +131,4 @@ export function calculateChromaticallyAdaptedXyz(input: CalculateChromaticAdapta
   return calculatedResult({ xyz, matrix: adaptation.matrix }, "chromatic-adaptation-" + adaptation.transform, COLORIMETRY_MODEL_VERSION, [
     "Linear von Kries-type transform; degree of adaptation " + adaptation.degreeOfAdaptation
   ]);
-}
-
-/** CIECAM02 surround factor F. */
-export type ViewingSurround = "average" | "dim" | "dark";
-
-/**
- * CIECAM02 degree of adaptation D = F[1 − (1/3.6) exp((−L_A − 42)/92)] (Moroney et al. 2002; also CIE 159:2004),
- * clamped to [0, 1]. L_A is the adapting-field luminance in cd/m².
- */
-export function calculateDegreeOfAdaptation(input: { adaptingLuminanceCdPerSquareMeter: number; surround: ViewingSurround }): CalculationResult<{ degreeOfAdaptation: number }> {
-  requireInputKeys(input, "calculateDegreeOfAdaptation", ["adaptingLuminanceCdPerSquareMeter", "surround"]);
-  const la = requireNonNegativeNumber(input.adaptingLuminanceCdPerSquareMeter, "adaptingLuminanceCdPerSquareMeter");
-  const f = input.surround === "average" ? 1 : input.surround === "dim" ? 0.9 : input.surround === "dark" ? 0.8 : NaN;
-  if (Number.isNaN(f)) throw new InvalidConfigurationError("surround must be \"average\", \"dim\" or \"dark\".");
-  const d = Math.min(1, Math.max(0, f * (1 - (1 / 3.6) * Math.exp((-la - 42) / 92))));
-  requireFiniteNumber(d, "degreeOfAdaptation");
-  return calculatedResult({ degreeOfAdaptation: d }, "ciecam02-degree-of-adaptation", COLORIMETRY_MODEL_VERSION,
-    ["CIECAM02 empirical degree-of-adaptation formula; F = 1.0/0.9/0.8 for average/dim/dark surround"]);
 }

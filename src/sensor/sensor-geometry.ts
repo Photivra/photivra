@@ -172,6 +172,7 @@ export function calculateSensorGeometryMetrics(
   requireInputObject(input.imagingArea, "imagingArea");
   requirePositiveFinite("imagingArea.widthMm", input.imagingArea.widthMm);
   requirePositiveFinite("imagingArea.heightMm", input.imagingArea.heightMm);
+  requireInputObject(input.nativeRaster, "nativeRaster");
   requirePositiveInteger(
     "nativeRaster.pixelWidth",
     input.nativeRaster.pixelWidth

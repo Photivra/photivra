@@ -404,12 +404,10 @@ export {
   CHROMATIC_ADAPTATION_TRANSFORMS,
   calculateChromaticAdaptationMatrix,
   calculateChromaticallyAdaptedXyz,
-  calculateDegreeOfAdaptation,
   resolveChromaticAdaptationConeMatrix,
   type CalculateChromaticAdaptationMatrixInput,
   type ChromaticAdaptationMatrix,
-  type ChromaticAdaptationTransform,
-  type ViewingSurround
+  type ChromaticAdaptationTransform
 } from "./color/chromatic-adaptation.js";
 
 export {

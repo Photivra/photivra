@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   calculatePixelPitch,
-  calculateSensorGeometryMetrics
+  calculateSensorGeometryMetrics,
+  InvalidConfigurationError
 } from "../src/index.js";
 
 describe("sensor geometry and native raster", () => {
@@ -131,5 +132,12 @@ describe("sensor geometry and native raster", () => {
         expect.stringContaining("not physical photodiode active area")
       ])
     );
+  });
+
+  it("rejects a missing, null or non-object nativeRaster with a domain error, not a TypeError", () => {
+    for (const nativeRaster of [null, undefined, 5, "6000x4000"]) {
+      expect(() => calculateSensorGeometryMetrics({ imagingArea: { widthMm: 36, heightMm: 24 }, nativeRaster } as never))
+        .toThrow(new InvalidConfigurationError("nativeRaster must be an object."));
+    }
   });
 });
