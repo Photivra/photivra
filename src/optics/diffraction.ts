@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Calculates the first-zero Airy-disk diameter for an ideal circular aperture. This uses the
- * established diffraction relation d = 2.44 * lambda * N. It is an independent implementation of the
- * mathematical relation and does not model lens aberrations or non-circular pupil geometry.
+ * Diameter of the Airy disk (the central diffraction spot) out to its first dark ring, for an ideal
+ * circular aperture. It uses the standard relation d = 2.44 * lambda * N.
+ *
+ * This is an independent implementation of that relation. It does not model lens aberrations or
+ * non-circular pupils.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -24,18 +26,19 @@ export interface CalculateAiryDiskInput {
 
 export interface AiryDisk {
   /**
-   * Diameter from the center of the diffraction pattern to the first dark-ring
-   * diameter, in micrometres: 2.44 * wavelength * f-number.
+   * Diameter of the first dark ring of the diffraction pattern, in
+   * micrometres: 2.44 * wavelength * f-number.
    */
   firstZeroDiameterMicrometers: number;
 }
 
 /**
- * Calculates the first-zero Airy-disk diameter for an ideal circular aperture.
+ * Calculates the Airy-disk diameter to the first dark ring for an ideal
+ * circular aperture.
  *
- * This uses the established diffraction relation d = 2.44 * lambda * N.
- * It is an independent implementation of the mathematical relation and does
- * not model lens aberrations or non-circular pupil geometry.
+ * It uses the standard diffraction relation d = 2.44 * lambda * N. This is an
+ * independent implementation of that relation. It does not model lens
+ * aberrations or non-circular pupils.
  *
  * @param input F-number and wavelength.
  * @returns Diffraction diameter at the image plane.

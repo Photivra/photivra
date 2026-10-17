@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Strict generic profile parser; bounds passivity across the whole angular envelope.
- * Adds off-path spectral irradiance before sensor/exposure integration, never after tone mapping.
- * Source powers are integrated over profile.referenceEntranceAreaMm2 at this instant/wavelength.
- * Gaussian templates are independently parameterized approximations, not lens prescription ray
- * tracing.
- * @see docs/DIGITAL_OPTICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and
- * support limits.
+ * Stray light (flare and veiling glare) from bright sources.
+ *
+ * The profile parser is strict. It checks that the profile stays passive (adds no energy) across the
+ * whole range of source angles.
+ *
+ * The model adds off-path spectral irradiance before the sensor integrates the exposure. It never
+ * adds it after tone mapping. Source powers are integrated over profile.referenceEntranceAreaMm2 at
+ * one instant and one wavelength. The Gaussian templates are independently parameterized
+ * approximations, not ray tracing through a lens prescription.
+ * @see docs/DIGITAL_OPTICS_FOUNDATION.md for the equations, units, coordinate conventions, known
+ * blockers and support limits.
  */
 
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
@@ -19,7 +23,7 @@ import {
 import type { LensFieldPointMm } from "./radial-distortion.js";
 import { requireInputObject } from "../core/record-validation.js";
 
-/** One reflected-path or broad scatter response, normalized over the infinite image plane. */
+/** One ghost (reflection path) or veil (broad scatter) response. Its shape is normalized over the infinite image plane. */
 export interface ParametricStrayLightResponse {
   id: string;
   kind: "ghost" | "veil";
@@ -29,10 +33,10 @@ export interface ParametricStrayLightResponse {
   sigmaMm: number;
   /** Fraction of source power entering this response at the axis. */
   axisPowerFraction: number;
-  /** F(rho)=F(0)*(1+slope*rho²), rho=source angle/max angle. */
+  /** Power fraction versus angle: F(rho) = F(0) * (1 + slope * rho²), where rho = source angle / maximum angle. */
   angularSlope: number;
 }
-/** Single explicit wavelength and exact generic camera state; clean optics only. */
+/** One explicit wavelength and an exact generic camera state. Models clean optics only. */
 export interface LensStrayLightProfile {
   schemaVersion: "0.1.0";
   id: string;
@@ -47,13 +51,13 @@ export interface LensStrayLightProfile {
   referenceEntranceAreaMm2: number;
   responses: readonly ParametricStrayLightResponse[];
 }
-/** Direction remains available beyond the active frame; no crop clipping. */
+/** The direction can lie outside the active frame. It is not clipped to the crop. */
 export interface StrayLightSource {
   id: string;
   fieldAngleXDegrees: number;
   fieldAngleYDegrees: number;
   incidentSpectralPowerWPerNm: number;
-  /** Explicit source/path admission, e.g. a flag/hood decision; not a global hood scalar. */
+  /** Fraction of this source let in, for example after a flag or hood decision. Not a global hood factor. */
   admittedFraction: number;
 }
 export interface StrayLightIrradiance {
@@ -68,7 +72,7 @@ export interface StrayLightIrradiance {
   ghostSpectralIrradianceWPerM2PerNm: number;
   veilSpectralIrradianceWPerM2PerNm: number;
   totalSpectralIrradianceWPerM2PerNm: number;
-  /** If primary-only, the meter excludes these additions; sensor always receives total. */
+  /** If primary-only, the meter leaves these additions out. The sensor always receives the total. */
   meterDomain: "primary-only" | "primary-plus-stray";
   meterSpectralIrradianceWPerM2PerNm: number;
   contributions: readonly { sourceId: string; responseId: string; kind: "ghost" | "veil"; spectralIrradianceWPerM2PerNm: number }[];
@@ -81,7 +85,7 @@ function fraction(value: unknown, name: string): number {
 function point(value: unknown): LensFieldPointMm {
   const p = record(value, ["x", "y"]); return { x: finite(p.x, "x"), y: finite(p.y, "y") };
 }
-/** Strict generic profile parser; bounds passivity across the whole angular envelope. */
+/** Strict generic profile parser. Checks that the profile adds no energy at any source angle in its range. */
 export function parseLensStrayLightProfile(value: unknown): LensStrayLightProfile {
   const r = record(value, ["schemaVersion", "id", "version", "state", "evidence", "interaction",
     "wavelengthNm", "wavelengthBasis", "maximumSourceAngleDegrees", "referenceEntranceAreaMm2", "responses"]);
@@ -109,9 +113,10 @@ export function parseLensStrayLightProfile(value: unknown): LensStrayLightProfil
     maximumSourceAngleDegrees: maximum, referenceEntranceAreaMm2: positive(r.referenceEntranceAreaMm2, "referenceEntranceAreaMm2"), responses };
 }
 
-/** Adds off-path spectral irradiance before sensor/exposure integration, never after tone mapping.
- * Source powers are integrated over profile.referenceEntranceAreaMm2 at this instant/wavelength.
- * Gaussian templates are independently parameterized approximations, not lens prescription ray tracing.
+/** Adds off-path spectral irradiance before the sensor integrates the exposure, never after tone mapping.
+ * Source powers are integrated over profile.referenceEntranceAreaMm2 at this instant and wavelength.
+ * The Gaussian templates are independently parameterized approximations, not ray tracing through a
+ * lens prescription.
  */
 export function calculateLensStrayLightIrradiance(input: {
   profile: LensStrayLightProfile; state: OpticalProfileState; enabled: boolean;

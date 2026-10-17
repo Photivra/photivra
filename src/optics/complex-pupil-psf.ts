@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary. Complex pupil
- * evaluation sums declared amplitude and phase on a bounded regular pupil grid. PSF shape is
- * normalized separately from pupil throughput; coherent phase, pupil energy and spectral/field
- * applicability cannot be replaced by a scalar blur radius. Numeric profiles require owned or
- * reusable-data provenance.
- * Evaluate a declared complex pupil with explicit amplitude/phase and sampling support; normalize PSF
- * shape and retain pupil throughput as a separate quantity. Complex pupil evaluation sums declared
- * amplitude and phase on a bounded regular pupil grid. PSF shape is normalized separately from pupil
- * throughput; coherent phase, pupil energy and spectral/field applicability cannot be replaced by a
- * scalar blur radius. Numeric profiles require owned or reusable-data provenance.
- * @see docs/PSF_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support limits.
+ * PSF (point-spread function) from a declared complex pupil: amplitude and phase sampled on a grid.
+ *
+ * The profile parser validates untrusted input and returns the normalized typed contract. Unknown
+ * enum values, missing required fields and incompatible scientific data are rejected.
+ *
+ * The complex pupil is evaluated by summing the declared amplitude and phase over a bounded, regular
+ * pupil grid. The PSF shape is normalized separately from the pupil throughput. A single blur radius
+ * cannot stand in for coherent phase, pupil energy, or the wavelength and field range where the
+ * profile applies. Numeric profiles need provenance showing the data is owned or reusable.
+ * @see docs/PSF_FOUNDATION.md for the equations, units, coordinate conventions, known blockers and
+ * support limits.
  */
 
 import {
@@ -118,9 +117,9 @@ export interface LensComplexPupilProfile {
 export interface CalculateLensComplexPupilPsfInput {
   profile:
     LensComplexPupilProfile;
-  /** Physical pupil-to-image propagation scale in mm. Omission preserves the
-   * nominal focal-plane reference. Finite-focus callers must explicitly resolve
-   * the supported principal-plane geometry; profile metadata does not do so. */
+  /** Physical propagation distance from pupil to image, in mm. If omitted, the
+   * nominal focal-plane reference is used. At finite focus the caller must
+   * resolve the supported principal-plane geometry; profile metadata does not. */
   propagationDistanceMm?: number;
 }
 
@@ -508,13 +507,13 @@ function parseGrid(
 }
 
 /**
- * Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
- * missing required fields and incompatible scientific data fail at this boundary.
+ * Validates an untrusted declaration and returns the normalized typed contract. Unknown enum values,
+ * missing required fields and incompatible scientific data are rejected here.
  *
- * Complex pupil evaluation sums declared amplitude and phase on a bounded regular pupil grid. PSF
- * shape is normalized separately from pupil throughput; coherent phase, pupil energy and
- * spectral/field applicability cannot be replaced by a scalar blur radius. Numeric profiles require
- * owned or reusable-data provenance.
+ * The complex pupil is evaluated by summing the declared amplitude and phase over a bounded, regular
+ * pupil grid. The PSF shape is normalized separately from the pupil throughput. A single blur radius
+ * cannot stand in for coherent phase, pupil energy, or the wavelength and field range where the
+ * profile applies. Numeric profiles need provenance showing the data is owned or reusable.
  * @param value - unknown. Treated as untrusted data; static typing alone is not validation.
  * @returns LensComplexPupilProfile. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
  *
@@ -775,9 +774,9 @@ export interface LensComplexPupilPsfSampling {
   pupilSupportDiameterMmX: number;
   pupilSupportDiameterMmY: number;
   /**
-   * Widest support consistent with the declared f-number at the resolved propagation distance,
-   * propagationDistanceMm / apertureFNumber, in millimetres (focalLengthMm / apertureFNumber for
-   * the nominal focal-plane reference).
+   * Widest support allowed by the declared f-number at the resolved propagation distance:
+   * propagationDistanceMm / apertureFNumber, in millimetres. For the nominal focal-plane reference
+   * this is focalLengthMm / apertureFNumber.
    */
   declaredPupilDiameterMm: number;
   /** Declared pupil grid size before zero padding. */
@@ -789,7 +788,7 @@ export interface LensComplexPupilPsfSampling {
   zeroPaddingApplied: boolean;
   /**
    * Achieved Goodman sampling factor Q = lambda*(z/D)/imagePitch =
-   * transform samples / (support samples - 1). Always greater than 2; null
+   * transform samples / (support samples - 1). Always greater than 2. Null
    * when the support is a single sample on that axis (no finite diameter).
    */
   samplingFactorQX: number | null;
@@ -825,18 +824,23 @@ function supportSpan(
  * Sampling guard for the discrete Fraunhofer reference (Goodman, Introduction
  * to Fourier Optics, sampling of DFT/FFT Fraunhofer propagation).
  *
- * A DFT of size M over pupil pitch dp gives image-plane pitch
- * lambda*z/(M*dp). The intensity PSF is the transform of the pupil
- * autocorrelation, whose support is twice the pupil diameter, so Nyquist
- * sampling of intensity needs Q = lambda*(z/D)/pitch = M*dp/D >= 2. For a
- * pupil spanning S samples the discrete autocorrelation has 2S-1 lags, so
- * M >= 2S-1 is the exact condition for no circular wrap-around; it implies
- * Q = M/(S-1) > 2. The declared grid is zero padded to reach that size. The
- * non-zero support must also lie within the declared f/N cone: its diameter D
- * may not exceed z/N for the resolved propagation distance z, i.e. the image-side
- * cone D/z may not be wider than 1/N. With the nominal focal-plane reference
- * (z = f) this is the entrance-aperture diameter f/N; an exit pupil declared at
- * its own distance z uses that distance (docs/PSF_FOUNDATION.md).
+ * A DFT (discrete Fourier transform) of size M over pupil pitch dp gives an
+ * image-plane pitch of lambda*z/(M*dp).
+ *
+ * The intensity PSF is the transform of the pupil autocorrelation. That
+ * autocorrelation is twice as wide as the pupil. So Nyquist sampling of the
+ * intensity needs Q = lambda*(z/D)/pitch = M*dp/D >= 2.
+ *
+ * For a pupil spanning S samples, the discrete autocorrelation has 2S-1 lags.
+ * So M >= 2S-1 is the exact condition for no circular wrap-around, and it
+ * implies Q = M/(S-1) > 2. The declared grid is zero padded to that size.
+ *
+ * The non-zero support must also fit inside the declared f/N cone. Its
+ * diameter D may not exceed z/N for the resolved propagation distance z; that
+ * is, the image-side cone D/z may not be wider than 1/N. With the nominal
+ * focal-plane reference (z = f) this is the entrance-aperture diameter f/N. An
+ * exit pupil declared at its own distance z uses that distance
+ * (docs/PSF_FOUNDATION.md).
  */
 function planPupilSampling(
   profile: LensComplexPupilProfile,
@@ -1036,13 +1040,13 @@ function calculateDiscreteFraunhoferKernel(
 }
 
 /**
- * Evaluate a declared complex pupil with explicit amplitude/phase and sampling support; normalize PSF
- * shape and retain pupil throughput as a separate quantity.
+ * Evaluates a declared complex pupil with explicit amplitude, phase and sampling support. Returns the
+ * normalized PSF shape, and the pupil throughput as a separate quantity.
  *
- * Complex pupil evaluation sums declared amplitude and phase on a bounded regular pupil grid. PSF
- * shape is normalized separately from pupil throughput; coherent phase, pupil energy and
- * spectral/field applicability cannot be replaced by a scalar blur radius. Numeric profiles require
- * owned or reusable-data provenance.
+ * The complex pupil is evaluated by summing the declared amplitude and phase over a bounded, regular
+ * pupil grid. The PSF shape is normalized separately from the pupil throughput. A single blur radius
+ * cannot stand in for coherent phase, pupil energy, or the wavelength and field range where the
+ * profile applies. Numeric profiles need provenance showing the data is owned or reusable.
  * @param input - CalculateLensComplexPupilPsfInput. See the linked contract for coordinate, unit and profile binding semantics.
  * @returns CalculationResult<LensComplexPupilPsf>. Return shape and scientific status are explicit; no calibration is inferred from successful execution.
  *

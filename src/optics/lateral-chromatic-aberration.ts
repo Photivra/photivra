@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Calculates generic lateral chromatic-aberration field separation by mapping one ideal image-plane
- * point through a shared green-reference base distortion and red/blue radial coefficient offsets. This
- * is channel-dependent field mapping, not a blur kernel.
- * Inverse-maps one distorted output destination independently for the representative red/green/blue
- * channels. Renderers can use the returned per-channel ideal source coordinates for inverse sampling
- * without inventing chromatic-aberration equations.
+ * Generic lateral chromatic aberration (CA): red, green and blue land at slightly different image
+ * positions.
+ *
+ * The forward mapping sends one ideal image-plane point through a base distortion shared by all
+ * channels (green is the reference), plus extra radial coefficients for red and blue. It moves each
+ * channel; it is not a blur kernel.
+ *
+ * The inverse mapping takes one distorted output point and finds the ideal source point separately
+ * for red, green and blue. Renderers can sample those per-channel source points directly, without
+ * writing their own CA equations.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -37,8 +41,8 @@ export interface LateralChromaticAberrationProfile {
   /**
    * Green-reference base geometric distortion.
    *
-   * This common mapping is included in every channel. Red/blue CA terms are
-   * added to this base, so callers should not apply a second distortion pass.
+   * Every channel includes this shared mapping. The red and blue CA terms are
+   * added on top of it, so do not apply a second distortion pass.
    */
   baseDistortionCoefficients: RadialDistortionCoefficients;
   /** Additional red-channel radial coefficients relative to green. */
@@ -55,8 +59,8 @@ export interface CalculateLateralChromaticAberrationMappingInput {
 
 export interface CalculateInverseLateralChromaticAberrationMappingInput {
   /**
-   * Distorted output image-plane destination. Each output channel is inverse-
-   * mapped independently to its ideal source coordinate.
+   * Distorted output image-plane point. Each channel is inverse-mapped on its
+   * own to its ideal source point.
    */
   distortedImagePointMm: LensFieldPointMm;
   profile: LateralChromaticAberrationProfile;
@@ -64,9 +68,9 @@ export interface CalculateInverseLateralChromaticAberrationMappingInput {
 
 export interface CalculateInverseLateralChromaticAberrationMappingsInput {
   /**
-   * Distorted output image-plane destinations. Each destination is inverse-
-   * mapped independently for red, green, and blue after one profile-resolution
-   * step for the batch.
+   * Distorted output image-plane points. The profile is resolved once for the
+   * batch. Then each point is inverse-mapped separately for red, green and
+   * blue.
    */
   distortedImagePointsMm: readonly LensFieldPointMm[];
   profile: LateralChromaticAberrationProfile;
@@ -265,11 +269,12 @@ function assumptions(): readonly string[] {
 }
 
 /**
- * Calculates generic lateral chromatic-aberration field separation by mapping
- * one ideal image-plane point through a shared green-reference base distortion
- * and red/blue radial coefficient offsets.
+ * Calculates how far lateral chromatic aberration (CA) separates the colour
+ * channels at one ideal image-plane point. The point goes through a shared
+ * base distortion (green is the reference) plus extra radial coefficients for
+ * red and blue.
  *
- * This is channel-dependent field mapping, not a blur kernel.
+ * This moves each channel; it is not a blur kernel.
  */
 export function calculateLateralChromaticAberrationMapping(
   input: CalculateLateralChromaticAberrationMappingInput
@@ -331,11 +336,11 @@ export function calculateLateralChromaticAberrationMapping(
 }
 
 /**
- * Inverse-maps one distorted output destination independently for the
- * representative red/green/blue channels.
+ * Inverse-maps one distorted output point separately for the representative
+ * red, green and blue channels.
  *
- * Renderers can use the returned per-channel ideal source coordinates for
- * inverse sampling without inventing chromatic-aberration equations.
+ * Renderers can sample the returned per-channel ideal source points directly,
+ * without writing their own chromatic-aberration equations.
  */
 export function calculateInverseLateralChromaticAberrationMapping(
   input: CalculateInverseLateralChromaticAberrationMappingInput
@@ -397,12 +402,12 @@ export function calculateInverseLateralChromaticAberrationMapping(
 }
 
 /**
- * Inverse-maps multiple distorted destinations while resolving the shared CA
- * profile once and validating each combined channel profile once for the
- * complete batch.
+ * Inverse-maps many distorted points at once. The shared CA profile is
+ * resolved once, and each combined channel profile is validated once, for
+ * the whole batch.
  *
- * Per-point values match calculateInverseLateralChromaticAberrationMapping();
- * provenance is shared once at the batch boundary.
+ * Each point's values match calculateInverseLateralChromaticAberrationMapping().
+ * Provenance is reported once for the batch.
  */
 export function calculateInverseLateralChromaticAberrationMappings(
   input: CalculateInverseLateralChromaticAberrationMappingsInput

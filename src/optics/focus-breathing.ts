@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Applies a caller-declared focus-breathing projection scale to the ideal Gaussian thin-lens
- * projection for one focus state. Photivra does not infer the scale from focal length, focus distance,
- * lens identity, or marketing data. A value of 1 exactly preserves the current thin-lens projection.
- * This is a generic approximation of focus-dependent projection/magnification, not a calibrated
- * real-lens model. The physical focal length remains authoritative and unchanged.
- * Calculates one-axis field of view for the generic declared-scale focus- breathing projection and
- * reports the corresponding ideal thin-lens FOV. A breathingProjectionScale of 1 reproduces the
- * current focus-aware thin-lens field-of-view result exactly.
+ * Focus breathing: the change in framing (magnification) as a lens focuses.
+ *
+ * The declared-scale model applies a caller-supplied projection scale to the ideal Gaussian thin-lens
+ * projection for one focus state. Photivra does not guess the scale from focal length, focus
+ * distance, lens identity or marketing data. A scale of 1 keeps the thin-lens projection exactly.
+ * This is a generic approximation of how projection and magnification change with focus. It is not a
+ * calibrated real-lens model. The physical focal length is never changed and stays authoritative.
+ *
+ * The field-of-view function gives the one-axis field of view (FOV) under this model, and the ideal
+ * thin-lens FOV for comparison. A breathingProjectionScale of 1 reproduces the focus-aware thin-lens
+ * FOV exactly.
+ *
+ * The geometric model derives breathing from ideal focusing geometry instead of a declared scale.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -33,9 +38,9 @@ export interface CalculateFocusBreathingProjectionInput {
    * Caller-declared projection scale for this focus state, relative to the
    * ideal thin-lens image distance.
    *
-   * 1 means no additional breathing relative to the current thin-lens model.
-   * Values above 1 narrow framing / increase magnification; values below 1
-   * widen framing / reduce magnification.
+   * 1 means no breathing beyond the thin-lens model. Values above 1 narrow the
+   * framing (more magnification). Values below 1 widen it (less
+   * magnification).
    */
   breathingProjectionScale: number;
 }
@@ -49,8 +54,8 @@ export interface FocusBreathingProjection {
   /**
    * Effective projection distance used by the generic breathing model.
    *
-   * This is a projection/magnification parameter, not a replacement physical
-   * focal length.
+   * This is a projection (magnification) parameter. It does not replace the
+   * physical focal length.
    */
   effectiveProjectionDistanceMm: number;
   /** Caller-declared scale relative to ideal thin-lens projection. */
@@ -83,13 +88,13 @@ export interface FocusBreathingFieldOfView {
  * Applies a caller-declared focus-breathing projection scale to the ideal
  * Gaussian thin-lens projection for one focus state.
  *
- * Photivra does not infer the scale from focal length, focus distance, lens
- * identity, or marketing data. A value of 1 exactly preserves the current
- * thin-lens projection.
+ * Photivra does not guess the scale from focal length, focus distance, lens
+ * identity or marketing data. A scale of 1 keeps the thin-lens projection
+ * exactly.
  *
- * This is a generic approximation of focus-dependent projection/magnification,
- * not a calibrated real-lens model. The physical focal length remains
- * authoritative and unchanged.
+ * This is a generic approximation of how projection and magnification change
+ * with focus. It is not a calibrated real-lens model. The physical focal
+ * length is never changed and stays authoritative.
  */
 export function calculateFocusBreathingProjection(
   input: CalculateFocusBreathingProjectionInput
@@ -135,11 +140,12 @@ export function calculateFocusBreathingProjection(
 }
 
 /**
- * Calculates one-axis field of view for the generic declared-scale focus-
- * breathing projection and reports the corresponding ideal thin-lens FOV.
+ * Calculates the one-axis field of view under the declared-scale
+ * focus-breathing model, and reports the ideal thin-lens field of view for
+ * comparison.
  *
- * A breathingProjectionScale of 1 reproduces the current focus-aware
- * thin-lens field-of-view result exactly.
+ * A breathingProjectionScale of 1 reproduces the focus-aware thin-lens field
+ * of view exactly.
  */
 export function calculateFocusBreathingFieldOfView(
   input: CalculateFocusBreathingFieldOfViewInput
@@ -203,7 +209,7 @@ export interface CalculateGeometricFocusBreathingInput {
   sensorDimensionMm: number;
   focusingMethod: GeometricFocusingMethod;
   /**
-   * Signed separation between the front and rear principal planes (the hiatus), mm; default 0
+   * Signed distance between the front and rear principal planes (the "hiatus"), in mm. Default 0
    * (thin lens). The subject-to-sensor distance is u + hiatus + v.
    */
   principalPlaneSeparationMm?: number;
@@ -223,9 +229,9 @@ export interface GeometricFocusBreathing {
   /** v / f_infinity: framing scale relative to infinity focus. */
   projectionScaleRelativeToInfinity: number;
   /**
-   * v divided by the ideal thin-lens image distance of the same infinity focal length at
-   * objectDistanceMm. Exactly 1 for unit focus; usable as breathingProjectionScale with
-   * focusDistanceM = objectDistanceMm / 1000 in calculateFocusBreathingProjection().
+   * v divided by the ideal thin-lens image distance, at objectDistanceMm, of a lens with the same
+   * infinity focal length. Exactly 1 for unit focus. You can pass it as breathingProjectionScale to
+   * calculateFocusBreathingProjection() with focusDistanceM = objectDistanceMm / 1000.
    */
   equivalentBreathingProjectionScale: number;
   fieldOfViewDegrees: number;
@@ -234,17 +240,17 @@ export interface GeometricFocusBreathing {
 }
 
 /**
- * Focus breathing derived from ideal focusing geometry rather than a declared scale.
+ * Focus breathing derived from ideal focusing geometry, instead of a declared scale.
  *
- * - unit-focus: the whole lens moves; u + v = L - hiatus with 1/u + 1/v = 1/f, so
- *   v = (T - sqrt(T^2 - 4 f T)) / 2 for T = L - hiatus >= 4 f, and the field narrows as v grows.
+ * - unit-focus: the whole lens moves. u + v = L - hiatus and 1/u + 1/v = 1/f, so
+ *   v = (T - sqrt(T^2 - 4 f T)) / 2, where T = L - hiatus >= 4 f. The field narrows as v grows.
  * - fixed-image-distance-internal-focus: an idealised internal-focus lens keeps the rear principal
- *   plane at v = f_infinity and shortens its focal length to f' = u v / (u + v); the angular field
- *   at the rear nodal point is then unchanged while magnification is f_infinity / u.
- * Both use paraxial Gaussian optics with nodal points at the principal planes (unit pupil
+ *   plane at v = f_infinity and shortens its focal length to f' = u v / (u + v). The angular field
+ *   at the rear nodal point then stays the same, and the magnification is f_infinity / u.
+ * Both use paraxial Gaussian optics with the nodal points at the principal planes (unit pupil
  * magnification; Kingslake & Johnson, Lens Design Fundamentals, 2nd ed., ch. 3; Ray, Applied
- * Photographic Optics, 3rd ed., ch. 9 and 14). Real internal-focus lenses also shift pupils and
- * principal planes, so their breathing needs a calibrated profile.
+ * Photographic Optics, 3rd ed., ch. 9 and 14). Real internal-focus lenses also move their pupils and
+ * principal planes, so modelling their breathing needs a calibrated profile.
  */
 export function calculateGeometricFocusBreathing(
   input: CalculateGeometricFocusBreathingInput

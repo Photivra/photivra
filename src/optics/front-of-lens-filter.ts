@@ -1,20 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Parses one generic front-of-lens transmission filter. Schema 0.1.0 is explicitly unbranded and
- * unpolarized. It models only passive transmission placed before the lens. Reflections between stacked
- * filters, flare/ghosting and wavelength-changing behavior are outside this contract.
- * Schema 0.2.0 adds one polarizing kind, a linear (partial) polarizer with principal transmittance
- * k1, extinction ratio k1/k2 and a transmission-axis angle. Polarization is carried as linear Stokes
- * parameters (S0, S1, S2) and filters are composed in order with Mueller matrices of a linear
- * diattenuator (Chipman, Handbook of Optics vol. I ch. 22, 3rd ed., 2010; Goldstein, Polarized Light,
- * 3rd ed., ch. 4-5; Born & Wolf, Principles of Optics, sec. 1.4.2):
+ * Generic filters that screw onto the front of the lens.
+ *
+ * Schema 0.1.0 is explicitly unbranded and unpolarized. It models only passive transmission in front
+ * of the lens. It does not cover reflections between stacked filters, flare or ghosting, or filters
+ * that change wavelength.
+ *
+ * Schema 0.2.0 adds one polarizing kind: a linear (partial) polarizer. It has a principal
+ * transmittance k1, an extinction ratio k1/k2 and a transmission-axis angle. Polarization is carried
+ * as linear Stokes parameters (S0, S1, S2). Filters are applied in order using the Mueller matrix of
+ * a linear diattenuator (Chipman, Handbook of Optics vol. I ch. 22, 3rd ed., 2010; Goldstein,
+ * Polarized Light, 3rd ed., ch. 4-5; Born & Wolf, Principles of Optics, sec. 1.4.2):
  *   T = (k1 + k2)/2 + (k1 - k2)/2 * P * cos(2 (psi - theta))
- * for incident light of degree of linear polarization P at angle psi and an axis at theta. For P = 1
- * this is Malus's law k1 cos^2(psi - theta) + k2 sin^2(psi - theta); for unpolarized light it is
- * (k1 + k2)/2, about one half of k1. Circular polarization, retardance (for example the quarter-wave
- * plate of a circular polarizer), angle-of-incidence dependence and depolarization are not modeled.
- * Resolves one passive filter at one wavelength.
+ * Here P is the incident light's degree of linear polarization, psi its polarization angle and theta
+ * the filter axis angle.
+ * - For P = 1 this is Malus's law: k1 cos^2(psi - theta) + k2 sin^2(psi - theta).
+ * - For unpolarized light it is (k1 + k2)/2, about half of k1.
+ * Not modelled: circular polarization, retardance (for example the quarter-wave plate in a circular
+ * polarizer), dependence on the angle of incidence, and depolarization.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -36,7 +40,7 @@ type UnknownRecord = Record<string, unknown>;
 
 export const FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION =
   "0.1.0" as const;
-/** Schema that additionally admits the `linear-polarizer` transmission kind. */
+/** Schema that also allows the `linear-polarizer` transmission kind. */
 export const FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION =
   "0.2.0" as const;
 
@@ -96,7 +100,7 @@ export type FrontOfLensFilterTransmissionModel =
       /** k1: intensity transmittance for light polarized along the transmission axis, (0, 1]. */
       principalTransmittance:
         EvidenceBackedFact<number>;
-      /** k1 / k2 >= 1, finite (use a large finite ratio for a near-ideal polarizer). */
+      /** k1 / k2. Finite and >= 1. Use a large finite ratio for a near-ideal polarizer. */
       extinctionRatio:
         EvidenceBackedFact<number>;
       /** Transmission-axis angle as mounted, degrees counter-clockwise from image +X. */
@@ -714,9 +718,9 @@ function parseTransmission(
  * Parses one generic front-of-lens transmission filter.
  *
  * Schema 0.1.0 is explicitly unbranded and unpolarized. It models only
- * passive transmission placed before the lens. Reflections between stacked
- * filters, polarization, flare/ghosting and wavelength-changing behavior are
- * outside this contract.
+ * passive transmission in front of the lens. It does not cover reflections
+ * between stacked filters, polarization, flare or ghosting, or filters that
+ * change wavelength.
  */
 export function parseFrontOfLensFilterProfile(
   value: unknown
@@ -1274,9 +1278,9 @@ export function resolveFrontOfLensFilterTransmission(
 }
 
 /**
- * Composes multiple passive front-of-lens filters at one wavelength in light-path order while
- * preserving each component's identity. Without a polarizer this is the plain product of
- * transmissions; with one, linear Stokes parameters propagate through the ordered Mueller chain.
+ * Combines several passive front-of-lens filters at one wavelength, in light-path order, and keeps
+ * each filter's identity. Without a polarizer the result is the product of the transmissions. With
+ * one, linear Stokes parameters pass through the Mueller matrices in order.
  */
 export function composeFrontOfLensFilterTransmission(
   input:

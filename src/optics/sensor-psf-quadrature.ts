@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Apply each resolved unit-energy PSF as a destination-local inverse sample sum. Native +Y-down
- * support converts explicitly to optical +Y-up kernel orientation. No boundary extension,
- * missing-support renormalization or extra throughput is applied. This approximation is not a
- * field-dependent forward energy transport.
+ * Applies each resolved PSF (point-spread function, normalized to unit energy) as an inverse sum of
+ * samples around each destination pixel.
+ *
+ * Support offsets in native sensor coordinates (+Y down) are converted explicitly to the optical
+ * kernel orientation (+Y up). The edges are not extended. Missing support is not renormalized. No
+ * extra throughput is applied. This approximation is not a field-dependent forward transport of
+ * energy.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -24,21 +27,21 @@ export interface SensorPsfSourceSample {
   timeSecondsFromOpeningReference: number;
   kernelSampleX: number;
   kernelSampleY: number;
-  /** Optical-axis origin, +X right/+Y down, millimetres; no native crop clipping. */
+  /** Origin on the optical axis, +X right, +Y down, in millimetres. Not clipped to the native crop. */
   sourcePointNativeSensorMm: { x: number; y: number };
   spectralIrradianceWattsPerSquareMeterPerNanometer: number;
 }
 
 export interface CalculateSensorPsfIrradianceQuadratureInput {
-  /** One instant on the explicitly declared shutter opening reference. */
+  /** One instant, measured on the declared shutter-opening time reference. */
   timeSecondsFromOpeningReference: number;
   spatialQuadrature: ReduceSensorSpatioSpectralIrradianceInput["spatialQuadrature"];
   spectralQuadrature: ReduceSensorSpatioSpectralIrradianceInput["spectralQuadrature"];
-  /** The adapter owns wavelength and image-plane field position for each node. */
+  /** The adapter supplies the wavelength and image-plane field position for each node. */
   psf: Omit<ResolveLensSampledPsfInput, "fieldPointMm" | "wavelengthNm">;
-  /** Schema 0.1.0 PSF profiles lack a basis field; bind that source meaning explicitly. */
+  /** Schema 0.1.0 PSF profiles have no basis field, so the caller states what the source means. */
   psfWavelengthBasis: { value: "air" | "vacuum"; evidence: readonly EvidenceProvenance[] };
-  /** Explicit local approximation; a varying PSF grid is not a global convolution. */
+  /** Explicit local approximation. A PSF that varies across a grid is not a global convolution. */
   spatialModel: { kind: "destination-local-shift-invariant-approximation";
     evidence: readonly EvidenceProvenance[]; limitation: string };
   inputMeaning: "pre-psf-pre-sensor-stack-pre-aa-spectral-irradiance";
@@ -66,10 +69,13 @@ export interface SensorPsfIrradianceQuadrature {
 }
 
 /**
- * Apply each resolved unit-energy PSF as a destination-local inverse sample sum.
- * Native +Y-down support converts explicitly to optical +Y-up kernel orientation.
- * No boundary extension, missing-support renormalization or extra throughput is
- * applied. This approximation is not a field-dependent forward energy transport.
+ * Applies each resolved unit-energy PSF as an inverse sum of samples around
+ * each destination pixel.
+ *
+ * Support in native coordinates (+Y down) is converted explicitly to the
+ * optical kernel orientation (+Y up). The edges are not extended, missing
+ * support is not renormalized and no extra throughput is applied. This
+ * approximation is not a field-dependent forward transport of energy.
  */
 export function calculateSensorPsfIrradianceQuadrature(
   input: CalculateSensorPsfIrradianceQuadratureInput

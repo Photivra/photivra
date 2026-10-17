@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Calculates exact thin-lens depth-of-field limits from the hyperfocal distance H = f^2/(Nc) + f:
- * near = s(H - f)/(H + s - 2f), far = s(H - f)/(H - s), infinite (null) when s >= H.
- * The model is geometric and does not include diffraction, aberrations, focus breathing, pupil
- * magnification, or macro/high-magnification effects.
- * Calculates the geometric defocus-circle diameter at the sensor plane for a subject plane away from
- * the selected focus plane.
+ * Thin-lens depth of field (DoF) and defocus blur.
+ *
+ * Depth-of-field limits are exact for a thin lens. They use the hyperfocal distance
+ * H = f^2/(Nc) + f:
+ *   near = s(H - f)/(H + s - 2f)
+ *   far  = s(H - f)/(H - s), infinite (null) when s >= H
+ * The model is geometric. It does not include diffraction, aberrations, focus breathing, pupil
+ * magnification or macro (high-magnification) effects.
+ *
+ * The defocus circle is the geometric blur-circle diameter at the sensor for a subject plane that is
+ * not at the focus distance.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -51,8 +56,8 @@ export interface DepthOfField {
  * The circle of confusion must be smaller than the aperture diameter f/N;
  * otherwise the near limit would fall inside the focal length.
  *
- * The model is geometric and does not include diffraction, aberrations,
- * focus breathing, pupil magnification, or macro/high-magnification effects.
+ * The model is geometric. It does not include diffraction, aberrations,
+ * focus breathing, pupil magnification or macro (high-magnification) effects.
  *
  * @param input Lens, focus, aperture, and acceptable blur-circle inputs.
  * @returns Hyperfocal, near, and far depth-of-field distances.
@@ -155,7 +160,7 @@ export function calculateDefocusCircle(
   return calculateDefocusCircleUsingFocusProjection(input);
 }
 
-/** @internal Immutable request-local identity; never a root public cache/API. */
+/** @internal Immutable identity for one request. Not a public cache or API. */
 export interface ResolvedDefocusFocusProjection {
   readonly focalLengthMm: number;
   readonly focusDistanceM: number;
@@ -201,8 +206,8 @@ export function calculateDefocusCircleUsingFocusProjection(
     }
     throw error;
   }
-  // Both image distances are still resolved above so the thin-lens domain checks
-  // and borrowed-projection identity are unchanged.
+  // Both image distances are still resolved above, so the thin-lens domain checks
+  // and the reused-projection identity check still run.
   void focusImageDistanceMm;
   void subjectImageDistanceMm;
   const apertureDiameterMm = input.focalLengthMm / input.aperture;

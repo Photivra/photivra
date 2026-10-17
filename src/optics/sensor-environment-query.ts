@@ -1,16 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Generate an environment radiance request from physical sensor support using the existing focus-aware
- * ideal projection and analytic inverse camera rotation. Native Y is explicitly inverted; the provider
- * direction is opposite the exposure-start look ray. No scene intersection, radiance or renderer
- * executes.
- * Optional lens field mapping (2.0): the physical sensor point is first inverse-distorted (radial or
- * Brown-Conrady) to the ideal image point, which is then unprojected with the declared ideal
- * projection (rectilinear, fisheye or equirectangular) at the same focus-aware projection scale and
- * rotated to exposure-start axes. The local area factor 1 / det(d distorted / d ideal) is reported
- * for the caller to apply exactly once to irradiance. Omitting the mapping keeps the existing
- * rectilinear computation unchanged.
+ * Builds an environment radiance request from points on the physical sensor. It uses the existing
+ * focus-aware ideal projection and the analytic inverse camera rotation.
+ *
+ * Native Y (+Y down) is inverted explicitly. The direction sent to the provider points opposite the
+ * look ray at exposure start, because radiance travels toward the camera. This module does not
+ * intersect the scene, compute radiance or render anything.
+ *
+ * Optional lens field mapping (2.0):
+ * 1. The physical sensor point is inverse-distorted (radial or Brown-Conrady) to the ideal image
+ *    point.
+ * 2. That point is unprojected with the declared ideal projection (rectilinear, fisheye or
+ *    equirectangular), at the same focus-aware projection scale.
+ * 3. The ray is rotated to the camera axes at exposure start.
+ * The local area factor 1 / det(d distorted / d ideal) is reported. The caller applies it to
+ * irradiance exactly once. Without the mapping, the existing rectilinear computation is unchanged.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -34,9 +39,9 @@ import { requireInputObject } from "../core/record-validation.js";
 
 /**
  * Lens field mapping between the physical (distorted) sensor point and the scene ray (2.0).
- * `radiometricAreaCorrection` makes ownership of the distortion area factor explicit: the
- * environment photo signal multiplies irradiance by 1 / det(d distorted / d ideal) exactly once,
- * so a supplied field-throughput profile must not also contain it.
+ * `radiometricAreaCorrection` states who applies the distortion area factor. The environment
+ * photo signal multiplies irradiance by 1 / det(d distorted / d ideal) exactly once. A supplied
+ * field-throughput profile must therefore not include it as well.
  */
 export interface EnvironmentLensFieldMapping {
   projectionModel: LensProjectionModel;
@@ -54,7 +59,7 @@ export interface PreparedEnvironmentLensFieldMapping {
   brownConrady?: ValidatedBrownConradyDistortionProfile;
 }
 
-/** @internal Strict parse/validation of a lens field mapping (fails closed on unknown fields). */
+/** @internal Strict parse and validation of a lens field mapping. Unknown fields are rejected. */
 export function prepareEnvironmentLensFieldMapping(value: unknown): PreparedEnvironmentLensFieldMapping {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new InvalidScientificInputError("lensFieldMapping must be an object.");
@@ -90,18 +95,18 @@ export function prepareEnvironmentLensFieldMapping(value: unknown): PreparedEnvi
 }
 
 export interface CalculateSensorEnvironmentRadianceQueryInput {
-  /** Pre-AA or pre-PSF optical support, native +X right/+Y down, mm about optical axis. */
+  /** Optical sample point before the anti-aliasing filter or PSF. Native +X right, +Y down, in mm from the optical axis. */
   sourcePointNativeSensorMm: { x: number; y: number };
   focalLengthMm: number;
   focus: FocusPlane;
   angularVelocityRadPerSec: CameraAngularVelocityRadPerSec;
-  /** Explicitly maps the shutter opening boundary to the rotation model's t=0. */
+  /** States that the moment the shutter opens is t=0 in the rotation model. */
   timeReference: "first-opening-boundary-phase";
   timeSecondsFromOpeningReference: number;
-  /** Environment request uses radiance propagation toward the camera, opposite the look ray. */
+  /** The request uses the direction radiance travels: toward the camera, opposite the look ray. */
   environmentDirectionConvention: "outgoing-radiance-toward-camera";
   request: Omit<SceneRadianceEvaluationRequest, "target" | "timeSecondsFromExposureStart">;
-  /** Optional 2.0 lens field mapping; omitted keeps the ideal rectilinear, distortion-free query. */
+  /** Optional 2.0 lens field mapping. Omit it for the ideal rectilinear, distortion-free query. */
   lensFieldMapping?: EnvironmentLensFieldMapping;
 }
 
@@ -121,7 +126,7 @@ export interface SensorEnvironmentRadianceQuery {
   sourcePointNativeSensorMm: { x: number; y: number };
   sourcePointImagePlaneMm: { x: number; y: number };
   referenceLookDirectionUnitVector: { x: number; y: number; z: number };
-  /** Rectilinear rotation mapping; null when a non-rectilinear lens field mapping is used. */
+  /** Rectilinear rotation mapping. Null when a non-rectilinear lens field mapping is used. */
   projection: ReturnType<typeof calculateInverseCameraRotationImageMapping> | null;
   /** Present only when the input declared a lens field mapping. */
   lensFieldMapping?: SensorEnvironmentLensFieldMappingResult;
@@ -134,10 +139,13 @@ export interface SensorEnvironmentRadianceQuery {
 }
 
 /**
- * Generate an environment radiance request from physical sensor support using
- * the existing focus-aware ideal projection and analytic inverse camera rotation.
- * Native Y is explicitly inverted; the provider direction is opposite the
- * exposure-start look ray. No scene intersection, radiance or renderer executes.
+ * Builds an environment radiance request from points on the physical sensor,
+ * using the existing focus-aware ideal projection and the analytic inverse
+ * camera rotation.
+ *
+ * Native Y (+Y down) is inverted explicitly. The provider direction points
+ * opposite the look ray at exposure start. Nothing intersects the scene,
+ * computes radiance or renders.
  */
 export function calculateSensorEnvironmentRadianceQuery(
   input: CalculateSensorEnvironmentRadianceQueryInput
@@ -175,8 +183,8 @@ export function calculateSensorEnvironmentRadianceQuery(
 }
 
 /**
- * @internal Lens-field-mapped query with a prepared (validated) mapping, shared with the environment
- * photo-signal planner so profiles are validated once per plan.
+ * @internal Query with a lens field mapping that is already validated. The environment photo-signal
+ * planner shares it, so profiles are validated once per plan.
  */
 export function calculateMappedSensorEnvironmentRadianceQuery(
   input: CalculateSensorEnvironmentRadianceQueryInput,

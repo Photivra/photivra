@@ -10,10 +10,12 @@
  *     Bucholtz 1995, Appl. Opt. 34:2765, gives about 4.0-4.1 for air in the visible),
  *   beta_aerosol(lambda) = beta_A,ref (lambda / lambda_ref)^(-alpha)  (Angstrom 1929, Geogr. Ann.
  *     11:156; alpha typically about 0-2.5).
- * L_air is the caller-supplied horizon (airlight) radiance at the same wavelength. The model
- * assumes a homogeneous atmosphere, single line of sight, no multiple-scattering angular structure
- * and no sky-luminance gradient; it is an approximation. Reference extinction values are caller
- * inputs; none are built in.
+ * L_air is the caller-supplied horizon (airlight) radiance at the same wavelength.
+ *
+ * This is an approximation. It assumes a uniform atmosphere and a single line of sight. It ignores
+ * the angular structure of multiple scattering and any gradient in sky luminance. The caller
+ * supplies the reference extinction values; none are built in.
+ *
  * Meteorological visibility: Koschmieder's relation V = -ln(epsilon) / beta for a black target at
  * contrast threshold epsilon (0.02 gives 3.912 / beta; the WMO meteorological optical range uses
  * 0.05, about 3.0 / beta; WMO-No. 8, 2018, vol. I ch. 9).
@@ -71,7 +73,7 @@ export interface AtmosphericHaze {
   airlightContribution: number;
   /** L0 t + L_air (1 - t), in the input radiance unit. */
   hazedRadiance: number;
-  /** Apparent contrast relative to the intrinsic contrast against the horizon, (L - L_air)/(L0 - L_air) = t. */
+  /** Apparent contrast against the horizon divided by the intrinsic contrast: (L - L_air)/(L0 - L_air) = t. */
   contrastTransmittance: number;
 }
 

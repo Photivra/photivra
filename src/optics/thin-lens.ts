@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Calculates Gaussian thin-lens image distance: 1/f = 1/s + 1/v where f is focal length, s is object
- * distance, and v is image distance. This is a paraxial ideal-lens model. It does not model real-lens
- * focus breathing, pupil magnification, principal-plane movement, or aberrations.
+ * Gaussian thin-lens image distance: 1/f = 1/s + 1/v, where f is the focal length, s the object
+ * distance and v the image distance.
+ *
+ * This is a paraxial (small-angle) ideal-lens model. It does not model real-lens focus breathing,
+ * pupil magnification, principal-plane movement or aberrations.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -44,8 +46,9 @@ export interface ThinLensImageDistance {
  *
  * where f is focal length, s is object distance, and v is image distance.
  *
- * This is a paraxial ideal-lens model. It does not model real-lens focus
- * breathing, pupil magnification, principal-plane movement, or aberrations.
+ * This is a paraxial (small-angle) ideal-lens model. It does not model
+ * real-lens focus breathing, pupil magnification, principal-plane movement
+ * or aberrations.
  */
 export function calculateThinLensImageDistance(
   input: CalculateThinLensImageDistanceInput

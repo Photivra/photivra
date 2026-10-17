@@ -6,18 +6,26 @@
  *   x_d = x (1 + k1 r^2 + k2 r^4 + k3 r^6) + 2 p1 x y + p2 (r^2 + 2 x^2)
  *   y_d = y (1 + k1 r^2 + k2 r^4 + k3 r^6) + p1 (r^2 + 2 y^2) + 2 p2 x y
  * In vector form the tangential term is r^2 P + 2 (P . u) u with P = (p2, p1), so (p1, p2) rotate as
- * a vector with the image. Sources: Conrady 1919 (MNRAS 79:384, decentred lens systems); Brown 1966
+ * a vector with the image.
+ *
+ * Sources: Conrady 1919 (MNRAS 79:384, decentred lens systems); Brown 1966
  * (Photogrammetric Engineering 32:444, "Decentering distortion of lenses"); Brown 1971 (Photogramm.
  * Eng. 37:855, close-range camera calibration). The coefficient layout follows the widely used
- * Brown-Conrady convention (for example Heikkila & Silven 1997, CVPR). The same coefficient names
- * are used here, but coefficients are meaningful only with the declared normalization radius.
- * Validity (consistent with the radial-distortion validator): the radial part must be strictly
- * monotonic over the envelope, the Jacobian determinant must stay positive at a dense deterministic
- * polar sample of the envelope disk, and the mapped envelope boundary must have strictly increasing
- * polar angle (a simple star-shaped curve). A local diffeomorphism of a closed disk that is
- * injective on its boundary is injective, so these conditions make the inverse single-valued; the
- * Jacobian and boundary conditions are checked at samples, not proven between them.
- * The inverse uses damped Newton iteration seeded by the radial-only inverse.
+ * Brown-Conrady convention (for example Heikkila & Silven 1997, CVPR). The coefficient names match
+ * that convention, but the values only mean something together with the declared normalization
+ * radius.
+ *
+ * Validity checks (matching the radial-distortion validator):
+ * - The radial part must be strictly monotonic over the envelope (the valid radius range).
+ * - The Jacobian determinant must stay positive at a dense, fixed polar grid of samples over the
+ *   envelope disk.
+ * - The mapped envelope boundary must have strictly increasing polar angle, so it is a simple
+ *   star-shaped curve.
+ * A smooth, locally invertible map of a closed disk that is one-to-one on its boundary is one-to-one
+ * everywhere. So these conditions make the inverse single-valued. Note that the Jacobian and boundary
+ * conditions are checked at samples, not proven between them.
+ *
+ * The inverse uses damped Newton iteration, starting from the radial-only inverse.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -297,7 +305,7 @@ function solveInverseBrownConrady(
   const ty = point.y / scale;
   const tolerance = 1e-12 * Math.max(1, Math.hypot(tx, ty));
 
-  // Seed: radial-only inverse when inside its mapped envelope, else the target itself.
+  // Starting point: the radial-only inverse if inside its mapped envelope, otherwise the target itself.
   let x = tx;
   let y = ty;
   if (Math.hypot(tx, ty) <= profile.radial.maximumMappedNormalizedRadius) {
@@ -399,9 +407,10 @@ export function calculateBrownConradyDistortionMapping(
 }
 
 /**
- * Inverse-maps one distorted image-plane point to its ideal source point for destination-to-source
- * resampling. The radial-only inverse seeds damped Newton iteration; the solution must lie inside
- * the declared envelope and reproduce the distorted point within a relative 1e-12 tolerance.
+ * Inverse-maps one distorted image-plane point to its ideal source point, for destination-to-source
+ * resampling. Damped Newton iteration starts from the radial-only inverse. The solution must lie
+ * inside the declared envelope and must reproduce the distorted point within a relative tolerance of
+ * 1e-12.
  */
 export function calculateInverseBrownConradyDistortionMapping(
   input: CalculateInverseBrownConradyDistortionMappingInput

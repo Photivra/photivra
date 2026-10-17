@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Calculates generic field-dependent illumination falloff as a multiplicative linear-light throughput
- * factor. The profile is accepted only when its relative throughput remains strictly positive and
- * never exceeds the optical-axis normalization of 1 throughout the complete declared operating
- * envelope.
+ * Generic illumination falloff across the image (vignetting), as a factor that multiplies linear
+ * light.
+ *
+ * A profile is accepted only if its relative throughput stays strictly positive and never exceeds 1
+ * (the value on the optical axis) anywhere in its declared range.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -49,8 +50,8 @@ export interface CalculateIlluminationVignettingInput {
   /**
    * Ideal image-plane field position relative to the optical axis, in mm.
    *
-   * This slice evaluates throughput from the declared ideal field coordinate;
-   * it does not apply or invert geometric distortion.
+   * Throughput is evaluated at this ideal field coordinate. Geometric
+   * distortion is neither applied nor inverted.
    */
   imagePointMm: LensFieldPointMm;
   profile: IlluminationVignettingProfile;
@@ -60,9 +61,9 @@ export interface IlluminationVignetting {
   imagePointMm: LensFieldPointMm;
   normalizedRadius: number;
   /**
-   * Multiplicative factor for scene-linear/channel-linear signal.
+   * Factor that multiplies scene-linear or channel-linear signal.
    *
-   * 1 means no attenuation; values are required to remain in (0, 1].
+   * 1 means no attenuation. Values must stay in (0, 1].
    */
   linearThroughputFactor: number;
   /** Positive exposure loss relative to the optical axis, in stops. */
@@ -101,13 +102,13 @@ function throughputFromSquaredRadius(
 }
 
 /**
- * Real roots of dT/ds for s = rho². Every interior extremum of the throughput lies at one of these
- * roots, so the validator evaluates them together with both envelope ends: a profile that dips
- * below zero (or rises above one) mid-field is rejected even when both ends are valid.
+ * Real roots of dT/ds, where s = rho². Every interior maximum or minimum of the throughput lies at
+ * one of these roots. The validator checks them along with both ends of the range. So a profile
+ * that dips below zero, or rises above one, mid-field is rejected even when both ends are valid.
  *
- * The quadratic is scaled before solving and uses the stable q-form roots so a tiny cubic term
- * cannot erase the smaller root through cancellation (the same scheme as the radial-distortion
- * validator).
+ * The quadratic is scaled before solving and uses the numerically stable q-form roots. This stops a
+ * tiny cubic term from erasing the smaller root through cancellation. The radial-distortion
+ * validator uses the same scheme.
  */
 function throughputCriticalSquaredRadii(
   coefficients: IlluminationVignettingCoefficients
@@ -211,12 +212,12 @@ function assumptions(): readonly string[] {
 }
 
 /**
- * Calculates generic field-dependent illumination falloff as a multiplicative
- * linear-light throughput factor.
+ * Calculates generic illumination falloff across the image (vignetting) as a
+ * factor that multiplies linear light.
  *
- * The profile is accepted only when its relative throughput remains strictly
- * positive and never exceeds the optical-axis normalization of 1 throughout
- * the complete declared operating envelope.
+ * A profile is accepted only if its relative throughput stays strictly
+ * positive and never exceeds 1 (the value on the optical axis) anywhere in
+ * its declared range.
  */
 export function calculateIlluminationVignetting(
   input: CalculateIlluminationVignettingInput

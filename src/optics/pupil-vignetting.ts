@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Physical vignetting models derived from pupil geometry, separate from the caller-coefficient
- * calculateIlluminationVignetting() polynomial. Apply at most one field-throughput model to a
- * signal; these results are not added on top of a supplied field-throughput profile.
+ * Physical vignetting models derived from pupil geometry. They are separate from the
+ * calculateIlluminationVignetting() polynomial, whose coefficients the caller supplies.
+ *
+ * Apply at most one field-throughput model to a signal. Do not stack these results on top of a
+ * supplied field-throughput profile.
  *
  * Natural vignetting (relative illumination of an aberration-free system with a uniform Lambertian
  * exit pupil):
@@ -17,16 +19,19 @@
  *   normalised by its on-axis value pi L a^2 / (z^2 + a^2). For a -> 0 it tends to cos^4(theta).
  *   Pupil aberration and pupil distortion are not modeled.
  *
- * Mechanical (optical) vignetting / cat's-eye pupil: at field angle theta each clipping aperture
- * (a lens barrel or element rim, referred to the entrance-pupil plane) appears as a circle of its
- * declared radius displaced by shiftPerTanFieldMm * tan(theta) along the field azimuth. The open
- * pupil is the intersection of the entrance-pupil circle with every displaced circle (Kingslake,
- * Lens Design Fundamentals, sec. 6.4; Smith, Modern Optical Engineering, 4th ed., sec. 6.3). The
- * single-aperture area uses the exact circle-circle lens area; any number of apertures also yields
- * the exact convex boundary sampled as a polygon in pupil-plane mm (+X right, +Y up), usable as a
- * polygon pupil for calculatePolygonPupilFraunhoferPsf() or as a mask for createWavefrontPupilGrid().
- * The combined relative illumination cos^4(theta) x open-area ratio assumes an object at infinity,
- * the stop imaged without pupil aberration and object-space field angle equal to the chief-ray angle.
+ * Mechanical (optical) vignetting and the cat's-eye pupil:
+ * - At field angle theta, each clipping aperture (a lens barrel or element rim, referred to the
+ *   entrance-pupil plane) appears as a circle of its declared radius. The circle is shifted by
+ *   shiftPerTanFieldMm * tan(theta) along the field azimuth.
+ * - The open pupil is where the entrance-pupil circle overlaps every shifted circle (Kingslake, Lens
+ *   Design Fundamentals, sec. 6.4; Smith, Modern Optical Engineering, 4th ed., sec. 6.3).
+ * - With one aperture, the area is the exact area of the two-circle overlap.
+ * - With any number of apertures, the exact convex boundary is also returned, sampled as a polygon
+ *   in pupil-plane mm (+X right, +Y up). Use it as a polygon pupil for
+ *   calculatePolygonPupilFraunhoferPsf() or as a mask for createWavefrontPupilGrid().
+ * The combined relative illumination is cos^4(theta) x open-area ratio. This assumes an object at
+ * infinity, a stop imaged without pupil aberration, and an object-space field angle equal to the
+ * chief-ray angle.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -71,8 +76,8 @@ export interface MechanicalVignettingAperture {
   /** Aperture radius referred to the entrance-pupil plane, mm. */
   radiusMm: number;
   /**
-   * Signed displacement of the aperture's projected centre per unit tan(field angle), mm, along
-   * the field azimuth (positive = toward the field point direction).
+   * Signed shift of the aperture's projected centre per unit tan(field angle), in mm, along the
+   * field azimuth. Positive means toward the field point.
    */
   shiftPerTanFieldMm: number;
 }
@@ -86,7 +91,7 @@ export interface CalculateMechanicalVignettingInput {
   fieldAzimuthDegrees: number;
   /** One through eight clipping apertures. */
   apertures: readonly MechanicalVignettingAperture[];
-  /** Boundary samples per circle for the polygon, 16 through 4096 (default 256). */
+  /** Boundary samples per circle for the polygon, from 16 to 4096 (default 256). */
   boundarySamplesPerCircle?: number;
 }
 
@@ -94,7 +99,7 @@ export interface MechanicalVignetting {
   fieldAngleDegrees: number;
   fieldAzimuthDegrees: number;
   entrancePupilAreaSquareMm: number;
-  /** Exact open area for a single aperture; polygon area otherwise, mm^2. */
+  /** Open area in mm^2. Exact for a single aperture; the polygon area otherwise. */
   openAreaSquareMm: number;
   areaMethod: "exact-circle-circle-intersection" | "boundary-polygon";
   /** Open area / unclipped pupil area, in [0, 1]. */

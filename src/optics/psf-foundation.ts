@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Returns the public PSF/pupil foundation contract. The contract describes current diagnostics plus
- * reserved future contribution ownership. It does not imply that reserved contributions are
- * implemented.
- * Evaluates the currently implemented PSF-related diagnostics in one explicit
- * field/depth/spectral/pupil context without combining them into a synthetic PSF or blur radius. Field
- * position is recorded even though the current defocus-circle and circular-Airy diagnostics are not
- * field dependent. Future field-dependent contributions can consume the same context without changing
- * these existing primitives.
+ * Foundation contract for the PSF (point-spread function) and pupil.
+ *
+ * The contract lists the diagnostics that exist today. It also reserves names for future
+ * contributions. A reserved contribution is not implemented.
+ *
+ * The evaluator runs today's PSF-related diagnostics in one explicit context: field position,
+ * depth, wavelength and pupil. It does not combine them into a synthetic PSF or blur radius. The
+ * field position is recorded even though the current defocus-circle and circular-Airy diagnostics
+ * do not depend on it. Future field-dependent contributions can use the same context without
+ * changing these primitives.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -81,8 +83,9 @@ export interface CalculatePsfFoundationComponentsInput {
    */
   fieldPointMm: LensFieldPointMm;
   /**
-   * Physical image-plane radius used only to normalize field position for
-   * cross-case diagnostics. It is not a lens calibration or validity bound.
+   * Physical image-plane radius. It is used only to normalize the field
+   * position so diagnostics can be compared across cases. It is not a lens
+   * calibration or a validity limit.
    */
   fieldNormalizationRadiusMm: number;
   spectralBasis: {
@@ -194,8 +197,8 @@ const NOTES = [
 /**
  * Returns the public PSF/pupil foundation contract.
  *
- * The contract describes current diagnostics plus reserved future contribution
- * ownership. It does not imply that reserved contributions are implemented.
+ * The contract lists today's diagnostics and reserves names for future
+ * contributions. A reserved contribution is not implemented.
  */
 export function getPsfFoundationContract(): PsfFoundationContract {
   return {
@@ -218,14 +221,13 @@ export function getPsfFoundationContract(): PsfFoundationContract {
 }
 
 /**
- * Evaluates the currently implemented PSF-related diagnostics in one explicit
- * field/depth/spectral/pupil context without combining them into a synthetic
- * PSF or blur radius.
+ * Evaluates today's PSF-related diagnostics in one explicit context (field
+ * position, depth, wavelength and pupil). It does not combine them into a
+ * synthetic PSF or blur radius.
  *
- * Field position is recorded even though the current defocus-circle and
- * circular-Airy diagnostics are not field dependent. Future field-dependent
- * contributions can consume the same context without changing these existing
- * primitives.
+ * The field position is recorded even though the current defocus-circle and
+ * circular-Airy diagnostics do not depend on it. Future field-dependent
+ * contributions can use the same context without changing these primitives.
  */
 export function calculatePsfFoundationComponents(
   input: CalculatePsfFoundationComponentsInput

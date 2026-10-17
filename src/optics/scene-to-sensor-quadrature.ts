@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Calculate the existing paraxial optical bridge at every requested node. Exact identity/coverage and
- * provider bindings are checked before returning physical W/m²/nm samples. Image coordinates belong to
- * the spatial plan, so callers cannot attach a field-throughput result from a different point.
+ * Runs the existing paraxial scene-to-sensor optical bridge at every requested sample node.
+ *
+ * Before it returns physical samples in W/m²/nm, it checks that the node identities, grid coverage
+ * and provider bindings match exactly. Image coordinates come from the spatial plan, so a caller
+ * cannot attach a field-throughput result computed at a different point.
  * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
  * and support limits.
  */
@@ -21,7 +23,10 @@ import { sensorSpatialQuadratureNodeIdentityKey } from "../sensor/spatial-sample
 import { calculateSceneRadianceToSensorIrradiance, type CalculateSceneRadianceToSensorIrradianceInput } from "./scene-to-sensor-irradiance.js";
 import { requireInputObject } from "../core/record-validation.js";
 
-/** One declared scene query/result for an exact pre-AA spatial/wavelength node. */
+/**
+ * One declared scene query and its result, for one exact spatial and wavelength node before the
+ * anti-aliasing (AA) filter.
+ */
 export interface SceneSensorQuadratureSample {
   node: SensorSpatioSpectralNodeIdentity;
   sceneRadianceRequest: CalculateSceneRadianceToSensorIrradianceInput["sceneRadianceRequest"];
@@ -29,18 +34,18 @@ export interface SceneSensorQuadratureSample {
   fieldThroughput: CalculateSceneRadianceToSensorIrradianceInput["fieldThroughput"];
 }
 
-/** Static point-sample bridge; PSF and temporal transport remain separate responsibilities. */
+/** Static point-sample bridge. PSF blur and motion over time are handled elsewhere. */
 export interface CalculateSceneToSensorIrradianceQuadratureInput {
   spatialQuadrature: ReduceSensorSpatioSpectralIrradianceInput["spatialQuadrature"];
   spectralQuadrature: ReduceSensorSpatioSpectralIrradianceInput["spectralQuadrature"];
-  /** Evidence-backed provider/illumination/material identities, parsed before use. */
+  /** Provider, illumination and material identities with their evidence. Parsed before use. */
   sceneBindings: Omit<ValidateSceneRadianceEvaluationBindingsInput, "request" | "result">;
   /** One declared lens/focus/filter state shared by every node. */
   optics: Omit<CalculateSceneRadianceToSensorIrradianceInput,
     "sceneRadianceRequest" | "sceneRadianceResult" | "imagePointMm" | "fieldThroughput">;
-  /** Explicit nonnegative instant shared by all queries; not an exposure integration. */
+  /** One non-negative instant shared by all queries. This is not an integral over the exposure. */
   timeSecondsFromExposureStart: number;
-  /** Complete Cartesian coverage with a unique scene sampleId per node. */
+  /** Every combination of the grid axes, with a unique scene sampleId per node. */
   samples: readonly SceneSensorQuadratureSample[];
 }
 
@@ -55,9 +60,9 @@ export interface SceneToSensorIrradianceQuadrature {
   reduction: ReturnType<typeof reduceSensorSpatioSpectralIrradiance>;
   samples: readonly {
     node: SensorSpatioSpectralNodeIdentity;
-    /** Physical source coordinate before AA redistribution, in mm. */
+    /** Physical source coordinate, in mm, before the anti-aliasing filter spreads it. */
     preAntiAliasingSourcePointMm: { x: number; y: number };
-    /** Owned provider target/time declaration; not a verified ray intersection. */
+    /** The provider's declared target and time. This is not a verified ray intersection. */
     request: SceneSensorQuadratureSample["sceneRadianceRequest"];
     result: SceneSensorQuadratureSample["sceneRadianceResult"];
     bindings: ReturnType<typeof validateSceneRadianceEvaluationBindings>;
@@ -66,10 +71,12 @@ export interface SceneToSensorIrradianceQuadrature {
 }
 
 /**
- * Calculate the existing paraxial optical bridge at every requested node.
- * Exact identity/coverage and provider bindings are checked before returning
- * physical W/m²/nm samples. Image coordinates belong to the spatial plan, so
- * callers cannot attach a field-throughput result from a different point.
+ * Runs the existing paraxial optical bridge at every requested node.
+ *
+ * Before it returns physical W/m²/nm samples, it checks that node identities,
+ * grid coverage and provider bindings match exactly. Image coordinates come
+ * from the spatial plan, so a caller cannot attach a field-throughput result
+ * computed at a different point.
  */
 export function calculateSceneToSensorIrradianceQuadrature(
   input: CalculateSceneToSensorIrradianceQuadratureInput
@@ -93,7 +100,7 @@ export function calculateSceneToSensorIrradianceQuadrature(
   const samples: SceneToSensorIrradianceQuadrature["samples"][number][] = [];
   const irradianceSamples: ReduceSensorSpatioSpectralIrradianceInput["sampleValues"][number][] = [];
   const sampleIds = new Set<string>();
-  // Canonical plan order makes shuffled declarations reproduce the same diagnostics.
+  // Sort into the plan's canonical order so shuffled input gives the same diagnostics.
   for (const spectral of input.spectralQuadrature.nodes) {
     for (const spatial of input.spatialQuadrature.nodes) {
       const spatialNode = { antiAliasingComponentIndex: spatial.antiAliasingComponentIndex,
