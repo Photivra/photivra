@@ -30,8 +30,10 @@ describe("capture facade host yield", () => {
       const { yieldControl } = createHostYield(host);
       const order: string[] = [];
       setTimeout(() => order.push("queued task"), 0);
-      // A timer queued earlier may still be pending after one macrotask; repeat until it runs (bounded).
-      for (let i = 0; i < 50 && order.length === 0; i++) await yieldControl();
+      // Node fires a 0 ms timer only after about 1 ms, and many unclamped yields fit in that time, so repeat
+      // until it runs, bounded by elapsed time rather than a count. A microtask-only "yield" would never let it run.
+      const start = Date.now();
+      while (order.length === 0 && Date.now() - start < 2000) await yieldControl();
       order.push("after yield");
       expect(order).toEqual(["queued task", "after yield"]);
     }
