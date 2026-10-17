@@ -43,6 +43,12 @@ export interface NativeRawDevelopmentInput {
   rendering: SdrRenderingProfile;
   /** Default `clip`: neutral clipped highlights. `reconstruct`: documented desaturation blend. */
   highlightMode?: RawHighlightMode;
+  /**
+   * Default `reject`: every reconstruction neighbourhood must lie inside the native RAW frame. `mirror`
+   * reads sites outside the frame at their reflect-101 image, accepted only when that keeps the CFA
+   * channel (always for 2×2 Bayer); interior pixels are unchanged.
+   */
+  borderHandling?: RawReconstructionBorderHandling;
   /** Includes the retained packed RAW plus integer output; not caller buffers, process heap or GPU. */
   maximumRetainedPayloadBytes: number;
 }
@@ -63,6 +69,7 @@ export interface NativeRawDevelopmentOutput {
   integerSamples: Uint8Array | Uint16Array;
   diagnostics: SdrRenderingResult["diagnostics"];
   highlight: RawHighlightDiagnostics;
+  borderHandling: RawReconstructionBorderHandling;
   outputEncoding: SdrRenderingResult["outputEncoding"];
   rendering: SdrRenderingProfile;
   displayAdaptation: SdrRenderingResult["displayAdaptation"];

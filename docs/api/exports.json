@@ -18,6 +18,16 @@
       "kind": "type"
     },
     {
+      "name": "AhdDemosaicInput",
+      "source": "src/processing/demosaic.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AhdDemosaicOutput",
+      "source": "src/processing/demosaic.ts",
+      "kind": "type"
+    },
+    {
       "name": "AirRefractiveIndexConditionPolicy",
       "source": "src/sensor/photon-energy.ts",
       "kind": "type"
@@ -173,6 +183,11 @@
       "kind": "type"
     },
     {
+      "name": "BilateralFilterInput",
+      "source": "src/processing/denoise.ts",
+      "kind": "type"
+    },
+    {
       "name": "bindIsoCapabilityToExposureCapabilities",
       "source": "src/equipment/iso-capabilities.ts",
       "kind": "runtime"
@@ -235,6 +250,21 @@
     {
       "name": "Bt1886Eotf",
       "source": "src/color/rgb-color-spaces.ts",
+      "kind": "type"
+    },
+    {
+      "name": "BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "BuiltInBayerDemosaicKernel",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "BuiltInBayerDemosaicProfiles",
+      "source": "src/sensor/raw-reconstruction.ts",
       "kind": "type"
     },
     {
@@ -1668,6 +1698,21 @@
       "kind": "type"
     },
     {
+      "name": "CfaMosaicPlane",
+      "source": "src/processing/demosaic.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CfaPlaneReconstructionInput",
+      "source": "src/processing/demosaic.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CfaPlaneReconstructionOutput",
+      "source": "src/processing/demosaic.ts",
+      "kind": "type"
+    },
+    {
       "name": "ChannelSeparationVectorMm",
       "source": "src/optics/lateral-chromatic-aberration.ts",
       "kind": "type"
@@ -1918,6 +1963,26 @@
       "kind": "type"
     },
     {
+      "name": "createAhdDemosaicTask",
+      "source": "src/processing/demosaic.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createBilateralFilterTask",
+      "source": "src/processing/denoise.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createBuiltInBayerDemosaicProfiles",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateBuiltInBayerDemosaicProfilesInput",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "type"
+    },
+    {
       "name": "createCancelledReleaseSequence",
       "source": "src/capture/release-sequence.ts",
       "kind": "runtime"
@@ -1930,6 +1995,11 @@
     {
       "name": "createCaptureWhiteBalanceIntent",
       "source": "src/capture/simulated-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createCfaPlaneReconstructionTask",
+      "source": "src/processing/demosaic.ts",
       "kind": "runtime"
     },
     {
@@ -1963,6 +2033,16 @@
       "kind": "type"
     },
     {
+      "name": "createDurandDorseyToneMappingTask",
+      "source": "src/processing/tone-mapping.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createExposureFusionTask",
+      "source": "src/processing/tone-mapping.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "createExposureMeterTargetFromMeteringResult",
       "source": "src/exposure/metering-target.ts",
       "kind": "runtime"
@@ -1983,8 +2063,23 @@
       "kind": "type"
     },
     {
+      "name": "createFocusStackTask",
+      "source": "src/processing/focus-stacking.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "createGenericEquipmentTierSelection",
       "source": "src/equipment/generic-tier-presets.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createHdrBracketMergeTask",
+      "source": "src/processing/hdr.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createHdrImageEncodingTask",
+      "source": "src/processing/hdr.ts",
       "kind": "runtime"
     },
     {
@@ -2048,6 +2143,16 @@
       "kind": "runtime"
     },
     {
+      "name": "createNonLocalMeansTask",
+      "source": "src/processing/denoise.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createPanoramaTask",
+      "source": "src/processing/panorama.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "createPhotographicExportPair",
       "source": "src/capture/photographic-export.ts",
       "kind": "runtime"
@@ -2106,6 +2211,11 @@
       "name": "CreateProductionPlanConsumerManifestInput",
       "source": "src/composition/plan-consumer.ts",
       "kind": "type"
+    },
+    {
+      "name": "createReinhardGlobalToneMappingTask",
+      "source": "src/processing/tone-mapping.ts",
+      "kind": "runtime"
     },
     {
       "name": "createRollingShutterCaptureExposureSchedule",
@@ -2183,8 +2293,18 @@
       "kind": "runtime"
     },
     {
+      "name": "createSyntheticFilmGrainTask",
+      "source": "src/processing/denoise.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "createTtlScaledFlashProfile",
       "source": "src/exposure/flash-ttl.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createUnsharpMaskTask",
+      "source": "src/processing/denoise.ts",
       "kind": "runtime"
     },
     {
@@ -2260,6 +2380,16 @@
     {
       "name": "DngImportInput",
       "source": "src/capture/dng-import.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DurandDorseyToneMappingInput",
+      "source": "src/processing/tone-mapping.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DurandDorseyToneMappingOutput",
+      "source": "src/processing/tone-mapping.ts",
       "kind": "type"
     },
     {
@@ -2508,6 +2638,16 @@
       "kind": "type"
     },
     {
+      "name": "ExposureFusionInput",
+      "source": "src/processing/tone-mapping.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureFusionOutput",
+      "source": "src/processing/tone-mapping.ts",
+      "kind": "type"
+    },
+    {
       "name": "ExposureIntegrationRequirement",
       "source": "src/sensor/radiometry-readiness.ts",
       "kind": "type"
@@ -2725,6 +2865,16 @@
     {
       "name": "FocusReleasePriority",
       "source": "src/capture/focus-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusStackInput",
+      "source": "src/processing/focus-stacking.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusStackOutput",
+      "source": "src/processing/focus-stacking.ts",
       "kind": "type"
     },
     {
@@ -3050,6 +3200,36 @@
     {
       "name": "GroupedNativeCaptureSampling",
       "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HdrBracketFrame",
+      "source": "src/processing/hdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HdrBracketMergeInput",
+      "source": "src/processing/hdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HdrBracketMergeOutput",
+      "source": "src/processing/hdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HdrImageEncodingInput",
+      "source": "src/processing/hdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HdrImageEncodingOutput",
+      "source": "src/processing/hdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HdrTransfer",
+      "source": "src/processing/hdr.ts",
       "kind": "type"
     },
     {
@@ -3978,6 +4158,11 @@
       "kind": "type"
     },
     {
+      "name": "NonLocalMeansInput",
+      "source": "src/processing/denoise.ts",
+      "kind": "type"
+    },
+    {
       "name": "NormalizedDiscreteSpectralLine",
       "source": "src/core/spectral-composition.ts",
       "kind": "type"
@@ -4050,6 +4235,26 @@
     {
       "name": "OutputFieldOfView",
       "source": "src/output/capture-geometry.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PanoramaCanvas",
+      "source": "src/processing/panorama.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PanoramaFrame",
+      "source": "src/processing/panorama.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PanoramaInput",
+      "source": "src/processing/panorama.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PanoramaOutput",
+      "source": "src/processing/panorama.ts",
       "kind": "type"
     },
     {
@@ -4968,6 +5173,11 @@
       "kind": "runtime"
     },
     {
+      "name": "ProcessedRgbImage",
+      "source": "src/processing/denoise.ts",
+      "kind": "type"
+    },
+    {
       "name": "ProcessedSensorRawInput",
       "source": "src/capture/photographic-export.ts",
       "kind": "type"
@@ -4975,6 +5185,56 @@
     {
       "name": "ProcessedSensorRawResult",
       "source": "src/capture/photographic-export.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PROCESSING_DEFAULT_MAXIMUM_WORKING_BYTES",
+      "source": "src/processing/processing-task.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PROCESSING_MAX_FRAMES",
+      "source": "src/processing/processing-task.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PROCESSING_MAX_PIXELS",
+      "source": "src/processing/processing-task.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PROCESSING_MODEL_VERSION",
+      "source": "src/processing/processing-task.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ProcessingLinearColorSpace",
+      "source": "src/processing/processing-task.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProcessingProvenance",
+      "source": "src/processing/processing-task.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProcessingProvider",
+      "source": "src/processing/processing-task.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProcessingRgbImage",
+      "source": "src/processing/processing-task.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProcessingTask",
+      "source": "src/processing/processing-task.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProcessingTaskState",
+      "source": "src/processing/processing-task.ts",
       "kind": "type"
     },
     {
@@ -5228,6 +5488,11 @@
       "kind": "type"
     },
     {
+      "name": "RawReconstructionBorderHandling",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "type"
+    },
+    {
       "name": "ReadoutExposureBoundaryId",
       "source": "src/sensor/readout-exposure-linkage.ts",
       "kind": "type"
@@ -5290,6 +5555,16 @@
     {
       "name": "ReduceSensorSpatioSpectralIrradianceInput",
       "source": "src/sensor/spatio-spectral-reduction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReinhardGlobalToneMappingInput",
+      "source": "src/processing/tone-mapping.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReinhardGlobalToneMappingOutput",
+      "source": "src/processing/tone-mapping.ts",
       "kind": "type"
     },
     {
@@ -7493,6 +7768,21 @@
       "kind": "type"
     },
     {
+      "name": "SYNTHETIC_FILM_GRAIN_STREAM_ID",
+      "source": "src/processing/denoise.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SyntheticFilmGrainInput",
+      "source": "src/processing/denoise.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SyntheticFilmGrainOutput",
+      "source": "src/processing/denoise.ts",
+      "kind": "type"
+    },
+    {
       "name": "TabulatedColorMatchingSample",
       "source": "src/color/color-matching-functions.ts",
       "kind": "type"
@@ -7500,6 +7790,11 @@
     {
       "name": "ThinLensImageDistance",
       "source": "src/optics/thin-lens.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ToneMappedImage",
+      "source": "src/processing/tone-mapping.ts",
       "kind": "type"
     },
     {
@@ -7585,6 +7880,11 @@
     {
       "name": "UniformLinearExposureBoundarySchedule",
       "source": "src/sensor/exposure-window.ts",
+      "kind": "type"
+    },
+    {
+      "name": "UnsharpMaskInput",
+      "source": "src/processing/denoise.ts",
       "kind": "type"
     },
     {

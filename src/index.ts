@@ -1732,6 +1732,24 @@ export { NATIVE_CAPTURE_SDR_SCHEMA_VERSION, NATIVE_CAPTURE_SDR_LIMITS, calculate
 export type { NativeCaptureSdrInput, NativeCaptureSdrTileRequest, NativeCaptureSdrTile, NativeCaptureSdrProvider, NativeCaptureSdrPlan,
   NativeCaptureSdrOutput, NativeCaptureSdrTaskState, NativeCaptureSdrTask, NativeTaskProgress } from "./output/native-capture-sdr.js";
 
+export { BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION, createBuiltInBayerDemosaicProfiles, type BuiltInBayerDemosaicKernel, type BuiltInBayerDemosaicProfiles,
+  type CreateBuiltInBayerDemosaicProfilesInput, type RawReconstructionBorderHandling } from "./sensor/raw-reconstruction.js";
+export { PROCESSING_MAX_PIXELS, PROCESSING_MAX_FRAMES, PROCESSING_DEFAULT_MAXIMUM_WORKING_BYTES, PROCESSING_MODEL_VERSION,
+  type ProcessingProvider, type ProcessingTask, type ProcessingTaskState, type ProcessingRgbImage, type ProcessingLinearColorSpace,
+  type ProcessingProvenance } from "./processing/processing-task.js";
+export { createCfaPlaneReconstructionTask, createAhdDemosaicTask, type CfaMosaicPlane, type CfaPlaneReconstructionInput,
+  type CfaPlaneReconstructionOutput, type AhdDemosaicInput, type AhdDemosaicOutput } from "./processing/demosaic.js";
+export { createHdrBracketMergeTask, createHdrImageEncodingTask, type HdrBracketFrame, type HdrBracketMergeInput, type HdrBracketMergeOutput,
+  type HdrTransfer, type HdrImageEncodingInput, type HdrImageEncodingOutput } from "./processing/hdr.js";
+export { createReinhardGlobalToneMappingTask, createDurandDorseyToneMappingTask, createExposureFusionTask, type ToneMappedImage,
+  type ReinhardGlobalToneMappingInput, type ReinhardGlobalToneMappingOutput, type DurandDorseyToneMappingInput, type DurandDorseyToneMappingOutput,
+  type ExposureFusionInput, type ExposureFusionOutput } from "./processing/tone-mapping.js";
+export { createFocusStackTask, type FocusStackInput, type FocusStackOutput } from "./processing/focus-stacking.js";
+export { createPanoramaTask, type PanoramaFrame, type PanoramaCanvas, type PanoramaInput, type PanoramaOutput } from "./processing/panorama.js";
+export { SYNTHETIC_FILM_GRAIN_STREAM_ID, createBilateralFilterTask, createNonLocalMeansTask, createUnsharpMaskTask, createSyntheticFilmGrainTask,
+  type ProcessedRgbImage, type BilateralFilterInput, type NonLocalMeansInput, type UnsharpMaskInput, type SyntheticFilmGrainInput,
+  type SyntheticFilmGrainOutput } from "./processing/denoise.js";
+
 export { calculateSensorApertureRays, type CalculateSensorApertureRaysInput, type IdealCircularPupil, type SensorApertureRay, type SensorApertureRays } from "./optics/sensor-aperture-rays.js";
 
 export { SIMULATE_CAPTURE_FACADE_VERSION, SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX, simulateCapture,

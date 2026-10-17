@@ -7105,6 +7105,83 @@ console.log(calculateGeometricFocusBreathing({
 }).value.deltaDegrees);
 ```
 
+## Image processing operators
+
+Standalone cancellable operators for demosaicing, HDR merge/encoding, tone mapping, exposure fusion, focus stacking, panorama stitching from known rotations, denoising, sharpening and synthetic grain. All results are labelled approximations; see [Image processing operators](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md) for equations, sources, measured PSNR and limits. Every factory takes `(input, { yieldControl, onProgress? })` and returns a single-use task.
+
+```ts
+import {
+  createBuiltInBayerDemosaicProfiles,
+  createCfaPlaneReconstructionTask,
+  createAhdDemosaicTask,
+  type SensorColorSamplingProfile
+} from "@photivra/engine";
+
+const provider = { yieldControl: async () => {} };
+const cfa: SensorColorSamplingProfile = {
+  schemaVersion: "0.1.0", profileId: "rggb", coordinateSystem: "native-sensor-color-sampling-site-index",
+  evidence: [{ sourceOrigin: "photivra", sourceReference: "example", reuseStatus: "photivra-owned" }],
+  layout: { kind: "periodic-mosaic", repeatWidthSites: 2, repeatHeightSites: 2,
+    siteChannelIds: ["red", "green", "green", "blue"], anchor: "native-sensor-top-left-site" }
+};
+const plane = { width: 64, height: 48, captureModeId: "native", colorSamplingProfile: cfa,
+  samples: new Float32Array(64 * 48).fill(0.25) };
+const channelRoles = { red: "red", green: "green", blue: "blue" };
+
+// Malvar–He–Cutler linear kernels with mirror borders (also accepted by createNativeRawDevelopmentTask).
+const mhc = createBuiltInBayerDemosaicProfiles({ kernel: "malvar-he-cutler-2004", captureModeId: "native",
+  colorSamplingProfile: cfa, channelRoles }).value;
+const linearTask = createCfaPlaneReconstructionTask({ plane, phaseProfiles: mhc.phaseProfiles, borderHandling: "mirror" }, provider);
+await linearTask.run();
+console.log(linearTask.takeOutput().channelIds);
+
+// Adaptive homogeneity-directed (non-linear) demosaic.
+const ahd = createAhdDemosaicTask({ plane, channelRoles }, provider);
+await ahd.run();
+console.log(ahd.takeOutput().direction.length);
+```
+
+Merge linear RAW brackets with noise-optimal weights, tone map and encode HDR:
+
+```ts
+import {
+  createHdrBracketMergeTask,
+  createHdrImageEncodingTask,
+  createReinhardGlobalToneMappingTask
+} from "@photivra/engine";
+
+const provider = { yieldControl: async () => {} };
+const n = 32 * 32 * 3;
+const frame = (seconds: number) => ({ exposureTimeSeconds: seconds, codes: new Uint16Array(n).fill(64 + Math.round(2000 * seconds)),
+  blackLevelCode: 64, whiteLevelCode: 4000, conversionGainElectronsPerCode: 1.5, readNoiseElectrons: 3 });
+const merge = createHdrBracketMergeTask({ sampleCount: n, frames: [frame(1), frame(1 / 8), frame(1 / 64)] }, provider);
+await merge.run();
+const merged = merge.takeOutput();
+const radiance = { width: 32, height: 32, data: merged.radianceElectronsPerSecond.map((v) => v / 3000) };
+
+const pq = createHdrImageEncodingTask({ image: radiance, inputColorSpace: "linear-srgb-d65", transfer: "pq", bitDepth: 10 }, provider);
+await pq.run();
+console.log(pq.takeOutput().codes?.slice(0, 3));
+
+const sdr = createReinhardGlobalToneMappingTask({ image: radiance, inputColorSpace: "linear-srgb-d65", key: 0.18 }, provider);
+await sdr.run();
+console.log(sdr.takeOutput().logAverageLuminance);
+```
+
+`createDurandDorseyToneMappingTask`, `createExposureFusionTask`, `createFocusStackTask`, `createBilateralFilterTask`, `createNonLocalMeansTask`, `createUnsharpMaskTask` and `createSyntheticFilmGrainTask` follow the same pattern. Panorama stitching uses each frame's known rotation in the engine's pitch/yaw/roll convention:
+
+```ts
+import { createPanoramaTask } from "@photivra/engine";
+
+const image = { width: 48, height: 36, data: new Float32Array(48 * 36 * 3).fill(0.5) };
+const panorama = createPanoramaTask({
+  frames: [-0.5, 0, 0.5].map((yaw) => ({ image, focalLengthPixels: 40, rotationRad: { pitch: 0, yaw, roll: 0 } })),
+  canvas: { projection: "equirectangular", width: 160, height: 48, longitudeRangeRad: [-1.1, 1.1], latitudeRangeRad: [-0.4, 0.4] },
+  blending: "multi-band", exposureCompensation: "gain"
+}, { yieldControl: async () => {} });
+await panorama.run();
+console.log(panorama.takeOutput().gains);
+```
 ### Fisheye-to-rectilinear and Brown–Conrady geometric mappings
 
 ```ts

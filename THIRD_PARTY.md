@@ -104,6 +104,18 @@ The following datasets are deliberately **excluded**:
 
 The tests assert a few individual published values (for example one CMF sample at 479 nm, the column sums from the CIE metadata, 13 CIEDE2000 test pairs, and standard luminance coefficients) as cited facts. They do not reproduce any table.
 
+## Image-processing published parameters
+
+The processing operators in `src/processing/` and the built-in Bayer kernels in `src/sensor/raw-reconstruction.ts` (see [docs/PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)) are independently written from published algorithm descriptions. They contain only short factual parameters. No third-party source code (including GPL demosaicing implementations), table, figure, image or prose is copied, and no runtime dependency or test image is added.
+
+| Parameters | Source | Basis for use |
+| --- | --- | --- |
+| Demosaic gains α = 1/2, β = 5/8, γ = 3/4 and their 5×5 Laplacian correction structure | Malvar, He & Cutler (ICASSP 2004) | Published algorithm parameters; the weights are rebuilt from them. |
+| Burt–Adelson generating kernel [1, 4, 6, 4, 1]/16 (a = 0.375) | Burt & Adelson (1983) | Published equation parameter. |
+| Well-exposedness σ = 0.2; key 0.18; range σ 0.4 and spatial σ 2% defaults | Mertens et al. (2007); Reinhard et al. (2002); Durand & Dorsey (2002) | Published default parameters. |
+| Gain-compensation σ_N ≈ 10/255, σ_g = 0.1 | Brown & Lowe (2007) | Published parameters, rescaled to normalized intensity. |
+| HDR reference white 203 cd/m² and HLG signal 0.75; full and narrow range quantization | ITU-R BT.2408, BT.2100-3 | Standardized numeric constants; the ITU-R recommendations are freely published. |
+
 ## Print contrast numerical model material
 
 The original scalar adapter in `src/output/print-contrast-reference.ts` uses numerical equations/parameters from [castleCSF revision f4b0b722af83001d7af979281e06ca642d36e4e8](https://github.com/gfxdisp/castleCSF/tree/f4b0b722af83001d7af979281e06ca642d36e4e8): `matlab/CSF_castleCSF.m`, `CSF_stelaCSF_lum_peak.m`, `CSF_castleCSF_chrom.m` and `CSF_base.m`. The upstream code/model material is MIT-licensed, copyright (c) 2023 Graphics and Displays group - University of Cambridge. The exact license is preserved at `docs/licenses/castleCSF-MIT.txt` and its notice is retained in `NOTICE` and adapter source. New TypeScript/reference code is distributed under the project Apache-2.0 terms while retaining the MIT notice for upstream numerical material.

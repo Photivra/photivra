@@ -34,7 +34,7 @@
     "dist/schema",
     "dist/sensor",
     "dist/simulation",
-    "dist/stabilization",
+    "dist/stabilization","dist/processing",
     "!dist/capture/browser-native-reference-*",
     "!dist/schema/camera.js",
     "!dist/schema/camera.js.map",
