@@ -10,7 +10,7 @@ import { createPhaseWhiteLevelAccumulator } from "./raw-white-level.js";
 import type { SensorRawProducerSiteInput } from "./sensor-raw-producer.js";
 import { createEnvironmentRawFrameCanonicalMemo, planEnvironmentRawSite, type SimulateEnvironmentSensorRawFrameInput } from "./environment-raw-producer.js";
 import { DEFAULT_HOST_YIELD_CADENCE, createHostYieldGate, type HostYieldCadence } from "./host-yield-cadence.js";
-import { executeEnvironmentSensorPhotoSignal } from "../sensor/environment-photo-signal.js";
+import { executeEnvironmentSensorPhotoSignal, prebuildApertureRadianceQuery } from "../sensor/environment-photo-signal.js";
 import { composeNativeEnvironmentSensorSite, createNativeEnvironmentOpticalStageRecorder, createSensorStageRawTask,
   parseNativeEnvironmentOpticalStageRetention, type NativeEnvironmentOpticalStage, type NativeEnvironmentOpticalStageRetention,
   type NativeEnvironmentSensorStageInput, type NativeEnvironmentSensorStageProvider } from "./native-environment-optical-stage.js";
@@ -23,6 +23,8 @@ import { createNativeEnvironmentLeanExecutor, createNativeEnvironmentSensorLean,
   type LeanEnvironmentPlan } from "./native-environment-lean.js";
 import { prepareCaptureExposureWindowSampler } from "../sensor/exposure-window.js";
 import type { SensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
+import type { SceneRadianceEvaluationRequest, SceneRadianceEvaluationResult } from "../schema/scene-radiance.js";
+import type { SensorApertureRay } from "../optics/sensor-aperture-rays.js";
 
 type SitePlan = ReturnType<typeof planEnvironmentRawSite> | LeanEnvironmentPlan;
 type PhotoSignal = SensorEqeTemporalPhotoSignal;
@@ -41,11 +43,26 @@ export interface NativeEnvironmentRawInput {
 export interface NativeEnvironmentRawTile extends NativeRawTileRequest {
   sites: SimulateEnvironmentSensorRawFrameInput["sites"];
 }
+/** One radiance query of a batch: the frozen provider request and, for an ideal-pupil ray, its frozen aperture ray. */
+export interface NativeEnvironmentRadianceQuery {
+  request: Readonly<SceneRadianceEvaluationRequest>;
+  apertureRay?: Readonly<SensorApertureRay>;
+}
 export interface NativeEnvironmentRawProvider {
   /** Supplies physical site profiles, not photo counts or precomputed RAW codes. */
   readTile(request: Readonly<NativeRawTileRequest>,signal:AbortSignal):Promise<NativeEnvironmentRawTile>;
   evaluateRadiance: SimulateEnvironmentSensorRawFrameInput["evaluateRadiance"];
   evaluateApertureRadiance?: SimulateEnvironmentSensorRawFrameInput["evaluateApertureRadiance"];
+  /**
+   * Optional batched light sampling (2.0, additive). When present, the engine makes one call per tile instead of one
+   * evaluateRadiance or evaluateApertureRadiance call per query. `queries` holds every query of the tile's sites, in
+   * exactly the order the per-query callbacks would be made, each with the same frozen request (and aperture ray).
+   * Return one result per query, in the same order; a promise is allowed (for example a GPU readback). Each result
+   * is validated by the same parser and binding checks as a per-query result, so for the same results the output is
+   * byte-identical. The per-query evaluators stay required as the reference contract, but are not called.
+   */
+  evaluateRadianceBatch?(queries:readonly NativeEnvironmentRadianceQuery[],signal:AbortSignal):
+    readonly SceneRadianceEvaluationResult[]|Promise<readonly SceneRadianceEvaluationResult[]>;
   /** Optional, bounded diagnostic callback. Counts are expected values before any noise, clipping or ADC (analogue-to-digital conversion). */
   observePhotoTile?(tile:Readonly<NativeEnvironmentPhotoTile>,signal:AbortSignal):void|Promise<void>;
   yieldControl(signal:AbortSignal):Promise<void>;
@@ -127,6 +144,24 @@ function adoptSharedState(environment: SiteEnvironment, reference: SharedStateRe
   }
   return true;
 }
+/**
+ * Every radiance query the executors will make for these site plans, in their callback order: per site, per instant,
+ * per group (spectral-major, spatial-minor), per tap, then per pupil ray. Pupil queries come from the executors' own
+ * apertureRadianceQuery, which then hands the executor the same objects.
+ */
+function tileQueries(plans:readonly SitePlan[]):NativeEnvironmentRadianceQuery[] {
+  const queries:NativeEnvironmentRadianceQuery[]=[];
+  const add=(tap:{request:SceneRadianceEvaluationRequest;apertureRays?:readonly SensorApertureRay[]}):void=>{
+    if(tap.apertureRays===undefined){queries.push({request:tap.request});return;}
+    // The executor later receives these same objects (apertureRadianceQuery), so they are built once.
+    for(const ray of tap.apertureRays)queries.push(prebuildApertureRadianceQuery(tap.request,ray));
+  };
+  for(const p of plans){
+    if(isLeanEnvironmentPlan(p)){for(const instant of p.instants)for(const taps of instant.groups)for(const tap of taps)add(tap);}
+    else for(const instant of p.instants)for(const group of instant.groups)for(const tap of group.taps)add(tap);
+  }
+  return queries;
+}
 function parseSceneBinding(value: unknown): NativeEnvironmentRawInput["sceneBinding"] {
   const binding=requireAllowlistedRecord(value,["sceneStateId","providerSceneId","evidence"],"Invalid native scene binding.");
   return freezeOwnedData({sceneStateId:requirePublicOpaqueId(binding.sceneStateId,"Invalid scene-state ID."),providerSceneId:requirePublicOpaqueId(binding.providerSceneId,"Invalid provider-scene ID."),evidence:parseEvidenceList(binding.evidence,"nativeEnvironmentSceneBinding.evidence")});
@@ -168,9 +203,10 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
   if(partition&&retention)throw new InvalidConfigurationError("A native environment partition cannot retain the optical stage.");
   if(!provider||typeof provider.readTile!=="function"||typeof provider.evaluateRadiance!=="function"||typeof provider.yieldControl!=="function"||
     (provider.evaluateApertureRadiance!==undefined&&typeof provider.evaluateApertureRadiance!=="function")||
-    (provider.observePhotoTile!==undefined&&typeof provider.observePhotoTile!=="function"))throw new InvalidConfigurationError("Native environment requires physical source callbacks and host yields.");
+    (provider.observePhotoTile!==undefined&&typeof provider.observePhotoTile!=="function")||
+    (provider.evaluateRadianceBatch!==undefined&&typeof provider.evaluateRadianceBatch!=="function"))throw new InvalidConfigurationError("Native environment requires physical source callbacks and host yields.");
   const read=provider.readTile.bind(provider),evaluate=provider.evaluateRadiance.bind(provider),aperture=provider.evaluateApertureRadiance?.bind(provider),yieldControl=provider.yieldControl.bind(provider);
-  const observe=provider.observePhotoTile?.bind(provider);
+  const observe=provider.observePhotoTile?.bind(provider),batch=provider.evaluateRadianceBatch?.bind(provider);
   let evaluations=0,shared:string|undefined,reference:SharedStateReference|undefined;
   const recorder=retention?createNativeEnvironmentOpticalStageRecorder(plan,sceneBinding,retention):undefined;
   const memo=createEnvironmentRawFrameCanonicalMemo(plan.frame,plan.exposureWindow!),gate=createHostYieldGate(cadence);
@@ -235,8 +271,30 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
       // Only value.photo is consumed, so per-evaluation diagnostics are not retained.
       const rawSites:(ReturnType<typeof composeNativeEnvironmentSensorSite>|object)[]=[],photos:PhotoSignal[]=[];
       sensorLean.beginTile();
-      const evaluateCounted=(q:Parameters<typeof evaluate>[0]):ReturnType<typeof evaluate>=>{if(signal.aborted)throw new InvalidConfigurationError("Native source evaluation aborted.");evaluations++;return evaluate(q);};
-      const apertureCounted=aperture?(q:Parameters<typeof aperture>[0],ray:Parameters<typeof aperture>[1]):ReturnType<typeof evaluate>=>{if(signal.aborted)throw new InvalidConfigurationError("Native aperture evaluation aborted.");evaluations++;return aperture(q,ray);}:undefined;
+      let evaluateCounted=(q:Parameters<typeof evaluate>[0]):ReturnType<typeof evaluate>=>{if(signal.aborted)throw new InvalidConfigurationError("Native source evaluation aborted.");evaluations++;return evaluate(q);};
+      let apertureCounted=aperture?(q:Parameters<typeof aperture>[0],ray:Parameters<typeof aperture>[1]):ReturnType<typeof evaluate>=>{if(signal.aborted)throw new InvalidConfigurationError("Native aperture evaluation aborted.");evaluations++;return aperture(q,ray);}:undefined;
+      let batched:{queries:readonly NativeEnvironmentRadianceQuery[];results:readonly SceneRadianceEvaluationResult[];next:number}|undefined;
+      if(batch){
+        // One call for the whole tile, with every planned query in per-query callback order (see tileQueries).
+        const queries=tileQueries(plans);
+        if(signal.aborted)throw new InvalidConfigurationError("Native source evaluation aborted.");
+        const results=await batch(Object.freeze(queries),signal);
+        if(signal.aborted)throw new InvalidConfigurationError("Native source evaluation aborted.");
+        if(!Array.isArray(results)||results.length!==queries.length||Array.from({length:queries.length},(_,i)=>i in results).includes(false))
+          throw new InvalidConfigurationError("Batched radiance must return one result per query, in query order.");
+        const current={queries,results:results as readonly SceneRadianceEvaluationResult[],next:0};
+        batched=current;
+        // The executors ask for each query in the same order; every step is checked against the planned query.
+        const take=(q:Readonly<SceneRadianceEvaluationRequest>,ray:Readonly<SensorApertureRay>|undefined):SceneRadianceEvaluationResult=>{
+          const k=current.next++,planned=current.queries[k];
+          if(planned===undefined||planned.request.sampleId!==q.sampleId||(planned.apertureRay===undefined)!==(ray===undefined))
+            throw new InvalidConfigurationError("Batched radiance results are out of step with the planned queries.");
+          evaluations++;
+          return current.results[k]!;
+        };
+        evaluateCounted=(q):ReturnType<typeof evaluate>=>take(q,undefined);
+        apertureCounted=aperture?(q,ray):ReturnType<typeof evaluate>=>take(q,ray):undefined;
+      }
       for(let j=0;j<sites.length;j++){
         await pause();
         const index=request.y*plan.exposure.geometry.nativeRaster.pixelWidth+request.x+j;
@@ -262,6 +320,7 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
         if(claimed)rawSites.push(claimed);
         else{rawSites.push(composeNativeEnvironmentSensorSite(sites[j]!,photoSignal));sensorLean.remember(index,sites[j]!,photoSignal);}
       }
+      if(batched&&batched.next!==batched.queries.length)throw new InvalidConfigurationError("Batched radiance results are out of step with the planned queries.");
       if(signal.aborted)throw new InvalidConfigurationError("Native photo observation aborted.");
       if(observe)await observe(freezeOwnedData({...request,sites:photos.map((s,j)=>({nativeIndex:request.y*plan.exposure.geometry.nativeRaster.pixelWidth+request.x+j,
         expectedIncidentPhotonCount:s.expectedIncidentPhotonCount,expectedGeneratedElectronCount:s.expectedGeneratedElectronCount}))}),signal);

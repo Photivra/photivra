@@ -58,7 +58,7 @@ The three stages were chosen because they cost the most CPU time per pixel. The 
 | Native capture SDR | `createNativeCaptureSdrTask` | 98–146 ns/px (Node); 24 MP in 2.7–3.5 s | Pointwise per sample |
 | Packed RAW development | `createNativeRawDevelopmentTask` (typed kernel, #295) | ≈ 1.0 µs/px in Chromium on this host (1024×768: 0.8 s); 24 MP in tens of seconds | One invocation per output pixel |
 
-Per-site radiance, pupil, PSF quadrature and sensor noise (the 75-hour path in #277) do not map cleanly to a compute shader yet. They need the batched provider API and the per-stage accuracy contracts that #277 schedules after 2.0.0. They stay on the CPU.
+Per-site radiance, pupil, PSF quadrature and sensor noise (the 75-hour path in #277) do not map cleanly to a compute shader yet. The batched provider API now exists (`evaluateRadianceBatch`, see [native RAW](NATIVE_RAW_AND_PRINT.md#batched-light-sampling-evaluateradiancebatch-20)), but the per-stage accuracy contracts that #277 schedules after 2.0.0 do not. They stay on the CPU.
 
 ### Supported domain (fails closed outside it)
 

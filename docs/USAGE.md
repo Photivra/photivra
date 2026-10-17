@@ -7259,6 +7259,11 @@ worker thread, each with its own provider), post the partitions back, and join t
 and a deterministic provider. The package ships no worker code; the caller owns the workers. See
 [parallel execution](NATIVE_RAW_AND_PRINT.md#opt-in-parallel-execution-row-band-partitions-20) for the checks and limits.
 
+A provider can also add `evaluateRadianceBatch(queries, signal)`: one call per tile with every query in per-query
+order, returning the results in the same order (or a promise of them). The output is identical to per-query
+callbacks with the same results; see
+[batched light sampling](NATIVE_RAW_AND_PRINT.md#batched-light-sampling-evaluateradiancebatch-20).
+
 ```ts
 import { createNativeEnvironmentRawPartitionTask, mergeNativeEnvironmentRawPartitions, partitionNativeRawRows, simulateCapture,
   type NativeEnvironmentRawProvider } from "@photivra/engine";

@@ -35,6 +35,7 @@
 import type { SimulateEnvironmentSensorRawFrameInput } from "./environment-raw-producer.js";
 import type { planEnvironmentSensorPhotoSignal, executeEnvironmentSensorPhotoSignal, EnvironmentRadianceEvaluator,
   EnvironmentApertureRadianceEvaluator } from "../sensor/environment-photo-signal.js";
+import { apertureRadianceQuery } from "../sensor/environment-photo-signal.js";
 import type { SensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
 import { createSensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
 import { parseSceneRadianceEvaluationResult, validateSceneRadianceEvaluationBindings,
@@ -727,11 +728,8 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
         let integrated = 0;
         const support: readonly (SensorApertureRay | undefined)[] = tap.apertureRays ?? [undefined];
         for (const ray of support) {
-          const base = tap.request;
-          const request = ray === undefined ? base : freezeOwnedData({ ...base, sampleId: base.sampleId + "-a" + ray.pupilSampleIndex,
-            target: { kind: "environment-direction" as const, outgoingDirectionUnitVector: {
-              x: -ray.directionUnitVector.x, y: -ray.directionUnitVector.y, z: -ray.directionUnitVector.z } } });
-          const apertureRay = ray === undefined ? undefined : freezeOwnedData(structuredClone(ray));
+          const query = ray === undefined ? undefined : apertureRadianceQuery(tap.request, ray);
+          const request = query === undefined ? tap.request : query.request, apertureRay = query?.apertureRay;
           const result = parseSceneRadianceEvaluationResult(apertureRay === undefined ? evaluate(request) : aperture!(request, apertureRay));
           if (result.sampleId !== request.sampleId || result.providerProfileId !== request.providerProfileId || result.sceneId !== request.sceneId ||
             result.wavelengthNanometers !== request.wavelengthNanometers || result.wavelengthBasis !== request.wavelengthBasis) {

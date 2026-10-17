@@ -94,6 +94,17 @@ export interface NativeEnvironmentPhotoTile extends NativeRawTileRequest {
 }
 ```
 
+## NativeEnvironmentRadianceQuery
+
+One radiance query of a batch: the frozen provider request and, for an ideal-pupil ray, its frozen aperture ray.
+
+```ts
+export interface NativeEnvironmentRadianceQuery {
+  request: Readonly<SceneRadianceEvaluationRequest>;
+  apertureRay?: Readonly<SensorApertureRay>;
+}
+```
+
 ## NativeEnvironmentRawInput
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -176,6 +187,16 @@ export interface NativeEnvironmentRawProvider {
   readTile(request: Readonly<NativeRawTileRequest>,signal:AbortSignal):Promise<NativeEnvironmentRawTile>;
   evaluateRadiance: SimulateEnvironmentSensorRawFrameInput["evaluateRadiance"];
   evaluateApertureRadiance?: SimulateEnvironmentSensorRawFrameInput["evaluateApertureRadiance"];
+  /**
+   * Optional batched light sampling (2.0, additive). When present, the engine makes one call per tile instead of one
+   * evaluateRadiance or evaluateApertureRadiance call per query. `queries` holds every query of the tile's sites, in
+   * exactly the order the per-query callbacks would be made, each with the same frozen request (and aperture ray).
+   * Return one result per query, in the same order; a promise is allowed (for example a GPU readback). Each result
+   * is validated by the same parser and binding checks as a per-query result, so for the same results the output is
+   * byte-identical. The per-query evaluators stay required as the reference contract, but are not called.
+   */
+  evaluateRadianceBatch?(queries:readonly NativeEnvironmentRadianceQuery[],signal:AbortSignal):
+    readonly SceneRadianceEvaluationResult[]|Promise<readonly SceneRadianceEvaluationResult[]>;
   /** Optional, bounded diagnostic callback. Counts are expected values before any noise, clipping or ADC (analogue-to-digital conversion). */
   observePhotoTile?(tile:Readonly<NativeEnvironmentPhotoTile>,signal:AbortSignal):void|Promise<void>;
   yieldControl(signal:AbortSignal):Promise<void>;

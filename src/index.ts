@@ -1721,7 +1721,7 @@ export { SRGB_ICC_PROFILE_VERSION, createSrgbIccProfile } from "./color/srgb-icc
 export { createNativeEnvironmentRawTask, createNativeEnvironmentSensorStageTask, partitionNativeRawRows, createNativeEnvironmentRawPartitionTask,
   mergeNativeEnvironmentRawPartitions } from "./capture/native-environment-raw.js";
 export type { NativeEnvironmentRawInput, NativeEnvironmentRawTile, NativeEnvironmentPhotoTile, NativeEnvironmentRawProvider, NativeEnvironmentRawOutput,
-  NativeEnvironmentRawTask, NativeRawRowBand, NativeEnvironmentRawPartition, NativeEnvironmentRawPartitionTask } from "./capture/native-environment-raw.js";
+  NativeEnvironmentRawTask, NativeRawRowBand, NativeEnvironmentRawPartition, NativeEnvironmentRawPartitionTask, NativeEnvironmentRadianceQuery } from "./capture/native-environment-raw.js";
 export { NATIVE_ENVIRONMENT_OPTICAL_STAGE_LIMITS } from "./capture/native-environment-optical-stage.js";
 export type { NativeEnvironmentOpticalStage, NativeEnvironmentOpticalStageRetention, NativeEnvironmentSensorStageInput,
   NativeEnvironmentSensorStageProvider } from "./capture/native-environment-optical-stage.js";

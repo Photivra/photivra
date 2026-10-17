@@ -4138,6 +4138,11 @@
       "kind": "type"
     },
     {
+      "name": "NativeEnvironmentRadianceQuery",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
       "name": "NativeEnvironmentRawInput",
       "source": "src/capture/native-environment-raw.ts",
       "kind": "type"

@@ -241,6 +241,21 @@ A capture-level difference is refused when the reuse task is created, before any
 
 `test/native-environment-optical-stage.test.ts` checks reuse against full recomputes. It covers a PSF with radial field, a flat emitter, pupil rays and eight temporal midpoints, across edits to seed, ISO with readout gain, white balance, rendering exposure and dark current. It also checks refusal for every optical input listed above, the memory limit and disposal.
 
+### Batched light sampling (`evaluateRadianceBatch`, 2.0)
+
+`NativeEnvironmentRawProvider.evaluateRadianceBatch` is an optional, additive alternative to one callback per query. When a provider defines it, the native environment task makes one call per tile instead of calling `evaluateRadiance` and `evaluateApertureRadiance` per query:
+
+- `queries` lists every radiance query of the tile's sites, in exactly the order the per-query callbacks would be made: per site, per time instant, per spectral × spatial node, per PSF tap, then per pupil ray. Each entry holds the same frozen request, and for a pupil ray the same frozen ray copy, that the per-query callback would receive (`NativeEnvironmentRadianceQuery`).
+- Return one `SceneRadianceEvaluationResult` per query, in the same order, or a promise of them (for example after a GPU readback). Anything else (a non-array, a wrong length, holes) is rejected with `InvalidConfigurationError`.
+- Each result then goes through the same parser and binding checks, and the same arithmetic, as a per-query result. With the same results, RAW, photo expectations, the evaluation count and errors are identical to the per-query provider.
+- A tile holds at most 100,000 queries, so a batch is bounded.
+
+Differences from per-query callbacks: all of a tile's queries are evaluated before any of its sites is executed, so a defective result is reported after the whole tile's callbacks rather than right after its own. The per-query evaluators stay required as the reference contract, and pupil sampling still requires `evaluateApertureRadiance` to be declared, but neither is called while a batch function is present. Row-band partitions use the batch function the same way.
+
+`test/native-environment-batch.test.ts` checks equality with the per-query provider (RAW, photo expectations, evaluation counts and the exact request sequence, including frozen flags) for the four hash-locked workloads and lean facade captures with pupil rays and a lens field mapping, with synchronous and promise results, inside partitions, and for defective results.
+
+**Measured** (Node 24, shared 4-vCPU Linux host, 48 × 48, one thread, analytic JavaScript radiance, median of 5, alternated with per-query runs, `scripts/benchmark-native-environment-workers.mjs`): default optics 0.29 s per-query vs 0.27 s batched; 4 pupil rays 2.11 s vs 2.43 s. A batch call itself saves little on the CPU; its purpose is to let a provider evaluate a tile at once (GPU, WebAssembly or another thread). No GPU provider is part of this change.
+
 ### Opt-in parallel execution (row-band partitions, 2.0)
 
 `createNativeEnvironmentRawTask` runs on one thread. A capture can instead be split into bands of whole native rows and run in parallel:

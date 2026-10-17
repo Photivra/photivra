@@ -9,6 +9,7 @@
  * an analytic radiance provider. Workers receive the site inputs once, at start-up (timed separately as setup);
  * the timed parallel run covers posting "run", every band's acquisition, posting the partitions back (buffers
  * transferred) and the merge. RAW SHA-256 of the merged output must equal the single task's, or the script fails.
+ * The single-thread run is also timed with a batched provider (evaluateRadianceBatch), whose RAW must match too.
  * Informational only; host-dependent. Environment: N (default 48), WORKERS (comma list, default 2,4), REPEATS
  * (default 3), CASES (default psf,default).
  */
@@ -29,8 +30,9 @@ import { analyticRadiance, nativeEnvironmentCases } from "./lib/native-environme
  * A provider reading site inputs from an array (absolute native row-major order). Sites share their profile objects,
  * as the facade builds them; the engine copies every tile it reads, so they are passed as they are.
  */
-function provider(sites, width) {
+function provider(sites, width, batch = false) {
   return {
+    ...(batch ? { evaluateRadianceBatch: (queries) => queries.map(({ request, apertureRay }) => analyticRadiance(request, apertureRay)) } : {}),
     async readTile(request) {
       return { ...request, sites: sites.slice(request.y * width + request.x, request.y * width + request.x + request.width) };
     },
@@ -63,15 +65,21 @@ if (!isMainThread) {
       maximumProviderEvaluations: capture.request.environmentRaw.maximumProviderEvaluations };
     const native = capture.plan.exposure.geometry.nativeRaster, width = native.pixelWidth;
     const sites = Array.from({ length: native.pixelWidth * native.pixelHeight }, (_, index) => capture.request.siteInput(index));
-    const runSingle = async () => { const task = createNativeEnvironmentRawTask(input, provider(sites, width)); await task.run(); return task.takeOutput(); };
-    await runSingle();
-    const singleMs = [];
+    const runSingle = async (batch) => { const task = createNativeEnvironmentRawTask(input, provider(sites, width, batch)); await task.run(); return task.takeOutput(); };
+    await runSingle(false);
+    await runSingle(true);
+    // One thread, per-query callbacks and the batched provider (evaluateRadianceBatch), alternated.
+    const singleMs = [], batchMs = [];
     let expected;
     for (let repeat = 0; repeat < repeats; repeat++) {
-      globalThis.gc?.();
-      const start = performance.now();
-      expected = sha256((await runSingle()).raw.codes);
-      singleMs.push(performance.now() - start);
+      for (const batch of [false, true]) {
+        globalThis.gc?.();
+        const start = performance.now();
+        const digest = sha256((await runSingle(batch)).raw.codes);
+        (batch ? batchMs : singleMs).push(performance.now() - start);
+        expected ??= digest;
+        if (digest !== expected) throw new Error(`${name}: batched RAW differs from per-query RAW.`);
+      }
     }
     const rows = [];
     for (const count of workerCounts) {
@@ -99,7 +107,8 @@ if (!isMainThread) {
         samplesMs: parallelMs.map((ms) => Number(ms.toFixed(1))), speedup: Number((median(singleMs) / median(parallelMs)).toFixed(2)) });
     }
     console.log(JSON.stringify({ case: name, output: `${size}x${size}`, nativeSites: sites.length, availableParallelism: availableParallelism(),
-      singleMedianMs: Number(median(singleMs).toFixed(1)), singleSamplesMs: singleMs.map((ms) => Number(ms.toFixed(1))), rawSha256: expected,
+      singleMedianMs: Number(median(singleMs).toFixed(1)), singleSamplesMs: singleMs.map((ms) => Number(ms.toFixed(1))),
+      singleBatchedMedianMs: Number(median(batchMs).toFixed(1)), singleBatchedSamplesMs: batchMs.map((ms) => Number(ms.toFixed(1))), rawSha256: expected,
       parallel: rows, mergedRawIdentical: true, runtime: process.version, platform: `${process.platform}/${process.arch}` }));
   }
 }
