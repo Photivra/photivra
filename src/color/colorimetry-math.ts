@@ -113,7 +113,7 @@ export function determinant3x3(m: ColorMatrix3x3): number {
   return a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
 }
 
-/** Exact cofactor inverse; fails closed on a singular or non-finite result. */
+/** Exact cofactor inverse. Throws (fails closed) on a singular or non-finite result. */
 export function invertMatrix3x3(m: ColorMatrix3x3, path = "matrix"): ColorMatrix3x3 {
   const [[a, b, c], [d, e, f], [g, h, i]] = m;
   const det = determinant3x3(m);

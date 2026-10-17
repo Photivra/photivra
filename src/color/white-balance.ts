@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Parses generic WB presets and AWB policies. Preset gains and AWB correction strength are
- * profile-owned. Labels are not treated as universal Kelvin aliases or manufacturer-specific behavior.
- * Resolves a profile-owned WB preset without universal label/Kelvin rules.
- * @see docs/CAPTURE_COLOR.md for equations, coordinate/unit conventions, blockers and support limits.
+ * White balance (WB): generic presets, manual gains, colour temperature and tint, custom (grey-card)
+ * WB, auto white balance (AWB), WB lock, and parsing of a committed WB state.
+ *
+ * The profile defines preset gains and AWB correction strength. A label such as "Daylight" is not
+ * treated as a universal Kelvin value or as any manufacturer's behaviour.
+ * @see docs/CAPTURE_COLOR.md for the equations, units, coordinate conventions, known blockers and
+ * support limits.
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -62,9 +65,9 @@ export interface WhiteBalanceAwbPolicy {
   policyId: string;
   intent: WhiteBalanceAwbIntent;
   /**
-   * Fraction of a gray-world neutralizing correction applied in logarithmic
-   * gain space. 1 is full neutral-priority correction; lower values preserve
-   * more of the observed cast.
+   * How much of a grey-world neutralizing correction to apply, measured in
+   * logarithmic gain space. 1 applies the full correction (neutral priority).
+   * Lower values keep more of the observed colour cast.
    */
   correctionStrength: EvidenceBackedFact<number>;
   limitations?: readonly string[];
@@ -398,8 +401,8 @@ function parseAwbPolicy(
 /**
  * Parses generic WB presets and AWB policies.
  *
- * Preset gains and AWB correction strength are profile-owned. Labels are not
- * treated as universal Kelvin aliases or manufacturer-specific behavior.
+ * The profile defines preset gains and AWB correction strength. A label is not
+ * treated as a universal Kelvin value or as any manufacturer's behaviour.
  */
 export function parseWhiteBalanceProfile(
   value: unknown
@@ -606,7 +609,7 @@ function stateBase(
   };
 }
 
-/** Resolves a profile-owned WB preset without universal label/Kelvin rules. */
+/** Resolves a WB preset defined by the profile. No universal label-to-Kelvin rule is applied. */
 export function resolvePresetWhiteBalance(
   input: ResolvePresetWhiteBalanceInput
 ): ResolvedWhiteBalanceState {
@@ -684,13 +687,15 @@ export function createColorTemperatureWhiteBalanceIntent(
 }
 
 /**
- * Resolves Kelvin + tint WB intent into camera channel gains for an explicit camera
- * colour model: white xy = locus(CCT) offset by Duv = tint along the Planckian-locus
- * normal in CIE 1960 uv; camera neutral n = M_XYZ→camera · XYZ(white, Y = 1); gains =
- * (n_G/n_R, 1, n_G/n_B). A neutral surface lit by an illuminant with exactly that
- * chromaticity then renders with equal channels. The CCT/tint is the photographer's
- * declared white, not a measured scene illuminant; accuracy is bounded by the camera
- * matrix (exact only under the Luther–Ives condition) and the locus model.
+ * Resolves a Kelvin + tint WB intent into camera channel gains, for an explicit camera
+ * colour model:
+ * - white xy = locus(CCT), offset by Duv = tint along the Planckian-locus normal in CIE 1960 uv;
+ * - camera neutral n = M_XYZ→camera · XYZ(white, Y = 1);
+ * - gains = (n_G/n_R, 1, n_G/n_B).
+ * A neutral surface lit by light of exactly that chromaticity then renders with equal channels.
+ * The CCT and tint are the white the photographer declares, not a measured scene illuminant.
+ * Accuracy is limited by the camera matrix (exact only under the Luther–Ives condition) and by
+ * the locus model.
  */
 export function resolveColorTemperatureWhiteBalance(
   input: ResolveColorTemperatureWhiteBalanceInput
@@ -917,9 +922,10 @@ export function resolveCustomWhiteBalance(
 /**
  * Estimates one global AWB state from declared pre-WB camera-linear samples.
  *
- * It intentionally does not accept true illuminant metadata. A gray-world
- * neutralizing estimate is softened by the profile's correctionStrength so
- * different generic AWB priorities can preserve different amounts of cast.
+ * It deliberately does not accept metadata about the true illuminant. A
+ * grey-world neutralizing estimate is softened by the profile's
+ * correctionStrength, so different generic AWB priorities can keep different
+ * amounts of colour cast.
  */
 export function estimateAutoWhiteBalance(
   input: EstimateAutoWhiteBalanceInput
@@ -981,8 +987,8 @@ export function estimateAutoWhiteBalance(
 /**
  * Freezes a resolved WB state under a new stable identity.
  *
- * Locking changes neither the scene nor the gains; later AWB estimates may
- * differ while this locked state remains unchanged.
+ * Locking changes neither the scene nor the gains. Later AWB estimates may
+ * differ, but this locked state stays the same.
  */
 export function createLockedWhiteBalanceState(
   input: CreateLockedWhiteBalanceStateInput
@@ -1132,11 +1138,12 @@ function parseResolvedColorTemperature(
 }
 
 /**
- * Parses a committed resolved white-balance state from an untrusted JSON
- * boundary without re-estimating WB.
+ * Parses a committed, resolved white-balance state from untrusted JSON,
+ * without estimating WB again.
  *
- * This is intentionally a state parser, not an AWB estimator. It preserves the
- * resolved gains/policy/measurement identity that a capture committed earlier.
+ * This is deliberately a state parser, not an AWB estimator. It keeps the
+ * resolved gains, policy and measurement identity that a capture committed
+ * earlier.
  */
 export function parseResolvedWhiteBalanceState(
   value: unknown

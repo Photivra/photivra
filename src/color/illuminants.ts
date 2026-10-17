@@ -212,8 +212,8 @@ function kimLocus(t: number): CieXyChromaticity {
 
 /**
  * Planckian-locus chromaticity from the Kim et al. (2002) cubic spline, 1667–25000 K.
- * Approximation of the exact Planck/CMF integral; its deviation is quantified against
- * exact integration in the test suite rather than claimed here.
+ * It approximates the exact Planck/CMF integral. The test suite measures its deviation from
+ * exact integration; no accuracy figure is claimed here.
  */
 export function estimatePlanckianLocusChromaticity(input: { temperatureKelvin: number }): CalculationResult<CieXyChromaticity> {
   requireInputKeys(input, "estimatePlanckianLocusChromaticity", ["temperatureKelvin"]);
@@ -312,9 +312,9 @@ export interface CorrelatedColorTemperatureResult {
 
 /**
  * CCT and Duv of a chromaticity as the nearest point of the Planckian locus in the CIE
- * 1960 UCS (Smet et al. 2023; also CIE 15:2018), by golden-section search in reciprocal temperature
- * (mired). Fails closed when the nearest point lies at the model's range limit or when
- * |Duv| > 0.05, where CIE 15 advises CCT should not be used.
+ * 1960 UCS (Smet et al. 2023; also CIE 15:2018). Uses a golden-section search in reciprocal
+ * temperature (mired). Throws (fails closed) when the nearest point is at the model's range limit,
+ * or when |Duv| > 0.05, where CIE 15 advises not to use CCT.
  */
 export function calculateCorrelatedColorTemperature(input: { chromaticity: CieXyChromaticity; locus: PlanckianLocusModel }): CalculationResult<CorrelatedColorTemperatureResult> {
   requireInputObject(input, "calculateCorrelatedColorTemperature input");

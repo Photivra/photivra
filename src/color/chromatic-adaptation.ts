@@ -4,10 +4,10 @@
  * Von Kries-type linear chromatic adaptation transforms (CATs) on CIE XYZ:
  *   M = C⁻¹ · diag(Dᵢ) · C,  Dᵢ = D · (Y_s / Y_d) · (ρᵢ,d / ρᵢ,s) + 1 − D
  * where C maps XYZ to a cone-like ("sharpened") space, ρ_s and ρ_d are the source and
- * destination whites in that space, and D ∈ [0, 1] is the degree of adaptation. This
- * is the one-step two-illuminant form of Li et al. (2017) for CAT16 and is applied to
- * every transform here. With D = 1 and equal white luminance the source white maps
- * exactly to the destination white.
+ * destination whites in that space, and D ∈ [0, 1] is the degree of adaptation. This is
+ * the one-step, two-illuminant form of Li et al. (2017) for CAT16; it is used for every
+ * transform here. With D = 1 and equal white luminance, the source white maps exactly to
+ * the destination white.
  *
  * Cone matrices (published factual constants):
  * - Bradford (linearized): Lam (1985) thesis, University of Bradford; Luo & Rhodes
@@ -112,8 +112,8 @@ export function chromaticAdaptationMatrix(input: CalculateChromaticAdaptationMat
 
 /**
  * Calculates a linear chromatic-adaptation matrix between two whites. Linear CATs are
- * standard models whose predictive accuracy for corresponding colours is limited; the
- * matrix itself is calculated exactly from the declared transform.
+ * standard models, but they predict corresponding colours only approximately. The matrix
+ * itself is calculated exactly from the declared transform.
  */
 export function calculateChromaticAdaptationMatrix(input: CalculateChromaticAdaptationMatrixInput): CalculationResult<ChromaticAdaptationMatrix> {
   requireInputObject(input, "calculateChromaticAdaptationMatrix input");

@@ -8,11 +8,11 @@
  * - ΔE*ab 1976: Euclidean CIELAB distance.
  * - ΔE*94 (CIE 116-1995): asymmetric (first colour is the reference), graphic-arts
  *   (k_L = 1, K₁ = 0.045, K₂ = 0.015) or textiles (k_L = 2, K₁ = 0.048, K₂ = 0.014).
- * - CIEDE2000, implemented from the formula and its implementation notes in Sharma, Wu &
- *   Dalal (2005), Color Res. Appl. 30(1):21–30 (paper and test data free at
- *   https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/; also CIE 142-2001, ISO/CIE 11664-6),
- *   including the hue-angle averaging and discontinuity handling; checked against the
- *   published test pairs.
+ * - CIEDE2000, implemented from the formula and implementation notes in Sharma, Wu & Dalal
+ *   (2005), Color Res. Appl. 30(1):21–30 (paper and test data free at
+ *   https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/; also CIE 142-2001, ISO/CIE 11664-6).
+ *   This includes the hue-angle averaging and the handling of the hue discontinuity. It is checked
+ *   against the published test pairs.
  * @see docs/COLORIMETRY.md for equations, coordinate/unit conventions and limits.
  */
 

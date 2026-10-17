@@ -1,32 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Validated 3×3 matrices only; retains the declared determinant/inverse bounds.
- * Internal adapter for validated normalized sensor RGB and a declared D65 profile. The caller owns
- * profile evidence, CFA/basis binding and one-time WB authorization.
+ * RAW colour development: turns normalized sensor RGB into linear sRGB, using a declared D65 camera
+ * profile. Internal.
  *
- * Development model (`sensor-color-development` 2.0.0), for normalized camera channels c (black-subtracted,
- * divided by the effective white level and clipped at 1 per site upstream):
+ * The caller is responsible for the profile's evidence, for binding it to the CFA (colour filter
+ * array) and colour basis, and for applying white balance (WB) only once. Only validated 3×3 matrices
+ * are accepted, and their declared determinant and inverse bounds are kept.
+ *
+ * Development model (`sensor-color-development` 2.0.0). The input c is the normalized camera
+ * channels: black level subtracted, divided by the effective white level and clipped at 1 per site,
+ * all earlier in the pipeline.
  *
  *   b = highlight(diag(g)·c),   linear sRGB = X · M · diag(w) · b
  *
- * M is the profile's camera→XYZ matrix, X the XYZ→linear-sRGB matrix, and w = M⁻¹·XYZ(D65) normalized to
- * green: the camera-neutral coordinates of D65 (DNG 1.7 "camera neutral"). White-balance gains g map the
- * scene white to equal channel values; diag(w) then maps equal channel values to D65 for every invertible M,
- * so a grey card under the gains' illuminant develops neutral whether or not M is white-normalized.
- * Without a resolved WB intent, g = 1/w and development reduces to X·M·c (D65 scene white). The camera
- * neutral of the scene white written to DNG `AsShotNeutral` is g_green/g. No chromatic adaptation of the
- * scene, calibration inference, geometry or container metadata is performed here.
+ * Where:
+ * - M is the profile's camera→XYZ matrix and X is the XYZ→linear-sRGB matrix.
+ * - w = M⁻¹·XYZ(D65), normalized to green. These are the camera-neutral coordinates of D65
+ *   (DNG 1.7 "camera neutral").
+ * - The WB gains g map the scene white to equal channel values. diag(w) then maps equal channel values
+ *   to D65, for any invertible M. So a grey card lit by the gains' illuminant comes out neutral,
+ *   whether or not M is white-normalized.
+ * - Without a resolved WB intent, g = 1/w, and development reduces to X·M·c (a D65 scene white).
+ * - The camera neutral of the scene white, written to DNG `AsShotNeutral`, is g_green/g.
+ * This module does not chromatically adapt the scene, infer calibration, change geometry or write
+ * container metadata.
  *
- * Highlight handling (after per-site clipping at the sensor white level):
- * - `clip` (default): every WB-scaled channel is clipped at the smallest gain, the level at which the
- *   least-amplified channel saturates, so fully clipped pixels stay neutral. This is the documented default
- *   of dcraw (`-H 0`, "clip all highlights to solid white") and of most raw converters.
- * - `reconstruct`: an engine-defined desaturation blend. With s the largest normalized channel, weight
- *   t = clamp((s − 0.8)/0.2, 0, 1) blends the unclipped WB result u toward neutral n = max_k min(u_k, g_min):
- *   b = (1 − t)·u + t·n. Below 0.8 of white, colour is unchanged and unclipped; at white it is neutral.
- *   It is an approximation in the spirit of highlight desaturation (Guo, Cheng & Hu, "Correcting
- *   over-exposure in photographs", CVPR 2010), not a recovery of the clipped scene signal.
+ * Highlight handling (after each site is clipped at the sensor white level):
+ * - `clip` (default): every WB-scaled channel is clipped at the smallest gain. That is the level at
+ *   which the least-amplified channel saturates, so fully clipped pixels stay neutral. This is the
+ *   documented default of dcraw (`-H 0`, "clip all highlights to solid white") and of most raw
+ *   converters.
+ * - `reconstruct`: a desaturation blend defined by this engine. Let s be the largest normalized
+ *   channel. The weight t = clamp((s − 0.8)/0.2, 0, 1) blends the unclipped WB result u toward the
+ *   neutral n = max_k min(u_k, g_min): b = (1 − t)·u + t·n. Below 0.8 of white, colour is unchanged
+ *   and unclipped; at white it is neutral. This approximation follows the idea of highlight
+ *   desaturation (Guo, Cheng & Hu, "Correcting over-exposure in photographs", CVPR 2010). It does not
+ *   recover the clipped scene signal.
  * @see docs/PHOTOGRAPHIC_EXPORT.md and docs/NATIVE_RAW_AND_PRINT.md for equations and limits.
  */
 
@@ -46,7 +56,7 @@ const WHITE_NORMALIZED_TOLERANCE = 1e-12;
 function multiply(m: Matrix, values: readonly number[]): number[] {
   return m.map((row) => row.reduce((sum, v, i) => sum+v*values[i]!, 0));
 }
-/** Validated 3×3 matrices only; retains the declared determinant/inverse bounds. */
+/** Accepts validated 3×3 matrices only, and keeps their declared determinant and inverse bounds. */
 export function invertSensorColorMatrix(m: Matrix): number[][] {
   const [a,b,c,d,e,f,g,h,i]=m.flat() as number[], det=a!*(e!*i!-f!*h!)-b!*(d!*i!-f!*g!)+c!*(d!*h!-e!*g!);
   if (!Number.isFinite(det) || Math.abs(det)<1e-9) throw new InvalidConfigurationError("Export color matrix is singular or outside supported conditioning.");
@@ -55,7 +65,7 @@ export function invertSensorColorMatrix(m: Matrix): number[][] {
   return result;
 }
 
-/** Camera coordinates of the declared D65 white (unnormalized); container policy remains caller-owned. */
+/** Camera coordinates of the declared D65 white (not normalized). The caller decides container policy. */
 export function sensorColorReferenceWhite(xyzToCamera: Matrix): number[] {
   const white = resolveCaptureColorModel().referenceWhiteXyz;
   return multiply(xyzToCamera, [white.x, 1, white.z]);
@@ -82,9 +92,9 @@ export interface SensorColorDevelopment {
 }
 
 /**
- * Internal development for validated normalized sensor RGB and a declared D65 profile.
- * `gains` is the resolved WB intent, or null when WB is not required. The returned operator is the
- * single implementation used by packed native and bounded reference development.
+ * Internal development of validated, normalized sensor RGB with a declared D65 profile.
+ * `gains` is the resolved WB intent, or null when WB is not required. Both the packed native path and
+ * the bounded reference path use the returned operator, so there is one implementation.
  */
 export function prepareSensorColorDevelopment(cameraChannelsToXyz: Matrix, gains: readonly number[] | null,
   highlightMode: RawHighlightMode = "clip"): SensorColorDevelopment {
