@@ -243,10 +243,11 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
     const bilinear = await simulateCapture({ ...base, output: { width: 8, height: 6, demosaic: "bilinear" } });
     // The built-in bilinear kernels reproduce the 1.0 facade's bilinear kernels pixel for pixel.
     expect(Array.from(bilinear.image.samples)).toEqual(Array.from(legacy.image.samples));
-    const mhc = await simulateCapture({ ...base, output: { width: 8, height: 6, demosaic: "malvar-he-cutler" } });
-    expect(mhc.plan.exposure.geometry.nativeRaster).toEqual({ pixelWidth: 12, pixelHeight: 10 });
-    expect(mhc.assumptions.find((a) => a.id === "output.demosaic")!.value).toMatchObject({ kernel: "malvar-he-cutler-2004", kernelReachSites: 2 });
-    const mirror = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 6, height: 4, demosaic: "malvar-he-cutler", borderHandling: "mirror" } });
+    expect(bilinear.plan.exposure.geometry.nativeRaster).toEqual({ pixelWidth: 10, pixelHeight: 8 });
+    expect(bilinear.assumptions.find((a) => a.id === "output.demosaic")!.value).toMatchObject({ kernel: "bilinear", kernelReachSites: 1 });
+    // The Malvar–He–Cutler option was removed from 2.0 (patent US 7,502,505 still in force).
+    await expect(simulateCapture({ ...base, output: { width: 8, height: 6, demosaic: "malvar-he-cutler" as "bilinear" } })).rejects.toThrow(InvalidConfigurationError);
+    const mirror = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 6, height: 4, demosaic: "bilinear", borderHandling: "mirror" } });
     expect(mirror.plan.exposure.geometry.nativeRaster).toEqual({ pixelWidth: 6, pixelHeight: 4 });
     expect(mirror.request.development.borderHandling).toBe("mirror");
     // Uniform field: the mirrored edge pixels develop like the interior (no lost or darkened border).

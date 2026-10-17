@@ -45,14 +45,11 @@ Every operator is a factory, `createXTask(input, provider)`. It returns a single
 - The CFA must be a 2×2 mosaic with one red, one blue and two diagonal greens. Every phase layout (RGGB, GRBG, GBRG, BGGR) is supported.
 
 - **`bilinear`**: average of the nearest same-channel sites (2 or 4 sites; reach 1) (Gunturk et al., 2005).
-- **`malvar-he-cutler-2004`**: the 5×5 gradient-corrected linear filters of Malvar, He & Cutler (ICASSP 2004). Each output is the bilinear estimate plus a gain times a zero-sum discrete Laplacian of the site's own channel:
-  - green at red/blue: α = 1/2, giving 4/8 at the centre, 2/8 at the four green neighbours and −1/8 at the four same-channel sites at distance 2;
-  - red/blue at green: β = 5/8, giving 5/8 at the centre, 4/8 at the two chroma neighbours, −1/8 at the four diagonals and the two greens at distance 2 along the chroma axis, and +1/16 at the two greens at distance 2 across it;
-  - red at blue (and blue at red): γ = 3/4, giving 6/8 at the centre, 2/8 at the four diagonals and −3/16 at the four same-channel sites at distance 2.
+  Every kernel sums to exactly one and reproduces affine per-channel signals exactly, which is tested.
 
-  All weights are dyadic, so every kernel sums to exactly one. Both kernels reproduce affine per-channel signals exactly, which is tested.
+The Malvar–He–Cutler (2004) kernels were removed from 2.0 by owner decision, because Microsoft's US 7,502,505 is still in force (to about January 25, 2027) and its claim 1 closely matches the method. They may return after the patent expires. See the patent review in `THIRD_PARTY.md`.
 
-Approximation status: these are fixed linear interpolators. They are not adaptive, calibrated or manufacturer-specific, and aliasing and moiré are not modelled.
+Approximation status: this is a fixed linear interpolator. They are not adaptive, calibrated or manufacturer-specific, and aliasing and moiré are not modelled.
 
 ### Border handling
 
@@ -83,17 +80,19 @@ The paper's optional iterative median artifact-reduction step is not applied. `d
 
 **Measured on synthetic patterns (PSNR in dB, interior pixels; `test/processing-demosaic.test.ts`).** These are measurements on our own two generated test images only, not a general quality claim:
 
-| Pattern | Bilinear | Malvar–He–Cutler | AHD |
-| --- | --- | --- | --- |
-| Luminance-dominant: grey zone plate, slanted edge and disc under a smooth colour cast (96×96) | 33.10 | 37.46 | 39.13 |
-| Saturated, decorrelated colour shapes on ramps (96×96) | 29.80 | 28.44 | 29.60 |
-| Saturated vertical colour step (24×24) | 24.02 | 22.03 | 23.91 |
+| Pattern | Bilinear | AHD |
+| --- | --- | --- |
+| Luminance-dominant: grey zone plate, slanted edge and disc under a smooth colour cast (96×96) | 33.10 | 39.13 |
+| Saturated, decorrelated colour shapes on ramps (96×96) | 29.80 | 29.60 |
+| Saturated vertical colour step (24×24) | 24.02 | 23.91 |
 
-On the colour step, the zipper metric (summed alternation along the edge, where the truth is 0) is 0 for AHD, 1.5 for bilinear and 15.6 for MHC. The MHC kernel assumes inter-channel correlation, so it overshoots at saturated chromatic edges. AHD removes zippering by interpolating along edges, but its colour-difference fill still crosses strongly chromatic edges.
+On the colour step, the zipper metric (summed alternation along the edge, where the truth is 0) is 0 for AHD and 1.5 for bilinear. AHD removes zippering by interpolating along edges, but its colour-difference fill still crosses strongly chromatic edges.
 
 ## HDR
 
 ### Linear RAW bracket merge
+
+The merge requires pre-aligned (registered) frames and does no alignment itself. Apps that add frame alignment before the merge should check Disney's US 9,275,445 (see the patent review in `THIRD_PARTY.md`).
 
 `createHdrBracketMergeTask({ sampleCount, frames, iterations? })` merges registered linear RAW exposures. Each frame supplies `codes`, `exposureTimeSeconds`, `blackLevelCode`, `whiteLevelCode`, optional `saturationFlags`, `conversionGainElectronsPerCode` (K) and `readNoiseElectrons`. Samples at or above white, or flagged, are excluded. For the remaining frames:
 
@@ -196,7 +195,6 @@ All filters use one global parameter set. Linear RAW noise is signal-dependent, 
 - Hirakawa, K. & Parks, T. W. (2005). Adaptive homogeneity-directed demosaicing algorithm. *IEEE Trans. Image Processing* 14(3), 360–369.
 - ITU-R BT.2020-2, BT.2087, BT.2100-3 and BT.2408 (free); also SMPTE ST 2084.
 - Knutsson, H. & Westin, C.-F. (1993). Normalized and differential convolution. *Proc. CVPR 1993*.
-- Malvar, H. S., He, L. & Cutler, R. (2004). High-quality linear interpolation for demosaicing of Bayer-patterned color images. *Proc. IEEE ICASSP 2004*, vol. 3.
 - Mertens, T., Kautz, J. & Van Reeth, F. (2007). Exposure fusion. *Proc. Pacific Graphics 2007*.
 - Nayar, S. K. & Nakagawa, Y. (1994). Shape from focus. *IEEE TPAMI* 16(8), 824–831; Pertuz, S., Puig, D. & García, M. A. (2013). Analysis of focus measure operators for shape-from-focus. *Pattern Recognition* 46(5).
 - Reinhard, E., Stark, M., Shirley, P. & Ferwerda, J. (2002). Photographic tone reproduction for digital images. *ACM TOG* 21(3), 267–276.

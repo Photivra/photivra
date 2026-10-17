@@ -9,7 +9,6 @@ function profileOf(r: SimulateCaptureResult): SimulateCaptureResult["request"]["
 describe("serializeNativeRawDng", { timeout: 120_000 }, () => {
   it.each([
     ["one-site margin (odd ActiveArea origin)", {}, { x: 1, y: 1 }, [2, 1, 1, 0]],
-    ["two-site margin (Malvar-He-Cutler)", { demosaic: "malvar-he-cutler" as const }, { x: 2, y: 2 }, [0, 1, 1, 2]],
     ["mirror border (no margin)", { borderHandling: "mirror" as const }, { x: 0, y: 0 }, [0, 1, 1, 2]]
   ])("round-trips codes and every written tag through parseDngRawImage: %s", async (_name, output, origin, pattern) => {
     const r = await simulateCapture({ scene: { preset: "checkerboard" }, output: { width: 6, height: 4, whiteBalance: { kelvin: 5000 }, ...output } });

@@ -19,7 +19,7 @@
  * - output formats: `png` (`serializePngImage`; sRGB, or Display P3 / Rec. 2020 / Rec. 2100 PQ / HLG through
  *   the colorimetry matrices and transfer functions and `createHdrImageEncodingTask`) and `dng`
  *   (`serializeNativeRawDng` of the packed native RAW; no linear master is declared);
- * - demosaic: `createBuiltInBayerDemosaicProfiles` (bilinear, Malvar–He–Cutler) and mirror borders;
+ * - demosaic: `createBuiltInBayerDemosaicProfiles` (bilinear) and mirror borders;
  * - optics: the environment `lensFieldMapping` (projection, radial / Brown–Conrady distortion), radial
  *   illumination vignetting as field throughput and a caller sampled lens PSF;
  * - motion: constant camera angular velocity and the electronic rolling-shutter exposure schedule.
@@ -104,7 +104,7 @@ export type SimulateCaptureWhiteBalance =
  */
 export type SimulateCaptureColorEncoding = "srgb" | "display-p3" | "rec2020" | "rec2100-pq" | "rec2100-hlg";
 /** Built-in Bayer demosaic kernels (`createBuiltInBayerDemosaicProfiles`). */
-export type SimulateCaptureDemosaic = "bilinear" | "malvar-he-cutler";
+export type SimulateCaptureDemosaic = "bilinear";
 /**
  * `margin` renders extra native sites around the output, as far as the kernel reaches. `mirror` renders
  * exactly the output and reads mirrored (reflect-101) copies of the missing border sites. Mirroring is
@@ -650,9 +650,9 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   // Demosaic (2.0): built-in Bayer kernels and border handling. Omitted, the 1.0 bilinear kernels and a
   // one-site rendered border are used unchanged.
   const demosaicOption = outputOptions.demosaic as SimulateCaptureDemosaic | undefined, borderOption = outputOptions.borderHandling as SimulateCaptureBorderHandling | undefined;
-  if (demosaicOption !== undefined && demosaicOption !== "bilinear" && demosaicOption !== "malvar-he-cutler") fail("output.demosaic must be bilinear or malvar-he-cutler.");
+  if (demosaicOption !== undefined && demosaicOption !== "bilinear") fail("output.demosaic must be bilinear.");
   if (borderOption !== undefined && borderOption !== "margin" && borderOption !== "mirror") fail("output.borderHandling must be margin or mirror.");
-  const builtInDemosaic = demosaicOption === undefined ? undefined : createBuiltInBayerDemosaicProfiles({ kernel: demosaicOption === "bilinear" ? "bilinear" : "malvar-he-cutler-2004",
+  const builtInDemosaic = demosaicOption === undefined ? undefined : createBuiltInBayerDemosaicProfiles({ kernel: "bilinear",
     captureModeId: IDS.mode, colorSamplingProfile, channelRoles: { red: "red", green: "green", blue: "blue" } }).value;
   const mirrorBorder = borderOption === "mirror";
   const margin = mirrorBorder ? 0 : builtInDemosaic ? builtInDemosaic.kernelReachSites : MARGIN;
@@ -674,8 +674,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   } else {
     if (demosaicOption === undefined) assume("output.demosaic", "default", "bilinear-rggb", "The 1.0 facade's bilinear RGGB kernels (explicit linear neighbourhood weights).");
     else assume("output.demosaic", "model", { kernel: builtInDemosaic!.kernel, modelVersion: BUILT_IN_DEMOSAIC_VERSION, kernelReachSites: builtInDemosaic!.kernelReachSites },
-      demosaicOption === "bilinear" ? "Built-in bilinear Bayer kernels (createBuiltInBayerDemosaicProfiles): nearest same-channel averages." :
-        "Built-in Malvar–He–Cutler (ICASSP 2004) gradient-corrected linear kernels (createBuiltInBayerDemosaicProfiles): bilinear plus the own-channel Laplacian with gains 1/2, 5/8, 3/4. It sharpens luminance edges but can fringe more than bilinear on saturated colour edges (docs/PROCESSING.md).");
+      "Built-in bilinear Bayer kernels (createBuiltInBayerDemosaicProfiles): nearest same-channel averages.");
     if (borderOption === undefined) assume("output.borderHandling", "default", "margin", "The native raster adds the kernel reach (" + margin + " site(s)) on each side, so every output pixel is reconstructed from rendered sites.");
     else assume("output.borderHandling", "model", borderOption, mirrorBorder ?
       "No rendered border: the native raster equals the output and reconstruction reads reflect-101 mirror images of the missing sites (CFA consistency validated), so edge pixels use mirrored rather than rendered neighbours." :

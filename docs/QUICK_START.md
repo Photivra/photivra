@@ -85,7 +85,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `output.bitDepth` | 8 (16 for PQ/HLG) | PNG only: 8 or 16. |
 | `output.gamutMapping` | `"clip"` | PNG SDR encodings only: or `"perceptual"`. |
 | `output.dng.capturedAtUtc` | none | DNG only: capture time for the date tags. |
-| `output.demosaic` | the 1.0 bilinear kernels | `"bilinear"` or `"malvar-he-cutler"` (see [Demosaic](#demosaic)). |
+| `output.demosaic` | the 1.0 bilinear kernels | `"bilinear"` (see [Demosaic](#demosaic)). |
 | `output.borderHandling` | `"margin"` | Or `"mirror"`. |
 | `output.toneCurve` | `"identity"` | Any `SdrToneCurve`, for example `"positive-reinhard-per-channel"`. |
 | `output.toneCurveParameters` | none | Required by the luminance curves (`extended-reinhard-luminance`, `naka-rushton-luminance`); the facade invents no curve parameters. |
@@ -328,15 +328,14 @@ console.log(dng.width, dng.activeArea, dng.whiteLevel, dng.codes.length === shot
 ## Demosaic
 
 `output.demosaic` selects the built-in Bayer kernels of `createBuiltInBayerDemosaicProfiles`:
-`"bilinear"` (nearest same-channel averages; pixel-identical to the default) or `"malvar-he-cutler"`
-(Malvar, He & Cutler 2004: bilinear plus the own-channel Laplacian with gains 1/2, 5/8 and 3/4). The
-Malvar–He–Cutler kernels sharpen luminance edges, but on saturated colour edges they can fringe more
-than bilinear (measured in [PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)).
+`"bilinear"` (nearest same-channel averages; pixel-identical to the default). The Malvar–He–Cutler
+kernels are not in 2.0 (a patent is still in force; see
+[PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)).
 
 `output.borderHandling` decides how edge pixels get their neighbours:
 
 - `"margin"` (the default) renders the kernel's reach as extra sensor sites around the output: one site
-  for bilinear, two for Malvar–He–Cutler.
+  for bilinear.
 - `"mirror"` renders exactly the output, and reads reflect-101 mirror images of the missing sites. The
   engine first checks that every reflected site keeps its CFA colour. Mirror saves the radiance work for
   the border, so small captures need no extra sites. Its edge pixels use mirrored neighbours rather than
@@ -345,11 +344,11 @@ than bilinear (measured in [PROCESSING.md](https://github.com/Photivra/photivra/
 ```ts
 import { simulateCapture } from "@photivra/engine";
 
-const mhc = await simulateCapture({
+const mirrored = await simulateCapture({
   scene: { preset: "slanted-edge" },
-  output: { width: 8, height: 8, demosaic: "malvar-he-cutler", borderHandling: "mirror" }
+  output: { width: 8, height: 8, demosaic: "bilinear", borderHandling: "mirror" }
 });
-console.log(mhc.plan.exposure.geometry.nativeRaster, mhc.request.development.borderHandling);
+console.log(mirrored.plan.exposure.geometry.nativeRaster, mirrored.request.development.borderHandling);
 ```
 
 ## Optics
@@ -493,8 +492,6 @@ provided, for rights reasons.
   Edition (2025).
 - Adobe DNG Specification 1.7.1.0 (2023); W3C CSS Color Module Level 4 §14 (free). Also see: J. Morovič,
   *Color Gamut Mapping*, Wiley 2008, §10.
-- H. S. Malvar, L.-W. He, R. Cutler, "High-quality linear interpolation for demosaicing of
-  Bayer-patterned color images", *Proc. IEEE ICASSP* 2004.
 - K. Miyamoto, "Fish eye lens", *JOSA* 54, 1964; J. Kannala, S. Brandt, *IEEE TPAMI* 28, 2006
   (projections); A. E. Conrady, *MNRAS* 79, 1919; D. C. Brown, *Photogrammetric Engineering* 32, 1966
   (distortion).

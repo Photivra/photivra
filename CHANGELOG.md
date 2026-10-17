@@ -158,7 +158,7 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - `output.format: "png"` with `colorEncoding` `srgb`, `display-p3`, `rec2020`, `rec2100-pq` or `rec2100-hlg`. The unclipped linear development is converted through CIE XYZ, clipped once in the target gamut, and signalled with cICP. PQ/HLG place RAW white at the BT.2408 reference white.
   - Optional `gamutMapping: "perceptual"` (constant CIELAB L* and hue).
   - `output.format: "dng"`.
-  - `output.demosaic` (`bilinear`, `malvar-he-cutler`) and `borderHandling` (`margin`, `mirror`).
+  - `output.demosaic` (`bilinear`) and `borderHandling` (`margin`, `mirror`).
   - `lens.projection`, `lens.distortion` (radial or Brown–Conrady), `lens.vignetting` and `lens.psf`.
   - `motion.angularVelocityRadPerSec` and `motion.shutter: "rolling"`.
 - **Native RAW DNG (#307).** `serializeNativeRawDng()` writes a lossless 16-bit CFA (colour filter array) DNG directly from packed native RAW.
@@ -210,7 +210,7 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - `EXPORT_JPEG_ENCODER_ID`.
   - AVIF and HEIC are not provided.
 - **Processing (#302).** All opt-in. See `docs/PROCESSING.md`.
-  - Bilinear and Malvar–He–Cutler Bayer demosaic profiles, AHD demosaicing and CFA-plane reconstruction.
+  - Bilinear Bayer demosaic profiles, AHD demosaicing and CFA-plane reconstruction. The Malvar–He–Cutler kernels prepared for 2.0 were removed before release (owner decision, 2026-10-17): Microsoft's US 7,502,505 is in force until about January 25, 2027, and its claim 1 closely matches the method. The `malvar-he-cutler-2004` kernel and the `simulateCapture()` option `output.demosaic: "malvar-he-cutler"` never ship. They may return after the patent expires (about 25 Jan 2027). Bilinear (the default) and AHD are unchanged, and the hash-lock tests confirm the default output is unchanged. See the patent review in `THIRD_PARTY.md`.
   - `borderHandling: "mirror"` for RAW development.
   - Noise-optimal HDR bracket merge, and BT.2020 PQ/HLG encoding.
   - Reinhard and Durand–Dorsey tone mapping, exposure fusion, focus stacking and known-rotation panoramas.

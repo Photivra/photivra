@@ -76,7 +76,7 @@ export type SimulateCaptureColorEncoding = "srgb" | "display-p3" | "rec2020" | "
 Built-in Bayer demosaic kernels (`createBuiltInBayerDemosaicProfiles`).
 
 ```ts
-export type SimulateCaptureDemosaic = "bilinear" | "malvar-he-cutler";
+export type SimulateCaptureDemosaic = "bilinear";
 ```
 
 ## SimulateCaptureExposureMode

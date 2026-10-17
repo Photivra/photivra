@@ -179,7 +179,7 @@ A few abbreviations used below: FOV (field of view), PSF (point-spread function:
 
 - [White-balance control and Auto WB](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md#white-balance-and-auto-wb). Generic presets owned by the profile, manual gains, independent CCT (correlated colour temperature) plus tint, custom measurement, deterministic AWB priorities and AWB lock. Scene illumination and the RAW-like capture are never changed.
 - [Image processing](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md). All of these are cancellable approximations:
-  - built-in bilinear and Malvar–He–Cutler Bayer demosaic kernels with mirrored borders, and AHD demosaic;
+  - built-in bilinear Bayer demosaic kernels with mirrored borders, and AHD demosaic;
   - noise-optimal linear merge of a RAW HDR (high dynamic range) bracket;
   - PQ/HLG HDR encoding;
   - Reinhard and Durand–Dorsey tone mapping;

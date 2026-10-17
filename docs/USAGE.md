@@ -7303,10 +7303,10 @@ const plane = { width: 64, height: 48, captureModeId: "native", colorSamplingPro
   samples: new Float32Array(64 * 48).fill(0.25) };
 const channelRoles = { red: "red", green: "green", blue: "blue" };
 
-// Malvar–He–Cutler linear kernels with mirror borders (also accepted by createNativeRawDevelopmentTask).
-const mhc = createBuiltInBayerDemosaicProfiles({ kernel: "malvar-he-cutler-2004", captureModeId: "native",
+// Bilinear linear kernels with mirror borders (also accepted by createNativeRawDevelopmentTask).
+const bilinear = createBuiltInBayerDemosaicProfiles({ kernel: "bilinear", captureModeId: "native",
   colorSamplingProfile: cfa, channelRoles }).value;
-const linearTask = createCfaPlaneReconstructionTask({ plane, phaseProfiles: mhc.phaseProfiles, borderHandling: "mirror" }, provider);
+const linearTask = createCfaPlaneReconstructionTask({ plane, phaseProfiles: bilinear.phaseProfiles, borderHandling: "mirror" }, provider);
 await linearTask.run();
 console.log(linearTask.takeOutput().channelIds);
 
@@ -7450,7 +7450,7 @@ console.log(p3.image.png?.length, p3.image.colorEncoding, p3.provenance.composed
 ```ts
 import { simulateCapture } from "@photivra/engine";
 
-const mirrored = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 6, height: 4, demosaic: "malvar-he-cutler", borderHandling: "mirror" } });
+const mirrored = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 6, height: 4, demosaic: "bilinear", borderHandling: "mirror" } });
 console.log(mirrored.plan.exposure.geometry.nativeRaster, mirrored.assumptions.find((a) => a.id === "output.demosaic")?.value);
 ```
 

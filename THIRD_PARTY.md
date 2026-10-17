@@ -111,11 +111,27 @@ The processing operators in `src/processing/` and the built-in Bayer kernels in 
 
 | Parameters | Source | Basis for use |
 | --- | --- | --- |
-| Demosaic gains α = 1/2, β = 5/8, γ = 3/4 and their 5×5 Laplacian correction structure | Malvar, He & Cutler (ICASSP 2004) | Published algorithm parameters; the weights are rebuilt from them. |
 | Burt–Adelson generating kernel [1, 4, 6, 4, 1]/16 (a = 0.375) | Burt & Adelson (1983) | Published equation parameter. |
 | Well-exposedness σ = 0.2; key 0.18; range σ 0.4 and spatial σ 2% defaults | Mertens et al. (2007); Reinhard et al. (2002); Durand & Dorsey (2002) | Published default parameters. |
 | Gain-compensation σ_N ≈ 10/255, σ_g = 0.1 | Brown & Lowe (2007) | Published parameters, rescaled to normalized intensity. |
 | HDR reference white 203 cd/m² and HLG signal 0.75; full and narrow range quantization | ITU-R BT.2408, BT.2100-3 | Standardized numeric constants; the ITU-R recommendations are freely published. |
+
+The Malvar–He–Cutler demosaic kernels and their parameters were removed from 2.0 (owner decision, 2026-10-17); see the patent review below.
+
+## Patent review of 2.0 algorithms (public-record check, 2026-10-17, not legal advice)
+
+| Algorithm | Patent record found | Finding |
+| --- | --- | --- |
+| Non-local means denoising | US 8,253,825 | Lapsed for unpaid maintenance fees; the EP counterpart was withdrawn. |
+| Durand–Dorsey bilateral tone mapping | US 7,146,059 (MIT) | Expired February 8, 2025. |
+| Burt–Adelson Laplacian pyramid (Sarnoff patents) | Sarnoff pyramid patents | Expired. |
+| Focus stacking by pyramid fusion | US 5,325,449; IBM US 9,196,027 | US 5,325,449 expired. US 9,196,027 claims capture control, which the engine does not do. |
+| Synthetic film grain | Thomson film-grain family | Lapsed. |
+| AHD demosaic, bilateral filter, Reinhard tone mapping, Brown–Lowe gain compensation | None found | No patent found. |
+| HDR bracket merge | Disney US 9,275,445 (in force to 2034) | Claims align-then-merge HDR. The engine's merge does no alignment and requires pre-aligned input (`docs/PROCESSING.md`). |
+| Exposure fusion pyramid blending | CyberLink US 8,885,976 (in force to 2034) | Claims a specific pyramid-blending variant. The engine uses standard Mertens et al. (2007) fusion. |
+| Malvar–He–Cutler demosaic | Microsoft US 7,502,505 (in force to about January 25, 2027) | Claim 1 closely matches the method, so it was removed from 2.0 (owner decision, 2026-10-17). It may return after the patent expires. |
+| PQ (Dolby US 11,887,560) and HLG transfer functions | Under separate review | Licensing under review. |
 
 ## Print contrast numerical model material
 
