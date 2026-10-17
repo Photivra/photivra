@@ -65,6 +65,22 @@ describe("HDR bracket merge", () => {
     expect(() => createHdrBracketMergeTask({ sampleCount: 2, frames: [{ ...ok, whiteLevelCode: 10 }] }, p)).toThrow(InvalidScientificInputError);
     expect(() => createHdrBracketMergeTask({ sampleCount: 2, frames: [ok] }, null as never)).toThrow(InvalidConfigurationError);
   });
+
+  it("never returns NaN or Infinity: exposure times below 1 ns are rejected and non-finite merges fail closed", async () => {
+    const p = { yieldControl: async (): Promise<void> => {} }, codes = Float32Array.of(64, 1000, 3999);
+    // t = 1e-170 s: t² underflows to 0 and the weights become 0/0 (the merge returned NaN and Infinity).
+    for (const t of [1e-170, 1e-12, 9.99e-10]) {
+      expect(() => createHdrBracketMergeTask({ sampleCount: 3, frames: [frame(codes, t)] }, p), String(t)).toThrow(InvalidScientificInputError);
+    }
+    // The 1 ns limit itself, with the largest white level and gain, still gives finite float32 rates and deviations.
+    const extreme = await runTask((q) => createHdrBracketMergeTask({ sampleCount: 3, frames: [
+      frame(Float32Array.of(64, 1e15, 9e15), 1e-9, { whiteLevelCode: Number.MAX_SAFE_INTEGER, conversionGainElectronsPerCode: 1e9 }), frame(codes, 1)] }, q));
+    for (const v of [...extreme.radianceElectronsPerSecond, ...extreme.standardDeviationElectronsPerSecond]) expect(Number.isFinite(v)).toBe(true);
+    // A degenerate merge fails instead of storing NaN: with a code at black, no read noise and a gain so small that K²/12
+    // underflows, every variance is 0 and the weights are t²/0 = Infinity (Infinity · 0 = NaN).
+    await expect(runTask((q) => createHdrBracketMergeTask({ sampleCount: 1, frames: [
+      frame(Float32Array.of(64), 1, { conversionGainElectronsPerCode: 1e-170, readNoiseElectrons: 0 })] }, q))).rejects.toThrow(InvalidScientificInputError);
+  });
 });
 
 describe("HDR output encoding", () => {

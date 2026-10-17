@@ -110,11 +110,13 @@ Static display metadata is written only with `cicp`, as the PNG specification re
 
 The engine does not compute MaxCLL/MaxFALL or mastering metadata; the caller supplies them.
 
+Each `colourEncoding` kind accepts only its own fields (`srgb`: `kind`, `renderingIntent`; `icc`: `kind`, `profileName`, `profile`; `cicp`: `kind`, `primaries`, `transfer`, `fullRange`), and `masteringDisplay` and `contentLightLevel` accept only their documented fields. Code-point names are looked up in maps, so a name such as `"constructor"` or `"toString"` is rejected instead of reaching `Object.prototype`.
+
 ### Pixels and compression
 
 - Colour type 2 (truecolour), bit depth 8 (`Uint8Array`) or 16 (`Uint16Array`, written big-endian), no interlacing, at most 65535 pixels per side and 100 000 000 pixels.
 - Filtering: one PNG filter type for every row (`none`, `sub`, `up`, `average`, `paeth`) or `adaptive` (default), the specification's suggested heuristic: per row, the type with the minimum sum of absolute signed filtered bytes (ties go to the lower type).
-- Compression: zlib (RFC 1950) holding either stored DEFLATE blocks or one fixed-Huffman block (RFC 1951) with a greedy LZ77 matcher (3-byte hash, 32 KiB window, at most 64 chain probes). This is a deterministic, modest compressor, not a size-optimal one. Output bytes depend only on the input; a platform `CompressionStream` is deliberately not used, because its output is not specified byte for byte. IDAT is split into 1 MiB chunks.
+- Compression: zlib (RFC 1950) holding either stored DEFLATE blocks or one fixed-Huffman block (RFC 1951) with a greedy LZ77 matcher (3-byte hash, 32 KiB window, at most 64 chain probes). This is a deterministic, modest compressor, not a size-optimal one. Output bytes depend only on the input; a platform `CompressionStream` is deliberately not used, because its output is not specified byte for byte. IDAT is split into 1 MiB chunks. The fixed-Huffman codes are precomputed bit-reversed, the LZ77 hash rolls from byte to byte, and each filter type has its own loop; `test/png-encoder.test.ts` pins a SHA-256 over every filter and compression mode, so these speed-ups keep the output bytes unchanged.
 
 `test/png-encoder.test.ts` decodes every output with Node's zlib and an independent reconstruction-filter implementation, checks every chunk CRC, and requires exact 8- and 16-bit round trips for all filters and both compression modes. It checks cICP, mDCV and cLLI bytes against the PNG specification's worked examples, and that `pq` and `hlg` are rejected. During development the outputs were also opened with Pillow 12.3.0: every file decoded, 8-bit pixels matched exactly, and 16-bit files (which Pillow reduces to 8-bit RGB) matched the high byte of every sample. Pillow does not interpret cICP, mDCV or cLLI, so their display behaviour was not verified in a viewer.
 

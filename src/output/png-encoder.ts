@@ -63,9 +63,13 @@ export interface PngEncodeInput {
   filter?: "none" | "sub" | "up" | "average" | "paeth" | "adaptive";
 }
 
-const PRIMARIES: Record<PngCicpPrimaries, number> = { bt709: 1, "display-p3": 12, bt2020: 9 };
-const TRANSFER: Record<PngCicpTransfer, number> = { bt709: 1, linear: 8, srgb: 13 };
-const INTENT = { perceptual: 0, "relative-colorimetric": 1, saturation: 2, "absolute-colorimetric": 3 } as const;
+// Maps, not plain objects: a lookup must never reach Object.prototype names such as "constructor" or "toString".
+const PRIMARIES: ReadonlyMap<string, number> = new Map<PngCicpPrimaries, number>([["bt709", 1], ["display-p3", 12], ["bt2020", 9]]);
+const TRANSFER: ReadonlyMap<string, number> = new Map<PngCicpTransfer, number>([["bt709", 1], ["linear", 8], ["srgb", 13]]);
+const INTENT: ReadonlyMap<string, number> = new Map([["perceptual", 0], ["relative-colorimetric", 1], ["saturation", 2], ["absolute-colorimetric", 3]]);
+const COLOUR_ENCODING_FIELDS: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  srgb: ["kind", "renderingIntent"], icc: ["kind", "profileName", "profile"], cicp: ["kind", "primaries", "transfer", "fullRange"]
+});
 function fail(message: string): never { throw new InvalidConfigurationError("PNG encoder: " + message); }
 
 /** Growable byte sink; doubles capacity as needed. */
@@ -100,27 +104,45 @@ function adler32(data: Uint8Array): number {
   return ((b << 16) | a) >>> 0;
 }
 
-/** LSB-first DEFLATE bit writer. */
-class BitWriter {
-  sink = new ByteSink(); accumulator = 0; bits = 0;
-  write(value: number, count: number): void {
-    this.accumulator |= value << this.bits; this.bits += count;
-    while (this.bits >= 8) { this.sink.reserve(1); this.sink.bytes[this.sink.length++] = this.accumulator & 255; this.accumulator >>>= 8; this.bits -= 8; }
-  }
-  /** Huffman codes are defined MSB-first (RFC 1951 §3.1.1); reverse them for the LSB-first stream. */
-  code(code: number, length: number): void { let r = 0; for (let i = 0; i < length; i++) r = (r << 1) | ((code >> i) & 1); this.write(r, length); }
-  align(): void { if (this.bits) this.write(0, 8 - this.bits); }
-}
 const LENGTH_BASE = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258];
 const LENGTH_EXTRA = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0];
 const DIST_BASE = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577];
 const DIST_EXTRA = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13];
-/** RFC 1951 §3.2.6 fixed literal/length code. */
-function fixedLiteral(out: BitWriter, symbol: number): void {
-  if (symbol < 144) out.code(0x30 + symbol, 8);
-  else if (symbol < 256) out.code(0x190 + symbol - 144, 9);
-  else if (symbol < 280) out.code(symbol - 256, 7);
-  else out.code(0xc0 + symbol - 280, 8);
+const DEFLATE_WINDOW = 32768;
+
+/** Huffman codes are defined MSB-first (RFC 1951 §3.1.1); the stream is LSB-first, so codes are stored bit-reversed. */
+function reverseBits(code: number, length: number): number { let r = 0; for (let i = 0; i < length; i++) r = (r << 1) | ((code >> i) & 1); return r; }
+
+interface FixedHuffmanTables {
+  /** Bit-reversed RFC 1951 §3.2.6 fixed literal/length codes and their lengths, symbols 0–287. */
+  literalCode: Uint16Array; literalBits: Uint8Array;
+  /** Per match length 3–258: reversed length code with its extra bits appended, and the total bit count. */
+  lengthCode: Uint16Array; lengthBits: Uint8Array;
+  /** Per distance 1–32768: reversed 5-bit distance code with its extra bits appended, and the total bit count. */
+  distanceCode: Uint32Array; distanceBits: Uint8Array;
+}
+let fixedTables: FixedHuffmanTables | undefined;
+/** Built once: the same codes the per-symbol definition gives, precomputed and pre-reversed. */
+function fixedHuffmanTables(): FixedHuffmanTables {
+  if (fixedTables) return fixedTables;
+  const literalCode = new Uint16Array(288), literalBits = new Uint8Array(288);
+  for (let symbol = 0; symbol < 288; symbol++) {
+    const [code, bits] = symbol < 144 ? [0x30 + symbol, 8] : symbol < 256 ? [0x190 + symbol - 144, 9] : symbol < 280 ? [symbol - 256, 7] : [0xc0 + symbol - 280, 8];
+    literalCode[symbol] = reverseBits(code, bits); literalBits[symbol] = bits;
+  }
+  const lengthCode = new Uint16Array(259), lengthBits = new Uint8Array(259);
+  for (let length = 3, l = 0; length <= 258; length++) {
+    while (l < 28 && LENGTH_BASE[l + 1]! <= length) l++; // largest l with LENGTH_BASE[l] <= length
+    const symbol = 257 + l, bits = literalBits[symbol]!;
+    lengthCode[length] = literalCode[symbol]! | ((length - LENGTH_BASE[l]!) << bits); lengthBits[length] = bits + LENGTH_EXTRA[l]!;
+  }
+  const distanceCode = new Uint32Array(DEFLATE_WINDOW + 1), distanceBits = new Uint8Array(DEFLATE_WINDOW + 1);
+  for (let distance = 1, d = 0; distance <= DEFLATE_WINDOW; distance++) {
+    while (d < 29 && DIST_BASE[d + 1]! <= distance) d++;
+    distanceCode[distance] = reverseBits(d, 5) | ((distance - DIST_BASE[d]!) << 5); distanceBits[distance] = 5 + DIST_EXTRA[d]!;
+  }
+  fixedTables = { literalCode, literalBits, lengthCode, lengthBits, distanceCode, distanceBits };
+  return fixedTables;
 }
 
 /**
@@ -128,44 +150,120 @@ function fixedLiteral(out: BitWriter, symbol: number): void {
  * blocks or one fixed-Huffman block. LZ77 is greedy with a 3-byte hash and at most 64 chain probes.
  */
 export function deflateZlib(data: Uint8Array, mode: "stored" | "fixed-huffman"): Uint8Array {
-  const out = new BitWriter();
-  out.sink.push(0x78, 0x01);
+  const n = data.length;
+  // Exact upper bound: a fixed-Huffman literal is at most 9 bits and a match of length L >= 3 at most 25 bits
+  // per 3 bytes, so the block needs at most 9 bits per input byte plus 3 header and 7 end-of-block bits.
+  const capacity = 2 + 4 + (mode === "stored" ? n + 5 * Math.max(1, Math.ceil(n / 65535)) : Math.ceil((9 * n + 10) / 8));
+  const out = new Uint8Array(capacity);
+  let pos = 0;
+  out[pos++] = 0x78; out[pos++] = 0x01;
   if (mode === "stored") {
-    if (data.length === 0) out.sink.push(1, 0, 0, 255, 255);
-    for (let i = 0; i < data.length; i += 65535) {
-      const n = Math.min(65535, data.length - i);
-      out.sink.push(i + n >= data.length ? 1 : 0, n & 255, n >> 8, ~n & 255, (~n >> 8) & 255);
-      out.sink.append(data.subarray(i, i + n));
+    if (n === 0) { out[pos++] = 1; out[pos++] = 0; out[pos++] = 0; out[pos++] = 255; out[pos++] = 255; }
+    for (let i = 0; i < n; i += 65535) {
+      const len = Math.min(65535, n - i);
+      out[pos++] = i + len >= n ? 1 : 0; out[pos++] = len & 255; out[pos++] = len >> 8; out[pos++] = ~len & 255; out[pos++] = (~len >> 8) & 255;
+      out.set(data.subarray(i, i + len), pos); pos += len;
     }
   } else {
-    out.write(1, 1); out.write(1, 2); // BFINAL = 1, BTYPE = 01 (fixed Huffman)
-    const window = 32768, head = new Int32Array(1 << 15).fill(-1), previous = new Int32Array(window).fill(-1);
-    const hash = (i: number): number => ((data[i]! << 10) ^ (data[i + 1]! << 5) ^ data[i + 2]!) & 0x7fff;
-    const insert = (i: number): void => { if (i + 2 < data.length) { const h = hash(i); previous[i & (window - 1)] = head[h]!; head[h] = i; } };
-    for (let i = 0; i < data.length;) {
+    const { literalCode, literalBits, lengthCode, lengthBits, distanceCode, distanceBits } = fixedHuffmanTables();
+    // LSB-first bit accumulator; at most 7 bits stay pending, and no single write exceeds 18 bits.
+    let accumulator = 0b011, bits = 3; // BFINAL = 1, BTYPE = 01 (fixed Huffman)
+    const window = DEFLATE_WINDOW, mask = window - 1, head = new Int32Array(1 << 15).fill(-1), previous = new Int32Array(window).fill(-1);
+    // Hash of the 3 bytes at i: ((data[i] << 10) ^ (data[i + 1] << 5) ^ data[i + 2]) & 0x7fff. It rolls exactly as
+    // h(i + 1) = ((h(i) << 5) ^ data[i + 3]) & 0x7fff, because the mask drops every bit of data[i] after the shift.
+    const hashed = n - 2; // positions i < hashed have three bytes to hash
+    let h = n >= 2 ? ((data[0]! << 5) ^ data[1]!) & 0x7fff : 0;
+    for (let i = 0; i < n;) {
       let bestLength = 0, bestDistance = 0;
-      if (i + 2 < data.length) {
-        const limit = Math.min(258, data.length - i);
-        for (let candidate = head[hash(i)]!, probes = 0; candidate >= 0 && i - candidate <= window && probes < 64; candidate = previous[candidate & (window - 1)]!, probes++) {
+      if (i < hashed) {
+        h = ((h << 5) ^ data[i + 2]!) & 0x7fff;
+        const limit = Math.min(258, n - i);
+        for (let candidate = head[h]!, probes = 0; candidate >= 0 && i - candidate <= window && probes < 64; candidate = previous[candidate & mask]!, probes++) {
           if (candidate >= i) break;
+          // A candidate that differs at index bestLength cannot be longer than the current best.
+          if (data[candidate + bestLength] !== data[i + bestLength]) continue;
           let length = 0; while (length < limit && data[candidate + length] === data[i + length]) length++;
           if (length > bestLength) { bestLength = length; bestDistance = i - candidate; if (length === limit) break; }
         }
+        previous[i & mask] = head[h]!; head[h] = i;
       }
       if (bestLength >= 3) {
-        let l = 28; while (LENGTH_BASE[l]! > bestLength) l--;
-        fixedLiteral(out, 257 + l); out.write(bestLength - LENGTH_BASE[l]!, LENGTH_EXTRA[l]!);
-        let d = 29; while (DIST_BASE[d]! > bestDistance) d--;
-        out.code(d, 5); out.write(bestDistance - DIST_BASE[d]!, DIST_EXTRA[d]!);
-        for (let k = 0; k < bestLength; k++) insert(i + k);
-        i += bestLength;
-      } else { fixedLiteral(out, data[i]!); insert(i); i++; }
+        accumulator |= lengthCode[bestLength]! << bits; bits += lengthBits[bestLength]!;
+        while (bits >= 8) { out[pos++] = accumulator & 255; accumulator >>>= 8; bits -= 8; }
+        accumulator |= distanceCode[bestDistance]! << bits; bits += distanceBits[bestDistance]!;
+        const end = i + bestLength;
+        for (i++; i < end; i++) {
+          if (i < hashed) { h = ((h << 5) ^ data[i + 2]!) & 0x7fff; previous[i & mask] = head[h]!; head[h] = i; }
+        }
+      } else {
+        const symbol = data[i++]!;
+        accumulator |= literalCode[symbol]! << bits; bits += literalBits[symbol]!;
+      }
+      while (bits >= 8) { out[pos++] = accumulator & 255; accumulator >>>= 8; bits -= 8; }
     }
-    fixedLiteral(out, 256);
-    out.align();
+    accumulator |= literalCode[256]! << bits; bits += literalBits[256]!;
+    while (bits > 0) { out[pos++] = accumulator & 255; accumulator >>>= 8; bits -= 8; } // flush and byte-align
   }
-  out.sink.u32(adler32(data));
-  return out.sink.result();
+  const adler = adler32(data);
+  out[pos++] = adler >>> 24; out[pos++] = (adler >>> 16) & 255; out[pos++] = (adler >>> 8) & 255; out[pos++] = adler & 255;
+  return out.slice(0, pos);
+}
+
+/** Writes PNG filter `type` (0–4, PNG specification §9.2) of `raw` against `prior` into `target`. */
+function filterRow(type: number, raw: Uint8Array, prior: Uint8Array, target: Uint8Array, rowBytes: number, bpp: number): void {
+  const head = Math.min(bpp, rowBytes);
+  switch (type) {
+    case 0: target.set(raw.subarray(0, rowBytes)); return;
+    case 1:
+      for (let i = 0; i < head; i++) target[i] = raw[i]!;
+      for (let i = bpp; i < rowBytes; i++) target[i] = (raw[i]! - raw[i - bpp]!) & 255;
+      return;
+    case 2: for (let i = 0; i < rowBytes; i++) target[i] = (raw[i]! - prior[i]!) & 255; return;
+    case 3:
+      for (let i = 0; i < head; i++) target[i] = (raw[i]! - (prior[i]! >> 1)) & 255;
+      for (let i = bpp; i < rowBytes; i++) target[i] = (raw[i]! - ((raw[i - bpp]! + prior[i]!) >> 1)) & 255;
+      return;
+    default:
+      // Paeth with a = c = 0 in the first pixel predicts b.
+      for (let i = 0; i < head; i++) target[i] = (raw[i]! - prior[i]!) & 255;
+      for (let i = bpp; i < rowBytes; i++) {
+        const a = raw[i - bpp]!, b = prior[i]!, c = prior[i - bpp]!, p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+        target[i] = (raw[i]! - (pa <= pb && pa <= pc ? a : pb <= pc ? b : c)) & 255;
+      }
+  }
+}
+
+/** |v| of a filtered byte v read as a signed byte (two's complement), for the §12.7 heuristic. */
+const SIGNED_BYTE_MAGNITUDE = Uint8Array.from({ length: 256 }, (_, v) => (v < 128 ? v : 256 - v));
+
+/** Sum of |signed byte| of filter `type` applied to a row (PNG specification §12.7), without writing the row. */
+function filterCost(type: number, raw: Uint8Array, prior: Uint8Array, rowBytes: number, bpp: number): number {
+  const head = Math.min(bpp, rowBytes), magnitude = SIGNED_BYTE_MAGNITUDE;
+  let sum = 0;
+  switch (type) {
+    case 0: for (let i = 0; i < rowBytes; i++) sum += magnitude[raw[i]!]!; return sum;
+    case 1:
+      for (let i = 0; i < head; i++) sum += magnitude[raw[i]!]!;
+      for (let i = bpp; i < rowBytes; i++) sum += magnitude[(raw[i]! - raw[i - bpp]!) & 255]!;
+      return sum;
+    case 2: for (let i = 0; i < rowBytes; i++) sum += magnitude[(raw[i]! - prior[i]!) & 255]!; return sum;
+    case 3:
+      for (let i = 0; i < head; i++) sum += magnitude[(raw[i]! - (prior[i]! >> 1)) & 255]!;
+      for (let i = bpp; i < rowBytes; i++) sum += magnitude[(raw[i]! - ((raw[i - bpp]! + prior[i]!) >> 1)) & 255]!;
+      return sum;
+    default:
+      for (let i = 0; i < head; i++) sum += magnitude[(raw[i]! - prior[i]!) & 255]!;
+      for (let i = bpp; i < rowBytes; i++) {
+        const a = raw[i - bpp]!, b = prior[i]!, c = prior[i - bpp]!, p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+        sum += magnitude[(raw[i]! - (pa <= pb && pa <= pc ? a : pb <= pc ? b : c)) & 255]!;
+      }
+      return sum;
+  }
+}
+
+function requireFields(value: unknown, allowed: readonly string[], name: string): void {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) fail(name + " must be an object.");
+  for (const key of Object.keys(value)) if (!allowed.includes(key)) fail("unknown " + name + " field.");
 }
 
 function finite(value: number, minimum: number, maximum: number, message: string): number {
@@ -192,13 +290,18 @@ export function serializePngImage(input: PngEncodeInput): Uint8Array {
   if (!filters.includes(filter)) fail("unknown filter.");
   const colour = input.colourEncoding;
   if (colour === null || typeof colour !== "object") fail("colourEncoding is required.");
+  const colourFields = typeof colour.kind === "string" && Object.hasOwn(COLOUR_ENCODING_FIELDS, colour.kind) ? COLOUR_ENCODING_FIELDS[colour.kind]! : undefined;
+  if (colourFields === undefined) fail("unknown colourEncoding kind.");
+  for (const key of Object.keys(colour)) if (!colourFields.includes(key)) fail("unknown colourEncoding field.");
+  if (input.masteringDisplay !== undefined) requireFields(input.masteringDisplay, ["redXy", "greenXy", "blueXy", "whiteXy", "maximumLuminanceCdPerSquareMeter", "minimumLuminanceCdPerSquareMeter"], "masteringDisplay");
+  if (input.contentLightLevel !== undefined) requireFields(input.contentLightLevel, ["maximumContentLightLevelCdPerSquareMeter", "maximumFrameAverageLightLevelCdPerSquareMeter"], "contentLightLevel");
 
   const chunks: { type: string; data: Uint8Array }[] = [];
   const ihdr = new Uint8Array(13), view = new DataView(ihdr.buffer);
   view.setUint32(0, width); view.setUint32(4, height); ihdr[8] = bitDepth; ihdr[9] = 2; // colour type 2: truecolour
   chunks.push({ type: "IHDR", data: ihdr });
   if (colour.kind === "cicp") {
-    const p = PRIMARIES[colour.primaries], t = TRANSFER[colour.transfer];
+    const p = PRIMARIES.get(colour.primaries), t = TRANSFER.get(colour.transfer);
     if (p === undefined || t === undefined || typeof colour.fullRange !== "boolean") fail("unknown cICP primaries or transfer.");
     // MatrixCoefficients 0 (identity/RGB) is the only value PNG permits.
     chunks.push({ type: "cICP", data: Uint8Array.of(p, t, 0, colour.fullRange ? 1 : 0) });
@@ -212,7 +315,7 @@ export function serializePngImage(input: PngEncodeInput): Uint8Array {
     data.set(compressed, name.length + 2); // NUL separator and compression method 0 are already zero
     chunks.push({ type: "iCCP", data });
   } else if (colour.kind === "srgb") {
-    const intent = INTENT[colour.renderingIntent];
+    const intent = INTENT.get(colour.renderingIntent);
     if (intent === undefined) fail("unknown sRGB rendering intent.");
     // PNG Third Edition Table 17: the only gAMA/cHRM values to accompany sRGB.
     const gama = new Uint8Array(4); new DataView(gama.buffer).setUint32(0, 45455);
@@ -242,34 +345,25 @@ export function serializePngImage(input: PngEncodeInput): Uint8Array {
   }
 
   // Scanlines: one filter-type byte then big-endian samples; bpp = bytes per complete pixel.
-  const bpp = bitDepth === 8 ? 3 : 6, rowBytes = width * bpp, raw = new Uint8Array(rowBytes), prior = new Uint8Array(rowBytes);
-  const filtered = new Uint8Array(height * (rowBytes + 1)), candidate = new Uint8Array(rowBytes);
-  const applyFilter = (type: number, target: Uint8Array): void => {
-    for (let i = 0; i < rowBytes; i++) {
-      const a = i >= bpp ? raw[i - bpp]! : 0, b = prior[i]!, c = i >= bpp ? prior[i - bpp]! : 0, x = raw[i]!;
-      let predictor = 0;
-      if (type === 1) predictor = a; else if (type === 2) predictor = b; else if (type === 3) predictor = (a + b) >> 1;
-      else if (type === 4) { const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c); predictor = pa <= pb && pa <= pc ? a : pb <= pc ? b : c; }
-      target[i] = (x - predictor) & 255;
-    }
-  };
+  const bpp = bitDepth === 8 ? 3 : 6, rowBytes = width * bpp;
+  let raw = new Uint8Array(rowBytes), prior = new Uint8Array(rowBytes);
+  const filtered = new Uint8Array(height * (rowBytes + 1)), fixedType = filters.indexOf(filter);
   for (let y = 0; y < height; y++) {
     const base = y * width * 3;
     if (bitDepth === 8) raw.set((samples as Uint8Array).subarray(base, base + width * 3));
     else for (let i = 0; i < width * 3; i++) { const v = samples[base + i]!; raw[i * 2] = v >> 8; raw[i * 2 + 1] = v & 255; }
-    const row = y * (rowBytes + 1) + 1, target = filtered.subarray(row, row + rowBytes);
-    let type = filters.indexOf(filter);
+    const row = y * (rowBytes + 1) + 1;
+    let type = fixedType;
     if (filter === "adaptive") {
       // PNG specification §12.7 heuristic: choose the type with the minimum sum of |signed byte| (ties: lowest type).
       let best = Infinity;
       for (let t = 0; t <= 4; t++) {
-        applyFilter(t, candidate);
-        let sum = 0; for (let i = 0; i < rowBytes; i++) { const v = candidate[i]!; sum += v < 128 ? v : 256 - v; }
+        const sum = filterCost(t, raw, prior, rowBytes, bpp);
         if (sum < best) { best = sum; type = t; }
       }
     }
-    filtered[row - 1] = type; applyFilter(type, target);
-    prior.set(raw);
+    filtered[row - 1] = type; filterRow(type, raw, prior, filtered.subarray(row, row + rowBytes), rowBytes, bpp);
+    const done = prior; prior = raw; raw = done; // this row is the next row's prior
   }
   const idat = deflateZlib(filtered, compression);
 

@@ -288,6 +288,7 @@ export interface CreateColorimetricMidpointQuadratureInput {
 export function createColorimetricMidpointQuadrature(input: CreateColorimetricMidpointQuadratureInput): ColorimetricQuadratureNode[] {
   requireInputKeys(input, "createColorimetricMidpointQuadrature", ["wavelengthRangeNanometers", "maximumSubintervalWidthNanometers"]);
   const range = requireRecordValue(input.wavelengthRangeNanometers, "wavelengthRangeNanometers");
+  rejectUnknownFields(range, ["minimum", "maximum"], "wavelengthRangeNanometers");
   const minimum = requirePositiveNumber(range.minimum, "wavelengthRangeNanometers.minimum");
   const maximum = requirePositiveNumber(range.maximum, "wavelengthRangeNanometers.maximum");
   if (!(minimum < maximum)) throw new InvalidScientificInputError("wavelengthRangeNanometers.minimum must be less than maximum.");

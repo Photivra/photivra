@@ -287,6 +287,18 @@ describe("illuminants and correlated colour temperature", () => {
     expect(daylight.value.x).toBeCloseTo(calculateCieDaylightComponentWeights({ correlatedColorTemperatureKelvin: 6504, coefficientRounding: "none" }).value.chromaticity.x, 12);
     expect(() => calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: 3000, duv: 0, whiteLocus: "cie-daylight", locus })).toThrow();
     expect(() => calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: 3000, duv: 0.06, whiteLocus: "planckian", locus })).toThrow();
+    // A low temperature with a large positive Duv leaves the x + y <= 1 triangle (2000 K, +0.02 gave x + y = 1.0595), so it
+    // is rejected rather than returned as a chromaticity the engine itself refuses as input.
+    for (const [t, duv] of [[2000, 0.02], [1000, 0.02], [1000, 0.05], [1500, 0.05]] as const) {
+      expect(() => calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: t, duv, whiteLocus: "planckian", locus }), t + " K " + duv)
+        .toThrow(InvalidScientificInputError);
+    }
+    // Every accepted result is a valid chromaticity that parses again as input.
+    for (const t of [1000, 1500, 2000, 4000, 10000, 100000]) for (const duv of [-0.05, -0.02, 0, 0.01]) {
+      let xy: { x: number; y: number };
+      try { xy = calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: t, duv, whiteLocus: "planckian", locus }).value; } catch { continue; }
+      expect(xy.x).toBeGreaterThanOrEqual(0); expect(xy.y).toBeGreaterThan(0); expect(xy.x + xy.y).toBeLessThanOrEqual(1);
+    }
     expect(() => calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: 999, duv: 0, whiteLocus: "planckian", locus })).toThrow();
   });
 
@@ -386,7 +398,12 @@ describe("chromatic adaptation", () => {
     expect(scaled.x).toBeCloseTo(100 * d50.x, 10); expect(scaled.y).toBeCloseTo(100, 10);
     expect(resolveChromaticAdaptationConeMatrix("cat16")[0][0]).toBe(0.401288);
     expect(() => calculateChromaticAdaptationMatrix({ transform: "bogus" as "cat16", sourceWhiteXyz: d65, destinationWhiteXyz: d50 })).toThrow();
-    expect(() => calculateChromaticAdaptationMatrix({ transform: "cat02", sourceWhiteXyz: d65, destinationWhiteXyz: d50, degreeOfAdaptation: 1.1 })).toThrow();
+    expect(() => calculateChromaticAdaptationMatrix({ transform: "cat16", sourceWhiteXyz: d65, destinationWhiteXyz: d50, degreeOfAdaptation: 1.1 })).toThrow();
+    // CAT02 is not part of 2.0 (no free source prints its matrix): every public route rejects it.
+    expect(CHROMATIC_ADAPTATION_TRANSFORMS).not.toContain("cat02");
+    expect(() => calculateChromaticAdaptationMatrix({ transform: "cat02" as "cat16", sourceWhiteXyz: d65, destinationWhiteXyz: d50 })).toThrow(/transform must be one of/);
+    expect(() => calculateChromaticallyAdaptedXyz({ transform: "cat02" as "cat16", sourceWhiteXyz: d65, destinationWhiteXyz: d50, xyz: d65 })).toThrow(/transform must be one of/);
+    expect(() => resolveChromaticAdaptationConeMatrix("cat02" as "cat16")).toThrow(/transform must be one of/);
     expect(() => calculateChromaticAdaptationMatrix({ transform: "bradford", sourceWhiteXyz: { x: 0, y: 1, z: 0 }, destinationWhiteXyz: d50 })).toThrow();
   });
   it("computes the CIECAM02 degree of adaptation", () => {

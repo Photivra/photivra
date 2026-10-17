@@ -43,6 +43,10 @@ describe("batched chart radiance reference", () => {
       expect(provider.evaluateRadiance(request).spectralRadianceWattsPerSquareMeterSteradianNanometer).toBe(provider.radianceAt(points[2 * i]!, points[2 * i + 1]!, 550));
     }
     expect(() => mapEnvironmentDirectionsToChartPoints({ directions: Float64Array.from([0, 0, 1]), distanceM: 3, metresPerFrameUnit: 1 })).toThrow(/toward/u);
+    // A grazing direction with a subnormal z used to map to -Infinity/NaN; non-finite components are rejected too.
+    for (const direction of [[1, 0, -1e-320], [Number.NaN, 0, -1], [0, Infinity, -1]]) {
+      expect(() => mapEnvironmentDirectionsToChartPoints({ directions: Float64Array.from(direction), distanceM: 3, metresPerFrameUnit: 1 }), String(direction)).toThrow(/non-finite/u);
+    }
   });
   it("validates the batch", () => {
     const scene = CHART_PRESET_SCENES[1]![1], ok = chartBatchInput(scene, chartPoints(scene, 2 / 3, 4, 1), "radiance");

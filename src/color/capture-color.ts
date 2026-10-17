@@ -46,8 +46,8 @@ const XYZ_TO_RGB = inverse(RGB_TO_XYZ);
  * Cone-space transform for adapting to the adopted white. If omitted, the original
  * XYZ-diagonal scaling (model id `photivra-xyz-diagonal-adaptation`) is used unchanged.
  */
-export type CaptureChromaticAdaptationTransform = "bradford" | "cat02" | "cat16" | "von-kries-hpe";
-const CAPTURE_ADAPTATION_TRANSFORMS: readonly string[] = ["bradford", "cat02", "cat16", "von-kries-hpe"];
+export type CaptureChromaticAdaptationTransform = "bradford" | "cat16" | "von-kries-hpe";
+const CAPTURE_ADAPTATION_TRANSFORMS: readonly string[] = ["bradford", "cat16", "von-kries-hpe"];
 /** One explicit colour interpretation. Gains and adaptation cannot both apply white balance by accident. */
 export type CaptureColorWhiteBalance =
   | { kind: "preserve-intent" }
@@ -131,7 +131,7 @@ function adaptationProfileId(whiteBalance: CaptureColorWhiteBalance): string {
  * Converts a bounded inline XYZ (ideal-camera) plane to unclamped linear sRGB.
  * It reuses the resolved white-balance intent. It never estimates the lighting and never changes
  * exposure or noise. Adapting to the adopted white (XYZ diagonal by default, or an explicit
- * Bradford, CAT02, CAT16 or von Kries-HPE cone-space transform) is labelled an approximation, and
+ * Bradford, CAT16 or von Kries-HPE cone-space transform) is labelled an approximation, and
  * is separate from RGB gains.
  */
 export function calculateCaptureColorTransform(input: CaptureColorTransformInput): CalculationResult<CaptureColorTransformResult> {
