@@ -1726,6 +1726,8 @@ export type { NativeCaptureSdrInput, NativeCaptureSdrTileRequest, NativeCaptureS
 
 export { IRRADIANCE_CONVOLUTION_SCHEMA_VERSION, IRRADIANCE_CONVOLUTION_LIMITS, calculateIrradianceConvolutionPlan, calculateIrradianceConvolution } from "./optics/irradiance-convolution.js";
 export type { IrradianceConvolutionInput, IrradianceConvolutionPlan } from "./optics/irradiance-convolution.js";
+export { LENS_PSF_CONVOLUTION_KERNELS_SCHEMA_VERSION, LENS_PSF_CONVOLUTION_KERNELS_MAXIMUM_WAVELENGTHS, sampleLensPsfConvolutionKernels } from "./optics/lens-psf-kernels.js";
+export type { LensPsfConvolutionKernelsInput, LensPsfConvolutionKernels } from "./optics/lens-psf-kernels.js";
 export { PACKED_SENSOR_RAW_SCHEMA_VERSION, PACKED_SENSOR_RAW_LIMITS, calculatePackedSensorRawPlan, simulatePackedSensorRaw } from "./capture/packed-sensor-raw.js";
 export type { PackedSensorRawInput, PackedSensorRawPlan, PackedSensorRawDiagnostics, PackedSensorRawResult, PackedSensorFixedPatternNoise,
   PackedSensorAdditionalChargeComponent } from "./capture/packed-sensor-raw.js";

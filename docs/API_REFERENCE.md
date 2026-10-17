@@ -1480,6 +1480,18 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`LateralChromaticAberrationProfile`](api/optics-lateral-chromatic-aberration.md#lateralchromaticaberrationprofile) | Type |
 | [`LateralChromaticAberrationSeparation`](api/optics-lateral-chromatic-aberration.md#lateralchromaticaberrationseparation) | Type |
 
+## optics/lens-psf-kernels.ts
+
+[Detailed contracts](api/optics-lens-psf-kernels.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/optics/lens-psf-kernels.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`LENS_PSF_CONVOLUTION_KERNELS_MAXIMUM_WAVELENGTHS`](api/optics-lens-psf-kernels.md#lens_psf_convolution_kernels_maximum_wavelengths) | Runtime |
+| [`LENS_PSF_CONVOLUTION_KERNELS_SCHEMA_VERSION`](api/optics-lens-psf-kernels.md#lens_psf_convolution_kernels_schema_version) | Runtime |
+| [`LensPsfConvolutionKernels`](api/optics-lens-psf-kernels.md#lenspsfconvolutionkernels) | Type |
+| [`LensPsfConvolutionKernelsInput`](api/optics-lens-psf-kernels.md#lenspsfconvolutionkernelsinput) | Type |
+| [`sampleLensPsfConvolutionKernels`](api/optics-lens-psf-kernels.md#samplelenspsfconvolutionkernels) | Runtime |
+
 ## optics/lens-psf-profile.ts
 
 [Detailed contracts](api/optics-lens-psf-profile.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/optics/lens-psf-profile.ts)

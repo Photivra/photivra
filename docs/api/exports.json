@@ -3693,6 +3693,16 @@
       "kind": "runtime"
     },
     {
+      "name": "LENS_PSF_CONVOLUTION_KERNELS_MAXIMUM_WAVELENGTHS",
+      "source": "src/optics/lens-psf-kernels.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "LENS_PSF_CONVOLUTION_KERNELS_SCHEMA_VERSION",
+      "source": "src/optics/lens-psf-kernels.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "LENS_SAMPLED_PSF_PROFILE_SCHEMA_VERSION",
       "source": "src/optics/lens-psf-profile.ts",
       "kind": "runtime"
@@ -3780,6 +3790,16 @@
     {
       "name": "LensProjectionModel",
       "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensPsfConvolutionKernels",
+      "source": "src/optics/lens-psf-kernels.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensPsfConvolutionKernelsInput",
+      "source": "src/optics/lens-psf-kernels.ts",
       "kind": "type"
     },
     {
@@ -6361,6 +6381,11 @@
       "name": "RollingSensorReadoutTimingDeclaration",
       "source": "src/sensor/readout-timing.ts",
       "kind": "type"
+    },
+    {
+      "name": "sampleLensPsfConvolutionKernels",
+      "source": "src/optics/lens-psf-kernels.ts",
+      "kind": "runtime"
     },
     {
       "name": "SCENE_ILLUMINATION_PROFILE_SCHEMA_VERSION",

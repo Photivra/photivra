@@ -98,7 +98,17 @@ Here `p(s)` is the isoplanatic patch containing the *source* site, and `K_p(u, v
 - Incoherent imaging superposes intensity PSFs linearly ([MIT OpenCourseWare 2.71, lecture 22](https://ocw.mit.edu/courses/2-71-optics-spring-2009/resources/mit2_71s09_lec22/), free; isoplanatic subsections: van de Ketterij et al., [arXiv:2011.01738](https://arxiv.org/abs/2011.01738), sec. 1, free. Also see: Goodman, *Introduction to Fourier Optics*, 4th ed., 2017, §6.1).
 - Treating the PSF as constant inside a patch is the declared piecewise shift-invariant approximation (isoplanatic patches; the method used by camera simulators such as ISETCam: Farrell et al., *Proc. SPIE* 8299, 2012). Patch size and kernels are the caller's declared choice.
 - The grid is the whole source support. Quantity scattered outside it is lost; there is no padding or renormalization. `inputSum − outputSum` reports the loss.
-- Kernel sampling from a lens PSF profile is the caller's responsibility; no PSF profile is inferred.
+- Kernels can come from the engine's sampled lens PSFs (2.0, next section); otherwise the caller supplies them. No PSF profile is inferred.
+
+**Kernels from a lens PSF profile** (`sampleLensPsfConvolutionKernels`, schema 0.1.0):
+
+- For each patch, the PSF is resolved with `resolveLensSampledPsf` at the patch centre's field point, in the per-site engine's own coordinates: native sensor millimetres from the optical axis (`grid.opticalAxisSite`, +Y down), field point (x, −y).
+- Each PSF tap maps to a site displacement through the per-site quadrature's own inverse support (`sensorPsfSourcePoint`). Tap (kx, ky) lands at u = (kx − cx)·pₓ/sₓ, v = −(ky − cy)·p_y/s_y, where p is the PSF sample pitch and s the site pitch.
+- **Exact site sampling** (`exactSiteSampling: true`): when every displacement is an integer, each tap's weight goes to one kernel cell. A destination whose PSF equals its patch's then gets exactly the per-site PSF quadrature with site-centre sources (tested at patch centres).
+- **Labelled approximation, otherwise:** each weight is split over the four surrounding displacements with bilinear weights, the exact adjoint of bilinear interpolation. The convolution then equals the per-site quadrature applied to the bilinear interpolant of the site-centre samples (tested to 1e-12). Weights are conserved.
+- **Several wavelengths:** the kernel is the weight-normalized sum of the per-wavelength kernels. For a spectrally neutral scene this is exactly the per-site engine's spectral sum when the weights are its spectral quadrature weights times the illuminant.
+- The kernel radius is the smallest that holds every non-zero tap (at most 32). A smaller requested radius is rejected rather than dropping support. Relative pupil throughput is reported per patch and never folded into the unit-energy kernels, as in the per-site engine.
+- The remaining approximation is the isoplanatic patch: one PSF per patch, indexed by the source site. Its method error is measured, not bounded (#277 per-fixture rollout).
 
 **SDR** is exactly the `calculateSdrRendering` chain in the same order: rendering exposure, then per-channel tone, then gamut handling, then the sRGB transfer (W3C CSS Color 4; also IEC 61966-2-1), then nearest-ties-up quantization.
 
@@ -320,7 +330,7 @@ How the suite finds and launches a browser:
 
 - These are approximations within the stated bounds, not the reference. Use `cpu-reference` for evidence, hashes, fixtures and anything that needs bit identity.
 - The bounds assume conforming hardware and drivers. Non-conforming flush-to-zero or `pow` behaviour outside the WGSL accuracy table would void them; the conformance suite is how a device is checked.
-- The convolution is a primitive. Building kernels from `LensPsfProfile` nodes, spectral weighting, vignetting and depth handling stay with the #277 work items.
+- The convolution is a primitive. `sampleLensPsfConvolutionKernels` builds its kernels from a `LensPsfProfile` (with spectral weighting); vignetting, depth-dependent defocus and occlusion are not part of it.
 - The sensor bounds also assume the compiler does not reassociate the kernel's float32 expressions; fused multiply-add contraction only removes roundings and is harmless. The exact integer-plus-fraction ADC sums rely on this. A device that breaks it shows up as an unflagged differing site in `test/webgpu/stages.webgpu.ts`.
 - The sensor stage's fixed-pattern values are evaluated on the host (float64, once per site). They depend only on the sensor instance, so a caller rendering many frames of one sensor pays this per frame; caching them across frames is not built. The temporal sum covers rigid translation only.
 - Still open for #277:

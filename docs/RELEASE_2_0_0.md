@@ -427,8 +427,7 @@ Work that is known and deliberately left for later:
   - scene radiance on the GPU and the batched provider API;
   - the per-fixture rollout, with method-error comparisons against the per-site engine;
   - hardware-GPU timings at 6–24 MP (the script `npm run bench:webgpu` exists; nothing has been measured);
-  - hardware-GPU conformance runs and CI wiring;
-  - kernel sampling from `LensPsfProfile`.
+  - hardware-GPU conformance runs and CI wiring.
 - **Optics follow-ups from #303:** lens field mapping in the browser-native executor, mappings combined with ideal pupil rays, calibrated finite-focus fisheye scale.
 - **Motion follow-ups from #297:** derived rolling exposure schedules in tier presets; time-varying angular velocity (rolling-shutter wobble).
 
