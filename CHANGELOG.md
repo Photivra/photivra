@@ -306,6 +306,10 @@ The engine now relies on free-to-read sources wherever one was found. See the ci
 - `resolveLensSampledPsf` no longer rejects an interpolated pupil throughput that floating-point weights lift a few ulps above 1 (#307).
 - `simulateCapture()` validates pupil sampling (4–64 angular samples, at most 256 rays) before doing any work (#306).
 - `highlight-weighted` metering is now documented as a highlight-emphasis mean: about 0.5–0.8 EV darker than uniform metering in scenes with bright accents. Its behaviour is unchanged. The new `highlight-priority` policy is the one that places highlights (#297).
+- WebGPU accelerator (#277) fixes. GPU output values are unchanged:
+  - The `webgpu-f32` error bounds of the convolution and the temporal sum now cover weights below 2^-126. The host can round such a weight to zero and a GPU can flush it, so with samples up to 2^100 the reported bound could be exceeded (for example by 2^-60 against a bound near 2^-125). The bound gains a term 2·S_max × (the at-risk weights), which is 0 when no weight is that small (docs/WEBGPU.md).
+  - Convolution readback buffers are released after each band. Before, every band's readback stayed alive until the end, so GPU memory grew with the image instead of the band.
+  - A WebGPU device that arrives after acquisition was aborted is now destroyed instead of leaking.
 
 ### Performance
 
