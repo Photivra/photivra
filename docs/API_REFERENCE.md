@@ -448,6 +448,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`calculateColorDifference`](api/color-color-difference.md#calculatecolordifference) | Runtime |
 | [`CalculateColorDifferenceInput`](api/color-color-difference.md#calculatecolordifferenceinput) | Type |
 | [`calculateXyzFromCielab`](api/color-color-difference.md#calculatexyzfromcielab) | Runtime |
+| [`Cie94ParametricFactors`](api/color-color-difference.md#cie94parametricfactors) | Type |
 | [`Ciede2000ParametricFactors`](api/color-color-difference.md#ciede2000parametricfactors) | Type |
 | [`CielabColor`](api/color-color-difference.md#cielabcolor) | Type |
 | [`CielchColor`](api/color-color-difference.md#cielchcolor) | Type |

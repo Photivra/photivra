@@ -1828,6 +1828,11 @@
       "kind": "type"
     },
     {
+      "name": "Cie94ParametricFactors",
+      "source": "src/color/color-difference.ts",
+      "kind": "type"
+    },
+    {
       "name": "CieDaylightBasis",
       "source": "src/color/illuminants.ts",
       "kind": "type"

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 import { describe, expect, it } from "vitest";
 import { calculateIdealPolygonDiffractionPsf, calculateAiryDisk, InvalidConfigurationError, InvalidScientificInputError } from "../src/index.js";
 import type { CalculateIdealPolygonDiffractionInput } from "../src/index.js";

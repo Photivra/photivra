@@ -1,6 +1,6 @@
 # Colorimetry
 
-Photivra's colorimetry primitives live in `src/color/`. They cover colour-matching functions (CMFs), spectral integration, illuminants and correlated colour temperature (CCT), chromatic adaptation, CIELAB colour differences, camera-matrix fitting, Kelvin + tint white balance, wide-gamut and HDR transfer functions, and perceptual gamut mapping. All of them are deterministic, browser-safe functions. Each one is labelled `calculated`, `approximation` or `estimated` exactly as described below.
+Photivra's colorimetry primitives live in `src/color/`. They cover colour-matching functions (CMFs), spectral integration, illuminants and correlated colour temperature (CCT), chromatic adaptation, CIELAB colour differences, camera-matrix fitting, Kelvin + tint white balance, wide-gamut RGB spaces with SDR transfer functions (sRGB, BT.709, BT.1886), and perceptual gamut mapping. All of them are deterministic, browser-safe functions. Each one is labelled `calculated`, `approximation` or `estimated` exactly as described below.
 
 These are standalone primitives. They do not change scene radiance, exposure, sensor capture or any existing default. The SDR/export stages own output wiring.
 
@@ -65,7 +65,7 @@ Spectra are either tabulated (linear interpolation, fail-closed outside the tabl
 | `calculateCorrelatedColorTemperature` | Nearest point on the chosen Planckian locus in CIE 1960 uv (the CCT/Duv definition as stated in Smet et al. 2023, free; also CIE 15:2018), golden-section search in mired. Signed Duv: positive above the locus (greenish), negative below (magenta). The sign follows Ohno (CORM 2011 slides, free, slide 5), and the engine documents and tests it. Fails closed for \|Duv\| > 0.05, the range over which Smet et al. evaluate CCT methods (CIE 15:2018, paid, gives the same limit) | follows the locus model |
 | `calculateChromaticityFromCorrelatedColorTemperature` | Locus point (Planckian or CIE daylight) offset by Duv along the unit normal of the Planckian locus in uv | follows the locus model |
 
-**The Planckian locus** is the chromaticity of a Planckian radiator, x(T) = X/(X + Y + Z) and y(T) = Y/(X + Y + Z) with X = Σ L(λᵢ, T) x̄(λᵢ) Δλᵢ (and likewise Y, Z), where L is Planck's law above. The constant 2hc² cancels. The default locus samples the CMFs and 1/λ⁵ once, so each temperature costs one exponential per node, and the CCT search caches its 201-point coarse scan per locus. The 2.0.0 default replaced the Kim et al. (2002) cubic spline, whose coefficients were removed by owner decision (October 17, 2026).
+**The Planckian locus** is the chromaticity of a Planckian radiator, x(T) = X/(X + Y + Z) and y(T) = Y/(X + Y + Z) with X = Σ L(λᵢ, T) x̄(λᵢ) Δλᵢ (and likewise Y, Z), where L is Planck's law above. The constant 2hc² cancels. The default locus samples the CMFs and 1/λ⁵ once, so each temperature costs one exponential per node, and the CCT search caches its 201-point coarse scan per locus. The 2.0.0 default replaced the Kang et al. (2002) cubic spline (often called the Kim spline; see `THIRD_PARTY.md`), whose coefficients were removed by owner decision (October 17, 2026).
 
 Measured in the tests (no CIE table values):
 
@@ -76,9 +76,9 @@ Measured in the tests (no CIE table values):
 - **Daylight polynomial:** it satisfies y = −3x² + 2.87x − 0.275, x falls with T, and the daylight locus lies above the Planckian locus (0 < Duv < 0.01) over 4000–25000 K.
 - **A greenish light has a positive Duv:** chromaticities moved from the locus toward the BT.709 green primary give Duv > 0, and moved away give Duv < 0, at 2700, 4000 and 6500 K.
 
-**Accuracy of the default locus** (computed once, outside the repository, against a locus integrated with the CIE 1931 1 nm table on the same nodes): the uv distance is at most 1.05e-3 at 1667 K, 5.5e-4 at 2000 K, and 2.83e-4 from 2856 to 25000 K. The removed Kim spline was within 3.7e-4 of that table locus over 1667–25000 K, so it was closer above about 3000 K. For an exact table-based locus, pass CIE CMFs as `planck-integration`.
+**Accuracy of the default locus** (computed once, outside the repository, against a locus integrated with the CIE 1931 1 nm table on the same nodes): the uv distance is at most 1.05e-3 at 1667 K, 5.5e-4 at 2000 K, and 2.83e-4 from 2856 to 25000 K. The removed Kang et al. spline was within 3.7e-4 of that table locus over 1667–25000 K, so it was closer above about 3000 K. For an exact table-based locus, pass CIE CMFs as `planck-integration`.
 
-**Change from the Kim spline default of earlier 2.0.0 drafts**: uv moves by at most 1.42e-3 at 1667 K and 7.0e-4 from 2000 to 25000 K. The CCT of the daylight-locus point at 6504 K moves from 6500.0 K (Duv 0.00323) to 6516.6 K (Duv 0.00345), and at 5000 K from 4996.2 K to 5011.5 K. Kelvin white-balance gains for an XYZ camera change by at most 0.5 % (blue at 2856 K).
+**Change from the Kang et al. spline default of earlier 2.0.0 drafts**: uv moves by at most 1.42e-3 at 1667 K and 7.0e-4 from 2000 to 25000 K. The CCT of the daylight-locus point at 6504 K moves from 6500.0 K (Duv 0.00323) to 6516.6 K (Duv 0.00345), and at 5000 K from 4996.2 K to 5011.5 K. Kelvin white-balance gains for an XYZ camera change by at most 0.5 % (blue at 2856 K).
 
 **Cost** (`node scripts/benchmark-planckian-locus.mjs`, Node 24.21, linux-x64 container, median of 9 × 200 calls): locus point 0.5 → 6.8 µs, CCT/Duv search 21 → 391 µs, chromaticity from CCT + Duv 1.1 → 19 µs, Kelvin white balance 4.1 → 20.9 µs, and the first CCT call (which prepares the default locus) 0.9 → 7.0 ms. A `planck-integration` CCT call with caller CMFs on 471 nodes fell from 9.7 to 2.3 ms.
 
@@ -101,11 +101,13 @@ This is the one-step two-illuminant form of Li et al. (2017), applied to every c
 | --- | --- |
 | `bradford` | Linearized Bradford: Lam (1985), Univ. of Bradford thesis; Luo & Rhodes (1999); ICC.1:2010 Annex E |
 | `cat02` | Moroney et al. (2002), *The CIECAM02 color appearance model*, IS&T/SID CIC10 (also CIE 159:2004) |
-| `cat16` | Li, Li, Wang, Xu, Luo, Cui, Melgosa, Brill & Pointer (2017), Color Res. Appl. 42(6):703–718 |
+| `cat16` | Li, Li, Wang, Xu, Luo, Cui, Melgosa, Brill & Pointer (2017), Color Res. Appl. 42(6):703–718 (no free primary source; see below) |
 | `von-kries-hpe` | Hunt–Pointer–Estévez cones (equal-energy normalized) as used in CIECAM02 (Moroney et al. 2002; also CIE 159:2004) |
 | `xyz-scaling` | Identity: diagonal scaling in XYZ (the weakest model) |
 
 `calculateDegreeOfAdaptation()` implements the CIECAM02 formula D = F[1 − (1/3.6)·exp((−L_A − 42)/92)], with F = 1.0, 0.9 or 0.8 for average, dim or dark surround. The matrix is calculated exactly. How well a linear CAT predicts corresponding colours is a property of that model and is not claimed here. The test suite checks that the Bradford cone matrix equals ICC.1:2010 Annex E Eq. (E.1), and that the D65→D50 matrix equals the Annex E construction (Eq. E.2–E.4) evaluated independently in the test, to 1e-12. D65 comes from its ITU-R BT.709-6 chromaticity and D50 is the ICC PCS illuminant (0.9642, 1.0, 0.8249). ICC.1:2010 is free to download under a permissive ICC copyright licence.
+
+**Free sources for the cone matrices.** The CAT16 matrix has no free primary source: Li et al. (2017) and CIE 248:2022 are both paid. For CAT02, the RIT open repository lists Moroney et al. (2002) at <https://repository.rit.edu/other/143> with a full-text download link, and states no licence. On October 17, 2026 the download returned a bot-check page instead of the PDF, so we could not confirm that the free copy prints the CAT02 matrix. Its other source, CIE 159:2004, is paid. Both matrices stay in the engine pending a separate owner decision.
 
 ### Scene adaptation in the capture colour transform
 
@@ -132,9 +134,9 @@ The result is a `ResolvedWhiteBalanceState` with `source: "color-temperature"`. 
 ## Colour difference and CIELAB
 
 - **CIELAB and LCh:** `calculateCielabFromXyz` / `calculateXyzFromCielab` and `calculateCielchFromCielab` / `calculateCielabFromCielch` implement CIELAB as defined in W3C CSS Color 4 §9 (also CIE 15:2018) with the exact constants ε = (6/29)³ and κ = (29/3)³.
-- **`calculateColorDifference`** supports four formulas:
+- **`calculateColorDifference`** supports three formulas:
   - `cie76`: Euclidean ΔE*ab.
-  - `cie94-graphic-arts` and `cie94-textiles`: ΔE*94 = √((ΔL*/(k_L S_L))² + (ΔC*/(k_C S_C))² + (ΔH*/(k_H S_H))²) with S_L = 1, S_C = 1 + K₁C*₁, S_H = 1 + K₂C*₁ and k_C = k_H = 1; graphic arts k_L = 1, K₁ = 0.045, K₂ = 0.015; textiles k_L = 2, K₁ = 0.048, K₂ = 0.014. C*₁ is the chroma of `reference`, so the formula is asymmetric in it, and ΔH*² = Δa*² + Δb*² − ΔC*². *Secondary source; the primary CIE 116-1995 is not free:* Wikipedia, ["Color difference", §CIE94](https://en.wikipedia.org/wiki/Color_difference#CIE94), which states these equations and weights. The tests check the closed forms these equations give for pure lightness (|ΔL*|/k_L), pure chroma (|ΔC*|/(1 + K₁C*₁)) and equal-chroma hue differences (|ΔH*|/(1 + K₂C*₁)), and the reference asymmetry, computed in the test.
+  - `cie94`: ΔE*94 = √((ΔL*/(k_L S_L))² + (ΔC*/(k_C S_C))² + (ΔH*/(k_H S_H))²) with S_L = 1, S_C = 1 + K₁C*₁ and S_H = 1 + K₂C*₁. C*₁ is the chroma of `reference`, so the formula is asymmetric in it, and ΔH*² = Δa*² + Δb*² − ΔC*². By default the engine uses the formula's published reference conditions: k_L = k_C = k_H = 1, K₁ = 0.045 and K₂ = 0.015 (often called "graphic arts"). For other conditions, pass all five factors in `cie94Factors: { lightness, chroma, hue, k1, k2 }` (k_L, k_C, k_H greater than zero; K₁, K₂ finite and not negative; unknown fields are rejected). The engine ships no other preset; the caller is responsible for the source of its factors. The primary source, CIE 116-1995, is not free. The tests check the closed forms for pure lightness (|ΔL*|/k_L), pure chroma (|ΔC*|/(k_C(1 + K₁C*₁))) and equal-chroma hue differences (|ΔH*|/(k_H(1 + K₂C*₁))), and the reference asymmetry, computed in the test, with the default and with caller-supplied factors.
   - `ciede2000`: implemented following the implementation notes of Sharma, Wu & Dalal (2005), Color Res. Appl. 30(1):21–30, freely available from the first author (also CIE 142-2001 / ISO/CIE 11664-6), with optional parametric factors k_L, k_C, k_H.
 
 The tests no longer use Sharma et al.'s published test pairs: their data file carries no licence, and the page's only terms limit the authors' program and spreadsheet to personal or research use. Instead the tests check that CIEDE2000 reduces to its closed forms for pure lightness differences (ΔE00 = |ΔL*|/S_L), pure chroma differences on the a* axis and equal-chroma hue differences (including a pair whose hues straddle 0°), all written out in the test from the formula's definitions, plus symmetry, identity and the parametric factors.
@@ -198,10 +200,10 @@ The ITU-R BT.2100 PQ (also SMPTE ST 2084) and HLG transfer functions are not par
 - K. A. G. Smet et al. (2023), "Recommended method for determining the correlated color temperature and distance from the Planckian locus of a light source", LEUKOS, doi:10.1080/15502724.2023.2248397; free archival copy: <https://www.energy.gov/sites/default/files/2023-09/ssl-smet-etal-2023_method-cct-duv-light-source.pdf> (CCT and signed Duv, Duv range ±0.05).
 - Y. Ohno (2011), "Calculation of CCT and Duv and Practical Conversion Formulae", slides, CORM 2011 Conference, Gaithersburg, MD, May 3–5, 2011, slide 5 (Duv sign: "+ sign for above and - sign for below the Planckian locus"); free at <https://cormusa.org/wp-content/uploads/2018/04/CORM_2011_Calculation_of_CCT_and_Duv_and_Practical_Conversion_Formulae.pdf>.
 - K. M. Lam (1985), PhD thesis, University of Bradford; M. R. Luo, P. A. Rhodes (1999); ICC.1:2010 Annex E (ICC specifications are free at <https://www.color.org/>).
-- N. Moroney et al. (2002), IS&T/SID 10th Color Imaging Conference, listed in the RIT open repository <https://repository.rit.edu/other/143>; also CIE 159:2004.
-- C. Li et al. (2017), Color Res. Appl. 42(6):703–718.
+- N. Moroney et al. (2002), IS&T/SID 10th Color Imaging Conference, listed in the RIT open repository <https://repository.rit.edu/other/143> (full text not confirmed; see Chromatic adaptation); also CIE 159:2004 (paid).
+- C. Li et al. (2017), Color Res. Appl. 42(6):703–718 (paid); also CIE 248:2022 (paid).
 - G. Sharma, W. Wu, E. N. Dalal (2005), Color Res. Appl. 30(1):21–30; paper at <https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/>. Also CIE 142-2001.
-- CIE94: Wikipedia, "Color difference", §CIE94, <https://en.wikipedia.org/wiki/Color_difference#CIE94> (secondary source; the primary CIE 116-1995 is not free).
+- CIE 116-1995, *Industrial colour-difference evaluation* (CIE94; paid, no free primary source).
 - G. D. Finlayson, M. S. Drew (1997), IS&T/SID 5th Color Imaging Conference.
 - W3C CSS Color Module Level 4 §14 (free). Also see: J. Morovič (2008), *Color Gamut Mapping*, Wiley.
 - ITU-R BT.709-6 (primaries, D65 and luminance coefficients, items 1.3 and 3.2), BT.1886, BT.2020-2 (Tables 3 and 4) (free at <https://www.itu.int/rec/R-REC-BT>); W3C CSS Color Module Level 4 (`srgb`, `display-p3`, Lab, the RGB↔XYZ method and its sample-code matrices) <https://www.w3.org/TR/css-color-4/>; ITU-T H.273. Also specified in IEC 61966-2-1:1999, SMPTE EG 432-1 and SMPTE RP 177-1993.
