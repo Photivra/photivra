@@ -59,10 +59,12 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 ## calculateCorrelatedColorTemperature
 
 CCT and Duv of a chromaticity as the nearest point of the Planckian locus in the CIE
-1960 UCS (Smet et al. 2023; also CIE 15:2018). Uses a golden-section search in reciprocal
-temperature (mired). Throws (fails closed) when the nearest point is at the model's range limit,
-or when |Duv| > 0.05 (see {@link MAX_CORRELATED_COLOR_TEMPERATURE_DUV}). Duv is positive above the
-locus (toward green) and negative below it, the engine's documented sign convention.
+1960 UCS (Smet et al. 2023; also CIE 15:2018). Finds the root of the analytic temperature derivative
+of the squared uv distance (safeguarded Newton with bisection fallback, bracketed by a cached coarse
+scan in reciprocal temperature), converged until a step changes T by at most 1e-10 of T. Throws
+(fails closed) when the nearest point lies beyond the model's range, or when |Duv| > 0.05 (see
+{@link MAX_CORRELATED_COLOR_TEMPERATURE_DUV}). Duv is positive above the locus (toward green) and
+negative below it, the engine's documented sign convention.
 
 ```ts
 export function calculateCorrelatedColorTemperature(input: { chromaticity: CieXyChromaticity; locus: PlanckianLocusModel }): CalculationResult<CorrelatedColorTemperatureResult>;
