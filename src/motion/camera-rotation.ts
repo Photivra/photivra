@@ -282,7 +282,8 @@ export function applyPhysicalCameraRotation(
   );
 }
 
-function resolveProjectionDistanceMm(
+/** Internal: projection distance shared with the lean native environment executor. Not a root export. */
+export function resolveProjectionDistanceMm(
   focalLengthMm: number,
   focusDistanceM: number | undefined
 ): {
