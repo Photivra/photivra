@@ -41,6 +41,15 @@ import { applyPhysicalCameraRotation, resolveProjectionDistanceMm } from "../mot
 import { prepareCaptureExposureWindowSampler } from "../sensor/exposure-window.js";
 import { isPublicOpaqueId } from "../core/record-validation.js";
 import { freezeOwnedData } from "../core/owned-data.js";
+import { composeNativeEnvironmentSensorSite } from "./native-environment-optical-stage.js";
+import { calculateNativeRawSite, parseNativeRawProducerSite, type NativeRawProducerFrameContext,
+  type SensorRawProducerSiteInput } from "./sensor-raw-producer.js";
+import type { NativeRawLeanOutput, NativeRawLeanSensorHook } from "./native-raw.js";
+import { calculateSiteEffectiveSaturationCode } from "./raw-white-level.js";
+import { adcTransfer, resolveSensorReadoutRegime, samplePoisson, type ResolvedSensorReadoutRegime } from "../sensor/raw-readout.js";
+import { createDeterministicUniformStream, deriveNativeSiteStreamSeedUint32, sampleDeterministicStandardNormal,
+  NATIVE_SITE_CHARGE_STREAM_ID, NATIVE_SITE_READ_NOISE_STREAM_ID } from "../sensor/stochastic-seed.js";
+import { evaluateParsedFixedPatternSite, type SensorFixedPatternNoiseProfile } from "../sensor/fixed-pattern-noise.js";
 
 type Site = SimulateEnvironmentSensorRawFrameInput["sites"][number];
 type Env = Site["environment"];
@@ -225,7 +234,8 @@ function siteOf(environment: Env): { x: unknown; y: unknown } | undefined {
 function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFrame, environment: Env, index: number): LeanEnvironmentPlan | undefined {
   try {
     const x = index % frame.nativeWidth, y = Math.floor(index / frame.nativeWidth), site = siteOf(environment);
-    if (!site || site.x !== x || site.y !== y || !isPublicOpaqueId(environment.temporalIntegrationId)) return undefined;
+    // Object.is: a -0 coordinate would flow into the full path's outputs, so it takes the full path.
+    if (!site || !Object.is(site.x, x) || !Object.is(site.y, y) || !isPublicOpaqueId(environment.temporalIntegrationId)) return undefined;
     const g = k.geometry;
     // resolveSensorSamplingAperture: per-site aperture centre and bounds.
     const siteCenterFromTopLeftX = g.firstX + x * g.pitchX, siteCenterFromTopLeftY = g.firstY + y * g.pitchY;
@@ -591,4 +601,224 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
 function approximatelyEqual(actual: number, expected: number): boolean {
   const scale = Math.max(1, Math.abs(actual), Math.abs(expected));
   return Math.abs(actual - expected) <= REDUCTION_TOLERANCE * scale;
+}
+
+/** Photo-signal fields that vary per site; every other field is template-level. */
+const PHOTO_SITE_FIELDS: ReadonlySet<string> = new Set(["temporalIntegrationId", "site", "startOffsetSecondsFromOpeningReference",
+  "endOffsetSecondsFromOpeningReference", "localExposureDurationSeconds", "expectedIncidentPhotonCount", "expectedGeneratedElectronCount", "temporalSamples"]);
+const SITE_ONLY: ReadonlySet<string> = new Set(["site"]);
+const SITE_APPLICABILITY: ReadonlySet<string> = new Set(["siteApplicability"]);
+const COMPLETENESS: ReadonlySet<string> = new Set(["completenessProfile"]);
+const CAPACITY: ReadonlySet<string> = new Set(["capacityProfile"]);
+const COMPLETENESS_SITE_FIELDS: ReadonlySet<string> = new Set(["site", "startOffsetSecondsFromOpeningReference", "endOffsetSecondsFromOpeningReference"]);
+
+/** Same own keys in the same order; values strictly equal except `skip` keys (compared by the caller). */
+function sameRecordExcept(a: unknown, b: unknown, skip: ReadonlySet<string>, memo: WeakMap<object, object>): boolean {
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null || Array.isArray(a) || Array.isArray(b) ||
+    !isPlainRecord(a) || !isPlainRecord(b)) return false;
+  const ar = a as Rec, br = b as Rec, ak = Object.keys(ar), bk = Object.keys(br);
+  if (ak.length !== bk.length || Object.getOwnPropertySymbols(ar).length !== 0 || Object.getOwnPropertySymbols(br).length !== 0) return false;
+  for (let i = 0; i < ak.length; i++) if (ak[i] !== bk[i]) return false;
+  for (const key of ak) if (!skip.has(key) && !sameData(ar[key], br[key], memo)) return false;
+  return true;
+}
+/** A plain {x, y} record equal (Object.is) to the given coordinates. */
+function siteSlot(value: unknown, x: number, y: number): boolean {
+  if (typeof value !== "object" || value === null || Array.isArray(value) || !isPlainRecord(value)) return false;
+  const keys = Object.keys(value), r = value as Rec;
+  return keys.length === 2 && keys[0] === "x" && keys[1] === "y" && Object.is(r.x, x) && Object.is(r.y, y) && Object.getOwnPropertySymbols(value).length === 0;
+}
+/** A record whose optional `site` key (the only one skipped) holds each side's own coordinates. */
+function sameWithSiteSlot(a: unknown, b: unknown, ax: number, ay: number, bx: number, by: number, memo: WeakMap<object, object>): boolean {
+  if (!sameRecordExcept(a, b, SITE_ONLY, memo)) return false;
+  const ar = a as Rec, br = b as Rec;
+  return !("site" in ar) || (siteSlot(ar.site, ax, ay) && siteSlot(br.site, bx, by));
+}
+
+interface SensorTemplate {
+  site: Site;
+  photo: SensorEqeTemporalPhotoSignal;
+  phase: number; x: number; y: number;
+  verified: boolean;
+  darkRate: number;
+  capacity: number;
+  readout: ResolvedSensorReadoutRegime;
+  pattern: SensorFixedPatternNoiseProfile | undefined;
+  whiteCode: number;
+}
+interface SensorHandle {
+  template: SensorTemplate; site: Site; photo: SensorEqeTemporalPhotoSignal; x: number; y: number; darkE: number; total: number;
+}
+
+/** Sensor-site equality except the index-bound site slots and the per-site photo numbers. */
+function sensorMatches(site: Site, photo: SensorEqeTemporalPhotoSignal, x: number, y: number, t: SensorTemplate, memo: WeakMap<object, object>): boolean {
+  const a = site as unknown as Rec, b = t.site as unknown as Rec;
+  if (typeof a !== "object" || a === null || !isPlainRecord(a)) return false;
+  const ak = Object.keys(a), bk = Object.keys(b);
+  if (ak.length !== bk.length || Object.getOwnPropertySymbols(a).length !== 0) return false;
+  for (let i = 0; i < ak.length; i++) if (ak[i] !== bk[i]) return false;
+  for (const key of ak) {
+    if (key === "environment") continue;
+    if (key === "darkCurrentProfile") {
+      const ad = a.darkCurrentProfile as Rec, bd = b.darkCurrentProfile as Rec;
+      if (!sameRecordExcept(ad, bd, SITE_APPLICABILITY, memo) ||
+        !sameWithSiteSlot(ad.siteApplicability, bd.siteApplicability, x, y, t.x, t.y, memo)) return false;
+    } else if (key === "charge") {
+      const ac = a.charge as Rec, bc = b.charge as Rec;
+      if (!sameRecordExcept(ac, bc, COMPLETENESS, memo) || "additionalChargeComponents" in ac) return false;
+      const ap = ac.completenessProfile as Rec, bp = bc.completenessProfile as Rec;
+      if (!sameRecordExcept(ap, bp, COMPLETENESS_SITE_FIELDS, memo) || !siteSlot(ap.site, x, y) || !siteSlot(bp.site, t.x, t.y) ||
+        ap.startOffsetSecondsFromOpeningReference !== photo.startOffsetSecondsFromOpeningReference ||
+        ap.endOffsetSecondsFromOpeningReference !== photo.endOffsetSecondsFromOpeningReference) return false;
+    } else if (key === "readout") {
+      const ar = a.readout as Rec, br = b.readout as Rec;
+      if (!sameRecordExcept(ar, br, CAPACITY, memo)) return false;
+      const ac = ar.capacityProfile as Rec, bc = br.capacityProfile as Rec;
+      if (!sameRecordExcept(ac, bc, SITE_APPLICABILITY, memo) ||
+        !sameWithSiteSlot(ac.siteApplicability, bc.siteApplicability, x, y, t.x, t.y, memo)) return false;
+    } else if (!sameData(a[key], b[key], memo)) return false;
+  }
+  return sameRecordExcept(photo, t.photo, PHOTO_SITE_FIELDS, memo) && siteSlot(photo.site, x, y) &&
+    photo.temporalSamples.length === t.photo.temporalSamples.length;
+}
+
+/** The sensor stage of calculateNativeRawSite in the same operation order; undefined when one of its checks would throw. */
+function leanSensorSite(t: SensorTemplate, h: Pick<SensorHandle, "photo" | "darkE" | "total" | "x" | "y">, index: number, seed: number):
+  (NativeRawLeanOutput & { photoRealized: number; darkRealized: number }) | undefined {
+  const ratio = h.total / t.capacity, headroom = t.capacity - h.total;
+  if (!Number.isFinite(ratio) || !Number.isFinite(headroom)) return undefined;
+  const pattern = t.pattern === undefined ? null : evaluateParsedFixedPatternSite(t.pattern, { x: h.x, y: h.y });
+  const photoE = h.photo.expectedGeneratedElectronCount;
+  const photoMean = pattern === null ? photoE : photoE * pattern.photoResponseGainFactor;
+  const darkMean = pattern === null ? h.darkE : h.darkE * pattern.darkCurrentFactor;
+  if (!Number.isFinite(photoMean) || photoMean < 0 || !Number.isFinite(darkMean) || darkMean < 0) return undefined;
+  const random = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, NATIVE_SITE_CHARGE_STREAM_ID));
+  const photoRealized = samplePoisson(photoMean, random), darkRealized = samplePoisson(darkMean, random);
+  const realized = photoRealized + darkRealized + 0;
+  if (!Number.isFinite(realized) || realized < 0) return undefined;
+  const readRandom = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, NATIVE_SITE_READ_NOISE_STREAM_ID));
+  const regime = t.readout.regime, capacity = t.capacity;
+  const afterPhysical = Math.min(realized, capacity), physicalSaturation = afterPhysical < realized;
+  const sampled = regime.readNoiseComponents.map(component => component.rmsElectrons.value === 0 ? 0 :
+    sampleDeterministicStandardNormal(readRandom) * component.rmsElectrons.value);
+  let totalReadNoise = 0;
+  for (const value of sampled) totalReadNoise = totalReadNoise + value;
+  const afterReadNoise = afterPhysical + totalReadNoise + (pattern === null ? 0 : pattern.readoutOffsetElectrons);
+  const threshold = regime.preAdcSaturationElectronEquivalent.value;
+  const afterPreAdc = Math.min(afterReadNoise, threshold), preAdcSaturation = afterReadNoise > threshold;
+  const quantized = adcTransfer(regime, t.readout.adcMaximumCode, afterPreAdc).quantized;
+  const digitalSaturationCode = regime.adc.digitalSaturationCode;
+  return { rawCode: Math.max(0, Math.min(quantized, digitalSaturationCode)), blackLevelCode: regime.adc.blackLevelCode, digitalSaturationCode,
+    flags: Number(physicalSaturation) | Number(preAdcSaturation) << 1 | Number(quantized >= digitalSaturationCode) << 2,
+    whiteCode: t.whiteCode, photoRealized, darkRealized };
+}
+
+/** Kahan total of composeSensorAccumulatedCharge for photo and dark charge only. */
+function chargeTotal(photoE: number, darkE: number): number {
+  let sum = 0, correction = 0;
+  for (const value of [photoE, darkE]) {
+    const adjusted = value - correction, next = sum + adjusted;
+    correction = (next - sum) - adjusted; sum = next;
+  }
+  return sum;
+}
+
+/**
+ * Lean sensor stage for createNativeEnvironmentRawTask. claim() runs in the environment task where the full path
+ * composes the site (dark charge) and evaluates every parse-phase predicate there; compute() runs in the native RAW
+ * task's compute phase and falls back to the full parse and calculateNativeRawSite on any compute-phase predicate.
+ */
+export interface NativeEnvironmentSensorLean {
+  readonly hook: NativeRawLeanSensorHook;
+  /** Starts a tile: fully composed sites of the previous tile are forgotten. */
+  beginTile(): void;
+  /** A lean tile entry for a site matching a verified template, or undefined (compose it in full and remember it). */
+  claim(site: Site, photo: SensorEqeTemporalPhotoSignal, index: number): object | undefined;
+  /** Remembers a fully composed site so its full computation can become a template. */
+  remember(index: number, site: Site, photo: SensorEqeTemporalPhotoSignal): void;
+}
+
+export function createNativeEnvironmentSensorLean(frame: NativeEnvironmentLeanFrame, producerFrame: NativeRawProducerFrameContext,
+  nativeWindow: ((point: { x: number; y: number }) => { startOffsetSecondsFromOpeningReference: number; endOffsetSecondsFromOpeningReference: number;
+    localExposureDurationSeconds: number }) | undefined): NativeEnvironmentSensorLean {
+  const enabled = !leanDisabled && nativeWindow !== undefined && frame.identityBinding && frame.repeatWidth > 0 && frame.repeatHeight > 0;
+  const templates: SensorTemplate[] = [], handles = new WeakMap<object, SensorHandle>(), memo = new WeakMap<object, object>();
+  let pending = new Map<number, { site: Site; photo: SensorEqeTemporalPhotoSignal }>();
+  const coordinates = (index: number): { x: number; y: number; phase: number } => {
+    const x = index % frame.nativeWidth, y = Math.floor(index / frame.nativeWidth);
+    return { x, y, phase: (y % frame.repeatHeight) * frame.repeatWidth + (x % frame.repeatWidth) };
+  };
+  const find = (site: Site, photo: SensorEqeTemporalPhotoSignal, x: number, y: number, phase: number): SensorTemplate | undefined => {
+    for (const t of templates) if (t.phase === phase && sensorMatches(site, photo, x, y, t, memo)) return t;
+    return undefined;
+  };
+  return {
+    beginTile(): void { pending = new Map(); },
+    claim(site, photo, index): object | undefined {
+      if (!enabled) return undefined;
+      try {
+        const { x, y, phase } = coordinates(index), t = find(site, photo, x, y, phase);
+        if (!t || !t.verified) return undefined;
+        // Parse-phase predicates of the full path: EQE domain, dark and total charge, and the committed local window.
+        const photoE = photo.expectedGeneratedElectronCount, duration = photo.localExposureDurationSeconds;
+        if (!(photoE <= photo.expectedIncidentPhotonCount)) return undefined;
+        const darkE = t.darkRate * duration;
+        if (!Number.isFinite(darkE) || darkE < 0) return undefined;
+        const total = chargeTotal(photoE, darkE);
+        if (!Number.isFinite(total) || total < 0) return undefined;
+        const window = nativeWindow!({ x: x + .5, y: y + .5 });
+        if (photo.startOffsetSecondsFromOpeningReference !== window.startOffsetSecondsFromOpeningReference ||
+          photo.endOffsetSecondsFromOpeningReference !== window.endOffsetSecondsFromOpeningReference ||
+          duration !== window.localExposureDurationSeconds) return undefined;
+        const marker = Object.freeze({});
+        handles.set(marker, { template: t, site, photo, x, y, darkE, total });
+        return marker;
+      } catch {
+        return undefined;
+      }
+    },
+    remember(index, site, photo): void { if (enabled) pending.set(index, { site, photo }); },
+    hook: {
+      claim(site: unknown): object | undefined {
+        return typeof site === "object" && site !== null && handles.has(site) ? site : undefined;
+      },
+      compute(handle, index, seed, timing): NativeRawLeanOutput {
+        const h = handles.get(handle)!, out = leanSensorSite(h.template, h, index, seed);
+        if (out) return { rawCode: out.rawCode, blackLevelCode: out.blackLevelCode, digitalSaturationCode: out.digitalSaturationCode, flags: out.flags, whiteCode: out.whiteCode };
+        // A compute-phase check failed: the full path computes (and throws) exactly as it would have.
+        const parsed = parseNativeRawProducerSite(composeNativeEnvironmentSensorSite(h.site, h.photo), index, producerFrame, timing);
+        const r = calculateNativeRawSite(parsed, seed, index).readout.value;
+        return { rawCode: r.rawCode, blackLevelCode: r.blackLevelCode, digitalSaturationCode: r.digitalSaturationCode,
+          flags: Number(r.physicalScalarSaturationApplied) | Number(r.preAdcSaturationApplied) << 1 | Number(r.digitalSaturationApplied) << 2,
+          whiteCode: calculateSiteEffectiveSaturationCode(r, parsed.readoutProfile, parsed.regimeId) };
+      },
+      observe(index: number, parsed: SensorRawProducerSiteInput, result: ReturnType<typeof calculateNativeRawSite>, whiteCode: number, seed: number): void {
+        const entry = pending.get(index);
+        pending.delete(index);
+        if (!entry || templates.length >= MAXIMUM_TEMPLATES) return;
+        try {
+          const { x, y, phase } = coordinates(index), { site, photo } = entry;
+          if (find(site, photo, x, y, phase) !== undefined) return;
+          const readout = resolveSensorReadoutRegime({ profile: parsed.readoutProfile, regimeId: parsed.regimeId });
+          const t: SensorTemplate = { site, photo, phase, x, y, verified: false, darkRate: parsed.charge.darkCharge.darkCurrentElectronsPerSecond,
+            capacity: result.capacity.value.physicalChargeCapacityElectrons, readout, pattern: parsed.fixedPatternNoise, whiteCode };
+          templates.push(t);
+          // Self-check: the template matches itself and the lean arithmetic reproduces its full computation bit for bit.
+          if (!sensorMatches(site, photo, x, y, t, new WeakMap())) return;
+          const darkE = t.darkRate * photo.localExposureDurationSeconds, total = chargeTotal(photo.expectedGeneratedElectronCount, darkE);
+          const r = result.readout.value, realization = result.realization.value;
+          const out = leanSensorSite(t, { photo, darkE, total, x, y }, index, seed);
+          if (!out || !Object.is(darkE, parsed.charge.darkCharge.expectedDarkElectronCount) ||
+            !Object.is(total, result.accumulatedCharge.value.totalExpectedStoredElectronCount) ||
+            !Object.is(out.photoRealized, realization.photoRealizedElectronCount) || !Object.is(out.darkRealized, realization.darkRealizedElectronCount) ||
+            realization.additionalComponents.length !== 0 || out.rawCode !== r.rawCode || out.blackLevelCode !== r.blackLevelCode ||
+            out.digitalSaturationCode !== r.digitalSaturationCode || out.flags !== (Number(r.physicalScalarSaturationApplied) |
+              Number(r.preAdcSaturationApplied) << 1 | Number(r.digitalSaturationApplied) << 2)) return;
+          t.verified = true;
+        } catch {
+          // An unverified template leaves its sites on the full path.
+        }
+      }
+    }
+  };
 }
