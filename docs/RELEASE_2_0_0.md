@@ -1,6 +1,6 @@
 # 2.0.0 release candidate
 
-> **Candidate record, prepared October 17, 2026.** This is the production release request for `@photivra/engine@2.0.0`. Preparing it does not tag, publish or create a GitHub release. **Tagging `v2.0.0` triggers npm publishing and requires the owner's explicit approval.**
+> **Published October 17, 2026.** The owner reviewed this record, tagged `v2.0.0` on `a9833ad` and published the GitHub release. npm publishing ran from the tag. See [Publication](#publication). The record below is kept as the release request it was.
 
 ## At a glance
 
@@ -497,7 +497,19 @@ The authoritative result is GitHub CI on the exact commit that is tagged: the `m
 - [x] Final pre-release review: bugs and performance findings fixed with regression tests (#325–#328, this update).
 - [x] Licence guard in CI (#324); local ScanCode run on this candidate recorded above.
 - [x] Owner decisions on citations (decision 1).
-- [ ] Owner's substantive human review of the AI-assisted changes and of this record.
-- [ ] Green exact-head CI on the release PR, recorded above; then green CI on `main` after merge.
-- [ ] **The owner's explicit approval to tag `v2.0.0`.** The tag triggers npm publishing. First confirm that 2.0.0 is not already on npm, and never move or overwrite `v1.5.0`.
-- [ ] After publication: verify the npm version, dist-tag, tarball integrity and provenance; publish matching GitHub release notes; update publication dates in `CHANGELOG.md`, `README.md`, `docs/DEVELOPERS.md`, `SECURITY.md` and this record.
+- [x] Owner's substantive human review of the AI-assisted changes and of this record.
+- [x] Green exact-head CI on the release PR (#329); then green CI on `main` after merge ([CI run 835](https://github.com/Photivra/photivra/actions/runs/39044033656) on `a9833ad`).
+- [x] **The owner's explicit approval to tag `v2.0.0`.** The owner tagged `v2.0.0` on `a9833ad`; `v1.5.0` is unchanged.
+- [x] After publication: npm version, dist-tag, tarball integrity and provenance verified; GitHub release notes published; publication dates updated in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record (`docs/DEVELOPERS.md` states no release date).
+
+## Publication
+
+| Fact | Value |
+| --- | --- |
+| Tag | `v2.0.0` → `a9833adf3d4b107801c9bad4b04f3456e148ee99` (#329) |
+| Publish workflow | [Publish npm run 15](https://github.com/Photivra/photivra/actions/runs/39047383323), passed |
+| npm | `@photivra/engine@2.0.0`, dist-tag `latest` |
+| Integrity | `sha512-1snxRE7vNZjvXAg/ZwMMo+lq4SHEicWlHgORf4me4e+2fiBO7rJYyUx7CgcMhbWL61bDeT97E/GZHXdY5N1xyg==` |
+| Provenance | SLSA provenance v1 attestation present on npm |
+| Tarball contents | Identical, file for file, to `npm pack` of a local clean build of `a9833ad` (checked October 17, 2026) |
+| GitHub release | [@photivra/engine 2.0.0](https://github.com/Photivra/photivra/releases/tag/v2.0.0) |

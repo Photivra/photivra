@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.0 — unreleased (prepared October 17, 2026)
+## 2.0.0 — published October 17, 2026
 
 A major release.
 
