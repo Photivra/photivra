@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.2.0 — unreleased (prepared October 17, 2026)
+## 2.2.0 — published October 17, 2026
 
 A minor release: opt-in pixel limits for full-resolution images up to 2^27 pixels (about 100 MP sensors) with a measured cost table (#337), and two `simulateCapture` fixes: pixel pitches that failed the aperture fit by a rounding error now work, and image brightness no longer depends on pixel size (#336). Without the new inputs, and at the default 6 µm pitch, every request, plan, RAW, image and encoded file is byte-identical to 2.1.0; at other pitches the brightness fix changes the output by design. Root exports grow from 1,677 to 1,680 symbols; none is removed.
 
