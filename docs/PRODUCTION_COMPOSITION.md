@@ -1,11 +1,10 @@
 # Production Image-Formation Plan
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+> **Release context.** This page was written for package 1.2.0 (root API 1.2.0) and has not been re-reviewed for later releases. The [changelog](../CHANGELOG.md) describes the current release. Model and subsystem version numbers on this page, and any dated records, are separate from the package version. See also the [developer guide](DEVELOPERS.md) and the [1.2.0 release contract](RELEASE_1_2_0.md).
 
-Photivra's production composition layer is separate from the legacy
-`simulatePocCamera()` proof-of-concept API.
+The production composition layer decides, for one capture, which image-formation stages run, in what order, with which inputs, and what is missing. It is separate from the legacy `simulatePocCamera()` proof-of-concept (POC) API.
 
-The plan contract is a renderer-neutral, browser-safe semantic layer:
+The plan is a browser-safe layer of meaning that does not depend on any particular renderer:
 
 ```text
 prepared static context
@@ -14,12 +13,11 @@ prepared static context
   -> deterministic production image-formation plan
 ```
 
-It does not turn the TypeScript engine into a path tracer and it does not
-permit an application or renderer to silently redefine scientific ordering.
+It does not turn the TypeScript engine into a path tracer. It also does not let an application or renderer quietly change the scientific order of stages.
 
 ## Contract versions
 
-The production plan has independent version surfaces:
+The production plan has its own version numbers:
 
 - `PRODUCTION_IMAGE_FORMATION_PLAN_VERSION`;
 - `PREPARED_IMAGE_FORMATION_CONTEXT_VERSION`;
@@ -27,70 +25,61 @@ The production plan has independent version surfaces:
 - `RENDERER_CAPABILITY_SCHEMA_VERSION`;
 - `IMAGE_FORMATION_FIDELITY_PROFILE_SCHEMA_VERSION`.
 
-Those remain distinct from:
+These are separate from:
 
-- npm package version;
+- the npm package version;
 - `ENGINE_API_VERSION`;
 - `IMAGE_FORMATION_CONTRACT_VERSION`;
 - `POC_SIMULATION_API_VERSION`.
 
-A plan records all of these materially relevant engine/plan contract versions.
+A plan records all the engine and plan contract versions that affect it.
 
 ## Prepare once, evaluate many
 
-Use `prepareImageFormationContext()` for relatively static semantic inputs:
+Use `prepareImageFormationContext()` for inputs that change rarely:
 
-- resolved generic equipment exposure capabilities;
-- scene/provider identity;
-- #110 optical-throughput profile;
+- resolved exposure capabilities of the generic equipment;
+- scene and provider identity;
+- optical-throughput profile;
 - output-geometry profile identity;
 - renderer capability declaration;
 - fidelity profile.
 
-The returned context is cloned, deeply frozen, and fingerprinted.
-
-Later mutation of UI objects or source profile objects cannot change the
-prepared context.
+The returned context is copied, deeply frozen and fingerprinted. Later changes to UI objects or source profile objects cannot change it.
 
 ## Immutable capture snapshot
 
-Use `createProductionCaptureSnapshot()` for per-capture dynamic state:
+Use `createProductionCaptureSnapshot()` for the state of one capture:
 
 - capture ID;
 - release-frame ID;
 - committed scene-state ID;
 - physical scene time;
-- aperture/shutter/ISO;
+- aperture, shutter and ISO;
 - output-state identity;
 - deterministic capture seed;
-- optional #85 scene-radiance request/result plus #110 focus/field input;
-- optional generic front-of-lens filter stack.
+- optionally, a scene-radiance request/result plus the focus and field input for optical throughput;
+- optionally, a generic front-of-lens filter stack.
 
-The snapshot is also cloned, deeply frozen, and fingerprinted.
-
-Once committed, later UI state changes do not mutate its plan identity.
+The snapshot is also copied, deeply frozen and fingerprinted. Once committed, later UI changes do not alter its plan identity.
 
 ## Fidelity is capability-based
 
-A fidelity profile does not use labels such as `low`, `medium`, or `high`.
+A fidelity profile does not use labels such as `low`, `medium` or `high`. Instead it declares:
 
-It declares:
+- which image-formation stages are required;
+- which effects and model identities are required;
+- the spectral capability required of the renderer;
+- whether sensor-domain processing is required;
+- what depth support is required.
 
-- required image-formation stages;
-- required effects and model identities;
-- required renderer spectral capability;
-- sensor-domain requirement;
-- depth requirement.
+Stage dependencies are expanded from `getImageFormationContract()`, which stays the source of truth for meaning.
 
-Stage dependencies are expanded from `getImageFormationContract()`, which
-remains the semantic source of truth.
-
-Request order does not change semantic identity: set-like stage/effect lists
-are normalized into authoritative contract order before fingerprinting.
+Request order does not change identity. Stage and effect lists are treated as sets and sorted into the contract's order before fingerprinting.
 
 ## Stage and effect states
 
-The plan distinguishes:
+The plan uses five states:
 
 - `active`;
 - `modeled-zero`;
@@ -98,37 +87,31 @@ The plan distinguishes:
 - `unsupported`;
 - `blocked`.
 
-This matters because a numerically neutral modeled effect is not the same as
-an absent or unsupported effect.
+The difference matters. An effect that is modelled but happens to have no effect (`modeled-zero`) is not the same as one that is absent or unsupported.
 
-The first composed effect is illumination vignetting:
+The first composed effect was illumination vignetting:
 
-- explicit unity throughput -> `modeled-zero`;
-- non-unity declared throughput -> `active`;
-- not requested -> `omitted-by-fidelity`.
+- explicit unity throughput gives `modeled-zero`;
+- declared throughput other than unity gives `active`;
+- not requested gives `omitted-by-fidelity`.
 
-A non-unity field-throughput input cannot be supplied while the fidelity
-profile omits illumination vignetting; that becomes a structured blocker.
+You cannot supply a field-throughput input other than unity while the fidelity profile omits illumination vignetting. That becomes a structured blocker.
 
 ## Renderer capability declaration
 
-A renderer declares semantic capability, not raw WebGPU/Three.js objects.
+A renderer declares what it can do in terms of meaning, not as raw WebGPU or Three.js objects. The declaration includes:
 
-The declaration includes:
-
-- optimized-interactive vs reference consumer kind;
-- supported stages/effects;
-- wavelength-resolved vs wavelength-independent spectral support;
-- temporal-sampling bound;
+- consumer kind: optimised-interactive or reference;
+- supported stages and effects;
+- spectral support: wavelength-resolved or wavelength-independent;
+- a limit on temporal samples;
 - depth support;
 - inverse field mapping;
 - alpha representation;
-- depth-order preservation;
+- whether depth order is preserved;
 - sensor-domain processing capability.
 
-The plan does not silently degrade requested fidelity.
-
-Capability mismatch becomes a structured blocker such as:
+The plan never quietly lowers the requested fidelity. A capability mismatch becomes a structured blocker, such as:
 
 - `renderer-stage-unsupported`;
 - `renderer-effect-unsupported`;
@@ -138,10 +121,9 @@ Capability mismatch becomes a structured blocker such as:
 
 ## First physical composed path
 
-Current plan schema `0.5.0` composes the #110 physical sample path.
+Plan schema `0.5.0` composes the physical sample path through optical throughput.
 
-For a fidelity profile requiring `lens-field-pupil-evaluation`, dependencies
-expand to:
+For a fidelity profile that requires `lens-field-pupil-evaluation`, the dependencies expand to:
 
 ```text
 scene-ray-projection
@@ -149,69 +131,66 @@ scene-ray-projection
   -> lens-field-pupil-evaluation
 ```
 
-The plan consumes one immutable #85 scene-radiance request/result and evaluates
-#110 with:
+The plan takes one immutable scene-radiance request/result and evaluates optical throughput with:
 
-- prepared lens-throughput profile;
-- resolved equipment focal length;
-- committed aperture;
-- explicit focus state;
-- image-plane field point;
-- declared field throughput.
+- the prepared lens-throughput profile;
+- the resolved equipment focal length;
+- the committed aperture;
+- an explicit focus state;
+- an image-plane field point;
+- the declared field throughput.
 
-The plan stores the resulting pre-sensor-stack spectral irradiance result.
+The plan stores the resulting spectral irradiance, before the sensor's optical stack.
 
 This path never substitutes an RGB preview for physical spectral irradiance.
 
 ## Release-frame and white-balance capture binding
 
-Plan contract `0.5.0` / capture snapshot `0.3.0` add the preferred handoff from #105 release sequencing into production composition.
+Plan contract `0.5.0` and capture snapshot `0.3.0` add the preferred handoff from release sequencing (the shutter-release model) into production composition.
 
-Use `createProductionCaptureSnapshotFromReleaseFrame()` when a logical release frame has already been committed. The helper takes ownership from the release frame for:
+Use `createProductionCaptureSnapshotFromReleaseFrame()` when a logical release frame has already been committed. The helper takes these from the release frame:
 
-- release sequence/frame identity;
+- release sequence and frame identity;
 - aperture, shutter and ISO;
 - focus state;
-- AE/AF/AWB automation state;
-- exposure start/end and sequence-relative scene time;
+- AE/AF/AWB automation state (auto exposure, autofocus, auto white balance);
+- exposure start and end, and scene time relative to the sequence;
 - timing constraints;
-- stochastic frame seed;
-- committed white-balance state identity.
+- random-number seed for the frame;
+- identity of the committed white-balance state.
 
-When the release frame declares `whiteBalanceStateId`, the full resolved #108 WB state must be supplied and its ID must match. A release frame with locked AWB requires a locked WB state.
+When the release frame declares `whiteBalanceStateId`, you must supply the full resolved white-balance (WB) state, and its ID must match. A release frame with locked AWB requires a locked WB state.
 
-The snapshot stores both the release binding and resolved WB state inside its deterministic fingerprint. Later UI changes therefore cannot alter the committed capture.
+The snapshot stores both the release binding and the resolved WB state inside its deterministic fingerprint. Later UI changes therefore cannot alter the committed capture.
 
-The release-frame sequence-relative scene time is preserved separately from `sceneTimeSecondsFromExposureStart`: the latter remains the local time used by #85/#110 scene-radiance evaluation within the exposure.
+The release frame's scene time (relative to the sequence) is kept separately from `sceneTimeSecondsFromExposureStart`. The latter is still the local time used by scene-radiance and optical-throughput evaluation within the exposure.
 
-Existing `createProductionCaptureSnapshot()` remains supported for lower-level callers. Its optional release/WB fields receive the same validation when present.
+`createProductionCaptureSnapshot()` is still supported for lower-level callers. Its optional release and WB fields get the same validation when present.
 
 ## Front-of-lens filter capture state
 
-Plan contract `0.5.0` / capture snapshot `0.3.0` preserve optional #135 front-of-lens filter state in the immutable physical scene sample.
+Plan contract `0.5.0` and capture snapshot `0.3.0` keep an optional front-of-lens filter state in the immutable physical scene sample.
 
 The filter stack is:
 
-- parsed/validated when the capture snapshot is committed;
+- parsed and validated when the capture snapshot is committed;
 - included in the capture fingerprint;
-- forwarded to #110 exactly once;
-- preserved in the #110 physical result as filter count, transmission factor, attenuation and evidence.
+- passed to optical-throughput evaluation exactly once;
+- kept in the physical result as filter count, transmission factor, attenuation and evidence.
 
-Changing only the selected filter stack changes capture/plan identity and the physical sensor-plane irradiance result, but it does not alter committed aperture/f-number, focus geometry, DOF or diffraction.
+Changing only the filter stack changes the capture and plan identity, and the physical irradiance at the sensor plane. It does not change the committed aperture or f-number, focus geometry, depth of field or diffraction.
 
-Filter transmission remains separate from lens transmission/T-stop and from sensor optical-stack response.
+Filter transmission stays separate from lens transmission (T-stop) and from the sensor optical-stack response.
 
 ## Temporal capture composition
 
-Plan contract `0.2.0` adds immutable temporal-capture input.
+Plan contract `0.2.0` adds an immutable temporal-capture input. A capture can bind:
 
-A capture may bind:
-
-- #12 exposure-window input;
-- sensor readout declaration;
-- physical imaging area and capture orientation;
-- optional constant pure-camera-rotation velocity;
-- deterministic temporal quadrature sample count.
+- an exposure-window input;
+- a sensor readout declaration;
+- the physical imaging area and capture orientation;
+- an optional constant pure-camera-rotation velocity;
+- a fixed number of temporal quadrature samples.
 
 The planner evaluates exposure windows and sensor readout separately:
 
@@ -226,120 +205,99 @@ synchronization:
   not assumed
 ```
 
-If pure rotation is supplied, the planner reuses `calculateCaptureRotationTemporalQuadrature()`. The committed quadrature count is part of capture identity and a renderer may not silently reduce it.
+If pure rotation is supplied, the planner reuses `calculateCaptureRotationTemporalQuadrature()`. The committed sample count is part of the capture identity, and a renderer may not quietly reduce it.
 
-Requested spatial-camera-rotation distinguishes:
+Requested spatial camera rotation gives:
 
-- nonzero rotation with resolved quadrature -> `active`;
-- explicit zero angular velocity -> `modeled-zero`;
-- missing rotation model -> `blocked`.
+- nonzero rotation with resolved quadrature: `active`;
+- explicit zero angular velocity: `modeled-zero`;
+- no rotation model: `blocked`.
 
-Requested rolling-readout distinguishes:
+Requested rolling readout gives:
 
-- rolling native readout -> `active`;
-- global/no-spatial-skew timing -> `modeled-zero`;
-- missing readout declaration -> `blocked`.
+- rolling native readout: `active`;
+- global timing, or timing with no spatial skew: `modeled-zero`;
+- no readout declaration: `blocked`.
 
-A renderer whose declared temporal-sampling capacity is below the committed quadrature count receives a structured `renderer-temporal-sampling-insufficient` blocker.
+A renderer whose declared temporal-sampling limit is below the committed sample count gets a structured `renderer-temporal-sampling-insufficient` blocker.
 
-The image-formation graph is still authoritative. Because `temporal-exposure-readout` depends on `field-wavelength-psf`, useful temporal results may exist while the whole requested fidelity plan remains blocked on the sample-only route. Plan 0.7.0 separately supports [bounded environment execution](PRODUCTION_ENVIRONMENT_CAPTURE.md), including explicit modeled-zero or supported local PSF disposition.
+The image-formation graph is still authoritative. `temporal-exposure-readout` depends on `field-wavelength-psf`. So on the sample-only route, useful temporal results can exist while the whole requested plan is still blocked. Plan 0.7.0 separately supports [bounded environment execution](PRODUCTION_ENVIRONMENT_CAPTURE.md), including an explicit modelled-zero or supported local PSF.
 
 ## Scientific assurance composition
 
-Plan contract `0.4.0` records the cross-engine #134 `scientificAssurance` summary whenever composed scientific results exist.
+Plan contract `0.4.0` records the cross-engine `scientificAssurance` summary whenever composed scientific results exist.
 
-The physical path preserves distinct required components for scene radiance, optical throughput, the Photivra primary-optics bridge model, selected front filters, and non-unity field throughput when present. Temporal composition adds its own explicit schedule-model component.
+The physical path keeps separate required components for: scene radiance, optical throughput, the Photivra primary-optics bridge model, any selected front filters, and field throughput when it is not unity. Temporal composition adds its own explicit schedule-model component.
 
 The summary:
 
-- cannot exceed the weakest required component status;
-- degrades to `unknown` when required evidence is missing;
-- preserves component evidence and uncertainty declarations;
-- reports quantified component uncertainty as `not-propagated` unless a real propagation rule exists;
-- never converts `not-quantified` into zero;
-- participates in the plan fingerprint.
+- cannot be stronger than the weakest required component;
+- drops to `unknown` when required evidence is missing;
+- keeps each component's evidence and uncertainty declarations;
+- reports quantified component uncertainty as `not-propagated`, unless a real propagation rule exists;
+- never turns `not-quantified` into zero;
+- is part of the plan fingerprint.
 
 See [Scientific Assurance and Uncertainty Composition](SCIENTIFIC_ASSURANCE.md).
 
 ## Optimized and reference consumers
 
-Use `createProductionPlanConsumerManifest()` to project one finalized semantic plan into either:
+Use `createProductionPlanConsumerManifest()` to project one finished plan into either:
 
 - `interactive-optimized`; or
 - `reference`.
 
-Both manifests retain the same:
+Both manifests keep the same:
 
 - plan fingerprint;
-- active/modeled stage identities;
-- active/modeled effect identities;
-- #110 physical result;
+- active and modelled stage identities;
+- active and modelled effect identities;
+- physical optical-throughput result;
 - temporal capture result;
 - capture seed;
 - structured blockers;
-- scientific assurance/evidence/uncertainty.
+- scientific assurance, evidence and uncertainty.
 
-The consumer role changes execution responsibility only. It does not authorize changing scientific inputs, reordering stages, replacing seeds, or reducing committed temporal samples.
+The consumer role only changes who is responsible for execution. It does not allow changing scientific inputs, reordering stages, replacing seeds or reducing committed temporal samples.
 
 ## V1 integration map
 
-[V1 composition and consumer map](V1_COMPOSITION_MAP.md) links all 32 scoped
-items to their implemented primitives/consumers and representative tests, and
-records the missing upstream RAW handoff and existing ticket ownership. Bounded
-Standalone RAW/output adapter execution does not activate production-plan stages.
-The explicitly bound plan 0.7.0 environment route below does.
+[V1 composition and consumer map](V1_COMPOSITION_MAP.md) links all 32 V1 items to their implemented primitives, consumers and representative tests. It also records the missing upstream RAW handoff and which ticket owned it at the time. Running the bounded standalone RAW/output adapters does not turn on production-plan stages. The explicitly bound plan 0.7.0 environment route, below, does.
 
 ## Executed environment capture and explicit unsupported capabilities
 
-Plan 0.7.0 accepts an optional `environmentCapture` declaration. It executes
-`simulateEnvironmentSensorRawFrame()` inside the authoritative graph, rather
-than treating a caller's RAW attachment as proof that upstream work ran. With
-all required renderer declarations and optional processing policy, the bounded
-route reaches all fourteen stages. The earlier sample-based and attached-RAW
-routes remain available and retain their missing-stage blockers.
+Plan 0.7.0 accepts an optional `environmentCapture` declaration. It runs `simulateEnvironmentSensorRawFrame()` inside the authoritative graph, instead of treating a RAW attachment from the caller as proof that the upstream work happened. With all required renderer declarations and an optional processing policy, this bounded route reaches all fourteen stages. The earlier sample-based and attached-RAW routes are still available, and keep their missing-stage blockers.
 
-See [executed production capture](PRODUCTION_ENVIRONMENT_CAPTURE.md) for input
-ownership, exact event/profile binding, optional output policy, replay and the
-current supported scientific envelope. Stage activation refers to the executed
-bounded algorithms; it does not establish calibrated provider transport or
-physical visibility. An explicitly omitted PSF is a declared point-optics
-model, with its evidence and limitation, not proof of a physically perfect lens.
+See [executed production capture](PRODUCTION_ENVIRONMENT_CAPTURE.md) for input ownership, exact event and profile binding, the optional output policy, replay, and the current supported scientific range.
 
-Since 2.0 the `geometric-distortion` effect is composed through this route only:
-the environment sites must declare a `lensFieldMapping` (see
-[environment capture](ENVIRONMENT_RAW_CAPTURE.md#lens-field-mapping-20)). Requested
-without a mapping it is blocked with `missing-lens-field-mapping`; a mapping with
-active (non-zero) distortion that the fidelity profile did not request blocks
-execution before callbacks, as undeclared field attenuation already does. A
-declared zero distortion reports `modeled-zero`. The plan version stays 0.7.0:
-existing requests that do not request the effect or declare a mapping are
-bit-identical, and the change is additive for requests that previously received
-`engine-effect-not-composed` for it.
+- Stage activation means the bounded algorithms actually ran. It does not establish calibrated provider transport or physical visibility.
+- An explicitly omitted PSF is a declared point-optics model, with its evidence and limitation. It is not proof of a physically perfect lens.
 
-Required effects outside a route's actual implementation continue to report
-`engine-effect-not-composed`. The plan cannot silently reinterpret a requested
-surface, depth, stabilization, breathing or field-transport model as an ideal
-environment ray. Existing foundation APIs and their direct consumers remain
-valid; unsupported combinations are not approved V1 deferrals.
+**Distortion (since 2.0).** The `geometric-distortion` effect is composed only through this route. The environment sites must declare a `lensFieldMapping` (see [environment capture](ENVIRONMENT_RAW_CAPTURE.md#lens-field-mapping-20)).
+
+- Requested without a mapping: blocked with `missing-lens-field-mapping`.
+- A mapping with active (non-zero) distortion that the fidelity profile did not request: execution is blocked before any callbacks, just as undeclared field attenuation already is.
+- A declared zero distortion: reports `modeled-zero`.
+
+The plan version stays 0.7.0. Existing requests that neither request the effect nor declare a mapping give bit-identical results. For requests that used to get `engine-effect-not-composed` for this effect, the change is additive.
+
+Required effects that a route does not actually implement still report `engine-effect-not-composed`. The plan cannot quietly reinterpret a requested surface, depth, stabilisation, breathing or field-transport model as an ideal environment ray. Existing foundation APIs and their direct consumers stay valid. Unsupported combinations are not approved V1 deferrals.
 
 ## Structured blockers vs malformed input
 
-Malformed schemas, non-finite numbers, invalid equipment settings, identity
-drift, and tampered fingerprints fail fast.
+These fail immediately: malformed schemas, non-finite numbers, invalid equipment settings, identity drift and tampered fingerprints.
 
-Scientifically incomplete but structurally valid requests return a blocked
-plan with explicit blocker codes, for example:
+A request that is structurally valid but scientifically incomplete returns a blocked plan with explicit blocker codes. Examples:
 
-- missing #110 optical profile;
+- missing optical-throughput profile;
 - missing physical scene sample;
 - renderer fidelity mismatch;
-- requested stage not yet composed;
-- #110 evaluation blocked by wavelength/applicability constraints.
+- a requested stage that is not composed yet;
+- optical-throughput evaluation blocked by wavelength or applicability limits.
 
 ## Deterministic identity
 
-Prepared contexts, capture snapshots, and finished plans use canonical JSON
-serialization plus an FNV-1a 32-bit fingerprint.
+Prepared contexts, capture snapshots and finished plans use canonical JSON serialisation plus an FNV-1a 32-bit fingerprint.
 
 The fingerprint is explicitly:
 
@@ -348,10 +306,9 @@ non-cryptographic
 purpose: deterministic reproducibility key
 ```
 
-It is not an integrity/security checksum.
+It is not an integrity or security checksum.
 
-`serializeProductionImageFormationPlan()` emits canonical key ordering so
-identical semantic inputs serialize identically across supported runtimes.
+`serializeProductionImageFormationPlan()` sorts keys canonically, so identical inputs serialise identically on all supported runtimes.
 
 ## Stochastic ownership
 
@@ -363,22 +320,17 @@ The plan records:
 backendRandomnessMayRedefineScientificResult = false
 ```
 
-Future stochastic stages must derive reproducible sub-seeds from an explicit
-engine-owned policy rather than allowing backend randomness to silently change
-scientific results.
+Future random stages must derive reproducible sub-seeds from an explicit policy owned by the engine. Randomness in a backend must never quietly change scientific results.
 
 ## POC compatibility
 
-The production plan is additive.
+The production plan is additive. It does not call, rewrite or reinterpret `simulatePocCamera()`.
 
-It does not call, rewrite, or reinterpret `simulatePocCamera()`.
+`POC_SIMULATION_API_VERSION` stays independent, and plan results report `legacyPocModified: false`.
 
-`POC_SIMULATION_API_VERSION` remains independent, and plan results report
-`legacyPocModified: false`.
+Migration should be deliberate:
 
-Migration should happen deliberately:
-
-1. add/expand production plan stages;
-2. add optimized/reference consumers;
+1. add or expand production plan stages;
+2. add optimised and reference consumers;
 3. migrate application consumers;
-4. deprecate POC only through an explicit compatibility decision.
+4. deprecate the POC only through an explicit compatibility decision.
