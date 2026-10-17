@@ -485,7 +485,7 @@ The authoritative result is GitHub CI on the exact commit that is tagged: the `m
 | `npm run pack:check` | Passed: 813 files, 2,780,837 bytes packed, 12,678,150 unpacked; root export plus `./package.json`; 204 reachable modules; inline-source maps; no lifecycle scripts; local POC API excluded. |
 | `npm run docs:check` | Passed: API reference current (1,668 root symbols across 180 modules); 284 Markdown files, 3,285 repository and local links, 105 importing examples, 26 explicit fragments. |
 | `npm run release:consumer-check` | Passed: packed `@photivra/engine@2.0.0`; `require(esm)` and `lib: es2022`/DOM declaration consumers, 105 typed and running doc snippets, and the quick-start, simulate-capture and production/paired-export consumers. |
-| ScanCode 32.5.0 plus `scripts/check-scancode-policy.mjs` on `git archive` of `23d75a8` (this candidate's code; later commits change only `CHANGELOG.md`, this record and `docs/USAGE.md`) | Passed: 988 files; 332 licence and 12 copyright findings, all on the reviewed allowlists (90 licence and 11 holder entries). |
+| ScanCode 32.5.0 plus `scripts/check-scancode-policy.mjs` on `git archive` of `23d75a8` (this candidate's code; later commits change only `CHANGELOG.md` and this record) | Passed: 988 files; 332 licence and 12 copyright findings, all on the reviewed allowlists (90 licence and 11 holder entries). |
 
 ## Remaining release checklist
 
