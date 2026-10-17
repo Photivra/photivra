@@ -96,7 +96,7 @@ describe("root exports reject malformed input with domain errors (API review #4)
     "calculateNativeRawPlan", "calculatePrintContrastReference", "calculatePrintPlan", "calculatePrintRegionDetail",
     "calculatePrintRegionDifference", "calculatePrintRegionNoise", "calculatePrintSizeLimit", "calculateProcessedSensorRaw",
     "calculateSdrRendering", "createAhdDemosaicTask", "createBilateralFilterTask", "createCaptureExportMetadataPair",
-    "createCfaPlaneReconstructionTask", "createDurandDorseyToneMappingTask", "createExposureFusionTask", "createFocusStackTask",
+    "createCfaPlaneReconstructionTask", "createDiffractionLimitedPsfProfile", "createDurandDorseyToneMappingTask", "createExposureFusionTask", "createFocusStackTask",
     "createGenericEquipmentTierSelection", "createHdrBracketMergeTask", "createHdrImageEncodingTask", "createImageKernelAccelerator",
     "createIsoGainReadoutRegimes", "createNativeCaptureSdrTask", "createNativeEnvironmentRawPartitionTask", "createNativeEnvironmentRawTask", "createNativeEnvironmentSensorStageTask",
     "createNativeRawDevelopmentTask", "createNativeRawTask", "composeNativeEnvironmentRawPartitions", "createNonLocalMeansTask", "createPanoramaTask", "createPhotographicExportPair",

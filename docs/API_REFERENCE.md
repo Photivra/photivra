@@ -1393,6 +1393,19 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`DefocusCircle`](api/optics-depth-of-field.md#defocuscircle) | Type |
 | [`DepthOfField`](api/optics-depth-of-field.md#depthoffield) | Type |
 
+## optics/diffraction-psf-profile.ts
+
+[Detailed contracts](api/optics-diffraction-psf-profile.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/optics/diffraction-psf-profile.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`createDiffractionLimitedPsfProfile`](api/optics-diffraction-psf-profile.md#creatediffractionlimitedpsfprofile) | Runtime |
+| [`CreateDiffractionLimitedPsfProfileInput`](api/optics-diffraction-psf-profile.md#creatediffractionlimitedpsfprofileinput) | Type |
+| [`DIFFRACTION_LIMITED_PSF_PROFILE_LIMITS`](api/optics-diffraction-psf-profile.md#diffraction_limited_psf_profile_limits) | Runtime |
+| [`DIFFRACTION_LIMITED_PSF_PROFILE_MODEL`](api/optics-diffraction-psf-profile.md#diffraction_limited_psf_profile_model) | Runtime |
+| [`DiffractionLimitedPsfProfile`](api/optics-diffraction-psf-profile.md#diffractionlimitedpsfprofile) | Type |
+| [`DiffractionLimitedPsfWavelength`](api/optics-diffraction-psf-profile.md#diffractionlimitedpsfwavelength) | Type |
+
 ## optics/diffraction.ts
 
 [Detailed contracts](api/optics-diffraction.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/optics/diffraction.ts)

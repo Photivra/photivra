@@ -205,6 +205,18 @@ The PSF is centred on the geometric image point. The clipped pupil's throughput 
 
 The output intensity PSF is normalised to unit energy.
 
+## Diffraction-limited sampled profile (2.1)
+
+`createDiffractionLimitedPsfProfile()` builds a `LensSampledPsfProfile` for an ideal, aberration-free, in-focus lens with a uniformly lit circular pupil: one unit-sum kernel per wavelength, all on one (2R+1)² grid of the given sample pitch, the same kernel at the four field corners ±`fieldHalfExtentMm`.
+
+- **Optics.** Pupil diameter D = f/N; pupil-to-image distance the thin-lens image distance for the focus (f at infinity); working f-number N_w = z/D. The incoherent OTF of the pupil is H(ρ) = (2/π)(acos ρ − ρ√(1 − ρ²)), ρ = f/f_c, f_c = 1/(λN_w) ([MIT OpenCourseWare 2.71, lectures 21–22](https://ocw.mit.edu/courses/2-71-optics-spring-2009/resources/mit2_71s09_lec22/), free. Also see: Goodman, *Introduction to Fourier Optics*, 4th ed., §6.3).
+- **Cells.** Sample (i, j) is the PSF energy in the square cell of side p centred on (ip, jp): K = p²∫∫ H·sinc(p f_x)·sinc(p f_y)·cos(2πp i f_x)·cos(2πp j f_y) d²f, in polar coordinates (trapezoid in angle; Gauss–Legendre in t, ρ = 1 − t²). No Bessel functions are needed, and all cells sum to exactly 1.
+- **Window.** The energy outside the window, 1 − ΣK, is returned per wavelength (`truncatedEnergyFraction`) and the window is renormalized to unit sum, as the profile contract requires. The Airy tail falls as r⁻³, so it is never zero.
+- **Approximations.** Scalar, aberration-free, uniform pupil, in focus, isoplanatic, cell-binned, renormalized window. `responseIncludes.diffraction` is true, so do not add another diffraction blur on top.
+- **Validation** (`test/diffraction-psf-profile.test.ts`): convergence under doubled node counts (≤ 1e-13), an independent real-space Airy integration (≤ 2e-10) and `calculateIdealPolygonDiffractionPsf` in its 1024-blade circular limit (≤ 1e-6).
+
+`simulateCapture`'s `lens.diffraction` uses it at the resolved f-number on the site pitch; see [Quick start](QUICK_START.md#optics).
+
 ## Pupil clipping and throughput
 
 Normalising a PSF's energy and computing optical throughput are separate steps.

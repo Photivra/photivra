@@ -1,0 +1,96 @@
+# optics/diffraction-psf-profile.ts public contracts
+
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+
+## createDiffractionLimitedPsfProfile
+
+Creates a sampled lens PSF profile for an ideal diffraction-limited lens with a circular pupil: one
+unit-sum Airy kernel per wavelength on one shared (2R+1)² grid, with the truncated energy reported per
+wavelength. The profile declares the given focal length, f-number and focus exactly, and the field axes
+±`fieldHalfExtentMm` with the same kernel at every field node.
+
+```ts
+export function createDiffractionLimitedPsfProfile(input: CreateDiffractionLimitedPsfProfileInput): CalculationResult<DiffractionLimitedPsfProfile>;
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
+## CreateDiffractionLimitedPsfProfileInput
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface CreateDiffractionLimitedPsfProfileInput {
+  /** Only `circular` in 2.1.0 (polygon pupils: `calculateIdealPolygonDiffractionPsf` gives point densities). */
+  aperture: "circular";
+  focalLengthMm: number;
+  apertureFNumber: number;
+  focus: FocusPlane;
+  /** Strictly increasing wavelengths, nm, in the medium of propagation (no air/vacuum conversion is applied). 1–64. */
+  wavelengthsNm: readonly number[];
+  /** Square sample pitch of every kernel, µm. */
+  samplePitchMicrometers: number;
+  /** Kernel half-width in samples; each kernel is (2R + 1)². 0–32. */
+  kernelRadiusSamples: number;
+  /** Half-extent of the image field over which the on-axis PSF is declared (profile field axes ±x, ±y), mm. */
+  fieldHalfExtentMm: { x: number; y: number };
+  profileId: string;
+}
+```
+
+## DIFFRACTION_LIMITED_PSF_PROFILE_LIMITS
+
+Input limits: at most 64 wavelengths, kernel radius 0–32 samples (the irradiance-convolution limit).
+
+```ts
+DIFFRACTION_LIMITED_PSF_PROFILE_LIMITS = Object.freeze({ maximumWavelengths: 64, maximumKernelRadiusSamples: 32 })
+```
+
+## DIFFRACTION_LIMITED_PSF_PROFILE_MODEL
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+DIFFRACTION_LIMITED_PSF_PROFILE_MODEL = Object.freeze({
+  modelId: "photivra-diffraction-limited-circular-pupil-psf" as const, modelVersion: "1.0.0" as const })
+```
+
+## DiffractionLimitedPsfProfile
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface DiffractionLimitedPsfProfile {
+  profile: LensSampledPsfProfile;
+  model: typeof DIFFRACTION_LIMITED_PSF_PROFILE_MODEL;
+  pupilDiameterMm: number;
+  pupilToImageDistanceMm: number;
+  workingFNumber: number;
+  kernelRadiusSamples: number;
+  samplePitchMicrometers: number;
+  wavelengths: readonly DiffractionLimitedPsfWavelength[];
+  /** Largest truncated energy over the wavelengths. */
+  maximumTruncatedEnergyFraction: number;
+  quadrature: { method: "polar-frequency-domain-trapezoid-gauss-legendre"; maximumRadialNodes: number; maximumAngularNodes: number };
+}
+```
+
+## DiffractionLimitedPsfWavelength
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface DiffractionLimitedPsfWavelength {
+  wavelengthNm: number;
+  /** f_c = 1/(λ·N_w), cycles per µm. */
+  cutoffFrequencyCyclesPerMicrometer: number;
+  /** 1.21967·λ·N_w, µm. */
+  firstZeroRadiusMicrometers: number;
+  /** Σ of the cell energies inside the window before renormalization (of a total of 1). */
+  capturedEnergyFraction: number;
+  /** 1 − capturedEnergyFraction: the Airy tail energy outside the window, put back by renormalization. */
+  truncatedEnergyFraction: number;
+  /** Fraction of the renormalized kernel in the centre sample. */
+  centreSampleFraction: number;
+}
+```

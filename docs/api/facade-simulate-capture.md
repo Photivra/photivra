@@ -72,10 +72,12 @@ export type SimulateCaptureColorEncoding = "srgb" | "display-p3" | "rec2020";
 
 ## SimulateCaptureDemosaic
 
-Built-in Bayer demosaic kernels (`createBuiltInBayerDemosaicProfiles`).
+Demosaic. `bilinear`: the built-in Bayer kernels (`createBuiltInBayerDemosaicProfiles`). `ahd` (2.1): adaptive
+homogeneity-directed demosaicing (`createAhdDemosaicTask`, after Hirakawa & Parks 2005), a non-linear
+edge-directed method that reduces zipper and false colour on sharp edges.
 
 ```ts
-export type SimulateCaptureDemosaic = "bilinear";
+export type SimulateCaptureDemosaic = "bilinear" | "ahd";
 ```
 
 ## SimulateCaptureExposureMode
@@ -139,6 +141,13 @@ export interface SimulateCaptureOptions {
      * focus must equal the resolved capture settings exactly. Not combinable with pupilSampling.
      */
     psf?: Extract<CalculateEnvironmentSensorPhotoSignalInput["psf"], { kind: "sampled-local" }>;
+    /**
+     * Opt-in (2.1) diffraction blur of an ideal, aberration-free, in-focus lens with a circular pupil at the
+     * capture's resolved f-number: the engine builds the Airy kernels (`createDiffractionLimitedPsfProfile`)
+     * on the site pitch. `kernelRadiusSamples` (0–32) sets the kernel window; default: the third dark ring at
+     * the longest spectral node. Not combinable with `psf` or `pupilSampling`. Default off.
+     */
+    diffraction?: SimulateCaptureLensDiffraction;
   };
   exposure?: {
     /** Default "manual". */
@@ -262,6 +271,14 @@ export interface SimulateCaptureResult {
     siteInput(nativeIndex: number): SimulateEnvironmentSensorRawFrameInput["sites"][number];
     development: Omit<NativeRawDevelopmentInput, "raw">;
     whiteBalanceState: ResolvedWhiteBalanceState | null;
+    /**
+     * Present with lens.diffraction (2.1): the engine-built Airy profile, the equivalent environment sampled PSF
+     * selection, and how it was applied. With `object-space-convolution` the site inputs declare no PSF and the
+     * provider answers with the PSF-convolved radiance; putting `psf` into each site input and using the plain
+     * scene provider gives the same expected signal (to float rounding) through the per-tap environment quadrature.
+     */
+    diffraction?: { profile: DiffractionLimitedPsfProfile; psf: Extract<CalculateEnvironmentSensorPhotoSignalInput["psf"], { kind: "sampled-local" }>;
+      execution: "object-space-convolution" | "environment-psf-quadrature" };
   };
   exposure: {
     mode: SimulateCaptureExposureMode;
