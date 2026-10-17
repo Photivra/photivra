@@ -11,6 +11,7 @@
 
 import { InvalidScientificInputError } from "../core/validation.js";
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** Exact, generic camera, lens and acquisition state. Nothing is interpolated implicitly. */
 export interface OpticalProfileState {
@@ -39,11 +40,11 @@ export interface GenericOpticalEvidence {
 /** @internal Strict shared profile parser helpers. */
 export function record(value: unknown, keys: readonly string[]): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new InvalidScientificInputError("Expected a profile object.");
+    throw new InvalidConfigurationError("Expected a profile object.");
   }
   const result = value as Record<string, unknown>;
   if (Object.keys(result).some((key) => !keys.includes(key))) {
-    throw new InvalidScientificInputError("Unknown profile field.");
+    throw new InvalidConfigurationError("Unknown profile field.");
   }
   return result;
 }
@@ -73,7 +74,7 @@ export function textValue(value: unknown): string {
 
 /** @internal */
 export function choice<T extends string>(value: unknown, choices: readonly T[]): T {
-  if (!choices.includes(value as T)) throw new InvalidScientificInputError("Unknown profile enum.");
+  if (!choices.includes(value as T)) throw new InvalidConfigurationError("Unknown profile enum.");
   return value as T;
 }
 

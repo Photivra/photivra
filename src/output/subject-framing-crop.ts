@@ -17,7 +17,7 @@ import {
   requirePositiveInteger
 } from "../core/validation.js";
 import { floorWholePixels } from "./crop.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 export interface CalculateSubjectFramingCropInput {
   /** Source image width in pixels. */
@@ -56,7 +56,7 @@ export interface SubjectFramingCrop {
 export function calculateSubjectFramingCrop(
   input: CalculateSubjectFramingCropInput
 ): CalculationResult<SubjectFramingCrop> {
-  requireInputObject(input, "calculateSubjectFramingCrop input");
+  requireInputKeys(input, "calculateSubjectFramingCrop", ["pixelWidth", "pixelHeight", "subjectHeightPixels", "targetSubjectHeightFraction"]);
   requirePositiveInteger("pixelWidth", input.pixelWidth);
   requirePositiveInteger("pixelHeight", input.pixelHeight);
   requirePositiveFinite("subjectHeightPixels", input.subjectHeightPixels);

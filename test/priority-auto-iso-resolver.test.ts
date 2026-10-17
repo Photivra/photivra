@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createExposureMeterTargetFromMeteringResult,
-  InvalidScientificInputError,
+  InvalidConfigurationError, InvalidScientificInputError,
   meterRelativeExposure,
   parseExposureMeteringProfile,
   parseGenericBodyExposureCapabilityProfile,
@@ -14,7 +14,7 @@ import {
   type ExposureMeterTarget,
   type ResolvedGenericEquipmentExposureCapabilities
 } from "../src/index.js";
-import { expectRejection, type Json, type RejectionCase } from "./helpers/rejection-table.js";
+import { expectRejection, type Json, type MixedRejectionCase } from "./helpers/rejection-table.js";
 
 const evidence = (ref: string) => [{
   sourceOrigin: "photivra" as const,
@@ -516,14 +516,14 @@ describe("exposure-mode resolver target and capability rejection branches",()=>{
     manualShutterSeconds:1/125,isoControl:{kind:"manual",iso:100,apertureQuantizationPolicy:"nearest-log2-narrower-on-tie"}});
   const resolve=(i:Json):unknown=>resolveShutterPriorityExposureMode(i);
   it.each([
-    ["a non-object target",(i:Json):void=>{i.target=null;},"target must be an object."],
+    ["a non-object target",(i:Json):void=>{i.target=null;},"target must be an object.", InvalidConfigurationError],
     ["a zero reference aperture",(i:Json):void=>{i.referenceExposure.aperture=0;},"must be finite and greater than zero."],
-    ["an unsupported target schema",(i:Json):void=>{i.target.schemaVersion="9.9.9";},"target.schemaVersion must be"],
-    ["a blank target id",(i:Json):void=>{i.target.targetId="";},"target.targetId must be a non-empty string."],
+    ["an unsupported target schema",(i:Json):void=>{i.target.schemaVersion="9.9.9";},"target.schemaVersion must be", InvalidConfigurationError],
+    ["a blank target id",(i:Json):void=>{i.target.targetId="";},"target.targetId must be a non-empty string.", InvalidConfigurationError],
     ["a non-finite target offset",(i:Json):void=>{i.target.exposureOffsetStopsToTarget=Number.NaN;},"target.exposureOffsetStopsToTarget must be finite."],
-    ["an unknown target status",(i:Json):void=>{i.target.status="saturated";},"target.status is invalid."],
+    ["an unknown target status",(i:Json):void=>{i.target.status="saturated";},"target.status is invalid.", InvalidConfigurationError],
     ["an empty discrete aperture grid",(i:Json):void=>{i.capabilities.aperture.settingGrid={kind:"discrete-values",values:[]};},
-      "must be a continuous grid or a non-empty discrete-values grid."],
+      "must be a continuous grid or a non-empty discrete-values grid.", InvalidConfigurationError],
     ["a non-increasing ISO grid",(i:Json):void=>{i.capabilities.iso.settingGrid.values=[100,100,200];},
       ".values must be strictly increasing with no duplicates."],
     ["an ISO grid outside the range",(i:Json):void=>{i.capabilities.iso.settingGrid.values=[50,100];},
@@ -533,10 +533,10 @@ describe("exposure-mode resolver target and capability rejection branches",()=>{
     ["an inverted aperture range",(i:Json):void=>{i.capabilities.aperture.widestAvailableFNumber=22;},"capabilities aperture range is invalid."],
     ["an inverted shutter range",(i:Json):void=>{i.capabilities.shutter.minimumSeconds=60;},"capabilities shutter range is invalid."],
     ["an unknown Auto ISO availability",(i:Json):void=>{i.capabilities.iso.autoIsoAvailability="maybe";},
-      "capabilities.iso.autoIsoAvailability is invalid."],
+      "capabilities.iso.autoIsoAvailability is invalid.", InvalidConfigurationError],
     ["an unknown manual-ISO aperture quantization policy",(i:Json):void=>{i.isoControl.apertureQuantizationPolicy="nearest";},
-      'isoControl.apertureQuantizationPolicy must be "nearest-log2-narrower-on-tie".']
-  ] as RejectionCase[])("rejects %s",(_name,mutate,message)=>{
-    expectRejection(input,resolve,InvalidScientificInputError,mutate,message);
+      'isoControl.apertureQuantizationPolicy must be "nearest-log2-narrower-on-tie".', InvalidConfigurationError]
+  ] as MixedRejectionCase[])("rejects %s",(_name,mutate,message,errorClass)=>{
+    expectRejection(input,resolve,errorClass??InvalidScientificInputError,mutate,message);
   });
 });

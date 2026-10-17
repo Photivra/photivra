@@ -49,6 +49,8 @@ import {
   requirePositiveFinite
 } from "../core/validation.js";
 import type { LensComplexPupilGrid } from "./complex-pupil-psf.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** Largest supported Noll index (radial order n <= 10). */
 export const ZERNIKE_MAXIMUM_NOLL_INDEX = 66;
@@ -232,12 +234,12 @@ function parseZernike(
 ): ZernikeCoefficient[] {
   if (value === undefined) return [];
   if (!Array.isArray(value)) {
-    throw new InvalidScientificInputError("zernikeCoefficients must be an array.");
+    throw new InvalidConfigurationError("zernikeCoefficients must be an array.");
   }
   const seen = new Set<number>();
   return value.map((entry, index) => {
     if (typeof entry !== "object" || entry === null) {
-      throw new InvalidScientificInputError(`zernikeCoefficients[${index}] must be an object.`);
+      throw new InvalidConfigurationError(`zernikeCoefficients[${index}] must be an object.`);
     }
     const nollIndex = requireNollIndex(entry.nollIndex);
     if (seen.has(nollIndex)) {
@@ -278,11 +280,11 @@ function parseSeidel(
   };
   if (value === undefined) return result;
   if (typeof value !== "object" || value === null) {
-    throw new InvalidScientificInputError("seidelCoefficients must be an object.");
+    throw new InvalidConfigurationError("seidelCoefficients must be an object.");
   }
   for (const key of Object.keys(value)) {
     if (!(SEIDEL_KEYS as readonly string[]).includes(key)) {
-      throw new InvalidScientificInputError(`seidelCoefficients.${key} is not supported.`);
+      throw new InvalidConfigurationError(`seidelCoefficients.${key} is not supported.`);
     }
   }
   for (const key of SEIDEL_KEYS) {
@@ -323,7 +325,7 @@ function parseMask(
   }
   return value.map((vertex, index) => {
     if (typeof vertex !== "object" || vertex === null) {
-      throw new InvalidScientificInputError(`apertureMaskVerticesMm[${index}] must be an object.`);
+      throw new InvalidConfigurationError(`apertureMaskVerticesMm[${index}] must be an object.`);
     }
     return {
       x: requireFinite(`apertureMaskVerticesMm[${index}].x`, vertex.x),
@@ -340,9 +342,7 @@ function parseMask(
 export function createWavefrontPupilGrid(
   input: CreateWavefrontPupilGridInput
 ): CalculationResult<WavefrontPupilGrid> {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
+  requireInputKeys(input, "createWavefrontPupilGrid", ["pupilDiameterMm", "samplesAcross", "zernikeCoefficients", "seidelCoefficients", "seidelField", "apertureMaskVerticesMm"]);
   requirePositiveFinite("pupilDiameterMm", input.pupilDiameterMm);
   const n = input.samplesAcross;
   if (
@@ -368,7 +368,7 @@ export function createWavefrontPupilGrid(
   let fieldAzimuth = 0;
   if (input.seidelField !== undefined) {
     if (typeof input.seidelField !== "object" || input.seidelField === null) {
-      throw new InvalidScientificInputError("seidelField must be an object.");
+      throw new InvalidConfigurationError("seidelField must be an object.");
     }
     fieldHeight = requireFinite(
       "seidelField.normalizedFieldHeight",
@@ -484,9 +484,7 @@ export function createWavefrontPupilGrid(
 export function calculateDefocusWavefront(
   input: CalculateDefocusWavefrontInput
 ): CalculationResult<DefocusWavefront> {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
+  requireInputKeys(input, "calculateDefocusWavefront", ["signedDefocusImagePlaneMicrometers", "workingFNumber"]);
   const dz = requireFinite(
     "signedDefocusImagePlaneMicrometers",
     input.signedDefocusImagePlaneMicrometers
@@ -516,9 +514,7 @@ export function calculateDefocusWavefront(
 export function estimateMarechalStrehlRatio(
   input: EstimateMarechalStrehlRatioInput
 ): CalculationResult<{ strehlRatio: number; rmsWaves: number }> {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
+  requireInputKeys(input, "estimateMarechalStrehlRatio", ["rmsWavefrontErrorMicrometers", "wavelengthNm"]);
   const sigma = requireFinite(
     "rmsWavefrontErrorMicrometers",
     input.rmsWavefrontErrorMicrometers

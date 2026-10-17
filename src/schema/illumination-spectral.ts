@@ -20,7 +20,8 @@ import type {
   SceneIlluminationScientificStatus,
   SceneIlluminationSource
 } from "./illumination.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export interface CreateSceneIlluminationSpectralCoverageParticipantInput {
   source: SceneIlluminationSource;
@@ -52,7 +53,7 @@ function nonEmptyParticipantId(
   candidate: string
 ): string {
   if (candidate.trim().length === 0) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "participantId must be a non-empty string when supplied."
     );
   }
@@ -70,7 +71,7 @@ export function createSceneIlluminationSpectralCoverageParticipant(
   input:
     CreateSceneIlluminationSpectralCoverageParticipantInput
 ): SpectralCoverageParticipant {
-  requireInputObject(input, "createSceneIlluminationSpectralCoverageParticipant input");
+  requireInputKeys(input, "createSceneIlluminationSpectralCoverageParticipant", ["source", "participantId"]);
   requireInputObject(input.source, "source");
   const spectrum = input.source.spectrum;
   if (

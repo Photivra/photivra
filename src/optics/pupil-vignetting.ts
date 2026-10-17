@@ -49,6 +49,8 @@ import {
   InvalidScientificInputError,
   requirePositiveFinite
 } from "../core/validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export type NaturalVignettingModel =
   | "cosine-fourth"
@@ -131,16 +133,14 @@ function requireFinite(name: string, value: unknown): number {
 export function calculateNaturalVignetting(
   input: CalculateNaturalVignettingInput
 ): CalculationResult<NaturalVignetting> {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
+  requireInputKeys(input, "calculateNaturalVignetting", ["model", "imagePointMm", "exitPupilDistanceMm", "exitPupilDiameterMm"]);
   if (input.model !== "cosine-fourth" && input.model !== "finite-lambertian-pupil") {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "model must be cosine-fourth or finite-lambertian-pupil."
     );
   }
   if (typeof input.imagePointMm !== "object" || input.imagePointMm === null) {
-    throw new InvalidScientificInputError("imagePointMm must be an object.");
+    throw new InvalidConfigurationError("imagePointMm must be an object.");
   }
   const h = Math.hypot(
     requireFinite("imagePointMm.x", input.imagePointMm.x),
@@ -311,9 +311,7 @@ function polygonAreaAndCentroid(
 export function calculateMechanicalVignetting(
   input: CalculateMechanicalVignettingInput
 ): CalculationResult<MechanicalVignetting> {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
+  requireInputKeys(input, "calculateMechanicalVignetting", ["entrancePupilDiameterMm", "fieldAngleDegrees", "fieldAzimuthDegrees", "apertures", "boundarySamplesPerCircle"]);
   requirePositiveFinite("entrancePupilDiameterMm", input.entrancePupilDiameterMm);
   const fieldAngleDegrees = requireFinite("fieldAngleDegrees", input.fieldAngleDegrees);
   if (fieldAngleDegrees < 0 || fieldAngleDegrees >= 90) {
@@ -336,7 +334,7 @@ export function calculateMechanicalVignetting(
   const circles: Circle[] = [{ x: 0, y: 0, r: pupilRadius }];
   input.apertures.forEach((aperture, index) => {
     if (typeof aperture !== "object" || aperture === null) {
-      throw new InvalidScientificInputError(`apertures[${index}] must be an object.`);
+      throw new InvalidConfigurationError(`apertures[${index}] must be an object.`);
     }
     requirePositiveFinite(`apertures[${index}].radiusMm`, aperture.radiusMm);
     const shift =

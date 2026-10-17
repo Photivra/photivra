@@ -39,7 +39,8 @@ import {
   type ColorVector3
 } from "./colorimetry-math.js";
 import { resolveRgbColorSpace, type RgbColorSpaceId } from "./rgb-color-spaces.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export type GamutMappingMethod = "cielab-hue-preserving-chroma-compression";
 
@@ -79,8 +80,8 @@ function clampCube(rgb: ColorVector3): ColorVector3 {
 
 /** Validates the target space once and returns a reusable per-colour mapper. */
 export function prepareRgbGamutMapping(input: PrepareRgbGamutMappingInput): PreparedRgbGamutMapping {
-  requireInputObject(input, "prepareRgbGamutMapping input");
-  if (input.method !== "cielab-hue-preserving-chroma-compression") throw new InvalidScientificInputError("method is not supported.");
+  requireInputKeys(input, "prepareRgbGamutMapping", ["colorSpace", "method", "kneeFraction"]);
+  if (input.method !== "cielab-hue-preserving-chroma-compression") throw new InvalidConfigurationError("method is not supported.");
   const k = requireNonNegativeNumber(input.kneeFraction, "kneeFraction");
   if (k > 1) throw new InvalidScientificInputError("kneeFraction must lie in [0, 1].");
   const space = resolveRgbColorSpace(input.colorSpace).value;
@@ -127,9 +128,9 @@ export function prepareRgbGamutMapping(input: PrepareRgbGamutMappingInput): Prep
 
 /** Maps one D65-relative XYZ colour into a target RGB gamut (see module notes). */
 export function calculateGamutMappedColor(input: PrepareRgbGamutMappingInput & { xyz: CieXyzTristimulus }): CalculationResult<GamutMappedColor> {
-  requireInputObject(input, "calculateGamutMappedColor input");
+  requireInputKeys(input, "calculateGamutMappedColor", ["colorSpace", "method", "kneeFraction", "xyz"]);
   const xyz = parseXyz(input.xyz, "xyz");
-  const value = prepareRgbGamutMapping(input).map(xyzToVector(xyz));
+  const value = prepareRgbGamutMapping({ colorSpace: input.colorSpace, method: input.method, kneeFraction: input.kneeFraction }).map(xyzToVector(xyz));
   return approximationResult(value, "gamut-mapping-cielab-chroma-compression", COLORIMETRY_MODEL_VERSION, [
     "Constant CIELAB L* and hue; chroma reduced toward the neutral axis with a tanh knee",
     "CIELAB hue is not perceptually constant for saturated blues; lightness outside [0, 100] is clipped"

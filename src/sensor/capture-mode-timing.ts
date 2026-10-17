@@ -43,7 +43,7 @@ import {
 import type {
   NativeImageRaster
 } from "./sensor-geometry.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -490,7 +490,7 @@ export function resolveCaptureModeTiming(
   input:
     ResolveCaptureModeTimingInput
 ): ResolvedCaptureModeTiming {
-  requireInputObject(input, "resolveCaptureModeTiming input");
+  requireInputKeys(input, "resolveCaptureModeTiming", ["captureMode", "timingProfile", "nominalExposureDurationSeconds", "activeCaptureRect", "samplePointsNative"]);
   const profile =
     parseCaptureModeTimingProfile(
       input.timingProfile

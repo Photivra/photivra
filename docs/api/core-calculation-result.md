@@ -89,11 +89,15 @@ Standard result envelope for public scientific calculations.
 Deterministic analytical results stay lightweight. They omit `quality` when
 there is no defensible uncertainty or accuracy metadata to report.
 
+Read-only from 2.0.0: the envelope, `provenance` and `quality` are frozen deeply and `value`
+at its top level. Copy a value before changing it. Typed arrays inside a value stay mutable.
+See docs/API_STYLE.md "Read-only results".
+
 ```ts
 export interface CalculationResult<T> {
-  value: T;
-  provenance: CalculationProvenance;
-  quality?: CalculationQuality;
+  readonly value: T;
+  readonly provenance: CalculationProvenance;
+  readonly quality?: CalculationQuality;
 }
 ```
 

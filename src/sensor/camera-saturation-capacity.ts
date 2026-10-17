@@ -29,7 +29,7 @@ import type {
   SensorSpectralResponseScientificStatus,
   SensorSpectralResponseUncertainty
 } from "./spectral-response.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -631,7 +631,7 @@ export function assessSensorCameraSaturationCapacity(
   input:
     AssessSensorCameraSaturationCapacityInput
 ): CalculationResult<SensorCameraSaturationCapacityAssessment> {
-  requireInputObject(input, "assessSensorCameraSaturationCapacity input");
+  requireInputKeys(input, "assessSensorCameraSaturationCapacity", ["accumulatedCharge", "saturationProfile", "operatingStateId", "operatingTemperatureC"]);
   const charge =
     validateCharge(
       input.accumulatedCharge

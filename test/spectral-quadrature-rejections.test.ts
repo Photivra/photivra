@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
-import { calculateSensorSpectralQuadrature, InvalidScientificInputError } from "../src/index.js";
+import { calculateSensorSpectralQuadrature, InvalidConfigurationError, InvalidScientificInputError } from "../src/index.js";
 // Internal validator behind every public consumer of a caller-supplied spectral quadrature.
 import { validateSensorSpectralQuadrature } from "../src/sensor/spectral-quadrature.js";
 import { colorProfile, spectralProfile } from "./helpers/eqe-response-fixture.js";
-import { expectRejection, type Json, type RejectionCase } from "./helpers/rejection-table.js";
+import { expectRejection, type Json, type MixedRejectionCase } from "./helpers/rejection-table.js";
 
 const request = (): Json => ({ channelId: "green", wavelengthBasis: "vacuum", wavelengthRangeNanometers: { minimum: 400, maximum: 500 },
   maximumSubintervalWidthNanometers: 50, colorSamplingProfile: colorProfile(), spectralResponseProfile: spectralProfile() });
@@ -19,19 +19,19 @@ describe("spectral quadrature construction and validation rejection branches", (
   });
 
   it.each([
-    ["a blank channel id", (r: Json): void => { r.channelId = " "; }, "channelId must be a non-empty string."],
+    ["a blank channel id", (r: Json): void => { r.channelId = " "; }, "channelId must be a non-empty string.", InvalidConfigurationError],
     ["an undeclared channel", (r: Json): void => { r.channelId = "violet"; }, "No spectral response is declared for the requested channelId."],
-    ["a non-object wavelength range", (r: Json): void => { r.wavelengthRangeNanometers = null; }, "wavelengthRangeNanometers must be an object."],
+    ["a non-object wavelength range", (r: Json): void => { r.wavelengthRangeNanometers = null; }, "wavelengthRangeNanometers must be an object.", InvalidConfigurationError],
     ["non-array breakpoints", (r: Json): void => { r.additionalBreakpointsNanometers = 450; },
-      "additionalBreakpointsNanometers must be an array when supplied."]
-  ] as RejectionCase[])("construction rejects %s", (_name, mutate, message) => {
-    expectRejection(request, calculateSensorSpectralQuadrature, InvalidScientificInputError, mutate, message);
+      "additionalBreakpointsNanometers must be an array when supplied.", InvalidConfigurationError]
+  ] as MixedRejectionCase[])("construction rejects %s", (_name, mutate, message, errorClass) => {
+    expectRejection(request, calculateSensorSpectralQuadrature, errorClass ?? InvalidScientificInputError, mutate, message);
   });
 
-  const cases: RejectionCase[] = [
-    ["missing nodes", (q): void => { q.nodes = {}; }, "spectralQuadrature must contain a nodes array."],
-    ["a blank profile id", (q): void => { q.profileId = ""; }, "spectralQuadrature.profileId"],
-    ["an unknown wavelength basis", (q): void => { q.wavelengthBasis = "glass"; }, "spectralQuadrature.wavelengthBasis is invalid."],
+  const cases: MixedRejectionCase[] = [
+    ["missing nodes", (q): void => { q.nodes = {}; }, "spectralQuadrature must contain a nodes array.", InvalidConfigurationError],
+    ["a blank profile id", (q): void => { q.profileId = ""; }, "spectralQuadrature.profileId", InvalidConfigurationError],
+    ["an unknown wavelength basis", (q): void => { q.wavelengthBasis = "glass"; }, "spectralQuadrature.wavelengthBasis is invalid.", InvalidConfigurationError],
     ["an inverted wavelength range", (q): void => { q.wavelengthRangeNanometers = { minimum: 500, maximum: 400 }; },
       "spectralQuadrature wavelength range minimum must be less than maximum."],
     ["a single boundary", (q): void => { q.segmentBoundariesNanometers = [400]; },
@@ -52,7 +52,7 @@ describe("spectral quadrature construction and validation rejection branches", (
     ["a missing subdivision", (q): void => { q.nodes = [q.nodes[0]]; q.totalNodeCount = 1; },
       "spectralQuadrature must contain every declared subdivision exactly once."]
   ];
-  it.each(cases)("validation rejects %s", (_name, mutate, message) => {
-    expectRejection(quadrature, validateSensorSpectralQuadrature, InvalidScientificInputError, mutate, message);
+  it.each(cases)("validation rejects %s", (_name, mutate, message, errorClass) => {
+    expectRejection(quadrature, validateSensorSpectralQuadrature, errorClass ?? InvalidScientificInputError, mutate, message);
   });
 });

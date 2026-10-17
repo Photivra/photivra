@@ -34,7 +34,7 @@ import {
   parseSensorColorSamplingProfile,
   type SensorColorSamplingProfile
 } from "./color-sampling.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1070,7 +1070,7 @@ export function requireCurrentSensorSpectralResponseChannelBinding(
       ? (binding as { format?: unknown }).format
       : undefined;
   if (format === SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT) return;
-  throw new InvalidScientificInputError(
+  throw new InvalidConfigurationError(
     format === "photivra-spectral-channel-response-canonical-json-v1"
       ? "Response-channel binding format v1 (package 1.5.0 and earlier) is not supported; recompute the spectral quadrature and reduction to obtain a v2 binding."
       : "Response-channel binding has an unsupported format; expected " + SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT + "."
@@ -1257,7 +1257,7 @@ export function resolveParsedSensorSpectralResponseAtWavelength(
     input.channelId.trim().length ===
       0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "channelId must be a non-empty string."
     );
   }
@@ -1302,7 +1302,7 @@ export function resolveParsedSensorSpectralResponseAtWavelength(
     input.wavelengthBasis !==
       "unspecified"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "wavelengthBasis is invalid."
     );
   }
@@ -1531,7 +1531,7 @@ export function resolveSensorSpectralResponseAtWavelength(
   input:
     ResolveSensorSpectralResponseAtWavelengthInput
 ): CalculationResult<ResolvedSensorSpectralResponse> {
-  requireInputObject(input, "resolveSensorSpectralResponseAtWavelength input");
+  requireInputKeys(input, "resolveSensorSpectralResponseAtWavelength", ["colorSamplingProfile", "spectralResponseProfile", "channelId", "wavelengthNanometers", "wavelengthBasis"]);
   const colorProfile =
     parseSensorColorSamplingProfile(
       input.colorSamplingProfile

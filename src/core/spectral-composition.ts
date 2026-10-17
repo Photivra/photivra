@@ -18,7 +18,7 @@ import {
   type SpectralWavelengthBasis,
   type SpectralWavelengthRangeNanometers
 } from "./spectral.js";
-import { requireInputObject } from "./record-validation.js";
+import { requireInputKeys } from "./record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -329,7 +329,7 @@ export function parseSpectralCoverageParticipant(
 export function composeSpectralCoverage(
   input: ComposeSpectralCoverageInput
 ): SpectralCoverageComposition {
-  requireInputObject(input, "composeSpectralCoverage input");
+  requireInputKeys(input, "composeSpectralCoverage", ["participants"]);
   if (
     !Array.isArray(input.participants) ||
     input.participants.length === 0
@@ -610,7 +610,7 @@ export function distributeIntegratedQuantityAcrossDiscreteSpectralLines(
   input:
     DistributeIntegratedQuantityAcrossDiscreteLinesInput
 ): DiscreteSpectralLineMeasure {
-  requireInputObject(input, "distributeIntegratedQuantityAcrossDiscreteSpectralLines input");
+  requireInputKeys(input, "distributeIntegratedQuantityAcrossDiscreteSpectralLines", ["distribution", "totalIntegratedQuantity", "quantityUnit"]);
   const distribution =
     parseNormalizedDiscreteSpectralLineDistribution(
       input.distribution,

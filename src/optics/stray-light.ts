@@ -21,7 +21,7 @@ import {
   requireSameState, textValue, type GenericOpticalEvidence, type OpticalProfileState
 } from "./profile-contract.js";
 import type { LensFieldPointMm } from "./radial-distortion.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 /** One ghost (reflection path) or veil (broad scatter) response. Its shape is normalized over the infinite image plane. */
 export interface ParametricStrayLightResponse {
@@ -124,7 +124,7 @@ export function calculateLensStrayLightIrradiance(input: {
   timeSeconds: number; primarySpectralIrradianceWPerM2PerNm: number;
   sources: readonly StrayLightSource[]; meterDomain: "primary-only" | "primary-plus-stray";
 }): CalculationResult<StrayLightIrradiance> {
-  requireInputObject(input, "calculateLensStrayLightIrradiance input");
+  requireInputKeys(input, "calculateLensStrayLightIrradiance", ["profile", "state", "enabled", "imagePointMm", "wavelengthNm", "wavelengthBasis", "timeSeconds", "primarySpectralIrradianceWPerM2PerNm", "sources", "meterDomain"]);
   const profile = parseLensStrayLightProfile(input.profile);
   requireSameState(profile.state, input.state);
   const p = point(input.imagePointMm), time = finite(input.timeSeconds, "timeSeconds");

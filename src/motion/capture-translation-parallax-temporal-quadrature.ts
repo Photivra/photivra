@@ -34,7 +34,8 @@ import type {
 import type {
   SensorImagingArea
 } from "../sensor/sensor-geometry.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export interface CaptureTranslationParallaxSceneSample {
   sampleId: string;
@@ -190,7 +191,7 @@ function requireNonEmptyString(
     typeof value !== "string" ||
     value.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path +
         " must be a non-empty string."
     );
@@ -281,7 +282,7 @@ export function calculateCaptureTranslationParallaxTemporalQuadrature(
   input:
     CalculateCaptureTranslationParallaxTemporalQuadratureInput
 ): CalculationResult<CaptureTranslationParallaxTemporalQuadrature> {
-  requireInputObject(input, "calculateCaptureTranslationParallaxTemporalQuadrature input");
+  requireInputKeys(input, "calculateCaptureTranslationParallaxTemporalQuadrature", ["timing", "imagingArea", "focalLengthMm", "focusDistanceM", "orientation", "cameraTranslationVelocityMps", "temporalSampleCount", "sceneSamples"]);
   requireInputObject(input.imagingArea, "imagingArea");
   requirePositiveFinite(
     "imagingArea.widthMm",
@@ -306,7 +307,7 @@ export function calculateCaptureTranslationParallaxTemporalQuadrature(
     ) ||
     input.sceneSamples.length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "sceneSamples must be a non-empty array."
     );
   }

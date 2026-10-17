@@ -21,7 +21,7 @@ import {
   requirePositiveInteger
 } from "../core/validation.js";
 import { portableHypot } from "../core/portable-math.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 const REFERENCE_35MM_WIDTH_MM = 36;
 const REFERENCE_35MM_HEIGHT_MM = 24;
@@ -133,7 +133,7 @@ export interface SensorGeometryMetrics {
 export function calculateImagingAreaMetrics(
   imagingArea: SensorImagingArea
 ): CalculationResult<ImagingAreaMetrics> {
-  requireInputObject(imagingArea, "calculateImagingAreaMetrics input");
+  requireInputKeys(imagingArea, "calculateImagingAreaMetrics", ["widthMm", "heightMm"]);
   requirePositiveFinite("imagingArea.widthMm", imagingArea.widthMm);
   requirePositiveFinite("imagingArea.heightMm", imagingArea.heightMm);
 
@@ -168,7 +168,7 @@ export function calculateImagingAreaMetrics(
 export function calculateSensorGeometryMetrics(
   input: CalculateSensorGeometryMetricsInput
 ): CalculationResult<SensorGeometryMetrics> {
-  requireInputObject(input, "calculateSensorGeometryMetrics input");
+  requireInputKeys(input, "calculateSensorGeometryMetrics", ["imagingArea", "nativeRaster"]);
   requireInputObject(input.imagingArea, "imagingArea");
   requirePositiveFinite("imagingArea.widthMm", input.imagingArea.widthMm);
   requirePositiveFinite("imagingArea.heightMm", input.imagingArea.heightMm);

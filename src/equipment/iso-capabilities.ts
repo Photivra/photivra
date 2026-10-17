@@ -24,7 +24,7 @@ import type {
   ResolvedGenericEquipmentExposureCapabilities,
   ResolvedNumericSettingGrid
 } from "./exposure-capabilities.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -822,7 +822,7 @@ function resolveModePolicy(
     captureModeId.trim()
       .length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "captureModeId must be a non-empty string when provided."
     );
   }
@@ -880,7 +880,7 @@ export function resolveIsoCapability(
   input:
     ResolveIsoCapabilityInput
 ): ResolvedIsoCapability {
-  requireInputObject(input, "resolveIsoCapability input");
+  requireInputKeys(input, "resolveIsoCapability", ["profile", "setting", "captureModeId"]);
   const profile =
     parseIsoCapabilityProfile(
       input.profile
@@ -1002,7 +1002,7 @@ export function resolveIsoCapability(
     input.setting.kind !==
     "expanded"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "ISO setting must be a valid standard or expanded setting."
     );
   }
@@ -1014,7 +1014,7 @@ export function resolveIsoCapability(
     expandedSettingId.trim()
       .length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "ISO setting must be a valid standard or expanded setting."
     );
   }
@@ -1198,7 +1198,7 @@ export function bindIsoCapabilityToExposureCapabilities(
   input:
     BindIsoCapabilityToExposureCapabilitiesInput
 ): BoundIsoExposureCapabilities {
-  requireInputObject(input, "bindIsoCapabilityToExposureCapabilities input");
+  requireInputKeys(input, "bindIsoCapabilityToExposureCapabilities", ["isoCapabilityProfile", "equipmentCapabilities", "captureModeId"]);
   const profile =
     parseIsoCapabilityProfile(
       input.isoCapabilityProfile

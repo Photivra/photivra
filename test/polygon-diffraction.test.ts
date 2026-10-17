@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateIdealPolygonDiffractionPsf, calculateAiryDisk, InvalidScientificInputError } from "../src/index.js";
+import { calculateIdealPolygonDiffractionPsf, calculateAiryDisk, InvalidConfigurationError, InvalidScientificInputError } from "../src/index.js";
 import type { CalculateIdealPolygonDiffractionInput } from "../src/index.js";
 
 const base: CalculateIdealPolygonDiffractionInput = {
@@ -144,7 +144,7 @@ describe("ideal polygon diffraction", () => {
     expect(calculateIdealPolygonDiffractionPsf(input)).toEqual(calculateIdealPolygonDiffractionPsf(input));
     expect(input).toEqual(base);
     for (const extra of [{ fieldPointMm: { x: 1, y: 0 } }, { aberration: true }, { pupilClipping: true }]) {
-      expect(() => calculateIdealPolygonDiffractionPsf({ ...base, ...extra })).toThrow(InvalidScientificInputError);
+      expect(() => calculateIdealPolygonDiffractionPsf({ ...base, ...extra })).toThrow(InvalidConfigurationError);
     }
   });
 
@@ -162,7 +162,11 @@ describe("ideal polygon diffraction", () => {
     }
     expect(() => calculateIdealPolygonDiffractionPsf({ ...base, wavelengthBasis: "unspecified" } as unknown as CalculateIdealPolygonDiffractionInput)).toThrow();
     expect(() => calculateIdealPolygonDiffractionPsf({ ...base, firstBladeEdgeAngleDegrees: NaN })).toThrow();
-    for (const malformed of [null, [], { ...base, firstBladeEdgeAngleDegrees: null },
+    // From 2.0.0 a non-object input is a configuration error; malformed fields stay scientific-input errors.
+    for (const malformed of [null, []]) {
+      expect(() => calculateIdealPolygonDiffractionPsf(malformed as unknown as CalculateIdealPolygonDiffractionInput)).toThrow(InvalidConfigurationError);
+    }
+    for (const malformed of [{ ...base, firstBladeEdgeAngleDegrees: null },
       { ...base, imagePointsMicrometers: [null] },
       { ...base, imagePointsMicrometers: [{ x: 0, y: 0, field: 1 }] },
       { ...base, imagePointsMicrometers: new Array(1) }]) {

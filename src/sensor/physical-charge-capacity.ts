@@ -29,7 +29,7 @@ import type {
   SensorSpectralResponseScientificStatus,
   SensorSpectralResponseUncertainty
 } from "./spectral-response.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -576,7 +576,7 @@ export function assessSensorPhysicalChargeCapacity(
   input:
     AssessSensorPhysicalChargeCapacityInput
 ): CalculationResult<SensorPhysicalChargeCapacityAssessment> {
-  requireInputObject(input, "assessSensorPhysicalChargeCapacity input");
+  requireInputKeys(input, "assessSensorPhysicalChargeCapacity", ["accumulatedCharge", "capacityProfile", "operatingStateId", "operatingTemperatureC"]);
   const totalExpectedStoredElectronCount =
     validateCharge(
       input.accumulatedCharge

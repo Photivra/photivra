@@ -27,7 +27,8 @@ import {
   requirePositiveFinite
 } from "../core/validation.js";
 import { calculateThinLensImageDistance } from "./thin-lens.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export interface CalculateFocusBreathingProjectionInput {
   /** Physical lens focal length in millimetres. This value is never rewritten. */
@@ -99,7 +100,7 @@ export interface FocusBreathingFieldOfView {
 export function calculateFocusBreathingProjection(
   input: CalculateFocusBreathingProjectionInput
 ): CalculationResult<FocusBreathingProjection> {
-  requireInputObject(input, "calculateFocusBreathingProjection input");
+  requireInputKeys(input, "calculateFocusBreathingProjection", ["focalLengthMm", "focusDistanceM", "breathingProjectionScale"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("focusDistanceM", input.focusDistanceM);
   requirePositiveFinite(
@@ -150,10 +151,14 @@ export function calculateFocusBreathingProjection(
 export function calculateFocusBreathingFieldOfView(
   input: CalculateFocusBreathingFieldOfViewInput
 ): CalculationResult<FocusBreathingFieldOfView> {
-  requireInputObject(input, "calculateFocusBreathingFieldOfView input");
+  requireInputKeys(input, "calculateFocusBreathingFieldOfView", ["sensorDimensionMm", "focalLengthMm", "focusDistanceM", "breathingProjectionScale"]);
   requirePositiveFinite("sensorDimensionMm", input.sensorDimensionMm);
 
-  const projection = calculateFocusBreathingProjection(input);
+  const projection = calculateFocusBreathingProjection({
+    focalLengthMm: input.focalLengthMm,
+    focusDistanceM: input.focusDistanceM,
+    breathingProjectionScale: input.breathingProjectionScale
+  });
   const idealRadians =
     2 *
     Math.atan(
@@ -256,9 +261,7 @@ export interface GeometricFocusBreathing {
 export function calculateGeometricFocusBreathing(
   input: CalculateGeometricFocusBreathingInput
 ): CalculationResult<GeometricFocusBreathing> {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
+  requireInputKeys(input, "calculateGeometricFocusBreathing", ["focalLengthMm", "subjectToSensorDistanceM", "sensorDimensionMm", "focusingMethod", "principalPlaneSeparationMm"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("subjectToSensorDistanceM", input.subjectToSensorDistanceM);
   requirePositiveFinite("sensorDimensionMm", input.sensorDimensionMm);
@@ -294,7 +297,7 @@ export function calculateGeometricFocusBreathing(
     }
     effectiveFocalLengthMm = (objectDistanceMm * f) / (objectDistanceMm + f);
   } else {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "focusingMethod must be unit-focus or fixed-image-distance-internal-focus."
     );
   }

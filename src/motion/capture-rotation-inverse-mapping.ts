@@ -48,7 +48,8 @@ import {
   type CameraAngularVelocityRadPerSec,
   type ImagePlanePointMm
 } from "./camera-rotation.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export interface CalculateCaptureRotationInverseMappingsInput
   extends CalculateCaptureExposureWindowsInput {
@@ -144,7 +145,7 @@ function requireNonEmptySamples(
   value: readonly RasterPoint[]
 ): void {
   if (!Array.isArray(value) || value.length === 0) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "samplePointsNative must be a non-empty array."
     );
   }
@@ -206,7 +207,7 @@ function captureTimeAtPhase(
 export function calculateCaptureRotationInverseMappings(
   input: CalculateCaptureRotationInverseMappingsInput
 ): CalculationResult<CaptureRotationInverseMappings> {
-  requireInputObject(input, "calculateCaptureRotationInverseMappings input");
+  requireInputKeys(input, "calculateCaptureRotationInverseMappings", ["imagingArea", "focalLengthMm", "focusDistanceM", "angularVelocityRadPerSec", "localExposurePhase", "orientation", "samplePointsNative", "nativeRaster", "activeCaptureRect", "shutterMechanism", "nominalExposureDurationSeconds", "opening", "closing"]);
   requireInputObject(input.imagingArea, "imagingArea");
   requirePositiveFinite("imagingArea.widthMm", input.imagingArea.widthMm);
   requirePositiveFinite("imagingArea.heightMm", input.imagingArea.heightMm);

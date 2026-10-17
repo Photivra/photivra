@@ -21,7 +21,7 @@ import {
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -880,7 +880,7 @@ export function resolveGenericEquipmentExposureCapabilities(
   input:
     ResolveGenericEquipmentExposureCapabilitiesInput
 ): ResolvedGenericEquipmentExposureCapabilities {
-  requireInputObject(input, "resolveGenericEquipmentExposureCapabilities input");
+  requireInputKeys(input, "resolveGenericEquipmentExposureCapabilities", ["bodyProfile", "lensProfile", "selectedFocalLengthMm"]);
   const body =
     parseGenericBodyExposureCapabilityProfile(
       input.bodyProfile

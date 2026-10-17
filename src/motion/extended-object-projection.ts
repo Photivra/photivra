@@ -34,7 +34,8 @@ import type {
 import type {
   ResolvedCaptureModeTiming
 } from "../sensor/capture-mode-timing.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export interface ExtendedObjectMetricPoint {
   pointId: string;
@@ -250,7 +251,7 @@ function requireNonEmptyString(
     typeof value !== "string" ||
     value.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path +
         " must be a non-empty string."
     );
@@ -393,7 +394,7 @@ function validateUniquePoints<T extends ExtendedObjectMetricPoint>(
     !Array.isArray(points) ||
     points.length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "points must be a non-empty array."
     );
   }
@@ -456,7 +457,7 @@ function validateSampleTimes(
     !Array.isArray(times) ||
     times.length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "sampleTimesSecondsFromReference must be a non-empty array."
     );
   }
@@ -543,7 +544,7 @@ function validatePlanarDeclaration(
     declaration.kind !==
     "fronto-parallel-planar-patch"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "frontoparallelPlane.kind is invalid."
     );
   }
@@ -668,7 +669,7 @@ export function calculateExtendedObjectProjectionTrajectory(
   input:
     CalculateExtendedObjectProjectionTrajectoryInput
 ): CalculationResult<ExtendedObjectProjectionTrajectory> {
-  requireInputObject(input, "calculateExtendedObjectProjectionTrajectory input");
+  requireInputKeys(input, "calculateExtendedObjectProjectionTrajectory", ["objectId", "focalLengthMm", "focusDistanceM", "objectTranslationVelocityMps", "cameraTranslationVelocityMps", "sampleTimesSecondsFromReference", "points", "frontoparallelPlane"]);
   const objectId =
     requireNonEmptyString(
       input.objectId,
@@ -863,7 +864,7 @@ export function calculateCaptureExtendedObjectTemporalProjection(
   input:
     CalculateCaptureExtendedObjectTemporalProjectionInput
 ): CalculationResult<CaptureExtendedObjectTemporalProjection> {
-  requireInputObject(input, "calculateCaptureExtendedObjectTemporalProjection input");
+  requireInputKeys(input, "calculateCaptureExtendedObjectTemporalProjection", ["objectId", "timing", "focalLengthMm", "focusDistanceM", "objectTranslationVelocityMps", "cameraTranslationVelocityMps", "temporalSampleCount", "points", "frontoparallelPlane"]);
   requirePositiveInteger(
     "temporalSampleCount",
     input.temporalSampleCount

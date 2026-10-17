@@ -47,7 +47,8 @@ import {
   type ColorMatrix3x3,
   type ColorVector3
 } from "./colorimetry-math.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export const MAX_CAMERA_MATRIX_TRAINING_PATCHES = 10_000;
 
@@ -113,9 +114,9 @@ function solveRow(aInv: ColorMatrix3x3, rhs: ColorVector3, white: ColorVector3 |
  * an illuminant and CMFs, and reports the per-patch CIEDE2000 residual.
  */
 export function estimateCameraColorMatrix(input: EstimateCameraColorMatrixInput): CalculationResult<CameraColorMatrixFit> {
-  requireInputObject(input, "estimateCameraColorMatrix input");
+  requireInputKeys(input, "estimateCameraColorMatrix", ["quadratureNodes", "illuminant", "cameraSpectralSensitivities", "patches", "colorMatchingFunctions", "constraint"]);
   if (input.constraint !== "least-squares" && input.constraint !== "white-point-preserving-least-squares") {
-    throw new InvalidScientificInputError("constraint is not supported.");
+    throw new InvalidConfigurationError("constraint is not supported.");
   }
   if (!Array.isArray(input.patches) || input.patches.length < 3 || input.patches.length > MAX_CAMERA_MATRIX_TRAINING_PATCHES) {
     throw new InvalidScientificInputError("patches must contain between 3 and " + MAX_CAMERA_MATRIX_TRAINING_PATCHES + " entries.");
@@ -124,7 +125,7 @@ export function estimateCameraColorMatrix(input: EstimateCameraColorMatrixInput)
   const illuminant = prepareColorimetricSpectrum(input.illuminant, "illuminant");
   const basis: SampledColorimetricBasis = sampleColorimetricBasis(input.quadratureNodes, illuminant, cmf);
   const sens = input.cameraSpectralSensitivities;
-  if (typeof sens !== "object" || sens === null) throw new InvalidScientificInputError("cameraSpectralSensitivities must be an object.");
+  if (typeof sens !== "object" || sens === null) throw new InvalidConfigurationError("cameraSpectralSensitivities must be an object.");
   const channel = (["red", "green", "blue"] as const).map((c) => sampleFactor(basis, prepareColorimetricSpectrum(sens[c], "cameraSpectralSensitivities." + c)));
   const ids = new Set<string>();
   const n = basis.nodes.length;
@@ -147,7 +148,7 @@ export function estimateCameraColorMatrix(input: EstimateCameraColorMatrixInput)
 
   const rows = input.patches.map((patch, j) => {
     if (typeof patch !== "object" || patch === null || typeof patch.patchId !== "string" || patch.patchId.trim().length === 0) {
-      throw new InvalidScientificInputError("patches[" + j + "].patchId must be a non-empty string.");
+      throw new InvalidConfigurationError("patches[" + j + "].patchId must be a non-empty string.");
     }
     if (ids.has(patch.patchId)) throw new InvalidScientificInputError("patches must not repeat patchId.");
     ids.add(patch.patchId);

@@ -31,7 +31,7 @@ import type {
   NativeImageRaster,
   SensorImagingArea
 } from "./sensor-geometry.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -513,7 +513,7 @@ function requirePositiveImagingArea(
 export function resolveSensorSamplingAperture(
   input: ResolveSensorSamplingApertureInput
 ): ResolvedSensorSamplingAperture {
-  requireInputObject(input, "resolveSensorSamplingAperture input");
+  requireInputKeys(input, "resolveSensorSamplingAperture", ["imagingArea", "nativeRaster", "colorSamplingProfile", "colorSamplingBindingProfile", "samplingApertureProfile", "site"]);
   requirePositiveImagingArea(
     input.imagingArea
   );

@@ -25,7 +25,7 @@ import {
 import { portableHypot } from "../core/portable-math.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
 import type { Vector3 } from "../schema/scene.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 export interface CalculateProjectedMotionBlurInput {
   /** Lens focal length in millimetres. */
@@ -79,7 +79,7 @@ function requireFiniteVector3(name: string, value: Vector3): void {
 export function calculateProjectedMotionBlur(
   input: CalculateProjectedMotionBlurInput
 ): CalculationResult<ProjectedMotionBlur> {
-  requireInputObject(input, "calculateProjectedMotionBlur input");
+  requireInputKeys(input, "calculateProjectedMotionBlur", ["focalLengthMm", "shutterSeconds", "positionM", "velocityMps", "focusDistanceM", "pixelPitchMicrometers"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("shutterSeconds", input.shutterSeconds);
 

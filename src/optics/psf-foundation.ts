@@ -27,7 +27,8 @@ import {
 import type { LensFieldPointMm } from "./radial-distortion.js";
 import { calculateDefocusCircle } from "./depth-of-field.js";
 import { calculateAiryDisk } from "./diffraction.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export const PSF_FOUNDATION_VERSION = "0.3.0" as const;
 
@@ -232,7 +233,7 @@ export function getPsfFoundationContract(): PsfFoundationContract {
 export function calculatePsfFoundationComponents(
   input: CalculatePsfFoundationComponentsInput
 ): CalculationResult<PsfFoundationComponents> {
-  requireInputObject(input, "calculatePsfFoundationComponents input");
+  requireInputKeys(input, "calculatePsfFoundationComponents", ["focalLengthMm", "aperture", "focusDistanceM", "subjectDistanceM", "fieldPointMm", "fieldNormalizationRadiusMm", "spectralBasis"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("aperture", input.aperture);
   requirePositiveFinite("focusDistanceM", input.focusDistanceM);
@@ -242,7 +243,7 @@ export function calculatePsfFoundationComponents(
     input.fieldNormalizationRadiusMm
   );
   if (input.spectralBasis?.kind !== "monochromatic") {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       'spectralBasis.kind must be "monochromatic".'
     );
   }

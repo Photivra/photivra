@@ -29,7 +29,7 @@ import type {
 import type {
   SensorSpatioSpectralIrradianceReduction
 } from "./spatio-spectral-reduction.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -474,7 +474,7 @@ function parseSourcePlane(
       "sensor-package-incident" &&
     record.value !== "site-incident"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "sourcePlane.value is invalid."
     );
   }
@@ -607,7 +607,7 @@ export function assessSensorResponseApplicationCompatibility(
   input:
     AssessSensorResponseApplicationCompatibilityInput
 ): CalculationResult<SensorResponseApplicationCompatibilityAssessment> {
-  requireInputObject(input, "assessSensorResponseApplicationCompatibility input");
+  requireInputKeys(input, "assessSensorResponseApplicationCompatibility", ["reduction", "applicationProfile", "sourcePlane", "operatingConditions"]);
   const geometricArea =
     validateReductionBoundary(
       input.reduction

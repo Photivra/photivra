@@ -26,7 +26,8 @@ import {
 import type {
   SceneRadianceDerivedExposureMeteringSampleSet
 } from "./metering-scene-radiance.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 const NORMALIZED_WEIGHT_TOLERANCE =
   1e-9;
@@ -110,7 +111,7 @@ function requireNonEmptyString(
     typeof value !== "string" ||
     value.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path + " must be a non-empty string."
     );
   }
@@ -186,7 +187,7 @@ export function meterSceneRadianceTemporalExposure(
 ): CalculationResult<
   SceneRadianceTemporalExposureMeteringResult
 > {
-  requireInputObject(input, "meterSceneRadianceTemporalExposure input");
+  requireInputKeys(input, "meterSceneRadianceTemporalExposure", ["temporalMeasurementId", "profile", "policy", "temporalSamples"]);
   const temporalMeasurementId =
     requireNonEmptyString(
       input.temporalMeasurementId,
@@ -211,7 +212,7 @@ export function meterSceneRadianceTemporalExposure(
     input.policy.kind !==
     "weighted-time-average"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       'policy.kind must be "weighted-time-average".'
     );
   }
@@ -219,7 +220,7 @@ export function meterSceneRadianceTemporalExposure(
     input.policy.timeReference !==
     "first-opening-boundary-phase"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       'policy.timeReference must be "first-opening-boundary-phase".'
     );
   }
@@ -229,7 +230,7 @@ export function meterSceneRadianceTemporalExposure(
     ) ||
     input.temporalSamples.length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "temporalSamples must be a non-empty array."
     );
   }

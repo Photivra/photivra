@@ -36,7 +36,8 @@ import {
   type ColorMatrix3x3,
   type ColorVector3
 } from "./colorimetry-math.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** RGB primaries as CIE 1931 xy chromaticities. */
 export interface RgbPrimaryChromaticities {
@@ -74,7 +75,7 @@ export function rgbToXyzMatrices(primaries: RgbPrimaryChromaticities, white: Cie
  * RP 177). The derivation is written out in docs/COLORIMETRY.md.
  */
 export function calculateRgbToXyzMatrices(input: { primaries: RgbPrimaryChromaticities; whiteChromaticity: CieXyChromaticity }): CalculationResult<RgbToXyzMatrices> {
-  requireInputObject(input, "calculateRgbToXyzMatrices input");
+  requireInputKeys(input, "calculateRgbToXyzMatrices", ["primaries", "whiteChromaticity"]);
   const value = rgbToXyzMatrices(input.primaries, input.whiteChromaticity);
   requireFiniteResult([...value.rgbToXyz.flat(), ...value.xyzToRgb.flat()], "RGB matrix derivation");
   return calculatedResult(value, "rgb-xyz-matrix-smpte-rp177", COLORIMETRY_MODEL_VERSION);
@@ -110,7 +111,7 @@ const SPACES: Readonly<Record<RgbColorSpaceId, { primaries: RgbPrimaryChromatici
 /** Resolves a named RGB colour space with numerically derived matrices (all D65). */
 export function resolveRgbColorSpace(id: RgbColorSpaceId): CalculationResult<RgbColorSpaceDefinition> {
   const space = typeof id === "string" && Object.hasOwn(SPACES, id) ? SPACES[id] : undefined;
-  if (space === undefined) throw new InvalidScientificInputError("Unknown RGB colour space.");
+  if (space === undefined) throw new InvalidConfigurationError("Unknown RGB colour space.");
   const matrices = rgbToXyzMatrices(space.primaries, D65_CHROMATICITY);
   const value: RgbColorSpaceDefinition = {
     id, primaries: JSON.parse(JSON.stringify(space.primaries)) as RgbPrimaryChromaticities, whiteChromaticity: { ...D65_CHROMATICITY },

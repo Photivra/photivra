@@ -25,7 +25,8 @@ import {
 import type {
   ResolvedCaptureModeTiming
 } from "../sensor/capture-mode-timing.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export const SCENE_RADIANCE_TEMPORAL_SAMPLING_PLAN_VERSION =
   "0.1.0" as const;
@@ -163,7 +164,7 @@ function requireNonEmptyString(
     typeof value !== "string" ||
     value.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path +
         " must be a non-empty string."
     );
@@ -263,7 +264,7 @@ export function createSceneRadianceTemporalSamplingPlan(
   input:
     CreateSceneRadianceTemporalSamplingPlanInput
 ): SceneRadianceTemporalSamplingPlan {
-  requireInputObject(input, "createSceneRadianceTemporalSamplingPlan input");
+  requireInputKeys(input, "createSceneRadianceTemporalSamplingPlan", ["planId", "timing", "destinationPointNative", "temporalSampleCount", "query"]);
   requirePositiveInteger(
     "temporalSampleCount",
     input.temporalSampleCount
@@ -412,7 +413,7 @@ export function reduceSceneRadianceTemporalSamples(
   input:
     ReduceSceneRadianceTemporalSamplesInput
 ): ReducedSceneRadianceTemporalExposure {
-  requireInputObject(input, "reduceSceneRadianceTemporalSamples input");
+  requireInputKeys(input, "reduceSceneRadianceTemporalSamples", ["plan", "samples"]);
   if (
     !Array.isArray(
       input.samples

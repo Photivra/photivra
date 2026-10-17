@@ -22,7 +22,8 @@ import { InvalidScientificInputError } from "../core/validation.js";
 import type {
   CalculateCaptureExposureWindowsInput
 } from "../sensor/exposure-window.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export const EXPOSURE_DURATION_CONTROL_VERSION =
   "0.1.0" as const;
@@ -196,14 +197,7 @@ function active(
 export function resolveExposureDurationControl(
   control: ExposureDurationControl
 ): ExposureDurationControlResolution {
-  if (
-    typeof control !== "object" ||
-    control === null
-  ) {
-    throw new InvalidScientificInputError(
-      "control must be an object."
-    );
-  }
+  requireInputKeys(control, "resolveExposureDurationControl", ["kind", "durationSeconds", "timeReference", "pressSeconds", "releaseSeconds", "startSeconds", "stopSeconds"]);
 
   if (
     control.kind ===
@@ -225,7 +219,7 @@ export function resolveExposureDurationControl(
       control.timeReference !==
       "control-monotonic-seconds"
     ) {
-      throw new InvalidScientificInputError(
+      throw new InvalidConfigurationError(
         'Bulb control timeReference must be "control-monotonic-seconds".'
       );
     }
@@ -264,7 +258,7 @@ export function resolveExposureDurationControl(
       control.timeReference !==
       "control-monotonic-seconds"
     ) {
-      throw new InvalidScientificInputError(
+      throw new InvalidConfigurationError(
         'Time control timeReference must be "control-monotonic-seconds".'
       );
     }
@@ -296,7 +290,7 @@ export function resolveExposureDurationControl(
     );
   }
 
-  throw new InvalidScientificInputError(
+  throw new InvalidConfigurationError(
     "control.kind is invalid."
   );
 }
@@ -311,7 +305,7 @@ export function bindResolvedExposureDurationToCaptureExposureInput(
   input:
     BindResolvedExposureDurationToCaptureExposureInput
 ): CalculateCaptureExposureWindowsInput {
-  requireInputObject(input, "bindResolvedExposureDurationToCaptureExposureInput input");
+  requireInputKeys(input, "bindResolvedExposureDurationToCaptureExposureInput", ["resolution", "durationEvidence", "exposureWindowInput"]);
   const resolution =
     input.resolution;
 

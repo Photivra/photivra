@@ -9,7 +9,7 @@
  * limits.
  */
 
-import { requireAllowlistedRecord, requirePublicOpaqueId, requireInputObject } from "../core/record-validation.js";
+import { requireAllowlistedRecord, requirePublicOpaqueId, requireInputKeys } from "../core/record-validation.js";
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { freezeOwnedData } from "../core/owned-data.js";
 import { equalWithinUlps } from "../core/portable-math.js";
@@ -138,7 +138,7 @@ function wb(value: unknown): CaptureWhiteBalanceIntent | null {
 }
 /** Converts the validated shooting WB to the allowed public metadata fields, dropping private extras. */
 export function createCaptureWhiteBalanceIntent(input: { state: ResolvedWhiteBalanceState }): CaptureWhiteBalanceIntent {
-  requireInputObject(input, "createCaptureWhiteBalanceIntent input");
+  requireInputKeys(input, "createCaptureWhiteBalanceIntent", ["state"]);
   const state = parseResolvedWhiteBalanceState(input.state);
   return wb({ stateId: state.stateId, source: state.source, locked: state.locked, channelGains: state.channelGains,
     sourceProfile: state.sourceProfile ? { id: state.sourceProfile.profileId, version: state.sourceProfile.profileVersion } : null })!;
@@ -303,14 +303,14 @@ function canonical(value: unknown): string {
 
 /** Canonical JSON of the allowed fields, including sample values and IDs. Excludes private caches and file layout. */
 export function serializeSimulatedCapture(input: { capture: SimulatedCapture }): string {
-  requireInputObject(input, "serializeSimulatedCapture input");
+  requireInputKeys(input, "serializeSimulatedCapture", ["capture"]);
   return JSON.stringify(parseSimulatedCapture(input.capture));
 }
 /** Requires the exact image state of the plane. Callers cannot substitute another kind of "linear". */
 export function resolveSimulatedCapturePlane(input: {
   capture: SimulatedCapture; planeId: string; requiredImageState: CaptureLinearImageState;
 }): CaptureLinearPlane {
-  requireInputObject(input, "resolveSimulatedCapturePlane input");
+  requireInputKeys(input, "resolveSimulatedCapturePlane", ["capture", "planeId", "requiredImageState"]);
   const capture = parseSimulatedCapture(input.capture);
   const state = enumValue(input.requiredImageState, ["scene-referred-xyz", "virtual-sensor-channels", "color-transformed-linear-rgb"]);
   const result = capture.planes.find((p) => p.id === id(input.planeId));

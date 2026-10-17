@@ -25,7 +25,8 @@ import { InvalidScientificInputError, requirePositiveInteger } from "../core/val
 import type { RasterPoint, RasterRect } from "../output/capture-geometry.js";
 import type { NativeImageRaster } from "./sensor-geometry.js";
 import type { SensorReadoutArchitecture } from "./architecture.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /**
  * The readout mode chosen for one capture.
@@ -163,7 +164,7 @@ const SHUTTER_MECHANISMS = new Set<CaptureShutterMechanism>([
 
 function requireRecord(value: unknown, path: string): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new InvalidScientificInputError(path + " must be an object.");
+    throw new InvalidConfigurationError(path + " must be an object.");
   }
   return value as UnknownRecord;
 }
@@ -201,7 +202,7 @@ function parseSecondsFact(
 ): SourcedSensorTimingSeconds {
   const record = requireRecord(value, path);
   if (record.unit !== "s") {
-    throw new InvalidScientificInputError(path + '.unit must be "s".');
+    throw new InvalidConfigurationError(path + '.unit must be "s".');
   }
 
   const seconds = positive
@@ -226,7 +227,7 @@ function parseDirectionFact(
       record.value as NativeSensorReadoutScanDirection
     )
   ) {
-    throw new InvalidScientificInputError(path + ".value is invalid.");
+    throw new InvalidConfigurationError(path + ".value is invalid.");
   }
 
   return {
@@ -243,7 +244,7 @@ function parseReadoutDeclaration(
     typeof record.readoutMode !== "string" ||
     !READOUT_MODES.has(record.readoutMode as SensorReadoutMode)
   ) {
-    throw new InvalidScientificInputError("readout.readoutMode is invalid.");
+    throw new InvalidConfigurationError("readout.readoutMode is invalid.");
   }
 
   const captureReadoutDurationSeconds = parseSecondsFact(
@@ -326,7 +327,7 @@ function validateShutterMechanism(
     typeof value !== "string" ||
     !SHUTTER_MECHANISMS.has(value as CaptureShutterMechanism)
   ) {
-    throw new InvalidScientificInputError("shutterMechanism is invalid.");
+    throw new InvalidConfigurationError("shutterMechanism is invalid.");
   }
 }
 
@@ -406,7 +407,7 @@ function normalizedScanPosition(
 export function calculateSensorReadoutTiming(
   input: CalculateSensorReadoutTimingInput
 ): CalculationResult<SensorReadoutTiming> {
-  requireInputObject(input, "calculateSensorReadoutTiming input");
+  requireInputKeys(input, "calculateSensorReadoutTiming", ["nativeRaster", "activeCaptureRect", "shutterMechanism", "readout", "samplePointsNative"]);
   validateNativeRaster(input.nativeRaster);
   validateShutterMechanism(input.shutterMechanism);
 
@@ -419,7 +420,7 @@ export function calculateSensorReadoutTiming(
     input.samplePointsNative !== undefined &&
     !Array.isArray(input.samplePointsNative)
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "samplePointsNative must be an array when supplied."
     );
   }
