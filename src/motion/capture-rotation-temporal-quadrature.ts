@@ -36,7 +36,7 @@ import {
   calculateCaptureRotationInverseMappings,
   type CalculateCaptureRotationInverseMappingsInput
 } from "./capture-rotation-inverse-mapping.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, requireInputObject } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export interface CalculateCaptureRotationTemporalQuadratureInput
@@ -151,6 +151,7 @@ export function calculateCaptureRotationTemporalQuadrature(
       "samplePointsNative must be a non-empty array."
     );
   }
+  input.samplePointsNative.forEach((point, index) => requireInputObject(point, "samplePointsNative[" + index + "]"));
 
   const totalNodeCount =
     input.temporalSampleCount * input.samplePointsNative.length;

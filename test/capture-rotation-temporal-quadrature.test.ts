@@ -9,6 +9,7 @@ import {
   type ExposureBoundarySchedule,
   type SourcedCaptureTimingSeconds
 } from "../src/index.js";
+import { probeSubObjects } from "./helpers/sub-object-probe.js";
 
 type PhotivraOwnedEvidence = readonly [
   {
@@ -378,5 +379,16 @@ describe("capture rotation temporal quadrature", () => {
         expect.stringContaining("shutter transmission")
       ])
     );
+  });
+});
+
+describe("capture rotation temporal quadrature rejects a missing, null or non-object sub-object with a domain error (2.0.0 pre-release review)", () => {
+  it("probes every nested object of a valid request", async () => {
+    const input = { ...baseInput(), temporalSampleCount: 4, samplePointsNative: [{ x: 3000, y: 2000 }] };
+    const call = (value: unknown): unknown => calculateCaptureRotationTemporalQuadrature(value as never);
+    expect(() => call(input)).not.toThrow();
+    const { probedPaths, escaped } = await probeSubObjects(call, input);
+    expect(probedPaths).toBeGreaterThan(5);
+    expect(escaped).toEqual([]);
   });
 });

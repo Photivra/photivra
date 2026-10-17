@@ -181,3 +181,57 @@ describe("simulateCapture facade", { timeout: 60_000 }, () => {
       await expect(simulateCapture(bad as never), JSON.stringify(bad)).rejects.toSatisfy((e: unknown) => e instanceof Error && e.constructor.name.startsWith("Invalid"));
   });
 });
+
+describe("simulateCapture pre-release fixes (2.0.0)", { timeout: 120_000 }, () => {
+  const tabulated = (values: readonly [number, number][]): { kind: "tabulated"; samples: { wavelengthNanometers: number; value: number }[] } =>
+    ({ kind: "tabulated", samples: values.map(([wavelengthNanometers, value]) => ({ wavelengthNanometers, value })) });
+  const digestOf = async (options: Record<string, unknown>): Promise<string> =>
+    (await simulateCapture({ ...options, output: { width: 2, height: 2, whiteBalance: "none" } } as never)).scene.sourceSha256;
+
+  it("the scene digest covers caller illuminant and reflectance spectra and the daylight basis identity", async () => {
+    const warm = tabulated([[380, 0.2], [580, 1], [780, 1.8]]), cool = tabulated([[380, 1.8], [580, 1], [780, 0.2]]);
+    const uniform = { scene: { preset: "uniform" } };
+    const warmDigest = await digestOf({ ...uniform, illuminant: { kind: "spectrum", spectrum: warm } });
+    expect(await digestOf({ ...uniform, illuminant: { kind: "spectrum", spectrum: cool } })).not.toBe(warmDigest);
+    expect(await digestOf({ ...uniform, illuminant: { kind: "spectrum", spectrum: structuredClone(warm) } })).toBe(warmDigest);
+    // Function spectra are sampled at the facade's 1 nm nodes.
+    const fn = (slope: number): Record<string, unknown> => ({ kind: "function", wavelengthRangeNanometers: { minimum: 380, maximum: 780 }, evaluate: (nm: number): number => 1 + slope * (nm - 580) });
+    const fnDigest = await digestOf({ ...uniform, illuminant: { kind: "spectrum", spectrum: fn(0.001) } });
+    expect(await digestOf({ ...uniform, illuminant: { kind: "spectrum", spectrum: fn(-0.001) } })).not.toBe(fnDigest);
+    expect(await digestOf({ ...uniform, illuminant: { kind: "spectrum", spectrum: fn(0.001) } })).toBe(fnDigest);
+    // Chart reflectance spectra (uniform and patches).
+    const grey = tabulated([[380, 0.2], [780, 0.2]]), red = tabulated([[380, 0.05], [600, 0.1], [780, 0.6]]);
+    const greyDigest = await digestOf({ scene: { preset: "uniform", reflectance: grey } });
+    expect(await digestOf({ scene: { preset: "uniform", reflectance: red } })).not.toBe(greyDigest);
+    expect(await digestOf({ scene: { preset: "uniform", reflectance: structuredClone(grey) } })).toBe(greyDigest);
+    const patches = (spectrum: unknown): Record<string, unknown> => ({ scene: { preset: "patches", patches: [{ patchId: "a", reflectance: 0.5 }, { patchId: "b", reflectance: spectrum }] } });
+    expect(await digestOf(patches(red))).not.toBe(await digestOf(patches(grey)));
+    // Daylight: same CCT, different basis values or a different basis dataset identity.
+    const basis = (s1: number, datasetId: string): Record<string, unknown> => ({ datasetId, s0: tabulated([[380, 100], [780, 100]]).samples,
+      s1: tabulated([[380, s1], [780, -s1]]).samples, s2: tabulated([[380, 0], [780, 0]]).samples });
+    const daylight = (b: unknown): Record<string, unknown> => ({ ...uniform, illuminant: { kind: "daylight", correlatedColorTemperatureKelvin: 6500, basis: b } });
+    const d0 = await digestOf(daylight(basis(0, "basis-a")));
+    expect(await digestOf(daylight(basis(10, "basis-a")))).not.toBe(d0);
+    expect(await digestOf(daylight(basis(0, "basis-b")))).not.toBe(d0);
+    expect(await digestOf(daylight(basis(0, "basis-a")))).toBe(d0);
+  });
+
+  it("JPEG progress ends with completedTileCount === totalTileCount (one event per 256 × 32 source read)", async () => {
+    for (const [width, height] of [[64, 64], [300, 70], [8, 8]] as const) {
+      const events: { completedTileCount: number; totalTileCount: number }[] = [];
+      await simulateCapture({ scene: { preset: "uniform" }, output: { width, height, format: "jpeg" },
+        onProgress: (p) => { if (p.stage === "jpeg") events.push({ completedTileCount: p.completedTileCount, totalTileCount: p.totalTileCount }); } });
+      const total = Math.ceil(height / 32) * Math.ceil(width / 256);
+      expect(events.length, `${width}x${height}`).toBe(total);
+      expect(events.at(-1), `${width}x${height}`).toEqual({ completedTileCount: total, totalTileCount: total });
+    }
+  });
+
+  it("a caller copy of a catalog preset gives the same capture as the tier id", async () => {
+    const preset = resolveGenericEquipmentTierCatalog({ presetVersion: "2.0.0" }).find((p) => p.tier === "prosumer")!;
+    const byId = await simulateCapture({ camera: "prosumer", scene: { preset: "uniform" }, ...small });
+    const byRecord = await simulateCapture({ camera: structuredClone(preset), scene: { preset: "uniform" }, ...small });
+    expect(byRecord.image.samples).toEqual(byId.image.samples);
+    expect(byRecord.raw.codes).toEqual(byId.raw.codes);
+  });
+});

@@ -1049,6 +1049,7 @@ function validateResolvedGrid(
   maximum: number,
   path: string
 ): void {
+  requireRecord(grid, path);
   if (
     grid.kind ===
     "continuous-within-range"
@@ -1104,6 +1105,10 @@ function validateCapabilities(
   value:
     ResolvedGenericEquipmentExposureCapabilities
 ): void {
+  requireRecord(value, "capabilities");
+  for (const key of ["aperture", "shutter", "iso", "bodyProfile", "lensProfile"] as const) {
+    requireRecord(value[key], "capabilities." + key);
+  }
   if (
     value.schemaVersion !== "0.1.0" ||
     value.scientificStatus !==
@@ -1277,6 +1282,7 @@ function validateReferenceExposure(
   capabilities:
     ResolvedGenericEquipmentExposureCapabilities
 ): RelativeExposureControlAnchor {
+  requireRecord(reference, "referenceExposure");
   const aperture =
     requirePositiveFinite(
       reference.aperture,
@@ -2552,6 +2558,7 @@ export function resolveManualExposureMode(
     ResolveManualExposureModeInput
 ): ManualExposureModeResolution {
   requireInputKeys(input, "resolveManualExposureMode", ["target", "capabilities", "referenceExposure", "manualAperture", "manualShutterSeconds", "isoControl"]);
+  requireRecord(input.isoControl, "isoControl");
   const target =
     validateTarget(input.target);
   validateCapabilities(
@@ -3145,6 +3152,7 @@ export function resolveAperturePriorityAutoIsoExposureMode(
     ResolveAperturePriorityAutoIsoExposureModeInput
 ): AperturePriorityAutoIsoExposureModeResolution {
   requireInputKeys(input, "resolveAperturePriorityAutoIsoExposureMode", ["target", "capabilities", "referenceExposure", "manualAperture", "policy"]);
+  requireRecord(input.policy, "policy");
   const target = validateTarget(input.target);
   validateCapabilities(input.capabilities);
   const referenceExposure =
@@ -3498,6 +3506,7 @@ export function resolveShutterPriorityExposureMode(
     ResolveShutterPriorityExposureModeInput
 ): ShutterPriorityExposureModeResolution {
   requireInputKeys(input, "resolveShutterPriorityExposureMode", ["target", "capabilities", "referenceExposure", "manualShutterSeconds", "isoControl"]);
+  requireRecord(input.isoControl, "isoControl");
   const target = validateTarget(input.target);
   validateCapabilities(input.capabilities);
   const referenceExposure =
@@ -3656,6 +3665,7 @@ export function resolveShutterPriorityExposureMode(
 
   const policy =
     input.isoControl.policy;
+  requireRecord(policy, "isoControl.policy");
   if (
     policy.kind !==
       "minimum-iso-aperture-first" ||
@@ -3819,6 +3829,7 @@ export function resolveProgramAutoExposureMode(
     ResolveProgramAutoExposureModeInput
 ): ProgramAutoExposureModeResolution {
   requireInputKeys(input, "resolveProgramAutoExposureMode", ["target", "capabilities", "referenceExposure", "programLine", "isoControl"]);
+  requireRecord(input.isoControl, "isoControl");
   const target =
     validateTarget(input.target);
   validateCapabilities(
@@ -4124,6 +4135,7 @@ export function resolveFullAutoExposureMode(
     ResolveFullAutoExposureModeInput
 ): FullAutoExposureModeResolution {
   requireInputKeys(input, "resolveFullAutoExposureMode", ["target", "capabilities", "referenceExposure", "policy"]);
+  requireRecord(input.policy, "policy");
   const target =
     validateTarget(input.target);
   validateCapabilities(

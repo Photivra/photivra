@@ -149,6 +149,7 @@ function requireNonEmptySamples(
       "samplePointsNative must be a non-empty array."
     );
   }
+  value.forEach((point, index) => requireInputObject(point, "samplePointsNative[" + index + "]"));
 }
 
 function nativePointToImagePlane(

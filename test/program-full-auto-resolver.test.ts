@@ -18,6 +18,7 @@ import {
   type FullAutoExposurePolicy,
   type ResolvedGenericEquipmentExposureCapabilities
 } from "../src/index.js";
+import { probeSubObjects } from "./helpers/sub-object-probe.js";
 
 const evidence = (ref: string) => [{
   sourceOrigin: "photivra" as const,
@@ -1038,3 +1039,21 @@ describe("Program Auto fail-closed control coverage", () => {
   });
 });
 
+
+describe("Program Auto and Full Auto reject a missing, null or non-object sub-object with a domain error (2.0.0 pre-release review)", () => {
+  it("probes every nested object of a valid request", async () => {
+    const cases: [string, (input: unknown) => unknown, object][] = [
+      ["resolveProgramAutoExposureMode", (input): unknown => resolveProgramAutoExposureMode(input as never), { target: targetForScale(16), capabilities: capabilities(),
+        referenceExposure, programLine: programLine(), isoControl: { kind: "automatic", isoBaseline: "minimum-selectable", isoQuantizationPolicy: "nearest-log2-lower-on-tie" } }],
+      ["resolveFullAutoExposureMode", (input): unknown => resolveFullAutoExposureMode(input as never), { target: targetForScale(16), capabilities: capabilities(),
+        referenceExposure, policy: { kind: "generic-program-line-minimum-iso", programLine: programLine(), isoBaseline: "minimum-selectable",
+          isoQuantizationPolicy: "nearest-log2-lower-on-tie" } }]
+    ];
+    for (const [name, call, input] of cases) {
+      expect(() => call(input), name).not.toThrow();
+      const { probedPaths, escaped } = await probeSubObjects(call, input, { maximumDepth: 4 });
+      expect(probedPaths, name).toBeGreaterThan(5);
+      expect(escaped, name).toEqual([]);
+    }
+  });
+});

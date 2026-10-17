@@ -15,6 +15,7 @@ import {
   resolveCaptureGeometry,
   type ExposureMeteringZoneSample
 } from "../src/index.js";
+import { probeSubObjects } from "./helpers/sub-object-probe.js";
 
 const evidence = (
   ref: string
@@ -1319,3 +1320,26 @@ describe("scene-radiance metering bridge fail-closed guards", () => {
   });
 });
 
+
+describe("scene-radiance metering rejects a missing, null or non-object sub-object with a domain error (2.0.0 pre-release review)", () => {
+  it("probes every nested object of valid sample-set and temporal-meter requests", async () => {
+    const sampleSetInput = (time: number, signal: number, measurementId: string): Record<string, unknown> => ({ measurementId, sceneStateId: "state-live",
+      providerProfile: providerProfile(true), illuminationProfile: illuminationProfile(), materialResponseProfile: materialProfile(),
+      illuminationTemporalProfile: temporalProfile(), captureTimeSecondsFromReference: time, captureGeometry: captureGeometry(),
+      derivationProfile: derivationProfile(), samples: samples(signal) });
+    const sampleSet = (time: number, signal: number, id: string): ReturnType<typeof createSceneRadianceDerivedExposureMeteringSampleSet> =>
+      createSceneRadianceDerivedExposureMeteringSampleSet(sampleSetInput(time, signal, id) as never);
+    const cases: [string, (input: unknown) => unknown, object][] = [
+      ["createSceneRadianceDerivedExposureMeteringSampleSet", (input): unknown => createSceneRadianceDerivedExposureMeteringSampleSet(input as never), sampleSetInput(0, 1, "m0")],
+      ["meterSceneRadianceTemporalExposure", (input): unknown => meterSceneRadianceTemporalExposure(input as never), { temporalMeasurementId: "temporal-meter-1",
+        profile: meterProfile(), policy: { kind: "weighted-time-average", timeReference: "first-opening-boundary-phase" },
+        temporalSamples: [{ normalizedTimeWeight: 0.5, sampleSet: sampleSet(0, 1, "m0") }, { normalizedTimeWeight: 0.5, sampleSet: sampleSet(0.01, 0.5, "m1") }] }]
+    ];
+    for (const [name, call, input] of cases) {
+      expect(() => call(input), name).not.toThrow();
+      const { probedPaths, escaped } = await probeSubObjects(call, input, { maximumDepth: 4 });
+      expect(probedPaths, name).toBeGreaterThan(5);
+      expect(escaped, name).toEqual([]);
+    }
+  });
+});

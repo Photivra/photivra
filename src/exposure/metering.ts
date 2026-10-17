@@ -28,7 +28,7 @@ import type {
   NormalizedRasterUv,
   ResolvedCaptureGeometry
 } from "../output/capture-geometry.js";
-import { requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields } from "../core/record-validation.js";
+import { requireInputKeys, requireInputObject, rejectUnknownFields, rejectUnknownVariantFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -732,6 +732,7 @@ function validateSampleUv(
   uv: NormalizedRasterUv,
   path: string
 ): void {
+  requireInputObject(uv, path);
   const u = requireInputFinite(
     uv.u,
     path + ".u"
@@ -757,6 +758,9 @@ function validateCaptureGeometry(
   geometry:
     ResolvedCaptureGeometry
 ): void {
+  requireInputObject(geometry, "sampleSet.captureGeometry");
+  requireInputObject(geometry.orientedCapture, "sampleSet.captureGeometry.orientedCapture");
+  requireInputObject(geometry.orientedCapture.imagingArea, "sampleSet.captureGeometry.orientedCapture.imagingArea");
   const width =
     requireInputPositiveFinite(
       geometry.orientedCapture
@@ -786,6 +790,7 @@ function validateProcessingState(
 ): void {
   const state =
     sampleSet.processingState;
+  requireInputObject(state, "sampleSet.processingState");
   if (
     state.exposureSettingsApplied !==
       false ||
@@ -936,6 +941,7 @@ export function meterRelativeExposure(
       input.profile
     );
   const sampleSet = input.sampleSet;
+  requireInputObject(sampleSet, "sampleSet");
 
   requireInputString(
     sampleSet.measurementId,
@@ -994,6 +1000,7 @@ export function meterRelativeExposure(
       "sampleSet.samples[" +
       index +
       "]";
+    requireInputObject(sample, path);
     sampleIds.push(
       requireInputString(
         sample.sampleId,
