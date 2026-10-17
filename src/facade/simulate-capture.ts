@@ -84,7 +84,7 @@ import { resolveAntiAliasingSpatialKernel, type AntiAliasingPointSplitComponent,
 import { multiplyMatrices, type ColorMatrix3x3, type ColorVector3 } from "../color/colorimetry-math.js";
 import { prepareRgbGamutMapping, type PreparedRgbGamutMapping } from "../color/gamut-mapping.js";
 import { serializeNativeRawDng, type NativeRawDng } from "../capture/native-raw-dng.js";
-import { resolveSensorReadoutRegime } from "../sensor/raw-readout.js";
+import { parseSensorReadoutConversionProfile, resolveSensorReadoutRegime } from "../sensor/raw-readout.js";
 import { resolveChartScene, CHART_SCENE_PRESETS, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
 import { resolveCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlanarSceneRadianceProvider, requireCallerScene, FACADE_SPECTRAL_RANGE_NANOMETERS,
   PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, type CaptureIlluminant, type CallerRadianceScene, type CallerReflectanceScene,
@@ -399,6 +399,12 @@ function sosReferenceLuminance(fNumber: number, shutterSeconds: number, iso: num
  */
 export const SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX = Math.PI * sosReferenceLuminance(DEFAULTS.fNumber, DEFAULTS.shutterSeconds, DEFAULTS.iso) /
   GREY_CARD_REFLECTANCE;
+/**
+ * Sensitive-aperture area (µm²) at which the tier's ISO signal chain applies unchanged: the default 6 µm square
+ * aperture with fill factor 1. At other areas the facade scales the electron-domain readout values by
+ * area / this reference, so the same focal-plane exposure H gives the same output code (see `isoAreaScaledReadout`).
+ */
+const ISO_REFERENCE_APERTURE_AREA_SQUARE_MICROMETERS = DEFAULTS.pixelPitchMicrometers * DEFAULTS.pixelPitchMicrometers;
 /** Demosaic border, native sites per side. */
 const MARGIN = 1;
 /**
@@ -480,6 +486,18 @@ const DARK_CURRENT_ELECTRONS_PER_SECOND = 1;
 const OPERATING_TEMPERATURE_C = 20;
 
 function fail(message: string): never { throw new InvalidConfigurationError(message); }
+type ReadoutProfile = GenericEquipmentTierPreset["body"]["readout"][number]["profile"];
+/**
+ * The readout profile with every regime's charge-domain transfer scaled by `areaScale`: system conversion gain
+ * (e⁻ per code) and pre-ADC saturation (e⁻ equivalent) are multiplied by it, so codes per unit focal-plane exposure
+ * stay those of the reference aperture. Read noise stays in electrons per pixel; codes, black level, ADC and digital
+ * gain are unchanged. The result is re-checked by the readout parser.
+ */
+function isoAreaScaledReadout(profile: ReadoutProfile, areaScale: number): ReadoutProfile {
+  return parseSensorReadoutConversionProfile({ ...profile, regimes: profile.regimes.map((regime) => ({ ...regime,
+    systemConversionGainElectronsPerCode: { ...regime.systemConversionGainElectronsPerCode, value: regime.systemConversionGainElectronsPerCode.value * areaScale },
+    preAdcSaturationElectronEquivalent: { ...regime.preAdcSaturationElectronEquivalent, value: regime.preAdcSaturationElectronEquivalent.value * areaScale } })) });
+}
 /** Diagnostic clock for the 2.1 stage timings: `performance.now()` where the host has it. Never affects output. */
 function clockMs(): number { return globalThis.performance?.now() ?? Date.now(); }
 function positive(value: unknown, name: string): number {
@@ -1000,18 +1018,33 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   shutterSeconds = resolution.resolvedSettings.shutterSeconds ?? shutterSeconds;
   const resolvedIso = resolution.resolvedSettings.iso ?? iso;
 
-  // Sensor readout for the ISO setting
-  const regimeByChannel = {} as Record<Channel, { readoutProfile: (typeof body.readout)[number]["profile"]; regimeId: string }>;
+  // Sensor readout for the ISO setting. Standard output sensitivity S = 10/H (CIPA DC-004 §3.2) is defined at the
+  // output, independent of pixel size, while the collected charge is proportional to the sensitive-aperture area
+  // (EMVA 1288 Release 4.0, Eq. 3). The tier's signal chain is anchored to the 6 µm aperture; at another area the
+  // charge-domain readout scales with the area so the same H gives the same code. At 6 µm nothing is changed.
+  const areaScale = pitch * pitch / ISO_REFERENCE_APERTURE_AREA_SQUARE_MICROMETERS;
+  const regimeByChannel = {} as Record<Channel, { readoutProfile: ReadoutProfile; regimeId: string }>;
   for (const channel of CHANNELS) {
     const asset = body.readout.find((a) => a.profile.channelId === channel) ?? fail("Camera readout lacks channel " + channel + ".");
     const chain = resolveGenericIsoSignalChain({ profile: body.signalChain, isoCapability: body.iso, requestedIsoSetting: { kind: "standard", exposureIndex: resolvedIso },
       captureModeId: IDS.mode, readoutProfile: asset.profile });
-    regimeByChannel[channel] = { readoutProfile: asset.profile, regimeId: chain.readout.regime.regimeId };
+    regimeByChannel[channel] = { readoutProfile: areaScale === 1 ? asset.profile : isoAreaScaledReadout(asset.profile, areaScale), regimeId: chain.readout.regime.regimeId };
   }
-  const baseRegime = body.readout[0]!.profile.regimes[0]! as unknown as { preAdcSaturationElectronEquivalent: { value: number } };
-  const capacityElectrons = Math.max(...body.readout[0]!.profile.regimes.map((r) => (r as unknown as { preAdcSaturationElectronEquivalent: { value: number } }).preAdcSaturationElectronEquivalent.value),
+  const capacityRegimes = (areaScale === 1 ? body.readout[0]!.profile : isoAreaScaledReadout(body.readout[0]!.profile, areaScale)).regimes;
+  const baseRegime = capacityRegimes[0]! as unknown as { preAdcSaturationElectronEquivalent: { value: number } };
+  const capacityElectrons = Math.max(...capacityRegimes.map((r) => (r as unknown as { preAdcSaturationElectronEquivalent: { value: number } }).preAdcSaturationElectronEquivalent.value),
     baseRegime.preAdcSaturationElectronEquivalent.value);
   assume("sensor.capacityElectrons", "derived", capacityElectrons, "Physical charge capacity set to the body's largest declared pre-ADC saturation (its base-ISO saturation signal), so storage never clips before the declared readout white.");
+  if (areaScale !== 1) {
+    assume("sensor.isoAreaNormalization", "model", { referenceApertureAreaSquareMicrometers: ISO_REFERENCE_APERTURE_AREA_SQUARE_MICROMETERS,
+      apertureAreaSquareMicrometers: pitch * pitch, areaScale },
+    "Approximation. The tier's ISO signal chain is declared for a 6 µm square aperture. Standard output sensitivity S = 10/H (CIPA DC-004-2020 §3.2) is defined at the output, " +
+      "independent of pixel size, and the collected charge is proportional to the aperture area (EMVA 1288 Release 4.0, Eq. 3), so the system conversion gain (e⁻ per code) and the " +
+      "pre-ADC saturation of every ISO regime are multiplied by area / 36 µm² = " + areaScale + ". The same exposure gives the same output code at any pitch; per-pixel shot-noise SNR " +
+      "falls with smaller pixels. Read noise and dark current stay per pixel in electrons. The charge capacity follows the scaled base-ISO saturation, so it is proportional to " +
+      "the aperture area: a design consequence of holding the tier's ISO rating and highlight headroom fixed, not a measured full-well model (published sensor data grow less than " +
+      "proportionally with area across technologies).");
+  }
   assume("sensor.darkCurrent", "model", { electronsPerSecond: DARK_CURRENT_ELECTRONS_PER_SECOND, temperatureC: OPERATING_TEMPERATURE_C },
     "Synthetic uniform dark current of 1 e⁻/s per site at 20 °C (the tier presets declare none); dark shot noise follows from it.");
   assume("sensor.spectralResponse", "model", { kind: "colorimetric-cmf-eqe", peakScale: EQE_SCALE },
