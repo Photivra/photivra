@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import { createHostYield } from "../src/facade/host-yield.js";
 
 describe("capture facade host yield", () => {
-  it("prefers scheduler.yield, then MessageChannel, then setImmediate, then setTimeout", async () => {
+  it("prefers MessageChannel, then setImmediate, then setTimeout, and never scheduler.yield", async () => {
     let schedulerCalls = 0;
     const withScheduler = createHostYield({ scheduler: { yield: async () => { schedulerCalls++; } }, MessageChannel, setImmediate });
-    expect(withScheduler.mechanism).toBe("scheduler.yield");
+    expect(withScheduler.mechanism).toBe("message-channel");
     await withScheduler.yieldControl();
-    expect(schedulerCalls).toBe(1);
+    expect(schedulerCalls).toBe(0);
+    // scheduler.yield alone is not used either: its continuations may run ahead of queued tasks.
+    expect(createHostYield({ scheduler: { yield: async () => { schedulerCalls++; } } }).mechanism).toBe("set-timeout");
 
     const withChannel = createHostYield({ MessageChannel, setImmediate });
     expect(withChannel.mechanism).toBe("message-channel");
@@ -23,6 +25,22 @@ describe("capture facade host yield", () => {
     const fallback = createHostYield({});
     expect(fallback.mechanism).toBe("set-timeout");
     await fallback.yieldControl();
+  });
+
+  it("does not starve queued tasks when the host's scheduler.yield runs continuations first", async () => {
+    // A continuation-priority scheduler.yield runs ahead of ordinary queued tasks (WICG Prioritized Task Scheduling,
+    // effective priority table). This fake resolves on the microtask queue only, the extreme of that ordering:
+    // a loop yielding through it never lets a queued message run.
+    const host = { scheduler: { yield: (): Promise<void> => Promise.resolve() }, MessageChannel, setImmediate };
+    const { yieldControl } = createHostYield(host);
+    let delivered = false;
+    const channel = new MessageChannel();
+    channel.port1.onmessage = (): void => { delivered = true; channel.port1.close(); };
+    channel.port2.postMessage("cancel");
+    let yields = 0;
+    while (!delivered && yields < 1000) { await yieldControl(); yields++; }
+    expect(delivered).toBe(true);
+    expect(yields).toBeLessThanOrEqual(2);
   });
 
   it("returns to the event loop: a task queued before the yield runs before it resolves", async () => {
@@ -40,6 +58,6 @@ describe("capture facade host yield", () => {
   });
 
   it("uses an unclamped yield on this host (Node exposes MessageChannel globally)", () => {
-    expect(createHostYield().mechanism).toBe(typeof (globalThis as { scheduler?: { yield?: unknown } }).scheduler?.yield === "function" ? "scheduler.yield" : "message-channel");
+    expect(createHostYield().mechanism).toBe("message-channel");
   });
 });
