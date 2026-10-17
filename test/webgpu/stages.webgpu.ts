@@ -12,7 +12,7 @@ import { calculateChartRadianceBatch, calculateTemporalExposureSum, simulatePack
   type PackedSensorRawDiagnostics, type PackedSensorRawInput } from "../../src/index.js";
 import { calculatePackedSensorRawPlan, createPackedFixedPattern, simulatePackedSensorSite } from "../../src/capture/packed-sensor-raw.js";
 import { fixedPatternCorpus, readoutProfile, sensorCorpus, sensorStageInput, temporalCorpus } from "../helpers/sensor-stage-fixtures.js";
-import { findChromium, openBrowserPage, type BrowserPage } from "./chromium.js";
+import { adapterSkipReason, findChromium, isSoftwareAdapter, openBrowserPage, type BrowserPage, type WebGpuAdapterProbe } from "./chromium.js";
 import { decodeTransport, encodeTransport } from "./codec.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -34,9 +34,9 @@ beforeAll(async () => {
   const binary = findChromium();
   if (!binary) { skip = "no Chromium binary found (set PHOTIVRA_WEBGPU_BROWSER or PLAYWRIGHT_BROWSERS_PATH)"; return; }
   page = await openBrowserPage(binary, root);
-  const probe = await page.evaluate<{ available: boolean; adapter?: unknown }>("import('/test/webgpu/page-runner.js').then(m => m.probe())");
-  if (!probe.available) skip = "the browser exposes no WebGPU adapter (see docs/WEBGPU.md for flags)";
-  else report.push({ adapter: probe.adapter });
+  const probe = await page.evaluate<WebGpuAdapterProbe>("import('/test/webgpu/page-runner.js').then(m => m.probe())");
+  skip = adapterSkipReason(probe);
+  if (skip === null) report.push({ adapter: probe.adapter, softwareAdapter: isSoftwareAdapter(probe) });
 });
 afterAll(async () => {
   await page?.close();

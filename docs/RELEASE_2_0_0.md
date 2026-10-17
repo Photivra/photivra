@@ -425,9 +425,8 @@ Work that is known and deliberately left for later:
 - **#276 follow-up:** the `parse*()` versioned-record parsers and 13 record-taking functions still drop unknown top-level fields instead of rejecting them (each schema needs its own review, and this changes which stored records parse). Result values are frozen only at their top level (a deep freeze measured about 3× on hot scalar calls).
 - **#277 and follow-ups from #304:**
   - an adapter from `NativeEnvironmentRawProvider.evaluateRadianceBatch` (#319) to `evaluateChartRadiance` (the seam, `planarChartPointsFromDirections`, is built), and GPU radiance for caller scene functions;
-  - the per-fixture rollout, with method-error comparisons against the per-site engine;
-  - hardware-GPU timings at 6–24 MP (the script `npm run bench:webgpu` exists; nothing has been measured);
-  - hardware-GPU conformance runs and CI wiring.
+  - hardware-GPU conformance runs and timings at 6–24 MP (`npm run test:webgpu:hardware` and `npm run bench:webgpu:hardware` are ready; nothing has been measured, because the development container has no GPU);
+  - running `npm run test:webgpu` in CI.
 - **Optics follow-ups from #303:** lens field mapping in the browser-native executor, mappings combined with ideal pupil rays, calibrated finite-focus fisheye scale.
 - **Motion follow-ups from #297:** derived rolling exposure schedules in tier presets; time-varying angular velocity (rolling-shutter wobble).
 
