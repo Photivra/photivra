@@ -29,7 +29,7 @@ import type {
   SensorSpectralResponseScientificStatus,
   SensorSpectralResponseUncertainty
 } from "./spectral-response.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -182,7 +182,8 @@ export interface SensorCameraSaturationCapacityAssessment {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -193,6 +194,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -283,8 +285,9 @@ function parseUncertainty(
 ): SensorSpectralResponseUncertainty {
   const record = requireRecord(
     value,
-    path
+    path, null
   );
+  rejectUnknownVariantFields(record, "kind", UNCERTAINTY_VARIANT_FIELDS, path);
   if (record.kind === "relative") {
     const fraction = requireFinite(
       record.fraction,
@@ -327,12 +330,13 @@ function parseSiteApplicability(
 ): SensorCameraSaturationSiteApplicability {
   const record = requireRecord(
     value,
-    "sensorCameraSaturation.siteApplicability"
+    "sensorCameraSaturation.siteApplicability", null
   );
+  rejectUnknownVariantFields(record, "kind", { "exact-site": ["kind", "site"], "channel-population-mean-approximation": ["kind", "limitation", "evidence"] }, "sensorCameraSaturation.siteApplicability");
   if (record.kind === "exact-site") {
     const site = requireRecord(
       record.site,
-      "sensorCameraSaturation.siteApplicability.site"
+      "sensorCameraSaturation.siteApplicability.site", ["x", "y"]
     );
     return {
       kind: "exact-site",
@@ -376,8 +380,9 @@ function parseTemperatureApplicability(
 ): SensorCameraSaturationTemperatureApplicability {
   const record = requireRecord(
     value,
-    "sensorCameraSaturation.temperatureApplicability"
+    "sensorCameraSaturation.temperatureApplicability", null
   );
+  rejectUnknownVariantFields(record, "kind", { "exact-reference-temperature": ["kind", "temperatureC"], "not-modeled": ["kind", "limitation", "evidence"] }, "sensorCameraSaturation.temperatureApplicability");
   if (
     record.kind ===
       "exact-reference-temperature"
@@ -428,7 +433,7 @@ export function parseSensorCameraSaturationCapacityProfile(
 ): SensorCameraSaturationCapacityProfile {
   const record = requireRecord(
     value,
-    "sensorCameraSaturation"
+    "sensorCameraSaturation", ["schemaVersion", "capacityMeaning", "signalDomain", "scientificStatus", "uncertainty", "siteApplicability", "temperatureApplicability", "operatingState", "profileId", "colorSamplingProfileId", "channelId", "saturationCapacityElectrons", "evidence", "measurementMethodId", "measurementMethodEvidence"]
   );
 
   if (
@@ -513,7 +518,7 @@ export function parseSensorCameraSaturationCapacityProfile(
 
   const state = requireRecord(
     record.operatingState,
-    "sensorCameraSaturation.operatingState"
+    "sensorCameraSaturation.operatingState", ["stateId", "evidence"]
   );
 
   return {

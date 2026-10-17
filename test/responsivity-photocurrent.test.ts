@@ -6,6 +6,7 @@ import {
   assessSensorResponseApplicationCompatibility,
   assessSensorResponseOperatingRange,
   calculateSensorResponsivityPhotocurrent,
+  InvalidConfigurationError,
   calculateSensorSpectralQuadrature,
   parseSensorResponsivityElectricalApplicabilityProfile,
   reduceSensorSpatioSpectralIrradiance,
@@ -1670,24 +1671,30 @@ describe(
       expect(JSON.stringify(reordered.value.operatingElectricalConditions)).toBe(JSON.stringify(conditions));
     });
 
-    it("does not echo unparsed operating electrical conditions into results", () => {
+    it("does not echo operating electrical conditions into results, and rejects unknown fields (2.0.0)", () => {
       const pipeline = buildPipeline();
       const supplied = {
-        bias: { kind: "zero-bias-photovoltaic" as const, note: "caller-only" },
-        readoutLoad: { kind: "virtual-ground-current-readout" as const },
-        extra: "caller-only"
+        bias: { kind: "zero-bias-photovoltaic" as const },
+        readoutLoad: { kind: "virtual-ground-current-readout" as const }
       };
-      const result = calculateSensorResponsivityPhotocurrent({
+      const inputWith = (conditions: unknown): Parameters<typeof calculateSensorResponsivityPhotocurrent>[0] => ({
         reduction: pipeline.reduction,
         compatibility: pipeline.compatibility,
         operatingRange: pipeline.operatingRange,
         colorSamplingProfile: colorProfile(),
         spectralResponseProfile: pipeline.spectralResponseProfile,
         electricalApplicabilityProfile: electricalProfile(),
-        operatingElectricalConditions: supplied
-      }).value;
+        operatingElectricalConditions: conditions as typeof supplied
+      });
+      const result = calculateSensorResponsivityPhotocurrent(inputWith(supplied)).value;
       expect(result.operatingElectricalConditions).not.toBe(supplied);
       expect(result.operatingElectricalConditions).toEqual(zeroBiasConditions);
+      // Fields the schema does not define are rejected by name instead of being dropped.
+      expect(() => calculateSensorResponsivityPhotocurrent(inputWith({ ...supplied, extra: "caller-only" })))
+        .toThrow(new InvalidConfigurationError('operatingElectricalConditions has unknown field "extra".'));
+      expect(() => calculateSensorResponsivityPhotocurrent(inputWith({ ...supplied,
+        bias: { kind: "zero-bias-photovoltaic", note: "caller-only" } })))
+        .toThrow(new InvalidConfigurationError('operatingElectricalConditions.bias has unknown field "note".'));
 
       expect(() =>
         calculateSensorResponsivityPhotocurrent({

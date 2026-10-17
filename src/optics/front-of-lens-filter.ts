@@ -35,7 +35,7 @@ import {
   type SpectralWavelengthBasis
 } from "../core/spectral.js";
 import { InvalidScientificInputError } from "../core/validation.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -236,7 +236,8 @@ export interface ComposedFrontOfLensFilterTransmission {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -247,6 +248,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -340,7 +342,7 @@ function parseRange(
 } {
   const record = requireRecord(
     value,
-    path
+    path, ["minimum", "maximum"]
   );
   const minimum =
     requirePositiveFinite(
@@ -406,8 +408,9 @@ function parseUncertainty(
 ): FrontOfLensFilterUncertainty {
   const record = requireRecord(
     value,
-    path
+    path, null
   );
+  rejectUnknownVariantFields(record, "kind", UNCERTAINTY_VARIANT_FIELDS, path);
 
   if (record.kind === "relative") {
     const fraction =
@@ -532,7 +535,7 @@ function parseSpectralSamples(
       const record =
         requireRecord(
           entry,
-          samplePath
+          samplePath, ["wavelengthNanometers", "linearTransmissionFactor"]
         );
       const wavelengthNanometers =
         requirePositiveFinite(
@@ -571,8 +574,14 @@ function parseTransmission(
 ): FrontOfLensFilterTransmissionModel {
   const record = requireRecord(
     value,
-    path
+    path, null
   );
+  rejectUnknownVariantFields(record, "kind", {
+    "neutral-linear-transmission": ["kind", "linearTransmissionFactor"],
+    "neutral-optical-density": ["kind", "opticalDensityBase10"],
+    "spectral-transmission": ["kind", "samples"],
+    "linear-polarizer": ["kind", "principalTransmittance", "extinctionRatio", "transmissionAxisDegrees"]
+  }, path);
 
   if (record.kind === "linear-polarizer") {
     if (!polarizerAllowed) {
@@ -583,11 +592,11 @@ function parseTransmission(
     }
     const principal = requireRecord(
       record.principalTransmittance,
-      path + ".principalTransmittance"
+      path + ".principalTransmittance", ["value", "evidence"]
     );
     const extinction = requireRecord(
       record.extinctionRatio,
-      path + ".extinctionRatio"
+      path + ".extinctionRatio", ["value", "evidence"]
     );
     const ratio = requireFinite(
       extinction.value,
@@ -631,7 +640,7 @@ function parseTransmission(
     const fact = requireRecord(
       record.linearTransmissionFactor,
       path +
-        ".linearTransmissionFactor"
+        ".linearTransmissionFactor", ["value", "evidence"]
     );
     return {
       kind:
@@ -660,7 +669,7 @@ function parseTransmission(
     const fact = requireRecord(
       record.opticalDensityBase10,
       path +
-        ".opticalDensityBase10"
+        ".opticalDensityBase10", ["value", "evidence"]
     );
     return {
       kind:
@@ -688,7 +697,7 @@ function parseTransmission(
   ) {
     const fact = requireRecord(
       record.samples,
-      path + ".samples"
+      path + ".samples", ["value", "evidence"]
     );
     return {
       kind:
@@ -728,7 +737,7 @@ export function parseFrontOfLensFilterProfile(
 ): FrontOfLensFilterProfile {
   const record = requireRecord(
     value,
-    "frontOfLensFilterProfile"
+    "frontOfLensFilterProfile", ["schemaVersion", "identityScope", "position", "wavelengthChangingBehaviorModeled", "polarizationModeled", "scientificStatus", "uncertainty", "wavelengthRangeNanometers", "transmission", "filterId", "profileVersion", "wavelengthBasis", "evidence", "limitations"]
   );
 
   if (

@@ -42,7 +42,7 @@ import type {
   NativeSensorReadoutScanDirection,
   SourcedSensorTimingSeconds
 } from "./readout-timing.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export type CaptureExposureBoundaryActuator = "mechanical" | "electronic";
@@ -158,10 +158,15 @@ const BOUNDARY_KINDS = new Set<ExposureBoundarySchedule["kind"]>([
   "uniform-linear-native-scan"
 ]);
 
-function requireRecord(value: unknown, path: string): UnknownRecord {
+function requireRecord(
+  value: unknown,
+  path: string,
+  allowedKeys: readonly string[] | null
+): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new InvalidConfigurationError(path + " must be an object.");
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -182,11 +187,12 @@ function requirePositiveFinite(name: string, value: unknown): number {
   return value;
 }
 
-function parseSecondsFact(
+/** Parses a sourced duration in seconds (`{ unit: "s", value, evidence }`). Not a root export. */
+export function parseSecondsFact(
   value: unknown,
   path: string
 ): SourcedCaptureTimingSeconds {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["unit", "value", "evidence"]);
   if (record.unit !== "s") {
     throw new InvalidConfigurationError(path + '.unit must be "s".');
   }
@@ -202,7 +208,7 @@ function parseDirectionFact(
   value: unknown,
   path: string
 ): SourcedCaptureBoundaryDirection {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["value", "evidence"]);
   if (
     typeof record.value !== "string" ||
     !SCAN_DIRECTIONS.has(
@@ -218,11 +224,13 @@ function parseDirectionFact(
   };
 }
 
-function parseBoundarySchedule(
+/** Parses one exposure boundary schedule (opening or closing). Not a root export. */
+export function parseBoundarySchedule(
   value: unknown,
   path: string
 ): ExposureBoundarySchedule {
-  const record = requireRecord(value, path);
+  // unitVectorNative is the derived field of a resolved schedule; it may be passed back if it matches.
+  const record = requireRecord(value, path, ["kind", "directionNative", "traversalDurationSeconds", "unitVectorNative"]);
   if (
     typeof record.kind !== "string" ||
     !BOUNDARY_KINDS.has(record.kind as ExposureBoundarySchedule["kind"])
@@ -242,16 +250,29 @@ function parseBoundarySchedule(
           ".traversalDurationSeconds must be omitted for a simultaneous boundary."
       );
     }
+    if (record.unitVectorNative !== undefined) {
+      throw new InvalidScientificInputError(
+        path + ".unitVectorNative must be omitted for a simultaneous boundary."
+      );
+    }
 
     return { kind: "simultaneous" };
   }
 
+  const directionNative = parseDirectionFact(
+    record.directionNative,
+    path + ".directionNative"
+  );
+  if (record.unitVectorNative !== undefined) {
+    const supplied = requireRecord(record.unitVectorNative, path + ".unitVectorNative", ["x", "y"]);
+    const derived = scanVector(directionNative.value);
+    if (supplied.x !== derived.x || supplied.y !== derived.y) {
+      throw new InvalidConfigurationError(path + ".unitVectorNative must match directionNative.");
+    }
+  }
   return {
     kind: "uniform-linear-native-scan",
-    directionNative: parseDirectionFact(
-      record.directionNative,
-      path + ".directionNative"
-    ),
+    directionNative,
     traversalDurationSeconds: parseSecondsFact(
       record.traversalDurationSeconds,
       path + ".traversalDurationSeconds"

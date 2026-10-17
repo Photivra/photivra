@@ -97,7 +97,7 @@ export function parseCaptureColorTransformInput(value: unknown): CaptureColorTra
   const r = record(value, ["capture", "sourcePlaneId", "outputPlaneId", "outputImageStateId", "whiteBalance"]);
   const w = record(r.whiteBalance, ["kind", "channelBasis", "transform"]);
   let whiteBalance: CaptureColorWhiteBalance;
-  if (w.kind === "apply-resolved-rgb-gains") {
+  if (w.kind === "apply-resolved-rgb-gains" && w.transform === undefined) {
     const p = record(w.channelBasis, ["id", "version"]);
     whiteBalance = { kind: w.kind, channelBasis: { id: publicId(p.id), version: publicId(p.version) } };
   } else if (w.kind === "adopted-white-xyz-scaling" && w.channelBasis === undefined && w.transform !== undefined) {

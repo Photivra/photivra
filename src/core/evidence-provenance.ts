@@ -6,6 +6,7 @@
  * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
+import { rejectUnknownFields } from "./record-validation.js";
 import { InvalidConfigurationError } from "./configuration-error.js";
 
 type UnknownRecord = Record<string, unknown>;
@@ -67,10 +68,15 @@ const REUSE_STATUSES = new Set<EvidenceReuseStatus>([
   "photivra-owned"
 ]);
 
-function requireRecord(value: unknown, path: string): UnknownRecord {
+function requireRecord(
+  value: unknown,
+  path: string,
+  allowedKeys: readonly string[] | null
+): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new InvalidConfigurationError(`${path} must be an object.`);
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -98,7 +104,7 @@ export function parseEvidenceProvenance(
   value: unknown,
   path: string
 ): EvidenceProvenance {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["sourceOrigin", "sourceReference", "reuseStatus", "license", "note"]);
   const sourceOrigin = requireNonEmptyString(record, "sourceOrigin", path);
   const sourceReference = requireNonEmptyString(
     record,

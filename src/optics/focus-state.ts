@@ -23,7 +23,7 @@ import {
   calculateThinLensImageDistance,
   type ThinLensImageDistance
 } from "./thin-lens.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 
 /**
  * Explicit ideal focus-plane state.
@@ -48,7 +48,11 @@ export interface CalculateFocusPlaneImageDistanceInput {
   focus: FocusPlane;
 }
 
-function requireRecord(value: unknown, path: string): Record<string, unknown> {
+function requireRecord(
+  value: unknown,
+  path: string,
+  allowedKeys: readonly string[] | null
+): Record<string, unknown> {
   if (
     typeof value !== "object" ||
     value === null ||
@@ -58,6 +62,7 @@ function requireRecord(value: unknown, path: string): Record<string, unknown> {
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as Record<string, unknown>;
 }
 
@@ -67,7 +72,7 @@ function requireRecord(value: unknown, path: string): Record<string, unknown> {
  * Missing or unknown focus is rejected. It is never read as infinity.
  */
 export function parseFocusPlane(value: unknown): FocusPlane {
-  const record = requireRecord(value, "focusPlane");
+  const record = requireRecord(value, "focusPlane", ["kind", "distanceM"]);
 
   if (record.kind === "infinity") {
     if (record.distanceM !== undefined) {

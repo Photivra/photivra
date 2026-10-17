@@ -47,7 +47,7 @@ import type {
   SensorSpatioSpectralIrradianceReduction,
   SensorSpatioSpectralWavelengthReduction
 } from "./spatio-spectral-reduction.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -232,7 +232,8 @@ function addCompensated(
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -243,6 +244,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -352,8 +354,9 @@ function parseUncertainty(
 ): SensorSpectralResponseUncertainty {
   const record = requireRecord(
     value,
-    path
+    path, null
   );
+  rejectUnknownVariantFields(record, "kind", UNCERTAINTY_VARIANT_FIELDS, path);
 
   if (record.kind === "relative") {
     const fraction =
@@ -396,16 +399,18 @@ function parseElectricalConditions(
 ): SensorResponsivityElectricalConditions {
   const record = requireRecord(
     value,
-    path
+    path, ["bias", "readoutLoad"]
   );
   const bias = requireRecord(
     record.bias,
-    path + ".bias"
+    path + ".bias", null
   );
+  rejectUnknownVariantFields(bias, "kind", { "zero-bias-photovoltaic": ["kind"], "reverse-biased": ["kind", "magnitudeVolts"] }, path + ".bias");
   const readoutLoad = requireRecord(
     record.readoutLoad,
-    path + ".readoutLoad"
+    path + ".readoutLoad", null
   );
+  rejectUnknownVariantFields(readoutLoad, "kind", { "virtual-ground-current-readout": ["kind"], "finite-input-impedance": ["kind", "inputImpedanceOhms"] }, path + ".readoutLoad");
 
   const parsedBias:
     SensorResponsivityBiasCondition =
@@ -474,8 +479,9 @@ function parseConditionPolicy(
 ): SensorResponsivityElectricalConditionPolicy {
   const record = requireRecord(
     value,
-    path
+    path, null
   );
+  rejectUnknownVariantFields(record, "kind", { "exact-match-required": ["kind"], "assume-compatible": ["kind", "limitation", "evidence"] }, path);
 
   if (
     record.kind ===
@@ -525,7 +531,7 @@ export function parseSensorResponsivityElectricalApplicabilityProfile(
 ): SensorResponsivityElectricalApplicabilityProfile {
   const record = requireRecord(
     value,
-    "sensorResponsivityElectricalApplicability"
+    "sensorResponsivityElectricalApplicability", ["schemaVersion", "outputMeaning", "scientificStatus", "uncertainty", "profileId", "responseApplicationProfileId", "spectralResponseProfileId", "colorSamplingProfileId", "channelId", "referenceConditions", "conditionPolicy", "evidence"]
   );
 
   if (

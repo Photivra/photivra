@@ -6,6 +6,7 @@
  * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
+import { rejectUnknownFields } from "./record-validation.js";
 import { InvalidConfigurationError } from "./configuration-error.js";
 
 type UnknownRecord = Record<string, unknown>;
@@ -39,7 +40,8 @@ export interface SpectralWavelengthRangeNanometers {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -50,6 +52,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -95,7 +98,7 @@ export function parseSpectralWavelengthSample(
   value: unknown,
   path = "spectralSample"
 ): SpectralWavelengthSample {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["wavelengthNanometers"]);
   return {
     wavelengthNanometers:
       requirePositiveFinite(
@@ -112,7 +115,7 @@ export function parseSpectralWavelengthRangeNanometers(
   value: unknown,
   path = "wavelengthRangeNanometers"
 ): SpectralWavelengthRangeNanometers {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["minimum", "maximum"]);
   const minimum = requirePositiveFinite(
     record.minimum,
     path + ".minimum"

@@ -24,7 +24,7 @@ import type {
   ResolvedGenericEquipmentExposureCapabilities,
   ResolvedNumericSettingGrid
 } from "./exposure-capabilities.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -169,7 +169,8 @@ export interface ResolvedIsoCapability {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -180,6 +181,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -221,7 +223,7 @@ function parseRange(
   path: string
 ): IsoExposureIndexRange {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["minimum", "maximum"]);
   const minimum =
     requirePositiveFinite(
       record.minimum,
@@ -265,7 +267,8 @@ function parseGrid(
   path: string
 ): IsoStandardSettingGrid {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", { "continuous-within-range": ["kind"], "discrete-values": ["kind", "values"] }, path);
   if (
     record.kind ===
     "continuous-within-range"
@@ -372,7 +375,7 @@ function parseAutoIso(
   path: string
 ): IsoAutoIsoCapability {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["availability", "evidence", "standardExposureIndexRange"]);
   const availability =
     parseAvailability(
       record.availability,
@@ -439,7 +442,7 @@ function parseExpandedSetting(
   path: string
 ): IsoExpandedSetting {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["direction", "exposureIndexEquivalent", "autoIsoEligible", "settingId", "label", "evidence"]);
   const direction =
     record.direction;
   if (
@@ -517,7 +520,7 @@ function parseCaptureModePolicy(
   path: string
 ): IsoCaptureModePolicy {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["standardExposureIndexRange", "expandedSettingIds", "captureModeId", "autoIso", "evidence"]);
   const modeRange =
     parseRange(
       record
@@ -619,7 +622,7 @@ export function parseIsoCapabilityProfile(
   const record =
     requireRecord(
       value,
-      "isoCapabilityProfile"
+      "isoCapabilityProfile", ["schemaVersion", "capabilityMeaning", "standard", "expandedSettings", "captureModePolicies", "profileId", "profileVersion", "autoIso", "evidence"]
     );
   if (
     record.schemaVersion !==
@@ -642,7 +645,7 @@ export function parseIsoCapabilityProfile(
   const standard =
     requireRecord(
       record.standard,
-      "isoCapabilityProfile.standard"
+      "isoCapabilityProfile.standard", ["exposureIndexRange", "settingGrid"]
     );
   const standardRange =
     parseRange(

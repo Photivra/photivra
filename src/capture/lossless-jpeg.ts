@@ -10,6 +10,7 @@
  * Rejected: hierarchical/DCT/arithmetic frames, multiple scans, subsampled components, truncated data.
  */
 
+import { rejectUnknownFields } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** Decoded lossless JPEG samples, interleaved by component within each line (line, x, component). */
@@ -58,6 +59,8 @@ function buildTable(counts: Uint8Array, values: Uint8Array): HuffmanTable {
  */
 export function parseLosslessJpeg(bytes: Uint8Array, limits: LosslessJpegLimits): LosslessJpegImage {
   if (!(bytes instanceof Uint8Array)) fail("input must be a Uint8Array.");
+  if (limits === null || typeof limits !== "object" || Array.isArray(limits)) fail("limits must be an object.");
+  rejectUnknownFields(limits, ["maximumSamples", "legacySixteenBitDifference"], "Lossless JPEG limits");
   if (!Number.isSafeInteger(limits.maximumSamples) || limits.maximumSamples < 1) fail("invalid sample limit.");
   const length = bytes.length;
   if (length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) fail("missing SOI marker.");

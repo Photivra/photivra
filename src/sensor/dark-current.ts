@@ -33,7 +33,7 @@ import type {
   SensorSpectralResponseScientificStatus,
   SensorSpectralResponseUncertainty
 } from "./spectral-response.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -185,7 +185,8 @@ export type SensorPhotoDarkCurrentCharge = SensorDarkCurrentCharge | SensorTempo
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -196,6 +197,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -266,7 +268,8 @@ function parseUncertainty(
   path: string
 ): SensorSpectralResponseUncertainty {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", UNCERTAINTY_VARIANT_FIELDS, path);
 
   if (record.kind === "relative") {
     const fraction =
@@ -313,13 +316,14 @@ function parseSiteApplicability(
 ): SensorDarkCurrentSiteApplicability {
   const record = requireRecord(
     value,
-    "sensorDarkCurrent.siteApplicability"
+    "sensorDarkCurrent.siteApplicability", null
   );
+  rejectUnknownVariantFields(record, "kind", { "exact-site": ["kind", "site"], "uniform-site-mean-approximation": ["kind", "limitation", "evidence"] }, "sensorDarkCurrent.siteApplicability");
 
   if (record.kind === "exact-site") {
     const site = requireRecord(
       record.site,
-      "sensorDarkCurrent.siteApplicability.site"
+      "sensorDarkCurrent.siteApplicability.site", ["x", "y"]
     );
     return {
       kind: "exact-site",
@@ -365,8 +369,13 @@ function parseTemperatureModel(
 ): SensorDarkCurrentTemperatureModel {
   const record = requireRecord(
     value,
-    "sensorDarkCurrent.temperatureModel"
+    "sensorDarkCurrent.temperatureModel", null
   );
+  rejectUnknownVariantFields(record, "kind", {
+    "fixed-reference-temperature": ["kind", "referenceTemperatureC", "darkCurrentElectronsPerSecond"],
+    "piecewise-linear-temperature-table": ["kind", "interpolation", "outsideRangeBehavior", "samples"],
+    "log-linear-temperature-table": ["kind", "interpolation", "outsideRangeBehavior", "samples"]
+  }, "sensorDarkCurrent.temperatureModel");
 
   if (
     record.kind ===
@@ -436,7 +445,7 @@ function parseTemperatureModel(
           sample,
           "sensorDarkCurrent.temperatureModel.samples[" +
             index +
-            "]"
+            "]", ["temperatureC", "darkCurrentElectronsPerSecond"]
         );
         const temperatureC =
           requireFinite(
@@ -518,7 +527,7 @@ export function parseSensorDarkCurrentProfile(
 ): SensorDarkCurrentProfile {
   const record = requireRecord(
     value,
-    "sensorDarkCurrent"
+    "sensorDarkCurrent", ["schemaVersion", "chargeMeaning", "scientificStatus", "darkCurrentCompensationIncluded", "spatialDarkCurrentNonuniformityModeled", "uncertainty", "siteApplicability", "profileId", "colorSamplingProfileId", "channelId", "evidence", "temperatureModel"]
   );
 
   if (

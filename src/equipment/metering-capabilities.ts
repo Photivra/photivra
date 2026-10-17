@@ -22,7 +22,7 @@ import {
   type ExposureMeteringProfile
 } from "../exposure/metering.js";
 import type { GenericCapabilityAvailability } from "./exposure-capabilities.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -92,7 +92,8 @@ const POLICY_KINDS =
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -103,6 +104,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -166,7 +168,7 @@ export function parseGenericBodyMeteringCapabilityProfile(
 ): GenericBodyMeteringCapabilityProfile {
   const record = requireRecord(
     value,
-    "genericBodyMeteringCapabilityProfile"
+    "genericBodyMeteringCapabilityProfile", ["schemaVersion", "scientificStatus", "supportedMeteringProfiles", "spotFocusPointLinkage", "profileId", "profileVersion", "evidence"]
   );
 
   if (
@@ -208,7 +210,7 @@ export function parseGenericBodyMeteringCapabilityProfile(
           index +
           "]";
         const item =
-          requireRecord(entry, path);
+          requireRecord(entry, path, ["meteringProfileId", "policyKind", "evidence"]);
         return {
           meteringProfileId:
             requireNonEmptyString(
@@ -246,7 +248,7 @@ export function parseGenericBodyMeteringCapabilityProfile(
   const spotLink =
     requireRecord(
       record.spotFocusPointLinkage,
-      "genericBodyMeteringCapabilityProfile.spotFocusPointLinkage"
+      "genericBodyMeteringCapabilityProfile.spotFocusPointLinkage", ["availability", "evidence"]
     );
 
   return {

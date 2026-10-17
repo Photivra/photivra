@@ -33,7 +33,7 @@ import type {
 import type {
   SensorResponsivityPhotocurrent
 } from "./responsivity-photocurrent.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -164,7 +164,8 @@ export type SensorStationaryRateExposureIntegration =
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -175,6 +176,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -241,7 +243,7 @@ export function parseSensorRateTemporalStationarityProfile(
 ): SensorRateTemporalStationarityProfile {
   const record = requireRecord(
     value,
-    "sensorRateTemporalStationarity"
+    "sensorRateTemporalStationarity", ["schemaVersion", "rateDomain", "site", "localExposureWindow", "stationarityMeaning", "status", "limitation", "profileId", "colorSamplingProfileId", "channelId", "bindingId", "evidence"]
   );
 
   if (
@@ -265,12 +267,12 @@ export function parseSensorRateTemporalStationarityProfile(
 
   const site = requireRecord(
     record.site,
-    "sensorRateTemporalStationarity.site"
+    "sensorRateTemporalStationarity.site", ["x", "y"]
   );
   const localExposureWindow =
     requireRecord(
       record.localExposureWindow,
-      "sensorRateTemporalStationarity.localExposureWindow"
+      "sensorRateTemporalStationarity.localExposureWindow", ["timeReference", "startOffsetSecondsFromOpeningReference", "endOffsetSecondsFromOpeningReference"]
     );
 
   if (

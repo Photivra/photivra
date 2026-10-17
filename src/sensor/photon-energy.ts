@@ -27,7 +27,7 @@ import type {
   SensorSpectralResponseUncertainty,
   SpectralWavelengthBasis
 } from "./spectral-response.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -120,7 +120,8 @@ export interface PhotonEnergyFromWavelength {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -131,6 +132,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -184,7 +186,8 @@ function parseUncertainty(
   path: string
 ): SensorSpectralResponseUncertainty {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", UNCERTAINTY_VARIANT_FIELDS, path);
 
   if (record.kind === "relative") {
     const fraction =
@@ -245,7 +248,7 @@ function parseReferenceConditions(
   path: string
 ): AirRefractiveIndexReferenceConditions {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["temperatureC", "pressurePascal", "relativeHumidityFraction", "carbonDioxideMoleFraction"]);
 
   const temperatureC =
     requireFinite(
@@ -301,8 +304,9 @@ function parseConditionPolicy(
 ): AirRefractiveIndexConditionPolicy {
   const record = requireRecord(
     value,
-    "airConditionPolicy"
+    "airConditionPolicy", null
   );
+  rejectUnknownVariantFields(record, "kind", { "exact-match-required": ["kind"], "assume-compatible": ["kind", "limitation", "evidence"] }, "airConditionPolicy");
 
   if (
     record.kind === "exact-match-required"
@@ -390,7 +394,7 @@ export function parseSourcedAirPhaseRefractiveIndex(
 ): SourcedAirPhaseRefractiveIndex {
   const record = requireRecord(
     value,
-    "airPhaseRefractiveIndex"
+    "airPhaseRefractiveIndex", ["wavelengthBasis", "definition", "scientificStatus", "uncertainty", "referenceConditions", "wavelengthNanometers", "phaseRefractiveIndex", "evidence"]
   );
 
   if (

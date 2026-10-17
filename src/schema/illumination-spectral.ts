@@ -21,6 +21,7 @@ import type {
   SceneIlluminationSource
 } from "./illumination.js";
 import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { parseSceneIlluminationSource } from "./illumination.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export interface CreateSceneIlluminationSpectralCoverageParticipantInput {
@@ -196,6 +197,8 @@ export function resolveSceneIlluminationDiscreteLineMeasure(
     SceneIlluminationSource
 ): SceneIlluminationDiscreteLineMeasure {
   requireInputObject(source, "resolveSceneIlluminationDiscreteLineMeasure input");
+  // 2.0.0: the whole source is validated, so an unknown field at any level is rejected.
+  parseSceneIlluminationSource(source, "source");
   requireInputObject(source.spectrum, "source.spectrum");
   if (
     source.spectrum.kind !==

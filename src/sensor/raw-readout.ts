@@ -45,7 +45,7 @@ import type {
 import type {
   SensorSpectralResponseScientificStatus
 } from "./spectral-response.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 import {
   evaluateParsedFixedPatternSite,
   parseSensorFixedPatternNoiseProfile,
@@ -428,7 +428,8 @@ export interface SensorRawCodeSample {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -439,6 +440,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -571,7 +573,7 @@ function parsePositiveFact(
   path: string
 ): EvidenceBackedFact<number> {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["value", "evidence"]);
   return {
     value:
       requirePositiveFinite(
@@ -591,7 +593,7 @@ function parseNonNegativeFact(
   path: string
 ): EvidenceBackedFact<number> {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["value", "evidence"]);
   return {
     value:
       requireNonNegativeFinite(
@@ -622,7 +624,7 @@ export function parseSensorChargeSamplingProfile(
   const record =
     requireRecord(
       value,
-      "sensorChargeSamplingProfile"
+      "sensorChargeSamplingProfile", ["schemaVersion", "scientificStatus", "photoShotNoiseModel", "darkShotNoiseModel", "additionalComponentPolicies", "profileId", "completenessProfileId", "evidence", "limitations"]
     );
 
   if (
@@ -673,7 +675,7 @@ export function parseSensorChargeSamplingProfile(
         const policy =
           requireRecord(
             entry,
-            path
+            path, ["model", "componentId"]
           );
         if (
           policy.model !==
@@ -766,7 +768,7 @@ function parseReadNoiseComponent(
   path: string
 ): SensorElectronicReadNoiseComponent {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["componentId", "rmsElectrons", "evidence"]);
   return {
     componentId:
       requireNonEmptyString(
@@ -792,7 +794,7 @@ function parseIntegralNonLinearity(
   adcMaximumCode: number
 ): SensorAdcIntegralNonLinearity {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["kind", "knots", "evidence"]);
   if (
     record.kind !==
     "piecewise-linear-code-offset"
@@ -818,7 +820,7 @@ function parseIntegralNonLinearity(
         const knot =
           requireRecord(
             entry,
-            path + ".knots[" + index + "]"
+            path + ".knots[" + index + "]", ["code", "offsetCodes"]
           );
         return {
           code: requireFinite(
@@ -871,7 +873,7 @@ function parseExposureIndexGain(
   adcDigitalGain: number
 ): SensorReadoutExposureIndexGain {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["exposureIndex", "baseExposureIndex", "analogGain", "digitalGain", "conversionGainMode", "evidence"]);
   const exposureIndex =
     requirePositiveFinite(
       record.exposureIndex,
@@ -940,11 +942,11 @@ function parseRegime(
   path: string
 ): SensorReadoutConversionRegime {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["adc", "readNoiseComponents", "systemConversionGainElectronsPerCode", "exposureIndexGain", "regimeId", "scientificStatus", "preAdcSaturationElectronEquivalent", "evidence", "limitations"]);
   const adc =
     requireRecord(
       record.adc,
-      path + ".adc"
+      path + ".adc", ["bitDepth", "blackLevelCode", "digitalSaturationCode", "transfer", "digitalGain", "integralNonLinearity"]
     );
   const bitDepth =
     requireSafeInteger(
@@ -1147,7 +1149,7 @@ export function parseSensorReadoutConversionProfile(
   const record =
     requireRecord(
       value,
-      "sensorReadoutConversionProfile"
+      "sensorReadoutConversionProfile", ["schemaVersion", "regimeSelectionOwnedBy", "regimes", "profileId", "colorSamplingProfileId", "channelId", "evidence"]
     );
   if (
     record.schemaVersion !==

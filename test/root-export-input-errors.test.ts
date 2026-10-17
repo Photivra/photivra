@@ -111,21 +111,28 @@ describe("root exports reject malformed input with domain errors (API review #4)
     "createCieIlluminantASpectrum", "createSrgbIccProfile", "estimateCie1931ColorMatchingFunctions", "estimatedResult",
     "evaluateBt709InverseOetf", "evaluateBt709Oetf", "evaluateHlgInverseOetf", "evaluateHlgOetf", "evaluatePqEotf", "evaluatePqInverseEotf",
     "evaluateSrgbDecoding", "evaluateSrgbEncoding", "evaluateZernikePolynomial", "getImageFormationContract", "getPsfFoundationContract",
-    "resolveCaptureColorModel", "resolveChromaticAdaptationConeMatrix", "resolveRgbColorSpace", "resolveZernikeNollOrder"
+    "resolveCaptureColorModel", "resolveChromaticAdaptationConeMatrix", "resolveRgbColorSpace", "resolveZernikeNollOrder",
+    // Parsers of a string, an array or raw bytes rather than a record.
+    "parseColorimetricQuadratureNodes", "parseLensProjectionModel", "parseLosslessJpeg", "parseSpectralWavelengthBasis"
   ]);
-  const TAKES_A_RECORD = new Set([
-    // Take a whole engine or versioned record rather than an input object. Like the parse* functions
-    // (exempt by name), they validate the record's own schema and are not top-level strict yet.
+  /*
+   * 2.0.0: the parse*() record parsers and the functions that take a whole engine or versioned record
+   * are strict too. They name the path of the record and the field, for example
+   * `sceneIlluminationProfile has unknown field "unexpectedField".` (or, where an existing domain
+   * message is kept, `<message> Unknown field "unexpectedField".`).
+   */
+  const RECORD_FUNCTIONS = new Set([
     "assessMtfOnlyPsfRenderability", "assessRadiometryReadiness", "assessSceneMaterialResponseFidelity",
-    "calculateEffectiveSaturationCode", "createRollingShutterCaptureExposureSchedule", "createTtlScaledFlashProfile",
-    "integrateDiscreteSpectralLineMeasure", "calculateNativeRawRowBands", "prepareColorMatchingFunctions", "prepareColorimetricSpectrum",
-    "resolveAntiAliasingSpatialKernel", "resolveSceneIlluminationDiscreteLineMeasure", "serializeProductionImageFormationPlan",
-    "validateCalculationQuality"
+    "calculateNativeRawRowBands", "createRollingShutterCaptureExposureSchedule", "createTtlScaledFlashProfile", "integrateDiscreteSpectralLineMeasure",
+    "prepareColorMatchingFunctions", "prepareColorimetricSpectrum", "resolveAntiAliasingSpatialKernel",
+    "resolveSceneIlluminationDiscreteLineMeasure", "serializeProductionImageFormationPlan", "validateCalculationQuality"
   ]);
+  const namesUnknownField = (message: string | undefined): boolean => /unknown field "unexpectedField"/iu.test(message ?? "");
 
   it("classifies every root function, and every input-object function outside the lists rejects unknown fields", async () => {
     const unclassified: string[] = [];
     const misclassified: string[] = [];
+    const lenientRecords: string[] = [];
     for (const [name, fn] of rootFunctions) {
       let message: string | undefined;
       let isConfiguration = false;
@@ -137,11 +144,14 @@ describe("root exports reject malformed input with domain errors (API review #4)
         message = error instanceof Error ? error.message : undefined;
       }
       const shared = isConfiguration && message === `${name} input has unknown field "unexpectedField".`;
-      const listed = STRICT_WITH_DOMAIN_MESSAGE.has(name) || NO_INPUT_OBJECT.has(name) || TAKES_A_RECORD.has(name);
+      const takesRecord = (name.startsWith("parse") || RECORD_FUNCTIONS.has(name)) && !NO_INPUT_OBJECT.has(name);
+      const listed = STRICT_WITH_DOMAIN_MESSAGE.has(name) || NO_INPUT_OBJECT.has(name) || RECORD_FUNCTIONS.has(name);
+      if (takesRecord && !(isConfiguration && namesUnknownField(message))) lenientRecords.push(`${name}: ${message ?? "no error"}`);
       if (shared && listed) misclassified.push(name);
-      if (!shared && !listed && !name.startsWith("parse")) unclassified.push(`${name}: ${message ?? "no error"}`);
+      if (!shared && !listed && !takesRecord) unclassified.push(`${name}: ${message ?? "no error"}`);
     }
     expect(unclassified).toEqual([]);
     expect(misclassified).toEqual([]);
+    expect(lenientRecords).toEqual([]);
   });
 });
