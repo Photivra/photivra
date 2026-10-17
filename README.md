@@ -80,6 +80,7 @@ Repository `main` may describe newer, unreleased work. For the stable contract, 
 ## Documentation
 
 - [Quick Start: simulate a capture](https://github.com/Photivra/photivra/blob/main/docs/QUICK_START.md)
+- [Using Photivra from an agent](https://github.com/Photivra/photivra/blob/main/docs/AGENT_GUIDE.md)
 - [Usage Guide](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md)
 - [Architecture](https://github.com/Photivra/photivra/blob/main/docs/ARCHITECTURE.md)
 - [Contributor Guide](https://github.com/Photivra/photivra/blob/main/CONTRIBUTING.md)
