@@ -1,17 +1,37 @@
-# Standalone SDR rendering primitives: #112A
+# Standalone SDR rendering primitives
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+> **Release context.** This page was written for package 1.2.0 (root API 1.2.0) and has not been re-reviewed for later releases. The [changelog](../CHANGELOG.md) describes the current release. Model and subsystem version numbers on this page, and any dated records, are separate from the package version. See also the [developer guide](DEVELOPERS.md) and the [1.2.0 release contract](RELEASE_1_2_0.md).
 
-Current integration: [processed camera output](PROCESSED_OUTPUT.md) documents
-the shared preview/export path and explicit plan 0.6.0 post-RAW activation.
-The historical slice descriptions below retain their original scope.
+For the current, integrated picture, see [processed camera output](PROCESSED_OUTPUT.md). It documents the shared preview and export path, and the explicit post-RAW activation in plan 0.6.0. This page describes the original primitive (issue #112A) and keeps its original scope.
 
+## What it does
 
-This low-level primitive defines bounded deterministic post-capture SDR rendering. Merged capture/WB/correction adapters and production plan 0.7.0 now integrate it through [processed output](PROCESSED_OUTPUT.md), preserving domain/order and shared color/WB ownership.
+This low-level primitive renders a linear image to SDR (standard dynamic range), deterministically and within fixed limits. The capture, white-balance and correction adapters, and production plan 0.7.0, use it through [processed output](PROCESSED_OUTPUT.md). They keep its domains and order, and share ownership of colour and white balance.
 
-`calculateSdrRendering()` accepts a declared `color-transformed-linear-rgb` image state, `linear-srgb-d65` color-space identity, source state ID, co-sited interleaved RGB raster and relative reference-white value. `whiteBalanceHandling` must be `already-applied-upstream` or `not-required`. Intent-only/unresolved WB is rejected; this primitive never estimates/applies WB, converts XYZ/spectral/sensor RGB or changes lens-correction order. These input identities are producer declarations, not verification of upstream pixel fidelity. The capture adapter verifies them against the authoritative capture/profile history.
+## Input
 
-Profiles use schema `0.1.0`, public ID/version and explicit policies. No default tone/gamut/transfer or HDR mode is guessed. Inline samples are finite, dense and limited to 262144 values (at most 87381 RGB pixels); external storage/streaming/native-size processing remains outside this reference executor. Top-left raster origin, +X right/+Y down, tightly interleaved red/green/blue, row-major. Input is copied and never mutated.
+`calculateSdrRendering()` accepts:
+
+- a declared `color-transformed-linear-rgb` image state;
+- the `linear-srgb-d65` colour-space identity;
+- a source state ID;
+- a co-sited, interleaved RGB raster;
+- a relative reference-white value.
+
+**White balance (WB).** `whiteBalanceHandling` must be `already-applied-upstream` or `not-required`. WB that is only an intent, or unresolved, is rejected. This primitive never estimates or applies WB, never converts XYZ, spectral or sensor RGB, and never changes the order of lens corrections.
+
+These input identities are declarations by the producer; they do not verify that upstream pixels are correct. The capture adapter checks them against the authoritative capture and profile history.
+
+**Profiles.** Profiles use schema `0.1.0`, a public ID and version, and explicit policies. No default tone, gamut, transfer or HDR mode is guessed.
+
+**Samples.**
+
+- Inline samples must be finite and dense, and are limited to 262144 values (at most 87381 RGB pixels).
+- External storage, streaming and processing at native size are outside this reference executor.
+- Raster origin is top left, +X right and +Y down, with red, green and blue tightly interleaved, in row-major order.
+- The input is copied, and never changed.
+
+## Stages
 
 | Stage | Defined operation |
 | --- | --- |
@@ -22,12 +42,51 @@ Profiles use schema `0.1.0`, public ID/version and explicit policies. No default
 | Quantization | 8 or 16 bits, full range 0..(2^bits−1), nearest exact binary64 ties to larger code (`Math.round` on values in [0,1]; model `generic-sdr-rendering-reference` 0.2.0 replaced `Math.floor(x+0.5)`, which rounded 0.49999999999999994 up), no dither. Packing/file tags belong to the serializer. |
 | Display adaptation | Explicit external-platform seam, not applied; actual display capabilities are unknown. |
 
-The returned tone-mapped linear, gamut-bounded linear, transfer-encoded float and integer arrays let consumers inspect the stages independently. Diagnostics distinguish pre-tone negative/above-reference rendering samples, tone-changed samples and actual gamut-clipped samples. They count channel samples, not pixels. No sensor/full-well/ADC/RAW clipping is inferred; capture saturation is `not-consumed` here (RAW development reports `consumed-in-raw-development`). A source clipped upstream may have no output clipping, while an unsaturated source can clip in SDR output. The capture adapter retains upstream diagnostics independently.
+## Outputs and diagnostics
 
-Output declares output-referred SDR sRGB, RGB primary xy coordinates (0.64,0.33), (0.30,0.60), (0.15,0.06), D65 white xy (0.3127,0.3290), and the standard reference-white luminance assumption 80 cd/m². This is an encoding/reference convention, not evidence that the user's screen emits that luminance. Actual viewing surround/display tone/black, platform color management, HDR adaptation and display saturation remain external and unknown. Floating-point source headroom does not establish PQ/HLG/HDR encoding.
+The result returns separate arrays for each stage: tone-mapped linear, gamut-limited linear, transfer-encoded float, and integer codes. So you can inspect each stage on its own.
 
-The function touches no capture settings, physical radiometry/noise/saturation, metering, CFA/reconstruction, geometry, WB estimator, denoise/sharpen or resampling. It serves a common preview/processed-export rendering intent; it does not require screenshot/canvas reuse or promise byte-identical file/display backends. It does not replace #15C's authoritative **linear** export encoding: this primitive quantizes **transfer-encoded processed SDR** and does not replace the capture encoding API.
+**Diagnostics** separately count:
 
-Compatibility: root API main `0.96.0` → `0.97.0`; package/POC/production schemas unchanged. This is the historical introduction version, not the current release version. Current package/root API 1.0.1 uses aligned release identity; #112 is merged. Schema/profile changes preserve explicit domains and independent version identities.
+- rendering samples that were negative or above reference before tone mapping;
+- samples changed by the tone curve;
+- samples actually clipped by gamut handling.
 
-Research: [ICC sRGB encoding registry](https://registry.color.org/rgb-registry/srgb) defines the standard primaries, white/reference assumptions and component transfer equations. These public numerical facts/equations inform independently authored code/tests; no third-party implementation, ICC profile binaries, protected prose, calibration data or color tables are incorporated. Calculation provenance refers to deterministic rendering arithmetic, not physical/perceptual accuracy or commercial-camera calibration. Human science/provenance review and DCO contributor certification remain required before inclusion.
+They count channel samples, not pixels.
+
+**Capture saturation is a different thing.** No sensor, full-well, ADC or RAW clipping is inferred here. Capture saturation is `not-consumed` at this stage (RAW development reports `consumed-in-raw-development`). A source clipped upstream may show no output clipping, and an unclipped source can clip in the SDR output. The capture adapter keeps upstream diagnostics separately.
+
+**Declared output encoding.**
+
+- output-referred SDR sRGB;
+- RGB primaries at xy (0.64,0.33), (0.30,0.60), (0.15,0.06);
+- D65 white at xy (0.3127,0.3290);
+- the standard reference-white luminance assumption of 80 cd/m².
+
+This is an encoding and reference convention. It is not evidence that the user's screen emits that luminance. The viewing surround, the display's tone and black, platform colour management, HDR adaptation and display saturation all stay external and unknown. Floating-point headroom in the source does not create a PQ, HLG or HDR encoding.
+
+## Scope
+
+The function does not touch:
+
+- capture settings;
+- physical radiometry, noise or saturation;
+- metering;
+- CFA or reconstruction;
+- geometry;
+- the WB estimator;
+- denoising, sharpening or resampling.
+
+It gives preview and processed export a common rendering intent. It does not require reusing a screenshot or canvas, and does not promise byte-identical results across file and display backends.
+
+It does not replace the authoritative **linear** export encoding ([linear capture encoding](LINEAR_CAPTURE_ENCODING.md)). This primitive quantises **transfer-encoded, processed SDR**, and does not replace the capture encoding API.
+
+## Compatibility and sources
+
+- Root API on main went from `0.96.0` to `0.97.0`. Package, POC and production schemas did not change.
+- That was the version that introduced it, not the current release. Package and root API 1.0.1 use one aligned release version, and the processed-output work (#112) is merged.
+- Schema and profile changes keep explicit domains and independent version identities.
+
+**Research.** The [ICC sRGB encoding registry](https://registry.color.org/rgb-registry/srgb) defines the standard primaries, the white and reference assumptions, and the component transfer equations. These public numerical facts and equations informed independently written code and tests. No third-party implementation, ICC profile binaries, protected prose, calibration data or colour tables are included.
+
+The `calculated` provenance refers to the deterministic rendering arithmetic. It does not mean physical or perceptual accuracy, or commercial-camera calibration. Human review of science and provenance, and DCO contributor certification, are still required before inclusion.
