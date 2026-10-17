@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Requires a finite number greater than zero.
- * Requires a positive safe integer.
+ * Error types for invalid input and non-finite results, plus basic numeric input checks.
  * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
@@ -20,8 +18,8 @@ export class InvalidScientificInputError extends RangeError {
 }
 
 /**
- * Error thrown when a scientific calculation would return a non-finite
- * numeric value that is unsafe for JSON and downstream consumers.
+ * Error thrown when a calculation would return a non-finite number (NaN or ±Infinity).
+ * Such values cannot be stored in JSON and break downstream consumers.
  */
 export class InvalidScientificResultError extends RangeError {
   readonly code = "INVALID_SCIENTIFIC_RESULT";

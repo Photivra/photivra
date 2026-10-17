@@ -1,25 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validate the shared record/allowlist mechanics without choosing a domain's schema or diagnostics.
- * Returns the original record; does not clone, freeze, strip fields, require missing fields, or
- * validate child values. As with the existing domain parsers, the allowlist covers own enumerable
- * string keys.
- * Shared opaque public identity grammar: 1–128 ASCII characters, starting with an alphanumeric
- * character, followed by alphanumerics, dot, underscore, colon or hyphen. No trimming, case conversion
- * or path/URL interpretation occurs. A domain retains the meaning of the identity and its exact error
- * message.
+ * Shared input checks used by the domain parsers: plain-record and allowed-key checks, the
+ * public identifier grammar, and guards for the top-level argument of a public function.
+ * Each domain keeps its own schema and error messages.
  * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
 import { InvalidConfigurationError } from "./configuration-error.js";
 
 /**
- * Validate the shared record/allowlist mechanics without choosing a domain's
- * schema or diagnostics. Returns the original record; does not clone, freeze,
- * strip fields, require missing fields, or validate child values. As with the
- * existing domain parsers, the allowlist covers own enumerable string keys.
+ * Checks that a value is a plain record whose keys are all on an allowlist. The caller
+ * supplies the domain's schema and error messages.
+ *
+ * Returns the original record. It does not copy, freeze or strip fields, require missing
+ * fields, or check child values. Like the domain parsers, it checks own enumerable string keys.
  */
 export function requireAllowlistedRecord(
   value: unknown, allowedKeys: readonly string[], message: string
@@ -32,10 +27,11 @@ export function requireAllowlistedRecord(
 }
 
 /**
- * Shared opaque public identity grammar: 1–128 ASCII characters, starting with
- * an alphanumeric character, followed by alphanumerics, dot, underscore, colon
- * or hyphen. No trimming, case conversion or path/URL interpretation occurs.
- * A domain retains the meaning of the identity and its exact error message.
+ * Shared grammar for public identifiers: 1–128 ASCII characters. The first is a letter or
+ * digit. The rest are letters, digits, dot, underscore, colon or hyphen.
+ *
+ * The identifier is opaque: no trimming, case conversion or path/URL interpretation. Each
+ * domain decides what the identifier means and keeps its exact error message.
  */
 export function requirePublicOpaqueId(value: unknown, message: string): string {
   if (!isPublicOpaqueId(value)) {
@@ -50,9 +46,9 @@ export function isPublicOpaqueId(value: unknown): value is string {
 }
 
 /**
- * Root-function input guard: throws the domain InvalidConfigurationError (never a raw TypeError
- * from a property read) when a public function receives null, a primitive or an array where it
- * requires an input object. Does not validate fields.
+ * Guard for a public function's input object. If it receives null, a primitive or an array,
+ * it throws the domain's InvalidConfigurationError, never a raw TypeError from reading a
+ * property. It does not check fields.
  */
 export function requireInputObject(value: unknown, label: string): void {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
@@ -68,8 +64,8 @@ export function requireInputArray(value: unknown, label: string): void {
 }
 
 /**
- * Input object guard for simple scalar calculators that also rejects unknown keys, so a misspelled
- * or wrong-unit field (for example focusDistanceMm next to focusDistanceM) is never silently ignored.
+ * Input object guard for simple scalar calculators that also rejects unknown keys. A misspelled
+ * or wrong-unit field (for example focusDistanceMm instead of focusDistanceM) is never silently ignored.
  */
 export function requireInputKeys(value: unknown, functionName: string, allowedKeys: readonly string[]): void {
   requireInputObject(value, `${functionName} input`);
