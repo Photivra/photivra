@@ -2123,6 +2123,16 @@
       "kind": "type"
     },
     {
+      "name": "createDiffractionLimitedPsfProfile",
+      "source": "src/optics/diffraction-psf-profile.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateDiffractionLimitedPsfProfileInput",
+      "source": "src/optics/diffraction-psf-profile.ts",
+      "kind": "type"
+    },
+    {
       "name": "createDurandDorseyToneMappingTask",
       "source": "src/processing/tone-mapping.ts",
       "kind": "runtime"
@@ -2435,6 +2445,26 @@
     {
       "name": "DepthOfField",
       "source": "src/optics/depth-of-field.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DIFFRACTION_LIMITED_PSF_PROFILE_LIMITS",
+      "source": "src/optics/diffraction-psf-profile.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "DIFFRACTION_LIMITED_PSF_PROFILE_MODEL",
+      "source": "src/optics/diffraction-psf-profile.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "DiffractionLimitedPsfProfile",
+      "source": "src/optics/diffraction-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DiffractionLimitedPsfWavelength",
+      "source": "src/optics/diffraction-psf-profile.ts",
       "kind": "type"
     },
     {

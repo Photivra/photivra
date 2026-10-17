@@ -2,6 +2,16 @@
 
 ## 2.1.0 — unreleased
 
+### Added
+
+- **`createDiffractionLimitedPsfProfile`.** A sampled lens PSF profile (`LensSampledPsfProfile`) for an ideal, aberration-free, in-focus lens with a circular pupil: one unit-sum Airy kernel per wavelength on one shared grid. The engine integrates each cell from the circular-pupil OTF, reports the tail energy outside the window per wavelength, and renormalizes. Scalar Fraunhofer approximation; see `docs/PSF_FOUNDATION.md`.
+- **`simulateCapture` `lens.diffraction`.** Opt-in diffraction blur at the capture's resolved f-number (`"circular-aperture"`, optional `kernelRadiusSamples`). Stopping down now softens the image: at 128 × 128 the slanted-edge 10–90 % width grows from 1.49 px (no diffraction) to 1.56, 1.69 and 2.73 px at f/4, f/8 and f/16. `result.request.diffraction` holds the profile and how it was applied.
+- **`simulateCapture` `output.demosaic: "ahd"`.** Adaptive homogeneity-directed demosaicing (`createAhdDemosaicTask`) in the facade's development, which roughly halves false colour on sharp neutral chart edges.
+
+### Performance
+
+- **Diffraction as an object-space convolution.** For the facade's still, distortion-free planar scene, `lens.diffraction` convolves the scene radiance once per spectral node instead of querying the scene once per PSF tap. It gives the same expected signal as the per-tap environment PSF quadrature (to 1e-12 per site, tested) and takes 0.56 s instead of 13.1 s for a 48 × 48 capture at f/8 (4-vCPU Xeon, Node 24).
+
 ### Fixed
 
 - **`simulateCapture` cancellation in Web Workers.** 2.0.0 yielded to the host with `scheduler.yield()` where available. Its continuations run ahead of ordinary queued tasks (WICG Prioritized Task Scheduling, continuation priorities), so a worker's cancel message waited until the whole capture finished. The facade now yields with a `MessageChannel` message, else `setImmediate`, else `setTimeout`; queued tasks, including the caller's abort, run at the next yield, and the 4 ms timer clamp is still avoided (`src/facade/host-yield.ts`). Output is unchanged. Chromium 141 worker, 128 px capture cancelled after 100 ms, three rounds: 2.0.0 ignored the cancel and finished (2.12–2.34 s), now it aborts after one tile and the next 16 px request returns 0.15–0.20 s after the cancel; an uncancelled 128 px capture takes the same time (medians 2.17 s before, 2.16 s after, six alternating rounds).

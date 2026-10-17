@@ -71,6 +71,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `lens.distortion` | none | `{ kind: "radial", profile }` or `{ kind: "brown-conrady", profile }`. |
 | `lens.vignetting` | none | An `IlluminationVignettingProfile` (radial relative illumination). |
 | `lens.psf` | none | A `{ kind: "sampled-local", configuration }` sampled lens PSF, passed to the environment contract unchanged. |
+| `lens.diffraction` | off | 2.1: `"circular-aperture"` or `{ aperture: "circular-aperture", kernelRadiusSamples }`: diffraction blur of an ideal lens at the resolved f-number (see [Optics](#optics)). |
 | `exposure.mode` | `"manual"` | Also `"aperture-priority"`, `"shutter-priority"`, `"program"`. |
 | `exposure.iso` | 100 | Selects the body's ISO readout regime (gain and read noise). |
 | `exposure.shutterSeconds` | 1/125 | Used in `manual` and `shutter-priority`. |
@@ -85,7 +86,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `output.bitDepth` | 8 | PNG only: 8 or 16. |
 | `output.gamutMapping` | `"clip"` | PNG only: or `"perceptual"`. |
 | `output.dng.capturedAtUtc` | none | DNG only: capture time for the date tags. |
-| `output.demosaic` | the 1.0 bilinear kernels | `"bilinear"` (see [Demosaic](#demosaic)). |
+| `output.demosaic` | the 1.0 bilinear kernels | `"bilinear"` or, from 2.1, `"ahd"` (see [Demosaic](#demosaic)). |
 | `output.borderHandling` | `"margin"` | Or `"mirror"`. |
 | `output.toneCurve` | `"identity"` | Any `SdrToneCurve`, for example `"positive-reinhard-per-channel"`. |
 | `output.toneCurveParameters` | none | Required by the luminance curves (`extended-reinhard-luminance`, `naka-rushton-luminance`); the facade invents no curve parameters. |
@@ -103,7 +104,8 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 
 Unknown fields are rejected, so a typo never silently falls back to a default.
 
-Every option added in 2.0 (PNG, demosaic, optics and motion) is opt-in. With none of them given, the
+Every option added in 2.0 (PNG, demosaic, optics and motion) and in 2.1 (`lens.diffraction`,
+`output.demosaic: "ahd"`) is opt-in. With none of them given, the
 request, RAW, samples and JPEG are byte-identical to the 1.0 facade at the same illuminance, and a
 test checks that. (The default illuminance changed before release; see [Exposure](#exposure).)
 
@@ -217,14 +219,14 @@ These choices appear in `assumptions` as `kind: "model"` entries:
   lens capability. By default no PSF (point-spread function) or diffraction, vignetting, distortion,
   lateral colour or stray light is applied. The tier's optical data exist only at f/4 and 5 m, and
   the facade does not extrapolate them. Vignetting, distortion and PSF are applied only from profiles
-  you supply.
+  you supply; diffraction of an ideal lens only with `lens.diffraction` (2.1).
 - **Sensor.** Square pixels with a fill factor of 1 and no anti-aliasing filter. A global
   electronic shutter unless `motion.shutter` is `"rolling"`. A synthetic uniform dark current of
   1 e⁻/s at 20 °C (the tiers declare none). The charge capacity equals the body's base-ISO saturation signal.
 - **Demosaic.** Bilinear RGGB interpolation through the existing linear-kernel contract, unless
-  `output.demosaic` selects a built-in kernel. (Demosaicing fills in the two missing colours at each
+  `output.demosaic` selects a built-in kernel or AHD. (Demosaicing fills in the two missing colours at each
   pixel of a colour-filter mosaic.) Sharp edges without lens blur therefore show the usual zipper and
-  false-colour artefacts.
+  false-colour artefacts; `"ahd"` and `lens.diffraction` reduce them.
 - **Scene.** A planar Lambertian surface: radiance = reflectance × irradiance / π, with illuminance
   from K_m = 683 lm/W and the analytic ȳ. No shadows, inter-reflection, gloss or fluorescence.
 - **Rendering.** Linear sRGB with RAW white at display white, no exposure push, out-of-gamut
@@ -323,9 +325,23 @@ console.log(dng.width, dng.activeArea, dng.whiteLevel, dng.codes.length === shot
 
 ## Demosaic
 
-`output.demosaic` selects the built-in Bayer kernels of `createBuiltInBayerDemosaicProfiles`:
-`"bilinear"` (nearest same-channel averages; pixel-identical to the default). The Malvar–He–Cutler
-kernels are not in 2.0 (a patent is still in force; see
+`output.demosaic` selects:
+
+- `"bilinear"`: the built-in Bayer kernels of `createBuiltInBayerDemosaicProfiles` (nearest same-channel
+  averages; pixel-identical to the default).
+- `"ahd"` (2.1): adaptive homogeneity-directed demosaicing, `createAhdDemosaicTask` (after Hirakawa &
+  Parks, *IEEE Trans. Image Processing* 14(3), 2005). Green is interpolated along rows and along columns,
+  red and blue follow from colour differences, and each pixel takes the more homogeneous of the two
+  candidates in CIELAB. It is non-linear and edge-directed, so it shows much less zipper and false colour
+  on sharp edges than bilinear (mean false colour of a neutral 32 × 32 Siemens star: 138 instead of 209
+  8-bit codes; slanted edge: 5.3 instead of 11.4). The RAW sites are normalized and white-level clipped
+  exactly as in the native development, the homogeneity is measured on white-balanced colour, and the
+  native development's colour operator and SDR kernel follow. The paper's iterative median step is not
+  applied. With `"margin"` borders the sensor gets 5 extra sites per side (an AHD pixel depends on sites
+  up to 5 away); `request.development` keeps the bilinear kernels, which validate the development but do
+  not produce the pixels.
+
+The Malvar–He–Cutler kernels are not offered (a patent is still in force; see
 [PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)).
 
 `output.borderHandling` decides how edge pixels get their neighbours:
@@ -365,6 +381,25 @@ The optics options feed only what the environment site contract accepts:
   1 + r2·ρ² + r4·ρ⁴ + r6·ρ⁶, applied once at the physical sensor point before any PSF.
 - `lens.psf` is a caller sampled PSF passed through unchanged. Its focal length, f-number and focus
   must equal the resolved capture settings exactly, and it cannot be combined with pupil sampling.
+- `lens.diffraction` (2.1) adds the diffraction blur of an ideal lens at the capture's resolved
+  f-number, so stopping down now softens the image as well as darkening it.
+  - The engine builds the kernels (`createDiffractionLimitedPsfProfile`): the Airy pattern of a uniformly
+    lit circular pupil (scalar Fraunhofer diffraction), aberration-free and in focus, with pupil diameter
+    f/N and the thin-lens image distance (working f-number N·v/f). Each kernel holds the PSF energy of
+    site-sized cells, one kernel per spectral node.
+  - The kernel window reaches the third dark ring at the longest node by default (2, 4 and 7 sites at
+    f/4, f/8 and f/16 with 6 µm pixels); set `kernelRadiusSamples` (0–32) to change it. The Airy tail
+    outside the window (2–5 % of the energy with the default) is listed per wavelength in the
+    `lens.diffraction` assumption and put back by renormalizing each kernel to unit sum.
+  - It runs as an object-space convolution: the scene radiance on the site lattice is convolved once per
+    spectral node and the provider answers each site query with it. That is the same sum as the
+    environment PSF quadrature (one scene query per kernel tap) for this still, distortion-free planar
+    scene; a test checks it to 1e-12 per site. With camera rotation, a projection or distortion, or
+    vignetting, the per-tap quadrature runs instead (much slower). `request.diffraction` holds the profile,
+    the equivalent `sampled-local` PSF and which execution ran.
+  - Not modelled: defocus, aberrations, pupil clipping, a polygonal (bladed) aperture (the tiers declare
+    no blade count) and the pixel aperture (each site is still sampled at its centre). It cannot be
+    combined with `lens.psf` or `lens.pupilSampling`.
 
 The default frame is a 0.38 mm crop behind a 50 mm lens, a field of well under a degree. Projection
 and distortion effects therefore only become visible with larger pixels (or a custom lens). The
@@ -395,6 +430,18 @@ const lensy = await simulateCapture({
   output: { width: 8, height: 8 }
 });
 console.log(lensy.request.siteInput(0).environment.lensFieldMapping, lensy.assumptions.find((a) => a.id === "lens.vignetting")?.kind);
+```
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const stoppedDown = await simulateCapture({
+  scene: { preset: "siemens-star" },
+  lens: { fNumber: 16, diffraction: "circular-aperture" },
+  exposure: { shutterSeconds: 1 / 30 },
+  output: { width: 48, height: 48, demosaic: "ahd" }
+});
+console.log(stoppedDown.request.diffraction?.execution, stoppedDown.request.diffraction?.profile.maximumTruncatedEnergyFraction);
 ```
 
 ## Motion
@@ -449,6 +496,12 @@ Measured on a 4-core Linux host running Node 24 (slanted edge, default settings 
 The 1000 × 1000 row is not a measurement. It multiplies the 256 × 256 CPU cost per site by the site
 count. Before the lean executor, the same 64 × 64 capture took about 6.0 s of CPU on this host, and
 128 × 128 about 20.6 s. Development and encoding are a small part of the total.
+
+The 2.1 options, measured on the same kind of host (4-vCPU Intel Xeon 2.80 GHz, Node 24, median of three
+runs, slanted edge and Siemens star): at 48 × 48, default 0.38–0.45 s, `lens.diffraction` 0.49–0.71 s
+(f/4–f/16), `"ahd"` 0.48–0.63 s, both 0.60–0.87 s; at 128 × 128, default 2.1–2.3 s, diffraction
+2.5–3.4 s, AHD 2.4–2.5 s, both 2.8–4.0 s. The same diffraction through the per-tap environment quadrature
+took 13.1 s at 48 × 48, f/8.
 
 These numbers come from one run on one machine. They are not a performance claim. Small captures
 (up to about 128 × 128) take a few seconds. Use them while you explore, and render large images only
