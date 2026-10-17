@@ -1,17 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
- * missing required fields and inconsistent scientific data are rejected. A/W response
- * converts per-bin radiant power to quasi-static detector-terminal current magnitude. Electrical
- * bias/load applicability is explicit. This is not EQE, electron rate, transimpedance voltage or RAW;
- * rapidly varying current requires a separate temporal detector-response model.
- * Integrate per-wavelength A/W times radiant-power contributions to steady-state current magnitude
- * with explicit electrical applicability. A/W response converts per-bin radiant power to quasi-static
- * detector-terminal current magnitude. Electrical bias/load applicability is explicit. This is not
- * EQE, electron rate, transimpedance voltage or RAW; rapidly varying current requires a separate
- * temporal detector-response model.
+ * Responsivity photocurrent: converts light power to detector current using responsivity in amperes
+ * per watt (A/W).
+ *
+ * For each wavelength bin, current = responsivity × radiant power; the bins are summed. The result is
+ * the steady (quasi-static) current magnitude at the detector terminals. The electrical bias and load
+ * conditions under which the responsivity applies are explicit. This is not EQE, an electron rate, a
+ * transimpedance voltage or RAW. Fast-changing current needs a separate time-dependent detector model.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -149,7 +145,7 @@ export interface SensorResponsivityPhotocurrent {
   operatingRangeProfileId: string;
   electricalApplicabilityProfileId:
     string;
-  /** Engine-produced results populate the exact source color site. */
+  /** The exact source colour site. Results produced by the engine fill this in. */
   site?: {
     x: number;
     y: number;
@@ -518,9 +514,7 @@ function parseConditionPolicy(
  * Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
  * missing required fields and inconsistent scientific data are rejected.
  *
- * A/W response converts per-bin radiant power to quasi-static detector-terminal current magnitude.
- * Electrical bias/load applicability is explicit. This is not EQE, electron rate, transimpedance
- * voltage or RAW; rapidly varying current requires a separate temporal detector-response model.
+ * The profile states the electrical bias and load conditions under which an A/W responsivity applies.
  * @param value - Untrusted data. TypeScript types alone are not validation.
  * @returns The result. Success does not imply calibration.
  *
@@ -630,8 +624,8 @@ export function parseSensorResponsivityElectricalApplicabilityProfile(
 }
 
 /**
- * Key-order-independent identity of parsed plain data, so semantically equal
- * records compare equal regardless of property insertion order.
+ * Identity string for parsed plain data that ignores key order, so records with
+ * the same content compare equal whatever order their properties were added in.
  */
 function canonicalJson(
   value: unknown
@@ -1151,12 +1145,11 @@ function validateElectricalBinding(
 }
 
 /**
- * Integrate per-wavelength A/W times radiant-power contributions to steady-state current magnitude
- * with explicit electrical applicability.
+ * Sums responsivity (A/W) × radiant power over wavelength bins to get the steady current magnitude,
+ * under explicit electrical conditions.
  *
- * A/W response converts per-bin radiant power to quasi-static detector-terminal current magnitude.
- * Electrical bias/load applicability is explicit. This is not EQE, electron rate, transimpedance
- * voltage or RAW; rapidly varying current requires a separate temporal detector-response model.
+ * This is not EQE, an electron rate, a transimpedance voltage or RAW. Fast-changing current needs a
+ * separate time-dependent detector model.
  * @param input - The input; see `CalculateSensorResponsivityPhotocurrentInput` for its fields, units and coordinates.
  * @returns The result. Success does not imply calibration.
  *
