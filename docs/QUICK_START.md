@@ -50,7 +50,7 @@ the example above is [simulate-capture.mjs](examples/simulate-capture.mjs).
 | `request` | The complete underlying request: `environmentRaw` (the native environment RAW input), `siteInput(index)` (rebuilds the physical input of any sensor site), `development` (the RAW development input) and `whiteBalanceState` |
 | `exposure` | Mode, resolved settings, EV100, metered scene luminance and the exposure-mode resolver's full output |
 | `scene` | Chart parameters, illuminant, distance, framed size and the scene's SHA-256 digest (it covers caller illuminant and reflectance spectra; see `sourceSha256`) |
-| `diagnostics` | Radiance query count, highlight and rendering counters, and timings |
+| `diagnostics` | Radiance query count, highlight and rendering counters, per-stage timings (`timingsMs`) and, from 2.1, the opt-ins that ran (`options`); see [Measuring cost on the user's device](#measuring-cost-on-the-users-device) |
 | `provenance` | Status (`approximation`), camera preset identity, evidence, the composed contracts in order, and limitations |
 | `assumptions` | Every default, derived value and fixed modelling choice, each with an explanation |
 
@@ -554,6 +554,30 @@ took 13.1 s at 48 × 48, f/8.
 These numbers come from one run on one machine. They are not a performance claim. Small captures
 (up to about 128 × 128) take a few seconds. Use them while you explore, and render large images only
 when you need them.
+
+### Measuring cost on the user's device
+
+From 2.1 every result says what ran and how long each stage took, so an application can decide on the
+user's own device which options to offer:
+
+- `diagnostics.options` lists the opt-ins that changed the work of the run, in the fixed order of
+  `SIMULATE_CAPTURE_COST_OPTIONS` (for example `["lens.diffraction", "sensor.antiAliasing",
+  "output.demosaic.ahd", "output.format.png"]`). It is empty when every default is used.
+- `diagnostics.timingsMs` has `raw`, `whiteBalance` (the second RAW pass of `whiteBalance: "auto"`),
+  `development` (includes DNG writing), `jpeg` and `total` in whole milliseconds, and, where the stage
+  ran, `diffraction` (the object-space convolution, part of `raw`), `demosaic` (the AHD demosaic, part
+  of `development`) and `encode` (PNG, JPEG or DNG serialization), with sub-millisecond resolution where
+  the host has `performance.now()`.
+
+Timings change from run to run, but nothing else does: they never enter the scene digest, the RAW,
+the samples or the encoded files, and a test checks that two runs differ only in `timingsMs`.
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const probe = await simulateCapture({ scene: { preset: "slanted-edge" }, output: { width: 32, height: 32, demosaic: "ahd" } });
+console.log(probe.diagnostics.options, probe.diagnostics.timingsMs.total, probe.diagnostics.timingsMs.demosaic);
+```
 
 ## Not available
 

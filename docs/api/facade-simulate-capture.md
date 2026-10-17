@@ -2,6 +2,18 @@
 
 The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
+## SIMULATE_CAPTURE_COST_OPTIONS
+
+Options reported in `diagnostics.options` (2.1), in this order, when they ran: the ones that change how much work
+a capture does. `motion.rotation` is a non-zero angular velocity; `sensor.temporalSampleCount` a count above 1.
+
+```ts
+SIMULATE_CAPTURE_COST_OPTIONS = Object.freeze(["lens.pupilSampling", "lens.projection", "lens.distortion", "lens.vignetting", "lens.psf",
+  "lens.diffraction", "sensor.antiAliasing", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror",
+  "output.whiteBalance.auto", "output.demosaic.ahd", "output.highlightMode.reconstruct", "output.colorEncoding.wide-gamut", "output.gamutMapping.perceptual",
+  "output.format.jpeg", "output.format.png", "output.format.dng"] as const)
+```
+
 ## SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX
 
 Default illuminance, lux: an 18 % Lambertian grey card (L = 0.18·E/π) then gets exactly the CIPA DC-004 standard
@@ -68,6 +80,14 @@ PQ and HLG (BT.2100) are not part of 2.0; see THIRD_PARTY.md.
 
 ```ts
 export type SimulateCaptureColorEncoding = "srgb" | "display-p3" | "rec2020";
+```
+
+## SimulateCaptureCostOption
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export type SimulateCaptureCostOption = typeof SIMULATE_CAPTURE_COST_OPTIONS[number];
 ```
 
 ## SimulateCaptureDemosaic
@@ -317,7 +337,20 @@ export interface SimulateCaptureResult {
     rendering: SdrRenderingResult["diagnostics"];
     /** Present with output.gamutMapping "perceptual": pixels whose chroma or lightness the mapping changed. */
     gamutMapping?: { method: "cielab-hue-preserving-chroma-compression"; kneeFraction: number; adjustedPixelCount: number; lightnessClippedPixelCount: number };
-    timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number };
+    /**
+     * Wall-clock milliseconds per stage. `raw`, `whiteBalance` (the second RAW pass of auto white balance), `development`
+     * (includes DNG writing), `jpeg` and `total` are whole milliseconds (`Date.now()`). Since 2.1, where a stage ran:
+     * `diffraction` (the object-space convolution of `lens.diffraction`; part of `raw` and `whiteBalance`), `demosaic`
+     * (the AHD demosaic; part of `development`) and `encode` (PNG, JPEG or DNG serialization), with sub-millisecond
+     * resolution where the host has `performance.now()`. Timings vary from run to run and never enter any digest or output byte.
+     */
+    timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number; diffraction?: number; demosaic?: number; encode?: number };
+    /**
+     * 2.1: the opt-in options that changed the work of this run, in a fixed order (see `SIMULATE_CAPTURE_COST_OPTIONS`).
+     * Empty for a capture with every default. With `timingsMs` it lets an application measure each option's cost on
+     * the user's device.
+     */
+    options: readonly SimulateCaptureCostOption[];
   };
   provenance: {
     scientificStatus: "approximation";

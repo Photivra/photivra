@@ -1138,12 +1138,14 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`SIMULATE_CAPTURE_COST_OPTIONS`](api/facade-simulate-capture.md#simulate_capture_cost_options) | Runtime |
 | [`SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX`](api/facade-simulate-capture.md#simulate_capture_default_illuminance_lux) | Runtime |
 | [`SIMULATE_CAPTURE_FACADE_VERSION`](api/facade-simulate-capture.md#simulate_capture_facade_version) | Runtime |
 | [`simulateCapture`](api/facade-simulate-capture.md#simulatecapture) | Runtime |
 | [`SimulateCaptureAssumption`](api/facade-simulate-capture.md#simulatecaptureassumption) | Type |
 | [`SimulateCaptureBorderHandling`](api/facade-simulate-capture.md#simulatecaptureborderhandling) | Type |
 | [`SimulateCaptureColorEncoding`](api/facade-simulate-capture.md#simulatecapturecolorencoding) | Type |
+| [`SimulateCaptureCostOption`](api/facade-simulate-capture.md#simulatecapturecostoption) | Type |
 | [`SimulateCaptureDemosaic`](api/facade-simulate-capture.md#simulatecapturedemosaic) | Type |
 | [`SimulateCaptureExposureMode`](api/facade-simulate-capture.md#simulatecaptureexposuremode) | Type |
 | [`SimulateCaptureLensDistortion`](api/facade-simulate-capture.md#simulatecapturelensdistortion) | Type |

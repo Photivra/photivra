@@ -255,6 +255,16 @@ export interface SimulateCaptureOptions {
   onProgress?: (progress: SimulateCaptureProgress) => void;
 }
 
+/**
+ * Options reported in `diagnostics.options` (2.1), in this order, when they ran: the ones that change how much work
+ * a capture does. `motion.rotation` is a non-zero angular velocity; `sensor.temporalSampleCount` a count above 1.
+ */
+export const SIMULATE_CAPTURE_COST_OPTIONS = Object.freeze(["lens.pupilSampling", "lens.projection", "lens.distortion", "lens.vignetting", "lens.psf",
+  "lens.diffraction", "sensor.antiAliasing", "sensor.temporalSampleCount", "motion.rotation", "motion.shutter.rolling", "output.borderHandling.mirror",
+  "output.whiteBalance.auto", "output.demosaic.ahd", "output.highlightMode.reconstruct", "output.colorEncoding.wide-gamut", "output.gamutMapping.perceptual",
+  "output.format.jpeg", "output.format.png", "output.format.dng"] as const);
+export type SimulateCaptureCostOption = typeof SIMULATE_CAPTURE_COST_OPTIONS[number];
+
 export interface SimulateCaptureProgress {
   stage: "raw" | "white-balance" | "development" | "jpeg";
   completedTileCount: number;
@@ -339,7 +349,20 @@ export interface SimulateCaptureResult {
     rendering: SdrRenderingResult["diagnostics"];
     /** Present with output.gamutMapping "perceptual": pixels whose chroma or lightness the mapping changed. */
     gamutMapping?: { method: "cielab-hue-preserving-chroma-compression"; kneeFraction: number; adjustedPixelCount: number; lightnessClippedPixelCount: number };
-    timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number };
+    /**
+     * Wall-clock milliseconds per stage. `raw`, `whiteBalance` (the second RAW pass of auto white balance), `development`
+     * (includes DNG writing), `jpeg` and `total` are whole milliseconds (`Date.now()`). Since 2.1, where a stage ran:
+     * `diffraction` (the object-space convolution of `lens.diffraction`; part of `raw` and `whiteBalance`), `demosaic`
+     * (the AHD demosaic; part of `development`) and `encode` (PNG, JPEG or DNG serialization), with sub-millisecond
+     * resolution where the host has `performance.now()`. Timings vary from run to run and never enter any digest or output byte.
+     */
+    timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number; diffraction?: number; demosaic?: number; encode?: number };
+    /**
+     * 2.1: the opt-in options that changed the work of this run, in a fixed order (see `SIMULATE_CAPTURE_COST_OPTIONS`).
+     * Empty for a capture with every default. With `timingsMs` it lets an application measure each option's cost on
+     * the user's device.
+     */
+    options: readonly SimulateCaptureCostOption[];
   };
   provenance: {
     scientificStatus: "approximation";
@@ -457,6 +480,8 @@ const DARK_CURRENT_ELECTRONS_PER_SECOND = 1;
 const OPERATING_TEMPERATURE_C = 20;
 
 function fail(message: string): never { throw new InvalidConfigurationError(message); }
+/** Diagnostic clock for the 2.1 stage timings: `performance.now()` where the host has it. Never affects output. */
+function clockMs(): number { return globalThis.performance?.now() ?? Date.now(); }
 function positive(value: unknown, name: string): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) fail(name + " must be a positive finite number.");
   return value as number;
@@ -560,7 +585,7 @@ function pngColourEncoding(encoding: SimulateCaptureColorEncoding): PngColourEnc
  * stops before tone mapping, gamut clipping and quantization. It reads the RAW without taking ownership.
  */
 async function developLinearSrgb(input: NativeRawDevelopmentInput, afterRow: (completed: number, total: number) => Promise<void>,
-  ahd?: { yieldControl: () => Promise<void>; checkAbort: () => void }): Promise<{ rgb: Float64Array; highlight: RawHighlightDiagnostics }> {
+  ahd?: { yieldControl: () => Promise<void>; checkAbort: () => void; onDemosaicMs?: (milliseconds: number) => void }): Promise<{ rgb: Float64Array; highlight: RawHighlightDiagnostics }> {
   const v = prepareNativeRawDevelopment(input), plan = v.plan, raw = input.raw, layout = plan.frame.colorSamplingProfile.layout;
   if (layout.kind !== "periodic-mosaic") fail("Development requires a periodic CFA.");
   const native = plan.exposure.geometry.nativeRaster, g = plan.exposure.resolvedGeometry, active = g.activeCapture.nativeRect;
@@ -593,7 +618,7 @@ async function developLinearSrgb(input: NativeRawDevelopmentInput, afterRow: (co
  */
 async function developAhd(v: ReturnType<typeof prepareNativeRawDevelopment>, raw: NativeRawOutput, repeatWidth: number, repeatHeight: number, width: number, height: number,
   at: (x: number, y: number) => { x: number; y: number }, afterRow: (completed: number, total: number) => Promise<void>,
-  host: { yieldControl: () => Promise<void>; checkAbort: () => void }): Promise<{ rgb: Float64Array; highlight: RawHighlightDiagnostics }> {
+  host: { yieldControl: () => Promise<void>; checkAbort: () => void; onDemosaicMs?: (milliseconds: number) => void }): Promise<{ rgb: Float64Array; highlight: RawHighlightDiagnostics }> {
   const native = v.plan.exposure.geometry.nativeRaster, W = native.pixelWidth, H = native.pixelHeight;
   const source: RawDevelopmentSource = { nativeWidth: W, repeatWidth, repeatHeight, codes: raw.codes, blackLevels: raw.blackLevels,
     saturationFlags: raw.saturationFlags, whiteByPhase: raw.effectiveSaturationCodes };
@@ -607,7 +632,9 @@ async function developAhd(v: ReturnType<typeof prepareNativeRawDevelopment>, raw
   const cameraToXyz = [0, 1, 2].map((r) => [0, 1, 2].map((c) => m[r]![c]! * gains[c]!)) as unknown as ColorMatrix3x3;
   const task = createAhdDemosaicTask({ plane: { width: W, height: H, captureModeId: v.plan.frame.modeId, colorSamplingProfile: v.plan.frame.colorSamplingProfile, samples },
     channelRoles: { red: "red", green: "green", blue: "blue" }, cameraToXyz }, { yieldControl: async () => { await host.yieldControl(); host.checkAbort(); } });
+  const demosaicStarted = clockMs();
   await task.run();
+  host.onDemosaicMs?.(clockMs() - demosaicStarted);
   const demosaiced = task.takeOutput().data, rgb = new Float64Array(width * height * 3);
   const counts = { saturatedPixelCount: 0, whiteBalanceClippedSampleCount: 0, reconstructedPixelCount: 0 };
   for (let y = 0; y < height; y++) {
@@ -1234,9 +1261,10 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     ({ ...request, sites: Array.from({ length: request.width }, (_, j) => siteInput(request.y * nativeWidth + request.x + j)) });
   const yieldControl = createHostYield().yieldControl;
   const perSite = queriesPerSite * (diffraction && psf === diffractionPsf ? (2 * diffraction.kernelRadiusSamples + 1) ** 2 : 1);
+  let diffractionMs = 0, demosaicMs: number | undefined, encodeMs: number | undefined;
   const rawProvider = diffraction && diffractionObjectSpace ? createDiffractedPlanarProvider({ base: provider, psf: diffractionPsf!.configuration.psf,
     wavelengthsNm: diffraction.profile.axes.wavelengthNm, kernelRadius: diffraction.kernelRadiusSamples, nativeWidth, nativeHeight, outputWidth: width,
-    sitePitchMicrometers: pitch, distanceM: subjectDistanceM, metresPerFrameUnit,
+    sitePitchMicrometers: pitch, distanceM: subjectDistanceM, metresPerFrameUnit, onConvolution: (ms) => { diffractionMs += ms; },
     // The environment queries each site at its centre minus each split offset (sites, +x right, +y down).
     ...(antiAliasing ? { queryOffsetsSites: antiAliasing.components.map((c) => ({ x: -c.offsetMicrometers.x / pitch, y: -c.offsetMicrometers.y / pitch })) } : {}) }) : provider;
   if (antiAliasing && perSite > 100_000) fail("sensor.antiAliasing with these options needs " + perSite + " scene queries per site; the environment admits at most 100000.");
@@ -1306,7 +1334,9 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       return [channel, { conversionGainElectronsPerCode: resolved.regime.systemConversionGainElectronsPerCode.value / (resolved.regime.adc.digitalGain ?? 1),
         readNoiseRmsElectrons: resolved.combinedReadNoiseRmsElectrons }];
     }));
+    const dngStarted = clockMs();
     dng = await serializeNativeRawDng({ raw: rawOutput.raw, colorProfile, noise, ...(dngCapturedAtUtc === undefined ? {} : { capturedAtUtc: dngCapturedAtUtc }) });
+    encodeMs = clockMs() - dngStarted;
     checkAbort();
     assume("output.dng", "model", { writer: "serializeNativeRawDng", schemaVersion: dng.schemaVersion, whiteLevel: dng.whiteLevel, blackLevels: dng.blackLevels,
       noiseProfile: dng.noiseProfile, unrepresentedSaturationFlagCount: dng.unrepresentedSaturationFlagCount },
@@ -1324,7 +1354,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     const linear = await developLinearSrgb({ ...development, raw: rawOutput.raw }, async (completed, total) => {
       onProgress?.({ stage: "development", completedTileCount: completed, totalTileCount: total });
       if (Date.now() - lastYield >= 8) { await yieldControl(); checkAbort(); lastYield = Date.now(); }
-    }, { yieldControl: () => yieldControl(), checkAbort });
+    }, { yieldControl: () => yieldControl(), checkAbort, onDemosaicMs: (ms) => { demosaicMs = ms; } });
     if (!linearPath) {
       // The native development's SDR kernel, row by row, on the AHD-developed linear sRGB.
       const maximum = 2 ** rendering.bitDepth - 1, tone = prepareSdrPixelTone(rendering), scratch = new Float64Array(3);
@@ -1386,18 +1416,30 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
         for (let row = 0; row < request.height; row++) out.set(samples.subarray(((request.y + row) * width + request.x) * 3, ((request.y + row) * width + request.x + request.width) * 3), row * request.width * 3);
         return { ...request, samples: out };
       }, yieldControl });
+    const jpegEncodeStarted = clockMs();
     await runTask(jpegTask);
     jpeg = jpegTask.takeOutput().bytes;
+    encodeMs = clockMs() - jpegEncodeStarted;
     assume("output.jpeg", "model", { encoder: "photivra-print-jpeg", iccProfile: "photivra-srgb" }, "Baseline JPEG from the existing print JPEG encoder with an embedded sRGB ICC profile; the source digest covers a sample prefix, length and scene digest.");
   }
   const jpegMs = Date.now() - jpegStarted;
   let png: Uint8Array | undefined;
   if (format === "png") {
+    const pngStarted = clockMs();
     png = serializePngImage({ width, height, bitDepth: pngBitDepth!, samples: developed.integerSamples, colourEncoding: pngColourEncoding(colorEncoding!) });
+    encodeMs = clockMs() - pngStarted;
     assume("output.png", "model", { encoder: "serializePngImage", bitDepth: pngBitDepth, colourEncoding: pngColourEncoding(colorEncoding!) },
       "Deterministic PNG (8/16-bit RGB, in-house zlib) with the colour encoding signalled in the file: the sRGB chunk for sRGB, otherwise a cICP chunk with ITU-T H.273 primaries/transfer code points. No mastering-display (mDCV) or content-light-level (cLLI) metadata is written.");
   }
 
+  const ranOptions = new Set<SimulateCaptureCostOption>([...(pupil ? ["lens.pupilSampling" as const] : []), ...(projection !== undefined ? ["lens.projection" as const] : []),
+    ...(distortion ? ["lens.distortion" as const] : []), ...(vignetting ? ["lens.vignetting" as const] : []), ...(lensPsf ? ["lens.psf" as const] : []),
+    ...(diffraction ? ["lens.diffraction" as const] : []), ...(antiAliasing ? ["sensor.antiAliasing" as const] : []),
+    ...(temporalSampleCount > 1 ? ["sensor.temporalSampleCount" as const] : []), ...(rotating ? ["motion.rotation" as const] : []),
+    ...(rollingSchedule ? ["motion.shutter.rolling" as const] : []), ...(mirrorBorder ? ["output.borderHandling.mirror" as const] : []),
+    ...(needsAuto ? ["output.whiteBalance.auto" as const] : []), ...(ahd ? ["output.demosaic.ahd" as const] : []),
+    ...(highlightMode === "reconstruct" ? ["output.highlightMode.reconstruct" as const] : []), ...(wideGamut ? ["output.colorEncoding.wide-gamut" as const] : []),
+    ...(perceptual ? ["output.gamutMapping.perceptual" as const] : []), ...(format === "jpeg" || format === "png" || format === "dng" ? ["output.format." + format as SimulateCaptureCostOption] : [])]);
   return Object.freeze({
     facadeVersion: SIMULATE_CAPTURE_FACADE_VERSION, engineApiVersion: ENGINE_API_VERSION,
     image: { width, height, format, samples: developed.integerSamples, ...(jpeg ? { jpeg } : {}), ...(png ? { png, colorEncoding: colorEncoding! } : {}), ...(dng ? { dng: dng.bytes } : {}) },
@@ -1410,7 +1452,10 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       illuminant: { id: illuminant.id, description: illuminant.description, illuminanceLux }, distanceM: subjectDistanceM,
       framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect, sourceSha256 },
     diagnostics: { providerEvaluationCount, highlight: developed.highlight, rendering: developed.diagnostics, ...(gamutMappingDiagnostics ? { gamutMapping: gamutMappingDiagnostics } : {}),
-      timingsMs: { raw: rawMs, whiteBalance: wbMs, development: devMs, jpeg: jpegMs, total: Date.now() - started } },
+      timingsMs: { raw: rawMs, whiteBalance: wbMs, development: devMs, jpeg: jpegMs, total: Date.now() - started,
+        ...(diffraction && diffractionObjectSpace ? { diffraction: diffractionMs } : {}), ...(demosaicMs === undefined ? {} : { demosaic: demosaicMs }),
+        ...(encodeMs === undefined ? {} : { encode: encodeMs }) },
+      options: Object.freeze(SIMULATE_CAPTURE_COST_OPTIONS.filter((option) => ranOptions.has(option))) },
     provenance: { scientificStatus: "approximation" as const, cameraPresetId: preset.presetId, cameraPresetVersion: preset.presetVersion,
       evidence: [...FACADE_EVIDENCE, ...preset.evidence],
       composedContracts: ["resolveGenericEquipmentExposureCapabilities", "meterRelativeExposure", "createExposureMeterTargetFromMeteringResult",
