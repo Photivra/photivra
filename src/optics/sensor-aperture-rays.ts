@@ -60,6 +60,25 @@ export function calculateSensorApertureRays(input: CalculateSensorApertureRaysIn
   }
   pupil.evidence = parseEvidenceList(pupil.evidence, "circularPupil.evidence");
   const focus = parseFocusPlane(owned.focus);
+  const { rays, v, radius } = sensorApertureRayValues(owned, pupil, focus);
+  return approximationResult({ rays, projectionDistanceMm: v, pupilRadiusMm: radius, focus, pupil,
+    sceneVisibilityCalculated: false, radiometryCalculated: false, apertureAreaApplied: false }, "ideal-thin-lens-circular-pupil-rays", "0.1.0", [
+    "Ideal symmetric paraxial thin lens, unity pupil magnification and uniform circular pupil; no diffraction, aberrations, lens housing or pupil clipping.",
+    "Normalized pupil averaging is separate from the existing working-f-number radiometric factor; no aperture area or solid-angle factor is applied here.",
+    "Pure camera rotation about the lens principal-plane origin; no translation or depth-dependent camera motion.",
+    "Finite polar midpoint quadrature does not establish scene visibility, transport calibration or convergence."
+  ]);
+}
+
+/**
+ * Internal (2.0 performance): the rays of calculateSensorApertureRays, by the same code, for a pupil and focus it has
+ * already validated and parsed. The lean native executor calls it per site after one full validation per template.
+ * It still runs the rotation, time, image-distance and forward-hemisphere checks, and throws where the full function
+ * would. Not exported from the package.
+ */
+export function sensorApertureRayValues(owned: Pick<CalculateSensorApertureRaysInput, "sourcePointNativeSensorMm" | "focalLengthMm" | "nominalFNumber" |
+  "angularVelocityRadPerSec" | "timeSecondsFromOpeningReference">, pupil: Pick<IdealCircularPupil, "radialSampleCount" | "angularSampleCount">,
+  focus: ReturnType<typeof parseFocusPlane>): { rays: SensorApertureRay[]; v: number; radius: number } {
   const v = calculateFocusPlaneImageDistance({ focalLengthMm: owned.focalLengthMm, focus }).value.imageDistanceMm;
   // Reuse the existing rotation and time validation, and the check that rays point forward.
   const inverse = calculateInverseCameraRotationImageMapping({ focalLengthMm: owned.focalLengthMm,
@@ -87,11 +106,5 @@ export function calculateSensorApertureRays(input: CalculateSensorApertureRaysIn
     }
     return { originM: rotatedOrigin, directionUnitVector: rotatedDirection, pupilPointMm: point, weight: 1/count, pupilSampleIndex: i };
   });
-  return approximationResult({ rays, projectionDistanceMm: v, pupilRadiusMm: radius, focus, pupil,
-    sceneVisibilityCalculated: false, radiometryCalculated: false, apertureAreaApplied: false }, "ideal-thin-lens-circular-pupil-rays", "0.1.0", [
-    "Ideal symmetric paraxial thin lens, unity pupil magnification and uniform circular pupil; no diffraction, aberrations, lens housing or pupil clipping.",
-    "Normalized pupil averaging is separate from the existing working-f-number radiometric factor; no aperture area or solid-angle factor is applied here.",
-    "Pure camera rotation about the lens principal-plane origin; no translation or depth-dependent camera motion.",
-    "Finite polar midpoint quadrature does not establish scene visibility, transport calibration or convergence."
-  ]);
+  return { rays, v, radius };
 }

@@ -46,7 +46,8 @@ import { calculateMappedSensorEnvironmentRadianceQuery, prepareEnvironmentLensFi
 import { calculateSensorPsfIrradianceQuadrature } from "../optics/sensor-psf-quadrature.js";
 import { sensorPsfSourcePoint } from "../optics/sensor-psf-support.js";
 import { resolveLensSampledPsf, resolveLensSampledPsfKernel, type ResolveLensSampledPsfInput } from "../optics/lens-psf-profile.js";
-import { calculateSensorApertureRays, type SensorApertureRay } from "../optics/sensor-aperture-rays.js";
+import { sensorApertureRayValues, type IdealCircularPupil, type SensorApertureRay } from "../optics/sensor-aperture-rays.js";
+import { parseFocusPlane } from "../optics/focus-state.js";
 import { calculateIlluminationVignetting } from "../optics/illumination-vignetting.js";
 import { applyPhysicalCameraRotation, resolveProjectionDistanceMm } from "../motion/camera-rotation.js";
 import { prepareCaptureExposureWindowSampler } from "../sensor/exposure-window.js";
@@ -189,6 +190,8 @@ interface PlanConstants {
   sampler: ReturnType<typeof prepareCaptureExposureWindowSampler>;
   projectionDistanceMm: number;
   focus: FullPlan["focus"];
+  /** The focus plane as calculateSensorApertureRays parses it. */
+  parsedFocus: ReturnType<typeof parseFocusPlane>;
   requestBase: { providerProfileId: string; sceneId: string; illuminationProfileId: string; materialResponseProfileId: string; wavelengthBasis: string };
   sceneBindings: FullPlan["sceneBindings"];
 }
@@ -287,9 +290,11 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
     const e = environment as unknown as Rec, optics = e.optics as Rec, motion = e.motion as Rec;
     const focalLengthMm = optics.focalLengthMm as number, nominalFNumber = optics.nominalFNumber as number;
     const omega = motion.angularVelocityRadPerSec as { pitch: number; yaw: number; roll: number };
-    const pupil = e.pupil as Parameters<typeof calculateSensorApertureRays>[0]["pupil"] | undefined;
-    if (pupil !== undefined && calculateSensorApertureRays({ sourcePointNativeSensorMm: { x: 0, y: 0 }, focalLengthMm, nominalFNumber, focus: k.focus,
-      pupil, angularVelocityRadPerSec: omega, timeSecondsFromOpeningReference: start }).value.rays.length !== k.pupilCount) return undefined;
+    // The pupil, f-number and focus were validated by the template's full planning (they are site-independent); the ray
+    // arithmetic and its rotation and forward-hemisphere checks run per site through calculateSensorApertureRays' own code.
+    const pupil = e.pupil as IdealCircularPupil | undefined;
+    if (pupil !== undefined && sensorApertureRayValues({ sourcePointNativeSensorMm: { x: 0, y: 0 }, focalLengthMm, nominalFNumber,
+      angularVelocityRadPerSec: omega, timeSecondsFromOpeningReference: start }, pupil, k.parsedFocus).rays.length !== k.pupilCount) return undefined;
     // Field throughput at a planned point, as the full planner computes it.
     const field = e.fieldThroughput as Rec;
     const fieldAt = (point: { x: number; y: number }): { value: FieldThroughput; factor: number; valid: boolean } => {
@@ -342,8 +347,8 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
         const s = Math.floor(gi / P), points = tapPoints[gi]!, fields = tapFields[gi]!, taps: LeanTap[] = [];
         for (let pi = 0; pi < points.length; pi++) {
           const point = points[pi]!, sampleId = `${id}-t${ti}-n${gi}-p${pi}`;
-          const apertureRays = pupil === undefined ? undefined : calculateSensorApertureRays({ sourcePointNativeSensorMm: { ...point }, focalLengthMm,
-            nominalFNumber, focus: k.focus, pupil, angularVelocityRadPerSec: omega, timeSecondsFromOpeningReference: time }).value.rays;
+          const apertureRays = pupil === undefined ? undefined : sensorApertureRayValues({ sourcePointNativeSensorMm: point, focalLengthMm,
+            nominalFNumber, angularVelocityRadPerSec: omega, timeSecondsFromOpeningReference: time }, pupil, k.parsedFocus).rays;
           let request: SceneRadianceEvaluationRequest, imagePointMm: { x: number; y: number }, distortionAreaFactor: number | undefined;
           if (k.lensMapping !== undefined) {
             // The full planner's own mapped query, with the same input; only its result envelope is not kept.
@@ -512,6 +517,7 @@ function planConstants(environment: Env, plan: FullPlan): PlanConstants {
     projectionDistanceMm: resolveProjectionDistanceMm((e.optics as Rec).focalLengthMm as number,
       plan.focus.kind === "finite" ? plan.focus.distanceM : undefined).projectionDistanceMm,
     focus: plan.focus,
+    parsedFocus: parseFocusPlane(plan.focus),
     requestBase: { providerProfileId: plan.sceneBindings.providerProfile.profileId, sceneId: plan.sceneBindings.providerProfile.sceneId,
       illuminationProfileId: plan.sceneBindings.illuminationProfile.profileId, materialResponseProfileId: plan.sceneBindings.materialResponseProfile.profileId,
       wavelengthBasis: plan.spectralQuadrature.wavelengthBasis },

@@ -279,7 +279,21 @@ export function apertureRadianceQuery(base: SceneRadianceEvaluationRequest, ray:
   return { request: freezeOwnedData({ ...base, sampleId: base.sampleId+"-a"+ray.pupilSampleIndex,
     target: { kind: "environment-direction" as const, outgoingDirectionUnitVector: {
       x: -ray.directionUnitVector.x, y: -ray.directionUnitVector.y, z: -ray.directionUnitVector.z } } }),
-  apertureRay: freezeOwnedData(structuredClone(ray)) };
+  apertureRay: freezeOwnedData(copyRay(ray)) };
+}
+/**
+ * A private copy of an engine-computed ray: plain records of numbers, copied key by key in the same order, so it
+ * equals what structuredClone returns for this data (a 2.0 performance change: structuredClone dominated pupil runs).
+ */
+function copyRay(ray: SensorApertureRay): SensorApertureRay {
+  const copy = (value: unknown): unknown => {
+    if (typeof value !== "object" || value === null) return value;
+    if (Array.isArray(value)) return value.map(copy);
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(value)) out[key] = copy((value as Record<string, unknown>)[key]);
+    return out;
+  };
+  return copy(ray) as SensorApertureRay;
 }
 /** Internal: builds a pupil query for a batched provider and keeps it for the executor's apertureRadianceQuery call. */
 export function prebuildApertureRadianceQuery(base: SceneRadianceEvaluationRequest, ray: SensorApertureRay):

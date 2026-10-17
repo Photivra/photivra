@@ -134,6 +134,7 @@ It produces byte-identical results to the full path: RAW codes, black levels, sa
   - aperture centre and bounds, spatial quadrature points, the local exposure window, field throughput, aperture rays, and the focus-aware rotated query and its request;
   - with a sampled PSF, each node's kernel (resolved by the same code as `resolveLensSampledPsf`, without its result envelope), its tap points (`sensorPsfSourcePoint`) and each node's kernel-weighted tap sum, in kernel order;
   - with a `lensFieldMapping`, each tap's query, built by the full planner's own mapped-query function, and its distortion area factor, applied once after the tap's pupil sum;
+  - with ideal pupil rays, each tap's rays, by `calculateSensorApertureRays`' own code after one pupil, f-number and focus validation per template; each ray handed to the provider is a frozen key-by-key copy, equal to the `structuredClone` copy used before;
   - then scene-to-sensor acceptance, spatio-spectral reduction, operating range, EQE electron rate (Kahan sums), temporal midpoint sums, dark and total charge, Poisson charge draws, read noise, fixed-pattern values and the ADC transfer.
 
   Every provider result is validated by the same parser.
@@ -157,6 +158,7 @@ Sampled-PSF and lens-mapped coverage (#275 follow-up), `simulateCapture()` 48 ×
 | --- | --- | --- |
 | 3 × 3 sampled PSF (`lens.psf`) | 11.9 s | 1.96 s (6.1×) |
 | Radial distortion (`lens.distortion`) | 2.63 s | 0.59 s (4.4×) |
+| Ideal pupil, 1 × 4 rays (`lens.pupilSampling`), after the change above | 2.19 s | 1.26 s (1.7×) |
 
 The remaining time is mostly the private copy of each supplied tile, parsing provider results, comparing templates, and the provider callbacks themselves.
 
