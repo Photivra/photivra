@@ -15,8 +15,8 @@
  * 2.0 options are opt-in and compose existing public contracts only; with none of them given the request,
  * RAW, samples and JPEG are byte-identical to the 1.0 facade:
  * - output formats: `png` (`serializePngImage`; sRGB, or Display P3 / Rec. 2020 / Rec. 2100 PQ / HLG through
- *   the colorimetry matrices and transfer functions and `createHdrImageEncodingTask`). DNG is not offered:
- *   see `DNG_UNAVAILABLE` for why the existing DNG writer cannot attach a native environment capture;
+ *   the colorimetry matrices and transfer functions and `createHdrImageEncodingTask`) and `dng`
+ *   (`serializeNativeRawDng` of the packed native RAW; no linear master is declared);
  * - demosaic: `createBuiltInBayerDemosaicProfiles` (bilinear, Malvar–He–Cutler) and mirror borders;
  * - optics: the environment `lensFieldMapping` (projection, radial / Brown–Conrady distortion), radial
  *   illumination vignetting as field throughput and a caller sampled lens PSF;
@@ -71,6 +71,8 @@ import { createRollingShutterCaptureExposureSchedule, resolveElectronicRollingSh
   type ElectronicRollingShutterExposureSchedule } from "../sensor/readout-exposure-linkage.js";
 import { calculateCaptureExposureWindows } from "../sensor/exposure-window.js";
 import { multiplyMatrices, type ColorMatrix3x3 } from "../color/colorimetry-math.js";
+import { serializeNativeRawDng, type NativeRawDng } from "../capture/native-raw-dng.js";
+import { resolveSensorReadoutRegime } from "../sensor/raw-readout.js";
 import { resolveChartScene, CHART_SCENE_PRESETS, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
 import { resolveCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlanarSceneRadianceProvider, requireCallerScene, FACADE_SPECTRAL_RANGE_NANOMETERS,
   PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, type CaptureIlluminant, type CallerRadianceScene, type CallerReflectanceScene,
@@ -80,7 +82,7 @@ import { resolveCaptureIlluminant, calculateIlluminantIrradianceScale, buildPlan
 export const SIMULATE_CAPTURE_FACADE_VERSION = "1.0.0" as const;
 
 export type SimulateCaptureExposureMode = "manual" | "aperture-priority" | "shutter-priority" | "program";
-export type SimulateCaptureOutputFormat = "srgb-8" | "srgb-16" | "jpeg" | "png";
+export type SimulateCaptureOutputFormat = "srgb-8" | "srgb-16" | "jpeg" | "png" | "dng";
 export type SimulateCaptureWhiteBalance =
   | "scene-illuminant"
   | "auto"
@@ -179,6 +181,8 @@ export interface SimulateCaptureOptions {
     demosaic?: SimulateCaptureDemosaic;
     /** Default "margin". */
     borderHandling?: SimulateCaptureBorderHandling;
+    /** DNG only: optional capture-event time (YYYY-MM-DDTHH:mm:ss.sssZ); without it no date tags are written. */
+    dng?: { capturedAtUtc?: string };
   };
   /** Camera motion and shutter type. Default: still camera, global electronic shutter. */
   motion?: SimulateCaptureMotion;
@@ -228,6 +232,8 @@ export interface SimulateCaptureResult {
     png?: Uint8Array;
     /** Encoding of `samples` and `png` when format is "png". */
     colorEncoding?: SimulateCaptureColorEncoding;
+    /** Lossless uncompressed CFA DNG of the packed RAW when format is "dng" (`serializeNativeRawDng`); `samples` are then sRGB 8-bit. */
+    dng?: Uint8Array;
   };
   /** Packed native RAW (codes, black levels, saturation flags) as produced by the native environment RAW task. */
   raw: NativeRawOutput;
@@ -294,14 +300,7 @@ export const SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX = Math.PI * METER_CALIBRAT
   (DEFAULTS.shutterSeconds * DEFAULTS.iso * GREY_CARD_REFLECTANCE);
 /** Demosaic border, native sites per side. */
 const MARGIN = 1;
-/**
- * Why `output.format: "dng"` is refused. The engine's DNG writer, `createPhotographicExportPair`, serializes a
- * bounded `SensorRawFrame` whose committed `SimulatedCapture` must name a linear-master source with float
- * planes. A native environment capture commits a scene-radiance source without planes, and the packed
- * native RAW is not attachable to that contract; satisfying it would mean declaring a linear master that
- * never existed. A DNG of a facade capture needs a native-RAW DNG serializer, not a facade composition.
- */
-const DNG_UNAVAILABLE = "output.format \"dng\" is not available: the engine's DNG writer (createPhotographicExportPair) attaches a bounded SensorRawFrame whose capture must declare a linear-master source with float planes, while a native environment capture commits a scene-radiance source without planes. The facade will not declare a linear master that never existed; use format \"png\" (16-bit) or the packed RAW in result.raw.";
+
 /** Default temporal midpoints when the camera rotates (2.0 motion option). */
 const ROTATING_TEMPORAL_SAMPLE_COUNT = 8;
 const IDS = Object.freeze({ frame: "facade-frame", mode: "native-still", cfa: "photivra-generic-bayer", binding: "facade-native-cfa",
@@ -550,12 +549,17 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
 
   // Output and sensor
   const outputOptions = allowKeys(top.output, "output", ["width", "height", "format", "toneCurve", "toneCurveParameters", "highlightMode", "whiteBalance", "jpegQuantizationStep",
-    "colorEncoding", "bitDepth", "demosaic", "borderHandling"]);
+    "colorEncoding", "bitDepth", "demosaic", "borderHandling", "dng"]);
   const width = integerIn(pick(outputOptions, "width", "output.width", DEFAULTS.width, "64 × 64 output pixels."), "output.width", 1, 4094);
   const height = integerIn(pick(outputOptions, "height", "output.height", DEFAULTS.height, "64 × 64 output pixels."), "output.height", 1, 4094);
   const format = pick<SimulateCaptureOutputFormat>(outputOptions, "format", "output.format", DEFAULTS.format, "8-bit sRGB samples.");
-  if ((format as string) === "dng") fail(DNG_UNAVAILABLE);
-  if (!["srgb-8", "srgb-16", "jpeg", "png"].includes(format)) fail("output.format must be srgb-8, srgb-16, jpeg or png.");
+  if (!["srgb-8", "srgb-16", "jpeg", "png", "dng"].includes(format)) fail("output.format must be srgb-8, srgb-16, jpeg, png or dng.");
+  let dngCapturedAtUtc: string | undefined;
+  if (format === "dng") {
+    const d = allowKeys(outputOptions.dng, "output.dng", ["capturedAtUtc"]);
+    dngCapturedAtUtc = d.capturedAtUtc as string | undefined;
+    if (dngCapturedAtUtc === undefined) assume("output.dng.capturedAtUtc", "default", null, "No capture time: the DNG carries no DateTimeOriginal (the engine never invents a wall clock).");
+  } else if (outputOptions.dng !== undefined) fail("output.dng applies only to output.format \"dng\".");
   let colorEncoding: SimulateCaptureColorEncoding | undefined, pngBitDepth: 8 | 16 | undefined;
   if (format === "png") {
     colorEncoding = pick<SimulateCaptureColorEncoding>(outputOptions, "colorEncoding", "output.colorEncoding", "srgb",
@@ -989,6 +993,21 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const developmentWhiteBalance = whiteBalanceState ? "apply-resolved-sensor-gains" as const : "not-required" as const;
 
 
+  // DNG (2.0): the packed native RAW itself, before development takes ownership of it.
+  let dng: NativeRawDng | undefined;
+  if (format === "dng") {
+    const noise = Object.fromEntries(CHANNELS.map((channel) => {
+      const resolved = resolveSensorReadoutRegime({ profile: regimeByChannel[channel].readoutProfile as Parameters<typeof resolveSensorReadoutRegime>[0]["profile"], regimeId: regimeByChannel[channel].regimeId });
+      return [channel, { conversionGainElectronsPerCode: resolved.regime.systemConversionGainElectronsPerCode.value / (resolved.regime.adc.digitalGain ?? 1),
+        readNoiseRmsElectrons: resolved.combinedReadNoiseRmsElectrons }];
+    }));
+    dng = await serializeNativeRawDng({ raw: rawOutput.raw, colorProfile, noise, ...(dngCapturedAtUtc === undefined ? {} : { capturedAtUtc: dngCapturedAtUtc }) });
+    checkAbort();
+    assume("output.dng", "model", { writer: "serializeNativeRawDng", schemaVersion: dng.schemaVersion, whiteLevel: dng.whiteLevel, blackLevels: dng.blackLevels,
+      noiseProfile: dng.noiseProfile, unrepresentedSaturationFlagCount: dng.unrepresentedSaturationFlagCount },
+      "Lossless uncompressed 16-bit CFA DNG of exactly the packed native RAW codes: per-phase BlackLevel, WhiteLevel = smallest per-phase effective white, ActiveArea and DefaultCrop from the capture geometry, ColorMatrix1/ForwardMatrix1 from the facade's diagonal camera→XYZ profile (D65), AsShotNeutral from the white-balance intent, BaselineExposure 0, and NoiseProfile from each channel's readout regime (conversion gain ÷ digital gain, combined read noise; Poisson + Gaussian + quantization only). No linear master or developed image is declared; saturation flags below WhiteLevel are not representable and are counted.");
+  }
+
   // Development
   const development: Omit<NativeRawDevelopmentInput, "raw"> = { phaseProfiles, colorProfile,
     whiteBalance: developmentWhiteBalance, rendering, highlightMode, ...(mirrorBorder ? { borderHandling: "mirror" as const } : {}),
@@ -1059,7 +1078,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
 
   return Object.freeze({
     facadeVersion: SIMULATE_CAPTURE_FACADE_VERSION, engineApiVersion: ENGINE_API_VERSION,
-    image: { width, height, format, samples: developed.integerSamples, ...(jpeg ? { jpeg } : {}), ...(png ? { png, colorEncoding: colorEncoding! } : {}) },
+    image: { width, height, format, samples: developed.integerSamples, ...(jpeg ? { jpeg } : {}), ...(png ? { png, colorEncoding: colorEncoding! } : {}), ...(dng ? { dng: dng.bytes } : {}) },
     raw: developed.raw, plan,
     request: { environmentRaw: finalRawInput, siteInput, development, whiteBalanceState },
     exposure: { mode, settings: { fNumber, shutterSeconds, iso: resolvedIso }, ev100: Math.log2(fNumber ** 2 / shutterSeconds),
@@ -1077,9 +1096,9 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
         "resolveGenericIsoSignalChain", "createNativeEnvironmentRawTask", ...(needsAuto ? ["estimateAutoWhiteBalance", "createNativeEnvironmentSensorStageTask"] : []),
         ...(builtInDemosaic ? ["createBuiltInBayerDemosaicProfiles"] : []),
         ...(wideGamut ? ["native RAW development operator (linear, pre-clip)", "resolveRgbColorSpace", ...(colorEncoding === "rec2100-pq" || colorEncoding === "rec2100-hlg" ? ["createHdrImageEncodingTask"] : [])] : ["createNativeRawDevelopmentTask"]),
-        ...(jpeg ? ["createPrintJpegTask"] : []), ...(png ? ["serializePngImage"] : [])],
+        ...(jpeg ? ["createPrintJpegTask"] : []), ...(png ? ["serializePngImage"] : []), ...(dng ? ["resolveSensorReadoutRegime", "serializeNativeRawDng"] : [])],
       limitations: ["Educational approximation: synthetic tier sensor values, idealized colorimetric sensor, planar Lambertian scene and point optics; not a calibrated camera emulation.",
-        "Not offered by the facade: DNG output (no native-RAW DNG writer), atmospheric haze and polarizers (the scene-radiance provider contract declares no volumetric transport or polarization), flash, video, HDR brackets and processing operators; compose those APIs directly."] },
+        "Not offered by the facade: atmospheric haze and polarizers (the scene-radiance provider contract declares no volumetric transport or polarization), flash, video, HDR brackets and processing operators; compose those APIs directly."] },
     assumptions: Object.freeze(assumptions.map((a) => Object.freeze(a)))
   });
 }

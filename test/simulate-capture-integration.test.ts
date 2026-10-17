@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { InvalidConfigurationError, estimateCie1931ColorMatchingFunctions, evaluateBt709InverseOetf, evaluateHlgInverseOetf, evaluatePqEotf, evaluateSrgbDecoding, resolveRgbColorSpace,
+import { InvalidConfigurationError, estimateCie1931ColorMatchingFunctions, evaluateBt709InverseOetf, parseDngRawImage, evaluateHlgInverseOetf, evaluatePqEotf, evaluateSrgbDecoding, resolveRgbColorSpace,
   simulateCapture, type LensSampledPsfProfile, type SimulateCaptureOptions, type SimulateCaptureResult } from "../src/index.js";
 
 function sha(data: ArrayBufferView | string): string {
@@ -193,8 +193,17 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
     expect(pq.assumptions.find((x) => x.id === "output.colorEncoding.conversion")!.explanation).toMatch(/no highlight headroom/);
   });
 
-  it("refuses DNG output with the reason instead of declaring a linear master that never existed", async () => {
-    await expect(simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "dng" as never } })).rejects.toThrow(/linear-master source/);
+  it("writes the packed native RAW as a DNG that round-trips through parseDngRawImage", async () => {
+    const r = await simulateCapture({ scene: { preset: "siemens-star" }, output: { width: 6, height: 4, format: "dng", dng: { capturedAtUtc: "2026-10-17T12:00:00.000Z" } } });
+    const parsed = parseDngRawImage({ bytes: r.image.dng! });
+    expect([parsed.width, parsed.height]).toEqual([8, 6]);
+    expect(Array.from(parsed.codes)).toEqual(Array.from(r.raw.codes));
+    expect(parsed.activeArea).toEqual({ x: 1, y: 1, width: 6, height: 4 });
+    expect(parsed.defaultCrop).toEqual({ x: 0, y: 0, width: 6, height: 4 });
+    expect(r.image.samples).toBeInstanceOf(Uint8Array);
+    expect(r.provenance.composedContracts).toContain("serializeNativeRawDng");
+    const a = r.assumptions.find((x) => x.id === "output.dng")!.value as { noiseProfile: number[] | null };
+    expect(a.noiseProfile).toHaveLength(6);
   });
 
   it("selects built-in demosaic kernels and mirror borders", async () => {
@@ -278,7 +287,7 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
       { scene, output: { colorEncoding: "display-p3" } },
       { scene, output: { format: "png", colorEncoding: "rec2100-pq", bitDepth: 8 } },
       { scene, output: { format: "png", colorEncoding: "rec2020", toneCurve: "positive-reinhard-per-channel" } },
-      { scene, output: { format: "dng" as never } },
+      { scene, output: { format: "png", dng: {} } },
       { scene, output: { format: "png", bitDepth: 12 as never } },
       { scene, output: { demosaic: "ahd" as never } },
       { scene, output: { borderHandling: "wrap" as never } },
