@@ -4,6 +4,10 @@
  * Module boundary and integration notes.
  * Parses strict transform data, rejecting unknown semantics and noninvertible profiles.
  * Prepares deterministic still/frame geometry; time changes require another preparation.
+ * Transform kinds: `affine` and `radial` (schema 0.1.0, unchanged) plus, from mapping schema 0.2.0,
+ * `brown-conrady` (radial + tangential distortion) and `projection-remap` (ideal projection change,
+ * for example fisheye capture to a rectilinear or equirectangular view). A mapping that uses only the
+ * 0.1.0 kinds keeps schema/model version 0.1.0 and identical output.
  * @see docs/DIGITAL_OPTICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and
  * support limits.
  */
@@ -15,6 +19,15 @@ import {
   validateRadialDistortionProfile, type RadialDistortionProfile, type LensFieldPointMm
 } from "../optics/radial-distortion.js";
 import { choice, finite, list, positive, record, textValue } from "../optics/profile-contract.js";
+import { requireInputObject } from "../core/record-validation.js";
+import {
+  brownConradyForwardValue, brownConradyInverseValue, validateBrownConradyDistortionProfile,
+  type BrownConradyDistortionProfile, type ValidatedBrownConradyDistortionProfile
+} from "../optics/brown-conrady-distortion.js";
+import {
+  lensProjectionRemapValue, lensProjectionSignedAxisAngle, parseLensProjectionModel,
+  type LensProjectionModel
+} from "../camera/lens-projection.js";
 
 /** Domains are barriers: only contiguous equal-domain maps share a resample. */
 export type GeometricImageDomain = "raw-channel" | "reconstructed-linear" | "processed-output";
@@ -24,7 +37,7 @@ interface TransformIdentity {
   id: string;
   version: string;
   domain: GeometricImageDomain;
-  purpose: "distortion" | "breathing" | "digital-stabilization" | "orientation-crop" | "lateral-ca";
+  purpose: "distortion" | "breathing" | "digital-stabilization" | "orientation-crop" | "lateral-ca" | "projection";
 }
 /** Explicit destination-to-source affine map, including rotation/shear/offset. */
 export interface AffineGeometricTransform extends TransformIdentity {
@@ -37,10 +50,34 @@ export interface RadialGeometricTransform extends TransformIdentity {
   kind: "radial";
   profile: RadialDistortionProfile;
 }
-export type DigitalGeometricTransform = AffineGeometricTransform | RadialGeometricTransform;
+/** Schema 0.2.0: correction samples Brown-Conrady distorted data at the mapped ideal destination. */
+export interface BrownConradyGeometricTransform extends TransformIdentity {
+  kind: "brown-conrady";
+  profile: BrownConradyDistortionProfile;
+}
+/** One ideal projection and its mapping scale (focal length, or mm per radian for equirectangular). */
+export interface GeometricProjectionDeclaration {
+  projectionModel: LensProjectionModel;
+  focalLengthMm: number;
+}
+/**
+ * Schema 0.2.0: destination point -> scene direction (destination projection) -> source point
+ * (source projection). Purpose must be "projection".
+ */
+export interface ProjectionRemapGeometricTransform extends TransformIdentity {
+  kind: "projection-remap";
+  destinationProjection: GeometricProjectionDeclaration;
+  sourceProjection: GeometricProjectionDeclaration;
+}
+export type DigitalGeometricTransform =
+  | AffineGeometricTransform
+  | RadialGeometricTransform
+  | BrownConradyGeometricTransform
+  | ProjectionRemapGeometricTransform;
 /** Serializable prepared state. Maps are applied in listed destination-to-source order. */
 export interface PreparedGeometricMapping {
-  schemaVersion: "0.1.0";
+  /** 0.1.0 when only affine/radial kinds are used; 0.2.0 when a 2.0 kind is present. */
+  schemaVersion: "0.1.0" | "0.2.0";
   frameTimeSeconds: number;
   transforms: readonly DigitalGeometricTransform[];
   semanticKey: string;
@@ -104,13 +141,40 @@ function affine(p: LensFieldPointMm, m: GeometricJacobian, o: LensFieldPointMm):
 }
 /** Parses strict transform data, rejecting unknown semantics and noninvertible profiles. */
 export function parseDigitalGeometricTransform(value: unknown): DigitalGeometricTransform {
-  const r = record(value, ["id", "version", "domain", "purpose", "kind", "matrix", "offsetMm", "profile"]);
+  const r = record(value, ["id", "version", "domain", "purpose", "kind", "matrix", "offsetMm", "profile",
+    "destinationProjection", "sourceProjection"]);
   const identity = {
     id: textValue(r.id), version: textValue(r.version),
     domain: choice(r.domain, ["raw-channel", "reconstructed-linear", "processed-output"]),
-    purpose: choice(r.purpose, ["distortion", "breathing", "digital-stabilization", "orientation-crop", "lateral-ca"])
+    purpose: choice(r.purpose, ["distortion", "breathing", "digital-stabilization", "orientation-crop", "lateral-ca", "projection"])
   };
-  const kind = choice(r.kind, ["affine", "radial"]);
+  const kind = choice(r.kind, ["affine", "radial", "brown-conrady", "projection-remap"]);
+  if ((kind === "projection-remap") !== (identity.purpose === "projection")) {
+    throw new InvalidScientificInputError("Purpose \"projection\" is used exactly by projection-remap transforms.");
+  }
+  if (kind !== "projection-remap" && (r.destinationProjection !== undefined || r.sourceProjection !== undefined)) {
+    throw new InvalidScientificInputError("Only projection-remap transforms carry projection declarations.");
+  }
+  if (kind === "projection-remap") {
+    if (r.matrix !== undefined || r.offsetMm !== undefined || r.profile !== undefined) {
+      throw new InvalidScientificInputError("Projection remap cannot contain affine or distortion fields.");
+    }
+    const projection = (v: unknown): GeometricProjectionDeclaration => {
+      const d = record(v, ["projectionModel", "focalLengthMm"]);
+      return { projectionModel: parseLensProjectionModel(d.projectionModel), focalLengthMm: positive(d.focalLengthMm, "focalLengthMm") };
+    };
+    return { ...identity, kind, destinationProjection: projection(r.destinationProjection), sourceProjection: projection(r.sourceProjection) };
+  }
+  if (kind === "brown-conrady") {
+    if (r.matrix !== undefined || r.offsetMm !== undefined) throw new InvalidScientificInputError("Brown-Conrady map cannot contain affine fields.");
+    const p = record(r.profile, ["normalizationRadiusMm", "maximumNormalizedRadius", "coefficients"]);
+    const c = record(p.coefficients, ["k1", "k2", "k3", "p1", "p2"]);
+    const profile = { normalizationRadiusMm: positive(p.normalizationRadiusMm, "normalizationRadiusMm"),
+      maximumNormalizedRadius: positive(p.maximumNormalizedRadius, "maximumNormalizedRadius"),
+      coefficients: { k1: finite(c.k1, "k1"), k2: finite(c.k2, "k2"), k3: finite(c.k3, "k3"), p1: finite(c.p1, "p1"), p2: finite(c.p2, "p2") } };
+    validateBrownConradyDistortionProfile(profile);
+    return { ...identity, kind, profile };
+  }
   if (kind === "affine") {
     if (r.profile !== undefined) throw new InvalidScientificInputError("Affine map cannot contain radial profile.");
     const entries = list(r.matrix, 4).map((v) => finite(v, "matrix"));
@@ -133,6 +197,7 @@ export function parseDigitalGeometricTransform(value: unknown): DigitalGeometric
 export function prepareGeometricMapping(input: {
   transforms: readonly DigitalGeometricTransform[]; frameTimeSeconds: number;
 }): CalculationResult<PreparedGeometricMapping> {
+  requireInputObject(input, "prepareGeometricMapping input");
   const time = finite(input.frameTimeSeconds, "frameTimeSeconds");
   if (time < 0) throw new InvalidScientificInputError("Time is seconds from exposure start.");
   const transforms = list(input.transforms, 32).map(parseDigitalGeometricTransform);
@@ -143,20 +208,30 @@ export function prepareGeometricMapping(input: {
     if (last?.domain === t.domain) last.componentIds.push(t.id);
     else groups.push({ domain: t.domain, componentIds: [t.id] });
   }
-  return approximationResult({ schemaVersion: "0.1.0", frameTimeSeconds: time, transforms,
+  const version = transforms.some((t) => t.kind === "brown-conrady" || t.kind === "projection-remap") ? "0.2.0" as const : "0.1.0" as const;
+  return approximationResult({ schemaVersion: version, frameTimeSeconds: time, transforms,
     semanticKey: JSON.stringify({ frameTimeSeconds: time, transforms }), groups },
-  "composed-digital-geometry", "0.1.0", ["Explicit inverse maps; incompatible domains require separate image stages", "No physical PSF, photon or noise-history recalculation"]);
+  "composed-digital-geometry", version, ["Explicit inverse maps; incompatible domains require separate image stages", "No physical PSF, photon or noise-history recalculation"]);
 }
 
 /** Authoritative display-to-capture map and full local directional derivatives. */
 export function calculateComposedGeometricMapping(input: {
   mapping: PreparedGeometricMapping; destinationPointMm: LensFieldPointMm;
 }): CalculationResult<GeometricMappingPoint> {
+  requireInputObject(input, "calculateComposedGeometricMapping input");
   const mapping = prepareGeometricMapping(input.mapping).value;
   return calculatePreparedGeometricMappingPoint(mapping, input.destinationPointMm);
 }
 
 /** Call-local parsed/copy-owned mapping only; never accepts external prepared state. */
+const VALIDATED_BROWN_CONRADY = new WeakMap<BrownConradyGeometricTransform, ValidatedBrownConradyDistortionProfile>();
+/** Validates a parsed transform's profile once per prepared mapping (the transform object is call-local). */
+function validatedBrownConrady(t: BrownConradyGeometricTransform): ValidatedBrownConradyDistortionProfile {
+  let v = VALIDATED_BROWN_CONRADY.get(t);
+  if (v === undefined) { v = validateBrownConradyDistortionProfile(t.profile); VALIDATED_BROWN_CONRADY.set(t, v); }
+  return v;
+}
+
 function calculatePreparedGeometricMappingPoint(
   mapping: PreparedGeometricMapping,
   destinationPointMm: LensFieldPointMm
@@ -170,6 +245,15 @@ function calculatePreparedGeometricMappingPoint(
       // Preserve independent result arrays when one mapping serves many points.
       local = [...t.matrix];
       p = affine(p, local, t.offsetMm);
+    } else if (t.kind === "brown-conrady") {
+      const mapped = brownConradyForwardValue(validatedBrownConrady(t), p);
+      local = [...mapped.jacobian];
+      p = mapped.mappedImagePointMm;
+    } else if (t.kind === "projection-remap") {
+      const mapped = lensProjectionRemapValue(t.destinationProjection.projectionModel, t.destinationProjection.focalLengthMm,
+        t.sourceProjection.projectionModel, t.sourceProjection.focalLengthMm, p.x, p.y);
+      local = [...mapped.jacobian];
+      p = { ...mapped.sourcePointMm };
     } else {
       const { k1, k2, k3 } = t.profile.coefficients;
       const r2 = (p.x*p.x+p.y*p.y)/t.profile.normalizationRadiusMm**2;
@@ -194,12 +278,18 @@ function calculatePreparedGeometricMappingPoint(
 export function calculateForwardGeometricMapping(input: {
   mapping: PreparedGeometricMapping; sourcePointMm: LensFieldPointMm;
 }): CalculationResult<LensFieldPointMm> {
+  requireInputObject(input, "calculateForwardGeometricMapping input");
   let p = point(input.sourcePointMm);
   const mapping = prepareGeometricMapping(input.mapping).value;
   for (const t of [...mapping.transforms].reverse()) {
     p = t.kind === "affine"
       ? affine({ x: p.x-t.offsetMm.x, y: p.y-t.offsetMm.y }, inverse(t.matrix), { x: 0, y: 0 })
-      : calculateInverseRadialDistortionMapping({ distortedImagePointMm: p, profile: t.profile }).value.sourceImagePointMm;
+      : t.kind === "brown-conrady"
+        ? brownConradyInverseValue(validatedBrownConrady(t), p)
+        : t.kind === "projection-remap"
+          ? lensProjectionRemapValue(t.sourceProjection.projectionModel, t.sourceProjection.focalLengthMm,
+            t.destinationProjection.projectionModel, t.destinationProjection.focalLengthMm, p.x, p.y).sourcePointMm
+          : calculateInverseRadialDistortionMapping({ distortedImagePointMm: p, profile: t.profile }).value.sourceImagePointMm;
   }
   return approximationResult(p, "forward-digital-geometry-bridge", "0.1.0", ["Inverse of the authoritative destination-to-source geometry"]);
 }
@@ -252,7 +342,13 @@ export function calculateValidSourceCrop(mask: readonly boolean[], width: number
 export function calculateGeometricSamplingPlan(input: {
   mapping: PreparedGeometricMapping; sourceRaster: GeometricRaster; destinationRaster: GeometricRaster;
   resampler: GeometricResampler; physicalProjectionDistanceMm: number;
+  /**
+   * Ideal projection of the physical source (captured) raster for the reported angles. Omitted or
+   * "rectilinear" keeps the existing atan(mm / projection distance) angles exactly.
+   */
+  sourceProjectionModel?: LensProjectionModel;
 }): CalculationResult<GeometricSamplingPlan> {
+  requireInputObject(input, "calculateGeometricSamplingPlan input");
   const mapping = prepareGeometricMapping(input.mapping).value;
   if (mapping.groups.length > 1) throw new InvalidScientificInputError("Separate incompatible-domain groups before resampling.");
   const source = parseGeometricRaster(input.sourceRaster), destination = parseGeometricRaster(input.destinationRaster);
@@ -267,7 +363,10 @@ export function calculateGeometricSamplingPlan(input: {
   }
   const requiresPrefilter = points.some((p) => p.principalStretches[0]*destination.pitchMm/source.pitchMm > 1+1e-12);
   const crop = calculateValidSourceCrop(mask, destination.width, destination.height);
-  const angle = (mm: number): number => Math.atan(mm/projection)*180/Math.PI;
+  const sourceModel = input.sourceProjectionModel === undefined ? "rectilinear" : parseLensProjectionModel(input.sourceProjectionModel);
+  const angle = sourceModel === "rectilinear"
+    ? (mm: number): number => Math.atan(mm/projection)*180/Math.PI
+    : (mm: number): number => lensProjectionSignedAxisAngle(sourceModel, projection, mm)*180/Math.PI;
   const retained = points.filter((_, i) => crop !== null && i%destination.width >= crop.x &&
     i%destination.width < crop.x+crop.width && Math.floor(i/destination.width) >= crop.y &&
     Math.floor(i/destination.width) < crop.y+crop.height).map((p) => p.sourcePointMm);
@@ -288,6 +387,7 @@ export function calculateGeometricSamplingPlan(input: {
 export function calculateGeometricResampling(input: {
   plan: GeometricSamplingPlan; sourceSamples: readonly number[];
 }): CalculationResult<{ samples: readonly (number | null)[]; resamplePasses: 1; resampler: GeometricResampler }> {
+  requireInputObject(input, "calculateGeometricResampling input");
   const plan = calculateGeometricSamplingPlan({ ...input.plan, physicalProjectionDistanceMm: 1 }).value;
   if (!plan.canResample) throw new InvalidScientificInputError("Compression requires source-prefiltered data.");
   const source = list(input.sourceSamples, 65536).map((v) => finite(v, "source sample"));

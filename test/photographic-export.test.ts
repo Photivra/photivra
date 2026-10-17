@@ -105,8 +105,14 @@ describe("paired sensor RAW DNG and standalone JPEG reference export",()=>{
     expect(()=>parsePhotographicExportInput(uncovered)).toThrow("Reconstruction does not cover the exact declared final native crop.");
     await expect(createPhotographicExportPair(uncovered)).rejects.toThrow("Reconstruction does not cover the exact declared final native crop.");
     const raw=loadSensorRawFrameInput();raw.capture=v.reconstruction.rawFrame.capture;
+    // Effective white levels, gains and read noise must be valid; DNG levels never guess around them.
+    for(const patch of [{effectiveSaturationCode:64},{effectiveSaturationCode:1024},{systemConversionGainElectronsPerCode:0},{readNoiseRmsElectrons:-1}]){
+      const bad=loadSensorRawFrameInput();bad.capture=v.reconstruction.rawFrame.capture;Object.assign(bad.samples[0]!,patch);
+      expect(()=>createSensorRawFrame(bad)).toThrow("effective white level");
+    }
     raw.samples[0]!.digitalSaturationCode=2047;raw.samples[0]!.blackSubtractedNormalizedCode=(0-64)/(2047-64);
-    await expect(createPhotographicExportPair({...v,reconstruction:{...v.reconstruction,rawFrame:createSensorRawFrame(raw)}})).rejects.toThrow();
+    // A larger digital saturation code alone is consistent: development and WhiteLevel use the effective white.
+    expect(createSensorRawFrame(raw).samples[0]!.digitalSaturationCode).toBe(2047);
     expect(()=>parsePhotographicExportInput(null)).toThrow();
   });
   it("enforces encoder bounds, rational/ASCII range and metadata limits without weakening format gates",()=>{

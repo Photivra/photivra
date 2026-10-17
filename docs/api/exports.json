@@ -8,6 +8,16 @@
       "kind": "type"
     },
     {
+      "name": "AcceleratedNativeCaptureSdrOutput",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AcceleratedNativeRawDevelopmentOutput",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
       "name": "ActiveCaptureFieldOfView",
       "source": "src/output/capture-geometry.ts",
       "kind": "type"
@@ -15,6 +25,16 @@
     {
       "name": "AffineGeometricTransform",
       "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AhdDemosaicInput",
+      "source": "src/processing/demosaic.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AhdDemosaicOutput",
+      "source": "src/processing/demosaic.ts",
       "kind": "type"
     },
     {
@@ -148,6 +168,21 @@
       "kind": "type"
     },
     {
+      "name": "assessShutterAngleRule",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "AtmosphericExtinctionModel",
+      "source": "src/optics/atmospheric-haze.ts",
+      "kind": "type"
+    },
+    {
+      "name": "AtmosphericHaze",
+      "source": "src/optics/atmospheric-haze.ts",
+      "kind": "type"
+    },
+    {
       "name": "AutoIsoBaselinePolicy",
       "source": "src/exposure/exposure-mode-resolver.ts",
       "kind": "type"
@@ -155,6 +190,11 @@
     {
       "name": "AxisSamplingPitchMicrometers",
       "source": "src/motion/camera-rotation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "BilateralFilterInput",
+      "source": "src/processing/denoise.ts",
       "kind": "type"
     },
     {
@@ -188,8 +228,53 @@
       "kind": "type"
     },
     {
+      "name": "BOLTZMANN_CONSTANT_JOULES_PER_KELVIN",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "BoundIsoExposureCapabilities",
       "source": "src/equipment/iso-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "BrownConradyDistortionCoefficients",
+      "source": "src/optics/brown-conrady-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "BrownConradyDistortionMapping",
+      "source": "src/optics/brown-conrady-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "BrownConradyDistortionProfile",
+      "source": "src/optics/brown-conrady-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "BrownConradyGeometricTransform",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "Bt1886Eotf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "type"
+    },
+    {
+      "name": "BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "BuiltInBayerDemosaicKernel",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "BuiltInBayerDemosaicProfiles",
+      "source": "src/sensor/raw-reconstruction.ts",
       "kind": "type"
     },
     {
@@ -210,6 +295,26 @@
     {
       "name": "CalculateAiryDiskInput",
       "source": "src/optics/diffraction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateAtmosphericHaze",
+      "source": "src/optics/atmospheric-haze.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateAtmosphericHazeInput",
+      "source": "src/optics/atmospheric-haze.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateBrownConradyDistortionMapping",
+      "source": "src/optics/brown-conrady-distortion.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateBrownConradyDistortionMappingInput",
+      "source": "src/optics/brown-conrady-distortion.ts",
       "kind": "type"
     },
     {
@@ -298,6 +403,11 @@
       "kind": "type"
     },
     {
+      "name": "calculateCauchyRefractiveIndex",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateCenteredCrop",
       "source": "src/output/crop.ts",
       "kind": "runtime"
@@ -308,8 +418,68 @@
       "kind": "type"
     },
     {
+      "name": "calculateChromaticAdaptationMatrix",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateChromaticAdaptationMatrixInput",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateChromaticallyAdaptedXyz",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateChromaticityFromCorrelatedColorTemperature",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCieDaylightComponentWeights",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCieIlluminantARelativeSpectralPower",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCielabFromCielch",
+      "source": "src/color/color-difference.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCielabFromXyz",
+      "source": "src/color/color-difference.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCielchFromCielab",
+      "source": "src/color/color-difference.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateColorDifference",
+      "source": "src/color/color-difference.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateColorDifferenceInput",
+      "source": "src/color/color-difference.ts",
+      "kind": "type"
+    },
+    {
       "name": "calculateComposedGeometricMapping",
       "source": "src/output/geometric-transforms.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateCorrelatedColorTemperature",
+      "source": "src/color/illuminants.ts",
       "kind": "runtime"
     },
     {
@@ -321,6 +491,21 @@
       "name": "CalculateDefocusCircleInput",
       "source": "src/optics/depth-of-field.ts",
       "kind": "type"
+    },
+    {
+      "name": "calculateDefocusWavefront",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateDefocusWavefrontInput",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateDegreeOfAdaptation",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "runtime"
     },
     {
       "name": "calculateDepthOfField",
@@ -335,6 +520,11 @@
     {
       "name": "calculatedResult",
       "source": "src/core/calculation-result.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateEffectiveSaturationCode",
+      "source": "src/capture/raw-white-level.ts",
       "kind": "runtime"
     },
     {
@@ -398,6 +588,16 @@
       "kind": "type"
     },
     {
+      "name": "calculateExtinctionFromVisibility",
+      "source": "src/optics/atmospheric-haze.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateExtinctionFromVisibilityInput",
+      "source": "src/optics/atmospheric-haze.ts",
+      "kind": "type"
+    },
+    {
       "name": "calculateFieldOfView",
       "source": "src/camera/field-of-view.ts",
       "kind": "runtime"
@@ -416,6 +616,16 @@
       "name": "CalculateFieldOfViewInput",
       "source": "src/camera/field-of-view.ts",
       "kind": "type"
+    },
+    {
+      "name": "calculateFlashGuideNumber",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateFlashPowerForDistance",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "runtime"
     },
     {
       "name": "calculateFocusBreathingFieldOfView",
@@ -453,6 +663,21 @@
       "kind": "runtime"
     },
     {
+      "name": "calculateGamutMappedColor",
+      "source": "src/color/gamut-mapping.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateGeometricFocusBreathing",
+      "source": "src/optics/focus-breathing.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateGeometricFocusBreathingInput",
+      "source": "src/optics/focus-breathing.ts",
+      "kind": "type"
+    },
+    {
       "name": "calculateGeometricResampling",
       "source": "src/output/geometric-transforms.ts",
       "kind": "runtime"
@@ -460,6 +685,16 @@
     {
       "name": "calculateGeometricSamplingPlan",
       "source": "src/output/geometric-transforms.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateHighlightPriorityPlacementSignal",
+      "source": "src/exposure/metering.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateHlgSystemGamma",
+      "source": "src/color/rgb-color-spaces.ts",
       "kind": "runtime"
     },
     {
@@ -496,6 +731,16 @@
       "name": "calculateImagingAreaMetrics",
       "source": "src/sensor/sensor-geometry.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "calculateInverseBrownConradyDistortionMapping",
+      "source": "src/optics/brown-conrady-distortion.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateInverseBrownConradyDistortionMappingInput",
+      "source": "src/optics/brown-conrady-distortion.ts",
+      "kind": "type"
     },
     {
       "name": "calculateInverseCameraRotationImageMapping",
@@ -548,6 +793,16 @@
       "kind": "type"
     },
     {
+      "name": "calculateIrradianceConvolution",
+      "source": "src/optics/irradiance-convolution.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateIrradianceConvolutionPlan",
+      "source": "src/optics/irradiance-convolution.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateLateralChromaticAberrationMapping",
       "source": "src/optics/lateral-chromatic-aberration.ts",
       "kind": "runtime"
@@ -573,6 +828,46 @@
       "kind": "runtime"
     },
     {
+      "name": "calculateLensProjectionDirection",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateLensProjectionDirectionInput",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateLensProjectionFieldOfView",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateLensProjectionFieldOfViewBounds",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateLensProjectionFieldOfViewBoundsInput",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CalculateLensProjectionFieldOfViewInput",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateLensProjectionImagePoint",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateLensProjectionImagePointInput",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
       "name": "calculateLensStrayLightIrradiance",
       "source": "src/optics/stray-light.ts",
       "kind": "runtime"
@@ -583,6 +878,26 @@
       "kind": "runtime"
     },
     {
+      "name": "calculateLongitudinalChromaticFocus",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateLongitudinalChromaticFocusInput",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculateMechanicalVignetting",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateMechanicalVignettingInput",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "type"
+    },
+    {
       "name": "calculateNativeCaptureSdrPlan",
       "source": "src/output/native-capture-sdr.ts",
       "kind": "runtime"
@@ -591,6 +906,16 @@
       "name": "calculateNativeRawPlan",
       "source": "src/capture/native-raw.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "calculateNaturalVignetting",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculateNaturalVignettingInput",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "type"
     },
     {
       "name": "calculateOutputFieldOfView",
@@ -635,6 +960,31 @@
     {
       "name": "CalculatePixelPitchInput",
       "source": "src/sensor/pixel-pitch.ts",
+      "kind": "type"
+    },
+    {
+      "name": "calculatePlanckianChromaticity",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculatePlanckianSpectralRadiance",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculatePointGridCenters",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculatePolygonPupilFraunhoferPsf",
+      "source": "src/optics/polygon-diffraction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CalculatePolygonPupilFraunhoferPsfInput",
+      "source": "src/optics/polygon-diffraction.ts",
       "kind": "type"
     },
     {
@@ -733,6 +1083,11 @@
       "kind": "type"
     },
     {
+      "name": "calculateRgbToXyzMatrices",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateSceneRadianceToSensorIrradiance",
       "source": "src/optics/scene-to-sensor-irradiance.ts",
       "kind": "runtime"
@@ -828,6 +1183,11 @@
       "kind": "type"
     },
     {
+      "name": "calculateSensorFixedPatternSite",
+      "source": "src/sensor/fixed-pattern-noise.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateSensorGeometryMetrics",
       "source": "src/sensor/sensor-geometry.ts",
       "kind": "runtime"
@@ -888,6 +1248,16 @@
       "kind": "type"
     },
     {
+      "name": "calculateShutterAngleExposureSeconds",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateShutterAngleFromExposureSeconds",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateSignalToNoise",
       "source": "src/sensor/signal-noise.ts",
       "kind": "runtime"
@@ -918,6 +1288,11 @@
       "kind": "type"
     },
     {
+      "name": "calculateStepWedgeReflectances",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateSubjectFramingCrop",
       "source": "src/output/subject-framing-crop.ts",
       "kind": "runtime"
@@ -936,6 +1311,11 @@
       "name": "CalculateThinLensImageDistanceInput",
       "source": "src/optics/thin-lens.ts",
       "kind": "type"
+    },
+    {
+      "name": "calculateXyzFromCielab",
+      "source": "src/color/color-difference.ts",
+      "kind": "runtime"
     },
     {
       "name": "CalculationProvenance",
@@ -968,13 +1348,43 @@
       "kind": "type"
     },
     {
+      "name": "CallerRadianceScene",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CallerReflectanceScene",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
       "name": "CameraAngularVelocityRadPerSec",
       "source": "src/motion/camera-rotation.ts",
       "kind": "type"
     },
     {
+      "name": "CameraColorMatrixFit",
+      "source": "src/color/camera-color-matrix.ts",
+      "kind": "type"
+    },
+    {
       "name": "CameraConfiguration",
       "source": "src/schema/camera.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CameraMatrixFitConstraint",
+      "source": "src/color/camera-color-matrix.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CameraMatrixPatchReport",
+      "source": "src/color/camera-color-matrix.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CameraMatrixTrainingPatch",
+      "source": "src/color/camera-color-matrix.ts",
       "kind": "type"
     },
     {
@@ -990,6 +1400,11 @@
     {
       "name": "CameraShakeEstimate",
       "source": "src/stabilization/camera-shake.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CameraSpectralSensitivities",
+      "source": "src/color/camera-color-matrix.ts",
       "kind": "type"
     },
     {
@@ -1031,6 +1446,11 @@
       "name": "CAPTURE_SDR_SCHEMA_VERSION",
       "source": "src/output/capture-sdr.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "CaptureChromaticAdaptationTransform",
+      "source": "src/color/capture-color.ts",
+      "kind": "type"
     },
     {
       "name": "CaptureColorModel",
@@ -1130,6 +1550,11 @@
     {
       "name": "CaptureFloatStorage",
       "source": "src/capture/simulated-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CaptureIlluminant",
+      "source": "src/facade/scene-radiance.ts",
       "kind": "type"
     },
     {
@@ -1293,14 +1718,169 @@
       "kind": "type"
     },
     {
+      "name": "CfaMosaicPlane",
+      "source": "src/processing/demosaic.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CfaPlaneReconstructionInput",
+      "source": "src/processing/demosaic.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CfaPlaneReconstructionOutput",
+      "source": "src/processing/demosaic.ts",
+      "kind": "type"
+    },
+    {
       "name": "ChannelSeparationVectorMm",
       "source": "src/optics/lateral-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CHART_SCENE_DEFAULTS",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CHART_SCENE_PRESETS",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CHART_SPECTRAL_RANGE_NANOMETERS",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ChartReflectance",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartScenePresetId",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CheckerboardChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CHROMATIC_ADAPTATION_TRANSFORMS",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ChromaticAdaptationMatrix",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChromaticAdaptationTransform",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CIE_DAYLIGHT_LOCUS_RANGE_KELVIN",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CIE_ILLUMINANT_A_RANGE_NANOMETERS",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "Cie1960UvChromaticity",
+      "source": "src/color/colorimetry-math.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CieDaylightBasis",
+      "source": "src/color/illuminants.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CieDaylightComponentWeights",
+      "source": "src/color/illuminants.ts",
+      "kind": "type"
+    },
+    {
+      "name": "Ciede2000ParametricFactors",
+      "source": "src/color/color-difference.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CielabColor",
+      "source": "src/color/color-difference.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CielchColor",
+      "source": "src/color/color-difference.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CieXyChromaticity",
+      "source": "src/color/colorimetry-math.ts",
+      "kind": "type"
+    },
+    {
+      "name": "CieXyzTristimulus",
+      "source": "src/color/colorimetry-math.ts",
       "kind": "type"
     },
     {
       "name": "COLOR_TEMPERATURE_WHITE_BALANCE_INTENT_VERSION",
       "source": "src/color/white-balance.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "ColorDifferenceFormula",
+      "source": "src/color/color-difference.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorimetricObserver",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorimetricQuadratureNode",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorimetricSpectralSample",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorimetricSpectrum",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
+      "name": "COLORIMETRY_MODEL_VERSION",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ColorMatchingFunctionsSource",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorMatrix3x3",
+      "source": "src/color/colorimetry-math.ts",
+      "kind": "type"
     },
     {
       "name": "ColorSamplingChannelComposition",
@@ -1323,8 +1903,18 @@
       "kind": "type"
     },
     {
+      "name": "ColorTemperatureWhiteBalanceCameraModel",
+      "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
       "name": "ColorTemperatureWhiteBalanceIntent",
       "source": "src/color/white-balance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ColorVector3",
+      "source": "src/color/colorimetry-math.ts",
       "kind": "type"
     },
     {
@@ -1388,6 +1978,31 @@
       "kind": "type"
     },
     {
+      "name": "CorrelatedColorTemperatureResult",
+      "source": "src/color/illuminants.ts",
+      "kind": "type"
+    },
+    {
+      "name": "createAhdDemosaicTask",
+      "source": "src/processing/demosaic.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createBilateralFilterTask",
+      "source": "src/processing/denoise.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createBuiltInBayerDemosaicProfiles",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateBuiltInBayerDemosaicProfilesInput",
+      "source": "src/sensor/raw-reconstruction.ts",
+      "kind": "type"
+    },
+    {
       "name": "createCancelledReleaseSequence",
       "source": "src/capture/release-sequence.ts",
       "kind": "runtime"
@@ -1403,6 +2018,31 @@
       "kind": "runtime"
     },
     {
+      "name": "createCfaPlaneReconstructionTask",
+      "source": "src/processing/demosaic.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createCieDaylightSpectrum",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createCieIlluminantASpectrum",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createColorimetricMidpointQuadrature",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateColorimetricMidpointQuadratureInput",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
       "name": "createColorTemperatureWhiteBalanceIntent",
       "source": "src/color/white-balance.ts",
       "kind": "runtime"
@@ -1411,6 +2051,16 @@
       "name": "CreateColorTemperatureWhiteBalanceIntentInput",
       "source": "src/color/white-balance.ts",
       "kind": "type"
+    },
+    {
+      "name": "createDurandDorseyToneMappingTask",
+      "source": "src/processing/tone-mapping.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createExposureFusionTask",
+      "source": "src/processing/tone-mapping.ts",
+      "kind": "runtime"
     },
     {
       "name": "createExposureMeterTargetFromMeteringResult",
@@ -1433,9 +2083,44 @@
       "kind": "type"
     },
     {
+      "name": "createFocusStackTask",
+      "source": "src/processing/focus-stacking.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "createGenericEquipmentTierSelection",
       "source": "src/equipment/generic-tier-presets.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "createHdrBracketMergeTask",
+      "source": "src/processing/hdr.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createHdrImageEncodingTask",
+      "source": "src/processing/hdr.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createHighSpeedSyncIlluminationOverlay",
+      "source": "src/exposure/flash.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createImageKernelAccelerator",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createIsoGainReadoutRegimes",
+      "source": "src/sensor/iso-gain.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateIsoGainReadoutRegimesInput",
+      "source": "src/sensor/iso-gain.ts",
+      "kind": "type"
     },
     {
       "name": "createLockedWhiteBalanceState",
@@ -1483,8 +2168,28 @@
       "kind": "runtime"
     },
     {
+      "name": "createNonLocalMeansTask",
+      "source": "src/processing/denoise.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createPanoramaTask",
+      "source": "src/processing/panorama.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "createPhotographicExportPair",
       "source": "src/capture/photographic-export.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createPlanarSceneRadianceProvider",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createPlanckianSpectrum",
+      "source": "src/color/illuminants.ts",
       "kind": "runtime"
     },
     {
@@ -1531,6 +2236,16 @@
       "name": "CreateProductionPlanConsumerManifestInput",
       "source": "src/composition/plan-consumer.ts",
       "kind": "type"
+    },
+    {
+      "name": "createReinhardGlobalToneMappingTask",
+      "source": "src/processing/tone-mapping.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createRollingShutterCaptureExposureSchedule",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "runtime"
     },
     {
       "name": "createSceneIlluminationSpectralCoverageParticipant",
@@ -1603,6 +2318,31 @@
       "kind": "runtime"
     },
     {
+      "name": "createSyntheticFilmGrainTask",
+      "source": "src/processing/denoise.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createTtlScaledFlashProfile",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createUnsharpMaskTask",
+      "source": "src/processing/denoise.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createWavefrontPupilGrid",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CreateWavefrontPupilGridInput",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
       "name": "DeclaredEffectiveCaptureSampling",
       "source": "src/sensor/capture-mode.ts",
       "kind": "type"
@@ -1610,6 +2350,11 @@
     {
       "name": "DefocusCircle",
       "source": "src/optics/depth-of-field.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DefocusWavefront",
+      "source": "src/optics/zernike-wavefront.ts",
       "kind": "type"
     },
     {
@@ -1648,8 +2393,48 @@
       "kind": "runtime"
     },
     {
+      "name": "DNG_IMPORT_LIMITS",
+      "source": "src/capture/dng-import.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "DNG_IMPORT_SCHEMA_VERSION",
+      "source": "src/capture/dng-import.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "DngImportInput",
+      "source": "src/capture/dng-import.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DurandDorseyToneMappingInput",
+      "source": "src/processing/tone-mapping.ts",
+      "kind": "type"
+    },
+    {
+      "name": "DurandDorseyToneMappingOutput",
+      "source": "src/processing/tone-mapping.ts",
+      "kind": "type"
+    },
+    {
+      "name": "EffectiveSaturationReadout",
+      "source": "src/capture/raw-white-level.ts",
+      "kind": "type"
+    },
+    {
       "name": "EffectiveSensorResponseScope",
       "source": "src/sensor/spectral-response.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ELECTRONIC_ROLLING_SHUTTER_MODEL",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ElectronicRollingShutterExposureSchedule",
+      "source": "src/sensor/readout-exposure-linkage.ts",
       "kind": "type"
     },
     {
@@ -1665,6 +2450,11 @@
     {
       "name": "EnvironmentApertureRadianceEvaluator",
       "source": "src/sensor/environment-photo-signal.ts",
+      "kind": "type"
+    },
+    {
+      "name": "EnvironmentLensFieldMapping",
+      "source": "src/optics/sensor-environment-query.ts",
       "kind": "type"
     },
     {
@@ -1703,6 +2493,16 @@
       "kind": "type"
     },
     {
+      "name": "estimateCameraColorMatrix",
+      "source": "src/color/camera-color-matrix.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EstimateCameraColorMatrixInput",
+      "source": "src/color/camera-color-matrix.ts",
+      "kind": "type"
+    },
+    {
       "name": "estimateCameraShakeBlur",
       "source": "src/stabilization/camera-shake.ts",
       "kind": "runtime"
@@ -1711,6 +2511,16 @@
       "name": "EstimateCameraShakeBlurInput",
       "source": "src/stabilization/camera-shake.ts",
       "kind": "type"
+    },
+    {
+      "name": "estimateCie1931ColorMatchingFunctions",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "estimateCorrelatedColorTemperatureMcCamy",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
     },
     {
       "name": "estimatedResult",
@@ -1728,6 +2538,51 @@
       "kind": "type"
     },
     {
+      "name": "estimateMarechalStrehlRatio",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EstimateMarechalStrehlRatioInput",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
+      "name": "estimatePlanckianLocusChromaticity",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluateBt709InverseOetf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluateBt709Oetf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluateHlgInverseOetf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluateHlgOetf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluatePqEotf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluatePqInverseEotf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "evaluateSceneIlluminationTemporalMultiplier",
       "source": "src/schema/illumination-temporal.ts",
       "kind": "runtime"
@@ -1736,6 +2591,26 @@
       "name": "EvaluateSceneIlluminationTemporalMultiplierInput",
       "source": "src/schema/illumination-temporal.ts",
       "kind": "type"
+    },
+    {
+      "name": "evaluateSrgbDecoding",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluateSrgbEncoding",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "evaluateZernikePolynomial",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "EXPORT_JPEG_ENCODER_ID",
+      "source": "src/capture/export-jpeg.ts",
+      "kind": "runtime"
     },
     {
       "name": "ExportSensorColorProfile",
@@ -1785,6 +2660,16 @@
     {
       "name": "ExposureDurationControlResolution",
       "source": "src/exposure/exposure-duration-control.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureFusionInput",
+      "source": "src/processing/tone-mapping.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ExposureFusionOutput",
+      "source": "src/processing/tone-mapping.ts",
       "kind": "type"
     },
     {
@@ -1908,9 +2793,34 @@
       "kind": "type"
     },
     {
+      "name": "FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION",
+      "source": "src/exposure/flash.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "FLASH_SYNC_CAPABILITY_SCHEMA_VERSION",
       "source": "src/exposure/flash.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "FlashGuideNumberInput",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FlashOverlaySyncRegistration",
+      "source": "src/exposure/flash.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FlashPowerForDistance",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FlashPowerForDistanceInput",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "type"
     },
     {
       "name": "FlashSyncCapabilityProfile",
@@ -1983,6 +2893,16 @@
       "kind": "type"
     },
     {
+      "name": "FocusStackInput",
+      "source": "src/processing/focus-stacking.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FocusStackOutput",
+      "source": "src/processing/focus-stacking.ts",
+      "kind": "type"
+    },
+    {
       "name": "FocusTargetControlEvent",
       "source": "src/capture/focus-control.ts",
       "kind": "type"
@@ -2003,12 +2923,37 @@
       "kind": "type"
     },
     {
+      "name": "FRAUNHOFER_C_LINE_NM",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "FRAUNHOFER_D_LINE_NM",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "FRAUNHOFER_F_LINE_NM",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION",
       "source": "src/optics/front-of-lens-filter.ts",
       "kind": "runtime"
     },
     {
+      "name": "FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "FrontOfLensFilterProfile",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "FrontOfLensFilterProfileSchemaVersion",
       "source": "src/optics/front-of-lens-filter.ts",
       "kind": "type"
     },
@@ -2040,6 +2985,16 @@
     {
       "name": "FullAutoExposurePolicy",
       "source": "src/exposure/exposure-mode-resolver.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GamutMappedColor",
+      "source": "src/color/gamut-mapping.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GamutMappingMethod",
+      "source": "src/color/gamut-mapping.ts",
       "kind": "type"
     },
     {
@@ -2193,6 +3148,16 @@
       "kind": "type"
     },
     {
+      "name": "GeometricFocusBreathing",
+      "source": "src/optics/focus-breathing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GeometricFocusingMethod",
+      "source": "src/optics/focus-breathing.ts",
+      "kind": "type"
+    },
+    {
       "name": "GeometricImageDomain",
       "source": "src/output/geometric-transforms.ts",
       "kind": "type"
@@ -2209,6 +3174,11 @@
     },
     {
       "name": "GeometricMappingPoint",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
+      "name": "GeometricProjectionDeclaration",
       "source": "src/output/geometric-transforms.ts",
       "kind": "type"
     },
@@ -2243,6 +3213,11 @@
       "kind": "type"
     },
     {
+      "name": "GreyRampChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "GroupedCaptureModeSamplingAnchorDeclaration",
       "source": "src/sensor/capture-color-sampling-binding.ts",
       "kind": "type"
@@ -2250,6 +3225,56 @@
     {
       "name": "GroupedNativeCaptureSampling",
       "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HdrBracketFrame",
+      "source": "src/processing/hdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HdrBracketMergeInput",
+      "source": "src/processing/hdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HdrBracketMergeOutput",
+      "source": "src/processing/hdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HdrImageEncodingInput",
+      "source": "src/processing/hdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HdrImageEncodingOutput",
+      "source": "src/processing/hdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HdrTransfer",
+      "source": "src/processing/hdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HIGH_SPEED_SYNC_MODEL",
+      "source": "src/exposure/flash.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "HighlightPriorityMeteringDiagnostics",
+      "source": "src/exposure/metering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "HLG_CONSTANTS",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "HlgReferenceDisplay",
+      "source": "src/color/rgb-color-spaces.ts",
       "kind": "type"
     },
     {
@@ -2358,6 +3383,61 @@
       "kind": "type"
     },
     {
+      "name": "ImageKernelAccelerator",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelAcceleratorOptions",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelAcceleratorState",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelBackend",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelCodeErrorBound",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelExecution",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelExecutionError",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ImageKernelFailureReason",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelFallbackReason",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelRelativeErrorBound",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelRunOptions",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
       "name": "ImagePlaneMetricPointMm",
       "source": "src/output/capture-geometry.ts",
       "kind": "type"
@@ -2373,6 +3453,26 @@
       "kind": "type"
     },
     {
+      "name": "ImportedDngBlackLevel",
+      "source": "src/capture/dng-import.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImportedDngCfa",
+      "source": "src/capture/dng-import.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImportedDngRaw",
+      "source": "src/capture/dng-import.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImportedDngRect",
+      "source": "src/capture/dng-import.ts",
+      "kind": "type"
+    },
+    {
       "name": "IntegratedDiscreteSpectralLineMeasure",
       "source": "src/core/spectral-composition.ts",
       "kind": "type"
@@ -2383,6 +3483,11 @@
       "kind": "runtime"
     },
     {
+      "name": "IntegratedSpectrumXyz",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
       "name": "IntegrateSceneIlluminationTemporalMultiplierInput",
       "source": "src/schema/illumination-temporal.ts",
       "kind": "type"
@@ -2391,6 +3496,16 @@
       "name": "integrateSceneIlluminationTemporalMultiplierOverExposureWindow",
       "source": "src/schema/illumination-temporal.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "integrateSpectrumToXyz",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "IntegrateSpectrumToXyzInput",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
     },
     {
       "name": "IntegrateStationarySensorRateInput",
@@ -2416,6 +3531,11 @@
       "name": "InvalidScientificResultError",
       "source": "src/core/validation.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "InverseBrownConradyDistortionMapping",
+      "source": "src/optics/brown-conrady-distortion.ts",
+      "kind": "type"
     },
     {
       "name": "InverseCameraRotationImageMapping",
@@ -2445,6 +3565,31 @@
     {
       "name": "InverseRadialDistortionMappings",
       "source": "src/optics/radial-distortion.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IRRADIANCE_CONVOLUTION_LIMITS",
+      "source": "src/optics/irradiance-convolution.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "IRRADIANCE_CONVOLUTION_SCHEMA_VERSION",
+      "source": "src/optics/irradiance-convolution.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "IrradianceConvolutionInput",
+      "source": "src/optics/irradiance-convolution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IrradianceConvolutionPlan",
+      "source": "src/optics/irradiance-convolution.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IrradianceConvolutionResult",
+      "source": "src/gpu/image-kernel-accelerator.ts",
       "kind": "type"
     },
     {
@@ -2483,9 +3628,24 @@
       "kind": "type"
     },
     {
+      "name": "IsoGainConversionGainMode",
+      "source": "src/sensor/iso-gain.ts",
+      "kind": "type"
+    },
+    {
+      "name": "IsoGainReadoutRegimes",
+      "source": "src/sensor/iso-gain.ts",
+      "kind": "type"
+    },
+    {
       "name": "IsoStandardSettingGrid",
       "source": "src/equipment/iso-capabilities.ts",
       "kind": "type"
+    },
+    {
+      "name": "KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
     },
     {
       "name": "LateralCaLensCorrection",
@@ -2530,6 +3690,11 @@
     {
       "name": "LENS_MTF_DIAGNOSTIC_PROFILE_SCHEMA_VERSION",
       "source": "src/optics/lens-psf-profile.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "LENS_PROJECTION_MODELS",
+      "source": "src/camera/lens-projection.ts",
       "kind": "runtime"
     },
     {
@@ -2578,6 +3743,11 @@
       "kind": "type"
     },
     {
+      "name": "LensDirection",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
       "name": "LensFieldPointMm",
       "source": "src/optics/radial-distortion.ts",
       "kind": "type"
@@ -2590,6 +3760,31 @@
     {
       "name": "LensMtfDiagnosticSample",
       "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensProjectionDirection",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensProjectionFieldOfView",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensProjectionFieldOfViewBounds",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensProjectionImagePoint",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensProjectionModel",
+      "source": "src/camera/lens-projection.ts",
       "kind": "type"
     },
     {
@@ -2623,6 +3818,11 @@
       "kind": "type"
     },
     {
+      "name": "LensSampledPsfInterpolation",
+      "source": "src/optics/lens-psf-profile.ts",
+      "kind": "type"
+    },
+    {
       "name": "LensSampledPsfProfile",
       "source": "src/optics/lens-psf-profile.ts",
       "kind": "type"
@@ -2631,6 +3831,11 @@
       "name": "LensStrayLightProfile",
       "source": "src/optics/stray-light.ts",
       "kind": "type"
+    },
+    {
+      "name": "LINEAR_CAPTURE_ENCODING_MODEL_VERSION",
+      "source": "src/capture/linear-encoding.ts",
+      "kind": "runtime"
     },
     {
       "name": "LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION",
@@ -2650,6 +3855,31 @@
     {
       "name": "LinearCaptureEncodingInput",
       "source": "src/capture/linear-encoding.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LinearPolarizationState",
+      "source": "src/optics/front-of-lens-filter.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LongitudinalChromaticDispersion",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LongitudinalChromaticFocus",
+      "source": "src/optics/longitudinal-chromatic-aberration.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LosslessJpegImage",
+      "source": "src/capture/lossless-jpeg.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LosslessJpegLimits",
+      "source": "src/capture/lossless-jpeg.ts",
       "kind": "type"
     },
     {
@@ -2708,6 +3938,26 @@
       "kind": "runtime"
     },
     {
+      "name": "MAX_CAMERA_MATRIX_TRAINING_PATCHES",
+      "source": "src/color/camera-color-matrix.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "MAX_COLORIMETRIC_QUADRATURE_NODES",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "MAX_COLORIMETRIC_TABLE_SAMPLES",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "MAX_CORRELATED_COLOR_TEMPERATURE_DUV",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "MAX_PRINT_DETAIL_REGION_SAMPLES",
       "source": "src/output/print-detail.ts",
       "kind": "runtime"
@@ -2716,6 +3966,16 @@
       "name": "MAX_PRINT_REGION_STATISTICS_SAMPLES",
       "source": "src/output/print-region-statistics.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "MechanicalVignetting",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "type"
+    },
+    {
+      "name": "MechanicalVignettingAperture",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "type"
     },
     {
       "name": "MeteringCapabilityCompatibilityAssessment",
@@ -2913,6 +4173,11 @@
       "kind": "type"
     },
     {
+      "name": "NativeRawDevelopmentProvider",
+      "source": "src/capture/native-raw-development.ts",
+      "kind": "type"
+    },
+    {
       "name": "NativeRawDevelopmentTask",
       "source": "src/capture/native-raw-development.ts",
       "kind": "type"
@@ -2980,6 +4245,26 @@
     {
       "name": "NativeSensorReadoutScanDirection",
       "source": "src/sensor/readout-timing.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeTaskProgress",
+      "source": "src/output/native-capture-sdr.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NaturalVignetting",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NaturalVignettingModel",
+      "source": "src/optics/pupil-vignetting.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NonLocalMeansInput",
+      "source": "src/processing/denoise.ts",
       "kind": "type"
     },
     {
@@ -3058,6 +4343,26 @@
       "kind": "type"
     },
     {
+      "name": "PanoramaCanvas",
+      "source": "src/processing/panorama.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PanoramaFrame",
+      "source": "src/processing/panorama.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PanoramaInput",
+      "source": "src/processing/panorama.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PanoramaOutput",
+      "source": "src/processing/panorama.ts",
+      "kind": "type"
+    },
+    {
       "name": "ParametricStrayLightResponse",
       "source": "src/optics/stray-light.ts",
       "kind": "type"
@@ -3098,8 +4403,18 @@
       "kind": "runtime"
     },
     {
+      "name": "parseColorimetricQuadratureNodes",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "parseDigitalGeometricTransform",
       "source": "src/output/geometric-transforms.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseDngRawImage",
+      "source": "src/capture/dng-import.ts",
       "kind": "runtime"
     },
     {
@@ -3198,6 +4513,11 @@
       "kind": "runtime"
     },
     {
+      "name": "parseLensProjectionModel",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "parseLensSampledPsfProfile",
       "source": "src/optics/lens-psf-profile.ts",
       "kind": "runtime"
@@ -3210,6 +4530,11 @@
     {
       "name": "parseLinearCaptureEncoding",
       "source": "src/capture/linear-encoding.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "parseLosslessJpeg",
+      "source": "src/capture/lossless-jpeg.ts",
       "kind": "runtime"
     },
     {
@@ -3398,6 +4723,11 @@
       "kind": "runtime"
     },
     {
+      "name": "parseSensorFixedPatternNoiseProfile",
+      "source": "src/sensor/fixed-pattern-noise.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "parseSensorOpticalStackProfile",
       "source": "src/sensor/optical-stack.ts",
       "kind": "runtime"
@@ -3503,9 +4833,19 @@
       "kind": "runtime"
     },
     {
+      "name": "PatchChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "PeriodicMosaicColorSamplingLayout",
       "source": "src/sensor/color-sampling.ts",
       "kind": "type"
+    },
+    {
+      "name": "PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "runtime"
     },
     {
       "name": "PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION",
@@ -3518,6 +4858,11 @@
       "kind": "type"
     },
     {
+      "name": "PhotographicExportOptions",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "type"
+    },
+    {
       "name": "PhotographicExportPair",
       "source": "src/capture/photographic-export.ts",
       "kind": "type"
@@ -3526,6 +4871,11 @@
       "name": "PhotonEnergyFromWavelength",
       "source": "src/sensor/photon-energy.ts",
       "kind": "type"
+    },
+    {
+      "name": "PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "runtime"
     },
     {
       "name": "PhotositeCollectionAreaRequirement",
@@ -3545,6 +4895,21 @@
     {
       "name": "PixelPitch",
       "source": "src/sensor/pixel-pitch.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PlanarSceneRadianceProvider",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PLANCK_CONSTANT_JOULE_SECONDS",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PlanckianLocusModel",
+      "source": "src/color/illuminants.ts",
       "kind": "type"
     },
     {
@@ -3573,6 +4938,46 @@
       "kind": "type"
     },
     {
+      "name": "PNG_ENCODER_ID",
+      "source": "src/output/png-encoder.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PNG_ENCODER_LIMITS",
+      "source": "src/output/png-encoder.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PngCicpPrimaries",
+      "source": "src/output/png-encoder.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PngCicpTransfer",
+      "source": "src/output/png-encoder.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PngColourEncoding",
+      "source": "src/output/png-encoder.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PngContentLightLevel",
+      "source": "src/output/png-encoder.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PngEncodeInput",
+      "source": "src/output/png-encoder.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PngMasteringDisplay",
+      "source": "src/output/png-encoder.ts",
+      "kind": "type"
+    },
+    {
       "name": "POC_SIMULATION_API_VERSION",
       "source": "src/simulation/poc-simulation.ts",
       "kind": "runtime"
@@ -3588,9 +4993,49 @@
       "kind": "type"
     },
     {
+      "name": "PointGridChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PolygonPupilFraunhoferPsf",
+      "source": "src/optics/polygon-diffraction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PQ_CONSTANTS",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "prepareBt1886Eotf",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "prepareColorimetricSpectrum",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "prepareColorMatchingFunctions",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "PREPARED_IMAGE_FORMATION_CONTEXT_VERSION",
       "source": "src/composition/image-formation-plan.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "PreparedColorimetricSpectrum",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PreparedColorMatchingFunctions",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
     },
     {
       "name": "PreparedGeometricMapping",
@@ -3603,8 +5048,18 @@
       "kind": "type"
     },
     {
+      "name": "PreparedRgbGamutMapping",
+      "source": "src/color/gamut-mapping.ts",
+      "kind": "type"
+    },
+    {
       "name": "prepareGeometricMapping",
       "source": "src/output/geometric-transforms.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "prepareHlgReferenceDisplay",
+      "source": "src/color/rgb-color-spaces.ts",
       "kind": "runtime"
     },
     {
@@ -3615,6 +5070,16 @@
     {
       "name": "PrepareImageFormationContextInput",
       "source": "src/composition/image-formation-plan.ts",
+      "kind": "type"
+    },
+    {
+      "name": "prepareRgbGamutMapping",
+      "source": "src/color/gamut-mapping.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PrepareRgbGamutMappingInput",
+      "source": "src/color/gamut-mapping.ts",
       "kind": "type"
     },
     {
@@ -3808,6 +5273,16 @@
       "kind": "type"
     },
     {
+      "name": "PROCESSED_SENSOR_RAW_MODEL_VERSION",
+      "source": "src/capture/photographic-export.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ProcessedRgbImage",
+      "source": "src/processing/denoise.ts",
+      "kind": "type"
+    },
+    {
       "name": "ProcessedSensorRawInput",
       "source": "src/capture/photographic-export.ts",
       "kind": "type"
@@ -3815,6 +5290,56 @@
     {
       "name": "ProcessedSensorRawResult",
       "source": "src/capture/photographic-export.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PROCESSING_DEFAULT_MAXIMUM_WORKING_BYTES",
+      "source": "src/processing/processing-task.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PROCESSING_MAX_FRAMES",
+      "source": "src/processing/processing-task.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PROCESSING_MAX_PIXELS",
+      "source": "src/processing/processing-task.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PROCESSING_MODEL_VERSION",
+      "source": "src/processing/processing-task.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ProcessingLinearColorSpace",
+      "source": "src/processing/processing-task.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProcessingProvenance",
+      "source": "src/processing/processing-task.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProcessingProvider",
+      "source": "src/processing/processing-task.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProcessingRgbImage",
+      "source": "src/processing/processing-task.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProcessingTask",
+      "source": "src/processing/processing-task.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ProcessingTaskState",
+      "source": "src/processing/processing-task.ts",
       "kind": "type"
     },
     {
@@ -3913,6 +5438,11 @@
       "kind": "type"
     },
     {
+      "name": "ProjectionRemapGeometricTransform",
+      "source": "src/output/geometric-transforms.ts",
+      "kind": "type"
+    },
+    {
       "name": "ProvenanceKind",
       "source": "src/core/calculation-result.ts",
       "kind": "type"
@@ -3973,6 +5503,11 @@
       "kind": "type"
     },
     {
+      "name": "RadialLensProjectionModel",
+      "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
       "name": "RadiometryReadinessAssessment",
       "source": "src/sensor/radiometry-readiness.ts",
       "kind": "type"
@@ -4028,6 +5563,11 @@
       "kind": "runtime"
     },
     {
+      "name": "RAW_HIGHLIGHT_RECONSTRUCTION_START",
+      "source": "src/color/sensor-color-development.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "RawFrameReconstruction",
       "source": "src/capture/raw-frame-reconstruction.ts",
       "kind": "type"
@@ -4040,6 +5580,21 @@
     {
       "name": "RawFrameReconstructionPhaseProfile",
       "source": "src/capture/raw-frame-reconstruction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RawHighlightDiagnostics",
+      "source": "src/capture/native-raw-development.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RawHighlightMode",
+      "source": "src/color/sensor-color-development.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RawReconstructionBorderHandling",
+      "source": "src/sensor/raw-reconstruction.ts",
       "kind": "type"
     },
     {
@@ -4105,6 +5660,16 @@
     {
       "name": "ReduceSensorSpatioSpectralIrradianceInput",
       "source": "src/sensor/spatio-spectral-reduction.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReinhardGlobalToneMappingInput",
+      "source": "src/processing/tone-mapping.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ReinhardGlobalToneMappingOutput",
+      "source": "src/processing/tone-mapping.ts",
       "kind": "type"
     },
     {
@@ -4228,6 +5793,11 @@
       "kind": "type"
     },
     {
+      "name": "resolveCaptureIlluminant",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "resolveCaptureMode",
       "source": "src/sensor/capture-mode.ts",
       "kind": "runtime"
@@ -4258,6 +5828,16 @@
       "kind": "type"
     },
     {
+      "name": "resolveChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "resolveChromaticAdaptationConeMatrix",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "resolveColorSamplingSite",
       "source": "src/sensor/color-sampling.ts",
       "kind": "runtime"
@@ -4265,6 +5845,16 @@
     {
       "name": "ResolveColorSamplingSiteInput",
       "source": "src/sensor/color-sampling.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveColorTemperatureWhiteBalance",
+      "source": "src/color/white-balance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveColorTemperatureWhiteBalanceInput",
+      "source": "src/color/white-balance.ts",
       "kind": "type"
     },
     {
@@ -4293,6 +5883,11 @@
       "kind": "type"
     },
     {
+      "name": "ResolvedCaptureIlluminant",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
       "name": "ResolvedCaptureMode",
       "source": "src/sensor/capture-mode.ts",
       "kind": "type"
@@ -4308,8 +5903,18 @@
       "kind": "type"
     },
     {
+      "name": "ResolvedChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "ResolvedColorSamplingSite",
       "source": "src/sensor/color-sampling.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedColorTemperatureWhiteBalance",
+      "source": "src/color/white-balance.ts",
       "kind": "type"
     },
     {
@@ -4330,6 +5935,11 @@
     {
       "name": "ResolvedGenericTierLensProfiles",
       "source": "src/equipment/generic-tier-presets.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ResolvedHighSpeedFlashSync",
+      "source": "src/exposure/flash.ts",
       "kind": "type"
     },
     {
@@ -4403,6 +6013,16 @@
       "kind": "type"
     },
     {
+      "name": "resolveElectronicRollingShutterExposureSchedule",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveElectronicRollingShutterExposureScheduleInput",
+      "source": "src/sensor/readout-exposure-linkage.ts",
+      "kind": "type"
+    },
+    {
       "name": "resolveExposureDurationControl",
       "source": "src/exposure/exposure-duration-control.ts",
       "kind": "runtime"
@@ -4471,6 +6091,16 @@
       "name": "resolveGenericIsoSignalChainPreset",
       "source": "src/sensor/iso-signal-chain.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "resolveHighSpeedFlashSync",
+      "source": "src/exposure/flash.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveHighSpeedFlashSyncInput",
+      "source": "src/exposure/flash.ts",
+      "kind": "type"
     },
     {
       "name": "resolveIsoCapability",
@@ -4568,6 +6198,11 @@
       "kind": "type"
     },
     {
+      "name": "resolveRgbColorSpace",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "resolveSceneIlluminationDiscreteLineMeasure",
       "source": "src/schema/illumination-spectral.ts",
       "kind": "runtime"
@@ -4626,6 +6261,56 @@
       "name": "resolveSimulatedCapturePlane",
       "source": "src/capture/simulated-capture.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "resolveTtlFlashExposure",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveTtlFlashExposureInput",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveVideoFrameSequence",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ResolveVideoFrameSequenceInput",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "type"
+    },
+    {
+      "name": "resolveZernikeNollOrder",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "RgbColorSpaceDefinition",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RgbColorSpaceId",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RgbPrimaryChromaticities",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RgbToXyzMatrices",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "type"
+    },
+    {
+      "name": "RgbTransferFunctionId",
+      "source": "src/color/rgb-color-spaces.ts",
+      "kind": "type"
     },
     {
       "name": "RollingSensorReadoutTimingDeclaration",
@@ -4808,6 +6493,11 @@
       "kind": "type"
     },
     {
+      "name": "ScenePlanePoint",
+      "source": "src/facade/scene-radiance.ts",
+      "kind": "type"
+    },
+    {
       "name": "SceneRadianceDataArtifactReference",
       "source": "src/schema/scene-radiance.ts",
       "kind": "type"
@@ -4983,6 +6673,11 @@
       "kind": "type"
     },
     {
+      "name": "SDR_RENDERING_MODEL_VERSION",
+      "source": "src/output/sdr-rendering.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "SDR_RENDERING_SCHEMA_VERSION",
       "source": "src/output/sdr-rendering.ts",
       "kind": "runtime"
@@ -5003,6 +6698,31 @@
       "kind": "type"
     },
     {
+      "name": "SdrToneCurve",
+      "source": "src/output/sdr-rendering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SdrToneCurveParameters",
+      "source": "src/output/sdr-rendering.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SECOND_RADIATION_CONSTANT_METER_KELVIN",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SeidelFieldPosition",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SeidelWavefrontCoefficients",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
       "name": "SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION",
       "source": "src/sensor/architecture.ts",
       "kind": "runtime"
@@ -5010,6 +6730,21 @@
     {
       "name": "SENSOR_CHARGE_SAMPLING_PROFILE_SCHEMA_VERSION",
       "source": "src/sensor/raw-readout.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SENSOR_COLOR_DEVELOPMENT_MODEL",
+      "source": "src/color/sensor-color-development.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SENSOR_FIXED_PATTERN_NOISE_MODEL",
+      "source": "src/sensor/fixed-pattern-noise.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SENSOR_FIXED_PATTERN_NOISE_PROFILE_SCHEMA_VERSION",
+      "source": "src/sensor/fixed-pattern-noise.ts",
       "kind": "runtime"
     },
     {
@@ -5043,6 +6778,11 @@
       "kind": "runtime"
     },
     {
+      "name": "SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT",
+      "source": "src/sensor/spectral-response.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "SensorAccumulatedChargeCompletenessProfile",
       "source": "src/sensor/accumulated-charge.ts",
       "kind": "type"
@@ -5050,6 +6790,11 @@
     {
       "name": "SensorAccumulatedChargeComposition",
       "source": "src/sensor/accumulated-charge.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorAdcIntegralNonLinearity",
+      "source": "src/sensor/raw-readout.ts",
       "kind": "type"
     },
     {
@@ -5198,6 +6943,11 @@
       "kind": "type"
     },
     {
+      "name": "SensorEnvironmentLensFieldMappingResult",
+      "source": "src/optics/sensor-environment-query.ts",
+      "kind": "type"
+    },
+    {
       "name": "SensorEnvironmentRadianceQuery",
       "source": "src/optics/sensor-environment-query.ts",
       "kind": "type"
@@ -5250,6 +7000,16 @@
     {
       "name": "SensorExpectedReadoutSignal",
       "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorFixedPatternNoiseProfile",
+      "source": "src/sensor/fixed-pattern-noise.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorFixedPatternSiteValues",
+      "source": "src/sensor/fixed-pattern-noise.ts",
       "kind": "type"
     },
     {
@@ -5429,6 +7189,11 @@
     },
     {
       "name": "SensorReadoutConversionRegime",
+      "source": "src/sensor/raw-readout.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SensorReadoutExposureIndexGain",
       "source": "src/sensor/raw-readout.ts",
       "kind": "type"
     },
@@ -5703,6 +7468,11 @@
       "kind": "type"
     },
     {
+      "name": "serializePngImage",
+      "source": "src/output/png-encoder.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "serializeProductionImageFormationPlan",
       "source": "src/composition/image-formation-plan.ts",
       "kind": "runtime"
@@ -5743,6 +7513,11 @@
       "kind": "type"
     },
     {
+      "name": "ShutterAngleRuleAssessment",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "type"
+    },
+    {
       "name": "ShutterPriorityAutoIsoPolicy",
       "source": "src/exposure/exposure-mode-resolver.ts",
       "kind": "type"
@@ -5753,8 +7528,63 @@
       "kind": "type"
     },
     {
+      "name": "SiemensStarChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "SignalToNoise",
       "source": "src/sensor/signal-noise.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SIMULATE_CAPTURE_FACADE_VERSION",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "simulateCapture",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SimulateCaptureAssumption",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureExposureMode",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureOptions",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureOutputFormat",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureProgress",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureResult",
+      "source": "src/facade/simulate-capture.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SimulateCaptureWhiteBalance",
+      "source": "src/facade/simulate-capture.ts",
       "kind": "type"
     },
     {
@@ -5820,6 +7650,11 @@
     {
       "name": "SingleFrameCaptureAcquisition",
       "source": "src/sensor/capture-mode.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SlantedEdgeChartScene",
+      "source": "src/facade/chart-scenes.ts",
       "kind": "type"
     },
     {
@@ -5918,6 +7753,11 @@
       "kind": "type"
     },
     {
+      "name": "SPEED_OF_LIGHT_METERS_PER_SECOND",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "SRGB_ICC_PROFILE_VERSION",
       "source": "src/color/srgb-icc.ts",
       "kind": "runtime"
@@ -6013,6 +7853,11 @@
       "kind": "type"
     },
     {
+      "name": "StepWedgeChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "StrayLightIrradiance",
       "source": "src/optics/stray-light.ts",
       "kind": "type"
@@ -6028,8 +7873,33 @@
       "kind": "type"
     },
     {
+      "name": "SYNTHETIC_FILM_GRAIN_STREAM_ID",
+      "source": "src/processing/denoise.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SyntheticFilmGrainInput",
+      "source": "src/processing/denoise.ts",
+      "kind": "type"
+    },
+    {
+      "name": "SyntheticFilmGrainOutput",
+      "source": "src/processing/denoise.ts",
+      "kind": "type"
+    },
+    {
+      "name": "TabulatedColorMatchingSample",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
       "name": "ThinLensImageDistance",
       "source": "src/optics/thin-lens.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ToneMappedImage",
+      "source": "src/processing/tone-mapping.ts",
       "kind": "type"
     },
     {
@@ -6078,6 +7948,21 @@
       "kind": "type"
     },
     {
+      "name": "TristimulusNormalization",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "type"
+    },
+    {
+      "name": "TTL_FLASH_MODEL",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "TtlFlashExposure",
+      "source": "src/exposure/flash-ttl.ts",
+      "kind": "type"
+    },
+    {
       "name": "UncertaintyConfidence",
       "source": "src/core/calculation-result.ts",
       "kind": "type"
@@ -6093,8 +7978,18 @@
       "kind": "type"
     },
     {
+      "name": "UniformChartScene",
+      "source": "src/facade/chart-scenes.ts",
+      "kind": "type"
+    },
+    {
       "name": "UniformLinearExposureBoundarySchedule",
       "source": "src/sensor/exposure-window.ts",
+      "kind": "type"
+    },
+    {
+      "name": "UnsharpMaskInput",
+      "source": "src/processing/denoise.ts",
       "kind": "type"
     },
     {
@@ -6123,8 +8018,48 @@
       "kind": "type"
     },
     {
+      "name": "VIDEO_FRAME_SEED_STREAM_ID",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "VIDEO_FRAME_SEQUENCE_MAXIMUM_FRAMES",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "VIDEO_FRAME_SEQUENCE_VERSION",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "VideoFrameSequence",
+      "source": "src/motion/video-sequence.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ViewingSurround",
+      "source": "src/color/chromatic-adaptation.ts",
+      "kind": "type"
+    },
+    {
       "name": "VIRTUAL_COLOR_CAMERA_PROFILE",
       "source": "src/color/capture-color.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "WavefrontPupilGrid",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
+      "name": "WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "WEBGPU_F32_UNIT_ROUNDOFF",
+      "source": "src/gpu/image-kernel-execution.ts",
       "kind": "runtime"
     },
     {
@@ -6168,8 +8103,38 @@
       "kind": "type"
     },
     {
+      "name": "WhiteLocus",
+      "source": "src/color/illuminants.ts",
+      "kind": "type"
+    },
+    {
       "name": "WidestAvailableFNumberCapability",
       "source": "src/equipment/exposure-capabilities.ts",
+      "kind": "type"
+    },
+    {
+      "name": "WYMAN_2013_CMF_DOMAIN_NANOMETERS",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ZERNIKE_MAXIMUM_NOLL_INDEX",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ZERNIKE_PUPIL_MAXIMUM_SAMPLES_ACROSS",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "ZernikeCoefficient",
+      "source": "src/optics/zernike-wavefront.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ZernikeOrder",
+      "source": "src/optics/zernike-wavefront.ts",
       "kind": "type"
     }
   ]

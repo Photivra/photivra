@@ -608,3 +608,46 @@ describe("readout/exposure spatial linkage", () => {
     });
   });
 });
+
+describe("readout/exposure spatial linkage in every scan direction", () => {
+  // Hand-derived: a reversed phase means the boundary traverses the same native axis in the
+  // opposite sense, so phase_boundary = 1 - phase_readout.
+  const directions = [
+    { readout: "top-to-bottom", reversed: "bottom-to-top", perpendicular: "left-to-right" },
+    { readout: "bottom-to-top", reversed: "top-to-bottom", perpendicular: "right-to-left" },
+    { readout: "left-to-right", reversed: "right-to-left", perpendicular: "top-to-bottom" },
+    { readout: "right-to-left", reversed: "left-to-right", perpendicular: "bottom-to-top" }
+  ] as const;
+  type Direction = (typeof directions)[number]["readout"];
+  const assess = (readout: Direction, boundary: Direction, orientation: "same" | "reversed",
+    which: "opening" | "closing" = "closing"): ReturnType<typeof assessReadoutExposureTimingLinkage> =>
+    assessReadoutExposureTimingLinkage({
+      nativeRaster,
+      shutterMechanism: "electronic",
+      readout: rollingReadout(readout, 0.02),
+      nominalExposureDurationSeconds: captureSeconds(0.01, "test:nominal"),
+      opening: scanned(boundary, 0.005, "test:opening"),
+      closing: scanned(boundary, 0.005, "test:closing"),
+      linkage: link(which, orientation)
+    });
+
+  it.each(directions)("accepts $readout readout with a reversed $reversed boundary and a same-direction boundary", (d) => {
+    const reversed = assess(d.readout, d.reversed, "reversed").value.links[0]!;
+    expect(reversed.boundary).toBe("closing");
+    expect(reversed.readoutDirectionNative).toBe(d.readout);
+    expect(reversed.boundaryDirectionNative).toBe(d.reversed);
+    expect(reversed.normalizedPhaseRelationship).toBe("boundary-phase-equals-one-minus-readout-phase");
+    expect(reversed.boundaryTraversalToReadoutSpatialSkewRatio).toBeCloseTo(0.25, 15);
+    const same = assess(d.readout, d.readout, "same", "opening").value.links[0]!;
+    expect(same.boundaryDirectionNative).toBe(d.readout);
+    expect(same.normalizedPhaseRelationship).toBe("boundary-phase-equals-readout-phase");
+  });
+
+  it.each(directions)("rejects contradictory or perpendicular $readout declarations", (d) => {
+    const message = "contradicts the readout and exposure-boundary scan directions";
+    expect(() => assess(d.readout, d.readout, "reversed")).toThrow(message);
+    expect(() => assess(d.readout, d.reversed, "same")).toThrow(message);
+    expect(() => assess(d.readout, d.perpendicular, "same")).toThrow(message);
+    expect(() => assess(d.readout, d.perpendicular, "reversed")).toThrow(message);
+  });
+});

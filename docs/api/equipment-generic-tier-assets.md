@@ -1,6 +1,6 @@
 # equipment/generic-tier-assets.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## GenericEquipmentTier
 
@@ -18,7 +18,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface GenericEquipmentTierPreset {
   tier: GenericEquipmentTier;
   label: "Consumer" | "Prosumer" | "Professional";
-  presetId: string; presetVersion: "1.0.0";
+  presetId: string; presetVersion: "2.0.0";
   scientificStatus: "approximation";
   evidence: readonly EvidenceProvenance[];
   body: GenericTierBodyAssets;
@@ -37,7 +37,12 @@ export interface GenericTierBodyAssets {
   iso: IsoCapabilityProfile;
   signalChain: GenericIsoSignalChainProfile;
   readout: readonly GenericVersionedAsset<SensorReadoutConversionProfile>[];
+  /** Global (no spatial skew) data readout; the default timing asset. */
   readoutTiming: GenericVersionedAsset<SensorReadoutTimingDeclaration>;
+  /** Opt-in rolling readout variant with explicit top-to-bottom spatial skew. */
+  rollingReadoutTiming: GenericVersionedAsset<SensorReadoutTimingDeclaration>;
+  /** Opt-in synthetic fixed-pattern noise for this body; never applied unless a caller attaches it. */
+  fixedPatternNoise: GenericVersionedAsset<SensorFixedPatternNoiseProfile>;
   release: GenericReleaseCapabilityProfile;
   focus: FocusControlProfile;
   stabilization: StabilizationSystemProfile;

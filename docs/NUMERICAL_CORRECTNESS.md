@@ -122,10 +122,11 @@ Prefer:
 Rounding is a scientific/output operation when it changes represented data.
 
 - Keep calculations in the highest practical deterministic precision until a defined output boundary.
-- Pixel/raster integer rounding rules must be explicit.
+- Pixel/raster integer rounding rules must be explicit. Whole-pixel crop sizes floor the quotient and snap up only when it lies within 4 ulps below the next integer (rounding noise of the divisor, for example 4480 / (7/3)); a genuine fraction is never rounded up (crop model 2.0.0).
 - RAW/export quantization must define scale, offset/black level, clipping, rounding/tie behavior, and code range.
 - Do not round intermediate physical values for display convenience.
 - Do not let serializer/container limitations redefine the authoritative scientific value.
+- Encoded file bytes must not depend on the JavaScript engine's `Math` library. The baseline JPEG encoder uses a fixed table of correctly rounded DCT cosines (`JPEG_DCT_COSINES`) and rounds quantized coefficients half away from zero; the Print JPEG rounds encoded sRGB codes to nearest with ties up via `Math.round`, not `Math.floor(x + 0.5)` (which rounds 0.49999999999999994 up). See [Photographic export](PHOTOGRAPHIC_EXPORT.md).
 
 ## Signed zero and tiny values
 
@@ -158,6 +159,35 @@ Do not depend on:
 - machine-specific hidden calibration.
 
 Browser-safe public code and supported Node runtimes must share the same semantic result contract. If an implementation permits small runtime-dependent floating-point differences, acceptance tolerances must be explicit and scientifically harmless.
+
+## Cross-engine determinism
+
+ECMAScript requires `+`, `-`, `*`, `/` and `Math.sqrt` to be correctly rounded IEEE 754 binary64 operations, so a fixed sequence of them gives identical bits in V8 (Chrome, Node), JavaScriptCore (Safari, Bun) and SpiderMonkey (Firefox). `Math.hypot`, `exp`, `log`, `cbrt`, `sin`, `cos`, `tan`, `atan`, `acos` and the other transcendental functions are implementation-approximated and differ in the last bit between engines (measured for package 2.0.0: about a third of two-argument `Math.hypot` calls and 1–10% of the other functions differ between Node 24 and Bun 1.4; `**`/`pow` matched on every tested input).
+
+Rules from package 2.0.0:
+
+- A value that is persisted **and** re-derived for an exact identity comparison on parse must be computed only from correctly rounded operations. `portableHypot()` in `src/core/portable-math.ts` replaces `Math.hypot` for such values; it rescales by exact powers of two, so it neither overflows nor depends on the engine.
+- The diagonal 35 mm crop factor is `√(1872 / (w² + h²))` and the imaging-area diagonal is `portableHypot(w, h)` (`calculateImagingAreaMetrics`). The persisted `equivalentFocalLength35Mm` is therefore engine-portable. Scalar diagonals in circle-of-confusion scaling, the POC response and camera-shake/projected-motion distances use `portableHypot` too.
+- Parsers that re-derive a floating value compare it within a few ulps instead of with `!==`: `parseSimulatedCapture` and packed-RAW validation (`createNativeRawDevelopmentTask`) accept an archived `equivalentFocalLength35Mm` within 8 ulps of the re-derived value and return the re-derived value. This also accepts records written by releases before 2.0.0, which used `Math.hypot`.
+- Integer, string, enum and structural identities stay exact.
+
+Engine-portable identities (equal bits for equal inputs in every conforming engine): the simulated-capture and packed-RAW metadata identities, crop and raster geometry, seeds (`Math.imul`/fmix32 only), RAW codes from integer-safe noise and ADC paths (verified identical for a 512×512 native RAW task in Node and Bun), and every export identity derived from them — `rawDataUniqueId`, `simulationHash` and the DNG/JPEG SHA-256 values (verified identical in Node and Bun for a 23.6 × 15.7 mm sensor at 18 mm, which differed before 2.0.0).
+
+Not guaranteed to be bit-identical across engines: continuous results that pass through a transcendental function (field-of-view angles, rotation and distortion mappings, PSF kernels, tone curves). They agree within a few ulps, and a quantized output (RAW code, 8/16-bit sample) can differ only when a value lies within that rounding noise of a quantization boundary. Hashes over such continuous results, including `simulatePocCamera()` response hashes, are engine-specific. Tests that pin them compare discrete fields exactly and numbers within a stated ulp tolerance; the 64-case POC corpus uses 8 ulps (`test/poc-projection-reuse.test.ts`) and passes under Node and Bun.
+
+### Test hash locks and platforms
+
+Some regression tests lock exact engine output with SHA-256 digests. They prove that a refactor is bit-identical; they are not scientific evidence, and each sits beside independently derived spot values so that a digest change can be traced to a quantity:
+
+| Test | Locked output | Independent spot values beside it |
+| --- | --- | --- |
+| `test/native-environment-bit-identity.test.ts` | float64 photo expectations, RAW codes, developed samples | camera-equation photon/electron counts, provider-evaluation counts |
+| `test/stabilization-evaluation-identity.test.ts` | every IEEE-754 bit of stabilized trajectories and temporal nodes | controller residuals, rolling-window midpoint times and weights |
+| `test/canonical-json-identity.test.ts` | simulation hash, RAW data id, DNG and JPEG bytes | re-derived canonical-JSON hashes, TIFF/DNG tags and strip, JPEG markers |
+| `test/jpeg-reference-byte-parity.test.ts` | 18 reference JPEG byte streams | — |
+| `test/poc-projection-reuse.test.ts` | historical POC responses (discrete fields exact, numbers within 8 ulps) | see "Cross-engine determinism" above |
+
+The digests were recorded with Node.js on Linux x64 (V8), which is the only platform the required CI gate runs. Digests over continuous results are engine-specific (see "Cross-engine determinism" above), so their portability to other platforms is not guaranteed. The informational `hash locks (macos-latest)` CI job runs these five tests on macOS without blocking the gate; Windows and linux-arm64 are not tested. A digest that differs only on another platform is a portability finding to investigate, not a reason to regenerate the Linux value. The `print-*` fixture digests hash checked-in input files, not engine output, and are platform independent.
 
 ## Testing requirements
 

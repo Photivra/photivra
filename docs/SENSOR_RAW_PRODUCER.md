@@ -5,6 +5,22 @@ Release context (dated historical note): written for the **package 1.2.0 candida
 See [Reference RAW frame compatibility](RAW_FRAME_ENVELOPE.md) for stage-specific
 limits, full-native counting and parser preflight behavior.
 
+## Noise model 0.4.0, ISO gain and fixed-pattern noise (2.0.0)
+
+The capture noise model `photivra-native-raw-noise` is now **0.4.0**; replays carrying 0.1.0–0.3.0 fail closed. It binds:
+exact ties-up ADC rounding (`Math.round`; `floor(x + 0.5)` returned 1 for 0.49999999999999994), a continuity-corrected
+normal approximation for Poisson means of 1e9 and above, optional post-ADC `adc.digitalGain` and
+`adc.integralNonLinearity` on a regime, and an optional per-site `fixedPatternNoise` profile. Provenance models are
+`sensor-charge-stochastic-realization` **3.0.0**, `sensor-raw-code-stochastic-readout` **4.0.0** and
+`sensor-expected-electronic-readout` **2.0.0**. For means below 1e9, regimes without digital gain/INL and sites without a
+fixed pattern, realized codes are unchanged from 0.3.0 except at exact-tie rounding artefacts.
+
+A site may carry `fixedPatternNoise`; every site of a frame must then carry the same profile ID and sensor-instance seed
+(or none). PRNU and DSNU/hot-pixel factors scale the photo and dark Poisson means; static row/column offsets are added with
+read noise. A readout regime that records an `exposureIndexGain` must match the committed capture ISO. See
+[MOTION_AND_SIGNAL.md](MOTION_AND_SIGNAL.md) for the equations and sources. The browser-native reference-site path does
+not accept fixed-pattern profiles.
+
 ## Independent per-site noise streams — issue #270 (2.0.0)
 
 The capture noise model `photivra-native-raw-noise` is now **0.3.0** and the producer and
@@ -63,7 +79,7 @@ An explicit `exposureWindow` supplies shutter mechanism, sourced nominal duratio
 
 This accepts stationary or explicitly integrated temporal per-site photo expectations under simultaneous or uniform-linear electronic/mechanical/EFCS boundaries; it does not execute moving/time-varying scene transport, predict rolling-shutter geometry, synchronize data readout, or activate reserved production stages. Multi-frame and non-one-to-one timing remain unsupported. The RAW-frame schema and export metadata remain unchanged: `shutterSeconds` is nominal, not a claim that every local site duration equals it. Persist the producer timing result separately when local-window replay evidence is required. Timing evidence and upstream charge origin remain caller declarations, not independently verified transport truth. Capacity uses the supplied dark-result temperature and explicit operating state, independently from ISO. The engine re-composes total photo/dark/additional expectations and checks evidence-backed completeness before assessing capacity.
 
-Capture noise model must equal `SENSOR_RAW_PRODUCER_NOISE_MODEL` (`photivra-native-raw-noise`, version 0.3.0). Noise realization ID stays unchanged. The versioned seed schedule (`murmur3-capture-seed-native-index-stream-v2`) hashes the capture seed, absolute native row-major index n and stream ID (0 charge, 1 read noise) with MurmurHash3_x86_32; see the #270 section above. Both identities are preserved per RAW site. The hash is deterministic ownership; stream independence is checked statistically by the #270 regression tests, not implied by the hash. Existing Poisson and normal sampling implementations are reused, with their existing numerical/model limitations. No backend/global randomness is used.
+Capture noise model must equal `SENSOR_RAW_PRODUCER_NOISE_MODEL` (`photivra-native-raw-noise`, version 0.4.0). Noise realization ID stays unchanged. The versioned seed schedule (`murmur3-capture-seed-native-index-stream-v2`) hashes the capture seed, absolute native row-major index n and stream ID (0 charge, 1 read noise) with MurmurHash3_x86_32; see the #270 section above. Both identities are preserved per RAW site. The hash is deterministic ownership; stream independence is checked statistically by the #270 regression tests, not implied by the hash. Existing Poisson and normal sampling implementations are reused, with their existing numerical/model limitations. No backend/global randomness is used.
 
 Order delegates to existing APIs: accumulated-charge completeness → physical-capacity assessment → stochastic charge realization → scalar physical saturation → read noise → pre-ADC saturation → conversion gain → ADC quantization/digital clamp → native CFA sample → immutable frame. Expected charge is never overwritten by realized/clipped charge. Physical scalar, pre-ADC, lower-code and digital saturation, overflow diagnostics and child provenance remain separate. Scalar saturation is the existing approximation, not a blooming/neighbor-transfer model. Capacity uncertainty is not propagated into stochastic saturation or output codes.
 

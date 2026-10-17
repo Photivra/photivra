@@ -1,6 +1,6 @@
 # color/white-balance.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## COLOR_TEMPERATURE_WHITE_BALANCE_INTENT_VERSION
 
@@ -9,6 +9,19 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 COLOR_TEMPERATURE_WHITE_BALANCE_INTENT_VERSION =
   "0.1.0" as const
+```
+
+## ColorTemperatureWhiteBalanceCameraModel
+
+Camera colour model used to turn a declared white into channel gains.
+
+```ts
+export interface ColorTemperatureWhiteBalanceCameraModel {
+  profileId: string;
+  profileVersion: string;
+  /** Row-major CIE XYZ (white Y = 1) → relative pre-WB camera-linear RGB. */
+  xyzToCameraRgb: ColorMatrix3x3;
+}
 ```
 
 ## ColorTemperatureWhiteBalanceIntent
@@ -31,8 +44,9 @@ export interface ColorTemperatureWhiteBalanceIntent {
 
 Records independent color-temperature and tint intent.
 
-No channel gains are fabricated here; mapping CCT+tint into a camera's
-channel/color space belongs to a profile/colorimetry contract.
+No channel gains are fabricated here; use
+`resolveColorTemperatureWhiteBalance()` with an explicit camera colour model to
+resolve gains.
 
 ```ts
 export function createColorTemperatureWhiteBalanceIntent(
@@ -167,6 +181,42 @@ export interface PreWhiteBalanceRgbSampleSet {
 }
 ```
 
+## resolveColorTemperatureWhiteBalance
+
+Resolves Kelvin + tint WB intent into camera channel gains for an explicit camera
+colour model: white xy = locus(CCT) offset by Duv = tint along the Planckian-locus
+normal in CIE 1960 uv; camera neutral n = M_XYZ→camera · XYZ(white, Y = 1); gains =
+(n_G/n_R, 1, n_G/n_B). A neutral surface lit by an illuminant with exactly that
+chromaticity then renders with equal channels. The CCT/tint is the photographer's
+declared white, not a measured scene illuminant; accuracy is bounded by the camera
+matrix (exact only under the Luther–Ives condition) and the locus model.
+
+```ts
+export function resolveColorTemperatureWhiteBalance(
+  input: ResolveColorTemperatureWhiteBalanceInput
+): ResolvedWhiteBalanceState;
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
+## ResolveColorTemperatureWhiteBalanceInput
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface ResolveColorTemperatureWhiteBalanceInput {
+  stateId: string;
+  intent: ColorTemperatureWhiteBalanceIntent;
+  /** Locus whose temperature defines the white: Planckian or CIE daylight. */
+  whiteLocus: WhiteLocus;
+  /** Tint is read as Duv in the CIE 1960 UCS (positive = above the Planckian locus, greenish). */
+  tintInterpretation: "duv-cie-1960-uv";
+  /** Defaults to the Kim et al. (2002) cubic-spline locus. */
+  planckianLocus?: PlanckianLocusModel;
+  camera: ColorTemperatureWhiteBalanceCameraModel;
+}
+```
+
 ## resolveCustomWhiteBalance
 
 Resolves a user-declared neutral/gray custom-WB measurement.
@@ -193,6 +243,25 @@ export interface ResolveCustomWhiteBalanceInput {
 }
 ```
 
+## ResolvedColorTemperatureWhiteBalance
+
+Locus/tint interpretation and camera neutral behind a Kelvin + tint WB state.
+
+```ts
+export interface ResolvedColorTemperatureWhiteBalance {
+  intentId: string;
+  colorTemperatureKelvin: number;
+  tint: number;
+  whiteLocus: WhiteLocus;
+  tintInterpretation: "duv-cie-1960-uv";
+  planckianLocusModel: "kim-2002-cubic-spline" | "planck-integration";
+  /** CIE 1931 xy of the declared white (CCT + Duv). */
+  adoptedWhiteChromaticity: CieXyChromaticity;
+  /** Pre-WB camera response to that white (XYZ with Y = 1 through xyzToCameraRgb). */
+  cameraNeutralRgb: WhiteBalanceChannelGains;
+}
+```
+
 ## ResolvedWhiteBalanceState
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -206,7 +275,8 @@ export interface ResolvedWhiteBalanceState {
     | "preset"
     | "manual-gains"
     | "custom-measurement"
-    | "auto-white-balance";
+    | "auto-white-balance"
+    | "color-temperature";
   channelGains: WhiteBalanceChannelGains;
   locked: boolean;
   sourceProfile?: {
@@ -229,6 +299,8 @@ export interface ResolvedWhiteBalanceState {
       blue: number;
     };
   };
+  /** Present for `color-temperature` states: the declared CCT/tint and its camera neutral. */
+  colorTemperature?: ResolvedColorTemperatureWhiteBalance;
   sourceStateId?: string;
   trueIlluminantMetadataUsed: false;
   sceneIlluminationModified: false;

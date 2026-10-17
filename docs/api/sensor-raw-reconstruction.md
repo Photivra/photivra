@@ -1,6 +1,71 @@
 # sensor/raw-reconstruction.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+
+## BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION = "1.0.0" as const
+```
+
+## BuiltInBayerDemosaicKernel
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export type BuiltInBayerDemosaicKernel = "bilinear" | "malvar-he-cutler-2004";
+```
+
+## BuiltInBayerDemosaicProfiles
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface BuiltInBayerDemosaicProfiles {
+  kernel: BuiltInBayerDemosaicKernel;
+  /** One profile per absolute CFA phase, row-major (`phaseY`, then `phaseX`). */
+  phaseProfiles: { phaseX: number; phaseY: number; profile: SensorRawReconstructionProfile }[];
+  outputChannelIds: [string, string, string];
+  /** Largest |offset| of any contribution: 1 for bilinear, 2 for Malvar–He–Cutler. */
+  kernelReachSites: number;
+}
+```
+
+## createBuiltInBayerDemosaicProfiles
+
+Builds the explicit per-phase linear reconstruction profiles of a built-in Bayer demosaic kernel:
+bilinear, or the Malvar–He–Cutler (2004) gradient-corrected 5×5 linear filters. The result is the
+ordinary `explicit-linear-native-neighborhood` contract consumed by RAW frame reconstruction, native
+RAW development and `createCfaPlaneReconstructionTask`, so it gains no special execution path. Edge
+pixels need either a region whose neighbourhood stays inside the frame or mirror border handling.
+
+Approximation: fixed linear interpolation, not a calibrated or adaptive demosaic. Bilinear blurs
+and zippers at edges; Malvar–He–Cutler reduces but does not remove colour fringes. Aliasing and
+moiré are not modelled.
+
+```ts
+export function createBuiltInBayerDemosaicProfiles(input: CreateBuiltInBayerDemosaicProfilesInput): CalculationResult<BuiltInBayerDemosaicProfiles>;
+```
+
+This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
+## CreateBuiltInBayerDemosaicProfilesInput
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export interface CreateBuiltInBayerDemosaicProfilesInput {
+  kernel: BuiltInBayerDemosaicKernel;
+  /** Capture mode the RAW frame belongs to; copied into every phase profile. */
+  captureModeId: string;
+  /** Must be a 2×2 periodic Bayer mosaic: one red, one blue and two diagonal green sites. */
+  colorSamplingProfile: SensorColorSamplingProfile;
+  /** CFA channel ids playing the red, green and blue roles; also the output channel order. */
+  channelRoles: { red: string; green: string; blue: string };
+}
+```
 
 ## createSensorRawCaptureSample
 
@@ -31,6 +96,12 @@ export interface CreateSensorRawCaptureSampleInput {
     SensorRawCodeSample;
   contributors:
     ResolvedCaptureModeColorSamplingContributors;
+  /**
+   * The selected readout regime's declared ADC integral non-linearity, when it has one. The code
+   * sample records INL only at its own code; the effective white level needs it at saturation.
+   */
+  adcIntegralNonLinearity?:
+    SensorAdcIntegralNonLinearity;
 }
 ```
 
@@ -51,6 +122,14 @@ export function parseSensorRawReconstructionProfile(
 ```
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.
+
+## RawReconstructionBorderHandling
+
+How a reconstruction neighbourhood that leaves the native frame is handled.
+
+```ts
+export type RawReconstructionBorderHandling = "reject" | "mirror";
+```
 
 ## resolveSensorRawReconstruction
 
@@ -134,6 +213,12 @@ export interface SensorRawCaptureSample {
   digitalSaturationCode: number;
   blackSubtractedNormalizedCode:
     number;
+  /** Full-saturation code from `calculateEffectiveSaturationCode`; constant per CFA phase. */
+  effectiveSaturationCode: number;
+  /** Regime system conversion gain, e⁻ per code (DNG NoiseProfile input). */
+  systemConversionGainElectronsPerCode: number;
+  /** sqrt of the summed squared regime read-noise RMS components, e⁻ (DNG NoiseProfile input). */
+  readNoiseRmsElectrons: number;
   readoutProfileId: string;
   readoutRegimeId: string;
   sourceChargeSeedUint32: number;

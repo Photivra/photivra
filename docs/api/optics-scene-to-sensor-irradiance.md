@@ -1,6 +1,6 @@
 # optics/scene-to-sensor-irradiance.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## calculateSceneRadianceToSensorIrradiance
 
@@ -309,8 +309,12 @@ export interface SceneToSensorIrradianceResult {
     number;
   frontOfLensFilterTransmissionAppliedExactlyOnce:
     true;
+  /**
+   * True when a front-of-lens linear polarizer was applied. Scene radiance is unpolarized in this
+   * bridge, so a polarizer transmits (k1 + k2) / 2.
+   */
   frontOfLensFilterPolarizationModeled:
-    false;
+    boolean;
   fieldThroughputFactor: number;
   effectiveAcceptanceAfterTransmissionAndFieldSteradians:
     number;

@@ -1,0 +1,190 @@
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * Minimal in-process WebGPU double for host-side tests of the image-kernel accelerator. Dispatches run a
+ * JavaScript float32 emulation (Math.fround after every operation) of the first-party WGSL kernels, keyed
+ * by pipeline label, so packing, banding, readback, counters and lifecycle are exercised without a GPU.
+ * Real-GPU conformance lives in test/webgpu (npm run test:webgpu).
+ */
+import { SDR_COUNTER } from "../../src/gpu/wgsl-kernels.js";
+
+const f = Math.fround;
+
+export interface FakeGpuControls {
+  /** Buffers created / destroyed so far. */
+  created: number;
+  destroyed: number;
+  dispatches: number;
+  /** Resolve `device.lost` (simulated loss). */
+  loseDevice(): void;
+  /** Next popErrorScope for this filter returns an error object. */
+  failNextScope: "validation" | "out-of-memory" | null;
+  failPipeline: boolean;
+  /** Called before each dispatch (e.g. to abort or lose the device mid-run). */
+  beforeDispatch?: ((count: number) => void) | undefined;
+}
+export interface FakeGpuOptions {
+  adapter?: "none" | "throws";
+  device?: "throws";
+  maxStorageBufferBindingSize?: number;
+  maxComputeWorkgroupsPerDimension?: number;
+}
+
+class FakeBuffer {
+  data: ArrayBuffer;
+  destroyed = false;
+  constructor(readonly size: number, readonly label: string, private readonly controls: FakeGpuControls) { this.data = new ArrayBuffer(size); controls.created++; }
+  mapAsync(): Promise<void> { return this.destroyed ? Promise.reject(new Error("destroyed")) : Promise.resolve(); }
+  getMappedRange(offset = 0, size = this.size - offset): ArrayBuffer { return this.data.slice(offset, offset + size); }
+  unmap(): void {}
+  destroy(): void { if (!this.destroyed) { this.destroyed = true; this.controls.destroyed++; } }
+}
+interface Entry { binding: number; resource: { buffer: FakeBuffer } }
+
+function encode(x: number): number {
+  if (x === 1) return 1;
+  if (x <= f(.0031308)) return f(x * f(12.92));
+  return f(f(f(1.055) * f(Math.pow(x, f(1 / 2.4)))) - f(.055));
+}
+function renderSample(e: number, sourceNonzero: boolean, band0: number, band1: number, reinhard: boolean, reject: boolean, maximum: number, counters: Uint32Array): number {
+  let gamut = (e === 0 && sourceNonzero) || (!reinhard && Math.abs(f(e - 1)) <= band1);
+  if (band0 > 0 && Math.abs(e) <= band0) gamut = true;
+  let uncertain = gamut || Math.abs(f(e - 1)) <= band1;
+  if (reinhard && e > 0 && e < 9.5367431640625e-7) uncertain = true;
+  if (uncertain) counters[SDR_COUNTER.uncertain]!++;
+  if (gamut) counters[SDR_COUNTER.gamutUncertain]!++;
+  if (e < 0) counters[SDR_COUNTER.negative]!++;
+  if (e > 1) counters[SDR_COUNTER.above]!++;
+  const mapped = reinhard && e > 0 ? f(e / f(1 + e)) : e;
+  if (mapped !== e) counters[SDR_COUNTER.changed]!++;
+  let linear = mapped;
+  if (mapped < 0 || mapped > 1) {
+    if (reject) counters[SDR_COUNTER.outOfGamut]!++;
+    else if (mapped < 0) { counters[SDR_COUNTER.low]!++; linear = 0; } else { counters[SDR_COUNTER.high]!++; linear = 1; }
+  }
+  return Math.min(maximum, Math.max(0, Math.floor(f(f(encode(linear) * maximum) + .5))));
+}
+
+function emulate(label: string, buffers: Map<number, FakeBuffer>): void {
+  const u32 = (b: number): Uint32Array => new Uint32Array(buffers.get(b)!.data);
+  const i32 = (b: number): Int32Array => new Int32Array(buffers.get(b)!.data);
+  const f32 = (b: number): Float32Array => new Float32Array(buffers.get(b)!.data);
+  if (label === "photivra-sdr") {
+    const p = u32(0), pf = f32(0), source = f32(1), codes = u32(2), counters = u32(3);
+    for (let i = 0; i < p[0]!; i++) {
+      const s = source[i]!;
+      codes[i] = renderSample(f(s * pf[4]!), s !== 0, 0, pf[6]!, p[1] !== 0, p[2] !== 0, pf[5]!, counters);
+    }
+  } else if (label === "photivra-irradiance-convolution") {
+    const p = u32(0), source = f32(1), kernels = f32(2), result = f32(3);
+    const [width, height, radius, size, pw, ph, cols, rows, outRow0, outRows, inRow0, taps] = Array.from(p.subarray(0, 12)) as number[];
+    for (let ly = 0; ly < outRows!; ly++) for (let x = 0; x < width!; x++) {
+      const y = outRow0! + ly; let sum = 0;
+      for (let v = -radius!; v <= radius!; v++) {
+        const sy = y - v; if (sy < 0 || sy >= height!) continue;
+        const patchRow = Math.min(Math.floor(sy / ph!), rows! - 1) * cols!;
+        for (let u = -radius!; u <= radius!; u++) {
+          const sx = x - u; if (sx < 0 || sx >= width!) continue;
+          const patch = patchRow + Math.min(Math.floor(sx / pw!), cols! - 1);
+          sum = f(sum + f(source[(sy - inRow0!) * width! + sx]! * kernels[patch * taps! + (v + radius!) * size! + u + radius!]!));
+        }
+      }
+      result[ly * width! + x] = sum;
+    }
+  } else if (label === "photivra-raw-development") {
+    const p = u32(0), pi = i32(0), pf = f32(0), normalized = f32(1), taps = buffers.get(2)!.data, phases = u32(3), codes = u32(4), counters = u32(5);
+    const tapInts = new Int32Array(taps), tapFloats = new Float32Array(taps);
+    const [width, count, row0, reinhard, reject, rw, rh, regionW] = Array.from(p.subarray(0, 8)) as number[];
+    const [ox, oy, axx, axy, ayx, ayy, regionX, regionY] = Array.from(pi.subarray(8, 16)) as number[];
+    const [scale, maximum, band0, band1, clip] = Array.from(pf.subarray(16, 21)) as number[];
+    const reconstruct = p[21] !== 0, bandU = pf[22]!, bandS = pf[23]!, gains = pf.subarray(24, 27);
+    const row3 = (o: number, v: number[]): number => f(f(f(f(0 + f(pf[o]! * v[0]!)) + f(pf[o + 1]! * v[1]!))) + f(pf[o + 2]! * v[2]!));
+    for (let i = 0; i < count!; i++) {
+      const col = i % width!, row = row0! + Math.floor(i / width!);
+      const nx = ox! + axx! * col + axy! * row, ny = oy! + ayx! * col + ayy! * row;
+      const phase = (ny % rh!) * rw! + nx % rw!;
+      let saturated = false;
+      const c = [0, 1, 2].map(ch => {
+        const start = phases[(phase * 3 + ch) * 2]!, n = phases[(phase * 3 + ch) * 2 + 1]!;
+        let value = 0;
+        for (let k = 0; k < n; k++) {
+          const t = (start + k) * 4, site = normalized[(ny + tapInts[t + 1]! - regionY!) * regionW! + nx + tapInts[t]! - regionX!]!;
+          if (site === 1) saturated = true;
+          value = f(value + f(site * tapFloats[t + 2]!));
+        }
+        return value;
+      });
+      if (saturated) counters[SDR_COUNTER.saturatedPixels]!++;
+      const uu = c.map((v, j) => f(v * gains[j]!)), k = uu.map(v => v > clip! ? clip! : v);
+      let b = k;
+      if (!reconstruct) {
+        for (const v of uu) { if (v > clip!) counters[SDR_COUNTER.whiteBalanceClipped]!++; if (Math.abs(f(v - clip!)) <= bandU) counters[SDR_COUNTER.uncertain]!++; }
+      } else {
+        const s = Math.max(...c);
+        if (Math.abs(f(s - f(.8))) <= bandS) counters[SDR_COUNTER.uncertain]!++;
+        if (s > f(.8)) {
+          const t = s < 1 ? f(f(s - f(.8)) / f(1 - f(.8))) : 1, n = Math.max(...k);
+          b = uu.map(v => f(f(f(1 - t) * v) + f(t * n)));
+          counters[SDR_COUNTER.reconstructedPixels]!++;
+        } else b = uu;
+      }
+      const xyz = [row3(28, b), row3(32, b), row3(36, b)], rgb = [row3(40, xyz), row3(44, xyz), row3(48, xyz)];
+      for (let j = 0; j < 3; j++) codes[i * 3 + j] = renderSample(f(rgb[j]! * scale!), false, band0!, band1!, reinhard !== 0, reject !== 0, maximum!, counters);
+    }
+  } else {
+    throw new Error(`No emulator for ${label}`);
+  }
+}
+
+/** Returns a `navigator.gpu`-shaped object and its controls. */
+export function createFakeGpu(options: FakeGpuOptions = {}): { gpu: unknown; controls: FakeGpuControls } {
+  let loseDevice = (): void => undefined;
+  const controls: FakeGpuControls = { created: 0, destroyed: 0, dispatches: 0, loseDevice: () => loseDevice(), failNextScope: null, failPipeline: false };
+  const storage = options.maxStorageBufferBindingSize ?? 128 * 1024 * 1024;
+  const limits = { maxStorageBufferBindingSize: storage, maxBufferSize: storage, maxComputeWorkgroupsPerDimension: options.maxComputeWorkgroupsPerDimension ?? 65535 };
+  const scopes: string[] = [];
+  const device = {
+    limits, onuncapturederror: null as unknown,
+    lost: new Promise(resolve => { loseDevice = (): void => resolve({ reason: "unknown", message: "lost" }); }),
+    queue: {
+      writeBuffer(buffer: FakeBuffer, offset: number, data: ArrayBuffer, dataOffset: number, size: number): void {
+        new Uint8Array(buffer.data, offset, size).set(new Uint8Array(data, dataOffset, size));
+      },
+      submit(): void {}
+    },
+    createBuffer(d: { size: number; label: string }): FakeBuffer { return new FakeBuffer(d.size, d.label, controls); },
+    createShaderModule(d: { label: string }): { label: string } { return { label: d.label }; },
+    createComputePipelineAsync(d: { label: string }): Promise<unknown> {
+      return controls.failPipeline ? Promise.reject(new Error("compile")) : Promise.resolve({ label: d.label, getBindGroupLayout: () => ({}) });
+    },
+    createBindGroup(d: { entries: Entry[] }): { entries: Entry[] } { return { entries: d.entries }; },
+    createCommandEncoder(): unknown {
+      const ops: (() => void)[] = [];
+      return {
+        beginComputePass: (): unknown => {
+          let pipeline: { label: string } | null = null, group: { entries: Entry[] } | null = null;
+          return { setPipeline: (p: { label: string }): void => { pipeline = p; }, setBindGroup: (_: number, g: { entries: Entry[] }): void => { group = g; },
+            dispatchWorkgroups: (): void => { ops.push(() => {
+              controls.dispatches++;
+              controls.beforeDispatch?.(controls.dispatches);
+              emulate(pipeline!.label, new Map(group!.entries.map(e => [e.binding, e.resource.buffer])));
+            }); }, end: (): void => {} };
+        },
+        copyBufferToBuffer: (src: FakeBuffer, so: number, dst: FakeBuffer, d0: number, size: number): void => {
+          ops.push(() => new Uint8Array(dst.data, d0, size).set(new Uint8Array(src.data, so, Math.min(size, src.size - so))));
+        },
+        finish: (): unknown => ({ run: (): void => ops.forEach(op => op()) })
+      };
+    },
+    pushErrorScope(filter: string): void { scopes.push(filter); },
+    popErrorScope(): Promise<unknown> {
+      const filter = scopes.pop();
+      if (controls.failNextScope && controls.failNextScope === filter) { controls.failNextScope = null; return Promise.resolve({ message: "scope" }); }
+      return Promise.resolve(null);
+    },
+    destroy(): void { loseDevice(); }
+  };
+  (device.queue as { submit: (buffers: { run: () => void }[]) => void }).submit = (buffers): void => buffers.forEach(b => b.run());
+  const adapter = { limits, requestDevice: (): Promise<unknown> => options.device === "throws" ? Promise.reject(new Error("no device")) : Promise.resolve(device) };
+  const gpu = { requestAdapter: (): Promise<unknown> => options.adapter === "throws" ? Promise.reject(new Error("adapter")) : Promise.resolve(options.adapter === "none" ? null : adapter) };
+  return { gpu, controls };
+}

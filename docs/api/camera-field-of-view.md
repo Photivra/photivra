@@ -1,6 +1,6 @@
 # camera/field-of-view.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## calculateFieldOfView
 
@@ -58,6 +58,8 @@ export interface CalculateFieldOfViewBoundsInput {
   maximumSensorCoordinateMm: number;
   /** Optional focus distance in metres. */
   focusDistanceM?: number;
+  /** Ideal projection model; omitted or `"rectilinear"` keeps the existing behaviour. */
+  projectionModel?: LensProjectionModel;
 }
 ```
 
@@ -77,6 +79,12 @@ export interface CalculateFieldOfViewInput {
    * infinity-focus/pinhole approximation.
    */
   focusDistanceM?: number;
+  /**
+   * Ideal projection model. Omitted or `"rectilinear"` keeps the rectilinear behaviour (and model
+   * ids) unchanged. Non-rectilinear models use the focal length as the mapping scale and do not
+   * accept focusDistanceM.
+   */
+  projectionModel?: LensProjectionModel;
 }
 ```
 

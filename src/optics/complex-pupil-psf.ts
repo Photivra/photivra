@@ -35,6 +35,7 @@ import type {
   LensPsfScientificStatus,
   LensPsfUncertainty
 } from "./lens-psf-profile.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -774,7 +775,11 @@ export interface LensComplexPupilPsfSampling {
    */
   pupilSupportDiameterMmX: number;
   pupilSupportDiameterMmY: number;
-  /** Declared aperture diameter focalLengthMm / apertureFNumber, in millimetres. */
+  /**
+   * Widest support consistent with the declared f-number at the resolved propagation distance,
+   * propagationDistanceMm / apertureFNumber, in millimetres (focalLengthMm / apertureFNumber for
+   * the nominal focal-plane reference).
+   */
   declaredPupilDiameterMm: number;
   /** Declared pupil grid size before zero padding. */
   pupilGridWidthSamples: number;
@@ -828,10 +833,15 @@ function supportSpan(
  * pupil spanning S samples the discrete autocorrelation has 2S-1 lags, so
  * M >= 2S-1 is the exact condition for no circular wrap-around; it implies
  * Q = M/(S-1) > 2. The declared grid is zero padded to reach that size. The
- * non-zero support must also lie within the declared f/N aperture.
+ * non-zero support must also lie within the declared f/N cone: its diameter D
+ * may not exceed z/N for the resolved propagation distance z, i.e. the image-side
+ * cone D/z may not be wider than 1/N. With the nominal focal-plane reference
+ * (z = f) this is the entrance-aperture diameter f/N; an exit pupil declared at
+ * its own distance z uses that distance (docs/PSF_FOUNDATION.md).
  */
 function planPupilSampling(
-  profile: LensComplexPupilProfile
+  profile: LensComplexPupilProfile,
+  propagationDistanceMm: number
 ): PupilSamplingPlan {
   const grid = profile.grid;
   const supportX = supportSpan(grid, "x");
@@ -839,7 +849,7 @@ function planPupilSampling(
   const diameterX = (supportX - 1) * grid.pupilSamplePitchMmX;
   const diameterY = (supportY - 1) * grid.pupilSamplePitchMmY;
   const declaredDiameter =
-    profile.context.focalLengthMm / profile.context.apertureFNumber;
+    propagationDistanceMm / profile.context.apertureFNumber;
   // Relative allowance for floating-point rounding only.
   const limit = declaredDiameter * (1 + 1e-9);
   if (diameterX > limit || diameterY > limit) {
@@ -848,9 +858,9 @@ function planPupilSampling(
         diameterX.toPrecision(6) +
         " x " +
         diameterY.toPrecision(6) +
-        " mm between outermost non-zero samples, wider than the declared f/N aperture diameter " +
+        " mm between outermost non-zero samples, wider than the declared f/N cone diameter " +
         declaredDiameter.toPrecision(6) +
-        " mm (focalLengthMm / apertureFNumber)."
+        " mm (propagationDistanceMm / apertureFNumber)."
     );
   }
   const transformWidth = Math.max(grid.widthSamples, 2 * supportX - 1);
@@ -1043,13 +1053,14 @@ export function calculateLensComplexPupilPsf(
   input:
     CalculateLensComplexPupilPsfInput
 ): CalculationResult<LensComplexPupilPsf> {
+  requireInputObject(input, "calculateLensComplexPupilPsf input");
   const profile =
     parseLensComplexPupilProfile(
       input.profile
     );
   const propagationDistanceMm = input.propagationDistanceMm === undefined ? profile.context.focalLengthMm : input.propagationDistanceMm;
   requirePositiveFinite(propagationDistanceMm, "propagationDistanceMm");
-  const plan = planPupilSampling(profile);
+  const plan = planPupilSampling(profile, propagationDistanceMm);
   const kernel =
     calculateDiscreteFraunhoferKernel(
       profile,

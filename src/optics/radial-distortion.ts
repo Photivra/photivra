@@ -19,6 +19,7 @@ import {
   InvalidScientificInputError,
   requirePositiveFinite
 } from "../core/validation.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface RadialDistortionCoefficients {
   /** Dimensionless r² coefficient. */
@@ -224,12 +225,11 @@ function derivativeCriticalSquaredRadii(
     return [-scaledB / (2 * scaledA)];
   }
 
+  // root > 0 here, so q is never zero: for scaledB >= 0 the sum scaledB + root is positive and for
+  // scaledB < 0 the difference scaledB - root is negative. (A former q === 0 branch was unreachable.)
   const q =
     -0.5 *
     (scaledB + (scaledB >= 0 ? root : -root));
-  if (q === 0) {
-    return [-scaledB / (2 * scaledA)];
-  }
 
   return [q / scaledA, scaledC / q];
 }
@@ -238,6 +238,7 @@ function derivativeCriticalSquaredRadii(
 export function validateRadialDistortionProfile(
   profile: RadialDistortionProfile
 ): ValidatedRadialProfile {
+  requireInputObject(profile, "profile input");
   requirePositiveFinite(
     "profile.normalizationRadiusMm",
     profile.normalizationRadiusMm
@@ -348,6 +349,7 @@ function mappingAssumptions(): readonly string[] {
 export function calculateRadialDistortionMapping(
   input: CalculateRadialDistortionMappingInput
 ): CalculationResult<RadialDistortionMapping> {
+  requireInputObject(input, "calculateRadialDistortionMapping input");
   requirePoint("imagePointMm", input.imagePointMm);
   const profile = validateRadialDistortionProfile(input.profile);
 
@@ -564,6 +566,7 @@ function calculateInverseRadialDistortionMappingValue(
 export function calculateInverseRadialDistortionMapping(
   input: CalculateInverseRadialDistortionMappingInput
 ): CalculationResult<InverseRadialDistortionMapping> {
+  requireInputObject(input, "calculateInverseRadialDistortionMapping input");
   const profile = validateRadialDistortionProfile(input.profile);
   const mapping = calculateInverseRadialDistortionMappingValue(
     input.distortedImagePointMm,
@@ -592,6 +595,7 @@ export function calculateInverseRadialDistortionMapping(
 export function calculateInverseRadialDistortionMappings(
   input: CalculateInverseRadialDistortionMappingsInput
 ): CalculationResult<InverseRadialDistortionMappings> {
+  requireInputObject(input, "calculateInverseRadialDistortionMappings input");
   const profile = validateRadialDistortionProfile(input.profile);
   if (!Array.isArray(input.distortedImagePointsMm)) {
     throw new InvalidScientificInputError(

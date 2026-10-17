@@ -1,6 +1,6 @@
 # composition/image-formation-plan.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## createProductionCaptureSnapshot
 
@@ -523,6 +523,7 @@ export type ProductionImageFormationBlockerCode =
   | "missing-temporal-capture-input"
   | "temporal-evaluation-blocked"
   | "missing-camera-rotation-model"
+  | "missing-lens-field-mapping"
   | "missing-sensor-readout-timing"
   | "renderer-temporal-sampling-insufficient";
 ```
@@ -698,6 +699,15 @@ export interface ProductionTemporalCaptureInput {
   orientation: CaptureOrientation;
   readout?:
     SensorReadoutTimingDeclaration;
+  /**
+   * Optional explicit readout→exposure linkage. With the electronic rolling-shutter model the
+   * exposure-window schedule must equal resolveElectronicRollingShutterExposureSchedule(readout), so
+   * every per-site exposure window (and the rotation quadrature) carries the per-line offset.
+   */
+  readoutExposureLinkage?: {
+    kind: "electronic-rolling-shutter-line-reset-read";
+    evidence: readonly EvidenceProvenance[];
+  };
   rotation?: {
     angularVelocityRadPerSec:
       CameraAngularVelocityRadPerSec;
@@ -722,7 +732,8 @@ export interface ProductionTemporalCaptureResult {
   exposureTimeReference:
     "first-opening-boundary-phase";
   readoutExposureSynchronization:
-    "not-assumed";
+    | "not-assumed"
+    | "electronic-rolling-shutter-line-linked";
   sensorReadoutTimingRemainsSeparate:
     true;
   temporalRadianceIntegrated:
@@ -807,7 +818,9 @@ export interface RequiredImageFormationEffect {
 ## serializeProductionImageFormationPlan
 
 Return deterministic canonical JSON of a validated production plan. Sorted object keys preserve
-array order; the representation contains data and excludes executable provider callbacks.
+array order; the representation contains data and excludes executable provider callbacks. The
+plan version and its fingerprint (recomputed over the content) must match, so an empty or edited
+object is rejected instead of serialized.
 
 The planner owns scientific stage ordering, immutable capture identity and reproducibility.
 Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The

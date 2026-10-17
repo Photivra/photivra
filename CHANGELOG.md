@@ -77,7 +77,7 @@ Every item here keeps output identical to the code before it, checked by committ
 
 - Add separate metadata-only packed native RAW, physical source-to-RAW and same-RAW reconstruction/SDR tasks with explicit 24 MP admission, bounded tiles, absolute CFA/seed identities, cancellation and single-transfer ownership. Preserve the reference RAW caps and scalar mathematics.
 - Add bounded post-SDR Print crop/area downsampling and original baseline JPEG encoding with an original sRGB ICC profile. Explicit source hashes remain caller declarations; platform save/share, printer appearance and physical device acceptance are separate.
-- Record complete one-megapixel constructed RAW → SDR → downsampled JPEG execution and independently decoded JPEG/ICC/area-filter controls. See [native RAW and Print contracts](docs/NATIVE_RAW_AND_PRINT.md).
+- Record complete one-megapixel constructed RAW → SDR → downsampled JPEG execution and independently decoded JPEG/ICC/area-filter controls. See [native RAW and Print contracts](https://github.com/Photivra/photivra/blob/main/docs/NATIVE_RAW_AND_PRINT.md).
 
 ## 1.3.0 — published October 4, 2026
 

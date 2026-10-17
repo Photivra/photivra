@@ -77,7 +77,7 @@ describe("native host-yield cadence (#275)",()=>{
   it("produces identical developed SDR output for every yield cadence and cancels at a budgeted yield",async()=>{
     const width=514,height=2,f=nativeRawFixture(width,height),exportInput=loadPhotographicExportInput();
     const acquisition=createNativeRawTask(f.input,f.provider);await acquisition.run();const raw=acquisition.takeOutput();
-    const input=():NativeRawDevelopmentInput=>({raw:{...raw,codes:raw.codes.slice(),blackLevels:raw.blackLevels.slice(),digitalSaturationCodes:raw.digitalSaturationCodes.slice(),saturationFlags:raw.saturationFlags.slice()},
+    const input=():NativeRawDevelopmentInput=>({raw:{...raw,codes:raw.codes.slice(),blackLevels:raw.blackLevels.slice(),digitalSaturationCodes:raw.digitalSaturationCodes.slice(),saturationFlags:raw.saturationFlags.slice(),effectiveSaturationCodes:raw.effectiveSaturationCodes.slice()},
       phaseProfiles:exportInput.reconstruction.phaseProfiles,colorProfile:exportInput.colorProfile,whiteBalance:exportInput.whiteBalance,rendering:exportInput.rendering,maximumRetainedPayloadBytes:width*height*10});
     const develop=async(cadence:HostYieldCadence|undefined):Promise<{samples:number[];diagnostics:unknown;yields:number}>=>{
       let yields=0;const y=async():Promise<void>=>{yields++;};
@@ -85,7 +85,8 @@ describe("native host-yield cadence (#275)",()=>{
       await task.run();const out=task.takeOutput();return {samples:Array.from(out.integerSamples),diagnostics:out.diagnostics,yields};
     };
     const baseline=await develop({budgetMilliseconds:0,now:()=>0});
-    expect(baseline.yields).toBe(Math.ceil(width/256)*height);
+    // One budgeted integrity chunk plus every output tile.
+    expect(baseline.yields).toBe(1+Math.ceil(width/256)*height);
     for(const [name,cadence] of cadences()){
       const run=await develop(cadence);
       expect(run.samples,name).toEqual(baseline.samples);expect(run.diagnostics,name).toEqual(baseline.diagnostics);

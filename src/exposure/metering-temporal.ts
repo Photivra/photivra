@@ -24,6 +24,7 @@ import {
 import type {
   SceneRadianceDerivedExposureMeteringSampleSet
 } from "./metering-scene-radiance.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 const NORMALIZED_WEIGHT_TOLERANCE =
   1e-9;
@@ -183,6 +184,7 @@ export function meterSceneRadianceTemporalExposure(
 ): CalculationResult<
   SceneRadianceTemporalExposureMeteringResult
 > {
+  requireInputObject(input, "meterSceneRadianceTemporalExposure input");
   const temporalMeasurementId =
     requireNonEmptyString(
       input.temporalMeasurementId,
@@ -194,6 +196,15 @@ export function meterSceneRadianceTemporalExposure(
       input.profile
     );
 
+  if (
+    profile.policy.kind ===
+    "highlight-priority"
+  ) {
+    // A time average of per-snapshot quantiles is not the quantile of the time-averaged signal.
+    throw new InvalidScientificInputError(
+      "highlight-priority is a spatial quantile, not a linear signal mean; temporal averaging of snapshot quantiles is not defined by this model."
+    );
+  }
   if (
     input.policy.kind !==
     "weighted-time-average"

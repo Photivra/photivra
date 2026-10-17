@@ -15,8 +15,11 @@ export { SENSOR_RAW_PRODUCER_SCHEMA_VERSION, SENSOR_RAW_PRODUCER_NOISE_MODEL, pa
   type SensorRawProducerExposureWindowInput, type SensorRawProducerSiteInput, type SensorRawProducerInput, type SensorRawProducerResult } from "./capture/sensor-raw-producer.js";
 export { CAPTURE_CORRECTED_SDR_SCHEMA_VERSION, parseCaptureCorrectedSdrInput, calculateCaptureCorrectedSdr,
   type CaptureCorrectedSdrInput, type CaptureCorrectedSdrResult } from "./output/capture-corrected-sdr.js";
-export { PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION, parseExportSensorColorProfile, parsePhotographicExportInput, createPhotographicExportPair,
-  type ExportSensorColorProfile, type PhotographicExportInput, type PhotographicExportPair } from "./capture/photographic-export.js";
+export { PHOTOGRAPHIC_EXPORT_SCHEMA_VERSION, PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION, PROCESSED_SENSOR_RAW_MODEL_VERSION, parseExportSensorColorProfile,
+  parsePhotographicExportInput, createPhotographicExportPair, type ExportSensorColorProfile, type PhotographicExportInput,
+  type PhotographicExportOptions, type PhotographicExportPair } from "./capture/photographic-export.js";
+export { calculateEffectiveSaturationCode, type EffectiveSaturationReadout } from "./capture/raw-white-level.js";
+export { RAW_HIGHLIGHT_RECONSTRUCTION_START, SENSOR_COLOR_DEVELOPMENT_MODEL, type RawHighlightMode } from "./color/sensor-color-development.js";
 export { CAPTURE_EXPORT_METADATA_SCHEMA_VERSION, parseCaptureExportMetadataInput, createCaptureExportMetadataPair,
   type CaptureExportWorkflow, type CaptureExportArtifactIdentity, type CaptureExportMetadataInput,
   type CaptureExportSharedMetadata, type CaptureExportMetadataPair } from "./capture/capture-export-metadata.js";
@@ -49,6 +52,9 @@ export {
   type DigitalGeometricTransform,
   type AffineGeometricTransform,
   type RadialGeometricTransform,
+  type BrownConradyGeometricTransform,
+  type ProjectionRemapGeometricTransform,
+  type GeometricProjectionDeclaration,
   type GeometricJacobian,
   type GeometricImageDomain,
   type PreparedGeometricMapping,
@@ -97,6 +103,7 @@ export {
   resolveCaptureColorModel,
   parseCaptureColorTransformInput,
   calculateCaptureColorTransform,
+  type CaptureChromaticAdaptationTransform,
   type CaptureColorModel,
   type CaptureColorWhiteBalance,
   type CaptureColorTransformInput,
@@ -107,6 +114,7 @@ export { ENGINE_API_VERSION } from "./core/version.js";
 
 export {
   LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION,
+  LINEAR_CAPTURE_ENCODING_MODEL_VERSION,
   parseLinearCaptureEncoding,
   calculateLinearCaptureEncoding,
   type LinearCaptureEncoding,
@@ -116,10 +124,13 @@ export {
 
 export {
   SDR_RENDERING_SCHEMA_VERSION,
+  SDR_RENDERING_MODEL_VERSION,
   parseSdrRenderingProfile,
   parseSdrRenderingInput,
   calculateSdrRendering,
   type SdrRenderingProfile,
+  type SdrToneCurve,
+  type SdrToneCurveParameters,
   type SdrRenderingInput,
   type SdrRenderingResult
 } from "./output/sdr-rendering.js";
@@ -263,6 +274,26 @@ export {
 } from "./camera/field-of-view.js";
 
 export {
+  LENS_PROJECTION_MODELS,
+  calculateLensProjectionDirection,
+  calculateLensProjectionFieldOfView,
+  calculateLensProjectionFieldOfViewBounds,
+  calculateLensProjectionImagePoint,
+  parseLensProjectionModel,
+  type CalculateLensProjectionDirectionInput,
+  type CalculateLensProjectionFieldOfViewBoundsInput,
+  type CalculateLensProjectionFieldOfViewInput,
+  type CalculateLensProjectionImagePointInput,
+  type LensDirection,
+  type LensProjectionDirection,
+  type LensProjectionFieldOfView,
+  type LensProjectionFieldOfViewBounds,
+  type LensProjectionImagePoint,
+  type LensProjectionModel,
+  type RadialLensProjectionModel
+} from "./camera/lens-projection.js";
+
+export {
   calculateProjectedObjectSize,
   type CalculateProjectedObjectSizeInput,
   type ProjectedObjectSize
@@ -301,8 +332,142 @@ export {
   type WhiteBalanceChannelGains,
   type WhiteBalanceInputDomain,
   type WhiteBalancePresetDefinition,
-  type WhiteBalanceProfile
+  type WhiteBalanceProfile,
+  resolveColorTemperatureWhiteBalance,
+  type ColorTemperatureWhiteBalanceCameraModel,
+  type ResolveColorTemperatureWhiteBalanceInput,
+  type ResolvedColorTemperatureWhiteBalance
 } from "./color/white-balance.js";
+
+export type {
+  Cie1960UvChromaticity,
+  CieXyChromaticity,
+  CieXyzTristimulus,
+  ColorMatrix3x3,
+  ColorVector3
+} from "./color/colorimetry-math.js";
+
+export {
+  COLORIMETRY_MODEL_VERSION,
+  MAX_COLORIMETRIC_QUADRATURE_NODES,
+  MAX_COLORIMETRIC_TABLE_SAMPLES,
+  WYMAN_2013_CMF_DOMAIN_NANOMETERS,
+  createColorimetricMidpointQuadrature,
+  estimateCie1931ColorMatchingFunctions,
+  integrateSpectrumToXyz,
+  parseColorimetricQuadratureNodes,
+  prepareColorMatchingFunctions,
+  prepareColorimetricSpectrum,
+  type ColorMatchingFunctionsSource,
+  type ColorimetricObserver,
+  type ColorimetricQuadratureNode,
+  type ColorimetricSpectralSample,
+  type ColorimetricSpectrum,
+  type CreateColorimetricMidpointQuadratureInput,
+  type IntegrateSpectrumToXyzInput,
+  type IntegratedSpectrumXyz,
+  type PreparedColorMatchingFunctions,
+  type PreparedColorimetricSpectrum,
+  type TabulatedColorMatchingSample,
+  type TristimulusNormalization
+} from "./color/color-matching-functions.js";
+
+export {
+  BOLTZMANN_CONSTANT_JOULES_PER_KELVIN,
+  CIE_DAYLIGHT_LOCUS_RANGE_KELVIN,
+  CIE_ILLUMINANT_A_RANGE_NANOMETERS,
+  KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN,
+  MAX_CORRELATED_COLOR_TEMPERATURE_DUV,
+  PLANCK_CONSTANT_JOULE_SECONDS,
+  SECOND_RADIATION_CONSTANT_METER_KELVIN,
+  SPEED_OF_LIGHT_METERS_PER_SECOND,
+  calculateChromaticityFromCorrelatedColorTemperature,
+  calculateCieDaylightComponentWeights,
+  calculateCieIlluminantARelativeSpectralPower,
+  calculateCorrelatedColorTemperature,
+  calculatePlanckianChromaticity,
+  calculatePlanckianSpectralRadiance,
+  createCieDaylightSpectrum,
+  createCieIlluminantASpectrum,
+  createPlanckianSpectrum,
+  estimateCorrelatedColorTemperatureMcCamy,
+  estimatePlanckianLocusChromaticity,
+  type CieDaylightBasis,
+  type CieDaylightComponentWeights,
+  type CorrelatedColorTemperatureResult,
+  type PlanckianLocusModel,
+  type WhiteLocus
+} from "./color/illuminants.js";
+
+export {
+  CHROMATIC_ADAPTATION_TRANSFORMS,
+  calculateChromaticAdaptationMatrix,
+  calculateChromaticallyAdaptedXyz,
+  calculateDegreeOfAdaptation,
+  resolveChromaticAdaptationConeMatrix,
+  type CalculateChromaticAdaptationMatrixInput,
+  type ChromaticAdaptationMatrix,
+  type ChromaticAdaptationTransform,
+  type ViewingSurround
+} from "./color/chromatic-adaptation.js";
+
+export {
+  calculateCielabFromCielch,
+  calculateCielabFromXyz,
+  calculateCielchFromCielab,
+  calculateColorDifference,
+  calculateXyzFromCielab,
+  type CalculateColorDifferenceInput,
+  type Ciede2000ParametricFactors,
+  type CielabColor,
+  type CielchColor,
+  type ColorDifferenceFormula
+} from "./color/color-difference.js";
+
+export {
+  MAX_CAMERA_MATRIX_TRAINING_PATCHES,
+  estimateCameraColorMatrix,
+  type CameraColorMatrixFit,
+  type CameraMatrixFitConstraint,
+  type CameraMatrixPatchReport,
+  type CameraMatrixTrainingPatch,
+  type CameraSpectralSensitivities,
+  type EstimateCameraColorMatrixInput
+} from "./color/camera-color-matrix.js";
+
+export {
+  HLG_CONSTANTS,
+  PQ_CONSTANTS,
+  calculateHlgSystemGamma,
+  calculateRgbToXyzMatrices,
+  evaluateBt709InverseOetf,
+  evaluateHlgInverseOetf,
+  evaluatePqEotf,
+  evaluateSrgbDecoding,
+  evaluateBt709Oetf,
+  evaluateHlgOetf,
+  evaluatePqInverseEotf,
+  evaluateSrgbEncoding,
+  prepareBt1886Eotf,
+  prepareHlgReferenceDisplay,
+  resolveRgbColorSpace,
+  type Bt1886Eotf,
+  type HlgReferenceDisplay,
+  type RgbColorSpaceDefinition,
+  type RgbColorSpaceId,
+  type RgbPrimaryChromaticities,
+  type RgbToXyzMatrices,
+  type RgbTransferFunctionId
+} from "./color/rgb-color-spaces.js";
+
+export {
+  calculateGamutMappedColor,
+  prepareRgbGamutMapping,
+  type GamutMappedColor,
+  type GamutMappingMethod,
+  type PrepareRgbGamutMappingInput,
+  type PreparedRgbGamutMapping
+} from "./color/gamut-mapping.js";
 
 export {
   calculatePixelPitch,
@@ -413,6 +578,7 @@ export {
 
 export {
   parseSensorSpectralResponseProfile,
+  SENSOR_SPECTRAL_RESPONSE_CHANNEL_BINDING_FORMAT,
   resolveSensorSpectralResponseAtWavelength,
   type EffectiveSensorResponseScope,
   type ResolveSensorSpectralResponseAtWavelengthInput,
@@ -602,9 +768,27 @@ export {
   type SensorRawCodeSample,
   type SensorReadoutConversionProfile,
   type SensorReadoutConversionRegime,
+  type SensorAdcIntegralNonLinearity,
+  type SensorReadoutExposureIndexGain,
   type SimulateSensorChargeRealizationInput,
   type SimulateSensorRawCodeInput
 } from "./sensor/raw-readout.js";
+
+export {
+  createIsoGainReadoutRegimes,
+  type CreateIsoGainReadoutRegimesInput,
+  type IsoGainConversionGainMode,
+  type IsoGainReadoutRegimes
+} from "./sensor/iso-gain.js";
+
+export {
+  SENSOR_FIXED_PATTERN_NOISE_MODEL,
+  SENSOR_FIXED_PATTERN_NOISE_PROFILE_SCHEMA_VERSION,
+  calculateSensorFixedPatternSite,
+  parseSensorFixedPatternNoiseProfile,
+  type SensorFixedPatternNoiseProfile,
+  type SensorFixedPatternSiteValues
+} from "./sensor/fixed-pattern-noise.js";
 
 export {
   SENSOR_RAW_CAPTURE_SAMPLE_VERSION,
@@ -693,6 +877,11 @@ export {
 
 export {
   assessReadoutExposureTimingLinkage,
+  resolveElectronicRollingShutterExposureSchedule,
+  createRollingShutterCaptureExposureSchedule,
+  ELECTRONIC_ROLLING_SHUTTER_MODEL,
+  type ResolveElectronicRollingShutterExposureScheduleInput,
+  type ElectronicRollingShutterExposureSchedule,
   type AssessReadoutExposureTimingLinkageInput,
   type ReadoutExposureBoundaryId,
   type ReadoutExposureBoundarySpatialLink,
@@ -761,9 +950,53 @@ export {
 
 export {
   calculateIdealPolygonDiffractionPsf,
+  calculatePolygonPupilFraunhoferPsf,
   type CalculateIdealPolygonDiffractionInput,
-  type IdealPolygonDiffraction
+  type CalculatePolygonPupilFraunhoferPsfInput,
+  type IdealPolygonDiffraction,
+  type PolygonPupilFraunhoferPsf
 } from "./optics/polygon-diffraction.js";
+
+export {
+  ZERNIKE_MAXIMUM_NOLL_INDEX,
+  ZERNIKE_PUPIL_MAXIMUM_SAMPLES_ACROSS,
+  calculateDefocusWavefront,
+  createWavefrontPupilGrid,
+  estimateMarechalStrehlRatio,
+  evaluateZernikePolynomial,
+  resolveZernikeNollOrder,
+  type CalculateDefocusWavefrontInput,
+  type CreateWavefrontPupilGridInput,
+  type DefocusWavefront,
+  type EstimateMarechalStrehlRatioInput,
+  type SeidelFieldPosition,
+  type SeidelWavefrontCoefficients,
+  type WavefrontPupilGrid,
+  type ZernikeCoefficient,
+  type ZernikeOrder
+} from "./optics/zernike-wavefront.js";
+
+export {
+  FRAUNHOFER_C_LINE_NM,
+  FRAUNHOFER_D_LINE_NM,
+  FRAUNHOFER_F_LINE_NM,
+  calculateCauchyRefractiveIndex,
+  calculateLongitudinalChromaticFocus,
+  type CalculateLongitudinalChromaticFocusInput,
+  type LongitudinalChromaticDispersion,
+  type LongitudinalChromaticFocus
+} from "./optics/longitudinal-chromatic-aberration.js";
+
+export {
+  calculateMechanicalVignetting,
+  calculateNaturalVignetting,
+  type CalculateMechanicalVignettingInput,
+  type CalculateNaturalVignettingInput,
+  type MechanicalVignetting,
+  type MechanicalVignettingAperture,
+  type NaturalVignetting,
+  type NaturalVignettingModel
+} from "./optics/pupil-vignetting.js";
 
 export {
   estimateEquivalentViewingCircleOfConfusion,
@@ -796,11 +1029,24 @@ export {
 export {
   calculateFocusBreathingFieldOfView,
   calculateFocusBreathingProjection,
+  calculateGeometricFocusBreathing,
   type CalculateFocusBreathingFieldOfViewInput,
   type CalculateFocusBreathingProjectionInput,
+  type CalculateGeometricFocusBreathingInput,
   type FocusBreathingFieldOfView,
-  type FocusBreathingProjection
+  type FocusBreathingProjection,
+  type GeometricFocusBreathing,
+  type GeometricFocusingMethod
 } from "./optics/focus-breathing.js";
+
+export {
+  calculateAtmosphericHaze,
+  calculateExtinctionFromVisibility,
+  type AtmosphericExtinctionModel,
+  type AtmosphericHaze,
+  type CalculateAtmosphericHazeInput,
+  type CalculateExtinctionFromVisibilityInput
+} from "./optics/atmospheric-haze.js";
 
 export {
   calculateInverseRadialDistortionMapping,
@@ -816,6 +1062,17 @@ export {
   type RadialDistortionMapping,
   type RadialDistortionProfile
 } from "./optics/radial-distortion.js";
+
+export {
+  calculateBrownConradyDistortionMapping,
+  calculateInverseBrownConradyDistortionMapping,
+  type BrownConradyDistortionCoefficients,
+  type BrownConradyDistortionMapping,
+  type BrownConradyDistortionProfile,
+  type CalculateBrownConradyDistortionMappingInput,
+  type CalculateInverseBrownConradyDistortionMappingInput,
+  type InverseBrownConradyDistortionMapping
+} from "./optics/brown-conrady-distortion.js";
 
 export {
   calculateInverseLateralChromaticAberrationMapping,
@@ -837,16 +1094,19 @@ export {
 
 export {
   FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION,
+  FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION,
   composeFrontOfLensFilterTransmission,
   parseFrontOfLensFilterProfile,
   resolveFrontOfLensFilterTransmission,
   type ComposeFrontOfLensFilterTransmissionInput,
   type ComposedFrontOfLensFilterTransmission,
   type FrontOfLensFilterProfile,
+  type FrontOfLensFilterProfileSchemaVersion,
   type FrontOfLensFilterScientificStatus,
   type FrontOfLensFilterSpectralSample,
   type FrontOfLensFilterTransmissionModel,
   type FrontOfLensFilterUncertainty,
+  type LinearPolarizationState,
   type ResolveFrontOfLensFilterTransmissionInput,
   type ResolvedFrontOfLensFilterTransmission
 } from "./optics/front-of-lens-filter.js";
@@ -891,6 +1151,7 @@ export {
   type LensPsfUncertainty,
   type LensSampledPsfGridCoordinate,
   type LensSampledPsfGridNode,
+  type LensSampledPsfInterpolation,
   type LensSampledPsfProfile,
   type MtfOnlyPsfRenderabilityAssessment,
   type ResolveLensSampledPsfInput,
@@ -1089,10 +1350,17 @@ export {
 export {
   FLASH_SYNC_CAPABILITY_SCHEMA_VERSION,
   MANUAL_FLASH_PROFILE_SCHEMA_VERSION,
+  FLASH_SYNC_CAPABILITY_HSS_SCHEMA_VERSION,
+  HIGH_SPEED_SYNC_MODEL,
+  createHighSpeedSyncIlluminationOverlay,
   createManualFlashIlluminationOverlay,
   parseFlashSyncCapabilityProfile,
   parseManualFlashProfile,
+  resolveHighSpeedFlashSync,
   resolveManualFlashSync,
+  type FlashOverlaySyncRegistration,
+  type ResolveHighSpeedFlashSyncInput,
+  type ResolvedHighSpeedFlashSync,
   type CreateManualFlashIlluminationOverlayInput,
   type FlashSyncCapabilityProfile,
   type ManualFlashIlluminationOverlay,
@@ -1103,6 +1371,19 @@ export {
   type ResolveManualFlashSyncInput,
   type ResolvedManualFlashSync
 } from "./exposure/flash.js";
+
+export {
+  TTL_FLASH_MODEL,
+  createTtlScaledFlashProfile,
+  calculateFlashGuideNumber,
+  calculateFlashPowerForDistance,
+  resolveTtlFlashExposure,
+  type FlashGuideNumberInput,
+  type FlashPowerForDistance,
+  type FlashPowerForDistanceInput,
+  type ResolveTtlFlashExposureInput,
+  type TtlFlashExposure
+} from "./exposure/flash-ttl.js";
 
 export {
   calculateEquivalentIso,
@@ -1128,8 +1409,10 @@ export {
 
 export {
   EXPOSURE_METERING_PROFILE_SCHEMA_VERSION,
+  calculateHighlightPriorityPlacementSignal,
   meterRelativeExposure,
   parseExposureMeteringProfile,
+  type HighlightPriorityMeteringDiagnostics,
   type ExposureMeteringPolicy,
   type ExposureMeteringProfile,
   type ExposureMeteringResult,
@@ -1253,6 +1536,19 @@ export {
   type ResolvedReleaseFrame,
   type ResolvedReleaseSequence
 } from "./capture/release-sequence.js";
+
+export {
+  VIDEO_FRAME_SEED_STREAM_ID,
+  VIDEO_FRAME_SEQUENCE_MAXIMUM_FRAMES,
+  VIDEO_FRAME_SEQUENCE_VERSION,
+  assessShutterAngleRule,
+  calculateShutterAngleExposureSeconds,
+  calculateShutterAngleFromExposureSeconds,
+  resolveVideoFrameSequence,
+  type ResolveVideoFrameSequenceInput,
+  type ShutterAngleRuleAssessment,
+  type VideoFrameSequence
+} from "./motion/video-sequence.js";
 
 export {
   GENERIC_BODY_METERING_CAPABILITY_SCHEMA_VERSION,
@@ -1389,6 +1685,7 @@ export { calculateSceneSensorEqeTemporalExposure, type CalculateSceneSensorEqeTe
 export { calculateSensorPsfIrradianceQuadrature, type CalculateSensorPsfIrradianceQuadratureInput,
   type SensorPsfSourceSample, type SensorPsfIrradianceQuadrature } from "./optics/sensor-psf-quadrature.js";
 export { calculateSensorEnvironmentRadianceQuery, type CalculateSensorEnvironmentRadianceQueryInput,
+  type EnvironmentLensFieldMapping, type SensorEnvironmentLensFieldMappingResult,
   type SensorEnvironmentRadianceQuery } from "./optics/sensor-environment-query.js";
 export { calculateSensorEqeTemporalExposure, type CalculateSensorEqeTemporalExposureInput,
   type SensorEqeTemporalExposure } from "./sensor/eqe-temporal-exposure.js";
@@ -1427,11 +1724,66 @@ export { NATIVE_ENVIRONMENT_OPTICAL_STAGE_LIMITS } from "./capture/native-enviro
 export type { NativeEnvironmentOpticalStage, NativeEnvironmentOpticalStageRetention, NativeEnvironmentSensorStageInput,
   NativeEnvironmentSensorStageProvider } from "./capture/native-environment-optical-stage.js";
 export { createNativeRawDevelopmentTask } from "./capture/native-raw-development.js";
-export type { NativeRawDevelopmentInput, NativeRawDevelopmentOutput, NativeRawDevelopmentTask } from "./capture/native-raw-development.js";
+export type { NativeRawDevelopmentInput, NativeRawDevelopmentOutput, NativeRawDevelopmentProvider, NativeRawDevelopmentTask,
+  RawHighlightDiagnostics } from "./capture/native-raw-development.js";
 export type { NativeRawExposureInput, NativeRawExposure, NativeRawInput, NativeRawPlan, NativeRawTileRequest, NativeRawTile,
   NativeRawProvider, NativeRawOutput, NativeRawTaskState, NativeRawTask } from "./capture/native-raw.js";
 export { NATIVE_CAPTURE_SDR_SCHEMA_VERSION, NATIVE_CAPTURE_SDR_LIMITS, calculateNativeCaptureSdrPlan, createNativeCaptureSdrTask } from "./output/native-capture-sdr.js";
 export type { NativeCaptureSdrInput, NativeCaptureSdrTileRequest, NativeCaptureSdrTile, NativeCaptureSdrProvider, NativeCaptureSdrPlan,
-  NativeCaptureSdrOutput, NativeCaptureSdrTaskState, NativeCaptureSdrTask } from "./output/native-capture-sdr.js";
+  NativeCaptureSdrOutput, NativeCaptureSdrTaskState, NativeCaptureSdrTask, NativeTaskProgress } from "./output/native-capture-sdr.js";
+
+export { IRRADIANCE_CONVOLUTION_SCHEMA_VERSION, IRRADIANCE_CONVOLUTION_LIMITS, calculateIrradianceConvolutionPlan, calculateIrradianceConvolution } from "./optics/irradiance-convolution.js";
+export type { IrradianceConvolutionInput, IrradianceConvolutionPlan } from "./optics/irradiance-convolution.js";
+export { ImageKernelExecutionError, WEBGPU_F32_UNIT_ROUNDOFF, WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND } from "./gpu/image-kernel-execution.js";
+export type { ImageKernelBackend, ImageKernelFallbackReason, ImageKernelFailureReason, ImageKernelExecution, ImageKernelCodeErrorBound,
+  ImageKernelRelativeErrorBound } from "./gpu/image-kernel-execution.js";
+export { createImageKernelAccelerator } from "./gpu/image-kernel-accelerator.js";
+export type { ImageKernelAccelerator, ImageKernelAcceleratorOptions, ImageKernelAcceleratorState, ImageKernelRunOptions,
+  AcceleratedNativeCaptureSdrOutput, AcceleratedNativeRawDevelopmentOutput, IrradianceConvolutionResult } from "./gpu/image-kernel-accelerator.js";
+export { BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION, createBuiltInBayerDemosaicProfiles, type BuiltInBayerDemosaicKernel, type BuiltInBayerDemosaicProfiles,
+  type CreateBuiltInBayerDemosaicProfilesInput, type RawReconstructionBorderHandling } from "./sensor/raw-reconstruction.js";
+export { PROCESSING_MAX_PIXELS, PROCESSING_MAX_FRAMES, PROCESSING_DEFAULT_MAXIMUM_WORKING_BYTES, PROCESSING_MODEL_VERSION,
+  type ProcessingProvider, type ProcessingTask, type ProcessingTaskState, type ProcessingRgbImage, type ProcessingLinearColorSpace,
+  type ProcessingProvenance } from "./processing/processing-task.js";
+export { createCfaPlaneReconstructionTask, createAhdDemosaicTask, type CfaMosaicPlane, type CfaPlaneReconstructionInput,
+  type CfaPlaneReconstructionOutput, type AhdDemosaicInput, type AhdDemosaicOutput } from "./processing/demosaic.js";
+export { createHdrBracketMergeTask, createHdrImageEncodingTask, type HdrBracketFrame, type HdrBracketMergeInput, type HdrBracketMergeOutput,
+  type HdrTransfer, type HdrImageEncodingInput, type HdrImageEncodingOutput } from "./processing/hdr.js";
+export { createReinhardGlobalToneMappingTask, createDurandDorseyToneMappingTask, createExposureFusionTask, type ToneMappedImage,
+  type ReinhardGlobalToneMappingInput, type ReinhardGlobalToneMappingOutput, type DurandDorseyToneMappingInput, type DurandDorseyToneMappingOutput,
+  type ExposureFusionInput, type ExposureFusionOutput } from "./processing/tone-mapping.js";
+export { createFocusStackTask, type FocusStackInput, type FocusStackOutput } from "./processing/focus-stacking.js";
+export { createPanoramaTask, type PanoramaFrame, type PanoramaCanvas, type PanoramaInput, type PanoramaOutput } from "./processing/panorama.js";
+export { SYNTHETIC_FILM_GRAIN_STREAM_ID, createBilateralFilterTask, createNonLocalMeansTask, createUnsharpMaskTask, createSyntheticFilmGrainTask,
+  type ProcessedRgbImage, type BilateralFilterInput, type NonLocalMeansInput, type UnsharpMaskInput, type SyntheticFilmGrainInput,
+  type SyntheticFilmGrainOutput } from "./processing/denoise.js";
 
 export { calculateSensorApertureRays, type CalculateSensorApertureRaysInput, type IdealCircularPupil, type SensorApertureRay, type SensorApertureRays } from "./optics/sensor-aperture-rays.js";
+
+export { SIMULATE_CAPTURE_FACADE_VERSION, SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX, simulateCapture,
+  type SimulateCaptureOptions, type SimulateCaptureResult, type SimulateCaptureAssumption, type SimulateCaptureProgress,
+  type SimulateCaptureExposureMode, type SimulateCaptureOutputFormat, type SimulateCaptureWhiteBalance } from "./facade/simulate-capture.js";
+export { CHART_SCENE_PRESETS, CHART_SCENE_DEFAULTS, CHART_SPECTRAL_RANGE_NANOMETERS, resolveChartScene, calculateStepWedgeReflectances,
+  calculatePointGridCenters, type ChartScene, type ChartScenePresetId, type ChartReflectance, type ResolvedChartScene, type UniformChartScene,
+  type SlantedEdgeChartScene, type SiemensStarChartScene, type StepWedgeChartScene, type GreyRampChartScene, type CheckerboardChartScene,
+  type PointGridChartScene, type PatchChartScene } from "./facade/chart-scenes.js";
+export { PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, resolveCaptureIlluminant, createPlanarSceneRadianceProvider,
+  type CaptureIlluminant, type ResolvedCaptureIlluminant, type CallerReflectanceScene, type CallerRadianceScene, type ScenePlanePoint,
+  type PlanarSceneRadianceProvider } from "./facade/scene-radiance.js";
+export { EXPORT_JPEG_ENCODER_ID } from "./capture/export-jpeg.js";
+export { DNG_IMPORT_SCHEMA_VERSION, DNG_IMPORT_LIMITS, parseDngRawImage } from "./capture/dng-import.js";
+export type { DngImportInput, ImportedDngRaw, ImportedDngCfa, ImportedDngBlackLevel, ImportedDngRect } from "./capture/dng-import.js";
+export { parseLosslessJpeg, type LosslessJpegImage, type LosslessJpegLimits } from "./capture/lossless-jpeg.js";
+export { PNG_ENCODER_ID, PNG_ENCODER_LIMITS, serializePngImage } from "./output/png-encoder.js";
+export type { PngEncodeInput, PngColourEncoding, PngCicpPrimaries, PngCicpTransfer, PngMasteringDisplay, PngContentLightLevel } from "./output/png-encoder.js";
+
+declare global {
+  /**
+   * Minimal ambient AbortSignal so the published declarations type-check with `lib: ["es2022"]` and
+   * no DOM or `@types/node` (task and yield callbacks receive an engine-created signal). It merges
+   * with the DOM, WebWorker and Node declarations, which declare the identical `aborted` member.
+   */
+  interface AbortSignal {
+    readonly aborted: boolean;
+  }
+}

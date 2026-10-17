@@ -19,6 +19,7 @@ import {
   requirePositiveInteger
 } from "../core/validation.js";
 import { floorWholePixels } from "./crop.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 export interface CalculateSubjectFramingCropInput {
   /** Source image width in pixels. */
@@ -58,6 +59,7 @@ export interface SubjectFramingCrop {
 export function calculateSubjectFramingCrop(
   input: CalculateSubjectFramingCropInput
 ): CalculationResult<SubjectFramingCrop> {
+  requireInputObject(input, "calculateSubjectFramingCrop input");
   requirePositiveInteger("pixelWidth", input.pixelWidth);
   requirePositiveInteger("pixelHeight", input.pixelHeight);
   requirePositiveFinite("subjectHeightPixels", input.subjectHeightPixels);
@@ -119,7 +121,7 @@ export function calculateSubjectFramingCrop(
       cropped: cropFactor > 1
     },
     "subject-height-framing-crop",
-    "1.0.0",
+    "2.0.0",
     [
       "Crop height is the largest whole-pixel height within the requested crop, but never smaller than the subject; width is the nearest integer to the original aspect ratio",
       "Crop can be positioned around the subject",

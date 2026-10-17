@@ -55,11 +55,18 @@ const sha256 = (bytes: ArrayBufferView): string => createHash("sha256").update(n
  * exact float64 photo expectations (incident photons, generated electrons per site), the packed RAW codes
  * and the developed integer samples.
  */
-export async function runNativeEnvironmentWorkload(kind: NativeEnvironmentWorkload): Promise<{ photoSha256: string; rawSha256: string;
+export async function runNativeEnvironmentWorkload(kind: NativeEnvironmentWorkload, options: {
+  /** Rewrites each supplied tile before the engine reads it, e.g. to share or reorder shared-state objects. */
+  mutateTile?: (tile: NativeEnvironmentRawTile) => void;
+  tileWidth?: number;
+} = {}): Promise<{ photoSha256: string; rawSha256: string;
   developedSha256: string; providerEvaluationCount: number }> {
-  const { input, provider } = nativeEnvironmentWorkload(kind);
+  const { input: base, provider } = nativeEnvironmentWorkload(kind), mutate = options.mutateTile;
+  const input = options.tileWidth === undefined ? base : { ...base, raw: { ...base.raw, tileWidth: options.tileWidth } };
+  const readTile = mutate === undefined ? provider.readTile : async (r: Parameters<NativeEnvironmentRawProvider["readTile"]>[0],
+    signal: AbortSignal): Promise<NativeEnvironmentRawTile> => { const tile = await provider.readTile(r, signal); mutate(tile); return tile; };
   const photo: number[] = [];
-  const task = createNativeEnvironmentRawTask(input, { ...provider, observePhotoTile: (tile): void => {
+  const task = createNativeEnvironmentRawTask(input, { ...provider, readTile, observePhotoTile: (tile): void => {
     for (const site of tile.sites) photo.push(site.nativeIndex, site.expectedIncidentPhotonCount, site.expectedGeneratedElectronCount);
   } });
   await task.run();
@@ -70,6 +77,7 @@ export async function runNativeEnvironmentWorkload(kind: NativeEnvironmentWorklo
     maximumRetainedPayloadBytes: output.raw.codes.length*10 }, async (): Promise<void> => {});
   await development.run();
   const developed = development.takeOutput(); development.dispose();
-  return { photoSha256: sha256(Float64Array.from(photo)), rawSha256: sha256(output.raw.codes),
+  // Development took ownership of the RAW arrays; the developed output returns the same RAW.
+  return { photoSha256: sha256(Float64Array.from(photo)), rawSha256: sha256(developed.raw.codes),
     developedSha256: sha256(developed.integerSamples), providerEvaluationCount: output.providerEvaluationCount };
 }

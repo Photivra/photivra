@@ -81,7 +81,7 @@ Native sensor timing is orientation-invariant. `calculateSensorReadoutTiming()` 
 
 Active-capture timing is also explicit: Photivra never scales a full-frame timing fact by crop dimensions to invent a cropped-mode timing. A caller must provide timing evidence appropriate to the selected capture mode/active area; later capture-mode work can bind those declarations more formally.
 
-Mechanical, electronic-first-curtain and fully electronic shutter mechanisms are reported independently but remain scientifically inert in this slice. The function does **not** define local exposure start/end times, mechanical curtain travel, EFCS curtain interaction, rolling-shutter image distortion, flash/flicker bands, or motion integration. Those later models must combine their own timing with this sensor schedule explicitly rather than treating sensor readout as a surrogate shutter-curtain model.
+Mechanical, electronic-first-curtain and fully electronic shutter mechanisms are reported independently but remain scientifically inert in this slice. The function does **not** define local exposure start/end times, mechanical curtain travel, EFCS curtain interaction, flash/flicker bands, or motion integration; an electronic rolling shutter links readout to exposure only through the explicit model in [Electronic rolling-shutter image formation](#electronic-rolling-shutter-image-formation). Those later models must combine their own timing with this sensor schedule explicitly rather than treating sensor readout as a surrogate shutter-curtain model.
 
 ## Readout/exposure spatial linkage
 
@@ -128,7 +128,92 @@ The complete active rectangle is validated so a zero/negative local exposure dur
 
 This contract remains deliberately separate from `calculateSensorReadoutTiming()`. Sensor readout phase is not automatically an exposure boundary. It also remains separate from `calculateCameraRotationImageMapping()`: that API still accepts seconds from its existing exposure-start reference, and the capture rotation and production adapters explicitly bind local capture-window times to that motion basis.
 
-The first exposure-window model does not include curtain acceleration, nonlinear or segmented electronic scheduling, flash/flicker interaction, shutter shock, EFCS-specific pupil/bokeh behavior, or rolling-shutter image distortion.
+The first exposure-window model does not include curtain acceleration, nonlinear or segmented electronic scheduling, shutter shock or EFCS-specific pupil/bokeh behavior. Rolling-shutter distortion and flicker banding are not separate warps: they emerge when per-site windows carry the line offset, see [Electronic rolling-shutter image formation](#electronic-rolling-shutter-image-formation).
+
+## Electronic rolling-shutter image formation
+
+Every native site already resolves its own local exposure window, and every image-formation consumer samples
+time inside that window: the environment RAW path (`simulateEnvironmentSensorRawFrame`,
+`createNativeEnvironmentRawTask`, the browser-native reference executor) queries scene radiance and camera
+rotation at the site's own midpoint times, the production plan's rotation quadrature uses the same windows,
+and `integrateSceneIlluminationTemporalMultiplierOverExposureWindow()` integrates source waveforms over them.
+What was missing was the **row offset itself**: a rolling readout declaration described only sensor data
+readout, so with simultaneous exposure boundaries every row saw the same window.
+
+`resolveElectronicRollingShutterExposureSchedule()` is the explicit linkage model
+(`electronic-rolling-shutter-line-reset-read` 1.0.0) for a fully electronic, line-sequential CMOS rolling
+shutter. Each line is reset, integrates for the exposure time `T` and is read; the reset pointer leads the
+read pointer by `T` and both advance at the line rate (El Gamal & Eltoukhy 2005; Liang, Chang & Chen 2008).
+With the uniform-linear scan used throughout this engine:
+
+```text
+s       = normalized scan position of the native point along the readout direction, s ∈ [0, 1]
+          (top-to-bottom: s = (y − rect.y)/rect.height; bottom-to-top: 1 − that; same for columns)
+τ       = declared first-to-last spatial sampling skew of the rolling readout (active capture)
+window  = [s·τ, s·τ + T]            local duration = T for every line
+```
+
+Both exposure boundaries therefore become uniform-linear scans in the readout direction with traversal `τ`.
+The schedule is a complete exposure schedule (`createRollingShutterCaptureExposureSchedule()`), so it is passed unchanged as a
+native RAW / environment `exposureWindow`, or as a production `temporalCapture.exposureWindowInput` together
+with `readoutExposureLinkage: { kind: "electronic-rolling-shutter-line-reset-read", evidence }`. The plan then
+verifies that the schedule is exactly the one derived from its rolling readout
+(`isElectronicRollingShutterExposureSchedule()`) and reports
+`readoutExposureSynchronization: "electronic-rolling-shutter-line-linked"`; without the linkage it keeps
+`"not-assumed"` and global behaviour is unchanged.
+
+Consequences that now emerge from per-site sampling, with no image warp drawn afterwards:
+
+- **Skew of moving subjects.** A vertical edge moving horizontally at `v` native pixels per second is recorded
+  by line `y` at time `s(y)·τ + phase·T`, so it appears displaced by `Δx(y) = v·τ·(y_center − y_ref)/H`
+  between lines (H = active rows). Top-to-bottom readout shears it one way, bottom-to-top the other; a global
+  (simultaneous) schedule leaves it unsheared. `test/rolling-shutter-image-formation.test.ts` recovers this
+  shear exactly (to 1e-10 px) from the photon expectations of the full environment RAW path.
+- **Camera rotation / translation wobble.** Rotation and translation are evaluated at each line's own times,
+  so yaw at `ω` adds `ω·Δt` of angle between lines `Δt = τ·Δs` apart (verified on the environment queries and
+  the production rotation quadrature). Time-varying angular velocity would produce wobble; the current motion
+  inputs are constant-rate, which gives a pure skew.
+- **Partial exposure.** A source that exists for less than `τ + T` (a flash, a passing object) is captured
+  only by the lines whose windows overlap it.
+- **Flicker banding.** A periodic source waveform of period `P` integrated over `[s·τ, s·τ + T]` varies with
+  `s`; the band pattern repeats every `H·P/τ` rows and disappears when `T` is a whole multiple of `P` (the
+  integral of a periodic waveform over whole periods is phase independent). Mains-powered lamps commonly
+  modulate at twice the mains frequency (IEEE Std 1789-2015); the banding mechanism in line-sequential CMOS
+  capture is described by Poplin (2006).
+
+Limits: uniform line rate, no reset jitter, no global-reset-release or mechanical-close hybrids, and `τ` is a
+declared active-capture value (never scaled from a full-frame figure). The data-readout duration still never
+validates the linkage, and mechanical or EFCS shutters keep their own declared curtain schedules.
+
+## Video frame sequences
+
+`resolveVideoFrameSequence()` turns the existing `"video"` optical capture state (`OpticalProfileState` with
+`captureMode: "video"` and `frameRateHz > 0`) and a shutter angle into ordinary `ResolvedReleaseFrame`s that
+`createProductionCaptureSnapshotFromReleaseFrame()` consumes unchanged.
+
+```text
+frame period          = 1 / f
+exposure (angle θ)    = (θ / 360) / f              θ ∈ (0°, 360°]
+frame k opens at      = k / f                      seconds from sequence start (absolute index k)
+frame k seed          = MurmurHash3_x86_32(sequenceSeed, k, 0x56494446 "VIDF")
+rolling line s, frame k integrates [k/f + s·τ, k/f + s·τ + T],  requires τ ≤ 1/f
+```
+
+`calculateShutterAngleExposureSeconds()` / `calculateShutterAngleFromExposureSeconds()` implement the
+shutter-angle relation of a rotary (or rotary-equivalent electronic) shutter (American Cinematographer
+Manual). `assessShutterAngleRule()` compares an angle with the **180° rule** (`T = 1/(2f)`) and reports the
+signed deviation in stops; the rule is a cinematographic convention for motion-blur appearance, not physics,
+and the result says so (`conventionNotPhysics: true`). For example 24 fps at 172.8° gives `T = 1/50 s`, a
+common choice to integrate whole 100 Hz flicker periods.
+
+**Frame-to-frame determinism.** Frame start, exposure, seed and schedule depend only on the inputs and the
+absolute frame index, never on earlier frames or on chunking: resolving frames 0–9 at once equals resolving
+0–3, 4–6 and 7–9 separately (tested). Frame times use `k / f` directly (no accumulated sums), so floating-point
+error does not grow along a clip. Each frame's per-site noise streams are then derived from its own seed by
+the existing per-site MurmurHash3 schedule.
+
+Not modeled: frame-rate drift, dropped or variable-rate frames, automatic exposure between frames, sensor-mode
+switching, compression/encoding and temporal noise reduction.
 
 ## Capture rotation exposure trajectories
 
@@ -240,7 +325,83 @@ The root package also exports low-level deterministic sensor primitives:
 
 These functions do **not** derive incident photon counts from scene imagery.
 
-They do not currently model dark current, fixed-pattern noise, PRNU/DSNU, ADC quantization, clipping/full-well behavior, CFA/demosaic, downstream denoising, or a particular commercial sensor.
+These two scalar primitives do not model dark current, fixed-pattern noise, PRNU/DSNU, ADC quantization, clipping/full-well behavior, CFA/demosaic, downstream denoising, or a particular commercial sensor. The per-site RAW readout chain below does model dark current, opt-in fixed-pattern noise, ADC quantization and saturation; it still does not model blooming or a particular commercial sensor.
+
+## ISO gain, fixed-pattern noise and dark-current temperature (2.0.0)
+
+### ISO maps to analog and digital gain
+
+ISO is still never an equation inside the readout: an ISO signal chain (`resolveGenericIsoSignalChain`) binds each
+exposure-index setting to an explicitly declared readout regime. `createIsoGainReadoutRegimes()` derives one regime per
+setting from declared parameters, using the linear camera model of EMVA Standard 1288 Release 4.0 (system gain K in
+DN/e⁻; here stored as its reciprocal, electrons per code) and the exposure index of ISO 12232:2019:
+
+| Quantity | Equation |
+|---|---|
+| exposure-index ratio | R = S / S₀ (S₀ = base exposure index) |
+| analog gain | a = min(R, A_max) |
+| post-ADC digital gain | d = R / a (1 inside the analog range) |
+| electrons per code | g(S) = Q₀ / (span · a), span = digitalSaturationCode − blackLevelCode |
+| pre-ADC threshold | Q_preADC(S) = Q₀ / a |
+| electrons reaching digital white | Q₀ · S₀ / S |
+
+Every ISO 12232 speed definition places its reference exposure at H ∝ 1/S (saturation-based S_sat = 78/H_sat; standard
+output sensitivity S_SOS = 10/H_SOS). Under this model an exposure that is correct for S therefore produces the same
+black-subtracted fraction of the white level at every S, and at a fixed exposure the RAW code doubles per stop until it
+clips. `test/iso-brightness.test.ts` (the review repro `r4-iso-white.mjs`) checks, for every generic tier and ISO, that a
+metered mid-grey exposure (H_m/H_sat = 10/78) normalizes to 10/78 within 1e-9 in the expectation and within 6σ shot noise
+plus quantization in noise-free quantized codes, that a clipped site normalizes to 1, and that brightness is monotonic.
+
+Read noise in electrons is declared per conversion-gain mode, never derived from S. A dual-conversion-gain sensor is
+represented by a low-conversion-gain mode at low S and a high-conversion-gain mode, with lower input-referred read noise
+and an optional storage limit, from a declared switch exposure index. These are explicit preset parameters, not a claim
+about any camera.
+
+The readout chain is: realized charge → physical clamp → read noise + fixed-pattern row/column offset → pre-ADC threshold →
+code = signal/g + black + INL(code) → round half up (exact ties toward +∞, `Math.round`) → optional digital gain
+d about black, re-quantized → clamp to [0, digitalSaturationCode]. Digital gain leaves missing codes, as on real
+cameras. The noise-free code of a saturated site is therefore
+`min(digitalSaturationCode, round((min(adcMax, round(black + min(capacity, Q_preADC)/g + INL)) − black) · d + black))`;
+it reduces to `min(digitalSaturationCode, round(black + min(capacity, Q_preADC)/g))` when d = 1 and no INL is declared.
+
+`adc.integralNonLinearity` optionally adds a piecewise-linear INL offset in code units (knots from code 0 to the ADC
+maximum) before quantization; EMVA 1288 characterizes the resulting linearity error. Blooming is **not** modeled: each
+native site is computed independently in tile order, so charge spilling into vertical neighbours would need a second
+frame-wide pass over overflow charge from sites in other tiles. That breaks the per-site, tile-independent reference
+architecture and bit-identical chunking, so the scalar physical clamp and its overflow diagnostic remain the model.
+
+### Fixed-pattern noise
+
+`SensorFixedPatternNoiseProfile` (model `photivra-sensor-fixed-pattern` 1.0.0) is an opt-in, per-sensor-instance spatial
+pattern with EMVA 1288 definitions. Values come from MurmurHash3 streams of (sensor-instance seed, absolute colour-sampling
+site x, y, stream), never from the capture seed, so the same sensor shows the same pattern in every capture:
+
+- PRNU: gain g = max(0, 1 + σ_PRNU·z) multiplies the expected photo charge before Poisson sampling;
+- DSNU: factor max(0, 1 + σ_DSNU·z) multiplies the population-mean dark expectation before dark Poisson sampling;
+- hot pixels: a fraction f of sites uses a declared dark-current multiplier instead; because both act on the dark
+  expectation, the excess scales with exposure time and with the dark-current temperature model;
+- row and column offsets: static normal offsets (σ_row, σ_col, input-referred electrons) shared by a whole row or column,
+  added with read noise before the pre-ADC threshold.
+
+The thermal dark-current contract stays a population mean (`spatialDarkCurrentNonuniformityModeled` is unchanged); this
+is a separately attached model. Omitting the profile gives exactly the uniform model. Normal factors are truncated at 0;
+for σ ≤ 0.2 the resulting bias of the mean factor is below 1e-6.
+
+### Dark-current temperature interpolation
+
+Thermally generated dark current rises approximately exponentially with temperature (Arrhenius behaviour, often
+summarized as a doubling temperature of a few kelvin; Janesick, *Photon Transfer*, SPIE 2007; EMVA 1288 Release 4.0
+dark-current temperature dependence). The new `log-linear-temperature-table` model interpolates ln(rate) linearly between
+adjacent declared samples, r = r₀·(r₁/r₀)^α, so each interval follows its own two samples and no global doubling
+temperature is imposed. Rates must be positive and extrapolation still fails closed. With 10 e⁻/s at 20 °C and 100 e⁻/s
+at 40 °C it gives 31.6 e⁻/s at 30 °C, where the legacy `piecewise-linear-temperature-table` gives 55. The legacy kind
+remains accepted for callers whose data are better described linearly.
+
+### Poisson sampling at very large means
+
+Means of 1e9 electrons and above use a continuity-corrected normal approximation, k = max(0, ⌊μ + √μ·z + ½⌋), whose
+skewness error 1/√μ ≤ 3.2e-5 is negligible there; the transformed-rejection sampler (Hörmann 1993) lost precision at
+1e14 (var/mean 1.012). Means below 1e9 keep the previous samplers and draws.
 
 The composed POC intentionally does not expose photon/noise output.
 
@@ -259,3 +420,23 @@ Geometric pixel/sample pitch is not accepted as photon-collection area. An expli
 ## Provenance
 
 The equations in this slice are independently implemented from established projective geometry, exposure relations, and elementary photon/statistical noise models. No third-party source code or calibration dataset is incorporated by these modules.
+
+References for the 2.0.0 readout additions (cited as published methods; no text, tables or data are copied):
+ISO 12232:2019, *Photography — Digital still cameras — Determination of exposure index, ISO speed ratings, standard
+output sensitivity, and recommended exposure index*; EMVA Standard 1288 Release 4.0, *Standard for Characterization of
+Image Sensors and Cameras* (linear model, PRNU, DSNU, linearity, dark current); J. R. Janesick, *Photon Transfer*,
+SPIE Press, 2007; W. Hörmann, "The transformed rejection method for generating Poisson random variables", *Insurance:
+Mathematics and Economics* 12 (1993); G. E. P. Box and M. E. Muller, "A note on the generation of random normal
+deviates", *Ann. Math. Statist.* 29 (1958); N. L. Johnson, A. W. Kemp and S. Kotz, *Univariate Discrete Distributions*,
+3rd ed., Wiley, 2005 (normal approximation to the Poisson distribution).
+
+References for the 2.0.0 rolling-shutter and video additions (published methods only; no code, text or data copied):
+A. El Gamal and H. Eltoukhy, "CMOS image sensors", *IEEE Circuits and Devices Magazine* 21(3), 2005 (line-sequential
+reset/read rolling shutter); C.-K. Liang, L.-W. Chang and H. H. Chen, "Analysis and compensation of rolling shutter
+effect", *IEEE Transactions on Image Processing* 17(8), 2008; M. Meingast, C. Geyer and S. Sastry, "Geometric models of
+rolling-shutter cameras", OMNIVIS 2005 (arXiv:cs/0503076); O. Ait-Aider, N. Andreff, J. M. Lavest and P. Martinet,
+"Simultaneous object pose and velocity computation using a single view from a rolling shutter camera", ECCV 2006;
+D. Poplin, "An automatic flicker detection method for embedded camera systems", *IEEE Transactions on Consumer
+Electronics* 52(2), 2006; IEEE Std 1789-2015, *Recommended Practices for Modulating Current in High-Brightness LEDs for
+Mitigating Health Risks to Viewers* (light modulation at twice the mains frequency); *American Cinematographer Manual*,
+ASC Press (shutter angle and the 180° convention).

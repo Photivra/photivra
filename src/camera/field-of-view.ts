@@ -23,6 +23,13 @@ import {
   requirePositiveFinite
 } from "../core/validation.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import {
+  calculateLensProjectionFieldOfView,
+  calculateLensProjectionFieldOfViewBounds,
+  parseLensProjectionModel,
+  type LensProjectionModel
+} from "./lens-projection.js";
 
 export interface CalculateFieldOfViewInput {
   /** Lens focal length in millimetres. */
@@ -35,6 +42,12 @@ export interface CalculateFieldOfViewInput {
    * infinity-focus/pinhole approximation.
    */
   focusDistanceM?: number;
+  /**
+   * Ideal projection model. Omitted or `"rectilinear"` keeps the rectilinear behaviour (and model
+   * ids) unchanged. Non-rectilinear models use the focal length as the mapping scale and do not
+   * accept focusDistanceM.
+   */
+  projectionModel?: LensProjectionModel;
 }
 
 export interface CalculateFieldOfViewBoundsInput {
@@ -52,6 +65,8 @@ export interface CalculateFieldOfViewBoundsInput {
   maximumSensorCoordinateMm: number;
   /** Optional focus distance in metres. */
   focusDistanceM?: number;
+  /** Ideal projection model; omitted or `"rectilinear"` keeps the existing behaviour. */
+  projectionModel?: LensProjectionModel;
 }
 
 export interface FieldOfView {
@@ -104,6 +119,25 @@ function resolveProjectionDistance(
   };
 }
 
+/** Returns the non-rectilinear model, or undefined for the default rectilinear path. */
+function nonRectilinearModel(
+  input: { projectionModel?: unknown; focusDistanceM?: number }
+): Exclude<LensProjectionModel, "rectilinear"> | undefined {
+  if (input.projectionModel === undefined) {
+    return undefined;
+  }
+  const model = parseLensProjectionModel(input.projectionModel);
+  if (model === "rectilinear") {
+    return undefined;
+  }
+  if (input.focusDistanceM !== undefined) {
+    throw new InvalidScientificInputError(
+      "focusDistanceM is supported only for the rectilinear projection; a finite-focus fisheye/equirectangular mapping scale is not modeled."
+    );
+  }
+  return model;
+}
+
 function fieldOfViewAssumptions(focusAware: boolean): readonly string[] {
   return focusAware
     ? [
@@ -131,7 +165,24 @@ function fieldOfViewAssumptions(focusAware: boolean): readonly string[] {
 export function calculateFieldOfView(
   input: CalculateFieldOfViewInput
 ): CalculationResult<FieldOfView> {
+  requireInputKeys(input, "calculateFieldOfView", ["focalLengthMm", "sensorDimensionMm", "focusDistanceM", "projectionModel"]);
   requirePositiveFinite("sensorDimensionMm", input.sensorDimensionMm);
+  const projectionModel = nonRectilinearModel(input);
+  if (projectionModel !== undefined) {
+    const result = calculateLensProjectionFieldOfView({
+      projectionModel,
+      focalLengthMm: input.focalLengthMm,
+      sensorDimensionMm: input.sensorDimensionMm
+    });
+    return {
+      ...result,
+      value: {
+        radians: result.value.radians,
+        degrees: result.value.degrees,
+        projectionDistanceMm: result.value.projectionDistanceMm
+      }
+    };
+  }
 
   const { projectionDistanceMm, focusAware } = resolveProjectionDistance(
     input.focalLengthMm,
@@ -164,6 +215,7 @@ export function calculateFieldOfView(
 export function calculateFieldOfViewBounds(
   input: CalculateFieldOfViewBoundsInput
 ): CalculationResult<FieldOfViewBounds> {
+  requireInputKeys(input, "calculateFieldOfViewBounds", ["focalLengthMm", "minimumSensorCoordinateMm", "maximumSensorCoordinateMm", "focusDistanceM", "projectionModel"]);
   if (!Number.isFinite(input.minimumSensorCoordinateMm)) {
     throw new InvalidScientificInputError(
       "minimumSensorCoordinateMm must be finite."
@@ -180,6 +232,19 @@ export function calculateFieldOfViewBounds(
     throw new InvalidScientificInputError(
       "maximumSensorCoordinateMm must be greater than minimumSensorCoordinateMm."
     );
+  }
+
+  const projectionModel = nonRectilinearModel(input);
+  if (projectionModel !== undefined) {
+    const result = calculateLensProjectionFieldOfViewBounds({
+      projectionModel,
+      focalLengthMm: input.focalLengthMm,
+      minimumSensorCoordinateMm: input.minimumSensorCoordinateMm,
+      maximumSensorCoordinateMm: input.maximumSensorCoordinateMm
+    });
+    const { projectionModel: _model, ...value } = result.value;
+    void _model;
+    return { ...result, value };
   }
 
   const { projectionDistanceMm, focusAware } = resolveProjectionDistance(

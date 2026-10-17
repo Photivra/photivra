@@ -34,6 +34,7 @@ import {
   type ResolvedSensorReadoutRegime,
   type SensorReadoutConversionProfile
 } from "./raw-readout.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -624,6 +625,7 @@ export function resolveGenericIsoSignalChain(
   input:
     ResolveGenericIsoSignalChainInput
 ): ResolvedGenericIsoSignalChain {
+  requireInputObject(input, "resolveGenericIsoSignalChain input");
   const profile =
     parseGenericIsoSignalChainProfile(
       input.profile
@@ -698,6 +700,18 @@ export function resolveGenericIsoSignalChain(
       regimeId:
         regime.regimeId
     });
+  const gain =
+    readout.regime
+      .exposureIndexGain;
+  if (
+    gain !== undefined &&
+    gain.exposureIndex !==
+      iso.reportedExposureIndex
+  ) {
+    throw new InvalidScientificInputError(
+      "The bound readout regime declares an ISO-gain derivation for a different exposure index."
+    );
+  }
 
   return {
     profileId:
@@ -912,6 +926,7 @@ export function resolveGenericIsoSignalChainPreset(
   realCameraRankingClaimed:
     false;
 } {
+  requireInputObject(input, "resolveGenericIsoSignalChainPreset input");
   const catalog =
     parseGenericIsoSignalChainPresetCatalog(
       input.catalog

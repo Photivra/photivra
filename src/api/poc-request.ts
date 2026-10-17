@@ -52,6 +52,32 @@ function requireFiniteNumber(
   return value;
 }
 
+/**
+ * Transport magnitude envelope for fields whose finite-but-extreme values otherwise overflow inside
+ * the simulation (InvalidScientificResultError). It is a request-shape guard, not a scientific
+ * domain: zero/negative values and physical validity inside the envelope remain owned by the
+ * calculation modules.
+ */
+export const POC_REQUEST_MAGNITUDE_LIMITS = Object.freeze({
+  "lens.aperture": Object.freeze({ smallestPositive: 0.01, maximum: 10_000 }),
+  "focus.focusDistanceM": Object.freeze({ smallestPositive: 1e-9, maximum: 1e9 })
+});
+
+function requireFiniteNumberWithin(
+  record: UnknownRecord,
+  key: string,
+  path: string,
+  limits: { readonly smallestPositive: number; readonly maximum: number }
+): number {
+  const value = requireFiniteNumber(record, key, path);
+  if (value > limits.maximum || (value > 0 && value < limits.smallestPositive)) {
+    throw new InvalidPocRequestError(
+      `${path}.${key} must not exceed ${limits.maximum} or be a positive value below ${limits.smallestPositive}.`
+    );
+  }
+  return value;
+}
+
 function requireString(
   record: UnknownRecord,
   key: string,
@@ -119,7 +145,7 @@ function assertCapture(value: unknown): void {
 function assertLens(value: unknown): void {
   const lens = requireRecord(value, "lens");
   requireFiniteNumber(lens, "focalLengthMm", "lens");
-  requireFiniteNumber(lens, "aperture", "lens");
+  requireFiniteNumberWithin(lens, "aperture", "lens", POC_REQUEST_MAGNITUDE_LIMITS["lens.aperture"]);
 }
 
 function assertExposure(value: unknown): void {
@@ -130,7 +156,7 @@ function assertExposure(value: unknown): void {
 
 function assertFocus(value: unknown): void {
   const focus = requireRecord(value, "focus");
-  requireFiniteNumber(focus, "focusDistanceM", "focus");
+  requireFiniteNumberWithin(focus, "focusDistanceM", "focus", POC_REQUEST_MAGNITUDE_LIMITS["focus.focusDistanceM"]);
 
   if (focus.circleOfConfusionMm !== undefined) {
     requireFiniteNumber(focus, "circleOfConfusionMm", "focus");
@@ -217,8 +243,8 @@ function assertMotionSamples(value: unknown): void {
 /**
  * Validates decoded HTTP JSON before it enters the scientific simulation.
  *
- * This parser checks request structure and JSON value types only. Domain/range
- * rules remain owned by the scientific calculation modules.
+ * This parser checks request structure and JSON value types, plus the transport magnitude envelope
+ * POC_REQUEST_MAGNITUDE_LIMITS. Domain/range rules remain owned by the scientific calculation modules.
  *
  * @param value Decoded request body from the HTTP server.
  * @returns Structurally valid POC simulation request.

@@ -1,10 +1,13 @@
 # capture/native-environment-raw.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## createNativeEnvironmentRawTask
 
-Every tile is planned and admission-checked before its radiance callbacks; no partial output escapes.
+Every tile is planned and admission-checked before its radiance callbacks; no partial output escapes. The
+host yield also runs between sites inside a tile once about 8 ms of work has elapsed (one budget shared with
+the tile loop), and cancellation is checked after each such yield, so cancel() takes effect within about one
+site's work. Yield cadence never changes tile requests, admission, callbacks or output.
 
 ```ts
 export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,provider:NativeEnvironmentRawProvider):NativeEnvironmentRawTask;
@@ -15,7 +18,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 ## createNativeEnvironmentSensorStageTask
 
 Re-runs only the sensor stage from a retained optical stage: no radiance callback is invoked. Use it when only
-post-optics settings change (noise seed, ISO metadata and readout regime/gain, charge/dark/capacity profiles,
+post-optics settings change (noise seed, ISO and its bound readout regime/gain, fixed-pattern noise, charge/dark/capacity profiles,
 white-balance intent, capture identity or tile width); white balance and rendering are then applied by
 createNativeRawDevelopmentTask as usual. RAW codes are bit-identical to a full createNativeEnvironmentRawTask
 with the same final inputs, provided the radiance provider is a deterministic function of its request. Any

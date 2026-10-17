@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   calculateAiryDisk,
   calculateDefocusCircle,
-  calculateDepthOfField
+  calculateDepthOfField,
+  InvalidScientificInputError
 } from "../src/index.js";
 
 describe("optics foundation", () => {
@@ -121,7 +122,8 @@ describe("optics foundation", () => {
     // The defocus circle of a very distant subject approaches c at s = H:
     // the limit d -> infinity of f^2 (d - s) / (N d (s - f)) is f^2/(N(s - f)) = c.
     const farBlur = calculateDefocusCircle({
-      ...input,
+      focalLengthMm: input.focalLengthMm,
+      aperture: input.aperture,
       focusDistanceM: hyperfocalDistanceM,
       subjectDistanceM: 1e12
     }).value.diameterMm;
@@ -137,5 +139,53 @@ describe("optics foundation", () => {
     });
 
     expect(result.value.diameterMm).toBeCloseTo(0, 12);
+  });
+
+  it("rejects a circle of confusion at or above the aperture diameter f/N (numeric review #6)", () => {
+    const input = { focalLengthMm: 50, aperture: 1.4, focusDistanceM: 3 };
+    expect(() => calculateDepthOfField({ ...input, circleOfConfusionMm: 40 })).toThrow(/smaller than the aperture diameter/);
+    expect(() => calculateDepthOfField({ ...input, circleOfConfusionMm: 50 / 1.4 })).toThrow(/smaller than the aperture diameter/);
+    const justBelow = calculateDepthOfField({ ...input, circleOfConfusionMm: 35 }).value;
+    expect(justBelow.nearLimitM * 1000).toBeGreaterThan(input.focalLengthMm);
+  });
+
+  it("evaluates defocus with the stable closed form f^2|s-d|/(N d (s-f)) at extreme distances", () => {
+    // Exact rational oracle with integer millimetre inputs: c = f^2 |s - d| / (N d (s - f)).
+    const exact = (f: bigint, n: bigint, s: bigint, d: bigint): number => {
+      const numerator = f * f * (s > d ? s - d : d - s) * 10n ** 30n;
+      return Number(numerator / (n * d * (s - f))) / 1e30;
+    };
+    for (const [subjectDistanceM, focusDistanceM] of [[1e9, 5], [5, 1e9], [1e6, 1e6 + 1], [0.3, 1e12]] as const) {
+      const value = calculateDefocusCircle({ focalLengthMm: 50, aperture: 4, focusDistanceM, subjectDistanceM }).value.diameterMm;
+      const oracle = exact(50n, 4n, BigInt(focusDistanceM * 1000), BigInt(subjectDistanceM * 1000));
+      expect(Math.abs(value - oracle) / oracle).toBeLessThan(1e-14);
+    }
+    expect(calculateDefocusCircle({ focalLengthMm: 50, aperture: 4, focusDistanceM: 5, subjectDistanceM: 3 }).provenance.modelVersion).toBe("1.1.0");
+  });
+
+  it("rejects unknown fields on scalar calculators instead of ignoring them (API review #4)", () => {
+    expect(() => calculateDepthOfField({ focalLengthMm: 50, aperture: 4, focusDistanceM: 3, circleOfConfusionMm: 0.03,
+      focusDistanceMm: 3000 } as never)).toThrow('calculateDepthOfField input has unknown field "focusDistanceMm".');
+    expect(() => calculateDefocusCircle({ focalLengthMm: 50, aperture: 4, focusDistanceM: 3, subjectDistanceM: 5,
+      circleOfConfusionMm: 0.03 } as never)).toThrow(/unknown field "circleOfConfusionMm"/);
+    expect(() => calculateAiryDisk({ aperture: 8, wavelengthNm: 550, wavelengthNanometers: 550 } as never)).toThrow(/unknown field/);
+    expect(() => calculateDepthOfField(null as never)).toThrow("calculateDepthOfField input must be an object.");
+  });
+});
+
+describe("depth-of-field focus-plane validation", () => {
+  const base = { focalLengthMm: 50, aperture: 8, circleOfConfusionMm: 0.03 };
+  // A real image needs s > f (thin lens 1/v = 1/f - 1/s); s = f puts the image at infinity.
+  it.each([0.05, 0.03, 0.0499999])("rejects focus distance %f m at or inside a 50 mm focal length", (focusDistanceM) => {
+    expect(() => calculateDepthOfField({ ...base, focusDistanceM })).toThrow(InvalidScientificInputError);
+    expect(() => calculateDepthOfField({ ...base, focusDistanceM })).toThrow("beyond the focal length");
+  });
+
+  it("accepts a focus plane just beyond the focal length with finite limits around it", () => {
+    // s = 50.5 mm: near = s(H-f)/(H+s-2f) and far = s(H-f)/(H-s), both within 0.01 mm of s here.
+    const s = 50.5, hMinusF = 50 * 50 / (8 * 0.03), h = hMinusF + 50;
+    const dof = calculateDepthOfField({ ...base, focusDistanceM: s / 1000 }).value;
+    expect(dof.nearLimitM).toBeCloseTo(s * hMinusF / (h + s - 100) / 1000, 12);
+    expect(dof.farLimitM).toBeCloseTo(s * hMinusF / (h - s) / 1000, 12);
   });
 });

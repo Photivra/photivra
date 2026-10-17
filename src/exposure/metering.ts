@@ -25,6 +25,7 @@ import type {
   NormalizedRasterUv,
   ResolvedCaptureGeometry
 } from "../output/capture-geometry.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -48,10 +49,48 @@ export type ExposureMeteringPolicy =
         number;
     }
   | {
+      /**
+       * Highlight-emphasis weighted average (unchanged since 1.x). Brighter samples
+       * receive weight `minimumWeightFraction + (1 - minimumWeightFraction) *
+       * (signal / maximum)^exponent`; the weighted mean is then placed at the
+       * profile target. It is NOT highlight protection: no sample is placed
+       * relative to saturation, so in a mostly mid-grey scene with a small bright
+       * area it underexposes the mid-tones relative to uniform metering without
+       * guaranteeing headroom. Use `highlight-priority` to place highlights below
+       * saturation.
+       */
       kind: "highlight-weighted";
       minimumWeightFraction: number;
       exponent: number;
+    }
+  | {
+      /**
+       * Highlight-priority placement. The area-weighted `highlightPercentile`
+       * quantile of the relative pre-exposure signal is placed `headroomStops`
+       * below `saturationRelativeSignal`. The profile target must declare that
+       * placement exactly: `targetRelativeSignal = saturationRelativeSignal *
+       * 2^-headroomStops` (see {@link calculateHighlightPriorityPlacementSignal}).
+       */
+      kind: "highlight-priority";
+      /** Area-weighted quantile in (0, 1]; 1 places the brightest sample. */
+      highlightPercentile: number;
+      /** Relative pre-exposure signal at which the declared output saturates. */
+      saturationRelativeSignal: number;
+      /** Non-negative headroom in stops between the placed highlight and saturation. */
+      headroomStops: number;
     };
+
+/** Diagnostics reported only for the highlight-priority policy. */
+export interface HighlightPriorityMeteringDiagnostics {
+  highlightPercentile: number;
+  /** Lower area-weighted quantile (inverse empirical CDF) of the samples. */
+  percentileRelativeSignal: number;
+  saturationRelativeSignal: number;
+  headroomStops: number;
+  placementRelativeSignal: number;
+  quantileDefinition:
+    "area-weighted-lower-quantile-inverse-empirical-cdf";
+}
 
 export interface ExposureMeteringProfile {
   schemaVersion:
@@ -130,6 +169,8 @@ interface ExposureMeteringResultBase {
   calibratedSceneRadianceClaimAuthorized: false;
   automaticExposureResolved: false;
   resultReusableForAeLock: true;
+  /** Present only for the highlight-priority policy. */
+  highlightPriority?: HighlightPriorityMeteringDiagnostics;
 }
 
 export type ExposureMeteringResult =
@@ -375,9 +416,112 @@ function parsePolicy(
     };
   }
 
+  if (
+    record.kind ===
+    "highlight-priority"
+  ) {
+    const percentile =
+      requirePositiveFinite(
+        record.highlightPercentile,
+        path + ".highlightPercentile"
+      );
+    if (percentile > 1) {
+      throw new InvalidConfigurationError(
+        path +
+          ".highlightPercentile must lie in (0, 1]."
+      );
+    }
+    const headroom =
+      record.headroomStops;
+    if (
+      typeof headroom !== "number" ||
+      !Number.isFinite(headroom) ||
+      headroom < 0
+    ) {
+      throw new InvalidConfigurationError(
+        path +
+          ".headroomStops must be a finite number greater than or equal to zero."
+      );
+    }
+    return {
+      kind: "highlight-priority",
+      highlightPercentile:
+        percentile,
+      saturationRelativeSignal:
+        requirePositiveFinite(
+          record.saturationRelativeSignal,
+          path +
+            ".saturationRelativeSignal"
+        ),
+      headroomStops: headroom
+    };
+  }
+
   throw new InvalidConfigurationError(
     path + ".kind is invalid."
   );
+}
+
+/**
+ * Relative signal at which a highlight-priority profile places its highlight
+ * percentile: `saturationRelativeSignal * 2^-headroomStops`.
+ */
+export function calculateHighlightPriorityPlacementSignal(
+  saturationRelativeSignal: number,
+  headroomStops: number
+): number {
+  if (
+    !Number.isFinite(saturationRelativeSignal) ||
+    saturationRelativeSignal <= 0 ||
+    !Number.isFinite(headroomStops) ||
+    headroomStops < 0
+  ) {
+    throw new InvalidConfigurationError(
+      "Highlight placement requires a positive saturation signal and non-negative headroom."
+    );
+  }
+  return saturationRelativeSignal *
+    Math.pow(2, -headroomStops);
+}
+
+/**
+ * Lower area-weighted quantile (inverse empirical CDF): the smallest sample
+ * signal whose cumulative area-weight fraction, in ascending signal order,
+ * reaches `percentile`. Ties keep input order, so the result is deterministic.
+ */
+function areaWeightedLowerQuantile(
+  samples:
+    readonly ExposureMeteringZoneSample[],
+  percentile: number
+): number {
+  const ordered = samples
+    .map((sample, index) => ({
+      signal:
+        sample.relativeLinearSignal,
+      weight: sample.areaWeight,
+      index
+    }))
+    .sort((a, b) =>
+      a.signal - b.signal ||
+      a.index - b.index
+    );
+  let total = 0;
+  for (const entry of ordered) total += entry.weight;
+  const threshold =
+    percentile * total;
+  let cumulative = 0;
+  for (const entry of ordered) {
+    cumulative += entry.weight;
+    // Relative tolerance absorbs summation rounding at exact quantile boundaries.
+    if (
+      cumulative >=
+      threshold * (1 - 1e-12)
+    ) {
+      return entry.signal;
+    }
+  }
+  return ordered[ordered.length - 1]!
+    .signal;
 }
 
 /**
@@ -443,6 +587,34 @@ export function parseExposureMeteringProfile(
     );
   }
 
+  const policy = parsePolicy(
+    record.policy,
+    "exposureMeteringProfile.policy"
+  );
+  const targetRelativeSignal =
+    requirePositiveFinite(
+      target.targetRelativeSignal,
+      "exposureMeteringProfile.target.targetRelativeSignal"
+    );
+  if (policy.kind === "highlight-priority") {
+    const placement =
+      calculateHighlightPriorityPlacementSignal(
+        policy.saturationRelativeSignal,
+        policy.headroomStops
+      );
+    if (
+      Math.abs(
+        targetRelativeSignal -
+          placement
+      ) >
+      1e-12 * placement
+    ) {
+      throw new InvalidConfigurationError(
+        "exposureMeteringProfile.target.targetRelativeSignal must equal saturationRelativeSignal * 2^-headroomStops for highlight-priority metering."
+      );
+    }
+  }
+
   return {
     schemaVersion:
       EXPOSURE_METERING_PROFILE_SCHEMA_VERSION,
@@ -456,18 +628,11 @@ export function parseExposureMeteringProfile(
       "relative-pre-exposure-linear-signal",
     captureRegion:
       "oriented-active-capture",
-    policy: parsePolicy(
-      record.policy,
-      "exposureMeteringProfile.policy"
-    ),
+    policy,
     target: {
       kind:
         "relative-signal-reference",
-      targetRelativeSignal:
-        requirePositiveFinite(
-          target.targetRelativeSignal,
-          "exposureMeteringProfile.target.targetRelativeSignal"
-        ),
+      targetRelativeSignal,
       evidence: parseEvidenceList(
         target.evidence,
         "exposureMeteringProfile.target.evidence"
@@ -715,6 +880,10 @@ function policyWeight(
       : 0;
   }
 
+  if (policy.kind === "highlight-priority") {
+    // Quantile placement is not a weighted mean; meterRelativeExposure handles it separately.
+    return 1;
+  }
   if (maximumSignal <= 0) {
     return policy
       .minimumWeightFraction;
@@ -745,6 +914,7 @@ export function meterRelativeExposure(
   input:
     MeterRelativeExposureInput
 ): CalculationResult<ExposureMeteringResult> {
+  requireInputObject(input, "meterRelativeExposure input");
   const profile =
     parseExposureMeteringProfile(
       input.profile
@@ -857,8 +1027,13 @@ export function meterRelativeExposure(
   let weightedSignal = 0;
   let weightSum = 0;
   let selectedSampleCount = 0;
+  const highlightPolicy =
+    profile.policy.kind ===
+    "highlight-priority"
+      ? profile.policy
+      : null;
 
-  for (const sample of sampleSet.samples) {
+  for (const sample of highlightPolicy === null ? sampleSet.samples : []) {
     const policyMultiplier =
       policyWeight(
         profile.policy,
@@ -890,6 +1065,12 @@ export function meterRelativeExposure(
       "Metering weighted sums must remain finite."
     );
   }
+  if (highlightPolicy !== null) {
+    // Every sample participates in the quantile with its area weight.
+    weightSum = 1;
+    selectedSampleCount =
+      sampleSet.samples.length;
+  }
   if (weightSum <= 0) {
     throw new InvalidScientificInputError(
       "Metering policy selected no samples with positive weight."
@@ -897,7 +1078,12 @@ export function meterRelativeExposure(
   }
 
   const meteredRelativeSignal =
-    weightedSignal / weightSum;
+    highlightPolicy === null
+      ? weightedSignal / weightSum
+      : areaWeightedLowerQuantile(
+          sampleSet.samples,
+          highlightPolicy.highlightPercentile
+        );
   if (
     !Number.isFinite(
       meteredRelativeSignal
@@ -952,7 +1138,26 @@ export function meterRelativeExposure(
     automaticExposureResolved:
       false as const,
     resultReusableForAeLock:
-      true as const
+      true as const,
+    ...(highlightPolicy === null
+      ? {}
+      : {
+          highlightPriority: {
+            highlightPercentile:
+              highlightPolicy.highlightPercentile,
+            percentileRelativeSignal:
+              meteredRelativeSignal,
+            saturationRelativeSignal:
+              highlightPolicy.saturationRelativeSignal,
+            headroomStops:
+              highlightPolicy.headroomStops,
+            placementRelativeSignal:
+              profile.target
+                .targetRelativeSignal,
+            quantileDefinition:
+              "area-weighted-lower-quantile-inverse-empirical-cdf" as const
+          }
+        })
   };
 
   const value:
@@ -984,12 +1189,13 @@ export function meterRelativeExposure(
   return approximationResult(
     value,
     "relative-pre-exposure-metering",
-    "1.0.0",
+    "1.1.0",
     [
       "Input samples are relative pre-exposure linear signal, not calibrated luminance, scene spectral radiance, sensor-plane irradiance, or final rendered output.",
       "Sample areaWeight is supplied by the producer and is assumed to represent the active capture frame consistently.",
       "Metering coordinates are normalized over the physically oriented active capture frame, not the final output crop or CSS/display box.",
-      "Multi-zone, center-weighted, spot, and highlight-weighted policies are generic explicit approximations and do not claim to reproduce a specific commercial camera.",
+      "Multi-zone, center-weighted, spot, highlight-weighted and highlight-priority policies are generic explicit approximations and do not claim to reproduce a specific commercial camera.",
+      "highlight-weighted is a highlight-emphasis weighted average placed at the target; it does not place highlights relative to saturation. highlight-priority places an area-weighted signal quantile at a declared headroom below a declared relative saturation signal.",
       "The declared relative target is profile policy, not a universal 18% gray truth.",
       "Exposure compensation is not applied by the meter.",
       "Automatic aperture, shutter, and ISO resolution remains downstream.",

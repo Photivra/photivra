@@ -22,6 +22,8 @@ Node built-in modules are used only by development tooling and the repository-lo
 
 `src/sensor/stochastic-seed.ts` independently implements the MurmurHash3_x86_32 algorithm and its `fmix32` finalizer (Austin Appleby, SMHasher). The upstream `MurmurHash3.cpp` header states the algorithm "is placed in the public domain" and disclaims copyright. No upstream source file is vendored; the implementation is checked against published test vectors in `test/sensor-raw-noise-independence.test.ts`.
 
+`src/optics/longitudinal-chromatic-aberration.ts` uses three physical constants: the Fraunhofer d (helium, 587.5618 nm), F (hydrogen, 486.1327 nm) and C (hydrogen, 656.2725 nm) spectral-line wavelengths used to define the Abbe number (reference wavelengths of ISO 7944). They are factual measured constants of nature, not a copied dataset or table; no glass catalogue data is included and refractive index and Abbe number are caller inputs. The 2.0 projection, distortion, Zernike/Seidel, vignetting, polarizer and haze models are independent implementations of published equations cited in `docs/PHYSICS_FOUNDATION.md` and `docs/PSF_FOUNDATION.md`; they contain no third-party code or numeric tables.
+
 This inventory does not replace a transitive dependency/SBOM review before a release. New runtime dependencies, scientific datasets, model weights, or calibration material require explicit provenance and license review.
 
 ## Pending licence and source reviews
@@ -32,6 +34,7 @@ These human reviews are **pending**. This inventory records them; it does not co
 - ReportLab/pypdf offline PDF test-artifact tools: substantive human source review pending.
 - DNG/TIFF and JPEG format references: human provenance/license review required before release.
 - Transitive dependency/SBOM review: required before each release; this inventory does not replace it.
+- Colorimetry published constants (`src/color/`): human source/licence review pending. See [Colorimetry published constants and excluded datasets](#colorimetry-published-constants-and-excluded-datasets).
 
 ## Licence summaries (prepared for owner sign-off)
 
@@ -79,11 +82,45 @@ Prepared on 2026-10-11 from local files only (repository files, `package-lock.js
   - The review must be repeated against each release's exact lockfile.
   - The GitHub Action licences in the table above are not verified locally.
 
+## Colorimetry published constants and excluded datasets
+
+The colorimetry modules in `src/color/` (see [docs/COLORIMETRY.md](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md)) are independently written from published equations. They contain only short factual numeric constants taken from those equations. No third-party source code, table, figure or prose is copied, and no runtime dependency is added.
+
+| Constants | Source | Licence / basis for use |
+| --- | --- | --- |
+| 28 fitted coefficients of the multi-lobe CIE 1931 CMF fit (`color-matching-functions.ts`) | Wyman, Sloan & Shirley (2013), JCGT 2(2), Table 1 | The paper is CC BY-ND 3.0. Only the published model parameters are used, as factual inputs to an independently written equation; no text, figure or code is reproduced. |
+| Daylight-locus polynomial and M₁/M₂ coefficients; illuminant A formula constants; CIELAB, CIE94 and CIEDE2000 formula constants (`illuminants.ts`, `color-difference.ts`) | CIE 15:2018, CIE 116-1995, CIE 142-2001; Sharma, Wu & Dalal (2005) | Coefficients of standardized equations, used as factual constants. |
+| Planckian-locus cubic-spline coefficients (`illuminants.ts`) | Kang et al. (2002), J. Korean Phys. Soc. 41(6); US 7,024,034 | Published equation coefficients. The patent claims an HDTV colour-temperature control system; using the published locus approximation for calculation is not reviewed here as a patent question and needs the human review. |
+| McCamy CCT cubic | McCamy (1992), Color Res. Appl. 17(2) | Published equation coefficients. |
+| Bradford, CAT02, CAT16 and Hunt–Pointer–Estévez matrices (`chromatic-adaptation.ts`) | Lam (1985) / ICC.1:2010 Annex E; Moroney et al. (2002) / CIE 159:2004; Li et al. (2017); CIE 159:2004 | Published 3×3 model constants. |
+| Primaries and white points; PQ, HLG, BT.709 and BT.1886 constants (`rgb-color-spaces.ts`) | IEC 61966-2-1, ITU-R BT.709-6, BT.1886, BT.2020-2, BT.2100-3, SMPTE ST 2084, SMPTE EG 432-1 | Standardized numeric constants; the ITU-R recommendations are freely published. |
+| h, c, k | BIPM SI Brochure (2019) | Exact SI defining constants (facts). |
+| K = 12.5 cd·s/m² reflected-light meter constant, K_m = 683 lm/W (`src/facade/`) | ISO 2720:1974; CIE 15:2018 / SI definition of the candela | Standardized scalar constants used as facts. The capture facade's charts (slanted edge, Siemens star, step wedge, grey ramp, checkerboard, point grid) are engine-authored analytic patterns; the slanted edge only follows the ISO 12233 geometry (a few degrees of slant, 4:1 contrast) and reproduces no chart artwork or data. |
+
+The following datasets are deliberately **excluded**:
+
+- **CIE tabulated datasets.** This covers the CIE 1931/1964 CMFs, the daylight components S₀/S₁/S₂ and the standard illuminant tables. They were verified on 2026-10-16 from the CIE dataset metadata (for example DOI 10.25039/CIE.DS.xvudnb9b and `CIE_illum_Dxx_comp.csv_metadata_v2.json`), which declare **CC BY-SA 4.0**. ShareAlike would bind adaptations, and this is not compatible with Apache-2.0-only distribution. The API accepts caller-supplied tables instead.
+- **ColorChecker or other chart reflectances.** Their licence is unclear, so they are not included. Reflectances are supplied by the caller.
+
+The tests assert a few individual published values (for example one CMF sample at 479 nm, the column sums from the CIE metadata, 13 CIEDE2000 test pairs, and standard luminance coefficients) as cited facts. They do not reproduce any table.
+
+## Image-processing published parameters
+
+The processing operators in `src/processing/` and the built-in Bayer kernels in `src/sensor/raw-reconstruction.ts` (see [docs/PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)) are independently written from published algorithm descriptions. They contain only short factual parameters. No third-party source code (including GPL demosaicing implementations), table, figure, image or prose is copied, and no runtime dependency or test image is added.
+
+| Parameters | Source | Basis for use |
+| --- | --- | --- |
+| Demosaic gains α = 1/2, β = 5/8, γ = 3/4 and their 5×5 Laplacian correction structure | Malvar, He & Cutler (ICASSP 2004) | Published algorithm parameters; the weights are rebuilt from them. |
+| Burt–Adelson generating kernel [1, 4, 6, 4, 1]/16 (a = 0.375) | Burt & Adelson (1983) | Published equation parameter. |
+| Well-exposedness σ = 0.2; key 0.18; range σ 0.4 and spatial σ 2% defaults | Mertens et al. (2007); Reinhard et al. (2002); Durand & Dorsey (2002) | Published default parameters. |
+| Gain-compensation σ_N ≈ 10/255, σ_g = 0.1 | Brown & Lowe (2007) | Published parameters, rescaled to normalized intensity. |
+| HDR reference white 203 cd/m² and HLG signal 0.75; full and narrow range quantization | ITU-R BT.2408, BT.2100-3 | Standardized numeric constants; the ITU-R recommendations are freely published. |
+
 ## Print contrast numerical model material
 
 The original scalar adapter in `src/output/print-contrast-reference.ts` uses numerical equations/parameters from [castleCSF revision f4b0b722af83001d7af979281e06ca642d36e4e8](https://github.com/gfxdisp/castleCSF/tree/f4b0b722af83001d7af979281e06ca642d36e4e8): `matlab/CSF_castleCSF.m`, `CSF_stelaCSF_lum_peak.m`, `CSF_castleCSF_chrom.m` and `CSF_base.m`. The upstream code/model material is MIT-licensed, copyright (c) 2023 Graphics and Displays group - University of Cambridge. The exact license is preserved at `docs/licenses/castleCSF-MIT.txt` and its notice is retained in `NOTICE` and adapter source. New TypeScript/reference code is distributed under the project Apache-2.0 terms while retaining the MIT notice for upstream numerical material.
 
-No upstream observational CSV, paper text/figure/table, color-matching dataset or runtime dependency is incorporated. The model's presence does not certify camera, print, observer or natural-image visibility applicability. [The model/protocol](docs/PRINT_CONTRAST_REFERENCE.md) records the restricted envelope, independent numerical evaluation and pending human scientific/source/license review. The root still declares no runtime npm dependencies.
+No upstream observational CSV, paper text/figure/table, color-matching dataset or runtime dependency is incorporated. The model's presence does not certify camera, print, observer or natural-image visibility applicability. [The model/protocol](https://github.com/Photivra/photivra/blob/main/docs/PRINT_CONTRAST_REFERENCE.md) records the restricted envelope, independent numerical evaluation and pending human scientific/source/license review. The root still declares no runtime npm dependencies.
 
 
 ## Optional offline physical-proof tools
@@ -92,9 +129,16 @@ The owned PDF geometry reference is generated with ReportLab 4.4.9 and independe
 
 ## Automated license policy
 
-The bounded DNG/TIFF and baseline JPEG encoders are independently authored.
-No Adobe SDK, external encoder source, default quantization/Huffman tables,
-calibration dataset or runtime dependency is incorporated. Numeric test profiles
+The bounded DNG/TIFF and baseline JPEG encoders, the DNG/TIFF-EP reader, the
+lossless JPEG (T.81 Annex H) decoder and the PNG/zlib/DEFLATE encoder are
+independently authored. No Adobe SDK, external encoder or decoder source, default
+quantization/Huffman tables, calibration dataset or runtime dependency is
+incorporated. Only factual identifiers from the standards are used: tag numbers,
+field types, marker codes, PNG chunk layouts, the sRGB gAMA/cHRM values the PNG
+specification prescribes, H.273 code points, RFC 1951 fixed-code and length/distance
+base tables, and the Exif 2.32 default values (72 dpi, `0100`, `0232`, Y Cb Cr).
+The 64 JPEG DCT cosine constants are correctly rounded values of
+cos((2x+1)uπ/16), computed by the project; they are mathematical facts. Numeric test profiles
 and custom coding tables are owned synthetic fixtures, not camera calibration.
 
 Format references:
@@ -105,6 +149,29 @@ Format references:
 - JFIF: https://www.w3.org/Graphics/JPEG/jfif3.pdf
 - Adobe XMP: https://developer.adobe.com/xmp/docs/xmp-specifications/
 - CIPA Exif: https://www.cipa.jp/std/documents/e/DC-X008-Translation-2019-E.pdf
+- TIFF 6.0: https://www.itu.int/itudoc/itu-t/com16/tiff-fx/docs/tiff6.pdf
+- PNG Third Edition (W3C Recommendation 24 June 2025): https://www.w3.org/TR/png-3/
+- zlib (RFC 1950) and DEFLATE (RFC 1951): https://www.rfc-editor.org/rfc/rfc1950, https://www.rfc-editor.org/rfc/rfc1951
+- ITU-T H.273 code points: https://www.itu.int/rec/T-REC-H.273
+
+RAW development and tone-mapping references (2.0; published equations and
+factual constants only, independently implemented; no code or data copied):
+
+- DNG 1.7.1.0 tag definitions (WhiteLevel, BlackLevel/ActiveArea phase,
+  AsShotNeutral, ForwardMatrix1, BaselineExposure, NoiseProfile, AnalogBalance):
+  the DNG specification above.
+- EMVA 1288 Release 4.0, saturation point and photon-transfer noise model:
+  https://www.emva.org/standards-technology/emva-1288/
+- Reinhard, Stark, Shirley & Ferwerda (2002), "Photographic tone reproduction
+  for digital images", ACM SIGGRAPH, eq. 3 and 4.
+- Naka & Rushton (1966), J. Physiol. 185:536-555; Reinhard & Devlin (2005),
+  "Dynamic range reduction inspired by photoreceptor physiology", IEEE TVCG 11(1).
+- Guo, Cheng & Hu (2010), "Correcting over-exposure in photographs", CVPR
+  (highlight desaturation concept for the engine-defined `reconstruct` mode).
+- dcraw manual, `-H 0` "clip all highlights to solid white" (documented
+  behaviour only; no dcraw code used): https://www.dechifro.org/dcraw/dcraw.1.html
+- Bradford cone matrix (Lam 1985), already used by the ICC serializer, now also
+  for ForwardMatrix1.
 
 The DNG patent-license notice appears in `NOTICE` and exporter source. These
 references do not authorize copying SDK code or scientific datasets. Human

@@ -10,7 +10,7 @@
  */
 
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
-import { requirePublicOpaqueId } from "../core/record-validation.js";
+import { requirePublicOpaqueId, requireInputObject } from "../core/record-validation.js";
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { InvalidScientificInputError } from "../core/validation.js";
@@ -59,22 +59,44 @@ export interface EnvironmentSensorRawFrame {
   raw: ReturnType<typeof simulateSensorRawFrame>;
 }
 
+/**
+ * Internal per-frame memo of the frame-side canonical strings that every site is compared with (#2, 2.0
+ * performance). Each string is computed lazily at the comparison that first needs it, so the first failing
+ * comparison and its error are unchanged; it applies only to the exact frame and exposure-window objects it
+ * was created for, which callers do not mutate while planning one frame.
+ */
+export interface EnvironmentRawFrameCanonicalMemo {
+  readonly frame: NativeRawProducerFrameContext;
+  readonly exposureWindow: SensorRawProducerExposureWindowInput;
+  readonly strings: Map<"imagingArea" | "colorSamplingProfile" | "bindingProfile" | "exposureWindow" | "focus", string>;
+}
+export function createEnvironmentRawFrameCanonicalMemo(frame: NativeRawProducerFrameContext,
+  exposureWindow: SensorRawProducerExposureWindowInput): EnvironmentRawFrameCanonicalMemo {
+  return { frame, exposureWindow, strings: new Map() };
+}
 /** Internal frame-binding and scalar optical/EQE planning shared with bounded native execution; ownership as planEnvironmentSensorPhotoSignal. */
 export function planEnvironmentRawSite(site: SimulateEnvironmentSensorRawFrameInput["sites"][number], i: number,
   frame: NativeRawProducerFrameContext, sceneBinding: SimulateEnvironmentSensorRawFrameInput["sceneBinding"],
-  exposureWindow: SensorRawProducerExposureWindowInput, ownership: "copy" | "engine-owned" = "copy"): ReturnType<typeof planEnvironmentSensorPhotoSignal> {
+  exposureWindow: SensorRawProducerExposureWindowInput, ownership: "copy" | "engine-owned" = "copy",
+  memo?: EnvironmentRawFrameCanonicalMemo, retention: "full" | "photo-only" = "full"): ReturnType<typeof planEnvironmentSensorPhotoSignal> {
   const capture=frame.capture,native=capture.geometry.nativeRaster;
+  const strings = memo !== undefined && memo.frame === frame && memo.exposureWindow === exposureWindow ? memo.strings : undefined;
+  const frameCanonical = (key: "imagingArea" | "colorSamplingProfile" | "bindingProfile" | "exposureWindow" | "focus", value: () => unknown): string => {
+    let text = strings?.get(key);
+    if (text === undefined) { text = canonical(value()); strings?.set(key, text); }
+    return text;
+  };
     const e = site.environment, sensor = e.sensor;
     if (sensor.spatialSampling.site.x !== i%native.pixelWidth || sensor.spatialSampling.site.y !== Math.floor(i/native.pixelWidth) ||
-      canonical(sensor.spatialSampling.imagingArea) !== canonical(capture.geometry.imagingArea) ||
-      canonical(sensor.colorSamplingProfile) !== canonical(frame.colorSamplingProfile) ||
-      canonical(sensor.localExposure.bindingProfile) !== canonical(frame.bindingProfile) ||
-      canonical(sensor.localExposure.exposureWindowInput) !== canonical({ ...exposureWindow, nativeRaster: native }) ||
+      canonical(sensor.spatialSampling.imagingArea) !== frameCanonical("imagingArea", () => capture.geometry.imagingArea) ||
+      canonical(sensor.colorSamplingProfile) !== frameCanonical("colorSamplingProfile", () => frame.colorSamplingProfile) ||
+      canonical(sensor.localExposure.bindingProfile) !== frameCanonical("bindingProfile", () => frame.bindingProfile) ||
+      canonical(sensor.localExposure.exposureWindowInput) !== frameCanonical("exposureWindow", () => ({ ...exposureWindow, nativeRaster: native })) ||
       e.optics.focalLengthMm !== capture.exposure.focalLengthMm || e.optics.nominalFNumber !== capture.exposure.aperture) {
       throw new InvalidScientificInputError("Environment site, frame geometry/profiles, optics and exact shutter event must match the committed capture.");
     }
-    const plan = planEnvironmentSensorPhotoSignal(e, ownership);
-    if (canonical(plan.focus) !== canonical(capture.focus) ||
+    const plan = planEnvironmentSensorPhotoSignal(e, ownership, retention);
+    if (canonical(plan.focus) !== frameCanonical("focus", () => capture.focus) ||
       e.sceneBindings.providerProfile.sceneId !== sceneBinding.providerSceneId) throw new InvalidScientificInputError("Environment optical focus and provider scene must match the committed capture binding.");
   return plan;
 }
@@ -84,6 +106,7 @@ export function planEnvironmentRawSite(site: SimulateEnvironmentSensorRawFrameIn
  * returned RAW frame feeds the existing reconstruction and paired export APIs.
  */
 export function simulateEnvironmentSensorRawFrame(input: SimulateEnvironmentSensorRawFrameInput): CalculationResult<EnvironmentSensorRawFrame> {
+  requireInputObject(input, "simulateEnvironmentSensorRawFrame input");
   const { evaluateRadiance, evaluateApertureRadiance, ...data } = input;
   if (typeof evaluateRadiance !== "function") throw new InvalidScientificInputError("Environment RAW requires a synchronous evaluator.");
   const owned = structuredClone(data);
@@ -99,14 +122,19 @@ export function simulateEnvironmentSensorRawFrame(input: SimulateEnvironmentSens
   let evaluations = 0;
   const ids = new Set<string>();
   const sharedState = (e: SimulateEnvironmentSensorRawFrameInput["sites"][number]["environment"]): string => canonical({
-    sceneBindings: e.sceneBindings, optics: e.optics, motion: e.motion, psf: e.psf, pupil: e.pupil, fieldThroughput: e.fieldThroughput });
+    sceneBindings: e.sceneBindings, optics: e.optics, motion: e.motion, psf: e.psf, pupil: e.pupil, fieldThroughput: e.fieldThroughput,
+    lensFieldMapping: e.lensFieldMapping });
+  // Site 0's shared state is serialized once per frame rather than once per site (#2); it is evaluated after the
+  // per-site duplicate-ID check and the per-site serialization exactly as before, so the first error is unchanged.
+  let firstSharedState: string | undefined;
+  const memo = createEnvironmentRawFrameCanonicalMemo(owned.frame, owned.exposureWindow);
   const plans = Array.from(owned.sites, (site, i) => {
     if (!site) throw new InvalidScientificInputError("Environment RAW site array must be dense.");
     const e = site.environment;
-    if (ids.has(e.temporalIntegrationId) || sharedState(e) !== sharedState(owned.sites[0]!.environment)) {
+    if (ids.has(e.temporalIntegrationId) || sharedState(e) !== (firstSharedState ??= sharedState(owned.sites[0]!.environment))) {
       throw new InvalidScientificInputError("Environment site, frame geometry/profiles, optics and exact shutter event must match the committed capture.");
     }
-    const plan = planEnvironmentRawSite(site,i,owned.frame,owned.sceneBinding,owned.exposureWindow);
+    const plan = planEnvironmentRawSite(site,i,owned.frame,owned.sceneBinding,owned.exposureWindow,"copy",memo);
     ids.add(e.temporalIntegrationId);
     evaluations += plan.count;
     if (evaluations > 100000) throw new InvalidScientificInputError("Environment RAW exceeds the aggregate 100000-provider-evaluation budget.");

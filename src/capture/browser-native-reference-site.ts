@@ -57,9 +57,8 @@ export interface PreparedBrowserNativeReferenceCompactExecutionPlan {
       kernelSampleX: number;
       kernelSampleY: number;
       point: EnvironmentReferenceTap["point"];
-      request: EnvironmentReferenceTap["query"]["value"]["request"];
-      sourcePointImagePlaneMm:
-        EnvironmentReferenceTap["query"]["value"]["sourcePointImagePlaneMm"];
+      request: EnvironmentReferenceTap["request"];
+      sourcePointImagePlaneMm: EnvironmentReferenceTap["sourcePointImagePlaneMm"];
       fieldThroughput: EnvironmentReferenceTap["fieldThroughput"];
     }[];
   }[];
@@ -193,8 +192,8 @@ function prepareCompactExecutionPlan(
         kernelSampleX: tap.kernelSampleX,
         kernelSampleY: tap.kernelSampleY,
         point: tap.point,
-        request: tap.query.value.request,
-        sourcePointImagePlaneMm: tap.query.value.sourcePointImagePlaneMm,
+        request: tap.request,
+        sourcePointImagePlaneMm: tap.sourcePointImagePlaneMm,
         fieldThroughput: tap.fieldThroughput
       };
     });
@@ -342,6 +341,14 @@ export function prepareBrowserNativeReferenceSite(
     eventPlan.sceneBinding,
     exposureWindow
   );
+
+  if (environmentPlan.owned.lensFieldMapping !== undefined) {
+    // The browser-native executor integrates irradiance itself and does not apply the distortion
+    // area factor; fail closed rather than silently dropping it.
+    throw new InvalidConfigurationError(
+      "Browser-native prepared sites do not yet support an environment lens field mapping."
+    );
+  }
 
   if (environmentPlan.count > 100_000) {
     throw new InvalidConfigurationError(

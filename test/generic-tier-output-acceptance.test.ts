@@ -8,7 +8,7 @@ import { GENERIC_EQUIPMENT_TIERS, resolveGenericEquipmentTierCatalog, resolveGen
 import { loadSensorRawProducerInput } from "./helpers/sensor-raw-producer-fixture.js";
 import { loadPhotographicExportInput } from "./helpers/photographic-export-fixture.js";
 
-const catalog = resolveGenericEquipmentTierCatalog({ presetVersion: "1.0.0" });
+const catalog = resolveGenericEquipmentTierCatalog({ presetVersion: "2.0.0" });
 const orientations = ["landscape", "portrait-clockwise", "landscape-inverted", "portrait-counter-clockwise"] as const;
 /** Explicit test registration: the owned 2x2 Bayer layout and native still mode
  * are declared under the IDs required by the exact body assets. No CFA is inferred. */
@@ -48,43 +48,65 @@ function codes(bytes: Uint8Array): number[] {
   return Array.from({ length: count }, (_, i) => view.getUint16(offset + 2 * i, true));
 }
 describe("tier readout to paired output acceptance", () => {
-  it.each(GENERIC_EQUIPMENT_TIERS)("%s selects explicit regimes without changing expected photons or charge realization", (tier) => {
+  it.each(GENERIC_EQUIPMENT_TIERS)("%s maps ISO to explicit gain regimes without changing expected photons or charge realization", (tier) => {
     const low = simulateSensorRawFrame(producer(tier, 100)).value;
-    const same = simulateSensorRawFrame(producer(tier, 400)).value;
+    const mid = simulateSensorRawFrame(producer(tier, 400)).value;
     const high = simulateSensorRawFrame(producer(tier, 800)).value;
-    expect(same.sites).toEqual(low.sites);
-    expect(same.frame.samples).toEqual(low.frame.samples);
+    const body = catalog.find((p) => p.tier === tier)!.body;
+    const base = body.readout[0]!.profile.regimes[0]!;
     expect(low.upstreamRadiometryVerified).toBe(false);
     for (let i = 0; i < 4; i++) {
-      const a = low.sites[i]!, b = high.sites[i]!;
-      expect(b.accumulatedCharge).toEqual(a.accumulatedCharge);
-      expect(b.capacity).toEqual(a.capacity);
-      expect(b.realization).toEqual(a.realization);
-      expect(a.readout.value.regimeId).toBe("base");
-      expect(b.readout.value.regimeId).toBe("high");
-      expect(a.readout.value.systemConversionGainElectronsPerCode).toBe(1);
-      expect(b.readout.value.systemConversionGainElectronsPerCode).toBe(.25);
-      expect(b.readout.value.totalElectronicReadNoiseElectrons).toBeCloseTo(.75 * a.readout.value.totalElectronicReadNoiseElectrons, 12);
-      for (const sample of [a.readout.value, b.readout.value]) {
+      const a = low.sites[i]!, m = mid.sites[i]!, b = high.sites[i]!;
+      for (const other of [m, b]) {
+        expect(other.accumulatedCharge).toEqual(a.accumulatedCharge);
+        expect(other.capacity).toEqual(a.capacity);
+        expect(other.realization).toEqual(a.realization);
+      }
+      expect([a, m, b].map((site) => site.readout.value.regimeId)).toEqual(["iso-100", "iso-400", "iso-800"]);
+      // Conversion gain in DN/e- scales with ISO: electrons per code fall by the ISO ratio.
+      expect(m.readout.value.systemConversionGainElectronsPerCode).toBeCloseTo(a.readout.value.systemConversionGainElectronsPerCode / 4, 12);
+      expect(b.readout.value.systemConversionGainElectronsPerCode).toBeCloseTo(a.readout.value.systemConversionGainElectronsPerCode / 8, 12);
+      // Same low-conversion-gain read noise at ISO 100-400; lower input-referred noise in the high-conversion-gain mode.
+      expect(m.readout.value.electronicReadNoiseComponents[0]!.rmsElectrons).toBe(a.readout.value.electronicReadNoiseComponents[0]!.rmsElectrons);
+      expect(b.readout.value.electronicReadNoiseComponents[0]!.rmsElectrons).toBeLessThan(a.readout.value.electronicReadNoiseComponents[0]!.rmsElectrons);
+      for (const sample of [a.readout.value, m.readout.value, b.readout.value]) {
         const signed = Math.min(sample.electronEquivalentAfterPhysicalScalarSaturation + sample.totalElectronicReadNoiseElectrons,
           sample.preAdcSaturationElectronEquivalent);
-        const quantized = Math.floor(signed / sample.systemConversionGainElectronsPerCode + 512 + .5);
-        expect(sample.rawCode).toBe(Math.max(0, Math.min(65535, quantized)));
+        const quantized = Math.round(signed / sample.systemConversionGainElectronsPerCode + base.adc.blackLevelCode);
+        expect(sample.rawCode).toBe(Math.max(0, Math.min(base.adc.digitalSaturationCode, quantized)));
         expect(sample.lowerCodeClampApplied).toBe(quantized < 0);
+        expect(sample.digitalGain).toBe(1);
         expect(sample.physicalChargeCapacityElectrons).toBe(1000); // Independent synthetic storage contract, not ADC white.
       }
     }
     expect(high.frame.samples.map((sample) => sample.rawCode)).not.toEqual(low.frame.samples.map((sample) => sample.rawCode));
   });
-  it.each(GENERIC_EQUIPMENT_TIERS)("%s leaves regime selection explicit at the producer handoff", (tier) => {
-    const low = producer(tier, 100), isoMetadata = producer(tier, 800);
-    isoMetadata.sites = isoMetadata.sites.map((site) => ({ ...site, regimeId: "base" }));
-    const a = simulateSensorRawFrame(low).value, b = simulateSensorRawFrame(isoMetadata).value;
-    expect(b.sites).toEqual(a.sites);
-    expect(b.frame.samples).toEqual(a.frame.samples);
-    expect(b.frame.capture.exposure.iso).toBe(800);
+  it.each(GENERIC_EQUIPMENT_TIERS)("%s rejects a readout regime whose ISO gain differs from the committed capture ISO", (tier) => {
+    const isoMetadata = producer(tier, 800);
+    isoMetadata.sites = isoMetadata.sites.map((site) => ({ ...site, regimeId: "iso-100" }));
+    expect(() => simulateSensorRawFrame(isoMetadata)).toThrow(/ISO gain differs/);
     // Unsupported ISO fails in the upstream capability resolver, not a hidden RAW noise equation.
     expect(() => producer(tier, 300)).toThrow();
+  });
+  it.each(GENERIC_EQUIPMENT_TIERS)("%s fixed-pattern noise is opt-in, deterministic per sensor instance and frame-uniform", (tier) => {
+    const fixedPatternNoise = catalog.find((p) => p.tier === tier)!.body.fixedPatternNoise.profile;
+    const plain = producer(tier, 100), patterned = producer(tier, 100);
+    patterned.sites = patterned.sites.map((site) => ({ ...site, fixedPatternNoise }));
+    const a = simulateSensorRawFrame(plain).value, b = simulateSensorRawFrame(patterned).value;
+    expect(a.sites.every((site) => site.realization.value.fixedPatternNoiseProfileId === null)).toBe(true);
+    expect(b.sites.every((site) => site.realization.value.fixedPatternNoiseProfileId === fixedPatternNoise.profileId)).toBe(true);
+    expect(b.sites.map((site) => site.readout.value.fixedPatternReadoutOffsetElectrons)).not.toEqual([0, 0, 0, 0]);
+    expect(simulateSensorRawFrame(patterned).value.frame.samples).toEqual(b.frame.samples);
+    // A different capture seed changes temporal noise but not the sensor's pattern.
+    const reseeded = producer(tier, 100);
+    reseeded.frame.capture = { ...reseeded.frame.capture, noise: { ...reseeded.frame.capture.noise, seedUint32: 999 } };
+    reseeded.sites = reseeded.sites.map((site) => ({ ...site, fixedPatternNoise }));
+    const c = simulateSensorRawFrame(reseeded).value;
+    expect(c.sites.map((site) => site.realization.value.photoResponseGainFactor))
+      .toEqual(b.sites.map((site) => site.realization.value.photoResponseGainFactor));
+    const mixed = producer(tier, 100);
+    mixed.sites = mixed.sites.map((site, i) => (i === 0 ? { ...site, fixedPatternNoise } : site));
+    expect(() => simulateSensorRawFrame(mixed)).toThrow(/fixed-pattern identity/);
   });
   it.each(GENERIC_EQUIPMENT_TIERS)("%s paired export preserves each native regime capture through orientation and rendering exposure", async (tier) => {
     for (const iso of [100, 800]) {

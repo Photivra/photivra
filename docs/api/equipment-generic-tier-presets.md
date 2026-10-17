@@ -1,6 +1,6 @@
 # equipment/generic-tier-presets.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## createGenericEquipmentTierSelection
 
@@ -19,7 +19,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
 
 ```ts
-GENERIC_EQUIPMENT_TIER_PRESET_VERSION = "1.0.0" as const
+GENERIC_EQUIPMENT_TIER_PRESET_VERSION = "2.0.0" as const
 ```
 
 ## GENERIC_EQUIPMENT_TIERS

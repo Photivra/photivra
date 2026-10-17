@@ -17,6 +17,8 @@ import {
   createProductionCaptureSnapshot,
   createProductionImageFormationPlan,
   createProductionPlanConsumerManifest,
+  resolveElectronicRollingShutterExposureSchedule,
+  createRollingShutterCaptureExposureSchedule,
   getImageFormationContract,
   parseFrontOfLensFilterProfile,
   parseGenericBodyExposureCapabilityProfile,
@@ -1077,6 +1079,12 @@ describe("ready physical production plan", () => {
         first
       )
     );
+    // API review #4: serialization validates instead of echoing arbitrary objects.
+    expect(() => serializeProductionImageFormationPlan({} as never)).toThrow(/version must be/);
+    expect(() => serializeProductionImageFormationPlan(null as never)).toThrow("serializeProductionImageFormationPlan input must be an object.");
+    const edited = { ...structuredClone(first), status: first.status === "ready" ? "blocked" : "ready" } as typeof first;
+    expect(() => serializeProductionImageFormationPlan(edited)).toThrow(/fingerprint does not match/);
+    expect(JSON.parse(serializeProductionImageFormationPlan(structuredClone(first)))).toEqual(JSON.parse(serializeProductionImageFormationPlan(first)));
   });
 
   it("changes reproducibility identity when material uncertainty metadata changes", () => {
@@ -1212,7 +1220,7 @@ describe("ready physical production plan", () => {
       .toBe(false);
     expect(
       POC_SIMULATION_API_VERSION
-    ).toBe("0.20.0");
+    ).toBe("1.0.0");
   });
 });
 
@@ -2203,6 +2211,37 @@ const temporalPrepared = (
 };
 
 describe("production temporal capture composition", () => {
+  it("links an electronic rolling shutter so per-line exposure offsets reach the rotation quadrature", () => {
+    const base = temporalCapture();
+    if (base.readout?.readoutMode !== "rolling") throw new Error("Expected a rolling readout fixture.");
+    const derived = resolveElectronicRollingShutterExposureSchedule({ readout: base.readout,
+      nominalExposureDurationSeconds: base.exposureWindowInput.nominalExposureDurationSeconds,
+      linkageEvidence: evidence("electronic-rolling-shutter") });
+    const linked: ProductionTemporalCaptureInput = { ...base,
+      exposureWindowInput: { ...base.exposureWindowInput, ...createRollingShutterCaptureExposureSchedule(derived),
+        samplePointsNative: [{ x: 3000, y: 500 }, { x: 3000, y: 3500 }] },
+      readoutExposureLinkage: { kind: "electronic-rolling-shutter-line-reset-read", evidence: evidence("linkage") } };
+    const plan = createProductionImageFormationPlan({ preparedContext: temporalPrepared(),
+      captureSnapshot: createProductionCaptureSnapshot({ ...captureInput(), temporalCapture: linked }) });
+    const result = plan.temporalCaptureResult!;
+    expect(result.readoutExposureSynchronization).toBe("electronic-rolling-shutter-line-linked");
+    const [top, bottom] = result.rotationQuadrature!.points;
+    // s = 500/4000 and 3500/4000 with τ = 0.01 s: the lower line opens 7.5 ms later.
+    expect(bottom!.localExposureWindow.startSecondsFromCaptureReference - top!.localExposureWindow.startSecondsFromCaptureReference)
+      .toBeCloseTo(0.0075, 15);
+    expect(bottom!.localExposureWindow.durationSeconds).toBeCloseTo(top!.localExposureWindow.durationSeconds, 15);
+    // Yaw 0.1 rad/s: the later line sees a larger inverse displacement (rolling-shutter skew).
+    expect(Math.abs(bottom!.nodes[0]!.inverseDisplacementImagePlaneMm.x)).toBeGreaterThan(Math.abs(top!.nodes[0]!.inverseDisplacementImagePlaneMm.x));
+    expect(plan.effectPlan.find(effect => effect.effectId === "rolling-readout")?.state).toBe("active");
+
+    // The linkage fails closed when the schedule is not the one derived from the readout.
+    expect(() => createProductionCaptureSnapshot({ ...captureInput(), temporalCapture: { ...base,
+      readoutExposureLinkage: { kind: "electronic-rolling-shutter-line-reset-read", evidence: evidence("linkage") } } }))
+      .toThrow("requires a rolling readout and the exposure schedule derived from it");
+    expect(() => createProductionCaptureSnapshot({ ...captureInput(), temporalCapture: { ...linked,
+      readoutExposureLinkage: { kind: "unknown", evidence: evidence("linkage") } as never } })).toThrow("readoutExposureLinkage.kind is invalid");
+  });
+
   it("composes exposure windows, separate rolling readout timing, and rotation quadrature", () => {
     const snapshot =
       createProductionCaptureSnapshot({
@@ -2813,5 +2852,73 @@ describe("executed environment production graph", () => {
     const changed=createProductionImageFormationPlan(brighter);
     expect(changed.environmentCaptureResult).toEqual(expected.environmentCaptureResult);
     expect(changed.fingerprint.value).not.toBe(expected.fingerprint.value);
+  });
+});
+
+describe("lens field mapping in the executed environment graph (2.0 geometric-distortion effect)", () => {
+  const BARREL = { projectionModel: "rectilinear" as const, radiometricAreaCorrection: "inverse-distortion-jacobian" as const,
+    distortion: { kind: "radial" as const, profile: { normalizationRadiusMm: 30, maximumNormalizedRadius: 1, coefficients: { k1: -0.1, k2: 0, k3: 0 } } } };
+  function request(requestDistortion: boolean, mapping?: typeof BARREL): Parameters<typeof createProductionImageFormationPlan>[0] {
+    const {evaluateRadiance,...captureData} = environmentFrameInput(false, false);
+    const capture = {...structuredClone(captureData),evaluateRadiance}, c = capture.frame.capture;
+    if (mapping !== undefined) capture.sites = capture.sites.map(s => ({...s, environment: {...s.environment, lensFieldMapping: mapping}}));
+    const e = capture.sites[0]!.environment;
+    const base = prepared({rendererOverride:{supportedStages:getImageFormationContract().stages.map(s=>s.id),
+      supportedEffects:["illumination-vignetting","geometric-distortion"],temporalSampling:{kind:"bounded",maximumSamples:256}},
+      fidelityOverride:{requiredStages:["adc-quantization"],
+        requiredEffects:requestDistortion ? [{effectId:"geometric-distortion",modelId:"generic-radial-lens-distortion",modelVersion:"1.0.0"}] : []}});
+    const preparedContext = prepareImageFormationContext({...base, sceneId:e.sceneBindings.providerProfile.sceneId,
+      sceneRadianceProviderProfileId:e.sceneBindings.providerProfile.profileId,opticalBridgeProfile:e.optics.profile});
+    const captureSnapshot = createProductionCaptureSnapshot({captureId:c.captureId,releaseFrameId:"release-environment",
+      sceneStateId:c.sceneStateId,sceneTimeSecondsFromExposureStart:c.sceneTimeSeconds,outputStateId:"output-v1",
+      exposure:c.exposure,stochasticSeedUint32:c.noise.seedUint32,
+      temporalCapture:{exposureWindowInput:{...capture.exposureWindow,nativeRaster:c.geometry.nativeRaster,
+        samplePointsNative:capture.sites.map((_,i)=>({x:i%2+.5,y:Math.floor(i/2)+.5}))},
+        imagingArea:c.geometry.imagingArea,orientation:c.geometry.orientation,
+        rotation:{angularVelocityRadPerSec:e.motion.angularVelocityRadPerSec,temporalSampleCount:e.temporalSampleCount,
+          ...(c.focus.kind === "finite" ? {focusDistanceM:c.focus.distanceM} : {})}}});
+    return {preparedContext,captureSnapshot,environmentCapture:{capture}};
+  }
+  it("composes requested lens distortion through the executed environment route", () => {
+    const plan = createProductionImageFormationPlan(request(true, BARREL));
+    expect(plan.blockers).toEqual([]);
+    expect(plan.status).toBe("ready");
+    expect(plan.effectPlan.find(e=>e.effectId==="geometric-distortion")).toMatchObject({state:"active",scientificStatus:"approximation",requiredByFidelity:true});
+    const baseline = createProductionImageFormationPlan(request(false));
+    expect(plan.environmentCaptureResult?.value.raw.value.frame).not.toEqual(baseline.environmentCaptureResult?.value.raw.value.frame);
+    const zero = createProductionImageFormationPlan(request(true, {...BARREL, distortion:{...BARREL.distortion,profile:{...BARREL.distortion.profile,coefficients:{k1:0,k2:0,k3:0}}}}));
+    expect(zero.effectPlan.find(e=>e.effectId==="geometric-distortion")?.state).toBe("modeled-zero");
+  });
+  it("blocks requested distortion without a mapping, and active distortion that was not requested", () => {
+    const missing = createProductionImageFormationPlan(request(true));
+    expect(missing.status).toBe("blocked");
+    expect(missing.blockers.some(b=>b.code==="missing-lens-field-mapping")).toBe(true);
+    expect(missing.effectPlan.find(e=>e.effectId==="geometric-distortion")?.state).toBe("blocked");
+    const undeclared = createProductionImageFormationPlan(request(false, BARREL));
+    expect(undeclared.status).toBe("blocked");
+    expect(undeclared.environmentCaptureResult).toBeUndefined();
+    expect(undeclared.blockers.some(b=>b.code==="environment-capture-evaluation-blocked")).toBe(true);
+  });
+});
+
+describe("production plan temporal and equipment rejection branches", () => {
+  it("rejects capabilities that are not the resolved generic equipment contract", () => {
+    expect(() => prepareImageFormationContext({ contextId: "context", sceneId: "scene", sceneRadianceProviderProfileId: "provider",
+      outputGeometryProfileId: "output-v1", equipmentCapabilities: { ...equipment(), scientificStatus: "calibrated" } as never,
+      opticalBridgeProfile: opticalProfile(), renderer: renderer(), fidelity: fidelity() }))
+      .toThrow("equipmentCapabilities do not satisfy the resolved generic equipment capability contract.");
+  });
+
+  const temporal = (): ReturnType<typeof temporalCapture> => temporalCapture({ rotation: "active" });
+  it.each([
+    ["an unknown orientation", (t: ReturnType<typeof temporalCapture>): unknown => ({ ...t, orientation: "upside-down" }),
+      "temporalCapture.orientation is invalid."],
+    ["a zero rotation sample count", (t: ReturnType<typeof temporalCapture>): unknown => ({ ...t, rotation: { ...t.rotation!, temporalSampleCount: 0 } }),
+      "temporalCapture.rotation.temporalSampleCount must be a positive safe integer."],
+    ["rotation without sample points", (t: ReturnType<typeof temporalCapture>): unknown => ({ ...t,
+      exposureWindowInput: { ...t.exposureWindowInput, samplePointsNative: [] } }),
+    "temporalCapture.rotation requires non-empty exposureWindowInput.samplePointsNative."]
+  ])("rejects temporal capture with %s", (_name, mutate, message) => {
+    expect(() => createProductionCaptureSnapshot({ ...captureInput(), temporalCapture: mutate(temporal()) as never })).toThrow(message);
   });
 });

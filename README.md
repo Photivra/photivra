@@ -25,7 +25,31 @@ Install the published ESM package below. The [2.0.0 release record](https://gith
 npm install @photivra/engine@2.0.0
 ```
 
-Calculate horizontal field of view for a 36 mm sensor dimension and 50 mm focal length:
+Simulate a photograph of a test chart with a generic camera, then read the developed sRGB pixels:
+
+```ts
+import { simulateCapture } from "@photivra/engine";
+
+const capture = await simulateCapture({
+  camera: "professional",
+  lens: { fNumber: 8 },
+  exposure: { mode: "manual", iso: 100, shutterSeconds: 1 / 125 },
+  scene: { preset: "slanted-edge" },
+  output: { width: 16, height: 16 }
+});
+
+console.log(capture.image.samples.length, capture.exposure.settings);
+console.log(capture.assumptions.map((a) => `${a.id}: ${a.explanation}`));
+```
+
+`simulateCapture()` runs the full physical pipeline (scene radiance, lens, spectral sensor, noise,
+RAW readout, RAW development and optional JPEG) through the engine's existing contracts, and lists
+every default and modelling choice it made in `assumptions`. The [Quick Start](https://github.com/Photivra/photivra/blob/main/docs/QUICK_START.md)
+covers the inputs, chart presets (slanted edge, Siemens star, step wedge, grey ramp, checkerboard,
+point grid, caller patches), illuminants, white balance and limits.
+
+The individual calculations remain available as small functions. For example, the horizontal field
+of view for a 36 mm sensor dimension and 50 mm focal length:
 
 ```ts
 import { calculateFieldOfView } from "@photivra/engine";
@@ -43,6 +67,7 @@ Start with the [Developer Guide](https://github.com/Photivra/photivra/blob/main/
 
 ## Documentation
 
+- [Quick Start: simulate a capture](https://github.com/Photivra/photivra/blob/main/docs/QUICK_START.md)
 - [Usage Guide](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md)
 - [Architecture](https://github.com/Photivra/photivra/blob/main/docs/ARCHITECTURE.md)
 - [Contributor Guide](https://github.com/Photivra/photivra/blob/main/CONTRIBUTING.md)
@@ -124,7 +149,9 @@ The root package exports deterministic or explicitly labeled approximate models 
 
 ### Color controls
 
-- [white-balance control and Auto WB](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md#white-balance-and-auto-wb), including generic profile-owned presets, manual gains, independent CCT+tint intent, custom measurement, deterministic AWB priorities, and AWB lock without modifying scene illumination or RAW-like capture.
+- [white-balance control and Auto WB](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md#white-balance-and-auto-wb), including generic profile-owned presets, manual gains, independent CCT+tint intent, custom measurement, deterministic AWB priorities, and AWB lock without modifying scene illumination or RAW-like capture;
+- [image processing](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md): built-in bilinear/Malvar–He–Cutler Bayer kernels with mirror borders, AHD demosaic, noise-optimal linear RAW HDR bracket merge, PQ/HLG HDR encoding, Reinhard and Durand–Dorsey tone mapping, Mertens exposure fusion, focus stacking, panorama from known rotations, bilateral/non-local-means denoise, unsharp mask and clearly synthetic film grain — all cancellable approximations.
+- [colorimetry](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md): a labelled analytic CIE 1931 CMF approximation or caller-supplied CMF tables, spectral integration, Planckian/illuminant A/CIE daylight illuminants, CCT and Duv, Bradford/CAT02/CAT16 adaptation, Kelvin + tint WB gains, CIELAB and ΔE76/94/2000, camera-matrix fitting, Display P3/Rec.2020 matrices, PQ/HLG/BT.1886 transfers and hue-preserving gamut mapping. CIE and ColorChecker tables are not bundled.
 
 ### Sensor and output
 
@@ -270,7 +297,7 @@ The calling application can then use those results while keeping the underlying 
 - Repository package version: `2.0.0` (release candidate prepared October 12, 2026; publication is separate)
 - Engine API contract: `2.0.0`
 - Versioned generic tier reference assets: [GENERIC_TIER_PRESETS.md](https://github.com/Photivra/photivra/blob/main/docs/GENERIC_TIER_PRESETS.md).
-- Composed POC simulation API contract: `0.20.0`
+- Composed POC simulation API contract: `1.0.0`
 - Stability: 1.0 root-package compatibility policy; bounded scientific models and independent POC contract
 
 From 1.0.1, package version and `ENGINE_API_VERSION` are equal. New captures/plans record 2.0.0; existing archives retain their original creator identities. Schema, model and POC contract versions remain independent. Breaking root contracts now require a package major release; additive and corrective changes follow [compatibility and migration](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_3_0.md). A 1.0 package is not a claim of calibrated physical accuracy.
@@ -326,7 +353,7 @@ See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHY
 
 ## Runtime surfaces
 
-The package is ESM-only.
+The package is ESM. From 2.0.0 its export map also has a `default` condition, so CommonJS code on Node 22.12 or later can `require("@photivra/engine")` through Node's `require(esm)` support, and `@photivra/engine/package.json` is exported. The published JavaScript source maps embed their TypeScript sources. The declarations type-check with `lib: ["es2022"]` alone; DOM or `@types/node` is not required (the package declares the minimal `AbortSignal` member it uses).
 
 The root export is the runtime-neutral scientific surface:
 
@@ -341,7 +368,7 @@ The root dependency graph is checked in CI so Node-only modules and the reposito
 
 The open repository still contains a minimal Node HTTP POC server under `src/api` for contributor integration testing. It is deliberately **not** exported by `@photivra/engine` and is excluded from the published npm package. It is unauthenticated and is **not** a production hosting recommendation.
 
-When the package is installed directly from a Git repository using normal npm lifecycle scripts, `prepare` builds `dist` before consumption.
+From 2.0.0 the published manifest declares no `prepare` or other install lifecycle scripts. Install the npm package; a Git checkout must be built explicitly with `npm ci && npm run build` before consumption.
 
 ## Development
 

@@ -15,6 +15,7 @@ export function loadSensorRawFrameInput(): SensorRawFrameInput {
     modeSampleIndexFullFrame: { x: i%2, y: Math.floor(i/2) }, colorSamplingProfileId: "cfa",
     colorSamplingSite: { x: i%2, y: Math.floor(i/2) }, channelId, rawCode: [0, 64, 512, 1023][i]!,
     blackLevelCode: 64, digitalSaturationCode: 1023, blackSubtractedNormalizedCode: ([0, 64, 512, 1023][i]!-64)/959,
+    effectiveSaturationCode: 1023, systemConversionGainElectronsPerCode: 1, readNoiseRmsElectrons: 2,
     readoutProfileId: "readout", readoutRegimeId: "base", sourceChargeSeedUint32: i, sourceReadNoiseSeedUint32: i+4,
     physicalScalarSaturationApplied: false, digitalSaturationApplied: i===3,
     cfaPhasePreservedInNativeCoordinates: true, physicalOrientationApplied: false, outputRotationApplied: false,

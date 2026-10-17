@@ -15,6 +15,7 @@ import {
 } from "../core/calculation-result.js";
 import { requirePositiveFinite } from "../core/validation.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 export interface CalculateProjectedObjectSizeInput {
   /** Lens focal length in millimetres. */
@@ -52,6 +53,7 @@ export interface ProjectedObjectSize {
 export function calculateProjectedObjectSize(
   input: CalculateProjectedObjectSizeInput
 ): CalculationResult<ProjectedObjectSize> {
+  requireInputKeys(input, "calculateProjectedObjectSize", ["focalLengthMm", "objectWidthM", "objectHeightM", "distanceM", "focusDistanceM", "pixelPitchMicrometers"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("objectWidthM", input.objectWidthM);
   requirePositiveFinite("objectHeightM", input.objectHeightM);

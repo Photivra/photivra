@@ -248,6 +248,30 @@ describe("sensor dark-current charge", () => {
     ).toThrow("extrapolation");
   });
 
+  it("interpolates ln(rate) between samples for the log-linear (exponential-in-temperature) table", () => {
+    const table = (samples: { temperatureC: number; darkCurrentElectronsPerSecond: number }[]): SensorDarkCurrentProfile => exactProfile({
+      temperatureModel: { kind: "log-linear-temperature-table", interpolation: "log-linear", outsideRangeBehavior: "fail-closed", samples } });
+    const profile = table([{ temperatureC: 20, darkCurrentElectronsPerSecond: 10 }, { temperatureC: 40, darkCurrentElectronsPerSecond: 100 }]);
+    const mid = calculateSensorDarkCurrentCharge({ exposure: exposure(), darkCurrentProfile: profile, operatingTemperatureC: 30 }).value;
+    // Science review: linear gives 55 e-/s at 30 C; the geometric mean sqrt(10*100) = 31.62 follows the exponential law.
+    expect(mid.darkCurrentElectronsPerSecond).toBeCloseTo(Math.sqrt(1000), 12);
+    expect(mid.temperatureModel).toBe("log-linear-temperature-table");
+    expect(mid.temperatureInterpolationUsed).toBe(true);
+    // A constant doubling temperature between samples is reproduced exactly: 10 -> 80 over 30 C doubles every 10 C.
+    const doubling = table([{ temperatureC: 0, darkCurrentElectronsPerSecond: 10 }, { temperatureC: 30, darkCurrentElectronsPerSecond: 80 }]);
+    for (const [t, rate] of [[10, 20], [20, 40]] as const) {
+      expect(calculateSensorDarkCurrentCharge({ exposure: exposure(), darkCurrentProfile: doubling, operatingTemperatureC: t })
+        .value.darkCurrentElectronsPerSecond).toBeCloseTo(rate, 12);
+    }
+    expect(calculateSensorDarkCurrentCharge({ exposure: exposure(), darkCurrentProfile: profile, operatingTemperatureC: 40 })
+      .value.darkCurrentElectronsPerSecond).toBe(100);
+    expect(() => calculateSensorDarkCurrentCharge({ exposure: exposure(), darkCurrentProfile: profile, operatingTemperatureC: 41 })).toThrow("extrapolation");
+    expect(() => parseSensorDarkCurrentProfile(table([{ temperatureC: 0, darkCurrentElectronsPerSecond: 0 },
+      { temperatureC: 10, darkCurrentElectronsPerSecond: 1 }]))).toThrow("strictly positive");
+    expect(() => parseSensorDarkCurrentProfile(exactProfile({ temperatureModel: { kind: "log-linear-temperature-table",
+      interpolation: "piecewise-linear", outsideRangeBehavior: "fail-closed", samples: [] } as never }))).toThrow();
+  });
+
   it("does not invent a temperature law for a fixed-reference calibration", () => {
     expect(() =>
       calculateSensorDarkCurrentCharge({

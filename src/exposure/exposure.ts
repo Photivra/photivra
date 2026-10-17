@@ -14,6 +14,7 @@ import {
   type CalculationResult
 } from "../core/calculation-result.js";
 import { requirePositiveFinite } from "../core/validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 export interface CalculateExposureValue100Input {
   /** F-number. */
@@ -31,6 +32,7 @@ export interface CalculateExposureValue100Input {
 export function calculateExposureValue100(
   input: CalculateExposureValue100Input
 ): CalculationResult<number> {
+  requireInputKeys(input, "calculateExposureValue100", ["aperture", "shutterSeconds"]);
   requirePositiveFinite("aperture", input.aperture);
   requirePositiveFinite("shutterSeconds", input.shutterSeconds);
 
@@ -66,6 +68,7 @@ export interface RelativeOpticalExposure {
 export function calculateRelativeOpticalExposure(
   input: CalculateRelativeOpticalExposureInput
 ): CalculationResult<RelativeOpticalExposure> {
+  requireInputKeys(input, "calculateRelativeOpticalExposure", ["aperture", "shutterSeconds", "referenceAperture", "referenceShutterSeconds"]);
   requirePositiveFinite("aperture", input.aperture);
   requirePositiveFinite("shutterSeconds", input.shutterSeconds);
   requirePositiveFinite("referenceAperture", input.referenceAperture);
@@ -131,6 +134,7 @@ export interface RelativeRenderedExposure {
 export function calculateRelativeRenderedExposure(
   input: CalculateRelativeRenderedExposureInput
 ): CalculationResult<RelativeRenderedExposure> {
+  requireInputKeys(input, "calculateRelativeRenderedExposure", ["aperture", "shutterSeconds", "iso", "referenceAperture", "referenceShutterSeconds", "referenceIso"]);
   requirePositiveFinite("iso", input.iso);
   requirePositiveFinite("referenceIso", input.referenceIso);
 
@@ -179,6 +183,7 @@ export interface CalculateEquivalentIsoInput {
 export function calculateEquivalentIso(
   input: CalculateEquivalentIsoInput
 ): CalculationResult<number> {
+  requireInputKeys(input, "calculateEquivalentIso", ["baseIso", "baseAperture", "baseShutterSeconds", "aperture", "shutterSeconds"]);
   requirePositiveFinite("baseIso", input.baseIso);
   requirePositiveFinite("baseAperture", input.baseAperture);
   requirePositiveFinite("baseShutterSeconds", input.baseShutterSeconds);

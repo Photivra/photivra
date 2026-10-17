@@ -42,6 +42,10 @@ CORS is a browser policy, **not** authentication or authorization. Non-browser c
 
 The server accepts request bodies up to 64 KiB. It does not provide production rate limiting, authentication, quotas, reverse-proxy hardening, or abuse controls.
 
+## Contract version 1.0.0
+
+Package 2.0.0 sets `POC_SIMULATION_API_VERSION` to `1.0.0` (from `0.20.0`) because the response changed: exact thin-lens depth-of-field limits, a circle of confusion at or above the aperture diameter rejected, the stable closed-form defocus diameter, whole-pixel crop rounding (crop model 2.0.0), the physical right-hand camera-shake sign convention with quarter-turn rejection, and a crop factor and sensor diagonal computed only from correctly rounded operations (see [numerical correctness](NUMERICAL_CORRECTNESS.md#cross-engine-determinism)). Request fields are unchanged; the transport adds the magnitude envelope and the 422 status below.
+
 ## Health
 
 `GET /health`
@@ -52,7 +56,7 @@ Example:
 {
   "ok": true,
   "service": "photivra-engine",
-  "apiVersion": "0.20.0"
+  "apiVersion": "1.0.0"
 }
 ```
 
@@ -249,6 +253,8 @@ Decoded HTTP JSON is structurally checked for required object/array/string/finit
 
 That parser does not duplicate every scientific domain/range rule. Scientific modules remain responsible for constraints such as positive dimensions, physically valid distances, blade-count bounds, and crop limits.
 
+The parser also applies a transport magnitude envelope to the two fields whose finite but extreme values otherwise overflow inside the simulation: `lens.aperture` may not exceed 10000 or be a positive value below 0.01, and `focus.focusDistanceM` may not exceed 1e9 m or be a positive value below 1e-9 m. Values outside it return 400. The envelope is a request guard, not a scientific domain; zero and negative values are still rejected by the calculation modules.
+
 Current transport responses include:
 
 - `200`: successful simulation;
@@ -257,6 +263,7 @@ Current transport responses include:
 - `404`: unknown route;
 - `413` (`PAYLOAD_TOO_LARGE`): request body over 64 KiB, by declared `Content-Length` or while streaming;
 - `415`: simulation POST without `application/json`;
+- `422` (`SIMULATION_RESULT_OUT_OF_RANGE`): a structurally valid request whose finite values drive a result outside the finite numeric range (`InvalidScientificResultError`); the engine-authored message is returned;
 - `500` (`INTERNAL_ERROR`): any other failure, with the fixed message `Internal simulation error.`; internal error text is never returned.
 
 400 messages are engine-authored validation diagnostics intended for local development and should not be treated as a hardened public error contract.

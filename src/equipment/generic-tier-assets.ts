@@ -22,6 +22,8 @@ import { parseExposureMeteringProfile, type ExposureMeteringProfile } from "../e
 import { parseGenericBodyMeteringCapabilityProfile, type GenericBodyMeteringCapabilityProfile } from "./metering-capabilities.js";
 import { parseFlashSyncCapabilityProfile, type FlashSyncCapabilityProfile } from "../exposure/flash.js";
 import type { SensorReadoutTimingDeclaration } from "../sensor/readout-timing.js";
+import { createIsoGainReadoutRegimes } from "../sensor/iso-gain.js";
+import { parseSensorFixedPatternNoiseProfile, type SensorFixedPatternNoiseProfile } from "../sensor/fixed-pattern-noise.js";
 
 export type GenericEquipmentTier = "consumer" | "prosumer" | "professional";
 export interface GenericVersionedAsset<T> { assetId: string; assetVersion: string; profile: T }
@@ -30,7 +32,12 @@ export interface GenericTierBodyAssets {
   iso: IsoCapabilityProfile;
   signalChain: GenericIsoSignalChainProfile;
   readout: readonly GenericVersionedAsset<SensorReadoutConversionProfile>[];
+  /** Global (no spatial skew) data readout; the default timing asset. */
   readoutTiming: GenericVersionedAsset<SensorReadoutTimingDeclaration>;
+  /** Opt-in rolling readout variant with explicit top-to-bottom spatial skew. */
+  rollingReadoutTiming: GenericVersionedAsset<SensorReadoutTimingDeclaration>;
+  /** Opt-in synthetic fixed-pattern noise for this body; never applied unless a caller attaches it. */
+  fixedPatternNoise: GenericVersionedAsset<SensorFixedPatternNoiseProfile>;
   release: GenericReleaseCapabilityProfile;
   focus: FocusControlProfile;
   stabilization: StabilizationSystemProfile;
@@ -60,7 +67,7 @@ export interface GenericTierLensAssets {
 export interface GenericEquipmentTierPreset {
   tier: GenericEquipmentTier;
   label: "Consumer" | "Prosumer" | "Professional";
-  presetId: string; presetVersion: "1.0.0";
+  presetId: string; presetVersion: "2.0.0";
   scientificStatus: "approximation";
   evidence: readonly EvidenceProvenance[];
   body: GenericTierBodyAssets;
@@ -72,7 +79,7 @@ const evidence: readonly EvidenceProvenance[] = [{ sourceOrigin: "photivra", sou
   reuseStatus: "photivra-owned" }];
 const limitations = ["Synthetic educational design values; no named camera/lens calibration or population ranking."];
 const fact = <T>(value: T): EvidenceBackedFact<T> => ({ value, evidence });
-const version = "1.0.0";
+const version = "2.0.0";
 const disk = [0,0,1,0,0, 0,1,1,1,0, 1,1,1,1,1, 0,1,1,1,0, 0,0,1,0,0];
 const clipped = [0,0,1,0,0, 0,1,1,1,0, 0,1,1,1,1, 0,1,1,1,0, 0,0,1,0,0];
 const clippedMore = [0,0,0,0,0, 0,0,1,1,0, 0,0,1,1,1, 0,0,1,1,0, 0,0,0,0,0];
@@ -80,8 +87,18 @@ const near = [0,0,.12,0,0, 0,.06,0,.06,0, .12,0,-.04,0,.12, 0,.06,0,.06,0, 0,0,.
 const flat = Array<number>(25).fill(0);
 const far = near.map((v) => -v);
 
+/**
+ * Synthetic educational sensor design values per tier: ADC, saturation signal Q0 at base ISO,
+ * analog gain range, per-conversion-gain-mode read noise and fixed-pattern magnitudes. They are
+ * plausible orders of magnitude for consumer interchangeable-lens sensors, not data of any camera.
+ */
+interface SyntheticSensorDesign {
+  bitDepth: number; blackLevelCode: number; saturationElectrons: number; maximumAnalogGain: number;
+  lowGainReadNoise: number; highGainReadNoise: number; highGainFromIso: number; highGainMaximumCharge: number;
+  prnu: number; dsnu: number; hotFraction: number; hotMultiplier: number; rowRms: number; columnRms: number; instanceSeed: number;
+}
 /** Data construction only: tier labels never enter downstream scientific equations. */
-function bodyAssets(id: string, isoMax: number, cadence: number, frames: number, readNoise: number,
+function bodyAssets(id: string, isoMax: number, cadence: number, frames: number, sensor: SyntheticSensorDesign,
   dataReadoutSeconds: number, gain: number, maxAngle: number, continuousAf: boolean, advancedPolicies: boolean): GenericTierBodyAssets {
   const isoValues = [100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600].filter((v) => v <= isoMax);
   const exposure = parseGenericBodyExposureCapabilityProfile({ schemaVersion: "0.1.0", profileId: id+":exposure", profileVersion: version,
@@ -91,20 +108,20 @@ function bodyAssets(id: string, isoMax: number, cadence: number, frames: number,
     capabilityMeaning: "reported-exposure-index-capability-not-physical-gain", standard: { exposureIndexRange: { minimum: 100, maximum: isoMax },
       settingGrid: { kind: "discrete-values", values: isoValues } }, expandedSettings: [], autoIso: { availability: "supported", standardExposureIndexRange: { minimum: 100, maximum: isoMax }, evidence },
     captureModePolicies: [], evidence });
+  const isoGain = createIsoGainReadoutRegimes({ regimeIdPrefix: "", scientificStatus: "approximation", baseExposureIndex: 100,
+    exposureIndices: isoValues, baseSaturationElectronEquivalent: fact(sensor.saturationElectrons), maximumAnalogGain: fact(sensor.maximumAnalogGain),
+    adc: { bitDepth: sensor.bitDepth, blackLevelCode: sensor.blackLevelCode, digitalSaturationCode: 2**sensor.bitDepth-1 },
+    conversionGainModes: [{ mode: "low-conversion-gain", minimumExposureIndex: 100, readNoiseRmsElectrons: fact(sensor.lowGainReadNoise) },
+      { mode: "high-conversion-gain", minimumExposureIndex: sensor.highGainFromIso, readNoiseRmsElectrons: fact(sensor.highGainReadNoise),
+        maximumChargeElectrons: fact(sensor.highGainMaximumCharge) }],
+    evidence, limitations: [...limitations, "ISO gain follows the declared base-ISO saturation signal and analog range; read noise per conversion-gain mode is a synthetic design value."] });
   const readout = ["red", "green", "blue"].map((channelId): GenericVersionedAsset<SensorReadoutConversionProfile> => ({ assetId: id+":readout:"+channelId, assetVersion: version,
     profile: parseSensorReadoutConversionProfile({ schemaVersion: "0.1.0", profileId: id+":readout", colorSamplingProfileId: "photivra-generic-bayer", channelId,
-      regimeSelectionOwnedBy: "explicit-upstream-camera-state-not-inferred-from-iso", evidence,
-      regimes: [{ regimeId: "base", scientificStatus: "approximation", systemConversionGainElectronsPerCode: fact(1),
-        preAdcSaturationElectronEquivalent: fact(20000), readNoiseComponents: [{ componentId: "electronic", rmsElectrons: fact(readNoise), evidence }],
-        adc: { bitDepth: 16, blackLevelCode: 512, digitalSaturationCode: 65535, transfer: "uniform-round-half-up" }, evidence, limitations },
-      { regimeId: "high", scientificStatus: "approximation", systemConversionGainElectronsPerCode: fact(.25),
-        preAdcSaturationElectronEquivalent: fact(12000), readNoiseComponents: [{ componentId: "electronic", rmsElectrons: fact(readNoise*.75), evidence }],
-        adc: { bitDepth: 16, blackLevelCode: 512, digitalSaturationCode: 65535, transfer: "uniform-round-half-up" }, evidence, limitations }] }) }));
+      regimeSelectionOwnedBy: "explicit-upstream-camera-state-not-inferred-from-iso", evidence, regimes: isoGain.regimes }) }));
   const signalChain = parseGenericIsoSignalChainProfile({ schemaVersion: "0.1.0", profileId: id+":signal-chain", profileVersion: version,
     scientificStatus: "approximation", isoCapabilityProfileId: iso.profileId, readoutProfileId: id+":readout",
     behaviorMeaning: "iso-state-selects-explicit-readout-regime-not-noise-equation", captureModeBindings: [{ captureModeId: "native-still",
-      standardRegimeBands: [{ minimumExposureIndex: 100, maximumExposureIndex: 400, readoutRegimeId: "base" },
-        { minimumExposureIndex: 800, maximumExposureIndex: isoMax, readoutRegimeId: "high" }], expandedRegimeBindings: [], evidence }],
+      standardRegimeBands: isoGain.standardRegimeBands, expandedRegimeBindings: [], evidence }],
     photonShotNoiseOwnedUpstream: true, processedImageBehaviorIncluded: false, fixedPatternNoiseModeled: false, lowSignalColorDegradationModeled: false,
     evidence, limitations });
   const release = parseGenericReleaseCapabilityProfile({ schemaVersion: "0.1.0", profileId: id+":release", profileVersion: version,
@@ -135,9 +152,20 @@ function bodyAssets(id: string, isoMax: number, cadence: number, frames: number,
     scientificStatus: "approximation", evidence, supportedMeteringProfiles: metering.map((m) => ({ meteringProfileId: m.profile.profileId, policyKind: m.profile.policy.kind, evidence })),
     spotFocusPointLinkage: { availability: "unsupported", evidence } });
   const timingId = id+":data-readout";
+  const fixedPatternNoise = parseSensorFixedPatternNoiseProfile({ schemaVersion: "0.1.0", profileId: id+":fixed-pattern",
+    colorSamplingProfileId: "photivra-generic-bayer", scientificStatus: "approximation", sensorInstanceSeedUint32: sensor.instanceSeed,
+    photoResponseNonUniformity: { relativeStandardDeviation: fact(sensor.prnu) }, darkSignalNonUniformity: { relativeStandardDeviation: fact(sensor.dsnu) },
+    hotPixels: { siteFraction: fact(sensor.hotFraction), darkCurrentMultiplier: fact(sensor.hotMultiplier) },
+    rowOffset: { rmsElectrons: fact(sensor.rowRms) }, columnOffset: { rmsElectrons: fact(sensor.columnRms) },
+    patternDistribution: "normal-factors-truncated-at-zero", evidence,
+    limitations: [...limitations, "Synthetic fixed-pattern magnitudes for teaching; opt-in only and not a measured sensor population."] });
   return { exposure, iso, signalChain, readout, release, focus, stabilization, whiteBalance, metering, meteringCapabilities,
     readoutTiming: { assetId: timingId, assetVersion: version, profile: { readoutMode: "global", captureReadoutDurationSeconds: {
       value: dataReadoutSeconds, unit: "s", evidence } } },
+    rollingReadoutTiming: { assetId: id+":rolling-data-readout", assetVersion: version, profile: { readoutMode: "rolling",
+      captureReadoutDurationSeconds: { value: dataReadoutSeconds, unit: "s", evidence }, scanDirectionNative: fact("top-to-bottom"),
+      spatialSamplingSkewSeconds: { value: dataReadoutSeconds, unit: "s", evidence } } },
+    fixedPatternNoise: { assetId: id+":fixed-pattern", assetVersion: version, profile: fixedPatternNoise },
     flashSync: parseFlashSyncCapabilityProfile({ schemaVersion: "0.1.0", profileId: id+":flash-sync", profileVersion: version,
       captureModeId: "native-still", timingProfileId: timingId, supportedOrdinarySyncModes: ["front-curtain", "rear-curtain"],
       highSpeedSyncSupported: false, ordinarySyncRequiresWholeActiveFrameSimultaneouslyExposed: true, evidence, limitations }) };
@@ -155,19 +183,25 @@ const common = { focalLengthMm: 50 as const, aperture: 4 as const, focusDistance
   normalizationRadiusMm: Math.hypot(18,12), correctionCaFraction: .8 };
 export const GENERIC_TIER_ASSETS: readonly GenericEquipmentTierPreset[] = [
   { tier: "consumer", label: "Consumer", presetId: "photivra-consumer", presetVersion: version, scientificStatus: "approximation", evidence,
-    body: bodyAssets("photivra-consumer-body", 6400, 4, 8, 6, .03, .35, .005, false, false),
+    body: bodyAssets("photivra-consumer-body", 6400, 4, 8, { bitDepth: 12, blackLevelCode: 256, saturationElectrons: 20000,
+      maximumAnalogGain: 32, lowGainReadNoise: 6, highGainReadNoise: 2.5, highGainFromIso: 800, highGainMaximumCharge: 6000,
+      prnu: .01, dsnu: .3, hotFraction: 2e-4, hotMultiplier: 50, rowRms: .6, columnRms: .4, instanceSeed: 0x51ed270b }, .03, .35, .005, false, false),
     lens: lensAssets("photivra-consumer-prime", { ...common, distortionK1: -.06, lateralCaK1Offset: .008, vignettingR2: -.5,
       breathingProjectionScale: 1.03, transmission: .75, correctionGainStrength: .8, ghostPowerFraction: .006, veilPowerFraction: .012,
       pupilAmplitudeByField: [disk, clipped, clippedMore], pupilOpdMicrometersByDefocus: [near, flat, far], pupilThroughputByField: [1,.85,.65] }),
     tradeoffs: ["Limited continuous AF; heavier digital correction and edge pupil clipping in matched reference."] },
   { tier: "prosumer", label: "Prosumer", presetId: "photivra-prosumer", presetVersion: version, scientificStatus: "approximation", evidence,
-    body: bodyAssets("photivra-prosumer-body", 12800, 8, 16, 3, .015, .65, .01, true, true),
+    body: bodyAssets("photivra-prosumer-body", 12800, 8, 16, { bitDepth: 14, blackLevelCode: 1024, saturationElectrons: 40000,
+      maximumAnalogGain: 64, lowGainReadNoise: 3, highGainReadNoise: 1.4, highGainFromIso: 800, highGainMaximumCharge: 12000,
+      prnu: .006, dsnu: .2, hotFraction: 1e-4, hotMultiplier: 40, rowRms: .3, columnRms: .2, instanceSeed: 0x2c1b3c6d }, .015, .65, .01, true, true),
     lens: lensAssets("photivra-prosumer-prime", { ...common, distortionK1: -.025, lateralCaK1Offset: .004, vignettingR2: -.25,
       breathingProjectionScale: 1.015, transmission: .85, correctionGainStrength: .6, ghostPowerFraction: .003, veilPowerFraction: .006,
       pupilAmplitudeByField: [disk, disk, clipped], pupilOpdMicrometersByDefocus: [near.map((v)=>v*.7), flat, far.map((v)=>v*.7)], pupilThroughputByField: [1,.95,.85] }),
     tradeoffs: ["Lower matched-reference peripheral gain/noise amplification than Professional; not universally inferior."] },
   { tier: "professional", label: "Professional", presetId: "photivra-professional", presetVersion: version, scientificStatus: "approximation", evidence,
-    body: bodyAssets("photivra-professional-body", 25600, 12, 24, 2, .008, .85, .02, true, true),
+    body: bodyAssets("photivra-professional-body", 25600, 12, 24, { bitDepth: 14, blackLevelCode: 1024, saturationElectrons: 60000,
+      maximumAnalogGain: 128, lowGainReadNoise: 2, highGainReadNoise: 1.1, highGainFromIso: 800, highGainMaximumCharge: 16000,
+      prnu: .004, dsnu: .15, hotFraction: 5e-5, hotMultiplier: 30, rowRms: .15, columnRms: .1, instanceSeed: 0x6a09e667 }, .008, .85, .02, true, true),
     lens: lensAssets("photivra-professional-prime", { ...common, distortionK1: -.01, lateralCaK1Offset: .002, vignettingR2: -.35,
       breathingProjectionScale: 1.005, transmission: .9, correctionGainStrength: .8, ghostPowerFraction: .001, veilPowerFraction: .002,
       pupilAmplitudeByField: [disk, disk, disk], pupilOpdMicrometersByDefocus: [near.map((v)=>v*.9), flat, far.map((v)=>v*.6)], pupilThroughputByField: [1,.98,.95] }),

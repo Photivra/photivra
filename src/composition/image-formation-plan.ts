@@ -22,7 +22,7 @@
 
 import { simulateEnvironmentSensorRawFrame, type SimulateEnvironmentSensorRawFrameInput } from "../capture/environment-raw-producer.js";
 import { parseSimulatedCapture, type SimulatedCapture } from "../capture/simulated-capture.js";
-import { calculateProcessedSensorRaw, validateProcessedSensorRawEnvelope, type ProcessedSensorRawInput } from "../capture/photographic-export.js";
+import { calculateProcessedSensorRaw, validateProcessedSensorRawEnvelope, PROCESSED_SENSOR_RAW_MODEL_VERSION, type ProcessedSensorRawInput } from "../capture/photographic-export.js";
 
 import { stringifyCanonicalJson } from "../core/canonical-json.js";
 import {
@@ -50,6 +50,8 @@ import {
   type ScientificAssuranceComponentUncertainty
 } from "../core/scientific-assurance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
+import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
+import { isElectronicRollingShutterExposureSchedule } from "../sensor/readout-exposure-linkage.js";
 import {
   calculateCaptureRotationTemporalQuadrature,
   type CaptureRotationTemporalQuadrature
@@ -104,6 +106,7 @@ import {
   type SceneRadianceEvaluationResult,
   type SceneRadianceUncertainty
 } from "../schema/scene-radiance.js";
+import { requireInputObject } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -251,6 +254,15 @@ export interface ProductionTemporalCaptureInput {
   orientation: CaptureOrientation;
   readout?:
     SensorReadoutTimingDeclaration;
+  /**
+   * Optional explicit readout→exposure linkage. With the electronic rolling-shutter model the
+   * exposure-window schedule must equal resolveElectronicRollingShutterExposureSchedule(readout), so
+   * every per-site exposure window (and the rotation quadrature) carries the per-line offset.
+   */
+  readoutExposureLinkage?: {
+    kind: "electronic-rolling-shutter-line-reset-read";
+    evidence: readonly EvidenceProvenance[];
+  };
   rotation?: {
     angularVelocityRadPerSec:
       CameraAngularVelocityRadPerSec;
@@ -269,7 +281,8 @@ export interface ProductionTemporalCaptureResult {
   exposureTimeReference:
     "first-opening-boundary-phase";
   readoutExposureSynchronization:
-    "not-assumed";
+    | "not-assumed"
+    | "electronic-rolling-shutter-line-linked";
   sensorReadoutTimingRemainsSeparate:
     true;
   temporalRadianceIntegrated:
@@ -456,6 +469,7 @@ export type ProductionImageFormationBlockerCode =
   | "missing-temporal-capture-input"
   | "temporal-evaluation-blocked"
   | "missing-camera-rotation-model"
+  | "missing-lens-field-mapping"
   | "missing-sensor-readout-timing"
   | "renderer-temporal-sampling-insufficient";
 
@@ -607,6 +621,7 @@ const COMPOSER_SUPPORTED_STAGES =
 const COMPOSER_SUPPORTED_EFFECTS =
   new Set<ImageFormationEffectId>([
     "illumination-vignetting",
+    "geometric-distortion",
     "spatial-camera-rotation",
     "rolling-readout"
   ]);
@@ -1179,6 +1194,7 @@ function validateEquipmentCapabilities(
   value:
     ResolvedGenericEquipmentExposureCapabilities
 ): void {
+  requireInputObject(value, "value input");
   if (
     value.schemaVersion !==
       GENERIC_EQUIPMENT_EXPOSURE_CAPABILITY_SCHEMA_VERSION ||
@@ -1357,7 +1373,9 @@ function fingerprintValue(
 
 /**
  * Return deterministic canonical JSON of a validated production plan. Sorted object keys preserve
- * array order; the representation contains data and excludes executable provider callbacks.
+ * array order; the representation contains data and excludes executable provider callbacks. The
+ * plan version and its fingerprint (recomputed over the content) must match, so an empty or edited
+ * object is rejected instead of serialized.
  *
  * The planner owns scientific stage ordering, immutable capture identity and reproducibility.
  * Well-formed unsupported combinations produce structured blockers; malformed declarations throw. The
@@ -1373,6 +1391,24 @@ export function serializeProductionImageFormationPlan(
   plan:
     ProductionImageFormationPlan
 ): string {
+  requireInputObject(plan, "serializeProductionImageFormationPlan input");
+  const { fingerprint, ...core } = plan as unknown as Record<string, unknown> & { fingerprint?: unknown };
+  if (core.version !== PRODUCTION_IMAGE_FORMATION_PLAN_VERSION) {
+    throw new InvalidConfigurationError(
+      `Production plan version must be "${PRODUCTION_IMAGE_FORMATION_PLAN_VERSION}".`
+    );
+  }
+  const supplied = fingerprint as Record<string, unknown> | null | undefined;
+  if (
+    typeof supplied !== "object" || supplied === null ||
+    supplied.algorithm !== "fnv1a-32-non-cryptographic" ||
+    supplied.purpose !== "deterministic-reproducibility-key-not-integrity-security" ||
+    supplied.value !== fingerprintValue(core)
+  ) {
+    throw new InvalidConfigurationError(
+      "Production plan fingerprint does not match its content; serialize only a plan returned by createProductionImageFormationPlan."
+    );
+  }
   return canonicalStringify(plan);
 }
 
@@ -1482,6 +1518,7 @@ export function prepareImageFormationContext(
   input:
     PrepareImageFormationContextInput
 ): PreparedImageFormationContext {
+  requireInputObject(input, "prepareImageFormationContext input");
   validateEquipmentCapabilities(
     input.equipmentCapabilities
   );
@@ -1720,6 +1757,34 @@ function validateTemporalCaptureInput(
                 .samplePointsNative
           })
     });
+  }
+
+  if (input.readoutExposureLinkage !== undefined) {
+    const linkage = input.readoutExposureLinkage;
+    if (
+      typeof linkage !== "object" ||
+      linkage === null ||
+      linkage.kind !== "electronic-rolling-shutter-line-reset-read"
+    ) {
+      throw new InvalidConfigurationError(
+        "temporalCapture.readoutExposureLinkage.kind is invalid."
+      );
+    }
+    parseEvidenceList(
+      linkage.evidence,
+      "temporalCapture.readoutExposureLinkage.evidence"
+    );
+    if (
+      input.readout === undefined ||
+      !isElectronicRollingShutterExposureSchedule(
+        input.exposureWindowInput,
+        input.readout
+      )
+    ) {
+      throw new InvalidConfigurationError(
+        "temporalCapture electronic rolling-shutter linkage requires a rolling readout and the exposure schedule derived from it."
+      );
+    }
   }
 
   if (input.rotation !== undefined) {
@@ -2208,6 +2273,7 @@ export function createProductionCaptureSnapshot(
   input:
     CreateProductionCaptureSnapshotInput
 ): ProductionCaptureSnapshot {
+  requireInputObject(input, "createProductionCaptureSnapshot input");
   const sceneTime =
     requireFinite(
       input
@@ -2371,9 +2437,11 @@ export function createProductionCaptureSnapshotFromReleaseFrame(
   input:
     CreateProductionCaptureSnapshotFromReleaseFrameInput
 ): ProductionCaptureSnapshot {
+  requireInputObject(input, "createProductionCaptureSnapshotFromReleaseFrame input");
   const frame =
     input.releaseFrame;
 
+  requireInputObject(frame, "frame input");
   const releaseFrameBinding:
     ProductionReleaseFrameBinding = {
     releaseSequenceVersion:
@@ -2900,6 +2968,15 @@ function requestedEffectMap(
   );
 }
 
+/** True when a declared lens field mapping applies no distortion (absent, "none" or all-zero terms). */
+function lensDistortionIsZero(mapping: { distortion?: { kind?: unknown; profile?: { coefficients?: unknown } } } | undefined): boolean {
+  const distortion = mapping?.distortion;
+  if (distortion === undefined || distortion.kind === "none") return true;
+  const coefficients = distortion.profile?.coefficients;
+  return typeof coefficients === "object" && coefficients !== null &&
+    Object.values(coefficients).every(value => value === 0);
+}
+
 function hasActiveUndeclaredFieldThroughput(
   prepared:
     PreparedImageFormationContext,
@@ -3138,7 +3215,10 @@ function computeTemporalResult(
       exposureTimeReference:
         "first-opening-boundary-phase",
       readoutExposureSynchronization:
-        "not-assumed",
+        temporal.readoutExposureLinkage ===
+        undefined
+          ? "not-assumed"
+          : "electronic-rolling-shutter-line-linked",
       sensorReadoutTimingRemainsSeparate:
         true,
       temporalRadianceIntegrated:
@@ -3300,6 +3380,31 @@ function deriveEffectPlan(
             blockerCodes: [
               blocker.code
             ]
+          };
+        }
+
+        if (placement.id === "geometric-distortion") {
+          // 2.0: lens distortion is composed only through an executed environment capture whose
+          // sites declare a lens field mapping (the ray query owns the inverse map and area factor).
+          const mapping = environmentCapture?.capture.sites[0]?.environment.lensFieldMapping;
+          if (mapping === undefined) {
+            const blocker: ProductionImageFormationBlocker = {
+              code: "missing-lens-field-mapping",
+              effectId: placement.id,
+              message: "Geometric-distortion planning requires an executed environment capture with an explicit lens field mapping."
+            };
+            addBlocker(blockers, blocker);
+            return {
+              effectId: placement.id, primaryStage: placement.primaryStage, coupledStages: [...placement.coupledStages],
+              state: "blocked" as const, scientificStatus: "not-applicable" as const, requiredByFidelity: true,
+              modelId: request.modelId, modelVersion: request.modelVersion, blockerCodes: [blocker.code]
+            };
+          }
+          return {
+            effectId: placement.id, primaryStage: placement.primaryStage, coupledStages: [...placement.coupledStages],
+            state: lensDistortionIsZero(mapping) ? "modeled-zero" as const : "active" as const,
+            scientificStatus: "approximation" as const, requiredByFidelity: true,
+            modelId: request.modelId, modelVersion: request.modelVersion, blockerCodes: []
           };
         }
 
@@ -3768,7 +3873,7 @@ function deriveStagePlan(
         return { stageId:stage.id,contractStatus:stage.status,state:supported ? "active" as const : "blocked" as const,
           scientificStatus:supported ? "approximation" as const : "not-applicable" as const,requiredByFidelity:true,
           requiredUpstreamStages:[...stage.requiredUpstreamStages],coupledStages:[...stage.coupledStages],
-          modelId:"processed-sensor-raw-sdr",modelVersion:"0.1.0",
+          modelId:"processed-sensor-raw-sdr",modelVersion:PROCESSED_SENSOR_RAW_MODEL_VERSION,
           resultIdentity:processedResult.value.source.value.rawFrame.frameId,
           blockerCodes:supported ? [] : ["renderer-stage-unsupported" as const] };
       }
@@ -4465,7 +4570,7 @@ function composeProductionScientificAssurance(
   }
   if (processedResult !== undefined) {
     components.push({componentId:"processed-sensor-raw-sdr",role:"committed post-capture SDR development",required:true,
-      sourceIdentity:{kind:"model",id:"processed-sensor-raw-sdr",version:"0.1.0"},basisKind:"photivra-model-assumption",
+      sourceIdentity:{kind:"model",id:"processed-sensor-raw-sdr",version:PROCESSED_SENSOR_RAW_MODEL_VERSION},basisKind:"photivra-model-assumption",
       scientificStatus:"approximation",evidenceRequirement:"required",evidence:processedResult.value.colorProfile.evidence,
       uncertainty:{kind:"not-quantified",limitation:"Reconstruction, color interpretation and optional correction uncertainty are not propagated into a combined output uncertainty."},
       limitations:[...processedResult.value.colorProfile.limitations,
@@ -4578,17 +4683,24 @@ function computeEnvironmentCapture(input: ProductionEnvironmentCaptureInput | un
       throw new InvalidConfigurationError("Environment geometry, scene, focal length and shutter schedule differ from the committed production context.");
     }
     const rendererTemporal = prepared.renderer.temporalSampling;
+    // Frame-constant serializations are computed once, lazily at their first comparison, instead of once per site.
+    let opticalBridgeCanonical: string | undefined, rotationVelocityCanonical: string | undefined;
     for (const site of owned.sites) {
       const e = site.environment;
       if (e.fieldThroughput.kind !== "unity" &&
         !prepared.fidelity.requiredEffects.some(effect => effect.effectId === "illumination-vignetting")) {
         throw new InvalidConfigurationError("Non-unity environment field throughput requires an explicitly requested illumination-vignetting effect.");
       }
+      if (e.lensFieldMapping !== undefined && !lensDistortionIsZero(e.lensFieldMapping) &&
+        !prepared.fidelity.requiredEffects.some(effect => effect.effectId === "geometric-distortion")) {
+        throw new InvalidConfigurationError("Active environment lens distortion requires an explicitly requested geometric-distortion effect.");
+      }
       if (e.sceneBindings.providerProfile.profileId !== prepared.sceneRadianceProviderProfileId ||
-        canonicalStringify(e.optics.profile) !== canonicalStringify(prepared.opticalBridgeProfile) ||
+        canonicalStringify(e.optics.profile) !== (opticalBridgeCanonical ??= canonicalStringify(prepared.opticalBridgeProfile)) ||
         rendererTemporal.kind !== "bounded" || e.temporalSampleCount > rendererTemporal.maximumSamples ||
         (temporal.rotation === undefined && !angularVelocityIsZero(e.motion.angularVelocityRadPerSec)) ||
-        (temporal.rotation !== undefined && (canonicalStringify(e.motion.angularVelocityRadPerSec) !== canonicalStringify(temporal.rotation.angularVelocityRadPerSec) ||
+        (temporal.rotation !== undefined && (canonicalStringify(e.motion.angularVelocityRadPerSec) !==
+          (rotationVelocityCanonical ??= canonicalStringify(temporal.rotation.angularVelocityRadPerSec)) ||
           e.temporalSampleCount !== temporal.rotation.temporalSampleCount ||
           (capture.focus.kind === "finite" ? capture.focus.distanceM : undefined) !== temporal.rotation.focusDistanceM))) {
         throw new InvalidConfigurationError("Environment provider, optics, motion or temporal sampling differs from the committed production context.");
@@ -4623,6 +4735,7 @@ export function createProductionImageFormationPlan(
   input:
     CreateProductionImageFormationPlanInput
 ): ProductionImageFormationPlan {
+  requireInputObject(input, "createProductionImageFormationPlan input");
   const prepared =
     parsePreparedImageFormationContext(
       input.preparedContext
@@ -4683,7 +4796,8 @@ export function createProductionImageFormationPlan(
     prepared, snapshot, requiredStages, blockers);
   const environmentCaptureResult = environmentExecution?.result;
   if (input.environmentCapture !== undefined && environmentCaptureResult === undefined) {
-    effectPlan = effectPlan.map(effect => effect.effectId === "illumination-vignetting" && effect.requiredByFidelity
+    effectPlan = effectPlan.map(effect => (effect.effectId === "illumination-vignetting" ||
+      (effect.effectId === "geometric-distortion" && effect.state !== "blocked")) && effect.requiredByFidelity
       ? { ...effect, state: "blocked" as const, scientificStatus: "not-applicable" as const,
         blockerCodes: ["environment-capture-evaluation-blocked" as const] } : effect);
   }

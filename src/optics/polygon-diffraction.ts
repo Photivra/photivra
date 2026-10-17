@@ -138,7 +138,7 @@ export function calculateIdealPolygonDiffractionPsf(
       throw new InvalidScientificInputError("imagePointsMicrometers must not contain sparse entries.");
     }
   }
-  const geometry = calculateIdealApertureGeometry(input).value;
+  const geometry = calculateIdealApertureGeometry({ bladeCount: input.bladeCount, ...(input.firstBladeEdgeAngleDegrees === undefined ? {} : { firstBladeEdgeAngleDegrees: input.firstBladeEdgeAngleDegrees }) }).value;
   const unitArea = input.bladeCount * Math.sin(2 * Math.PI / input.bladeCount) / 2;
   const pupilAreaSquareMm = Math.PI * (input.equivalentAreaPupilDiameterMm / 2) ** 2;
   const radius = Math.sqrt(pupilAreaSquareMm / unitArea);
@@ -187,5 +187,139 @@ export function calculateIdealPolygonDiffractionPsf(
     "The analytical polygon boundary integral has no FFT/pupil-grid aliasing; downstream image-plane sampling and finite-support truncation still require convergence checks.",
     "No real-lens calibration, aberration, defocus, mechanical clipping, curved blades, field dependence, polarization, sensor response or stray light is modeled.",
     "Circular Airy remains a separate named diagnostic; do not stack this diffraction PSF over an already diffracted complex-pupil result."
+  ], { notes: ["No quantified physical-model uncertainty is asserted. Numerical tolerances in tests are validation evidence, not real-lens accuracy bounds."] });
+}
+
+/** On-axis scalar Fraunhofer diffraction of one arbitrary simple polygon pupil. */
+export interface CalculatePolygonPupilFraunhoferPsfInput {
+  /**
+   * Simple (non-self-intersecting) pupil polygon in pupil-plane millimetres, +X right / +Y up,
+   * 3 through 4096 vertices; for example the cat's-eye pupil from calculateMechanicalVignetting().
+   */
+  pupilVerticesMm: readonly { x: number; y: number }[];
+  /** Paraxial pupil-to-image propagation scale; not silently inferred from focus. */
+  pupilToImageDistanceMm: number;
+  /** Wavelength in the declared propagation medium; no air/vacuum conversion. */
+  wavelengthNm: number;
+  wavelengthBasis: Exclude<SpectralWavelengthBasis, "unspecified">;
+  /** Displacements from the PSF centre (the geometric image point), +X right / +Y up; at most 4096. */
+  imagePointsMicrometers: readonly { x: number; y: number }[];
+}
+
+export interface PolygonPupilFraunhoferPsf {
+  pupilAreaSquareMm: number;
+  pupilToImageDistanceMm: number;
+  wavelengthNm: number;
+  wavelengthBasis: Exclude<SpectralWavelengthBasis, "unspecified">;
+  fieldAxes: "+X right, +Y up";
+  energyNormalization: "unit-integral-over-infinite-image-plane";
+  throughputApplied: false;
+  samples: readonly {
+    imagePointMicrometers: { x: number; y: number };
+    /** |F/A|²; unity at the origin. */
+    peakNormalizedIntensity: number;
+    /** Density integrating to unity over the full image plane, in 1/µm². */
+    intensityDensityPerSquareMicrometer: number;
+  }[];
+}
+
+function requirePlanarPoint(value: unknown, path: string): { x: number; y: number } {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new InvalidScientificInputError(`${path} must contain finite x/y coordinates only.`);
+  }
+  const record = value as Record<string, unknown>;
+  if (
+    Object.keys(record).some((key) => key !== "x" && key !== "y") ||
+    typeof record.x !== "number" || typeof record.y !== "number" ||
+    !Number.isFinite(record.x) || !Number.isFinite(record.y)
+  ) {
+    throw new InvalidScientificInputError(`${path} must contain finite x/y coordinates only.`);
+  }
+  return { x: record.x, y: record.y };
+}
+
+/**
+ * Continuous monochromatic Fraunhofer PSF density for a uniformly illuminated, zero-phase,
+ * arbitrary simple polygon pupil (for example a mechanically vignetted cat's-eye pupil). Uses the
+ * same analytic divergence-theorem boundary integral as the regular-polygon model, so there is no
+ * pupil-grid aliasing. A pupil offset from the axis only adds a linear phase and leaves the
+ * intensity unchanged. Density = A |F/A|² / (lambda z)², with unit integral over the infinite plane.
+ */
+export function calculatePolygonPupilFraunhoferPsf(
+  input: CalculatePolygonPupilFraunhoferPsfInput
+): CalculationResult<PolygonPupilFraunhoferPsf> {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    throw new InvalidScientificInputError("Polygon pupil diffraction input must be an object.");
+  }
+  requirePositiveFinite("pupilToImageDistanceMm", input.pupilToImageDistanceMm);
+  requirePositiveFinite("wavelengthNm", input.wavelengthNm);
+  if (input.wavelengthBasis !== "air" && input.wavelengthBasis !== "vacuum") {
+    throw new InvalidScientificInputError("wavelengthBasis must be air or vacuum.");
+  }
+  if (!Array.isArray(input.pupilVerticesMm) || input.pupilVerticesMm.length < 3 ||
+      input.pupilVerticesMm.length > 4096) {
+    throw new InvalidScientificInputError("pupilVerticesMm must contain 3 through 4096 vertices.");
+  }
+  if (!Array.isArray(input.imagePointsMicrometers) ||
+      input.imagePointsMicrometers.length === 0 || input.imagePointsMicrometers.length > 4096) {
+    throw new InvalidScientificInputError("imagePointsMicrometers must contain 1 through 4096 points.");
+  }
+  const vertices = input.pupilVerticesMm.map((vertex, index) =>
+    requirePlanarPoint(vertex, `pupilVerticesMm[${index}]`));
+  // Centre and scale the polygon for conditioning; translation changes only the phase of F.
+  const cx = vertices.reduce((sum, v) => sum + v.x, 0) / vertices.length;
+  const cy = vertices.reduce((sum, v) => sum + v.y, 0) / vertices.length;
+  const scale = Math.max(...vertices.map((v) => Math.hypot(v.x - cx, v.y - cy)));
+  if (!(scale > 0) || !Number.isFinite(scale)) {
+    throw new InvalidScientificInputError("pupilVerticesMm must span a finite non-zero region.");
+  }
+  let normalized = vertices.map((v) => ({ x: (v.x - cx) / scale, y: (v.y - cy) / scale }));
+  let twiceArea = 0;
+  for (let index = 0; index < normalized.length; index += 1) {
+    const a = normalized[index]!;
+    const b = normalized[(index + 1) % normalized.length]!;
+    twiceArea += a.x * b.y - b.x * a.y;
+  }
+  if (twiceArea < 0) {
+    normalized = [...normalized].reverse();
+    twiceArea = -twiceArea;
+  }
+  const unitArea = twiceArea / 2;
+  const pupilAreaSquareMm = unitArea * scale * scale;
+  const propagationScale = input.wavelengthNm / 1_000_000 * input.pupilToImageDistanceMm;
+  const densityScale = pupilAreaSquareMm / propagationScale ** 2 / 1_000_000;
+  if (!(unitArea > 1e-12) ||
+      ![pupilAreaSquareMm, propagationScale, densityScale].every((x) => Number.isFinite(x) && x > 0)) {
+    throw new InvalidScientificInputError("Polygon pupil area and derived scales must remain finite and positive.");
+  }
+  const samples = input.imagePointsMicrometers.map((value, index) => {
+    const point = requirePlanarPoint(value, `imagePointsMicrometers[${index}]`);
+    const qx = 2 * Math.PI * (point.x / 1000) * scale / propagationScale;
+    const qy = 2 * Math.PI * (point.y / 1000) * scale / propagationScale;
+    if (!Number.isFinite(Math.hypot(qx, qy)) || Math.hypot(qx, qy) > 1_000_000) {
+      throw new InvalidScientificInputError("Dimensionless pupil phase radius must not exceed 1000000.");
+    }
+    const intensity = peakIntensity(normalized, unitArea, qx, qy);
+    return {
+      imagePointMicrometers: { x: point.x === 0 ? 0 : point.x, y: point.y === 0 ? 0 : point.y },
+      peakNormalizedIntensity: intensity,
+      intensityDensityPerSquareMicrometer: intensity * densityScale
+    };
+  });
+  return approximationResult({
+    pupilAreaSquareMm,
+    pupilToImageDistanceMm: input.pupilToImageDistanceMm,
+    wavelengthNm: input.wavelengthNm,
+    wavelengthBasis: input.wavelengthBasis,
+    fieldAxes: "+X right, +Y up",
+    energyNormalization: "unit-integral-over-infinite-image-plane",
+    throughputApplied: false,
+    samples
+  }, "polygon-pupil-fraunhofer-diffraction", "1.0.0", [
+    "Uniform unit pupil amplitude and zero phase over a caller-declared simple polygon; scalar paraxial Fraunhofer propagation.",
+    "The PSF is centred on the geometric image point; a pupil offset from the optical axis adds only a linear phase.",
+    "Continuous PSF density has unit integral over the infinite image plane. Point samples are not a finite energy-normalized kernel.",
+    "Pupil-area throughput (for example mechanical vignetting) is reported separately and not applied to the density.",
+    "No aberration, defocus, polarization, sensor response or stray light is modeled."
   ], { notes: ["No quantified physical-model uncertainty is asserted. Numerical tolerances in tests are validation evidence, not real-lens accuracy bounds."] });
 }

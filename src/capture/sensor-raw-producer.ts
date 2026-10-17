@@ -26,6 +26,7 @@ import { assessSensorPhysicalChargeCapacity, parseSensorPhysicalChargeCapacityPr
 import { simulateSensorChargeRealization, simulateSensorRawCode, parseSensorChargeSamplingProfile,
   parseSensorReadoutConversionProfile, resolveSensorReadoutRegime, type SensorChargeSamplingProfile, type SensorReadoutConversionProfile } from "../sensor/raw-readout.js";
 import { createSensorRawCaptureSample } from "../sensor/raw-reconstruction.js";
+import { parseSensorFixedPatternNoiseProfile, type SensorFixedPatternNoiseProfile } from "../sensor/fixed-pattern-noise.js";
 import { deriveNativeSiteStreamSeedUint32, NATIVE_SITE_CHARGE_STREAM_ID, NATIVE_SITE_READ_NOISE_STREAM_ID } from "../sensor/stochastic-seed.js";
 import { parseSensorColorSamplingProfile } from "../sensor/color-sampling.js";
 import { parseCaptureModeProfile } from "../sensor/capture-mode.js";
@@ -33,8 +34,12 @@ import { parseNativeEffectiveRasterColorSamplingBindingProfile, resolveCaptureMo
 import { calculateCaptureExposureWindows, type CalculateCaptureExposureWindowsInput, type CaptureExposureWindows } from "../sensor/exposure-window.js";
 
 export const SENSOR_RAW_PRODUCER_SCHEMA_VERSION = "0.3.0" as const;
-/** Capture noise model identity binds the hashed per-site seed schedule and signed electronic readout behavior. */
-export const SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.3.0" } as const);
+/**
+ * Capture noise model identity binds the hashed per-site seed schedule and signed electronic readout behavior.
+ * 0.4.0: exact ties-up ADC rounding, normal-approximation Poisson draws for means of 1e9 and above, optional
+ * post-ADC digital gain/INL and optional per-sensor fixed-pattern noise.
+ */
+export const SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.4.0" } as const);
 /** One declared EQE/dark/completeness event and explicit readout state per native site. */
 export interface SensorRawProducerSiteInput {
   charge: ComposeSensorAccumulatedChargeInput;
@@ -43,6 +48,8 @@ export interface SensorRawProducerSiteInput {
   operatingStateId: string;
   readoutProfile: SensorReadoutConversionProfile;
   regimeId: string;
+  /** Optional per-sensor-instance fixed pattern; one profile for the whole frame. Omission disables FPN. */
+  fixedPatternNoise?: SensorFixedPatternNoiseProfile;
 }
 /** Full-native exposure schedule; sampling coordinates belong to the producer. */
 export type SensorRawProducerExposureWindowInput = Omit<CalculateCaptureExposureWindowsInput,
@@ -76,12 +83,41 @@ function fields(value: unknown, allowed: readonly string[]): Record<string, unkn
 function publicId(value: unknown): string {
   return requirePublicOpaqueId(value, "Expected public producer identity.");
 }
+const KEY_RECURSE = 0, KEY_IDENTITY = 1, KEY_IDENTITY_LIST = 2;
+/** Bounded memo of the identity-walk classification of a property name (a pure function of the name). */
+const IDENTITY_KEY_KINDS = new Map<string, number>();
+/** Bounded memo of strings that already satisfied the public opaque-ID grammar (a pure function of the string). */
+const VALID_PUBLIC_IDS = new Set<string>();
+const IDENTITY_WALK_MEMO_LIMIT = 4096;
+function identityKeyKind(key: string): number {
+  // Array indices and other names ending in a digit match neither suffix.
+  const last = key.charCodeAt(key.length - 1);
+  if (last >= 48 && last <= 57) return KEY_RECURSE;
+  let kind = IDENTITY_KEY_KINDS.get(key);
+  if (kind === undefined) {
+    kind = /(?:Id|Version)$/.test(key) ? KEY_IDENTITY : /Ids$/.test(key) ? KEY_IDENTITY_LIST : KEY_RECURSE;
+    if (IDENTITY_KEY_KINDS.size < IDENTITY_WALK_MEMO_LIMIT) IDENTITY_KEY_KINDS.set(key, kind);
+  }
+  return kind;
+}
+function memoizedPublicId(value: unknown): void {
+  if (typeof value === "string" && VALID_PUBLIC_IDS.has(value)) return;
+  publicId(value);
+  if (VALID_PUBLIC_IDS.size < IDENTITY_WALK_MEMO_LIMIT) VALID_PUBLIC_IDS.add(value as string);
+}
+/**
+ * Every property name ending in Id/Version must hold a public opaque ID and every name ending in Ids a
+ * bounded dense list of them, at any depth. Same order, keys and errors as the former Object.entries walk;
+ * key classification and already-valid IDs are memoized because both are pure functions of their strings.
+ */
 function publicIdentities(value: unknown): void {
   if (value === null || typeof value !== "object") return;
-  for (const [key, child] of Object.entries(value)) {
-    if (/(?:Id|Version)$/.test(key)) publicId(child);
-    else if (/Ids$/.test(key)) dense(child, 256).forEach(publicId);
-    else publicIdentities(child);
+  const record = value as Record<string, unknown>, keys = Object.keys(record);
+  for (let index = 0; index < keys.length; index++) {
+    const key = keys[index]!, kind = identityKeyKind(key), child = record[key];
+    if (kind === KEY_IDENTITY) memoizedPublicId(child);
+    else if (kind === KEY_IDENTITY_LIST) dense(child, 256).forEach(memoizedPublicId);
+    else if (child !== null && typeof child === "object") publicIdentities(child);
   }
 }
 function dense(value: unknown, maximum: number): unknown[] {
@@ -123,7 +159,8 @@ function chargeInput(value: unknown): ComposeSensorAccumulatedChargeInput {
       photoTrue.some((k) => p[k] !== true) || photoFalse.some((k) => p[k] !== false))) || darkFalse.some((k) => d[k] !== false) ||
       d.expectationValueOnly !== true || d.countMeaning !== "expected-thermally-generated-electrons" ||
       typeof d.spatialDarkCurrentNonuniformityModeled !== "boolean" || typeof d.temperatureInterpolationUsed !== "boolean" ||
-      (d.temperatureModel !== "fixed-reference-temperature" && d.temperatureModel !== "piecewise-linear-temperature-table")) {
+      (d.temperatureModel !== "fixed-reference-temperature" && d.temperatureModel !== "piecewise-linear-temperature-table" &&
+        d.temperatureModel !== "log-linear-temperature-table")) {
     throw new InvalidConfigurationError("Producer requires untreated EQE/dark exposure expectations, not sampled, clipped or A/W charge.");
   }
   if (d.temperatureModel === "fixed-reference-temperature" && d.temperatureInterpolationUsed !== false) {
@@ -192,7 +229,7 @@ export type NativeRawProducerFrameContext = Omit<SensorRawProducerInput["frame"]
 export function parseNativeRawProducerSite(site: unknown, i: number, frame: NativeRawProducerFrameContext,
   window?: CaptureExposureWindows["samples"][number]): SensorRawProducerSiteInput {
   const native = frame.capture.geometry.nativeRaster;
-    const s = fields(site, ["charge", "samplingProfile", "capacityProfile", "operatingStateId", "readoutProfile", "regimeId"]);
+    const s = fields(site, ["charge", "samplingProfile", "capacityProfile", "operatingStateId", "readoutProfile", "regimeId", "fixedPatternNoise"]);
     const charge = chargeInput(s.charge), p = charge.photoSignal;
     const contributors = resolveCaptureModeColorSamplingContributors({ nativeRaster: native, captureModeProfile: frame.captureModeProfile,
       modeId: frame.modeId, colorSamplingProfile: frame.colorSamplingProfile, bindingProfile: frame.bindingProfile,
@@ -206,8 +243,14 @@ export function parseNativeRawProducerSite(site: unknown, i: number, frame: Nati
         p.localExposureDurationSeconds !== (window?.localExposureDurationSeconds ?? frame.capture.exposure.shutterSeconds)) {
       throw new InvalidConfigurationError("Charge site/channel/binding/local exposure differs from committed capture.");
     }
+    const readoutProfile = parseSensorReadoutConversionProfile(s.readoutProfile);
+    const isoGain = readoutProfile.regimes.find((regime) => regime.regimeId === s.regimeId)?.exposureIndexGain;
+    if (isoGain !== undefined && isoGain.exposureIndex !== frame.capture.exposure.iso) {
+      throw new InvalidConfigurationError("Readout regime ISO gain differs from the committed capture ISO.");
+    }
     return { charge, samplingProfile: parseSensorChargeSamplingProfile(s.samplingProfile), capacityProfile: parseSensorPhysicalChargeCapacityProfile(s.capacityProfile),
-      operatingStateId: publicId(s.operatingStateId), readoutProfile: parseSensorReadoutConversionProfile(s.readoutProfile), regimeId: publicId(s.regimeId) };
+      operatingStateId: publicId(s.operatingStateId), readoutProfile, regimeId: publicId(s.regimeId),
+      ...(s.fixedPatternNoise === undefined ? {} : { fixedPatternNoise: parseSensorFixedPatternNoiseProfile(s.fixedPatternNoise) }) };
 }
 export function validateNativeRawReadoutIdentity(s: SensorRawProducerSiteInput, first: SensorRawProducerSiteInput): void {
     publicIdentities(s);
@@ -215,8 +258,10 @@ export function validateNativeRawReadoutIdentity(s: SensorRawProducerSiteInput, 
     if (s.readoutProfile.profileId !== first.readoutProfile.profileId || s.regimeId !== first.regimeId ||
         readout.regime.adc.bitDepth > 16 || readout.regime.adc.digitalSaturationCode <= readout.regime.adc.blackLevelCode ||
         s.readoutProfile.colorSamplingProfileId !== s.charge.photoSignal.colorSamplingProfileId ||
-        s.readoutProfile.channelId !== s.charge.photoSignal.channelId || s.samplingProfile.completenessProfileId !== s.charge.completenessProfile.profileId) {
-      throw new InvalidConfigurationError("Frame requires one readout identity/regime and a positive uint16 RAW code span.");
+        s.readoutProfile.channelId !== s.charge.photoSignal.channelId || s.samplingProfile.completenessProfileId !== s.charge.completenessProfile.profileId ||
+        s.fixedPatternNoise?.profileId !== first.fixedPatternNoise?.profileId ||
+        s.fixedPatternNoise?.sensorInstanceSeedUint32 !== first.fixedPatternNoise?.sensorInstanceSeedUint32) {
+      throw new InvalidConfigurationError("Frame requires one readout identity/regime, one fixed-pattern identity and a positive uint16 RAW code span.");
     }
 }
 /** The shared scalar pipeline owns all charge, capacity, stochastic and ADC equations. `i` is the absolute native row-major index. */
@@ -224,12 +269,18 @@ export function calculateNativeRawSite(s: SensorRawProducerSiteInput, seed: numb
   const accumulatedCharge = composeSensorAccumulatedCharge(s.charge);
   const capacity = assessSensorPhysicalChargeCapacity({ accumulatedCharge: accumulatedCharge.value, capacityProfile: s.capacityProfile,
     operatingStateId: s.operatingStateId, operatingTemperatureC: s.charge.darkCharge.operatingTemperatureC });
+  const pattern = s.fixedPatternNoise === undefined ? {} : { fixedPatternNoise: s.fixedPatternNoise };
   const realization = simulateSensorChargeRealization({ accumulatedCharge: accumulatedCharge.value, samplingProfile: s.samplingProfile,
-    seedUint32: deriveNativeSiteStreamSeedUint32(seed, i, NATIVE_SITE_CHARGE_STREAM_ID) });
+    seedUint32: deriveNativeSiteStreamSeedUint32(seed, i, NATIVE_SITE_CHARGE_STREAM_ID), ...pattern });
   const readout = simulateSensorRawCode({ chargeRealization: realization.value, physicalCapacityAssessment: capacity.value,
     readoutProfile: s.readoutProfile, regimeId: s.regimeId,
-    readNoiseSeedUint32: deriveNativeSiteStreamSeedUint32(seed, i, NATIVE_SITE_READ_NOISE_STREAM_ID) });
+    readNoiseSeedUint32: deriveNativeSiteStreamSeedUint32(seed, i, NATIVE_SITE_READ_NOISE_STREAM_ID), ...pattern });
   return { accumulatedCharge, capacity, realization, readout };
+}
+/** The selected regime's declared INL, which the effective white level needs at saturation. */
+function regimeInl(site: SensorRawProducerSiteInput): { adcIntegralNonLinearity?: NonNullable<SensorReadoutConversionProfile["regimes"][number]["adc"]["integralNonLinearity"]> } {
+  const inl = site.readoutProfile.regimes.find((r) => r.regimeId === site.regimeId)?.adc.integralNonLinearity;
+  return inl === undefined ? {} : { adcIntegralNonLinearity: inl };
 }
 /** Validates complete native exposure inputs; no charge/noise/RAW code is accepted as a shortcut. */
 export function parseSensorRawProducerInput(value: unknown): SensorRawProducerInput {
@@ -262,6 +313,7 @@ export function simulateSensorRawFrame(input: SensorRawProducerInput): Calculati
   const sites = v.sites.map((s, i) => calculateNativeRawSite(s, seed, i));
   const native = v.frame.capture.geometry.nativeRaster;
   const samples = sites.map((s, i) => createSensorRawCaptureSample({ rawCode: s.readout.value,
+    ...regimeInl(v.sites[i]!),
     contributors: resolveCaptureModeColorSamplingContributors({ nativeRaster: native, captureModeProfile: v.frame.captureModeProfile,
       modeId: v.frame.modeId, colorSamplingProfile: v.frame.colorSamplingProfile, bindingProfile: v.frame.bindingProfile,
       modeSampleIndexFullFrame: { x: i%native.pixelWidth, y: Math.floor(i/native.pixelWidth) } }) }));
@@ -273,6 +325,7 @@ export function simulateSensorRawFrame(input: SensorRawProducerInput): Calculati
     "Untreated EQE/dark exposure results and completeness evidence are upstream declarations; source radiometry is not independently verified",
     "Native row-major site seeds are MurmurHash3_x86_32 of (capture seed, absolute native index, stream 0 charge / 1 read noise); deterministic and non-cryptographic",
     "Existing scalar capacity/noise/readout approximations retain distinct physical/pre-ADC/digital saturation diagnostics; no blooming",
+    "Optional fixed-pattern noise is deterministic per sensor instance (its own seed and absolute colour-sampling site), independent of the capture seed",
     "Stationarity applies separately to every exact local window; no time-varying radiance integration, multi-frame acquisition, RGB-to-RAW conversion or production-stage activation",
     "Stored capture float planes remain independent; same-RAW export must use the returned frame's reconstruction handoff"]);
 }

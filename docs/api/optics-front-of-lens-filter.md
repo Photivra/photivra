@@ -1,6 +1,6 @@
 # optics/front-of-lens-filter.ts public contracts
 
-The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](../DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
+The package and root API versions are recorded once in [Navigation](../API_REFERENCE.md) · [Developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md). Generated signatures retain independent schema/model versions. Only the exports listed here are root-package contracts; module-local helpers are not supported deep imports.
 
 ## ComposedFrontOfLensFilterTransmission
 
@@ -9,7 +9,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface ComposedFrontOfLensFilterTransmission {
   schemaVersion:
-    typeof FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION;
+    FrontOfLensFilterProfileSchemaVersion;
   wavelengthNanometers: number;
   wavelengthBasis:
     Exclude<
@@ -28,8 +28,11 @@ export interface ComposedFrontOfLensFilterTransmission {
     "not-propagated";
   uncertaintyLimitation: string;
   compositionModel:
-    "independent-multiplicative-unpolarized-transmission-no-inter-filter-reflections";
-  polarizationModeled: false;
+    | "independent-multiplicative-unpolarized-transmission-no-inter-filter-reflections"
+    | "ordered-linear-stokes-mueller-no-inter-filter-reflections";
+  polarizationModeled: boolean;
+  incidentPolarization: LinearPolarizationState;
+  transmittedPolarization: LinearPolarizationState;
   wavelengthChangingBehaviorModeled:
     false;
   lensTransmissionIncluded: false;
@@ -40,8 +43,9 @@ export interface ComposedFrontOfLensFilterTransmission {
 
 ## composeFrontOfLensFilterTransmission
 
-Composes multiple passive front-of-lens filters multiplicatively at one
-wavelength while preserving each component's identity.
+Composes multiple passive front-of-lens filters at one wavelength in light-path order while
+preserving each component's identity. Without a polarizer this is the plain product of
+transmissions; with one, linear Stokes parameters propagate through the ordered Mueller chain.
 
 ```ts
 export function composeFrontOfLensFilterTransmission(
@@ -58,6 +62,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 export interface ComposeFrontOfLensFilterTransmissionInput {
+  /** Filters in light-path order (scene side first). */
   filters:
     readonly FrontOfLensFilterProfile[];
   wavelengthNanometers: number;
@@ -66,6 +71,8 @@ export interface ComposeFrontOfLensFilterTransmissionInput {
       SpectralWavelengthBasis,
       "unspecified"
     >;
+  /** Incident scene polarization; omitted means unpolarized. */
+  incidentPolarization?: LinearPolarizationState;
 }
 ```
 
@@ -78,6 +85,15 @@ FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION =
   "0.1.0" as const
 ```
 
+## FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION
+
+Schema that additionally admits the `linear-polarizer` transmission kind.
+
+```ts
+FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION =
+  "0.2.0" as const
+```
+
 ## FrontOfLensFilterProfile
 
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
@@ -85,7 +101,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface FrontOfLensFilterProfile {
   schemaVersion:
-    typeof FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION;
+    FrontOfLensFilterProfileSchemaVersion;
   filterId: string;
   profileVersion: string;
   identityScope:
@@ -106,12 +122,23 @@ export interface FrontOfLensFilterProfile {
     FrontOfLensFilterTransmissionModel;
   uncertainty:
     FrontOfLensFilterUncertainty;
-  polarizationModeled: false;
+  /** True exactly when the transmission kind is `linear-polarizer` (schema 0.2.0). */
+  polarizationModeled: boolean;
   wavelengthChangingBehaviorModeled:
     false;
   evidence: readonly EvidenceProvenance[];
   limitations: readonly string[];
 }
+```
+
+## FrontOfLensFilterProfileSchemaVersion
+
+The exact contract is declared below; use the domain guide for assumptions and staged integration.
+
+```ts
+export type FrontOfLensFilterProfileSchemaVersion =
+  | typeof FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION
+  | typeof FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION;
 ```
 
 ## FrontOfLensFilterScientificStatus
@@ -157,6 +184,18 @@ export type FrontOfLensFilterTransmissionModel =
         EvidenceBackedFact<
           readonly FrontOfLensFilterSpectralSample[]
         >;
+    }
+  | {
+      /** Schema 0.2.0 only. Neutral (wavelength-independent) within the declared range. */
+      kind: "linear-polarizer";
+      /** k1: intensity transmittance for light polarized along the transmission axis, (0, 1]. */
+      principalTransmittance:
+        EvidenceBackedFact<number>;
+      /** k1 / k2 >= 1, finite (use a large finite ratio for a near-ideal polarizer). */
+      extinctionRatio:
+        EvidenceBackedFact<number>;
+      /** Transmission-axis angle as mounted, degrees counter-clockwise from image +X. */
+      transmissionAxisDegrees: number;
     };
 ```
 
@@ -175,6 +214,19 @@ export type FrontOfLensFilterUncertainty =
       kind: "not-quantified";
       limitation: string;
     };
+```
+
+## LinearPolarizationState
+
+Partially linearly polarized light: degree P in [0, 1] and polarization angle psi.
+
+```ts
+export interface LinearPolarizationState {
+  /** Degree of linear polarization P in [0, 1]; 0 is unpolarized. */
+  degreeOfLinearPolarization: number;
+  /** Electric-field polarization angle, degrees counter-clockwise from image +X. */
+  angleDegrees: number;
+}
 ```
 
 ## parseFrontOfLensFilterProfile
@@ -201,7 +253,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface ResolvedFrontOfLensFilterTransmission {
   schemaVersion:
-    typeof FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION;
+    FrontOfLensFilterProfileSchemaVersion;
   filterId: string;
   profileVersion: string;
   identityScope:
@@ -217,10 +269,13 @@ export interface ResolvedFrontOfLensFilterTransmission {
     >;
   transmissionKind:
     FrontOfLensFilterTransmissionModel["kind"];
+  /** Intensity transmittance for the declared incident polarization. */
   linearTransmissionFactor: number;
   attenuationStops: number;
   opticalDensityBase10: number;
-  polarizationModeled: false;
+  polarizationModeled: boolean;
+  incidentPolarization: LinearPolarizationState;
+  transmittedPolarization: LinearPolarizationState;
   wavelengthChangingBehaviorModeled:
     false;
   lensTransmissionIncluded: false;
@@ -235,7 +290,8 @@ export interface ResolvedFrontOfLensFilterTransmission {
 
 ## resolveFrontOfLensFilterTransmission
 
-Resolves one passive filter at one wavelength.
+Resolves one passive filter at one wavelength. Non-polarizing filters scale all Stokes
+components equally, so their transmission does not depend on the incident polarization.
 
 ```ts
 export function resolveFrontOfLensFilterTransmission(
@@ -259,5 +315,7 @@ export interface ResolveFrontOfLensFilterTransmissionInput {
       SpectralWavelengthBasis,
       "unspecified"
     >;
+  /** Incident polarization; omitted means unpolarized. */
+  incidentPolarization?: LinearPolarizationState;
 }
 ```
