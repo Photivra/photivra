@@ -4,6 +4,23 @@ Generated from the exact root exports for **@photivra/engine 2.0.0 / root contra
 
 Use [the developer guide](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md) for executable paths and scientific boundaries. Types are contracts, not runtime validation: parse untrusted data, preserve units/reference frames, read assessment blockers, and retain evidence/limitations. Optional properties do not imply a universal default. Model/schema IDs remain independent of the distribution.
 
+## Task index
+
+Start here to find a function by task. [Using Photivra from an agent](AGENT_GUIDE.md) gives units, result reading and errors.
+
+| Task | Functions |
+| --- | --- |
+| Simulate a full photo (async) | [`simulateCapture`](api/facade-simulate-capture.md#simulatecapture) |
+| Exposure value and equivalent settings | [`calculateExposureValue100`](api/exposure-exposure.md#calculateexposurevalue100), [`calculateEquivalentIso`](api/exposure-exposure.md#calculateequivalentiso), [`calculateRelativeRenderedExposure`](api/exposure-exposure.md#calculaterelativerenderedexposure) |
+| Depth of field, hyperfocal distance and defocus blur | [`calculateDepthOfField`](api/optics-depth-of-field.md#calculatedepthoffield), [`calculateDefocusCircle`](api/optics-depth-of-field.md#calculatedefocuscircle) |
+| Field of view | [`calculateFieldOfView`](api/camera-field-of-view.md#calculatefieldofview) |
+| Crop factor, 35 mm-equivalent focal length and crops | [`calculateEquivalentFocalLength35Mm`](api/camera-equivalent-focal-length.md#calculateequivalentfocallength35mm), [`calculateCenteredCrop`](api/output-crop.md#calculatecenteredcrop) |
+| Motion blur and shutter speed | [`calculateProjectedMotionBlur`](api/motion-projected-motion.md#calculateprojectedmotionblur), [`calculateShutterAngleExposureSeconds`](api/motion-video-sequence.md#calculateshutterangleexposureseconds) |
+| Diffraction | [`calculateAiryDisk`](api/optics-diffraction.md#calculateairydisk) |
+| Sensor signal, noise and SNR | [`calculatePhotoelectrons`](api/sensor-signal-noise.md#calculatephotoelectrons), [`calculateSignalToNoise`](api/sensor-signal-noise.md#calculatesignaltonoise) |
+| Colour temperature | [`calculateChromaticityFromCorrelatedColorTemperature`](api/color-illuminants.md#calculatechromaticityfromcorrelatedcolortemperature), [`calculateCorrelatedColorTemperature`](api/color-illuminants.md#calculatecorrelatedcolortemperature) |
+| White balance from Kelvin and tint | [`createColorTemperatureWhiteBalanceIntent`](api/color-white-balance.md#createcolortemperaturewhitebalanceintent), [`resolveColorTemperatureWhiteBalance`](api/color-white-balance.md#resolvecolortemperaturewhitebalance) |
+
 ## camera/equivalent-focal-length.ts
 
 [Detailed contracts](api/camera-equivalent-focal-length.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/camera/equivalent-focal-length.ts)

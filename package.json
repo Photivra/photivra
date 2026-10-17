@@ -49,8 +49,10 @@
     "SECURITY.md",
     "NODE_SUPPORT.md",
     "THIRD_PARTY.md",
+    "llms.txt",
     "docs/USAGE.md",
     "docs/QUICK_START.md",
+    "docs/AGENT_GUIDE.md",
     "docs/API_REFERENCE.md",
     "docs/api",
     "docs/examples"

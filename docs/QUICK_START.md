@@ -14,6 +14,9 @@ it composes are in [ENVIRONMENT_RAW_CAPTURE.md](https://github.com/Photivra/phot
 [NATIVE_RAW_AND_PRINT.md](https://github.com/Photivra/photivra/blob/main/docs/NATIVE_RAW_AND_PRINT.md), [GENERIC_TIER_PRESETS.md](https://github.com/Photivra/photivra/blob/main/docs/GENERIC_TIER_PRESETS.md),
 [COLORIMETRY.md](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md) and the [Usage Guide](USAGE.md).
 
+Calling the engine from an AI agent? [Using Photivra from an agent](AGENT_GUIDE.md) says which
+function fits each task, which units to pass and how to report results honestly.
+
 ## The ten-line capture
 
 ```ts
