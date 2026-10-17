@@ -1,25 +1,25 @@
 # Usage Guide
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md) and [release contract](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_2_0.md).
+Release context (dated historical note): this guide was written for the **package 1.2.0 candidate / root API 1.2.0** and has not been re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem and model versions, and dated introduction or measurement records below, are independent historical identities. They are not distribution versions. See [developer navigation](https://github.com/Photivra/photivra/blob/main/docs/DEVELOPERS.md) and the [release contract](https://github.com/Photivra/photivra/blob/main/docs/RELEASE_1_2_0.md).
 
-For bounded capture-owned charge/noise/ADC → native RAW generation, see
-[Sensor RAW producer](https://github.com/Photivra/photivra/blob/main/docs/SENSOR_RAW_PRODUCER.md). Upstream EQE/dark exposure results
-remain declared; the returned frame can feed the same-RAW photographic exporter.
-
-For bounded committed capture → correction → SDR output, see
-[Capture-bound corrected SDR](https://github.com/Photivra/photivra/blob/main/docs/CAPTURE_CORRECTED_SDR.md). It returns a derived output
-view without changing physical capture geometry or activating production stages.
-
-For bounded same-RAW paired DNG/JPEG byte export, see
-[Photographic export](https://github.com/Photivra/photivra/blob/main/docs/PHOTOGRAPHIC_EXPORT.md). It requires an explicit approximate
-sensor-color profile; bounded external acceptance and its evidence limits are recorded in [Export acceptance](https://github.com/Photivra/photivra/blob/main/docs/EXPORT_ACCEPTANCE.md).
-
-New to the engine? Start with [`simulateCapture()`](#simulate-a-capture-with-the-facade), which builds
-and runs a complete capture from a few options; the [Quick Start](QUICK_START.md) explains it in full.
+New to the engine? Start with [`simulateCapture()`](#simulate-a-capture-with-the-facade). It builds
+and runs a complete capture from a few options. The [Quick Start](QUICK_START.md) explains it in full.
 
 This guide shows how to call the capabilities exported by the root `@photivra/engine` package.
 
-The package is ESM; CommonJS code on Node 22.12 or later can also `require()` it. Primitive scientific calculations generally return a `CalculationResult<T>`:
+Related guides for later pipeline stages:
+
+- **Charge, noise and ADC to native RAW:** see [Sensor RAW producer](https://github.com/Photivra/photivra/blob/main/docs/SENSOR_RAW_PRODUCER.md).
+  It generates RAW within stated limits for one capture. The upstream EQE and dark-exposure results stay
+  as declared inputs. The returned frame can feed the photographic exporter, which writes DNG and JPEG from the same RAW.
+- **Committed capture → correction → SDR output:** see [Capture-bound corrected SDR](https://github.com/Photivra/photivra/blob/main/docs/CAPTURE_CORRECTED_SDR.md).
+  It returns a derived output view without changing the physical capture geometry or turning on production stages.
+- **Paired DNG/JPEG byte export from the same RAW:** see [Photographic export](https://github.com/Photivra/photivra/blob/main/docs/PHOTOGRAPHIC_EXPORT.md).
+  It needs an explicit, approximate sensor-colour profile. Bounded external acceptance, and the limits of that evidence, are recorded in [Export acceptance](https://github.com/Photivra/photivra/blob/main/docs/EXPORT_ACCEPTANCE.md).
+
+Common abbreviations: FOV (field of view), PSF (point-spread function — how a lens spreads one point of light), CFA (colour filter array, such as a Bayer mosaic), QE/EQE (quantum efficiency / external quantum efficiency), ADC (analog-to-digital converter), AE/AF/WB (auto-exposure / autofocus / white balance), SDR (standard dynamic range).
+
+The package is ESM. CommonJS code on Node 22.12 or later can also `require()` it. Primitive scientific calculations usually return a `CalculationResult<T>`:
 
 ```ts
 const result = calculateSomething(input);
@@ -29,11 +29,11 @@ console.log(result.provenance);
 console.log(result.quality);
 ```
 
-`quality` is optional and is omitted when the engine does not have defensible quantified uncertainty/accuracy metadata to report.
+`quality` is optional. It is left out when the engine has no defensible, quantified uncertainty or accuracy to report.
 
 ## Standalone digital optics
 
-See [Digital optics foundations](https://github.com/Photivra/photivra/blob/main/docs/DIGITAL_OPTICS_FOUNDATION.md) for exact-state stray-light/correction profiles and scientific boundaries. A compatible map can be prepared separately from its sampling filter:
+See [Digital optics foundations](https://github.com/Photivra/photivra/blob/main/docs/DIGITAL_OPTICS_FOUNDATION.md) for stray-light and correction profiles tied to an exact lens state, and for their scientific limits. You can prepare a compatible geometric map separately from its sampling filter:
 
 ```ts
 import {
@@ -70,7 +70,12 @@ const warped = calculateGeometricResampling({
 // plan.jointCrop and validSourceMask preserve the actual support.
 ```
 
-This warps captured samples; it does not recalculate the physical lens PSF or regenerate noise. Compression requires explicitly source-prefiltered data; incompatible domains require separate stages. Stray light instead adds to incident spectral irradiance before the sensor. RAW-like correction intent can remain metadata-only.
+This warps samples that were already captured. It does not recalculate the physical lens PSF or regenerate noise.
+
+- Compression (shrinking) needs source data that was explicitly prefiltered.
+- Incompatible domains need separate stages.
+- Stray light is different: it adds to the incident spectral irradiance before the sensor.
+- A correction intended for RAW-like data can stay as metadata only.
 
 ## Image-formation ownership
 
@@ -90,9 +95,10 @@ console.log(
 );
 ```
 
-The contract is descriptive metadata. It does not imply that every reserved stage is implemented, and it does not change the composed POC request/response contract.
+The contract is descriptive metadata. It does not mean every reserved stage is implemented, and it does not change the composed POC (proof-of-concept) request/response contract.
 
-Use `requiredUpstreamStages` for hard scientific dependencies and `coupledStages` for shared state/interactions that must not be treated as independent renderer filters.
+- `requiredUpstreamStages` lists hard scientific dependencies.
+- `coupledStages` lists shared state and interactions. Do not treat coupled stages as independent renderer filters.
 
 See [Image-Formation Contract](https://github.com/Photivra/photivra/blob/main/docs/IMAGE_FORMATION.md) for coordinate, temporal, renderer, and reserved sensor-stage semantics.
 
@@ -113,11 +119,18 @@ const polygon = calculateIdealPolygonDiffractionPsf({
 console.log(polygon.value.samples[0]?.intensityDensityPerSquareMicrometer);
 ```
 
-This is a uniform-amplitude, zero-phase, on-axis, in-focus scalar approximation. Equal-area diameter is not polygon circumdiameter. Image points are PSF displacements (+X right / +Y up), not source-field positions. Density integrates to one over the **infinite** plane; supplied samples do not sum to one. Finite image-plane quadrature needs explicit area measures, support and convergence checks. No air/vacuum conversion, clipping, aberration, throughput or sensor response is inferred. Circular Airy and already-diffracted #113 kernels remain separate; do not stack diffraction twice.
+This is a scalar approximation: uniform amplitude, zero phase, on-axis and in focus.
+
+- The equal-area diameter is not the polygon's circumdiameter.
+- Image points are displacements within the PSF (+X right / +Y up), not positions in the source field.
+- The density integrates to one over the **infinite** plane. The samples you request do not sum to one.
+- Integrating over a finite image area (quadrature) needs explicit area measures, support and convergence checks.
+- Nothing is inferred: no air/vacuum conversion, clipping, aberration, throughput or sensor response.
+- The circular Airy diagnostic and the real-lens kernels (which already include diffraction) are separate. Do not apply diffraction twice.
 
 ## Explicit finite and infinity focus state
 
-Use `FocusPlane` when a caller must distinguish a real finite focus plane from optical infinity without JavaScript `Infinity` or an arbitrary very-large distance.
+Use `FocusPlane` when you must tell a real finite focus plane apart from optical infinity, without using JavaScript `Infinity` or an arbitrary very large distance.
 
 ```ts
 import {
@@ -143,23 +156,23 @@ console.log(projection.value.imageDistanceMm); // 50
 console.log(projection.value.infinityProjectionScale); // 1
 ```
 
-For finite focus, `distanceM` is the **longitudinal object-plane distance along the camera optical axis from the ideal lens principal plane**. A renderer/raycast layer must not pass raw Euclidean ray length directly for an off-axis hit. Points on the same fronto-parallel plane should resolve to the same finite focus distance in the current paraxial model.
+For finite focus, `distanceM` is the **distance of the object plane along the camera's optical axis, measured from the ideal lens principal plane**. It is not the straight-line ray length. A renderer or raycaster must not pass the raw Euclidean ray length for an off-axis hit. In the current paraxial model, points on the same plane facing the camera (fronto-parallel) resolve to the same finite focus distance.
 
-The finite branch delegates to the existing Gaussian thin-lens calculation, so existing finite-focus numeric behavior and provenance are preserved. The infinity branch resolves exactly to nominal focal length with zero limiting magnification.
+- The finite branch uses the existing Gaussian thin-lens calculation, so existing finite-focus numbers and provenance are unchanged.
+- The infinity branch resolves exactly to the nominal focal length, with zero limiting magnification.
+- Missing or unknown focus is never treated as infinity. Supply it explicitly as `{ kind: "finite", distanceM }` or `{ kind: "infinity" }`.
 
-Missing or unknown focus is not interpreted as infinity. It must be supplied explicitly as either `{ kind: "finite", distanceM }` or `{ kind: "infinity" }`.
-
-Existing APIs that accept `focusDistanceM` remain supported; this tagged contract is additive and intended for newer composition/control paths that need an explicit infinity state.
+Existing APIs that take `focusDistanceM` are still supported. This tagged contract is additive. It is meant for newer composition and control paths that need an explicit infinity state.
 
 ## Focus control: MF, single AF, continuous AF, and lock
 
-The #104 focus-control layer sits above the #103 optical `FocusPlane` contract.
+The focus-control layer (#104) sits on top of the optical `FocusPlane` contract described above (#103). (MF = manual focus, AF = autofocus.)
 
-It deliberately separates:
+It keeps three things separate:
 
-1. **target observation** — which scene surface/environment target was measured and its longitudinal camera-space distance;
-2. **focus-control policy** — manual, single AF, continuous AF, or locked behavior;
-3. **resolved optical focus** — the finite/infinity `FocusPlane` passed into downstream optics.
+1. **target observation** — which scene surface or environment target was measured, and its distance along the camera axis;
+2. **focus-control policy** — manual, single AF, continuous AF, or locked;
+3. **resolved optical focus** — the finite or infinity `FocusPlane` passed on to the optics.
 
 Use a generic profile:
 
@@ -226,13 +239,13 @@ const acquired =
   });
 ```
 
-Target observations contain no screen/canvas coordinates. `focusAreaId` is an opaque application/renderer-neutral selection identity. Finite target distance is #103's **longitudinal camera-space/conjugate distance**, not Euclidean ray length.
+Target observations contain no screen or canvas coordinates. `focusAreaId` is an opaque selection ID that does not depend on the application or renderer. A finite target distance is the `FocusPlane` **distance along the camera axis (the conjugate distance)**, not the Euclidean ray length.
 
 ### Manual focus
 
 `setManualFocusState()` changes an explicit finite/infinity focus state only when the active mode is `manual`.
 
-No universal focus-ring scale or lens-specific stepping curve is invented. The caller supplies the next explicit #103 focus state; future equipment profiles may map real focus-ring/actuator behavior into that same contract.
+No universal focus-ring scale or lens-specific stepping curve is invented. The caller supplies the next explicit `FocusPlane` state. Future equipment profiles may map real focus-ring or actuator behaviour onto that same contract.
 
 MF does not automatically consume autofocus target observations.
 
@@ -240,7 +253,7 @@ MF does not automatically consume autofocus target observations.
 
 A `single-af` `acquire` event resolves the target once and then holds that focus plane.
 
-Later `update` observations do not follow subject motion. If the subject moves after acquisition, downstream defocus changes because subject depth changes while the camera focus plane remains fixed.
+Later `update` observations do not follow subject motion. If the subject moves after acquisition, its depth changes while the focus plane stays fixed, so the defocus calculated downstream changes.
 
 An unavailable target during acquisition produces explicit `target-lost` state without moving focus.
 
@@ -248,13 +261,13 @@ An unavailable target during acquisition produces explicit `target-lost` state w
 
 `continuous-af` requires an explicit initial `acquire` event.
 
-Subsequent `update` events may move focus only for the same active `targetId`. Another identity cannot silently replace the subject.
+After that, `update` events may move focus only for the same active `targetId`. A different target cannot silently replace the subject.
 
 The first actuator is:
 
 `ideal-instantaneous`
 
-This is a declared approximation over known simulation geometry. It does **not** claim realistic AF motor speed, phase/contrast detection, hunting, recognition, low-light failure, or commercial-camera tracking behavior.
+This is a declared approximation that uses the known simulation geometry. It does **not** claim realistic AF motor speed, phase or contrast detection, hunting, subject recognition, low-light failure, or the tracking behaviour of any commercial camera.
 
 When the target becomes unavailable, the first policy is:
 
@@ -264,23 +277,23 @@ Focus is held, state becomes `target-lost`, and an ordinary update cannot silent
 
 ### Focus lock
 
-`setFocusLock()` freezes the resolved focus plane while preserving the active mode and the acquisition state to resume later.
+`setFocusLock()` freezes the resolved focus plane. It keeps the active mode and the acquisition state, so they can resume later.
 
-Target updates while locked do not change focus. Unlocking restores the prior acquisition state; a later continuous-AF update may then move focus again.
+Target updates while locked do not change focus. Unlocking restores the previous acquisition state; a later continuous-AF update may then move focus again.
 
-Focus lock does not engage AE lock, move a metering spot, change WB, or alter aperture/shutter/ISO.
+Focus lock does not engage AE lock, move a metering spot, change WB, or change aperture, shutter or ISO.
 
 ### Focus vs release priority
 
-Use `assessFocusReleaseGate()` as the capture-gating seam for #105 release sequencing.
+Use `assessFocusReleaseGate()` to decide whether the shutter may release, as input to [release sequencing](#logical-release-sequences) (#105).
 
-- `focus-priority` authorizes release for manual focus, acquired AF, or locked focus and otherwise blocks;
-- `release-priority` authorizes release without changing focus;
-- `balanced` is reserved but fails closed in schema 0.1.0 until a specific balanced policy is defined.
+- `focus-priority` allows release for manual focus, acquired AF or locked focus, and blocks otherwise.
+- `release-priority` allows release without changing focus.
+- `balanced` is reserved. In schema 0.1.0 it fails closed (blocks) until a specific balanced policy is defined.
 
-The gate never changes the optical focus calculation or exposure state.
+The gate never changes the optical focus calculation or the exposure state.
 
-The acquisition-state type also reserves `acquiring` for future non-instantaneous actuator models. The current ideal actuator resolves an available acquisition directly to `acquired`.
+The acquisition-state type also reserves `acquiring` for future actuator models that take time. The current ideal actuator moves an available acquisition straight to `acquired`.
 
 ## Field of view
 
@@ -310,7 +323,7 @@ console.log(focused.value.projectionDistanceMm);
 console.log(focused.value.degrees);
 ```
 
-Without `focusDistanceM`, nominal focal length is used as the infinity-focus/pinhole projection distance. Neither mode models real-lens distortion or focus breathing.
+Without `focusDistanceM`, the nominal focal length is used as the projection distance (infinity focus, like a pinhole). Neither mode models real-lens distortion or focus breathing.
 
 For off-center sensor regions, use `calculateFieldOfViewBounds()` with signed sensor-plane coordinates relative to the optical axis:
 
@@ -328,13 +341,13 @@ console.log(leftHalf.value.maximumDegrees);
 console.log(leftHalf.value.degrees);
 ```
 
-Unlike the centered `2 × atan(size / 2d)` form, the bounds API preserves asymmetric angular limits and is used by active-capture geometry for off-center crops.
+Unlike the centered `2 × atan(size / 2d)` form, the bounds API keeps asymmetric angular limits. Active-capture geometry uses it for off-center crops.
 
 See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#rectilinear-field-of-view).
 
 ## Actual and 35 mm-equivalent focal length
 
-Use `calculateEquivalentFocalLength35Mm()` when you need the conventional diagonal-based 35 mm-equivalent value while preserving the physical optical focal length:
+Use `calculateEquivalentFocalLength35Mm()` when you need the conventional 35 mm-equivalent value (based on the diagonal), while keeping the physical optical focal length:
 
 ```ts
 import { calculateEquivalentFocalLength35Mm } from "@photivra/engine";
@@ -352,17 +365,18 @@ console.log(equivalent.value.equivalentFocalLength35Mm);
 console.log(equivalent.value.basis); // "diagonal"
 ```
 
-The actual focal length remains the physical optical quantity used by projection and depth-of-field calculations. The equivalent value is derived from the active physical capture diagonal relative to a 36 × 24 mm reference frame.
+The actual focal length stays the physical optical quantity used by projection and depth-of-field calculations. The equivalent value comes from the diagonal of the active physical capture area, compared with a 36 × 24 mm reference frame.
 
-If an active sensor crop is in use, pass the physical active area resolved by `resolveCaptureGeometry()`. Physical camera orientation does not change the equivalent value because the active diagonal is unchanged.
+- If an active sensor crop is in use, pass the physical active area resolved by `resolveCaptureGeometry()`.
+- Physical camera orientation does not change the equivalent value, because the active diagonal does not change.
+- Focus distance is not part of conventional 35 mm-equivalent focal length. A later digital/output crop and the output resolution are also excluded.
+- If a product wants to describe the final digital framing, it should label it as output framing. It should not silently replace the optical focal length or the capture-equivalent focal length.
 
-Focus distance is not part of conventional 35 mm-equivalent focal length. Later digital/output crop and output resolution are also excluded. If a product wants to describe final digital framing, it should label that as output framing rather than silently replacing the optical focal length or capture-equivalent focal length.
-
-`calculateImagingAreaMetrics()` exposes the same canonical diagonal crop-factor calculation independently of raster density so other engine modules do not need to duplicate that formula.
+`calculateImagingAreaMetrics()` provides the same canonical diagonal crop-factor calculation, independent of raster density, so other engine modules do not need to repeat that formula.
 
 ## Focus-breathing projection
 
-Use `calculateFocusBreathingProjection()` when a caller has an explicit projection-scale value for the selected focus state.
+Focus breathing is the change in framing that some lenses show when focus changes. Use `calculateFocusBreathingProjection()` when you have an explicit projection-scale value for the selected focus state.
 
 ```ts
 import {
@@ -394,18 +408,19 @@ console.log(horizontalFov.value.effectiveDegrees);
 - values above `1` narrow framing / increase magnification;
 - values below `1` widen framing / reduce magnification.
 
-Photivra does **not** infer this scale from focal length, focus distance, lens identity, sensor format, or marketing specifications. Supplying the same scale at two focus distances means exactly that: the caller explicitly declared the same relative projection scale at both states.
+Photivra does **not** infer this scale from focal length, focus distance, lens identity, sensor format or marketing specifications. If you supply the same scale at two focus distances, that is exactly what you get: the same relative projection scale at both states.
 
-The physical focal length remains authoritative. The effective projection distance is not a renamed focal length and later digital/output crop does not redefine the breathing scale.
+The physical focal length stays authoritative. The effective projection distance is not a renamed focal length, and a later digital/output crop does not change the breathing scale.
 
-This generic model is returned as an `approximation`. A future calibrated lens profile would need defensible provenance, reuse rights, and uncertainty/limitation metadata.
+This generic model is returned as an `approximation`. A future calibrated lens profile would need defensible provenance, reuse rights, and uncertainty and limitation metadata.
 
 ## Oriented raster to image-plane coordinates
 
-Use the coordinate bridge before calling image-plane lens or camera-mapping APIs
-from an oriented/output renderer. The capture/output physical region uses the
-raster-style +Y-down basis, while lens-field APIs use the pre-orientation
-optical image plane with +Y up.
+Use this coordinate bridge before a renderer working in oriented/output coordinates calls
+an image-plane lens or camera-mapping API. The two sides use different conventions:
+
+- the capture/output physical region uses a raster-style basis, +Y down;
+- lens-field APIs use the optical image plane before orientation, +Y up.
 
 ```ts
 import {
@@ -428,14 +443,17 @@ const roundTrip = mapImagePlanePointToOrientedPhysicalUv({
 });
 ```
 
-These functions only transform coordinate bases. They do not apply projection,
-distortion, focus breathing, crop, or resampling. Asymmetric/off-axis physical
-bounds are preserved rather than recentered, and reverse mapping fails closed
+These functions only change the coordinate basis. They do not apply projection,
+distortion, focus breathing, crop or resampling. Asymmetric or off-axis physical
+bounds are kept as they are, not recentered. The reverse mapping fails closed
 when the image-plane point lies outside the supplied physical region.
 
 ## Radial lens-distortion mapping
 
-Use `calculateRadialDistortionMapping()` for a generic rotationally symmetric ideal-to-distorted image-plane mapping and `calculateInverseRadialDistortionMapping()` for the destination-to-source mapping a renderer needs for inverse sampling.
+Two functions cover generic, rotationally symmetric distortion:
+
+- `calculateRadialDistortionMapping()` maps an ideal image-plane point to its distorted position.
+- `calculateInverseRadialDistortionMapping()` goes the other way, from destination to source. This is what a renderer needs for inverse sampling.
 
 ```ts
 import {
@@ -475,17 +493,22 @@ scale = 1 + k1 r² + k2 r⁴ + k3 r⁶
 p_distorted = p_ideal × scale
 ```
 
-The coefficients are dimensionless **only together with the declared physical normalization radius**. Reusing coefficients with a different normalization changes the model.
+The coefficients are dimensionless **only together with the declared physical normalization radius**. Reusing the coefficients with a different normalization radius gives a different model.
 
-`maximumNormalizedRadius` is the caller-declared valid operating envelope. Photivra analytically checks that radial distance remains strictly monotonic over that interval, including near-linear higher-order coefficient cases; profiles that fold over are rejected so inverse mapping is unique. Derived normalized radii must remain finite, and malformed runtime point/batch inputs fail closed rather than entering the inverse solver.
+`maximumNormalizedRadius` is the valid operating range you declare.
 
-This first field-mapping slice is radial-only and centered on the optical axis. It does not model tangential/decentered distortion, anamorphic mapping, wavelength dependence, or a calibrated named lens.
+- Photivra checks analytically that the radial distance stays strictly monotonic over that range, including cases where higher-order coefficients make it nearly linear.
+- Profiles that fold back on themselves are rejected, so the inverse mapping is unique.
+- Derived normalized radii must stay finite.
+- Malformed point or batch inputs fail closed before they reach the inverse solver.
 
-The engine returns an `approximation` because the polynomial is a generic caller-parameterized lens model. Test Fixture grid/fiducials can provide renderer regression evidence, but they do not calibrate real-lens coefficients.
+This first field mapping is radial only and centered on the optical axis. It does not model tangential/decentered distortion, anamorphic mapping, wavelength dependence or a calibrated named lens.
+
+The engine returns an `approximation`, because the polynomial is a generic lens model with caller-chosen parameters. A test-fixture grid or fiducials can provide regression evidence for a renderer, but they do not calibrate real-lens coefficients.
 
 ## Lateral chromatic-aberration mapping
 
-Use `calculateLateralChromaticAberrationMapping()` to map one ideal image-plane point through a shared **green-reference base distortion** plus red/blue radial coefficient offsets.
+Lateral chromatic aberration (CA) is the sideways colour fringing caused by red, green and blue light landing at slightly different image positions. Use `calculateLateralChromaticAberrationMapping()` to map one ideal image-plane point through a shared **base distortion, referenced to green**, plus radial coefficient offsets for red and blue.
 
 Use `calculateInverseLateralChromaticAberrationMapping()` when a renderer needs the ideal source coordinate for each output channel at one distorted destination.
 
@@ -533,19 +556,19 @@ console.log(inverse.value.channels.blue.sourceImagePointMm);
 
 This is **field mapping, not a blur kernel**.
 
-The green channel carries the common base geometric distortion. Red and blue offsets are added to that base before mapping. Therefore:
+The green channel carries the common base geometric distortion. Red and blue offsets are added to that base before mapping. So:
 
-- zero red/blue offsets mean no lateral CA, while base distortion can still exist;
-- callers should not apply the same base distortion as a second renderer warp;
-- all three combined channel profiles share one physical normalization radius and operating envelope;
-- every combined channel profile must remain individually invertible over that envelope.
+- zero red/blue offsets mean no lateral CA, though base distortion can still exist;
+- do not apply the same base distortion again as a second renderer warp;
+- all three combined channel profiles share one physical normalization radius and operating range;
+- each combined channel profile must be invertible on its own over that range.
 
-The channel labels are representative renderer RGB channels. They are not wavelength samples, a spectral lens model, sensor CFA primaries, or a camera colorimetric profile. Longitudinal chromatic aberration and wavelength-dependent PSF behavior remain separate future work.
+The channel labels stand for renderer RGB channels. They are not wavelength samples, a spectral lens model, sensor CFA primaries or a camera colour profile. Longitudinal chromatic aberration and wavelength-dependent PSF behaviour are separate future work.
 
-A renderer should inverse-map each destination channel to the source coordinate returned by the engine instead of adding a backend-specific RGB offset or finished-image fringe blur.
+A renderer should inverse-map each destination channel to the source coordinate the engine returns. It should not add its own RGB offset or blur fringes onto the finished image.
 
-For renderer grids or other multi-point evaluation, use the batch inverse APIs so
-one profile validation/provenance boundary serves the full point set:
+For renderer grids or other multi-point evaluation, use the batch inverse APIs. The profile is
+then validated once, with one provenance record, for the whole point set:
 
 Composition fragment: requires previously validated bindings `caProfile`, `points`, `radialProfile`. This is an integration sketch, not a standalone runnable program.
 
@@ -566,13 +589,13 @@ const caGrid = calculateInverseLateralChromaticAberrationMappings({
 });
 ```
 
-Batch per-point values are defined to match the corresponding scalar inverse
-APIs. Batching changes repeated validation/allocation structure, not the lens
-model, operating envelope, coordinate basis, or numerical solver.
+Each value in a batch matches what the single-point inverse API returns. Batching only
+avoids repeated validation and allocation. It does not change the lens model, operating
+range, coordinate basis or numerical solver.
 
 ## Illumination vignetting
 
-Use `calculateIlluminationVignetting()` when a generic virtual lens needs field-dependent **relative linear throughput** without changing geometry or pupil/PSF shape.
+Vignetting is the darkening towards the edges of the frame. Use `calculateIlluminationVignetting()` when a generic virtual lens needs a **relative linear throughput** that varies across the field, without changing geometry or the pupil/PSF shape.
 
 ```ts
 import { calculateIlluminationVignetting } from "@photivra/engine";
@@ -601,9 +624,9 @@ rho = image-plane radius / normalizationRadiusMm
 T(rho) = 1 + r2*rho² + r4*rho⁴ + r6*rho⁶
 ```
 
-`T` is a multiplicative **scene-linear/channel-linear** throughput factor. Apply it before display transfer/gamma encoding.
+`T` is a throughput factor that multiplies **linear** scene light, per channel. Apply it before display transfer or gamma encoding.
 
-The profile declares `maximumNormalizedRadius`. Photivra analytically checks the complete interval, including internal extrema, and rejects profiles that:
+The profile declares `maximumNormalizedRadius`. Photivra checks the whole range analytically, including interior minima and maxima, and rejects profiles that:
 
 - reach zero or negative throughput; or
 - amplify above the optical-axis normalization of `1`.
@@ -623,11 +646,11 @@ This model changes throughput only. It does not change:
 - bokeh;
 - channel geometry.
 
-Mechanical/pupil vignetting and cat's-eye bokeh belong to the later pupil/PSF foundation. This generic profile is also not calibrated radiometry or a named-lens measurement.
+Mechanical/pupil vignetting and cat's-eye bokeh belong to the later pupil/PSF foundation. This generic profile is not calibrated radiometry, and not a measurement of a named lens.
 
 ## Production image-formation plan
 
-The production composition API is separate from `simulatePocCamera()`.
+The production composition API is separate from `simulatePocCamera()`. It works in three steps: prepare static context, commit one capture, then create the plan.
 
 Prepare static context once:
 
@@ -750,7 +773,7 @@ const capture =
 
 ### Capture directly from a resolved release frame
 
-When #105 has already resolved a logical frame, prefer the dedicated handoff instead of copying exposure/seed values manually:
+When [release sequencing](#logical-release-sequences) has already resolved a logical frame, use this dedicated handoff instead of copying exposure and seed values by hand:
 
 Composition fragment: requires previously validated bindings `lockedWhiteBalance`, `physicalSceneSample`, `sequence`. This is an integration sketch, not a standalone runnable program.
 
@@ -771,7 +794,7 @@ const capture =
   });
 ```
 
-The helper binds the release frame's exposure, focus, automation policy, timing, release identity and stochastic seed. If the frame names a WB state, the complete committed #108 state must match that ID. Both are frozen into the capture fingerprint and later surfaced in `plan.captureIdentity`.
+The helper binds the release frame's exposure, focus, automation policy, timing, release identity and random seed. If the frame names a WB state, the complete committed [white-balance state](#white-balance-and-auto-wb) must match that ID. Both are frozen into the capture fingerprint and later shown in `plan.captureIdentity`.
 
 Finally create the semantic plan:
 
@@ -805,7 +828,7 @@ scene-ray-projection
   -> lens-field-pupil-evaluation
 ```
 
-The order comes from `getImageFormationContract()`, not a second planner-specific stage list.
+The order comes from `getImageFormationContract()`. The planner keeps no second stage list of its own.
 
 ### Explicit stage/effect state
 
@@ -817,22 +840,22 @@ Every stage/effect is visible as one of:
 - `unsupported`;
 - `blocked`.
 
-For example, unity illumination throughput can remain an explicitly modeled zero/no-loss vignetting effect rather than disappearing from provenance.
+For example, a unity illumination throughput stays visible as an explicitly modelled zero-loss vignetting effect, instead of disappearing from provenance.
 
 ### Structured blockers
 
-Scientifically incomplete but structurally valid requests return a blocked plan.
+A request that is structurally valid but scientifically incomplete returns a blocked plan.
 
 Examples:
 
-- required stage not yet composed;
-- renderer lacks required stage/effect capability;
-- renderer lacks wavelength/depth/sensor-domain fidelity;
-- missing #110 optical profile;
-- missing physical scene sample;
-- #110 wavelength/applicability failure.
+- a required stage is not composed yet;
+- the renderer lacks a required stage or effect capability;
+- the renderer lacks wavelength, depth or sensor-domain fidelity;
+- the optical profile for the [scene-radiance-to-sensor bridge](#scene-radiance-to-sensor-irradiance) is missing;
+- the physical scene sample is missing;
+- that bridge fails a wavelength or applicability check.
 
-Malformed config, invalid selected camera settings, identity drift and tampered fingerprints still fail fast.
+Malformed configuration, invalid selected camera settings, identity drift and tampered fingerprints still fail fast (throw).
 
 ### Deterministic identity
 
@@ -844,7 +867,7 @@ The algorithm is explicitly:
 fnv1a-32-non-cryptographic
 ```
 
-This is a reproducibility key, not a security/integrity checksum.
+This is a reproducibility key. It is not a security or integrity checksum.
 
 Use:
 
@@ -858,7 +881,7 @@ when a canonical deterministic serialization is needed.
 
 ### Temporal capture input
 
-A production capture snapshot may include authoritative timing/readout state:
+A production capture snapshot may include authoritative timing and readout state:
 
 ```ts
 const capture =
@@ -909,11 +932,11 @@ The plan may then expose:
 - optional `sensorReadoutTiming`;
 - optional `rotationQuadrature`.
 
-Sensor readout is not silently synchronized to exposure boundaries.
+Sensor readout is never silently synchronized to exposure boundaries.
 
-If a requested temporal quadrature has more nodes than the renderer declares it can consume, the plan reports `renderer-temporal-sampling-insufficient` without changing the committed quadrature.
+If the requested temporal quadrature (time sampling) has more nodes than the renderer says it can handle, the plan reports `renderer-temporal-sampling-insufficient`. It does not change the committed quadrature.
 
-A zero rotation model and global readout remain explicitly `modeled-zero` effects.
+A zero rotation model and global readout stay visible as explicit `modeled-zero` effects.
 
 ### Consumer manifests
 
@@ -934,21 +957,21 @@ const reference =
   });
 ```
 
-Both views preserve the same semantic plan fingerprint, stage/effect identities, physical/temporal results, blockers and capture seed.
+Both views keep the same plan fingerprint, stage and effect identities, physical and temporal results, blockers and capture seed.
 
-The consumer role does not permit the backend to alter scientific inputs or reduce committed temporal samples.
+The consumer role does not let the backend change scientific inputs or reduce the committed temporal samples.
 
 ### Renderer/reference split
 
 Renderer declarations contain semantic capabilities only. They do not include WebGPU, Three.js, React, DOM or server objects.
 
-An optimized interactive renderer and a slower reference evaluator consume the same engine-owned stage/effect plan structure and declare what they can faithfully represent.
+A fast interactive renderer and a slower reference evaluator read the same engine-owned stage/effect plan, and each declares what it can faithfully represent.
 
 ### Current first-slice boundary
 
-Plan schema `0.1.0` deliberately composes only the initial primary spectral path through #110.
+Plan schema `0.1.0` deliberately composes only the first primary spectral path, through the [scene-radiance-to-sensor bridge](#scene-radiance-to-sensor-irradiance).
 
-Later requested stages remain explicit blockers until intentionally integrated, including:
+Later stages stay explicit blockers until they are deliberately integrated, including:
 
 - PSF;
 - temporal exposure/readout composition;
@@ -959,7 +982,7 @@ Later requested stages remain explicit blockers until intentionally integrated, 
 - reconstruction;
 - final output/display processing.
 
-The production plan therefore does not turn standalone foundations into silently active pipeline stages.
+So the production plan never silently turns standalone foundations into active pipeline stages.
 
 See [Production Image-Formation Plan](https://github.com/Photivra/photivra/blob/main/docs/PRODUCTION_COMPOSITION.md).
 
@@ -967,7 +990,7 @@ See [Production Image-Formation Plan](https://github.com/Photivra/photivra/blob/
 
 Use `parseFrontOfLensFilterProfile()`, `resolveFrontOfLensFilterTransmission()`, and `composeFrontOfLensFilterTransmission()` for generic passive filters placed **in front of the lens**.
 
-OpenSource V1 supports three generic transmission declarations:
+These cover neutral-density (ND) and wavelength-dependent filters. OpenSource V1 supports three generic ways to declare transmission:
 
 - `neutral-linear-transmission` — explicit wavelength-independent transmission over a declared wavelength range;
 - `neutral-optical-density` — base-10 optical density with `T = 10^-OD`;
@@ -1021,7 +1044,7 @@ const nd = parseFrontOfLensFilterProfile({
 });
 ```
 
-A 0.5 transmission factor is exactly one stop of attenuation. Base-10 optical density is reported alongside stop attenuation for diagnostics.
+A transmission factor of 0.5 is exactly one stop of attenuation. Base-10 optical density is reported next to the stop attenuation, for diagnostics.
 
 Multiple filters compose multiplicatively:
 
@@ -1029,19 +1052,19 @@ Multiple filters compose multiplicatively:
 T_stack = T_1 * T_2 * ... * T_n
 ```
 
-The stack preserves each component's identity/evidence. Aggregate numeric uncertainty is deliberately reported as **not propagated** unless correlation/independence semantics are established; individual filter uncertainty remains attached to each component.
+The stack keeps each filter's identity and evidence. The combined numeric uncertainty is deliberately reported as **not propagated**, unless it is established whether the filters' errors are correlated or independent. Each filter's own uncertainty stays attached to that filter.
 
 ### Spectral boundary
 
-Spectral filter data remains wavelength-resolved through #110. Photivra does not convert a spectral filter into an undocumented RGB tint.
+Spectral filter data stays wavelength-resolved all the way through the [scene-radiance-to-sensor bridge](#scene-radiance-to-sensor-irradiance). Photivra does not turn a spectral filter into an undocumented RGB tint.
 
-The requested scene wavelength and filter profile must use the same resolved air/vacuum basis and lie inside the declared wavelength range.
+The requested scene wavelength and the filter profile must use the same resolved air/vacuum basis, and the wavelength must lie inside the declared range.
 
-Embedded numeric spectral curves require `reusable-data` or `photivra-owned` provenance. Factual-reference-only publication does not authorize copying numeric curve data into the open-source package.
+Embedded numeric spectral curves need `reusable-data` or `photivra-owned` provenance. A curve that was only published as a factual reference may not be copied into the open-source package.
 
 ### Optical integration
 
-When `frontOfLensFilters` is supplied to `calculateSceneRadianceToSensorIrradiance()`, the bridge applies the filter stack **exactly once**, independently from:
+When you pass `frontOfLensFilters` to `calculateSceneRadianceToSensorIrradiance()`, the bridge applies the filter stack **exactly once**, separately from:
 
 - lens spectral transmission or effective T-stop;
 - field/vignetting throughput;
@@ -1065,19 +1088,21 @@ A selected front filter does **not** change:
 - geometric defocus;
 - diffraction.
 
-The production capture snapshot/plan also carries the filter stack. Changing the selected filter changes immutable capture/plan identity and the composed #110 physical result.
+The production capture snapshot and plan also carry the filter stack. Changing the selected filter changes the immutable capture/plan identity and the composed physical result of the bridge.
 
 ### Polarization boundary
 
-CPL/polarizer behavior is not modeled here. Correct polarization would require an end-to-end polarization representation across scene radiance, materials/reflections, atmosphere, optics and potentially sensor response.
+Circular polarizer (CPL) and polarizer behaviour is not modelled in schema 0.1.0. Correct polarization would need polarization to be represented end to end: scene radiance, materials and reflections, atmosphere, optics, and possibly sensor response.
 
-Schema 0.1.0 therefore rejects filter profiles that claim `polarizationModeled: true`.
+Schema 0.1.0 therefore rejects filter profiles that claim `polarizationModeled: true`. (Filter schema 0.2.0 adds a linear polarizer; see [Polarizer and haze](#polarizer-and-haze).)
 
 ## Scene radiance to sensor irradiance
 
-Use `calculateSceneRadianceToSensorIrradiance()` when you need the first physical primary-optics bridge from one validated #85 outgoing spectral-radiance sample to **pre-sensor-stack sensor-plane spectral irradiance**.
+`calculateSceneRadianceToSensorIrradiance()` (#110) is the first physical optics bridge. It takes one validated sample of spectral radiance leaving the scene (from a [scene-radiance provider](#scene-radiance-provider-and-material-response), #85) and returns the **spectral irradiance at the sensor plane, before the sensor's own optical stack**.
 
-The bridge operates on one explicit wavelength/time/field sample at a time.
+(Radiance is light leaving a surface in a given direction; irradiance is light arriving on a surface.)
+
+The bridge works on one explicit wavelength/time/field sample at a time.
 
 Composition fragment: requires previously validated bindings `sceneRadianceRequest`, `sceneRadianceResult`. This is an integration sketch, not a standalone runnable program.
 
@@ -1199,20 +1224,20 @@ sensor spectral irradiance =
   * field throughput
 ```
 
-where the effective optical acceptance includes exactly one optical-transmission path.
+where the effective optical acceptance includes exactly one optical-transmission path. (N_working is the working f-number.)
 
 This is a **paraxial approximation**, not a ray-traced pupil solution.
 
 ### f-number, working f-number, transmission, and T-stop
 
-These quantities remain separate.
+These quantities stay separate:
 
-- nominal f-number describes geometric aperture;
-- working f-number describes the finite-focus geometric aperture relation used by the bridge;
-- spectral transmission is a wavelength-dependent fractional throughput;
-- effective working T-stop is an alternative approximation that already incorporates transmission loss.
+- the nominal f-number describes the geometric aperture;
+- the working f-number is the geometric aperture relation at finite focus that the bridge uses;
+- spectral transmission is the fraction of light passed, per wavelength;
+- an effective working T-stop is an alternative approximation that already includes the transmission loss.
 
-Do not apply a spectral transmission curve and T-stop simultaneously.
+Do not apply a spectral transmission curve and a T-stop together.
 
 For a spectral-transmission profile:
 
@@ -1247,9 +1272,9 @@ N_working = N_nominal * (1 + magnification)
 
 but only when unity pupil magnification is explicitly declared.
 
-This is not assumed to be universally correct for real lenses.
+This is not assumed to be correct for all real lenses.
 
-A generic/real lens profile may instead supply an evidence-backed working f-number:
+A generic or real lens profile may instead supply an evidence-backed working f-number:
 
 ```ts
 focus: {
@@ -1286,7 +1311,7 @@ Supply either:
 
 That factor is applied **exactly once**.
 
-Mechanical pupil clipping / cat-eye behavior remains a later pupil/PSF concern and must not be stacked as a second hidden illumination loss.
+Mechanical pupil clipping and cat's-eye behaviour belong to later pupil/PSF work. Do not stack them as a second, hidden illumination loss.
 
 ### Wavelength basis and provenance
 
@@ -1297,7 +1322,7 @@ Scene radiance and optical transmission must use the same resolved wavelength ba
 
 Photivra does not silently convert between them.
 
-Numeric wavelength-transmission curves are reusable data, not merely factual metadata. Their evidence must therefore be `reusable-data` or `photivra-owned`; `factual-reference-only` is insufficient for copied numeric curves.
+Numeric wavelength-transmission curves are reusable data, not just factual metadata. Their evidence must therefore be `reusable-data` or `photivra-owned`. `factual-reference-only` is not enough for copied numeric curves.
 
 ### Boundary of the result
 
@@ -1329,11 +1354,11 @@ The bridge also does not apply:
 - volumetric scattering;
 - wavelength-changing transport.
 
-Those remain separately owned so transmission or energy loss cannot be counted twice.
+Each of those has its own owner, so transmission or energy loss cannot be counted twice.
 
 ### Calibration status
 
-Schema 0.1.0 can preserve calibrated optical transmission metadata, but current #85 scene-radiance evaluation is still approximation-only.
+Schema 0.1.0 can carry calibrated optical transmission metadata. But scene-radiance evaluation (#85) is still approximation-only.
 
 Therefore the combined result currently reports:
 
@@ -1345,7 +1370,7 @@ even when the optical profile itself is calibrated.
 
 ## Thin-lens image distance and magnification
 
-Use `calculateThinLensImageDistance()` to calculate ideal Gaussian thin-lens image distance for an object/focus plane.
+Use `calculateThinLensImageDistance()` to calculate the ideal Gaussian thin-lens image distance for an object (focus) plane.
 
 ```ts
 import { calculateThinLensImageDistance } from "@photivra/engine";
@@ -1360,13 +1385,13 @@ console.log(projection.value.magnification);
 console.log(projection.value.infinityProjectionScale);
 ```
 
-This is a paraxial ideal-lens model. It does not model real-lens focus breathing, pupil magnification, principal-plane movement, or aberrations.
+This is a paraxial, ideal-lens model ("paraxial" means it assumes rays close to the optical axis). It does not model real-lens focus breathing, pupil magnification, principal-plane movement or aberrations.
 
 See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#projection-focus-extension-object-size-and-motion).
 
 ## Projected object size and sensor sampling
 
-Use `calculateProjectedObjectSize()` for a fronto-parallel object with known physical dimensions and distance.
+Use `calculateProjectedObjectSize()` for an object facing the camera squarely (fronto-parallel), with known physical dimensions and distance.
 
 ```ts
 import { calculateProjectedObjectSize } from "@photivra/engine";
@@ -1426,34 +1451,34 @@ const blur = calculateDefocusCircle({
 console.log(blur.value.diameterMm);
 ```
 
-The circle-of-confusion criterion used for depth-of-field is caller supplied. These are ideal geometric thin-lens models and do not incorporate diffraction or real-lens aberrations into the DOF criterion.
+You supply the circle-of-confusion criterion used for depth of field (DOF). These are ideal geometric thin-lens models. They do not include diffraction or real-lens aberrations in the DOF criterion.
 
 See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#thin-lens-focus-and-depth-of-field).
 
 ## Real-lens PSF profiles and complex-pupil reference
 
-#113 adds two explicit real-lens primary-optical response paths while preserving the legacy defocus/Airy diagnostics.
+There are two explicit ways to describe the response of a real lens: sampled PSF profiles, and a complex-pupil (wavefront) reference. Both were added in #113. The legacy defocus and Airy diagnostics are kept unchanged.
 
 ### Sampled 2D PSF profiles
 
-Use `parseLensSampledPsfProfile()` and `resolveLensSampledPsf()` for measured, simulated, or Photivra-owned unit-energy PSF kernels on a bounded regular grid.
+Use `parseLensSampledPsfProfile()` and `resolveLensSampledPsf()` for PSF kernels that are measured, simulated or owned by Photivra. Each kernel has unit energy, and kernels sit on a bounded regular grid.
 
 The grid axes are:
 
 - physical focal length;
-- focus in diopters, where `0` represents the explicit #103 infinity focus state;
+- focus in diopters, where `0` is the explicit infinity state of [`FocusPlane`](#explicit-finite-and-infinity-focus-state);
 - f-number;
 - image-plane field X/Y in millimetres;
 - wavelength in nanometres;
 - signed image-plane defocus in micrometres.
 
-Resolution is either `exact-grid-sample` or `interpolated`. Extrapolation outside any declared axis fails closed.
+Resolution is either `exact-grid-sample` or `interpolated`. Any request outside a declared axis fails closed; there is no extrapolation.
 
-All nodes must use the same physical kernel sampling grid so multilinear interpolation does not silently resample different PSF coordinate systems. The returned full 2D kernel preserves +X right / +Y up orientation; no radial or sagittal/tangential averaging is forced.
+All nodes must use the same physical kernel sampling grid, so multilinear interpolation never silently mixes different PSF coordinate systems. The returned full 2D kernel keeps the +X right / +Y up orientation. No radial or sagittal/tangential averaging is forced.
 
-Every kernel is a **unit-energy PSF shape**. `relativePupilThroughputFactor` remains separate and belongs to the optical-throughput path. A mechanically clipped/cat-eye pupil may therefore change both PSF shape and throughput without multiplying throughput into the normalized PSF and then applying it again in #110.
+Every kernel is a **unit-energy PSF shape**. `relativePupilThroughputFactor` is kept separate and belongs to the optical-throughput path. So a mechanically clipped (cat's-eye) pupil can change both the PSF shape and the throughput, without the throughput being multiplied into the normalized PSF and then applied a second time in the [scene-radiance-to-sensor bridge](#scene-radiance-to-sensor-irradiance).
 
-`bestFocusImagePlaneOffsetMicrometers` may vary across field and wavelength. This is the profile seam for field curvature and longitudinal/axial chromatic focus. It does not alter geometric distortion or perform lateral channel displacement.
+`bestFocusImagePlaneOffsetMicrometers` may vary across the field and with wavelength. This is where a profile describes field curvature and longitudinal (axial) chromatic focus shift. It does not change geometric distortion or shift channels sideways.
 
 Signed defocus is preserved, so foreground and background defocus may use different profiled PSFs.
 
@@ -1464,32 +1489,37 @@ Use `parseLensComplexPupilProfile()` and `calculateLensComplexPupilPsf()` when t
 - relative pupil amplitude; plus
 - optical-path difference in micrometres.
 
-The reference evaluator performs deterministic scalar Fraunhofer propagation on the explicit pupil grid, zero padded per axis to at least 2S − 1 samples for an S-sample non-zero support so the intensity PSF meets Goodman's sampling condition Q = λN/pitch > 2 (`result.value.sampling` reports the achieved Q and padding). A pupil support wider than the declared f/N aperture is rejected. Diffraction and aberration phase are evaluated **together** in that pupil calculation. Do not add another independent diffraction blur to the result.
+The reference evaluator runs deterministic scalar Fraunhofer propagation on the explicit pupil grid.
 
-The resulting intensity PSF is normalized to unit energy. The profile's relative pupil throughput is preserved separately and is not multiplied into the kernel.
+- Each axis is zero-padded to at least 2S − 1 samples, where S is the number of samples in the non-zero support. This makes the intensity PSF meet Goodman's sampling condition Q = λN/pitch > 2. `result.value.sampling` reports the achieved Q and padding.
+- A pupil support wider than the declared f/N aperture is rejected.
+- Diffraction and aberration phase are evaluated **together** in that pupil calculation. Do not add a separate diffraction blur to the result.
 
-The complex-pupil evaluator is a bounded scalar reference model. It does not include polarization/vector diffraction, ghosting/flare, sensor OLPF/microlenses/CFA, sampling, demosaic, sharpening, or display processing.
+The resulting intensity PSF is normalized to unit energy. The profile's relative pupil throughput is kept separately and is not multiplied into the kernel.
+
+The complex-pupil evaluator is a bounded, scalar reference model. It does not include polarization or vector diffraction, ghosting or flare, the sensor's OLPF (optical low-pass filter), microlenses or CFA, sampling, demosaicing, sharpening or display processing.
 
 ### MTF magnitude is not a PSF
 
-`parseLensMtfDiagnosticProfile()` stores sagittal/tangential MTF magnitude diagnostics.
+The MTF (modulation transfer function) describes how much contrast a lens keeps at each level of detail. `parseLensMtfDiagnosticProfile()` stores sagittal/tangential MTF magnitude diagnostics.
 
-`assessMtfOnlyPsfRenderability()` always reports that unique PSF reconstruction is unauthorized because MTF magnitude lacks phase information. MTF remains useful for validation, not as a magic blur-kernel generator.
+`assessMtfOnlyPsfRenderability()` always reports that a unique PSF cannot be reconstructed, because the MTF magnitude has no phase information. MTF is useful for validation, not as a way to generate a blur kernel.
 
 ### Ownership boundaries
 
-- geometric distortion remains a field mapping;
-- lateral CA remains a wavelength/channel field mapping;
-- field curvature and longitudinal CA live in focus/PSF semantics;
-- pupil clipping can affect PSF shape while throughput remains separately owned;
-- #1 owns regular-polygon/non-circular diffraction generation;
-- #114 owns stray-light/ghosting/veiling glare;
-- sensor OLPF/CFA/reconstruction remain downstream;
-- no scalar `lensSharpness` or `bokehQuality` is a scientific primitive.
+- Geometric distortion stays a field mapping.
+- Lateral CA stays a wavelength/channel field mapping.
+- Field curvature and longitudinal CA belong to focus/PSF.
+- Pupil clipping can change PSF shape; throughput is owned separately.
+- Regular-polygon and other non-circular diffraction is owned by [ideal polygon diffraction](#ideal-regular-polygon-diffraction) (#1).
+- Stray light, ghosting and veiling glare are owned separately (#114; see [Digital optics foundations](https://github.com/Photivra/photivra/blob/main/docs/DIGITAL_OPTICS_FOUNDATION.md)).
+- Sensor OLPF, CFA and reconstruction come later in the pipeline.
+- There is no scalar `lensSharpness` or `bokehQuality` primitive; such scores are not scientific quantities.
 
 ## PSF and pupil foundation
 
-Use `getPsfFoundationContract()` to inspect current/reserved PSF contribution ownership and `calculatePsfFoundationComponents()` to evaluate the currently implemented diagnostics in one explicit field/depth/spectral/pupil context.
+- `getPsfFoundationContract()` shows which PSF contributions exist or are reserved, and who owns them.
+- `calculatePsfFoundationComponents()` evaluates the diagnostics implemented today, in one explicit field/depth/spectral/pupil context.
 
 ```ts
 import {
@@ -1518,17 +1548,17 @@ console.log(components.value.contributions.circularDiffraction);
 console.log(components.value.composition.status); // "not-composed"
 ```
 
-The current foundation intentionally **does not combine** geometric defocus and circular diffraction into a synthetic PSF, MTF, convolution kernel, combined blur radius, or “lens sharpness” score.
+The foundation deliberately **does not combine** geometric defocus and circular diffraction into a synthetic PSF, MTF, convolution kernel, combined blur radius or "lens sharpness" score.
 
-It records field position now even though the current defocus/Airy diagnostics are field invariant. Future field-curvature, pupil-clipping, bokeh, and aberration contributions can therefore consume the same context without reinterpreting existing outputs.
+It already records field position, even though the current defocus and Airy diagnostics do not vary across the field. Future field-curvature, pupil-clipping, bokeh and aberration contributions can then use the same context without reinterpreting existing outputs.
 
-The current spectral basis is explicitly monochromatic for the Airy diagnostic. This does not create a spectral lens or sensor-color model.
+The spectral basis is explicitly monochromatic (one wavelength) for the Airy diagnostic. This does not create a spectral lens or sensor-colour model.
 
 See [PSF and Pupil Foundation](https://github.com/Photivra/photivra/blob/main/docs/PSF_FOUNDATION.md).
 
 ## Circular-aperture diffraction
 
-Use `calculateAiryDisk()` for the ideal monochromatic circular-pupil first-zero Airy diameter:
+Use `calculateAiryDisk()` for the diameter of the Airy disk to its first dark ring (first zero), for an ideal circular pupil at one wavelength:
 
 ```ts
 import { calculateAiryDisk } from "@photivra/engine";
@@ -1541,7 +1571,7 @@ const diffraction = calculateAiryDisk({
 console.log(diffraction.value.firstZeroDiameterMicrometers);
 ```
 
-This calculation uses `d = 2.44 λ N`. It is not a polygon-aperture diffraction PSF.
+This calculation uses `d = 2.44 λ N` (λ = wavelength, N = f-number). It is not a diffraction PSF for a polygon aperture.
 
 See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#diffraction).
 
@@ -1562,7 +1592,7 @@ console.log(aperture.value.sunstarRayCount);
 console.log(aperture.value.sunstarRayAnglesDegrees);
 ```
 
-The output describes normalized aperture geometry and idealized ray-direction symmetry only. It does not calculate diffraction intensity, star length, flare, coatings, or a full PSF.
+The output describes only the normalized aperture shape and the ideal symmetry of the sunstar ray directions. It does not calculate diffraction intensity, star length, flare, coatings or a full PSF.
 
 See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#ideal-diaphragm-geometry-and-sunstar-symmetry).
 
@@ -1582,25 +1612,30 @@ console.log(pitch.value.micrometers);
 console.log(pitch.value.millimeters);
 ```
 
-The current primitive calculates horizontal pixel pitch. It assumes the supplied sensor width and pixel count describe the same active dimension.
+This primitive calculates horizontal pixel pitch. It assumes the sensor width and pixel count you supply describe the same active dimension.
 
 See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#sensor-geometry-sampling-capture-and-crop).
 
 ## White balance and Auto WB
 
-Photivra keeps **scene illumination**, **camera white-balance state**, and **render/export color transforms** separate.
+Photivra keeps three things separate: **scene illumination**, **camera white-balance state**, and **render/export colour transforms**.
 
-The #108 white-balance foundation operates on an explicit pre-WB camera-observable domain:
+The white-balance foundation (#108) works on an explicit domain: the linear camera RGB a camera could observe before white balance:
 
 ```text
 relative-pre-wb-camera-linear-rgb
 ```
 
-It does not inspect authoritative scene-illuminant metadata as an AWB oracle, modify #85 scene lighting, destructively alter RAW-like sensor capture, or change aperture/shutter/ISO/focus.
+It does not:
+
+- peek at the authoritative scene-illuminant metadata to "cheat" auto white balance (AWB);
+- change the scene lighting;
+- destructively alter the RAW-like sensor capture;
+- change aperture, shutter, ISO or focus.
 
 ### Generic presets
 
-Preset labels are resolved through a declared profile rather than universal hard-coded Kelvin aliases:
+Preset labels are resolved through a declared profile, not through universal hard-coded Kelvin values:
 
 Composition fragment: requires previously validated bindings `evidence`. This is an integration sketch, not a standalone runnable program.
 
@@ -1668,7 +1703,7 @@ const daylight =
   });
 ```
 
-The label, nominal CCT, tint, and actual channel gains are separate profile facts. A camera-specific profile requires defensible evidence; no manufacturer-specific WB behavior is inferred from a common preset name.
+The label, the nominal CCT (correlated colour temperature), the tint and the actual channel gains are separate facts in the profile. A camera-specific profile needs defensible evidence. No manufacturer-specific WB behaviour is guessed from a common preset name.
 
 ### Manual gains and CCT+tint intent
 
@@ -1685,15 +1720,22 @@ const intent =
   });
 ```
 
-The intent keeps `channelGainsResolved: false` and `requiresCameraProfileColorimetry: true`. CCT alone is not treated as a complete chromatic adaptation model, and tint remains an independent axis.
+The intent keeps `channelGainsResolved: false` and `requiresCameraProfileColorimetry: true`. CCT alone is not treated as a complete chromatic adaptation model, and tint stays an independent axis.
 
-`resolveColorTemperatureWhiteBalance()` resolves gains once the intent is paired with an explicit camera colour model. It takes the white on the Planckian or CIE-daylight locus, offset by tint read as Duv in CIE 1960 uv, maps that white through the camera's XYZ→camera matrix, and neutralizes the result. The state it returns has `source: "color-temperature"`. See [Kelvin + tint white balance](#kelvin--tint-white-balance) below and [Colorimetry](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md#kelvin--tint-white-balance).
+`resolveColorTemperatureWhiteBalance()` resolves gains once the intent is paired with an explicit camera colour model:
+
+1. It takes the white point on the Planckian or CIE-daylight locus.
+2. It offsets that white by the tint, read as Duv in CIE 1960 uv.
+3. It maps the white through the camera's XYZ→camera matrix.
+4. It neutralizes the result.
+
+The state it returns has `source: "color-temperature"`. See [Kelvin + tint white balance](#kelvin--tint-white-balance) below and [Colorimetry](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md#kelvin--tint-white-balance).
 
 ### Custom measured WB
 
-`resolveCustomWhiteBalance()` accepts renderer-neutral pre-WB RGB sample results tied to a stable image-state ID.
+`resolveCustomWhiteBalance()` takes RGB samples measured before white balance, independent of any renderer, and tied to a stable image-state ID.
 
-The selected region is assumed by the caller to be intended neutral; Photivra does **not** claim the chosen real-world object is spectrally neutral.
+You, the caller, declare that the selected region should be neutral. Photivra does **not** claim that the real-world object you chose is spectrally neutral.
 
 Custom measurement:
 
@@ -1704,19 +1746,19 @@ Custom measurement:
 
 ### Auto White Balance
 
-`estimateAutoWhiteBalance()` consumes only pre-WB camera-linear samples plus a profile-owned AWB policy.
+`estimateAutoWhiteBalance()` uses only linear camera samples from before white balance, plus an AWB policy owned by the profile.
 
-The generic first model is a deterministic gray-world-style estimate. A neutralizing gain is derived from the weighted observed channels, then the policy's `correctionStrength` is applied in logarithmic gain space:
+The first generic model is a deterministic grey-world-style estimate (it assumes the scene averages to grey). A neutralizing gain is derived from the weighted observed channels. Then the policy's `correctionStrength` is applied in logarithmic gain space:
 
 ```text
 resolved gain = neutralizing gain ^ correctionStrength
 ```
 
-A strength of `1` represents a neutral-priority generic estimate. Lower strengths preserve more of the observed cast, supporting explicit generic standard/ambience behavior without pretending there is one universal AWB result.
+A strength of `1` is a generic neutral-priority estimate. Lower strengths keep more of the observed colour cast. This supports explicit generic "standard" or "ambience" behaviour, without pretending there is one universal AWB result.
 
-Clipped AWB samples are excluded and reported; if no usable samples remain, estimation fails closed.
+Clipped AWB samples are left out and reported. If no usable samples remain, estimation fails closed.
 
-One AWB result is a **global camera WB state**. In mixed illumination, different image regions can retain different local casts after the same global gains.
+One AWB result is a **global camera WB state**. Under mixed lighting, different parts of the image can keep different local casts after the same global gains.
 
 ### AWB lock
 
@@ -1730,7 +1772,7 @@ const locked =
   });
 ```
 
-Later scene/image signals may produce a different AWB estimate, while the locked state's gains remain unchanged. AWB lock is independent from AE lock and focus lock.
+Later scene or image signals may give a different AWB estimate, but the locked state's gains stay unchanged. AWB lock is independent of AE lock and focus lock.
 
 ### Image-state/export boundary
 
@@ -1741,11 +1783,13 @@ Every resolved WB state explicitly reports that it did not:
 - modify physical exposure;
 - modify focus.
 
-#15 remains authoritative for how resolved WB intent is applied or encoded in processed linear images, previews, TIFF, DNG metadata, or other output states.
+How a resolved WB intent is applied or encoded in processed linear images, previews, TIFF, DNG metadata or other outputs is owned by linear capture and colour (#15), not by this foundation.
 
 ## Colorimetry
 
-The [colorimetry primitives](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md) cover CMFs, illuminants, CCT/Duv, chromatic adaptation, ΔE, camera-matrix fitting, wide-gamut/HDR transfers and gamut mapping. No CIE or ColorChecker tables are bundled; the CIE datasets are CC BY-SA 4.0. Use the labelled analytic CMF approximation, or pass tables you are licensed to use.
+The [colorimetry primitives](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md) cover colour-matching functions (CMFs), illuminants, CCT/Duv, chromatic adaptation, ΔE (colour difference), camera-matrix fitting, wide-gamut/HDR transfers and gamut mapping.
+
+No CIE or ColorChecker tables are bundled; the CIE datasets are licensed CC BY-SA 4.0. Use the labelled analytic CMF approximation, or pass tables you are licensed to use.
 
 ### Spectrum to XYZ, CCT and colour difference
 
@@ -1832,7 +1876,7 @@ const mapped = calculateGamutMappedColor({
 console.log(bradford, pqCodeFor100Nits, mapped.value.linearRgb);
 ```
 
-Scene adaptation inside `calculateCaptureColorTransform()` can opt into a cone-space transform with `whiteBalance: { kind: "adopted-white-xyz-scaling", transform: "bradford" }`. Omitting `transform` keeps the original XYZ-diagonal scaling unchanged.
+Scene adaptation inside `calculateCaptureColorTransform()` can opt in to a cone-space transform with `whiteBalance: { kind: "adopted-white-xyz-scaling", transform: "bradford" }`. Leaving out `transform` keeps the original diagonal scaling in XYZ.
 
 ## Sensor imaging area and native raster
 
@@ -1858,17 +1902,18 @@ console.log(metrics.value.sampling.pitchXMicrometers); // 6
 console.log(metrics.value.sampling.pitchYMicrometers); // 6
 ```
 
-`SensorImagingArea` means the physical photosensitive imaging area used for image formation, not sensor package or die dimensions. `NativeImageRaster` is the effective native image-sampling grid; it does not assert a one-to-one relationship between image samples and physical photodiodes/photosites.
+- `SensorImagingArea` is the physical light-sensitive area used for image formation. It is not the size of the sensor package or die.
+- `NativeImageRaster` is the effective native grid of image samples. It does not claim that each image sample is one physical photodiode (photosite).
+- The 35 mm crop factor is based on the diagonal, compared with a 36 × 24 mm reference frame.
+- Changing the native raster density does not change the physical crop factor. Changing the physical imaging area does not, by itself, change the native megapixels.
 
-The 35 mm crop factor is diagonal-based relative to a 36 × 24 mm reference frame. Changing native raster density does not change the physical crop factor. Changing physical imaging area does not inherently change native megapixels.
-
-The returned X/Y sampling pitches are geometric image-sample spacing. They are not photodiode active area, fill factor, or a photon-collection model and must not be used as those quantities.
+The returned X/Y sampling pitches are the geometric spacing of image samples. They are not photodiode active area, fill factor or a photon-collection model, and must not be used as those quantities.
 
 The existing `calculatePixelPitch()` API remains available for callers that only need horizontal pitch from sensor width and horizontal pixel count.
 
 ## Sensor architecture metadata
 
-Use `parseSensorArchitectureProfile()` for descriptive hardware/capability metadata that crosses an untrusted JSON boundary.
+Use `parseSensorArchitectureProfile()` to read descriptive hardware and capability metadata from untrusted JSON.
 
 The current schema is exported as `SENSOR_ARCHITECTURE_PROFILE_SCHEMA_VERSION` and is `0.3.0`:
 
@@ -1935,12 +1980,12 @@ const architecture = parseSensorArchitectureProfile({
 });
 ```
 
-`technologyFamily` is an optional evidence-backed coarse detector identity:
+`technologyFamily` is an optional, evidence-backed, coarse detector type:
 
 - `"cmos"`;
 - `"ccd"`.
 
-It is independent from illumination architecture, integration/stacking, readout capability, shutter mechanism, color sampling, and every performance characteristic. For example:
+It is independent of illumination architecture (FSI/BSI — front- or back-side illuminated), integration/stacking, readout capability, shutter mechanism, colour sampling, and every performance characteristic. For example:
 
 - CMOS may be FSI or BSI;
 - CMOS may expose rolling or global readout;
@@ -1948,27 +1993,31 @@ It is independent from illumination architecture, integration/stacking, readout 
 - CCD may be monochrome or color-filtered;
 - the word CMOS or CCD alone says nothing about QE, read noise, dark current, full-well capacity, dynamic range, high-ISO behavior, frame rate, or image quality.
 
-Photivra treats sCMOS as CMOS and EMCCD as CCD at this coarse technology-family level. Those labels are not separate top-level values. Detailed CCD transfer architecture, electron multiplication, CMOS pixel/readout topology, or other technology-specific mechanisms require separate explicit profiles/models if a future scientific consumer needs them.
+At this coarse level, Photivra treats sCMOS as CMOS and EMCCD as CCD. Those labels are not separate top-level values. Detailed CCD transfer architecture, electron multiplication, CMOS pixel/readout topology and other technology-specific mechanisms would need their own explicit profiles or models, if a future scientific use needs them.
 
-The other architecture axes remain independent. BSI may be stacked or monolithic; stacking does not imply global shutter; and global readout capability does not imply a particular stacking or technology family.
+The other architecture axes are also independent. BSI may be stacked or monolithic. Stacking does not imply a global shutter. Global readout capability does not imply any particular stacking or technology family.
 
-Source origin and reuse rights are also independent. Manufacturer or third-party material may be factual-reference-only or explicitly reusable when an appropriate license is present. `photivra-owned` evidence must originate from Photivra. Reusable-data evidence requires an explicit license.
+Where evidence came from (source origin) and what Photivra may do with it (reuse rights) are independent too:
 
-Scalar facts may cite multiple evidence records. Multi-valued capabilities such as rolling/global readout carry evidence independently for each value so one source does not silently support another capability.
+- Manufacturer or third-party material may be factual-reference-only, or explicitly reusable when a suitable licence exists.
+- `photivra-owned` evidence must originate from Photivra.
+- Reusable-data evidence needs an explicit licence.
 
-`readoutCapabilities` describes hardware capabilities, not the mode selected for one exposure. The capture-mode profile can declare that a selected mode needs mode-specific readout timing, while the actual timing values remain owned by the separate readout-timing contract.
+Scalar facts may cite several evidence records. Capabilities with several values, such as rolling/global readout, carry evidence for each value separately, so one source cannot silently support a different capability.
+
+`readoutCapabilities` describes what the hardware can do, not the mode selected for one exposure. The capture-mode profile can declare that a selected mode needs its own readout timing; the actual timing values belong to the separate readout-timing contract.
 
 ### Schema 0.2.0 compatibility
 
-Existing schema `0.2.0` profiles remain accepted and preserve their `schemaVersion: "0.2.0"` identity when parsed. They do not acquire or infer a technology family.
+Existing schema `0.2.0` profiles are still accepted, and keep their `schemaVersion: "0.2.0"` identity when parsed. They do not gain or infer a technology family.
 
-To assert `technologyFamily`, use schema `0.3.0`. A `0.2.0` document that includes the new field fails closed instead of silently applying new semantics under an older schema version.
+To declare `technologyFamily`, use schema `0.3.0`. A `0.2.0` document that includes the new field fails closed, instead of silently applying new meaning under an older schema version.
 
-Unknown facts should be omitted instead of inferred. Architecture metadata remains descriptive only: CMOS/CCD, BSI/FSI, stacking, readout family, and CFA family do not directly change FOV, crop factor, pixel pitch, exposure, noise, readout timing, or dynamic range. A separate documented downstream physical/calibration model is required before any such effect can be claimed.
+Leave unknown facts out rather than guessing them. Architecture metadata is descriptive only. CMOS/CCD, BSI/FSI, stacking, readout family and CFA family do not directly change FOV, crop factor, pixel pitch, exposure, noise, readout timing or dynamic range. Any such effect needs a separate, documented physical or calibration model first.
 
 ## Color-sampling topology
 
-Use `parseSensorColorSamplingProfile()` when an exact color-sampling topology is known independently from descriptive sensor-family metadata:
+The colour-sampling topology says which colour channel each sensor site measures — for example, the 2×2 tile of a Bayer mosaic. Use `parseSensorColorSamplingProfile()` when the exact topology is known, independently of the descriptive sensor-family metadata:
 
 ```ts
 import {
@@ -2017,11 +2066,11 @@ The topology coordinate system is a distinct **native sensor color-sampling-site
 - +X right and +Y down;
 - periodic phase anchored to absolute sensor-site indices.
 
-It is intentionally **not** `NativeImageRaster`. The existing native image raster is an effective image-sampling grid and does not guarantee one sample per physical photodiode or one sample per color-filter site. A later explicit binding must establish how a selected capture mode's effective raster maps to this topology before RAW/CFA sampling can be simulated.
+It is deliberately **not** `NativeImageRaster`. The native image raster is an effective image-sampling grid. It does not guarantee one sample per physical photodiode, or one sample per colour-filter site. Before RAW/CFA sampling can be simulated, a separate explicit binding must say how a selected capture mode's effective raster maps onto this topology.
 
-That distinction also protects crop phase. If an active crop begins part-way through a repeating tile, callers must preserve the original absolute native site indices. Crop-local `(0,0)` must not silently become a new CFA origin.
+This separation also protects the crop phase. If an active crop starts part-way through a repeating tile, keep the original absolute native site indices. The crop's local `(0,0)` must not silently become a new CFA origin.
 
-`siteChannelIds` are semantic measurement-channel identifiers only. Names such as `red-like`, `green-a`, or `clear` do not establish:
+`siteChannelIds` are only names for measurement channels. Names such as `red-like`, `green-a` or `clear` do not establish:
 
 - wavelength response;
 - quantum efficiency;
@@ -2032,13 +2081,13 @@ That distinction also protects crop phase. If an active crop begins part-way thr
 
 Those belong to later spectral/radiometric contracts.
 
-The periodic layout is generic. It can represent a 2×2 Bayer-like phase, larger repeating mosaics, grouped-color tiles, RGBW-like layouts, or other periodic channel arrangements without adding a manufacturer-specific layout enum. Distinct green positions can use the same channel ID or separate IDs when later calibration requires them to remain distinct.
+The periodic layout is generic. It can represent a 2×2 Bayer-like phase, larger repeating mosaics, grouped-colour tiles, RGBW-like layouts or other periodic channel arrangements, without a manufacturer-specific layout enum. The two green positions can share one channel ID, or use separate IDs when a later calibration needs to keep them apart.
 
-The exact topology is also separate from `SensorArchitectureProfile.colorSamplingFamily`. A family such as `bayer`, `quad-bayer`, `custom-rgb-mosaic`, or `layered-color` is descriptive metadata; Photivra never invents an exact repeating tile from that family label.
+The exact topology is also separate from `SensorArchitectureProfile.colorSamplingFamily`. A family such as `bayer`, `quad-bayer`, `custom-rgb-mosaic` or `layered-color` is descriptive metadata. Photivra never invents an exact repeating tile from a family label.
 
 Monochrome is represented separately with one semantic measurement-channel ID and no spatial mosaic.
 
-Layered color is deliberately **structural-only** in schema 0.1.0 and uses a separate unresolved spatial-reference marker rather than pretending it shares the periodic site lattice:
+Layered colour (colours separated by stacked layers rather than a side-by-side mosaic) is deliberately **structural-only** in schema 0.1.0. It uses a separate "spatial relationship not resolved" marker, instead of pretending it shares the periodic site lattice:
 
 ```ts
 const layered = parseSensorColorSamplingProfile({
@@ -2065,15 +2114,15 @@ const layered = parseSensorColorSamplingProfile({
 });
 ```
 
-The engine does not expose per-site layered resolution yet. Real layered designs can use unequal per-layer spatial density or registration, so assuming one coincident equal-resolution RGB triplet at every site would be scientifically unsafe.
+The engine does not resolve layered sites one by one yet. Real layered designs can have different spatial density or registration per layer. Assuming an equal-resolution RGB triplet at every site would be scientifically unsafe.
 
-Schema 0.1.0 also does not model sparse exceptions to an otherwise periodic layout, such as phase-detect sites, masked sites, sensor defects, or other non-periodic overrides.
+Schema 0.1.0 also does not model sparse exceptions to an otherwise periodic layout, such as phase-detect sites, masked sites, sensor defects or other non-periodic overrides.
 
-Physical orientation remains downstream. The native topology is not rotated or re-phased merely because the camera is held vertically. Likewise, changing CFA topology does not change physical imaging area, crop factor, FOV, or output geometry.
+Physical orientation is applied later. The native topology is not rotated or re-phased just because the camera is held vertically. Likewise, changing the CFA topology does not change the physical imaging area, crop factor, FOV or output geometry.
 
 ## Capture-mode/color-sampling binding
 
-Use `parseNativeEffectiveRasterColorSamplingBindingProfile()` when evidence establishes how one exact canonical `NativeImageRaster` relates to the separate native color-sampling-site lattice.
+Use `parseNativeEffectiveRasterColorSamplingBindingProfile()` when you have evidence for how one exact canonical `NativeImageRaster` relates to the separate lattice of native colour-sampling sites.
 
 The first binding is deliberately regular and sensor-anchored:
 
@@ -2119,9 +2168,9 @@ const resolvedBinding =
   });
 ```
 
-A `1 × 1` relationship is still an **asserted/evidenced binding**. Matching dimensions, matching aspect ratio, output megapixels, or a family label such as Bayer never prove that one `NativeImageRaster` sample corresponds to one color-sampling site.
+A `1 × 1` relationship is still a **binding that must be asserted and evidenced**. Matching dimensions, matching aspect ratio, output megapixels or a family label such as Bayer never prove that one `NativeImageRaster` sample corresponds to one colour-sampling site.
 
-The binding applies only to the exact native raster dimensions recorded in the profile. The first schema supports one native effective sample mapping to a regular rectangular block of color-sampling sites with a shared native top-left anchor. Irregular site relationships require a later explicit mapping.
+The binding applies only to the exact native raster dimensions recorded in the profile. The first schema supports one native effective sample mapping to a regular rectangular block of colour-sampling sites, with a shared native top-left anchor. Irregular relationships would need a later, explicit mapping.
 
 To compose that sensor-level relationship with a capture mode, use `resolveCaptureModeColorSamplingContributors()`:
 
@@ -2163,9 +2212,9 @@ console.log(sources.channelSiteCounts);
 console.log(sources.channelComposition);
 ```
 
-`modeSampleIndexFullFrame` is always expressed in the selected mode's **full-frame per-frame effective sampling raster**. The API intentionally does not accept crop-local coordinates. If an active crop starts away from the native origin, a caller must preserve or recover the absolute full-frame mode index before resolving CFA structure. This prevents active crops from silently re-phasing the mosaic.
+`modeSampleIndexFullFrame` is always given in the selected mode's **full-frame, per-frame effective sampling raster**. The API deliberately does not accept crop-local coordinates. If an active crop starts away from the native origin, keep or recover the absolute full-frame mode index before resolving the CFA structure. This stops active crops from silently re-phasing the mosaic.
 
-For `grouped-native-samples` modes, group width/height alone do not prove group phase. The caller must separately provide evidence that the groups are anchored at the native effective raster top-left. A future contract can add other explicitly evidenced group phases if required.
+For `grouped-native-samples` modes, the group width and height alone do not prove where the groups start (the group phase). You must separately provide evidence that the groups are anchored at the top-left of the native effective raster. A future contract can add other explicitly evidenced group phases if needed.
 
 The result is a compact **pre-reconstruction structural source region**:
 
@@ -2174,19 +2223,19 @@ The result is a compact **pre-reconstruction structural source region**:
 - `channelSiteCounts` gives exact counts per semantic channel for monochrome/periodic topology;
 - `channelComposition` reports whether the structural region contains one channel or multiple channels.
 
-The bridge does **not** enumerate every contributing site. It also does not establish sum/average weights, spectral response, photon/electron values, or a complete downstream reconstructed-pixel dependency graph.
+The bridge does **not** list every contributing site. It also does not define sum or average weights, spectral response, photon or electron values, or a complete graph of which reconstructed pixels depend on which sites.
 
-A mixed-channel region therefore remains mixed. Photivra does not collapse a red/green/blue structural region into one synthetic CFA channel merely because a capture mode groups those native effective samples. `combinationDomain` from the capture mode remains separate from any unimplemented weighting/combination equation.
+So a mixed-channel region stays mixed. Photivra does not collapse a red/green/blue region into one synthetic CFA channel just because a capture mode groups those native samples. The capture mode's `combinationDomain` stays separate from any weighting or combination equation, none of which is implemented.
 
-`declared-effective-raster` modes fail closed even when their dimensions happen to match the native raster. Their relationship was intentionally declared non-simple in #13 and therefore needs a mode-specific color-site mapping rather than dimension inference.
+`declared-effective-raster` modes fail closed, even when their dimensions happen to match the native raster. Their relationship was deliberately declared as not simple (in the capture-mode work, #13), so they need a mode-specific colour-site mapping, not a guess from dimensions.
 
-Layered-color topology also remains unbound because schema 0.1.0 does not yet define per-layer spatial density/registration.
+Layered-colour topology also stays unbound, because schema 0.1.0 does not yet define per-layer spatial density and registration.
 
-Pixel-shift/sensor-shift metadata is preserved but does not change CFA assignment. The sensor and its filters move together relative to the optical image; the optical-registration effect of that shift belongs to a later image-formation contract.
+Pixel-shift (sensor-shift) metadata is kept but does not change CFA assignment. The sensor and its filters move together relative to the optical image. The effect of that shift on optical registration belongs to a later image-formation contract.
 
 ## Sensor optical stack
 
-Use `parseSensorOpticalStackProfile()` for evidence-backed physical stack metadata and a separately declared **effective anti-aliasing spatial response**:
+The sensor optical stack is the set of layers in front of the photosites: cover glass, infrared-cut filter, anti-aliasing (AA, or optical low-pass) filter and so on. Use `parseSensorOpticalStackProfile()` for evidence-backed physical stack metadata, plus a separately declared **effective anti-aliasing spatial response**:
 
 ```ts
 import {
@@ -2263,16 +2312,16 @@ const aaKernel =
 console.log(aaKernel.components);
 ```
 
-The physical component list and effective AA response are intentionally separate. A stack may contain birefringent/retarder elements while the net intentional low-pass response is cancelled or otherwise effectively absent.
+The physical component list and the effective AA response are deliberately separate. A stack may contain birefringent or retarder elements while the net intentional low-pass effect is cancelled, or otherwise absent in practice.
 
-`effectiveAntiAliasingSpatialResponse` has three first-stage states:
+`effectiveAntiAliasingSpatialResponse` can be omitted, or take one of three kinds:
 
 - omitted — **unknown/unasserted**;
 - `kind: "absent"` — evidence says this model should add no intentional AA spatial-splitting term;
 - `kind: "present-unresolved"` — an AA effect exists but its spatial response is not defensibly known;
 - `kind: "normalized-point-splitting-kernel"` — the caller explicitly supplies a normalized spatial point-splitting approximation.
 
-Unknown and absent are not interchangeable. Likewise, `absent` does **not** mean the complete sensor stack has an identity PSF, and it does not mean aliasing or moiré are impossible. Lens PSF, cover/filter behavior, microlenses, sampling topology, and scene detail still matter.
+Unknown and absent are not interchangeable. And `absent` does **not** mean the whole sensor stack has an identity PSF, nor that aliasing or moiré are impossible. Lens PSF, cover/filter behaviour, microlenses, sampling topology and scene detail still matter.
 
 The point-splitting kernel is deliberately generic:
 
@@ -2282,19 +2331,19 @@ The point-splitting kernel is deliberately generic:
 - normalized weights must sum to one;
 - the weights describe **spatial redistribution only**.
 
-They do not represent total optical throughput, spectral transmission, photon efficiency, QE, or fill factor. Those belong to separate radiometric/sensor-response contracts.
+They do not represent total optical throughput, spectral transmission, photon efficiency, QE or fill factor. Those belong to separate radiometric and sensor-response contracts.
 
-The first point-splitting scope is explicitly `field-wavelength-polarization-invariant-approximation`. Real OLPF behavior may depend on wavelength, incidence angle/field position, polarization, materials, and stack geometry. Do not upgrade this generic kernel into a calibrated whole-stack PSF.
+The first point-splitting scope is explicitly `field-wavelength-polarization-invariant-approximation`. A real OLPF (optical low-pass filter) may depend on wavelength, angle of incidence/field position, polarization, materials and stack geometry. Do not treat this generic kernel as a calibrated whole-stack PSF.
 
-`orderedComponents` is incident-light → sensor descriptive metadata. Component roles can include cover glass, IR/UV filtering, AR treatment, birefringent low-pass elements, wave plates, and other optical filters. Schema 0.1.0 does not derive transmission, refractive focus shift, aberration, thickness effects, or a spectral response from those roles.
+`orderedComponents` is descriptive metadata, listed in order from incoming light to the sensor. Component roles can include cover glass, IR/UV filtering, anti-reflection (AR) treatment, birefringent low-pass elements, wave plates and other optical filters. Schema 0.1.0 does not derive transmission, refractive focus shift, aberration, thickness effects or a spectral response from those roles.
 
-Microlens presence or absence is also descriptive only. A `present` microlens does not by itself specify angular acceptance, spatial concentration, fill factor, crosstalk, QE improvement, or field behavior.
+Microlens presence or absence is also descriptive only. A `present` microlens does not by itself say anything about angular acceptance, light concentration, fill factor, crosstalk, QE improvement or behaviour across the field.
 
-The resolver therefore returns only the **effective AA spatial kernel** and explicitly reports that cover/filter effects, microlens response, throughput, spectral transmission, field dependence, wavelength dependence, and polarization dependence are not included.
+The resolver therefore returns only the **effective AA spatial kernel**. It states explicitly that cover/filter effects, microlens response, throughput, spectral transmission, and field, wavelength and polarization dependence are not included.
 
 ## Sensor sampling aperture
 
-Use `parseSensorSamplingApertureProfile()` and `resolveSensorSamplingAperture()` when the physical color-site lattice registration and a geometric photosensitive-region approximation are known:
+Use `parseSensorSamplingApertureProfile()` and `resolveSensorSamplingAperture()` when you know where the colour-site lattice physically sits, and have a geometric approximation of each site's light-sensitive region:
 
 Composition fragment: requires previously validated bindings `binding`, `topology`. This is an integration sketch, not a standalone runnable program.
 
@@ -2379,9 +2428,9 @@ The site-center lattice is a distinct physical registration contract:
 - the first site's center is explicitly registered relative to the physical imaging area's top-left edge;
 - the full declared lattice must fit inside the supplied physical imaging area.
 
-Photivra does **not** derive this site pitch or origin from `NativeImageRaster`. The native effective raster and the color-site lattice already have a structural binding, but physical placement remains a separate fact.
+Photivra does **not** derive this site pitch or origin from `NativeImageRaster`. The native effective raster and the colour-site lattice already have a structural binding, but physical placement is a separate fact.
 
-The geometric sensitive aperture is separate from site pitch. A scalar fill fraction is not sufficient to reconstruct shape or centering, so schema 0.1.0 stores explicit rectangle dimensions and center offset.
+The geometric sensitive aperture is separate from site pitch. A single fill fraction cannot recover shape or centering, so schema 0.1.0 stores explicit rectangle dimensions and a center offset.
 
 The first resolved footprint is deliberately narrow:
 
@@ -2399,9 +2448,9 @@ geometric sensitive rectangle area
 nominal site lattice cell area
 ```
 
-This is a **geometry diagnostic**, not a calibrated sensitivity result. It does not establish QE, effective radiometric collection area, photon conversion, optical throughput, or physical photodiode truth.
+This is a **geometry diagnostic**, not a calibrated sensitivity result. It does not establish QE, effective radiometric collection area, photon conversion, optical throughput or the true photodiode geometry.
 
-Use `kind: "unresolved"` when the geometric footprint is known to be required but its shape/dimensions are not defensibly available. Resolution then fails closed instead of fabricating a rectangle from site pitch, megapixels, or a fill-factor percentage.
+Use `kind: "unresolved"` when the geometric footprint is needed but its shape and dimensions are not defensibly known. Resolution then fails closed, instead of making up a rectangle from site pitch, megapixels or a fill-factor percentage.
 
 The first sampling-aperture model explicitly excludes:
 
@@ -2420,7 +2469,7 @@ Physical camera orientation remains downstream. The site lattice and aperture st
 
 ## Sensor spatial-sampling quadrature
 
-Use `calculateSensorSpatialSamplingQuadrature()` to build deterministic renderer-neutral spatial integration nodes for one resolved color-sampling site after combining:
+Use `calculateSensorSpatialSamplingQuadrature()` to build deterministic spatial integration nodes (sample points with weights) for one resolved colour-sampling site. The nodes do not depend on any renderer. They combine:
 
 1. the geometric sensitive aperture from `SensorSamplingApertureProfile`; and
 2. the effective anti-aliasing point-splitting response from `SensorOpticalStackProfile`.
@@ -2451,63 +2500,66 @@ const quadrature =
 console.log(quadrature.value.nodes);
 ```
 
-The first scheme is a tensor-product uniform midpoint rule over the geometric aperture. Each AA split component multiplies that aperture quadrature.
+The first scheme is a uniform midpoint rule on a grid (tensor product) over the geometric aperture. Each AA split component multiplies that aperture quadrature.
 
-AA composition uses **inverse source sampling**. If the optical stack declares that a component displaces optical energy by `+delta` on the sensor plane, a destination aperture point reads the pre-AA optical field at:
+AA composition uses **inverse source sampling**. If the optical stack says a component shifts optical energy by `+delta` on the sensor plane, a destination aperture point reads the optical field before the AA filter (pre-AA) at:
 
 ```text
 pre-AA source = destination aperture point - AA displacement
 ```
 
-The destination sensor site's CFA/color channel applies to every node. A shifted pre-AA source coordinate is an optical-field location, not another CFA site, so it never reassigns the destination CFA channel.
+The destination sensor site's CFA colour channel applies to every node. A shifted pre-AA source coordinate is a location in the optical field, not another CFA site, so it never changes the destination CFA channel.
 
 Two measures are returned separately:
 
 - `combinedNormalizedSpatialWeight` — dimensionless weight for approximating a spatial average;
 - `combinedAreaMeasureSquareMicrometers` — geometric area measure for approximating a spatial area integral.
 
-The area measure is **not** effective radiometric collection area, throughput, QE, or photon count.
+The area measure is **not** effective radiometric collection area, throughput, QE or photon count.
 
-Near sensor edges, AA inverse-source coordinates may lie outside the active physical imaging area. Those nodes remain valid and are retained. Photivra does not clamp them, drop them, or renormalize the remaining weights. A renderer/optical-field provider owns source-coverage policy.
+Near the sensor edges, AA inverse-source coordinates may fall outside the active physical imaging area. Those nodes stay valid and are kept. Photivra does not clamp them, drop them or renormalize the remaining weights. The renderer or optical-field provider decides what to do about source coverage.
 
-The API intentionally returns geometry and measures only. It does not evaluate optical-field values, radiance, spectral response, photons/electrons, temporal exposure, RAW values, or reconstruction. Spatial and temporal quadrature remain separate until a later explicit composition evaluates a common downstream field.
+The API deliberately returns only geometry and measures. It does not evaluate optical-field values, radiance, spectral response, photons/electrons, temporal exposure, RAW values or reconstruction. Spatial and temporal quadrature stay separate until a later, explicit composition evaluates a common field.
 
-Because spatial integration error depends on the downstream optical field's spatial-frequency/content, Photivra does not report a geometry-only convergence/error estimate. Reference rendering can compare increasing spatial sample counts in the quantity actually being integrated.
+How large the integration error is depends on the detail (spatial frequencies) in the optical field being integrated. So Photivra does not report a convergence or error estimate from geometry alone. Reference rendering can compare increasing spatial sample counts on the quantity actually being integrated.
 
-A per-site node allocation safety limit prevents malformed/untrusted counts from creating an oversized array in one call.
+A per-site safety limit on the number of nodes stops malformed or untrusted counts from creating an oversized array in one call.
 
 ## Sensor spatial-sample reduction
 
-Use `reduceSensorSpatialSamplingQuadrature()` after a renderer or optical model has evaluated one scalar value at every spatial quadrature node's `preAntiAliasingSourcePointMm`.
+Use `reduceSensorSpatialSamplingQuadrature()` after a renderer or optical model has evaluated one scalar value at the `preAntiAliasingSourcePointMm` of every spatial quadrature node.
 
-Node values are identified by the quadrature identity tuple—AA component index plus aperture X/Y sample indices—rather than by array position.
+Node values are matched by the node's identity — AA component index plus aperture X/Y sample indices — not by array position.
 
 Two input domains are supported:
 
 - `relative-linear`: a nonnegative dimensionless irradiance-like proxy for deterministic regression/testing;
 - `radiometric-irradiance`: physical sensor-plane irradiance in W/m².
 
-The physical domain follows standard radiometric meaning: irradiance is incident radiant flux per unit area, so integrating W/m² over the geometric aperture area yields incident radiant flux in watts. This still remains upstream of CFA spectral response, microlens response, QE, exposure-time integration, and sensor conversion.
+The physical domain uses the standard radiometric meaning. Irradiance is incident radiant flux per unit area, so integrating W/m² over the geometric aperture area gives the incident radiant flux in watts. This is still before CFA spectral response, microlens response, QE, exposure-time integration and sensor conversion.
 
-The reducer returns both a normalized spatial average and an area-weighted integral. For relative values the area integral is relative-value × µm²; for physical irradiance it is converted to watts.
+The reducer returns both a normalized spatial average and an area-weighted integral. For relative values the area integral is relative value × µm². For physical irradiance it is converted to watts.
 
-The CFA `channelId` is descriptive metadata only. No wavelength-dependent filter/sensor response is applied, so the output is **not** a physically color-filtered mosaic value and must not be called RAW.
+The CFA `channelId` is descriptive metadata only. No wavelength-dependent filter or sensor response is applied. The output is therefore **not** a physically colour-filtered mosaic value, and must not be called RAW.
 
-Every quadrature node requires an explicit nonnegative finite input, including nodes whose pre-AA source coordinate lies outside the active imaging area. The reducer never clamps, zero-fills, extrapolates, drops, or renormalizes missing edge support.
+Every quadrature node needs an explicit, non-negative, finite input, including nodes whose pre-AA source coordinate lies outside the active imaging area. The reducer never clamps, zero-fills, extrapolates, drops or renormalizes missing edge support.
 
-Signed color-transform intermediates, RGB display values, gamma-encoded values, radiance, spectral irradiance, temporal exposure, photons/electrons, noise, saturation, black level, ADC quantization, RAW codes, and demosaic/reconstruction are outside this contract.
+Outside this contract: signed colour-transform intermediates, RGB display values, gamma-encoded values, radiance, spectral irradiance, temporal exposure, photons/electrons, noise, saturation, black level, ADC quantization, RAW codes and demosaicing/reconstruction.
 
 ## Sensor spectral response
 
-Use `parseSensorSpectralResponseProfile()` to declare wavelength-dependent response for exact semantic channel IDs from a linked `SensorColorSamplingProfile`, and `resolveSensorSpectralResponseAtWavelength()` to evaluate one channel at one wavelength.
+The spectral response says how strongly each sensor channel responds at each wavelength.
 
-The first contract supports three evidence models:
+- `parseSensorSpectralResponseProfile()` declares the wavelength-dependent response for exact channel IDs from a linked `SensorColorSamplingProfile`.
+- `resolveSensorSpectralResponseAtWavelength()` evaluates one channel at one wavelength.
 
-- **direct effective external QE** — dimensionless generated-charge/incident-photon response for the declared response scope;
-- **direct effective spectral responsivity** — A/W as a distinct physical representation;
-- **separable channel-filter transmittance × detector external QE** — only when both components are independently established and explicitly declared separable.
+The first contract supports three kinds of evidence:
 
-Do not force a real measured effective response into filter and detector components when the source does not support that decomposition. Conversely, do not apply upstream optical/filter terms again to a response whose scope already includes them.
+- **direct effective external QE** — a dimensionless response (generated charge per incident photon) for the declared response scope;
+- **direct effective spectral responsivity** — in A/W (amperes per watt), a different physical representation;
+- **separable channel-filter transmittance × detector external QE** — only when both parts are independently established and explicitly declared separable.
+
+Do not split a real measured effective response into filter and detector parts when the source does not support that split. And do not apply upstream optical or filter terms again to a response whose scope already includes them.
 
 Curve rules are intentionally strict:
 
@@ -2521,13 +2573,13 @@ Curve rules are intentionally strict:
 - requests outside the declared wavelength range fail closed;
 - Photivra never assumes response becomes zero outside the measured range.
 
-Embedded multi-point numeric curves require at least one `reusable-data` or `photivra-owned` evidence record. Publicly viewable/manufacturer curves that are only factual-reference material may guide research, but cannot be copied into the public engine without reuse rights.
+Embedded numeric curves with several points need at least one `reusable-data` or `photivra-owned` evidence record. Publicly viewable or manufacturer curves that are only factual reference material may guide research, but cannot be copied into the public engine without reuse rights.
 
-Channel IDs remain exact. If two mosaic positions require different green-channel response curves, the color topology must use distinct semantic IDs such as `green-a` and `green-b`; one shared `green` ID means one shared semantic channel for this contract.
+Channel IDs stay exact. If two mosaic positions need different green response curves, the colour topology must use distinct IDs such as `green-a` and `green-b`. One shared `green` ID means one shared channel in this contract.
 
-The resolver validates the entire spectral profile against the linked topology. Unknown channels fail closed. Layered-color topology remains fail-closed because its per-layer spatial relationship is still unresolved.
+The resolver validates the whole spectral profile against the linked topology. Unknown channels fail closed. Layered-colour topology still fails closed, because its per-layer spatial relationship is unresolved.
 
-Optional reference temperature, incidence angle, and polarization metadata may record the condition under which a curve applies. Schema 0.1.0 does not model response variation with those conditions.
+Optional reference temperature, incidence angle and polarization metadata may record the conditions under which a curve applies. Schema 0.1.0 does not model how the response changes with those conditions.
 
 This foundation performs **spectral lookup only**. It does not:
 
@@ -2542,7 +2594,7 @@ Those remain explicit downstream steps.
 
 ## Sensor spectral quadrature
 
-Use `calculateSensorSpectralQuadrature()` to build a deterministic wavelength-sampling plan for one exact sensor-response channel before any source spectrum or sensor response is integrated.
+Use `calculateSensorSpectralQuadrature()` to build a deterministic plan of wavelength samples for one exact sensor-response channel. The plan comes before any source spectrum or sensor response is integrated.
 
 Composition fragment: requires previously validated bindings `colorSamplingProfile`, `spectralResponseProfile`. This is an integration sketch, not a standalone runnable program.
 
@@ -2566,24 +2618,27 @@ console.log(plan.value.nodes[0]?.wavelengthNanometers);
 console.log(plan.value.nodes[0]?.wavelengthMeasureNanometers);
 ```
 
-The requested range edges, every applicable sensor-response curve knot, and optional caller-supplied breakpoints form the segment boundaries. Each segment is then subdivided until every midpoint subinterval is no wider than `maximumSubintervalWidthNanometers`.
+How the plan is built:
 
-`wavelengthMeasureNanometers` is **dλ in nanometres**. `normalizedWavelengthWeight` is only that wavelength measure divided by the total requested span. Neither value includes QE, A/W responsivity, channel-filter transmission, lens transmission, source power, photon flux, or any other physical response factor.
+1. The segment boundaries are the edges of the requested range, every applicable knot of the sensor-response curve, and any breakpoints you supply.
+2. Each segment is split until every midpoint subinterval is no wider than `maximumSubintervalWidthNanometers`.
 
-The requested wavelength range must lie wholly inside the selected response channel's usable declared range. Photivra does not clip, extrapolate, or implicitly zero-fill response outside that range. This check proves only **sensor-response support**; it does not prove that scene spectral data, optical transmission, or another wavelength-dependent input covers the same interval.
+`wavelengthMeasureNanometers` is **dλ in nanometres**. `normalizedWavelengthWeight` is just that wavelength measure divided by the total requested span. Neither value includes QE, A/W responsivity, channel-filter transmission, lens transmission, source power, photon flux or any other physical response factor.
 
-`additionalBreakpointsNanometers` is intended for known interpolation knots or discontinuity boundaries from other **continuous spectral-density** factors. It must be strictly increasing, contain no duplicates, and remain strictly inside the requested range. This API does not ingest those external spectra and does not claim their provenance or validity.
+The requested wavelength range must lie entirely inside the selected channel's usable declared range. Photivra does not clip, extrapolate or silently zero-fill the response outside that range. This check proves only that **the sensor response covers the range**. It does not prove that scene spectral data, optical transmission or any other wavelength-dependent input covers it too.
 
-The plan preserves the selected response kind, response scope, scientific status, uncertainty declaration, and response-data evidence, but it deliberately **does not apply response values at the nodes**. That boundary matters because:
+`additionalBreakpointsNanometers` is for known interpolation knots or discontinuities from other **continuous spectral-density** factors. The values must be strictly increasing, with no duplicates, and strictly inside the requested range. This API does not read those external spectra, and makes no claim about their provenance or validity.
 
-- external QE is a dimensionless photon-to-generated-charge efficiency;
+The plan keeps the selected response kind, response scope, scientific status, uncertainty declaration and response-data evidence. But it deliberately **does not apply response values at the nodes**. That matters because:
+
+- external QE is a dimensionless efficiency (generated charge per photon);
 - spectral responsivity in A/W maps incident radiant power to electrical current;
-- those representations require different compatible downstream source/signal semantics and must not be collapsed into one integration formula;
-- response scope must be matched to the source plane and collection-area semantics so upstream transmission is neither omitted nor double-counted.
+- those two representations need different, compatible source and signal meanings downstream, and must not be collapsed into one integration formula;
+- the response scope must be matched to the source plane and collection area, so upstream transmission is neither left out nor counted twice.
 
-The first quadrature contract targets continuous spectral densities. Discrete/delta-like emission lines need a separate explicit representation rather than being hidden inside a midpoint grid.
+The first quadrature contract is for continuous spectral densities. Discrete, delta-like emission lines need a separate explicit representation; they must not be hidden inside a midpoint grid.
 
-A bounded wavelength step and alignment to known response knots improve deterministic sampling, but neither proves convergence for an arbitrary integrand. The planner therefore reports no source-independent numerical error estimate.
+A bounded wavelength step, aligned to the known response knots, makes sampling deterministic, but does not prove convergence for an arbitrary integrand. The planner therefore reports no numerical error estimate that ignores the source.
 
 This foundation still does **not**:
 
@@ -2603,7 +2658,7 @@ Use `reduceSensorSpatioSpectralIrradiance()` after a renderer or optical model h
 - one spatial quadrature node's `preAntiAliasingSourcePointMm`; and
 - one spectral quadrature wavelength.
 
-The required source value is (E_λ(x,y)) in **W/m²/nm**.
+The required source value is E_λ(x,y), spectral irradiance, in **W/m²/nm**.
 
 Composition fragment: requires previously validated bindings `sampleValues`, `spatialPlan`, `spectralPlan`. This is an integration sketch, not a standalone runnable program.
 
@@ -2631,11 +2686,11 @@ console.log(
 );
 ```
 
-The reducer validates both plans again at runtime and requires exact `colorSamplingProfileId` and `channelId` agreement. A shared label such as `"red"` is not enough to establish that two independently created plans belong to the same color topology.
+The reducer validates both plans again at runtime, and requires `colorSamplingProfileId` and `channelId` to match exactly. A shared label such as `"red"` is not enough to show that two independently created plans belong to the same colour topology.
 
-Each supplied sample identity contains the full spatial-node identity, `spectralSampleIndex`, and exact wavelength. Array order is irrelevant. Every spatial × spectral pair must be present exactly once.
+Each supplied sample identity contains the full spatial-node identity, `spectralSampleIndex` and the exact wavelength. Array order does not matter. Every spatial × spectral pair must be present exactly once.
 
-The Cartesian product has its own **100,000-value safety limit**. The individual spatial and spectral plans may each be below their own limits while their product is still too large to materialize safely.
+The Cartesian product has its own **safety limit of 100,000 values**. The spatial and spectral plans may each be within their own limits while their product is still too large to build safely.
 
 For each wavelength node, Photivra computes:
 
@@ -2647,45 +2702,45 @@ It then multiplies those densities by that node's `wavelengthMeasureNanometers` 
 - wavelength-integrated spatial-average irradiance in W/m²;
 - wavelength-integrated geometric-aperture incident flux in W.
 
-Because the source density is **per nanometre**, `dλ` remains in nanometres in this multiplication. Do not multiply by (10^{-9}) unless the spectral-density denominator has also been converted from per-nanometre to per-metre.
+Because the source density is **per nanometre**, `dλ` stays in nanometres in this multiplication. Do not multiply by 10⁻⁹ unless the spectral density has also been converted from per-nanometre to per-metre.
 
-The geometric-aperture flux remains a **geometric incident-flux** result. The current aperture model does not establish effective collection area, microlens collection efficiency, or another radiometric-area correction.
+The geometric-aperture flux stays a **geometric incident-flux** result. The current aperture model does not establish effective collection area, microlens collection efficiency or any other radiometric area correction.
 
-This reducer intentionally stops **before sensor response**. The wavelength plan is response-derived, but no QE, A/W responsivity, or channel-filter transmission is applied. Response scope is carried forward but is not yet matched to a declared source plane. That avoids two invalid shortcuts:
+This reducer deliberately stops **before the sensor response**. The wavelength plan is derived from the response, but no QE, A/W responsivity or channel-filter transmission is applied. The response scope is carried along but not yet matched to a declared source plane. That avoids two invalid shortcuts:
 
 - treating QE as though it were an energy weighting on W/m²/nm;
 - treating A/W responsivity as though it were a photon-to-electron efficiency.
 
 Temporal exposure integration, photons/electrons, electrical current, noise, ADC/RAW conversion, and reconstruction also remain downstream.
 
-The current AA point-splitting kernel is a normalized, wavelength-invariant spatial redistribution approximation. Spectral variation in the supplied (E_λ(x,y)) can still represent wavelength-dependent upstream optics/scene structure, but this reducer does not invent wavelength dependence in the AA kernel itself.
+The current AA point-splitting kernel is a normalized spatial redistribution approximation that does not vary with wavelength. Spectral variation in the supplied E_λ(x,y) can still represent wavelength-dependent optics or scene structure upstream, but this reducer does not invent wavelength dependence in the AA kernel itself.
 
-As with the spatial and spectral planners individually, no source-independent convergence/error estimate is reported. Reference work should test convergence in the actual downstream integrand by increasing spatial and/or wavelength sampling.
+As with the spatial and spectral planners, no convergence or error estimate is reported independently of the source. Reference work should test convergence on the actual integrand by increasing spatial and/or wavelength sampling.
 
 ## Sensor response application compatibility
 
-Use `assessSensorResponseApplicationCompatibility()` before the typed sensor-response conversion paths. The assessment is deliberately a **structural gate**, not a response application function.
+Use `assessSensorResponseApplicationCompatibility()` before the typed sensor-response conversions. The assessment is deliberately a **structural gate** (a check that it is valid to apply the response). It does not apply the response.
 
-It requires an evidence-backed `SensorResponseApplicationProfile` that binds one exact spectral-response profile/channel to the sampling-aperture and optical-stack identities used by the spatial plan. It also declares:
+It needs an evidence-backed `SensorResponseApplicationProfile`. That profile binds one exact spectral-response profile and channel to the sampling-aperture and optical-stack identities used by the spatial plan. It also declares:
 
 - the response's incident-area normalization;
 - whether a single wavelength-only response can be treated as uniform/separable over the geometric sensitive aperture;
 - how response reference conditions are handled.
 
-The caller separately declares whether the supplied radiometric field is at the `sensor-package-incident` or `site-incident` response reference plane. That declaration carries provenance.
+The caller separately declares whether the supplied radiometric field is at the `sensor-package-incident` or the `site-incident` response reference plane. That declaration carries provenance.
 
-A response scope and source plane must match exactly:
+The response scope and the source plane must match exactly:
 
 - `sensor-package-incident-effective-channel-response` requires a sensor-package-incident source;
 - site-incident effective response and separable channel-filter × detector-EQE require a site-incident source.
 
-The current spatio-spectral reducer integrates **geometric-sensitive-aperture** flux only. Therefore the first compatibility gate accepts response application only when the response's incident-area basis is that same geometric sensitive aperture and its declared area matches. A response normalized to the full site cell or an effective collection area is reported as blocked rather than silently reused.
+The current spatio-spectral reducer integrates flux over the **geometric sensitive aperture** only. So the first compatibility gate accepts a response only when its incident-area basis is that same geometric sensitive aperture, and its declared area matches. A response normalized to the full site cell, or to an effective collection area, is reported as blocked instead of being silently reused.
 
-This distinction is important for common image-sensor QE conventions: a total-pixel QE can be defined against photons incident on the whole pixel area and may therefore already include fill-factor and microlens effects. Such a response is not interchangeable with a curve normalized to photons incident only on the geometric sensitive aperture.
+This matters for common image-sensor QE conventions. A total-pixel QE can be defined against photons landing on the whole pixel area, so it may already include fill-factor and microlens effects. Such a response cannot be swapped for a curve normalized to photons landing only on the geometric sensitive aperture.
 
-Spatial response is a separate gate as well. Reducing the field spatially before applying one scalar response (R(λ)) assumes response is effectively uniform/separable over the integrated aperture. If that is not established, the gate blocks post-spatial application because the physically correct model may require (R(λ,x,y)) at the original spatial nodes.
+Spatial response is a separate gate. Reducing the field spatially before applying one scalar response R(λ) assumes the response is effectively uniform (separable) across the integrated aperture. If that is not established, the gate blocks applying the response after spatial reduction, because the physically correct model may need R(λ,x,y) at the original spatial nodes.
 
-Reference conditions are also fail-closed. With `exact-match-required`, the response must declare reference conditions and the caller must provide matching operating temperature, incidence angle, and/or polarization for every condition present in that reference. `assume-compatible` is allowed only as an explicit evidence-backed approximation with a limitation.
+Reference conditions also fail closed. With `exact-match-required`, the response must declare reference conditions, and the caller must supply a matching operating temperature, incidence angle and/or polarization for every condition in that reference. `assume-compatible` is allowed only as an explicit, evidence-backed approximation with a stated limitation.
 
 An unresolved wavelength basis blocks the gate.
 
@@ -2694,13 +2749,13 @@ A successful assessment reports the authorized signal path:
 - EQE and filter×EQE → `photon-rate-to-electrons`;
 - A/W responsivity → `radiant-power-to-current`.
 
-Even a successful assessment keeps `signalConversionAuthorized: false`. Response linearity/dynamic-range validity is not yet assessed, and no response, photon/electron, current, temporal, noise, ADC, RAW, or reconstruction calculation is performed.
+Even a successful assessment keeps `signalConversionAuthorized: false`. Whether the response is linear over the signal level (dynamic range) is checked by the next gate. No response, photon/electron, current, temporal, noise, ADC, RAW or reconstruction calculation is done here.
 
 ## Sensor response operating range
 
-Use `assessSensorResponseOperatingRange()` after structural response compatibility has passed. This second gate asks a narrower question: is the **instantaneous optical input** inside a response-law range for which the detector's linearity has been explicitly characterized?
+Use `assessSensorResponseOperatingRange()` after structural response compatibility has passed. This second gate asks a narrower question: is the **instantaneous optical input** inside a range where the detector's linearity has been explicitly measured?
 
-The operating-range profile is evidence-backed and preserves the quantity that was actually calibrated:
+The operating-range profile is evidence-backed, and keeps the quantity that was actually calibrated:
 
 - wavelength-integrated geometric-aperture radiant power in W; or
 - wavelength-integrated spatial-average irradiance in W/m².
@@ -2716,13 +2771,13 @@ The profile also declares:
 - scientific status and uncertainty;
 - reference temperature/incidence-angle/polarization conditions and their matching policy.
 
-The assessment first requires the prior structural compatibility result to be non-blocked and to refer to the same response application, spectral response, color topology and channel. It then checks wavelength basis/range, optical-input level and linearity-calibration conditions.
+The assessment first requires the earlier structural compatibility result to be unblocked, and to refer to the same response application, spectral response, colour topology and channel. It then checks the wavelength basis and range, the optical input level, and the conditions of the linearity calibration.
 
-The operating-range profile also distinguishes **broadband-only** validation from **per-spectral-bin** validation. Broadband-only evidence can establish that the total optical input is inside a characterized range, but it cannot authorize wavelength-dependent EQE or A/W conversion.
+The profile also tells **broadband-only** validation apart from **per-spectral-bin** validation. Broadband-only evidence can show that the total optical input is inside a measured range, but it cannot authorize wavelength-dependent EQE or A/W conversion.
 
-For `per-spectral-bin` applicability, the profile declares a maximum supported bin width. Every wavelength node's own integrated power or irradiance contribution must remain inside the calibrated range, and no quadrature bin may exceed that width. This prevents one over-range wavelength band from hiding inside an acceptable broadband total and prevents a broad numerical bin from masquerading as a narrowband calibration point.
+For `per-spectral-bin` applicability, the profile declares a maximum supported bin width. Each wavelength node's own integrated power or irradiance contribution must stay inside the calibrated range, and no quadrature bin may be wider than that width. This stops one over-range wavelength band from hiding inside an acceptable broadband total. It also stops a wide numerical bin from passing as a narrowband calibration point.
 
-Only a non-blocked per-bin assessment can set `responseRateConversionAuthorized: true`. That authorization is deliberately limited to an **instantaneous rate-domain conversion**.
+Only an unblocked per-bin assessment can set `responseRateConversionAuthorized: true`. That authorization is deliberately limited to an **instantaneous conversion of rates**.
 
 It does **not** establish:
 
@@ -2733,47 +2788,51 @@ It does **not** establish:
 - ADC linearity or clipping;
 - RAW-code validity.
 
-Those depend on temporal integration and downstream electronics and remain separate gates. In particular, an optical detector can be linear over a given incident-power range while a camera exposure still saturates after sufficient integration time.
+Those depend on integration over time and on downstream electronics, and have their own gates. In particular, a detector can be linear over a given range of incident power while a camera exposure still saturates after a long enough integration time.
 
-The first operating-range model also does not infer a valid wavelength interval from one or a few isolated linearity measurements. If a source only establishes linearity at specific wavelengths, a continuous wavelength applicability range must not be fabricated.
+The first operating-range model also does not infer a valid wavelength interval from one or a few isolated linearity measurements. If a source shows linearity only at specific wavelengths, do not make up a continuous wavelength range from them.
 
 ## Photon energy wavelength basis
 
-Use `calculatePhotonEnergyFromWavelength()` when a later photon-domain calculation needs (hν).
+Use `calculatePhotonEnergyFromWavelength()` when a later photon-domain calculation needs the photon energy hν.
 
-For a vacuum-basis wavelength, Photivra uses the exact SI defining constants:
+For a wavelength measured in vacuum, Photivra uses the exact SI defining constants:
 
-- (h = 6.62607015 × 10^{-34}) J·s;
-- (c = 299792458) m/s.
+- h = 6.62607015 × 10⁻³⁴ J·s (Planck constant);
+- c = 299792458 m/s (speed of light).
 
-The calculation is (ν = c / λ_mathrm{vac}) and (E_mathrm{photon} = hν).
+The calculation is ν = c / λ_vac and E_photon = hν.
 
-For an **air-basis** wavelength, the wavelength cannot be substituted directly into (hc/λ). The caller must provide a sourced phase refractive index at that **exact wavelength** using the explicit definition:
+A wavelength measured in **air** cannot be put directly into hc/λ, because light is slightly slower in air. The caller must supply a sourced phase refractive index at that **exact wavelength**, using the explicit definition:
 
 `n = λ_vacuum / λ_air`.
 
 Photivra then computes `λ_vacuum = n × λ_air` before deriving frequency and photon energy.
 
-The air refractive-index sample carries scientific status, uncertainty, evidence, and optional reference atmosphere. Calibrated samples require quantified relative uncertainty plus temperature and pressure reference conditions.
+The air refractive-index sample carries a scientific status, uncertainty, evidence and an optional reference atmosphere. Calibrated samples need a quantified relative uncertainty, plus reference temperature and pressure.
 
-Air refractive index also depends on atmospheric conditions. Therefore an air-basis photon-energy calculation requires one of two policies:
+The refractive index of air also depends on atmospheric conditions. So a photon-energy calculation from an air wavelength needs one of two policies:
 
 - `exact-match-required`: the caller supplies operating atmosphere conditions that match the refractive-index reference temperature/pressure and any declared humidity/CO₂ fields;
 - `assume-compatible`: an explicit evidence-backed approximation with a limitation.
 
-Photivra never silently sets (n=1).
+Photivra never silently sets n = 1.
 
-The current foundation preserves refractive-index uncertainty but does **not** propagate that uncertainty into the derived photon energy. It also does not apply QE, calculate photon rate, generate electrons, integrate exposure time, or model saturation/noise.
+The foundation keeps the refractive-index uncertainty, but does **not** carry it through into the derived photon energy. It also does not apply QE, calculate a photon rate, generate electrons, integrate over exposure time, or model saturation or noise.
 
 ## EQE electron-rate conversion
 
-Use `calculateSensorEqeElectronRate()` only after both the structural response-application assessment and the instantaneous response operating-range assessment have passed.
+This converts light into an expected rate of generated electrons. Use `calculateSensorEqeElectronRate()` only after both gates above have passed: the structural response-application assessment, and the instantaneous operating-range assessment.
 
-The converter accepts the original color-sampling and spectral-response profiles in addition to those assessments. Spectral planning now carries an exact canonical response-channel data binding through the pre-response reduction. The converter reparses the supplied response once and requires that binding to match exactly, so matching IDs and even matching evidence references are not enough when numeric calibration samples differ.
+Besides those assessments, the converter takes the original colour-sampling and spectral-response profiles.
 
-The canonical binding is a deterministic exact-data identity for stale/calibration substitution detection; it is not presented as a cryptographic checksum or security boundary.
+- Spectral planning carries an exact, canonical binding to the response-channel data through the reduction.
+- The converter re-parses the supplied response once and requires that binding to match exactly.
+- So matching IDs, or even matching evidence references, are not enough if the numeric calibration samples differ.
 
-The calculation stays in the wavelength quadrature. For every spectral node it computes:
+The canonical binding is a deterministic identity of the exact data, used to detect stale or swapped calibration data. It is not a cryptographic checksum or a security boundary.
+
+The calculation stays inside the wavelength quadrature. For every spectral node it computes:
 
 1. radiant-power contribution = geometric-aperture spectral flux density × `dλ`;
 2. photon energy (hν), using the photon-energy wavelength-basis foundation;
@@ -2781,15 +2840,15 @@ The calculation stays in the wavelength quadrature. For every spectral node it c
 4. effective external QE at that exact wavelength through the existing spectral-response resolver;
 5. expected generated-electron rate = photon rate × effective QE.
 
-Direct effective EQE stays direct. When the response profile explicitly declares channel-filter transmittance × detector EQE as separable, the existing resolver is the only component that multiplies those terms; the converter does not invent or repeat filter composition.
+Direct effective EQE stays direct. When the response profile explicitly declares channel-filter transmittance × detector EQE as separable, the existing resolver is the only place those terms are multiplied. The converter does not invent or repeat filter composition.
 
-The response is applied **per wavelength node**. Photivra never multiplies total broadband radiant power by a single average QE.
+The response is applied **at each wavelength node**. Photivra never multiplies total broadband radiant power by one average QE.
 
-Post-spatial response also requires the operating-range profile to establish **linear superposition over the geometric sensitive aperture**. If that declaration is omitted, it remains `not-established` and rate conversion is blocked. This prevents spatial averaging from silently hiding a sub-aperture nonlinear response.
+Applying the response after spatial reduction also needs the operating-range profile to establish **linear superposition over the geometric sensitive aperture**. If that declaration is missing, it stays `not-established` and rate conversion is blocked. This stops spatial averaging from silently hiding a nonlinear response inside the aperture.
 
-The EQE converter additionally requires the operating-range assessment's per-bin identities and calibrated-domain values to match the exact wavelength nodes in the reduction. A stale assessment cannot be reused after spectral power, node width, wavelength, or identity changes.
+The EQE converter also requires the operating-range assessment's per-bin identities and calibrated-domain values to match the exact wavelength nodes in the reduction. A stale assessment cannot be reused after the spectral power, node width, wavelength or identity changes.
 
-For air-basis spectral nodes, the caller supplies exactly one sourced phase-refractive-index record for every spectral sample identity plus the atmosphere compatibility policy used by the photon-energy foundation. Vacuum-basis conversion accepts no air-index context.
+For air-wavelength spectral nodes, the caller supplies exactly one sourced phase-refractive-index record per spectral sample identity, plus the atmosphere compatibility policy used for photon energy. Vacuum-wavelength conversion accepts no air-index context.
 
 The output reports:
 
@@ -2798,9 +2857,9 @@ The output reports:
 - per-wavelength power, photon energy, QE and rate contributions;
 - whether channel-filter transmission was part of an explicitly separable response.
 
-Kahan compensated summation is used across wavelength nodes.
+Kahan compensated summation (which limits rounding error) is used across wavelength nodes.
 
-This is still **rate-domain only**. The converter does not:
+This is still **rates only**. The converter does not:
 
 - multiply by exposure time;
 - output photon or electron counts;
@@ -2809,15 +2868,23 @@ This is still **rate-domain only**. The converter does not:
 - calculate current from A/W responsivity;
 - perform ADC/RAW conversion or reconstruction.
 
-A/W spectral responsivity is rejected by this API and remains a separate radiant-power→current path.
+This API rejects A/W spectral responsivity; that is a separate radiant-power → current path (below).
 
-Response, refractive-index and quadrature uncertainties remain visible upstream but are not yet propagated into a combined electron-rate uncertainty.
+Response, refractive-index and quadrature uncertainties stay visible upstream, but are not yet combined into an electron-rate uncertainty.
 
 ## A/W responsivity photocurrent conversion
 
-Use `calculateSensorResponsivityPhotocurrent()` for the sibling current-domain path when the spectral response is explicitly calibrated in **A/W**.
+Use `calculateSensorResponsivityPhotocurrent()` for the sibling path, which works in electrical current, when the spectral response is explicitly calibrated in **A/W**.
 
-The same structural and operating-range gates used by EQE still apply: exact response/profile linkage, matching response reference plane and area basis, spatial response uniformity/separability, linear superposition over the geometric aperture, and explicit per-spectral-bin operating-range applicability. The exact canonical response-channel binding must also match the curve data used upstream; same IDs/evidence with altered A/W samples are rejected.
+The same structural and operating-range gates used by EQE still apply:
+
+- exact linkage between response and profiles;
+- matching response reference plane and area basis;
+- spatial response uniformity/separability;
+- linear superposition over the geometric aperture;
+- explicit per-spectral-bin operating-range applicability.
+
+The exact canonical response-channel binding must also match the curve data used upstream. The same IDs and evidence with altered A/W samples are rejected.
 
 For every spectral node Photivra computes:
 
@@ -2827,19 +2894,19 @@ For every spectral node Photivra computes:
 
 The wavelength contributions are summed with Kahan compensated summation.
 
-A/W also has an additional **electrical calibration applicability** contract. `SensorResponsivityElectricalApplicabilityProfile` binds the response pipeline to the detector electrical conditions under which the A/W calibration is intended to apply:
+A/W also has an extra **electrical calibration applicability** contract. `SensorResponsivityElectricalApplicabilityProfile` binds the response pipeline to the electrical conditions of the detector under which the A/W calibration is meant to apply:
 
 - zero-bias photovoltaic operation or reverse bias with an explicit magnitude;
 - virtual-ground current readout or a finite declared input impedance;
 - exact-match or explicit evidence-backed compatibility-approximation policy.
 
-These fields are applicability metadata, not a circuit simulator. In particular, Photivra does not use a declared input impedance to claim that a transimpedance circuit is adequate; it only verifies that the operating condition matches the calibration contract.
+These fields say when the calibration applies; they are not a circuit simulator. In particular, Photivra does not use a declared input impedance to claim that a transimpedance circuit is adequate. It only checks that the operating condition matches the calibration contract.
 
-The electrical categories are intentionally disjoint: `reverse-biased` requires a strictly positive reverse-bias magnitude, while true zero-bias operation uses `zero-bias-photovoltaic`; a finite input impedance must also be strictly greater than zero.
+The electrical categories do not overlap. `reverse-biased` needs a strictly positive reverse-bias magnitude; true zero-bias operation uses `zero-bias-photovoltaic`. A finite input impedance must also be strictly greater than zero.
 
-The spectral A/W curve is treated as a **quasi-static steady-state** power→current relation only. Detector impulse response, modulation bandwidth, settling time and frequency-dependent responsivity are not modeled by this first path. A future time-varying current integrator must add a separate temporal-response contract before it can consume rapidly varying optical power.
+The spectral A/W curve is treated only as a **quasi-static, steady-state** power → current relation. This first path does not model detector impulse response, modulation bandwidth, settling time or frequency-dependent responsivity. A future integrator for time-varying current must add a separate temporal-response contract before it can handle rapidly changing optical power.
 
-The result is a **nonnegative detector-terminal photocurrent magnitude in amperes**. Photivra intentionally does not assign circuit direction/polarity from the optical response curve.
+The result is a **non-negative photocurrent magnitude at the detector terminal, in amperes**. Photivra deliberately does not assign a circuit direction (polarity) from the optical response curve.
 
 The A/W path does **not**:
 
@@ -2857,15 +2924,15 @@ Those remain later explicit stages.
 
 ## Local sensor-rate/exposure binding
 
-Use `bindSensorRateToLocalExposure()` before any response-rate result is integrated over time.
+Each sensor site can have its own exposure window (for example with a rolling shutter). Use `bindSensorRateToLocalExposure()` to find that window before any response-rate result is integrated over time.
 
-Engine-produced EQE electron-rate and A/W photocurrent results preserve the exact abstract color-sampling site that generated the response. The binding resolves that site against the exact color topology and the existing native-effective-raster/color-site binding before selecting a local shutter window.
+EQE electron-rate and A/W photocurrent results produced by the engine keep the exact abstract colour-sampling site that generated them. The binding resolves that site against the exact colour topology and the existing native-effective-raster / colour-site binding, then selects the local shutter window.
 
-The first temporal registration is deliberately narrow: `sitesPerNativeSampleX` and `sitesPerNativeSampleY` must both equal 1. Under that evidenced shared-top-left relationship, color-site `(x, y)` maps to native effective sample center `(x + 0.5, y + 0.5)`.
+The first timing registration is deliberately narrow: `sitesPerNativeSampleX` and `sitesPerNativeSampleY` must both equal 1. Under that evidenced shared-top-left relationship, colour site `(x, y)` maps to the native effective sample center `(x + 0.5, y + 0.5)`.
 
-A multi-site block binding is **not** enough to infer sub-sample timing coordinates. When one native effective sample spans multiple color sites, Photivra fails closed rather than inventing where each site lies inside that effective sample for a spatially varying shutter scan.
+A binding of multi-site blocks is **not** enough to infer timing coordinates inside one sample. When one native effective sample spans several colour sites, Photivra fails closed, rather than inventing where each site lies inside that sample for a shutter scan that varies across the sensor.
 
-The binding then calls the authoritative capture exposure-window calculation at that exact native point. It verifies that:
+The binding then calls the authoritative capture exposure-window calculation at that exact native point. It checks that:
 
 - the rate carries a valid site;
 - the bound color site exists and resolves to the same channel as the rate;
@@ -2882,11 +2949,11 @@ This is a **timing binding only**. It explicitly reports:
 - no time-stationarity guarantee;
 - `constantRateTemporalIntegrationAuthorized: false`.
 
-A response rate may therefore **not** yet be multiplied by this duration. Motion, flicker, flash, time-varying illumination/vignetting, shutter modulation, or detector transients require a time-dependent signal model. A separate stationarity contract is required for the constant-rate approximation.
+So a response rate may **not** yet be multiplied by this duration. Motion, flicker, flash, time-varying illumination or vignetting, shutter modulation and detector transients all need a time-dependent signal model. The constant-rate approximation needs a separate stationarity contract (next section).
 
 ## Constant-rate local-exposure integration
 
-Use `integrateStationarySensorRateOverLocalExposure()` only when an evidence-backed `SensorRateTemporalStationarityProfile` explicitly states that the **reported rate itself** is constant through the exact local exposure window.
+Use `integrateStationarySensorRateOverLocalExposure()` only when an evidence-backed `SensorRateTemporalStationarityProfile` explicitly states that the **reported rate itself** stays constant through the exact local exposure window.
 
 The stationarity declaration is bound to:
 
@@ -2913,37 +2980,40 @@ For the A/W path:
 - circuit polarity is still not inferred;
 - carrier/electron count is deliberately **not** inferred from A/W current.
 
-The A/W constant-current approximation also inherits the upstream quasi-static detector-response boundary. The stationarity evidence must justify treating the reported steady-state photocurrent as valid throughout the window; Photivra still does not model detector impulse response or bandwidth.
+The A/W constant-current approximation also inherits the quasi-static detector-response limit from upstream. The stationarity evidence must justify treating the reported steady-state photocurrent as valid throughout the window. Photivra still does not model detector impulse response or bandwidth.
 
-The result is explicitly **photo-signal-only** accumulation. It does not include dark current, hot-pixel/defect current, leakage, charge injection, or other accumulated charge sources. Accordingly:
+The result accumulates **photo signal only**. It does not include dark current, hot-pixel/defect current, leakage, charge injection or other sources of accumulated charge. So:
 
 - physical full-well assessment is not authorized;
 - camera/digital saturation assessment is not authorized;
 - no clamp is applied;
 - shot/read noise, conversion gain, ADC/RAW and reconstruction remain downstream.
 
-Physical full-well capacity and camera saturation capacity remain separate implemented assessment contracts; they are not interchangeable thresholds.
+Physical full-well capacity and camera saturation capacity are separate, implemented assessment contracts. They are not interchangeable thresholds.
 
 ## Dark-current charge
 
-Use `calculateSensorDarkCurrentCharge()` with a stationary EQE expected-count exposure result or the validated compact [temporal photo signal](https://github.com/Photivra/photivra/blob/main/docs/TEMPORAL_PHOTO_RAW.md). Temporal dark charge retains the exact temporal event identity without a stationarity ID. The current path models **pre-compensation thermally generated electrons** in e⁻/s and integrates that rate over the exact local exposure duration already established by the temporal pipeline.
+Dark current is signal the sensor generates by heat alone, even without light. Use `calculateSensorDarkCurrentCharge()` with either a stationary EQE expected-count exposure result, or the validated compact [temporal photo signal](https://github.com/Photivra/photivra/blob/main/docs/TEMPORAL_PHOTO_RAW.md).
 
-Photivra deliberately does not impose one universal dark-current temperature law. A dark-current profile may provide either:
+- Temporal dark charge keeps the exact temporal event identity, without a stationarity ID.
+- The model is **thermally generated electrons before any compensation**, in e⁻/s. It integrates that rate over the exact local exposure duration already set by the temporal pipeline.
+
+Photivra deliberately does not impose one universal law for how dark current changes with temperature. A dark-current profile may provide either:
 
 - one exact reference temperature and one dark-current rate; or
 - a strictly increasing measured temperature table with piecewise-linear interpolation and fail-closed behavior outside the measured range.
 
-A population-mean dark-current profile is allowed only as an explicit approximation and must not claim pixel/site dark-current nonuniformity is modeled. Exact-site profiles remain bound to the exact color-sampling site.
+A population-mean dark-current profile (one average for all sites) is allowed only as an explicit approximation. It must not claim that site-to-site dark-current variation is modelled. Exact-site profiles stay bound to the exact colour-sampling site.
 
-Dark-current compensation, black-level offset, hot-pixel/defect excess, leakage, charge injection and other charge sources are separate. The result is an **expected dark-electron count** only; no Poisson sampling or dark-current shot-noise realization is performed.
+Dark-current compensation, black-level offset, hot-pixel/defect excess, leakage, charge injection and other charge sources are separate. The result is only an **expected dark-electron count**. No Poisson sampling, and no dark-current shot noise, is applied.
 
-This stage still does not authorize physical full-well assessment because the accumulated sensor charge is not yet complete. It also does not apply to the A/W current-domain path: integrated detector-terminal charge must not be reinterpreted as stored sensor electrons without a separate carrier/storage mapping.
+This stage still does not allow a physical full-well assessment, because the accumulated sensor charge is not complete yet. It also does not apply to the A/W current path: integrated charge at the detector terminal must not be reinterpreted as stored sensor electrons without a separate carrier/storage mapping.
 
 ## Accumulated-charge completeness
 
-Use `composeSensorAccumulatedCharge()` after an EQE photo-signal exposure and its matching dark-current result exist for the **same exact local exposure event**.
+This step adds up everything stored in a pixel during one exposure. Use `composeSensorAccumulatedCharge()` once you have an EQE photo-signal exposure and its matching dark-current result for the **same exact local exposure event**.
 
-The composer requires photo and dark terms to share:
+The photo and dark terms must share:
 
 - color topology/channel/site;
 - local-exposure binding ID;
@@ -2951,11 +3021,11 @@ The composer requires photo and dark terms to share:
 - exact start/end offsets in the `first-opening-boundary-phase` time basis;
 - the same local exposure duration.
 
-Equal duration alone is insufficient.
+An equal duration alone is not enough.
 
-Additional stored-electron components may represent explicitly modeled defect/hot-pixel excess, leakage, charge injection, clock-induced charge, or another identified source. Every component must declare the accounting meaning `incremental-stored-electrons-beyond-photo-and-modeled-dark-current`. This prevents an additional defect/leakage model from silently re-counting electrons already represented by the dark-current term.
+Extra stored-electron components may represent explicitly modelled defect/hot-pixel excess, leakage, charge injection, clock-induced charge or another identified source. Every component must declare the accounting meaning `incremental-stored-electrons-beyond-photo-and-modeled-dark-current`. This stops an extra defect or leakage model from silently counting electrons that the dark-current term already includes.
 
-A separate evidence-backed `SensorAccumulatedChargeCompletenessProfile` lists the exact additional-component IDs and states that all material stored-electron contributors relevant to physical charge-storage capacity are accounted for. An empty additional-component list is therefore **not itself evidence of completeness**.
+A separate, evidence-backed `SensorAccumulatedChargeCompletenessProfile` lists the exact extra-component IDs, and states that every material contributor of stored electrons, relevant to physical charge-storage capacity, is accounted for. An empty list of extra components is therefore **not, by itself, evidence of completeness**.
 
 When all bindings and the completeness declaration pass, the result reports:
 
@@ -2964,15 +3034,15 @@ When all bindings and the completeness declaration pass, the result reports:
 - expected additional stored electrons;
 - total expected stored electrons.
 
-All remain expectation values. No photo/dark shot-noise realization or integer carrier sampling is performed.
+All of these are expected values. No photo or dark shot noise is sampled, and no whole-number carrier counts are drawn.
 
-Only this complete stored-electron result sets `physicalFullWellAssessmentAuthorized: true`. Camera/digital saturation remains separately unauthorized because camera saturation capacity is not the same physical quantity as full-well charge storage.
+Only this complete stored-electron result sets `physicalFullWellAssessmentAuthorized: true`. Camera/digital saturation stays unauthorized here, because camera saturation capacity is not the same physical quantity as full-well charge storage.
 
-A/W photocharge remains outside this composition because detector-terminal coulombs are not automatically the number of electrons stored in the pixel charge well.
+A/W photocharge stays outside this composition, because coulombs at the detector terminal are not automatically the number of electrons stored in the pixel's charge well.
 
 ## Physical charge-capacity
 
-Use `assessSensorPhysicalChargeCapacity()` only after accumulated-charge completeness has explicitly authorized physical capacity assessment.
+Full-well capacity is the most charge a pixel can physically store. Use `assessSensorPhysicalChargeCapacity()` only after accumulated-charge completeness has explicitly authorized a physical capacity assessment.
 
 A `SensorPhysicalChargeCapacityProfile` describes a sourced physical charge-storage limit in **electrons**. The profile is bound to:
 
@@ -2981,7 +3051,7 @@ A `SensorPhysicalChargeCapacityProfile` describes a sourced physical charge-stor
 - an evidence-backed operating-state identifier;
 - exact reference temperature, or an explicit approximation stating temperature dependence is not modeled.
 
-The operating-state identifier is deliberately opaque. Photivra does not infer the correct physical storage capacity from ISO, gain labels, capture-mode names, pixel pitch, or another nearby specification.
+The operating-state identifier is deliberately opaque. Photivra does not guess the physical storage capacity from ISO, gain labels, capture-mode names, pixel pitch or any other nearby specification.
 
 The assessment compares **total expected stored electrons** with the physical capacity and reports:
 
@@ -2990,15 +3060,15 @@ The assessment compares **total expected stored electrons** with the physical ca
 - `below-capacity`, `at-capacity`, or `above-capacity`;
 - whether the unsaturated expected charge exceeds the declared capacity.
 
-This is an expectation comparison, not a stochastic saturation realization. Expected charge below capacity does not prove that every noisy realization remains below capacity. Expected charge above capacity means the unsaturated linear expectation exceeds the physical storage limit.
+This compares expected values; it does not simulate random saturation. Expected charge below capacity does not prove that every noisy realization stays below capacity. Expected charge above capacity means the linear expectation, before any saturation, exceeds the physical storage limit.
 
-Photivra does **not** clamp the charge at capacity. It does not calculate post-saturation stored charge, excess/overflow charge, recombination, anti-blooming drain behavior, or neighbor blooming. Those require a separate nonlinear charge-transfer model.
+Photivra does **not** clamp the charge at capacity. It does not calculate stored charge after saturation, overflow charge, recombination, anti-blooming drain behaviour or blooming into neighbours. Those need a separate nonlinear charge-transfer model.
 
-Physical charge capacity is also **not camera saturation capacity**. Camera/analog/digital clipping can occur at a lower signal level, so camera saturation remains a separate downstream contract.
+Physical charge capacity is also **not camera saturation capacity**. Clipping in the camera's analog or digital chain can happen at a lower signal level, so camera saturation is a separate contract (next section).
 
 ## Camera saturation capacity
 
-Use `assessSensorCameraSaturationCapacity()` for a source-specific **camera response-chain saturation capacity** expressed as dark-corrected photo-generated electron-equivalent signal.
+Use `assessSensorCameraSaturationCapacity()` for a **saturation capacity of the camera's response chain**, taken from a specific source and expressed as dark-corrected photo signal in electron equivalents.
 
 This contract intentionally uses a different signal domain from physical charge storage:
 
@@ -3006,11 +3076,11 @@ This contract intentionally uses a different signal domain from physical charge 
 - total photo + dark + other stored charge is retained only as a diagnostic;
 - total stored charge is **not** added to the camera-signal capacity comparison.
 
-That separation matches camera-characterization practice in which saturation capacity is derived from the camera's saturated photo response and can be lower than physical full-well because a downstream response stage may clip first.
+That separation follows camera-characterization practice. There, saturation capacity is derived from the camera's saturated photo response, and can be lower than physical full well because a later stage may clip first.
 
-A camera saturation profile is bound to the exact color/channel, site applicability, operating-state identifier, temperature applicability, measurement method, uncertainty, and evidence. A channel-population mean used for one site remains an approximation.
+A camera saturation profile is bound to the exact colour/channel, site applicability, operating-state identifier, temperature applicability, measurement method, uncertainty and evidence. A mean over a channel's population used for one site stays an approximation.
 
-The assessment reports photo-signal/capacity ratio, headroom, and below/at/above-capacity status. It does not:
+The assessment reports the photo-signal/capacity ratio, the headroom, and a below/at/above-capacity status. It does not:
 
 - identify which analog or digital stage limits the response;
 - infer an ADC maximum code or bit-depth clipping threshold;
@@ -3020,13 +3090,13 @@ The assessment reports photo-signal/capacity ratio, headroom, and below/at/above
 - calculate a post-saturation transfer curve;
 - establish stochastic saturation probability.
 
-Stage-specific analog clipping, ADC/digital code limits, and RAW-code behavior require separate evidence-backed response-chain contracts.
+Analog clipping at a specific stage, ADC/digital code limits and RAW-code behaviour need separate, evidence-backed response-chain contracts.
 
 ## Stochastic charge, conversion, ADC, and RAW code
 
-Use `simulateSensorChargeRealization()` only after the existing accumulated-charge completeness contract has produced complete expected stored charge for one exact sensor site/exposure.
+This is where random noise enters, and where charge becomes a RAW number. Use `simulateSensorChargeRealization()` only after the accumulated-charge completeness contract has produced the complete expected stored charge for one exact sensor site and exposure.
 
-The first stochastic layer keeps expectation values separate from realizations:
+The first random (stochastic) layer keeps expected values separate from realizations (random draws):
 
 - photo-generated electrons use an explicit Poisson model;
 - dark-generated electrons use an explicit Poisson model;
@@ -3036,7 +3106,7 @@ The first stochastic layer keeps expectation values separate from realizations:
 
 The stochastic realization does not change the upstream expected charge or its provenance.
 
-Use `parseSensorReadoutConversionProfile()` and `resolveSensorReadoutRegime()` for the downstream electronic chain. A regime declares:
+Use `parseSensorReadoutConversionProfile()` and `resolveSensorReadoutRegime()` for the electronic chain that follows. A regime declares:
 
 - system conversion gain in electrons per code;
 - explicit input-referred electronic read-noise components in RMS electrons;
@@ -3050,11 +3120,11 @@ Regime selection is explicitly:
 
 `explicit-upstream-camera-state-not-inferred-from-iso`
 
-ISO therefore does not silently choose conversion gain, read noise, or ADC behavior. #7 maps an explicit camera ISO/capture-mode state to a documented #14 regime through the separate generic ISO signal-chain contract; the sensor readout contract itself still does not infer that mapping from the ISO number.
+So ISO never silently chooses conversion gain, read noise or ADC behaviour. The separate [generic ISO signal-chain contract](#generic-high-iso-signal-chain-profiles) (#7) maps an explicit camera ISO/capture-mode state to a documented readout regime (#14). The sensor readout contract itself still does not infer that mapping from the ISO number.
 
-`calculateExpectedSensorReadout()` remains an expectation path: it reports zero-mean read noise and does not quantize. If the upstream expected stored charge is already above physical storage capacity, it fails closed because the physical-capacity assessment does not define a linear post-saturation charge value.
+`calculateExpectedSensorReadout()` stays an expected-value path. It reports zero-mean read noise and does not quantize. If the upstream expected stored charge is already above physical storage capacity, it fails closed, because the physical-capacity assessment does not define a linear charge value after saturation.
 
-Both readout paths require the physical-capacity assessment to have been computed for the same charge: besides matching identity, its total expected stored electrons must equal the charge's exactly (the assessment copies that total verbatim), so a stale assessment fails closed. Digital saturation is reported when the code reaches the digital saturation code (`>=`) on both the expected and the stochastic path, so a sample quantized exactly to the white level is flagged.
+Both readout paths require the physical-capacity assessment to have been computed for the same charge. Besides a matching identity, its total expected stored electrons must equal the charge's total exactly (the assessment copies that total verbatim). A stale assessment therefore fails closed. On both the expected and the stochastic path, digital saturation is reported when the code reaches (`>=`) the digital saturation code, so a sample quantized exactly to the white level is flagged.
 
 `simulateSensorRawCode()` consumes a stochastic charge realization plus the matching physical-capacity assessment. Its stage order is explicit:
 
@@ -3070,17 +3140,19 @@ realized stored charge
   → RAW code
 ```
 
-The physical storage clamp is a bounded scalar approximation only. Overflow is reported diagnostically, while `bloomingModeled` remains false because neighbor topology, charge transport, and anti-blooming behavior are not modeled.
+The physical storage clamp is only a bounded scalar approximation. Overflow is reported as a diagnostic. `bloomingModeled` stays false, because neighbour topology, charge transport and anti-blooming behaviour are not modelled.
 
-Physical storage capacity, pre-ADC saturation, and digital/ADC saturation are independent thresholds and may disagree.
+Physical storage capacity, pre-ADC saturation and digital/ADC saturation are independent thresholds, and may disagree.
 
-Quantization rounds to the nearest code with exact ties toward +∞. A regime may also declare `adc.digitalGain` (≥ 1,
-applied about black after quantization and re-quantized) and `adc.integralNonLinearity` (piecewise-linear INL in codes).
+Quantization rounds to the nearest code, with exact ties going towards +∞. A regime may also declare:
+
+- `adc.digitalGain` (≥ 1), applied around black after quantization and then re-quantized;
+- `adc.integralNonLinearity`, a piecewise-linear INL (integral non-linearity) in codes.
 
 ### ISO-dependent gain regimes
 
-`createIsoGainReadoutRegimes()` derives one explicit regime per ISO setting from declared sensor parameters, so ISO
-changes RAW brightness like analog/digital gain (exposure index of CIPA DC-004 / ISO 12232, EMVA 1288 linear model):
+`createIsoGainReadoutRegimes()` derives one explicit regime per ISO setting from declared sensor parameters. ISO then
+changes RAW brightness the way analog/digital gain does (exposure index of CIPA DC-004 / ISO 12232; EMVA 1288 linear model):
 
 ```ts
 import { createIsoGainReadoutRegimes, parseSensorReadoutConversionProfile } from "@photivra/engine";
@@ -3106,17 +3178,20 @@ const readoutProfile = parseSensorReadoutConversionProfile({ schemaVersion: "0.1
 
 ### Fixed-pattern noise
 
-`parseSensorFixedPatternNoiseProfile()` declares an opt-in per-sensor-instance pattern (PRNU, DSNU, hot pixels, row and
-column offsets) seeded by `sensorInstanceSeedUint32`, independent of the capture noise seed. Pass the same profile as
-`fixedPatternNoise` to `simulateSensorChargeRealization()` and `simulateSensorRawCode()`, or on every producer site.
-`calculateSensorFixedPatternSite()` returns the deterministic values of one colour-sampling site. The generic tier
-presets carry a synthetic profile in `body.fixedPatternNoise`.
+Fixed-pattern noise is the part of sensor noise that is the same in every frame from one sensor.
+`parseSensorFixedPatternNoiseProfile()` declares an opt-in pattern for one sensor instance: PRNU and DSNU (pixel-to-pixel
+variation in light response and in dark signal), hot pixels, and row and column offsets.
+
+- The pattern is seeded by `sensorInstanceSeedUint32`, independent of the capture noise seed.
+- Pass the same profile as `fixedPatternNoise` to `simulateSensorChargeRealization()` and `simulateSensorRawCode()`, or on every producer site.
+- `calculateSensorFixedPatternSite()` returns the deterministic values for one colour-sampling site.
+- The generic tier presets carry a synthetic profile in `body.fixedPatternNoise`.
 
 ## RAW capture samples and reconstruction
 
-Use `createSensorRawCaptureSample()` to bind one generated RAW code to the existing capture-mode/color-sampling structural contract.
+Use `createSensorRawCaptureSample()` to bind one generated RAW code to the existing capture-mode / colour-sampling structure.
 
-Schema 0.1.0 intentionally permits only an ungrouped native-effective capture-mode sample that maps to exactly one color-sampling site. Grouped/binning/remosaic modes fail closed because structural contributor counts do not define signal-combination weights or analog/digital combination math.
+Schema 0.1.0 deliberately allows only an ungrouped native-effective capture-mode sample that maps to exactly one colour-sampling site. Grouped, binning and remosaic modes fail closed, because knowing how many sites contribute does not define the weights or the analog/digital maths for combining them.
 
 The RAW sample preserves:
 
@@ -3128,11 +3203,11 @@ The RAW sample preserves:
 - charge/read-noise seeds;
 - physical/digital saturation diagnostics.
 
-Physical orientation and output rotation remain downstream, so CFA phase is never reset by portrait orientation or an active crop.
+Physical orientation and output rotation come later, so CFA phase is never reset by portrait orientation or an active crop.
 
-Use `parseSensorRawReconstructionProfile()` and `resolveSensorRawReconstruction()` for the first reconstruction contract. The profile is tied to one exact capture-mode ID and color-sampling profile ID and declares explicit native-neighborhood linear weights per output channel.
+Use `parseSensorRawReconstructionProfile()` and `resolveSensorRawReconstruction()` for the first reconstruction contract (turning mosaic samples into full-colour pixels). The profile is tied to one exact capture-mode ID and colour-sampling profile ID. It declares explicit linear weights over the native neighbourhood, per output channel.
 
-Every input RAW sample is re-resolved against the declared color-sampling topology. A stored channel label that disagrees with the CFA at that native site fails closed.
+Every input RAW sample is re-checked against the declared colour-sampling topology. A stored channel label that disagrees with the CFA at that native site fails closed.
 
 The first reconstruction contract:
 
@@ -3142,15 +3217,25 @@ The first reconstruction contract:
 - does not infer branded Bayer/X-Trans/remosaic behavior from a topology label;
 - reports `aliasingModeled: false` and `moireModeled: false`.
 
-Aliasing/moiré claims require an adequate pre-sampling optical/scene spatial-frequency model; reconstruction artifacts alone are not treated as proof that that physical aliasing model exists.
+Claims about aliasing or moiré need an adequate model of the spatial frequencies in the scene and optics before sampling. Reconstruction artefacts alone are not treated as proof that such a physical aliasing model exists.
 
 ## RAW development, white level, highlights and tone curves
 
-RAW samples also carry `effectiveSaturationCode` (the code at which the site is fully saturated,
-`calculateEffectiveSaturationCode`), `systemConversionGainElectronsPerCode` and
-`readNoiseRmsElectrons`; packed native RAW carries `effectiveSaturationCodes` once per CFA phase.
-Development normalizes to that white level, clips saturated or flagged sites before white balance,
-applies white balance once for any invertible camera matrix and keeps clipped highlights neutral.
+RAW samples also carry:
+
+- `effectiveSaturationCode` — the code at which the site is fully saturated (see `calculateEffectiveSaturationCode`);
+- `systemConversionGainElectronsPerCode`;
+- `readNoiseRmsElectrons`.
+
+Packed native RAW carries `effectiveSaturationCodes` once per CFA phase.
+
+Development ("developing" a RAW into a viewable image):
+
+- normalizes to that white level;
+- clips saturated or flagged sites before white balance;
+- applies white balance once, for any invertible camera matrix;
+- keeps clipped highlights neutral.
+
 See [photographic export](https://github.com/Photivra/photivra/blob/main/docs/PHOTOGRAPHIC_EXPORT.md) for the equations.
 
 ```ts
@@ -3183,14 +3268,14 @@ async function develop(input: NativeRawDevelopmentInput) {
 void develop;
 ```
 
-`highlightMode: "reconstruct"` blends pixels above 0.8 of white toward neutral instead of clipping
-each WB-scaled channel; it is an approximation, not recovery of clipped signal.
-`extended-reinhard-luminance` takes `{ whiteLuminance }`, the luminance mapped to output white.
-`createPhotographicExportPair(input, { signal })` accepts an optional `AbortSignal`.
+- `highlightMode: "reconstruct"` blends pixels above 0.8 of white towards neutral, instead of clipping
+  each WB-scaled channel. It is an approximation, not a recovery of the clipped signal.
+- `extended-reinhard-luminance` takes `{ whiteLuminance }`, the luminance mapped to output white.
+- `createPhotographicExportPair(input, { signal })` accepts an optional `AbortSignal`.
 
 ## Capture-mode profiles
 
-Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe how one physical sensor can expose different acquisition/sampling/reconstruction modes without changing sensor identity:
+One physical sensor can offer several capture modes, such as pixel shift or binning. Use `parseCaptureModeProfile()` and `resolveCaptureMode()` to describe its acquisition, sampling and reconstruction modes, without changing the sensor's identity:
 
 ```ts
 import {
@@ -3286,7 +3371,7 @@ const selected = resolveCaptureMode({
 console.log(selected.processedImageMegapixels);
 ```
 
-The model is deliberately **orthogonal**, not one mutually exclusive marketing-style mode enum. A mode independently describes:
+The model is deliberately **orthogonal**: it is not one list of mutually exclusive, marketing-style modes. A mode describes each of these independently:
 
 - acquisition as single-frame, fixed multi-frame, or variable multi-frame;
 - per-frame sampling as the native effective raster, exact integer grouping of native effective samples, or another explicitly evidenced effective raster;
@@ -3295,23 +3380,23 @@ The model is deliberately **orthogonal**, not one mutually exclusive marketing-s
 - the processed-image raster before final output crop/resampling;
 - explicit downstream model dependencies.
 
-This lets a computational multi-frame mode also use grouped per-frame sampling instead of forcing it into one exclusive category.
+So a computational multi-frame mode can also use grouped per-frame sampling, instead of being forced into one exclusive category.
 
-`NativeImageRaster` keeps its canonical meaning: an **effective native image-sampling grid**, not a physical photosite raster. Neither native megapixels nor processed/final-output megapixels may be used to infer physical photodiode count.
+`NativeImageRaster` keeps its canonical meaning: an **effective native image-sampling grid**, not a raster of physical photosites. Neither native megapixels nor processed/final-output megapixels may be used to infer the physical photodiode count.
 
-For grouped sampling, Photivra derives the per-frame sampling raster only when the native dimensions divide exactly by the evidenced grouping factors. The optional `combinationDomain` distinguishes `charge-domain`, `pre-conversion-analog`, and `post-conversion-digital`. When that fact is not known it must be omitted; the word “binning” or a 2×2 resolution ratio does not establish where combination occurred.
+For grouped sampling, Photivra derives the per-frame sampling raster only when the native dimensions divide exactly by the evidenced grouping factors. The optional `combinationDomain` distinguishes `charge-domain`, `pre-conversion-analog` and `post-conversion-digital`. If that fact is not known, leave it out. The word "binning", or a 2×2 resolution ratio, does not show where the combination happened.
 
-Inter-frame sensor offsets are expressed in units of the **native effective sampling pitch**. They are not evidence of physical photodiode pitch. The offset sequence length must match a fixed multi-frame count when supplied.
+Inter-frame sensor offsets are in units of the **native effective sampling pitch**. They are not evidence of the physical photodiode pitch. When supplied, the offset sequence length must match the fixed multi-frame count.
 
-`processedImageRaster` belongs to the capture-mode/reconstruction pipeline. It does not change physical imaging area, crop factor, field of view, or the native effective raster. It may be larger than the native raster for a multi-frame reconstruction without implying a higher-resolution physical sensor.
+`processedImageRaster` belongs to the capture-mode/reconstruction pipeline. It does not change the physical imaging area, crop factor, field of view or native effective raster. It may be larger than the native raster for a multi-frame reconstruction, without implying a higher-resolution physical sensor.
 
-Final output crop/resampling remains owned by the existing staged capture/output geometry contract. A processed raster therefore does not itself define final display/export dimensions or viewing FOV.
+The final output crop/resampling is still owned by the existing staged capture/output geometry contract. A processed raster therefore does not, by itself, define final display/export dimensions or the viewing FOV.
 
-The capture-mode schema records dependencies such as `color-sampling-model`, `mode-specific-readout-timing`, `radiometric-calibration`, and `inter-frame-registration` without pretending those downstream models are already implemented.
+The capture-mode schema records dependencies such as `color-sampling-model`, `mode-specific-readout-timing`, `radiometric-calibration` and `inter-frame-registration`, without pretending those models are already implemented.
 
 ## Sensor readout timing
 
-Use `calculateSensorReadoutTiming()` for a capture-specific native sensor scan schedule without conflating sensor readout with shutter-curtain timing:
+Use `calculateSensorReadoutTiming()` for the native sensor scan schedule of one capture. This is when data is read off the sensor, which is not the same as when the shutter curtains open and close:
 
 ```ts
 import {
@@ -3374,19 +3459,25 @@ const orientedDirection = transformNativeRasterVectorToOriented({
 });
 ```
 
-The two timing facts are intentionally separate. `captureReadoutDurationSeconds` records the selected capture's declared data-readout duration; `spatialSamplingSkewSeconds` drives only the spatial phase span of the current rolling approximation. Photivra does not assume those values are equal.
+The two timing facts are deliberately separate, and Photivra does not assume they are equal:
 
-Global readout declares only the capture data-readout duration. Its spatial phase offset is zero everywhere even when that duration is non-zero.
+- `captureReadoutDurationSeconds` is the declared time to read the data of the selected capture.
+- `spatialSamplingSkewSeconds` only sets how much the readout time shifts from one side of the frame to the other, in the current rolling approximation.
 
-The rolling schedule is a `uniform-linear-single-axis` approximation in invariant native sensor coordinates. `NativeImageRaster` remains an effective image-sampling grid, so this API does not claim that each raster row/column corresponds to one physical photodiode row or hardware readout line. Non-uniform, segmented, center-out, interleaved and multi-tap readout patterns are not represented by this first model.
+Global readout declares only the capture's data-readout duration. Its spatial phase offset is zero everywhere, even when that duration is not zero.
 
-Physical camera orientation is deliberately excluded from the timing input. Use the existing native↔oriented vector transform when a downstream renderer needs the scan direction in oriented capture coordinates. Output crop/resolution is also excluded and therefore cannot silently change native readout timing.
+The rolling schedule is a `uniform-linear-single-axis` approximation in the native sensor coordinates, which never change. `NativeImageRaster` is still an effective image-sampling grid, so this API does not claim that each raster row or column is one physical photodiode row or hardware readout line. This first model does not represent non-uniform, segmented, center-out, interleaved or multi-tap readout patterns.
 
-Active-crop/capture-mode timing must be supplied explicitly; the engine never scales full-frame timing from crop dimensions. Shutter mechanism is recorded independently and does not modify the schedule. The separate exposure-window, inverse-rotation/temporal, flash and illumination contracts supply bounded timing and integration. This readout primitive does not execute them or infer curtain acceleration, segmented timing or synchronization.
+- Physical camera orientation is deliberately left out of the timing input. If a renderer needs the scan direction in oriented capture coordinates, use the existing native ↔ oriented vector transform.
+- Output crop and resolution are also left out, so they cannot silently change native readout timing.
+- Timing for an active crop or capture mode must be supplied explicitly. The engine never scales full-frame timing from crop dimensions.
+- The shutter mechanism is recorded separately and does not change the schedule.
+
+The separate exposure-window, inverse-rotation/temporal, flash and illumination contracts provide bounded timing and integration. This readout primitive does not run them, and does not infer curtain acceleration, segmented timing or synchronization.
 
 ## Readout/exposure spatial linkage
 
-Use `assessReadoutExposureTimingLinkage()` when a specific capture-mode source supports a relationship between rolling sensor readout spatial order and an **electronic** exposure boundary:
+Use `assessReadoutExposureTimingLinkage()` when a source for a specific capture mode supports a relationship between the spatial order of rolling sensor readout and an **electronic** exposure boundary:
 
 ```ts
 import { assessReadoutExposureTimingLinkage } from "@photivra/engine";
@@ -3509,26 +3600,26 @@ const relationship = assessReadoutExposureTimingLinkage({
 console.log(relationship.value.links[0]);
 ```
 
-The positive link means only that the selected electronic exposure boundary shares the rolling readout's **normalized native spatial phase/order**:
+A positive link means only that the selected electronic exposure boundary moves across the sensor in the same **normalized native spatial order (phase)** as the rolling readout:
 
 - `same` means boundary phase equals readout phase;
 - `reversed` means boundary phase equals `1 - readout phase`.
 
 It does **not** mean the two events occur at the same absolute time.
 
-The function therefore reports `absoluteTemporalAlignment: "not-established"` even when directions and first-to-last timing spans happen to match.
+So the function reports `absoluteTemporalAlignment: "not-established"`, even when the directions and the first-to-last timing spans happen to match.
 
-The readout spatial skew and exposure-boundary traversal duration may differ. Their ratio is reported as `boundaryTraversalToReadoutSpatialSkewRatio`, which is descriptive only.
+The readout spatial skew and the exposure boundary's traversal time may differ. Their ratio is reported as `boundaryTraversalToReadoutSpatialSkewRatio`, for information only.
 
-The total `captureReadoutDurationSeconds` remains a separate evidence-backed fact and does not participate in linkage validation.
+The total `captureReadoutDurationSeconds` is a separate evidence-backed fact, and plays no part in checking the linkage.
 
-Only electronic boundaries can be spatial-phase-linked to sensor readout. A mechanical opening/closing boundary is rejected. Global readout has no rolling spatial phase and therefore cannot participate in this first linkage type.
+Only electronic boundaries can be linked to sensor readout in this way. A mechanical opening or closing boundary is rejected. Global readout has no rolling spatial phase, so it cannot take part in this first linkage type.
 
-Use `linkage: { kind: "unlinked" }` when Photivra should assert no relationship. This means **no relationship is asserted**; it does not establish that the underlying hardware processes are physically independent.
+Use `linkage: { kind: "unlinked" }` when Photivra should assert no relationship. This means **no relationship is asserted**. It does not show that the underlying hardware processes are physically independent.
 
 ## Capture exposure-window timing
 
-Use `calculateCaptureExposureWindows()` to describe when different native-sensor locations begin and end their local exposure without conflating shutter actuation with sensor readout:
+With a focal-plane shutter, different parts of the sensor start and stop collecting light at slightly different times. Use `calculateCaptureExposureWindows()` to describe when each native-sensor location begins and ends its local exposure. Shutter movement and sensor readout are kept separate:
 
 ```ts
 import { calculateCaptureExposureWindows } from "@photivra/engine";
@@ -3606,7 +3697,7 @@ console.log(windows.value.samples);
 console.log(windows.value.localExposureDurationRangeSeconds);
 ```
 
-The time basis is `first-opening-boundary-phase`: zero means the first spatial phase of the declared opening boundary. This deliberately avoids pretending that a spatially scanned capture has one universal local exposure-start event.
+The time basis is `first-opening-boundary-phase`: time zero is when the declared opening boundary first starts to cross the sensor. This avoids pretending that a capture scanned across the sensor has one universal exposure-start moment.
 
 Opening and closing schedules are independent. Each may currently be either:
 
@@ -3621,11 +3712,11 @@ local end   = nominal exposure duration + closing phase
 local duration = local end - local start
 ```
 
-Matched opening/closing scans with equal traversal produce constant local exposure duration. Different directions or traversal durations can intentionally produce spatially varying local duration.
+Matched opening and closing scans with equal traversal times give the same local exposure duration everywhere. Different directions or traversal times can deliberately make the local duration vary across the sensor.
 
-Photivra validates the **entire active rectangle**, not only supplied diagnostic points. Because the first schedules are affine over the native rectangle, corner extrema are sufficient to reject any declaration that would produce zero or negative local exposure duration somewhere in the capture.
+Photivra checks the **whole active rectangle**, not only the diagnostic points you supply. Because the first schedules are affine (linear plus offset) over the native rectangle, checking the corners is enough to reject any declaration that would give zero or negative local exposure duration anywhere in the capture.
 
-`shutterMechanism` determines only the conceptual boundary actuators:
+`shutterMechanism` only says what conceptually opens and closes the exposure:
 
 - `mechanical` → mechanical opening + mechanical closing;
 - `electronic-first-curtain` → electronic opening + mechanical closing;
@@ -3633,15 +3724,15 @@ Photivra validates the **entire active rectangle**, not only supplied diagnostic
 
 The mechanism does not supply traversal direction or timing.
 
-This exposure-window model remains separate from `calculateSensorReadoutTiming()`. A later integration layer must explicitly bind exposure boundaries, sensor readout, and time-parameterized motion; Photivra does not assume a sensor readout phase is an exposure-start or exposure-end boundary.
+This exposure-window model stays separate from `calculateSensorReadoutTiming()`. A later integration layer must explicitly bind exposure boundaries, sensor readout and time-parameterized motion. Photivra does not assume that a sensor readout phase is an exposure-start or exposure-end boundary.
 
-Physical orientation and digital output geometry remain downstream. The schedule stays in invariant native sensor coordinates and can use the existing native↔oriented vector transforms when a consumer needs presentation-oriented direction.
+Physical orientation and digital output geometry come later. The schedule stays in native sensor coordinates. Use the existing native ↔ oriented vector transforms when you need the direction as displayed.
 
-The first model does not cover curtain acceleration, curved/nonlinear curtain travel, segmented/center-out/interleaved electronic schedules, flash/flicker interaction, shutter shock, EFCS-specific pupil/bokeh effects, or rolling-shutter image distortion.
+The first model does not cover curtain acceleration, curved or nonlinear curtain travel, segmented/center-out/interleaved electronic schedules, flash/flicker interaction, shutter shock, pupil/bokeh effects specific to EFCS (electronic first-curtain shutter), or rolling-shutter image distortion.
 
 ## Capture-mode-bound shutter/readout timing
 
-Use `parseCaptureModeTimingProfile()` and `resolveCaptureModeTiming()` when exposure/readout timing evidence applies to one exact resolved capture mode.
+Use `parseCaptureModeTimingProfile()` and `resolveCaptureModeTiming()` when your exposure/readout timing evidence applies to one exact resolved capture mode.
 
 The profile binds:
 
@@ -3657,23 +3748,23 @@ Schema `0.1.0` supports only the timing families already modeled by Photivra:
 - simultaneous/global timing; and
 - uniform-linear native-sensor scans.
 
-Segmented, center-out, interleaved or other non-uniform schedules fail closed rather than being silently approximated.
+Segmented, center-out, interleaved or other non-uniform schedules fail closed, rather than being silently approximated.
 
-The resolved result carries both authoritative local exposure windows and sensor data-readout timing, but still reports:
+The resolved result carries both the authoritative local exposure windows and the sensor data-readout timing, but still reports:
 
 `readoutExposureSynchronization: "not-assumed"`
 
-A shared mode/profile identity does not make readout phase an exposure-start or exposure-end clock.
+Sharing a mode/profile identity does not make the readout phase an exposure-start or exposure-end clock.
 
-Changing only a processed/output raster does not alter this timing. Timing changes only when the exact capture mode/profile or explicit timing facts change.
+Changing only a processed/output raster does not change this timing. Timing changes only when the exact capture mode/profile, or the explicit timing facts, change.
 
 ## Depth-aware translation/parallax temporal geometry
 
-Use `calculateCaptureTranslationParallaxTemporalQuadrature()` for camera translation/parallax over the exact local exposure windows resolved above.
+When the camera moves sideways (translates) during an exposure, near objects shift more in the image than far ones — this is parallax. Use `calculateCaptureTranslationParallaxTemporalQuadrature()` for camera translation and parallax over the exact local exposure windows resolved above.
 
-Unlike pure camera rotation, translation is **depth dependent**. Every scene sample therefore supplies a metric camera-space position with positive `z`.
+Unlike pure camera rotation, translation **depends on depth**. Every scene sample therefore gives a metric camera-space position with positive `z`.
 
-The model evaluates each scene point independently at deterministic midpoint nodes:
+The model evaluates each scene point on its own, at deterministic midpoint times:
 
 ```text
 relative scene position(t)
@@ -3681,28 +3772,26 @@ relative scene position(t)
   + (subject velocity - camera translation velocity) * t
 ```
 
-This keeps camera motion and subject motion separate while allowing them to coexist.
+This keeps camera motion and subject motion separate, while letting both happen at once.
 
-Important boundaries:
+Important limits:
 
-- metric scene depth is required;
-- one global homography/warp is not authorized for arbitrary 3D translation;
-- orientation changes the reported native/oriented sample vector, not the underlying physical projection;
-- camera rotation is still a separate model;
-- visibility, occlusion/disocclusion, deformation and acceleration remain downstream/future responsibilities;
-- sensor data-readout timing is not used as exposure timing.
+- Metric scene depth is required.
+- One global homography (a single 2D warp) is not allowed for arbitrary 3D translation.
+- Orientation changes the reported native/oriented sample vector, not the underlying physical projection.
+- Camera rotation is still a separate model.
+- Visibility, occlusion and disocclusion, deformation and acceleration are left to later stages or future work.
+- Sensor data-readout timing is not used as exposure timing.
 
-Two scene points at different depths under the same lateral camera translation therefore produce different image-plane displacement.
+So two scene points at different depths, under the same sideways camera translation, move by different amounts in the image.
 
 ## Temporal scene-radiance sampling
 
-Use `createSceneRadianceTemporalSamplingPlan()` to generate deterministic provider/renderer evaluation times over one committed local exposure window.
+Use `createSceneRadianceTemporalSamplingPlan()` to generate deterministic times at which a provider or renderer should evaluate the scene, over one committed local exposure window.
 
-The sampling plan uses the same authoritative:
+The sampling plan uses the same authoritative time basis as the [exposure-window contract](#capture-exposure-window-timing) (#12):
 
 `first-opening-boundary-phase`
-
-time basis as the #12 exposure-window contract.
 
 Each node carries:
 
@@ -3712,20 +3801,20 @@ Each node carries:
 - normalized averaging weight;
 - seconds-valued integration measure.
 
-A scene-radiance provider evaluates the scene/source state at those node times. Then `reduceSceneRadianceTemporalSamples()` validates that every returned result matches the exact node, provider, scene, wavelength and time identity before integrating.
+A scene-radiance provider evaluates the scene and source state at those times. Then `reduceSceneRadianceTemporalSamples()` checks that every returned result matches the exact node, provider, scene, wavelength and time identity, before integrating.
 
 The reducer reports both:
 
 - average outgoing spectral radiance; and
 - time-integrated spectral radiance.
 
-Per-node evidence and uncertainty are retained. Aggregate numeric uncertainty is explicitly `not-propagated` because the engine does not invent temporal independence/correlation assumptions.
+Per-node evidence and uncertainty are kept. The combined numeric uncertainty is explicitly `not-propagated`, because the engine does not invent assumptions about whether samples at different times are independent or correlated.
 
-This is the bridge required for physically timed flicker/flash/source variation. It does not use sensor readout phase as an exposure-time surrogate and does not itself implement visibility, material transport or a renderer.
+This is the bridge needed for physically timed flicker, flash and other changes in light sources. It does not use sensor readout phase as a stand-in for exposure time, and it does not itself implement visibility, material transport or a renderer.
 
 ## Manual flash and ordinary sync
 
-The #106 foundation models a manual flash as **time-varying scene illumination**, not a post-render brightness control.
+The manual-flash foundation (#106) models a flash as **scene illumination that changes over time**, not as a brightness control applied after rendering.
 
 The flow is:
 
@@ -3738,56 +3827,58 @@ manual flash source geometry + spectrum + relative output
   -> optics and sensor integration
 ```
 
-Use `parseManualFlashProfile()` for one generic manual flash source and `parseFlashSyncCapabilityProfile()` for the exact capture-mode/timing profile that permits ordinary synchronization.
+(In the flow above, #12 is the [exposure-window timing](#capture-exposure-window-timing) and #85 is the [scene-radiance provider](#scene-radiance-provider-and-material-response) with its [temporal illumination](#temporal-illumination).)
+
+Use `parseManualFlashProfile()` for one generic manual flash source, and `parseFlashSyncCapabilityProfile()` for the exact capture-mode/timing profile that allows ordinary synchronization.
 
 A manual flash profile declares:
 
-- stable source identity;
-- #85 point/spot/area/etc. geometry;
-- source spectrum;
-- relative-linear output scale;
+- a stable source identity;
+- source geometry (point, spot, area and so on), as in [scene illumination source profiles](#scene-illumination-source-profiles);
+- the source spectrum;
+- a relative, linear output scale;
 - explicit piecewise-linear pulse support and shape;
-- provenance/limitations.
+- provenance and limitations.
 
-Schema 0.1.0 uses relative source magnitude only. It does not claim a calibrated guide number, joule value, branded flash range, or manufacturer-specific pulse curve.
+Schema 0.1.0 uses relative source magnitude only. It does not claim a calibrated guide number, joule value, branded flash range or manufacturer-specific pulse curve.
 
 ### Front- and rear-curtain timing
 
-Call `resolveManualFlashSync()` with the resolved #12 capture-mode timing.
+Call `resolveManualFlashSync()` with the resolved capture-mode timing.
 
-For ordinary one-pulse flash, Photivra derives the interval during which **the entire active frame is simultaneously exposed**:
+For an ordinary single-pulse flash, Photivra works out the interval during which **the whole active frame is exposed at the same time**:
 
 ```text
 whole-frame-open start = latest opening-boundary phase
 whole-frame-open end   = earliest closing-boundary phase
 ```
 
-For a uniform focal-plane opening scan, the latest opening is the opening traversal duration. The earliest closing remains the nominal closing reference. If the interval is zero/negative, ordinary flash cannot uniformly light the full active frame.
+For a uniform focal-plane opening scan, the latest opening is the opening traversal time. The earliest closing stays at the nominal closing reference. If the interval is zero or negative, an ordinary flash cannot light the whole active frame evenly.
 
-Front sync places the pulse at the beginning of this valid interval. Rear sync places it at the end:
+Front-curtain sync puts the pulse at the start of this interval. Rear-curtain sync puts it at the end:
 
 ```text
 front pulse start = whole-frame-open start
 rear pulse start  = whole-frame-open end - pulse support duration
 ```
 
-The full pulse support must fit inside the interval. A shutter/capture timing with no adequate all-frame-open interval fails closed.
+The whole pulse must fit inside the interval. A shutter/capture timing without a long enough whole-frame-open interval fails closed.
 
 Sensor **data readout timing is never used as flash exposure timing**.
 
 ### HSS boundary
 
-`resolveManualFlashSync()` still rejects `high-speed-sync`: Photivra does not make HSS work by allowing an ordinary short pulse above the normal sync regime. Real HSS requires an extended/repeated illumination waveform coordinated with the moving exposure slit and has different energy/range behavior; that is the separate `resolveHighSpeedFlashSync()` burst model for schema 0.2.0 sync profiles that declare HSS (see [Rolling shutter, video, flash TTL/HSS and highlight-priority metering](#rolling-shutter-video-flash-ttlhss-and-highlight-priority-metering-200)).
+`resolveManualFlashSync()` still rejects `high-speed-sync`. Photivra does not fake HSS (high-speed sync) by allowing an ordinary short pulse at shutter speeds faster than normal sync. Real HSS needs a long or repeated light waveform, coordinated with the moving exposure slit, and it behaves differently in energy and range. That is handled by the separate `resolveHighSpeedFlashSync()` burst model, for schema 0.2.0 sync profiles that declare HSS (see [Rolling shutter, video, flash TTL/HSS and highlight-priority metering](#rolling-shutter-video-flash-ttlhss-and-highlight-priority-metering-200)).
 
 ### Illumination overlay
 
-`createManualFlashIlluminationOverlay()` appends the flash as a real #85 illumination source and constructs the matching temporal waveform/source binding.
+`createManualFlashIlluminationOverlay()` adds the flash as a real scene illumination source, and builds the matching temporal waveform and source binding.
 
-If an ambient `SceneIlluminationTemporalProfile` already exists, its waveforms and source bindings are preserved and rebound to the new combined illumination-profile identity. Flash therefore does not erase ambient flicker or other source timing.
+If an ambient `SceneIlluminationTemporalProfile` already exists, its waveforms and source bindings are kept and rebound to the new combined illumination-profile identity. So the flash does not erase ambient flicker or other source timing.
 
-When flash is disabled, the base illumination and temporal profiles are returned unchanged in meaning and no flash source is added.
+When the flash is disabled, the base illumination and temporal profiles are returned with unchanged meaning, and no flash source is added.
 
-The flash source retains its position/direction/coverage geometry. Distance falloff, surface orientation, shadows, visibility and indirect transport remain owned by the scene-radiance provider/renderer; Photivra does not fake those effects with a frame-wide scalar.
+The flash source keeps its position, direction and coverage geometry. Distance falloff, surface orientation, shadows, visibility and indirect light remain the job of the scene-radiance provider or renderer. Photivra does not fake those effects with one number for the whole frame.
 
 ### Manual flash controls remain separate
 
@@ -3802,19 +3893,19 @@ The manual-flash layer does not change:
 - drive mode;
 - stable-support state.
 
-The source output control is independent of camera ISO/aperture/shutter. Those camera settings affect the resulting captured flash contribution only through the normal image-formation chain.
+The flash output control is independent of the camera's ISO, aperture and shutter. Those camera settings affect the captured flash contribution only through the normal image-formation chain.
 
-Flash spectrum is physical scene illumination. A downstream Flash WB preset, if selected, must not alter the source spectrum.
+The flash spectrum is physical scene illumination. A Flash WB preset chosen later, if any, must not change the source spectrum.
 
 ### #105 release binding
 
-An optional committed `ResolvedReleaseFrame` may be supplied. Its shutter duration must match the #12 timing contract. The resolved flash event then exposes pulse start/end in sequence-relative scene time without changing the release frame.
+You may supply an optional committed `ResolvedReleaseFrame` from [release sequencing](#logical-release-sequences). Its shutter duration must match the exposure-window timing. The resolved flash event then reports pulse start and end in scene time relative to the sequence, without changing the release frame.
 
-Generic pre-flash TTL power (`resolveTtlFlashExposure()`, with flash exposure compensation) is solved separately and applied to the manual profile with `createTtlScaledFlashProfile()`. FE/FV lock, recycle/burst/thermal limits, red-eye preflashes, modeling lamps, AF-assist and wireless protocol simulation remain outside the manual-flash contract.
+Generic pre-flash TTL (through-the-lens) power, with flash exposure compensation, is solved separately by `resolveTtlFlashExposure()`, and applied to the manual profile with `createTtlScaledFlashProfile()`. Outside the manual-flash contract: FE/FV lock, recycle/burst/thermal limits, red-eye pre-flashes, modelling lamps, AF-assist and simulation of wireless protocols.
 
 ## Capture orientation, active area, and output geometry
 
-Use `resolveCaptureGeometry()` to keep physical sensor identity, active capture, physical camera orientation, and final digital output geometry separate:
+Use `resolveCaptureGeometry()` to keep four things separate: the physical sensor, the active capture area, how the camera is physically held (orientation), and the final digital output geometry:
 
 ```ts
 import { resolveCaptureGeometry } from "@photivra/engine";
@@ -3862,17 +3953,20 @@ import {
 } from "@photivra/engine";
 ```
 
-Point transforms use continuous raster-edge coordinates; pixel centers may be represented with +0.5 offsets. Vector transforms rotate direction only. Rectangle transforms preserve integer half-open semantics. Clockwise and counter-clockwise portrait transforms are distinct and round-trip to native coordinates.
+- Point transforms use continuous coordinates on pixel edges; pixel centers are at +0.5 offsets.
+- Vector transforms rotate direction only.
+- Rectangle transforms keep integer, half-open semantics.
+- Clockwise and counter-clockwise portrait transforms are distinct, and both round-trip back to native coordinates.
 
-`activeCaptureRect` is expressed in native coordinates. The generic model derives physical active-area bounds by assuming native image samples uniformly span the declared physical imaging area. The result exposes physical bounds and center offset relative to the optical axis so off-center crops remain optically asymmetric.
+`activeCaptureRect` is given in native coordinates. The generic model works out the physical bounds of the active area by assuming native image samples are spread evenly across the declared physical imaging area. The result gives the physical bounds and the center offset from the optical axis, so off-center crops stay optically asymmetric.
 
-`outputCropRect` is expressed in oriented active-capture coordinates. `outputRaster` may resample that crop but must preserve its aspect ratio within integer-rounding tolerance; implicit geometric stretching is rejected.
+`outputCropRect` is given in oriented active-capture coordinates. `outputRaster` may resample that crop, but must keep its aspect ratio within integer-rounding tolerance. Hidden geometric stretching is rejected.
 
-Display/file transforms such as EXIF mirroring remain separate from physical `CaptureOrientation`.
+Display and file transforms, such as EXIF mirroring, stay separate from the physical `CaptureOrientation`.
 
-Use `calculateActiveCaptureFieldOfView()` for active physical capture FOV. It preserves signed horizontal/vertical bounds for off-center crops and reports both opposite-corner diagonal spans. `diagonalDegrees` is the larger of those spans; centered crops produce equal diagonal spans.
+Use `calculateActiveCaptureFieldOfView()` for the FOV of the active physical capture. It keeps signed horizontal/vertical bounds for off-center crops, and reports both corner-to-corner diagonal spans. `diagonalDegrees` is the larger of the two; centered crops give equal spans.
 
-Final digital/output crop is deliberately excluded from active-capture FOV.
+The final digital/output crop is deliberately not part of active-capture FOV.
 
 ## Centered crop and subject framing crop
 
@@ -3893,7 +3987,7 @@ console.log(crop.value.megapixels);
 console.log(crop.value.retainedAreaFraction);
 ```
 
-Use `calculateSubjectFramingCrop()` to calculate the additional crop needed for a projected subject to occupy a target fraction of frame height:
+Use `calculateSubjectFramingCrop()` to work out the extra crop needed for a projected subject to fill a target fraction of the frame height:
 
 ```ts
 import { calculateSubjectFramingCrop } from "@photivra/engine";
@@ -3910,15 +4004,19 @@ console.log(framing.value.subjectHeightFraction);
 console.log(framing.value.subjectClipped);
 ```
 
-Subject framing assumes the crop can be positioned around the subject; it does not check the subject's actual position against image edges.
+Subject framing assumes the crop can be placed around the subject. It does not check the subject's actual position against the image edges.
 
-Integer rounding: `calculateCenteredCrop()` floors the shorter axis (`floor(dimension / cropFactor)`) and derives the longer axis as the integer nearest the source aspect ratio, capped at `floor(dimension / cropFactor)`; 6000×4000 at 1.7× gives 3528×2352 (exactly 3:2). `calculateSubjectFramingCrop()` uses the largest whole-pixel height within the requested crop height (`subjectHeightPixels / targetSubjectHeightFraction`), never fewer than `ceil(subjectHeightPixels)`, and the nearest-integer width for the source ratio. `subjectHeightFraction` is therefore at least the target (within one pixel of crop height) and `subjectClipped` is never `true` when the subject fits the source frame.
+Integer rounding:
+
+- `calculateCenteredCrop()` floors the shorter axis (`floor(dimension / cropFactor)`). It derives the longer axis as the integer nearest to the source aspect ratio, capped at `floor(dimension / cropFactor)`. For example, 6000×4000 at 1.7× gives 3528×2352 (exactly 3:2).
+- `calculateSubjectFramingCrop()` uses the largest whole-pixel height within the requested crop height (`subjectHeightPixels / targetSubjectHeightFraction`), never fewer than `ceil(subjectHeightPixels)`, and the nearest-integer width for the source ratio.
+- So `subjectHeightFraction` is at least the target (within one pixel of crop height), and `subjectClipped` is never `true` when the subject fits the source frame.
 
 See [Physics Foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#sensor-geometry-sampling-capture-and-crop).
 
 ## Projected subject motion
 
-Use `calculateProjectedMotionBlur()` for representative-point image-plane displacement during an exposure:
+Use `calculateProjectedMotionBlur()` for how far one representative point moves on the image plane during an exposure:
 
 ```ts
 import { calculateProjectedMotionBlur } from "@photivra/engine";
@@ -3938,15 +4036,15 @@ console.log(motion.value.distanceMm);
 console.log(motion.value.distancePixels);
 ```
 
-The model assumes constant world-space linear velocity. It tracks a representative point rather than extended-object scale blur, rotation, deformation, or acceleration.
+The model assumes constant linear velocity in world space. It follows one representative point. It does not model blur from changing object size, rotation, deformation or acceleration.
 
 See [Motion and Signal Foundation](https://github.com/Photivra/photivra/blob/main/docs/MOTION_AND_SIGNAL.md#projected-subject-motion).
 
 ## Extended-object time-varying projection
 
-`calculateProjectedMotionBlur()` remains the compact representative-point displacement API. Use `calculateExtendedObjectProjectionTrajectory()` when object extent matters.
+`calculateProjectedMotionBlur()` stays the compact API for one representative point. Use `calculateExtendedObjectProjectionTrajectory()` when the object's size and shape matter.
 
-The extended-object foundation accepts:
+The extended-object foundation takes:
 
 - multiple explicit metric camera-space points belonging to one object/region;
 - one shared constant rigid object-translation velocity;
@@ -3965,13 +4063,13 @@ image x(t) = projection distance * x(t) / z(t)
 image y(t) = projection distance * y(t) / z(t)
 ```
 
-This is important for axial motion. An object centered on the optical axis can have almost zero center-point displacement while its off-axis corners move radially because magnification changes.
+This matters for motion towards or away from the camera. An object centered on the optical axis can have almost no movement at its center, while its off-axis corners move outwards or inwards because the magnification changes.
 
 ### Front-to-back motion and scale
 
-Do not interpret every depth-direction motion result as one global scale.
+Do not read every result for motion in depth as one global scale.
 
-If the caller has a known fronto-parallel planar patch, it may explicitly provide:
+If you have a known flat patch facing the camera squarely (fronto-parallel), you may provide it explicitly:
 
 ```ts
 frontoparallelPlane: {
@@ -3992,7 +4090,7 @@ The scale diagnostic is valid for that declared patch only. It does **not** auth
 
 ### Mixed lateral + depth motion
 
-Lateral and depth translation are evaluated together. Because projection depends on each point's depth, different object points can have materially different image-plane trajectories.
+Sideways and depth translation are evaluated together. Because projection depends on each point's depth, different points on the object can follow quite different paths on the image plane.
 
 The result therefore exposes per-point, per-time:
 
@@ -4002,15 +4100,15 @@ The result therefore exposes per-point, per-time:
 - depth;
 - optional validated planar scale.
 
-Camera and object translation remain separate input identities even though the relative projection uses `object - camera` translation.
+Camera and object translation stay separate inputs, even though the relative projection uses `object - camera` translation.
 
 ### #12 local-exposure integration
 
-Use `calculateCaptureExtendedObjectTemporalProjection()` when the geometry must follow capture timing.
+Use `calculateCaptureExtendedObjectTemporalProjection()` when the geometry must follow capture timing (the [exposure windows](#capture-exposure-window-timing), #12).
 
-Every object point supplies the native destination point whose committed #12 exposure window applies. The engine creates deterministic midpoint nodes inside each point's local exposure interval and evaluates the same extended-object projection there.
+Each object point names the native destination point whose committed exposure window applies. The engine creates deterministic midpoint times inside each point's local exposure interval, and evaluates the same extended-object projection there.
 
-With rolling/local exposure timing, two image locations can therefore integrate different portions of the same physical object trajectory.
+With rolling or other local exposure timing, two image locations can therefore record different parts of the same object's path.
 
 Sensor **data readout timing is not substituted for exposure timing**.
 
@@ -4029,15 +4127,15 @@ It does not calculate:
 - camera rotation;
 - a universal projective warp.
 
-If relative depth changes, the object-to-focus relationship also changes through time. A downstream high-fidelity renderer may therefore need to evaluate defocus/PSF at the same physical-time nodes rather than convolving one motion result with one static defocus kernel.
+If the relative depth changes, the object's distance from the focus plane also changes over time. A high-fidelity renderer may therefore need to evaluate defocus/PSF at the same physical times, instead of convolving one motion result with one fixed defocus kernel.
 
-A renderer using #85 should evaluate scene radiance/visibility at the temporal geometry states rather than inferring a complete blur from endpoints alone.
+A renderer using a [scene-radiance provider](#scene-radiance-provider-and-material-response) should evaluate scene radiance and visibility at each of these geometry states, rather than guessing a complete blur from the endpoints alone.
 
 ## Relative pre-exposure metering
 
-Use `parseExposureMeteringProfile()` and `meterRelativeExposure()` for the first renderer-neutral metering path.
+Metering measures how bright the scene is, so exposure can be set. Use `parseExposureMeteringProfile()` and `meterRelativeExposure()` for the first metering path. It does not depend on any renderer.
 
-Schema `0.1.0` deliberately accepts only **relative pre-exposure linear signal**. It does not claim calibrated luminance, scene spectral radiance, sensor-plane irradiance, or a commercial-camera meter calibration.
+Schema `0.1.0` deliberately accepts only a **relative, linear signal measured before exposure**. It does not claim calibrated luminance, scene spectral radiance, sensor-plane irradiance or the meter calibration of any commercial camera.
 
 ```ts
 import {
@@ -4149,27 +4247,27 @@ if (metered.value.status === "resolved") {
 }
 ```
 
-For a controlled uniform fixture, halving every relative-linear sample from `1.0` to `0.5` produces a **+1 stop** shift to the same declared target. That is the intended educational invariant used by Manual + Auto ISO tests.
+For a controlled uniform test scene, halving every relative-linear sample from `1.0` to `0.5` gives a **+1 stop** shift to reach the same declared target. The Manual + Auto ISO tests rely on this deliberate, educational rule.
 
 ### Metering policies
 
-The first generic policies are explicit rather than branded:
+The first generic policies are spelled out explicitly, not named after brands:
 
-- `multi-zone-uniform` — area-weighted average over all supplied zones;
-- `center-weighted-radial` — multiplies area weight by a radial physical-frame weighting function with explicit edge weight and exponent;
-- `spot` — selects samples inside an explicit spot center/radius in the oriented active capture frame;
-- `highlight-weighted` — gives brighter relative-linear samples more weight through an explicit exponent and minimum weight fraction, then places that weighted mean at the target. It is highlight emphasis, not highlight protection: in a mostly mid-grey frame with a small bright area it darkens the mid-tones (about 0.5–0.8 EV versus uniform metering for a 95 % 0.18 / 5 % 0.9 frame) without placing the highlights relative to saturation.
-- `highlight-priority` — places the area-weighted `highlightPercentile` quantile of the samples `headroomStops` below a declared `saturationRelativeSignal`; the profile target must equal `saturationRelativeSignal · 2^−headroomStops` (`calculateHighlightPriorityPlacementSignal()`). It is a spatial quantile, so the time-averaged scene-radiance meter and TTL flash reject it.
+- `multi-zone-uniform` — area-weighted average over all supplied zones.
+- `center-weighted-radial` — multiplies each area weight by a radial weighting over the physical frame, with an explicit edge weight and exponent.
+- `spot` — uses only samples inside an explicit spot (center and radius) in the oriented active capture frame.
+- `highlight-weighted` — gives brighter samples more weight, through an explicit exponent and a minimum weight fraction, then places that weighted mean at the target. It emphasizes highlights; it does not protect them. In a mostly mid-grey frame with a small bright area, it darkens the mid-tones (about 0.5–0.8 EV compared with uniform metering, for a frame that is 95 % at 0.18 and 5 % at 0.9), without placing the highlights relative to saturation.
+- `highlight-priority` — places the area-weighted `highlightPercentile` quantile of the samples `headroomStops` below a declared `saturationRelativeSignal`. The profile target must equal `saturationRelativeSignal · 2^−headroomStops` (`calculateHighlightPriorityPlacementSignal()`). It is a quantile over space, so the time-averaged scene-radiance meter and TTL flash reject it.
 
-The sample producer supplies `areaWeight`, so denser sampling in one part of the frame does not automatically mean more metering influence.
+The sample producer supplies `areaWeight`, so sampling one part of the frame more densely does not automatically give it more influence.
 
-Center/spot distance is evaluated using the **physical dimensions of the oriented active capture frame**, not CSS/display pixels. A final output crop is not used by schema 0.1.0.
+Center and spot distances use the **physical dimensions of the oriented active capture frame**, not CSS or display pixels. Schema 0.1.0 does not use a final output crop.
 
 ### Target and downstream control
 
-`targetRelativeSignal` is a profile-defined reference. It is not a universal claim about 18% gray or a specific manufacturer's meter calibration.
+`targetRelativeSignal` is a reference defined by the profile. It is not a universal claim about 18% grey, or about any manufacturer's meter calibration.
 
-The meter reports the base scene measurement independently from exposure compensation. It does not choose aperture, shutter duration, or ISO.
+The meter reports the base scene measurement separately from exposure compensation. It does not choose aperture, shutter duration or ISO.
 
 The intended flow is:
 
@@ -4182,19 +4280,21 @@ pre-exposure relative scene signal
   -> aperture / shutter / ISO
 ```
 
-A zero-signal sample set returns `status: "no-signal"` rather than infinity/NaN.
+(#99 is [exposure control](#manual-and-auto-iso-exposure-resolution): the resolvers that choose aperture, shutter and ISO.)
 
-`measurementId` and `sceneStateId` remain in the result so a future application can freeze a meter result for AE lock or reject stale results after scene-light changes.
+A sample set with zero signal returns `status: "no-signal"`, not infinity or NaN.
 
-The input must explicitly state that exposure settings, white balance, tone mapping, display gamma, and sharpening have not already been applied. This prevents a circular final-preview auto-exposure loop.
+`measurementId` and `sceneStateId` stay in the result, so an application can freeze a meter result for AE lock, or reject stale results after the scene lighting changes.
 
-This path is ambient/relative metering only. Flash/TTL metering and calibrated camera-specific photometric/radiometric metering remain separate. Exposure compensation and automatic exposure consume the frozen meter target through the dedicated downstream contracts rather than modifying the meter measurement.
+The input must state explicitly that exposure settings, white balance, tone mapping, display gamma and sharpening have not already been applied. This prevents a feedback loop where auto-exposure meters its own final preview.
+
+This path covers ambient, relative metering only. Flash/TTL metering, and calibrated camera-specific photometric or radiometric metering, are separate. Exposure compensation and automatic exposure use the frozen meter target through their own contracts; they never change the meter measurement.
 
 ### Equipment metering capability binding
 
-Use `parseGenericBodyMeteringCapabilityProfile()` plus `assessExposureMeteringProfileCompatibility()` to declare which engine-owned metering profiles/modes a generic camera body may select.
+Use `parseGenericBodyMeteringCapabilityProfile()` with `assessExposureMeteringProfileCompatibility()` to declare which engine-owned metering profiles and modes a generic camera body may select.
 
-The equipment profile does **not** duplicate the meter target/calibration values. Those remain authoritative in the selected `ExposureMeteringProfile`.
+The equipment profile does **not** repeat the meter target or calibration values. Those stay authoritative in the selected `ExposureMeteringProfile`.
 
 Composition fragment: requires previously validated bindings `evidence`, `profile`. This is an integration sketch, not a standalone runnable program.
 
@@ -4233,13 +4333,14 @@ const compatibility =
   });
 ```
 
-The compatibility result preserves `targetPolicyOwnership: "metering-profile"`, so equipment metadata never becomes a second source of calibration truth.
+The compatibility result keeps `targetPolicyOwnership: "metering-profile"`, so equipment metadata never becomes a second source of calibration truth.
 
-Spot/focus-point linkage is capability metadata only. A future AF/spot-link control must explicitly consume it; the meter does not silently move a spot because a focus point exists.
+Linking the metering spot to the focus point is capability metadata only. A future AF/spot-link control must use it explicitly. The meter does not silently move a spot just because a focus point exists.
 
 ### Meter target and automatic exposure integration
 
-Use `createExposureMeterTargetFromMeteringResult()` to freeze a spatial or temporal meter result into the target consumed by #99 exposure-mode resolution. Use `setExposureCompensationOnMeterTarget()` to apply compensation downstream without mutating the source measurement.
+- `createExposureMeterTargetFromMeteringResult()` freezes a spatial or temporal meter result into the target used by exposure-mode resolution.
+- `setExposureCompensationOnMeterTarget()` applies compensation afterwards, without changing the source measurement.
 
 For the controlled relative path:
 
@@ -4250,15 +4351,15 @@ uniform scene signal 0.5 -> meter target scale 2 -> ISO 200
 
 when aperture and shutter are fixed in Manual + Auto ISO and the ISO capability range permits it.
 
-The frozen target retains the original meter measurement/scene/profile identity, providing the AE-lock seam. Reusing that target after scene changes intentionally keeps the locked meter target; creating a new meter result follows the new scene state.
+The frozen target keeps the original meter measurement, scene and profile identity; this is how AE lock works. Reusing that target after the scene changes deliberately keeps the locked target. Creating a new meter result follows the new scene state.
 
-Automatic resolvers consume the typed target directly and do not reapply exposure compensation.
+Automatic resolvers read the typed target directly, and do not apply exposure compensation again.
 
 ## Scene-radiance-derived and temporal metering
 
-Use `createSceneRadianceDerivedExposureMeteringSampleSet()` when a renderer/reference evaluator supplies relative pre-exposure meter zones derived from the #85 scene-radiance context.
+Use `createSceneRadianceDerivedExposureMeteringSampleSet()` when a renderer or reference evaluator supplies relative pre-exposure meter zones derived from a [scene-radiance provider](#scene-radiance-provider-and-material-response) (#85).
 
-The bridge validates:
+The bridge checks:
 
 - scene/provider/illumination/material profile identity;
 - provider material fidelity against the supplied material profile;
@@ -4266,7 +4367,7 @@ The bridge validates:
 - optional temporal-illumination profile identity;
 - explicit capture time when the provider is time-varying.
 
-The scalar reduction remains renderer/provider supplied. Photivra does **not** turn one or more spectral-radiance samples into luminance or a camera meter signal automatically.
+The reduction to one number per zone is still supplied by the renderer or provider. Photivra does **not** automatically turn spectral-radiance samples into luminance or a camera meter signal.
 
 Composition fragment: requires previously validated bindings `captureGeometry`, `illuminationProfile`, `materialResponseProfile`, `profile`, `providerProfile`. This is an integration sketch, not a standalone runnable program.
 
@@ -4327,15 +4428,15 @@ const meter = meterRelativeExposure({
 });
 ```
 
-The source context reports `spectralReductionCalibrated: false`, and calibrated luminance/scene-radiance claims remain unauthorized.
+The source context reports `spectralReductionCalibrated: false`. Claims of calibrated luminance or scene radiance are not allowed.
 
 ### Time-varying illumination
 
-If the scene-radiance provider declares `illuminationTemporalProfileId`, the bridge requires the matching temporal profile plus a finite `captureTimeSecondsFromReference` on the shared `first-opening-boundary-phase` reference.
+If the scene-radiance provider declares `illuminationTemporalProfileId`, the bridge needs the matching temporal profile, plus a finite `captureTimeSecondsFromReference` on the shared `first-opening-boundary-phase` reference.
 
-One such sample set is an explicit instantaneous meter snapshot at that time.
+One such sample set is an explicit meter snapshot at that instant.
 
-To average multiple snapshots, use `meterSceneRadianceTemporalExposure()` with an explicit `weighted-time-average` policy:
+To average several snapshots, use `meterSceneRadianceTemporalExposure()` with an explicit `weighted-time-average` policy:
 
 Composition fragment: requires previously validated bindings `profile`, `sampleAtTime0`, `sampleAtTime1`. This is an integration sketch, not a standalone runnable program.
 
@@ -4367,17 +4468,17 @@ const temporalMeter =
   });
 ```
 
-The temporal weights must be positive and sum to one. Capture times must be strictly increasing. Every sample must share the same committed `sceneStateId`, provider/material/derivation context, temporal profile and active-capture geometry.
+The time weights must be positive and sum to one. Capture times must be strictly increasing. Every sample must share the same committed `sceneStateId`, provider/material/derivation context, temporal profile and active-capture geometry.
 
-The meter averages **linear relative signals first**, then computes the stop offset to the target. It never averages EV/stop offsets.
+The meter averages the **linear relative signals first**, then computes the stop offset to the target. It never averages EV or stop offsets.
 
-This policy is explicit ambient temporal metering. It does not infer time weights from source flicker frequency, source waveform shape, shutter/readout duration, renderer frame cadence, or final display brightness. Flash/TTL metering remains separate.
+This policy is explicit ambient metering over time. It does not guess time weights from the flicker frequency, the source waveform shape, the shutter or readout duration, the renderer's frame rate, or the final display brightness. Flash/TTL metering is separate.
 
 ## Logical release sequences
 
-Use `parseGenericReleaseCapabilityProfile()` and `resolveReleaseSequence()` for deterministic logical camera releases such as single-frame capture, bursts, self-timer sequences, exposure bracketing, and focus bracketing.
+A "release" is one press of the shutter button and the frames it produces. Use `parseGenericReleaseCapabilityProfile()` and `resolveReleaseSequence()` for deterministic logical camera releases: single frames, bursts, self-timer sequences, exposure bracketing and focus bracketing.
 
-This is deliberately separate from sensor capture modes: a burst of several photographs is several logical captures, not one multi-frame sensor reconstruction.
+This is deliberately separate from sensor capture modes. A burst of several photographs is several logical captures, not one multi-frame sensor reconstruction.
 
 Composition fragment: requires previously validated bindings `evidence`, `exposureCapabilities`. This is an integration sketch, not a standalone runnable program.
 
@@ -4478,38 +4579,38 @@ Each frame carries:
 - deterministic per-frame seed;
 - explicit automation/lock policy.
 
-Adjacent frames derive different stochastic seeds from the same stable sequence seed, while replaying identical sequence inputs reproduces the same sequence.
+Neighbouring frames derive different random seeds from the same stable sequence seed. Replaying identical sequence inputs reproduces the same sequence.
 
 ### Cadence feasibility
 
-Requested FPS is not treated as more authoritative than physics/capabilities.
+The requested frames per second (FPS) never override physics or the camera's capabilities.
 
-For non-overlapping ordinary still exposures, the actual start-to-start interval is constrained by:
+For ordinary still exposures, which do not overlap, the actual start-to-start interval is limited by:
 
 - requested cadence;
 - body maximum cadence;
 - previous frame exposure duration;
 - minimum inter-frame gap.
 
-The resolver reports the active timing constraint rather than silently scheduling overlapping exposures.
+The resolver reports which timing limit applied, instead of silently scheduling overlapping exposures.
 
-Buffer/media/thermal slowdown, pre-release capture, and special overlapping acquisition modes are not modeled in schema 0.1.0.
+Schema 0.1.0 does not model slowdown from buffers, media or heat, pre-release capture, or special modes with overlapping acquisition.
 
 ### Bracketing
 
-Exposure bracketing changes an explicit physical exposure axis per frame. It does not apply a post-render brightness offset.
+Exposure bracketing changes an explicit physical exposure setting for each frame. It does not add a brightness offset after rendering.
 
-Focus bracketing consumes explicit `FocusPlane` states. It does not claim focus-stacked output or assign universal physical meaning to an abstract focus-step index.
+Focus bracketing uses explicit `FocusPlane` states. It does not claim to produce a focus-stacked image, and does not give an abstract focus-step index a universal physical meaning.
 
-White-balance bracketing is not forced into physical multi-exposure semantics; WB rendering/development variation remains downstream color-pipeline work.
+White-balance bracketing is not forced to mean several physical exposures. Varying WB in rendering or development is work for the colour pipeline later on.
 
 ### Cancellation
 
-Use `createCancelledReleaseSequence()` to record an explicit completed/omitted frame boundary without mutating the scheduled source sequence.
+Use `createCancelledReleaseSequence()` to record explicitly which frames were completed and which were left out, without changing the scheduled source sequence.
 
 ## Generic equipment exposure capabilities
 
-Use the #109 equipment-capability API to describe **what a generic Photivra body and lens allow** before #99 chooses any setting.
+Use the equipment-capability API (#109) to describe **what a generic Photivra body and lens allow**, before [exposure control](#manual-and-auto-iso-exposure-resolution) (#99) chooses any setting.
 
 ```ts
 import {
@@ -4708,20 +4809,20 @@ A setting grid is either:
 - `continuous-within-range` — a downstream resolver may choose any finite value inside the range; or
 - `discrete-values` — only the declared values are valid.
 
-For a variable-aperture lens, the discrete aperture list is filtered after the wide-open f-number is resolved at the selected focal length.
+For a lens whose widest aperture changes with zoom, the discrete aperture list is filtered after the wide-open f-number is resolved at the selected focal length.
 
 ### Capability versus selected state
 
-These profiles do **not** represent the current camera settings. They are immutable capability inputs.
+These profiles do **not** describe the current camera settings. They are immutable inputs that say what is possible.
 
-The resolver also does not choose aperture, shutter or ISO. #99 owns:
+The resolver also does not choose aperture, shutter or ISO. Exposure control owns:
 
-- manual versus automatic axis policy;
-- validation/quantization of requested settings;
+- which settings are manual and which are automatic;
+- validating and quantizing requested settings;
 - clamping to capability limits;
 - residual exposure diagnostics.
 
-The legacy `CameraConfiguration` remains semantically unchanged while #109 builds the newer versioned capability/state architecture.
+The legacy `CameraConfiguration` keeps its meaning unchanged, alongside this newer, versioned capability/state design.
 
 Auto ISO capability preserves three states:
 
@@ -4731,13 +4832,13 @@ Auto ISO capability preserves three states:
 
 An unknown capability must not be treated as supported.
 
-ISO capability is control metadata only. It does not imply sensor noise, analog gain topology, photon count, conversion gain or high-ISO quality.
+ISO capability is control metadata only. It says nothing about sensor noise, analog gain topology, photon count, conversion gain or high-ISO quality.
 
-Likewise, shutter-duration capability does not imply shutter mechanism, rolling/global readout, exposure-boundary timing or flash sync.
+Likewise, shutter-duration capability says nothing about the shutter mechanism, rolling/global readout, exposure-boundary timing or flash sync.
 
 ## Meter target and exposure compensation
 
-Use `createExposureMeterTargetFromMeteringResult()` to freeze a spatial or temporal metering result into the stable target consumed by #99.
+Use `createExposureMeterTargetFromMeteringResult()` to freeze a spatial or temporal metering result into the stable target that exposure control reads.
 
 Composition fragment: requires previously validated bindings `meterResult`. This is an integration sketch, not a standalone runnable program.
 
@@ -4768,11 +4869,11 @@ The frozen target copies the authoritative meter identity by value:
 - scene-state ID;
 - metering-profile ID.
 
-This is the AE-lock seam. Holding the target object intentionally preserves the earlier meter snapshot even if the live scene later changes.
+This is how AE lock works. Holding on to the target object deliberately keeps the earlier meter snapshot, even if the live scene later changes.
 
 ### Compensation semantics
 
-Exposure compensation is an **absolute downstream target offset**.
+Exposure compensation is an **absolute offset applied to the target**, after metering.
 
 For a resolved target:
 
@@ -4788,19 +4889,19 @@ compensated exposure scale =
 
 Therefore +1 EV compensation requests twice the exposure of the uncompensated target; -1 EV requests half.
 
-`setExposureCompensationOnMeterTarget()` always re-derives from the stored uncompensated base values. Passing an already compensated target with a new compensation value does not compound the old compensation. This avoids control drift during repeated slider/dial updates.
+`setExposureCompensationOnMeterTarget()` always works from the stored, uncompensated base values. If you pass a target that is already compensated, with a new compensation value, the old compensation is not added on top. This stops drift when a slider or dial is moved repeatedly.
 
-A changed compensation state requires a new `targetId`. The source meter snapshot identity remains unchanged.
+A changed compensation state needs a new `targetId`. The identity of the source meter snapshot stays the same.
 
-The meter measurement itself is never mutated, and the target still reports `automaticExposureResolved: false`. #99 owns the later aperture/shutter/ISO decision.
+The meter measurement itself is never changed, and the target still reports `automaticExposureResolved: false`. Exposure control makes the later aperture/shutter/ISO decision.
 
-A no-signal meter target remains `no-signal` after compensation. The engine does not convert darkness into infinity or fabricate a reachable automatic exposure.
+A `no-signal` meter target stays `no-signal` after compensation. The engine does not turn darkness into infinity, or make up an automatic exposure that could be reached.
 
 ## ISO/exposure-index capabilities and generic high-ISO signal chain
 
-Photivra keeps **reported ISO/exposure-index state** separate from captured photons and from the #14 electronic readout model.
+Photivra keeps the **reported ISO / exposure-index setting** separate from the captured photons, and from the [electronic readout model](#stochastic-charge-conversion-adc-and-raw-code) (#14).
 
-Use `parseIsoCapabilityProfile()` for detailed camera/body capability metadata beyond the older generic numeric envelope.
+Use `parseIsoCapabilityProfile()` for detailed ISO capability metadata for a camera body, beyond the older generic numeric range.
 
 The profile can declare:
 
@@ -4811,7 +4912,7 @@ The profile can declare:
 - a global Auto ISO range;
 - evidenced per-capture-mode standard ranges, expanded-setting availability, and Auto ISO ranges.
 
-The contract describes **reported exposure-index capability**, not physical sensor gain. Resolving a setting therefore explicitly reports that it did not modify or infer:
+The contract describes **which exposure-index settings a camera reports**, not physical sensor gain. Resolving a setting therefore states explicitly that it did not change or infer:
 
 - captured-photon expectation;
 - photon shot-noise statistics;
@@ -4821,36 +4922,36 @@ The contract describes **reported exposure-index capability**, not physical sens
 - saturation;
 - exact commercial-camera behavior.
 
-Expanded settings are intentionally separate from the ordinary standard numeric setting grid. A reported `H1` equivalent does not mean Photivra has inferred how a real camera implements that state internally.
+Expanded settings are deliberately separate from the ordinary standard numeric setting grid. A reported `H1` equivalent does not mean Photivra knows how a real camera implements that setting internally.
 
 ### Binding detailed ISO capability into automatic exposure
 
-Use `bindIsoCapabilityToExposureCapabilities()` to combine the detailed #7 profile with the existing resolved body/lens exposure envelope consumed by #99.
+Use `bindIsoCapabilityToExposureCapabilities()` to combine this detailed ISO profile (#7) with the resolved body/lens exposure envelope that exposure control reads.
 
-The global standard ISO range/grid must agree exactly between both contracts; conflicting duplicate capability facts fail closed.
+The global standard ISO range and grid must agree exactly between the two contracts. Conflicting duplicate facts fail closed.
 
 An evidenced capture-mode policy may narrow the standard ISO range for that mode. Auto ISO can then be narrower still.
 
-For example, a mode may allow manual standard ISO 100–12800 while restricting Auto ISO to 200–3200. #99 keeps manual ISO validation on the mode's standard range/grid but uses the separate Auto ISO bounds for all automatic-ISO paths.
+For example, a mode may allow manual standard ISO 100–12800 while limiting Auto ISO to 200–3200. Exposure control checks manual ISO against the mode's standard range and grid, but uses the separate Auto ISO bounds for every automatic-ISO path.
 
-Expanded settings remain outside #99's ordinary numeric Auto-ISO resolver and are selected explicitly through the detailed ISO capability contract.
+Expanded settings stay outside the ordinary numeric Auto ISO resolver. They are selected explicitly through the detailed ISO capability contract.
 
 ### Generic high-ISO signal-chain profiles
 
-`parseGenericIsoSignalChainProfile()` and `resolveGenericIsoSignalChain()` provide the generic Stage-B model.
+`parseGenericIsoSignalChainProfile()` and `resolveGenericIsoSignalChain()` provide the generic "Stage-B" model, which links an ISO setting to the sensor's electronics.
 
-The profile does **not** define an ISO→noise equation. Instead, for one exact capture mode it maps:
+The profile does **not** define an ISO → noise equation. Instead, for one exact capture mode, it maps:
 
 - standard ISO/EI bands; and
 - explicitly named expanded ISO states
 
-to existing #14 `SensorReadoutConversionRegime` IDs.
+to existing `SensorReadoutConversionRegime` IDs (the [readout regimes](#stochastic-charge-conversion-adc-and-raw-code), #14).
 
-Those #14 regimes own the actual declared conversion gain, electronic read-noise components, pre-ADC saturation, black level, ADC and RAW-code behavior.
+Those regimes own the actual declared conversion gain, electronic read-noise components, pre-ADC saturation, black level, ADC and RAW-code behaviour.
 
-Changing ISO or a generic profile therefore cannot alter upstream photoelectron expectation or photon shot-noise statistics. Any change in downstream read noise or conversion/saturation behavior comes from the explicitly selected #14 regime.
+So changing ISO, or a generic profile, cannot change the expected photoelectrons or photon shot-noise statistics upstream. Any change in read noise or conversion/saturation behaviour comes from the explicitly selected regime.
 
-Signal-chain bands may be discontinuous where only discrete ISO values are supported. Overlapping bands fail closed rather than letting ordering choose a regime.
+Signal-chain bands may have gaps where only discrete ISO values are supported. Overlapping bands fail closed, rather than letting their order pick a regime.
 
 The first generic profile deliberately does not add:
 
@@ -4860,38 +4961,38 @@ The first generic profile deliberately does not add:
 - processed-image/JPEG behavior;
 - manufacturer-specific response curves.
 
-Those effects require their own explicit models/evidence and must not be hidden inside an ordinal quality label.
+Those effects need their own explicit models and evidence, and must not be hidden inside a quality label.
 
 ### Good / Better / Best convenience mapping
 
 `parseGenericIsoSignalChainPresetCatalog()` can map the user-facing convenience labels `good`, `better`, and `best` to explicit signal-chain profile IDs.
 
-The labels are not the scientific input. The selected profile parameters are.
+The labels are not the scientific input; the selected profile's parameters are.
 
 The catalog explicitly carries:
 
 - `performanceOrderingClaimed: false`;
 - `realCameraRankingClaimed: false`.
 
-This prevents the convenience labels from becoming a claim that one real camera class is universally superior or that a tier name itself changes sensor physics.
+This stops the convenience labels from turning into a claim that one class of real camera is always better, or that a tier name by itself changes sensor physics.
 
 ## Manual and Auto ISO exposure resolution
 
-Use `resolveManualExposureMode()` for the first #99 exposure-control slice.
+Exposure control (#99) chooses the camera settings from a meter target. Use `resolveManualExposureMode()` for Manual mode, the first part of it.
 
-This resolver consumes:
+This resolver takes:
 
-- a frozen #100 `ExposureMeterTarget`;
-- the resolved #109 generic body+lens exposure capabilities;
+- a frozen `ExposureMeterTarget` (from [metering](#meter-target-and-exposure-compensation), #100);
+- the resolved generic body + lens exposure capabilities (from [equipment capabilities](#generic-equipment-exposure-capabilities), #109);
 - an explicit relative reference exposure anchor;
-- caller-owned aperture and shutter settings;
+- aperture and shutter settings chosen by the caller;
 - either manual ISO or Auto ISO.
 
-The resolver does **not** meter the scene, apply exposure compensation, change aperture/shutter, or infer sensor noise/gain behavior.
+The resolver does **not** meter the scene, apply exposure compensation, change aperture or shutter, or infer sensor noise or gain behaviour.
 
 ### Reference exposure anchor
 
-The relative meter target tells the resolver how much exposure change is required, but it does not by itself define an absolute ISO.
+The relative meter target tells the resolver how much the exposure must change. On its own, it does not define an absolute ISO.
 
 Therefore this API requires:
 
@@ -4903,9 +5004,9 @@ const referenceExposure = {
 };
 ```
 
-The anchor means: when the target scale is `1`, this aperture/shutter/ISO combination represents the declared relative exposure baseline.
+The anchor means: when the target scale is `1`, this aperture/shutter/ISO combination is the declared relative exposure baseline.
 
-It is explicit input, not a universal ISO-100 or gray-card rule. All three anchor values must be valid in the same resolved equipment capability envelope.
+It is an explicit input, not a universal ISO-100 or grey-card rule. All three anchor values must be valid in the same resolved equipment capability envelope.
 
 ### Manual + Auto ISO
 
@@ -4941,9 +5042,9 @@ With aperture/shutter fixed at the reference values:
 - target scale `2` resolves ideal ISO 200;
 - target scale `4` resolves ideal ISO 400.
 
-This is the controlled invariant used for live scene-light response: a uniform -1 stop scene-light change produces +1 stop of ideal ISO when limits/grid permit it.
+This is the controlled rule for responding to live changes in scene light: if the scene gets 1 stop darker everywhere, the ideal ISO goes up 1 stop, when the limits and grid allow it.
 
-If manual optical settings differ from the reference, the resolver compensates only through ISO:
+If the manual optical settings differ from the reference, the resolver compensates only through ISO:
 
 ```text
 manual optical factor =
@@ -4959,7 +5060,7 @@ ideal Auto ISO =
 
 ### Discrete ISO quantization
 
-For a discrete #109 ISO grid, the first policy chooses the nearest valid ISO in log2 exposure space.
+For a discrete ISO grid from the equipment capabilities, the first policy picks the nearest valid ISO in log2 exposure space (that is, nearest in stops).
 
 On an exact midpoint tie, the lower ISO is selected.
 
@@ -4986,7 +5087,7 @@ The limiting constraint is reported as one of:
 
 If Auto ISO capability is `unsupported` or `unknown`, the resolver returns a blocked result. Unknown is not treated as supported.
 
-A `no-signal` meter target also blocks Auto ISO rather than selecting maximum ISO or infinity.
+A `no-signal` meter target also blocks Auto ISO, instead of selecting maximum ISO or infinity.
 
 ### Manual ISO
 
@@ -5007,17 +5108,17 @@ const resolved =
   });
 ```
 
-Manual aperture, shutter, and ISO are preserved exactly after capability validation.
+Manual aperture, shutter and ISO are kept exactly, after they are checked against the capabilities.
 
-A changed meter target or exposure compensation changes only the target-residual diagnostic. It does not change any manual setting.
+A changed meter target or exposure compensation changes only the target-residual diagnostic. It never changes a manual setting.
 
-This is intentionally different from Manual + Auto ISO.
+This is deliberately different from Manual + Auto ISO.
 
 ### Boundaries
 
-The #99 resolver now covers the requested Manual, priority, Program, Full Auto exposure, and Bulb/Time control families.
+Exposure control now covers Manual, the priority modes, Program, Full Auto exposure, and Bulb/Time control.
 
-The following remain intentionally separate rather than hidden inside shooting-mode resolution:
+These stay deliberately separate, rather than being hidden inside shooting-mode resolution:
 
 - safety shift;
 - flash-aware exposure;
@@ -5026,7 +5127,7 @@ The following remain intentionally separate rather than hidden inside shooting-m
 
 ## Aperture Priority with manual ISO
 
-Use `resolveAperturePriorityExposureMode()` when aperture and ISO are caller-selected and shutter is the only automatic exposure axis.
+Use `resolveAperturePriorityExposureMode()` when you choose aperture and ISO, and shutter is the only automatic setting.
 
 Composition fragment: requires previously validated bindings `capabilities`, `target`. This is an integration sketch, not a standalone runnable program.
 
@@ -5051,7 +5152,7 @@ const resolved =
   });
 ```
 
-This mode uses the same relative target/reference model as Manual + Auto ISO. It does not introduce an Aperture-Priority-specific exposure equation.
+This mode uses the same relative target/reference model as Manual + Auto ISO. It adds no exposure equation of its own.
 
 The ideal shutter is:
 
@@ -5066,13 +5167,13 @@ ideal shutter =
   / fixed-axis factor
 ```
 
-Aperture and ISO are validated against the same resolved #109 capability envelope and then preserved exactly.
+Aperture and ISO are checked against the same resolved capability envelope, then kept exactly.
 
 ### Shutter capability and quantization
 
-For a continuous shutter grid, an in-range ideal duration is used directly.
+For a continuous shutter grid, an ideal duration inside the range is used as is.
 
-For a discrete shutter grid, the first policy chooses the nearest duration in log2 exposure-time space. On an exact tie, the **shorter duration** is selected.
+For a discrete shutter grid, the first policy picks the nearest duration in log2 exposure-time space (nearest in stops). On an exact tie, the **shorter duration** wins.
 
 The result reports:
 
@@ -5098,21 +5199,21 @@ Residual sign is shared with the Manual resolver:
 
 ### Exposure compensation and no-signal
 
-Exposure compensation is already encoded in the #100 target. Aperture Priority consumes that target and does not apply compensation again.
+Exposure compensation is already included in the meter target. Aperture Priority uses that target and does not apply compensation again.
 
-A no-signal target blocks automatic shutter resolution. The engine does not select the longest shutter or an infinite duration.
+A no-signal target blocks automatic shutter resolution. The engine does not pick the longest shutter or an infinite duration.
 
 ### Boundaries
 
-This slice intentionally keeps ISO manual.
+This resolver deliberately keeps ISO manual.
 
-Aperture Priority + Auto ISO is later work because two automatic axes require an explicit selection policy such as a minimum-shutter rule. The engine must not assume ISO always moves before or after shutter.
+Aperture Priority + Auto ISO is a separate resolver ([next section](#priority-modes-with-auto-iso)), because two automatic settings need an explicit selection policy, such as a minimum-shutter rule. The engine must not assume that ISO always moves before, or after, the shutter.
 
-Flash-aware shutter restrictions, safety shift, and manufacturer-specific program behavior also remain separate.
+Flash-aware shutter limits, safety shift and manufacturer-specific program behaviour are also separate.
 
 ## Priority modes with Auto ISO
 
-The larger #99 priority group adds the remaining A/S combinations before Program/Full Auto.
+These resolvers add the remaining Aperture (A) and Shutter (S) Priority combinations.
 
 ### Aperture Priority + Auto ISO
 
@@ -5151,7 +5252,7 @@ The policy is explicit:
    - `allow-slower-shutter`; or
    - `hold-preferred-shutter` and return residual underexposure.
 
-For discrete shutter grids, the pre-ISO shutter selection is never longer than the requested/preferred duration. This prevents a quantization choice from requiring an ISO below the supported minimum to undo overexposure.
+For discrete shutter grids, the shutter chosen before ISO is raised is never longer than the requested or preferred duration. Otherwise rounding to the grid could overexpose, and undoing that would need an ISO below the supported minimum.
 
 ### Shutter Priority + manual ISO
 
@@ -5173,9 +5274,9 @@ const resolved =
   });
 ```
 
-Shutter and ISO remain fixed. Aperture alone resolves.
+Shutter and ISO stay fixed; only the aperture is resolved.
 
-Continuous aperture capability uses the ideal f-number directly. Discrete aperture grids choose the nearest log2 f-number, with the narrower aperture on an exact tie.
+With continuous aperture capability, the ideal f-number is used as is. Discrete aperture grids pick the nearest f-number in log2 space, with the narrower aperture winning an exact tie.
 
 ### Shutter Priority + Auto ISO
 
@@ -5211,26 +5312,26 @@ This policy:
 3. for a discrete aperture grid, chooses an aperture no wider than the ideal;
 4. uses Auto ISO to fill the remaining exposure.
 
-That direction is deliberate: choosing an aperture wider than the ideal at minimum ISO could overexpose while leaving no lower ISO available to compensate.
+That direction is deliberate. Choosing an aperture wider than the ideal at minimum ISO could overexpose, with no lower ISO left to compensate.
 
 ### Shared boundaries
 
-These are control policies over the same relative exposure equation. They do not create new optics/sensor physics.
+These are control policies over the same relative exposure equation. They create no new optics or sensor physics.
 
 All modes:
 
-- consume the already-compensated #100 target;
-- consume the resolved #109 capability envelope;
+- use the meter target, with compensation already applied;
+- use the resolved capability envelope;
 - use the explicit reference exposure anchor;
-- preserve residual-stop sign conventions;
-- do not infer ISO noise/gain topology;
+- keep the same sign convention for residual stops;
+- do not infer ISO noise or gain topology;
 - do not apply flash policy or safety shift.
 
-Flash-aware behavior, safety shift, and named-camera program behavior remain separate work.
+Flash-aware behaviour, safety shift and the program behaviour of named cameras are separate work.
 
 ## Program Auto and Full Auto exposure
 
-Program Auto and Full Auto exposure both require a declared, versioned **program line**. The engine does not invent a unique "correct" aperture/shutter pair.
+Program Auto and Full Auto exposure both need a declared, versioned **program line**: a curve that says which aperture and shutter to use at each brightness level. The engine does not invent one "correct" aperture/shutter pair.
 
 ### Generic program line
 
@@ -5289,9 +5390,9 @@ const programLine =
   });
 ```
 
-Each node's declared stop coordinate must match its aperture/shutter optical exposure relative to the same `referenceExposure` supplied to #99. Nodes outside the resolved #109 aperture/shutter envelope fail closed.
+Each node's declared stop value must match its aperture/shutter optical exposure, relative to the same `referenceExposure` given to the exposure resolver. Nodes outside the resolved aperture/shutter capability envelope fail closed.
 
-Between nodes, aperture and shutter interpolate in log2 space. This keeps optical exposure stops linear across the segment before equipment quantization.
+Between nodes, aperture and shutter interpolate in log2 space. That keeps the optical exposure, in stops, linear along each segment, before rounding to the equipment's settings.
 
 ### Program Auto with manual ISO
 
@@ -5309,9 +5410,9 @@ const resolved =
   });
 ```
 
-Aperture and shutter are automatic; ISO is preserved exactly after capability validation.
+Aperture and shutter are automatic. ISO is kept exactly, after it is checked against the capabilities.
 
-If the target falls beyond the first/last program-line node, the line clamps to the endpoint and the result reports residual under/over-exposure.
+If the target falls beyond the first or last program-line node, the line stops at that endpoint, and the result reports the remaining under- or over-exposure.
 
 ### Program Auto with Auto ISO
 
@@ -5338,7 +5439,7 @@ The program line is first evaluated at the minimum selectable ISO. Auto ISO then
 - aperture/shutter quantization;
 - capability clamping.
 
-If the program line produces too much exposure even at minimum ISO, ISO clamps at minimum and the residual remains visible.
+If the program line gives too much exposure even at minimum ISO, ISO stays at the minimum and the residual is reported.
 
 ### Full Auto exposure
 
@@ -5371,33 +5472,33 @@ It explicitly does **not** resolve:
 - scene recognition;
 - stabilization policy.
 
-Those fields remain false in the result so a calling application cannot accidentally treat this engine mode as whole-camera automation.
+Those fields stay false in the result, so an application cannot accidentally treat this mode as automation of the whole camera.
 
 ### Program/Full Auto consistency
 
 Given the same:
 
-- #100 exposure target;
-- #109 equipment capabilities;
+- exposure target;
+- equipment capabilities;
 - reference exposure;
 - program line;
 - Auto ISO policy;
 
-Program Auto + Auto ISO and Full Auto exposure should resolve identical aperture/shutter/ISO values.
+Program Auto + Auto ISO and Full Auto exposure should give identical aperture, shutter and ISO values.
 
-Only the control-mode identity differs.
+Only the name of the control mode differs.
 
 ### Boundaries
 
-Program lines are product policy approximations, not physical laws. Generic lines must not be described as reproducing a specific manufacturer unless exact evidence supports that claim.
+Program lines are approximations of product policy, not physical laws. Do not describe a generic line as reproducing a specific manufacturer unless exact evidence supports that claim.
 
-Flash-aware program changes, safety shift, and broader Full Auto camera decisions remain separate work.
+Flash-aware program changes, safety shift and wider Full Auto camera decisions are separate work.
 
 ## Bulb, Time, and long-exposure control
 
-Bulb and Time are **duration-control behaviors**, not alternate exposure equations.
+Bulb and Time are **ways of controlling duration**, not different exposure equations. (Bulb: the shutter stays open while the button is held. Time: one press opens it, a second press closes it.)
 
-Use `resolveExposureDurationControl()` to turn user/control events into the concrete positive seconds required by image formation.
+Use `resolveExposureDurationControl()` to turn user or control events into the concrete, positive number of seconds that image formation needs.
 
 ### Fixed duration
 
@@ -5456,9 +5557,9 @@ const time =
   });
 ```
 
-Bulb and Time require finite, ordered timestamps from the same explicit monotonic-seconds control reference.
+Bulb and Time need finite timestamps, in order, from the same explicit monotonic-seconds control clock.
 
-An unfinished Bulb/Time control cannot enter the physical exposure pipeline.
+An unfinished Bulb or Time control cannot enter the physical exposure pipeline.
 
 ### Bind into authoritative exposure timing
 
@@ -5506,9 +5607,9 @@ It does **not** change or infer:
 - sensor temperature/heating;
 - flash behavior.
 
-There is no universal 30-second cap for Bulb/Time. A completed 300-second Bulb exposure resolves to 300 seconds.
+There is no universal 30-second cap for Bulb or Time. A completed 300-second Bulb exposure resolves to 300 seconds.
 
-Once resolved, that duration flows through the same existing/future physical path as any fixed duration:
+Once resolved, that duration follows the same physical path, now and in future, as any fixed duration:
 
 ```text
 resolved elapsed seconds
@@ -5524,9 +5625,9 @@ There is no Bulb-specific physics shortcut.
 
 ### Mode-invariant downstream physics
 
-Shooting-mode names are control policy only.
+Shooting-mode names are only control policy.
 
-If Manual, Program, and Full Auto exposure resolve the same:
+If Manual, Program and Full Auto exposure resolve the same:
 
 - aperture;
 - shutter duration;
@@ -5534,7 +5635,7 @@ If Manual, Program, and Full Auto exposure resolve the same:
 
 then `calculateRelativeRenderedExposure()` and all later physical models receive identical physical inputs and must produce identical results.
 
-Likewise, equal fixed/Bulb/Time elapsed durations with the same shutter/timing inputs produce identical authoritative exposure windows.
+Likewise, equal elapsed durations from fixed, Bulb or Time control, with the same shutter and timing inputs, give identical authoritative exposure windows.
 
 ## Exposure and ISO relations
 
@@ -5567,7 +5668,7 @@ console.log(exposure.value.factor);
 console.log(exposure.value.stops);
 ```
 
-Use `calculateRelativeRenderedExposure()` when a renderer needs a nominal linear brightness multiplier that combines the aperture/shutter optical-exposure change with ISO gain relative to declared reference settings:
+Use `calculateRelativeRenderedExposure()` when a renderer needs a nominal linear brightness multiplier. It combines the change in optical exposure (aperture and shutter) with ISO gain, relative to declared reference settings:
 
 ```ts
 import { calculateRelativeRenderedExposure } from "@photivra/engine";
@@ -5587,9 +5688,9 @@ console.log(rendered.value.opticalFactor); // 0.5
 console.log(rendered.value.isoGainFactor); // 2
 ```
 
-This is a relative rendering relation, not a radiometric sensor model. ISO is treated as nominal rendering gain; it does not create photons, and the function does not model clipping, tone mapping, lens transmission, or sensor-specific noise behavior.
+This is a relative rendering relation, not a radiometric sensor model. ISO is treated as nominal rendering gain; it does not create photons. The function does not model clipping, tone mapping, lens transmission or sensor-specific noise.
 
-Use `calculateEquivalentIso()` to calculate the nominal ISO/gain compensation needed to preserve rendered exposure:
+Use `calculateEquivalentIso()` to calculate the nominal ISO (gain) change needed to keep the rendered exposure the same:
 
 ```ts
 import { calculateEquivalentIso } from "@photivra/engine";
@@ -5611,7 +5712,7 @@ See [Motion and Signal Foundation](https://github.com/Photivra/photivra/blob/mai
 
 ## Capture rotation exposure trajectories
 
-Use `calculateCaptureRotationTrajectories()` when you need to evaluate **pure camera rotation over each native point's local exposure interval** while preserving the separation between shutter/exposure timing and sensor readout:
+Use `calculateCaptureRotationTrajectories()` to evaluate **pure camera rotation over each native point's own local exposure interval**. Shutter/exposure timing and sensor readout stay separate:
 
 ```ts
 import { calculateCaptureRotationTrajectories } from "@photivra/engine";
@@ -5695,27 +5796,27 @@ const trajectories = calculateCaptureRotationTrajectories({
 console.log(trajectories.value.samples);
 ```
 
-The function maps each native point to the pre-orientation image plane at the capture reference time, then evaluates the existing `calculateCameraRotationImageMapping()` primitive at that point's local exposure start and end.
+The function maps each native point to the image plane (before orientation) at the capture reference time. It then evaluates the existing `calculateCameraRotationImageMapping()` primitive at that point's local exposure start and end.
 
-The explicit time reference is the **first opening-boundary phase**. For this composition only, that reference is bound to `t = 0` of the low-level rotation model. This does not redefine the standalone rotation API for other callers.
+The explicit time reference is the **first opening-boundary phase**. For this composition only, that reference is tied to `t = 0` of the low-level rotation model. This does not change the standalone rotation API for other callers.
 
-The returned trajectory is **forward temporal geometry for a stationary world ray**:
+The returned trajectory is the **forward path over time of one stationary ray from the world**:
 
 - `referenceImagePointMm` is the ray's image-plane position at the capture reference;
 - `atLocalExposureStart` and `atLocalExposureEnd` are its mapped positions at the local window endpoints;
 - `localExposureTrajectoryEndpointDeltaMm` is the chord between those endpoints.
 
-The chord is not an integrated blur kernel. It also is not a renderer-ready rolling-shutter warp.
+The chord is not an integrated blur kernel. Nor is it a rolling-shutter warp ready for a renderer.
 
-A capture-scan image mapping is location-dependent because capture time varies across the image. For the current pure-rotation model, destination-to-reference inversion is analytic once the destination location selects its local capture time. More general motion models may require additional solving and global-validity analysis. Finite-exposure rendering still requires integration over the full local interval rather than one endpoint or midpoint displacement.
+When the capture scans across the sensor, the image mapping depends on location, because capture time varies across the image. For the current pure-rotation model, going back from destination to reference is analytic once the destination location has picked its local capture time. More general motion models may need extra solving and checks that the mapping is valid everywhere. Rendering a finite exposure still needs integration over the whole local interval, not one endpoint or midpoint displacement.
 
-`calculateSensorReadoutTiming()` is intentionally not an input. If a specific capture mode has a defensible relationship between electronic exposure timing and sensor readout timing, that relationship should be represented by a future explicit mode/link contract rather than assumed by this API.
+`calculateSensorReadoutTiming()` is deliberately not an input. If a specific capture mode has a defensible relationship between electronic exposure timing and sensor readout timing, a future explicit mode/link contract should represent it. This API does not assume it.
 
-The current trajectory model remains pure rotation only. It excludes camera translation/parallax, subject motion, rotating/deforming subjects, occlusion changes, panning intent, exposure integration, flash/flicker, shutter shock, and final rolling-shutter inverse warping.
+The trajectory model is pure rotation only. It leaves out camera translation/parallax, subject motion, rotating or deforming subjects, occlusion changes, panning intent, exposure integration, flash/flicker, shutter shock and the final inverse rolling-shutter warp.
 
 ## Capture rotation temporal quadrature
 
-Use `calculateCaptureRotationTemporalQuadrature()` when a downstream renderer or reference evaluator needs deterministic pure-rotation geometry samples across each destination point's complete local exposure interval:
+Use `calculateCaptureRotationTemporalQuadrature()` when a renderer or reference evaluator needs deterministic geometry samples for pure rotation, spread over each destination point's whole local exposure interval:
 
 ```ts
 import { calculateCaptureRotationTemporalQuadrature } from "@photivra/engine";
@@ -5761,18 +5862,18 @@ The first model uses deterministic uniform midpoint quadrature. With `N` samples
 phase_i = (i + 0.5) / N
 ```
 
-Each phase is passed through `calculateCaptureRotationInverseMappings()`, so instantaneous destination-to-reference geometry remains defined by one existing public model.
+Each phase is passed through `calculateCaptureRotationInverseMappings()`, so the instantaneous destination-to-reference geometry is defined by one existing public model.
 
-Every node exposes two different temporal weights:
+Every node has two different time weights:
 
-- `normalizedTimeWeight = 1 / N` for a downstream time-average under the declared uniform temporal-response approximation;
-- `timeMeasureSeconds = localExposureDuration / N` for a downstream time integral.
+- `normalizedTimeWeight = 1 / N`, for a time average under the declared uniform temporal-response approximation;
+- `timeMeasureSeconds = localExposureDuration / N`, for a time integral.
 
-Do not interchange them. The first is dimensionless; the second carries seconds. Neither includes shutter transmission, scene radiance, sensor response, photon conversion, vignetting, or other radiometric throughput.
+Do not swap them. The first is dimensionless; the second is in seconds. Neither includes shutter transmission, scene radiance, sensor response, photon conversion, vignetting or any other radiometric throughput.
 
-Different sensor locations may have different local exposure start/end times. If opening and closing scans produce different local durations, `timeMeasureSeconds` therefore differs by destination point while the normalized average weights still sum to approximately one for each point.
+Different sensor locations may have different local exposure start and end times. If the opening and closing scans give different local durations, `timeMeasureSeconds` differs between destination points, while the normalized weights still sum to about one for each point.
 
-This API returns **temporal geometry nodes and measures only**. It does not:
+This API returns **only time-sampled geometry and its weights**. It does not:
 
 - fetch or sample scene radiance;
 - average the reference coordinates;
@@ -5782,13 +5883,13 @@ This API returns **temporal geometry nodes and measures only**. It does not:
 - apply flash/flicker or shutter-shock behavior;
 - write or resample output pixels.
 
-Averaging geometric coordinates is not equivalent to integrating radiance along moving rays.
+Averaging geometric coordinates is not the same as integrating radiance along moving rays.
 
-Photivra also does not report a geometry-only integration-error estimate. Temporal image error depends on downstream radiance, visibility, texture/edge frequency, reconstruction, and the motion path. A reference renderer can compare increasing `temporalSampleCount` values in the radiance/output domain when convergence evidence is needed.
+Photivra also does not report an integration-error estimate from geometry alone. The error in the image depends on radiance, visibility, how fine the texture and edges are, reconstruction and the motion path. When convergence evidence is needed, a reference renderer can compare increasing `temporalSampleCount` values on the radiance or output.
 
 ## Instantaneous capture rotation inverse mapping
 
-Use `calculateCaptureRotationInverseMappings()` to map captured destination locations back to the **first-opening-boundary reference image** under pure camera rotation:
+Use `calculateCaptureRotationInverseMappings()` to map captured destination locations back to the **reference image at the first opening boundary**, under pure camera rotation:
 
 ```ts
 import {
@@ -5882,9 +5983,9 @@ console.log(mapping.value.samples);
 - `0.5` evaluates the local temporal midpoint;
 - `1` evaluates local exposure end.
 
-Photivra does not choose a default phase because a finite exposure does not have one uniquely correct sharp geometry.
+Photivra does not choose a default phase, because a finite exposure has no single correct sharp geometry.
 
-Each destination native point first selects its local exposure time. Under the current constant-axis pure-rotation model, the captured ray can then be rotated **analytically** back to the exposure-start reference frame with `calculateInverseCameraRotationImageMapping()`. No iterative/fixed-point solver or convergence tolerance is needed.
+Each destination native point first picks its local exposure time. Under the current model (pure rotation about a constant axis), the captured ray can then be rotated **analytically** back to the exposure-start reference frame with `calculateInverseCameraRotationImageMapping()`. No iterative solver or convergence tolerance is needed.
 
 The result reports:
 
@@ -5895,19 +5996,19 @@ The result reports:
 - equivalent continuous native effective-sample displacement;
 - that displacement rotated into the requested physical capture orientation.
 
-The mapping deliberately remains in the ideal pre-lens geometry stage. It does not apply radial distortion, lateral CA, PSF, output crop, or output resampling.
+The mapping deliberately stays in the ideal geometry stage, before the lens. It does not apply radial distortion, lateral CA, PSF, output crop or output resampling.
 
-Reference rays are **not clamped** to the active source region. Camera motion can cause a valid captured destination to require reference-image data outside that region. A renderer must decide how to handle unavailable source coverage rather than silently clamping/stretching an edge.
+Reference rays are **not clamped** to the active source region. Camera motion can mean that a valid captured destination needs reference-image data from outside that region. A renderer must decide how to handle missing source coverage, rather than silently clamping or stretching an edge.
 
-This is an **instantaneous** mapping only. It is not a complete finite-exposure rolling/capture-scan image. Motion blur requires multiple temporal samples or another defensible integration method over each local exposure window, including an explicit exposure-weighting model if the weighting is not uniform.
+This is an **instantaneous** mapping only. It is not a complete image of a finite rolling (scanned) exposure. Motion blur needs several time samples, or another defensible way of integrating over each local exposure window, including an explicit exposure-weighting model if the weighting is not uniform.
 
-Sensor data-readout timing is intentionally not part of this calculation. Capture exposure boundaries remain the authoritative timing input until a separate capture-mode/link contract establishes otherwise.
+Sensor data-readout timing is deliberately not part of this calculation. The capture exposure boundaries stay the authoritative timing input, until a separate capture-mode/link contract says otherwise.
 
-The current model is pure rotation only. Translation/parallax, subject motion, deformation, occlusion changes, global injectivity/fold analysis, flash/flicker, shutter shock, and finite-exposure integration remain outside this slice.
+The model is pure rotation only. Outside it: translation/parallax, subject motion, deformation, occlusion changes, checks that the mapping never folds over on itself, flash/flicker, shutter shock and finite-exposure integration.
 
 ## Spatial camera-rotation mapping
 
-Use `calculateCameraRotationImageMapping()` when you need the image-plane location of a stationary world ray after **pure camera rotation** at an arbitrary physical time from exposure start.
+Use `calculateCameraRotationImageMapping()` when you need to know where a stationary ray from the world lands on the image plane after **pure camera rotation**, at any physical time after exposure start.
 
 ```ts
 import { calculateCameraRotationImageMapping } from "@photivra/engine";
@@ -5941,11 +6042,11 @@ Coordinate/sign convention:
 - `estimateCameraShakeBlur()` uses the same yaw/pitch signs (from 2.0.0); see [Motion and signal](https://github.com/Photivra/photivra/blob/main/docs/MOTION_AND_SIGNAL.md#spatial-camera-rotation);
 - optional `deltaImagePlaneSamples` retains image-plane +Y-up semantics and is **not** a native-raster (+Y-down) vector.
 
-The angular-velocity vector is assumed constant and is integrated as one axis-angle rotation. This avoids arbitrary Euler ordering for simultaneous pitch/yaw/roll.
+The angular-velocity vector is assumed constant, and is integrated as one axis-angle rotation. This avoids picking an arbitrary Euler-angle order when pitch, yaw and roll happen at the same time.
 
-The function is intentionally rotation-only. Camera translation is excluded because translational optical flow depends on scene depth/parallax.
+The function is deliberately rotation-only. Camera translation is left out, because image motion from translation depends on scene depth (parallax).
 
-It is also separate from stabilization. `estimateCameraShakeBlur()` remains the older educational stabilization-equivalent approximation with one global vector; from 2.0.0 its yaw/pitch signs match this mapping at the optical axis.
+It is also separate from stabilization. `estimateCameraShakeBlur()` is still the older, educational stabilization-equivalent approximation with one global vector. From 2.0.0, its yaw/pitch signs match this mapping at the optical axis.
 
 ## Camera shake and stabilization-equivalent approximation
 
@@ -5972,15 +6073,20 @@ console.log(shake.value.residualMotionFactor);
 console.log(shake.provenance.kind); // "approximation"
 ```
 
-`deltaXmm`/`deltaYmm` are the +X-right/+Y-up image displacement of a stationary on-axis point: positive yaw (camera turns left) gives positive `deltaXmm`; positive pitch (camera tilts up) gives negative `deltaYmm`. These signs match `calculateCameraRotationImageMapping()` at the optical axis, and for a single axis the displacements are equal within floating-point rounding. A per-axis rotation of π/2 rad or more over the exposure is rejected.
+`deltaXmm`/`deltaYmm` are the image displacement (+X right, +Y up) of a stationary point on the optical axis.
 
-The `2^-stops` attenuation is an educational approximation, not a real IBIS/OIS or CIPA rating. The current output is one global image-plane vector rather than spatially varying rotational optical flow.
+- Positive yaw (camera turns left) gives positive `deltaXmm`.
+- Positive pitch (camera tilts up) gives negative `deltaYmm`.
+- These signs match `calculateCameraRotationImageMapping()` at the optical axis. For a single axis, the displacements are equal within floating-point rounding.
+- A per-axis rotation of π/2 rad or more over the exposure is rejected.
+
+The `2^-stops` attenuation is an educational approximation, not a real IBIS/OIS (in-body / optical image stabilization) or CIPA rating. The output is one global image-plane vector, not image motion that varies across the frame.
 
 See [Camera Shake and Stabilization](https://github.com/Photivra/photivra/blob/main/docs/STABILIZATION.md).
 
 ## Radiometry readiness
 
-Use `parseRadiometryReadinessProfile()` and `assessRadiometryReadiness()` to validate whether a declared radiometric calibration package contains the prerequisites needed for a future photon estimate.
+Use `parseRadiometryReadinessProfile()` and `assessRadiometryReadiness()` to check whether a declared radiometric calibration package has the prerequisites a future photon estimate would need.
 
 The gate covers six independently declared requirements:
 
@@ -6034,21 +6140,21 @@ console.log(readiness.composedPhotonOutputEnabled); // always false
 
 Readiness states are:
 
-- `not-ready`: one or more required prerequisite categories are missing;
-- `approximate-only`: every category is present, but at least one component is approximate or has unquantified uncertainty;
+- `not-ready`: one or more required categories are missing;
+- `approximate-only`: every category is present, but at least one component is approximate or has no quantified uncertainty;
 - `calibrated-ready`: every category is declared calibrated and carries quantified uncertainty.
 
-A readiness assessment validates the declared structure and provenance metadata. It does not verify that a source or calibration is scientifically correct.
+A readiness assessment checks the declared structure and provenance metadata. It does not check that a source or calibration is scientifically correct.
 
-Geometric sample pitch is **not** accepted as photon-collection area by itself. The profile must declare either an effective collection area or a geometric cell area plus explicit fill factor.
+Geometric sample pitch alone is **not** accepted as photon-collection area. The profile must declare either an effective collection area, or a geometric cell area plus an explicit fill factor.
 
-Data-bearing spectral/spatial calibration inputs are represented by an artifact ID plus SHA-256 checksum. Photivra does not infer reuse rights from public availability; reusable calibration data requires explicit licensing or Photivra ownership.
+Spectral and spatial calibration inputs that carry data are referenced by an artifact ID plus a SHA-256 checksum. Photivra does not assume reuse rights because something is publicly available. Reusable calibration data needs an explicit licence or Photivra ownership.
 
-The readiness API does not calculate photons, does not change the existing `calculatePhotoelectrons()` primitive, and does not add photon/noise output to `simulatePocCamera()`. The bounded [executed environment route](https://github.com/Photivra/photivra/blob/main/docs/PRODUCTION_ENVIRONMENT_CAPTURE.md) performs explicitly declared EQE photon/electron integration; this readiness gate alone does not activate it or verify calibration.
+The readiness API does not calculate photons, does not change the existing `calculatePhotoelectrons()` primitive, and does not add photon/noise output to `simulatePocCamera()`. The bounded [executed environment route](https://github.com/Photivra/photivra/blob/main/docs/PRODUCTION_ENVIRONMENT_CAPTURE.md) does explicitly declared EQE photon/electron integration. This readiness gate alone neither turns it on nor checks calibration.
 
 ## Photoelectron and SNR primitives
 
-Use `calculatePhotoelectrons()` only when you already have a defensible mean incident photon count and quantum efficiency:
+Use `calculatePhotoelectrons()` only when you already have a defensible mean count of incident photons and a quantum efficiency (the fraction of photons that produce an electron):
 
 ```ts
 import { calculatePhotoelectrons } from "@photivra/engine";
@@ -6061,7 +6167,7 @@ const electrons = calculatePhotoelectrons({
 console.log(electrons.value);
 ```
 
-Use `calculateSignalToNoise()` for the basic Poisson-shot-noise plus independent RMS read-noise model:
+Use `calculateSignalToNoise()` for the basic signal-to-noise ratio (SNR) model: Poisson shot noise plus independent RMS read noise:
 
 ```ts
 import { calculateSignalToNoise } from "@photivra/engine";
@@ -6083,7 +6189,7 @@ See [Motion and Signal Foundation](https://github.com/Photivra/photivra/blob/mai
 
 ## Scene illumination source profiles
 
-Use `parseSceneIlluminationProfile()` when illumination metadata crosses a renderer/integration boundary:
+Use `parseSceneIlluminationProfile()` to read light-source metadata that comes from a renderer or another integration:
 
 ```ts
 import { parseSceneIlluminationProfile } from "@photivra/engine";
@@ -6137,26 +6243,35 @@ console.log(illumination.sources[0]?.sourceId);
 console.log(illumination.sceneRadianceCalculated); // false
 ```
 
-The schema intentionally has no generic `intensity` field. Physical magnitude forms are source-specific:
+The schema deliberately has no generic `intensity` field. How brightness is stated depends on the kind of source:
 
 - point sources may declare radiant intensity in W/sr;
 - area sources may declare surface radiance in W/(m²·sr);
 - directional sources may declare irradiance in W/m² at an explicit reference plane;
-- spot and environment sources are relative-only in schema 0.1.0 until their angular/radiance-field semantics are modeled.
+- spot and environment sources are relative-only in schema 0.1.0, until their angular and radiance-field meaning is modelled.
 
-All source families may use an explicitly approximate relative linear scale. Turning a source off uses `enabled: false`; a zero physical/relative magnitude is not used as a hidden off state.
+Every kind of source may use an explicitly approximate, relative linear scale. To turn a source off, use `enabled: false`. A zero magnitude is never used as a hidden "off" state.
 
-Spectrum representations are likewise explicit. Linear-sRGB is preview-only. A blackbody temperature is a declared blackbody approximation, not a universal CCT control. Continuous relative spectra require reusable-data provenance and do not become absolute spectral power/radiance merely because a physical broadband magnitude also exists.
+Spectra are explicit too:
 
-Discrete sources may instead use `discrete-relative-lines`. Each line carries an explicit wavelength and a normalized **wavelength-integrated** line weight; line weights must sum to one and use a resolved air/vacuum wavelength basis. These values are not per-nanometre densities and are never assigned an arbitrary line width. `resolveSceneIlluminationDiscreteLineMeasure()` can distribute a source's integrated magnitude across those line fractions while preserving its source quantity unit.
+- Linear sRGB is for previews only.
+- A blackbody temperature is a declared blackbody approximation, not a universal CCT control.
+- Continuous relative spectra need reusable-data provenance. They do not become absolute spectral power or radiance just because a physical broadband magnitude also exists.
 
-The parser establishes illumination metadata only. It does not calculate material response, visibility, indirect transport, outgoing scene spectral radiance, sensor-plane irradiance, photons/electrons, fluorescence, volumetric spectral transport, or polarization.
+Sources with discrete spectral lines may use `discrete-relative-lines` instead.
+
+- Each line has an explicit wavelength and a normalized, **wavelength-integrated** line weight.
+- Line weights must sum to one and use a resolved air/vacuum wavelength basis.
+- These values are not per-nanometre densities, and a line is never given an arbitrary width.
+- `resolveSceneIlluminationDiscreteLineMeasure()` can distribute a source's integrated magnitude across those line fractions, keeping the source's unit.
+
+The parser only sets up light-source metadata. It does not calculate material response, visibility, indirect light, outgoing scene spectral radiance, sensor-plane irradiance, photons/electrons, fluorescence, volumetric spectral transport or polarization.
 
 See [Scene Radiance and Illumination](https://github.com/Photivra/photivra/blob/main/docs/SCENE_RADIANCE_AND_ILLUMINATION.md).
 
 ## Scene-radiance provider and material response
 
-Use the provider boundary when a renderer or reference evaluator needs to return one outgoing spectral-radiance sample without moving its rendering algorithm into the engine.
+A scene-radiance provider is the renderer (or reference evaluator) that works out how much light leaves a point in the scene. Use this provider boundary when it needs to hand back one sample of outgoing spectral radiance, without moving its rendering algorithm into the engine.
 
 First define material-response metadata:
 
@@ -6251,17 +6366,22 @@ const provider = parseSceneRadianceProviderProfile({
 });
 ```
 
-An evaluation request identifies one exact surface/environment direction, physical time, and wavelength. The renderer/provider computes the radiance externally and returns a result in `W/m^2/sr/nm`. Parse both with `parseSceneRadianceEvaluationRequest()` and `parseSceneRadianceEvaluationResult()`, then call `validateSceneRadianceEvaluationBindings()` with the provider, illumination profile, material profile, request, and result.
+How an evaluation works:
 
-The binding validator checks exact scene/profile/material/sample/wavelength identity and provider material-fidelity consistency. It **does not** recompute the renderer's numeric result, apply optics, calculate sensor-plane irradiance, or authorize photon output.
+1. A request names one exact surface or environment direction, a physical time and a wavelength.
+2. The renderer/provider computes the radiance outside the engine, and returns a result in `W/m^2/sr/nm`.
+3. Parse both with `parseSceneRadianceEvaluationRequest()` and `parseSceneRadianceEvaluationResult()`.
+4. Call `validateSceneRadianceEvaluationBindings()` with the provider, illumination profile, material profile, request and result.
 
-Provider/result schema 0.1.0 is approximation-only. Calibrated material or illumination inputs cannot silently promote provider output to calibrated scene radiance.
+The binding validator checks the exact scene, profile, material, sample and wavelength identity, and that the provider's material fidelity is consistent. It **does not** recompute the renderer's number, apply optics, calculate sensor-plane irradiance or allow photon output.
+
+Provider/result schema 0.1.0 is approximation-only. Calibrated material or illumination inputs cannot silently turn provider output into calibrated scene radiance.
 
 See [Scene Radiance and Illumination](https://github.com/Photivra/photivra/blob/main/docs/SCENE_RADIANCE_AND_ILLUMINATION.md#scene-radiance-provider-and-material-response-boundary).
 
 ## Shared spectral composition
 
-Use `composeSpectralCoverage()` when multiple **continuous** wavelength-dependent factors need one common coverage/breakpoint plan.
+Use `composeSpectralCoverage()` when several **continuous** wavelength-dependent factors (scene, lens, sensor) need one shared plan of wavelength coverage and breakpoints.
 
 Composition fragment: requires previously validated bindings `spectralResponseProfile`. This is an integration sketch, not a standalone runnable program.
 
@@ -6329,11 +6449,11 @@ The composition:
 - does not apply scene values, optical transmission, QE, or A/W responsivity;
 - does not perform spectral integration or claim convergence.
 
-Continuous illumination spectra can be converted to the same participant shape with `createSceneIlluminationSpectralCoverageParticipant()`. RGB, blackbody approximations, unresolved spectra, and discrete line spectra are rejected by that adapter.
+Continuous illumination spectra can be converted to the same participant shape with `createSceneIlluminationSpectralCoverageParticipant()`. That adapter rejects RGB, blackbody approximations, unresolved spectra and discrete line spectra.
 
 ### Discrete line measures
 
-Discrete lines use a different integration path.
+Discrete spectral lines (as from a laser or some lamps) are integrated a different way.
 
 Composition fragment: requires previously validated bindings `illumination`. This is an integration sketch, not a standalone runnable program.
 
@@ -6372,21 +6492,21 @@ if (
 }
 ```
 
-A discrete line entry already represents an integrated wavelength contribution. Therefore line integration is:
+A discrete line entry already is a wavelength-integrated contribution. So integrating lines is just:
 
 ```text
 total = sum(line integrated quantities)
 ```
 
-There is **no** `dλ` multiplication. Assigning an arbitrary width to a laser/line emitter merely to reuse continuous quadrature is invalid.
+There is **no** multiplication by `dλ`. Giving a laser or line emitter an arbitrary width, just to reuse continuous quadrature, is invalid.
 
-The source-level helper may distribute point radiant intensity (W/sr), area radiance (W/m²/sr), directional reference-plane irradiance (W/m²), or an explicitly relative magnitude across normalized line fractions. It does not apply material transport, optics, sensor response, photon conversion, or combined uncertainty, and it does not authorize a calibrated outgoing-radiance claim.
+The source-level helper may distribute point radiant intensity (W/sr), area radiance (W/m²/sr), directional reference-plane irradiance (W/m²) or an explicitly relative magnitude across normalized line fractions. It does not apply material transport, optics, sensor response, photon conversion or combined uncertainty, and it does not allow a claim of calibrated outgoing radiance.
 
 See [Scene Radiance and Illumination](https://github.com/Photivra/photivra/blob/main/docs/SCENE_RADIANCE_AND_ILLUMINATION.md#shared-spectral-composition).
 
 ## Temporal illumination
 
-Use `parseSceneIlluminationTemporalProfile()` to add explicit flash/flicker-style modulation to sources without changing the base illumination schema.
+Use `parseSceneIlluminationTemporalProfile()` to add explicit changes over time — such as a flash pulse or flicker — to light sources, without changing the base illumination schema.
 
 Composition fragment: requires previously validated bindings `illuminationProfile`. This is an integration sketch, not a standalone runnable program.
 
@@ -6480,11 +6600,11 @@ console.log(
 );
 ```
 
-Waveform time is explicitly registered to seconds from the first opening-boundary phase. Sensor readout duration is not used as a substitute for exposure timing.
+Waveform time is explicitly tied to seconds from the first opening-boundary phase. Sensor readout duration is not used in place of exposure timing.
 
-For finite exposure, use `integrateSceneIlluminationTemporalMultiplierOverExposureWindow()` with the authoritative `CaptureExposureWindows` result and one sample index. The integration uses deterministic midpoint quadrature over that local exposure window and returns average and seconds-integrated relative multipliers.
+For a finite exposure, use `integrateSceneIlluminationTemporalMultiplierOverExposureWindow()` with the authoritative `CaptureExposureWindows` result and one sample index. It uses deterministic midpoint quadrature over that local exposure window, and returns the average and the seconds-integrated relative multipliers.
 
-This layer does not apply the source's physical magnitude, evaluate material/visibility transport, calculate scene radiance, perform sensor response, or choose camera exposure settings.
+This layer does not apply the source's physical magnitude, evaluate material or visibility transport, calculate scene radiance, apply sensor response or choose camera exposure settings.
 
 A scene-radiance provider may optionally bind the temporal profile with `illuminationTemporalProfileId`. When declared, `validateSceneRadianceEvaluationBindings()` requires the matching temporal profile.
 
@@ -6492,7 +6612,7 @@ See [Scene Radiance and Illumination](https://github.com/Photivra/photivra/blob/
 
 ## Camera and scene schema validation
 
-Use the runtime parsers when camera or scene data crosses an untrusted JSON boundary.
+Use the runtime parsers whenever camera or scene data comes from untrusted JSON.
 
 Composition fragment: requires previously validated bindings `cameraJson`, `sceneJson`. This is an integration sketch, not a standalone runnable program.
 
@@ -6506,7 +6626,7 @@ const camera = parseCameraConfiguration(JSON.parse(cameraJson));
 const scene = parseSceneDefinition(JSON.parse(sceneJson));
 ```
 
-The parsers throw `InvalidConfigurationError` when the supplied structure or supported values are invalid.
+The parsers throw `InvalidConfigurationError` when the structure, or one of the values, is invalid or unsupported.
 
 Example camera shape:
 
@@ -6557,7 +6677,7 @@ console.log(result.provenance.modelVersion);
 console.log(result.provenance.assumptions);
 ```
 
-For code that defines a new scientific result, the package exports helpers such as `calculatedResult()`, `approximationResult()`, `estimatedResult()`, and `calibratedResult()`.
+If your code defines a new scientific result, the package exports helpers such as `calculatedResult()`, `approximationResult()`, `estimatedResult()` and `calibratedResult()`.
 
 ```ts
 import { calculatedResult } from "@photivra/engine";
@@ -6581,25 +6701,36 @@ const result = calculatedResult(
 );
 ```
 
-Do not invent uncertainty values. Quality metadata should only be supplied when the uncertainty, calibration, valid range, or quality note has a defensible basis.
+Do not invent uncertainty values. Supply quality metadata only when the uncertainty, calibration, valid range or quality note has a defensible basis.
 
 See [Scientific and Source Provenance](https://github.com/Photivra/photivra/blob/main/docs/PROVENANCE.md) and [Public API Style](https://github.com/Photivra/photivra/blob/main/docs/API_STYLE.md#result-metadata).
 
 ## Composed POC simulation
 
-Use `simulatePocCamera()` when you want one composed response containing the current POC calculations.
+Use `simulatePocCamera()` when you want one combined response with the current POC (proof-of-concept) calculations.
 
-The root engine and composed POC are versioned independently. `ENGINE_API_VERSION` describes the root library surface; `POC_SIMULATION_API_VERSION` describes this composed request/response contract.
+The root engine and the composed POC are versioned independently. `ENGINE_API_VERSION` describes the root library; `POC_SIMULATION_API_VERSION` describes this composed request/response contract.
 
-The current composed POC reports X/Y geometric sample pitch but still uses one backwards-compatible representative horizontal pitch internally for blur/sampling calculations. It therefore rejects sensor geometry whose X/Y pitch differs by more than 1%. Axis-aware lower-level geometry remains available for more general sensor layouts.
+The composed POC reports X/Y geometric sample pitch, but internally it still uses one representative horizontal pitch for blur and sampling calculations, for backwards compatibility. It therefore rejects sensor geometry whose X and Y pitch differ by more than 1%. The lower-level geometry APIs handle each axis separately, for more general sensor layouts.
 
-POC API 0.20 composes the capture-geometry foundation through final output/viewing semantics. Existing requests remain valid. New callers may supply an optional `capture` object with physical orientation, an optional native active-capture rectangle, an optional oriented output crop, and an optional final output raster.
+POC API 0.20 composes the capture-geometry foundation all the way to final output and viewing. Existing requests remain valid. New callers may supply an optional `capture` object with the physical orientation, an optional native active-capture rectangle, an optional oriented output crop and an optional final output raster.
 
-The POC staged `capture` geometry request deliberately keeps legacy `crop.factor` separate: it must remain `1` when `capture` is present. This geometry request is distinct from the sensor/capture-mode profile contract. Staged capture can use the existing `subjectCrop` request, but the result appears under `capture.subjectFraming` because it is a post-output framing stage rather than a legacy total-crop factor.
+- The staged `capture` request deliberately keeps the legacy `crop.factor` separate: it must stay `1` when `capture` is present.
+- This geometry request is separate from the sensor/capture-mode profile contract.
+- Staged capture can use the existing `subjectCrop` request, but the result appears under `capture.subjectFraming`, because it is a framing stage after output, not a legacy total-crop factor.
 
-Equivalent-viewing CoC in capture mode uses the final retained physical image region, including subject framing when present; changing only output pixel resolution does not change the criterion. Explicit `circleOfConfusionMm` remains unchanged.
+In capture mode, the equivalent-viewing CoC (circle of confusion) uses the final retained physical image region, including subject framing when present. Changing only the output pixel resolution does not change it. An explicit `circleOfConfusionMm` stays unchanged.
 
-The optional response `capture` block exposes resolved geometry, active/output FOV, active-capture diagonal-based 35 mm-equivalent focal length, output sampling scale, optional subject framing, and explicit native-raster/oriented/output motion diagnostics. Legacy motion Y is image-plane +Y-up; capture raster Y is +Y-down, so the conversion is reported rather than hidden. Physical focal length remains authoritative. Sensor-architecture metadata and radiometry-readiness profiles are still standalone.
+The optional `capture` block in the response gives:
+
+- the resolved geometry;
+- active and output FOV;
+- the 35 mm-equivalent focal length of the active capture, based on the diagonal;
+- the output sampling scale;
+- optional subject framing;
+- explicit motion diagnostics in native-raster, oriented and output coordinates.
+
+Legacy motion Y uses the image plane, +Y up; capture raster Y is +Y down. The conversion is therefore reported, not hidden. The physical focal length stays authoritative. Sensor-architecture metadata and radiometry-readiness profiles are still standalone.
 
 
 ```ts
@@ -6721,15 +6852,18 @@ console.log(portraitCrop.capture?.focalLength);
 console.log(portraitCrop.capture?.motion.outputDeltaPixels);
 ```
 
-The focus request must supply exactly one circle-of-confusion criterion: either `circleOfConfusionMm` or `equivalentViewingCircleOfConfusion`. In staged capture mode, the equivalent-viewing approximation uses the final retained physical image region; an explicit `circleOfConfusionMm` remains unchanged by crop/output geometry.
+The focus request must supply exactly one circle-of-confusion criterion: either `circleOfConfusionMm` or `equivalentViewingCircleOfConfusion`. In staged capture mode, the equivalent-viewing approximation uses the final retained physical image region. An explicit `circleOfConfusionMm` is not changed by crop or output geometry.
 
-Additional named defocus, sampling, and motion samples can be supplied when a renderer or analysis client needs per-object outputs.
+You can supply extra named defocus, sampling and motion samples when a renderer or analysis tool needs results per object.
 
-See [Local POC Simulation API](https://github.com/Photivra/photivra/blob/main/docs/POC_API.md#simulate) for the complete composed request/response semantics. That HTTP transport is repository-only contributor tooling and is not shipped as a package subpath; `simulatePocCamera()` itself is part of the browser-safe root package.
+See [Local POC Simulation API](https://github.com/Photivra/photivra/blob/main/docs/POC_API.md#simulate) for the full request/response meaning. That HTTP transport is repository-only contributor tooling, and is not shipped as a package subpath. `simulatePocCamera()` itself is part of the browser-safe root package.
 
 ## DNG import and PNG output
 
-`parseDngRawImage` reads a DNG or TIFF-EP CFA/LinearRaw file (uncompressed or lossless JPEG, 8–16 bits) into stored raw codes plus CFA, black/white levels, active area, default crop, colour matrices, as-shot neutral and orientation. Nothing is applied to the codes. `serializePngImage` writes 8- or 16-bit RGB PNG with an sRGB, ICC or cICP (Display P3, BT.2020, PQ, HLG) colour description and optional mDCV/cLLI HDR metadata. See [DNG import and PNG output](https://github.com/Photivra/photivra/blob/main/docs/IMPORT_AND_PNG.md) for supported subsets, limits and sources.
+- `parseDngRawImage` reads a DNG or TIFF-EP CFA/LinearRaw file (uncompressed or lossless JPEG, 8–16 bits). It returns the stored raw codes plus the CFA, black/white levels, active area, default crop, colour matrices, as-shot neutral and orientation. Nothing is applied to the codes.
+- `serializePngImage` writes an 8- or 16-bit RGB PNG with an sRGB, ICC or cICP (Display P3, BT.2020, PQ, HLG) colour description, and optional mDCV/cLLI HDR metadata.
+
+See [DNG import and PNG output](https://github.com/Photivra/photivra/blob/main/docs/IMPORT_AND_PNG.md) for supported subsets, limits and sources.
 
 ```ts
 import { serializePngImage, parseDngRawImage } from '@photivra/engine';
@@ -6744,24 +6878,32 @@ if (!rejected) throw new Error('A PNG must not parse as a DNG');
 
 ## Native-only Print planning
 
-Use [registered linear statistics](https://github.com/Photivra/photivra/blob/main/docs/PRINT_REGION_STATISTICS.md) to distinguish same-realization processing changes from per-site repeat-capture variance. The [static neutral Gabor contrast reference](https://github.com/Photivra/photivra/blob/main/docs/PRINT_CONTRAST_REFERENCE.md) requires explicit stimulus, luminance and observer conditions and does not accept an arbitrary photographic ROI as a qualified stimulus. See the [#195/#196 candidate evidence review](https://github.com/Photivra/photivra/blob/main/docs/PRINT_195_196_REVIEW.md) before integrating either diagnostic.
+- [Registered linear statistics](https://github.com/Photivra/photivra/blob/main/docs/PRINT_REGION_STATISTICS.md) tell apart changes caused by processing the same capture from variation between repeated captures at each site.
+- The [static neutral Gabor contrast reference](https://github.com/Photivra/photivra/blob/main/docs/PRINT_CONTRAST_REFERENCE.md) needs explicit stimulus, luminance and observer conditions. It does not accept an arbitrary photographic ROI (region of interest) as a valid stimulus.
+- Read the [#195/#196 candidate evidence review](https://github.com/Photivra/photivra/blob/main/docs/PRINT_195_196_REVIEW.md) before integrating either diagnostic.
 
-See [Print planning](https://github.com/Photivra/photivra/blob/main/docs/PRINT_PLANNING.md) for a complete strict packed example and the exact-ratio integer policy. `calculatePrintPlan()` answers native sampling sufficiency and a compatible minimum file raster; `calculatePrintSizeLimit()` distinguishes finite, unbounded and unavailable sampling bounds. Quality and delivery are separately unassessed.
+See [Print planning](https://github.com/Photivra/photivra/blob/main/docs/PRINT_PLANNING.md) for a complete, strict packed example and the exact-ratio integer policy.
 
-The [regional Print detail diagnostic](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_ASSESSMENT.md) measures one declared coherent sinusoidal fundamental in a selected linear-luminance ROI and records its exact source stage. Its [validation protocol](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_VALIDATION.md) and [capability ledger](https://github.com/Photivra/photivra/blob/main/docs/validation/print-detail-capabilities.json) distinguish mathematical conformance from blocked acquired-image, renderer and perceived-quality qualification.
+- `calculatePrintPlan()` says whether the native sampling is enough, and gives a compatible minimum file raster.
+- `calculatePrintSizeLimit()` distinguishes finite, unbounded and unavailable sampling limits.
+- Print quality and delivery are not assessed.
+
+The [regional Print detail diagnostic](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_ASSESSMENT.md) measures one declared, coherent sinusoidal fundamental in a selected linear-luminance ROI, and records the exact pipeline stage it measured. Its [validation protocol](https://github.com/Photivra/photivra/blob/main/docs/PRINT_DETAIL_VALIDATION.md) and [capability ledger](https://github.com/Photivra/photivra/blob/main/docs/validation/print-detail-capabilities.json) separate mathematical conformance from the still-blocked qualification of acquired images, renderers and perceived quality.
 
 ## Rolling shutter, video, flash TTL/HSS and highlight-priority metering (2.0.0)
 
-These additions are approximations; the equations, derivations and sources are in
+These additions are approximations. The equations, derivations and sources are in
 [Electronic rolling-shutter image formation](https://github.com/Photivra/photivra/blob/main/docs/MOTION_AND_SIGNAL.md#electronic-rolling-shutter-image-formation),
 [Video frame sequences](https://github.com/Photivra/photivra/blob/main/docs/MOTION_AND_SIGNAL.md#video-frame-sequences) and
 [Flash: guide number, TTL and high-speed sync](https://github.com/Photivra/photivra/blob/main/docs/SCENE_SENSOR_TEMPORAL_EXPOSURE.md#flash-guide-number-ttl-and-high-speed-sync).
 
-An electronic rolling shutter turns the rolling readout declaration into a line-offset exposure schedule.
-Pass the schedule wherever an exposure window is accepted (native RAW and environment `exposureWindow`,
-production `temporalCapture.exposureWindowInput` with `readoutExposureLinkage`); skew, wobble, partial
-exposure and flicker banding then emerge from per-site sampling. A video clip is a deterministic sequence of
-ordinary release frames:
+With an electronic rolling shutter, each sensor line starts its exposure slightly later than the one before.
+The model turns the rolling readout declaration into an exposure schedule with one offset per line.
+
+- Pass the schedule wherever an exposure window is accepted: native RAW and environment `exposureWindow`, and
+  production `temporalCapture.exposureWindowInput` with `readoutExposureLinkage`.
+- Skew, wobble, partial exposure and flicker banding then appear naturally from sampling each site at its own time.
+- A video clip is a deterministic sequence of ordinary release frames.
 
 ```ts
 import {
@@ -6809,8 +6951,9 @@ console.log(clip.exposureSeconds, clip.frames.map((frame) => [frame.exposureStar
 console.log(assessShutterAngleRule(24, 172.8).classification);
 ```
 
-Highlight-priority metering places a highlight percentile below saturation; TTL solves the main-flash power
-from a pre-flash measured with the same linear meter, and the result feeds the ordinary front/rear-curtain sync:
+Highlight-priority metering places a highlight percentile below saturation. TTL (through-the-lens) flash metering
+works out the main-flash power from a pre-flash, measured with the same linear meter. The result feeds the ordinary
+front/rear-curtain sync:
 
 ```ts
 import {
@@ -6870,16 +7013,18 @@ console.log(ttl.status, ttl.powerFraction, ttl.flashRangeAtApertureM);
 // Apply with createTtlScaledFlashProfile(flashProfile, ttl) and place it with resolveManualFlashSync() as before.
 ```
 
-High-speed sync needs a schema 0.2.0 sync-capability profile that declares HSS and its burst energy fraction.
-`resolveHighSpeedFlashSync()` returns the burst support, the per-line energy fraction `η·t_e/D` and the
-guide-number factor `√(η·t_e/D)`; `createHighSpeedSyncIlluminationOverlay()` registers the burst as a
-temporal illumination source that every line integrates over its own window. Pass
-`syncEnergyFactor = energyFractionOfSinglePulseRange.minimum` to `resolveTtlFlashExposure()` to solve TTL power
-for HSS.
+High-speed sync (HSS) needs a schema 0.2.0 sync-capability profile that declares HSS and its burst energy fraction.
+
+- `resolveHighSpeedFlashSync()` returns the burst support, the energy fraction per line `η·t_e/D`, and the
+  guide-number factor `√(η·t_e/D)`.
+- `createHighSpeedSyncIlluminationOverlay()` registers the burst as a temporal illumination source. Every line
+  integrates it over its own window.
+- To solve TTL power for HSS, pass `syncEnergyFactor = energyFractionOfSinglePulseRange.minimum` to
+  `resolveTtlFlashExposure()`.
 
 ## Lens projections, aberrations, polarizer and haze (2.0)
 
-The models below are standalone primitives; see [Physics foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#non-rectilinear-lens-projections-20) and [PSF foundation](https://github.com/Photivra/photivra/blob/main/docs/PSF_FOUNDATION.md#zernike-and-seidel-wavefronts-20) for equations, sources and limits.
+The models below are standalone primitives. See [Physics foundation](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md#non-rectilinear-lens-projections-20) and [PSF foundation](https://github.com/Photivra/photivra/blob/main/docs/PSF_FOUNDATION.md#zernike-and-seidel-wavefronts-20) for equations, sources and limits.
 
 ### Fisheye and equirectangular projections
 
@@ -7107,7 +7252,13 @@ console.log(calculateGeometricFocusBreathing({
 
 ## Optional WebGPU image kernels
 
-`createImageKernelAccelerator()` runs isoplanatic PSF convolution, native capture SDR and packed RAW development either on the float64 CPU reference (the default) or, when the caller opts in, on the `webgpu-f32` backend. Every result's `execution` label names the backend that actually ran, any fallback reason, and the a-priori error bound against the reference. See [WebGPU backend](https://github.com/Photivra/photivra/blob/main/docs/WEBGPU.md) for the bounds, the supported domain and the browser test.
+`createImageKernelAccelerator()` runs three heavy image operations: isoplanatic PSF convolution (one PSF for the whole image), native capture SDR, and packed RAW development.
+
+- By default they run on the float64 CPU reference.
+- If you opt in, they run on the `webgpu-f32` backend (WebGPU, 32-bit floats).
+- Every result's `execution` label names the backend that actually ran, any reason for falling back, and the error bound against the reference, stated in advance.
+
+See [WebGPU backend](https://github.com/Photivra/photivra/blob/main/docs/WEBGPU.md) for the bounds, the supported domain and the browser test.
 
 ```ts
 import { createImageKernelAccelerator, calculateIrradianceConvolution } from "@photivra/engine";
@@ -7128,7 +7279,10 @@ accelerator.dispose();
 ```
 ## Image processing operators
 
-Standalone cancellable operators for demosaicing, HDR merge/encoding, tone mapping, exposure fusion, focus stacking, panorama stitching from known rotations, denoising, sharpening and synthetic grain. All results are labelled approximations; see [Image processing operators](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md) for equations, sources, measured PSNR and limits. Every factory takes `(input, { yieldControl, onProgress? })` and returns a single-use task.
+These are standalone operators that can be cancelled: demosaicing, HDR merge and encoding, tone mapping, exposure fusion, focus stacking, panorama stitching from known rotations, denoising, sharpening and synthetic grain.
+
+- All results are labelled approximations. See [Image processing operators](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md) for equations, sources, measured PSNR and limits.
+- Every factory takes `(input, { yieldControl, onProgress? })` and returns a task that can run once.
 
 ```ts
 import {
@@ -7189,7 +7343,7 @@ await sdr.run();
 console.log(sdr.takeOutput().logAverageLuminance);
 ```
 
-`createDurandDorseyToneMappingTask`, `createExposureFusionTask`, `createFocusStackTask`, `createBilateralFilterTask`, `createNonLocalMeansTask`, `createUnsharpMaskTask` and `createSyntheticFilmGrainTask` follow the same pattern. Panorama stitching uses each frame's known rotation in the engine's pitch/yaw/roll convention:
+`createDurandDorseyToneMappingTask`, `createExposureFusionTask`, `createFocusStackTask`, `createBilateralFilterTask`, `createNonLocalMeansTask`, `createUnsharpMaskTask` and `createSyntheticFilmGrainTask` work the same way. Panorama stitching uses each frame's known rotation, in the engine's pitch/yaw/roll convention:
 
 ```ts
 import { createPanoramaTask } from "@photivra/engine";
@@ -7237,10 +7391,10 @@ console.log(calculateForwardGeometricMapping({ mapping, sourcePointMm: point.sou
 ```
 ## Simulate a capture with the facade
 
-`simulateCapture()` composes the generic tier presets, scene metering, the exposure-mode resolver,
-the native environment RAW task, native RAW development and, optionally, the print JPEG encoder.
-It returns the image, the packed RAW, the complete request and plan it executed, provenance and an
-`assumptions` list naming every default and modelling choice. See the [Quick Start](QUICK_START.md)
+`simulateCapture()` is a facade: one simple call that combines the generic tier presets, scene metering,
+the exposure-mode resolver, the native environment RAW task, native RAW development and, optionally, the
+print JPEG encoder. It returns the image, the packed RAW, the complete request and plan it ran, provenance,
+and an `assumptions` list naming every default and modelling choice. See the [Quick Start](QUICK_START.md)
 for every option, the chart catalogue and the limits.
 
 ```ts
@@ -7261,21 +7415,27 @@ console.log(star.assumptions.filter((a) => a.kind === "default").map((a) => a.id
 console.log(star.request.siteInput(0).environment.optics.nominalFNumber);
 ```
 
-In `aperture-priority` mode the shutter comes from the meter (ISO 2720 relation with K = 12.5) through
-`resolveAperturePriorityExposureMode()`. The chart presets are also available on their own:
-`resolveChartScene()` gives analytic reflectance at any frame point, and
-`createPlanarSceneRadianceProvider()` turns a chart into an `evaluateRadiance` callback for the native
-environment RAW contract.
+In `aperture-priority` mode, the shutter comes from the meter (ISO 2720 relation with K = 12.5) through
+`resolveAperturePriorityExposureMode()`.
+
+The chart presets are also available on their own:
+
+- `resolveChartScene()` gives the analytic reflectance at any point in the frame.
+- `createPlanarSceneRadianceProvider()` turns a chart into an `evaluateRadiance` callback for the native
+  environment RAW contract.
 
 ### Facade 2.0 options: output, demosaic, optics and motion
 
-Each 2.0 option is opt-in and composes an existing public contract; without them the facade's output
-is byte-identical to 1.0. `output.format: "png"` writes `serializePngImage` output, either the
-developed sRGB samples or, with `colorEncoding`, the unclipped linear development converted through
-CIE XYZ to Display P3, Rec. 2020 or Rec. 2100 PQ/HLG (`createHdrImageEncodingTask`), signalled with
-cICP; `output.gamutMapping: "perceptual"` swaps the component clip for `prepareRgbGamutMapping`.
-`format: "dng"` writes the packed native RAW with `serializeNativeRawDng`. See
-[Output formats](QUICK_START.md#output-formats).
+Each 2.0 option is opt-in and uses an existing public contract. Without them, the facade's output is
+byte-identical to 1.0.
+
+- `output.format: "png"` writes `serializePngImage` output. That is either the developed sRGB samples, or,
+  with `colorEncoding`, the unclipped linear development converted through CIE XYZ to Display P3, Rec. 2020
+  or Rec. 2100 PQ/HLG (`createHdrImageEncodingTask`), signalled with cICP.
+- `output.gamutMapping: "perceptual"` replaces the component clip with `prepareRgbGamutMapping`.
+- `format: "dng"` writes the packed native RAW with `serializeNativeRawDng`.
+
+See [Output formats](QUICK_START.md#output-formats).
 
 ```ts
 import { simulateCapture } from "@photivra/engine";
@@ -7284,8 +7444,8 @@ const p3 = await simulateCapture({ scene: { preset: "checkerboard" }, output: { 
 console.log(p3.image.png?.length, p3.image.colorEncoding, p3.provenance.composedContracts.includes("serializePngImage"));
 ```
 
-`output.demosaic` selects `createBuiltInBayerDemosaicProfiles` kernels, and `output.borderHandling:
-"mirror"` renders no border sites and reads reflect-101 images at the frame edge instead.
+`output.demosaic` selects kernels from `createBuiltInBayerDemosaicProfiles`. `output.borderHandling:
+"mirror"` renders no border sites; it reads reflect-101 mirror images at the frame edge instead.
 
 ```ts
 import { simulateCapture } from "@photivra/engine";
@@ -7294,9 +7454,9 @@ const mirrored = await simulateCapture({ scene: { preset: "uniform" }, output: {
 console.log(mirrored.plan.exposure.geometry.nativeRaster, mirrored.assumptions.find((a) => a.id === "output.demosaic")?.value);
 ```
 
-`lens.projection` and `lens.distortion` become the environment `lensFieldMapping`, `lens.vignetting`
-becomes radial field throughput and `lens.psf` is a caller sampled PSF; haze and polarizers are not
-offered because the scene-radiance provider contract declares neither volumetric transport nor
+`lens.projection` and `lens.distortion` become the environment `lensFieldMapping`. `lens.vignetting`
+becomes radial field throughput, and `lens.psf` is a sampled PSF you supply. Haze and polarizers are not
+offered, because the scene-radiance provider contract declares neither volumetric transport nor
 polarization. See [Optics](QUICK_START.md#optics).
 
 ```ts
@@ -7310,9 +7470,9 @@ const barrel = await simulateCapture({
 console.log(barrel.request.siteInput(0).environment.lensFieldMapping?.distortion.kind);
 ```
 
-`motion.angularVelocityRadPerSec` rotates the camera during the exposure (8 temporal midpoints by
-default), and `motion.shutter: "rolling"` derives each site's exposure window from the body's rolling
-readout with `resolveElectronicRollingShutterExposureSchedule`. See [Motion](QUICK_START.md#motion).
+`motion.angularVelocityRadPerSec` rotates the camera during the exposure (8 time midpoints by
+default). `motion.shutter: "rolling"` derives each site's exposure window from the body's rolling
+readout, with `resolveElectronicRollingShutterExposureSchedule`. See [Motion](QUICK_START.md#motion).
 
 ```ts
 import { simulateCapture } from "@photivra/engine";
