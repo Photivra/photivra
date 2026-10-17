@@ -38,7 +38,7 @@ the example above is [simulate-capture.mjs](examples/simulate-capture.mjs).
 
 | Field | Contents |
 | --- | --- |
-| `image` | `width`, `height`, `format`, `samples` (`Uint8Array` or `Uint16Array` RGB), `jpeg` bytes for the `jpeg` format, and `png` bytes plus `colorEncoding` for the `png` format |
+| `image` | `width`, `height`, `format`, `samples` (`Uint8Array` or `Uint16Array` RGB), `jpeg` bytes for the `jpeg` format, `png` bytes plus `colorEncoding` for the `png` format, and `dng` bytes for the `dng` format |
 | `raw` | The packed native RAW: codes, black levels, saturation flags and per-phase white levels |
 | `plan` | The native RAW plan the engine executed |
 | `request` | The complete underlying request: `environmentRaw` (the native environment RAW input), `siteInput(index)` (rebuilds the physical input of any sensor site), `development` (the RAW development input) and `whiteBalanceState` |
@@ -74,9 +74,11 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `illuminant` | Planckian 6500 K | Also `"cie-a"`, `{ kind: "planckian", temperatureKelvin }`, `{ kind: "daylight", correlatedColorTemperatureKelvin, basis }` or `{ kind: "spectrum", spectrum }`. |
 | `illuminanceLux` | 17 453 | See [Exposure](#exposure). |
 | `output.width`, `output.height` | 64 × 64 | Output pixels. The sensor has one extra site on each side for demosaicing (see `output.borderHandling`). |
-| `output.format` | `"srgb-8"` | Also `"srgb-16"`, `"jpeg"` and `"png"` (see [Output formats](#output-formats)). |
+| `output.format` | `"srgb-8"` | Also `"srgb-16"`, `"jpeg"`, `"png"` and `"dng"` (see [Output formats](#output-formats)). |
 | `output.colorEncoding` | `"srgb"` | PNG only: also `"display-p3"`, `"rec2020"`, `"rec2100-pq"` and `"rec2100-hlg"`. |
 | `output.bitDepth` | 8 (16 for PQ/HLG) | PNG only: 8 or 16. |
+| `output.gamutMapping` | `"clip"` | PNG SDR encodings only: or `"perceptual"`. |
+| `output.dng.capturedAtUtc` | none | DNG only: capture time for the date tags. |
 | `output.demosaic` | the 1.0 bilinear kernels | `"bilinear"` or `"malvar-he-cutler"` (see [Demosaic](#demosaic)). |
 | `output.borderHandling` | `"margin"` | Or `"mirror"`. |
 | `output.toneCurve` | `"identity"` | Any `SdrToneCurve`, for example `"positive-reinhard-per-channel"`. |
@@ -237,11 +239,40 @@ const hdr = await simulateCapture({ scene: { preset: "uniform" }, output: { widt
 console.log(hdr.image.samples instanceof Uint16Array, hdr.assumptions.find((a) => a.id === "output.colorEncoding.conversion")?.value);
 ```
 
-DNG output is not offered. The engine's DNG writer, `createPhotographicExportPair`, serializes a
-bounded `SensorRawFrame` whose committed capture must declare a linear-master source with float
-planes. A native environment capture commits a scene-radiance source without planes, so the only way
-to use that writer would be to declare a linear master that never existed. `format: "dng"` is refused
-with that reason; `result.raw` holds the packed RAW codes, black levels and white levels.
+`output.gamutMapping: "perceptual"` replaces the component clip for the SDR encodings (`srgb`,
+`display-p3`, `rec2020`) with `prepareRgbGamutMapping`: CIELAB L* and hue are held and chroma above
+90 % of the gamut-boundary chroma is compressed with a smooth knee that never reaches the boundary
+(Morovič 2008). Hue is kept, where a component clip shifts it, but saturated in-gamut colours above
+the knee lose a little chroma, and CIELAB hue drifts for saturated blues. `"clip"` (the default)
+leaves the output exactly as before; `diagnostics.gamutMapping` counts the pixels the mapping changed.
+It cannot be combined with tone curves or the PQ/HLG encodings.
+
+`output.format: "dng"` writes the packed native RAW itself with `serializeNativeRawDng`: a lossless,
+uncompressed 16-bit CFA DNG. `samples` are the developed 8-bit sRGB image and `image.dng` holds the file.
+The DNG states only what the capture has:
+
+| Tags | Source |
+| --- | --- |
+| Codes, CFAPattern, BlackLevel (2 × 2), WhiteLevel | The packed RAW codes, per-site black levels (they must repeat with the CFA tile) and the smallest per-phase effective white code |
+| ActiveArea, DefaultCropOrigin/Size, Orientation | The capture geometry (the demosaic border lies outside the active area) |
+| ColorMatrix1 (D65), ForwardMatrix1, AnalogBalance, AsShotNeutral | The facade's diagonal camera→XYZ profile and the capture's white-balance intent |
+| BaselineExposure | 0: the RAW white level maps to display white, as in the facade's development |
+| NoiseProfile | Each channel's readout regime: conversion gain ÷ digital gain and the combined read noise (Poisson, Gaussian and quantization only) |
+| ImageDescription | States that it is a simulated packed RAW with no linear master or rendering stored |
+
+Saturation flags of sites whose code is below WhiteLevel have no DNG field; they are counted in the
+assumptions. `output.dng.capturedAtUtc` adds date tags; without it none are written. The file
+round-trips through `parseDngRawImage` to identical codes and tags, and LibRaw 0.22.1 decodes identical
+codes (it trims an odd ActiveArea origin to keep its Bayer alignment). Pillow 12 reads every tag but has
+no CFA decoder, for these files as for any CFA DNG.
+
+```ts
+import { parseDngRawImage, simulateCapture } from "@photivra/engine";
+
+const shot = await simulateCapture({ scene: { preset: "siemens-star" }, output: { width: 8, height: 8, format: "dng" } });
+const dng = parseDngRawImage({ bytes: shot.image.dng! });
+console.log(dng.width, dng.activeArea, dng.whiteLevel, dng.codes.length === shot.raw.codes.length);
+```
 
 ## Demosaic
 
@@ -362,7 +393,7 @@ you need them.
 
 ## Not available
 
-The facade offers no DNG output (see [Output formats](#output-formats)), atmospheric haze or polarizer
+The facade offers no atmospheric haze or polarizer
 (see [Optics](#optics)), flash, video, HDR brackets or processing operators; those APIs are available
 directly. Real camera and lens presets are not provided, for rights reasons.
 
@@ -382,6 +413,7 @@ directly. Real camera and lens presets are not provided, for rights reasons.
 - IEC 61966-2-1:1999 (sRGB); SMPTE EG 432-1:2010 (P3 primaries); ITU-R BT.2020-2; ITU-R BT.2100-3
   (PQ and HLG); SMPTE ST 2084; ITU-R BT.2408 (HDR reference white); SMPTE RP 177 (matrices from
   primaries); ITU-T H.273 (cICP code points); W3C PNG Specification, Third Edition (2025).
+- Adobe DNG Specification 1.7.1.0 (2023); J. Morovič, *Color Gamut Mapping*, Wiley 2008, §10.
 - H. S. Malvar, L.-W. He, R. Cutler, "High-quality linear interpolation for demosaicing of
   Bayer-patterned color images", *Proc. IEEE ICASSP* 2004.
 - K. Miyamoto, "Fish eye lens", *JOSA* 54, 1964; J. Kannala, S. Brandt, *IEEE TPAMI* 28, 2006

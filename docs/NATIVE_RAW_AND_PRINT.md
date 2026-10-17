@@ -69,6 +69,39 @@ opticalStage!.dispose();
 
 `createNativeEnvironmentSensorStageTask` reports `providerEvaluationCount: 0`; `opticalStage.providerEvaluationCount` records the producing task's count. `test/native-environment-optical-stage.test.ts` checks reuse against full recomputes for PSF with radial field, flat emitter, pupil rays and eight temporal midpoints across seed, ISO with readout gain, white balance, rendering exposure and dark-current edits, and checks refusal for every optical input listed above, the memory bound and disposal.
 
+## Native RAW DNG
+
+`serializeNativeRawDng({ raw, colorProfile, noise?, baselineExposureEv?, capturedAtUtc? })` writes a packed
+`NativeRawOutput` as a lossless, uncompressed 16-bit CFA DNG (DNG 1.4 tags, Adobe DNG Specification
+1.7.1.0) with the TIFF/DNG tag writers of the paired photographic export. Unlike `createPhotographicExportPair`
+it needs no bounded `SensorRawFrame` or `SimulatedCapture` linear-master record, and it declares none: the
+ImageDescription states that the file holds a simulated packed RAW without a linear master or rendering,
+and the result reports `source: "packed-native-raw"`, `linearMasterDeclared: false`.
+
+- **Validation.** The packed RAW is revalidated (`validatePackedNativeRaw`, the same check native development
+  runs) and its code spans checked. 2 × 2 RGB Bayer CFAs only. The colour profile must be bound to the RAW's CFA.
+- **Levels.** BlackLevel (BlackLevelRepeatDim 2 × 2) and CFAPattern are phases relative to the ActiveArea
+  origin, as DNG applies them to the ActiveArea-cropped image; the per-site black levels must repeat with the
+  CFA tile. WhiteLevel is the smallest per-phase effective white code. Sites flagged saturated below
+  WhiteLevel cannot be represented and are counted in `unrepresentedSaturationFlagCount`.
+- **Geometry.** ActiveArea is the capture's active native rectangle; DefaultCropOrigin/Size is the oriented
+  output crop mapped back to stored coordinates (relative to ActiveArea); Orientation 1, 6, 3 or 8.
+- **Colour.** ColorMatrix1 = (camera→XYZ)⁻¹ with CalibrationIlluminant1 21 (D65); ForwardMatrix1 =
+  Bradford(D65→D50)·M·diag(w); AnalogBalance 1; AsShotNeutral from the capture's white-balance intent through
+  the native development operator; BaselineExposure as declared (default 0).
+- **Noise.** NoiseProfile per CFA plane, var(x) = S·x + O with S = 1/(G·span) and
+  O = (σ²/G² + 1/12)/span², only when `noise` gives each channel's output-referred gain G (electrons per
+  code) and read noise σ (electrons). It includes Poisson shot noise, Gaussian read noise and quantization,
+  not PRNU, DSNU or fixed-pattern noise.
+- **Exif.** ExposureTime, FNumber, ISO (as the recommended exposure index), FocalLength, ColorSpace
+  uncalibrated and PixelX/YDimension; date tags only when `capturedAtUtc` is given.
+- **Identity.** RawDataUniqueID is the first 128 bits of SHA-256 over a fixed header and the little-endian codes.
+
+The input arrays are copied before the first await and never modified. `test/native-raw-dng.test.ts`
+round-trips codes and every written tag through `parseDngRawImage` for odd, even and zero ActiveArea origins.
+LibRaw 0.22.1 decodes identical codes. Pillow 12 parses every tag but cannot decode CFA (photometric
+32803) images at all.
+
 ## Print stage
 
 `createPrintJpegTask` accepts explicitly encoded sRGB 8-bit RGB in an already oriented output raster. It crops only within actual source support and rejects enlargement, stretching and unsupported aspect ratios. Original area filtering decodes this declared post-SDR stage to linear values, integrates exact pixel overlap, then encodes and quantizes sRGB. This does not recover sensor headroom or reprocess RAW. Source reads are bounded to 256 × 32 pixels. Since 2.0.0 the task reads each crop pixel exactly once, in tiles aligned to the crop origin (32-row bands of 256-column tiles), and keeps at most 63 crop-width rows in a rolling cache; it therefore needs exactly ⌈crop height / 32⌉ × ⌈crop width / 256⌉ provider reads, `maximumProviderReads` caps that number, and a smaller budget fails before the first read. Earlier versions issued one or more reads per output 8 × 8 block (375 000 reads for a 24 MP 1:1 print; now 3 000). The 8-bit sRGB decode uses a 256-entry table built from the same `decodeSrgbComponent` function, and per-output-pixel accumulation keeps the old band/chunk/row/column order, so the samples handed to the encoder are bit-identical to the per-block reader (`test/print-jpeg-strip-identity.test.ts`). Encoded values are rounded to the nearest code with ties up (`Math.round`); the former `Math.floor(x + 0.5)` rounded 0.49999999999999994 up. JPEG coding uses 8 × 8 blocks. Edge replication is restricted to final JPEG coding blocks, not reconstruction or crop support.

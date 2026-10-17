@@ -172,10 +172,17 @@ export interface SimulateCaptureOptions {
     colorEncoding?: SimulateCaptureColorEncoding;
     /** PNG only: 8 or 16 bits per sample. Default 8, or 16 for the PQ/HLG encodings (which require 16). */
     bitDepth?: 8 | 16;
+    /**
+     * PNG SDR encodings only. Default "clip" (per-component clip to the target gamut). "perceptual" maps
+     * through `prepareRgbGamutMapping`: constant CIELAB L* and hue, chroma above 90 % of the boundary compressed.
+     */
+    gamutMapping?: "clip" | "perceptual";
     /** Default: the 1.0 facade's bilinear RGGB kernels. */
     demosaic?: SimulateCaptureDemosaic;
     /** Default "margin". */
     borderHandling?: SimulateCaptureBorderHandling;
+    /** DNG only: optional capture-event time (YYYY-MM-DDTHH:mm:ss.sssZ); without it no date tags are written. */
+    dng?: { capturedAtUtc?: string };
   };
   /** Camera motion and shutter type. Default: still camera, global electronic shutter. */
   motion?: SimulateCaptureMotion;
@@ -201,7 +208,7 @@ export interface SimulateCaptureOptions {
 The exact contract is declared below; use the domain guide for assumptions and staged integration.
 
 ```ts
-export type SimulateCaptureOutputFormat = "srgb-8" | "srgb-16" | "jpeg" | "png";
+export type SimulateCaptureOutputFormat = "srgb-8" | "srgb-16" | "jpeg" | "png" | "dng";
 ```
 
 ## SimulateCaptureProgress
@@ -236,6 +243,8 @@ export interface SimulateCaptureResult {
     png?: Uint8Array;
     /** Encoding of `samples` and `png` when format is "png". */
     colorEncoding?: SimulateCaptureColorEncoding;
+    /** Lossless uncompressed CFA DNG of the packed RAW when format is "dng" (`serializeNativeRawDng`); `samples` are then sRGB 8-bit. */
+    dng?: Uint8Array;
   };
   /** Packed native RAW (codes, black levels, saturation flags) as produced by the native environment RAW task. */
   raw: NativeRawOutput;
@@ -273,6 +282,8 @@ export interface SimulateCaptureResult {
     providerEvaluationCount: number;
     highlight: RawHighlightDiagnostics;
     rendering: SdrRenderingResult["diagnostics"];
+    /** Present with output.gamutMapping "perceptual": pixels whose chroma or lightness the mapping changed. */
+    gamutMapping?: { method: "cielab-hue-preserving-chroma-compression"; kneeFraction: number; adjustedPixelCount: number; lightnessClippedPixelCount: number };
     timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number };
   };
   provenance: {

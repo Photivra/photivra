@@ -4033,6 +4033,11 @@
       "kind": "runtime"
     },
     {
+      "name": "NATIVE_RAW_DNG_SCHEMA_VERSION",
+      "source": "src/capture/native-raw-dng.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "NATIVE_RAW_LIMITS",
       "source": "src/capture/native-raw.ts",
       "kind": "runtime"
@@ -4180,6 +4185,16 @@
     {
       "name": "NativeRawDevelopmentTask",
       "source": "src/capture/native-raw-development.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawDng",
+      "source": "src/capture/native-raw-dng.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawDngChannelNoise",
+      "source": "src/capture/native-raw-dng.ts",
       "kind": "type"
     },
     {
@@ -7465,6 +7480,16 @@
     {
       "name": "SensorTemporalDarkCurrentCharge",
       "source": "src/sensor/dark-current.ts",
+      "kind": "type"
+    },
+    {
+      "name": "serializeNativeRawDng",
+      "source": "src/capture/native-raw-dng.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "SerializeNativeRawDngInput",
+      "source": "src/capture/native-raw-dng.ts",
       "kind": "type"
     },
     {
