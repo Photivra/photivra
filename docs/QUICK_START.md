@@ -3,8 +3,11 @@
 `simulateCapture()` takes a small description of a camera, a lens setting, an exposure and a
 scene, and returns a developed image. Behind it runs the engine's full physical pipeline: scene
 radiance → lens → spectral sensor response → charge and noise → RAW readout → RAW development →
-optional JPEG. The facade adds no physics of its own. It only builds the request for the existing
-contracts, runs them, and tells you every choice it made for you.
+optional JPEG.
+
+`simulateCapture()` is a *facade*: one simple entry point in front of those existing contracts. It
+adds no physics of its own. It only builds the request for the existing contracts, runs them, and
+tells you every choice it made for you.
 
 This page covers the inputs, the defaults, the chart presets and the limits. The detailed contracts
 it composes are in [ENVIRONMENT_RAW_CAPTURE.md](https://github.com/Photivra/photivra/blob/main/docs/ENVIRONMENT_RAW_CAPTURE.md),
@@ -29,7 +32,7 @@ console.log(capture.image.width, capture.image.samples.length, capture.exposure.
 `capture.image.samples` holds interleaved 8-bit sRGB values, row by row from the top-left. The scene
 is the only required input; every other field above is the default and could be left out.
 
-Before the facade, the same kind of result needed the 34-line
+Without the facade, the same kind of result needs the 34-line
 [production-capture.mjs](examples/production-capture.mjs) plus its 4,613-line
 [production-request.json](examples/production-request.json) for a 2 × 2 capture. A runnable version of
 the example above is [simulate-capture.mjs](examples/simulate-capture.mjs).
@@ -95,9 +98,10 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `motion.rollingShutterSkewSeconds` | the body's readout skew | Rolling only. |
 | `signal`, `onProgress` | none | An `AbortSignal` cancels the running task; `onProgress` reports `raw`, `white-balance`, `development` and `jpeg` tiles. |
 
-Unknown fields are rejected, so a typo never silently falls back to a default. Every 2.0 option
-(PNG, demosaic, optics and motion) is opt-in: with none of them given, the request, RAW, samples and
-JPEG are byte-identical to the 1.0 facade, and a test pins that.
+Unknown fields are rejected, so a typo never silently falls back to a default.
+
+Every option added in 2.0 (PNG, demosaic, optics and motion) is opt-in. With none of them given, the
+request, RAW, samples and JPEG are byte-identical to the 1.0 facade, and a test checks that.
 
 ## Geometry
 
@@ -112,23 +116,31 @@ sensor values.
 
 ## Exposure
 
-The facade meters the scene like a reflected-light meter. It averages the scene luminance on a
-16 × 16 grid with the body's metering profile and follows the ISO 2720 relation
-N²/t = L·S/K with K = 12.5 cd·s/m². The anchor is f/8, 1/125 s, ISO 100, which is correct for
-L = 1000 cd/m². The meter target then goes through the engine's existing exposure-mode resolver.
-In `program` mode an engine-authored generic program line chooses the aperture and shutter.
+The facade meters the scene like a reflected-light meter:
 
-The default illuminance is π·K·N²/(t·S·0.18) = 17 453 lux. Under it an 18 % grey card is exactly
-at the metered exposure for the default f/8, 1/125 s, ISO 100. The light does not follow your
-settings: changing the shutter in manual mode changes the image brightness, as on a real camera.
+- It averages the scene luminance on a 16 × 16 grid with the body's metering profile.
+- It follows the ISO 2720 relation N²/t = L·S/K, with K = 12.5 cd·s/m². (N is the f-number, t the
+  shutter time in seconds, L the scene luminance in cd/m², S the ISO setting.)
+- The anchor is f/8, 1/125 s, ISO 100, which is correct for L = 1000 cd/m².
+- The meter target then goes through the engine's existing exposure-mode resolver.
+- In `program` mode, a generic program line written by the engine chooses the aperture and shutter.
 
-With these defaults the green RAW level of an 18 % grey card is about 10.5 % of RAW white. This is
-close to the ISO 12232 saturation-based speed relation (no free source for that relation was found; see the citation audit in the 2.0.0 release record). The tier values were not tuned to get it.
+The default illuminance is π·K·N²/(t·S·0.18) = 17 453 lux. Under it, an 18 % grey card is exactly
+at the metered exposure for the default f/8, 1/125 s, ISO 100.
+
+The light does not follow your settings. Changing the shutter in manual mode changes the image
+brightness, as on a real camera.
+
+With these defaults, the green RAW level of an 18 % grey card is about 10.5 % of RAW white. This is
+close to the ISO 12232 saturation-based speed relation. (No free source for that relation was found;
+see the citation audit in the 2.0.0 release record.) The tier values were not tuned to get this
+result.
 
 ## Scene presets
 
-All charts are engine-authored analytic patterns; no third-party chart data is bundled. Each is a
-planar Lambertian reflector. Neutral reflectances are spectrally flat.
+All charts are analytic patterns written by the engine; no third-party chart data is bundled. Each
+is a flat Lambertian reflector (it looks equally bright from every direction). Neutral reflectances
+are spectrally flat.
 
 | Preset | Parameters (defaults) | Definition |
 | --- | --- | --- |
@@ -166,7 +178,7 @@ console.log(vignette.request.whiteBalanceState?.source);
 | Value | Meaning |
 | --- | --- |
 | `"scene-illuminant"` | A custom white balance measured from a perfect white diffuser under the scene illuminant, like a grey-card setting. |
-| `"auto"` | Grey-world AWB with the body's `neutral-priority` policy over 2 × 2 block means of the pre-white-balance RAW. The sensor stage is then re-run with that setting; no new radiance queries are made. |
+| `"auto"` | Grey-world auto white balance (AWB) with the body's `neutral-priority` policy, over 2 × 2 block means of the RAW before white balance. The sensor stage is then re-run with that setting; no new radiance queries are made. |
 | `"none"` | No white balance; development assumes a D65 adopted white. Scenes under other light keep their colour cast. |
 | `{ kelvin, tint? }` | A colour-temperature setting on the Planckian locus (tint as Duv). |
 | `{ channelGains }` | Manual channel gains. |
@@ -181,15 +193,17 @@ These choices appear in `assumptions` as `kind: "model"` entries:
   photon-counting response. RAW channels are then proportional to CIE XYZ (the Luther–Ives
   condition), and the camera matrix is diagonal. No real camera has this response.
 - **Lens.** The tier lens's spectrally flat transmission is used at every f-number and focus in the
-  lens capability. By default no PSF or diffraction, vignetting, distortion, lateral colour or stray
-  light is applied. The tier's optical data exist only at f/4 and 5 m, and the facade does not
-  extrapolate them; vignetting, distortion and PSF are applied only from profiles you supply.
+  lens capability. By default no PSF (point-spread function) or diffraction, vignetting, distortion,
+  lateral colour or stray light is applied. The tier's optical data exist only at f/4 and 5 m, and
+  the facade does not extrapolate them. Vignetting, distortion and PSF are applied only from profiles
+  you supply.
 - **Sensor.** Square pixels with a fill factor of 1 and no anti-aliasing filter. A global
   electronic shutter unless `motion.shutter` is `"rolling"`. A synthetic uniform dark current of
   1 e⁻/s at 20 °C (the tiers declare none). The charge capacity equals the body's base-ISO saturation signal.
-- **Demosaic.** Bilinear RGGB interpolation through the existing linear-kernel contract unless
-  `output.demosaic` selects a built-in kernel. Sharp edges without lens blur therefore show the
-  usual zipper and false-colour artefacts.
+- **Demosaic.** Bilinear RGGB interpolation through the existing linear-kernel contract, unless
+  `output.demosaic` selects a built-in kernel. (Demosaicing fills in the two missing colours at each
+  pixel of a colour-filter mosaic.) Sharp edges without lens blur therefore show the usual zipper and
+  false-colour artefacts.
 - **Scene.** A planar Lambertian surface: radiance = reflectance × irradiance / π, with illuminance
   from K_m = 683 lm/W and the analytic ȳ. No shadows, inter-reflection, gloss or fluorescence.
 - **Rendering.** Linear sRGB with RAW white at display white, no exposure push, out-of-gamut
@@ -208,23 +222,31 @@ in-house zlib, and the colour encoding signalled in the file.
 | `"rec2100-pq"` | BT.2020 primaries, SMPTE ST 2084 PQ, 16-bit full range. | cICP 9/16/0/1 |
 | `"rec2100-hlg"` | BT.2020 primaries, ARIB STD-B67 HLG, 16-bit full range. | cICP 9/18/0/1 |
 
-What is converted, and where: the sRGB output path develops each pixel to linear sRGB/D65 (demosaic,
-per-site clip at the RAW white level, white balance, highlight mode, the camera→XYZ matrix and the
-XYZ→sRGB matrix) and then clips each component to [0, 1]. The wide-gamut and HDR encodings use the same
-development operator but stop before that clip, so colours outside sRGB survive (as negative or
-above-one sRGB components). They convert that linear colour back to CIE XYZ and on to the target
-primaries (matrices from the primaries and the D65 white, SMPTE RP 177). Gamut mapping then happens
-only once, in the target space: components are clipped to [0, 1] for Display P3 and Rec. 2020, and
-negative BT.2020 components are clipped by `createHdrImageEncodingTask` for PQ and HLG. No perceptual
-gamut compression is applied. Tone curves other than `identity` are sRGB-only and are refused with a
-wide-gamut encoding.
+What is converted, and where:
 
-For PQ and HLG, relative value 1.0 (the RAW white level) sits at the ITU-R BT.2408 HDR reference white:
-203 cd/m² in PQ, signal 0.75 in HLG. A single capture has no signal above its RAW white, so these files
-have no highlight headroom above reference white; merge a bracket with `createHdrBracketMergeTask`
-(see [PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)) for extended range. No mDCV or cLLI metadata is
-written. With the facade's colorimetric sensor the wide-gamut colours are exact up to the spectral
-quadrature: with 5 nm spectral steps, a test reproduces an out-of-sRGB green emitter's CIE 1931 xy chromaticity to within 0.004.
+- The sRGB output path develops each pixel to linear sRGB/D65. That covers demosaic, a per-site clip
+  at the RAW white level, white balance, highlight mode, the camera→XYZ matrix and the XYZ→sRGB
+  matrix. It then clips each component to [0, 1].
+- The wide-gamut and HDR encodings use the same development operator but stop before that clip. So
+  colours outside sRGB survive, as negative or above-one sRGB components.
+- They convert that linear colour back to CIE XYZ and on to the target primaries (matrices from the
+  primaries and the D65 white, SMPTE RP 177).
+- Gamut mapping then happens only once, in the target space. Components are clipped to [0, 1] for
+  Display P3 and Rec. 2020. For PQ and HLG, negative BT.2020 components are clipped by
+  `createHdrImageEncodingTask`.
+- No perceptual gamut compression is applied by default (see `output.gamutMapping` below).
+- Tone curves other than `identity` are sRGB-only, and are refused with a wide-gamut encoding.
+
+For PQ and HLG, relative value 1.0 (the RAW white level) sits at the ITU-R BT.2408 HDR reference
+white: 203 cd/m² in PQ, signal 0.75 in HLG.
+
+- A single capture has no signal above its RAW white, so these files have no highlight headroom above
+  reference white. For extended range, merge a bracket with `createHdrBracketMergeTask` (see
+  [PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)).
+- No mDCV or cLLI metadata is written.
+- With the facade's colorimetric sensor, the wide-gamut colours are exact up to the spectral
+  quadrature (numerical integration over wavelength). With 5 nm spectral steps, a test reproduces an
+  out-of-sRGB green emitter's CIE 1931 xy chromaticity to within 0.004.
 
 ```ts
 import { simulateCapture } from "@photivra/engine";
@@ -240,12 +262,16 @@ console.log(hdr.image.samples instanceof Uint16Array, hdr.assumptions.find((a) =
 ```
 
 `output.gamutMapping: "perceptual"` replaces the component clip for the SDR encodings (`srgb`,
-`display-p3`, `rec2020`) with `prepareRgbGamutMapping`: CIELAB L* and hue are held and chroma above
-90 % of the gamut-boundary chroma is compressed with a smooth knee that never reaches the boundary
-(Morovič 2008). Hue is kept, where a component clip shifts it, but saturated in-gamut colours above
-the knee lose a little chroma, and CIELAB hue drifts for saturated blues. `"clip"` (the default)
-leaves the output exactly as before; `diagnostics.gamutMapping` counts the pixels the mapping changed.
-It cannot be combined with tone curves or the PQ/HLG encodings.
+`display-p3`, `rec2020`) with `prepareRgbGamutMapping`:
+
+- CIELAB L* and hue are held.
+- Chroma above 90 % of the gamut-boundary chroma is compressed with a smooth knee that never reaches
+  the boundary (Morovič 2008).
+- Hue is kept, whereas a component clip shifts it. The cost: saturated in-gamut colours above the knee
+  lose a little chroma, and CIELAB hue drifts for saturated blues.
+- `"clip"` (the default) leaves the output exactly as before.
+- `diagnostics.gamutMapping` counts the pixels the mapping changed.
+- It cannot be combined with tone curves or the PQ/HLG encodings.
 
 `output.format: "dng"` writes the packed native RAW itself with `serializeNativeRawDng`: a lossless,
 uncompressed 16-bit CFA DNG. `samples` are the developed 8-bit sRGB image and `image.dng` holds the file.
@@ -260,11 +286,14 @@ The DNG states only what the capture has:
 | NoiseProfile | Each channel's readout regime: conversion gain ÷ digital gain and the combined read noise (Poisson, Gaussian and quantization only) |
 | ImageDescription | States that it is a simulated packed RAW with no linear master or rendering stored |
 
-Saturation flags of sites whose code is below WhiteLevel have no DNG field; they are counted in the
-assumptions. `output.dng.capturedAtUtc` adds date tags; without it none are written. The file
-round-trips through `parseDngRawImage` to identical codes and tags, and LibRaw 0.22.1 decodes identical
-codes (it trims an odd ActiveArea origin to keep its Bayer alignment). Pillow 12 reads every tag but has
-no CFA decoder, for these files as for any CFA DNG.
+- Saturation flags of sites whose code is below WhiteLevel have no DNG field. They are counted in the
+  assumptions.
+- `output.dng.capturedAtUtc` adds date tags. Without it, none are written.
+- The file round-trips through `parseDngRawImage` to identical codes and tags.
+- LibRaw 0.22.1 decodes identical codes. (It trims an odd ActiveArea origin to keep its Bayer
+  alignment.)
+- Pillow 12 reads every tag but has no CFA (colour filter array) decoder — for these files, as for any
+  CFA DNG.
 
 ```ts
 import { parseDngRawImage, simulateCapture } from "@photivra/engine";
@@ -282,12 +311,14 @@ console.log(dng.width, dng.activeArea, dng.whiteLevel, dng.codes.length === shot
 Malvar–He–Cutler kernels sharpen luminance edges, but on saturated colour edges they can fringe more
 than bilinear (measured in [PROCESSING.md](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md)).
 
-`output.borderHandling` decides how edge pixels get their neighbours. `"margin"` (the default) renders
-the kernel reach as extra sensor sites around the output: one site for bilinear, two for
-Malvar–He–Cutler. `"mirror"` renders exactly the output and reads reflect-101 mirror images of the
-missing sites, after the engine has checked that every reflected site keeps its CFA colour. Mirror
-saves the border's radiance work and keeps small captures from needing extra sites; its edge pixels
-use mirrored rather than rendered neighbours.
+`output.borderHandling` decides how edge pixels get their neighbours:
+
+- `"margin"` (the default) renders the kernel's reach as extra sensor sites around the output: one site
+  for bilinear, two for Malvar–He–Cutler.
+- `"mirror"` renders exactly the output, and reads reflect-101 mirror images of the missing sites. The
+  engine first checks that every reflected site keeps its CFA colour. Mirror saves the radiance work for
+  the border, so small captures need no extra sites. Its edge pixels use mirrored neighbours rather than
+  rendered ones.
 
 ```ts
 import { simulateCapture } from "@photivra/engine";
@@ -303,27 +334,35 @@ console.log(mhc.plan.exposure.geometry.nativeRaster, mhc.request.development.bor
 
 The optics options feed only what the environment site contract accepts:
 
-- `lens.projection` and `lens.distortion` become the site's `lensFieldMapping`. Each sensor point is
-  inverse-distorted, unprojected with the chosen ideal projection, and only then turned into a scene
-  ray; irradiance is multiplied exactly once by the distortion area factor 1/det(J). At finite focus a
-  non-rectilinear projection is scaled by the thin-lens image distance (an approximation). The chart is
-  still sized with the rectilinear scale, so its edges move with the projection. Neither can be
-  combined with `lens.pupilSampling`, because ideal pupil rays assume the rectilinear, distortion-free
-  projection.
+- `lens.projection` and `lens.distortion` become the site's `lensFieldMapping`.
+  - Each sensor point is inverse-distorted, unprojected with the chosen ideal projection, and only then
+    turned into a scene ray.
+  - Irradiance is multiplied exactly once by the distortion area factor 1/det(J), where J is the
+    Jacobian of the mapping.
+  - At finite focus, a non-rectilinear projection is scaled by the thin-lens image distance (an
+    approximation).
+  - The chart is still sized with the rectilinear scale, so its edges move with the projection.
+  - Neither option can be combined with `lens.pupilSampling`, because ideal pupil rays assume the
+    rectilinear, distortion-free projection.
 - `lens.vignetting` becomes radial-illumination-vignetting field throughput,
   1 + r2·ρ² + r4·ρ⁴ + r6·ρ⁶, applied once at the physical sensor point before any PSF.
 - `lens.psf` is a caller sampled PSF passed through unchanged. Its focal length, f-number and focus
   must equal the resolved capture settings exactly, and it cannot be combined with pupil sampling.
 
-The default frame is a 0.38 mm crop behind a 50 mm lens, a field of well under a degree, so projection
-and distortion effects only become visible with larger pixels (or a custom lens). Profiles are yours:
-the tiers declare no vignetting, distortion or PSF away from their f/4 reference.
+The default frame is a 0.38 mm crop behind a 50 mm lens, a field of well under a degree. Projection
+and distortion effects therefore only become visible with larger pixels (or a custom lens). The
+profiles are yours to supply: the tiers declare no vignetting, distortion or PSF away from their f/4
+reference.
 
-Atmospheric haze and polarizers are not offered. The scene-radiance provider contract fixes
-`volumetricTransportModeled` and `polarizationModeled` to false, so haze airlight added inside the
-provider would be misdeclared, and with unpolarized scene light a polarizer reduces to a uniform
-attenuation with none of its glare or sky effects. Use `calculateAtmosphericHaze` and the
-front-of-lens filter contracts directly (see [PHYSICS_FOUNDATION.md](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md)).
+Atmospheric haze and polarizers are not offered, for two reasons:
+
+- The scene-radiance provider contract fixes `volumetricTransportModeled` and `polarizationModeled` to
+  false. Haze airlight added inside the provider would therefore be misdeclared.
+- With unpolarized scene light, a polarizer reduces to a uniform attenuation, with none of its glare or
+  sky effects.
+
+Use `calculateAtmosphericHaze` and the front-of-lens filter contracts directly (see
+[PHYSICS_FOUNDATION.md](https://github.com/Photivra/photivra/blob/main/docs/PHYSICS_FOUNDATION.md)).
 
 ```ts
 import { simulateCapture } from "@photivra/engine";
@@ -344,18 +383,24 @@ console.log(lensy.request.siteInput(0).environment.lensFieldMapping, lensy.assum
 ## Motion
 
 `motion.angularVelocityRadPerSec` rotates the camera at a constant rate during the exposure, in the
-engine's pitch/yaw/roll convention ([SENSOR_ENVIRONMENT_QUERY.md](https://github.com/Photivra/photivra/blob/main/docs/SENSOR_ENVIRONMENT_QUERY.md)). Every scene ray is rotated at each temporal midpoint of the site's
-exposure window, so motion blur is a midpoint quadrature; `sensor.temporalSampleCount` defaults to 8
-when the camera rotates. A yaw of ω rad/s moves the image by ω·f/pitch pixels per second.
+engine's pitch/yaw/roll convention ([SENSOR_ENVIRONMENT_QUERY.md](https://github.com/Photivra/photivra/blob/main/docs/SENSOR_ENVIRONMENT_QUERY.md)).
 
-`motion.shutter: "rolling"` derives the exposure schedule from the body's rolling readout declaration
-with `resolveElectronicRollingShutterExposureSchedule` (line reset/read linkage): a site at normalized
-scan position s integrates over [s·τ, s·τ + T]. The default skew τ is the tier's full-frame data-readout
-time, applied unchanged across the simulated frame; it is not scaled to the cropped sensor, because the
-engine never rescales a declared skew. A small frame therefore shows the skew of a full-sensor readout.
-Pass `rollingShutterSkewSeconds` to declare τ for the simulated frame yourself. Each site's charge
-window follows its own exposure window. Combined with rotation, a vertical edge shears by
-ω·f/pitch·τ pixels from the first to the last row, which a test checks.
+- Every scene ray is rotated at each temporal midpoint of the site's exposure window. Motion blur is
+  therefore a midpoint quadrature (an average over sample times).
+- `sensor.temporalSampleCount` defaults to 8 when the camera rotates.
+- A yaw of ω rad/s moves the image by ω·f/pitch pixels per second (f = focal length).
+
+`motion.shutter: "rolling"` derives the exposure schedule from the body's rolling readout declaration,
+with `resolveElectronicRollingShutterExposureSchedule` (line reset/read linkage). A site at normalized
+scan position s integrates over [s·τ, s·τ + T], where τ is the skew and T the exposure time.
+
+- The default skew τ is the tier's full-frame data-readout time, applied unchanged across the simulated
+  frame. It is not scaled to the cropped sensor, because the engine never rescales a declared skew. A
+  small frame therefore shows the skew of a full-sensor readout.
+- Pass `rollingShutterSkewSeconds` to declare τ for the simulated frame yourself.
+- Each site's charge window follows its own exposure window.
+- Combined with rotation, a vertical edge shears by ω·f/pitch·τ pixels from the first row to the last.
+  A test checks this.
 
 ```ts
 import { simulateCapture } from "@photivra/engine";
@@ -370,11 +415,12 @@ console.log(pan.assumptions.find((a) => a.id === "sensor.shutter")?.value, pan.e
 
 ## Performance
 
-The facade's cost is almost entirely engine time per sensor site, not facade overhead. Since 2.0 the
-native environment task runs most sites through a lean executor that skips provably redundant per-site
-re-validation while producing byte-identical output (described in the repository's
-`docs/NATIVE_RAW_AND_PRINT.md`). Measured on
-a 4-core Linux host running Node 24 (slanted edge, default settings and sRGB 8-bit output):
+Almost all of the cost is engine time per sensor site; the facade itself adds little. Since 2.0, the
+native environment task runs most sites through a lean executor. It skips per-site re-validation that
+is provably redundant, and produces byte-identical output (described in the repository's
+`docs/NATIVE_RAW_AND_PRINT.md`).
+
+Measured on a 4-core Linux host running Node 24 (slanted edge, default settings and sRGB 8-bit output):
 
 | Output | Native sites | Wall time | CPU time | CPU per site |
 | --- | --- | --- | --- | --- |
@@ -383,19 +429,19 @@ a 4-core Linux host running Node 24 (slanted edge, default settings and sRGB 8-b
 | 256 × 256 | 66 564 | 5.7 s | 6.9 s | 0.10 ms |
 | 1000 × 1000 | 1 004 004 | — | about 2 min (extrapolated) | — |
 
-The 1000 × 1000 row is not a measurement; it multiplies the 256 × 256 CPU cost per site by the site
-count. Before the lean executor the same 64 × 64 capture took about 6.0 s of CPU and 128 × 128 about
-20.6 s on this host. Development and encoding are a small part of the total.
+The 1000 × 1000 row is not a measurement. It multiplies the 256 × 256 CPU cost per site by the site
+count. Before the lean executor, the same 64 × 64 capture took about 6.0 s of CPU on this host, and
+128 × 128 about 20.6 s. Development and encoding are a small part of the total.
 
 These numbers come from one run on one machine. They are not a performance claim. Small captures
-(up to about 128 × 128) take a few seconds. Use them while you explore, and render large images only when
-you need them.
+(up to about 128 × 128) take a few seconds. Use them while you explore, and render large images only
+when you need them.
 
 ## Not available
 
-The facade offers no atmospheric haze or polarizer
-(see [Optics](#optics)), flash, video, HDR brackets or processing operators; those APIs are available
-directly. Real camera and lens presets are not provided, for rights reasons.
+The facade offers no atmospheric haze or polarizer (see [Optics](#optics)), flash, video, HDR brackets
+or processing operators. Those APIs are available directly. Real camera and lens presets are not
+provided, for rights reasons.
 
 ## Sources
 
