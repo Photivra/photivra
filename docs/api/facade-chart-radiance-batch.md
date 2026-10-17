@@ -84,13 +84,13 @@ export interface ChartRadianceBatchPlan {
 }
 ```
 
-## planarChartPointsFromDirections
+## mapEnvironmentDirectionsToChartPoints
 
 Frame points of environment-direction queries on the chart plane, exactly as the planar provider's
 `evaluateRadiance` computes them: look direction l = −o, plane point l·distance/l.z, in frame units.
 
 ```ts
-export function planarChartPointsFromDirections(input: { directions: Float32Array | Float64Array; distanceM: number; metresPerFrameUnit: number }): Float64Array;
+export function mapEnvironmentDirectionsToChartPoints(input: { directions: Float32Array | Float64Array; distanceM: number; metresPerFrameUnit: number }): Float64Array;
 ```
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.

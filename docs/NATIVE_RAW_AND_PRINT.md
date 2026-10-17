@@ -132,12 +132,16 @@ It produces byte-identical results to the full path: RAW codes, black levels, sa
   Every check that does not depend on the site therefore passes exactly as it did for the template. The sensor stage has its own templates. Its dark-current, charge-completeness and readout inputs must be strictly equal, except for `site` fields equal to the site's own coordinates and completeness offsets equal to its local exposure window.
 - **Site-dependent work is recomputed** with the full chain's arithmetic, in the same floating-point order:
   - aperture centre and bounds, spatial quadrature points, the local exposure window, field throughput, aperture rays, and the focus-aware rotated query and its request;
+  - with a sampled PSF, each node's kernel (resolved by the same code as `resolveLensSampledPsf`, without its result envelope), its tap points (`sensorPsfSourcePoint`) and each node's kernel-weighted tap sum, in kernel order;
+  - with a `lensFieldMapping`, each tap's query, built by the full planner's own mapped-query function, and its distortion area factor, applied once after the tap's pupil sum;
+  - with ideal pupil rays, each tap's rays, by `calculateSensorApertureRays`' own code after one pupil, f-number and focus validation per template; each ray handed to the provider is a frozen key-by-key copy, equal to the `structuredClone` copy used before;
   - then scene-to-sensor acceptance, spatio-spectral reduction, operating range, EQE electron rate (Kahan sums), temporal midpoint sums, dark and total charge, Poisson charge draws, read noise, fixed-pattern values and the ADC transfer.
 
   Every provider result is validated by the same parser.
 - **Every data-dependent check is kept.** When one fails (for example an out-of-range operating input, a non-finite irradiance or a provider identity mismatch), the lean path calls the full engine function with exactly the same inputs. It therefore throws the same error after the same callbacks. Planning falls back before any callback. Checks that the full path runs while composing or parsing a site are evaluated at that same point.
-- **Self-verification.** Each template's own site is planned and executed by both paths. Every lean value must match bit for bit (`Object.is`) before any other site uses the template. A mismatch disables the template, and its sites run the full path.
-- **Always full path (not lean-eligible):** sampled PSFs, `lensFieldMapping` sites, colour-site bindings that are not one-to-one, additional stored-charge components, and anything outside these rules. Examples: reordered keys, `-0` coordinates, or a site whose inputs differ from every template. There are at most 64 templates per event.
+  With a sampled PSF, the PSF quadrature's per-instant checks (finite, non-negative tap irradiances, finite weighted sums and reduction) run after that instant's callbacks, as in the full path. If one fails, the full quadrature runs on the site's full plan (built without callbacks) and throws its own error or returns its own values.
+- **Self-verification.** Each template's own site is planned and executed by both paths. Every lean value must match bit for bit (`Object.is`) before any other site uses the template, including each resolved PSF kernel and each node's PSF irradiance. A mismatch disables the template, and its sites run the full path.
+- **Always full path (not lean-eligible):** colour-site bindings that are not one-to-one, additional stored-charge components, and anything outside these rules. Examples: reordered keys, `-0` coordinates, a PSF kernel whose tap count differs from the template's, or a site whose inputs differ from every template. There are at most 64 templates per event. Sampled-PSF and lens-mapped sites have been lean-eligible since the #275 follow-up.
 
 Measured in Node 24 on one host (CPU time, so host-dependent):
 
@@ -147,6 +151,16 @@ Measured in Node 24 on one host (CPU time, so host-dependent):
 | 128×128 slanted-edge capture | 20.6 s (1.22 ms per native site) | 2.2 s (0.13 ms per site; 9.4×) |
 | RAW stage alone at 64×64, per site | about 950 µs | 120 µs (8×) |
 | Same, with four temporal samples, per site | about 2.6 ms | 0.21 ms |
+
+Sampled-PSF and lens-mapped coverage (#275 follow-up), `simulateCapture()` 48 × 48 (50 × 50 native sites) slanted edge, wall time, median of 3 runs after one warm-up, Node 24 on a shared 4-vCPU Linux host, measured with `scripts/benchmark-native-environment.mjs`; RAW and developed-image SHA-256 identical before and after:
+
+| Case | Before | After |
+| --- | --- | --- |
+| 3 × 3 sampled PSF (`lens.psf`) | 11.9 s | 1.96 s (6.1×) |
+| Radial distortion (`lens.distortion`) | 2.63 s | 0.59 s (4.4×) |
+| Ideal pupil, 1 × 4 rays (`lens.pupilSampling`), after the change above | 2.19 s | 1.26 s (1.7×) |
+
+All #275 follow-ups together (main before, branch head after, same method): sampled PSF 11.2 → 1.60 s, radial distortion 2.66 → 0.46 s, 1 × 4 pupil rays 2.32 → 1.15 s; default optics unchanged within noise (0.33 vs 0.34 s).
 
 The remaining time is mostly the private copy of each supplied tile, parsing provider results, comparing templates, and the provider callbacks themselves.
 
@@ -230,6 +244,57 @@ A capture-level difference is refused when the reuse task is created, before any
 `createNativeEnvironmentSensorStageTask` reports `providerEvaluationCount: 0`; `opticalStage.providerEvaluationCount` records the producing task's count.
 
 `test/native-environment-optical-stage.test.ts` checks reuse against full recomputes. It covers a PSF with radial field, a flat emitter, pupil rays and eight temporal midpoints, across edits to seed, ISO with readout gain, white balance, rendering exposure and dark current. It also checks refusal for every optical input listed above, the memory limit and disposal.
+
+### Batched light sampling (`evaluateRadianceBatch`, 2.0)
+
+`NativeEnvironmentRawProvider.evaluateRadianceBatch` is an optional, additive alternative to one callback per query. When a provider defines it, the native environment task makes one call per tile instead of calling `evaluateRadiance` and `evaluateApertureRadiance` per query:
+
+- `queries` lists every radiance query of the tile's sites, in exactly the order the per-query callbacks would be made: per site, per time instant, per spectral × spatial node, per PSF tap, then per pupil ray. Each entry holds the same frozen request, and for a pupil ray the same frozen ray copy, that the per-query callback would receive (`NativeEnvironmentRadianceQuery`).
+- Return one `SceneRadianceEvaluationResult` per query, in the same order, or a promise of them (for example after a GPU readback). Anything else (a non-array, a wrong length, holes) is rejected with `InvalidConfigurationError`.
+- Each result then goes through the same parser and binding checks, and the same arithmetic, as a per-query result. With the same results, RAW, photo expectations, the evaluation count and errors are identical to the per-query provider.
+- A tile holds at most 100,000 queries, so a batch is bounded.
+
+Differences from per-query callbacks: all of a tile's queries are evaluated before any of its sites is executed, so a defective result is reported after the whole tile's callbacks rather than right after its own. The per-query evaluators stay required as the reference contract, and pupil sampling still requires `evaluateApertureRadiance` to be declared, but neither is called while a batch function is present. Row-band partitions use the batch function the same way.
+
+`test/native-environment-batch.test.ts` checks equality with the per-query provider (RAW, photo expectations, evaluation counts and the exact request sequence, including frozen flags) for the four hash-locked workloads and lean facade captures with pupil rays and a lens field mapping, with synchronous and promise results, inside partitions, and for defective results.
+
+**Measured** (Node 24, shared 4-vCPU Linux host, 48 × 48, one thread, analytic JavaScript radiance, median of 5, alternated with per-query runs, `scripts/benchmark-native-environment-workers.mjs`): default optics 0.29 s per-query vs 0.27 s batched; 4 pupil rays 2.11 s vs 2.43 s. A batch call itself saves little on the CPU; its purpose is to let a provider evaluate a tile at once (GPU, WebAssembly or another thread). No GPU provider is part of this change.
+
+### Opt-in parallel execution (row-band partitions, 2.0)
+
+`createNativeEnvironmentRawTask` runs on one thread. A capture can instead be split into bands of whole native rows and run in parallel:
+
+1. `calculateNativeRawRowBands(plan, count)` returns at most `count` contiguous bands of nearly equal height, in row order. It depends only on the raster height and `count`.
+2. `createNativeEnvironmentRawPartitionTask(input, band, provider)` runs one band. It takes the same input as the single task, and its provider is built where it runs (functions cannot be posted between workers). Its `takeOutput()` returns a `NativeEnvironmentRawPartition`: plain data plus four typed arrays for the band's rows, which can be posted with their buffers transferred.
+3. `composeNativeEnvironmentRawPartitions(input, partitions)` joins the partitions, in row order, into the `NativeEnvironmentRawOutput` the single task returns.
+
+The package bundles no worker code, so the root package stays browser-safe and the package surface is unchanged. The caller creates the workers (Web Workers, Node worker threads, or none: partitions can also run one after another).
+
+**Byte identity.** The merged RAW codes, black levels, saturation codes, flags and per-phase white levels are byte-identical to the single task's for the same input and a deterministic provider, and `providerEvaluationCount` is the sum. Noise seeds use absolute native indices, and each band reads the same tiles, plans the same sites and computes the same per-site values (lean or full) as the single task. `test/native-environment-partitions.test.ts` checks this for the four hash-locked workloads and a facade capture with 1, 2, 3 and one-row bands, with each partition passed through `structuredClone` as `postMessage` would.
+
+**Checks.** Each partition validates the same inputs and limits as the single task before its callbacks. Checks that span sites run inside each band and again across bands in the merge:
+
+- one shared source, optical and motion state (the merge compares each band's canonical state);
+- one readout identity and fixed-pattern identity (each band's first site);
+- one effective white level per CFA phase, and a white level for every phase.
+
+The merge also rejects a partition from a different input (compared by canonical JSON), a gap, overlap or wrong order, wrong array types or lengths, and a total evaluation count above `maximumProviderEvaluations`. It validates shape and consistency only: posted partitions are the caller's own data, and the merge cannot recompute them.
+
+**Limits.**
+
+- `maximumProviderEvaluations` bounds each partition's own work before it starts; the whole-capture total is checked only at the merge, after the work.
+- Callbacks are split across partitions and run concurrently. When several partitions fail, which error the caller sees first depends on its scheduling. Successful output does not depend on it.
+- Optical-stage retention (`opticalStage`) is not supported in a partition.
+- Each band builds its own lean templates (the first sites of each CFA phase in the band run the full path).
+
+**Measured** with `scripts/benchmark-native-environment-workers.mjs` (Node worker threads, Node 24, shared 4-vCPU Linux host, 48 × 48 output, 2,500 native sites, median of 3 after one warm-up; merged RAW SHA-256 equal to the single task's in every run). Worker start-up (about 0.1–0.2 s, sending the site inputs) is excluded from the run time.
+
+| Case | Single task | 2 workers | 4 workers |
+| --- | --- | --- | --- |
+| 3 × 3 sampled PSF | 1.53 s | 1.00 s (1.5×) | 0.66 s (2.3×) |
+| Default optics | 0.27 s | 0.17 s (1.6×) | 0.23 s (1.2×) |
+
+Speed-up depends on the work per site and the host. Cheap sites gain little: at 96 × 96 with default optics, 2 workers ran 0.86 → 0.72 s and 4 workers were not faster. These are single measurements on one shared host, not a performance claim.
 
 ## Native RAW DNG
 

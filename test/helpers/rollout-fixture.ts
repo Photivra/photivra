@@ -9,14 +9,14 @@
  * - **Image-formation method:** scene radiance integrated per channel at site centres
  *   (`calculateChartRadianceBatch`, spectral-integral mode), then the isoplanatic convolution
  *   (`calculateIrradianceConvolution`) of each channel plane with kernels sampled from the same PSF profile
- *   (`sampleLensPsfConvolutionKernels`), then the site's own channel. Static scene: the temporal sum is
+ *   (`resolveLensPsfConvolutionKernels`), then the site's own channel. Static scene: the temporal sum is
  *   one node (identity), so it adds no method error here.
  * - The channel weights are the per-site engine's own spectral weights, read by probing it with
  *   single-wavelength radiance (it is linear in radiance). The facade's optics factor is the same at every
  *   site (checked), so one weight row per channel is exact.
  */
 import { calculateChartRadianceBatch, calculateEnvironmentSensorPhotoSignal, calculateIrradianceConvolution, createPlanarSceneRadianceProvider,
-  planarChartPointsFromDirections, sampleLensPsfConvolutionKernels, simulateCapture, type ChartRadianceBatchInput, type ChartScene,
+  mapEnvironmentDirectionsToChartPoints, resolveLensPsfConvolutionKernels, simulateCapture, type ChartRadianceBatchInput, type ChartScene,
   type IrradianceConvolutionInput, type LensSampledPsfProfile, type SceneRadianceEvaluationRequest, type SceneRadianceEvaluationResult } from "../../src/index.js";
 import { gaussianPsfProfile } from "./lens-psf-kernel-fixture.js";
 
@@ -107,7 +107,7 @@ function psfState(setup: RolloutSetup, profile: LensSampledPsfProfile): { profil
 /** Builds the method's radiance batch and convolution kernels for a tile (the region adds the kernel radius on each side). */
 export function rolloutMethodInputs(setup: RolloutSetup, profile: LensSampledPsfProfile, tile: RolloutTile): RolloutMethodInputs {
   const f = ROLLOUT_FRAME, state = psfState(setup, profile);
-  const kernels = (region: RolloutTile, kernelRadius?: number): ReturnType<typeof sampleLensPsfConvolutionKernels>["value"] => sampleLensPsfConvolutionKernels({
+  const kernels = (region: RolloutTile, kernelRadius?: number): ReturnType<typeof resolveLensPsfConvolutionKernels>["value"] => resolveLensPsfConvolutionKernels({
     schemaVersion: "0.1.0", psf: state, spectralWeights: [{ wavelengthNm: 550, weight: 1 }], patchWidth: f.patch, patchHeight: f.patch,
     grid: { width: region.width, height: region.height, sitePitchMicrometers: { x: f.pitchMicrometers, y: f.pitchMicrometers },
       opticalAxisSite: { x: setup.nativeWidth / 2 - region.x, y: setup.nativeHeight / 2 - region.y } }, ...(kernelRadius === undefined ? {} : { kernelRadius }) }).value;
@@ -122,7 +122,7 @@ export function rolloutMethodInputs(setup: RolloutSetup, profile: LensSampledPsf
       .query.value.request.target.outgoingDirectionUnitVector;
     directions.set([o.x, o.y, o.z], (j * region.width + i) * 3);
   }
-  const points = planarChartPointsFromDirections({ directions, distanceM: setup.distanceM, metresPerFrameUnit: setup.metresPerFrameUnit });
+  const points = mapEnvironmentDirectionsToChartPoints({ directions, distanceM: setup.distanceM, metresPerFrameUnit: setup.metresPerFrameUnit });
   return { region, kernelRadius: reach, maximumKernelSum: k.maximumKernelSum,
     radiance: { ...setup.batchBase, points, wavelengthsNanometers: setup.wavelengths, channelWeights: setup.channelWeights },
     convolution: { schemaVersion: "0.1.0", width: region.width, height: region.height, kernelRadius: reach, patchWidth: f.patch, patchHeight: f.patch,

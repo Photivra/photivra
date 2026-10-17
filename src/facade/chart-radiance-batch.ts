@@ -12,7 +12,7 @@
  * patterns, so a query's integral depends only on its material: the GPU stage uses exactly that.
  *
  * The query shape mirrors a batched provider (one call, queries in, results in the same order). Points
- * are frame units (u right, v up; see chart-scenes.ts); `planarChartPointsFromDirections` converts
+ * are frame units (u right, v up; see chart-scenes.ts); `mapEnvironmentDirectionsToChartPoints` converts
  * environment-direction queries exactly as `evaluateRadiance` does.
  * @see docs/WEBGPU.md, "Scene radiance on the GPU".
  */
@@ -125,7 +125,7 @@ export function calculateChartRadianceBatch(input: ChartRadianceBatchInput): { p
  * `evaluateRadiance` computes them: look direction l = −o, plane point l·distance/l.z, in frame units.
  * @param directions - Outgoing unit vectors (scene toward camera), interleaved [x, y, z, …].
  */
-export function planarChartPointsFromDirections(input: { directions: Float32Array | Float64Array; distanceM: number; metresPerFrameUnit: number }): Float64Array {
+export function mapEnvironmentDirectionsToChartPoints(input: { directions: Float32Array | Float64Array; distanceM: number; metresPerFrameUnit: number }): Float64Array {
   const r = requireAllowlistedRecord(input, ["directions", "distanceM", "metresPerFrameUnit"], "Invalid planar direction input.");
   const d = r.directions, distance = r.distanceM, scale = r.metresPerFrameUnit;
   if (!(d instanceof Float32Array || d instanceof Float64Array) || d.length % 3 !== 0 || typeof distance !== "number" || !(distance > 0 && distance <= Number.MAX_VALUE) ||

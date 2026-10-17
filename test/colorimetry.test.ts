@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   calculateChromaticAdaptationMatrix,
@@ -28,6 +29,8 @@ import {
   prepareColorMatchingFunctions,
   prepareColorimetricSpectrum,
   resolveChromaticAdaptationConeMatrix,
+  InvalidConfigurationError,
+  InvalidScientificInputError,
   CHROMATIC_ADAPTATION_TRANSFORMS,
   SECOND_RADIATION_CONSTANT_METER_KELVIN,
   ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS,
@@ -286,6 +289,61 @@ describe("illuminants and correlated colour temperature", () => {
     expect(() => calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: 3000, duv: 0.06, whiteLocus: "planckian", locus })).toThrow();
     expect(() => calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: 999, duv: 0, whiteLocus: "planckian", locus })).toThrow();
   });
+
+  it("round-trips CCT + Duv tightly over the whole range, including both range limits", () => {
+    const locus = { kind: "planck-analytic-cmf" as const };
+    const temperatures = [1000, 1000.5, 1500, 2856, 4000, 6504, 10000, 25000, 50000, 99000, 100000];
+    for (const t of temperatures) {
+      // Positive Duv at low T leaves the xy triangle (x + y > 1), so it is only checked from 4000 K.
+      for (const duv of t >= 4000 ? [-0.0499, -0.01, -0.001, 0, 0.001, 0.01, 0.0499] : [-0.0499, -0.01, -0.001, 0]) {
+        const xy = calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: t, duv, whiteLocus: "planckian", locus }).value;
+        const back = calculateCorrelatedColorTemperature({ chromaticity: xy, locus }).value;
+        expect(Math.abs(back.correlatedColorTemperatureKelvin - t) / t, t + " K, Duv " + duv).toBeLessThan(1e-9);
+        expect(Math.abs(back.duv - duv), t + " K, Duv " + duv).toBeLessThan(1e-12);
+      }
+    }
+  });
+
+  it("agrees with the exact root of the distance derivative (50-digit reference of the same locus)", () => {
+    // reference.json: generate_reference.py evaluates the engine's discrete locus in 50-digit decimal
+    // arithmetic, brackets the minimum densely and solves d(uv distance²)/dT = 0 exactly.
+    const reference = JSON.parse(readFileSync(new URL("./fixtures/planckian-cct/reference.json", import.meta.url), "utf8")) as {
+      cases: { chromaticity: { x: number; y: number }; correlatedColorTemperatureKelvin: string; duv: string }[];
+    };
+    expect(reference.cases.length).toBeGreaterThanOrEqual(19);
+    for (const c of reference.cases) {
+      const r = calculateCorrelatedColorTemperature({ chromaticity: c.chromaticity, locus: { kind: "planck-analytic-cmf" } }).value;
+      const t = Number(c.correlatedColorTemperatureKelvin);
+      // The convergence tolerance is 1e-10 of T; measured agreement is about 1e-13.
+      expect(Math.abs(r.correlatedColorTemperatureKelvin - t) / t, c.correlatedColorTemperatureKelvin).toBeLessThan(1e-10);
+      expect(Math.abs(r.duv - Number(c.duv)), c.duv).toBeLessThan(1e-13);
+    }
+  });
+
+  it("orders CCT monotonically along the locus and fails closed beyond its range limits", () => {
+    const locus = { kind: "planck-analytic-cmf" as const };
+    for (const duv of [-0.02, 0, 0.004]) {
+      let previous = 0;
+      for (let i = 0; i <= 120; i++) {
+        const t = 4000 * 25 ** (i / 120); // 4000 … 100000 K
+        const xy = calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: t, duv, whiteLocus: "planckian", locus }).value;
+        const cct = calculateCorrelatedColorTemperature({ chromaticity: xy, locus }).value.correlatedColorTemperatureKelvin;
+        expect(cct, String(t)).toBeGreaterThan(previous);
+        previous = cct;
+      }
+    }
+    // Points extrapolated beyond each limit along the locus: their nearest point is outside the model.
+    for (const [edge, inner] of [[1000, 1010], [100000, 99000]] as const) {
+      const a = uv(estimatePlanckianLocusChromaticity({ temperatureKelvin: edge }).value);
+      const b = uv(estimatePlanckianLocusChromaticity({ temperatureKelvin: inner }).value);
+      const u = a[0] + (a[0] - b[0]), v = a[1] + (a[1] - b[1]);
+      const d = 2 * u - 8 * v + 4;
+      expect(() => calculateCorrelatedColorTemperature({ chromaticity: { x: (3 * u) / d, y: (2 * v) / d }, locus }), String(edge)).toThrow(/outside the locus model range/);
+    }
+    // Just inside a limit still resolves (the old scan-only search refused anything nearest the end sample).
+    const nearMax = calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: 99500, duv: 0, whiteLocus: "planckian", locus }).value;
+    expect(calculateCorrelatedColorTemperature({ chromaticity: nearMax, locus }).value.correlatedColorTemperatureKelvin / 99500).toBeCloseTo(1, 9);
+  });
 });
 
 describe("chromatic adaptation", () => {
@@ -398,28 +456,56 @@ describe("CIELAB and colour difference", () => {
   });
   it("computes ΔE*ab and the asymmetric CIE94 formulas (closed forms computed in the test)", () => {
     expect(calculateColorDifference({ reference: lab(50, 0, 0), sample: lab(53, 4, 0), formula: "cie76" }).value.deltaE).toBe(5);
-    const de94 = (r: CielabColor, t: CielabColor, formula: "cie94-graphic-arts" | "cie94-textiles"): number => calculateColorDifference({ reference: r, sample: t, formula }).value.deltaE;
-    // Weights: graphic arts k_L = 1, K1 = 0.045, K2 = 0.015; textiles k_L = 2, K1 = 0.048, K2 = 0.014.
-    const weights = { "cie94-graphic-arts": { kL: 1, k1: 0.045, k2: 0.015 }, "cie94-textiles": { kL: 2, k1: 0.048, k2: 0.014 } } as const;
-    for (const formula of ["cie94-graphic-arts", "cie94-textiles"] as const) {
-      const { kL, k1, k2 } = weights[formula];
+    // Default: the reference conditions k_L = k_C = k_H = 1, K1 = 0.045, K2 = 0.015. Caller-supplied
+    // factors use arbitrary test values (not a published preset) so every factor is exercised.
+    const custom = { lightness: 2, chroma: 1.5, hue: 0.8, k1: 0.03, k2: 0.02 };
+    const cases = [
+      { factors: undefined, kL: 1, kC: 1, kH: 1, k1: 0.045, k2: 0.015 },
+      { factors: custom, kL: 2, kC: 1.5, kH: 0.8, k1: 0.03, k2: 0.02 }
+    ] as const;
+    for (const { factors, kL, kC, kH, k1, k2 } of cases) {
+      const de94 = (r: CielabColor, t: CielabColor): number =>
+        calculateColorDifference(factors === undefined ? { reference: r, sample: t, formula: "cie94" } : { reference: r, sample: t, formula: "cie94", cie94Factors: factors }).value.deltaE;
       // Pure ΔL (any chroma, same a*, b*): ΔE94 = |ΔL| / k_L.
       for (const [l1, l2, a, b] of [[40, 44, 0, 0], [60, 52.5, 12, -7], [20, 21, -30, 40]] as const) {
-        expect(de94(lab(l1, a, b), lab(l2, a, b), formula)).toBeCloseTo(Math.abs(l2 - l1) / kL, 13);
+        expect(de94(lab(l1, a, b), lab(l2, a, b))).toBeCloseTo(Math.abs(l2 - l1) / kL, 13);
       }
-      // Pure chroma on the +a* axis (same L*, hue 0): ΔE94 = |ΔC| / (1 + K1·C1), C1 the reference chroma.
+      // Pure chroma on the +a* axis (same L*, hue 0): ΔE94 = |ΔC| / (k_C (1 + K1·C1)), C1 the reference chroma.
       for (const [c1, c2] of [[10, 12], [30, 22], [2, 50]] as const) {
-        expect(de94(lab(50, c1, 0), lab(50, c2, 0), formula)).toBeCloseTo(Math.abs(c2 - c1) / (1 + k1 * c1), 13);
+        expect(de94(lab(50, c1, 0), lab(50, c2, 0))).toBeCloseTo(Math.abs(c2 - c1) / (kC * (1 + k1 * c1)), 13);
       }
-      // Equal chroma, hue only: ΔE94 = |ΔH| / (1 + K2·C1) with ΔH = 2C sin(Δh/2).
+      // Equal chroma, hue only: ΔE94 = |ΔH| / (k_H (1 + K2·C1)) with ΔH = 2C sin(Δh/2).
       for (const [c, h1, h2] of [[10, 0, 0.1], [35, 1, 2.2], [60, -2, 2.5]] as const) {
         const r = lab(55, c * Math.cos(h1), c * Math.sin(h1)), t = lab(55, c * Math.cos(h2), c * Math.sin(h2));
-        expect(de94(r, t, formula)).toBeCloseTo(Math.abs(2 * c * Math.sin((h2 - h1) / 2)) / (1 + k2 * c), 12);
+        expect(de94(r, t)).toBeCloseTo(Math.abs(2 * c * Math.sin((h2 - h1) / 2)) / (kH * (1 + k2 * c)), 12);
       }
       // Asymmetry: S_C and S_H use the reference chroma, so swapping reference and sample changes ΔE94 when C1 ≠ C2.
       const r = lab(50, 10, 0), t = lab(50, 20, 0);
-      expect(de94(r, t, formula)).toBeCloseTo(10 / (1 + k1 * 10), 13);
-      expect(de94(t, r, formula)).toBeCloseTo(10 / (1 + k1 * 20), 13);
+      expect(de94(r, t)).toBeCloseTo(10 / (kC * (1 + k1 * 10)), 13);
+      expect(de94(t, r)).toBeCloseTo(10 / (kC * (1 + k1 * 20)), 13);
+    }
+    // Passing the reference conditions explicitly equals the default; zero K1, K2 are allowed (S_C = S_H = 1).
+    const p = lab(50, 10, 5), q = lab(53, 14, -2);
+    expect(calculateColorDifference({ reference: p, sample: q, formula: "cie94", cie94Factors: { lightness: 1, chroma: 1, hue: 1, k1: 0.045, k2: 0.015 } }).value.deltaE)
+      .toBe(calculateColorDifference({ reference: p, sample: q, formula: "cie94" }).value.deltaE);
+    expect(calculateColorDifference({ reference: p, sample: q, formula: "cie94", cie94Factors: { lightness: 1, chroma: 1, hue: 1, k1: 0, k2: 0 } }).value.deltaE)
+      .toBeCloseTo(calculateColorDifference({ reference: p, sample: q, formula: "cie76" }).value.deltaE, 13);
+    // Rejection of bad factors.
+    const de94With = (cie94Factors: unknown): unknown => calculateColorDifference({ reference: p, sample: q, formula: "cie94", cie94Factors: cie94Factors as never });
+    for (const bad of [
+      { ...custom, lightness: 0 }, { ...custom, chroma: -1 }, { ...custom, hue: Number.NaN }, { ...custom, k1: -0.01 },
+      { ...custom, k2: Number.POSITIVE_INFINITY }, { lightness: 1, chroma: 1, hue: 1, k1: 0.045 }, { ...custom, k2: "0.015" }
+    ]) {
+      expect(() => de94With(bad), JSON.stringify(bad)).toThrow(InvalidScientificInputError);
+    }
+    for (const bad of [null, [], 1, { ...custom, kL: 1 }]) {
+      expect(() => de94With(bad), JSON.stringify(bad)).toThrow(InvalidConfigurationError);
+    }
+    expect(() => calculateColorDifference({ reference: p, sample: q, formula: "ciede2000", cie94Factors: custom })).toThrow(InvalidScientificInputError);
+    expect(() => calculateColorDifference({ reference: p, sample: q, formula: "cie94", parametricFactors: { lightness: 1, chroma: 1, hue: 1 } })).toThrow(InvalidScientificInputError);
+    // The removed presets are rejected.
+    for (const formula of ["cie94-graphic-arts", "cie94-textiles"]) {
+      expect(() => calculateColorDifference({ reference: p, sample: q, formula: formula as never })).toThrow(InvalidConfigurationError);
     }
   });
   it("converts XYZ ↔ CIELAB ↔ LCh exactly and continuously at the linear segment", () => {

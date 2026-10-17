@@ -84,7 +84,7 @@ function integer(value: unknown, minimum: number, maximum: number, message: stri
  * @returns The kernels and per-patch field points. Success does not imply calibration.
  * @see docs/WEBGPU.md, "Kernels from a lens PSF profile".
  */
-export function sampleLensPsfConvolutionKernels(input: LensPsfConvolutionKernelsInput): CalculationResult<LensPsfConvolutionKernels> {
+export function resolveLensPsfConvolutionKernels(input: LensPsfConvolutionKernelsInput): CalculationResult<LensPsfConvolutionKernels> {
   const r = requireAllowlistedRecord(input, ["schemaVersion", "psf", "spectralWeights", "grid", "patchWidth", "patchHeight", "kernelRadius"],
     "Invalid lens PSF convolution kernel input.");
   if (r.schemaVersion !== LENS_PSF_CONVOLUTION_KERNELS_SCHEMA_VERSION) throw new InvalidConfigurationError("Unsupported lens PSF convolution kernel schema.");

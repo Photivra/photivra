@@ -61,12 +61,12 @@ export interface LensPsfConvolutionKernelsInput {
 }
 ```
 
-## sampleLensPsfConvolutionKernels
+## resolveLensPsfConvolutionKernels
 
 Builds the per-patch convolution kernels from a sampled lens PSF profile.
 
 ```ts
-export function sampleLensPsfConvolutionKernels(input: LensPsfConvolutionKernelsInput): CalculationResult<LensPsfConvolutionKernels>;
+export function resolveLensPsfConvolutionKernels(input: LensPsfConvolutionKernelsInput): CalculationResult<LensPsfConvolutionKernels>;
 ```
 
 This call is synchronous; any supplied provider must follow its explicit synchronous contract.

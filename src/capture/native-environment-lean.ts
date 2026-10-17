@@ -23,20 +23,32 @@
  *   and the lean results must be bit-identical (Object.is) before any other site uses the template. A mismatch
  *   disables the template and its sites run the full path.
  *
- * Environments with a sampled PSF (point-spread function) or a declared lensFieldMapping (even an identity one)
- * cannot use the lean path and always run the full path.
+ * Sampled PSFs (point-spread functions) and lens field mappings are covered as well (2.0). A sampled-PSF site
+ * resolves its kernels with the full resolver's own code (resolveLensSampledPsfKernel), places the taps with the
+ * shared sensorPsfSourcePoint and sums each node's taps in kernel order, as calculateSensorPsfIrradianceQuadrature
+ * does. Its per-instant checks run after that instant's callbacks; when one fails, the full quadrature runs on the
+ * site's full plan and decides. A lens-mapped site builds each query with calculateMappedSensorEnvironmentRadianceQuery
+ * itself and applies the distortion area factor once, after the tap's pupil sum.
  * @see docs/NATIVE_RAW_AND_PRINT.md for the invariance argument and limits.
  */
 
 import type { SimulateEnvironmentSensorRawFrameInput } from "./environment-raw-producer.js";
 import type { planEnvironmentSensorPhotoSignal, executeEnvironmentSensorPhotoSignal, EnvironmentRadianceEvaluator,
   EnvironmentApertureRadianceEvaluator } from "../sensor/environment-photo-signal.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
+import { apertureRadianceQuery } from "../sensor/environment-photo-signal.js";
 import type { SensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
 import { createSensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
 import { parseSceneRadianceEvaluationResult, validateSceneRadianceEvaluationBindings,
   type SceneRadianceEvaluationRequest } from "../schema/scene-radiance.js";
 import { calculateSceneRadianceToSensorIrradiance } from "../optics/scene-to-sensor-irradiance.js";
-import { calculateSensorApertureRays, type SensorApertureRay } from "../optics/sensor-aperture-rays.js";
+import { calculateMappedSensorEnvironmentRadianceQuery, prepareEnvironmentLensFieldMapping,
+  type PreparedEnvironmentLensFieldMapping } from "../optics/sensor-environment-query.js";
+import { calculateSensorPsfIrradianceQuadrature } from "../optics/sensor-psf-quadrature.js";
+import { sensorPsfSourcePoint } from "../optics/sensor-psf-support.js";
+import { resolveLensSampledPsf, resolveLensSampledPsfKernel, type ResolveLensSampledPsfInput } from "../optics/lens-psf-profile.js";
+import { sensorApertureRayValues, type IdealCircularPupil, type SensorApertureRay } from "../optics/sensor-aperture-rays.js";
+import { parseFocusPlane } from "../optics/focus-state.js";
 import { calculateIlluminationVignetting } from "../optics/illumination-vignetting.js";
 import { applyPhysicalCameraRotation, resolveProjectionDistanceMm } from "../motion/camera-rotation.js";
 import { prepareCaptureExposureWindowSampler } from "../sensor/exposure-window.js";
@@ -67,7 +79,7 @@ const REDUCTION_TOLERANCE = 1e-10;
 /** Disables the lean executor process-wide (internal; tests compare both paths). */
 let leanDisabled = false;
 /** Internal counters of lean work (tests assert the lean path actually runs). Not exported from the package. */
-export const nativeEnvironmentLeanStatistics = { plannedSites: 0, executedSites: 0, sensorSites: 0 };
+export const nativeEnvironmentLeanStatistics = { plannedSites: 0, executedSites: 0, sensorSites: 0, psfFallbacks: 0 };
 export function setNativeEnvironmentLeanExecutionEnabled(enabled: boolean): void { leanDisabled = !enabled; }
 
 function isPlainRecord(value: object): boolean {
@@ -157,12 +169,22 @@ interface Template {
   /** True until the template's plan constants are derived and self-checked. */
   disabled: boolean;
   consts?: PlanConstants;
+  /** The lean plan of the template's own site, shown equal to its full plan. */
+  selfPlan?: LeanEnvironmentPlan | undefined;
   execution?: ExecutionConstants;
   /** undefined until the template site executed through the full path. */
   executionVerified?: boolean;
 }
 interface PlanConstants {
   spectralCount: number; spatialCount: number; temporalCount: number; pupilCount: number; count: number;
+  /** Per group (spectral × spatial node): its number of taps (1 without a sampled PSF). */
+  tapCounts: readonly number[];
+  /** Start of each group in an instant's flat tap list, plus the total at the end. */
+  tapOffsets: readonly number[];
+  /** The template's sampled-PSF resolver input (its engine-owned, frozen profile), without wavelength and field point. */
+  psf?: Omit<ResolveLensSampledPsfInput, "wavelengthNm" | "fieldPointMm">;
+  /** The template's validated lens field mapping. */
+  lensMapping?: PreparedEnvironmentLensFieldMapping;
   wavelengths: Float64Array;
   nodes: readonly FullPlan["instants"][number]["groups"][number]["node"][];
   spatial: SpatialNode[];
@@ -171,6 +193,8 @@ interface PlanConstants {
   sampler: ReturnType<typeof prepareCaptureExposureWindowSampler>;
   projectionDistanceMm: number;
   focus: FullPlan["focus"];
+  /** The focus plane as calculateSensorApertureRays parses it. */
+  parsedFocus: ReturnType<typeof parseFocusPlane>;
   requestBase: { providerProfileId: string; sceneId: string; illuminationProfileId: string; materialResponseProfileId: string; wavelengthBasis: string };
   sceneBindings: FullPlan["sceneBindings"];
 }
@@ -181,6 +205,8 @@ interface LeanTap {
   fieldFactor: number;
   fieldValid: boolean;
   apertureRays?: readonly SensorApertureRay[];
+  /** 1 / det(d distorted / d ideal), applied once after the tap's pupil sum. Present only with a lens field mapping. */
+  distortionAreaFactor?: number;
 }
 /** A lean site plan. `owned` and `count` mirror the full plan fields the native task reads. */
 export interface LeanEnvironmentPlan {
@@ -191,7 +217,13 @@ export interface LeanEnvironmentPlan {
   readonly count: number;
   readonly site: { x: number; y: number };
   readonly start: number; readonly end: number; readonly duration: number;
+  /**
+   * Per instant, every tap in one flat list: group by group (spectral-major, spatial-minor), each group's taps in kernel
+   * order. Group gi holds taps tapOffsets[gi] to tapOffsets[gi + 1] - 1 of its template's plan constants.
+   */
   readonly instants: readonly { time: number; taps: readonly LeanTap[] }[];
+  /** Per group: the resolved PSF kernel weights. Present only with a sampled PSF. */
+  readonly kernels?: readonly (readonly number[])[];
 }
 export function isLeanEnvironmentPlan(plan: unknown): plan is LeanEnvironmentPlan {
   return typeof plan === "object" && plan !== null && (plan as { lean?: unknown }).lean === true;
@@ -223,10 +255,11 @@ export interface NativeEnvironmentLeanExecutor {
   verifyCandidate(index: number, plan: FullPlan, result: FullResult): void;
   /**
    * Executes a lean plan. Returns the photo signal, or undefined when the template could not be verified; the
-   * caller then plans and executes this site in full.
+   * caller then plans and executes this site in full. `fullPlan` builds the site's full plan without callbacks;
+   * it is called only when a sampled-PSF check fails and the full PSF quadrature must decide.
    */
   execute(plan: LeanEnvironmentPlan, evaluate: EnvironmentRadianceEvaluator,
-    aperture: EnvironmentApertureRadianceEvaluator | undefined): SensorEqeTemporalPhotoSignal | undefined;
+    aperture: EnvironmentApertureRadianceEvaluator | undefined, fullPlan: () => FullPlan): SensorEqeTemporalPhotoSignal | undefined;
 }
 
 function siteOf(environment: Env): { x: unknown; y: unknown } | undefined {
@@ -263,12 +296,14 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
     const e = environment as unknown as Rec, optics = e.optics as Rec, motion = e.motion as Rec;
     const focalLengthMm = optics.focalLengthMm as number, nominalFNumber = optics.nominalFNumber as number;
     const omega = motion.angularVelocityRadPerSec as { pitch: number; yaw: number; roll: number };
-    const pupil = e.pupil as Parameters<typeof calculateSensorApertureRays>[0]["pupil"] | undefined;
-    if (pupil !== undefined && calculateSensorApertureRays({ sourcePointNativeSensorMm: { x: 0, y: 0 }, focalLengthMm, nominalFNumber, focus: k.focus,
-      pupil, angularVelocityRadPerSec: omega, timeSecondsFromOpeningReference: start }).value.rays.length !== k.pupilCount) return undefined;
-    // Field throughput at every planned point (identical for every spectral node of one spatial node).
+    // The pupil, f-number and focus were validated by the template's full planning (they are site-independent); the ray
+    // arithmetic and its rotation and forward-hemisphere checks run per site through calculateSensorApertureRays' own code.
+    const pupil = e.pupil as IdealCircularPupil | undefined;
+    if (pupil !== undefined && sensorApertureRayValues({ sourcePointNativeSensorMm: { x: 0, y: 0 }, focalLengthMm, nominalFNumber,
+      angularVelocityRadPerSec: omega, timeSecondsFromOpeningReference: start }, pupil, k.parsedFocus).rays.length !== k.pupilCount) return undefined;
+    // Field throughput at a planned point, as the full planner computes it.
     const field = e.fieldThroughput as Rec;
-    const fields = sources.map((point): { value: FieldThroughput; factor: number; valid: boolean } => {
+    const fieldAt = (point: { x: number; y: number }): { value: FieldThroughput; factor: number; valid: boolean } => {
       if (field.kind === "unity") return { value: { kind: "unity" }, factor: 1, valid: true };
       const result = calculateIlluminationVignetting({ imagePointMm: { x: point.x, y: -point.y },
         profile: field.profile as Parameters<typeof calculateIlluminationVignetting>[0]["profile"] }).value;
@@ -278,7 +313,31 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
       const valid = !(Math.abs(result.imagePointMm.x - imagePoint.x) > tolerance || Math.abs(result.imagePointMm.y - imagePoint.y) > tolerance) &&
         Number.isFinite(factor) && factor > 0 && factor <= 1;
       return { value: { kind: "illumination-vignetting-result", result }, factor, valid };
-    });
+    };
+    // Tap points per group (spectral-major, spatial-minor). Without a PSF a group has one tap at its destination
+    // (one field throughput per spatial node, shared by its spectral nodes). With a sampled PSF the kernel is resolved
+    // at the destination and the taps sit at sensorPsfSourcePoint offsets, as in the full planner.
+    const S = k.spectralCount, P = k.spatialCount;
+    const tapPoints: (readonly { x: number; y: number }[])[] = [], tapFields: (readonly ReturnType<typeof fieldAt>[])[] = [];
+    const kernels: (readonly number[])[] = [];
+    // Without a PSF, the single tap of group gi is the destination sources[gi % P] (no per-group arrays are built).
+    const destinationFields = k.psf === undefined ? sources.map(fieldAt) : undefined;
+    if (k.psf !== undefined) for (let s = 0; s < S; s++) for (let p = 0; p < P; p++) {
+      const destination = sources[p]!, gi = s * P + p;
+      const kernel = resolveLensSampledPsfKernel({ ...k.psf, wavelengthNm: k.wavelengths[s]!, fieldPointMm: { x: destination.x, y: -destination.y } });
+      const n = kernel.widthSamples * kernel.heightSamples, weights = kernel.normalizedIntensity;
+      if (n !== k.tapCounts[gi] || weights.length !== n) return undefined;
+      const points: { x: number; y: number }[] = [];
+      for (let i = 0; i < n; i++) {
+        const point = sensorPsfSourcePoint(destination, kernel, i % kernel.widthSamples, Math.floor(i / kernel.widthSamples));
+        // A non-finite kernel weight or tap point would fail the full planner's result checks: plan this site in full.
+        if (!Number.isFinite(weights[i]!) || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return undefined;
+        points.push(point);
+      }
+      tapPoints.push(points);
+      tapFields.push(points.map(fieldAt));
+      kernels.push(weights);
+    }
     const measure = duration / k.temporalCount;
     let previous = -Infinity;
     const instants: { time: number; taps: LeanTap[] }[] = [];
@@ -290,37 +349,59 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
       if (!Number.isFinite(time) || time < 0) return undefined;
       const displacement = { pitch: omega.pitch * time, yaw: omega.yaw * time, roll: omega.roll * time };
       const taps: LeanTap[] = [];
-      for (let s = 0; s < k.spectralCount; s++) for (let p = 0; p < k.spatialCount; p++) {
-        const point = sources[p]!, gi = s * k.spatialCount + p;
-        const apertureRays = pupil === undefined ? undefined : calculateSensorApertureRays({ sourcePointNativeSensorMm: { ...point }, focalLengthMm,
-          nominalFNumber, focus: k.focus, pupil, angularVelocityRadPerSec: omega, timeSecondsFromOpeningReference: time }).value.rays;
-        // calculateSensorEnvironmentRadianceQuery with calculateInverseCameraRotationImageMapping.
-        const imagePointMm = { x: point.x, y: -point.y };
-        if (!Number.isFinite(imagePointMm.x) || !Number.isFinite(imagePointMm.y)) return undefined;
-        const reference = applyPhysicalCameraRotation({ x: imagePointMm.x / pd, y: imagePointMm.y / pd, z: 1 }, displacement, "camera-to-reference");
-        if (!Number.isFinite(reference.z) || reference.z <= 0) return undefined;
-        const rx = pd * (reference.x / reference.z), ry = pd * (reference.y / reference.z);
-        const length = Math.hypot(rx, ry, pd);
-        const ray = { x: rx / length, y: ry / length, z: pd / length };
-        // Build the parseSceneRadianceEvaluationRequest output directly. Every other field is a template constant already
-        // parsed for the template site. The sample ID is a public opaque ID (trimming cannot change it) and the time is
-        // checked above. So only parseUnitDirection's unit-direction check depends on this site.
-        const direction = { x: -ray.x, y: -ray.y, z: -ray.z };
-        if (!Number.isFinite(direction.x) || !Number.isFinite(direction.y) || !Number.isFinite(direction.z)) return undefined;
-        const norm = Math.hypot(direction.x, direction.y, direction.z);
-        if (!Number.isFinite(norm) || Math.abs(norm - 1) > 1e-9) return undefined;
-        const request = Object.freeze({ schemaVersion: "0.1.0" as const, sampleId: `${id}-t${ti}-n${gi}-p0`, providerProfileId: base.providerProfileId,
-          sceneId: base.sceneId, illuminationProfileId: base.illuminationProfileId, materialResponseProfileId: base.materialResponseProfileId,
-          target: Object.freeze({ kind: "environment-direction" as const, outgoingDirectionUnitVector: Object.freeze(direction) }),
-          timeSecondsFromExposureStart: time, wavelengthNanometers: k.wavelengths[s]!,
-          wavelengthBasis: base.wavelengthBasis as SceneRadianceEvaluationRequest["wavelengthBasis"] });
-        const f = fields[p]!;
-        taps.push({ request, sourcePointImagePlaneMm: imagePointMm, fieldThroughput: f.value, fieldFactor: f.factor, fieldValid: f.valid,
-          ...(apertureRays === undefined ? {} : { apertureRays }) });
+      for (let gi = 0; gi < S * P; gi++) {
+        const s = Math.floor(gi / P), points = destinationFields === undefined ? tapPoints[gi]! : undefined;
+        const tapCount = points === undefined ? 1 : points.length;
+        for (let pi = 0; pi < tapCount; pi++) {
+          const point = points === undefined ? sources[gi % P]! : points[pi]!, sampleId = `${id}-t${ti}-n${gi}-p${pi}`;
+          const apertureRays = pupil === undefined ? undefined : sensorApertureRayValues({ sourcePointNativeSensorMm: point, focalLengthMm,
+            nominalFNumber, angularVelocityRadPerSec: omega, timeSecondsFromOpeningReference: time }, pupil, k.parsedFocus).rays;
+          let request: SceneRadianceEvaluationRequest, imagePointMm: { x: number; y: number }, distortionAreaFactor: number | undefined;
+          if (k.lensMapping !== undefined) {
+            // The full planner's own mapped query, with the same input; only its result envelope is not kept.
+            const query = calculateMappedSensorEnvironmentRadianceQuery({ ...(motion as unknown as Pick<Parameters<typeof calculateMappedSensorEnvironmentRadianceQuery>[0],
+              "angularVelocityRadPerSec" | "timeReference" | "environmentDirectionConvention">), sourcePointNativeSensorMm: point, focalLengthMm, focus: k.focus,
+            timeSecondsFromOpeningReference: time, request: { schemaVersion: "0.1.0", sampleId, providerProfileId: base.providerProfileId, sceneId: base.sceneId,
+              illuminationProfileId: base.illuminationProfileId, materialResponseProfileId: base.materialResponseProfileId, wavelengthNanometers: k.wavelengths[s]!,
+              wavelengthBasis: base.wavelengthBasis as SceneRadianceEvaluationRequest["wavelengthBasis"] } }, k.lensMapping).value;
+            request = freezeOwnedData(query.request);
+            imagePointMm = query.sourcePointImagePlaneMm;
+            distortionAreaFactor = query.lensFieldMapping?.distortionAreaFactor;
+            if (distortionAreaFactor === undefined) return undefined;
+          } else {
+            // calculateSensorEnvironmentRadianceQuery with calculateInverseCameraRotationImageMapping.
+            imagePointMm = { x: point.x, y: -point.y };
+            if (!Number.isFinite(imagePointMm.x) || !Number.isFinite(imagePointMm.y)) return undefined;
+            const reference = applyPhysicalCameraRotation({ x: imagePointMm.x / pd, y: imagePointMm.y / pd, z: 1 }, displacement, "camera-to-reference");
+            if (!Number.isFinite(reference.z) || reference.z <= 0) return undefined;
+            const rx = pd * (reference.x / reference.z), ry = pd * (reference.y / reference.z);
+            const length = Math.hypot(rx, ry, pd);
+            const ray = { x: rx / length, y: ry / length, z: pd / length };
+            // Build the parseSceneRadianceEvaluationRequest output directly. Every other field is a template constant already
+            // parsed for the template site. The sample ID is a public opaque ID (trimming cannot change it) and the time is
+            // checked above. So only parseUnitDirection's unit-direction check depends on this site.
+            const direction = { x: -ray.x, y: -ray.y, z: -ray.z };
+            if (!Number.isFinite(direction.x) || !Number.isFinite(direction.y) || !Number.isFinite(direction.z)) return undefined;
+            const norm = Math.hypot(direction.x, direction.y, direction.z);
+            if (!Number.isFinite(norm) || Math.abs(norm - 1) > 1e-9) return undefined;
+            request = Object.freeze({ schemaVersion: "0.1.0" as const, sampleId, providerProfileId: base.providerProfileId,
+              sceneId: base.sceneId, illuminationProfileId: base.illuminationProfileId, materialResponseProfileId: base.materialResponseProfileId,
+              target: Object.freeze({ kind: "environment-direction" as const, outgoingDirectionUnitVector: Object.freeze(direction) }),
+              timeSecondsFromExposureStart: time, wavelengthNanometers: k.wavelengths[s]!,
+              wavelengthBasis: base.wavelengthBasis as SceneRadianceEvaluationRequest["wavelengthBasis"] });
+          }
+          const f = destinationFields === undefined ? tapFields[gi]![pi]! : destinationFields[gi % P]!;
+          // Built without object spread (cheaper per tap); optional fields are added only when present.
+          const leanTap: LeanTap = { request, sourcePointImagePlaneMm: imagePointMm, fieldThroughput: f.value, fieldFactor: f.factor, fieldValid: f.valid };
+          if (apertureRays !== undefined) leanTap.apertureRays = apertureRays;
+          if (distortionAreaFactor !== undefined) leanTap.distortionAreaFactor = distortionAreaFactor;
+          taps.push(leanTap);
+        }
       }
       instants.push({ time, taps });
     }
-    return { lean: true, template: t, index, owned: environment, count: k.count, site: { x, y }, start, end, duration, instants };
+    return { lean: true, template: t, index, owned: environment, count: k.count, site: { x, y }, start, end, duration, instants,
+      ...(k.psf === undefined ? {} : { kernels }) };
   } catch {
     return undefined;
   }
@@ -402,7 +483,7 @@ function photo(k: PlanConstants, c: ExecutionConstants, values: readonly Float64
     expectedIncidentPhotonCount: photons, expectedGeneratedElectronCount: electrons, temporalSamples: Object.freeze(temporalSamples) }) as SensorEqeTemporalPhotoSignal;
 }
 
-/** The temporal photo-signal input the full executor builds from these irradiance values (non-PSF plans). */
+/** The temporal photo-signal input the full executor builds from these irradiance values (a PSF quadrature's nodes are equal plain data). */
 function fullPhotoInput(k: PlanConstants, values: readonly Float64Array[], environment: Env, times: readonly number[]): Parameters<typeof createSensorEqeTemporalPhotoSignal>[0] {
   return { temporalIntegrationId: environment.temporalIntegrationId, exposure: { ...environment.sensor, samples: values.map((v, ti) => ({
     temporalSampleIndex: ti, timeSecondsFromOpeningReference: times[ti]!,
@@ -420,12 +501,21 @@ function planConstants(environment: Env, plan: FullPlan): PlanConstants {
   const spatialNodes = plan.spatialQuadrature.nodes, spectralNodes = plan.spectralQuadrature.nodes;
   const countX = spatial.spatialSampleCountX as number, countY = spatial.spatialSampleCountY as number;
   const S = spectralNodes.length, P = spatialNodes.length, T = plan.instants.length, groups = plan.instants[0]!.groups;
-  const pupilCount = plan.count / (S * P * T);
-  if (!Number.isSafeInteger(pupilCount) || pupilCount < 1 || groups.length !== S * P || plan.instants.some(i => i.groups.some(g => g.taps.length !== 1))) {
+  const tapCounts = groups.map(group => group.taps.length), taps = tapCounts.reduce((sum, n) => sum + n, 0);
+  const pupilCount = plan.count / (taps * T);
+  const psf = e.psf as Rec, sampled = psf.kind === "sampled-local";
+  if (!Number.isSafeInteger(pupilCount) || pupilCount < 1 || groups.length !== S * P || (!sampled && psf.kind !== "not-applied") ||
+    (sampled && pupilCount !== 1) || (!sampled && tapCounts.some(n => n !== 1)) ||
+    plan.instants.some(i => i.groups.length !== S * P || i.groups.some((g, gi) => g.taps.length !== tapCounts[gi]))) {
     throw new Error("outside lean scope");
   }
+  const configuration = sampled ? (psf.configuration as Rec).psf as Omit<ResolveLensSampledPsfInput, "wavelengthNm" | "fieldPointMm"> : undefined;
   return {
-    spectralCount: S, spatialCount: P, temporalCount: T, pupilCount, count: plan.count,
+    spectralCount: S, spatialCount: P, temporalCount: T, pupilCount, count: plan.count, tapCounts,
+    tapOffsets: tapCounts.reduce((offsets: number[], n) => { offsets.push(offsets[offsets.length - 1]! + n); return offsets; }, [0]),
+    ...(configuration === undefined ? {} : { psf: { profile: configuration.profile, focalLengthMm: configuration.focalLengthMm, focus: configuration.focus,
+      apertureFNumber: configuration.apertureFNumber, signedDefocusImagePlaneMicrometers: configuration.signedDefocusImagePlaneMicrometers } }),
+    ...("lensFieldMapping" in e ? { lensMapping: prepareEnvironmentLensFieldMapping(e.lensFieldMapping) } : {}),
     wavelengths: Float64Array.from(spectralNodes, n => n.wavelengthNanometers),
     nodes: groups.map(group => freezeOwnedData(structuredClone(group.node))),
     spatial: spatialNodes.map(n => ({ xPhase: (n.apertureSampleXIndex + 0.5) / countX, yPhase: (n.apertureSampleYIndex + 0.5) / countY,
@@ -437,6 +527,7 @@ function planConstants(environment: Env, plan: FullPlan): PlanConstants {
     projectionDistanceMm: resolveProjectionDistanceMm((e.optics as Rec).focalLengthMm as number,
       plan.focus.kind === "finite" ? plan.focus.distanceM : undefined).projectionDistanceMm,
     focus: plan.focus,
+    parsedFocus: parseFocusPlane(plan.focus),
     requestBase: { providerProfileId: plan.sceneBindings.providerProfile.profileId, sceneId: plan.sceneBindings.providerProfile.sceneId,
       illuminationProfileId: plan.sceneBindings.illuminationProfile.profileId, materialResponseProfileId: plan.sceneBindings.materialResponseProfile.profileId,
       wavelengthBasis: plan.spectralQuadrature.wavelengthBasis },
@@ -444,26 +535,85 @@ function planConstants(environment: Env, plan: FullPlan): PlanConstants {
   };
 }
 
-/** The lean planner must reproduce the template site's full plan bit for bit. */
+/** The lean planner must reproduce the template site's full plan bit for bit, including each resolved PSF kernel. */
 function planReproduced(lean: LeanEnvironmentPlan | undefined, plan: FullPlan, k: PlanConstants): boolean {
-  if (!lean || lean.count !== plan.count || lean.instants.length !== plan.instants.length) return false;
+  if (!lean || lean.count !== plan.count || lean.instants.length !== plan.instants.length || (lean.kernels !== undefined) !== (k.psf !== undefined)) return false;
   const check = new WeakMap<object, object>();
   for (let ti = 0; ti < plan.instants.length; ti++) {
     const full = plan.instants[ti]!, mine = lean.instants[ti]!;
-    if (!Object.is(full.time, mine.time) || full.temporalSampleIndex !== ti || full.groups.length !== mine.taps.length) return false;
+    if (!Object.is(full.time, mine.time) || full.temporalSampleIndex !== ti || full.groups.length !== k.tapCounts.length ||
+      mine.taps.length !== k.tapOffsets[k.tapCounts.length]) return false;
     for (let gi = 0; gi < full.groups.length; gi++) {
-      const fullTap = full.groups[gi]!.taps[0]!, tap = mine.taps[gi]!;
-      if (!Object.isFrozen(fullTap.request) || !Object.isFrozen(tap.request) || !sameData(fullTap.request, tap.request, check) ||
-        !sameData(fullTap.sourcePointImagePlaneMm, tap.sourcePointImagePlaneMm, check) ||
-        !sameData(fullTap.fieldThroughput, tap.fieldThroughput, check) || !sameData(fullTap.apertureRays, tap.apertureRays, check) ||
-        !sameData(full.groups[gi]!.node, k.nodes[gi], check)) return false;
+      const fullTaps = full.groups[gi]!.taps, first = k.tapOffsets[gi]!;
+      if (fullTaps.length !== k.tapCounts[gi] || !sameData(full.groups[gi]!.node, k.nodes[gi], check)) return false;
+      for (let pi = 0; pi < fullTaps.length; pi++) {
+        const fullTap = fullTaps[pi]!, tap = mine.taps[first + pi]!;
+        if (!Object.isFrozen(fullTap.request) || !Object.isFrozen(tap.request) || !sameData(fullTap.request, tap.request, check) ||
+          !sameData(fullTap.sourcePointImagePlaneMm, tap.sourcePointImagePlaneMm, check) ||
+          !sameData(fullTap.fieldThroughput, tap.fieldThroughput, check) || !sameData(fullTap.apertureRays, tap.apertureRays, check) ||
+          !Object.is(fullTap.distortionAreaFactor, tap.distortionAreaFactor)) return false;
+      }
+    }
+  }
+  if (k.psf !== undefined) {
+    // Each kernel must equal the public resolver's kernel for the template site's destination and wavelength.
+    const S = k.spectralCount, P = k.spatialCount;
+    for (let gi = 0; gi < S * P; gi++) {
+      const destination = plan.spatialQuadrature.nodes[gi % P]!.preAntiAliasingSourcePointMm;
+      const kernel = resolveLensSampledPsf({ ...k.psf, wavelengthNm: k.wavelengths[Math.floor(gi / P)]!,
+        fieldPointMm: { x: destination.x, y: -destination.y } }).value.kernel;
+      if (!sameData(kernel.normalizedIntensity, lean.kernels![gi], check)) return false;
     }
   }
   return true;
 }
 
+/** Sum of a PSF group's taps in kernel order, the same expression calculateSensorPsfIrradianceQuadrature reduces. */
+function psfSum(kernel: readonly number[], values: Float64Array): number {
+  let sum = 0;
+  for (let i = 0; i < values.length; i++) sum = sum + kernel[i]! * values[i]!;
+  return sum;
+}
+
+/**
+ * True when every data-dependent check calculateSensorPsfIrradianceQuadrature makes on one instant passes: finite,
+ * non-negative tap irradiances, finite weighted sums, and the finite partial sums of its spatio-spectral reduction
+ * (in the reduction's node order). When false, the full quadrature runs and decides.
+ */
+function psfChecksPass(k: PlanConstants, c: ExecutionConstants, taps: readonly Float64Array[], v: Float64Array): boolean {
+  for (const values of taps) for (let i = 0; i < values.length; i++) if (!Number.isFinite(values[i]!) || values[i]! < 0) return false;
+  const S = k.spectralCount, P = k.spatialCount;
+  let integratedAverage = 0, integratedFlux = 0;
+  for (let s = 0; s < S; s++) {
+    let average = 0, geometric = 0;
+    for (let p = 0; p < P; p++) {
+      const value = v[s * P + p]!;
+      if (!Number.isFinite(value) || value < 0) return false;
+      average += value * c.weight[p]!;
+      geometric += value * c.areaSquareMeters[p]!;
+      if (!Number.isFinite(average) || !Number.isFinite(geometric)) return false;
+    }
+    integratedAverage += average * c.measure[s]!; integratedFlux += geometric * c.measure[s]!;
+    if (!Number.isFinite(integratedAverage) || !Number.isFinite(integratedFlux)) return false;
+  }
+  return true;
+}
+
+/** The full executor's PSF quadrature for one instant of a site's full plan, with the given tap irradiances. Throws its own errors. */
+function fullPsfInstant(plan: FullPlan, ti: number, taps: readonly Float64Array[]): Float64Array {
+  nativeEnvironmentLeanStatistics.psfFallbacks++;
+  const instant = plan.instants[ti]!, owned = plan.owned;
+  if (owned.psf.kind !== "sampled-local") throw new InvalidConfigurationError("Lean PSF fallback requires a sampled-PSF plan.");
+  const psf = calculateSensorPsfIrradianceQuadrature({ ...owned.psf.configuration, spatialQuadrature: plan.spatialQuadrature,
+    spectralQuadrature: plan.spectralQuadrature, timeSecondsFromOpeningReference: instant.time,
+    inputMeaning: "pre-psf-pre-sensor-stack-pre-aa-spectral-irradiance", samples: instant.groups.map((group, gi) => ({ node: group.node,
+      sourceSamples: group.taps.map((tap, pi) => ({ kernelSampleX: tap.kernelSampleX, kernelSampleY: tap.kernelSampleY, sourcePointNativeSensorMm: tap.point,
+        timeSecondsFromOpeningReference: instant.time, spectralIrradianceWattsPerSquareMeterPerNanometer: taps[gi]![pi]! })) })) });
+  return Float64Array.from(psf.value.irradianceSamples, sample => sample.spectralIrradianceWattsPerSquareMeterPerNanometer);
+}
+
 /** Derives execution constants from the template site's full execution ("full" retention) and checks them. Returns undefined on a mismatch. */
-function executionConstants(k: PlanConstants, environment: Env, plan: FullPlan, result: FullResult): ExecutionConstants | undefined {
+function executionConstants(k: PlanConstants, environment: Env, plan: FullPlan, result: FullResult, self: LeanEnvironmentPlan): ExecutionConstants | undefined {
   const S = k.spectralCount, P = k.spatialCount, T = k.temporalCount;
   const value = result.value, stages = value.photo.value.exposure.value.samples[0]!.stages;
   const spatial = stages.spatialQuadrature.value.nodes, spectral = stages.spectralQuadrature.value.nodes;
@@ -481,29 +631,43 @@ function executionConstants(k: PlanConstants, environment: Env, plan: FullPlan, 
     perBin: range.spectralInputModel.kind === "per-spectral-bin", photo: value.photo.value.photoSignal
   };
   // Acceptance before field throughput per wavelength, and every evaluation's irradiance, must reproduce exactly.
+  // With a PSF, each group's kernel-weighted sum must equal the full quadrature's node irradiance.
   const values: Float64Array[] = [];
+  const check = new WeakMap<object, object>();
   for (let ti = 0; ti < T; ti++) {
-    const evaluations = value.instants[ti]!.evaluations, v = new Float64Array(S * P);
+    const evaluations = value.instants[ti]!.evaluations, v = new Float64Array(S * P), psf = value.instants[ti]!.psf;
+    if ((psf !== null) !== (k.psf !== undefined)) return undefined;
     let next = 0;
     for (let gi = 0; gi < S * P; gi++) {
-      const s = Math.floor(gi / P), request = plan.instants[ti]!.groups[gi]!.taps[0]!.request;
-      let integrated = 0;
-      for (let r = 0; r < k.pupilCount; r++) {
-        const evaluation = evaluations[next++];
-        if (!evaluation) return undefined;
-        const o = evaluation.optics.value;
-        let a = o.transmissionPath === "spectral-transmission" ? o.paraxialGeometricAcceptanceSolidAngleSteradians * (o.spectralTransmissionFactor as number)
-          : Math.PI / (4 * (o.effectiveWorkingTStop as number) * (o.effectiveWorkingTStop as number));
-        a *= o.frontOfLensFilterTransmissionFactor;
-        if (Number.isNaN(c.acceptance[s]!)) c.acceptance[s] = a; else if (!Object.is(c.acceptance[s], a)) return undefined;
-        const acceptance = c.acceptance[s]! * o.fieldThroughputFactor;
-        const irradiance = evaluation.result.spectralRadianceWattsPerSquareMeterSteradianNanometer * acceptance;
-        if (!Object.is(acceptance, o.effectiveAcceptanceAfterTransmissionAndFieldSteradians) ||
-          !Object.is(irradiance, o.sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer) ||
-          evaluation.result.sampleId !== request.sampleId + (evaluation.apertureRay ? "-a" + evaluation.apertureRay.pupilSampleIndex : "")) return undefined;
-        integrated += irradiance * (evaluation.apertureRay?.weight ?? 1);
+      const s = Math.floor(gi / P), taps = plan.instants[ti]!.groups[gi]!.taps, tapValues = new Float64Array(taps.length);
+      for (let pi = 0; pi < taps.length; pi++) {
+        const request = taps[pi]!.request;
+        let integrated = 0;
+        for (let r = 0; r < k.pupilCount; r++) {
+          const evaluation = evaluations[next++];
+          if (!evaluation) return undefined;
+          const o = evaluation.optics.value;
+          let a = o.transmissionPath === "spectral-transmission" ? o.paraxialGeometricAcceptanceSolidAngleSteradians * (o.spectralTransmissionFactor as number)
+            : Math.PI / (4 * (o.effectiveWorkingTStop as number) * (o.effectiveWorkingTStop as number));
+          a *= o.frontOfLensFilterTransmissionFactor;
+          if (Number.isNaN(c.acceptance[s]!)) c.acceptance[s] = a; else if (!Object.is(c.acceptance[s], a)) return undefined;
+          const acceptance = c.acceptance[s]! * o.fieldThroughputFactor;
+          const irradiance = evaluation.result.spectralRadianceWattsPerSquareMeterSteradianNanometer * acceptance;
+          if (!Object.is(acceptance, o.effectiveAcceptanceAfterTransmissionAndFieldSteradians) ||
+            !Object.is(irradiance, o.sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer) ||
+            evaluation.result.sampleId !== request.sampleId + (evaluation.apertureRay ? "-a" + evaluation.apertureRay.pupilSampleIndex : "")) return undefined;
+          integrated += irradiance * (evaluation.apertureRay?.weight ?? 1);
+        }
+        const factor = taps[pi]!.distortionAreaFactor;
+        if (factor !== undefined) integrated *= factor;
+        tapValues[pi] = integrated;
       }
-      v[gi] = integrated;
+      if (psf === null) v[gi] = tapValues[0]!;
+      else {
+        const sample = psf.value.irradianceSamples[gi];
+        v[gi] = psfSum(self.kernels![gi]!, tapValues);
+        if (!sample || !Object.is(v[gi], sample.spectralIrradianceWattsPerSquareMeterPerNanometer) || !sameData(sample.node, k.nodes[gi], check)) return undefined;
+      }
     }
     if (next !== evaluations.length) return undefined;
     values.push(v);
@@ -526,8 +690,7 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
   };
   return {
     plan(environment, index): LeanEnvironmentPlan | "candidate" | undefined {
-      // Sampled PSFs and lens field mappings (projection/distortion with an area factor) always run the full path.
-      if (!enabled || plainChild(environment, "psf")?.kind !== "not-applied" || "lensFieldMapping" in (environment as object)) return undefined;
+      if (!enabled) return undefined;
       const phase = phaseOf(index);
       let t: Template | undefined;
       try {
@@ -546,9 +709,10 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
       templates.push(template);
       candidates.set(index, template);
       try {
-        const k = planConstants(environment, plan);
-        if (!planReproduced(geometry(template, k, frame, environment, index), plan, k)) return;
+        const k = planConstants(environment, plan), self = geometry(template, k, frame, environment, index);
+        if (!planReproduced(self, plan, k)) return;
         template.consts = k;
+        template.selfPlan = self!;
         template.disabled = false;
       } catch {
         // An ineligible template leaves its sites on the full path.
@@ -561,8 +725,9 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
       candidates.delete(index);
       t.executionVerified = false;
       try {
-        if (t.disabled || !t.consts) return;
-        const c = executionConstants(t.consts, t.environment, plan, result);
+        if (t.disabled || !t.consts || !t.selfPlan) return;
+        const c = executionConstants(t.consts, t.environment, plan, result, t.selfPlan);
+        t.selfPlan = undefined;
         if (!c) return;
         t.execution = c;
         t.executionVerified = true;
@@ -570,38 +735,54 @@ export function createNativeEnvironmentLeanExecutor(frame: NativeEnvironmentLean
         // Unverified: sites of this template run the full path.
       }
     },
-    execute(plan, evaluate, aperture): SensorEqeTemporalPhotoSignal | undefined {
+    execute(plan, evaluate, aperture, fullPlan): SensorEqeTemporalPhotoSignal | undefined {
       const t = plan.template, c = t.execution, k = t.consts;
       if (t.executionVerified !== true || !c || !k) return undefined;
       const environment = plan.owned, optics = (environment as unknown as Rec).optics;
-      const S = k.spectralCount, P = k.spatialCount;
-      const values: Float64Array[] = [], times: number[] = [];
-      for (const instant of plan.instants) {
-        const v = new Float64Array(S * P);
-        for (let gi = 0; gi < S * P; gi++) {
-          const tap = instant.taps[gi]!, s = Math.floor(gi / P);
-          let integrated = 0;
-          const support: readonly (SensorApertureRay | undefined)[] = tap.apertureRays ?? [undefined];
-          for (const ray of support) {
-            const base = tap.request;
-            const request = ray === undefined ? base : freezeOwnedData({ ...base, sampleId: base.sampleId + "-a" + ray.pupilSampleIndex,
-              target: { kind: "environment-direction" as const, outgoingDirectionUnitVector: {
-                x: -ray.directionUnitVector.x, y: -ray.directionUnitVector.y, z: -ray.directionUnitVector.z } } });
-            const apertureRay = ray === undefined ? undefined : freezeOwnedData(structuredClone(ray));
-            const result = parseSceneRadianceEvaluationResult(apertureRay === undefined ? evaluate(request) : aperture!(request, apertureRay));
-            if (result.sampleId !== request.sampleId || result.providerProfileId !== request.providerProfileId || result.sceneId !== request.sceneId ||
-              result.wavelengthNanometers !== request.wavelengthNanometers || result.wavelengthBasis !== request.wavelengthBasis) {
-              validateSceneRadianceEvaluationBindings({ ...k.sceneBindings, request, result });
-            }
-            let irradiance = result.spectralRadianceWattsPerSquareMeterSteradianNanometer * (c.acceptance[s]! * tap.fieldFactor);
-            if (!tap.fieldValid || !Number.isFinite(irradiance) || irradiance < 0) {
-              irradiance = calculateSceneRadianceToSensorIrradiance({ ...(optics as Parameters<typeof calculateSceneRadianceToSensorIrradiance>[0]),
-                sceneRadianceRequest: request, sceneRadianceResult: result, imagePointMm: tap.sourcePointImagePlaneMm,
-                fieldThroughput: tap.fieldThroughput }).value.sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer;
-            }
-            integrated += irradiance * (ray?.weight ?? 1);
+      const S = k.spectralCount, P = k.spatialCount, kernels = plan.kernels;
+      /** One tap: its callbacks in order, each result validated, the pupil sum, then the distortion area factor once. */
+      const tapIrradiance = (tap: LeanTap, s: number): number => {
+        let integrated = 0;
+        const support: readonly (SensorApertureRay | undefined)[] = tap.apertureRays ?? [undefined];
+        for (const ray of support) {
+          const query = ray === undefined ? undefined : apertureRadianceQuery(tap.request, ray);
+          const request = query === undefined ? tap.request : query.request, apertureRay = query?.apertureRay;
+          const result = parseSceneRadianceEvaluationResult(apertureRay === undefined ? evaluate(request) : aperture!(request, apertureRay));
+          if (result.sampleId !== request.sampleId || result.providerProfileId !== request.providerProfileId || result.sceneId !== request.sceneId ||
+            result.wavelengthNanometers !== request.wavelengthNanometers || result.wavelengthBasis !== request.wavelengthBasis) {
+            validateSceneRadianceEvaluationBindings({ ...k.sceneBindings, request, result });
           }
-          v[gi] = integrated;
+          let irradiance = result.spectralRadianceWattsPerSquareMeterSteradianNanometer * (c.acceptance[s]! * tap.fieldFactor);
+          if (!tap.fieldValid || !Number.isFinite(irradiance) || irradiance < 0) {
+            irradiance = calculateSceneRadianceToSensorIrradiance({ ...(optics as Parameters<typeof calculateSceneRadianceToSensorIrradiance>[0]),
+              sceneRadianceRequest: request, sceneRadianceResult: result, imagePointMm: tap.sourcePointImagePlaneMm,
+              fieldThroughput: tap.fieldThroughput }).value.sensorPlaneSpectralIrradianceWattsPerSquareMeterNanometer;
+          }
+          integrated += irradiance * (ray?.weight ?? 1);
+        }
+        // Distortion squeezes or stretches the ideal image; irradiance scales by 1/det once, as in the full executor.
+        if (tap.distortionAreaFactor !== undefined) integrated *= tap.distortionAreaFactor;
+        return integrated;
+      };
+      const values: Float64Array[] = [], times: number[] = [];
+      let full: FullPlan | undefined;
+      for (let ti = 0; ti < plan.instants.length; ti++) {
+        const instant = plan.instants[ti]!;
+        let v: Float64Array = new Float64Array(S * P);
+        if (kernels === undefined) {
+          // One tap per group, so the flat list is indexed by group.
+          for (let gi = 0; gi < S * P; gi++) v[gi] = tapIrradiance(instant.taps[gi]!, Math.floor(gi / P));
+        } else {
+          const tapValues: Float64Array[] = [];
+          for (let gi = 0; gi < S * P; gi++) {
+            const first = k.tapOffsets[gi]!, s = Math.floor(gi / P), groupValues = new Float64Array(k.tapOffsets[gi + 1]! - first);
+            for (let pi = 0; pi < groupValues.length; pi++) groupValues[pi] = tapIrradiance(instant.taps[first + pi]!, s);
+            tapValues.push(groupValues);
+            v[gi] = psfSum(kernels[gi]!, groupValues);
+          }
+          // The full executor runs its PSF quadrature (and its checks) here, after this instant's callbacks. When a check
+          // fails, run that quadrature on the site's full plan (built without callbacks): it throws its own error or decides.
+          if (!psfChecksPass(k, c, tapValues, v)) v = fullPsfInstant(full ??= fullPlan(), ti, tapValues);
         }
         values.push(v);
         times.push(instant.time);

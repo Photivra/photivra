@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { calculateChartRadianceBatch, calculateChartRadianceBatchPlan, createImageKernelAccelerator, createPlanarSceneRadianceProvider,
-  planarChartPointsFromDirections, type ChartRadianceBatchInput } from "../src/index.js";
+  mapEnvironmentDirectionsToChartPoints, type ChartRadianceBatchInput } from "../src/index.js";
 import { createFakeGpu } from "./helpers/fake-webgpu.js";
 import { chartBatchInput, chartPoints, CHART_PRESET_SCENES } from "./helpers/chart-radiance-fixtures.js";
 
@@ -35,14 +35,14 @@ describe("batched chart radiance reference", () => {
     const provider = createPlanarSceneRadianceProvider({ scene: { preset: "checkerboard" }, illuminant: "cie-a", illuminanceLux: 500, distanceM: 3,
       framedWidthM: 1.2, aspect: 2 / 3, sceneId: "chart", providerProfileId: "chart" });
     const directions = Float64Array.from([0.1, -0.05, -0.99, -0.13, 0.08, -0.98, 0, 0, -1]);
-    const points = planarChartPointsFromDirections({ directions, distanceM: 3, metresPerFrameUnit: 0.6 });
+    const points = mapEnvironmentDirectionsToChartPoints({ directions, distanceM: 3, metresPerFrameUnit: 0.6 });
     for (let i = 0; i < 3; i++) {
       const o = { x: directions[3 * i]!, y: directions[3 * i + 1]!, z: directions[3 * i + 2]! };
       const request = { schemaVersion: "0.1.0", sampleId: "s", sceneId: "chart", providerProfileId: "chart", illuminationProfileId: "i", materialResponseProfileId: "m",
         wavelengthNanometers: 550, wavelengthBasis: "vacuum", target: { kind: "environment-direction", outgoingDirectionUnitVector: o } } as never;
       expect(provider.evaluateRadiance(request).spectralRadianceWattsPerSquareMeterSteradianNanometer).toBe(provider.radianceAt(points[2 * i]!, points[2 * i + 1]!, 550));
     }
-    expect(() => planarChartPointsFromDirections({ directions: Float64Array.from([0, 0, 1]), distanceM: 3, metresPerFrameUnit: 1 })).toThrow(/toward/u);
+    expect(() => mapEnvironmentDirectionsToChartPoints({ directions: Float64Array.from([0, 0, 1]), distanceM: 3, metresPerFrameUnit: 1 })).toThrow(/toward/u);
   });
   it("validates the batch", () => {
     const scene = CHART_PRESET_SCENES[1]![1], ok = chartBatchInput(scene, chartPoints(scene, 2 / 3, 4, 1), "radiance");

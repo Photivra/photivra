@@ -419,6 +419,7 @@ export {
   calculateColorDifference,
   calculateXyzFromCielab,
   type CalculateColorDifferenceInput,
+  type Cie94ParametricFactors,
   type Ciede2000ParametricFactors,
   type CielabColor,
   type CielchColor,
@@ -1709,9 +1710,10 @@ export { NATIVE_RAW_SCHEMA_VERSION, NATIVE_RAW_LIMITS, calculateNativeRawPlan, c
 export { PRINT_JPEG_SCHEMA_VERSION, parsePrintJpegInput, createPrintJpegTask } from "./output/print-jpeg.js";
 export type { PrintJpegSource, PrintJpegInput, PrintJpegTileRequest, PrintJpegTile, PrintJpegProvider, PrintJpegOutput, PrintJpegTask } from "./output/print-jpeg.js";
 export { SRGB_ICC_PROFILE_VERSION, createSrgbIccProfile } from "./color/srgb-icc.js";
-export { createNativeEnvironmentRawTask, createNativeEnvironmentSensorStageTask } from "./capture/native-environment-raw.js";
+export { createNativeEnvironmentRawTask, createNativeEnvironmentSensorStageTask, calculateNativeRawRowBands, createNativeEnvironmentRawPartitionTask,
+  composeNativeEnvironmentRawPartitions } from "./capture/native-environment-raw.js";
 export type { NativeEnvironmentRawInput, NativeEnvironmentRawTile, NativeEnvironmentPhotoTile, NativeEnvironmentRawProvider, NativeEnvironmentRawOutput,
-  NativeEnvironmentRawTask } from "./capture/native-environment-raw.js";
+  NativeEnvironmentRawTask, NativeRawRowBand, NativeEnvironmentRawPartition, NativeEnvironmentRawPartitionTask, NativeEnvironmentRadianceQuery } from "./capture/native-environment-raw.js";
 export { NATIVE_ENVIRONMENT_OPTICAL_STAGE_LIMITS } from "./capture/native-environment-optical-stage.js";
 export type { NativeEnvironmentOpticalStage, NativeEnvironmentOpticalStageRetention, NativeEnvironmentSensorStageInput,
   NativeEnvironmentSensorStageProvider } from "./capture/native-environment-optical-stage.js";
@@ -1726,7 +1728,7 @@ export type { NativeCaptureSdrInput, NativeCaptureSdrTileRequest, NativeCaptureS
 
 export { IRRADIANCE_CONVOLUTION_SCHEMA_VERSION, IRRADIANCE_CONVOLUTION_LIMITS, calculateIrradianceConvolutionPlan, calculateIrradianceConvolution } from "./optics/irradiance-convolution.js";
 export type { IrradianceConvolutionInput, IrradianceConvolutionPlan } from "./optics/irradiance-convolution.js";
-export { LENS_PSF_CONVOLUTION_KERNELS_SCHEMA_VERSION, LENS_PSF_CONVOLUTION_KERNELS_MAXIMUM_WAVELENGTHS, sampleLensPsfConvolutionKernels } from "./optics/lens-psf-kernels.js";
+export { LENS_PSF_CONVOLUTION_KERNELS_SCHEMA_VERSION, LENS_PSF_CONVOLUTION_KERNELS_MAXIMUM_WAVELENGTHS, resolveLensPsfConvolutionKernels } from "./optics/lens-psf-kernels.js";
 export type { LensPsfConvolutionKernelsInput, LensPsfConvolutionKernels } from "./optics/lens-psf-kernels.js";
 export { PACKED_SENSOR_RAW_SCHEMA_VERSION, PACKED_SENSOR_RAW_LIMITS, calculatePackedSensorRawPlan, simulatePackedSensorRaw } from "./capture/packed-sensor-raw.js";
 export type { PackedSensorRawInput, PackedSensorRawPlan, PackedSensorRawDiagnostics, PackedSensorRawResult, PackedSensorFixedPatternNoise,
@@ -1772,7 +1774,7 @@ export { PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, resolveCaptureIlluminant, 
   type CaptureIlluminant, type ResolvedCaptureIlluminant, type CallerReflectanceScene, type CallerRadianceScene, type ScenePlanePoint,
   type PlanarSceneRadianceProvider } from "./facade/scene-radiance.js";
 export { CHART_RADIANCE_BATCH_SCHEMA_VERSION, CHART_RADIANCE_BATCH_LIMITS, calculateChartRadianceBatchPlan, calculateChartRadianceBatch,
-  planarChartPointsFromDirections, type ChartRadianceBatchInput, type ChartRadianceBatchPlan } from "./facade/chart-radiance-batch.js";
+  mapEnvironmentDirectionsToChartPoints, type ChartRadianceBatchInput, type ChartRadianceBatchPlan } from "./facade/chart-radiance-batch.js";
 export { EXPORT_JPEG_ENCODER_ID } from "./capture/export-jpeg.js";
 export { DNG_IMPORT_SCHEMA_VERSION, DNG_IMPORT_LIMITS, parseDngRawImage } from "./capture/dng-import.js";
 export { NATIVE_RAW_DNG_SCHEMA_VERSION, serializeNativeRawDng, type SerializeNativeRawDngInput, type NativeRawDng, type NativeRawDngChannelNoise } from "./capture/native-raw-dng.js";

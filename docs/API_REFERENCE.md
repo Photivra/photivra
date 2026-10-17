@@ -198,14 +198,21 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`calculateNativeRawRowBands`](api/capture-native-environment-raw.md#calculatenativerawrowbands) | Runtime |
+| [`composeNativeEnvironmentRawPartitions`](api/capture-native-environment-raw.md#composenativeenvironmentrawpartitions) | Runtime |
+| [`createNativeEnvironmentRawPartitionTask`](api/capture-native-environment-raw.md#createnativeenvironmentrawpartitiontask) | Runtime |
 | [`createNativeEnvironmentRawTask`](api/capture-native-environment-raw.md#createnativeenvironmentrawtask) | Runtime |
 | [`createNativeEnvironmentSensorStageTask`](api/capture-native-environment-raw.md#createnativeenvironmentsensorstagetask) | Runtime |
 | [`NativeEnvironmentPhotoTile`](api/capture-native-environment-raw.md#nativeenvironmentphototile) | Type |
+| [`NativeEnvironmentRadianceQuery`](api/capture-native-environment-raw.md#nativeenvironmentradiancequery) | Type |
 | [`NativeEnvironmentRawInput`](api/capture-native-environment-raw.md#nativeenvironmentrawinput) | Type |
 | [`NativeEnvironmentRawOutput`](api/capture-native-environment-raw.md#nativeenvironmentrawoutput) | Type |
+| [`NativeEnvironmentRawPartition`](api/capture-native-environment-raw.md#nativeenvironmentrawpartition) | Type |
+| [`NativeEnvironmentRawPartitionTask`](api/capture-native-environment-raw.md#nativeenvironmentrawpartitiontask) | Type |
 | [`NativeEnvironmentRawProvider`](api/capture-native-environment-raw.md#nativeenvironmentrawprovider) | Type |
 | [`NativeEnvironmentRawTask`](api/capture-native-environment-raw.md#nativeenvironmentrawtask) | Type |
 | [`NativeEnvironmentRawTile`](api/capture-native-environment-raw.md#nativeenvironmentrawtile) | Type |
+| [`NativeRawRowBand`](api/capture-native-environment-raw.md#nativerawrowband) | Type |
 
 ## capture/native-raw-development.ts
 
@@ -443,6 +450,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`calculateColorDifference`](api/color-color-difference.md#calculatecolordifference) | Runtime |
 | [`CalculateColorDifferenceInput`](api/color-color-difference.md#calculatecolordifferenceinput) | Type |
 | [`calculateXyzFromCielab`](api/color-color-difference.md#calculatexyzfromcielab) | Runtime |
+| [`Cie94ParametricFactors`](api/color-color-difference.md#cie94parametricfactors) | Type |
 | [`Ciede2000ParametricFactors`](api/color-color-difference.md#ciede2000parametricfactors) | Type |
 | [`CielabColor`](api/color-color-difference.md#cielabcolor) | Type |
 | [`CielchColor`](api/color-color-difference.md#cielchcolor) | Type |
@@ -1083,7 +1091,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`CHART_RADIANCE_BATCH_SCHEMA_VERSION`](api/facade-chart-radiance-batch.md#chart_radiance_batch_schema_version) | Runtime |
 | [`ChartRadianceBatchInput`](api/facade-chart-radiance-batch.md#chartradiancebatchinput) | Type |
 | [`ChartRadianceBatchPlan`](api/facade-chart-radiance-batch.md#chartradiancebatchplan) | Type |
-| [`planarChartPointsFromDirections`](api/facade-chart-radiance-batch.md#planarchartpointsfromdirections) | Runtime |
+| [`mapEnvironmentDirectionsToChartPoints`](api/facade-chart-radiance-batch.md#mapenvironmentdirectionstochartpoints) | Runtime |
 
 ## facade/chart-scenes.ts
 
@@ -1505,7 +1513,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`LENS_PSF_CONVOLUTION_KERNELS_SCHEMA_VERSION`](api/optics-lens-psf-kernels.md#lens_psf_convolution_kernels_schema_version) | Runtime |
 | [`LensPsfConvolutionKernels`](api/optics-lens-psf-kernels.md#lenspsfconvolutionkernels) | Type |
 | [`LensPsfConvolutionKernelsInput`](api/optics-lens-psf-kernels.md#lenspsfconvolutionkernelsinput) | Type |
-| [`sampleLensPsfConvolutionKernels`](api/optics-lens-psf-kernels.md#samplelenspsfconvolutionkernels) | Runtime |
+| [`resolveLensPsfConvolutionKernels`](api/optics-lens-psf-kernels.md#resolvelenspsfconvolutionkernels) | Runtime |
 
 ## optics/lens-psf-profile.ts
 

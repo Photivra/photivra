@@ -112,7 +112,8 @@ function murmur3Bytes(bytes: Uint8Array, seed: number): number {
 
 describe("seeded native RAW noise independence (#270)", () => {
   it("derives stream seeds as MurmurHash3_x86_32 of (capture seed, absolute index, stream)", () => {
-    // SMHasher verification procedure (Austin Appleby, SMHasher, public domain; KeysetTest.cpp VerificationTest):
+    // Our own reimplementation of SMHasher's verification procedure (KeysetTest.cpp VerificationTest; SMHasher is MIT,
+    // no code copied; MurmurHash3 itself is public domain). 0xB0F57EE3 is the published verification value:
     // hash the keys {0}, {0, 1}, …, {0, …, 254} of length i = 0…255 with seed 256 − i, hash the concatenation of those
     // 256 little-endian 32-bit hashes with seed 0, and compare with SMHasher's documented value for MurmurHash3_x86_32.
     const key = Uint8Array.from({ length: 256 }, (_, i) => i), hashes = new DataView(new ArrayBuffer(256 * 4));

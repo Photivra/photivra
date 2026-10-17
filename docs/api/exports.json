@@ -923,6 +923,11 @@
       "kind": "runtime"
     },
     {
+      "name": "calculateNativeRawRowBands",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateNaturalVignetting",
       "source": "src/optics/pupil-vignetting.ts",
       "kind": "runtime"
@@ -1858,6 +1863,11 @@
       "kind": "type"
     },
     {
+      "name": "Cie94ParametricFactors",
+      "source": "src/color/color-difference.ts",
+      "kind": "type"
+    },
+    {
       "name": "CieDaylightBasis",
       "source": "src/color/illuminants.ts",
       "kind": "type"
@@ -1996,6 +2006,11 @@
       "name": "ComposeFrontOfLensFilterTransmissionInput",
       "source": "src/optics/front-of-lens-filter.ts",
       "kind": "type"
+    },
+    {
+      "name": "composeNativeEnvironmentRawPartitions",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "runtime"
     },
     {
       "name": "composeRelativeErrorBounds",
@@ -2205,6 +2220,11 @@
     {
       "name": "createNativeCaptureSdrTask",
       "source": "src/output/native-capture-sdr.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "createNativeEnvironmentRawPartitionTask",
+      "source": "src/capture/native-environment-raw.ts",
       "kind": "runtime"
     },
     {
@@ -3968,6 +3988,11 @@
       "kind": "type"
     },
     {
+      "name": "mapEnvironmentDirectionsToChartPoints",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "mapImagePlanePointToOrientedPhysicalUv",
       "source": "src/output/capture-geometry.ts",
       "kind": "runtime"
@@ -4178,12 +4203,27 @@
       "kind": "type"
     },
     {
+      "name": "NativeEnvironmentRadianceQuery",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
       "name": "NativeEnvironmentRawInput",
       "source": "src/capture/native-environment-raw.ts",
       "kind": "type"
     },
     {
       "name": "NativeEnvironmentRawOutput",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEnvironmentRawPartition",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEnvironmentRawPartitionTask",
       "source": "src/capture/native-environment-raw.ts",
       "kind": "type"
     },
@@ -4275,6 +4315,11 @@
     {
       "name": "NativeRawProvider",
       "source": "src/capture/native-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawRowBand",
+      "source": "src/capture/native-environment-raw.ts",
       "kind": "type"
     },
     {
@@ -5001,11 +5046,6 @@
       "name": "PixelPitch",
       "source": "src/sensor/pixel-pitch.ts",
       "kind": "type"
-    },
-    {
-      "name": "planarChartPointsFromDirections",
-      "source": "src/facade/chart-radiance-batch.ts",
-      "kind": "runtime"
     },
     {
       "name": "PlanarSceneRadianceProvider",
@@ -6223,6 +6263,11 @@
       "kind": "runtime"
     },
     {
+      "name": "resolveLensPsfConvolutionKernels",
+      "source": "src/optics/lens-psf-kernels.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "resolveLensSampledPsf",
       "source": "src/optics/lens-psf-profile.ts",
       "kind": "runtime"
@@ -6421,11 +6466,6 @@
       "name": "RollingSensorReadoutTimingDeclaration",
       "source": "src/sensor/readout-timing.ts",
       "kind": "type"
-    },
-    {
-      "name": "sampleLensPsfConvolutionKernels",
-      "source": "src/optics/lens-psf-kernels.ts",
-      "kind": "runtime"
     },
     {
       "name": "SCENE_ILLUMINATION_PROFILE_SCHEMA_VERSION",
