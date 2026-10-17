@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Guide-number relations and manufacturer-independent through-the-lens (TTL) flash exposure with a
- * pre-flash. The pre-flash is measured with the existing relative exposure meter; the solved power
- * fraction is applied to a ManualFlashProfile, whose pulse is then placed by the existing front/rear
- * curtain sync (resolveManualFlashSync) or high-speed sync (resolveHighSpeedFlashSync). Flash/TTL
- * metering stays separate from ambient metering: the ambient meter result is an input, not modified.
- * No vendor TTL algorithm, zone weighting table or flash protocol is reproduced.
+ * Flash guide numbers, and through-the-lens (TTL) flash exposure with a pre-flash that does not
+ * depend on any manufacturer.
+ *
+ * How TTL works here:
+ * 1. The pre-flash is measured with the existing relative exposure meter.
+ * 2. The solved power fraction is applied to a ManualFlashProfile.
+ * 3. That pulse is placed by the existing front/rear-curtain sync (resolveManualFlashSync) or by
+ *    high-speed sync (resolveHighSpeedFlashSync).
+ * Flash metering stays separate from ambient metering. The ambient meter result is an input and is
+ * not changed. No vendor's TTL algorithm, zone weighting table or flash protocol is copied.
  * @see docs/SCENE_SENSOR_TEMPORAL_EXPOSURE.md#flash-guide-number-ttl-and-high-speed-sync
  */
 
@@ -48,10 +52,10 @@ export interface FlashGuideNumberInput {
 /**
  * Effective guide number GN = GN_full · √p · √(ISO/100).
  *
- * The guide number relation GN = d·N follows from the inverse-square law: the subject illuminance
- * from a point-like flash falls as 1/d², the sensor exposure as 1/N², so correct exposure holds while
- * d·N is constant (ISO 2827 defines its measurement). Exposure scales linearly with emitted energy
- * (power fraction p) and the required exposure inversely with ISO speed, so GN ∝ √p·√ISO.
+ * The guide number relation GN = d·N follows from the inverse-square law. Light on the subject from a
+ * point-like flash falls as 1/d², and sensor exposure falls as 1/N². So exposure stays correct while
+ * d·N is constant (ISO 2827 defines how GN is measured). Exposure grows linearly with emitted energy
+ * (power fraction p), and the exposure needed falls inversely with ISO speed. So GN ∝ √p·√ISO.
  */
 export function calculateFlashGuideNumber(input: FlashGuideNumberInput): number {
   requireInputKeys(input, "calculateFlashGuideNumber", ["fullPowerGuideNumberMetersIso100", "powerFraction", "iso"]);
@@ -106,8 +110,9 @@ export interface ResolveTtlFlashExposureInput {
   /** Pre-flash output as a fraction of full power, (0, 1]. */
   preFlashPowerFraction: number;
   /**
-   * Ratio of ambient integration in the main exposure to the measurement window at the same
-   * aperture/ISO (e.g. t_main/t_measure), ≥ 0. The flash pulse lies inside both, so it does not scale.
+   * Ratio of ambient light collected in the main exposure to that in the measurement window, at the
+   * same aperture and ISO (for example t_main/t_measure). Must be ≥ 0. The flash pulse falls inside
+   * both windows, so it is not scaled.
    */
   ambientScaleToMainExposure: number;
   /** Flash exposure compensation applied to the TTL target, in stops. */
@@ -115,8 +120,8 @@ export interface ResolveTtlFlashExposureInput {
   /** Lowest available main-flash power fraction, (0, 1]. */
   minimumPowerFraction: number;
   /**
-   * Flash energy delivered per line relative to an ordinary pulse at the same power fraction: 1 for
-   * front/rear-curtain sync, η·t_e/D for HSS (see resolveHighSpeedFlashSync). Defaults to 1.
+   * Flash energy each line receives, relative to an ordinary pulse at the same power fraction. 1 for
+   * front/rear-curtain sync; η·t_e/D for high-speed sync (see resolveHighSpeedFlashSync). Defaults to 1.
    */
   syncEnergyFactor?: number;
   /** Optional guide-number reporting. */
@@ -167,13 +172,16 @@ function sameZones(a: ExposureMeteringSampleSet, b: ExposureMeteringSampleSet): 
 /**
  * Solves the main-flash power from a pre-flash measurement (manufacturer-independent TTL).
  *
- * The meter is linear for the admitted policies, M(a + b) = M(a) + M(b). The pre-flash at power
- * p_pre adds the flash-only signal f_i = pre_i − ambient_i per zone; flash signal is proportional to
- * emitted energy, so at main power p it contributes (p/p_pre)·M(f). With ambient scaled to the main
- * exposure by k, the metered total is k·A + p·F with F = M(f)/p_pre. Setting it equal to the target
- * T' = T·2^FEC gives p = (T' − k·A)/(F·s), s the sync energy factor (1 ordinary, η·t_e/D for HSS),
- * clamped to [p_min, 1] (the guide-number range). Highlight policies are rejected because their
- * weights depend on the signal and the total is no longer linear in p.
+ * The meter is linear for the policies allowed here: M(a + b) = M(a) + M(b).
+ * - The pre-flash at power p_pre adds a flash-only signal f_i = pre_i − ambient_i in each zone.
+ * - Flash signal is proportional to emitted energy, so at main power p it adds (p/p_pre)·M(f).
+ * - With ambient scaled to the main exposure by k, the metered total is k·A + p·F, where
+ *   F = M(f)/p_pre.
+ * - Setting this equal to the target T' = T·2^FEC gives p = (T' − k·A)/(F·s). Here s is the sync
+ *   energy factor (1 for ordinary sync, η·t_e/D for high-speed sync).
+ * - p is clamped to [p_min, 1], the guide-number range.
+ * Highlight policies are rejected: their weights depend on the signal, so the total is no longer
+ * linear in p.
  */
 export function resolveTtlFlashExposure(input: ResolveTtlFlashExposureInput): CalculationResult<TtlFlashExposure> {
   requireInputObject(input, "resolveTtlFlashExposure input");
@@ -251,9 +259,10 @@ export function resolveTtlFlashExposure(input: ResolveTtlFlashExposureInput): Ca
 }
 
 /**
- * Returns a copy of a manual flash profile whose relative output is scaled by a resolved TTL power
- * fraction, ready for resolveManualFlashSync (front/rear curtain). For HSS pass the unscaled profile and
- * `ttl.powerFraction` as resolveHighSpeedFlashSync's powerFraction instead, so power is applied once.
+ * Returns a copy of a manual flash profile with its relative output scaled by a resolved TTL power
+ * fraction, ready for resolveManualFlashSync (front/rear curtain). For high-speed sync, instead pass
+ * the unscaled profile, and pass `ttl.powerFraction` as resolveHighSpeedFlashSync's powerFraction.
+ * That way power is applied only once.
  */
 export function createTtlScaledFlashProfile(flashProfile: ManualFlashProfile, ttl: TtlFlashExposure): ManualFlashProfile {
   const flash = parseManualFlashProfile(flashProfile);

@@ -1,13 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Resolves Manual exposure with either manual ISO or Auto ISO. Aperture and shutter are always
- * caller-owned and are never changed. The relative meter target is normalized by an explicit reference
- * exposure anchor; no ISO-100 or other hidden absolute calibration is assumed.
- * Resolves Aperture Priority with manual ISO. Aperture and ISO remain caller-owned. Shutter is the
- * only automatic axis. The target/reference relationship is the same relative exposure model used by
- * Manual + Auto ISO; no new mode-specific exposure equation is introduced.
- * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
+ * Exposure modes: Manual, Aperture Priority, Shutter Priority, Program and Full Auto, each with
+ * manual ISO or Auto ISO where the mode allows it.
+ *
+ * Every exposure mode applies its control policy to one shared relative exposure equation, with an
+ * explicit reference anchor. Exposure compensation is already part of the frozen meter target. Manual
+ * settings are never changed. Automatic settings snap to the declared setting grids, and the result
+ * reports the signed leftover (residual) stops and any limits hit. A target with zero signal cannot
+ * be used to make up an exposure.
+ *
+ * The relative meter target is normalized by an explicit reference exposure anchor. No ISO 100 or
+ * other hidden absolute calibration is assumed.
+ * @see docs/USAGE.md for the equations, units, coordinate conventions, known blockers and support
+ * limits.
  */
 
 import { InvalidScientificInputError } from "../core/validation.js";
@@ -1893,9 +1899,9 @@ function selectShutterNotLongerThanTarget(
   const first = values[0]!;
   const last = values[values.length - 1]!;
 
-  // A grid value within settingEquals tolerance of the target is an exact
-  // match: floating-point error in the computed target must not push the
-  // selection one grid step shorter (#272).
+  // A grid value within settingEquals tolerance of the target counts as an
+  // exact match. Floating-point error in the computed target must not push the
+  // choice one grid step shorter (#272).
   const exactMatch =
     values.find(
       (candidate) =>
@@ -2174,9 +2180,9 @@ function selectApertureNotWiderThanTarget(
   const first = values[0]!;
   const last = values[values.length - 1]!;
 
-  // A grid value within settingEquals tolerance of the ideal is an exact
-  // match: floating-point error in the computed ideal must not push the
-  // selection one grid step narrower (#272).
+  // A grid value within settingEquals tolerance of the ideal counts as an
+  // exact match. Floating-point error in the computed ideal must not push the
+  // choice one grid step narrower (#272).
   const exactMatch =
     values.find(
       (candidate) =>
@@ -2536,9 +2542,9 @@ function programLineResidualConstraint(
 /**
  * Resolves Manual exposure with either manual ISO or Auto ISO.
  *
- * Aperture and shutter are always caller-owned and are never changed.
- * The relative meter target is normalized by an explicit reference exposure
- * anchor; no ISO-100 or other hidden absolute calibration is assumed.
+ * The caller sets aperture and shutter; they are never changed. The relative
+ * meter target is normalized by an explicit reference exposure anchor. No
+ * ISO 100 or other hidden absolute calibration is assumed.
  */
 export function resolveManualExposureMode(
   input:
@@ -2838,9 +2844,9 @@ export function resolveManualExposureMode(
 /**
  * Resolves Aperture Priority with manual ISO.
  *
- * Aperture and ISO remain caller-owned. Shutter is the only automatic axis.
- * The target/reference relationship is the same relative exposure model used
- * by Manual + Auto ISO; no new mode-specific exposure equation is introduced.
+ * The caller sets aperture and ISO. Only the shutter is automatic. The target
+ * and reference use the same relative exposure model as Manual + Auto ISO; no
+ * new exposure equation is added for this mode.
  */
 export function resolveAperturePriorityExposureMode(
   input:
@@ -3120,13 +3126,14 @@ function buildPriorityAutoIsoBlocked<
 }
 
 /**
- * Hold aperture fixed, follow the declared minimum-shutter policy and use bounded Auto ISO to absorb
- * remaining target residual.
+ * Aperture Priority with Auto ISO. Keeps the aperture fixed, follows the declared minimum-shutter
+ * policy, and uses Auto ISO (within its limits) to make up the rest of the exposure.
  *
- * Exposure modes apply control policy to one shared relative exposure equation and an explicit
- * reference anchor. Compensation is already included in the immutable meter target. Manual axes remain
- * unchanged; automatic axes use declared setting grids and expose signed residual stops and limit
- * diagnostics. A zero-signal target cannot authorize an invented exposure.
+ * Every exposure mode applies its control policy to one shared relative exposure equation, with an
+ * explicit reference anchor. Exposure compensation is already part of the frozen meter target. Manual
+ * settings are never changed. Automatic settings snap to the declared setting grids, and the result
+ * reports the signed leftover (residual) stops and any limits hit. A target with zero signal cannot
+ * be used to make up an exposure.
  * @param input - ResolveAperturePriorityAutoIsoExposureModeInput. See that type for coordinates, units and profile binding.
  * @returns AperturePriorityAutoIsoExposureModeResolution. The result states its shape and scientific status; a successful call does not imply calibration.
  *
@@ -3472,13 +3479,14 @@ export function resolveAperturePriorityAutoIsoExposureMode(
 }
 
 /**
- * Hold shutter fixed and resolve aperture plus optional Auto ISO against the exact capability
- * envelope.
+ * Shutter Priority. Keeps the shutter fixed and chooses the aperture, plus optional Auto ISO, within
+ * exactly what the equipment can do.
  *
- * Exposure modes apply control policy to one shared relative exposure equation and an explicit
- * reference anchor. Compensation is already included in the immutable meter target. Manual axes remain
- * unchanged; automatic axes use declared setting grids and expose signed residual stops and limit
- * diagnostics. A zero-signal target cannot authorize an invented exposure.
+ * Every exposure mode applies its control policy to one shared relative exposure equation, with an
+ * explicit reference anchor. Exposure compensation is already part of the frozen meter target. Manual
+ * settings are never changed. Automatic settings snap to the declared setting grids, and the result
+ * reports the signed leftover (residual) stops and any limits hit. A target with zero signal cannot
+ * be used to make up an exposure.
  * @param input - ResolveShutterPriorityExposureModeInput. See that type for coordinates, units and profile binding.
  * @returns ShutterPriorityExposureModeResolution. The result states its shape and scientific status; a successful call does not imply calibration.
  *
@@ -3792,13 +3800,14 @@ export function resolveShutterPriorityExposureMode(
 }
 
 /**
- * Evaluate the declared generic program line in log2 exposure space, quantize aperture/shutter and
- * optionally use Auto ISO for residual exposure.
+ * Program auto exposure. Follows the declared generic program line in log2 exposure space, snaps
+ * aperture and shutter to their grids, and can use Auto ISO for any exposure left over.
  *
- * Exposure modes apply control policy to one shared relative exposure equation and an explicit
- * reference anchor. Compensation is already included in the immutable meter target. Manual axes remain
- * unchanged; automatic axes use declared setting grids and expose signed residual stops and limit
- * diagnostics. A zero-signal target cannot authorize an invented exposure.
+ * Every exposure mode applies its control policy to one shared relative exposure equation, with an
+ * explicit reference anchor. Exposure compensation is already part of the frozen meter target. Manual
+ * settings are never changed. Automatic settings snap to the declared setting grids, and the result
+ * reports the signed leftover (residual) stops and any limits hit. A target with zero signal cannot
+ * be used to make up an exposure.
  * @param input - ResolveProgramAutoExposureModeInput. See that type for coordinates, units and profile binding.
  * @returns ProgramAutoExposureModeResolution. The result states its shape and scientific status; a successful call does not imply calibration.
  *
@@ -4096,13 +4105,14 @@ export function resolveProgramAutoExposureMode(
 }
 
 /**
- * Resolve aperture, shutter and ISO under an explicit generic Full Auto exposure policy. Autofocus,
- * WB, flash, drive and scene recognition remain unresolved.
+ * Full Auto. Chooses aperture, shutter and ISO under an explicit generic Full Auto exposure policy.
+ * Autofocus, white balance (WB), flash, drive mode and scene recognition are not resolved.
  *
- * Exposure modes apply control policy to one shared relative exposure equation and an explicit
- * reference anchor. Compensation is already included in the immutable meter target. Manual axes remain
- * unchanged; automatic axes use declared setting grids and expose signed residual stops and limit
- * diagnostics. A zero-signal target cannot authorize an invented exposure.
+ * Every exposure mode applies its control policy to one shared relative exposure equation, with an
+ * explicit reference anchor. Exposure compensation is already part of the frozen meter target. Manual
+ * settings are never changed. Automatic settings snap to the declared setting grids, and the result
+ * reports the signed leftover (residual) stops and any limits hit. A target with zero signal cannot
+ * be used to make up an exposure.
  * @param input - ResolveFullAutoExposureModeInput. See that type for coordinates, units and profile binding.
  * @returns FullAutoExposureModeResolution. The result states its shape and scientific status; a successful call does not imply calibration.
  *

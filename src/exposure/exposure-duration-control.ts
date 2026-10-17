@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Resolves shutter-duration control semantics to a concrete positive elapsed duration before physical
- * exposure integration. Bulb and Time are control behaviors only. Neither implies a shutter mechanism,
- * exposure-boundary topology, tripod, stabilization state, long exposure NR, or temperature model.
- * Binds a resolved duration into the authoritative #12 exposure-window input. The existing shutter
- * mechanism/opening/closing schedules remain untouched. Only the seconds-valued nominal duration is
- * supplied here.
- * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
+ * Shutter-duration control. Turns a control setting (a timed value, Bulb or Time) into a concrete,
+ * positive elapsed duration, before the physical exposure is integrated.
+ *
+ * Bulb and Time are only control behaviours. Neither implies a shutter mechanism, an exposure-boundary
+ * layout, a tripod, a stabilization state, long-exposure noise reduction (NR) or a temperature model.
+ *
+ * The binding function puts a resolved duration into the capture exposure-window input. The existing
+ * shutter mechanism and opening/closing schedules are left as they are. Only the nominal duration, in
+ * seconds, is supplied.
+ * @see docs/USAGE.md for the equations, units, coordinate conventions, known blockers and support
+ * limits.
  */
 
 import {
@@ -182,12 +186,12 @@ function active(
 }
 
 /**
- * Resolves shutter-duration control semantics to a concrete positive elapsed
- * duration before physical exposure integration.
+ * Turns a shutter-duration control setting into a concrete, positive elapsed
+ * duration, before the physical exposure is integrated.
  *
- * Bulb and Time are control behaviors only. Neither implies a shutter
- * mechanism, exposure-boundary topology, tripod, stabilization state, long
- * exposure NR, or temperature model.
+ * Bulb and Time are only control behaviours. Neither implies a shutter
+ * mechanism, an exposure-boundary layout, a tripod, a stabilization state,
+ * long-exposure noise reduction (NR) or a temperature model.
  */
 export function resolveExposureDurationControl(
   control: ExposureDurationControl
@@ -298,10 +302,10 @@ export function resolveExposureDurationControl(
 }
 
 /**
- * Binds a resolved duration into the authoritative #12 exposure-window input.
+ * Puts a resolved duration into the capture exposure-window input.
  *
- * The existing shutter mechanism/opening/closing schedules remain untouched.
- * Only the seconds-valued nominal duration is supplied here.
+ * The existing shutter mechanism and opening/closing schedules are left as
+ * they are. Only the nominal duration, in seconds, is supplied.
  */
 export function bindResolvedExposureDurationToCaptureExposureInput(
   input:
