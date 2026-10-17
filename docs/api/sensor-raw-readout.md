@@ -466,8 +466,8 @@ export interface SensorReadoutConversionRegime {
 
 ## SensorReadoutExposureIndexGain
 
-Optional record of how one regime's ISO gain was derived (the exposure index of CIPA DC-004 /
-ISO 12232, relative to the base exposure index). The readout equations still use
+Optional record of how one regime's ISO gain was derived (the exposure index of CIPA DC-004,
+relative to the base exposure index). The readout equations still use
 systemConversionGainElectronsPerCode (analog, before the ADC) and adc.digitalGain (after the ADC).
 This record must agree with them and never replaces them.
 

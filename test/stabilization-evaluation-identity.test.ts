@@ -349,7 +349,7 @@ describe("indexed stabilization evaluation is bit-identical to the linear-scan e
         samplePointsNative: [point],
         temporalSampleCount: 1
       });
-    const message = "must match exactly one committed #12 exposure-window sample point";
+    const message = "must match exactly one committed exposure-window sample point";
     const duplicated = {
       ...resolved,
       exposureWindows: {

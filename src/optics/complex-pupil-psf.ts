@@ -821,8 +821,10 @@ function supportSpan(
 }
 
 /**
- * Sampling guard for the discrete Fraunhofer reference (Goodman, Introduction
- * to Fourier Optics, sampling of DFT/FFT Fraunhofer propagation).
+ * Sampling guard for the discrete Fraunhofer reference (Ban et al.,
+ * arXiv:2511.06936, eqs. 6-9, free: N*dp = lambda*f/dc, Q = lambda*F/dc and
+ * Q >= 2. Also see: Goodman, Introduction to Fourier Optics, sampling of
+ * DFT/FFT Fraunhofer propagation).
  *
  * A DFT (discrete Fourier transform) of size M over pupil pitch dp gives an
  * image-plane pitch of lambda*z/(M*dp).

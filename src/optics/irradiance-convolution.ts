@@ -14,9 +14,12 @@
  * where `p(s)` is the patch containing the **source** site and `K_p(u, v)` is the fraction of the source
  * site's quantity that lands at displacement (+u right, +v down), in grid sites.
  *
- * Incoherent imaging is a linear sum of intensity PSFs (Goodman, Introduction to Fourier Optics, 4th
- * ed., 2017, §6.1). A PSF that varies across the field is approximated as constant inside each patch
- * (Goodman §6.1). Camera simulators such as ISETCam use the same piecewise shift-invariant method
+ * Incoherent imaging is a linear sum of intensity PSFs: the output intensity is the input intensity
+ * convolved with the intensity PSF (MIT OpenCourseWare 2.71 Optics, Spring 2009, lecture 22, free).
+ * A PSF that varies across the field is approximated as constant inside each patch, as in methods
+ * that divide the image into isoplanatic subsections (van de Ketterij et al., arXiv:2011.01738,
+ * sec. 1, free). Also see: Goodman, Introduction to Fourier Optics, 4th ed., 2017, §6.1. Camera
+ * simulators such as ISETCam use the same piecewise shift-invariant method
  * (Farrell et al., Proc. SPIE 8299, 2012). The caller chooses the patch size and kernels, and so
  * owns the patch approximation.
  *

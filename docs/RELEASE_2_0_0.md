@@ -66,8 +66,8 @@ How to read this section: each entry names one change, the model and version it 
 - **Model and version:** `photivra-native-raw-noise` 0.4.0; seed schedule v2; charge realization 3.0.0; RAW code 4.0.0.
 - **Accepted science and sources:**
   - Linear camera model and photon-transfer noise of EMVA Standard 1288 Release 4.0 (free from emva.org): Poisson signal electrons, independent Gaussian read noise, gain, quantization.
-  - J. R. Janesick, *Photon Transfer* (SPIE, 2007).
-  - Poisson sampling by Hörmann's PTRS (1993) and Box–Muller (1958), with the normal approximation for very large means (Johnson, Kemp & Kotz, *Univariate Discrete Distributions*, 3rd ed.).
+  - Also see: J. R. Janesick, *Photon Transfer* (SPIE, 2007).
+  - Poisson sampling by Hörmann's PTRS (1993) and Box–Muller (1958), with the normal approximation for very large means (NIST/SEMATECH e-Handbook §1.3.6.6.19 and SOCR, University of Michigan, free; also see Johnson, Kemp & Kotz, *Univariate Discrete Distributions*, 3rd ed.).
   - Seeds from the public-domain MurmurHash3_x86_32/`fmix32`. Independence is shown statistically.
 - **Evidence in the repository:** `test/sensor-raw-noise-independence.test.ts` (Poisson mean/variance, spatial and cross-seed independence within pre-declared 5σ bands; the old schedule fails at lag correlation 0.84), `test/sensor-readout-v2.test.ts`.
 
@@ -77,14 +77,14 @@ How to read this section: each entry names one change, the model and version it 
 - **Accepted science and sources:**
   - Exposure index S = 10/H and focal-plane exposure H = 0.65·L·t/N² from CIPA DC-004-2020 (free; also ISO 12232:2019).
   - EMVA 1288 Release 4.0: system gain K, PRNU, DSNU, linearity, dark current versus temperature. (PRNU and DSNU are the pixel-to-pixel variations in response to light and in dark signal.)
-  - Janesick (2007): exponential dependence of dark current on temperature.
+  - Exponential dependence of dark current on temperature: EMVA 1288 Release 4.0 Linear §3.2 (free); also see Janesick (2007).
   - Dual conversion gain is a declared per-mode read noise, never derived from S.
 - **Evidence in the repository:** `test/iso-brightness.test.ts`, `test/sensor-readout-v2.test.ts`, `test/independent-radiometric-oracle.test.ts` (independent camera-equation RAW oracle).
 
 ### Depth of field and defocus (#279, #293)
 
 - **Model and version:** `thin-lens-depth-of-field` 1.1.0; defocus circle 1.1.0.
-- **Accepted science and sources:** exact thin-lens limits from the blur-circle condition; S. F. Ray, *Applied Photographic Optics*, 3rd ed. (2002). The defocus closed form is an algebraic rearrangement of the same model. Geometric only.
+- **Accepted science and sources:** exact thin-lens limits from the blur-circle condition; J. E. Greivenkamp, OPTI-502 course notes, sec. 12 (free); also see S. F. Ray, *Applied Photographic Optics*, 3rd ed. (2002). The defocus closed form is an algebraic rearrangement of the same model. Geometric only.
 - **Evidence in the repository:** `test/optics.test.ts` (exact rational references, a property test with 300+ cases, hyperfocal cases).
 
 ### Camera rotation sign (#284)
@@ -99,7 +99,7 @@ PSF = point-spread function: the pattern a lens makes from a single point of lig
 
 - **Model and version:** complex-pupil PSF 2.0.0.
 - **Accepted science and sources:**
-  - Incoherent PSF = \|FT{pupil}\|², OTF cutoff D/(λz), Nyquist Q = λN/pitch ≥ 2: J. W. Goodman, *Introduction to Fourier Optics*, 4th ed. (2017).
+  - Incoherent PSF = \|FT{pupil}\|², OTF cutoff D/(λz), Nyquist Q = λN/pitch ≥ 2: MIT OpenCourseWare 2.71 lecture 22 and Ban et al., arXiv:2511.06936 (free); also see J. W. Goodman, *Introduction to Fourier Optics*, 4th ed. (2017).
   - Q notation from Fiete, *Opt. Eng.* 38(7) (1999).
   - The no-wrap condition M ≥ 2S − 1 follows from DFT circular convolution.
 - **Evidence in the repository:** `test/lens-psf-framework.test.ts` (Dirichlet kernel, analytic Airy comparison, support rejection).
@@ -117,14 +117,17 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
 - **Model and version:** `COLORIMETRY_MODEL_VERSION` 1.0.0.
 - **Accepted science and sources:**
   - Analytic colour-matching functions (CMFs): Wyman, Sloan & Shirley, JCGT 2(2) 2013 (free; labelled approximation).
-  - Planck's law with exact SI constants (BIPM SI Brochure, 9th ed., free).
-  - Illuminant A and the daylight locus: CIE 15:2018 (paid; values checked against the free CIE datasets).
+  - Planck's law (BIPM *Mise en pratique* for the kelvin, Absolute Primary Radiometry, Eq. 1, free) with exact SI constants (BIPM SI Brochure, 9th ed., free).
+  - Illuminant A: Planck's law with the CIE's constants c₂ = 1.435e-2 m·K and T = 2848 K; it reproduces the free CIE 1 nm table to its rounding. Daylight locus and M₁/M₂: CIE 15:2018 (paid; no free text found; values checked against the free CIE D55 and D65 datasets).
+  - Tristimulus integral: Wyman, Sloan & Shirley 2013, Eq. 1 (free).
+  - CIE94: Wikipedia, "Color difference" (secondary source; the primary CIE 116-1995 is not free), checked against the colour-science worked values.
+  - RGB↔XYZ matrices: derived from the ITU-R BT.709-6 / BT.2020-2 and CSS Color 4 primaries and D65; equal to the W3C CSS Color 4 matrices within 1e-12.
   - Planckian locus: Kang et al., *J. Korean Phys. Soc.* 41(6) (2002). McCamy, *Color Res. Appl.* 17(2) (1992).
-  - CCT/Duv (correlated colour temperature and distance from the Planckian locus): Smet et al., LEUKOS 2023 (free DOE copy).
+  - CCT/Duv (correlated colour temperature and distance from the Planckian locus): Smet et al., LEUKOS 2023 (free DOE copy). Duv sign: the engine's documented convention (positive above the locus).
   - Chromatic adaptation: Lam (1985), ICC.1 Annex E (free), Moroney et al. CIC10 2002, Li et al. *Color Res. Appl.* 42(6) (2017).
   - CIELAB: W3C CSS Color 4. CIEDE2000: Sharma, Wu & Dalal 2005 (free notes and test data).
   - Camera matrix fit: Finlayson & Drew, CIC5 1997.
-  - Gamut mapping: Morovič 2008; CSS Color 4 §13.
+  - Gamut mapping: CSS Color 4 §14 (free); also see Morovič 2008.
   - Transfers: ITU-R BT.709-6, BT.1886, BT.2020-2, BT.2100-3, BT.2408 (free) and CSS Color 4 sRGB.
 - **Evidence in the repository:** `test/colorimetry.test.ts`, `test/colorimetry-output-and-camera.test.ts` (Sharma CIEDE2000 test pairs, published chromaticities, ITU-R luminance rows).
 
@@ -142,12 +145,12 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
 
 - **Model and version:** projections, Brown–Conrady, axial CA (chromatic aberration), vignetting, wavefronts, polarizer (filter schema 0.2.0), haze; mapping schema 0.2.0; environment photo-signal 0.4.0 when a mapping is present.
 - **Accepted science and sources:**
-  - Projections: Miyamoto, JOSA 54 (1964); Kannala & Brandt, IEEE TPAMI 28 (2006); Snyder, USGS PP 1395 (1987, free).
+  - Projections: Kannala & Brandt, IEEE TPAMI 28 (2006, free author copy); Snyder, USGS PP 1395 (1987, free); Miyamoto, JOSA 54 (1964).
   - Distortion: Conrady, MNRAS 79 (1919); Brown (1966, 1971).
-  - Vignetting: cos⁴ and finite Lambertian disk (Foote 1915); mechanical vignetting (Kingslake & Johnson).
+  - Vignetting: cos⁴ and finite Lambertian disk (Foote 1915); cos⁴ and mechanical vignetting also in Greivenkamp, OPTI-502 course notes, sec. 10–11 (free); also see Kingslake & Johnson.
   - Wavefronts: Noll, JOSA 66 (1976); Mahajan, JOSA 72 (1982); Maréchal.
-  - Dispersion: Cauchy/Abbe (Hecht; Born & Wolf); line wavelengths from SCHOTT TIE-29 (free).
-  - Polarizer: Malus's law and Mueller matrices (Chipman; Goldstein).
+  - Dispersion: Cauchy/Abbe (Oh 2023, arXiv:2309.09375; Greivenkamp, OPTI-502 sec. 17 and 20; both free; also see Hecht; Born & Wolf); line wavelengths from SCHOTT TIE-29 (free).
+  - Polarizer: Malus's law and Mueller matrices (OpenStax *University Physics* Vol. 3 §1.7; Gil, arXiv:2002.04105; both free; also see Chipman; Goldstein).
   - Haze: Koschmieder 1924; Middleton 1952; WMO-No. 8 (free).
   - The irradiance area factor 1/det J follows from flux conservation.
 - **Evidence in the repository:** `test/lens-projection.test.ts`, `test/brown-conrady-distortion.test.ts`, `test/pupil-vignetting.test.ts`, `test/wavefront-aberrations.test.ts`, `test/lens-psf-interpolation.test.ts`, `test/front-of-lens-polarizer.test.ts`, `test/haze-and-geometric-breathing.test.ts`, `test/lens-geometry-wiring.test.ts`, `test/lens-field-mapping-environment.test.ts`, `test/optics-validator-extrema.test.ts`.
@@ -159,7 +162,7 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
   - Rolling shutter: El Gamal & Eltoukhy (2005); Liang, Chang & Chen, IEEE TIP 17(8) (2008); Meingast, Geyer & Sastry (2005, arXiv:cs/0503076, free); Ait-Aider et al., ECCV 2006.
   - Flicker: Poplin (2006). Modulation at twice the mains frequency follows from P ∝ sin²ωt.
   - Shutter angle: ASC *American Cinematographer Manual*.
-  - Guide number GN = d·N, from the inverse-square law and the camera equation (Ray 2002; Jacobson et al. 2000).
+  - Guide number GN = d·N, from the inverse-square law (NIST SP 250-37, free) and the camera equation (Greivenkamp, OPTI-502 sec. 11, free); also see Ray 2002; Jacobson et al. 2000.
   - HSS (high-speed sync) √(η·t_e/D) is derived and labelled an approximation.
   - TTL (through-the-lens flash metering) is a generic linear pre-flash solution.
   - Highlight priority: Hyndman & Fan (1996) quantiles.
@@ -187,7 +190,7 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
 - **Model and version:** facade 1.0.0.
 - **Accepted science and sources:**
   - Composes existing models.
-  - Exposure anchor by the reflected-light meter equation N²/t = L·S/K with K = 12.5 (ISO 2720; no free equivalent found, flagged below).
+  - Exposure anchor by CIPA DC-004-2020 (free): standard output sensitivity S = 10/H and the camera equation H = 0.65·L·t/N², with the 18 % grey as the reference. The default illuminance is π·10·N²/(0.65·t·S·0.18) ≈ 21 480.98 lux.
   - Luther condition (Luther 1927).
   - Slanted-edge geometry after Burns, IS&T PICS 2000 (free).
   - K_cd = 683 lm/W (BIPM SI Brochure).
@@ -197,8 +200,8 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
 
 - **Model and version:** `webgpu-f32` execution label; irradiance convolution schema 0.1.0.
 - **Accepted science and sources:**
-  - Incoherent imaging as linear superposition with isoplanatic patches (Goodman 2017 §6.1); piecewise shift-invariant optics (Farrell et al., Proc. SPIE 8299, 2012).
-  - Float32 forward-error bounds γ_k (Higham, *Accuracy and Stability of Numerical Algorithms*, 2nd ed., §2–3); IEEE 754 binary32; W3C WGSL accuracy rules (free).
+  - Incoherent imaging as linear superposition with isoplanatic patches (MIT OpenCourseWare 2.71 lecture 22; van de Ketterij et al., arXiv:2011.01738; both free; also see Goodman 2017 §6.1); piecewise shift-invariant optics (Farrell et al., Proc. SPIE 8299, 2012).
+  - Float32 forward-error bounds γ_k (Rump & Jeannerod, SIAM J. Matrix Anal. Appl. 35(2), 2014, free author copy; also see Higham, *Accuracy and Stability of Numerical Algorithms*, 2nd ed., §2–3); IEEE 754 binary32; W3C WGSL accuracy rules (free).
   - Never claimed bit-identical.
 - **Evidence in the repository:** `test/image-kernel-accelerator.test.ts` (fake device), `test/webgpu/conformance.webgpu.ts` (real device, repository-only).
 
@@ -211,7 +214,7 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
 ### Facade gamut mapping (#307)
 
 - **Model and version:** —
-- **Accepted science and sources:** CIELAB chroma reduction at constant L* and hue (W3C CSS Color 4 §13, free; Morovič 2008).
+- **Accepted science and sources:** CIELAB chroma reduction at constant L* and hue (W3C CSS Color 4 §14, free; also see Morovič 2008).
 - **Evidence in the repository:** `test/simulate-capture-integration.test.ts`.
 
 ### Fixes and validation (#280, #281, #282, #293)
@@ -232,39 +235,82 @@ The owner's rule is that releases rely only on free-to-use sources. Every paid o
 
 Free standards bodies and documents already in use need no change: CIPA (DC-003, DC-004, DC-008), ITU-R and ITU-T recommendations, EMVA 1288, the Adobe DNG and TIFF 6.0 specifications, ICC specifications, W3C recommendations, IETF RFCs, the BIPM SI Brochure, and the CIE free datasets.
 
-In the Status column: **Replaced** means a free source now backs the fact. **Flagged** means no free equivalent was found, and the owner must decide what to do (see [pending owner decisions](#pending-owner-decisions)).
+In the Status column: **Replaced** means a free source now backs the fact. **Removed** means the engine no longer depends on the paid source: the fact is derived in the documentation or stated as the engine's own convention. **Flagged** means no free equivalent was found, and the owner must decide what to do (see [pending owner decisions](#pending-owner-decisions)).
 
 | Paid source | Fact used | Free replacement | Status |
 | --- | --- | --- | --- |
 | ISO 12232:2019 | Exposure index S = 10/H; H ∝ 1/S; H = 0.65·L·t/N² | CIPA DC-004-Translation-2020, *Sensitivity of Digital Cameras*, §3.2–3.3 and §5.5 — <https://www.cipa.jp/e/std/std-sec.html> | Replaced |
-| ISO 12232:2019 | Saturation-based speed S_sat = 78/H_sat (test oracle, Quick Start remark, highlight-priority headroom remark) | No free equivalent found. DC-004 adopts only SOS and REI. | **Flagged** |
-| ISO 2720:1974 | Reflected-light meter constant K = 12.5 cd·s/m² | No free normative equivalent found. The Exif APEX annex (CIPA DC-008 Annex C) gives only Bv = log₂(B/NK) without a value. | **Flagged** |
+| ISO 12232:2019 | Saturation-based speed S_sat = 78/H_sat (test oracle, Quick Start remark, highlight-priority headroom remark) | Removed. The ISO-brightness test now uses the CIPA DC-004-2020 standard output sensitivity H_m = 10/S (§3.2), whose reference level is an 18 % grey (§5.2, Explanation 1 and 2.2), so mid-grey is 0.18 of the white exposure — <https://www.cipa.jp/e/std/std-sec.html>. The Quick Start and highlight-priority remarks cite DC-004 and state the half-stop headroom as the engine's own documented choice. No engine output changed. | Replaced (owner decision 1) |
+| ISO 2720:1974 | Reflected-light meter constant K = 12.5 cd·s/m² (facade exposure anchor) | Removed. The facade uses CIPA DC-004-2020 S = 10/H (§3.2) and H = 0.65·L·t/N² (§5.5 (4), Explanation 4) — <https://www.cipa.jp/e/std/std-sec.html>. This is equivalent to K = 10/0.65 ≈ 15.38. The default illuminance changes from π·12.5·64·125/18 ≈ 17 453.29 lux to π·80 000/11.7 ≈ 21 480.98 lux (recorded in `CHANGELOG.md`). | Replaced (owner decision 2) |
 | ISO 12233:2017 | Slanted-edge chart geometry | P. D. Burns, "Slanted-Edge MTF for Digital Camera and Scanner Analysis", IS&T PICS 2000 — <https://www.imaging.org/common/uploaded%20files/pdfs/Papers/2000/PICS-0-81/1621.pdf> | Replaced |
-| ISO 2827 | Guide-number measurement | No free equivalent found. The engine uses only GN = d·N, which follows from the inverse-square law and the camera equation. | **Flagged** (measurement procedure only) |
+| ISO 2827 | Guide-number measurement | Citation removed. `docs/SCENE_SENSOR_TEMPORAL_EXPOSURE.md` derives GN = d·N, the √p and the √(ISO/100) scaling from the inverse-square law and the DC-004 camera equation. The engine does not model how a guide number is measured; the caller supplies it. | Removed (owner decision 3) |
 | ISO 7944 | Fraunhofer d, F, C line wavelengths | SCHOTT Technical Information TIE-29, *Refractive Index and Dispersion* (August 2023) — <https://media.schott.com/api/public/content/aaa572afd854434fb7b3faa4bc46103f> (587.5618, 486.1327, 656.2725 nm confirmed) | Replaced |
 | ISO 12234-2 (TIFF/EP) | CFARepeatPatternDim, CFAPattern | Adobe DNG 1.7.1.0 and CIPA DC-008 (Exif CFAPattern) — <https://helpx.adobe.com/camera-raw/digital-negative.html>, <https://www.cipa.jp/e/std/std-sec.html> | Replaced |
 | ISO/IEC 10918-1 | JPEG DCT, Huffman, lossless | ITU-T T.81 (identical text) — <https://www.w3.org/Graphics/JPEG/itu-t81.pdf> | Replaced |
 | IEC 61966-2-1 | sRGB primaries, transfer and matrix | W3C CSS Color Module Level 4, `srgb` — <https://www.w3.org/TR/css-color-4/>; ICC sRGB registry — <https://registry.color.org/rgb-registry/files/sRGB.pdf>; ITU-R BT.709-6 | Replaced |
 | CIE 15:2018 / ISO/CIE 11664-4 | CIELAB with exact ε, κ | W3C CSS Color 4 §9 (Lab) | Replaced |
-| CIE 15:2018 / ISO/CIE 11664-1, -2 | Tristimulus summation, illuminant A formula, daylight-locus polynomial and M₁/M₂ | No free text of the formulas found. Computed values are checked against the free CIE datasets (CC BY-SA 4.0, not bundled) — <https://cie.co.at/data-tables> | **Flagged** (formulas); values verifiable for free |
+| CIE 15:2018 / ISO/CIE 11664-1 | Tristimulus integration X = k Σ S R x̄ Δλ | Wyman, Sloan & Shirley 2013, JCGT 2(2), Eq. 1 (X = ∫ L(λ) x̄(λ) dλ; open access, CC BY-ND 3.0) — <https://jcgt.org/published/0002/02/01/paper.pdf>. The quadrature and the normalization k are explicit engine choices. | Replaced (owner decision 4) |
+| CIE 15:2018 / ISO/CIE 11664-2 | Illuminant A formula | Planck's law: BIPM *Mise en pratique* for the kelvin, Absolute Primary Radiometry (2018), Eq. 1 — <https://www.bipm.org/utils/en/pdf/si-mep/MeP-K-2018_Absolute_Primary_Radiometry.pdf>. The engine uses the CIE's constants c₂ = 1.435e-2 m·K and T = 2848 K (the exact c₂ = hc/k = 1.438 776 877…e-2 m·K, NIST CODATA 2022, is used only for the Planckian radiator). These two constants have no free source text, but the formula reproduces all 531 values of the free CIE 1 nm table (DOI 10.25039/CIE.DS.8jsxjrsn) within 4.8e-6 relative, the table's rounding. | Replaced (owner decision 4); constants verified for free |
+| CIE 15:2018 | Daylight-locus polynomial and M₁/M₂ | No free copy found. The source paper, Judd, MacAdam & Wyszecki, *JOSA* 54(8):1031 (1964), doi:10.1364/JOSA.54.001031, is subscription-only on the publisher's site; the only other copy found was an unauthorized upload. Per the owner's decision no alternative was chosen. The coefficients were checked against the free CIE datasets: with three-decimal rounding they reproduce D55 within 5.0e-4 and D65 within 8.5e-4 at every 5 nm node (the tables' rounding). | **Flagged** (formula text only); values verified for free |
 | CIE 15:2018 | CCT as the nearest Planckian point in (u, v); signed Duv | Smet et al., LEUKOS 2023, doi:10.1080/15502724.2023.2248397; free DOE copy — <https://www.energy.gov/sites/default/files/2023-09/ssl-smet-etal-2023_method-cct-duv-light-source.pdf> | Replaced |
-| ANSI C78.377 | Duv sign (positive above the locus) | Smet et al. define Duv as a signed distance but do not state the direction in prose. | **Flagged** (sign convention only) |
+| ANSI C78.377 | Duv sign (positive above the locus) | Ohno, LEUKOS 10(1), 2014 could not be used: NIST's record of it (<https://www.nist.gov/publications/practical-use-and-calculation-cct-and-duv>) links only to the paywalled publisher copy, and no free NIST copy was found. Per the owner's decision, the sign is now stated as the engine's own documented convention (docs, runtime assumption text), and a test checks that a greenish light gives a positive Duv. Ohno's free CORM 2011 slides state the same sign but are not cited. | Removed (owner decision 5) |
 | CIE 018:2019 | K_m = 683 lm/W | BIPM SI Brochure, 9th ed., definition of the candela (K_cd = 683 lm/W) — <https://www.bipm.org/en/publications/si-brochure> | Replaced |
-| CIE 116-1995 | CIE94 ΔE weights | No free equivalent found. | **Flagged** |
+| CIE 116-1995 | CIE94 ΔE weights | Secondary source (the primary CIE 116-1995 is not free): Wikipedia, "Color difference", §CIE94 — <https://en.wikipedia.org/wiki/Color_difference#CIE94> (equations, S_C = 1 + K₁C*₁, S_H = 1 + K₂C*₁, and the graphic-arts and textiles weights). The engine also reproduces the worked values in the colour-science `delta_E_CIE1994` documentation (1.6711191 and 0.8404677). Lindbloom's page could not be reached from the host. | Replaced (secondary source; owner decision 6) |
 | CIE 142-2001 / ISO/CIE 11664-6 | CIEDE2000 | Sharma, Wu & Dalal (2005) implementation notes and test data — <https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/>; CSS Color 4 `deltaE2000` | Replaced |
 | CIE 159:2004 | CAT02 and HPE matrices; degree of adaptation D | Moroney et al., "The CIECAM02 color appearance model", CIC10 2002, in the RIT open repository — <https://repository.rit.edu/other/143>. Automated download was refused (HTTP 403), so free availability is listed but was not confirmed from this host. | Replaced (needs human confirmation) |
 | SMPTE ST 2084 | PQ EOTF and constants | ITU-R BT.2100-3 — <https://www.itu.int/rec/R-REC-BT.2100> | Replaced |
 | SMPTE ST 2086 | Mastering display colour volume fields | W3C PNG Third Edition `mDCV` — <https://www.w3.org/TR/png-3/>; ITU-T H.265 Annex D SEI — <https://www.itu.int/rec/T-REC-H.265> | Replaced |
 | CTA-861.3 | MaxCLL/MaxFALL | W3C PNG Third Edition `cLLI`; ITU-T H.265 Annex D content light level SEI | Replaced |
 | SMPTE EG 432-1 | Display P3 primaries with D65 | W3C CSS Color 4 `display-p3`; ITU-T H.273 ColourPrimaries 12 — <https://www.itu.int/rec/T-REC-H.273> | Replaced |
-| SMPTE RP 177-1993 | Deriving RGB↔XYZ matrices from primaries and white | No free text of the method found. It is standard linear algebra, and the results are checked against the free ITU-R BT.709-6 and BT.2020-2 luminance coefficients. | **Flagged** (method text) |
+| SMPTE RP 177-1993 | Deriving RGB↔XYZ matrices from primaries and white | W3C CSS Color 4 (method and matrices, §2, §11 and §19) — <https://www.w3.org/TR/css-color-4/>; ITU-R BT.709-6 and BT.2020-2 (primaries, D65 and luminance coefficients) — <https://www.itu.int/rec/R-REC-BT>. The derivation is written out in `docs/COLORIMETRY.md`, and a test shows the engine's matrices equal the CSS Color 4 matrices within 1e-12 (largest difference 1.8e-15). | Replaced (owner decision 7) |
 | IEEE Std 1789-2015 | Lamps modulate at twice the mains frequency | Follows from P ∝ sin²ωt = (1 − cos 2ωt)/2; context on the US DOE flicker pages — <https://www.energy.gov/eere/ssl/flicker> | Replaced |
 
 **What changed:** doc comments in `src/`, and the reference lists in `docs/` and `THIRD_PARTY.md`, now cite the free source first. The paid standard is kept only as "also specified in".
 
-**What did not change:** runtime strings still name the paid standards. These are the provenance `assumptions`, error messages, and the `sources` arrays of RGB colour-space results. Changing them would change output, and the rule was not to change behaviour. Test comments are not shipped and were left as they were.
+**Runtime strings (owner decision).** Provenance `sources` arrays, `assumptions` text and error messages that named paid standards now name the free sources above. This is a text-only output change; no number changed. Limitation and error strings that used internal ticket numbers as model names (#12, #14, #85, #110) now use the model names. See `CHANGELOG.md`. Test comments are not shipped and were left as they were. The result model id `rgb-xyz-matrix-smpte-rp177` of `calculateRgbToXyzMatrices` is an identifier, not a citation, and was not renamed.
 
-**Open:** seven flagged items have no free equivalent. The owner decides whether to accept them as "also specified in" facts, find a source, or remove the dependence.
+**Open:** one flagged item remains: the formula text of the CIE daylight locus and M₁/M₂. Its values are verified against free data.
+
+## Free sources for textbook citations
+
+The owner's free-sources rule also covers paid textbooks. For each fact a paid book was cited for, a free source that states the same fact was found, read and added first. The book is kept as "also see". The change is limited to `docs/` and `src/` comments; runtime strings, tests and the standards rows above are unchanged.
+
+"Free" here means free to read online. Two of the sources are author-hosted copies of copyrighted work (Wyant & Creath; Rump & Jeannerod), and the course notes are copyrighted by their authors or institutions. Only facts are cited; nothing is copied.
+
+| Book (also see) | Fact cited | Free source added (checked October 17, 2026) |
+| --- | --- | --- |
+| Goodman, *Introduction to Fourier Optics* | Incoherent output intensity = input intensity convolved with the intensity PSF; intensity PSF = \|coherent PSF\|²; OTF = autocorrelation of the pupil (ATF), cutoff twice the coherent one | MIT OpenCourseWare 2.71 *Optics* (Spring 2009), lecture 22 — <https://ocw.mit.edu/courses/2-71-optics-spring-2009/resources/mit2_71s09_lec22/> |
+| Goodman | DFT pupil sampling N·d_p = λf/d_c; sampling factor Q = λF/d_c; Nyquist needs Q ≥ 2 | Ban et al., "Mock Observations for the CSST Mission", arXiv:2511.06936, eqs. 6–9 — <https://arxiv.org/abs/2511.06936> |
+| Goodman | A field-varying PSF treated as constant within isoplanatic subsections | van de Ketterij, Soloviev & Verhaegen, arXiv:2011.01738, sec. 1 — <https://arxiv.org/abs/2011.01738> |
+| Goodman; Mahajan, *Optical Imaging and Aberrations* | Defocus dz at f-number N gives an edge-of-pupil wavefront of dz/(8N²) | Wyant & Creath, "Basic Wavefront Aberration Theory for Optical Metrology", *Applied Optics and Optical Engineering* XI (1992), ch. 1, eq. 18 (author copy) — <https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf>. The same chapter gives Strehl ≈ exp(−(2πσ)²), eq. 67. |
+| Born & Wolf, *Principles of Optics* | Zernike radial polynomial R_n^m in Noll's nomenclature | Mathar, "Zernike Basis to Cartesian Transformations", arXiv:0809.2368, eq. 1 — <https://arxiv.org/abs/0809.2368> |
+| Born & Wolf; Hecht, *Optics* | Two-term Cauchy dispersion n(λ) = A + B/λ² | Oh, Tufts PhD dissertation (2023), arXiv:2309.09375, sec. 2.3.1(b), eq. 2.61 — <https://arxiv.org/abs/2309.09375> |
+| Hecht | Abbe number V_d = (n_d − 1)/(n_F − n_C) | Greivenkamp, *OPTI-502 Optical Design and Instrumentation I*, University of Arizona (2019), sec. 17 — <https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-17-Materials.pdf>; also SCHOTT TIE-29, eq. 3 |
+| Hecht; Kingslake & Johnson, *Lens Design Fundamentals* | Singlet axial colour f_C − f_F ≈ f_d/V_d | Greivenkamp, OPTI-502, sec. 20 — <https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-20-Chromatic-Effects.pdf> |
+| Kingslake & Johnson; Ray, *Applied Photographic Optics* | Paraxial thin-lens imaging; nodal points at the principal planes when object and image space are both air | Greivenkamp, OPTI-502, sec. 3 and sec. 5 (p. 5-24) — <https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-03-Imaging-with-a-Thin-Lens.pdf>, <https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-05-Gaussian-Imagery.pdf> |
+| Slater, *Photographic Systems for Engineers*; Kingslake & Johnson; Ray | Image irradiance falls off as cos⁴ of the field angle; camera equation E ∝ L/(f/#)² | Greivenkamp, OPTI-502, sec. 11 — <https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-11-Radiative-Transfer.pdf> |
+| Kingslake & Johnson; Smith, *Modern Optical Engineering* | Mechanical vignetting: the off-axis bundle stays circular, centred on the chief ray, and is clipped by the other apertures | Greivenkamp, OPTI-502, sec. 10 — <https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-10-Vignetting.pdf> |
+| Ray | Exact thin-lens depth-of-field limits from the image-plane blur criterion | Greivenkamp, OPTI-502, sec. 12 — <https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-12-Objectives.pdf> |
+| Kingslake, *A History of the Photographic Lens*; Ray | Rectilinear, stereographic, equidistant, equisolid-angle and orthographic mapping functions | Kannala & Brandt (IEEE TPAMI 2006), author copy, eqs. 1–5 — <https://users.aalto.fi/~kannalj1/calibration/Kannala_Brandt_calibration.pdf> |
+| Chipman, *Handbook of Optics*; Goldstein, *Polarized Light*; Born & Wolf | Mueller matrix of a linear diattenuator, and its rotation | Gil, "Polarimetric characterization of light and media", arXiv:2002.04105, eqs. 134–135 — <https://arxiv.org/abs/2002.04105> |
+| Chipman; Goldstein | Malus's law I = I₀ cos²θ | OpenStax, *University Physics* Vol. 3, sec. 1.7 (CC BY 4.0) — <https://openstax.org/books/university-physics-volume-3/pages/1-7-polarization> |
+| Janesick, *Photon Transfer* | Dark current rises roughly exponentially with temperature (doubling interval T_d) | EMVA 1288 Release 4.0 Linear, §3.2 — <https://www.emva.org/wp-content/uploads/EMVA1288Linear_4.0Release.pdf> |
+| Janesick | Shot noise is Poisson: variance equals the mean electron count | EMVA 1288 Release 4.0 Linear, §2.4 (same URL) |
+| Johnson, Kemp & Kotz, *Univariate Discrete Distributions* | Poisson skewness 1/√μ | NIST/SEMATECH *e-Handbook of Statistical Methods*, §1.3.6.6.19 — <https://www.itl.nist.gov/div898/handbook/eda/section3/eda366j.htm> |
+| Johnson, Kemp & Kotz | Normal approximation to the Poisson for large means, with continuity correction | SOCR, University of Michigan — <https://wiki.socr.umich.edu/index.php/AP_Statistics_Curriculum_2007_Limits_Norm2Poisson> |
+| Higham, *Accuracy and Stability of Numerical Algorithms* | γ_n = nu/(1 − nu), the classical factor in error bounds for floating-point sums and inner products | Rump & Jeannerod, *SIAM J. Matrix Anal. Appl.* 35(2) (2014), sec. 1 (author copy) — <https://www.tuhh.de/ti3/paper/rump/RuJea13.pdf> |
+| Jacobson et al., *The Manual of Photography*; Ray | Guide number GN = d·N | Partial; see below. |
+| Morovič, *Color Gamut Mapping* | Constant-lightness, constant-hue chroma reduction | W3C CSS Color Module Level 4, gamut-mapping section — <https://www.w3.org/TR/css-color-4/> (already cited; Morovič is now "also see") |
+
+**Facts with no free source found:**
+
+- **Guide number GN = d·N** (Jacobson et al.; Ray). No free source states the relation itself. Both of its parts are freely sourced: the inverse-square law (NIST SP 250-37, <https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication250-37.pdf>) and the camera equation (Greivenkamp, OPTI-502 sec. 11). The relation follows by algebra. The guide-number measurement procedure stays with ISO 2827, in the audit above.
+
+**Not changed:**
+
+- Test comments (`test/independent-radiometric-oracle.test.ts` and `test/native-environment-bit-identity.test.ts` cite Smith and Hecht for the camera equation; `test/sensor-raw-noise-independence.test.ts` cites Janesick). Test comments are not shipped, and tests are out of scope here. Greivenkamp OPTI-502 sec. 11 and EMVA 1288 §2.4 are free sources for those facts.
+- `CHANGELOG.md` names "Goodman sampling Q > 2" in a dated entry. Ban et al. above is the free source.
+- Paywalled journal papers that are not textbooks (for example Noll 1976, Mahajan 1982, Miyamoto 1964, Fiete 1999) are outside this pass.
 
 ## Rights and licensing
 
@@ -364,7 +410,7 @@ Work that is known and deliberately left for later:
 
 ## Pending owner decisions
 
-1. **Flagged citations.** Accept, replace or remove the seven items marked **Flagged** in the [citation audit](#citation-audit-free-sources). Also decide whether the runtime strings that name paid standards should change in a later, versioned release.
+1. **Flagged citations.** The owner decided the seven flagged items; six are now replaced or removed (see the [citation audit](#citation-audit-free-sources)). One remains open: no free copy of Judd, MacAdam & Wyszecki (1964) or other free text of the daylight-locus formula was found. The owner decides whether to accept it as a CIE fact verified against the free CIE datasets, or to name another source. Runtime strings now name free sources (decided).
 2. **Agent instructions reset.** At the owner's request (2026-10-16), `AGENTS.md` was replaced with a short standard file. It keeps three rules:
    - changes and recommendations must be evidence-based;
    - only free-to-use sources, data, code and methods may be used;

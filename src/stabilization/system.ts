@@ -1621,7 +1621,7 @@ function localExposureForPoint(
     );
   if (matches.length !== 1) {
     throw new InvalidScientificInputError(
-      "Each stabilization sample point must match exactly one committed #12 exposure-window sample point."
+      "Each stabilization sample point must match exactly one committed exposure-window sample point."
     );
   }
   const match =
@@ -1815,7 +1815,7 @@ export function calculateStabilizedCaptureTemporalSamples(
     "capture-local-stabilization-temporal-sampling",
     "1.0.0",
     [
-      "Stabilization is evaluated at deterministic midpoint nodes inside each authoritative #12 local exposure window.",
+      "Stabilization is evaluated at deterministic midpoint nodes inside each authoritative local exposure window of the exposure-window model.",
       "Sensor data-readout timing is not substituted for exposure timing.",
       "The result is rotational disturbance/correction/residual state only; it does not itself calculate image-plane mapping, radiance, blur, PSF or output pixels.",
       "Translation/parallax, subject motion, shutter shock, support vibration sources and digital stabilization remain separate domains."

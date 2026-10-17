@@ -848,7 +848,7 @@ function localExposureForPoint(
     );
   if (matches.length !== 1) {
     throw new InvalidScientificInputError(
-      "Each extended-object capture point must match exactly one committed #12 exposure-window sample point."
+      "Each extended-object capture point must match exactly one committed exposure-window sample point."
     );
   }
   return matches[0]!;
@@ -1082,7 +1082,7 @@ export function calculateCaptureExtendedObjectTemporalProjection(
     "capture-local-extended-object-time-varying-projection",
     "1.0.0",
     [
-      "Every point is evaluated at deterministic midpoint nodes in its own authoritative #12 local exposure interval.",
+      "Every point is evaluated at deterministic midpoint nodes in its own authoritative local exposure interval of the exposure-window model.",
       "Sensor data-readout timing is not substituted for exposure time.",
       "Rolling/local exposure may cause different native destinations to integrate different portions of the same rigid object trajectory.",
       "The result remains geometry only and does not authorize endpoint interpolation as a complete visibility/radiance blur solution.",

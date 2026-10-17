@@ -7,10 +7,12 @@
  * Two dispersion inputs:
  * - thin-singlet-abbe: an ideal thin singlet whose index follows a two-term Cauchy dispersion
  *   n(lambda) = A + B / lambda^2 fitted to n_d and the Abbe number V_d = (n_d - 1) / (n_F - n_C)
- *   (Cauchy 1836; Born & Wolf, Principles of Optics, sec. 2.3; Hecht, Optics, 5th ed., sec. 3.5 and
- *   6.3). Lensmaker scaling gives f(lambda) = f_ref (n_ref - 1) / (n(lambda) - 1), so
- *   f_C - f_F ~ f_d / V_d (Hecht sec. 6.3.2; Kingslake & Johnson, Lens Design Fundamentals, 2nd ed.,
- *   ch. 5). The Fraunhofer d, F and C wavelengths (587.5618, 486.1327, 656.2725 nm) are standard
+ *   (Cauchy 1836; Oh 2023, arXiv:2309.09375, sec. 2.3.1(b), free; Abbe number: Greivenkamp,
+ *   OPTI-502 course notes, University of Arizona, sec. 17, free. Also see: Born & Wolf, Principles
+ *   of Optics, sec. 2.3; Hecht, Optics, 5th ed., sec. 3.5 and 6.3). Lensmaker scaling gives
+ *   f(lambda) = f_ref (n_ref - 1) / (n(lambda) - 1), so f_C - f_F ~ f_d / V_d (Greivenkamp,
+ *   OPTI-502 course notes, sec. 20, free. Also see: Hecht sec. 6.3.2; Kingslake & Johnson, Lens
+ *   Design Fundamentals, 2nd ed., ch. 5). The Fraunhofer d, F and C wavelengths (587.5618, 486.1327, 656.2725 nm) are standard
  *   spectral-line constants (SCHOTT Technical Information TIE-29, 2023, free; also specified in
  *   ISO 7944). A real multi-element lens is not a singlet, so this is an educational
  *   approximation.

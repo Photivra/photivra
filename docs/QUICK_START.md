@@ -78,7 +78,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `scene` | required | A chart preset or a caller function (below). |
 | `subjectDistanceM` | 5 | Distance of the scene plane. |
 | `illuminant` | Planckian 6500 K | Also `"cie-a"`, `{ kind: "planckian", temperatureKelvin }`, `{ kind: "daylight", correlatedColorTemperatureKelvin, basis }` or `{ kind: "spectrum", spectrum }`. |
-| `illuminanceLux` | 17 453 | See [Exposure](#exposure). |
+| `illuminanceLux` | 21 481 (π·80 000/11.7) | See [Exposure](#exposure). |
 | `output.width`, `output.height` | 64 × 64 | Output pixels. The sensor has one extra site on each side for demosaicing (see `output.borderHandling`). |
 | `output.format` | `"srgb-8"` | Also `"srgb-16"`, `"jpeg"`, `"png"` and `"dng"` (see [Output formats](#output-formats)). |
 | `output.colorEncoding` | `"srgb"` | PNG only: also `"display-p3"`, `"rec2020"`, `"rec2100-pq"` and `"rec2100-hlg"`. |
@@ -104,7 +104,8 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 Unknown fields are rejected, so a typo never silently falls back to a default.
 
 Every option added in 2.0 (PNG, demosaic, optics and motion) is opt-in. With none of them given, the
-request, RAW, samples and JPEG are byte-identical to the 1.0 facade, and a test checks that.
+request, RAW, samples and JPEG are byte-identical to the 1.0 facade at the same illuminance, and a
+test checks that. (The default illuminance changed before release; see [Exposure](#exposure).)
 
 ## Geometry
 
@@ -122,22 +123,39 @@ sensor values.
 The facade meters the scene like a reflected-light meter:
 
 - It averages the scene luminance on a 16 × 16 grid with the body's metering profile.
-- It follows the ISO 2720 relation N²/t = L·S/K, with K = 12.5 cd·s/m². (N is the f-number, t the
-  shutter time in seconds, L the scene luminance in cd/m², S the ISO setting.)
-- The anchor is f/8, 1/125 s, ISO 100, which is correct for L = 1000 cd/m².
+- It uses two relations from CIPA DC-004-2020 (free):
+  - standard output sensitivity S = 10/H (§3.2): the correct focal-plane exposure for ISO S is
+    H = 10/S lx·s;
+  - the camera equation H = 0.65·L·t/N² (§5.5 (4)), where 0.65 = τ·π/4 with lens transmittance
+    τ = 0.828 (Explanation 4).
+
+  N is the f-number, t the shutter time in seconds, L the scene luminance in cd/m² and S the ISO
+  setting. Together they give N²/t = 0.65·L·S/10.
+- The anchor is f/8, 1/125 s, ISO 100. It is correct for L = 10·N²/(0.65·t·S) =
+  10·64·125/(0.65·100) = 80 000/65 ≈ 1230.77 cd/m².
 - The meter target then goes through the engine's existing exposure-mode resolver.
 - In `program` mode, a generic program line written by the engine chooses the aperture and shutter.
 
-The default illuminance is π·K·N²/(t·S·0.18) = 17 453 lux. Under it, an 18 % grey card is exactly
-at the metered exposure for the default f/8, 1/125 s, ISO 100.
+DC-004 ties the reference level to an 18 % grey (Explanation 1 and 2.2). The default illuminance
+puts an 18 % Lambertian grey card, whose luminance is L = 0.18·E/π, exactly at that luminance:
+
+```text
+E = π·L/0.18 = π·10·N²/(0.65·t·S·0.18)
+  = π·10·64·125/(0.65·100·0.18) = π·80 000/11.7 ≈ 21 480.98 lux
+```
+
+Before 2.0.0 was released, the default was π·K·N²/(t·S·0.18) ≈ 17 453.29 lux, with the
+reflected-light meter constant K = 12.5 cd·s/m² of a paid standard. The DC-004 relations are
+equivalent to K = 10/0.65 ≈ 15.38 cd·s/m², so the new default has 10/(0.65·12.5) ≈ 1.231 times
+(about 0.30 EV) more light.
 
 The light does not follow your settings. Changing the shutter in manual mode changes the image
 brightness, as on a real camera.
 
-With these defaults, the green RAW level of an 18 % grey card is about 10.5 % of RAW white. This is
-close to the ISO 12232 saturation-based speed relation. (No free source for that relation was found;
-see the citation audit in the 2.0.0 release record.) The tier values were not tuned to get this
-result.
+With these defaults, the green RAW level of an 18 % grey card is about 13.1 % of RAW white. A 100 %
+reflector would then sit at about 73 % of white, roughly half a stop below clipping. DC-004 defines
+only the mid-grey reference level, not highlight headroom: this half stop is a property of the
+engine's generic tier presets, documented here, and the tier values were not tuned to get it.
 
 ## Scene presets
 
@@ -220,9 +238,9 @@ in-house zlib, and the colour encoding signalled in the file.
 | `colorEncoding` | Samples | PNG signalling |
 | --- | --- | --- |
 | `"srgb"` | Exactly the developed sRGB samples (the `srgb-8` / `srgb-16` output). | sRGB chunk (perceptual intent) with its prescribed gAMA/cHRM values |
-| `"display-p3"` | Linear colour converted to Display P3 primaries (SMPTE EG 432-1, D65), sRGB transfer. | cICP 12/13/0/1 |
+| `"display-p3"` | Linear colour converted to Display P3 primaries (W3C CSS Color 4 `display-p3`, D65), sRGB transfer. | cICP 12/13/0/1 |
 | `"rec2020"` | Linear colour converted to ITU-R BT.2020 primaries, BT.2020 OETF (the BT.709 curve). | cICP 9/1/0/1 |
-| `"rec2100-pq"` | BT.2020 primaries, SMPTE ST 2084 PQ, 16-bit full range. | cICP 9/16/0/1 |
+| `"rec2100-pq"` | BT.2020 primaries, ITU-R BT.2100 PQ, 16-bit full range. | cICP 9/16/0/1 |
 | `"rec2100-hlg"` | BT.2020 primaries, ARIB STD-B67 HLG, 16-bit full range. | cICP 9/18/0/1 |
 
 What is converted, and where:
@@ -233,7 +251,7 @@ What is converted, and where:
 - The wide-gamut and HDR encodings use the same development operator but stop before that clip. So
   colours outside sRGB survive, as negative or above-one sRGB components.
 - They convert that linear colour back to CIE XYZ and on to the target primaries (matrices from the
-  primaries and the D65 white, SMPTE RP 177).
+  primaries and the D65 white, as in W3C CSS Color 4; see [Colorimetry](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md)).
 - Gamut mapping then happens only once, in the target space. Components are clipped to [0, 1] for
   Display P3 and Rec. 2020. For PQ and HLG, negative BT.2020 components are clipped by
   `createHdrImageEncodingTask`.
@@ -269,7 +287,8 @@ console.log(hdr.image.samples instanceof Uint16Array, hdr.assumptions.find((a) =
 
 - CIELAB L* and hue are held.
 - Chroma above 90 % of the gamut-boundary chroma is compressed with a smooth knee that never reaches
-  the boundary (Morovič 2008).
+  the boundary (constant-lightness, constant-hue chroma reduction as in W3C CSS Color 4 §14, free; also
+  see Morovič 2008).
 - Hue is kept, whereas a component clip shifts it. The cost: saturated in-gamut colours above the knee
   lose a little chroma, and CIELAB hue drifts for saturated blues.
 - `"clip"` (the default) leaves the output exactly as before.
@@ -448,29 +467,31 @@ provided, for rights reasons.
 
 ## Sources
 
-- ISO 2720:1974, *General purpose photographic exposure meters (photoelectric type) — Guide to
-  product specification* (reflected-light calibration constant K; paid, no free equivalent found).
 - CIPA DC-004-Translation-2020, *Sensitivity of Digital Cameras*, free at
-  <https://www.cipa.jp/e/std/std-sec.html> (exposure index S = 10/H and focal-plane exposure
-  H = 0.65·L·t/N²).
-- ISO 12232:2019, *Photography — Digital still cameras — Determination of exposure index, ISO speed
-  ratings, standard output sensitivity, and recommended exposure index* (saturation-based speed; paid,
-  no free equivalent found).
+  <https://www.cipa.jp/e/std/std-sec.html> (standard output sensitivity S = 10/H, §3.2; reference
+  level tied to 18 % grey, §5.2 and Explanation 1, 2.2; focal-plane exposure H = 0.65·L·t/N², §5.5
+  and Explanation 4).
 - P. D. Burns, "Slanted-Edge MTF for Digital Camera and Scanner Analysis", Proc. IS&T PICS 2000,
   free at <https://www.imaging.org/common/uploaded%20files/pdfs/Papers/2000/PICS-0-81/1621.pdf>
   (slanted-edge geometry; also ISO 12233:2017).
 - BIPM, *The International System of Units*, 9th ed. (2019), free at
   <https://www.bipm.org/en/publications/si-brochure> (K_cd = 683 lm/W, the definition of the candela).
-- CIE 015:2018, *Colorimetry*, 4th ed. (illuminant A, daylight; paid). Computed values are checked
-  against the free CIE datasets at <https://cie.co.at/data-tables>.
+- BIPM, *Mise en pratique for the definition of the kelvin*, Absolute Primary Radiometry (2018),
+  Eq. (1), free at <https://www.bipm.org/utils/en/pdf/si-mep/MeP-K-2018_Absolute_Primary_Radiometry.pdf>
+  (Planck's law, used for the Planckian and illuminant A spectra). Illuminant A's defining constants
+  and the daylight polynomial come from CIE 015:2018 (paid); computed values are checked against the
+  free CIE datasets at <https://cie.co.at/data-tables> (see [Colorimetry](https://github.com/Photivra/photivra/blob/main/docs/COLORIMETRY.md)).
 - C. Wyman, P.-P. Sloan, P. Shirley, "Simple analytic approximations to the CIE XYZ color matching
   functions", *Journal of Computer Graphics Techniques* 2(2), 2013.
 - R. Luther, "Aus dem Gebiet der Farbreizmetrik", *Zeitschrift für technische Physik* 8, 1927
   (the Luther condition for colorimetric cameras).
-- IEC 61966-2-1:1999 (sRGB); SMPTE EG 432-1:2010 (P3 primaries); ITU-R BT.2020-2; ITU-R BT.2100-3
-  (PQ and HLG); SMPTE ST 2084; ITU-R BT.2408 (HDR reference white); SMPTE RP 177 (matrices from
-  primaries); ITU-T H.273 (cICP code points); W3C PNG Specification, Third Edition (2025).
-- Adobe DNG Specification 1.7.1.0 (2023); J. Morovič, *Color Gamut Mapping*, Wiley 2008, §10.
+- W3C CSS Color Module Level 4 (`srgb` and `display-p3`; RGB↔XYZ matrices from primaries and white),
+  free at <https://www.w3.org/TR/css-color-4/>; ITU-R BT.709-6 and BT.2020-2 (primaries and luminance
+  coefficients), BT.2100-3 (PQ and HLG) and BT.2408 (HDR reference white), free at
+  <https://www.itu.int/rec/R-REC-BT>; ITU-T H.273 (cICP code points); W3C PNG Specification, Third
+  Edition (2025).
+- Adobe DNG Specification 1.7.1.0 (2023); W3C CSS Color Module Level 4 §14 (free). Also see: J. Morovič,
+  *Color Gamut Mapping*, Wiley 2008, §10.
 - H. S. Malvar, L.-W. He, R. Cutler, "High-quality linear interpolation for demosaicing of
   Bayer-patterned color images", *Proc. IEEE ICASSP* 2004.
 - K. Miyamoto, "Fish eye lens", *JOSA* 54, 1964; J. Kannala, S. Brandt, *IEEE TPAMI* 28, 2006

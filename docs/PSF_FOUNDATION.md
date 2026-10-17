@@ -158,7 +158,7 @@ Model 1.1.0 added this input and result field. The pupil schema is still 0.1.0.
 
 ### Sampling guard (model 2.0.0)
 
-**Why padding is needed.** The intensity PSF is the Fourier transform of the pupil's autocorrelation, which is twice as wide as the pupil diameter D. To sample it without aliasing, Goodman's sampling factor must satisfy `Q = λN / Δu ≥ 2`. Here `N = z/D`, and `Δu = λz / (M·Δp)` is the image pitch of an M-point transform over pupil pitch Δp. Equivalently, `M·Δp ≥ 2D` (Goodman, *Introduction to Fourier Optics*, 4th ed., 2017, discrete Fourier-transform sampling of Fraunhofer propagation).
+**Why padding is needed.** The intensity PSF is the Fourier transform of the pupil's autocorrelation, which is twice as wide as the pupil diameter D. To sample it without aliasing, Goodman's sampling factor must satisfy `Q = λN / Δu ≥ 2`. Here `N = z/D`, and `Δu = λz / (M·Δp)` is the image pitch of an M-point transform over pupil pitch Δp. Equivalently, `M·Δp ≥ 2D` (Ban et al., [arXiv:2511.06936](https://arxiv.org/abs/2511.06936), eqs. 6–9, free: `N·d_p = λf/d_c` and `Q = λF/d_c ≥ 2`; the intensity PSF as the transform of the pupil autocorrelation: [MIT OpenCourseWare 2.71, lecture 22](https://ocw.mit.edu/courses/2-71-optics-spring-2009/resources/mit2_71s09_lec22/), free. Also see: Goodman, *Introduction to Fourier Optics*, 4th ed., 2017, discrete Fourier-transform sampling of Fraunhofer propagation).
 
 **What the evaluator does.** Suppose the pupil's non-zero amplitude spans S samples on an axis. Then `D = (S − 1)·Δp` (centre to centre), and the discrete autocorrelation has `2S − 1` lags. So the evaluator zero-pads each axis to `M = max(grid, 2S − 1)`. This is exactly the condition for the discrete intensity not to wrap around, and it gives `Q = M/(S − 1) > 2`. The kernel grows to M samples with a finer pitch. Its physical window, `λz/Δp`, does not change.
 
@@ -181,8 +181,8 @@ This path evaluates diffraction and aberration in one pupil calculation. Do not 
 
 Two helpers:
 
-- `calculateDefocusWavefront()` converts an image-plane defocus `dz` at working f-number `N` into `W020 = dz/(8N²)` and Z4 = `W020/(2√3)` (Goodman, *Introduction to Fourier Optics*; Mahajan, *Optical Imaging and Aberrations* Part I).
-- `estimateMarechalStrehlRatio()` gives the Maréchal/Mahajan approximation `exp(−(2πσ/λ)²)` (Mahajan 1982, *JOSA* 72:1258). It is roughly valid for Strehl ratios above 0.3.
+- `calculateDefocusWavefront()` converts an image-plane defocus `dz` at working f-number `N` into `W020 = dz/(8N²)` and Z4 = `W020/(2√3)` (Wyant & Creath 1992, *Applied Optics and Optical Engineering* XI ch. 1, eq. 18, [free author copy](https://wp.optics.arizona.edu/jcwyant/wp-content/uploads/sites/13/2016/08/03-BasicAberrations_and_Optical_Testing.pdf). Also see: Goodman, *Introduction to Fourier Optics*; Mahajan, *Optical Imaging and Aberrations* Part I).
+- `estimateMarechalStrehlRatio()` gives the Maréchal/Mahajan approximation `exp(−(2πσ/λ)²)` (Mahajan 1982, *JOSA* 72:1258; free: Wyant & Creath 1992, ch. 1, eq. 67). It is roughly valid for Strehl ratios above 0.3.
 
 Tests check:
 

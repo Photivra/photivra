@@ -92,9 +92,21 @@ GN(p, ISO) = GN_full · √p · √(ISO/100)
 p(d) = (d · N / (GN_full · √(ISO/100)))²,  clamped to [p_min, 1]
 ```
 
-**Why.** Subject illuminance falls with the inverse square of distance (∝ 1/d²). By the camera equation, sensor exposure is ∝ 1/N². Emitted energy scales with the power fraction `p`.
+**Derivation.** Treat the flash as a point source that emits a luminous energy per unit solid angle Q (lumen-seconds per steradian, i.e. luminous intensity integrated over the flash pulse). Q is proportional to the power fraction `p`: Q = p·Q_full.
 
-**Sources.** ISO 2827 (paid; no free equivalent found) specifies how a guide number is measured. Jacobson et al., *The Manual of Photography*, and Ray, *Applied Photographic Optics*, give the relation.
+1. *Inverse-square law.* At distance d the subject receives a luminous exposure (illuminance integrated over the pulse) of Q/d² lx·s.
+2. *Camera equation.* A diffuse subject of reflectance ρ then has a time-integrated luminance ρ·Q/(π·d²), and the focal-plane exposure is H = 0.65·ρ·Q/(π·d²·N²) (CIPA DC-004-2020 §5.5 (4), free, with L·t replaced by the time-integrated luminance).
+3. *Correct exposure.* The exposure is correct when H equals the reference exposure for the ISO setting S. With the DC-004 standard output sensitivity, H = 10/S (§3.2). So d²·N² = 0.65·ρ·Q·S/(10·π).
+4. *Guide number.* The right-hand side does not depend on d or N, so for a given flash, power and ISO the product d·N is a constant. That constant is the guide number: GN = d·N = √(0.65·ρ·Q·S/(10·π)).
+5. *Power scaling.* GN ∝ √Q ∝ √p, so GN(p) = GN_full·√p.
+6. *ISO scaling.* GN ∝ √S. Quoted relative to ISO 100, GN(S) = GN_100·√(S/100).
+7. *Power for a distance.* Solving d·N = GN_full·√p·√(ISO/100) for p gives the formula above.
+
+The engine does not model how a guide number is measured (the reflectance, metering and calibration conventions that fix the constant in step 4). The caller supplies GN_full, and the engine uses only the d, N, √p and √(ISO/100) relations derived here.
+
+**Source.** CIPA DC-004-Translation-2020, *Sensitivity of Digital Cameras*, free at <https://www.cipa.jp/e/std/std-sec.html> (S = 10/H and H = 0.65·L·t/N²). The inverse-square law for a point source is elementary photometry. Jacobson et al., *The Manual of Photography*, and Ray, *Applied Photographic Optics*, give the same relation.
+
+**Free sources.** No free source was found that states GN = d·N directly. Both of its parts are freely sourced: the inverse-square law for the illuminance from a lamp ([NIST SP 250-37](https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication250-37.pdf)) and the camera equation, image irradiance ∝ L/(f/#)² (Greivenkamp, [OPTI-502 course notes, sec. 11](https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-11-Radiative-Transfer.pdf)). The two books above are kept as "also see".
 
 **Functions.** `calculateFlashGuideNumber()` and `calculateFlashPowerForDistance()` implement it. The second also reports whether the power was clamped, the error in stops (delivered minus required), and the full-power range `GN/N`.
 
@@ -170,14 +182,15 @@ placement = saturationRelativeSignal · 2^(−headroomStops)       (the profile 
 scale     = placement / Q_p
 ```
 
-In the same frame, `p = 0.99, saturation = 1, headroom = 0.5` meters 0.9, and puts the bright area exactly half a stop below clipping. ISO 12232's saturation-based speed similarly keeps about half a stop above a 100 % reflector for highlights, which is a useful guide when choosing the headroom.
+In the same frame, `p = 0.99, saturation = 1, headroom = 0.5` meters 0.9, and puts the bright area exactly half a stop below clipping. The half-stop headroom of the generic tier preset is the engine's own documented choice, not a value taken from a standard. CIPA DC-004 (free) defines only the mid-grey reference level of standard output sensitivity (an 18 % grey at S = 10/H) and says nothing about highlight headroom.
 
 Because a quantile is not a linear average, `highlight-priority` is rejected by the time-averaged scene-radiance meter and by TTL flash.
 
 **References** (published methods only; nothing copied):
 
-- ISO 2827, *Photography — Electronic flash equipment — Determination of exposure guide number*.
-- R. E. Jacobson, S. F. Ray, G. G. Attridge and N. R. Axford, *The Manual of Photography*, 9th ed., Focal Press, 2000.
-- S. F. Ray, *Applied Photographic Optics*, 3rd ed., Focal Press, 2002.
+- Y. Ohno, *NIST Measurement Services: Photometric Calibrations*, NIST SP 250-37, 1997, free at <https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication250-37.pdf> (inverse-square law).
+- J. E. Greivenkamp, *OPTI-502 Optical Design and Instrumentation I*, sec. 11, University of Arizona, 2019, free at <https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-11-Radiative-Transfer.pdf> (camera equation).
+- Also see: R. E. Jacobson, S. F. Ray, G. G. Attridge and N. R. Axford, *The Manual of Photography*, 9th ed., Focal Press, 2000.
+- Also see: S. F. Ray, *Applied Photographic Optics*, 3rd ed., Focal Press, 2002.
 - R. J. Hyndman and Y. Fan, "Sample quantiles in statistical packages", *The American Statistician* 50(4), 1996.
-- ISO 12232:2019 (saturation-based speed; paid, no free equivalent found).
+- CIPA DC-004-Translation-2020, *Sensitivity of Digital Cameras*, free at <https://www.cipa.jp/e/std/std-sec.html> (S = 10/H, §3.2; H = 0.65·L·t/N², §5.5; 18 % grey reference level, Explanation 1 and 2.2).

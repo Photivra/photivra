@@ -18,7 +18,9 @@
  *
  * Integration uses explicit wavelength quadrature nodes `{wavelengthNanometers,
  * wavelengthMeasureNanometers}`. Nodes from `calculateSensorSpectralQuadrature()` have the
- * same shape and can be passed directly. X = k Σ S(λᵢ) R(λᵢ) x̄(λᵢ) Δλᵢ (CIE 15:2018 §7.1).
+ * same shape and can be passed directly. X = k Σ S(λᵢ) R(λᵢ) x̄(λᵢ) Δλᵢ: a quadrature of the tristimulus
+ * integral X = ∫ L(λ) x̄(λ) dλ with stimulus L = S·R (Wyman, Sloan & Shirley 2013, JCGT 2(2), Eq. 1, free;
+ * also CIE 15:2018 §7.1). The normalization k and the quadrature nodes are explicit choices.
  * @see docs/COLORIMETRY.md for equations, coordinate/unit conventions and limits.
  */
 
@@ -304,7 +306,7 @@ export function parseColorimetricQuadratureNodes(nodes: unknown): ColorimetricQu
 /**
  * Normalization of integrated tristimulus values.
  * - `white-luminance-one`: k = 1 / Σ S ȳ Δλ, so the perfect reflecting diffuser (or the
- *   illuminant itself) has Y = 1 (CIE 15:2018 relative colorimetry with Y scaled to 1).
+ *   illuminant itself) has Y = 1 (relative colorimetry with Y scaled to 1; also CIE 15:2018).
  * - `scale`: X = factor · Σ …; for example 683.002 lm/W with spectral radiance in
  *   W·m⁻²·sr⁻¹·nm⁻¹ yields luminance in cd/m² (the caller owns the unit semantics).
  */
@@ -390,7 +392,8 @@ function scaleXyz(xyz: CieXyzTristimulus, k: number): CieXyzTristimulus {
 
 /**
  * Integrates a spectrum (optionally multiplied by a reflectance/transmittance factor)
- * against colour-matching functions with caller-explicit quadrature (CIE 15:2018 §7).
+ * against colour-matching functions with caller-explicit quadrature (the tristimulus integral of
+ * Wyman, Sloan & Shirley 2013, Eq. 1; also CIE 15:2018 §7).
  * Provenance is `approximation` for the analytic CMF fit and `calculated` for
  * caller-tabulated CMFs. Either way, the caller chooses the quadrature.
  */

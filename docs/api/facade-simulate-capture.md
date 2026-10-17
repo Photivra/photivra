@@ -4,11 +4,13 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX
 
-Default illuminance: an 18 % grey card is at the ISO 2720 metered exposure for f/8, 1/125 s, ISO 100.
+Default illuminance, lux: an 18 % Lambertian grey card (L = 0.18·E/π) then gets exactly the CIPA DC-004 standard
+output sensitivity reference exposure H = 10/S at f/8, 1/125 s, ISO 100:
+E = π·10·N²/(0.65·t·S·0.18) = π·80 000/11.7 ≈ 21 480.98 lux.
 
 ```ts
-SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX = Math.PI * METER_CALIBRATION_K * DEFAULTS.fNumber ** 2 /
-  (DEFAULTS.shutterSeconds * DEFAULTS.iso * GREY_CARD_REFLECTANCE)
+SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX = Math.PI * sosReferenceLuminance(DEFAULTS.fNumber, DEFAULTS.shutterSeconds, DEFAULTS.iso) /
+  GREY_CARD_REFLECTANCE
 ```
 
 ## SIMULATE_CAPTURE_FACADE_VERSION
@@ -155,7 +157,7 @@ export interface SimulateCaptureOptions {
   subjectDistanceM?: number;
   /** Default: Planckian 6500 K (a blackbody stand-in for daylight; CIE D65 is not bundled). */
   illuminant?: CaptureIlluminant;
-  /** Illuminance on the scene plane, lux. Default 17 453 lux (see assumptions). */
+  /** Illuminance on the scene plane, lux. Default about 21 481 lux (see `SIMULATE_CAPTURE_DEFAULT_ILLUMINANCE_LUX` and the assumptions). */
   illuminanceLux?: number;
   output?: {
     /** Output pixels; the native sensor raster adds a one-site demosaic border on each side. Defaults 64 × 64. */

@@ -30,8 +30,9 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 ## calculateCieDaylightComponentWeights
 
 CIE daylight-locus chromaticity and S₁/S₂ weights for a CCT in 4000–25000 K
-(CIE 15:2018 §4.1.2). The CIE notes that M₁, M₂ are rounded to three decimals to
-reproduce the tabulated D50/D55/D65/D75; `coefficientRounding` makes that explicit.
+(CIE 15:2018 §4.1.2, paid; no free text of the formulas found). M₁, M₂ rounded to three decimals
+reproduce the free CIE D55 and D65 tables (DOI 10.25039/CIE.DS.qewfb3kp, 10.25039/CIE.DS.hjfjmt59)
+to their rounding; `coefficientRounding` makes that rounding explicit.
 The temperature is used as given: D65's nominal 6500 K corresponds to 6504 K here.
 
 ```ts
@@ -60,7 +61,8 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 CCT and Duv of a chromaticity as the nearest point of the Planckian locus in the CIE
 1960 UCS (Smet et al. 2023; also CIE 15:2018). Uses a golden-section search in reciprocal
 temperature (mired). Throws (fails closed) when the nearest point is at the model's range limit,
-or when |Duv| > 0.05, where CIE 15 advises not to use CCT.
+or when |Duv| > 0.05 (see {@link MAX_CORRELATED_COLOR_TEMPERATURE_DUV}). Duv is positive above the
+locus (toward green) and negative below it, the engine's documented sign convention.
 
 ```ts
 export function calculateCorrelatedColorTemperature(input: { chromaticity: CieXyChromaticity; locus: PlanckianLocusModel }): CalculationResult<CorrelatedColorTemperatureResult>;
@@ -140,7 +142,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface CorrelatedColorTemperatureResult {
   correlatedColorTemperatureKelvin: number;
-  /** Signed CIE 1960 uv distance from the locus; positive above (greenish), ANSI C78.377. */
+  /** Signed CIE 1960 uv distance from the locus; positive above (greenish), negative below (the engine's convention). */
   duv: number;
 }
 ```
@@ -215,7 +217,8 @@ KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN = Object.freeze({ minimum: 1667, maximum: 
 
 ## MAX_CORRELATED_COLOR_TEMPERATURE_DUV
 
-CIE 15:2018 §9.5: CCT should not be quoted beyond |Duv| = 0.05.
+Engine limit: no CCT beyond |Duv| = 0.05, the range over which Smet et al. (2023, free) evaluate CCT
+methods for nominally white light (CIE 15:2018 §9.5, paid, gives the same limit).
 
 ```ts
 MAX_CORRELATED_COLOR_TEMPERATURE_DUV = 0.05

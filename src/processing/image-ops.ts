@@ -186,7 +186,7 @@ export function pyramidBytes(width: number, height: number, channels: number, le
 export function rgbSpaceOf(space: ProcessingLinearColorSpace): RgbColorSpaceId {
   return space === "linear-srgb-d65" ? "srgb" : space === "linear-display-p3-d65" ? "display-p3" : "rec2020";
 }
-/** Luminance weights: the Y row of the space's RGB→XYZ matrix (SMPTE RP 177 derivation, white Y = 1). */
+/** Luminance weights: the Y row of the space's RGB→XYZ matrix (derived from primaries and white, white Y = 1). */
 export function luminanceWeights(space: ProcessingLinearColorSpace): readonly [number, number, number] {
   const row = resolveRgbColorSpace(rgbSpaceOf(space)).value.rgbToXyz[1];
   return [row[0], row[1], row[2]];

@@ -35,8 +35,9 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## calculateRgbToXyzMatrices
 
-Derives RGB ↔ XYZ matrices from primaries and white chromaticity (SMPTE RP 177):
-columns are the primaries' XYZ (Y = 1) scaled so that RGB (1, 1, 1) maps to the white.
+Derives RGB ↔ XYZ matrices from primaries and white chromaticity: columns are the primaries'
+XYZ (Y = 1) scaled so that RGB (1, 1, 1) maps to the white (W3C CSS Color 4, free; also SMPTE
+RP 177). The derivation is written out in docs/COLORIMETRY.md.
 
 ```ts
 export function calculateRgbToXyzMatrices(input: { primaries: RgbPrimaryChromaticities; whiteChromaticity: CieXyChromaticity }): CalculationResult<RgbToXyzMatrices>;

@@ -3,8 +3,9 @@
 /**
  * Wide-gamut and HDR output primitives (standalone; output wiring belongs to the
  * SDR/export stages):
- * - RGB ↔ XYZ matrices derived numerically from primary and white chromaticities
- *   (SMPTE RP 177-1993 method), never copied matrices.
+ * - RGB ↔ XYZ matrices derived numerically from primary and white chromaticities: RGB (1, 1, 1)
+ *   is the white (W3C CSS Color 4 §2, free), never copied matrices. They equal the CSS Color 4
+ *   sample-code matrices to about 1e-15 (test/colorimetry-output-and-camera.test.ts).
  *   sRGB / BT.709: ITU-R BT.709-6 and W3C CSS Color 4 `srgb` (also IEC 61966-2-1:1999); Display P3:
  *   P3 primaries with D65 white as specified for `display-p3` in W3C CSS Color 4 (also SMPTE EG 432-1:2010);
  *   BT.2020 / BT.2100: ITU-R BT.2020-2, BT.2100-3. All use D65 (0.3127, 0.3290).
@@ -51,7 +52,7 @@ export interface RgbToXyzMatrices {
   whiteXyz: CieXyzTristimulus;
 }
 
-/** Internal: SMPTE RP 177 derivation without an envelope. */
+/** Internal: derivation from primaries and white (see {@link calculateRgbToXyzMatrices}) without an envelope. */
 export function rgbToXyzMatrices(primaries: RgbPrimaryChromaticities, white: CieXyChromaticity): RgbToXyzMatrices {
   const p = requireRecordValue(primaries, "primaries");
   const columns = (["red", "green", "blue"] as const).map((k) => xyzOfChromaticity(parseChromaticity(p[k], "primaries." + k)));
@@ -68,8 +69,9 @@ export function rgbToXyzMatrices(primaries: RgbPrimaryChromaticities, white: Cie
 }
 
 /**
- * Derives RGB ↔ XYZ matrices from primaries and white chromaticity (SMPTE RP 177):
- * columns are the primaries' XYZ (Y = 1) scaled so that RGB (1, 1, 1) maps to the white.
+ * Derives RGB ↔ XYZ matrices from primaries and white chromaticity: columns are the primaries'
+ * XYZ (Y = 1) scaled so that RGB (1, 1, 1) maps to the white (W3C CSS Color 4, free; also SMPTE
+ * RP 177). The derivation is written out in docs/COLORIMETRY.md.
  */
 export function calculateRgbToXyzMatrices(input: { primaries: RgbPrimaryChromaticities; whiteChromaticity: CieXyChromaticity }): CalculationResult<RgbToXyzMatrices> {
   requireInputObject(input, "calculateRgbToXyzMatrices input");
@@ -93,11 +95,11 @@ export interface RgbColorSpaceDefinition extends RgbToXyzMatrices {
 const D65_CHROMATICITY: CieXyChromaticity = Object.freeze({ x: 0.3127, y: 0.3290 });
 const BT709_PRIMARIES: RgbPrimaryChromaticities = { red: { x: 0.64, y: 0.33 }, green: { x: 0.30, y: 0.60 }, blue: { x: 0.15, y: 0.06 } };
 const SPACES: Readonly<Record<RgbColorSpaceId, { primaries: RgbPrimaryChromaticities; transferFunction: RgbTransferFunctionId; sources: readonly string[] }>> = {
-  srgb: { primaries: BT709_PRIMARIES, transferFunction: "srgb", sources: ["IEC 61966-2-1:1999", "ITU-R BT.709-6"] },
+  srgb: { primaries: BT709_PRIMARIES, transferFunction: "srgb", sources: ["W3C CSS Color Module Level 4 srgb", "ITU-R BT.709-6"] },
   rec709: { primaries: BT709_PRIMARIES, transferFunction: "bt709-oetf-bt1886-eotf", sources: ["ITU-R BT.709-6", "ITU-R BT.1886"] },
   "display-p3": {
     primaries: { red: { x: 0.680, y: 0.320 }, green: { x: 0.265, y: 0.690 }, blue: { x: 0.150, y: 0.060 } },
-    transferFunction: "srgb", sources: ["SMPTE EG 432-1:2010 (P3 primaries)", "W3C CSS Color Module Level 4 display-p3 (D65, sRGB transfer)"]
+    transferFunction: "srgb", sources: ["W3C CSS Color Module Level 4 display-p3 (P3 primaries, D65, sRGB transfer)", "ITU-T H.273 ColourPrimaries 12"]
   },
   rec2020: {
     primaries: { red: { x: 0.708, y: 0.292 }, green: { x: 0.170, y: 0.797 }, blue: { x: 0.131, y: 0.046 } },
@@ -115,7 +117,7 @@ export function resolveRgbColorSpace(id: RgbColorSpaceId): CalculationResult<Rgb
     transferFunction: space.transferFunction, sources: [...space.sources],
     rgbToXyz: copyMatrix(matrices.rgbToXyz), xyzToRgb: copyMatrix(matrices.xyzToRgb), whiteXyz: matrices.whiteXyz
   };
-  return calculatedResult(value, "rgb-color-space-" + id, COLORIMETRY_MODEL_VERSION, ["Matrices derived from primaries and D65 white (SMPTE RP 177)"]);
+  return calculatedResult(value, "rgb-color-space-" + id, COLORIMETRY_MODEL_VERSION, ["Matrices derived from primaries and D65 white so that RGB (1, 1, 1) is the white (W3C CSS Color 4)"]);
 }
 
 // ---------------------------------------------------------------- transfers

@@ -75,7 +75,7 @@ export function resolveCaptureIlluminant(value: CaptureIlluminant): ResolvedCapt
         break;
       }
       case "cie-a":
-        spectrum = createCieIlluminantASpectrum(); id = "cie-a"; description = "CIE standard illuminant A from its defining formula (CIE 15).";
+        spectrum = createCieIlluminantASpectrum(); id = "cie-a"; description = "CIE standard illuminant A from its defining formula: Planck's law with c2 = 1.435e-2 m·K and T = 2848 K, 100 at 560 nm.";
         break;
       case "daylight":
         spectrum = createCieDaylightSpectrum({ correlatedColorTemperatureKelvin: value.correlatedColorTemperatureKelvin, coefficientRounding: "cie-three-decimals", basis: value.basis });

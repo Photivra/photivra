@@ -53,7 +53,7 @@ The radial models keep the image azimuth equal to the scene azimuth, so they are
 
 `calculateFieldOfView()` and `calculateFieldOfViewBounds()` take an optional `projectionModel`. If you omit it, or pass `"rectilinear"`, you get exactly the previous result and model id. A non-rectilinear model uses the focal length as its mapping scale. It rejects `focusDistanceM`, because the scale of a fisheye focused at a finite distance is not modelled.
 
-These are ideal mapping functions (Miyamoto 1964, *JOSA* 54:1060; Kingslake, *A History of the Photographic Lens*, 1989; Ray, *Applied Photographic Optics*, 3rd ed., 2002; Kannala & Brandt 2006, *IEEE TPAMI* 28:1335; Snyder, *Map Projections — A Working Manual*, USGS PP 1395, 1987). Real fisheye lenses deviate from them. Modelling a real lens would need a calibrated polynomial (for example Kannala–Brandt) with defensible provenance.
+These are ideal mapping functions (Kannala & Brandt 2006, *IEEE TPAMI* 28:1335, eqs. 1–5, [free author copy](https://users.aalto.fi/~kannalj1/calibration/Kannala_Brandt_calibration.pdf); Snyder, *Map Projections — A Working Manual*, USGS PP 1395, 1987, free; Miyamoto 1964, *JOSA* 54:1060. Also see: Kingslake, *A History of the Photographic Lens*, 1989; Ray, *Applied Photographic Optics*, 3rd ed., 2002). Real fisheye lenses deviate from them. Modelling a real lens would need a calibrated polynomial (for example Kannala–Brandt) with defensible provenance.
 
 ### Sensor geometry, sampling, capture, and crop
 
@@ -220,7 +220,7 @@ In 2.0 the interior extrema are the real roots of `dT/ds = r2 + 2 r4 s + 3 r6 s�
 
 `calculateNaturalVignetting()` offers two models of relative illumination for an aberration-free lens, based on pupil geometry:
 
-- `cosine-fourth`: `E/E0 = cos⁴θ`, with `tan θ = h / z` for image height `h` and exit-pupil distance `z` (Slater, *Photographic Systems for Engineers*, 1980; Kingslake & Johnson, *Lens Design Fundamentals*, 2nd ed., sec. 6.5).
+- `cosine-fourth`: `E/E0 = cos⁴θ`, with `tan θ = h / z` for image height `h` and exit-pupil distance `z` (Greivenkamp, [OPTI-502 course notes, sec. 11](https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-11-Radiative-Transfer.pdf), University of Arizona, free. Also see: Slater, *Photographic Systems for Engineers*, 1980; Kingslake & Johnson, *Lens Design Fundamentals*, 2nd ed., sec. 6.5).
 - `finite-lambertian-pupil`: the exact irradiance on a parallel plane from a uniform Lambertian (equally bright in all directions) disk of radius `a` (Foote 1915, *Bull. Bureau of Standards* 12:583):
   `E = (πL/2)[1 − (z² + h² − a²)/√((z² + h² + a²)² − 4a²h²)]`,
   normalised by its on-axis value `πL a²/(z² + a²)`. It approaches `cos⁴θ` for a small pupil. It is evaluated in a form free of cancellation error.
@@ -228,7 +228,7 @@ In 2.0 the interior extrema are the real roots of `dT/ds = r2 + 2 r4 s + 3 r6 s�
 `calculateMechanicalVignetting()` models mechanical (optical) vignetting and the cat's-eye pupil shape it produces.
 
 - Each clipping aperture is a circle referred to the entrance-pupil plane. It is shifted by `shiftPerTanFieldMm · tan θ` along the field azimuth.
-- The open pupil is where the entrance pupil overlaps every shifted circle (Kingslake & Johnson sec. 6.4; Smith, *Modern Optical Engineering*, 4th ed., sec. 6.3).
+- The open pupil is where the entrance pupil overlaps every shifted circle. Off axis, the ray bundle stays circular and centred on the chief ray, and each aperture passes only the part it covers (Greivenkamp, [OPTI-502 course notes, sec. 10](https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-10-Vignetting.pdf), free. Also see: Kingslake & Johnson sec. 6.4; Smith, *Modern Optical Engineering*, 4th ed., sec. 6.3).
 - With one aperture, the overlap area is computed exactly from the circle–circle lens formula. With any number of apertures, the exact convex boundary is returned as a sampled polygon (pupil-plane mm, +X right, +Y up), with its area and centroid.
 - `combinedRelativeIllumination = cos⁴θ × open-area ratio`. This assumes an object at infinity and no pupil aberration.
 
@@ -318,7 +318,7 @@ This simple scale does not model principal-plane movement, pupil magnification, 
 - `unit-focus`: the whole lens moves and its focal length stays constant. `u + v = T` and `1/u + 1/v = 1/f`, so `v = 2fT / (T + √(T² − 4fT))` for `T ≥ 4f`. The field narrows as `v` grows. With zero hiatus this reproduces the focus-aware thin-lens field of view exactly.
 - `fixed-image-distance-internal-focus`: an idealised internal-focus lens keeps `v = f∞` and shortens its focal length to `f' = uv/(u + v)`. The angular field does not change, and magnification is `f∞/u`.
 
-Both models are paraxial, with the nodal points at the principal planes (Kingslake & Johnson, *Lens Design Fundamentals*, 2nd ed., ch. 3; Ray, *Applied Photographic Optics*, 3rd ed., ch. 9 and 14).
+Both models are paraxial, with the nodal points at the principal planes (Greivenkamp, OPTI-502 course notes, [sec. 3](https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-03-Imaging-with-a-Thin-Lens.pdf) and [sec. 5](https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-05-Gaussian-Imagery.pdf), free. Also see: Kingslake & Johnson, *Lens Design Fundamentals*, 2nd ed., ch. 3; Ray, *Applied Photographic Optics*, 3rd ed., ch. 9 and 14).
 
 You can pass `equivalentBreathingProjectionScale` (exactly 1 for unit focus) to the declared-scale model, with `focusDistanceM = objectDistanceMm / 1000`. Real internal-focus lenses also move their pupils and principal planes, so real breathing still needs a calibrated profile. The declared-scale model still never infers its scale.
 
@@ -346,7 +346,7 @@ The depth-of-field (DOF) model uses the exact thin-lens near and far limits, wit
 - near limit `= s(H − f)/(H + s − 2f)`;
 - far limit `= s(H − f)/(H − s)`. It is infinite (`null`) when `s ≥ H`.
 
-These limits solve `f²|s − d|/(N d (s − f)) = c`. That expression is the thin-lens defocus-circle diameter used by `calculateDefocusCircle()`, so the defocus circle at either limit equals `c` exactly (Ray, *Applied Photographic Optics*). Model `thin-lens-depth-of-field` 1.1.0 replaced the earlier approximation `Hs/(H ± (s − f))`. The old formula slightly misplaced both limits, and returned a finite far limit when focused at `H`.
+These limits solve `f²|s − d|/(N d (s − f)) = c`. That expression is the thin-lens defocus-circle diameter used by `calculateDefocusCircle()`, so the defocus circle at either limit equals `c` exactly (thin-lens depth-of-field limits from the image-plane blur criterion: Greivenkamp, [OPTI-502 course notes, sec. 12](https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-12-Objectives.pdf), free. Also see: Ray, *Applied Photographic Optics*). Model `thin-lens-depth-of-field` 1.1.0 replaced the earlier approximation `Hs/(H ± (s − f))`. The old formula slightly misplaced both limits, and returned a finite far limit when focused at `H`.
 
 The near limit is beyond the focal length only when `H − f > f`, that is, when `c < f/N` (the aperture diameter). From package 2.0.0, a circle of confusion at or above `f/N` is rejected as a domain error. Previously it returned a near limit inside the focal length.
 
@@ -385,7 +385,7 @@ Defocus is computed geometrically. The model compares the sensor plane chosen fo
 Longitudinal chromatic aberration is when different wavelengths come to focus at different distances. `calculateLongitudinalChromaticFocus()` returns the focal length at a given wavelength, and the signed image-plane defocus for a sensor focused on `focusDistanceM` at a reference wavelength. Two models are available:
 
 - `thin-singlet-abbe`: an ideal thin single-element lens.
-  - Dispersion uses the two-term Cauchy formula `n(λ) = A + B/λ²`, fitted exactly to `n_d` and the Abbe number `V_d = (n_d − 1)/(n_F − n_C)` (Hecht, *Optics*, 5th ed., sec. 3.5 and 6.3; Born & Wolf sec. 2.3).
+  - Dispersion uses the two-term Cauchy formula `n(λ) = A + B/λ²`, fitted exactly to `n_d` and the Abbe number `V_d = (n_d − 1)/(n_F − n_C)` (Cauchy form: Oh 2023, [arXiv:2309.09375](https://arxiv.org/abs/2309.09375), sec. 2.3.1(b); Abbe number: Greivenkamp, [OPTI-502 course notes, sec. 17](https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-17-Materials.pdf); f_C − f_F ≈ f_d/V_d: [sec. 20](https://wp.optics.arizona.edu/jgreivenkamp/wp-content/uploads/sites/11/2019/08/502-20-Chromatic-Effects.pdf); all free. Also see: Hecht, *Optics*, 5th ed., sec. 3.5 and 6.3; Born & Wolf sec. 2.3).
   - Focal length scales by the lensmaker relation `f(λ) = f_ref (n_ref − 1)/(n(λ) − 1)`, which gives the classical `f_C − f_F ≈ f/V`.
   - Valid as an approximation over 360–830 nm. The d, F and C wavelengths (587.5618, 486.1327, 656.2725 nm) are standard spectral-line constants (ISO 7944).
 - `declared-focal-shift`: a focal-shift table declared by the caller (for example an achromat's secondary spectrum). It is linearly interpolated, re-referenced to the reference wavelength, and never extrapolated.
@@ -396,7 +396,7 @@ Defocus is the sensor distance minus the image distance. The geometric blur diam
 
 Front-of-lens filter schema `0.2.0` adds `kind: "linear-polarizer"`. It has a principal transmittance `k1`, an extinction ratio `k1/k2` and a transmission-axis angle. `polarizationModeled` is `true` for this kind only.
 
-Light is described by linear Stokes parameters. Filters combine in light-path order through linear-diattenuator Mueller matrices (Chipman, *Handbook of Optics* vol. I ch. 22, 3rd ed.; Goldstein, *Polarized Light*, 3rd ed.; Born & Wolf sec. 1.4.2):
+Light is described by linear Stokes parameters. Filters combine in light-path order through linear-diattenuator Mueller matrices (Gil, [arXiv:2002.04105](https://arxiv.org/abs/2002.04105), eqs. 134–135; Malus's law: [OpenStax *University Physics* Vol. 3, sec. 1.7](https://openstax.org/books/university-physics-volume-3/pages/1-7-polarization); both free. Also see: Chipman, *Handbook of Optics* vol. I ch. 22, 3rd ed.; Goldstein, *Polarized Light*, 3rd ed.; Born & Wolf sec. 1.4.2):
 
 ```text
 T = (k1 + k2)/2 + (k1 − k2)/2 · P · cos 2(ψ − θ)

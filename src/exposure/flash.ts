@@ -951,7 +951,7 @@ function validateReleaseBinding(
       scale
   ) {
     throw new InvalidScientificInputError(
-      "releaseFrame shutter duration must match the #12 capture-mode timing exposure duration."
+      "releaseFrame shutter duration must match the exposure duration of the capture-mode exposure-window timing."
     );
   }
 }
@@ -1096,7 +1096,7 @@ export function resolveManualFlashSync(
       0
   ) {
     throw new InvalidScientificInputError(
-      "Ordinary one-pulse flash cannot uniformly expose the active frame because the #12 timing has no whole-frame-open interval."
+      "Ordinary one-pulse flash cannot uniformly expose the active frame because the exposure-window timing has no whole-frame-open interval."
     );
   }
   if (
@@ -1399,7 +1399,7 @@ export function createManualFlashIlluminationOverlay(
           kind:
             "not-quantified",
           limitation:
-            "Schema 0.1.0 uses ideal deterministic flash trigger registration within the declared #12 exposure-window schedule."
+            "Schema 0.1.0 uses ideal deterministic flash trigger registration within the declared exposure-window schedule."
         },
         evidence:
           sync.evidence

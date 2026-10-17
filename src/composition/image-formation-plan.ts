@@ -3709,7 +3709,7 @@ function computePhysicalResult(
       stageId:
         "lens-field-pupil-evaluation",
       message:
-        "Physical lens-throughput planning requires a prepared #110 optical bridge profile."
+        "Physical lens-throughput planning requires a prepared scene-radiance-to-sensor-irradiance optical bridge profile."
     });
     return undefined;
   }
@@ -4063,7 +4063,7 @@ function deriveStagePlan(
               "missing-physical-scene-sample",
             stageId: stage.id,
             message:
-              "Scene-radiance stage requires one immutable #85 request/result sample."
+              "Scene-radiance stage requires one immutable scene-radiance provider request/result sample."
           };
           addBlocker(
             blockers,

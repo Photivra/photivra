@@ -12,7 +12,7 @@
  *    This is continuous and monotone and never reaches C_max. k = 1 means hard clipping to the
  *    boundary at constant (L*, h) ("chroma clipping").
  *
- * Sources: the binary-search chroma reduction in W3C CSS Color Module Level 4 §13, which uses OKLCh;
+ * Sources: the binary-search chroma reduction in W3C CSS Color Module Level 4 §14, which uses OKLCh;
  * also the constant-lightness, constant-hue chroma reduction methods surveyed by Morovič (2008),
  * Color Gamut Mapping (Wiley), §10. This independent implementation uses CIELAB, to avoid extra
  * third-party matrices.
