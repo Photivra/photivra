@@ -4363,6 +4363,16 @@
       "kind": "runtime"
     },
     {
+      "name": "PackedSensorAdditionalChargeComponent",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PackedSensorFixedPatternNoise",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "type"
+    },
+    {
       "name": "PackedSensorRawDiagnostics",
       "source": "src/capture/packed-sensor-raw.ts",
       "kind": "type"

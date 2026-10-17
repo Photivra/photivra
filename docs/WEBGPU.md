@@ -83,8 +83,8 @@ Per-site radiance and pupil sampling (the 75-hour path in #277) stay on the CPU.
 - **Temporal exposure sum** (reference limits, which also bound the float32 range):
   - Samples finite, non-negative and ≤ 2^100; row weights in [0, 2^16]; 1–256 nodes; displacements within ±4096 sites; ≤ 24 MP.
 - **Sensor stage:**
-  - The packed input itself supports one readout regime with a uint16 ADC (≤ 16 bits), ≤ 16 read-noise components, one physical capacity for the frame, photo and dark charge only. It has no additional stored-charge components and no fixed-pattern noise; use `simulateSensorRawFrame` for those.
-  - On the GPU (`unsupported-float32-domain` otherwise): capacity ≤ 2^24 electrons; expected photo and dark electrons < 2^30 per site; 2^-60 ≤ 1/gain ≤ 2^60 and capacity/gain ≤ 2^30; each read-noise RMS 0 or in [2^-100, 2^100], with 7·ΣRMS ≤ 2^28 electrons and ≤ 2^20 codes.
+  - The packed input itself supports one readout regime with a uint16 ADC (≤ 16 bits), ≤ 16 read-noise components, one physical capacity for the frame, photo and dark charge, an optional fixed-pattern noise profile and up to 8 additional stored-charge components (2.0). The per-site producer allows 32 components; use `simulateSensorRawFrame` for more than 8.
+  - On the GPU (`unsupported-float32-domain` otherwise): capacity ≤ 2^24 electrons; expected photo and dark electrons (after the fixed-pattern factors) and each additional component < 2^30 per site; the deterministic components' sum < 2^30 per site; 2^-60 ≤ 1/gain ≤ 2^60 and capacity/gain ≤ 2^30; each read-noise RMS 0 or in [2^-100, 2^100], with 7·ΣRMS ≤ 2^28 electrons and ≤ 2^20 codes; |fixed-pattern readout offset| ≤ 2^28 electrons and ≤ 2^20 codes.
 
 ## Equations
 
@@ -126,10 +126,10 @@ A saturated site normalizes to exactly 1, while every unsaturated value is ≤ 1
 
 **Sensor stage** (`simulatePackedSensorRaw`, schema 0.1.0, noise model `photivra-native-raw-noise` 0.4.0):
 
-- **Equations:** the per-site producer's sensor steps on typed arrays, in its exact operation order (`calculateNativeRawSite` without fixed-pattern noise or additional components):
-  1. Poisson photo and dark draws from the charge stream;
+- **Equations:** the per-site producer's sensor steps on typed arrays, in its exact operation order (`calculateNativeRawSite`):
+  1. Poisson photo and dark draws from the charge stream. With a fixed-pattern profile (`SENSOR_FIXED_PATTERN_NOISE_MODEL` 1.0.0) the means are first multiplied by the site's PRNU gain and DSNU or hot-pixel dark factor (`calculateSensorFixedPatternSite`, at colour-sampling site = native site + `fixedPatternNoise.siteOrigin`). Then each additional stored-charge component in declaration order: a Poisson draw from the same stream, or its deterministic expectation. The total is photo + dark + (sum of the components);
   2. min(realized, capacity);
-  3. Box–Muller read noise from the read-noise stream;
+  3. Box–Muller read noise from the read-noise stream, plus the fixed-pattern row and column offsets;
   4. the pre-ADC limit;
   5. `adcTransfer`: (signal/gain + black + INL), rounded half up, optional digital gain;
   6. the final clamp.
@@ -146,7 +146,12 @@ A saturated site normalizes to exactly 1, while every unsaturated value is ≤ 1
   - PTRS's log-probability test is evaluated as k·g(t) − ½ ln k − ½ ln 2π − R(k), with g(t) = ln(1 + t) − t and t = (mean − k)/k. This is algebraically identical to the reference's −mean + k ln mean − log k! and avoids its cancellation. R(k) is the reference's own log k! minus Stirling's leading terms, tabulated in float64 for k < 256.
   - The ADC input (signal/gain + black) is formed exactly: an exact integer part plus a float32 fraction, using 12-bit splits of 1/gain and of the digital gain.
   - WGSL's built-in `cos` has only a 2^-11 absolute bound, so the kernel uses its own octant-reduced Taylor polynomials.
-- **Branch selection:** the zero and Poisson-branch categories (< 30, < 1e9, normal) are computed on the host in float64, so the GPU always takes the reference's branch. Means of 1e9 and above always exceed the capacity bound of 2^24, so their exact draw cannot change a code.
+- **Branch selection:** the zero and Poisson-branch categories (< 30, < 1e9, normal) are computed on the host in float64, so the GPU always takes the reference's branch. Means of 1e9 and above always exceed the capacity bound of 2^24, so their exact draw cannot change a code. Partial charge sums saturate at 2^30 on the GPU, above every supported capacity, so saturating cannot change a decision either.
+- **Fixed-pattern noise and additional charge (2.0), same guarantee:**
+  - The host evaluates every site's fixed-pattern values in float64 with the model's own functions (row and column offsets once per row and column). It packs the Poisson means already multiplied by the factors, which are exactly the reference's float64 products, so the Poisson branch and draws are unchanged.
+  - The readout offset enters twice, both formed in float64 on the host: the pre-ADC test becomes afterPhysical − (threshold − offset) + noise > 0, and the ADC input gains offset/gain as an exact integer part plus a float32 fraction. Their bounds add the reference's own float64 rounding of the offset sum (2^-47 relative slack, as for the other terms) and the fraction's float32 rounding.
+  - Deterministic components make the stored charge non-integer. Their sum enters as an exact integer part plus a float32 fraction, and the capacity test becomes a float32 difference with its own bound (both fractions' roundings and the reference's rounding of the total), so a near-tie at the capacity is flagged.
+  - With either feature, the noise-free exact-tie mode is off, so every ADC rounding decision carries its bound.
 
 ## Error bounds (a priori, reported per result)
 
@@ -221,6 +226,7 @@ This section states what the `webgpu-f32` path promises for each stage, relative
 | --- | --- | --- | --- |
 | Temporal sum, rolling and global, sub-site and integer motion | 257×129 K=1, 200×150 K=9, 160×120 K=32, 120×160 K=5; nine-decade samples | relative 2.1e-7 … 5.3e-7 | relative 5.4e-7 … 2.4e-6 |
 | Sensor stage, six regimes (unit and fractional gain, 12–16 bit, three noise sources, INL, exact and inexact digital gain, noise-free) | 256×128 sites: zero, multiplication, PTRS and normal-approximation means; capacity and pre-ADC saturation; dark signal | 0 differing sites. 95–117 flagged (0.3–0.4 %); 804 flagged (2.5 %) with the inexact digital gain 1.3, whose products land on near-ties | exact except flagged sites |
+| Sensor stage with fixed-pattern noise (PRNU 1 %, DSNU 20 %, 1 % hot pixels × 40, row 1.5 e⁻ and column 0.75 e⁻ RMS) and three additional components (two Poisson, one fractional deterministic), five regimes | 256×128 sites, same corpus plus the extras | 0 differing sites. 104–129 flagged (0.3–0.4 %); 1443 flagged (4.4 %) with the inexact digital gain 1.3 | exact except flagged sites |
 | Sensor statistics | five uniform patches × 4096 sites, 3–20 000 e⁻ | GPU and reference moments identical (16 flagged sites); both within the model tolerances | statistical (above) |
 | Convolution | 257×193 r=0 … 64×64 r=32, nine-decade grids, field-varying anisotropic kernels | relative 1.4e-7 (r=0) … 3.8e-6 (r=32) | relative 2.4e-7 … 2.5e-4 |
 | SDR, 8 and 16 bit, identity/Reinhard, clip/reject, f32/f64 | 300×41 with code centres, near-ties, transfer breakpoints, ±0, clipping | 1 code (0.0–4.9 % of samples differ) | 1 code |
@@ -297,7 +303,7 @@ How the suite finds and launches a browser:
 - The bounds assume conforming hardware and drivers. Non-conforming flush-to-zero or `pow` behaviour outside the WGSL accuracy table would void them; the conformance suite is how a device is checked.
 - The convolution is a primitive. Building kernels from `LensPsfProfile` nodes, spectral weighting, vignetting and depth handling stay with the #277 work items.
 - The sensor bounds also assume the compiler does not reassociate the kernel's float32 expressions; fused multiply-add contraction only removes roundings and is harmless. The exact integer-plus-fraction ADC sums rely on this. A device that breaks it shows up as an unflagged differing site in `test/webgpu/stages.webgpu.ts`.
-- The sensor stage does not yet cover fixed-pattern noise or additional stored-charge components. The temporal sum covers rigid translation only.
+- The sensor stage's fixed-pattern values are evaluated on the host (float64, once per site). They depend only on the sensor instance, so a caller rendering many frames of one sensor pays this per frame; caching them across frames is not built. The temporal sum covers rigid translation only.
 - Still open for #277:
   - scene radiance on the GPU and the batched provider API;
   - the per-fixture rollout, with method-error comparisons against the per-site engine on sampled tiles (Color, IQ, DR, Motion, Focus);

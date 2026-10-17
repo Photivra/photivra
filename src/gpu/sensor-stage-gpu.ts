@@ -6,13 +6,13 @@
  * (capture/packed-sensor-raw.ts). Internal; the public entry point is the image-kernel accelerator.
  */
 import { createHostYieldGate } from "../capture/host-yield-cadence.js";
-import { calculatePackedSensorRawPlan, packedSensorDiagnostics, simulatePackedSensorRows, type PackedSensorRawInput,
-  type PackedSensorRawPlan } from "../capture/packed-sensor-raw.js";
+import { calculatePackedSensorRawPlan, createPackedFixedPattern, packedSensorDiagnostics, packedSensorExtras, simulatePackedSensorRows,
+  type PackedSensorRawInput, type PackedSensorRawPlan } from "../capture/packed-sensor-raw.js";
 import { adcTransfer, type SensorReadoutConversionRegime } from "../sensor/raw-readout.js";
 import { ImageKernelExecutionError, webGpuExecution, type ImageKernelExecution } from "./image-kernel-execution.js";
 import type { AcceleratedPackedSensorRawResult } from "./image-kernel-accelerator.js";
 import { BUFFER_USAGE, GpuResourceScope, abortedError, linearDispatch, runComputePass, type WebGpuRuntime } from "./webgpu-runtime.js";
-import { SENSOR_AUX, SENSOR_MEAN_CATEGORY, SENSOR_OUTPUT, SENSOR_RAW_WGSL, SENSOR_SITE_WORDS, SENSOR_WORKGROUP_SIZE } from "./wgsl-sensor-kernel.js";
+import { SENSOR_AUX, SENSOR_EXTRAS, SENSOR_MEAN_CATEGORY, SENSOR_OUTPUT, SENSOR_RAW_WGSL, SENSOR_SITE_WORDS, SENSOR_WORKGROUP_SIZE } from "./wgsl-sensor-kernel.js";
 
 type PipelineSource = (label: string, code: string) => Promise<GPUComputePipeline>;
 type YieldControl = ((signal: AbortSignal) => Promise<void>) | undefined;
@@ -21,6 +21,11 @@ type YieldControl = ((signal: AbortSignal) => Promise<void>) | undefined;
 export const SENSOR_GPU_MAXIMUM_CAPACITY = 2 ** 24;
 /** Poisson means must stay below this on the GPU (30-bit integer part of a mean word). */
 export const SENSOR_GPU_MAXIMUM_MEAN = 2 ** 30;
+/** Largest |fixed-pattern readout offset| on the GPU, in electrons and in codes. */
+export const SENSOR_GPU_MAXIMUM_OFFSET_ELECTRONS = 2 ** 28;
+export const SENSOR_GPU_MAXIMUM_OFFSET_CODES = 2 ** 20;
+const CPU_RELATIVE = 2 ** -47;
+const U = 2 ** -24;
 const POISSON_NORMAL_MINIMUM_MEAN = 1e9;
 
 function checkAbort(signal: AbortSignal): void {
@@ -32,12 +37,12 @@ export async function simulateSensorRawOnCpu(input: PackedSensorRawInput, abort:
   execution: ImageKernelExecution): Promise<AcceleratedPackedSensorRawResult> {
   const plan = calculatePackedSensorRawPlan(input);
   // Snapshot so a caller mutation during host yields cannot change the reference.
-  const photo = input.photoElectrons.slice(), dark = input.darkElectrons.slice();
+  const photo = input.photoElectrons.slice(), dark = input.darkElectrons.slice(), extras = packedSensorExtras(plan, input, true);
   const codes = new Uint16Array(plan.siteCount), counts = [0, 0, 0, 0];
   const rowsPerChunk = Math.max(1, Math.floor(65_536 / plan.region.width)), gate = createHostYieldGate();
   for (let row = 0; row < plan.region.height; row += rowsPerChunk) {
     checkAbort(abort.signal);
-    simulatePackedSensorRows(plan, photo, dark, row, Math.min(plan.region.height, row + rowsPerChunk), codes, counts);
+    simulatePackedSensorRows(plan, photo, dark, row, Math.min(plan.region.height, row + rowsPerChunk), codes, counts, extras);
     if (yieldControl && gate.due()) { await yieldControl(abort.signal); gate.restart(); }
   }
   checkAbort(abort.signal);
@@ -84,7 +89,8 @@ function unsupported(message: string): ImageKernelExecutionError {
   return new ImageKernelExecutionError("unsupported-float32-domain", message);
 }
 
-interface SensorConstants { aux: Float32Array<ArrayBuffer>; params: ArrayBuffer }
+interface SensorConstants { aux: Float32Array<ArrayBuffer>; params: ArrayBuffer; siteWords: number; poissonComponents: number[];
+  deterministicComponents: number[]; threshold: number; gain: number }
 
 /** Checks the float32 execution domain and builds the frame constants (see docs/WEBGPU.md). @internal */
 export function sensorGpuConstants(plan: PackedSensorRawPlan): SensorConstants {
@@ -94,7 +100,9 @@ export function sensorGpuConstants(plan: PackedSensorRawPlan): SensorConstants {
   const sigmas = regime.readNoiseComponents.map(c => c.rmsElectrons.value);
   const sigmaSum = sigmas.reduce((s, v) => s + v, 0);
   if (capacity > SENSOR_GPU_MAXIMUM_CAPACITY) throw unsupported("Physical capacity above 2^24 electrons is outside the float32 sensor domain.");
-  if (!(plan.maximumPhotoElectrons < SENSOR_GPU_MAXIMUM_MEAN && plan.maximumDarkElectrons < SENSOR_GPU_MAXIMUM_MEAN)) {
+  // Fixed-pattern factors scale the means; those are checked per site while packing.
+  if (!(plan.maximumPhotoElectrons < SENSOR_GPU_MAXIMUM_MEAN && plan.maximumDarkElectrons < SENSOR_GPU_MAXIMUM_MEAN) ||
+      plan.additionalChargeComponents.some(c => !(c.maximumExpectedElectrons < SENSOR_GPU_MAXIMUM_MEAN))) {
     throw unsupported("Expected electrons of 2^30 and above are outside the float32 sensor domain.");
   }
   if (!(inverse >= 2 ** -60 && inverse <= 2 ** 60) || capacity * inverse > 2 ** 30 ||
@@ -118,14 +126,18 @@ export function sensorGpuConstants(plan: PackedSensorRawPlan): SensorConstants {
   const { digitalGain: _omitted, ...withoutDigital } = adc;
   void _omitted;
   const saturated = adcTransfer({ ...regime, adc: withoutDigital } as SensorReadoutConversionRegime, plan.readout.adcMaximumCode, threshold).quantized;
-  const params = new ArrayBuffer(96), words = new Uint32Array(params), ints = new Int32Array(params), floats = new Float32Array(params);
+  const params = new ArrayBuffer(128), words = new Uint32Array(params), ints = new Int32Array(params), floats = new Float32Array(params);
   const capacityFloor = Math.floor(capacity), thresholdFloor = Math.min(Math.floor(threshold), 2 ** 30);
   words[2] = plan.region.width; words[3] = plan.nativeWidth; words[4] = plan.region.x; words[5] = plan.region.y;
   // Mode bits: 1 digital gain; 2 the digital-gain product is exact on both sides (gain has ≤ 12 significant
   // bits); 4 the ADC input is exact on both sides (no read noise, power-of-two gain, integer capacity, no INL).
   // In an exact mode both evaluations give the same dyadic value, so a tie is decided identically and needs no flag.
   const digitalExact = digital !== null && digital.residual === 0 && digital.pieces.slice(1).every(p => p === 0);
-  const idealExact = sigmas.every(s => s === 0) && Number.isInteger(Math.log2(gain)) && Number.isInteger(capacity) && knots.length === 0;
+  const poissonComponents: number[] = [], deterministicComponents: number[] = [];
+  plan.additionalChargeComponents.forEach((c, k) => (c.model === "poisson" ? poissonComponents : deterministicComponents).push(k));
+  const deterministic = deterministicComponents.length > 0, pattern = plan.fixedPatternNoise !== null;
+  const idealExact = sigmas.every(s => s === 0) && Number.isInteger(Math.log2(gain)) && Number.isInteger(capacity) && knots.length === 0 &&
+    !deterministic && !pattern;
   words[6] = plan.captureSeedUint32; words[7] = sigmas.length; words[8] = knots.length;
   words[9] = (digital ? 1 : 0) | (digitalExact ? 2 : 0) | (idealExact ? 4 : 0);
   words[10] = adc.digitalSaturationCode; words[11] = plan.readout.adcMaximumCode; words[12] = capacityFloor; words[13] = thresholdFloor;
@@ -134,12 +146,31 @@ export function sensorGpuConstants(plan: PackedSensorRawPlan): SensorConstants {
   floats[18] = inverse; floats[19] = inversePieces.residual * (1 + 2 ** -20);
   floats[20] = adc.digitalGain ?? 1; floats[21] = digital ? digital.residual * (1 + 2 ** -20) : 0;
   floats[22] = slope * (1 + 2 ** -20); floats[23] = offset;
-  return { aux, params };
+  const siteWords = SENSOR_SITE_WORDS + 2 * poissonComponents.length + (deterministic ? 2 : 0) + (pattern ? 4 : 0);
+  words[24] = siteWords; words[25] = poissonComponents.length;
+  words[26] = (deterministic ? SENSOR_EXTRAS.deterministic : 0) | (pattern ? SENSOR_EXTRAS.fixedPattern : 0);
+  return { aux, params, siteWords, poissonComponents, deterministicComponents, threshold, gain };
+}
+
+/** Writes the float64 slack terms of the fixed-pattern bounds, from the region's largest offsets. */
+function setFixedPatternSlack(params: ArrayBuffer, threshold: number, maximumOffset: number, maximumOffsetCodes: number): void {
+  const floats = new Float32Array(params);
+  // The reference adds the offset in float64 and the host forms threshold − offset and offset/gain in float64.
+  floats[28] = CPU_RELATIVE * (maximumOffset + Math.min(threshold, 2 ** 30)) * (1 + 2 ** -20);
+  // The offset fraction's float32 rounding, one more unit of |fp| across the ten fraction additions, and offset/gain's float64 rounding.
+  floats[29] = (12 * U + CPU_RELATIVE * maximumOffsetCodes) * (1 + 2 ** -20);
+}
+
+/** Splits a value into a floor and its float32 fraction. */
+function packSplit(value: number, words: Int32Array, floats: Float32Array, at: number): void {
+  const whole = Math.floor(value);
+  words[at] = whole; floats[at + 1] = value - whole;
 }
 
 /** Packs one mean: category in bits 30–31 with the integer part, and the float32 fraction. */
 function packMean(mean: number, words: Uint32Array, floats: Float32Array, at: number): void {
   if (mean === 0) { words[at] = 0; floats[at + 1] = 0; return; }
+  if (!(mean < SENSOR_GPU_MAXIMUM_MEAN)) throw unsupported("Expected electrons of 2^30 and above are outside the float32 sensor domain.");
   const whole = Math.floor(mean);
   const category = mean < 30 ? SENSOR_MEAN_CATEGORY.multiplication : mean < POISSON_NORMAL_MINIMUM_MEAN ? SENSOR_MEAN_CATEGORY.transformedRejection
     : SENSOR_MEAN_CATEGORY.normal;
@@ -150,9 +181,25 @@ function packMean(mean: number, words: Uint32Array, floats: Float32Array, at: nu
 export async function simulateSensorRawOnGpu(runtime: WebGpuRuntime, bandBytes: number, input: PackedSensorRawInput, abort: AbortController,
   yieldControl: YieldControl, pipelines: PipelineSource): Promise<AcceleratedPackedSensorRawResult> {
   const plan = calculatePackedSensorRawPlan(input);
-  const { aux, params } = sensorGpuConstants(plan);
+  const constants = sensorGpuConstants(plan), { aux, params, siteWords, poissonComponents, deterministicComponents, threshold, gain } = constants;
   const photo = input.photoElectrons.slice(), dark = input.darkElectrons.slice();
-  const width = plan.region.width, height = plan.region.height, siteBytes = SENSOR_SITE_WORDS * 4;
+  const additional = (input.additionalChargeComponents ?? []).map(c => c.expectedElectrons.slice());
+  const width = plan.region.width, height = plan.region.height, siteBytes = siteWords * 4;
+  const pattern = createPackedFixedPattern(plan);
+  // Fixed-pattern values are evaluated once, in float64 (exactly the reference's values), before any dispatch.
+  const patterns = pattern === null ? null : new Float64Array(plan.siteCount * 3);
+  if (patterns !== null) {
+    let maximumOffset = 0, maximumOffsetCodes = 0;
+    for (let row = 0, i = 0; row < height; row++) for (let column = 0; column < width; column++, i++) {
+      const p = pattern!(column, row), offsetCodes = p.readoutOffsetElectrons / gain;
+      patterns[i * 3] = p.photoResponseGainFactor; patterns[i * 3 + 1] = p.darkCurrentFactor; patterns[i * 3 + 2] = p.readoutOffsetElectrons;
+      maximumOffset = Math.max(maximumOffset, Math.abs(p.readoutOffsetElectrons)); maximumOffsetCodes = Math.max(maximumOffsetCodes, Math.abs(offsetCodes));
+    }
+    if (!(maximumOffset <= SENSOR_GPU_MAXIMUM_OFFSET_ELECTRONS && maximumOffsetCodes <= SENSOR_GPU_MAXIMUM_OFFSET_CODES)) {
+      throw unsupported("Fixed-pattern readout offsets are outside the float32 sensor domain.");
+    }
+    setFixedPatternSlack(params, threshold, maximumOffset, maximumOffsetCodes);
+  }
   const rows = Math.max(1, Math.min(height, Math.floor(bandBytes / (width * siteBytes))));
   if (rows * width * siteBytes > runtime.maximumStorageBindingBytes) {
     throw new ImageKernelExecutionError("insufficient-limits", "One sensor band exceeds the device's storage binding limit.");
@@ -160,6 +207,7 @@ export async function simulateSensorRawOnGpu(runtime: WebGpuRuntime, bandBytes: 
   const pipeline = await pipelines("photivra-sensor-raw", SENSOR_RAW_WGSL);
   const codes = new Uint16Array(plan.siteCount), counts = [0, 0, 0, 0];
   const packed = new ArrayBuffer(rows * width * siteBytes), packedWords = new Uint32Array(packed), packedFloats = new Float32Array(packed);
+  const packedInts = new Int32Array(packed);
   const words = new Uint32Array(params);
   let flagged = 0;
   const flaggedIndices: number[] = [];
@@ -171,13 +219,29 @@ export async function simulateSensorRawOnGpu(runtime: WebGpuRuntime, bandBytes: 
       checkAbort(abort.signal);
       const row1 = Math.min(height, row0 + rows), count = (row1 - row0) * width, first = row0 * width;
       for (let i = 0; i < count; i++) {
-        packMean(photo[first + i]!, packedWords, packedFloats, i * 4);
-        packMean(dark[first + i]!, packedWords, packedFloats, i * 4 + 2);
+        const site = first + i, at = i * siteWords;
+        // The reference's own float64 products of the means and the fixed-pattern factors.
+        packMean(patterns === null ? photo[site]! : photo[site]! * patterns[site * 3]!, packedWords, packedFloats, at);
+        packMean(patterns === null ? dark[site]! : dark[site]! * patterns[site * 3 + 1]!, packedWords, packedFloats, at + 2);
+        let cursor = at + 4;
+        for (const k of poissonComponents) { packMean(additional[k]![site]!, packedWords, packedFloats, cursor); cursor += 2; }
+        if (deterministicComponents.length > 0) {
+          let sum = 0;
+          for (const k of deterministicComponents) sum += additional[k]![site]!;
+          if (!(sum < SENSOR_GPU_MAXIMUM_MEAN)) throw unsupported("Deterministic charge of 2^30 electrons and above is outside the float32 sensor domain.");
+          packSplit(sum, packedInts, packedFloats, cursor);
+          cursor += 2;
+        }
+        if (patterns !== null) {
+          const offset = patterns[site * 3 + 2]!, limit = threshold - offset;
+          if (limit >= 2 ** 30) { packedInts[cursor] = 2 ** 30; packedFloats[cursor + 1] = 0; } else packSplit(limit, packedInts, packedFloats, cursor);
+          packSplit(offset / gain, packedInts, packedFloats, cursor + 2);
+        }
       }
       words[0] = count; words[1] = row0;
       const band = new GpuResourceScope(runtime);
       try {
-        const means = band.upload("photivra-sensor-means", new Uint32Array(packed, 0, count * 4), BUFFER_USAGE.STORAGE);
+        const means = band.upload("photivra-sensor-means", new Uint32Array(packed, 0, count * siteWords), BUFFER_USAGE.STORAGE);
         const out = band.buffer("photivra-sensor-codes", count * 4, BUFFER_USAGE.STORAGE | BUFFER_USAGE.COPY_SRC);
         const uniform = band.upload("photivra-sensor-params", new Uint8Array(params), BUFFER_USAGE.UNIFORM);
         const bindGroup = runtime.device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [

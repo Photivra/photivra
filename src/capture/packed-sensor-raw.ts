@@ -12,9 +12,12 @@
  * seeds are MurmurHash3_x86_32 of (capture seed, absolute native row-major index, stream ID), so the
  * region and any banding cannot change a code.
  *
+ * Optional (2.0): a fixed-pattern noise profile (`SENSOR_FIXED_PATTERN_NOISE_MODEL`; PRNU and DSNU or
+ * hot-pixel factors on the Poisson means, row and column offsets added with read noise) and up to 8
+ * additional stored-charge components (Poisson or deterministic), in the producer's exact order.
+ *
  * Supported domain (frame-wide, fails closed otherwise): one readout regime, one physical charge
- * capacity, photo and dark charge only (no additional stored-charge components) and no fixed-pattern
- * noise. Use `simulateSensorRawFrame` for those. See docs/WEBGPU.md.
+ * capacity, one fixed-pattern profile. See docs/WEBGPU.md.
  */
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { requireAllowlistedRecord } from "../core/record-validation.js";
@@ -22,6 +25,9 @@ import { adcTransfer, resolveSensorReadoutRegime, samplePoisson, type ResolvedSe
   type SensorReadoutConversionProfile } from "../sensor/raw-readout.js";
 import { createDeterministicUniformStream, deriveNativeSiteStreamSeedUint32, sampleDeterministicStandardNormal,
   NATIVE_SITE_CHARGE_STREAM_ID, NATIVE_SITE_READ_NOISE_STREAM_ID } from "../sensor/stochastic-seed.js";
+import { evaluateFixedPatternColumnOffset, evaluateFixedPatternRowOffset, evaluateFixedPatternSiteFactors, parseSensorFixedPatternNoiseProfile,
+  type SensorFixedPatternNoiseProfile } from "../sensor/fixed-pattern-noise.js";
+import type { SensorAdditionalChargeSamplingModel } from "../sensor/raw-readout.js";
 import { SENSOR_RAW_PRODUCER_NOISE_MODEL } from "./sensor-raw-producer.js";
 
 export const PACKED_SENSOR_RAW_SCHEMA_VERSION = "0.1.0" as const;
@@ -30,8 +36,29 @@ export const PACKED_SENSOR_RAW_LIMITS = Object.freeze({
   maximumNativeSites: 0xffffffff,
   maximumDimension: 65_535,
   maximumAdcBitDepth: 16,
-  maximumReadNoiseComponents: 16
+  maximumReadNoiseComponents: 16,
+  maximumAdditionalChargeComponents: 8
 });
+
+/**
+ * Optional fixed-pattern noise for a packed region. The colour-sampling site of native site (X, Y) is
+ * (X + siteOrigin.x, Y + siteOrigin.y); the pattern is seeded from those coordinates, as in
+ * `calculateSensorFixedPatternSite`.
+ */
+export interface PackedSensorFixedPatternNoise {
+  profile: SensorFixedPatternNoiseProfile;
+  /** Must equal `profile.colorSamplingProfileId`. */
+  colorSamplingProfileId: string;
+  siteOrigin: { x: number; y: number };
+}
+/** One additional stored-charge component, realized after photo and dark charge in declaration order. */
+export interface PackedSensorAdditionalChargeComponent {
+  componentId: string;
+  /** `poisson` draws from the charge stream; `deterministic-expected-electron-equivalent` adds the expectation. */
+  model: SensorAdditionalChargeSamplingModel;
+  /** Expected electrons per region site, row-major. Finite, ≥ 0. */
+  expectedElectrons: Float32Array | Float64Array;
+}
 
 export interface PackedSensorRawInput {
   schemaVersion: typeof PACKED_SENSOR_RAW_SCHEMA_VERSION;
@@ -50,6 +77,10 @@ export interface PackedSensorRawInput {
   physicalChargeCapacityElectrons: number;
   readoutProfile: SensorReadoutConversionProfile;
   regimeId: string;
+  /** Optional (2.0). */
+  fixedPatternNoise?: PackedSensorFixedPatternNoise;
+  /** Optional (2.0), at most 8. */
+  additionalChargeComponents?: readonly PackedSensorAdditionalChargeComponent[];
 }
 
 /** Validated plan. Arrays are borrowed, not copied. */
@@ -63,9 +94,13 @@ export interface PackedSensorRawPlan {
   readout: ResolvedSensorReadoutRegime;
   noiseModel: typeof SENSOR_RAW_PRODUCER_NOISE_MODEL;
   seedSchedule: "murmur3-capture-seed-native-index-stream-v2";
-  /** Largest expected photo and dark electron counts in the region. */
+  /** Largest expected photo and dark electron counts in the region (before fixed-pattern factors). */
   maximumPhotoElectrons: number;
   maximumDarkElectrons: number;
+  /** Parsed fixed-pattern profile and colour-site origin, or null. */
+  fixedPatternNoise: Readonly<{ profile: SensorFixedPatternNoiseProfile; siteOrigin: Readonly<{ x: number; y: number }> }> | null;
+  /** Additional components (identity, model and largest expectation); their arrays stay on the input. */
+  additionalChargeComponents: readonly Readonly<{ componentId: string; model: SensorAdditionalChargeSamplingModel; maximumExpectedElectrons: number }>[];
 }
 
 /** Per-region saturation and clamp counts, as in the per-site readout diagnostics. */
@@ -107,7 +142,8 @@ function maximumOf(values: Float32Array | Float64Array, count: number): number {
 /** Validates the request (every array value once) and returns its plan. */
 export function calculatePackedSensorRawPlan(input: PackedSensorRawInput): PackedSensorRawPlan {
   const r = requireAllowlistedRecord(input, ["schemaVersion", "nativeWidth", "nativeHeight", "region", "captureSeedUint32", "photoElectrons",
-    "darkElectrons", "physicalChargeCapacityElectrons", "readoutProfile", "regimeId"], "Invalid packed sensor RAW input.");
+    "darkElectrons", "physicalChargeCapacityElectrons", "readoutProfile", "regimeId", "fixedPatternNoise", "additionalChargeComponents"],
+  "Invalid packed sensor RAW input.");
   const L = PACKED_SENSOR_RAW_LIMITS;
   if (r.schemaVersion !== PACKED_SENSOR_RAW_SCHEMA_VERSION) throw new InvalidConfigurationError("Unsupported packed sensor RAW schema.");
   const nativeWidth = integer(r.nativeWidth, 1, L.maximumDimension), nativeHeight = integer(r.nativeHeight, 1, L.maximumDimension);
@@ -128,32 +164,94 @@ export function calculatePackedSensorRawPlan(input: PackedSensorRawInput): Packe
   const siteCount = width * height;
   const maximumPhotoElectrons = maximumOf(r.photoElectrons as Float64Array, siteCount);
   const maximumDarkElectrons = maximumOf(r.darkElectrons as Float64Array, siteCount);
+  let fixedPatternNoise: PackedSensorRawPlan["fixedPatternNoise"] = null;
+  if (r.fixedPatternNoise !== undefined) {
+    const f = requireAllowlistedRecord(r.fixedPatternNoise, ["profile", "colorSamplingProfileId", "siteOrigin"], "Invalid packed fixed-pattern noise.");
+    const profile = parseSensorFixedPatternNoiseProfile(f.profile);
+    if (f.colorSamplingProfileId !== profile.colorSamplingProfileId) {
+      throw new InvalidConfigurationError("Fixed-pattern noise profile colour-sampling identity must match the packed region.");
+    }
+    const o = requireAllowlistedRecord(f.siteOrigin, ["x", "y"], "Invalid packed fixed-pattern site origin.");
+    const ox = integer(o.x, 0, 0xffffffff - (x + width - 1)), oy = integer(o.y, 0, 0xffffffff - (y + height - 1));
+    fixedPatternNoise = Object.freeze({ profile, siteOrigin: Object.freeze({ x: ox, y: oy }) });
+  }
+  const components = r.additionalChargeComponents === undefined ? [] : r.additionalChargeComponents;
+  if (!Array.isArray(components) || components.length > L.maximumAdditionalChargeComponents) {
+    throw new InvalidConfigurationError("Packed sensor RAW takes at most 8 additional stored-charge components.");
+  }
+  const ids = new Set<string>();
+  const additionalChargeComponents = components.map((value: unknown) => {
+    const c = requireAllowlistedRecord(value, ["componentId", "model", "expectedElectrons"], "Invalid packed additional charge component.");
+    if (typeof c.componentId !== "string" || c.componentId.length === 0 || ids.has(c.componentId) ||
+        (c.model !== "poisson" && c.model !== "deterministic-expected-electron-equivalent")) {
+      throw new InvalidConfigurationError("Additional charge components need unique IDs and a Poisson or deterministic model.");
+    }
+    ids.add(c.componentId);
+    return Object.freeze({ componentId: c.componentId, model: c.model as SensorAdditionalChargeSamplingModel,
+      maximumExpectedElectrons: maximumOf(c.expectedElectrons as Float64Array, siteCount) });
+  });
   return Object.freeze({ nativeWidth, nativeHeight, region: Object.freeze({ x, y, width, height }), siteCount, captureSeedUint32,
     physicalChargeCapacityElectrons: capacity, readout, noiseModel: SENSOR_RAW_PRODUCER_NOISE_MODEL,
-    seedSchedule: "murmur3-capture-seed-native-index-stream-v2" as const, maximumPhotoElectrons, maximumDarkElectrons });
+    seedSchedule: "murmur3-capture-seed-native-index-stream-v2" as const, maximumPhotoElectrons, maximumDarkElectrons,
+    fixedPatternNoise, additionalChargeComponents: Object.freeze(additionalChargeComponents) });
+}
+
+/** Fixed-pattern values that one site needs. @internal */
+export interface PackedSensorSitePattern { photoResponseGainFactor: number; darkCurrentFactor: number; readoutOffsetElectrons: number }
+
+/**
+ * Evaluates the fixed-pattern values of region sites with the model's own functions. Row and column
+ * offsets are computed once per row and column; `readoutOffsetElectrons` is row + column, as in
+ * `calculateSensorFixedPatternSite`. @internal
+ */
+export function createPackedFixedPattern(plan: PackedSensorRawPlan): ((column: number, row: number) => PackedSensorSitePattern) | null {
+  const f = plan.fixedPatternNoise;
+  if (f === null) return null;
+  const { region } = plan, x0 = region.x + f.siteOrigin.x, y0 = region.y + f.siteOrigin.y;
+  const rows = new Float64Array(region.height), columns = new Float64Array(region.width);
+  for (let row = 0; row < region.height; row++) rows[row] = evaluateFixedPatternRowOffset(f.profile, y0 + row);
+  for (let column = 0; column < region.width; column++) columns[column] = evaluateFixedPatternColumnOffset(f.profile, x0 + column);
+  return (column, row) => {
+    const factors = evaluateFixedPatternSiteFactors(f.profile, x0 + column, y0 + row);
+    return { photoResponseGainFactor: factors.photoResponseGainFactor, darkCurrentFactor: factors.darkCurrentFactor,
+      readoutOffsetElectrons: rows[row]! + columns[column]! };
+  };
 }
 
 /** Saturation and clamp flags of one site: bit 0 physical, 1 pre-ADC, 2 digital, 3 lower clamp. */
 export const PACKED_SENSOR_RAW_FLAG = Object.freeze({ physical: 1, preAdc: 2, digital: 4, lower: 8 });
 
 /**
- * One site of the reference, in the operation order of `calculateNativeRawSite` without fixed-pattern
- * noise or additional components. Returns the code and writes its flags. `index` is the absolute
- * native row-major index.
+ * One site of the reference, in the operation order of `calculateNativeRawSite`. Returns the code and
+ * its flags. `index` is the absolute native row-major index; `pattern` is the site's fixed-pattern
+ * values (required when the plan has a profile) and `additional` its additional-component expectations,
+ * in the plan's order.
  * @internal
  */
-export function simulatePackedSensorSite(plan: PackedSensorRawPlan, photoE: number, darkE: number, index: number): { code: number; flags: number } {
+export function simulatePackedSensorSite(plan: PackedSensorRawPlan, photoE: number, darkE: number, index: number,
+  pattern: PackedSensorSitePattern | null = null, additional: readonly number[] = []): { code: number; flags: number } {
   const seed = plan.captureSeedUint32, regime = plan.readout.regime, capacity = plan.physicalChargeCapacityElectrons;
+  if ((plan.fixedPatternNoise === null) !== (pattern === null) || additional.length !== plan.additionalChargeComponents.length) {
+    throw new InvalidConfigurationError("Packed sensor site extras must match the plan.");
+  }
   const random = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, NATIVE_SITE_CHARGE_STREAM_ID));
-  const photoRealized = samplePoisson(photoE, random), darkRealized = samplePoisson(darkE, random);
-  const realized = photoRealized + darkRealized + 0;
+  // As in simulateSensorChargeRealization: the fixed-pattern factors multiply the Poisson means.
+  const photoMean = pattern === null ? photoE : photoE * pattern.photoResponseGainFactor;
+  const darkMean = pattern === null ? darkE : darkE * pattern.darkCurrentFactor;
+  const photoRealized = samplePoisson(photoMean, random), darkRealized = samplePoisson(darkMean, random);
+  let additionalRealized = 0;
+  for (let k = 0; k < additional.length; k++) {
+    const expected = additional[k]!;
+    additionalRealized = additionalRealized + (plan.additionalChargeComponents[k]!.model === "poisson" ? samplePoisson(expected, random) : expected);
+  }
+  const realized = photoRealized + darkRealized + additionalRealized;
   const readRandom = createDeterministicUniformStream(deriveNativeSiteStreamSeedUint32(seed, index, NATIVE_SITE_READ_NOISE_STREAM_ID));
   const afterPhysical = Math.min(realized, capacity);
   let totalReadNoise = 0;
   for (const component of regime.readNoiseComponents) {
     totalReadNoise = totalReadNoise + (component.rmsElectrons.value === 0 ? 0 : sampleDeterministicStandardNormal(readRandom) * component.rmsElectrons.value);
   }
-  const afterReadNoise = afterPhysical + totalReadNoise + 0;
+  const afterReadNoise = afterPhysical + totalReadNoise + (pattern === null ? 0 : pattern.readoutOffsetElectrons);
   const threshold = regime.preAdcSaturationElectronEquivalent.value;
   const afterPreAdc = Math.min(afterReadNoise, threshold);
   const quantized = adcTransfer(regime, plan.readout.adcMaximumCode, afterPreAdc).quantized;
@@ -169,11 +267,14 @@ export function simulatePackedSensorSite(plan: PackedSensorRawPlan, photoE: numb
  * @internal
  */
 export function simulatePackedSensorRows(plan: PackedSensorRawPlan, photo: Float32Array | Float64Array, dark: Float32Array | Float64Array,
-  row0: number, row1: number, codes: Uint16Array, counts: number[]): void {
+  row0: number, row1: number, codes: Uint16Array, counts: number[], extras: PackedSensorExtras = NO_EXTRAS): void {
   const { region, nativeWidth } = plan;
+  const additional = new Array<number>(extras.additional.length).fill(0);
   for (let row = row0; row < row1; row++) {
     for (let column = 0, i = row * region.width; column < region.width; column++, i++) {
-      const site = simulatePackedSensorSite(plan, photo[i]!, dark[i]!, (region.y + row) * nativeWidth + region.x + column);
+      for (let k = 0; k < additional.length; k++) additional[k] = extras.additional[k]![i]!;
+      const site = simulatePackedSensorSite(plan, photo[i]!, dark[i]!, (region.y + row) * nativeWidth + region.x + column,
+        extras.pattern === null ? null : extras.pattern(column, row), additional);
       codes[i] = site.code;
       if (site.flags & 1) counts[0]!++;
       if (site.flags & 2) counts[1]!++;
@@ -181,6 +282,19 @@ export function simulatePackedSensorRows(plan: PackedSensorRawPlan, photo: Float
       if (site.flags & 8) counts[3]!++;
     }
   }
+}
+
+/** Per-site extras of a region: the fixed-pattern evaluator and the additional-component arrays. @internal */
+export interface PackedSensorExtras {
+  pattern: ((column: number, row: number) => PackedSensorSitePattern) | null;
+  additional: readonly (Float32Array | Float64Array)[];
+}
+const NO_EXTRAS: PackedSensorExtras = Object.freeze({ pattern: null, additional: Object.freeze([]) });
+
+/** The extras of a validated input; `snapshot` copies the arrays. @internal */
+export function packedSensorExtras(plan: PackedSensorRawPlan, input: PackedSensorRawInput, snapshot: boolean): PackedSensorExtras {
+  return { pattern: createPackedFixedPattern(plan),
+    additional: (input.additionalChargeComponents ?? []).map(c => (snapshot ? c.expectedElectrons.slice() : c.expectedElectrons)) };
 }
 
 export function packedSensorDiagnostics(counts: readonly number[]): PackedSensorRawDiagnostics {
@@ -195,6 +309,7 @@ export function packedSensorDiagnostics(counts: readonly number[]): PackedSensor
 export function simulatePackedSensorRaw(input: PackedSensorRawInput): PackedSensorRawResult {
   const plan = calculatePackedSensorRawPlan(input);
   const codes = new Uint16Array(plan.siteCount), counts = [0, 0, 0, 0];
-  simulatePackedSensorRows(plan, input.photoElectrons, input.darkElectrons, 0, plan.region.height, codes, counts);
+  simulatePackedSensorRows(plan, input.photoElectrons, input.darkElectrons, 0, plan.region.height, codes, counts,
+    packedSensorExtras(plan, input, false));
   return { plan, codes, diagnostics: packedSensorDiagnostics(counts) };
 }

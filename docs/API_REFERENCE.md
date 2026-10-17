@@ -262,6 +262,8 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`calculatePackedSensorRawPlan`](api/capture-packed-sensor-raw.md#calculatepackedsensorrawplan) | Runtime |
 | [`PACKED_SENSOR_RAW_LIMITS`](api/capture-packed-sensor-raw.md#packed_sensor_raw_limits) | Runtime |
 | [`PACKED_SENSOR_RAW_SCHEMA_VERSION`](api/capture-packed-sensor-raw.md#packed_sensor_raw_schema_version) | Runtime |
+| [`PackedSensorAdditionalChargeComponent`](api/capture-packed-sensor-raw.md#packedsensoradditionalchargecomponent) | Type |
+| [`PackedSensorFixedPatternNoise`](api/capture-packed-sensor-raw.md#packedsensorfixedpatternnoise) | Type |
 | [`PackedSensorRawDiagnostics`](api/capture-packed-sensor-raw.md#packedsensorrawdiagnostics) | Type |
 | [`PackedSensorRawInput`](api/capture-packed-sensor-raw.md#packedsensorrawinput) | Type |
 | [`PackedSensorRawPlan`](api/capture-packed-sensor-raw.md#packedsensorrawplan) | Type |

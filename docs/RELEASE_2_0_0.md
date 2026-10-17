@@ -429,7 +429,6 @@ Work that is known and deliberately left for later:
   - hardware-GPU timings at 6–24 MP (the script `npm run bench:webgpu` exists; nothing has been measured);
   - hardware-GPU conformance runs and CI wiring;
   - kernel sampling from `LensPsfProfile`;
-  - fixed-pattern noise and additional charge components in the GPU sensor stage;
   - GPU luminance tone curves.
 - **Optics follow-ups from #303:** lens field mapping in the browser-native executor, mappings combined with ideal pupil rays, calibrated finite-focus fisheye scale.
 - **Motion follow-ups from #297:** derived rolling exposure schedules in tier presets; time-varying angular velocity (rolling-shutter wobble).

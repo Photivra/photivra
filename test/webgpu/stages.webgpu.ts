@@ -9,8 +9,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { calculateTemporalExposureSum, simulatePackedSensorRaw, type ImageKernelExecution, type ImageKernelRelativeErrorBound,
   type PackedSensorRawDiagnostics, type PackedSensorRawInput } from "../../src/index.js";
-import { simulatePackedSensorSite } from "../../src/capture/packed-sensor-raw.js";
-import { readoutProfile, sensorCorpus, sensorStageInput, temporalCorpus } from "../helpers/sensor-stage-fixtures.js";
+import { calculatePackedSensorRawPlan, createPackedFixedPattern, simulatePackedSensorSite } from "../../src/capture/packed-sensor-raw.js";
+import { fixedPatternCorpus, readoutProfile, sensorCorpus, sensorStageInput, temporalCorpus } from "../helpers/sensor-stage-fixtures.js";
 import { findChromium, openBrowserPage, type BrowserPage } from "./chromium.js";
 import { decodeTransport, encodeTransport } from "./codec.js";
 
@@ -51,11 +51,12 @@ function compareSensor(input: PackedSensorRawInput, gpu: SensorResult): { flagge
   for (let i = 0; i < reference.codes.length; i++) {
     if (gpu.codes[i] !== reference.codes[i]) { differing++; expect(flagged.has(i), `site ${i} differs but is not flagged`).toBe(true); }
   }
-  const repaired = gpu.codes.slice();
+  const repaired = gpu.codes.slice(), pattern = createPackedFixedPattern(calculatePackedSensorRawPlan(input));
   for (const i of gpu.flaggedSiteIndices) {
     const row = Math.floor(i / input.region.width), column = i % input.region.width;
     repaired[i] = simulatePackedSensorSite(reference.plan, input.photoElectrons[i]!, input.darkElectrons[i]!,
-      (input.region.y + row) * input.nativeWidth + input.region.x + column).code;
+      (input.region.y + row) * input.nativeWidth + input.region.x + column, pattern === null ? null : pattern(column, row),
+      (input.additionalChargeComponents ?? []).map(c => c.expectedElectrons[i]!)).code;
   }
   expect(repaired).toEqual(reference.codes);
   for (const key of Object.keys(reference.diagnostics) as (keyof PackedSensorRawDiagnostics)[]) {
@@ -80,6 +81,13 @@ describe("webgpu-f32 sensor stage vs float64 reference", () => {
     const gpu = await call<SensorResult>("simulateSensor", { input });
     const { flagged, differing } = compareSensor(input, gpu);
     report.push({ stage: "sensor", case: name, sites: input.region.width * input.region.height, flaggedSites: flagged, differingSites: differing });
+  });
+  it.each(cases.slice(0, 5))("%s, with fixed-pattern noise and three additional charge components: unflagged sites equal the reference", async (name, readout, capacity) => {
+    if (guard()) return;
+    const input = fixedPatternCorpus(256, 128, name.length + 100, readout, capacity);
+    const gpu = await call<SensorResult>("simulateSensor", { input });
+    const { flagged, differing } = compareSensor(input, gpu);
+    report.push({ stage: "sensor+fpn+charge", case: name, sites: input.region.width * input.region.height, flaggedSites: flagged, differingSites: differing });
   });
   it("an offset region and banding give the same codes; banding never changes results", async () => {
     if (guard()) return;

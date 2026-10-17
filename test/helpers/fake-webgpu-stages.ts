@@ -4,7 +4,7 @@
  * the sensor-stage and temporal-sum WGSL kernels, for the in-process fake WebGPU device. They mirror the
  * WGSL line by line; real-device conformance lives in test/webgpu.
  */
-import { SENSOR_AUX, uniformThresholdInteger } from "../../src/gpu/wgsl-sensor-kernel.js";
+import { SENSOR_AUX, SENSOR_EXTRAS, SENSOR_REALIZED_CLAMP, uniformThresholdInteger } from "../../src/gpu/wgsl-sensor-kernel.js";
 
 const f = Math.fround;
 const U = 2 ** -24, INV32 = f(2 ** -32), TWO_PI_INV32 = f(2 * Math.PI / 2 ** 32), MARGIN = 2, CPU_REL = f(2 ** -47);
@@ -30,6 +30,9 @@ export function emulateSensor(u32: Uint32Array, i32: Int32Array, pf: Float32Arra
     Array.from(u32.subarray(0, 15)) as number[];
   const satQuantized = i32[15]!;
   const [capacityFrac, thresholdFrac, invGain, invResidual, digitalGain, digitalResidual, inlSlope, inlOffsetMax] = Array.from(pf.subarray(16, 24)) as number[];
+  const [siteWords, poissonCount, extras] = Array.from(u32.subarray(24, 27)) as number[];
+  const fpnESlackParam = pf[28]!, fpnCSlackParam = pf[29]!, meanInts = new Int32Array(means.buffer, means.byteOffset, means.length);
+  const CLAMP = SENSOR_REALIZED_CLAMP;
   let state = 0, radius = 0, ip = 0, fp = 0, uncertain!: boolean;
   const start = (s: number): void => { state = fmix((s ^ 0x9e3779b9) >>> 0); if (state === 0) state = 0x6d2b79f5; };
   const next = (): number => { state = (state ^ (state << 13)) >>> 0; state = (state ^ (state >>> 17)) >>> 0; state = (state ^ (state << 5)) >>> 0; return state; };
@@ -142,27 +145,43 @@ export function emulateSensor(u32: Uint32Array, i32: Int32Array, pf: Float32Arra
     const row = row0! + Math.floor(i / regionW!), index = ((regionY! + row) * nativeW! + regionX! + i % regionW!) >>> 0;
     uncertain = false;
     start(fmix((mixBlock(mixBlock(mixBlock(0, seed!), index), 0) ^ 12) >>> 0));
-    const photo = poisson(means[i * 4]!, meanFloats[i * 4 + 1]!), dark = poisson(means[i * 4 + 2]!, meanFloats[i * 4 + 3]!);
-    const realized = photo + dark;
+    const base = i * siteWords!;
+    const photo = poisson(means[base]!, meanFloats[base + 1]!), dark = poisson(means[base + 2]!, meanFloats[base + 3]!);
+    let realized = Math.min(photo + dark, CLAMP);
+    for (let k = 0; k < poissonCount!; k++) realized = Math.min(realized + poisson(means[base + 4 + 2 * k]!, meanFloats[base + 5 + 2 * k]!), CLAMP);
+    let cursor = base + 4 + 2 * poissonCount!;
+    const deterministic = (extras! & SENSOR_EXTRAS.deterministic) !== 0, pattern = (extras! & SENSOR_EXTRAS.fixedPattern) !== 0;
+    let rFrac = 0, detSlack = 0;
+    if (deterministic) { realized = Math.min(realized + means[cursor]!, CLAMP); rFrac = meanFloats[cursor + 1]!; detSlack = U; cursor += 2; }
+    let tFloor = thresholdFloor!, tFrac = thresholdFrac!, fpnESlack = 0;
+    if (pattern) { tFloor = meanInts[cursor]!; tFrac = meanFloats[cursor + 1]!; fpnESlack = fpnESlackParam; }
     start(fmix((mixBlock(mixBlock(mixBlock(0, seed!), index), 1) ^ 12) >>> 0));
     let noise = 0, noiseBound = 0;
     for (let c = 0; c < components!; c++) {
       const sigma = aux[SENSOR_AUX.sigma + c]!;
       if (sigma !== 0) { const z = stdNormal(); noise = f(noise + f(z * sigma)); noiseBound = noiseBound + sigma * radius * (28 + components!) * U; }
     }
-    let flags = 0, aInt = realized, aFrac = 0;
-    if (realized > capacityFloor!) { flags = 1; aInt = capacityFloor!; aFrac = capacityFrac!; }
-    const whole = f(aInt - thresholdFloor!), diff = f(f(whole + f(aFrac - thresholdFrac!)) + noise);
-    check(diff, MARGIN * (noiseBound + 3 * U + 2 * U * (Math.abs(whole) + Math.abs(noise) + 2) + CPU_REL * (aInt + Math.abs(noise))));
+    let flags = 0, aInt = realized, aFrac = rFrac;
+    if (!deterministic) {
+      if (realized > capacityFloor!) { flags = 1; aInt = capacityFloor!; aFrac = capacityFrac!; }
+    } else {
+      const w = f(realized - capacityFloor!), dcap = f(w + f(rFrac - capacityFrac!));
+      check(dcap, MARGIN * (5 * U + U * Math.abs(w) + U * Math.abs(dcap) + CPU_REL * (realized + 1)));
+      if (dcap > 0) { flags = 1; aInt = capacityFloor!; aFrac = capacityFrac!; }
+    }
+    const whole = f(aInt - tFloor), diff = f(f(whole + f(aFrac - tFrac)) + noise);
+    check(diff, MARGIN * (noiseBound + 3 * U + 2 * U * (Math.abs(whole) + Math.abs(noise) + 2) + CPU_REL * (aInt + Math.abs(noise)) + fpnESlack + detSlack));
     let q: number;
     if (diff > 0) { flags |= 2; q = satQuantized; } else {
       ip = black!; fp = 0;
+      let fpnCSlack = 0;
+      if (pattern) { ip += meanInts[cursor + 2]!; fp = meanFloats[cursor + 3]!; fpnCSlack = fpnCSlackParam; }
       scaled(aInt, SENSOR_AUX.inversePieces);
       const noiseCodes = f(noise * invGain!);
       fp = f(f(fp + f(aFrac * invGain!)) + noiseCodes);
       const aCodes = f(f(aInt) * invGain!);
       let margin = MARGIN * (10 * U * (10 + Math.abs(noiseCodes)) + 4 * U * aFrac * invGain! + 3 * U * Math.abs(noiseCodes) + noiseBound * invGain! +
-        aInt * invResidual! + 2 * U + CPU_REL * (aCodes + Math.abs(noiseCodes) + black!));
+        aInt * invResidual! + 2 * U + CPU_REL * (aCodes + Math.abs(noiseCodes) + black!) + fpnCSlack + detSlack * invGain!);
       normalize();
       if (knots! > 0) {
         const ideal = f(f(ip) + fp), offset = inlOffset(ideal);
