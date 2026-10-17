@@ -1,6 +1,25 @@
-# Release 2.1.0 (draft)
+# 2.1.0 release candidate
 
-A minor release: additive features and fixes only. This record is a draft; the coordinator completes it.
+> **Candidate record, prepared October 17, 2026.** This is the production release request for `@photivra/engine@2.1.0`. Preparing it does not tag, publish or create a GitHub release. **Tagging `v2.1.0` triggers npm publishing and requires the owner's explicit approval.**
+
+## At a glance
+
+- **What is proposed:** publish `@photivra/engine@2.1.0`, with `ENGINE_API_VERSION = "2.1.0"`. `POC_SIMULATION_API_VERSION` stays `1.0.0`.
+- **Why a minor version:** every change is additive and opt-in, or a fix. Captures that use none of the new options are byte-identical to 2.0.0. No root export is removed, and no input that 2.0.0 accepted is rejected.
+- **Why now:** the owner asked for these fixes before more app work. They came from building the Photivra app's Image Quality screen: diffraction blur, cleaner colour on sharp edges, and prompt cancellation in a browser worker. The owner's rule of October 17, 2026 applies: slow but physically meaningful features become opt-in settings with a measured cost, never omissions.
+- **What this release does not claim:** calibrated accuracy for any real camera, lens or sensor. The diffraction model is ideal, scalar and aberration-free, and the anti-aliasing filter is an idealised point splitter; both are labelled approximations.
+
+## Scope
+
+| PR | Change | Kind |
+| --- | --- | --- |
+| [#331](https://github.com/Photivra/photivra/pull/331) | Captures see a cancel promptly in Web Workers (the host yield no longer uses `scheduler.yield()`) | Fix (scheduling only; output byte-identical) |
+| [#332](https://github.com/Photivra/photivra/pull/332) | `createDiffractionLimitedPsfProfile`, `lens.diffraction` with a fast object-space convolution, `output.demosaic: "ahd"` | Additive, opt-in |
+| [#333](https://github.com/Photivra/photivra/pull/333) | `sensor.antiAliasing`, per-run cost diagnostics, cost table | Additive, opt-in |
+| This update | Version 2.1.0, changelog and this record | Release preparation |
+
+Root exports grow from 1,668 to 1,677 symbols. Comparing the generated `docs/api/exports.json` with `v2.0.0` shows none removed.
+
 
 ## Fixed: `simulateCapture` cancellation in Web Workers
 
@@ -170,3 +189,29 @@ Run time follows the scene queries per site; differences below about 10 % are wi
 ### Compatibility
 
 The 2.1 options (`lens.diffraction`, `output.demosaic: "ahd"`, `sensor.antiAliasing`) are opt-in. Captures that do not use them are byte-identical to 2.0.0: a hash lock in `test/simulate-capture-optics.test.ts` checks the RAW codes, every output byte, the assumptions, composed contracts and diagnostics of six captures (sRGB, PNG, JPEG with auto white balance, mirror borders with 16-bit output, Display P3, DNG in program mode) against digests recorded from the 2.0.0 source. The integration test's unknown-demosaic case now uses `"lmmse"`, because `"ahd"` is accepted.
+
+## Rights and licensing
+
+- **No third-party code, data or constants added.** The diffraction profile is computed by the engine from the circular-pupil OTF. The anti-aliasing filter uses the engine's existing point-splitting contract. AHD was already in the engine; the 2.0 patent review in `THIRD_PARTY.md` found no patent for it.
+- **Free sources cited:** MIT OCW 2.71 (lectures 21–22), DLMF §3.5(v), R. Palum, "Anti-Aliasing Filter Analysis for Digital Cameras" (IS&T ICIS '06), and the WICG Prioritized Task Scheduling draft. Goodman, *Introduction to Fourier Optics*, is "also see" only.
+- **No new runtime dependency.** The licence-scan CI job passed on every PR.
+
+## Privacy and security
+
+No network, persistence or telemetry is added. The new diagnostics report wall-clock times and option names to the caller only; they never enter a digest or a stored identity. Input validation is unchanged in strictness, and the new options reject unknown fields and out-of-range values.
+
+## Release gates
+
+The authoritative result is GitHub CI on the exact commit that is tagged: the `main` commit that merges this record update. Tag it only when its CI is green.
+
+- #331, #332 and #333 each passed every CI job on their pull requests: `verify` on Node 22.13.0, lts/-1, lts/* and current; coverage; the licence scan; and the macOS hash locks.
+- Local results on this candidate are recorded in its pull request.
+
+## Remaining release checklist
+
+- [x] All 2.1 work merged (#331–#333) with changelog entries.
+- [x] Version surfaces aligned at 2.1.0 (`npm run release:prepare -- 2.1.0`); API reference regenerated.
+- [ ] Owner's review of this record.
+- [ ] Green CI on this update's pull request, then on `main` after merge.
+- [ ] **The owner's explicit approval to tag `v2.1.0`.** The tag triggers npm publishing. First confirm that 2.1.0 is not already on npm, and never move `v2.0.0`.
+- [ ] After publication: verify the npm version, dist-tag, integrity and provenance; publish GitHub release notes; update publication dates in `CHANGELOG.md`, `README.md`, `SECURITY.md` and this record.

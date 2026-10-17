@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import { InvalidConfigurationError, calculateEnvironmentSensorPhotoSignal, createPlanarSceneRadianceProvider, simulateCapture,
+import { ENGINE_API_VERSION, InvalidConfigurationError, calculateEnvironmentSensorPhotoSignal, createPlanarSceneRadianceProvider, simulateCapture,
   type SimulateCaptureOptions } from "../src/index.js";
 import { createDiffractedPlanarProvider } from "../src/facade/diffraction-provider.js";
 import { scaledTimeout } from "./helpers/test-timeout.js";
@@ -64,7 +64,12 @@ describe("simulateCapture without the 2.1 options is byte-identical to 2.0.0", (
       const r = await simulateCapture(options);
       const parts = [r.raw.codes, r.image.samples, r.image.jpeg, r.image.png, r.image.dng].filter((a) => a !== undefined)
         .map((a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength));
-      expect(hex(Buffer.concat(parts))).toBe(bytes);
+      // The DNG Software tag names the engine version ("Photivra <version>"), so it changes with every release.
+      // Write the 2.0.0 name back (same length, so no offset moves) and keep every other byte locked.
+      const all = Buffer.concat(parts), current = Buffer.from("Photivra " + ENGINE_API_VERSION), locked = Buffer.from("Photivra 2.0.0");
+      expect(current.length).toBe(locked.length);
+      for (let at = all.indexOf(current); at >= 0; at = all.indexOf(current, at + 1)) locked.copy(all, at);
+      expect(hex(all)).toBe(bytes);
       // diagnostics.options (2.1, additive) is checked by name below and left out of the 2.0.0 digest, like the timings.
       expect(hex(JSON.stringify({ a: r.assumptions, c: r.provenance.composedContracts, d: { ...r.diagnostics, timingsMs: 0, options: undefined } }))).toBe(meta);
       expect(r.diagnostics.options).toEqual(expectedOptions[name]);
