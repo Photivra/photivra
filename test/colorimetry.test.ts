@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   calculateChromaticAdaptationMatrix,
@@ -287,6 +288,61 @@ describe("illuminants and correlated colour temperature", () => {
     expect(() => calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: 3000, duv: 0, whiteLocus: "cie-daylight", locus })).toThrow();
     expect(() => calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: 3000, duv: 0.06, whiteLocus: "planckian", locus })).toThrow();
     expect(() => calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: 999, duv: 0, whiteLocus: "planckian", locus })).toThrow();
+  });
+
+  it("round-trips CCT + Duv tightly over the whole range, including both range limits", () => {
+    const locus = { kind: "planck-analytic-cmf" as const };
+    const temperatures = [1000, 1000.5, 1500, 2856, 4000, 6504, 10000, 25000, 50000, 99000, 100000];
+    for (const t of temperatures) {
+      // Positive Duv at low T leaves the xy triangle (x + y > 1), so it is only checked from 4000 K.
+      for (const duv of t >= 4000 ? [-0.0499, -0.01, -0.001, 0, 0.001, 0.01, 0.0499] : [-0.0499, -0.01, -0.001, 0]) {
+        const xy = calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: t, duv, whiteLocus: "planckian", locus }).value;
+        const back = calculateCorrelatedColorTemperature({ chromaticity: xy, locus }).value;
+        expect(Math.abs(back.correlatedColorTemperatureKelvin - t) / t, t + " K, Duv " + duv).toBeLessThan(1e-9);
+        expect(Math.abs(back.duv - duv), t + " K, Duv " + duv).toBeLessThan(1e-12);
+      }
+    }
+  });
+
+  it("agrees with the exact root of the distance derivative (50-digit reference of the same locus)", () => {
+    // reference.json: generate_reference.py evaluates the engine's discrete locus in 50-digit decimal
+    // arithmetic, brackets the minimum densely and solves d(uv distance²)/dT = 0 exactly.
+    const reference = JSON.parse(readFileSync(new URL("./fixtures/planckian-cct/reference.json", import.meta.url), "utf8")) as {
+      cases: { chromaticity: { x: number; y: number }; correlatedColorTemperatureKelvin: string; duv: string }[];
+    };
+    expect(reference.cases.length).toBeGreaterThanOrEqual(19);
+    for (const c of reference.cases) {
+      const r = calculateCorrelatedColorTemperature({ chromaticity: c.chromaticity, locus: { kind: "planck-analytic-cmf" } }).value;
+      const t = Number(c.correlatedColorTemperatureKelvin);
+      // The convergence tolerance is 1e-10 of T; measured agreement is about 1e-13.
+      expect(Math.abs(r.correlatedColorTemperatureKelvin - t) / t, c.correlatedColorTemperatureKelvin).toBeLessThan(1e-10);
+      expect(Math.abs(r.duv - Number(c.duv)), c.duv).toBeLessThan(1e-13);
+    }
+  });
+
+  it("orders CCT monotonically along the locus and fails closed beyond its range limits", () => {
+    const locus = { kind: "planck-analytic-cmf" as const };
+    for (const duv of [-0.02, 0, 0.004]) {
+      let previous = 0;
+      for (let i = 0; i <= 120; i++) {
+        const t = 4000 * 25 ** (i / 120); // 4000 … 100000 K
+        const xy = calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: t, duv, whiteLocus: "planckian", locus }).value;
+        const cct = calculateCorrelatedColorTemperature({ chromaticity: xy, locus }).value.correlatedColorTemperatureKelvin;
+        expect(cct, String(t)).toBeGreaterThan(previous);
+        previous = cct;
+      }
+    }
+    // Points extrapolated beyond each limit along the locus: their nearest point is outside the model.
+    for (const [edge, inner] of [[1000, 1010], [100000, 99000]] as const) {
+      const a = uv(estimatePlanckianLocusChromaticity({ temperatureKelvin: edge }).value);
+      const b = uv(estimatePlanckianLocusChromaticity({ temperatureKelvin: inner }).value);
+      const u = a[0] + (a[0] - b[0]), v = a[1] + (a[1] - b[1]);
+      const d = 2 * u - 8 * v + 4;
+      expect(() => calculateCorrelatedColorTemperature({ chromaticity: { x: (3 * u) / d, y: (2 * v) / d }, locus }), String(edge)).toThrow(/outside the locus model range/);
+    }
+    // Just inside a limit still resolves (the old scan-only search refused anything nearest the end sample).
+    const nearMax = calculateChromaticityFromCorrelatedColorTemperature({ correlatedColorTemperatureKelvin: 99500, duv: 0, whiteLocus: "planckian", locus }).value;
+    expect(calculateCorrelatedColorTemperature({ chromaticity: nearMax, locus }).value.correlatedColorTemperatureKelvin / 99500).toBeCloseTo(1, 9);
   });
 });
 

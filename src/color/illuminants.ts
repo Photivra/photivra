@@ -228,12 +228,32 @@ export type PlanckianLocusModel =
 
 /** Number of intervals of the coarse reciprocal-temperature scan that brackets the CCT search. */
 const CCT_SCAN_STEPS = 200;
+/**
+ * Convergence tolerance of the CCT root-find: it stops once a Newton (or bisection) step changes T by
+ * at most this fraction of T (1e-6 K at 10000 K).
+ */
+const CCT_RELATIVE_TOLERANCE = 1e-10;
+
+/**
+ * Locus uv and its first and second derivatives with respect to the reciprocal temperature x = 1/T
+ * (K⁻¹), from the analytic derivatives of Planck's law integrated in the locus quadrature.
+ */
+interface LocusSample {
+  u: number;
+  v: number;
+  du: number;
+  dv: number;
+  d2u: number;
+  d2v: number;
+}
 
 interface PreparedLocus {
   range: { minimum: number; maximum: number };
   approximation: boolean;
   model: string;
   chromaticity(t: number): CieXyChromaticity;
+  /** uv and its x = 1/T derivatives at reciprocal temperature x. */
+  sample(x: number): LocusSample;
   /** CIE 1960 uv at the coarse scan temperatures; computed once per prepared locus. */
   scan(): readonly Cie1960UvChromaticity[];
 }
@@ -241,6 +261,10 @@ interface PreparedLocus {
 /**
  * Prepares a Planck-integration locus: the CMF values and 1/λ⁵ factors are sampled once, so each
  * temperature costs one exponential per node. Planck's constant factor 2hc² cancels in chromaticity.
+ *
+ * Derivatives: with x = 1/T, aᵢ = c₂/λᵢ and rᵢ = 1/(exp(aᵢx) − 1), Planck's law is proportional to
+ * λᵢ⁻⁵ rᵢ, and exactly dr/dx = −a(r + r²) and d²r/dx² = a²(r + 3r² + 2r³) (differentiate
+ * r = 1/(E − 1), E = exp(ax), and use E = 1 + 1/r). They are summed in the same quadrature as X, Y, Z.
  */
 function preparePlanckIntegrationLocus(cmfSource: ColorMatchingFunctionsSource, quadratureNodes: readonly ColorimetricQuadratureNode[], model: string): PreparedLocus {
   const cmf = prepareColorMatchingFunctions(cmfSource);
@@ -248,10 +272,14 @@ function preparePlanckIntegrationLocus(cmfSource: ColorMatchingFunctionsSource, 
   const basis = sampleColorimetricBasis(quadratureNodes, unit, cmf);
   const n = basis.nodes.length;
   const exponentPerKelvin = new Float64Array(n), inverseFifth = new Float64Array(n);
+  // Per-node constants of the derivative sums: weight × CMF × λ⁻⁵ for X, Y and Z.
+  const wx = new Float64Array(n), wy = new Float64Array(n), wz = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     const lambda = basis.nodes[i]!.wavelengthNanometers * 1e-9;
     exponentPerKelvin[i] = SECOND_RADIATION_CONSTANT_METER_KELVIN / lambda;
     inverseFifth[i] = 1 / lambda ** 5;
+    const w = basis.weights[i]! * inverseFifth[i]!;
+    wx[i] = w * basis.xBar[i]!; wy[i] = w * basis.yBar[i]!; wz[i] = w * basis.zBar[i]!;
   }
   const factor = new Float64Array(n);
   const range = PLANCKIAN_LOCUS_RANGE_KELVIN;
@@ -264,6 +292,25 @@ function preparePlanckIntegrationLocus(cmfSource: ColorMatchingFunctionsSource, 
       // expm1 keeps precision at long wavelengths; overflow at short ones gives 0, as in Planck's law.
       for (let i = 0; i < n; i++) factor[i] = inverseFifth[i]! / Math.expm1(exponentPerKelvin[i]! / t);
       return chromaticityOfXyz(integrateSampledXyz(basis, factor));
+    },
+    sample(x: number): LocusSample {
+      let sx = 0, sy = 0, sz = 0, sx1 = 0, sy1 = 0, sz1 = 0, sx2 = 0, sy2 = 0, sz2 = 0;
+      for (let i = 0; i < n; i++) {
+        const a = exponentPerKelvin[i]!;
+        // An overflowing expm1 gives r = 0 and zero derivatives, the exact limit.
+        const r = 1 / Math.expm1(a * x), r2 = r * r;
+        const q1 = r + r2, k1 = -a * q1, k2 = a * a * (q1 + 2 * r2 * (1 + r));
+        const cx = wx[i]!, cy = wy[i]!, cz = wz[i]!;
+        sx += cx * r; sy += cy * r; sz += cz * r;
+        sx1 += cx * k1; sy1 += cy * k1; sz1 += cz * k1;
+        sx2 += cx * k2; sy2 += cy * k2; sz2 += cz * k2;
+      }
+      // u = 4X/d, v = 6Y/d, d = X + 15Y + 3Z; quotient rule: q' = (N' − q d')/d, q'' = (N'' − 2q'd' − q d'')/d.
+      const d = sx + 15 * sy + 3 * sz, d1 = sx1 + 15 * sy1 + 3 * sz1, d2 = sx2 + 15 * sy2 + 3 * sz2;
+      if (!(d > 0) || !Number.isFinite(d)) throw new InvalidScientificInputError("Chromaticity requires X + Y + Z > 0.");
+      const u = (4 * sx) / d, v = (6 * sy) / d;
+      const du = (4 * sx1 - u * d1) / d, dv = (6 * sy1 - v * d1) / d;
+      return { u, v, du, dv, d2u: (4 * sx2 - 2 * du * d1 - u * d2) / d, d2v: (6 * sy2 - 2 * dv * d1 - v * d2) / d };
     },
     scan(): readonly Cie1960UvChromaticity[] {
       if (scanCache === undefined) {
@@ -339,19 +386,69 @@ export function estimateCorrelatedColorTemperatureMcCamy(input: { chromaticity: 
     ["McCamy (1992) cubic; intended for chromaticities near the Planckian locus, about 2000–12500 K"]);
 }
 
-function locusUv(locus: PreparedLocus, t: number): Cie1960UvChromaticity {
-  return uvOfChromaticity(locus.chromaticity(t));
+/** The "above-locus" unit normal at a sample: the increasing-T unit tangent (−du/dx, −dv/dx) turned by −90°. */
+function locusNormal(s: LocusSample): Cie1960UvChromaticity {
+  const len = Math.hypot(s.du, s.dv);
+  const tangent = { u: -s.du / len, v: -s.dv / len };
+  // u decreases as T rises, so turning the tangent by −90° points toward larger v (above the locus).
+  return { u: tangent.v, v: -tangent.u };
 }
 
-/** Unit tangent (direction of increasing T) and the "above-locus" unit normal at T. */
-function locusFrame(locus: PreparedLocus, t: number): { point: Cie1960UvChromaticity; normal: Cie1960UvChromaticity; tangent: Cie1960UvChromaticity } {
-  const h = t * 1e-4;
-  const lo = Math.max(locus.range.minimum, t - h), hi = Math.min(locus.range.maximum, t + h);
-  const a = locusUv(locus, lo), b = locusUv(locus, hi);
-  const du = b.u - a.u, dv = b.v - a.v, len = Math.hypot(du, dv);
-  const tangent = { u: du / len, v: dv / len };
-  // Rotating the increasing-T tangent (u decreases with T) by −90° points toward larger v (above).
-  return { point: locusUv(locus, t), tangent, normal: { u: tangent.v, v: -tangent.u } };
+/**
+ * Nearest locus point to `target` in CIE 1960 uv: the root of the derivative of the squared distance
+ * F = (u − u₀)² + (v − v₀)². Roots of dF/dT and of dF/dx (x = 1/T) coincide, since dx/dT = −1/T² ≠ 0;
+ * the root-find runs in x with g = ½ dF/dx = (u − u₀)u′ + (v − v₀)v′ and
+ * g′ = u′² + v′² + (u − u₀)u″ + (v − v₀)v″ (analytic, see {@link preparePlanckIntegrationLocus}).
+ * The cached coarse scan brackets the minimum; a Newton step falls back to bisection whenever it would
+ * leave the bracket. Returns the root and the locus sample there, or undefined when the nearest point
+ * lies beyond the model's range (by more than the tolerance).
+ */
+function nearestLocusPoint(locus: PreparedLocus, target: Cie1960UvChromaticity): { x: number; sample: LocusSample } | undefined {
+  const steps = CCT_SCAN_STEPS;
+  const lo = 1e6 / locus.range.maximum, hi = 1e6 / locus.range.minimum, step = (hi - lo) / steps;
+  const gridX = (i: number): number => (lo + step * i) * 1e-6;
+  const scan = locus.scan();
+  const f = (i: number): number => (scan[i]!.u - target.u) ** 2 + (scan[i]!.v - target.v) ** 2;
+  let best = 0, bestValue = Infinity;
+  for (let i = 0; i <= steps; i++) {
+    const value = f(i);
+    if (value < bestValue) { bestValue = value; best = i; }
+  }
+  const tolerance = (x: number): number => CCT_RELATIVE_TOLERANCE * x;
+  const derivatives = (s: LocusSample): { g: number; gp: number } => {
+    const eu = s.u - target.u, ev = s.v - target.v;
+    return { g: eu * s.du + ev * s.dv, gp: s.du * s.du + s.dv * s.dv + eu * s.d2u + ev * s.d2v };
+  };
+  let a: number, b: number, x: number;
+  if (best === 0 || best === steps) {
+    // The scan minimum is a range limit: the nearest point is inside only if F still falls inward.
+    x = gridX(best);
+    const s = locus.sample(x), { g, gp } = derivatives(s);
+    if (best === 0 ? g >= 0 : g <= 0) {
+      // At the limit within the tolerance (one Newton step estimates the distance), or beyond it.
+      return g === 0 || (gp > 0 && Math.abs(g / gp) <= tolerance(x)) ? { x, sample: s } : undefined;
+    }
+    a = best === 0 ? x : gridX(steps - 1);
+    b = best === 0 ? gridX(1) : x;
+  } else {
+    // A discrete minimum between its neighbours brackets a local minimum; start at the parabola vertex.
+    a = gridX(best - 1); b = gridX(best + 1);
+    const fm = f(best - 1), fp = f(best + 1), curvature = fm - 2 * bestValue + fp;
+    x = gridX(best) + (curvature > 0 ? (step * 1e-6 * (fm - fp)) / (2 * curvature) : 0);
+  }
+  let s = locus.sample(x);
+  for (let i = 0; i < 100; i++) {
+    const { g, gp } = derivatives(s);
+    if (g === 0) break;
+    if (g < 0) a = x; else b = x;
+    let next = x - g / gp;
+    if (!(gp > 0) || !(next > a && next < b)) next = 0.5 * (a + b);
+    const converged = Math.abs(next - x) <= tolerance(next) || b - a <= tolerance(next);
+    x = next;
+    s = locus.sample(x);
+    if (converged) break;
+  }
+  return { x, sample: s };
 }
 
 export interface CorrelatedColorTemperatureResult {
@@ -362,46 +459,23 @@ export interface CorrelatedColorTemperatureResult {
 
 /**
  * CCT and Duv of a chromaticity as the nearest point of the Planckian locus in the CIE
- * 1960 UCS (Smet et al. 2023; also CIE 15:2018). Uses a golden-section search in reciprocal
- * temperature (mired). Throws (fails closed) when the nearest point is at the model's range limit,
- * or when |Duv| > 0.05 (see {@link MAX_CORRELATED_COLOR_TEMPERATURE_DUV}). Duv is positive above the
- * locus (toward green) and negative below it, the engine's documented sign convention.
+ * 1960 UCS (Smet et al. 2023; also CIE 15:2018). Finds the root of the analytic temperature derivative
+ * of the squared uv distance (safeguarded Newton with bisection fallback, bracketed by a cached coarse
+ * scan in reciprocal temperature), converged until a step changes T by at most 1e-10 of T. Throws
+ * (fails closed) when the nearest point lies beyond the model's range, or when |Duv| > 0.05 (see
+ * {@link MAX_CORRELATED_COLOR_TEMPERATURE_DUV}). Duv is positive above the locus (toward green) and
+ * negative below it, the engine's documented sign convention.
  */
 export function calculateCorrelatedColorTemperature(input: { chromaticity: CieXyChromaticity; locus: PlanckianLocusModel }): CalculationResult<CorrelatedColorTemperatureResult> {
   requireInputKeys(input, "calculateCorrelatedColorTemperature", ["chromaticity", "locus"]);
   const xy = parseChromaticity(input.chromaticity, "chromaticity");
   const locus = prepareLocus(input.locus);
   const target = uvOfChromaticity(xy);
-  const distance2 = (mired: number): number => {
-    const p = locusUv(locus, 1e6 / mired);
-    return (p.u - target.u) ** 2 + (p.v - target.v) ** 2;
-  };
-  // Coarse scan (cached per locus) to bracket the global minimum, then golden-section refinement.
-  let lo = 1e6 / locus.range.maximum, hi = 1e6 / locus.range.minimum;
-  const steps = CCT_SCAN_STEPS;
-  const scan = locus.scan();
-  let best = 0, bestValue = Infinity;
-  for (let i = 0; i <= steps; i++) {
-    const p = scan[i]!;
-    const v = (p.u - target.u) ** 2 + (p.v - target.v) ** 2;
-    if (v < bestValue) { bestValue = v; best = i; }
-  }
-  const step = (hi - lo) / steps;
-  const atEdge = best === 0 || best === steps;
-  const a0 = lo + step * Math.max(0, best - 1), b0 = lo + step * Math.min(steps, best + 1);
-  lo = a0; hi = b0;
-  const g = (Math.sqrt(5) - 1) / 2;
-  let c = hi - g * (hi - lo), d = lo + g * (hi - lo), fc = distance2(c), fd = distance2(d);
-  for (let i = 0; i < 100 && hi - lo > 1e-10; i++) {
-    if (fc < fd) { hi = d; d = c; fd = fc; c = hi - g * (hi - lo); fc = distance2(c); }
-    else { lo = c; c = d; fc = fd; d = lo + g * (hi - lo); fd = distance2(d); }
-  }
-  const mired = (lo + hi) / 2;
-  const t = 1e6 / mired;
-  if (atEdge) throw new InvalidScientificInputError("Chromaticity's nearest Planckian point lies outside the locus model range.");
-  const frame = locusFrame(locus, t);
-  const du = target.u - frame.point.u, dv = target.v - frame.point.v;
-  const duv = du * frame.normal.u + dv * frame.normal.v;
+  const nearest = nearestLocusPoint(locus, target);
+  if (nearest === undefined) throw new InvalidScientificInputError("Chromaticity's nearest Planckian point lies outside the locus model range.");
+  const t = Math.min(locus.range.maximum, Math.max(locus.range.minimum, 1 / nearest.x));
+  const point = nearest.sample, normal = locusNormal(point);
+  const duv = (target.u - point.u) * normal.u + (target.v - point.v) * normal.v;
   if (Math.abs(duv) > MAX_CORRELATED_COLOR_TEMPERATURE_DUV) {
     throw new InvalidScientificInputError("|Duv| exceeds 0.05; no CCT is reported this far from the Planckian locus (the range evaluated by Smet et al. 2023).");
   }
@@ -435,9 +509,9 @@ export function calculateChromaticityFromCorrelatedColorTemperature(input: {
     ? { minimum: Math.max(locus.range.minimum, CIE_DAYLIGHT_LOCUS_RANGE_KELVIN.minimum), maximum: Math.min(locus.range.maximum, CIE_DAYLIGHT_LOCUS_RANGE_KELVIN.maximum) }
     : locus.range;
   const t = requireTemperatureIn(input.correlatedColorTemperatureKelvin, range, "correlatedColorTemperatureKelvin");
-  const frame = locusFrame(locus, t);
-  const base = input.whiteLocus === "cie-daylight" ? uvOfChromaticity(daylightChromaticity(t)) : frame.point;
-  const value = chromaticityOfUv({ u: base.u + duv * frame.normal.u, v: base.v + duv * frame.normal.v });
+  const normal = locusNormal(locus.sample(1 / t));
+  const base = uvOfChromaticity(input.whiteLocus === "cie-daylight" ? daylightChromaticity(t) : locus.chromaticity(t));
+  const value = chromaticityOfUv({ u: base.u + duv * normal.u, v: base.v + duv * normal.v });
   const assumptions = ["White locus: " + input.whiteLocus + "; Duv offset along the Planckian-locus normal (" + locus.model + ") in CIE 1960 uv"];
   const exactDaylightPoint = input.whiteLocus === "cie-daylight" && duv === 0;
   return locus.approximation && !exactDaylightPoint
