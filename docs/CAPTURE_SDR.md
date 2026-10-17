@@ -1,22 +1,51 @@
 # Capture-to-SDR adapter
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+> **Release context.** This page was written for package 1.2.0 (root API 1.2.0) and has not been re-reviewed for later releases. The [changelog](../CHANGELOG.md) describes the current release. Model and subsystem version numbers on this page, and any dated records, are separate from the package version. See also the [developer guide](DEVELOPERS.md) and the [1.2.0 release contract](RELEASE_1_2_0.md).
 
-Current integration: [processed camera output](PROCESSED_OUTPUT.md) documents
-the shared preview/export path and explicit plan 0.6.0 post-RAW activation.
-The historical slice descriptions below retain their original scope.
+For the current, integrated picture, see [processed camera output](PROCESSED_OUTPUT.md). It documents the shared preview and export path, and the explicit post-RAW activation in plan 0.6.0. This page describes the original adapter and keeps its original scope.
 
+## What it does
 
-`calculateCaptureSdr()` connects the authoritative SimulatedCapture/color contracts to the existing SDR renderer. Adapter schema is `0.1.0`; root API advances to `0.98.0`. Existing capture/color/SDR schemas, production plan, package and POC versions are unchanged.
+`calculateCaptureSdr()` connects the authoritative `SimulatedCapture` and colour contracts to the existing SDR (standard dynamic range) renderer.
 
-Choose `already-transformed` for an exact `linear-srgb-d65` profile/version, RGB channel order and D65 encoding white. Choose `transform` to delegate an explicitly selected XYZ/ideal-camera color and WB operation to `calculateCaptureColorTransform()`. Derived plane/state IDs must be new. No WB estimator runs. Intent-only WB is rejected; an already applied state cannot be transformed again. Applied RGB gains and adopted-white adaptation remain distinct; XYZ diagonal adaptation remains approximation, including the adapter envelope.
+Versions: adapter schema `0.1.0`; root API advanced to `0.98.0`. The existing capture, colour and SDR schemas, the production plan, and the package and POC versions did not change.
 
-Input is an inline co-sited three-channel plane, no more than 262,144 samples. Its raster binding, dimensions, reference-white value and source identity are retained. External/oversized planes fail rather than being loaded, truncated, downsampled or silently tiled. The adapter performs no geometric resampling.
+## Choosing the colour path
 
-The result exposes optional color and SDR calculation envelopes separately, with original capture saturation, dynamic-range history and noise realization identity. Rendering exposure/tone/gamut clipping cannot rewrite physical capture. SDR's own saturation field remains `not-consumed`; original capture saturation is a separate upstream diagnostic, never an output-code inference. Display adaptation remains external/unknown.
+- **`already-transformed`:** for a plane that is exactly the `linear-srgb-d65` profile and version, in RGB channel order, with a D65 encoding white.
+- **`transform`:** hands an explicitly chosen XYZ or ideal-camera colour and white-balance (WB) operation to `calculateCaptureColorTransform()`.
 
-This is #112B, not full #112 closure. It does not execute correction profiles or activate production stages. Corrected planes may retain their explicit upstream transform history; no correction is inferred. #117/#118 execution and #111 ordered production integration require their own bound handoff. #16 remains the serializer owner and must not invent color/WB/quantization semantics.
+Rules:
 
-Implementation and fixtures are independently authored orchestration of existing Photivra APIs; no new equation, calibration, third-party material, dependency, service, IO or cost is introduced.
+- Derived plane and state IDs must be new.
+- No WB estimator runs.
+- WB that is only an intent is rejected. A state where WB has already been applied cannot be transformed again.
+- Applied RGB gains and adopted-white adaptation stay separate. XYZ diagonal adaptation is still an approximation, including in the adapter's result record.
 
-For external megapixel masters already in resolved linear sRGB/D65, see the separate [bounded native SDR contract](NATIVE_CAPTURE_SDR.md). The reference limits above remain unchanged.
+## Input limits
+
+- The input is an inline, co-sited, three-channel plane, of no more than 262,144 samples.
+- Its raster binding, dimensions, reference-white value and source identity are kept.
+- External or oversized planes fail. They are not loaded, truncated, downsampled or silently tiled.
+- The adapter does no geometric resampling.
+
+## Result
+
+The result exposes the optional colour and SDR calculation records separately, together with the original capture saturation, dynamic-range history and noise-realisation identity.
+
+- Rendering exposure, tone and gamut clipping cannot rewrite the physical capture.
+- SDR's own saturation field stays `not-consumed`. The original capture saturation is a separate upstream diagnostic; it is never inferred from output codes.
+- Display adaptation stays external and unknown.
+
+## Scope
+
+This was one slice (#112B) of the processed-output work, not all of it.
+
+- It does not run correction profiles, and does not turn on production stages.
+- Corrected planes can keep their explicit upstream transform history; no correction is inferred.
+- Running corrections, and ordered production integration, need their own bound handoffs (see [capture-bound corrections and SDR](CAPTURE_CORRECTED_SDR.md) and [production composition](PRODUCTION_COMPOSITION.md)).
+- The file serialiser ([photographic export](PHOTOGRAPHIC_EXPORT.md)) must not invent colour, WB or quantisation meaning.
+
+The implementation and fixtures are independently written, and only orchestrate existing Photivra APIs. No new equation, calibration, third-party material, dependency, service, IO or cost is added.
+
+For external megapixel master images already in resolved linear sRGB/D65, see the separate [bounded native SDR contract](NATIVE_CAPTURE_SDR.md). The reference limits above are unchanged.
