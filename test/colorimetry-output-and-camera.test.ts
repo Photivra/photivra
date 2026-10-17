@@ -5,7 +5,6 @@ import {
   calculateCaptureColorTransform,
   calculateCielabFromXyz,
   calculateGamutMappedColor,
-  calculateHlgSystemGamma,
   calculateRgbToXyzMatrices,
   createCaptureWhiteBalanceIntent,
   createColorTemperatureWhiteBalanceIntent,
@@ -13,12 +12,8 @@ import {
   createPlanckianSpectrum,
   createSimulatedCapture,
   evaluateBt709InverseOetf,
-  evaluateHlgInverseOetf,
-  evaluatePqEotf,
   evaluateSrgbDecoding,
   evaluateBt709Oetf,
-  evaluateHlgOetf,
-  evaluatePqInverseEotf,
   evaluateSrgbEncoding,
   estimateCie1931ColorMatchingFunctions,
   estimateCameraColorMatrix,
@@ -26,7 +21,6 @@ import {
   parseCaptureColorTransformInput,
   parseResolvedWhiteBalanceState,
   prepareBt1886Eotf,
-  prepareHlgReferenceDisplay,
   prepareRgbGamutMapping,
   resolveCaptureColorModel,
   resolveColorTemperatureWhiteBalance,
@@ -39,6 +33,7 @@ import {
   type ColorimetricSpectrum,
   type ColorMatrix3x3
 } from "../src/index.js";
+import * as engine from "../src/index.js";
 import { loadLinearCaptureInput as captureInput } from "./helpers/linear-capture-fixture.js";
 
 const ANALYTIC: ColorMatchingFunctionsSource = { kind: "analytic-cie-1931-multi-lobe-fit" };
@@ -116,30 +111,10 @@ describe("RGB colour spaces and transfer functions", () => {
     expect(() => evaluateSrgbEncoding(Number.NaN)).toThrow();
   });
 
-  it("implements the BT.2100 PQ and HLG reference functions", () => {
-    expect(evaluatePqEotf(1)).toBeCloseTo(10000, 8);
-    expect(evaluatePqEotf(0)).toBe(0);
-    expect(evaluatePqInverseEotf(100)).toBeCloseTo(0.5081, 4); // commonly tabulated PQ code for 100 cd/m²
-    expect(evaluatePqInverseEotf(1000)).toBeCloseTo(0.7518, 4);
-    for (const l of [0.005, 1, 100, 203, 4000]) expect(evaluatePqEotf(evaluatePqInverseEotf(l)) / l).toBeCloseTo(1, 10);
-    expect(() => evaluatePqEotf(1.01)).toThrow();
-    expect(() => evaluatePqInverseEotf(10001)).toThrow();
-    expect(evaluateHlgOetf(1 / 12)).toBeCloseTo(0.5, 15);
-    expect(evaluateHlgOetf(1)).toBeCloseTo(1, 7);
-    expect(evaluateHlgOetf(1 / 12 + 1e-12)).toBeCloseTo(0.5, 9); // continuity at the knee
-    for (const v of [0, 0.01, 1 / 12, 0.3, 1]) expect(evaluateHlgInverseOetf(evaluateHlgOetf(v))).toBeCloseTo(v, 12);
-    expect(calculateHlgSystemGamma({ nominalPeakLuminanceCdPerSquareMeter: 1000 }).value.systemGamma).toBeCloseTo(1.2, 15);
-    expect(calculateHlgSystemGamma({ nominalPeakLuminanceCdPerSquareMeter: 2000 }).value.systemGamma).toBeCloseTo(1.2 + 0.42 * Math.log10(2), 15);
-    expect(calculateHlgSystemGamma({ nominalPeakLuminanceCdPerSquareMeter: 4000 }).value.systemGamma).toBeCloseTo(1.2 * 1.111 ** 2, 15);
-    const hlg = prepareHlgReferenceDisplay({ nominalPeakLuminanceCdPerSquareMeter: 1000, blackLuminanceCdPerSquareMeter: 0 });
-    expect(hlg.eotf([1, 1, 1])[1]).toBeCloseTo(1000, 6);
-    expect(hlg.eotf([0.75, 0.75, 0.75])[0]).toBeCloseTo(203, 0); // 75% HLG ≈ 203 cd/m² reference white (ITU-R BT.2408)
-    expect(hlg.ootf([0, 0, 0])).toEqual([0, 0, 0]);
-    const lifted = prepareHlgReferenceDisplay({ nominalPeakLuminanceCdPerSquareMeter: 1000, blackLuminanceCdPerSquareMeter: 0.005 });
-    expect(lifted.blackLevelLift).toBeCloseTo(Math.sqrt(3 * (0.005 / 1000) ** (1 / 1.2)), 14);
-    expect(lifted.eotf([0, 0, 0])[0]).toBeCloseTo(0.005, 10);
-    expect(() => hlg.eotf([1.2, 0, 0])).toThrow();
-    expect(() => hlg.ootf([-0.1, 0, 0])).toThrow();
+  it("does not export the BT.2100 PQ or HLG transfer functions (not part of 2.0)", () => {
+    // Removed by owner decision (2026-10-17): licence-on-request patent declarations only (THIRD_PARTY.md).
+    for (const name of ["evaluatePqEotf", "evaluatePqInverseEotf", "PQ_CONSTANTS", "evaluateHlgOetf", "evaluateHlgInverseOetf", "HLG_CONSTANTS",
+      "calculateHlgSystemGamma", "prepareHlgReferenceDisplay"]) expect(Object.hasOwn(engine, name), name).toBe(false);
   });
 });
 

@@ -63,12 +63,11 @@ colour (camera → XYZ → linear sRGB/D65, unclipped) and convert it through CI
 primaries:
 - `display-p3`: Display P3 primaries (W3C CSS Color 4 `display-p3`; also SMPTE EG 432-1) with the
   sRGB transfer function;
-- `rec2020`: ITU-R BT.2020 primaries and OETF;
-- `rec2100-pq` / `rec2100-hlg`: BT.2020 primaries with ITU-R BT.2100 PQ (also SMPTE ST 2084) or
-  BT.2100 HLG (also ARIB STD-B67), 16-bit full range.
+- `rec2020`: ITU-R BT.2020 primaries and OETF.
+PQ and HLG (BT.2100) are not part of 2.0; see THIRD_PARTY.md.
 
 ```ts
-export type SimulateCaptureColorEncoding = "srgb" | "display-p3" | "rec2020" | "rec2100-pq" | "rec2100-hlg";
+export type SimulateCaptureColorEncoding = "srgb" | "display-p3" | "rec2020";
 ```
 
 ## SimulateCaptureDemosaic
@@ -177,7 +176,7 @@ export interface SimulateCaptureOptions {
     jpegQuantizationStep?: number;
     /** PNG only. Default "srgb". */
     colorEncoding?: SimulateCaptureColorEncoding;
-    /** PNG only: 8 or 16 bits per sample. Default 8, or 16 for the PQ/HLG encodings (which require 16). */
+    /** PNG only: 8 or 16 bits per sample. Default 8. */
     bitDepth?: 8 | 16;
     /**
      * PNG SDR encodings only. Default "clip" (per-component clip to the target gamut). "perceptual" maps

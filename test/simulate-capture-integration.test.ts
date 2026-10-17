@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { InvalidConfigurationError, estimateCie1931ColorMatchingFunctions, evaluateBt709InverseOetf, parseDngRawImage, evaluateHlgInverseOetf, evaluatePqEotf, evaluateSrgbDecoding, resolveRgbColorSpace,
+import { InvalidConfigurationError, estimateCie1931ColorMatchingFunctions, evaluateBt709InverseOetf, parseDngRawImage, evaluateSrgbDecoding, resolveRgbColorSpace,
   simulateCapture, type LensSampledPsfProfile, type SimulateCaptureOptions, type SimulateCaptureResult } from "../src/index.js";
 
 function sha(data: ArrayBufferView | string): string {
@@ -209,19 +209,18 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
     expect(distance(xy(a), xy(truth))).toBeLessThan(0.004); // 5 nm spectral quadrature
     expect(distance(xy(s.map((row) => row[0]! * sRgb[0]! + row[1]! * sRgb[1]! + row[2]! * sRgb[2]!)), xy(truth))).toBeGreaterThan(0.015);
     // A neutral grey card is neutral in every encoding and agrees with sRGB in luminance.
-    const grey = (colorEncoding: "display-p3" | "rec2100-pq" | "rec2100-hlg"): Promise<SimulateCaptureResult> => simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "png", colorEncoding, bitDepth: 16 } });
+    const grey = (colorEncoding: "display-p3" | "rec2020"): Promise<SimulateCaptureResult> => simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "png", colorEncoding, bitDepth: 16 } });
     const sGrey = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "srgb-16" } });
     const linearGrey = evaluateSrgbDecoding(meanOf(sGrey.image.samples, 1) / 65535);
     const p3Grey = await grey("display-p3");
     expect(evaluateSrgbDecoding(meanOf(p3Grey.image.samples, 1) / 65535) / linearGrey).toBeCloseTo(1, 2);
-    const pq = await grey("rec2100-pq"), hlg = await grey("rec2100-hlg");
-    expect(Array.from(pngChunks(pq.image.png!).get("cICP")!)).toEqual([9, 16, 0, 1]);
-    expect(Array.from(pngChunks(hlg.image.png!).get("cICP")!)).toEqual([9, 18, 0, 1]);
-    // PQ: relative 1.0 = 203 cd/m² (BT.2408); HLG: relative 1.0 at signal 0.75.
-    expect(evaluatePqEotf(meanOf(pq.image.samples, 1) / 65535) / 203 / linearGrey).toBeCloseTo(1, 2);
-    expect(evaluateHlgInverseOetf(meanOf(hlg.image.samples, 1) / 65535) / evaluateHlgInverseOetf(0.75) / linearGrey).toBeCloseTo(1, 2);
-    for (const r of [p3Grey, pq, hlg]) expect(Math.abs(meanOf(r.image.samples, 0) - meanOf(r.image.samples, 1)) / meanOf(r.image.samples, 1)).toBeLessThan(0.01);
-    expect(pq.assumptions.find((x) => x.id === "output.colorEncoding.conversion")!.explanation).toMatch(/no highlight headroom/);
+    const rec2020Grey = await grey("rec2020");
+    expect(Array.from(pngChunks(rec2020Grey.image.png!).get("cICP")!)).toEqual([9, 1, 0, 1]);
+    expect(evaluateBt709InverseOetf(meanOf(rec2020Grey.image.samples, 1) / 65535) / linearGrey).toBeCloseTo(1, 2);
+    for (const r of [p3Grey, rec2020Grey]) expect(Math.abs(meanOf(r.image.samples, 0) - meanOf(r.image.samples, 1)) / meanOf(r.image.samples, 1)).toBeLessThan(0.01);
+    // PQ and HLG are not part of 2.0 (licence-on-request patent declarations; THIRD_PARTY.md).
+    for (const colorEncoding of ["rec2100-pq", "rec2100-hlg"]) await expect(simulateCapture({ scene: { preset: "uniform" },
+      output: { width: 4, height: 4, format: "png", colorEncoding: colorEncoding as "rec2020", bitDepth: 16 } })).rejects.toThrow(InvalidConfigurationError);
   });
 
   it("writes the packed native RAW as a DNG that round-trips through parseDngRawImage", async () => {
@@ -317,7 +316,7 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
     const scene = { kind: "radiance-function" as const, sceneId: "never", evaluate: (): number => { calls++; return 0.01; } };
     const bad: SimulateCaptureOptions[] = [
       { scene, output: { colorEncoding: "display-p3" } },
-      { scene, output: { format: "png", colorEncoding: "rec2100-pq", bitDepth: 8 } },
+      { scene, output: { format: "png", colorEncoding: "rec2100-pq" as never } },
       { scene, output: { format: "png", colorEncoding: "rec2020", toneCurve: "positive-reinhard-per-channel" } },
       { scene, output: { format: "png", dng: {} } },
       { scene, output: { format: "png", bitDepth: 12 as never } },
@@ -340,7 +339,7 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
 describe("simulateCapture perceptual gamut mapping", { timeout: 300_000 }, () => {
   /** CIELAB hue angle (degrees) of an XYZ colour relative to D65. */
   function hue(xyz: number[]): number {
-    const white = [0.95047, 1, 1.08883], f = (t: number): number => (t > (6 / 29) ** 3 ? Math.cbrt(t) : t / (3 * (6 / 29) ** 2) + 4 / 29);
+    const w = resolveRgbColorSpace("srgb").value.whiteXyz, white = [w.x, w.y, w.z], f = (t: number): number => (t > (6 / 29) ** 3 ? Math.cbrt(t) : t / (3 * (6 / 29) ** 2) + 4 / 29);
     const [fx, fy, fz] = xyz.map((v, i) => f(v / white[i]!)) as [number, number, number];
     return Math.atan2(200 * (fy - fz), 500 * (fx - fy)) * 180 / Math.PI;
   }
@@ -369,7 +368,7 @@ describe("simulateCapture perceptual gamut mapping", { timeout: 300_000 }, () =>
     expect(grey.diagnostics.gamutMapping!.adjustedPixelCount).toBe(0);
     const greyClip = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "png" } });
     for (let i = 0; i < greyClip.image.samples.length; i++) expect(Math.abs(grey.image.samples[i]! - greyClip.image.samples[i]!)).toBeLessThanOrEqual(1);
-    for (const bad of [{ format: "png", colorEncoding: "rec2100-pq", gamutMapping: "perceptual" }, { format: "srgb-8", gamutMapping: "perceptual" },
+    for (const bad of [{ format: "srgb-8", gamutMapping: "perceptual" },
       { format: "png", gamutMapping: "perceptual", toneCurve: "positive-reinhard-per-channel" }, { format: "png", gamutMapping: "hue" }])
       await expect(simulateCapture({ scene: { preset: "uniform" }, output: bad as never })).rejects.toThrow(InvalidConfigurationError);
   });

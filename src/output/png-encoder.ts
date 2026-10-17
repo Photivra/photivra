@@ -7,14 +7,16 @@
  *
  * - Colour: exactly one of an sRGB chunk (plus the gAMA/cHRM compatibility values the PNG specification
  *   lists), an iCCP embedded ICC profile, or a cICP chunk with ITU-T H.273 code points (BT.709/sRGB,
- *   Display P3, BT.2020/BT.2100 primaries; sRGB, BT.709, linear, PQ or HLG transfer).
- * - HDR static metadata: mDCV (mastering display colour volume) and cLLI (MaxCLL/MaxFALL), only with cICP, as
- *   defined in the W3C PNG Third Edition and ITU-T H.265 Annex D (also SMPTE ST 2086 and CTA-861.3).
+ *   Display P3, BT.2020 primaries; sRGB, BT.709 or linear transfer). PQ and HLG code points are not written:
+ *   those transfer functions are not part of 2.0 (see THIRD_PARTY.md).
+ * - Static display metadata: mDCV (mastering display colour volume) and cLLI (MaxCLL/MaxFALL), only with cICP,
+ *   as defined in the W3C PNG Third Edition and ITU-T H.265 Annex D (also SMPTE ST 2086 and CTA-861.3). The
+ *   PNG specification allows mDCV with SDR encodings too, so both stay available for the remaining code points.
  * - Compression: zlib with stored or fixed-Huffman DEFLATE blocks and a bounded greedy LZ77 matcher.
  *   Output bytes are a pure function of the input; no platform CompressionStream is used.
  *
  * The encoder writes the caller's integer code values unchanged. Converting linear light to an encoded
- * signal (sRGB, PQ, HLG) and choosing a gamut mapping is the caller's job.
+ * signal (for example sRGB) and choosing a gamut mapping is the caller's job.
  * @see docs/IMPORT_AND_PNG.md for chunk layouts, code points and limits.
  */
 
@@ -24,10 +26,10 @@ export const PNG_ENCODER_ID = "photivra-png-rgb-v1" as const;
 /** Limits, checked before allocation. 100 MP (megapixels) of 16-bit RGB is about 600 MB of filtered scanlines. */
 export const PNG_ENCODER_LIMITS = Object.freeze({ maximumDimension: 65535, maximumPixels: 100_000_000, maximumIccProfileBytes: 4_000_000 });
 
-/** ITU-T H.273 ColourPrimaries: bt709 = 1 (also sRGB), display-p3 = 12 (P3 primaries with D65 white; W3C CSS Color 4, also SMPTE EG 432-1), bt2020 = 9 (BT.2020/BT.2100). */
+/** ITU-T H.273 ColourPrimaries: bt709 = 1 (also sRGB), display-p3 = 12 (P3 primaries with D65 white; W3C CSS Color 4, also SMPTE EG 432-1), bt2020 = 9 (BT.2020). */
 export type PngCicpPrimaries = "bt709" | "display-p3" | "bt2020";
-/** ITU-T H.273 TransferCharacteristics: bt709 = 1, linear = 8, srgb = 13 (sRGB), pq = 16 (ITU-R BT.2100 PQ), hlg = 18 (ARIB STD-B67). */
-export type PngCicpTransfer = "bt709" | "linear" | "srgb" | "pq" | "hlg";
+/** ITU-T H.273 TransferCharacteristics: bt709 = 1, linear = 8, srgb = 13 (sRGB). PQ (16) and HLG (18) are not offered in 2.0. */
+export type PngCicpTransfer = "bt709" | "linear" | "srgb";
 export type PngColourEncoding =
   | { kind: "srgb"; renderingIntent: "perceptual" | "relative-colorimetric" | "saturation" | "absolute-colorimetric" }
   | { kind: "icc"; profileName: string; profile: Uint8Array }
@@ -62,7 +64,7 @@ export interface PngEncodeInput {
 }
 
 const PRIMARIES: Record<PngCicpPrimaries, number> = { bt709: 1, "display-p3": 12, bt2020: 9 };
-const TRANSFER: Record<PngCicpTransfer, number> = { bt709: 1, linear: 8, srgb: 13, pq: 16, hlg: 18 };
+const TRANSFER: Record<PngCicpTransfer, number> = { bt709: 1, linear: 8, srgb: 13 };
 const INTENT = { perceptual: 0, "relative-colorimetric": 1, saturation: 2, "absolute-colorimetric": 3 } as const;
 function fail(message: string): never { throw new InvalidConfigurationError("PNG encoder: " + message); }
 

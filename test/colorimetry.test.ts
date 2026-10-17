@@ -289,12 +289,25 @@ describe("illuminants and correlated colour temperature", () => {
 });
 
 describe("chromatic adaptation", () => {
-  const d65 = { x: 0.95047, y: 1, z: 1.08883 }, d50 = { x: 0.96422, y: 1, z: 0.82521 };
-  it("reproduces the published linear Bradford D65→D50 matrix", () => {
-    // Widely published Bradford D65→D50 matrix (e.g. Lindbloom), computed from the same whites.
-    const expected = [[1.0478112, 0.0228866, -0.0501270], [0.0295424, 0.9904844, -0.0170491], [-0.0092345, 0.0150436, 0.7521316]];
+  // D65 from its chromaticity (0.3127, 0.3290), ITU-R BT.709-6 (free), with Y = 1. D50 is the ICC PCS
+  // illuminant nCIEXYZ (0.9642, 1.0, 0.8249), ICC.1:2010 §7.2.16 (free, permissive ICC copyright licence).
+  const d65 = { x: 0.3127 / 0.3290, y: 1, z: (1 - 0.3127 - 0.3290) / 0.3290 }, d50 = { x: 0.9642, y: 1, z: 0.8249 };
+  it("builds the linear Bradford matrix exactly as ICC.1:2010 Annex E specifies", () => {
+    // ICC.1:2010 Annex E, Eq. (E.1): the Bradford cone matrix M_BFD.
+    const mBfd = [[0.8951, 0.2664, -0.1614], [-0.7502, 1.7135, 0.0367], [0.0389, -0.0685, 1.0296]] as const;
+    expect(resolveChromaticAdaptationConeMatrix("bradford")).toEqual(mBfd);
+    // Eq. (E.2)-(E.4): M_adapt = M_BFD⁻¹ · diag(ρ_PCS/ρ_SRC, γ_PCS/γ_SRC, β_PCS/β_SRC) · M_BFD, evaluated here independently
+    // with Cramer's rule for the inverse.
+    const mul = (a: readonly (readonly number[])[], v: readonly number[]): number[] => a.map((r) => r[0]! * v[0]! + r[1]! * v[1]! + r[2]! * v[2]!);
+    const det = (a: readonly (readonly number[])[]): number => a[0]![0]! * (a[1]![1]! * a[2]![2]! - a[1]![2]! * a[2]![1]!) - a[0]![1]! * (a[1]![0]! * a[2]![2]! - a[1]![2]! * a[2]![0]!) + a[0]![2]! * (a[1]![0]! * a[2]![1]! - a[1]![1]! * a[2]![0]!);
+    const inv = (a: readonly (readonly number[])[]): number[][] => [0, 1, 2].map((i) => [0, 1, 2].map((j) => {
+      const r = [0, 1, 2].filter((k) => k !== j), c = [0, 1, 2].filter((k) => k !== i);
+      return ((i + j) % 2 === 0 ? 1 : -1) * (a[r[0]!]![c[0]!]! * a[r[1]!]![c[1]!]! - a[r[0]!]![c[1]!]! * a[r[1]!]![c[0]!]!) / det(a);
+    }));
+    const src = mul(mBfd, [d65.x, d65.y, d65.z]), pcs = mul(mBfd, [d50.x, d50.y, d50.z]), mi = inv(mBfd);
+    const expected = [0, 1, 2].map((i) => [0, 1, 2].map((j) => [0, 1, 2].reduce((s, k) => s + mi[i]![k]! * (pcs[k]! / src[k]!) * mBfd[k]![j]!, 0)));
     const m = calculateChromaticAdaptationMatrix({ transform: "bradford", sourceWhiteXyz: d65, destinationWhiteXyz: d50 }).value.matrix;
-    m.forEach((row, i) => row.forEach((v, j) => expect(v).toBeCloseTo(expected[i]![j]!, 6)));
+    m.forEach((row, i) => row.forEach((v, j) => expect(v).toBeCloseTo(expected[i]![j]!, 12)));
   });
   it("maps the source white to the destination white, honours D and inverts", () => {
     for (const transform of CHROMATIC_ADAPTATION_TRANSFORMS) {
@@ -310,8 +323,9 @@ describe("chromatic adaptation", () => {
       bp.forEach((v, i) => expect(v).toBeCloseTo(p[i]!, 12));
     }
     // Different white luminance: D = 1 preserves the source-white luminance.
-    const scaled = calculateChromaticallyAdaptedXyz({ transform: "cat16", sourceWhiteXyz: { x: 95.047, y: 100, z: 108.883 }, destinationWhiteXyz: d50, xyz: { x: 95.047, y: 100, z: 108.883 } }).value.xyz;
-    expect(scaled.x).toBeCloseTo(96.422, 10); expect(scaled.y).toBeCloseTo(100, 10);
+    const d65Of100 = { x: 100 * d65.x, y: 100, z: 100 * d65.z };
+    const scaled = calculateChromaticallyAdaptedXyz({ transform: "cat16", sourceWhiteXyz: d65Of100, destinationWhiteXyz: d50, xyz: d65Of100 }).value.xyz;
+    expect(scaled.x).toBeCloseTo(100 * d50.x, 10); expect(scaled.y).toBeCloseTo(100, 10);
     expect(resolveChromaticAdaptationConeMatrix("cat16")[0][0]).toBe(0.401288);
     expect(() => calculateChromaticAdaptationMatrix({ transform: "bogus" as "cat16", sourceWhiteXyz: d65, destinationWhiteXyz: d50 })).toThrow();
     expect(() => calculateChromaticAdaptationMatrix({ transform: "cat02", sourceWhiteXyz: d65, destinationWhiteXyz: d50, degreeOfAdaptation: 1.1 })).toThrow();
@@ -399,7 +413,7 @@ describe("CIELAB and colour difference", () => {
     expect(calculateColorDifference({ reference: r94, sample: s94, formula: "cie94-textiles" }).value.deltaE).toBeCloseTo(0.8404677, 6);
   });
   it("converts XYZ ↔ CIELAB ↔ LCh exactly and continuously at the linear segment", () => {
-    const white = { x: 0.95047, y: 1, z: 1.08883 };
+    const white = { x: 0.3127 / 0.3290, y: 1, z: (1 - 0.3127 - 0.3290) / 0.3290 }; // D65 from ITU-R BT.709-6 xy
     expect(calculateCielabFromXyz({ xyz: white, referenceWhiteXyz: white }).value).toEqual({ lStar: 100, aStar: 0, bStar: 0 });
     const eps = (6 / 29) ** 3;
     const lo = calculateCielabFromXyz({ xyz: { x: 0, y: eps * (1 - 1e-12), z: 0 }, referenceWhiteXyz: white }).value.lStar;

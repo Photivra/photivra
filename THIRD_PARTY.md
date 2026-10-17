@@ -92,7 +92,7 @@ The colorimetry modules in `src/color/` (see [docs/COLORIMETRY.md](https://githu
 | Daylight-locus polynomial and M₁/M₂ coefficients; illuminant A formula constants; CIELAB, CIE94 and CIEDE2000 formula constants (`illuminants.ts`, `color-difference.ts`) | CIE 15:2018 (daylight and illuminant A constants; values checked against the free CIE datasets); CIELAB as in W3C CSS Color 4; CIE94 as stated in Wikipedia, "Color difference" (secondary source; the primary CIE 116-1995 is not free); Sharma, Wu & Dalal (2005), also CIE 142-2001 | Coefficients of standardized equations, used as factual constants. |
 | McCamy CCT cubic | McCamy (1992), Color Res. Appl. 17(2) | Published equation coefficients. |
 | Bradford, CAT02, CAT16 and Hunt–Pointer–Estévez matrices (`chromatic-adaptation.ts`) | Lam (1985) / ICC.1:2010 Annex E; Moroney et al. (2002) / CIE 159:2004; Li et al. (2017); CIE 159:2004 | Published 3×3 model constants. |
-| Primaries and white points; PQ, HLG, BT.709 and BT.1886 constants (`rgb-color-spaces.ts`) | ITU-R BT.709-6, BT.1886, BT.2020-2, BT.2100-3 (PQ/HLG); W3C CSS Color 4 (`srgb`, `display-p3`); also IEC 61966-2-1, SMPTE ST 2084, SMPTE EG 432-1 | Standardized numeric constants; every value is available from the freely published ITU-R and W3C documents. |
+| Primaries and white points; BT.709 and BT.1886 constants (`rgb-color-spaces.ts`) | ITU-R BT.709-6, BT.1886, BT.2020-2; W3C CSS Color 4 (`srgb`, `display-p3`); also IEC 61966-2-1, SMPTE EG 432-1 | Standardized numeric constants; every value is available from the freely published ITU-R and W3C documents. |
 | h, c, k | BIPM SI Brochure (2019) | Exact SI defining constants (facts). |
 | Standard output sensitivity S = 10/H, camera-equation constant 0.65 and the 18 % grey reference, K_m = 683 lm/W (`src/facade/`) | CIPA DC-004-2020 (free); BIPM SI Brochure, definition of the candela | Standardized scalar constants used as facts. The capture facade's charts (slanted edge, Siemens star, step wedge, grey ramp, checkerboard, point grid) are engine-authored analytic patterns; the slanted edge only follows the ISO 12233 geometry (a few degrees of slant, 4:1 contrast) and reproduces no chart artwork or data. |
 
@@ -114,9 +114,8 @@ The processing operators in `src/processing/` and the built-in Bayer kernels in 
 | Burt–Adelson generating kernel [1, 4, 6, 4, 1]/16 (a = 0.375) | Burt & Adelson (1983) | Published equation parameter. |
 | Well-exposedness σ = 0.2; key 0.18; range σ 0.4 and spatial σ 2% defaults | Mertens et al. (2007); Reinhard et al. (2002); Durand & Dorsey (2002) | Published default parameters. |
 | Gain-compensation σ_N ≈ 10/255, σ_g = 0.1 | Brown & Lowe (2007) | Published parameters, rescaled to normalized intensity. |
-| HDR reference white 203 cd/m² and HLG signal 0.75; full and narrow range quantization | ITU-R BT.2408, BT.2100-3 | Standardized numeric constants; the ITU-R recommendations are freely published. |
 
-The Malvar–He–Cutler demosaic kernels and their parameters were removed from 2.0 (owner decision, 2026-10-17); see the patent review below.
+The Malvar–He–Cutler demosaic kernels and their parameters, and the BT.2408 HDR reference-white and BT.2100 quantization constants used only by the PQ/HLG encoders, were removed from 2.0 (owner decision, 2026-10-17); see the patent review below.
 
 ## Patent review of 2.0 algorithms (public-record check, 2026-10-17, not legal advice)
 
@@ -131,7 +130,8 @@ The Malvar–He–Cutler demosaic kernels and their parameters were removed from
 | HDR bracket merge | Disney US 9,275,445 (in force to 2034) | Claims align-then-merge HDR. The engine's merge does no alignment and requires pre-aligned input (`docs/PROCESSING.md`). |
 | Exposure fusion pyramid blending | CyberLink US 8,885,976 (in force to 2034) | Claims a specific pyramid-blending variant. The engine uses standard Mertens et al. (2007) fusion. |
 | Malvar–He–Cutler demosaic | Microsoft US 7,502,505 (in force to about January 25, 2027) | Claim 1 closely matches the method, so it was removed from 2.0 (owner decision, 2026-10-17). It may return after the patent expires. |
-| PQ (Dolby US 11,887,560) and HLG transfer functions | Under separate review | Licensing under review. |
+| PQ transfer function (SMPTE ST 2084, ITU-R BT.2100) | Dolby: SMPTE ST 2084 patent declaration, option B1 (free of charge, with reciprocity), July 30, 2015, and ITU-R BT.2100 declaration option 2.1; US 11,887,560 in force to about 2032 | Only free-of-charge licence-on-request declarations, not a licence or non-assert: a licence must still be requested. Removed from 2.0 by owner decision (2026-10-17). |
+| HLG transfer function (ITU-R BT.2100, ARIB STD-B67) | BBC: free-of-charge declarations to the ITU and SMPTE. NHK: only a 2001 general RAND statement. Thomson: RAND declaration PCT/EP16/051552 on BT.2100. ARIB STD-B67 lists no essential patents | Licence-on-request (free of charge or RAND) declarations, not licences or non-asserts. Removed from 2.0 by owner decision (2026-10-17). |
 
 ## Print contrast numerical model material
 

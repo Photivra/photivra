@@ -115,13 +115,9 @@ Not modelled: dark current, fixed-pattern noise, inter-frame motion and registra
 
 ### HDR output
 
-`createHdrImageEncodingTask({ image, inputColorSpace, transfer, ... })` first converts linear RGB to BT.2020 primaries. The matrices come from `resolveRgbColorSpace` (derived from primaries and white as in W3C CSS Color 4; see COLORIMETRY.md); for sRGB this reproduces the ITU-R BT.2087 matrix. It then encodes:
+`createHdrImageEncodingTask({ image, inputColorSpace, transfer: "linear-float32" })` converts linear RGB to BT.2020 primaries and returns unclipped float32 linear BT.2020 (relative values, no transfer function, quantization or display adaptation). The matrices come from `resolveRgbColorSpace` (derived from primaries and white as in W3C CSS Color 4; see COLORIMETRY.md); for sRGB this reproduces the ITU-R BT.2087 matrix.
 
-- **`pq`**: the ITU-R BT.2100 PQ inverse EOTF (also SMPTE ST 2084) (`evaluatePqInverseEotf`), with relative 1.0 at `referenceWhiteLuminanceCdPerSquareMeter`. The default is 203 cd/m², the ITU-R BT.2408 HDR reference white. Luminance is clipped to [0, 10000] cd/m².
-- **`hlg`**: the BT.2100 HLG OETF (`evaluateHlgOetf`), with relative 1.0 at signal `hlgReferenceWhiteSignal`. The default is 0.75, the BT.2408 HLG reference white. Scene-linear E is clipped to [0, 1].
-- **`linear-float32`**: unclipped float32 linear BT.2020.
-
-Integer codes use BT.2100 full range, D = round((2ⁿ−1)E′), or narrow range, D = round((219E′+16)·2ⁿ⁻⁸), at 10, 12 or 16 bits. Negative and over-range clipping are counted. This is component clipping, not gamut mapping, and no HDR metadata (MaxCLL/MaxFALL) or display adaptation is produced.
+The ITU-R BT.2100 PQ (also SMPTE ST 2084) and HLG transfer functions are not part of 2.0 (owner decision, 2026-10-17): their patent holders offer only licence-on-request declarations, which fails the project's free-to-use rule. See the patent review in `THIRD_PARTY.md`.
 
 ## Tone mapping and exposure fusion
 
@@ -193,7 +189,7 @@ All filters use one global parameter set. Linear RAW noise is signal-dependent, 
 - Gunturk, B. K., Glotzbach, J., Altunbasak, Y., Schafer, R. W. & Mersereau, R. M. (2005). Demosaicking: color filter array interpolation. *IEEE Signal Processing Magazine* 22(1).
 - Hasinoff, S. W., Durand, F. & Freeman, W. T. (2010). Noise-optimal capture for high dynamic range photography. *Proc. CVPR 2010*.
 - Hirakawa, K. & Parks, T. W. (2005). Adaptive homogeneity-directed demosaicing algorithm. *IEEE Trans. Image Processing* 14(3), 360–369.
-- ITU-R BT.2020-2, BT.2087, BT.2100-3 and BT.2408 (free); also SMPTE ST 2084.
+- ITU-R BT.2020-2 and BT.2087 (free).
 - Knutsson, H. & Westin, C.-F. (1993). Normalized and differential convolution. *Proc. CVPR 1993*.
 - Mertens, T., Kautz, J. & Van Reeth, F. (2007). Exposure fusion. *Proc. Pacific Graphics 2007*.
 - Nayar, S. K. & Nakagawa, Y. (1994). Shape from focus. *IEEE TPAMI* 16(8), 824–831; Pertuz, S., Puig, D. & García, M. A. (2013). Analysis of focus measure operators for shape-from-focus. *Pattern Recognition* 46(5).

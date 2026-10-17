@@ -181,7 +181,7 @@ A few abbreviations used below: FOV (field of view), PSF (point-spread function:
 - [Image processing](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md). All of these are cancellable approximations:
   - built-in bilinear Bayer demosaic kernels with mirrored borders, and AHD demosaic;
   - noise-optimal linear merge of a RAW HDR (high dynamic range) bracket;
-  - PQ/HLG HDR encoding;
+  - conversion of merged radiance to linear BT.2020 (PQ and HLG are not part of 2.0; see `THIRD_PARTY.md`);
   - Reinhard and Durand–Dorsey tone mapping;
   - Mertens exposure fusion;
   - focus stacking;
@@ -199,7 +199,7 @@ A few abbreviations used below: FOV (field of view), PSF (point-spread function:
   - CIELAB and ΔE76/94/2000;
   - camera-matrix fitting;
   - Display P3 and Rec.2020 matrices;
-  - PQ, HLG and BT.1886 transfer functions;
+  - sRGB, BT.709 and BT.1886 transfer functions;
   - hue-preserving gamut mapping.
 
   CIE and ColorChecker tables are not bundled.

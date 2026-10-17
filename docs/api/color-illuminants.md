@@ -186,8 +186,10 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 McCamy (1992) cubic estimate of CCT from CIE 1931 xy:
 n = (x − 0.3320)/(0.1858 − y), CCT = 449 n³ + 3525 n² + 6823.3 n + 5520.33.
-McCamy reports agreement within about 2 K over 2856–6504 K near the locus; it is an
-approximation and carries no Duv.
+An approximation that carries no Duv. Measured for this engine (October 17, 2026) on points of a
+Planckian locus integrated from the CIE 1931 2° 1 nm table (360–830 nm, exact c₂): it deviates by up
+to 10 K over 2856–6504 K (largest near 3500 K), 19 K at 2000 K, 17 K at 8000 K, 118 K at 10000 K
+and 442 K at 12500 K. See docs/COLORIMETRY.md.
 
 ```ts
 export function estimateCorrelatedColorTemperatureMcCamy(input: { chromaticity: CieXyChromaticity }): CalculationResult<{ correlatedColorTemperatureKelvin: number }>;

@@ -698,11 +698,6 @@
       "kind": "runtime"
     },
     {
-      "name": "calculateHlgSystemGamma",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
       "name": "calculateIdealApertureGeometry",
       "source": "src/optics/aperture.ts",
       "kind": "runtime"
@@ -2568,26 +2563,6 @@
       "kind": "runtime"
     },
     {
-      "name": "evaluateHlgInverseOetf",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "evaluateHlgOetf",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "evaluatePqEotf",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "evaluatePqInverseEotf",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
       "name": "evaluateSceneIlluminationTemporalMultiplier",
       "source": "src/schema/illumination-temporal.ts",
       "kind": "runtime"
@@ -3270,16 +3245,6 @@
     {
       "name": "HighlightPriorityMeteringDiagnostics",
       "source": "src/exposure/metering.ts",
-      "kind": "type"
-    },
-    {
-      "name": "HLG_CONSTANTS",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "HlgReferenceDisplay",
-      "source": "src/color/rgb-color-spaces.ts",
       "kind": "type"
     },
     {
@@ -5023,11 +4988,6 @@
       "kind": "type"
     },
     {
-      "name": "PQ_CONSTANTS",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
       "name": "prepareBt1886Eotf",
       "source": "src/color/rgb-color-spaces.ts",
       "kind": "runtime"
@@ -5075,11 +5035,6 @@
     {
       "name": "prepareGeometricMapping",
       "source": "src/output/geometric-transforms.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "prepareHlgReferenceDisplay",
-      "source": "src/color/rgb-color-spaces.ts",
       "kind": "runtime"
     },
     {

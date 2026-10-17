@@ -52,7 +52,7 @@ describe("root exports reject malformed input with domain errors (API review #4)
       "calculateDepthOfField", "calculateDefocusCircle", "estimateEquivalentViewingCircleOfConfusion", "calculateAiryDisk",
       "calculateExposureValue100", "calculateRelativeOpticalExposure", "calculateRelativeRenderedExposure", "calculateEquivalentIso",
       "calculateThinLensImageDistance", "calculateIdealApertureGeometry", "calculatePixelPitch", "calculatePlanckianSpectralRadiance",
-      "estimatePlanckianLocusChromaticity", "calculateHlgSystemGamma", "prepareBt1886Eotf", "prepareHlgReferenceDisplay"] as const;
+      "estimatePlanckianLocusChromaticity", "prepareBt1886Eotf"] as const;
     for (const name of strict) {
       const fn = engine[name] as (input: unknown) => unknown;
       expect(() => fn({ unexpectedField: 1 }), name).toThrow(new InvalidConfigurationError(`${name} input has unknown field "unexpectedField".`));

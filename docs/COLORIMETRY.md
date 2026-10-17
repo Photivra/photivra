@@ -71,7 +71,7 @@ Measured in the tests (no CIE table values):
 
 - **Locus:** u decreases monotonically with T from 1000 to 100000 K, and the default locus equals the explicit Planck integral (`planck-integration` with the analytic CMFs on the same nodes) and `integrateSpectrumToXyz` of a Planckian spectrum.
 - **Illuminant A:** its spectrum is proportional to Planck's law at 2848 K × c₂/1.435e-2 ≈ 2855.5 K, its chromaticity is the locus point at that temperature, and the CCT search recovers that temperature with |Duv| < 1e-9.
-- **McCamy cross-check:** on the default locus McCamy's cubic agrees within 20 K over 2856–6504 K (measured maximum 15 K). McCamy's cubic itself deviates from a locus integrated with the CIE table by up to 10 K over that range (computed once, outside the repository).
+- **McCamy cross-check:** on the default locus McCamy's cubic agrees within 20 K over 2856–6504 K (measured maximum 15 K). McCamy's cubic itself deviates from a locus integrated with the CIE table by up to 10 K over that range, 19 K at 2000 K, 17 K at 8000 K, 118 K at 10000 K and 442 K at 12500 K (computed once, outside the repository).
 - **Round trips:** CCT + Duv → chromaticity → CCT + Duv returns the inputs (CCT to 1e-4 relative, Duv to 1e-6) from 2000 to 40000 K.
 - **Daylight polynomial:** it satisfies y = −3x² + 2.87x − 0.275, x falls with T, and the daylight locus lies above the Planckian locus (0 < Duv < 0.01) over 4000–25000 K.
 - **A greenish light has a positive Duv:** chromaticities moved from the locus toward the BT.709 green primary give Duv > 0, and moved away give Duv < 0, at 2700, 4000 and 6500 K.
@@ -105,7 +105,7 @@ This is the one-step two-illuminant form of Li et al. (2017), applied to every c
 | `von-kries-hpe` | Hunt–Pointer–Estévez cones (equal-energy normalized) as used in CIECAM02 (Moroney et al. 2002; also CIE 159:2004) |
 | `xyz-scaling` | Identity: diagonal scaling in XYZ (the weakest model) |
 
-`calculateDegreeOfAdaptation()` implements the CIECAM02 formula D = F[1 − (1/3.6)·exp((−L_A − 42)/92)], with F = 1.0, 0.9 or 0.8 for average, dim or dark surround. The matrix is calculated exactly. How well a linear CAT predicts corresponding colours is a property of that model and is not claimed here. The test suite reproduces the widely published Bradford D65→D50 matrix to 1e-6.
+`calculateDegreeOfAdaptation()` implements the CIECAM02 formula D = F[1 − (1/3.6)·exp((−L_A − 42)/92)], with F = 1.0, 0.9 or 0.8 for average, dim or dark surround. The matrix is calculated exactly. How well a linear CAT predicts corresponding colours is a property of that model and is not claimed here. The test suite checks that the Bradford cone matrix equals ICC.1:2010 Annex E Eq. (E.1), and that the D65→D50 matrix equals the Annex E construction (Eq. E.2–E.4) evaluated independently in the test, to 1e-12. D65 comes from its ITU-R BT.709-6 chromaticity and D50 is the ICC PCS illuminant (0.9642, 1.0, 0.8249). ICC.1:2010 is free to download under a permissive ICC copyright licence.
 
 ### Scene adaptation in the capture colour transform
 
@@ -168,7 +168,7 @@ The primaries and D65 white below are the published values of ITU-R BT.709-6 (it
 | --- | --- | --- | --- |
 | `srgb`, `rec709` | (0.64, 0.33) / (0.30, 0.60) / (0.15, 0.06) | D65 (0.3127, 0.3290) | ITU-R BT.709-6; W3C CSS Color 4 `srgb` (also IEC 61966-2-1) |
 | `display-p3` | (0.680, 0.320) / (0.265, 0.690) / (0.150, 0.060) | D65 | W3C CSS Color 4 `display-p3`; ITU-T H.273 ColourPrimaries 12 (also SMPTE EG 432-1) |
-| `rec2020` | (0.708, 0.292) / (0.170, 0.797) / (0.131, 0.046) | D65 | ITU-R BT.2020-2, BT.2100-3 |
+| `rec2020` | (0.708, 0.292) / (0.170, 0.797) / (0.131, 0.046) | D65 | ITU-R BT.2020-2 |
 
 The derived luminance rows match the published coefficients to 1e-4: BT.709 0.2126/0.7152/0.0722, BT.2020 0.2627/0.6780/0.0593 and P3 0.2290/0.6917/0.0793.
 
@@ -177,18 +177,7 @@ Transfer functions, all using the constants published in each standard:
 - **sRGB / Display P3:** `evaluateSrgbEncoding` / `evaluateSrgbDecoding`.
 - **BT.709 OETF:** `evaluateBt709Oetf` / `evaluateBt709InverseOetf`.
 - **BT.1886 EOTF:** `prepareBt1886Eotf` (γ = 2.4, with the display's white and black luminance).
-- **ITU-R BT.2100 PQ (also SMPTE ST 2084):** `evaluatePqEotf` / `evaluatePqInverseEotf`, with m₁ = 2610/16384, m₂ = 2523/4096·128, c₁ = 3424/4096, c₂ = 2413/4096·32 and c₃ = 2392/4096·32.
-- **BT.2100 HLG:**
-  - `evaluateHlgOetf` / `evaluateHlgInverseOetf`, with a = 0.17883277, b = 1 − 4a and c = 0.5 − a·ln(4a).
-  - `calculateHlgSystemGamma`: γ = 1.2 + 0.42·log₁₀(L_W/1000) for 400–2000 cd/m², otherwise the extended form 1.2·1.111^log₂(L_W/1000).
-  - `prepareHlgReferenceDisplay`: OOTF F_D = L_W·Y_S^(γ−1)·E with BT.2100 luminance weights, and EOTF with black lift β = √(3(L_B/L_W)^(1/γ)).
-
-The tests check:
-
-- PQ: 100 cd/m² encodes to 0.5081.
-- HLG: OETF(1/12) = 0.5, and a 75 % HLG signal shows at about 203 cd/m² on a 1000 cd/m² display (ITU-R BT.2408).
-
-PQ and HLG accept signals only in [0, 1] and fail closed outside that range. The published 8-digit HLG constants make OETF⁻¹(1) exceed 1 by about 1e-8, so the EOTF bounds that value to 1.
+The ITU-R BT.2100 PQ (also SMPTE ST 2084) and HLG transfer functions are not part of 2.0 (owner decision, 2026-10-17): their patent holders offer only licence-on-request declarations, which fails the project's free-to-use rule. See the patent review in `THIRD_PARTY.md`.
 
 ## Perceptual gamut mapping
 
@@ -215,6 +204,6 @@ PQ and HLG accept signals only in [0, 1] and fail closed outside that range. The
 - CIE94: Wikipedia, "Color difference", §CIE94, <https://en.wikipedia.org/wiki/Color_difference#CIE94> (secondary source; the primary CIE 116-1995 is not free). Worked values: colour-science, `colour.difference.delta_E_CIE1994` documentation, <https://github.com/colour-science/colour/blob/develop/colour/difference/delta_e.py> (BSD-3-Clause).
 - G. D. Finlayson, M. S. Drew (1997), IS&T/SID 5th Color Imaging Conference.
 - W3C CSS Color Module Level 4 §14 (free). Also see: J. Morovič (2008), *Color Gamut Mapping*, Wiley.
-- ITU-R BT.709-6 (primaries, D65 and luminance coefficients, items 1.3 and 3.2), BT.1886, BT.2020-2 (Tables 3 and 4), BT.2100-3 (PQ and HLG), BT.2408 (free at <https://www.itu.int/rec/R-REC-BT>); W3C CSS Color Module Level 4 (`srgb`, `display-p3`, Lab, the RGB↔XYZ method and its sample-code matrices) <https://www.w3.org/TR/css-color-4/>; ITU-T H.273. Also specified in IEC 61966-2-1:1999, SMPTE ST 2084, SMPTE EG 432-1 and SMPTE RP 177-1993.
+- ITU-R BT.709-6 (primaries, D65 and luminance coefficients, items 1.3 and 3.2), BT.1886, BT.2020-2 (Tables 3 and 4) (free at <https://www.itu.int/rec/R-REC-BT>); W3C CSS Color Module Level 4 (`srgb`, `display-p3`, Lab, the RGB↔XYZ method and its sample-code matrices) <https://www.w3.org/TR/css-color-4/>; ITU-T H.273. Also specified in IEC 61966-2-1:1999, SMPTE EG 432-1 and SMPTE RP 177-1993.
 - Planck's law: BIPM, *Mise en pratique for the definition of the kelvin*, Absolute Primary Radiometry (2018), Eq. (1), <https://www.bipm.org/utils/en/pdf/si-mep/MeP-K-2018_Absolute_Primary_Radiometry.pdf>; second radiation constant c₂ = hc/k = 1.438 776 877…e-2 m·K (exact), NIST CODATA 2022, <https://physics.nist.gov/cgi-bin/cuu/Value?c22ndrc>.
 - BIPM, *The International System of Units*, 9th ed. (2019).

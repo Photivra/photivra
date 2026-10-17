@@ -4,7 +4,7 @@
 
 A major release.
 
-**In short.** 2.0.0 fixes correctness problems found in the first 2.0 review, makes several parts much faster without changing their output, and adds a large set of new features. Some of the fixes change numbers that 1.x produced, change stored identities (hashes and seeds), or reject input that 1.x accepted. Any of those can break existing users, so the version number goes from 1 to 2. Root exports grow from 1,227 to 1,637 symbols, and none is removed.
+**In short.** 2.0.0 fixes correctness problems found in the first 2.0 review, makes several parts much faster without changing their output, and adds a large set of new features. Some of the fixes change numbers that 1.x produced, change stored identities (hashes and seeds), or reject input that 1.x accepted. Any of those can break existing users, so the version number goes from 1 to 2. Root exports grow from 1,227 to 1,628 symbols, and none is removed.
 
 What it contains:
 
@@ -155,7 +155,7 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - Procedural chart presets (uniform, slanted edge, Siemens star, step wedge, grey ramp, checkerboard, point grid, caller-spectrum patches) with `resolveChartScene` and helpers.
   - `SIMULATE_CAPTURE_FACADE_VERSION` 1.0.0; `docs/QUICK_START.md` (shipped) and `docs/examples/simulate-capture.mjs`.
 - **`simulateCapture()` uses the 2.0 features (#306, #307).** All opt-in. Without the new options, the 1.0 facade output is byte-identical at the same illuminance (the default illuminance changed; see *Free-source citations* below), apart from the colour-matching-function change under *Breaking changes*. Every choice is listed in `assumptions`.
-  - `output.format: "png"` with `colorEncoding` `srgb`, `display-p3`, `rec2020`, `rec2100-pq` or `rec2100-hlg`. The unclipped linear development is converted through CIE XYZ, clipped once in the target gamut, and signalled with cICP. PQ/HLG place RAW white at the BT.2408 reference white.
+  - `output.format: "png"` with `colorEncoding` `srgb`, `display-p3` or `rec2020`. The unclipped linear development is converted through CIE XYZ, clipped once in the target gamut, and signalled with cICP. The `rec2100-pq` and `rec2100-hlg` encodings prepared for 2.0 were removed before release: pQ and HLG (ITU-R BT.2100) are not shipped in 2.0 because their patent holders offer only licence-on-request declarations (owner decision, 2026-10-17; see the patent review in `THIRD_PARTY.md`).
   - Optional `gamutMapping: "perceptual"` (constant CIELAB L* and hue).
   - `output.format: "dng"`.
   - `output.demosaic` (`bilinear`) and `borderHandling` (`margin`, `mirror`).
@@ -171,7 +171,7 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - Chromatic adaptation: Bradford, CAT02, CAT16, von Kries-HPE, XYZ scaling, degree of adaptation.
   - CIELAB/LCh, and ΔE76, CIE94 and CIEDE2000.
   - `estimateCameraColorMatrix`.
-  - RGB colour spaces (sRGB, Rec.709, Display P3, Rec.2020) and sRGB, BT.709, BT.1886, PQ and HLG transfers; gamut mapping.
+  - RGB colour spaces (sRGB, Rec.709, Display P3, Rec.2020) and sRGB, BT.709 and BT.1886 transfers; gamut mapping. PQ and HLG (ITU-R BT.2100) are not shipped in 2.0 because their patent holders offer only licence-on-request declarations (owner decision, 2026-10-17; see the patent review in `THIRD_PARTY.md`). The PQ/HLG functions and constants prepared for 2.0 (`evaluatePqEotf`, `evaluatePqInverseEotf`, `PQ_CONSTANTS`, `evaluateHlgOetf`, `evaluateHlgInverseOetf`, `HLG_CONSTANTS`, `calculateHlgSystemGamma`, `prepareHlgReferenceDisplay`, `HlgReferenceDisplay`) never ship. `resolveRgbColorSpace("rec2020").sources` lists only ITU-R BT.2020-2.
   - `resolveColorTemperatureWhiteBalance` turns Kelvin + tint into channel gains. `calculateCaptureColorTransform` takes an optional adaptation `transform`.
 - **Sensor (#290).**
   - `createIsoGainReadoutRegimes()`: ISO-dependent analog and digital gain, with read noise per conversion gain.
@@ -206,13 +206,13 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
 - **Export formats (#298).**
   - `parseDngRawImage`: a bounded DNG/TIFF-EP reader (uncompressed and lossless JPEG, 8–16 bit), with `DNG_IMPORT_SCHEMA_VERSION` 1.0.0 and `DNG_IMPORT_LIMITS`.
   - `parseLosslessJpeg` (ITU-T T.81 Annex H).
-  - `serializePngImage`: 8/16-bit RGB PNG with sRGB, iCCP or cICP for Display P3, BT.2020, PQ and HLG; mDCV/cLLI metadata; deterministic in-house zlib.
+  - `serializePngImage`: 8/16-bit RGB PNG with sRGB, iCCP or cICP for Display P3 and BT.2020 (sRGB, BT.709 or linear transfer); mDCV/cLLI metadata; deterministic in-house zlib. No PQ or HLG code points.
   - `EXPORT_JPEG_ENCODER_ID`.
   - AVIF and HEIC are not provided.
 - **Processing (#302).** All opt-in. See `docs/PROCESSING.md`.
   - Bilinear Bayer demosaic profiles, AHD demosaicing and CFA-plane reconstruction. The Malvar–He–Cutler kernels prepared for 2.0 were removed before release (owner decision, 2026-10-17): Microsoft's US 7,502,505 is in force until about January 25, 2027, and its claim 1 closely matches the method. The `malvar-he-cutler-2004` kernel and the `simulateCapture()` option `output.demosaic: "malvar-he-cutler"` never ship. They may return after the patent expires (about 25 Jan 2027). Bilinear (the default) and AHD are unchanged, and the hash-lock tests confirm the default output is unchanged. See the patent review in `THIRD_PARTY.md`.
   - `borderHandling: "mirror"` for RAW development.
-  - Noise-optimal HDR bracket merge, and BT.2020 PQ/HLG encoding.
+  - Noise-optimal HDR bracket merge, and conversion to float32 linear BT.2020 (`createHdrImageEncodingTask`, `transfer: "linear-float32"` only). Its PQ/HLG modes and their integer-code options were removed before release; the SDR outputs are unchanged, as the hash-lock tests confirm.
   - Reinhard and Durand–Dorsey tone mapping, exposure fusion, focus stacking and known-rotation panoramas.
   - Bilateral and non-local-means denoise, unsharp mask, and an explicitly synthetic film grain.
   - A shared `ProcessingTask` contract.

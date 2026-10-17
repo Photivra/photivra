@@ -437,23 +437,14 @@ export {
 } from "./color/camera-color-matrix.js";
 
 export {
-  HLG_CONSTANTS,
-  PQ_CONSTANTS,
-  calculateHlgSystemGamma,
   calculateRgbToXyzMatrices,
   evaluateBt709InverseOetf,
-  evaluateHlgInverseOetf,
-  evaluatePqEotf,
   evaluateSrgbDecoding,
   evaluateBt709Oetf,
-  evaluateHlgOetf,
-  evaluatePqInverseEotf,
   evaluateSrgbEncoding,
   prepareBt1886Eotf,
-  prepareHlgReferenceDisplay,
   resolveRgbColorSpace,
   type Bt1886Eotf,
-  type HlgReferenceDisplay,
   type RgbColorSpaceDefinition,
   type RgbColorSpaceId,
   type RgbPrimaryChromaticities,
