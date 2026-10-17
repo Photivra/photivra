@@ -79,12 +79,17 @@ export async function acquireWebGpuRuntime(gpu: unknown, powerPreference: "low-p
       return { failure: "insufficient-limits", message: "The WebGPU adapter's storage-buffer limits are below the backend minimum." };
     }
     const storage = Math.min(adapterStorage, adapterBuffer, WEBGPU_REQUESTED_STORAGE_BINDING_BYTES);
-    let device: GPUDevice;
+    let device: GPUDevice, pending: Promise<GPUDevice> | undefined;
     try {
-      device = await Promise.race([adapter.requestDevice({ label: "photivra-image-kernels",
-        requiredLimits: { maxStorageBufferBindingSize: storage, maxBufferSize: storage } }), abort.promise]);
+      pending = adapter.requestDevice({ label: "photivra-image-kernels",
+        requiredLimits: { maxStorageBufferBindingSize: storage, maxBufferSize: storage } });
+      device = await Promise.race([pending, abort.promise]);
     } catch (error) {
-      if (error instanceof ImageKernelExecutionError) throw error;
+      if (error instanceof ImageKernelExecutionError) {
+        // The abort won the race. A device that still arrives later is destroyed, so it never leaks.
+        if (pending) void Promise.resolve(pending).then(late => late.destroy(), () => undefined);
+        throw error;
+      }
       return { failure: "device-request-failed", message: "The WebGPU device request failed." };
     }
     if (signal?.aborted) { device.destroy(); throw abortedError(); }

@@ -21,12 +21,24 @@ const FLOAT32_SUBNORMAL_LIMIT = 2 ** -126;
 /**
  * A-priori float32 bound for every output (all terms are non-negative): each term carries at most K + 7
  * roundings (sample, bilinear weight and their product, three inner additions, row weight and its
- * product, K − 1 outer additions), so |v_f32 − v_ref| ≤ (γ_{K+8} + 2^-40)·v_ref + K·(8·w_max + 2)·2^-126.
- * The 2^-40 covers the float64 reference's own rounding; the absolute term covers subnormal flush-to-zero.
+ * product, K − 1 outer additions), so |v_f32 − v_ref| ≤ (γ_{K+8} + 2^-40)·v_ref + K·(8·w_max + 2)·2^-126 + R.
+ * The 2^-40 covers the float64 reference's own rounding; the 2^-126 term covers subnormal flush-to-zero of
+ * samples, products and sums. R covers weights below the float32 normal range, which the host conversion may round
+ * to zero or a subnormal (|f32(w) − w| ≤ w) and the GPU may flush, putting their whole term at risk:
+ * R = 2·S_max·Σ_k (max_y ρ_k(y) + w_max·Σ_j β_{k,j}), where ρ_k(y) and β_{k,j} are the row and bilinear weights in
+ * (0, 2^-126) (zero otherwise) and the factor 2 covers the conversion and the later roundings. R = 0 when no such
+ * weight exists.
  */
-export function temporalExposureSumErrorBound(plan: TemporalExposureSumPlan): ImageKernelRelativeErrorBound {
+export function temporalExposureSumErrorBound(plan: TemporalExposureSumPlan, rowWeights: Float32Array | Float64Array): ImageKernelRelativeErrorBound {
+  const tiny = (w: number): number => (w < FLOAT32_SUBNORMAL_LIMIT ? w : 0);
+  let atRisk = 0;
+  for (let k = 0; k < plan.nodeCount; k++) {
+    let largestRow = 0;
+    for (let y = 0; y < plan.height; y++) largestRow = Math.max(largestRow, tiny(rowWeights[k * plan.height + y]!));
+    atRisk += largestRow + plan.maximumWeight * plan.nodes[k]!.weights.reduce((sum, b) => sum + tiny(b), 0);
+  }
   return { kind: "relative-to-reference", relative: float32Gamma(plan.nodeCount + 8) + 2 ** -40,
-    absolute: plan.nodeCount * (8 * plan.maximumWeight + 2) * FLOAT32_SUBNORMAL_LIMIT };
+    absolute: plan.nodeCount * (8 * plan.maximumWeight + 2) * FLOAT32_SUBNORMAL_LIMIT + 2 * plan.maximumSampleMagnitude * atRisk };
 }
 
 export const TEMPORAL_SUM_WGSL = /* wgsl */ `
@@ -88,6 +100,7 @@ export async function sumTemporalExposureOnCpu(plan: TemporalExposureSumPlan, in
 export async function sumTemporalExposureOnGpu(runtime: WebGpuRuntime, bandBytes: number, plan: TemporalExposureSumPlan, input: TemporalExposureSumInput,
   abort: AbortController, yieldControl: YieldControl, pipelines: PipelineSource): Promise<TemporalExposureSumResult> {
   const { width, height, nodes } = plan;
+  const errorBound = temporalExposureSumErrorBound(plan, input.rowWeights);
   const samples = new Float32Array(input.samples), weights = new Float32Array(input.rowWeights);
   const minimumOffset = Math.min(...nodes.map(n => n.offsetY)), maximumOffset = Math.max(...nodes.map(n => n.offsetY)) + 1;
   const span = maximumOffset - minimumOffset, rowBytes = width * 4;
@@ -133,5 +146,5 @@ export async function sumTemporalExposureOnGpu(runtime: WebGpuRuntime, bandBytes
     scope.release();
   }
   checkAbort(abort);
-  return { plan, values, execution: webGpuExecution(temporalExposureSumErrorBound(plan), 0) };
+  return { plan, values, execution: webGpuExecution(errorBound, 0) };
 }

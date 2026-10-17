@@ -124,6 +124,17 @@ describe("accelerator backend selection", () => {
     const aborted = new AbortController(); aborted.abort();
     expect(await reason(createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "fail", gpu: createFakeGpu().gpu, signal: aborted.signal }))).toBe("aborted");
   });
+  it("destroys a device that arrives after acquisition was aborted", async () => {
+    const { gpu, controls } = createFakeGpu({ device: "deferred" }), controller = new AbortController();
+    const pending = createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "fail", gpu, signal: controller.signal });
+    await new Promise(resolve => setTimeout(resolve, 0)); // the adapter has resolved and requestDevice is pending
+    controller.abort();
+    expect(await reason(pending)).toBe("aborted");
+    expect(controls.deviceDestroyCalls).toBe(0);
+    controls.resolveDevice();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(controls.deviceDestroyCalls).toBe(1);
+  });
   it("CPU backend returns the unchanged references with a reference label", async () => {
     const a = await createImageKernelAccelerator({ backend: "cpu-reference" });
     const sdr = sdrInput(40, 9, 64, 1, sdrProfile(8, "identity", "clip-components", 0)), packed = sdrCorpus(40, 9, 64, sdr.profile, 1, 1);
@@ -160,6 +171,38 @@ describe("webgpu-f32 host path (in-process float32 emulation of the WGSL kernels
     expect(banded.values).toEqual(out.values);
     expect(controls.created).toBe(controls.destroyed);
     expect(out.execution).toMatchObject({ backend: "webgpu-f32", arithmetic: "float32", bitIdenticalToReference: false });
+  });
+  it("convolution bound covers kernel weights below 2^-126 (host rounding to zero, subnormals, GPU flush)", async () => {
+    const input = (w: number, s = 2 ** 100): IrradianceConvolutionInput => ({ schemaVersion: "0.1.0", width: 4, height: 1, kernelRadius: 0, patchWidth: 2,
+      patchHeight: 1, boundary: "zero-outside-grid", samples: new Float64Array(4).fill(s), kernels: Float64Array.from([w, 0.5]) });
+    const { accelerator, controls } = await fake();
+    // 2^-160 rounds to 0 in float32: error 2^-60 against the old absolute term 2·2^-126.
+    for (const [w, s] of [[2 ** -160, 2 ** 100], [2 ** -130, 2 ** 100], [2 ** -126 - 2 ** -149, 3], [2 ** -126, 2 ** 100], [0, 2 ** 100]] as const) {
+      const v = input(w, s), reference = calculateIrradianceConvolution(v).values, out = await accelerator.convolveIrradiance(v);
+      const bound = out.execution.errorBound!;
+      if (bound.kind !== "relative-to-reference") throw new Error("unexpected bound");
+      for (let i = 0; i < 4; i++) expect(Math.abs(out.values[i]! - reference[i]!)).toBeLessThanOrEqual(bound.relative * reference[i]! + bound.absolute);
+      // Unchanged for weights in the normal range or zero; the flush term scales with the largest sample.
+      expect(bound.absolute).toBe(w > 0 && w < 2 ** -126 ? 2 * 2 ** -126 + 2 * s * w : 2 * 2 ** -126);
+    }
+    // A GPU that flushes the subnormal weight to zero stays inside the bound too.
+    const v = input(2 ** -130), out = await accelerator.convolveIrradiance(v), bound = out.execution.errorBound!;
+    if (bound.kind !== "relative-to-reference") throw new Error("unexpected bound");
+    expect(calculateIrradianceConvolution(v).values[0]!).toBeLessThanOrEqual(bound.absolute);
+    expect(controls.created).toBe(controls.destroyed);
+  });
+  it("convolution GPU memory is bounded by the band, not the image height", async () => {
+    const peak = async (height: number): Promise<number> => {
+      const { accelerator, controls } = await fake({}, 4096);
+      const input = convolutionCorpus(64, height, 1, 64, height, 5);
+      await accelerator.convolveIrradiance(input);
+      expect(controls.liveBytes).toBe(0);
+      return controls.peakLiveBytes;
+    };
+    const short = await peak(64), tall = await peak(512);
+    expect(tall).toBe(short);
+    // Kernels plus one band's buffers (source, result, readback, uniform), each at most the band size.
+    expect(tall).toBeLessThanOrEqual(9 * 4 + 16 + 4 * 4096);
   });
   it.each([[8, "identity", 32], [16, "positive-reinhard-per-channel", 64], [8, "positive-reinhard-per-channel", 32]] as const)(
     "SDR %i-bit %s float%i within bound; banding-invariant; progress in tile units", async (bits, tone, precision) => {
