@@ -1,13 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Creates the minimal POC HTTP server without binding a network port. This separation keeps imports
- * side-effect free and allows integration tests or trusted development hosts to choose their own
- * listening strategy.
- * Starts the minimal POC HTTP API using environment-configured local settings. The server is
- * intentionally dependency-free and is not a production hosting recommendation. It exists for local
- * integration testing during POC development.
+ * Minimal, dependency-free HTTP server for the proof-of-concept (POC) API, for local
+ * integration testing only. It is not a production hosting recommendation.
  * @see docs/POC_API.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
@@ -85,9 +80,9 @@ function writeError(
 }
 
 /**
- * Only caller-correctable request/validation failures are client errors; their
- * messages are engine-authored diagnostics. Anything else is an internal fault
- * and its text is never sent to the client.
+ * Only request and validation failures the caller can fix are client errors. Their
+ * messages are written by the engine. Anything else is an internal fault, and its
+ * text is never sent to the client.
  */
 function isClientRequestError(error: unknown): error is Error {
   return (
@@ -130,10 +125,10 @@ export interface PocApiServerOptions {
 }
 
 /**
- * Creates the minimal POC HTTP server without binding a network port.
+ * Creates the minimal POC HTTP server without opening a network port.
  *
- * This separation keeps imports side-effect free and allows integration tests
- * or trusted development hosts to choose their own listening strategy.
+ * Keeping these separate means importing the module has no side effects, and
+ * tests or trusted development hosts can choose how to listen.
  */
 export function createPocApiServer(
   options: PocApiServerOptions = {}
@@ -188,8 +183,8 @@ export function createPocApiServer(
         writeJson(response, 200, result, allowedOrigin);
       } catch (error) {
         if (parsed && error instanceof InvalidScientificResultError) {
-          // A structurally valid request whose finite values drive a result out of the finite
-          // numeric range: caller-caused, but not a shape/validation failure.
+          // The request is well formed, but its finite values push a result out of the finite
+          // number range. The caller caused it, but it is not a shape or validation failure.
           writeError(
             response,
             422,
@@ -243,11 +238,10 @@ export function createPocApiServer(
 }
 
 /**
- * Starts the minimal POC HTTP API using environment-configured local settings.
+ * Starts the minimal POC HTTP API with local settings from environment variables.
  *
- * The server is intentionally dependency-free and is not a production hosting
- * recommendation. It exists for local integration testing during POC
- * development.
+ * The server has no dependencies by design and is not a production hosting
+ * recommendation. It exists for local integration testing.
  */
 export function startPocApiServer(): Server {
   const portValue = Number(process.env.PHOTIVRA_API_PORT ?? DEFAULT_PORT);

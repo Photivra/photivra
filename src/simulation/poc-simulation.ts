@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Composes the validated POC calculations into a single renderer/agent-facing response without
- * introducing any new photographic model.
+ * The proof-of-concept (POC) camera simulation: runs the validated geometry, exposure, motion
+ * and signal calculations and returns them as one response for a renderer or agent.
+ * It adds no new photographic model of its own.
  * @see docs/POC_API.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
@@ -85,16 +85,16 @@ export interface PocSimulationRequest {
   };
   crop: {
     /**
-     * Legacy centered same-aspect crop factor.
+     * Legacy centred crop factor that keeps the aspect ratio.
      *
-     * When capture geometry is supplied this must remain 1. New callers should
-     * use capture.activeCaptureRect/outputCropRect instead of stacking two
-     * independent crop models.
+     * When capture geometry is supplied this must stay 1. New callers should
+     * use capture.activeCaptureRect and outputCropRect instead, rather than
+     * stacking two separate crop models.
      */
     factor: number;
   };
   /**
-   * Opt-in staged capture geometry. Omit for exact legacy POC behavior.
+   * Optional staged capture geometry. Leave it out to get the exact legacy POC behaviour.
    */
   capture?: {
     orientation: CaptureOrientation;
@@ -324,11 +324,11 @@ export interface PocSimulationResponse {
     diagonalDegrees: number;
   };
   sensor: {
-    /** Physical imaging-area/native-raster metrics from the shared sensor foundation. */
+    /** Physical imaging area and native pixel grid, from the shared sensor geometry model. */
     geometry: SensorGeometryMetrics;
     /**
-     * Backwards-compatible representative pitch used by the current composed
-     * POC calculations. This remains the horizontal pitch.
+     * The single pixel pitch the POC calculations use, kept for backwards
+     * compatibility. It is the horizontal pitch.
      */
     pixelPitchMicrometers: number;
     pitchXMicrometers: number;
@@ -347,8 +347,8 @@ export interface PocSimulationResponse {
       basis: "diagonal";
     };
     /**
-     * Axis-aware pixel-domain mapping from oriented active-capture samples to
-     * the declared output raster. Subject framing is a later crop, not another
+     * Per-axis pixel mapping from the oriented active capture area to the
+     * declared output image. Subject framing is a later crop, not another
      * resampling step.
      */
     outputSamplingScale: {
@@ -357,8 +357,9 @@ export interface PocSimulationResponse {
       axisRelativeDifference: number;
     };
     /**
-     * Additional post-output subject framing. This does not mutate physical
-     * sensor identity, active capture, or active-capture focal equivalence.
+     * Extra subject-framing crop applied after output. It does not change the
+     * physical sensor, the active capture area or the active capture's
+     * equivalent focal length.
      */
     subjectFraming?: CaptureSubjectFraming;
     motion: {
@@ -565,9 +566,9 @@ function resolveCaptureVector(
   orientedCaptureDeltaPixels: RasterVector;
   outputDeltaPixels: RasterVector;
 } {
-  // Legacy projected-motion/camera-shake components use +X right and +Y up.
-  // Capture raster coordinates use +X right and +Y down. Preserve the legacy
-  // fields unchanged and convert explicitly before applying physical rotation.
+  // Legacy projected-motion and camera-shake components use +X right, +Y up.
+  // Capture image coordinates use +X right, +Y down. Keep the legacy fields
+  // unchanged and convert explicitly before applying physical rotation.
   const nativeRasterDeltaPixels = normalizeRasterVector({
     x: legacyImagePlaneVector.x,
     y: -legacyImagePlaneVector.y
@@ -592,8 +593,8 @@ function resolveCaptureVector(
 }
 
 /**
- * Composes the validated POC calculations into a single renderer/agent-facing
- * response without introducing any new photographic model.
+ * Runs the validated POC calculations and returns them as one response for a
+ * renderer or agent. It adds no new photographic model.
  *
  * @param request Complete POC simulation request with explicit physical units.
  * @returns Serializable POC metrics for one camera/scene configuration.
@@ -697,7 +698,7 @@ export function simulatePocCamera(
     focalLengthMm: request.lens.focalLengthMm,
     objectDistanceM: request.focus.focusDistanceM
   });
-  // Allocate no reuse state for one-off requests; a sweep amortizes the context.
+  // A one-off request allocates no reusable state. A sweep shares the context across requests.
   const defocusFocusProjection = request.defocusSamples?.length
     ? Object.freeze({
         focalLengthMm: request.lens.focalLengthMm,
