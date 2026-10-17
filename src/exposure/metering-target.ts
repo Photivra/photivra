@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Freezes one metering result into the stable relative exposure target consumed by downstream
- * camera-control policy. The target copies the meter snapshot by value. Future scene/light changes do
- * not mutate this object, which is the engine seam needed for AE-lock behavior.
- * Sets an absolute exposure-compensation value on a frozen meter target. Compensation is always
- * re-derived from the uncompensated base target, so repeated UI updates cannot accidentally accumulate
- * floating-point/control drift. Positive compensation requests more exposure.
- * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
+ * Meter targets: a frozen metering result that camera-control logic uses as its exposure target.
+ *
+ * The target copies the meter snapshot by value. Later changes to the scene or light do not change
+ * it. This is what the engine provides for AE lock (auto-exposure lock).
+ *
+ * Exposure compensation is set as an absolute value. It is always worked out again from the base
+ * target without compensation, so repeated UI updates cannot build up floating-point or control
+ * drift. Positive compensation asks for more exposure.
+ * @see docs/USAGE.md for the equations, units, coordinate conventions, known blockers and support
+ * limits.
  */
 
 import { InvalidScientificInputError } from "../core/validation.js";
@@ -302,11 +304,12 @@ function createBaseTargetFields(
 }
 
 /**
- * Freezes one metering result into the stable relative exposure target
- * consumed by downstream camera-control policy.
+ * Freezes one metering result into a stable relative exposure target, for
+ * camera-control logic to use.
  *
- * The target copies the meter snapshot by value. Future scene/light changes do
- * not mutate this object, which is the engine seam needed for AE-lock behavior.
+ * The target copies the meter snapshot by value. Later changes to the scene or
+ * light do not change it. This is what the engine provides for AE lock
+ * (auto-exposure lock).
  */
 export function createExposureMeterTargetFromMeteringResult(
   input:
@@ -486,9 +489,9 @@ function validateBaseTarget(
 /**
  * Sets an absolute exposure-compensation value on a frozen meter target.
  *
- * Compensation is always re-derived from the uncompensated base target, so
- * repeated UI updates cannot accidentally accumulate floating-point/control
- * drift. Positive compensation requests more exposure.
+ * Compensation is always worked out again from the base target without
+ * compensation, so repeated UI updates cannot build up floating-point or
+ * control drift. Positive compensation asks for more exposure.
  */
 export function setExposureCompensationOnMeterTarget(
   input:

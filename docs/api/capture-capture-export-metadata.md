@@ -12,7 +12,7 @@ CAPTURE_EXPORT_METADATA_SCHEMA_VERSION = "0.1.0" as const
 
 ## CaptureExportArtifactIdentity
 
-Caller-owned resource and saved-incarnation UUIDs; no random IDs or wall clock in the engine.
+Resource and saved-file UUIDs supplied by the caller. The engine never makes random IDs or reads the clock.
 
 ```ts
 export interface CaptureExportArtifactIdentity { documentId: string; instanceId: string }
@@ -20,13 +20,13 @@ export interface CaptureExportArtifactIdentity { documentId: string; instanceId:
 
 ## CaptureExportMetadataInput
 
-Metadata-only pairing input. CaptureID must already be a non-nil UUID on the committed capture.
+Input for pairing metadata only. The committed capture must already have a non-nil UUID as its CaptureID.
 
 ```ts
 export interface CaptureExportMetadataInput {
   capture: SimulatedCapture;
   workflow: CaptureExportWorkflow;
-  /** Explicit capture-event UTC timestamp, exactly YYYY-MM-DDTHH:mm:ss.sssZ; never scene time. */
+  /** UTC time of the capture event, exactly YYYY-MM-DDTHH:mm:ss.sssZ. It is never scene time. */
   capturedAtUtc: string;
   raw: CaptureExportArtifactIdentity;
   jpeg: CaptureExportArtifactIdentity;
@@ -35,7 +35,7 @@ export interface CaptureExportMetadataInput {
 
 ## CaptureExportMetadataPair
 
-Equal shared metadata and distinct resource IDs do not prove RAW/JPEG pixel derivation.
+Matching metadata and distinct resource IDs do not prove that the JPEG pixels came from the RAW.
 
 ```ts
 export interface CaptureExportMetadataPair {
@@ -49,7 +49,7 @@ export interface CaptureExportMetadataPair {
 
 ## CaptureExportSharedMetadata
 
-Shared semantic values, not packed EXIF/DNG tags or an XMP packet.
+The shared values, before they are packed into EXIF or DNG tags or an XMP packet.
 
 ```ts
 export interface CaptureExportSharedMetadata {
@@ -60,7 +60,7 @@ export interface CaptureExportSharedMetadata {
   simulatedCapture: true;
   make: "Photivra";
   model: "Photivra Virtual Camera";
-  /** Explicitly the captured engine API version, not a claim of an npm distribution version. */
+  /** The engine API version that made the capture. It does not claim to be an npm package version. */
   software: string;
   creatorTool: string;
   engineApiVersion: string;
@@ -80,7 +80,7 @@ export interface CaptureExportSharedMetadata {
 
 ## CaptureExportWorkflow
 
-Non-generative workflows only; sampled/AI/composite media need a separate reviewed policy.
+Only non-generative workflows. Sampled, AI-generated or composite media would need a separate, reviewed policy.
 
 ```ts
 export type CaptureExportWorkflow = "human-directed-non-generative" | "fully-procedural-non-generative";
@@ -88,7 +88,7 @@ export type CaptureExportWorkflow = "human-directed-non-generative" | "fully-pro
 
 ## createCaptureExportMetadataPair
 
-Projects known capture metadata once for both future writers; never encodes or verifies image data.
+Builds the known capture metadata once, for both the RAW and JPEG writers. It never encodes or checks image data.
 
 ```ts
 export function createCaptureExportMetadataPair(input: CaptureExportMetadataInput): CaptureExportMetadataPair;
@@ -98,7 +98,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parseCaptureExportMetadataInput
 
-Fail-closed parser; no default workflow, time, creator, physical-device or file lineage claims.
+Strict parser. It rejects missing values and never fills in a default workflow, time, creator, physical device or file history.
 
 ```ts
 export function parseCaptureExportMetadataInput(value: unknown): CaptureExportMetadataInput;

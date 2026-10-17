@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Calculates conventional 35 mm-equivalent focal length from physical focal length and the effective
- * active-capture diagonal. The physical focal length remains unchanged and continues to be the optical
- * input for projection and depth-of-field calculations. Focus distance and later digital/output crops
- * are deliberately excluded from this conventional equivalence quantity.
- * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * Conventional 35 mm-equivalent focal length, from the physical focal length and the diagonal of the
+ * active capture area.
+ *
+ * The physical focal length is not changed. It stays the optical input for projection and
+ * depth-of-field calculations. Focus distance and later digital or output crops are deliberately left
+ * out of this conventional equivalence.
+ * @see docs/PHYSICS_FOUNDATION.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import {
@@ -42,13 +43,12 @@ export interface EquivalentFocalLength35Mm {
 }
 
 /**
- * Calculates conventional 35 mm-equivalent focal length from physical focal
- * length and the effective active-capture diagonal.
+ * Calculates the conventional 35 mm-equivalent focal length from the physical
+ * focal length and the diagonal of the active capture area.
  *
- * The physical focal length remains unchanged and continues to be the optical
- * input for projection and depth-of-field calculations. Focus distance and
- * later digital/output crops are deliberately excluded from this conventional
- * equivalence quantity.
+ * The physical focal length is not changed. It stays the optical input for
+ * projection and depth-of-field calculations. Focus distance and later digital
+ * or output crops are deliberately left out of this conventional equivalence.
  *
  * @param input Physical focal length and active physical capture area.
  * @returns Actual and diagonal-based 35 mm-equivalent focal lengths.

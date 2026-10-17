@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## DNG_IMPORT_LIMITS
 
-Upper bound for `maximumPixels`; 200 MP of 16-bit codes is 400 MB.
+Upper bound for `maximumPixels`. 200 MP (megapixels) of 16-bit codes is 400 MB.
 
 ```ts
 DNG_IMPORT_LIMITS = Object.freeze({ defaultMaximumPixels: 64_000_000, maximumPixels: 200_000_000, defaultMaximumIfds: 64, maximumIfds: 1024 })
@@ -25,7 +25,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface DngImportInput {
   bytes: Uint8Array;
-  /** Pixel (width x height) cap checked before any decode allocation. Default 64 000 000, at most 200 000 000. */
+  /** Pixel-count limit (width x height), checked before any decode allocation. Default 64 000 000, at most 200 000 000. */
   maximumPixels?: number;
   /** Total IFDs (main chain plus SubIFDs) visited. Default 64, at most 1024. */
   maximumIfds?: number;
@@ -34,7 +34,7 @@ export interface DngImportInput {
 
 ## ImportedDngBlackLevel
 
-Zero-light level pattern (BlackLevel, BlackLevelRepeatDim, BlackLevelDeltaH/V); origin is the active-area top-left.
+Black level (the code for zero light) pattern, from BlackLevel, BlackLevelRepeatDim and BlackLevelDeltaH/V. Origin is the active-area top-left.
 
 ```ts
 export interface ImportedDngBlackLevel {
@@ -51,7 +51,7 @@ export interface ImportedDngBlackLevel {
 
 ## ImportedDngCfa
 
-Repeating CFA pattern; origin is the top-left corner of `activeArea` (DNG 1.7.1.0, PhotometricInterpretation).
+Repeating CFA pattern. Its origin is the top-left corner of `activeArea` (DNG 1.7.1.0, PhotometricInterpretation).
 
 ```ts
 export interface ImportedDngCfa {

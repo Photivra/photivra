@@ -4,13 +4,10 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## assessSensorPhysicalChargeCapacity
 
-Compare complete expected stored electrons to the explicitly applicable physical capacity and report
-expectation-domain headroom without nonlinear storage simulation.
+Compares the complete expected stored electrons with the physical capacity that applies, and
+reports the remaining headroom in expected electrons. Non-linear storage is not simulated.
 
-Physical storage capacity is a source-specific total stored-electron limit tied to site, operating
-state and temperature. The assessment compares complete expected charge; it does not clamp
-realizations or infer overflow/blooming. Camera saturation and ADC/readout thresholds remain
-distinct.
+It does not clip random realizations and does not model overflow or blooming.
 
 ```ts
 export function assessSensorPhysicalChargeCapacity(
@@ -38,13 +35,11 @@ export interface AssessSensorPhysicalChargeCapacityInput {
 
 ## parseSensorPhysicalChargeCapacityProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
-Physical storage capacity is a source-specific total stored-electron limit tied to site, operating
-state and temperature. The assessment compares complete expected charge; it does not clamp
-realizations or infer overflow/blooming. Camera saturation and ADC/readout thresholds remain
-distinct.
+The capacity is a total stored-electron limit from a specific source, tied to a site, operating
+state and temperature. Camera saturation capacity and ADC or readout thresholds are separate.
 
 ```ts
 export function parseSensorPhysicalChargeCapacityProfile(

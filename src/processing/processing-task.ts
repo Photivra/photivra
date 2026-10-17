@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Shared cancellable task shell and typed-image contracts for the standalone image-processing
- * operators (demosaic, HDR merge/encode, tone mapping, exposure fusion, focus stacking, panorama,
- * denoise, sharpening and synthetic grain). Each operator is a synchronous row generator; this shell
- * steps it, reports one progress tile per processed row of every pass and awaits the host
- * `yieldControl` on the same time-budget cadence as the native RAW tasks. Cadence never changes output.
- * Inputs are read during `run()` and never written; callers must not mutate them until it settles.
- * Working memory is estimated up front and bounded by `maximumWorkingBytes`.
+ * Shared cancellable task wrapper and typed-image contracts for the standalone image-processing
+ * operators: demosaic, HDR merge and encode, tone mapping, exposure fusion, focus stacking, panorama,
+ * denoise, sharpening and synthetic grain.
+ *
+ * Each operator is a synchronous row generator. This wrapper steps through it and reports one
+ * progress tile for each processed row of every pass. It awaits the host's `yieldControl` on the same
+ * time budget as the native RAW tasks. How often it yields never changes the output.
+ *
+ * Inputs are read during `run()` and never written. Callers must not change them until `run()`
+ * settles. Working memory is estimated in advance and capped by `maximumWorkingBytes`.
  * @see docs/PROCESSING.md for algorithms, sources, approximation status and limits.
  */
 

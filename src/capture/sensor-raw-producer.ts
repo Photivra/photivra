@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Validates complete native exposure inputs; no charge/noise/RAW code is accepted as a shortcut.
- * Composes existing accumulated-charge → capacity → Poisson → read noise/ADC → native sample →
- * immutable frame contracts.
+ * Produces a sensor RAW frame from per-site exposure inputs, using the existing sensor steps:
+ * accumulated charge → capacity → Poisson (shot) noise → read noise and ADC → native sample →
+ * immutable frame.
+ *
+ * Inputs must be complete. Charge, noise or RAW codes cannot be passed in as a shortcut.
  * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -35,12 +36,14 @@ import { calculateCaptureExposureWindows, type CalculateCaptureExposureWindowsIn
 
 export const SENSOR_RAW_PRODUCER_SCHEMA_VERSION = "0.3.0" as const;
 /**
- * Capture noise model identity binds the hashed per-site seed schedule and signed electronic readout behavior.
- * 0.4.0: exact ties-up ADC rounding, normal-approximation Poisson draws for means of 1e9 and above, optional
- * post-ADC digital gain/INL and optional per-sensor fixed-pattern noise.
+ * Version of the capture noise model. It fixes the hashed per-site seed schedule and the signed electronic
+ * readout behaviour.
+ *
+ * 0.4.0: exact ADC rounding with ties up, normal-approximation Poisson draws for means of 1e9 and above,
+ * optional post-ADC digital gain and INL (integral non-linearity), and optional per-sensor fixed-pattern noise.
  */
 export const SENSOR_RAW_PRODUCER_NOISE_MODEL = Object.freeze({ id: "photivra-native-raw-noise", version: "0.4.0" } as const);
-/** One declared EQE/dark/completeness event and explicit readout state per native site. */
+/** For each native site: one declared exposure event (EQE photo signal, dark signal, charge completeness) and its readout state. */
 export interface SensorRawProducerSiteInput {
   charge: ComposeSensorAccumulatedChargeInput;
   samplingProfile: SensorChargeSamplingProfile;
@@ -48,20 +51,20 @@ export interface SensorRawProducerSiteInput {
   operatingStateId: string;
   readoutProfile: SensorReadoutConversionProfile;
   regimeId: string;
-  /** Optional per-sensor-instance fixed pattern; one profile for the whole frame. Omission disables FPN. */
+  /** Optional fixed-pattern noise (FPN) for this sensor; one profile for the whole frame. Omit it to disable FPN. */
   fixedPatternNoise?: SensorFixedPatternNoiseProfile;
 }
-/** Full-native exposure schedule; sampling coordinates belong to the producer. */
+/** Exposure schedule for the full sensor. The producer owns the sampling coordinates. */
 export type SensorRawProducerExposureWindowInput = Omit<CalculateCaptureExposureWindowsInput,
   "nativeRaster" | "activeCaptureRect" | "samplePointsNative">;
-/** Bounded single-frame handoff, never a conversion from independent RGB pixels. */
+/** Input for one bounded frame. It is never a conversion from separate RGB pixels. */
 export interface SensorRawProducerInput {
   frame: Omit<SensorRawFrameInput, "samples">;
   sites: readonly SensorRawProducerSiteInput[];
-  /** Omission preserves the existing global 0..shutterSeconds event contract. */
+  /** If omitted, every event uses the existing global window 0..shutterSeconds. */
   exposureWindow?: SensorRawProducerExposureWindowInput;
 }
-/** Engine-produced codes and child diagnostics; upstream radiance/response truth remains declared. */
+/** Codes produced by the engine, with per-step diagnostics. The upstream radiance and response are as declared, not verified. */
 export interface SensorRawProducerResult {
   schemaVersion: typeof SENSOR_RAW_PRODUCER_SCHEMA_VERSION;
   codeProducer: "engine-charge-capacity-noise-adc";
@@ -84,9 +87,9 @@ function publicId(value: unknown): string {
   return requirePublicOpaqueId(value, "Expected public producer identity.");
 }
 const KEY_RECURSE = 0, KEY_IDENTITY = 1, KEY_IDENTITY_LIST = 2;
-/** Bounded memo of the identity-walk classification of a property name (a pure function of the name). */
+/** Bounded cache of how the identity check classifies each property name (it depends only on the name). */
 const IDENTITY_KEY_KINDS = new Map<string, number>();
-/** Bounded memo of strings that already satisfied the public opaque-ID grammar (a pure function of the string). */
+/** Bounded cache of strings already known to be valid public IDs (validity depends only on the string). */
 const VALID_PUBLIC_IDS = new Set<string>();
 const IDENTITY_WALK_MEMO_LIMIT = 4096;
 function identityKeyKind(key: string): number {
@@ -106,9 +109,10 @@ function memoizedPublicId(value: unknown): void {
   if (VALID_PUBLIC_IDS.size < IDENTITY_WALK_MEMO_LIMIT) VALID_PUBLIC_IDS.add(value as string);
 }
 /**
- * Every property name ending in Id/Version must hold a public opaque ID and every name ending in Ids a
- * bounded dense list of them, at any depth. Same order, keys and errors as the former Object.entries walk;
- * key classification and already-valid IDs are memoized because both are pure functions of their strings.
+ * At any depth, every property whose name ends in Id or Version must hold a public ID, and every property
+ * ending in Ids a bounded dense list of them. Order, keys and errors are the same as the earlier
+ * Object.entries walk. Key classification and already-valid IDs are cached, because each depends only on
+ * its string.
  */
 function publicIdentities(value: unknown): void {
   if (value === null || typeof value !== "object") return;
@@ -191,7 +195,7 @@ function chargeInput(value: unknown): ComposeSensorAccumulatedChargeInput {
     completenessProfile: parseSensorAccumulatedChargeCompletenessProfile(r.completenessProfile),
     ...(r.additionalChargeComponents === undefined ? {} : { additionalChargeComponents:
       dense(r.additionalChargeComponents, 32).map(parseSensorAdditionalStoredChargeComponent) }) } as unknown as ComposeSensorAccumulatedChargeInput;
-  // Existing composition owns exact photo/dark/additional/completeness event consistency.
+  // The existing charge composition checks that photo, dark, additional and completeness events agree exactly.
   composeSensorAccumulatedCharge(charge);
   return charge;
 }
@@ -222,7 +226,7 @@ function sourceBoundary(schedule: CaptureExposureWindows["opening"]["schedule"])
     traversalDurationSeconds: schedule.traversalDurationSeconds
   };
 }
-/** Internal scalar validation shared by reference and bounded packed execution. */
+/** Internal: per-site validation shared by the reference path and bounded packed execution. */
 export type NativeRawProducerFrameContext = Omit<SensorRawProducerInput["frame"], "capture"> & {
   capture: Pick<SensorRawProducerInput["frame"]["capture"], "geometry" | "exposure" | "noise" | "focus" | "sceneStateId" | "sceneTimeSeconds">;
 };
@@ -264,7 +268,7 @@ export function validateNativeRawReadoutIdentity(s: SensorRawProducerSiteInput, 
       throw new InvalidConfigurationError("Frame requires one readout identity/regime, one fixed-pattern identity and a positive uint16 RAW code span.");
     }
 }
-/** The shared scalar pipeline owns all charge, capacity, stochastic and ADC equations. `i` is the absolute native row-major index. */
+/** The shared per-site pipeline holds all the charge, capacity, random-noise and ADC equations. `i` is the absolute native row-major index. */
 export function calculateNativeRawSite(s: SensorRawProducerSiteInput, seed: number, i: number): SensorRawProducerResult["sites"][number] {
   const accumulatedCharge = composeSensorAccumulatedCharge(s.charge);
   const capacity = assessSensorPhysicalChargeCapacity({ accumulatedCharge: accumulatedCharge.value, capacityProfile: s.capacityProfile,
@@ -282,7 +286,7 @@ function regimeInl(site: SensorRawProducerSiteInput): { adcIntegralNonLinearity?
   const inl = site.readoutProfile.regimes.find((r) => r.regimeId === site.regimeId)?.adc.integralNonLinearity;
   return inl === undefined ? {} : { adcIntegralNonLinearity: inl };
 }
-/** Validates complete native exposure inputs; no charge/noise/RAW code is accepted as a shortcut. */
+/** Validates the complete per-site exposure inputs. Charge, noise or RAW codes are never accepted as a shortcut. */
 export function parseSensorRawProducerInput(value: unknown): SensorRawProducerInput {
   const r = fields(value, ["frame", "sites", "exposureWindow"]), f = fields(r.frame, ["frameId", "capture", "modeId", "captureModeProfile", "colorSamplingProfile", "bindingProfile", "containerBitDepth"]);
   const capture = parseSimulatedCapture(f.capture), native = capture.geometry.nativeRaster, count = native.pixelWidth*native.pixelHeight;
@@ -307,7 +311,7 @@ export function parseSensorRawProducerInput(value: unknown): SensorRawProducerIn
     opening: sourceBoundary(timing.value.opening.schedule), closing: sourceBoundary(timing.value.closing.schedule)
   } }) };
 }
-/** Composes existing accumulated-charge → capacity → Poisson → read noise/ADC → native sample → immutable frame contracts. */
+/** Runs accumulated charge → capacity → Poisson noise → read noise and ADC → native sample → immutable frame. */
 export function simulateSensorRawFrame(input: SensorRawProducerInput): CalculationResult<SensorRawProducerResult> {
   const v = parseSensorRawProducerInput(input), seed = v.frame.capture.noise.seedUint32;
   const sites = v.sites.map((s, i) => calculateNativeRawSite(s, seed, i));

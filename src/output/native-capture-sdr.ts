@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-/** Engine-owned bounded tile execution; see docs/NATIVE_CAPTURE_SDR.md. */
+/**
+ * Native SDR rendering of large captures, tile by tile, within fixed memory limits. The engine
+ * owns the task; the caller supplies the pixel tiles. See docs/NATIVE_CAPTURE_SDR.md.
+ */
 import { parseSimulatedCapture, type SimulatedCapture, type CaptureLinearPlane } from "../capture/simulated-capture.js";
 import { LINEAR_CAPTURE_RGB_PROFILE, resolveCaptureColorModel } from "../color/capture-color.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -13,16 +16,16 @@ import { parseSdrRenderingProfile, prepareSdrPixelTone, type SdrPixelTone, type 
 export const NATIVE_CAPTURE_SDR_SCHEMA_VERSION = "0.1.0" as const;
 export const NATIVE_CAPTURE_SDR_LIMITS = Object.freeze({ maximumPixels: 24_000_000,
   maximumDimension: 16_384, tileWidth: 256, tileHeight: 32, maximumTileStorageSamples: 32_768 });
-/** Metadata-only external float master. Samples must already be color/WB resolved. */
+/** Input. The capture holds only metadata; float samples are read from external storage. Samples must already have colour and white balance applied. */
 export interface NativeCaptureSdrInput {
   capture: SimulatedCapture;
   sourcePlaneId: string;
   outputImageStateId: string;
   profile: SdrRenderingProfile;
-  /** Admission limit for retained integer output, before allocation or provider calls. */
+  /** Limit on the size of the integer output. Checked before anything is allocated or any tile is read. */
   maximumOutputBytes: number;
 }
-/** Absolute coordinates in the selected plane's declared binding, never crop-local sensor indices. */
+/** Tile request. Coordinates are absolute in the selected plane's declared pixel grid, never relative to a crop. */
 export interface NativeCaptureSdrTileRequest {
   captureId: string;
   sourcePlaneId: string;
@@ -30,15 +33,15 @@ export interface NativeCaptureSdrTileRequest {
   sha256: string;
   x: number; y: number; width: number; height: number;
 }
-/** Returned tile is exclusively handed to this call; do not mutate/reuse it. Padding is not image data. */
+/** A tile returned by the provider. It belongs to this call alone; do not change or reuse it. Row padding is not image data. */
 export interface NativeCaptureSdrTile extends NativeCaptureSdrTileRequest {
   rowStrideSamples: number;
   samples: Float32Array | Float64Array;
 }
-/** One provider call at a time. Caller must release decoding/GPU resources on abort/settlement. */
+/** Supplies tiles, one call at a time. The caller must release decoder and GPU resources when the task aborts or finishes. */
 export interface NativeCaptureSdrProvider {
   readTile(request: Readonly<NativeCaptureSdrTileRequest>, signal: AbortSignal): Promise<NativeCaptureSdrTile>;
-  /** Must yield to the host event loop, allowing cancellation/input events between tiles. */
+  /** Must yield to the host event loop, so cancellation and input events can run between tiles. */
   yieldControl(signal: AbortSignal): Promise<void>;
   /**
    * Optional progress observer, called synchronously after each committed tile. It cannot change
@@ -55,13 +58,13 @@ export interface NativeCaptureSdrPlan {
   outputImageStateId: string;
   profile: SdrRenderingProfile;
   outputBytes: number;
-  /** Logical array payload bound, not JS heap/GPU/process peak memory or device qualification. */
+  /** Upper bound on the bytes held in working arrays. It is not peak JavaScript heap, GPU or process memory, and does not show that a device can run the task. */
   maximumScratchPayloadBytes: number;
   tileCount: number;
 }
 export interface NativeCaptureSdrOutput {
   plan: NativeCaptureSdrPlan;
-  /** Caller-owned packed row-major RGB; 16-bit codes are numeric, not serialized endian bytes. */
+  /** Packed RGB codes in row-major order, owned by the caller. 16-bit codes are numbers, not bytes in a particular byte order. */
   integerSamples: Uint8Array | Uint16Array;
   diagnostics: SdrRenderingResult["diagnostics"];
   outputEncoding: SdrRenderingResult["outputEncoding"];
@@ -69,10 +72,10 @@ export interface NativeCaptureSdrOutput {
 }
 export type NativeCaptureSdrTaskState = "ready" | "running" | "completed" | "cancelled" | "failed" | "disposed" | "transferred";
 
-/** Validates/admission-plans without reading external samples or allocating a raster. */
+/** Validates the input and plans the task, including its limits, without reading samples or allocating an image. */
 export function calculateNativeCaptureSdrPlan(input: NativeCaptureSdrInput): NativeCaptureSdrPlan {
   const r = requireAllowlistedRecord(input, ["capture", "sourcePlaneId", "outputImageStateId", "profile", "maximumOutputBytes"], "Invalid native SDR input.");
-  // This contract accepts manifests only: do not copy unrelated inline master buffers.
+  // Only external-storage manifests are accepted, so unrelated inline sample buffers are never copied.
   const c = r.capture as SimulatedCapture | undefined;
   if (!c || !Array.isArray(c.planes) || c.planes.length > 32 || c.planes.some(p => !p || p.storage?.kind === "inline-float64")) {
     throw new InvalidConfigurationError("Native SDR requires external-only capture manifests.");
@@ -98,8 +101,8 @@ export function calculateNativeCaptureSdrPlan(input: NativeCaptureSdrInput): Nat
       !Number.isSafeInteger(r.maximumOutputBytes) || r.maximumOutputBytes < outputBytes) {
     throw new InvalidConfigurationError("Native SDR raster/output exceeds declared admission limits.");
   }
-  // Conservative declared bound, unchanged from the reference-delegating executor (provider payload + packed copy +
-  // reference parser copy + four reference output arrays). The typed kernel itself retains only the provider payload.
+  // A cautious declared bound, kept from the earlier executor that called the reference renderer: provider payload +
+  // packed copy + reference parser copy + four reference output arrays. The typed kernel itself keeps only the provider payload.
   const maximumScratchPayloadBytes = NATIVE_CAPTURE_SDR_LIMITS.maximumTileStorageSamples * 8 +
     NATIVE_CAPTURE_SDR_LIMITS.tileWidth * NATIVE_CAPTURE_SDR_LIMITS.tileHeight * 3 * 8 * 6;
   return freezeOwnedData({ schemaVersion: NATIVE_CAPTURE_SDR_SCHEMA_VERSION, capture, sourcePlaneId, outputImageStateId, profile,
@@ -108,8 +111,9 @@ export function calculateNativeCaptureSdrPlan(input: NativeCaptureSdrInput): Nat
 }
 
 /**
- * Tile identity/precision/stride/storage and input-domain validation shared by every native SDR backend.
- * Returns the borrowed sample view; padding is excluded from the finiteness scan. Not a root export.
+ * Tile checks shared by every native SDR backend: identity, precision, row stride, storage and valid
+ * input values. Returns a view of the provider's samples (not a copy). Padding is not checked for
+ * finite values. Not exported from the package.
  */
 export function validateNativeCaptureSdrTile(tile: NativeCaptureSdrTile, request: NativeCaptureSdrTileRequest,
   plane: CaptureLinearPlane): { source: Float32Array | Float64Array; stride: number } {
@@ -126,7 +130,7 @@ export function validateNativeCaptureSdrTile(tile: NativeCaptureSdrTile, request
     throw new InvalidConfigurationError("Native SDR tile precision/stride/storage mismatch.");
   }
   const source: Float32Array | Float64Array = samples, stride = r.rowStrideSamples, rowLength = request.width * 3;
-  // Reference input-domain validation covers every image sample (padding excluded) before any rendering.
+  // Check every image sample (not padding) against the reference renderer's input rules before any rendering.
   for (let y = 0; y < request.height; y++) {
     for (let i = y * stride, end = i + rowLength; i < end; i++) {
       if (!Number.isFinite(source[i]!)) throw new InvalidConfigurationError("Unsupported SDR input domain/raster.");
@@ -137,16 +141,18 @@ export function validateNativeCaptureSdrTile(tile: NativeCaptureSdrTile, request
 
 type NativeSdrDiagnosticCounts = Omit<SdrRenderingResult["diagnostics"], "captureSaturation">;
 /**
- * Typed-array tile kernel. It applies the bounded SDR reference (`calculateSdrRendering`) equations in the
- * same per-sample floating-point operation order and with the same error precedence, writing integer codes
- * directly into the packed output: input-domain check → rendering exposure → tone → gamut → sRGB transfer →
- * nearest-ties-up quantization. `test/native-capture-sdr-kernel-parity.test.ts` proves identical codes and
- * diagnostics against the unchanged reference.
+ * Fast tile kernel on typed arrays. It applies the same equations as the SDR reference renderer
+ * (`calculateSdrRendering`), with the same floating-point operation order per sample and the same
+ * error precedence, and writes integer codes straight into the packed output.
+ *
+ * Steps: input check → rendering exposure → tone → gamut → sRGB transfer → quantization (round to
+ * nearest, ties up). `test/native-capture-sdr-kernel-parity.test.ts` shows that codes and diagnostics
+ * match the unchanged reference exactly.
  */
 function renderTileInto(tile: NativeCaptureSdrTile, request: NativeCaptureSdrTileRequest, plane: CaptureLinearPlane,
   profile: SdrRenderingProfile, tone: SdrPixelTone, scale: number, maximum: number, codes: Uint8Array | Uint16Array, diagnostics: NativeSdrDiagnosticCounts): void {
   const { source, stride } = validateNativeCaptureSdrTile(tile, request, plane);
-  // Engine-declared tiling is valid because every supported rendering operation is per pixel.
+  // Tiling is safe because every supported rendering operation works on one pixel at a time.
   const outputRowStride = plane.pixelWidth * 3;
   const counts = { negative: 0, above: 0, changed: 0, low: 0, high: 0, outOfGamut: false }, scratch = new Float64Array(3);
   for (let y = 0; y < request.height; y++) {
@@ -167,13 +173,16 @@ export interface Srgb8Quantizer {
 }
 let srgb8: Srgb8Quantizer | null | undefined;
 /**
- * Exact 8-bit sRGB quantization without evaluating the transfer per sample. Thresholds are found by
- * bisection on this engine's own `encodeSrgbComponent`, so comparing against them equals
- * Math.round(encodeSrgbComponent(x)·255) for every x provided that reference is non-decreasing (true
- * when pow is monotone). Construction checks every threshold and its 16 neighbouring doubles on each
- * side; if any check fails the direct transfer is used, so output never silently depends on the
- * assumption. A 4097-entry bucket index (x·4096 is exact) gives the starting code; the steepest part
- * of the curve (slope 12.92·255) spans less than one code per bucket, so one or two comparisons finish.
+ * Exact 8-bit sRGB quantization without evaluating the transfer curve for each sample.
+ *
+ * The code thresholds are found by bisection on this engine's own `encodeSrgbComponent`. Comparing
+ * against them gives Math.round(encodeSrgbComponent(x)·255) for every x, provided that function never
+ * decreases (true when pow is monotone). Construction checks every threshold and the 16 neighbouring
+ * doubles on each side. If any check fails, the direct transfer is used instead, so output never
+ * silently depends on that assumption.
+ *
+ * A 4097-entry bucket index (x·4096 is exact) gives the starting code. Even the steepest part of the
+ * curve (slope 12.92·255) covers less than one code per bucket, so one or two comparisons finish.
  */
 function srgb8Quantizer(): Srgb8Quantizer | null {
   if (srgb8 !== undefined) return srgb8;
@@ -215,15 +224,17 @@ export function nativeSrgb8QuantizerForTest(): { quantizer: Srgb8Quantizer | nul
   const quantizer = srgb8Quantizer();
   return { quantizer, quantize: (x) => quantizer ? quantizeSrgb8(quantizer, x) : referenceSrgb8(x) };
 }
-/** Mutable per-tile counters for {@link renderSdrRunInto}. `outOfGamut` defers rejection like the reference. */
+/** Per-tile counters for {@link renderSdrRunInto}. `outOfGamut` delays the rejection, as the reference does. */
 export interface SdrPixelCounts { negative: number; above: number; changed: number; low: number; high: number; outOfGamut: boolean }
 /**
- * Internal typed SDR kernel shared by native SDR and RAW development: for `pixelCount` interleaved
- * linear-sRGB pixels from `source[start]`, exactly the reference (`calculateSdrRendering`) operations and
- * order per pixel: -0 normalization → rendering exposure → shared tone operator → gamut → sRGB transfer →
- * nearest-ties-up quantization into `codes[outOffset]`. Gamut rejection is deferred through
- * `counts.outOfGamut` because the reference finishes the whole tone pass (and its exposure errors)
- * first. `scratch` holds at least 3 values. Not a root export.
+ * Internal SDR kernel on typed arrays, shared by native SDR and RAW development.
+ *
+ * For `pixelCount` interleaved linear-sRGB pixels starting at `source[start]`, it runs exactly the
+ * reference (`calculateSdrRendering`) operations in the same order per pixel: -0 → +0 → rendering
+ * exposure → shared tone operator → gamut → sRGB transfer → quantization (nearest, ties up) into
+ * `codes[outOffset]`. A gamut rejection is delayed via `counts.outOfGamut`, because the reference
+ * finishes the whole tone pass (and its exposure errors) first. `scratch` must hold at least 3
+ * values. Not exported from the package.
  */
 export function renderSdrRunInto(source: Float32Array | Float64Array, start: number, pixelCount: number, profile: SdrRenderingProfile,
   tone: SdrPixelTone, scale: number, maximum: number, codes: Uint8Array | Uint16Array, outOffset: number, scratch: Float64Array, counts: SdrPixelCounts): void {
@@ -262,7 +273,7 @@ export function sdrOutputEncoding(maximum: number): SdrRenderingResult["outputEn
     whitePointXy: [.3127, .3290], referenceWhiteLuminanceCdM2: 80, codeMinimum: 0, codeMaximum: maximum };
 }
 
-/** Single-use task: no partial output escapes; cancel/dispose prevents late publication. */
+/** A single-use task. No partial output is ever returned, and cancel or dispose stops a late result from being published. */
 export interface NativeCaptureSdrTask {
   readonly plan: NativeCaptureSdrPlan;
   readonly state: NativeCaptureSdrTaskState;
@@ -270,17 +281,17 @@ export interface NativeCaptureSdrTask {
   run(): Promise<void>;
   cancel(): void;
   dispose(): void;
-  /** Transfers sole retained buffer ownership once. Dispose cannot revoke a transferred buffer. */
+  /** Hands over the only copy of the output buffer, once. Dispose cannot take back a buffer already handed over. */
   takeOutput(): NativeCaptureSdrOutput;
 }
-/** Creates a single-use execution owner. Admission is validated before any buffer/provider work. */
+/** Creates a single-use task. Limits are checked before any buffer is allocated or tile is read. */
 export function createNativeCaptureSdrTask(input: NativeCaptureSdrInput, provider: NativeCaptureSdrProvider): NativeCaptureSdrTask {
   const plan = calculateNativeCaptureSdrPlan(input);
   if (!provider || typeof provider.readTile !== "function" || typeof provider.yieldControl !== "function") {
     throw new InvalidConfigurationError("Native SDR requires a tile reader and event-loop yield.");
   }
   if (provider.onProgress !== undefined && typeof provider.onProgress !== "function") throw new InvalidConfigurationError("Native SDR onProgress must be a function.");
-  // Snapshot callback identities too; later app mutations cannot replace an in-flight reader.
+  // Also capture the callback functions now, so later app changes cannot swap the reader mid-task.
   const readTile = provider.readTile.bind(provider), yieldControl = provider.yieldControl.bind(provider),
     onProgress = provider.onProgress?.bind(provider);
   const plane = plan.capture.planes.find(p => p.id === plan.sourcePlaneId)!;
@@ -303,7 +314,7 @@ export function createNativeCaptureSdrTask(input: NativeCaptureSdrInput, provide
         codes = plan.profile.bitDepth === 8 ? new Uint8Array(plan.outputBytes) : new Uint16Array(plan.outputBytes / 2);
         const diagnostics: SdrRenderingResult["diagnostics"] = { renderingNegativeSampleCount: 0, renderingAboveReferenceSampleCount: 0,
           toneChangedSampleCount: 0, gamutClippedLowSampleCount: 0, gamutClippedHighSampleCount: 0, captureSaturation: "not-consumed" };
-        // Same scale expression and code range as the reference; the plan already rejected an unrepresentable scale.
+        // Same scale expression and code range as the reference. The plan already rejected a scale that cannot be represented.
         const scale = 2 ** plan.profile.renderingExposureEv / plane.referenceWhiteValue, maximum = 2 ** plan.profile.bitDepth - 1,
           tone = prepareSdrPixelTone(plan.profile);
         for (let y = 0; y < plane.pixelHeight; y += NATIVE_CAPTURE_SDR_LIMITS.tileHeight) {
@@ -321,7 +332,7 @@ export function createNativeCaptureSdrTask(input: NativeCaptureSdrInput, provide
               count++;
               onProgress?.({ completedTileCount: count, totalTileCount: plan.tileCount });
             }
-            // Do not retain tile/reference arrays across the next provider/yield boundary.
+            // Do not keep tile or reference arrays past the next tile read or host yield.
             await yieldControl(abort.signal);
             checkActive();
           }

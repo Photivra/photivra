@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateNativeCaptureSdrPlan
 
-Validates/admission-plans without reading external samples or allocating a raster.
+Validates the input and plans the task, including its limits, without reading samples or allocating an image.
 
 ```ts
 export function calculateNativeCaptureSdrPlan(input: NativeCaptureSdrInput): NativeCaptureSdrPlan;
@@ -14,7 +14,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## createNativeCaptureSdrTask
 
-Creates a single-use execution owner. Admission is validated before any buffer/provider work.
+Creates a single-use task. Limits are checked before any buffer is allocated or tile is read.
 
 ```ts
 export function createNativeCaptureSdrTask(input: NativeCaptureSdrInput, provider: NativeCaptureSdrProvider): NativeCaptureSdrTask;
@@ -41,7 +41,7 @@ NATIVE_CAPTURE_SDR_SCHEMA_VERSION = "0.1.0" as const
 
 ## NativeCaptureSdrInput
 
-Metadata-only external float master. Samples must already be color/WB resolved.
+Input. The capture holds only metadata; float samples are read from external storage. Samples must already have colour and white balance applied.
 
 ```ts
 export interface NativeCaptureSdrInput {
@@ -49,7 +49,7 @@ export interface NativeCaptureSdrInput {
   sourcePlaneId: string;
   outputImageStateId: string;
   profile: SdrRenderingProfile;
-  /** Admission limit for retained integer output, before allocation or provider calls. */
+  /** Limit on the size of the integer output. Checked before anything is allocated or any tile is read. */
   maximumOutputBytes: number;
 }
 ```
@@ -61,7 +61,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface NativeCaptureSdrOutput {
   plan: NativeCaptureSdrPlan;
-  /** Caller-owned packed row-major RGB; 16-bit codes are numeric, not serialized endian bytes. */
+  /** Packed RGB codes in row-major order, owned by the caller. 16-bit codes are numbers, not bytes in a particular byte order. */
   integerSamples: Uint8Array | Uint16Array;
   diagnostics: SdrRenderingResult["diagnostics"];
   outputEncoding: SdrRenderingResult["outputEncoding"];
@@ -81,7 +81,7 @@ export interface NativeCaptureSdrPlan {
   outputImageStateId: string;
   profile: SdrRenderingProfile;
   outputBytes: number;
-  /** Logical array payload bound, not JS heap/GPU/process peak memory or device qualification. */
+  /** Upper bound on the bytes held in working arrays. It is not peak JavaScript heap, GPU or process memory, and does not show that a device can run the task. */
   maximumScratchPayloadBytes: number;
   tileCount: number;
 }
@@ -89,12 +89,12 @@ export interface NativeCaptureSdrPlan {
 
 ## NativeCaptureSdrProvider
 
-One provider call at a time. Caller must release decoding/GPU resources on abort/settlement.
+Supplies tiles, one call at a time. The caller must release decoder and GPU resources when the task aborts or finishes.
 
 ```ts
 export interface NativeCaptureSdrProvider {
   readTile(request: Readonly<NativeCaptureSdrTileRequest>, signal: AbortSignal): Promise<NativeCaptureSdrTile>;
-  /** Must yield to the host event loop, allowing cancellation/input events between tiles. */
+  /** Must yield to the host event loop, so cancellation and input events can run between tiles. */
   yieldControl(signal: AbortSignal): Promise<void>;
   /**
    * Optional progress observer, called synchronously after each committed tile. It cannot change
@@ -106,7 +106,7 @@ export interface NativeCaptureSdrProvider {
 
 ## NativeCaptureSdrTask
 
-Single-use task: no partial output escapes; cancel/dispose prevents late publication.
+A single-use task. No partial output is ever returned, and cancel or dispose stops a late result from being published.
 
 ```ts
 export interface NativeCaptureSdrTask {
@@ -116,7 +116,7 @@ export interface NativeCaptureSdrTask {
   run(): Promise<void>;
   cancel(): void;
   dispose(): void;
-  /** Transfers sole retained buffer ownership once. Dispose cannot revoke a transferred buffer. */
+  /** Hands over the only copy of the output buffer, once. Dispose cannot take back a buffer already handed over. */
   takeOutput(): NativeCaptureSdrOutput;
 }
 ```
@@ -131,7 +131,7 @@ export type NativeCaptureSdrTaskState = "ready" | "running" | "completed" | "can
 
 ## NativeCaptureSdrTile
 
-Returned tile is exclusively handed to this call; do not mutate/reuse it. Padding is not image data.
+A tile returned by the provider. It belongs to this call alone; do not change or reuse it. Row padding is not image data.
 
 ```ts
 export interface NativeCaptureSdrTile extends NativeCaptureSdrTileRequest {
@@ -142,7 +142,7 @@ export interface NativeCaptureSdrTile extends NativeCaptureSdrTileRequest {
 
 ## NativeCaptureSdrTileRequest
 
-Absolute coordinates in the selected plane's declared binding, never crop-local sensor indices.
+Tile request. Coordinates are absolute in the selected plane's declared pixel grid, never relative to a crop.
 
 ```ts
 export interface NativeCaptureSdrTileRequest {

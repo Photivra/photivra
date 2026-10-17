@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## GenericOpticalEvidence
 
-Generic approximation evidence; never implies measured calibration.
+Evidence for a generic approximation. It never implies a measured calibration.
 
 ```ts
 export interface GenericOpticalEvidence {
@@ -17,7 +17,7 @@ export interface GenericOpticalEvidence {
 
 ## OpticalProfileState
 
-Exact, generic camera/lens and acquisition state; no implicit interpolation.
+Exact, generic camera, lens and acquisition state. Nothing is interpolated implicitly.
 
 ```ts
 export interface OpticalProfileState {
@@ -38,7 +38,7 @@ export interface OpticalProfileState {
 
 ## parseOpticalProfileState
 
-Parses a complete exact-state binding, including still/video/output settings.
+Parses a complete exact-state binding, including still, video and output settings.
 
 ```ts
 export function parseOpticalProfileState(value: unknown): OpticalProfileState;

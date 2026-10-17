@@ -4,10 +4,10 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## bindResolvedExposureDurationToCaptureExposureInput
 
-Binds a resolved duration into the authoritative #12 exposure-window input.
+Puts a resolved duration into the capture exposure-window input.
 
-The existing shutter mechanism/opening/closing schedules remain untouched.
-Only the seconds-valued nominal duration is supplied here.
+The existing shutter mechanism and opening/closing schedules are left as
+they are. Only the nominal duration, in seconds, is supplied.
 
 ```ts
 export function bindResolvedExposureDurationToCaptureExposureInput(
@@ -99,12 +99,12 @@ export type ExposureDurationControlResolution =
 
 ## resolveExposureDurationControl
 
-Resolves shutter-duration control semantics to a concrete positive elapsed
-duration before physical exposure integration.
+Turns a shutter-duration control setting into a concrete, positive elapsed
+duration, before the physical exposure is integrated.
 
-Bulb and Time are control behaviors only. Neither implies a shutter
-mechanism, exposure-boundary topology, tripod, stabilization state, long
-exposure NR, or temperature model.
+Bulb and Time are only control behaviours. Neither implies a shutter
+mechanism, an exposure-boundary layout, a tripod, a stabilization state,
+long-exposure noise reduction (NR) or a temperature model.
 
 ```ts
 export function resolveExposureDurationControl(

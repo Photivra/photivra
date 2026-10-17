@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Independent analytical DCT implementation; no third-party encoder, source, default quantization or
- * Huffman tables.
+ * Baseline JPEG encoder written for this project. It computes the DCT (discrete cosine transform)
+ * directly and uses no third-party encoder source, default quantization tables or Huffman tables.
  * @see docs/SIMULATED_CAPTURE.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -11,18 +10,21 @@
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /**
- * Identifies the exact byte behaviour of the baseline encoder. Version 2 (engine 2.0.0) uses the fixed
- * cosine table below instead of runtime `Math.cos` and rounds quantized coefficients half away from zero.
- * Relative to version 1, bytes can differ only where a coefficient's pre-rounding value was within about
- * one ulp of a half-integer, or was exactly a negative half-integer; the repository corpus is unchanged.
+ * Identifies the exact byte output of the baseline encoder.
+ *
+ * Version 2 (engine 2.0.0) uses the fixed cosine table below instead of runtime `Math.cos`, and rounds
+ * quantized coefficients half away from zero. Compared with version 1, bytes can differ only where a
+ * coefficient before rounding was within about one ULP (unit in the last place) of a half-integer, or
+ * was exactly a negative half-integer. The repository's test images are unchanged.
  */
 export const EXPORT_JPEG_ENCODER_ID = "photivra-baseline-jpeg-444-v2" as const;
 /**
- * C(u,x) = cos((2x+1)·u·π/16) for u,x in 0..7, row-major by u. Each entry is the correctly rounded IEEE-754
- * binary64 value of the exact mathematical cosine, computed offline with 130-digit decimal arithmetic and
- * checked so that no neighbouring double is closer (see docs/PHOTOGRAPHIC_EXPORT.md). Hard-coding them
- * makes the DCT independent of each JavaScript engine's `Math.cos`, whose results differ in the last bit
- * between engines. Mathematical facts, not third-party data.
+ * C(u,x) = cos((2x+1)·u·π/16) for u,x in 0..7, row-major by u.
+ *
+ * Each entry is the correctly rounded IEEE-754 double of the exact cosine. They were computed offline with
+ * 130-digit decimal arithmetic and checked so that no neighbouring double is closer (see
+ * docs/PHOTOGRAPHIC_EXPORT.md). Hard-coding them makes the DCT independent of each JavaScript engine's
+ * `Math.cos`, which differs in the last bit between engines. These are mathematical facts, not third-party data.
  */
 export const JPEG_DCT_COSINES: Readonly<Float64Array> = Float64Array.of(
   1,1,1,1,1,1,1,1,
@@ -35,16 +37,16 @@ export const JPEG_DCT_COSINES: Readonly<Float64Array> = Float64Array.of(
   0.19509032201612828,-0.5555702330196022,0.8314696123025452,-0.9807852804032304,0.9807852804032304,-0.8314696123025452,0.5555702330196022,-0.19509032201612828
 );
 /**
- * Quantized-coefficient rounding: nearest integer, ties half away from zero (−2.5 → −3, 2.5 → 3), so
- * positive and negative coefficients round symmetrically. `Math.round` alone sends −2.5 to −2.
+ * Rounds a quantized coefficient to the nearest integer, with ties going away from zero (−2.5 → −3,
+ * 2.5 → 3), so positive and negative values round the same way. `Math.round` alone sends −2.5 to −2.
  */
 export function roundJpegCoefficient(value: number): number {
   return value<0 ? -Math.round(-value) : Math.round(value);
 }
 
-/** Internal baseline JPEG profile: 8-bit YCbCr444, explicit constant quantization step and original uniform Huffman tables. */
+/** Internal baseline JPEG settings: 8-bit YCbCr 4:4:4, one explicit constant quantization step, and uniform Huffman tables written for this project. */
 export interface ExportJpegInput { width: number; height: number; samples: readonly number[]; quantizationStep: number; exif: Uint8Array; xmp: Uint8Array }
-/** Independent analytical DCT implementation; no third-party encoder, source, default quantization or Huffman tables. */
+/** Encodes a baseline JPEG with a directly computed DCT. Uses no third-party encoder source, default quantization tables or Huffman tables. */
 export function encodeExportJpeg(input: ExportJpegInput): Uint8Array {
   const { width, height, samples, quantizationStep: q } = input;
   if (![width,height,q].every(Number.isSafeInteger) || width < 1 || height < 1 || width*height > 4096 ||
@@ -63,11 +65,13 @@ export function encodeExportJpeg(input: ExportJpegInput): Uint8Array {
   return encoder.finish();
 }
 /**
- * Internal bounded sink; reference and scalable exports share DCT/entropy equations exactly.
- * `densityDotsPerInch`, when supplied, is written as JFIF 1.02 APP0 units=1 (dots per inch) with equal
- * X/Y density. JFIF density fields are uint16, so it must be an integer in 1..65535; callers round any
- * fractional physical density and carry the exact value in EXIF. Omitted, APP0 keeps units=0 with a
- * 1:1 pixel aspect ratio and declares no physical size.
+ * Internal size-limited JPEG writer. The reference export and the scalable export use exactly the same
+ * DCT and entropy-coding equations.
+ *
+ * When `densityDotsPerInch` is supplied, it is written to the JFIF 1.02 APP0 segment as units=1 (dots
+ * per inch) with equal X and Y density. JFIF density fields are 16-bit unsigned, so it must be an integer
+ * in 1..65535; callers round any fractional density and store the exact value in EXIF. When omitted,
+ * APP0 keeps units=0 with a 1:1 pixel aspect ratio and states no physical size.
  */
 export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> & {maximumOutputBytes:number;icc?:Uint8Array;densityDotsPerInch?:number}): {
   writeRgbBlock(samples:readonly number[]):void; finish():Uint8Array; dispose():void;
@@ -78,9 +82,9 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
   const density=input.densityDotsPerInch;
   if(density!==undefined&&(!Number.isSafeInteger(density)||density<1||density>65535))
     throw new InvalidConfigurationError("JFIF density requires an integer from 1 to 65535 dots per inch.");
-  // Growable output: capacity starts at min(budget, 64 KiB) and doubles, never beyond the admitted budget. The budget
-  // check is unchanged (offset + n > maximumOutputBytes fails), so the emitted bytes and failures equal those of a
-  // buffer pre-allocated at the full budget. A superseded buffer is zeroed after its bytes are copied forward.
+  // Growable output. Capacity starts at min(budget, 64 KiB) and doubles, but never beyond the budget. The budget
+  // check is unchanged (offset + n > maximumOutputBytes fails), so the output bytes and failures are the same as
+  // with a buffer allocated at full budget up front. An old buffer is zeroed after its bytes are copied over.
   const budget=input.maximumOutputBytes;
   let storage=new Uint8Array(Math.min(budget,65_536)),offset=0,disposed=false,blocks=0;
   const reserve=(count:number):void=>{
@@ -90,7 +94,7 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
     grown.set(storage.subarray(0,offset));storage.fill(0,0,offset);storage=grown;
   };
   const push=(...values:number[]):void=>{reserve(values.length);storage.set(values,offset);offset+=values.length;};
-  // Single-byte entropy fast path: same budget/disposal check and byte order as push(), without an argument array per byte.
+  // Fast path for one entropy-coded byte: the same budget/disposal check and byte order as push(), without an array per byte.
   const pushByte=(value:number):void=>{if(disposed||offset>=storage.length)reserve(1);storage[offset++]=value;};
   push(255,216);
   const marker = (id: number, payload: readonly number[]): void => {
@@ -108,7 +112,7 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
   marker(219,[0,...Array<number>(64).fill(q)]);
   marker(192,[8,height>>8,height&255,width>>8,width&255,3,1,17,0,2,17,0,3,17,0]);
   // DC categories 0..11 use 4-bit codes; AC EOB/ZRL and all baseline run/category pairs use 8-bit codes.
-  // Incomplete canonical trees reserve the all-ones code, as required for JPEG padding safety.
+  // Incomplete canonical Huffman trees reserve the all-ones code, so JPEG bit padding (1-bits) can never be read as a symbol.
   const dc = Array.from({length:12},(_,i) => i), ac = [0,240];
   for (let run=0;run<16;run++) for (let size=1;size<=10;size++) ac.push(run*16+size);
   marker(196,[0,...Array.from({length:16},(_,i) => i===3 ? 12 : 0),...dc,
@@ -137,19 +141,20 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
   const acIndex=new Int16Array(256).fill(-1);
   for (let i=ac.length-1;i>=0;i--) acIndex[ac[i]!]=i;
 /**
- * The separable 8×8 analytical DCT uses orthonormal DC factors and one explicitly
- * selected scalar quantization step. This deliberately simple 4:4:4 reference
- * encoder preserves no exact RGB pixels after lossy quantization; JPEG decode
- * agreement is an interoperability check, not an exact scientific pixel oracle.
+ * The 8×8 DCT, computed directly, with orthonormal DC factors and one chosen quantization step.
  *
- * Each coefficient is the direct 64-term sum Σ_y Σ_x (f(x,y)·C(u,x))·C(v,y), accumulated in y-then-x
- * order. The row products f(x,y)·C(u,x) are computed once per u and reused for all eight v; this reuses
- * identical IEEE-754 products and keeps the exact multiplication/summation order. A factored row/column
- * DCT would reassociate the sum and is deliberately not used.
+ * This is a deliberately simple 4:4:4 reference encoder. Lossy quantization means exact RGB pixels are
+ * not preserved. Decoding the JPEG and comparing is an interoperability check, not an exact scientific
+ * check of pixel values.
+ *
+ * Each coefficient is the direct 64-term sum Σ_y Σ_x (f(x,y)·C(u,x))·C(v,y), summed over y, then x.
+ * The row products f(x,y)·C(u,x) are computed once per u and reused for all eight v. This reuses the
+ * identical IEEE-754 products and keeps the exact order of multiplication and summation. A factored
+ * row/column DCT would reorder the sum, so it is deliberately not used.
  *
  * C(u,x) comes from the fixed table `JPEG_DCT_COSINES` (correctly rounded constants), not `Math.cos`,
- * so the coefficients do not depend on the JavaScript engine's libm. Each quantized coefficient is
- * rounded half away from zero (`roundJpegCoefficient`).
+ * so the coefficients do not depend on the JavaScript engine's maths library. Each quantized coefficient
+ * is rounded half away from zero (`roundJpegCoefficient`).
  */
   const cosine=JPEG_DCT_COSINES;
   const previous=[0,0,0];
@@ -163,7 +168,7 @@ export function createExportJpegEncoder(input: Omit<ExportJpegInput,"samples"> &
       if(!valid)throw new InvalidConfigurationError("JPEG requires complete bounded RGB coding blocks.");
     const [luma,blueDifference,redDifference]=planes as [Float64Array,Float64Array,Float64Array];
     for (let i=0;i<64;i++) {
-      // JPEG coding pads partial 8x8 MCUs only; this never changes the declared photograph/crop dimensions.
+      // JPEG pads only partial 8x8 blocks (MCUs, minimum coded units). The declared image and crop size never change.
       const p=i*3;
       const red=samples[p]!, green=samples[p+1]!, blue=samples[p+2]!, luminance=.299*red+.587*green+.114*blue;
       luma[i]=luminance-128; blueDifference[i]=(blue-luminance)/blueScale; redDifference[i]=(red-luminance)/redScale;

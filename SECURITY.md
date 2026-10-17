@@ -1,55 +1,64 @@
 # Security
 
-Please do not open a public issue containing vulnerability details.
+Please do not open a public issue that contains vulnerability details.
 
 ## Supported versions
 
-The published 1.0.0 release established the 1.x root-package compatibility line. The current release is **1.5.0**, published on October 7, 2026 (see [CHANGELOG.md](CHANGELOG.md)). Security fixes target the current maintained development/release line; older 1.x releases, snapshots and pre-1.0 releases should not be assumed to receive fixes. Node runtime support follows [NODE_SUPPORT.md](NODE_SUPPORT.md), covering maintained LTS lines plus Current; older/EOL runtimes are not qualified.
+The published 1.0.0 release started the 1.x root-package compatibility line. The current release is **1.5.0**, published on October 7, 2026 (see [CHANGELOG.md](CHANGELOG.md)).
+
+Security fixes target the current maintained development and release line. Do not assume that older 1.x releases, snapshots or pre-1.0 releases will receive fixes.
+
+Node runtime support follows [NODE_SUPPORT.md](NODE_SUPPORT.md): maintained LTS lines plus Current. Older and end-of-life runtimes are not tested.
 
 ## Reporting a vulnerability
 
-For the public GitHub repository, use GitHub's private vulnerability reporting flow ("Report a vulnerability" on the Security tab) when available.
+Use GitHub's private vulnerability reporting ("Report a vulnerability" on the repository's Security tab) when it is available.
 
-The repository is public. Private vulnerability reporting must be enabled for this policy to be complete; as of October 11, 2026 it is not yet enabled. If that private reporting entry point is unavailable, contact the repository owner privately before disclosing exploit details.
+The repository is public. This policy is only complete once private vulnerability reporting is enabled. As of October 11, 2026 it is not yet enabled. If that entry point is unavailable, contact the repository owner privately before you disclose exploit details.
 
-Please include, when relevant:
+Where relevant, please include:
 
-- affected commit/package/API version;
+- the affected commit, package version or API version;
 - reproduction steps or a minimal proof of concept;
-- impact and preconditions;
-- whether the issue affects the browser-safe root package, repository-local POC API tooling, development tooling, or the supply chain.
+- the impact and any preconditions;
+- which part is affected: the browser-safe root package, the repository-local POC (proof-of-concept) API tooling, development tooling, or the supply chain.
 
 ## Security boundaries
 
-The root `@photivra/engine` package is a calculation library. Its browser-facing dependency graph is checked in CI to prevent Node-only modules or the POC HTTP transport from becoming reachable through the root export.
+The root `@photivra/engine` package is a calculation library. CI checks its browser-facing dependency graph, so Node-only modules and the POC HTTP transport cannot become reachable through the root export.
 
-The repository-local `src/api` code is a separate Node-only proof-of-concept development server. It is not exported by or included in the published `@photivra/engine` package:
+The repository-local `src/api` code is a separate, Node-only proof-of-concept development server. The published `@photivra/engine` package does not export or include it. Note that:
 
-- it is unauthenticated;
-- it binds to loopback/localhost by default;
+- it has no authentication;
+- it binds to loopback (localhost) by default;
 - it is not a production hosting recommendation;
 - CORS is a browser policy, not authentication or authorization;
-- exposing it on a non-loopback interface requires separate production-grade protection that this repository does not provide.
+- exposing it on a non-loopback interface needs separate production-grade protection, which this repository does not provide.
 
 ## Release and publishing controls
 
-The npm release workflow is designed so verification/build tooling does not receive npm publishing identity:
+The npm release workflow keeps the npm publishing identity away from verification and build tooling:
 
-- release tags must be protected, match the package version, and point at the current `main` commit;
-- the `main` branch must report as protected through GitHub before a publish is allowed;
-- verification, coverage, build, and package creation run in a job without `id-token: write`;
-- only the minimal final publish job receives OIDC permission;
-- the verified tarball is transferred between jobs as a short-lived Actions artifact and checked against its SHA-256 before publication;
-- GitHub Actions are pinned to immutable commit SHAs;
-- checkout credentials are not persisted into later CI steps;
-- dependency installation uses the lockfile and `--ignore-scripts`;
-- the public package has no runtime npm dependencies.
+- Release tags must be protected, match the package version, and point at the current `main` commit.
+- GitHub must report the `main` branch as protected before a publish is allowed.
+- Verification, coverage, build and package creation run in a job without `id-token: write`.
+- Only the small final publish job gets OIDC permission.
+- The verified tarball moves between jobs as a short-lived Actions artifact. Its SHA-256 is checked before publication.
+- GitHub Actions are pinned to immutable commit SHAs.
+- Checkout credentials are not kept for later CI steps.
+- Dependency installation uses the lockfile and `--ignore-scripts`.
+- The public package has no runtime npm dependencies.
 
-Repository administrators must keep release tags and the default branch protected; the publish workflow fails closed if either protection is absent. For the strongest npm posture, also use a protected GitHub deployment environment in the npm trusted-publisher configuration and disable traditional token-based publishing after trusted publishing is verified.
+Repository administrators must keep release tags and the default branch protected. The publish workflow fails closed if either protection is missing.
+
+For the strongest npm setup, also:
+
+- use a protected GitHub deployment environment in the npm trusted-publisher configuration; and
+- disable traditional token-based publishing once trusted publishing is verified.
 
 ## Development rules
 
-- Never commit credentials, API keys, tokens, private keys, private datasets, or proprietary calibration material.
-- Keep runtime dependencies minimal; the root package currently has no runtime npm dependencies.
-- Dependencies, models, data, and copied/adapted material require explicit license/provenance review before adoption.
-- Treat material dependency, secret, supply-chain, unsafe transport, and browser-boundary findings as release blockers.
+- Never commit credentials, API keys, tokens, private keys, private datasets or proprietary calibration material.
+- Keep runtime dependencies minimal. The root package currently has no runtime npm dependencies.
+- Dependencies, models, data, and copied or adapted material need an explicit licence and provenance review before adoption.
+- Treat material findings about dependencies, secrets, the supply chain, unsafe transport or the browser boundary as release blockers.

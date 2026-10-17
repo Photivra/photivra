@@ -4,9 +4,10 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateLensStrayLightIrradiance
 
-Adds off-path spectral irradiance before sensor/exposure integration, never after tone mapping.
-Source powers are integrated over profile.referenceEntranceAreaMm2 at this instant/wavelength.
-Gaussian templates are independently parameterized approximations, not lens prescription ray tracing.
+Adds off-path spectral irradiance before the sensor integrates the exposure, never after tone mapping.
+Source powers are integrated over profile.referenceEntranceAreaMm2 at this instant and wavelength.
+The Gaussian templates are independently parameterized approximations, not ray tracing through a
+lens prescription.
 
 ```ts
 export function calculateLensStrayLightIrradiance(input: {
@@ -21,7 +22,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## LensStrayLightProfile
 
-Single explicit wavelength and exact generic camera state; clean optics only.
+One explicit wavelength and an exact generic camera state. Models clean optics only.
 
 ```ts
 export interface LensStrayLightProfile {
@@ -42,7 +43,7 @@ export interface LensStrayLightProfile {
 
 ## ParametricStrayLightResponse
 
-One reflected-path or broad scatter response, normalized over the infinite image plane.
+One ghost (reflection path) or veil (broad scatter) response. Its shape is normalized over the infinite image plane.
 
 ```ts
 export interface ParametricStrayLightResponse {
@@ -54,14 +55,14 @@ export interface ParametricStrayLightResponse {
   sigmaMm: number;
   /** Fraction of source power entering this response at the axis. */
   axisPowerFraction: number;
-  /** F(rho)=F(0)*(1+slope*rho²), rho=source angle/max angle. */
+  /** Power fraction versus angle: F(rho) = F(0) * (1 + slope * rho²), where rho = source angle / maximum angle. */
   angularSlope: number;
 }
 ```
 
 ## parseLensStrayLightProfile
 
-Strict generic profile parser; bounds passivity across the whole angular envelope.
+Strict generic profile parser. Checks that the profile adds no energy at any source angle in its range.
 
 ```ts
 export function parseLensStrayLightProfile(value: unknown): LensStrayLightProfile;
@@ -86,7 +87,7 @@ export interface StrayLightIrradiance {
   ghostSpectralIrradianceWPerM2PerNm: number;
   veilSpectralIrradianceWPerM2PerNm: number;
   totalSpectralIrradianceWPerM2PerNm: number;
-  /** If primary-only, the meter excludes these additions; sensor always receives total. */
+  /** If primary-only, the meter leaves these additions out. The sensor always receives the total. */
   meterDomain: "primary-only" | "primary-plus-stray";
   meterSpectralIrradianceWPerM2PerNm: number;
   contributions: readonly { sourceId: string; responseId: string; kind: "ghost" | "veil"; spectralIrradianceWPerM2PerNm: number }[];
@@ -95,7 +96,7 @@ export interface StrayLightIrradiance {
 
 ## StrayLightSource
 
-Direction remains available beyond the active frame; no crop clipping.
+The direction can lie outside the active frame. It is not clipped to the crop.
 
 ```ts
 export interface StrayLightSource {
@@ -103,7 +104,7 @@ export interface StrayLightSource {
   fieldAngleXDegrees: number;
   fieldAngleYDegrees: number;
   incidentSpectralPowerWPerNm: number;
-  /** Explicit source/path admission, e.g. a flag/hood decision; not a global hood scalar. */
+  /** Fraction of this source let in, for example after a flag or hood decision. Not a global hood factor. */
   admittedFraction: number;
 }
 ```

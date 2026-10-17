@@ -43,7 +43,7 @@ export interface NativeEnvironmentOpticalStage {
 
 ## NativeEnvironmentOpticalStageRetention
 
-Opt-in request on NativeEnvironmentRawInput. The budget covers the typed-array storage described by the limits.
+Optional request on NativeEnvironmentRawInput to keep the optical stage. The byte budget covers the typed-array storage described by the limits.
 
 ```ts
 export interface NativeEnvironmentOpticalStageRetention {
@@ -53,7 +53,7 @@ export interface NativeEnvironmentOpticalStageRetention {
 
 ## NativeEnvironmentSensorStageInput
 
-Post-optics capture re-run. raw may differ from the producing capture only in post-optics fields.
+Input for a post-optics re-run. `raw` may differ from the original capture only in post-optics fields.
 
 ```ts
 export interface NativeEnvironmentSensorStageInput {
@@ -64,7 +64,7 @@ export interface NativeEnvironmentSensorStageInput {
 
 ## NativeEnvironmentSensorStageProvider
 
-Supplies the same physical site inputs as acquisition; environments must equal the retained ones exactly.
+Supplies the same physical site inputs as the original capture. Environments must equal the retained ones exactly.
 
 ```ts
 export interface NativeEnvironmentSensorStageProvider {

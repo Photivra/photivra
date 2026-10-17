@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses the declared approximation used to reduce renderer/provider scene information into the scalar
- * relative-linear domain consumed by metering. This profile explicitly does not authorize a calibrated
- * luminance or spectral-to-photometric conversion claim.
- * Creates a relative pre-exposure meter sample set bound to one validated #85 provider context. The
- * caller/renderer still supplies the scalar relative samples. This bridge validates identity and
- * timing semantics only; it does not convert spectral radiance into luminance or define a calibrated
- * meter spectral response.
- * @see docs/USAGE.md for equations, coordinate/unit conventions, blockers and support limits.
+ * Links scene radiance to metering.
+ *
+ * The profile parser reads the declared approximation that turns renderer or provider scene data into
+ * the single relative linear values the meter uses. The profile does not support any claim of
+ * calibrated luminance or of a spectral-to-photometric conversion.
+ *
+ * The sample-set function builds a set of relative pre-exposure meter samples tied to one validated
+ * scene-radiance provider context. The caller or renderer still supplies the relative sample values.
+ * This bridge only checks identity and timing. It does not convert spectral radiance into luminance,
+ * and it does not define a calibrated meter spectral response.
+ * @see docs/USAGE.md for the equations, units, coordinate conventions, known blockers and support
+ * limits.
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -168,11 +171,11 @@ function requireFinite(
 }
 
 /**
- * Parses the declared approximation used to reduce renderer/provider scene
- * information into the scalar relative-linear domain consumed by metering.
+ * Parses the declared approximation that turns renderer or provider scene data
+ * into the single relative linear values the meter uses.
  *
- * This profile explicitly does not authorize a calibrated luminance or
- * spectral-to-photometric conversion claim.
+ * The profile does not support any claim of calibrated luminance or of a
+ * spectral-to-photometric conversion.
  */
 export function parseSceneRadianceMeteringDerivationProfile(
   value: unknown
@@ -401,12 +404,13 @@ function validateProviderContext(
 }
 
 /**
- * Creates a relative pre-exposure meter sample set bound to one validated #85
- * provider context.
+ * Builds a set of relative pre-exposure meter samples tied to one validated
+ * scene-radiance provider context.
  *
- * The caller/renderer still supplies the scalar relative samples. This bridge
- * validates identity and timing semantics only; it does not convert spectral
- * radiance into luminance or define a calibrated meter spectral response.
+ * The caller or renderer still supplies the relative sample values. This
+ * bridge only checks identity and timing. It does not convert spectral
+ * radiance into luminance, and it does not define a calibrated meter spectral
+ * response.
  */
 export function createSceneRadianceDerivedExposureMeteringSampleSet(
   input:

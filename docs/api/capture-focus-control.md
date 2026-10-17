@@ -4,13 +4,8 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## assessFocusReleaseGate
 
-Report whether release may proceed under focus-priority or release-priority policy; this does not
-operate a shutter.
-
-Focus is a longitudinal plane or explicit infinity state, never a screen-space distance. The ideal
-actuator resolves supplied target observations; it does not infer a commercial AF sensor, focus-ring
-scale or acquisition latency. Target loss, reacquisition, focus lock and release priority remain
-separate state transitions.
+Reports whether the shutter may be released under the focus-priority or release-priority
+policy. It does not operate the shutter.
 
 ```ts
 export function assessFocusReleaseGate(
@@ -38,13 +33,8 @@ export interface AssessFocusReleaseGateInput {
 
 ## createFocusControlState
 
-Create the initial ideal focus-controller state from an explicit profile, focus plane and public
-state identity.
-
-Focus is a longitudinal plane or explicit infinity state, never a screen-space distance. The ideal
-actuator resolves supplied target observations; it does not infer a commercial AF sensor, focus-ring
-scale or acquisition latency. Target loss, reacquisition, focus lock and release priority remain
-separate state transitions.
+Creates the initial ideal focus-controller state from a profile, a focus plane and a public
+state ID.
 
 ```ts
 export function createFocusControlState(
@@ -144,11 +134,12 @@ export interface FocusControlProfile {
 
 ## FocusControlState
 
-Immutable logical MF/single-AF/continuous-AF state. Resolved focus remains a
-finite longitudinal distance in metres or explicit infinity. Acquisition, loss,
-reacquisition and lock records explain why a target is usable; a focus-release
-gate remains separate from shutter sequencing. The ideal actuator does not model
-commercial AF measurement accuracy or physical acquisition time.
+Immutable focus-controller state for MF, AF-S or AF-C.
+
+The resolved focus is a finite distance along the optical axis in metres, or infinity.
+Acquisition, loss, reacquisition and lock records explain why a target can be used. The
+focus-release check is separate from shutter sequencing. The ideal actuator does not model
+real AF accuracy or the physical time focusing takes.
 
 ```ts
 export interface FocusControlState {
@@ -262,8 +253,8 @@ export type FocusTargetObservation =
   | (FocusTargetObservationBase & {
       kind: "finite-surface";
       /**
-       * Longitudinal camera-space/conjugate distance from #103, not renderer
-       * ray length.
+       * Distance along the camera's optical axis (the same convention as
+       * FocusPlane), not the renderer's ray length to the point.
        */
       longitudinalDistanceM: number;
     })
@@ -300,13 +291,12 @@ export interface FocusTargetResolution {
 
 ## parseFocusControlProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates an untrusted focus-control profile and returns it normalized. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
-Focus is a longitudinal plane or explicit infinity state, never a screen-space distance. The ideal
-actuator resolves supplied target observations; it does not infer a commercial AF sensor, focus-ring
-scale or acquisition latency. Target loss, reacquisition, focus lock and release priority remain
-separate state transitions.
+Focus is a distance along the optical axis or infinity, never a distance on screen. The ideal
+actuator focuses on the target observations it is given. It does not model a real AF sensor, a
+focus-ring scale or focusing time.
 
 ```ts
 export function parseFocusControlProfile(
@@ -318,13 +308,11 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## resolveFocusTargetObservation
 
-Resolve an explicit available/lost target observation under the selected single/continuous AF
-policy, retaining acquisition and reacquisition disposition.
+Applies one target observation (target available or lost) under the selected AF-S or AF-C
+policy, and records whether the target was acquired or reacquired.
 
-Focus is a longitudinal plane or explicit infinity state, never a screen-space distance. The ideal
-actuator resolves supplied target observations; it does not infer a commercial AF sensor, focus-ring
-scale or acquisition latency. Target loss, reacquisition, focus lock and release priority remain
-separate state transitions.
+The ideal actuator focuses on the observation as given. Target loss, reacquisition, focus
+lock and release priority are separate state changes.
 
 ```ts
 export function resolveFocusTargetObservation(
@@ -353,12 +341,7 @@ export interface ResolveFocusTargetObservationInput {
 
 ## setFocusLock
 
-Return an explicit lock/unlock transition without changing the underlying physical focus plane.
-
-Focus is a longitudinal plane or explicit infinity state, never a screen-space distance. The ideal
-actuator resolves supplied target observations; it does not infer a commercial AF sensor, focus-ring
-scale or acquisition latency. Target loss, reacquisition, focus lock and release priority remain
-separate state transitions.
+Locks or unlocks focus. The physical focus plane does not change.
 
 ```ts
 export function setFocusLock(
@@ -385,13 +368,8 @@ export interface SetFocusLockInput {
 
 ## setManualFocusState
 
-Return a manual focus transition to the supplied finite/infinity plane without inventing a lens
-actuator or focus-ring conversion.
-
-Focus is a longitudinal plane or explicit infinity state, never a screen-space distance. The ideal
-actuator resolves supplied target observations; it does not infer a commercial AF sensor, focus-ring
-scale or acquisition latency. Target loss, reacquisition, focus lock and release priority remain
-separate state transitions.
+Returns the state after manually focusing on the given finite or infinity plane. No lens
+actuator or focus-ring conversion is modelled.
 
 ```ts
 export function setManualFocusState(

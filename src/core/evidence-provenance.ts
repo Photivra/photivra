@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Parses one provenance/evidence record. Source origin and reuse status are intentionally orthogonal.
- * The parser only rejects combinations that are intrinsically contradictory.
- * Parses a non-empty evidence array.
+ * Provenance records: where a scientific fact or data set came from, and whether Photivra
+ * may reuse it. Parsers for one record and for a non-empty list of records.
  * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
@@ -23,10 +21,11 @@ export type EvidenceReuseStatus =
   | "photivra-owned";
 
 /**
- * Reference to the origin and reuse rights of one scientific fact or numeric data
- * artifact. Public availability does not establish permission to copy it. A source
- * reference is retained as metadata and never fetched by the engine. Evidence is a
- * declaration for review, not automatic verification of calibration or a license.
+ * Where one scientific fact or numeric data set came from, and what reuse rights apply.
+ *
+ * Being publicly available does not grant permission to copy. The engine stores the
+ * source reference as metadata and never fetches it. A record is a declaration for a
+ * human to review. It does not verify a calibration or a licence.
  */
 export interface EvidenceProvenance {
   /** Who originated the underlying fact/data. */
@@ -38,11 +37,11 @@ export interface EvidenceProvenance {
    */
   sourceReference: string;
   /**
-   * How the referenced material may be used by Photivra.
+   * How Photivra may use the referenced material.
    *
-   * This is intentionally independent from source origin: a manufacturer or
-   * third party may publish either factual-reference-only material or
-   * explicitly reusable licensed data.
+   * This is independent of who the source is. A manufacturer or third party can
+   * publish material that is only a factual reference, or data explicitly licensed
+   * for reuse.
    */
   reuseStatus: EvidenceReuseStatus;
   /** Required when reuseStatus is reusable-data. */
@@ -90,10 +89,10 @@ function requireNonEmptyString(
 }
 
 /**
- * Parses one provenance/evidence record.
+ * Parses one provenance (evidence) record.
  *
- * Source origin and reuse status are intentionally orthogonal. The parser only
- * rejects combinations that are intrinsically contradictory.
+ * Source origin and reuse status are independent of each other. The parser rejects
+ * only combinations that contradict themselves.
  */
 export function parseEvidenceProvenance(
   value: unknown,

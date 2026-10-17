@@ -4,13 +4,11 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateSensorDarkCurrentCharge
 
-Evaluate the declared temperature-dependent dark electron rate and integrate over the exact
-photo-signal local exposure event.
+Evaluates the declared dark-current rate at the sensor temperature and integrates it over the exact
+local exposure of the photo signal.
 
-Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
-or sampled (log-linear or legacy linear) interpolation is supported only within declared applicability; no universal
-doubling-temperature law is inferred. Population means remain approximations and do not model
-hot-pixel/DCNU structure.
+The rate is a population mean, an approximation. Hot pixels and DCNU (dark-current non-uniformity)
+are not modelled. No universal doubling-temperature law is assumed.
 
 ```ts
 export function calculateSensorDarkCurrentCharge(
@@ -55,13 +53,12 @@ export interface CalculateSensorDarkCurrentChargeInput<Exposure extends SensorEq
 
 ## parseSensorDarkCurrentProfile
 
-Validate an untrusted declaration and return the normalized typed contract. Unknown enum values,
-missing required fields and incompatible scientific data fail at this boundary.
+Validates untrusted input and returns it as a normalized, typed value. Unknown enum values,
+missing required fields and inconsistent scientific data are rejected.
 
-Dark current is an independently declared pre-compensation thermal electron rate. Exact-temperature
-or sampled (log-linear or legacy linear) interpolation is supported only within declared applicability; no universal
-doubling-temperature law is inferred. Population means remain approximations and do not model
-hot-pixel/DCNU structure.
+The profile declares the dark-current rate (before compensation) against temperature, at an exact
+temperature or as samples. Interpolation (log-linear, or the legacy linear rule) is allowed only
+within the declared range. No universal doubling-temperature law is assumed.
 
 ```ts
 export function parseSensorDarkCurrentProfile(
@@ -193,7 +190,7 @@ export type SensorDarkCurrentTemperatureModel =
         number;
     }
   | {
-      /** Legacy linear-in-rate interpolation; overestimates between samples of an exponential curve. */
+      /** Legacy interpolation, linear in rate. Between samples of an exponential curve it gives values that are too high. */
       kind:
         "piecewise-linear-temperature-table";
       interpolation: "piecewise-linear";
@@ -207,10 +204,10 @@ export type SensorDarkCurrentTemperatureModel =
     }
   | {
       /**
-       * Linear interpolation of ln(rate) between adjacent samples, i.e. exponential in temperature
-       * inside each interval, matching the approximately exponential (Arrhenius / doubling-temperature)
-       * behaviour of thermally generated dark current. Rates must be strictly positive. No global
-       * doubling temperature is imposed: each interval follows its own two declared samples.
+       * Linear interpolation of ln(rate) between neighbouring samples. That makes the rate exponential
+       * in temperature within each interval, matching the roughly exponential (Arrhenius, or
+       * "doubling temperature") behaviour of thermally generated dark current. Rates must be strictly
+       * positive. No single doubling temperature is imposed; each interval follows its own two samples.
        */
       kind:
         "log-linear-temperature-table";
@@ -235,7 +232,7 @@ export type SensorPhotoDarkCurrentCharge = SensorDarkCurrentCharge | SensorTempo
 
 ## SensorTemporalDarkCurrentCharge
 
-Dark charge shares the exact temporal photo event, without a stationarity ID.
+Dark charge for the exact same time-resolved photo event. It has no stationarity ID.
 
 ```ts
 export type SensorTemporalDarkCurrentCharge = Omit<SensorDarkCurrentCharge, "stationarityProfileId" | "temporalIntegrationId" | "componentEvidence"> & {

@@ -21,7 +21,7 @@
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export const PNG_ENCODER_ID = "photivra-png-rgb-v1" as const;
-/** Bounds checked before allocation. 100 MP of 16-bit RGB is about 600 MB of filtered scanlines. */
+/** Limits, checked before allocation. 100 MP (megapixels) of 16-bit RGB is about 600 MB of filtered scanlines. */
 export const PNG_ENCODER_LIMITS = Object.freeze({ maximumDimension: 65535, maximumPixels: 100_000_000, maximumIccProfileBytes: 4_000_000 });
 
 /** ITU-T H.273 ColourPrimaries: bt709 = 1 (also sRGB), display-p3 = 12 (P3 primaries with D65 white; W3C CSS Color 4, also SMPTE EG 432-1), bt2020 = 9 (BT.2020/BT.2100). */

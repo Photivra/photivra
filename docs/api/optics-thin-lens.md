@@ -10,8 +10,9 @@ Calculates Gaussian thin-lens image distance:
 
 where f is focal length, s is object distance, and v is image distance.
 
-This is a paraxial ideal-lens model. It does not model real-lens focus
-breathing, pupil magnification, principal-plane movement, or aberrations.
+This is a paraxial (small-angle) ideal-lens model. It does not model
+real-lens focus breathing, pupil magnification, principal-plane movement
+or aberrations.
 
 ```ts
 export function calculateThinLensImageDistance(

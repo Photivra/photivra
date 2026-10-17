@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Creates renderer/provider-neutral scene-radiance evaluation nodes over one authoritative local
- * exposure window. The plan deliberately carries capture time separately from the legacy #85 request
- * field name. Providers/renderers must evaluate scene/source radiance at
- * node.captureTimeSecondsFromReference on the first-opening-boundary clock.
- * Reduces provider-returned wavelength-resolved scene radiance over the authoritative local exposure
- * window. Every sample must bind to the exact plan node/time/result identity. Numeric uncertainty is
- * retained per node and explicitly not combined because no correlation/independence assumption is
- * introduced.
+ * Scene radiance over an exposure window, in two steps.
+ *
+ * 1. Plan: list the times (nodes) at which a scene-radiance provider (a renderer or other
+ *    source of scene light) must report radiance during one local exposure window.
+ * 2. Reduce: combine the provider's per-wavelength results over that window.
+ *
+ * Each returned sample must match its planned node, time and result identity exactly.
+ * Uncertainty stays per node and is not combined, because no correlation or independence
+ * is assumed.
  * @see docs/SCENE_RADIANCE_AND_ILLUMINATION.md for equations, coordinate/unit conventions, blockers
  * and support limits.
  */
@@ -207,9 +207,9 @@ function parseQuery(
   query:
     SceneRadianceTemporalQuery
 ): SceneRadianceTemporalQuery {
-  // Reuse the canonical #85 request parser for all shared scene/spectral
-  // semantics without assigning a misleading legacy time value to the
-  // returned temporal query contract.
+  // Reuse the scene-radiance request parser for the shared scene and spectral
+  // checks. The placeholder time it needs is not copied into the returned
+  // temporal query, where it would be misleading.
   const parsed =
     parseSceneRadianceEvaluationRequest({
       schemaVersion: "0.1.0",
@@ -252,12 +252,12 @@ function parseQuery(
 }
 
 /**
- * Creates renderer/provider-neutral scene-radiance evaluation nodes over one
- * authoritative local exposure window.
+ * Plans the times (nodes) at which a scene-radiance provider must report radiance
+ * during one local exposure window. Works with any renderer or provider.
  *
- * The plan deliberately carries capture time separately from the legacy #85
- * request field name. Providers/renderers must evaluate scene/source radiance
- * at node.captureTimeSecondsFromReference on the first-opening-boundary clock.
+ * Capture time is a separate field, not the older request field
+ * timeSecondsFromExposureStart. Providers must evaluate radiance at
+ * node.captureTimeSecondsFromReference, measured from the first opening boundary.
  */
 export function createSceneRadianceTemporalSamplingPlan(
   input:
@@ -402,12 +402,11 @@ function sameTime(
 }
 
 /**
- * Reduces provider-returned wavelength-resolved scene radiance over the
- * authoritative local exposure window.
+ * Combines the provider's per-wavelength scene radiance over the local exposure window.
  *
- * Every sample must bind to the exact plan node/time/result identity. Numeric
- * uncertainty is retained per node and explicitly not combined because no
- * correlation/independence assumption is introduced.
+ * Each sample must match its planned node, time and result identity exactly.
+ * Uncertainty stays per node and is not combined, because no correlation or
+ * independence is assumed.
  */
 export function reduceSceneRadianceTemporalSamples(
   input:

@@ -4,7 +4,7 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## createPrintJpegTask
 
-Filtering uses exact source-pixel area overlap after decoding the explicitly declared 8-bit SDR stage.
+Creates the export task. Filtering weights each source pixel by its exact area overlap, after decoding the declared 8-bit SDR source.
 
 ```ts
 export function createPrintJpegTask(input:PrintJpegInput,provider:PrintJpegProvider):PrintJpegTask;
@@ -14,7 +14,7 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## parsePrintJpegInput
 
-Admission-only; source detail/perception/printer qualification are separate contracts.
+Validates the input only. Source detail, perception and printer suitability are checked by separate APIs.
 
 ```ts
 export function parsePrintJpegInput(input:PrintJpegInput):PrintJpegInput;
@@ -37,7 +37,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 ```ts
 export interface PrintJpegInput {
   source:PrintJpegSource;
-  /** Integer crop in the declared oriented output source, not crop-local sensor/CFA coordinates. */
+  /** Integer crop in the oriented output source image, not in sensor or CFA (colour filter array) coordinates. */
   crop:RasterRect;
   outputWidth:number;outputHeight:number;
   quantizationStep:number;

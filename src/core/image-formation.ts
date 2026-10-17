@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Returns the public image-formation ownership/order contract. The result is descriptive metadata, not
- * a renderer implementation or an assertion that every reserved stage is currently available.
+ * The image-formation contract: the ordered stages from scene light to output image, and
+ * which part of the system owns each stage.
+ *
+ * It is descriptive metadata. It is not a renderer, and listing a stage does not mean the
+ * stage is implemented yet.
  * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
 /**
  * Version of the public image-formation ordering contract.
  *
- * This version is independent from package, root-engine, and composed-POC
- * versions. It describes semantic ownership/order only; it does not imply that
- * every reserved stage is implemented.
+ * It is separate from the package, root-engine and composed proof-of-concept (POC)
+ * versions. It covers only stage order and ownership. It does not mean every listed
+ * stage is implemented.
  */
 export const IMAGE_FORMATION_CONTRACT_VERSION = "0.4.0" as const;
 
@@ -480,10 +482,10 @@ const NOTES = [
 ] as const;
 
 /**
- * Returns the public image-formation ownership/order contract.
+ * Returns the image-formation contract: the order of stages and who owns each one.
  *
- * The result is descriptive metadata, not a renderer implementation or an
- * assertion that every reserved stage is currently available.
+ * The result is descriptive metadata. It is not a renderer, and a listed stage is not
+ * necessarily available yet.
  */
 export function getImageFormationContract(): ImageFormationContract {
   return {

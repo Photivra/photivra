@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Adapts a continuous scene-illumination spectrum into the shared spectral coverage contract.
- * Discrete-line spectra intentionally use their own measure path and are never broadened into
- * continuous breakpoints.
- * Resolves a discrete illumination spectrum into integrated per-line source quantities. Relative line
- * weights are fractions of the declared wavelength-integrated source magnitude. A disabled source
- * resolves to zero contribution. This helper does not evaluate visibility, material response,
- * transport, outgoing scene radiance, optics, or sensor response.
+ * Connects light-source spectra to the shared spectral helpers in core/spectral-composition.
+ *
+ * Continuous spectra become wavelength coverage with breakpoints. Discrete-line spectra keep
+ * their own path and are never widened into continuous spectra.
  * @see docs/SCENE_RADIANCE_AND_ILLUMINATION.md for equations, coordinate/unit conventions, blockers
  * and support limits.
  */
@@ -64,11 +60,11 @@ function nonEmptyParticipantId(
 }
 
 /**
- * Adapts a continuous scene-illumination spectrum into the shared spectral
- * coverage contract.
+ * Converts a continuous light-source spectrum into the shared spectral coverage
+ * type (wavelength range plus breakpoints).
  *
- * Discrete-line spectra intentionally use their own measure path and are never
- * broadened into continuous breakpoints.
+ * Discrete-line spectra are handled separately and are never widened into
+ * continuous breakpoints.
  */
 export function createSceneIlluminationSpectralCoverageParticipant(
   input:
@@ -187,13 +183,12 @@ function magnitudeQuantity(
 }
 
 /**
- * Resolves a discrete illumination spectrum into integrated per-line source
- * quantities.
+ * Splits a discrete-line light source into the amount carried by each line.
  *
- * Relative line weights are fractions of the declared wavelength-integrated
- * source magnitude. A disabled source resolves to zero contribution. This
- * helper does not evaluate visibility, material response, transport, outgoing
- * scene radiance, optics, or sensor response.
+ * Each relative line weight is a fraction of the source's declared total (integrated
+ * over wavelength). A disabled source contributes zero. This helper does not handle
+ * visibility, material response, light transport, outgoing scene radiance, optics or
+ * sensor response.
  */
 export function resolveSceneIlluminationDiscreteLineMeasure(
   source:

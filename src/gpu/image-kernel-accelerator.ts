@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Optional image-kernel accelerator (#277): one owner for an explicitly requested execution backend.
- * `cpu-reference` delegates to the unchanged float64 engine paths. `webgpu-f32` runs first-party WGSL
- * kernels for the dominant per-pixel loops and labels every result as a float32 approximation with an
- * a-priori error bound. A requested WebGPU backend falls back to the CPU only when the caller chose
- * `fallback: "cpu-reference"`, and the result label then names the backend that actually ran and why.
+ * Optional image-kernel accelerator (#277). One object runs work on the execution backend the caller
+ * asks for.
+ * - `cpu-reference` uses the unchanged float64 engine code.
+ * - `webgpu-f32` runs the project's own WGSL (WebGPU shader) kernels for the heaviest per-pixel loops.
+ *   Every result is labelled as a float32 approximation, with an error bound worked out in advance.
+ * A requested WebGPU backend falls back to the CPU only if the caller chose
+ * `fallback: "cpu-reference"`. The result label then names the backend that actually ran, and why.
  * See docs/WEBGPU.md.
  */
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -37,14 +39,14 @@ export interface ImageKernelAcceleratorOptions {
   /** WebGPU entry point; defaults to `navigator.gpu`. Supply a worker's `navigator.gpu` explicitly if needed. */
   gpu?: unknown;
   powerPreference?: "low-power" | "high-performance";
-  /** Largest single GPU band buffer in bytes (4 KiB … device limit); default min(64 MiB, device limit). Memory only, never results. */
+  /** Largest single GPU band buffer in bytes (4 KiB up to the device limit); default min(64 MiB, device limit). Affects memory only, never results. */
   maximumBandBytes?: number;
   /** Aborts adapter/device acquisition. */
   signal?: AbortSignal;
 }
 export interface ImageKernelRunOptions {
   signal?: AbortSignal;
-  /** Host event-loop yield between CPU reference chunks and GPU bands (convolution only; tasks keep their own yields). */
+  /** Yields to the host event loop between CPU reference chunks and GPU bands. Convolution only; tasks keep their own yields. */
   yieldControl?: (signal: AbortSignal) => Promise<void>;
 }
 export type ImageKernelAcceleratorState = "ready" | "lost" | "disposed";
@@ -54,12 +56,12 @@ export interface IrradianceConvolutionResult {
   plan: IrradianceConvolutionPlan;
   /** Float64 for `cpu-reference`, float32 for `webgpu-f32`; row-major, same grid as the input. */
   values: Float64Array | Float32Array;
-  /** Float64 sums of the input and output samples; their difference is quantity lost across the grid boundary. */
+  /** Float64 sums of the input and output samples. Their difference is the amount lost across the grid edge. */
   inputSum: number;
   outputSum: number;
   execution: ImageKernelExecution;
 }
-/** Single-flight owner: one operation at a time; dispose releases the device and every buffer. */
+/** Runs one operation at a time. dispose() releases the device and every buffer. */
 export interface ImageKernelAccelerator {
   readonly backend: ImageKernelBackend;
   readonly requestedBackend: ImageKernelBackend;
@@ -75,7 +77,7 @@ export interface ImageKernelAccelerator {
 
 const DEFAULT_BAND_BYTES = 64 * 1024 * 1024;
 const MINIMUM_BAND_BYTES = 4096;
-/** Watchdog guard: multiply-adds per convolution dispatch. */
+/** Limit on multiply-adds per convolution dispatch, to stay clear of the GPU watchdog timeout. */
 const MAXIMUM_CONVOLUTION_TAPS_PER_DISPATCH = 2 ** 30;
 /** Inputs whose float64 product with the rendering scale exceeds this are outside the float32 domain. */
 const FLOAT32_SAFE_MAGNITUDE = 2 ** 120;
@@ -102,7 +104,7 @@ function linkedAbort(signal: AbortSignal | undefined): { controller: AbortContro
   return { controller, dispose: (): void => signal.removeEventListener("abort", listener) };
 }
 
-/** Requests a backend. Never silently substitutes: a fallback is explicit in options and in every result label. */
+/** Requests a backend. Never swaps backends silently: a fallback must be set in the options and is shown in every result label. */
 export async function createImageKernelAccelerator(options: ImageKernelAcceleratorOptions): Promise<ImageKernelAccelerator> {
   const r = requireAllowlistedRecord(options, ["backend", "fallback", "gpu", "powerPreference", "maximumBandBytes", "signal"],
     "Invalid image-kernel accelerator options.");
@@ -143,7 +145,7 @@ function createAccelerator(requested: ImageKernelBackend, fallbackReason: ImageK
     }
     return gpu.guard(pending, signal);
   }
-  /** Single-flight wrapper: maps aborts, disposal and loss onto domain errors. */
+  /** Runs one operation at a time, and turns aborts, disposal and device loss into domain errors. */
   async function operate<T>(signal: AbortSignal | undefined, body: (abort: AbortController) => Promise<T>): Promise<T> {
     if (disposed) throw new ImageKernelExecutionError("disposed", "The image-kernel accelerator was disposed.");
     if (runtime?.isLost()) throw new ImageKernelExecutionError("device-lost", "The WebGPU device was lost; create a new accelerator.");
@@ -301,7 +303,7 @@ function sdrDiagnostics(counters: readonly number[], captureSaturation: SdrRende
     gamutClippedHighSampleCount: counters[SDR_COUNTER.high]!, captureSaturation };
 }
 
-/** Fail closed when reject-mode gamut decisions are out of range or not decidable in float32. */
+/** Throws (fails closed) when a reject-mode gamut decision is out of range or cannot be decided in float32. */
 function requireGamutDecision(reject: boolean, counters: readonly number[]): void {
   if (counters[SDR_COUNTER.outOfGamut]! > 0) throw new InvalidConfigurationError("Tone output exceeds the declared SDR gamut range.");
   if (reject && counters[SDR_COUNTER.gamutUncertain]! > 0) {
@@ -439,8 +441,8 @@ export interface RawDevelopmentBoundInput {
 /**
  * Forward-error bounds (Higham γ_k, binary32) through the development chain: channel sums → gains →
  * highlight clip/blend → camera→XYZ → XYZ→linear sRGB → rendering exposure. Returns the bound on the
- * exposed value and the classification bands for the WB clip and reconstruction-start decisions.
- * Internal; exported for unit tests.
+ * exposed value, and the classification bands for the white-balance clip and reconstruction-start
+ * decisions. Internal; exported only for unit tests.
  */
 export function rawDevelopmentErrorBounds(b: RawDevelopmentBoundInput): { exposed: number; gain: number; channel: number } {
   const C = b.maximumWeightSum * b.maximumSiteMagnitude, U = b.maximumGain * C, Bmax = Math.max(U, b.maximumGain);
@@ -463,7 +465,7 @@ async function developRawOnGpu(runtime: WebGpuRuntime, bandBytes: number, input:
     throw new InvalidConfigurationError("Development requires a host event-loop yield.");
   }
   const yieldControl = hooks.yieldControl.bind(hooks), onProgress = hooks.onProgress?.bind(hooks);
-  // The reference's own synchronous admission/halo/CFA validation, then the same RAW ownership transfer.
+  // Run the reference's own synchronous input-limit, halo and CFA checks, then the same RAW ownership transfer.
   const v = prepareNativeRawDevelopment(input);
   requirePerChannelTone(v.profile);
   if (v.border !== "reject") {

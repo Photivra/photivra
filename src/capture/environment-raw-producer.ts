@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Preflight complete native coverage and aggregate support before invoking supplied provider code,
- * then reuse dark/completeness/capacity/noise/ADC ownership. The returned RAW frame feeds the existing
- * reconstruction and paired export APIs.
+ * Simulates a RAW frame from a scene-radiance provider: provider radiance → optics → EQE (external
+ * quantum efficiency) → charge → noise → readout → RAW codes, for every native sensor site.
+ *
+ * Before calling any provider code, it checks that the sites cover the full native frame and that
+ * all inputs are supported. Dark current, charge completeness, capacity, noise and ADC
+ * (analogue-to-digital conversion) use the existing sensor modules. The RAW frame it returns works
+ * with the existing reconstruction and paired-export APIs.
  * @see docs/ENVIRONMENT_RAW_CAPTURE.md for equations, coordinate/unit conventions, blockers and
  * support limits.
  */
@@ -26,11 +29,11 @@ function canonical(value: unknown): string {
     nonFiniteNumberMessage: "Environment capture binding must be finite.", unsupportedValueMessage: "Environment capture binding requires plain data." });
 }
 
-/** Full native site order; generated photo/dark charge cannot be supplied as a shortcut. */
+/** All native sites, in native order. Generated photo or dark charge cannot be passed in as a shortcut. */
 export interface SimulateEnvironmentSensorRawFrameInput {
   frame: SensorRawProducerInput["frame"];
   sceneBinding: { sceneStateId: string; providerSceneId: string; evidence: readonly EvidenceProvenance[] };
-  /** Shared shutter schedule is bound to the committed frame duration. */
+  /** The shared shutter schedule, tied to the committed frame duration. */
   exposureWindow: NonNullable<SensorRawProducerInput["exposureWindow"]>;
   sites: readonly {
     environment: Omit<CalculateEnvironmentSensorPhotoSignalInput, "evaluateRadiance" | "evaluateApertureRadiance">;
@@ -43,11 +46,14 @@ export interface SimulateEnvironmentSensorRawFrameInput {
   evaluateApertureRadiance?: EnvironmentApertureRadianceEvaluator;
 }
 /**
- * Approximate executed provider-to-RAW lineage. sites retain per-site optical/EQE
- * results; raw retains charge, capacity, seeded-noise/readout diagnostics and exact
- * native frame. providerEvaluationCount is actual bounded work, not a quality score.
- * Conservative verification/activation flags belong to this standalone adapter;
- * a parent production plan records its own graph execution without upgrading them.
+ * Result: the approximate record of what ran, from provider to RAW.
+ *
+ * - `sites` keeps the per-site optics and EQE results.
+ * - `raw` keeps charge, capacity, seeded-noise and readout diagnostics, and the exact native frame.
+ * - `providerEvaluationCount` is the actual (bounded) work done, not a quality score.
+ *
+ * The cautious verification and activation flags belong to this standalone function. A parent
+ * production plan records its own execution and does not upgrade them.
  */
 export interface EnvironmentSensorRawFrame {
   upstreamOrigin: "executed-environment-query-provider-optics-psf-eqe";
@@ -60,10 +66,10 @@ export interface EnvironmentSensorRawFrame {
 }
 
 /**
- * Internal per-frame memo of the frame-side canonical strings that every site is compared with (#2, 2.0
- * performance). Each string is computed lazily at the comparison that first needs it, so the first failing
- * comparison and its error are unchanged; it applies only to the exact frame and exposure-window objects it
- * was created for, which callers do not mutate while planning one frame.
+ * Internal per-frame cache of the frame's canonical strings that every site is compared with (a 2.0
+ * performance change). Each string is computed the first time a comparison needs it, so the first
+ * failing comparison and its error are unchanged. The cache is valid only for the exact frame and
+ * exposure-window objects it was made for; callers do not change them while planning a frame.
  */
 export interface EnvironmentRawFrameCanonicalMemo {
   readonly frame: NativeRawProducerFrameContext;
@@ -74,7 +80,7 @@ export function createEnvironmentRawFrameCanonicalMemo(frame: NativeRawProducerF
   exposureWindow: SensorRawProducerExposureWindowInput): EnvironmentRawFrameCanonicalMemo {
   return { frame, exposureWindow, strings: new Map() };
 }
-/** Internal frame-binding and scalar optical/EQE planning shared with bounded native execution; ownership as planEnvironmentSensorPhotoSignal. */
+/** Internal: frame-binding checks and per-site optics/EQE planning, shared with bounded native execution. Same ownership rules as planEnvironmentSensorPhotoSignal. */
 export function planEnvironmentRawSite(site: SimulateEnvironmentSensorRawFrameInput["sites"][number], i: number,
   frame: NativeRawProducerFrameContext, sceneBinding: SimulateEnvironmentSensorRawFrameInput["sceneBinding"],
   exposureWindow: SensorRawProducerExposureWindowInput, ownership: "copy" | "engine-owned" = "copy",
@@ -101,9 +107,12 @@ export function planEnvironmentRawSite(site: SimulateEnvironmentSensorRawFrameIn
   return plan;
 }
 /**
- * Preflight complete native coverage and aggregate support before invoking supplied
- * provider code, then reuse dark/completeness/capacity/noise/ADC ownership. The
- * returned RAW frame feeds the existing reconstruction and paired export APIs.
+ * Simulates a RAW frame from a scene-radiance provider.
+ *
+ * Before calling any provider code, it checks that the sites cover the full native
+ * frame and that all inputs are supported. Dark current, charge completeness,
+ * capacity, noise and ADC use the existing sensor modules. The returned RAW frame
+ * works with the existing reconstruction and paired-export APIs.
  */
 export function simulateEnvironmentSensorRawFrame(input: SimulateEnvironmentSensorRawFrameInput): CalculationResult<EnvironmentSensorRawFrame> {
   requireInputObject(input, "simulateEnvironmentSensorRawFrame input");
@@ -124,8 +133,8 @@ export function simulateEnvironmentSensorRawFrame(input: SimulateEnvironmentSens
   const sharedState = (e: SimulateEnvironmentSensorRawFrameInput["sites"][number]["environment"]): string => canonical({
     sceneBindings: e.sceneBindings, optics: e.optics, motion: e.motion, psf: e.psf, pupil: e.pupil, fieldThroughput: e.fieldThroughput,
     lensFieldMapping: e.lensFieldMapping });
-  // Site 0's shared state is serialized once per frame rather than once per site (#2); it is evaluated after the
-  // per-site duplicate-ID check and the per-site serialization exactly as before, so the first error is unchanged.
+  // Site 0's shared state is serialized once per frame instead of once per site. It is still checked after the
+  // per-site duplicate-ID check and per-site serialization, as before, so the first error is unchanged.
   let firstSharedState: string | undefined;
   const memo = createEnvironmentRawFrameCanonicalMemo(owned.frame, owned.exposureWindow);
   const plans = Array.from(owned.sites, (site, i) => {

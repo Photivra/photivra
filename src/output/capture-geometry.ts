@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Transforms a continuous native raster edge-coordinate point into oriented capture coordinates. Pixel
- * centers can be represented with +0.5 offsets.
- * Transforms an oriented raster edge-coordinate point back to native coordinates.
+ * Capture geometry: how the native sensor, the active capture area, the camera's physical
+ * orientation and the final output crop relate to each other.
+ *
+ * It converts points, vectors and rectangles between native and oriented pixel coordinates,
+ * maps oriented positions to the optical image plane and back, and computes field of view (FOV)
+ * for the active capture and the final output.
  * @see docs/PHYSICS_FOUNDATION.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -80,9 +82,9 @@ export interface NormalizedRasterUv {
 }
 
 /**
- * Pre-orientation optical image-plane coordinate in millimetres.
+ * A point on the optical image plane, in millimetres, before camera orientation is applied.
  *
- * Origin is the optical axis; +X points right and +Y points up.
+ * The origin is the optical axis. +X points right and +Y points up.
  */
 export interface ImagePlaneMetricPointMm {
   x: number;
@@ -120,16 +122,16 @@ export interface ResolveCaptureGeometryInput {
    */
   activeCaptureRect?: RasterRect;
   /**
-   * Final digital/output crop in oriented active-capture raster coordinates.
+   * Final digital (output) crop, in oriented active-capture pixel coordinates.
    *
    * Defaults to the full oriented active capture.
    */
   outputCropRect?: RasterRect;
   /**
-   * Final output raster after optional digital crop/resampling.
+   * Final output image size after the optional digital crop and resampling.
    *
-   * Defaults to the output-crop dimensions. The output raster must preserve
-   * the crop aspect ratio within a small integer-rounding tolerance.
+   * Defaults to the output-crop size. The output must keep the crop's aspect
+   * ratio, allowing only a small tolerance for integer rounding.
    */
   outputRaster?: RasterDimensions;
 }
@@ -154,7 +156,7 @@ export interface ResolvedCaptureGeometry {
     /** Native physical bounds relative to the optical axis. */
     physicalBoundsFromOpticalAxisMm: PhysicalBoundsFromOpticalAxisMm;
     /**
-     * Current generic model assumes native image samples uniformly span the
+     * The current generic model assumes the native pixels evenly cover the
      * declared physical imaging area.
      */
     imagingAreaDerivation: "uniform-native-raster";
@@ -169,9 +171,9 @@ export interface ResolvedCaptureGeometry {
   };
   output: {
     /**
-     * Digital/output crop expressed in oriented active-capture coordinates.
+     * Digital (output) crop, in oriented active-capture coordinates.
      *
-     * This crop does not mutate physical sensor identity or active-capture
+     * This crop does not change the physical sensor or the active-capture
      * geometry.
      */
     cropRect: RasterRect;
@@ -181,7 +183,7 @@ export interface ResolvedCaptureGeometry {
     physicalBoundsFromOpticalAxisMm: PhysicalBoundsFromOpticalAxisMm;
     centerOffsetFromOpticalAxisMm: RasterVector;
     sourceRetainedAreaFraction: number;
-    /** Pixel-domain resampling from oriented active capture into output. */
+    /** Pixel resampling from the oriented active capture to the output image. */
     orientedCaptureToOutputScale: {
       x: number;
       y: number;
@@ -231,8 +233,8 @@ export interface ActiveCaptureFieldOfView {
   horizontalDegrees: number;
   verticalDegrees: number;
   /**
-   * Larger of the two opposite-corner diagonal angular spans. For centered
-   * crops both diagonal spans are equal.
+   * The larger of the two corner-to-corner diagonal angles. For a centred
+   * crop the two diagonals are equal.
    */
   diagonalDegrees: number;
   horizontalBoundsDegrees: {
@@ -511,8 +513,8 @@ function inverseRotateVector(
 }
 
 /**
- * Transforms a continuous native raster edge-coordinate point into oriented
- * capture coordinates. Pixel centers can be represented with +0.5 offsets.
+ * Converts a point in native pixel coordinates to oriented capture coordinates.
+ * Coordinates are continuous and measured from pixel edges, so a pixel centre is at +0.5.
  */
 export function transformNativeRasterPointToOriented(
   input: TransformRasterPointInput
@@ -535,7 +537,7 @@ export function transformNativeRasterPointToOriented(
   }
 }
 
-/** Transforms an oriented raster edge-coordinate point back to native coordinates. */
+/** Converts a point in oriented pixel coordinates (measured from pixel edges) back to native coordinates. */
 export function transformOrientedRasterPointToNative(
   input: TransformRasterPointInput
 ): RasterPoint {
@@ -579,13 +581,13 @@ export function transformOrientedRasterVectorToNative(
 }
 
 /**
- * Maps normalized coordinates in an oriented physical raster region into the
- * pre-orientation optical image plane used by lens-field and camera-mapping
- * APIs.
+ * Maps normalized (0–1) coordinates in an oriented physical image region to the
+ * optical image plane used by the lens-field and camera-mapping APIs, before
+ * camera orientation.
  *
- * The supplied physical bounds use the capture contract's +Y-down basis after
- * physical camera orientation. The returned image-plane point uses optical-axis
- * origin, +X right and +Y up. No lens or projection equation is applied.
+ * The input bounds are after camera orientation and use +Y down. The returned
+ * point has its origin on the optical axis, with +X right and +Y up. No lens or
+ * projection equation is applied.
  */
 export function mapOrientedPhysicalUvToImagePlanePoint(
   input: MapOrientedPhysicalUvToImagePlaneInput
@@ -615,13 +617,12 @@ export function mapOrientedPhysicalUvToImagePlanePoint(
 }
 
 /**
- * Maps a pre-orientation optical image-plane point into normalized coordinates
- * of an oriented physical raster region.
+ * Maps an optical image-plane point (before camera orientation) to normalized
+ * coordinates in an oriented physical image region.
  *
- * This is the exact coordinate inverse of
- * mapOrientedPhysicalUvToImagePlanePoint(). Points outside the supplied region
- * fail closed; a tiny tolerance only absorbs floating-point round-trip noise at
- * an edge.
+ * This is the exact inverse of mapOrientedPhysicalUvToImagePlanePoint(). A point
+ * outside the region is rejected. A tiny tolerance only absorbs floating-point
+ * round-trip error at an edge.
  */
 export function mapImagePlanePointToOrientedPhysicalUv(
   input: MapImagePlanePointToOrientedPhysicalUvInput
@@ -795,10 +796,9 @@ function validateOutputAspectRatio(
   cropRect: RasterRect,
   outputRaster: RasterDimensions
 ): void {
-  // Preserve one isotropic output scale while allowing only the sub-pixel
-  // disagreement introduced when an ideal scaled dimension is rounded to an
-  // integer raster size. A fixed percentage tolerance can admit visible
-  // anisotropic stretching at large output dimensions.
+  // Keep one scale factor for both axes. Allow only the sub-pixel mismatch that
+  // comes from rounding an ideal scaled size to whole pixels. A fixed percentage
+  // tolerance would allow visible stretching along one axis at large sizes.
   const widthScaleMinimum =
     (outputRaster.pixelWidth - 0.5) / cropRect.width;
   const widthScaleMaximum =
@@ -926,8 +926,8 @@ function calculateBoundsFieldOfView(
 }
 
 /**
- * Resolves native sensor geometry, active capture, physical camera orientation,
- * and final digital/output geometry without conflating their identities.
+ * Resolves native sensor geometry, active capture area, physical camera orientation
+ * and final digital (output) geometry, keeping each one distinct.
  */
 export function resolveCaptureGeometry(
   input: ResolveCaptureGeometryInput
@@ -1060,10 +1060,11 @@ export function resolveCaptureGeometry(
 }
 
 /**
- * Calculates asymmetric horizontal/vertical FOV plus opposite-corner diagonal
- * spans for the active physical capture area after physical camera orientation.
+ * Calculates the field of view (FOV) of the active physical capture area after
+ * camera orientation. Horizontal and vertical FOV can be asymmetric about the
+ * optical axis; both corner-to-corner diagonals are reported.
  *
- * Final digital/output crop is intentionally excluded.
+ * The final digital (output) crop is deliberately not included.
  */
 export function calculateActiveCaptureFieldOfView(
   input: CalculateActiveCaptureFieldOfViewInput
@@ -1113,9 +1114,8 @@ export function calculateActiveCaptureFieldOfView(
 }
 
 /**
- * Calculates final visible field of view after physical active capture,
- * orientation, and digital/output crop. Output raster resolution does not
- * affect this optical/framing result.
+ * Calculates the final visible field of view after the active capture area,
+ * orientation and digital (output) crop. Output resolution does not affect it.
  */
 export function calculateOutputFieldOfView(
   input: CalculateOutputFieldOfViewInput

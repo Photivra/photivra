@@ -43,9 +43,9 @@ export interface ComposedFrontOfLensFilterTransmission {
 
 ## composeFrontOfLensFilterTransmission
 
-Composes multiple passive front-of-lens filters at one wavelength in light-path order while
-preserving each component's identity. Without a polarizer this is the plain product of
-transmissions; with one, linear Stokes parameters propagate through the ordered Mueller chain.
+Combines several passive front-of-lens filters at one wavelength, in light-path order, and keeps
+each filter's identity. Without a polarizer the result is the product of the transmissions. With
+one, linear Stokes parameters pass through the Mueller matrices in order.
 
 ```ts
 export function composeFrontOfLensFilterTransmission(
@@ -87,7 +87,7 @@ FRONT_OF_LENS_FILTER_PROFILE_SCHEMA_VERSION =
 
 ## FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION
 
-Schema that additionally admits the `linear-polarizer` transmission kind.
+Schema that also allows the `linear-polarizer` transmission kind.
 
 ```ts
 FRONT_OF_LENS_POLARIZER_PROFILE_SCHEMA_VERSION =
@@ -191,7 +191,7 @@ export type FrontOfLensFilterTransmissionModel =
       /** k1: intensity transmittance for light polarized along the transmission axis, (0, 1]. */
       principalTransmittance:
         EvidenceBackedFact<number>;
-      /** k1 / k2 >= 1, finite (use a large finite ratio for a near-ideal polarizer). */
+      /** k1 / k2. Finite and >= 1. Use a large finite ratio for a near-ideal polarizer. */
       extinctionRatio:
         EvidenceBackedFact<number>;
       /** Transmission-axis angle as mounted, degrees counter-clockwise from image +X. */
@@ -234,9 +234,9 @@ export interface LinearPolarizationState {
 Parses one generic front-of-lens transmission filter.
 
 Schema 0.1.0 is explicitly unbranded and unpolarized. It models only
-passive transmission placed before the lens. Reflections between stacked
-filters, polarization, flare/ghosting and wavelength-changing behavior are
-outside this contract.
+passive transmission in front of the lens. It does not cover reflections
+between stacked filters, polarization, flare or ghosting, or filters that
+change wavelength.
 
 ```ts
 export function parseFrontOfLensFilterProfile(

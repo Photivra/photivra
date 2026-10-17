@@ -4,9 +4,10 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateLinearCaptureEncoding
 
-Quantizes one immutable inline float plane without changing its capture data.
+Converts one inline float plane to integer codes. The capture data is not changed.
+
 Mapping: blackCode + (sample-blackValue)/(referenceWhiteValue-blackValue)
-* (referenceWhiteCode-blackCode). Clips only under explicit policy, then rounds.
+* (referenceWhiteCode-blackCode). It clips only when the policy says so, then rounds.
 
 ```ts
 export function calculateLinearCaptureEncoding(input: LinearCaptureEncodingInput): CalculationResult<EncodedLinearCapture>;
@@ -16,13 +17,13 @@ This call is synchronous; any supplied provider must follow its explicit synchro
 
 ## EncodedLinearCapture
 
-Format-neutral 16-bit unsigned codes; metadata retains color/WB/saturation meaning.
+16-bit unsigned codes, not tied to a file format. The metadata keeps their colour, white-balance (WB) and saturation meaning.
 
 ```ts
 export interface EncodedLinearCapture {
   schemaVersion: typeof LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION;
   captureId: string;
-  /** Sanitized geometry/settings/WB/adopted-white/model provenance without float planes. */
+  /** Cleaned-up copy of the capture's geometry, settings, WB, adopted white and model provenance, without the float planes. */
   captureMetadata: Omit<SimulatedCapture, "planes">;
   sourcePlane: Omit<CaptureLinearPlane, "storage">;
   encoding: LinearCaptureEncoding;
@@ -35,13 +36,13 @@ export interface EncodedLinearCapture {
   scale: number;
   minimumRepresentableValue: number;
   maximumRepresentableValue: number;
-  /** Maximum above-black value / reference-white above-black value. */
+  /** Headroom: (maximum value − black) / (reference white − black). */
   headroomFactor: number;
-  /** 0.5/scale for in-range samples; excludes clipping error. */
+  /** Largest rounding error for in-range samples, 0.5/scale. Clipping error is not included. */
   maximumRoundingError: number;
   clippedLowSampleCount: number;
   clippedHighSampleCount: number;
-  /** No default rendering exposure/display white is chosen by linear encoding. */
+  /** Linear encoding never picks a default rendering exposure or display white. */
   defaultRenderingExposureEv: null;
   samples: readonly number[];
 }
@@ -49,7 +50,7 @@ export interface EncodedLinearCapture {
 
 ## LINEAR_CAPTURE_ENCODING_MODEL_VERSION
 
-Version of the `uniform-linear-capture-uint16` model. 0.2.0: exact nearest-ties-up rounding (Math.round).
+Version of the `uniform-linear-capture-uint16` model. 0.2.0 made rounding exact: nearest, ties up (Math.round).
 
 ```ts
 LINEAR_CAPTURE_ENCODING_MODEL_VERSION = "0.2.0" as const
@@ -65,14 +66,14 @@ LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION = "0.1.0" as const
 
 ## LinearCaptureEncoding
 
-Uniform channel mapping; capture reference white comes from the source plane.
+The same linear mapping for every channel. The reference white value comes from the source plane.
 
 ```ts
 export interface LinearCaptureEncoding {
   schemaVersion: typeof LINEAR_CAPTURE_ENCODING_SCHEMA_VERSION;
   /** Relative source sample value assigned blackCode; may be negative. */
   blackValue: number;
-  /** Integer code at blackValue, 0..65534. An offset can preserve negative samples. */
+  /** Integer code for blackValue, 0..65534. A nonzero offset can keep negative samples. */
   blackCode: number;
   /** Code at the plane's referenceWhiteValue, strictly above blackCode, at most 65535. */
   referenceWhiteCode: number;
@@ -90,7 +91,7 @@ The exact contract is declared below; use the domain guide for assumptions and s
 export interface LinearCaptureEncodingInput {
   capture: SimulatedCapture;
   planeId: string;
-  /** Prevents substituting a differently interpreted linear plane. */
+  /** Identifies the exact source plane, so a plane with a different meaning cannot be swapped in. */
   requiredImageState: CaptureLinearImageState;
   encoding: LinearCaptureEncoding;
 }
@@ -98,7 +99,7 @@ export interface LinearCaptureEncodingInput {
 
 ## parseLinearCaptureEncoding
 
-Strict allowlisted encoding parser; no default clipping/rounding policy is invented.
+Strictly parses an encoding profile. It never fills in a default clipping or rounding policy.
 
 ```ts
 export function parseLinearCaptureEncoding(value: unknown): LinearCaptureEncoding;

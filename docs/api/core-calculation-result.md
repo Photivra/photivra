@@ -69,10 +69,10 @@ export interface CalculationProvenance {
 
 Optional quality metadata for a calculation result.
 
-Components remain separate by default. Callers must not add, combine in
-quadrature, or otherwise collapse uncertainty components unless a
-scientifically justified composition method explicitly documents
-independence/correlation assumptions.
+Uncertainty components stay separate. Do not add them, combine them in
+quadrature (root-sum-of-squares) or merge them in any other way, unless you use
+a scientifically justified method that documents its independence and
+correlation assumptions.
 
 ```ts
 export interface CalculationQuality {
@@ -86,8 +86,8 @@ export interface CalculationQuality {
 
 Standard result envelope for public scientific calculations.
 
-Deterministic analytical results remain lightweight: quality is omitted when
-there is no defensible uncertainty/accuracy metadata to report.
+Deterministic analytical results stay lightweight. They omit `quality` when
+there is no defensible uncertainty or accuracy metadata to report.
 
 ```ts
 export interface CalculationResult<T> {
@@ -99,8 +99,8 @@ export interface CalculationResult<T> {
 
 ## CalculationValidRange
 
-Documented parameter range over which a model/calibration is considered
-valid. This is model applicability metadata, not a statistical interval.
+The documented parameter range in which a model or calibration is valid.
+It says where the model applies. It is not a statistical interval.
 
 ```ts
 export interface CalculationValidRange {
@@ -174,8 +174,8 @@ export interface RelativeUncertaintyEstimate extends UncertaintyEstimateBase {
 
 Optional confidence metadata for a quantified uncertainty estimate.
 
-A confidence level is only meaningful when the basis can be stated. It must
-not be used as a generic subjective confidence score.
+Give a confidence level only when you can state its basis. Do not use it as a
+general, subjective confidence score.
 
 ```ts
 export interface UncertaintyConfidence {

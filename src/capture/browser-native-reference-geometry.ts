@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Repository-internal #234 float64 geometry foundation.
+ * Internal float64 scene geometry and ray intersection for the browser-native capture reference
+ * executor ("Path A"; see docs/BROWSER_NATIVE_CAPTURE_ROBUST_GEOMETRY.md).
  *
- * This module is intentionally not exported from the package root. It owns a
- * compact immutable geometry representation for the Path-A reference executor.
+ * It holds a compact, immutable geometry representation and is deliberately not exported from
+ * the package.
  *
- * Initial scope is deliberately narrower than the final frozen source envelope:
- * local-space axis-aligned metric rectangles/boxes with rigid translation/rotation.
- * Scale/shear and a defensible near-coincident float64 ambiguity bound remain later
- * #234 work.
+ * Scope is narrower than the planned final scene envelope: rectangles and boxes in metres,
+ * axis-aligned in their local space, with rigid translation and rotation only. Scale, shear and
+ * a defensible bound for near-coincident float64 hits are not done yet.
  */
 import { freezeOwnedData } from "../core/owned-data.js";
 import { requirePublicOpaqueId } from "../core/record-validation.js";
@@ -34,8 +34,9 @@ export interface BrowserNativeReferenceRigidTransform {
   /** World-space translation of the local primitive frame. */
   translationM: BrowserNativeReferenceVector3;
   /**
-   * Rotation from local to world coordinates. Preparation normalizes this
-   * quaternion, canonicalizes its sign, and removes signed-zero identity drift.
+   * Rotation from local to world coordinates, as a quaternion. Preparation
+   * normalizes it, fixes its sign to one canonical choice, and removes -0 values
+   * so identical rotations compare equal.
    */
   rotationQuaternion: BrowserNativeReferenceQuaternion;
 }
@@ -44,8 +45,8 @@ export interface BrowserNativeAxisAlignedRectangle {
   kind: "axis-aligned-rectangle";
   primitiveId: string;
   /**
-   * Closed metric bounds. Exactly one axis has minimum === maximum; that
-   * zero-thickness axis is the supporting plane.
+   * Closed bounds in metres. Exactly one axis has minimum === maximum; that
+   * zero-thickness axis defines the rectangle's plane.
    */
   minimumM: BrowserNativeReferenceVector3;
   maximumM: BrowserNativeReferenceVector3;
@@ -56,7 +57,7 @@ export interface BrowserNativeAxisAlignedRectangle {
 export interface BrowserNativeAxisAlignedBox {
   kind: "axis-aligned-box";
   primitiveId: string;
-  /** Closed metric bounds; every maximum is strictly greater. */
+  /** Closed bounds in metres; each maximum is strictly greater than its minimum. */
   minimumM: BrowserNativeReferenceVector3;
   maximumM: BrowserNativeReferenceVector3;
   /** Optional rigid local-to-world transform; omission is identity. */
@@ -96,9 +97,9 @@ export interface PreparedBrowserNativeReferenceGeometry {
 export interface BrowserNativeReferenceRay {
   originM: BrowserNativeReferenceVector3;
   /**
-   * Existing aperture-ray callers normally supply a unit vector. This reference
-   * foundation preserves the supplied direction exactly and never renormalizes it.
-   * distanceM is derived using the actual finite vector magnitude.
+   * Aperture-ray callers normally supply a unit vector. This reference code keeps
+   * the direction exactly as given and never renormalizes it. distanceM uses the
+   * vector's actual (finite) length.
    */
   directionUnitVector: BrowserNativeReferenceVector3;
 }
@@ -291,10 +292,11 @@ function validatePrimitive(
 }
 
 /**
- * Validate, copy, canonicalize by stable primitive ID, and freeze repository-
- * internal source geometry. Sorting removes caller array order as a hidden
- * visibility semantic. It is not a tie-break rule: exact distinct first-hit ties
- * remain unsupported.
+ * Validates, copies, sorts by primitive ID and freezes internal scene geometry.
+ *
+ * Sorting means the order of the caller's array cannot secretly affect visibility.
+ * It is not a tie-break rule: two different primitives hit at exactly the same
+ * first distance are still unsupported.
  */
 export function prepareBrowserNativeReferenceGeometry(
   input: PrepareBrowserNativeReferenceGeometryInput
@@ -630,12 +632,12 @@ function intersectBox(
 }
 
 /**
- * Intersect one exact supplied ray against immutable prepared geometry.
+ * Intersects one ray, exactly as supplied, with the prepared geometry.
  *
- * This first float64 foundation intentionally fails closed for exact distinct
- * first-hit ties and unresolved boundary/coplanar states. It does not yet claim
- * the BNCE-GEO-002 near-coincident ambiguity bound required for later backend
- * qualification.
+ * It deliberately rejects exact first-hit ties between different primitives, and
+ * hits it cannot resolve on a boundary or coplanar surface. It does not yet provide
+ * the near-coincident ambiguity bound (BNCE-GEO-002 in
+ * docs/BROWSER_NATIVE_CAPTURE_ROBUST_GEOMETRY.md) that other backends will need.
  */
 export function intersectBrowserNativeReferenceGeometry(
   prepared: PreparedBrowserNativeReferenceGeometry,

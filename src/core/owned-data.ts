@@ -1,28 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Freezes an engine-owned, acyclic tree of plain records and arrays in place, visiting enumerable
- * child values before their parent. Returns the same value. This internal helper does not validate or
- * clone data. Callers must first parse their domain contract and copy any caller-owned references that
- * need to remain mutable. Primitives pass through unchanged. Already-frozen parents are still
- * traversed because a shallow freeze does not establish descendant immutability. Accessors, cyclic
- * graphs, Maps, Sets and typed-array storage are outside this helper's contract. Do not use it as a
- * general-purpose untrusted-input boundary.
+ * Internal helper that deep-freezes engine-owned results so callers cannot change them.
  * @see docs/API_STYLE.md for equations, coordinate/unit conventions, blockers and support limits.
  */
 
 /**
- * Freezes an engine-owned, acyclic tree of plain records and arrays in place,
- * visiting enumerable child values before their parent. Returns the same value.
+ * Freezes an engine-owned, acyclic tree of plain records and arrays in place and
+ * returns the same value. Children (enumerable values) are frozen before their parent.
  *
- * This internal helper does not validate or clone data. Callers must first parse
- * their domain contract and copy any caller-owned references that need to remain
- * mutable. Primitives pass through unchanged. Already-frozen parents are still
- * traversed because a shallow freeze does not establish descendant immutability.
+ * It does not validate or copy anything. Parse the domain input first, and copy any
+ * caller-owned objects that must stay mutable. Primitives pass through unchanged. A
+ * parent that is already frozen is still walked, because a shallow freeze says nothing
+ * about its children.
  *
- * Accessors, cyclic graphs, Maps, Sets and typed-array storage are outside this
- * helper's contract. Do not use it as a general-purpose untrusted-input boundary.
+ * Not supported: accessors, cycles, Maps, Sets and typed-array storage. Do not use this
+ * as a general guard for untrusted input.
  */
 export function freezeOwnedData<T>(value: T): T {
   if (value !== null && typeof value === "object") {

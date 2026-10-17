@@ -1,16 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Module boundary and integration notes.
- * Resolves local capture exposure windows from independent opening and closing boundary schedules. The
- * returned time basis is seconds from the first opening-boundary phase. This is intentionally not the
- * existing camera-rotation API's global "exposure start" semantic; a later integration layer must bind
- * those time bases explicitly. The mechanism identifies whether each boundary is mechanical or
- * electronic, but does not supply any traversal duration or direction. Every non-simultaneous timing
- * value and direction is caller-declared with evidence. The first model supports simultaneous
- * boundaries and uniform-linear single-axis native-sensor scans only. It does not model curtain
- * acceleration, segmented/nonlinear electronic schedules, flash/flicker, rolling-shutter image
- * distortion, shutter shock, or EFCS-specific pupil/bokeh behavior.
+ * Exposure windows: when each point on the sensor starts and stops collecting light.
+ *
+ * The shutter has an opening boundary and a closing boundary, each with its own schedule. With a
+ * rolling or curtain shutter the boundaries sweep across the sensor, so each point has its own
+ * (local) window. Times are seconds from the first opening boundary. That is deliberately not the
+ * same as the camera-rotation API's global "exposure start"; a later layer must link the two
+ * explicitly.
+ *
+ * The mechanism records whether each boundary is mechanical or electronic, but supplies no sweep
+ * duration or direction. Every timing value and direction for a non-simultaneous boundary is declared
+ * by the caller, with evidence. Only simultaneous boundaries and a uniform linear sweep along one
+ * native sensor axis are supported. Not modelled: curtain acceleration, segmented or non-linear
+ * electronic schedules, flash or flicker, rolling-shutter image distortion, shutter shock, and
+ * EFCS (electronic first-curtain shutter) effects on the pupil or bokeh.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -66,25 +70,25 @@ export type ExposureBoundarySchedule =
 export interface CalculateCaptureExposureWindowsInput {
   nativeRaster: NativeImageRaster;
   /**
-   * Active capture rectangle in invariant native-raster coordinates.
+   * Active capture rectangle, in fixed native pixel coordinates.
    *
-   * Defaults to the complete native raster. Boundary traversal timing is never
-   * inferred by scaling a full-frame timing value to this rectangle.
+   * Defaults to the whole native image. Sweep timing is never worked out by
+   * scaling a full-frame timing value to this rectangle.
    */
   activeCaptureRect?: RasterRect;
   shutterMechanism: CaptureShutterMechanism;
   /**
-   * Nominal interval between the zero-phase opening and closing references.
+   * Nominal time between the opening and closing reference points (phase zero).
    *
-   * Local exposure duration may differ from this value when opening and closing
-   * boundary schedules have different spatial phase behavior.
+   * A point's local exposure can differ from this when the opening and closing
+   * boundaries sweep differently across the sensor.
    */
   nominalExposureDurationSeconds: SourcedCaptureTimingSeconds;
   opening: ExposureBoundarySchedule;
   closing: ExposureBoundarySchedule;
   /**
-   * Optional continuous native raster edge-coordinate points for diagnostics.
-   * Pixel centers may be represented with +0.5 offsets.
+   * Optional points, in continuous native pixel coordinates measured from pixel
+   * edges, to report windows for. A pixel centre is at +0.5.
    */
   samplePointsNative?: readonly RasterPoint[];
 }
@@ -108,11 +112,11 @@ export interface CaptureExposureWindowSample {
   openingNormalizedScanPosition: number | null;
   closingNormalizedScanPosition: number | null;
   /**
-   * Seconds from the first opening-boundary phase.
+   * Seconds from the first opening boundary.
    */
   startOffsetSecondsFromOpeningReference: number;
   /**
-   * Seconds from the first opening-boundary phase.
+   * Seconds from the first opening boundary.
    */
   endOffsetSecondsFromOpeningReference: number;
   localExposureDurationSeconds: number;
@@ -473,22 +477,22 @@ function activeRectCorners(rect: RasterRect): readonly RasterPoint[] {
 }
 
 /**
- * Resolves local capture exposure windows from independent opening and closing
- * boundary schedules.
+ * Works out each point's local exposure window from separate opening and
+ * closing boundary schedules.
  *
- * The returned time basis is seconds from the first opening-boundary phase.
- * This is intentionally not the existing camera-rotation API's global
- * "exposure start" semantic; a later integration layer must bind those time
- * bases explicitly.
+ * Times are seconds from the first opening boundary. This is deliberately not
+ * the camera-rotation API's global "exposure start"; a later layer must link the
+ * two explicitly.
  *
- * The mechanism identifies whether each boundary is mechanical or electronic,
- * but does not supply any traversal duration or direction. Every non-simultaneous
- * timing value and direction is caller-declared with evidence.
+ * The mechanism records whether each boundary is mechanical or electronic, but
+ * supplies no sweep duration or direction. Every timing value and direction for
+ * a non-simultaneous boundary is declared by the caller, with evidence.
  *
- * The first model supports simultaneous boundaries and uniform-linear
- * single-axis native-sensor scans only. It does not model curtain acceleration,
- * segmented/nonlinear electronic schedules, flash/flicker, rolling-shutter
- * image distortion, shutter shock, or EFCS-specific pupil/bokeh behavior.
+ * Only simultaneous boundaries and a uniform linear sweep along one native
+ * sensor axis are supported. Not modelled: curtain acceleration, segmented or
+ * non-linear electronic schedules, flash or flicker, rolling-shutter image
+ * distortion, shutter shock, and EFCS (electronic first-curtain shutter)
+ * effects on the pupil or bokeh.
  */
 export function calculateCaptureExposureWindows(
   input: CalculateCaptureExposureWindowsInput
@@ -594,10 +598,10 @@ export function calculateCaptureExposureWindows(
 }
 
 /**
- * Internal (lean native environment executor, 2.0 performance): admits a schedule once with every check of
- * calculateCaptureExposureWindows, then returns a per-point sampler that applies the same point validation and
- * the same createWindowSample arithmetic. A sampled window is therefore identical to the one
- * calculateCaptureExposureWindows returns for that point. Not a root export.
+ * Internal, for the faster ("lean") native environment executor (a 2.0 performance change). It checks a
+ * schedule once with every check of calculateCaptureExposureWindows, then returns a per-point sampler that
+ * uses the same point validation and the same createWindowSample arithmetic. So each sampled window is
+ * identical to what calculateCaptureExposureWindows returns for that point. Not exported from the package.
  */
 export function prepareCaptureExposureWindowSampler(
   input: Omit<CalculateCaptureExposureWindowsInput, "samplePointsNative">

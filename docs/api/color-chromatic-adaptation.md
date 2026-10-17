@@ -5,8 +5,8 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 ## calculateChromaticAdaptationMatrix
 
 Calculates a linear chromatic-adaptation matrix between two whites. Linear CATs are
-standard models whose predictive accuracy for corresponding colours is limited; the
-matrix itself is calculated exactly from the declared transform.
+standard models, but they predict corresponding colours only approximately. The matrix
+itself is calculated exactly from the declared transform.
 
 ```ts
 export function calculateChromaticAdaptationMatrix(input: CalculateChromaticAdaptationMatrixInput): CalculationResult<ChromaticAdaptationMatrix>;

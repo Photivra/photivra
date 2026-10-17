@@ -4,14 +4,15 @@ The package and root API versions are recorded once in [Navigation](../API_REFER
 
 ## calculateSensorEqeElectronRate
 
-Converts pre-response geometric-aperture spectral radiant power into
-incident-photon rate and expected generated-electron rate.
+Converts the spectral radiant power collected by the site's geometric aperture
+(before the sensor response) into an incident photon rate and an expected
+generated electron rate.
 
-This function applies response per wavelength node. It never applies one
-broadband-average QE to total radiant power.
+The response is applied at each wavelength node. One broadband-average QE is
+never applied to the total power.
 
-Temporal exposure integration remains downstream, so all outputs are rates
-(per second), not photon/electron counts.
+Integration over exposure time happens later, so all outputs are rates per
+second, not photon or electron counts.
 
 ```ts
 export function calculateSensorEqeElectronRate(
@@ -80,7 +81,7 @@ export interface SensorEqeElectronRate {
   responseProfileId: string;
   responseApplicationProfileId: string;
   operatingRangeProfileId: string;
-  /** Engine-produced results populate the exact source color site. */
+  /** The exact source colour site. Results produced by the engine fill this in. */
   site?: {
     x: number;
     y: number;
