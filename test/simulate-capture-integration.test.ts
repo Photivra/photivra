@@ -304,3 +304,41 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
     expect(calls).toBe(0);
   });
 });
+
+describe("simulateCapture perceptual gamut mapping", { timeout: 300_000 }, () => {
+  /** CIELAB hue angle (degrees) of an XYZ colour relative to D65. */
+  function hue(xyz: number[]): number {
+    const white = [0.95047, 1, 1.08883], f = (t: number): number => (t > (6 / 29) ** 3 ? Math.cbrt(t) : t / (3 * (6 / 29) ** 2) + 4 / 29);
+    const [fx, fy, fz] = xyz.map((v, i) => f(v / white[i]!)) as [number, number, number];
+    return Math.atan2(200 * (fy - fz), 500 * (fx - fy)) * 180 / Math.PI;
+  }
+  it("keeps clip as the unchanged default and maps out-of-gamut colour at constant hue", async () => {
+    const plain = await simulateCapture({ scene: { preset: "checkerboard" }, output: { width: 4, height: 4, format: "png" } });
+    const clip = await simulateCapture({ scene: { preset: "checkerboard" }, output: { width: 4, height: 4, format: "png", gamutMapping: "clip" } });
+    expect(Array.from(clip.image.png!)).toEqual(Array.from(plain.image.png!));
+    expect(plain.assumptions.find((a) => a.id === "output.gamutMapping")!.value).toBe("clip");
+    const scene = { kind: "radiance-function" as const, sceneId: "green-emitter", evaluate: (p: { wavelengthNanometers: number }): number => 5e-2 * (0.15 + Math.exp(-(((p.wavelengthNanometers - 530) / 30) ** 2))) };
+    const base = { scene, sensor: { spectralStepNanometers: 5 }, output: { width: 4, height: 4, whiteBalance: "none" as const, format: "png" as const, bitDepth: 16 as const } };
+    const clipped = await simulateCapture(base), mapped = await simulateCapture({ ...base, output: { ...base.output, gamutMapping: "perceptual" } });
+    expect(clipped.diagnostics.rendering.gamutClippedLowSampleCount).toBeGreaterThan(0);
+    expect(mapped.diagnostics.gamutMapping).toMatchObject({ method: "cielab-hue-preserving-chroma-compression", kneeFraction: 0.9, adjustedPixelCount: 16 });
+    expect(mapped.provenance.composedContracts).toContain("prepareRgbGamutMapping");
+    const decode = (r: SimulateCaptureResult): number[] => {
+      const rgb = [0, 1, 2].map((c) => evaluateSrgbDecoding(meanOf(r.image.samples, c) / 65535)), m = resolveRgbColorSpace("srgb").value.rgbToXyz;
+      return m.map((row) => row[0]! * rgb[0]! + row[1]! * rgb[1]! + row[2]! * rgb[2]!);
+    };
+    const truth = [0, 0, 0];
+    for (let nm = 380; nm <= 780; nm++) { const e = scene.evaluate({ wavelengthNanometers: nm }), c = estimateCie1931ColorMatchingFunctions(nm); truth[0]! += e * c.x; truth[1]! += e * c.y; truth[2]! += e * c.z; }
+    const hueError = (r: SimulateCaptureResult): number => Math.abs(hue(decode(r)) - hue(truth));
+    expect(hueError(mapped)).toBeLessThan(1);
+    expect(hueError(mapped)).toBeLessThan(hueError(clipped));
+    // Neutral colours are untouched by the mapping.
+    const grey = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "png", gamutMapping: "perceptual" } });
+    expect(grey.diagnostics.gamutMapping!.adjustedPixelCount).toBe(0);
+    const greyClip = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "png" } });
+    for (let i = 0; i < greyClip.image.samples.length; i++) expect(Math.abs(grey.image.samples[i]! - greyClip.image.samples[i]!)).toBeLessThanOrEqual(1);
+    for (const bad of [{ format: "png", colorEncoding: "rec2100-pq", gamutMapping: "perceptual" }, { format: "srgb-8", gamutMapping: "perceptual" },
+      { format: "png", gamutMapping: "perceptual", toneCurve: "positive-reinhard-per-channel" }, { format: "png", gamutMapping: "hue" }])
+      await expect(simulateCapture({ scene: { preset: "uniform" }, output: bad as never })).rejects.toThrow(InvalidConfigurationError);
+  });
+});

@@ -70,7 +70,8 @@ import type { CalculateEnvironmentSensorPhotoSignalInput } from "../sensor/envir
 import { createRollingShutterCaptureExposureSchedule, resolveElectronicRollingShutterExposureSchedule,
   type ElectronicRollingShutterExposureSchedule } from "../sensor/readout-exposure-linkage.js";
 import { calculateCaptureExposureWindows } from "../sensor/exposure-window.js";
-import { multiplyMatrices, type ColorMatrix3x3 } from "../color/colorimetry-math.js";
+import { multiplyMatrices, type ColorMatrix3x3, type ColorVector3 } from "../color/colorimetry-math.js";
+import { prepareRgbGamutMapping, type PreparedRgbGamutMapping } from "../color/gamut-mapping.js";
 import { serializeNativeRawDng, type NativeRawDng } from "../capture/native-raw-dng.js";
 import { resolveSensorReadoutRegime } from "../sensor/raw-readout.js";
 import { resolveChartScene, CHART_SCENE_PRESETS, type ChartScene, type ResolvedChartScene } from "./chart-scenes.js";
@@ -177,6 +178,11 @@ export interface SimulateCaptureOptions {
     colorEncoding?: SimulateCaptureColorEncoding;
     /** PNG only: 8 or 16 bits per sample. Default 8, or 16 for the PQ/HLG encodings (which require 16). */
     bitDepth?: 8 | 16;
+    /**
+     * PNG SDR encodings only. Default "clip" (per-component clip to the target gamut). "perceptual" maps
+     * through `prepareRgbGamutMapping`: constant CIELAB L* and hue, chroma above 90 % of the boundary compressed.
+     */
+    gamutMapping?: "clip" | "perceptual";
     /** Default: the 1.0 facade's bilinear RGGB kernels. */
     demosaic?: SimulateCaptureDemosaic;
     /** Default "margin". */
@@ -271,6 +277,8 @@ export interface SimulateCaptureResult {
     providerEvaluationCount: number;
     highlight: RawHighlightDiagnostics;
     rendering: SdrRenderingResult["diagnostics"];
+    /** Present with output.gamutMapping "perceptual": pixels whose chroma or lightness the mapping changed. */
+    gamutMapping?: { method: "cielab-hue-preserving-chroma-compression"; kneeFraction: number; adjustedPixelCount: number; lightnessClippedPixelCount: number };
     timingsMs: { raw: number; whiteBalance: number; development: number; jpeg: number; total: number };
   };
   provenance: {
@@ -436,16 +444,32 @@ async function developLinearSrgb(input: NativeRawDevelopmentInput, afterRow: (co
     reconstructedPixelCount: c.reconstructedPixelCount } };
 }
 /** Linear sRGB/D65 → CIE XYZ (inverse of the development's XYZ → sRGB matrix) → linear target RGB/D65. */
-function linearSrgbToTarget(target: "display-p3" | "rec2020"): readonly (readonly number[])[] {
+function linearSrgbToTarget(target: "srgb" | "display-p3" | "rec2020"): readonly (readonly number[])[] {
   return multiplyMatrices(resolveRgbColorSpace(target).value.xyzToRgb, resolveCaptureColorModel().cameraRgbToXyz as unknown as ColorMatrix3x3);
 }
-/** SDR wide-gamut encoding: matrix to the target primaries, component clip to [0, 1], target transfer, nearest-ties-up codes. */
-function encodeSdrWideGamut(rgb: Float64Array, encoding: "display-p3" | "rec2020", bitDepth: 8 | 16): { samples: Uint8Array | Uint16Array; diagnostics: SdrRenderingResult["diagnostics"] } {
-  const m = linearSrgbToTarget(encoding), transfer = encoding === "display-p3" ? evaluateSrgbEncoding : evaluateBt709Oetf, maximum = 2 ** bitDepth - 1;
+/** Knee of the `perceptual` gamut mapping: chroma below 90 % of the gamut-boundary chroma (at constant L*, h) is untouched. */
+const PERCEPTUAL_GAMUT_KNEE_FRACTION = 0.9;
+/**
+ * SDR encoding from linear sRGB/D65: matrix to the target primaries; either component clip to [0, 1] or, with
+ * `mapping`, CIELAB hue/lightness-preserving chroma compression (`prepareRgbGamutMapping`); then the target
+ * transfer and nearest-ties-up codes.
+ */
+function encodeSdrFromLinear(rgb: Float64Array, encoding: "srgb" | "display-p3" | "rec2020", bitDepth: 8 | 16, mapping?: PreparedRgbGamutMapping):
+  { samples: Uint8Array | Uint16Array; diagnostics: SdrRenderingResult["diagnostics"]; adjustedPixelCount: number; lightnessClippedPixelCount: number } {
+  const m = linearSrgbToTarget(encoding), toXyz = resolveCaptureColorModel().cameraRgbToXyz, maximum = 2 ** bitDepth - 1;
+  const transfer = encoding === "rec2020" ? evaluateBt709Oetf : evaluateSrgbEncoding;
   const samples = bitDepth === 8 ? new Uint8Array(rgb.length) : new Uint16Array(rgb.length);
-  let low = 0, high = 0;
+  let low = 0, high = 0, adjusted = 0, lightnessClipped = 0;
   for (let i = 0; i < rgb.length; i += 3) {
     const r = rgb[i]!, g = rgb[i + 1]!, b = rgb[i + 2]!;
+    if (mapping) {
+      const xyz = [0, 1, 2].map((k) => toXyz[k]![0]! * r + toXyz[k]![1]! * g + toXyz[k]![2]! * b) as unknown as ColorVector3;
+      const mapped = mapping.map(xyz);
+      if (mapped.adjusted) adjusted++;
+      if (mapped.lightnessClipped) lightnessClipped++;
+      for (let k = 0; k < 3; k++) samples[i + k] = Math.floor(transfer(mapped.linearRgb[k]!) * maximum + 0.5);
+      continue;
+    }
     for (let k = 0; k < 3; k++) {
       const row = m[k]!;
       let value = row[0]! * r + row[1]! * g + row[2]! * b;
@@ -453,8 +477,8 @@ function encodeSdrWideGamut(rgb: Float64Array, encoding: "display-p3" | "rec2020
       samples[i + k] = Math.floor(transfer(value) * maximum + 0.5);
     }
   }
-  return { samples, diagnostics: { renderingNegativeSampleCount: low, renderingAboveReferenceSampleCount: high, toneChangedSampleCount: 0,
-    gamutClippedLowSampleCount: low, gamutClippedHighSampleCount: high, captureSaturation: "consumed-in-raw-development" } };
+  return { samples, adjustedPixelCount: adjusted, lightnessClippedPixelCount: lightnessClipped, diagnostics: { renderingNegativeSampleCount: low,
+    renderingAboveReferenceSampleCount: high, toneChangedSampleCount: 0, gamutClippedLowSampleCount: low, gamutClippedHighSampleCount: high, captureSaturation: "consumed-in-raw-development" } };
 }
 
 /**
@@ -549,7 +573,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
 
   // Output and sensor
   const outputOptions = allowKeys(top.output, "output", ["width", "height", "format", "toneCurve", "toneCurveParameters", "highlightMode", "whiteBalance", "jpegQuantizationStep",
-    "colorEncoding", "bitDepth", "demosaic", "borderHandling", "dng"]);
+    "colorEncoding", "bitDepth", "gamutMapping", "demosaic", "borderHandling", "dng"]);
   const width = integerIn(pick(outputOptions, "width", "output.width", DEFAULTS.width, "64 × 64 output pixels."), "output.width", 1, 4094);
   const height = integerIn(pick(outputOptions, "height", "output.height", DEFAULTS.height, "64 × 64 output pixels."), "output.height", 1, 4094);
   const format = pick<SimulateCaptureOutputFormat>(outputOptions, "format", "output.format", DEFAULTS.format, "8-bit sRGB samples.");
@@ -570,9 +594,18 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     if (pngBitDepth !== 8 && pngBitDepth !== 16) fail("output.bitDepth must be 8 or 16.");
     if (hdr && pngBitDepth !== 16) fail("output.colorEncoding " + colorEncoding + " needs output.bitDepth 16.");
   } else if (outputOptions.colorEncoding !== undefined || outputOptions.bitDepth !== undefined) fail("output.colorEncoding and output.bitDepth apply only to output.format \"png\".");
+  let perceptual = false;
+  if (format === "png") {
+    const gamutMapping = pick<"clip" | "perceptual">(outputOptions, "gamutMapping", "output.gamutMapping", "clip", "Out-of-gamut components are clipped to [0, 1] in the target space.");
+    if (gamutMapping !== "clip" && gamutMapping !== "perceptual") fail("output.gamutMapping must be clip or perceptual.");
+    perceptual = gamutMapping === "perceptual";
+    if (perceptual && (colorEncoding === "rec2100-pq" || colorEncoding === "rec2100-hlg")) fail("output.gamutMapping \"perceptual\" applies to the SDR encodings (srgb, display-p3, rec2020) only.");
+  } else if (outputOptions.gamutMapping !== undefined) fail("output.gamutMapping applies only to output.format \"png\".");
   const wideGamut = colorEncoding !== undefined && colorEncoding !== "srgb";
+  // The linear development path serves wide-gamut/HDR encodings and perceptual gamut mapping.
+  const linearPath = wideGamut || perceptual;
   const toneCurve = pick<SdrToneCurve>(outputOptions, "toneCurve", "output.toneCurve", DEFAULTS.toneCurve, "Identity tone curve: scene-linear values are clipped at display white, then sRGB-encoded.");
-  if (wideGamut && toneCurve !== "identity") fail("output.toneCurve other than identity is available only for sRGB output; wide-gamut and HDR encodings are converted from the linear developed colour.");
+  if (linearPath && toneCurve !== "identity") fail("output.toneCurve other than identity is available only for sRGB output; wide-gamut and HDR encodings are converted from the linear developed colour.");
   const highlightMode = pick<RawHighlightMode>(outputOptions, "highlightMode", "output.highlightMode", DEFAULTS.highlightMode, "Saturated RAW highlights are clipped to neutral.");
   const whiteBalanceOption = pick<SimulateCaptureWhiteBalance>(outputOptions, "whiteBalance", "output.whiteBalance", DEFAULTS.whiteBalance,
     "White balance measured from a perfect white diffuser under the scene illuminant (a custom/grey-card white balance).");
@@ -797,7 +830,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   const rendering: SdrRenderingProfile = { schemaVersion: "0.1.0", profileId: "facade-sdr", profileVersion: "1", renderingExposureEv: 0, toneCurve,
     ...(outputOptions.toneCurveParameters === undefined ? {} : { toneCurveParameters: outputOptions.toneCurveParameters as SdrToneCurveParameters }),
     gamutHandling: "clip-components", outputDynamicRange: "sdr", transferFunction: "srgb", bitDepth: format === "srgb-16" || (format === "png" && !wideGamut && pngBitDepth === 16) ? 16 : 8, rounding: "nearest-ties-up", dither: "none" };
-  if (!wideGamut) assume("output.rendering", "model", { renderingExposureEv: 0, gamutHandling: "clip-components" },
+  if (!linearPath) assume("output.rendering", "model", { renderingExposureEv: 0, gamutHandling: "clip-components" },
     "Developed linear sRGB/D65 with the RAW white level mapped to display white, no exposure push, out-of-gamut components clipped.");
   else assume("output.rendering", "model", { renderingExposureEv: 0, gamutHandling: "clip-components-in-target-gamut", sdrRendererUsed: false },
     "The sRGB SDR renderer is not used: the linear development (RAW white level = relative 1.0, no exposure push) is converted to the target encoding; request.development.rendering is validated but only its exposure and tone curve (identity) apply.");
@@ -1013,7 +1046,8 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     whiteBalance: developmentWhiteBalance, rendering, highlightMode, ...(mirrorBorder ? { borderHandling: "mirror" as const } : {}),
     maximumRetainedPayloadBytes: plan.outputBytes + width * height * 3 * (rendering.bitDepth / 8) };
   let developed: { raw: NativeRawOutput; integerSamples: Uint8Array | Uint16Array; highlight: RawHighlightDiagnostics; diagnostics: SdrRenderingResult["diagnostics"] };
-  if (!wideGamut) {
+  let gamutMappingDiagnostics: { method: "cielab-hue-preserving-chroma-compression"; kneeFraction: number; adjustedPixelCount: number; lightnessClippedPixelCount: number } | undefined;
+  if (!linearPath) {
     const devTask = createNativeRawDevelopmentTask({ ...development, raw: rawOutput.raw }, { yieldControl,
       onProgress: (p) => onProgress?.({ stage: "development", completedTileCount: p.completedTileCount, totalTileCount: p.totalTileCount }) });
     await runTask(devTask);
@@ -1025,13 +1059,21 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       onProgress?.({ stage: "development", completedTileCount: completed, totalTileCount: total });
       if (Date.now() - lastYield >= 8) { await yieldControl(); checkAbort(); lastYield = Date.now(); }
     });
-    if (colorEncoding === "display-p3" || colorEncoding === "rec2020") {
-      const encoded = encodeSdrWideGamut(linear.rgb, colorEncoding, pngBitDepth!);
+    if (colorEncoding === "srgb" || colorEncoding === "display-p3" || colorEncoding === "rec2020") {
+      const mapping = perceptual ? prepareRgbGamutMapping({ colorSpace: colorEncoding, method: "cielab-hue-preserving-chroma-compression", kneeFraction: PERCEPTUAL_GAMUT_KNEE_FRACTION }) : undefined;
+      const encoded = encodeSdrFromLinear(linear.rgb, colorEncoding, pngBitDepth!, mapping);
       developed = { raw: rawOutput.raw, integerSamples: encoded.samples, highlight: linear.highlight, diagnostics: encoded.diagnostics };
-      assume("output.colorEncoding.conversion", "model", { from: "linear-srgb-d65 (unclipped)", via: "CIE XYZ", to: colorEncoding, gamutHandling: "clip-components",
-        transfer: colorEncoding === "display-p3" ? "srgb (IEC 61966-2-1)" : "bt2020-oetf (= BT.709 OETF)" },
+      if (mapping) {
+        gamutMappingDiagnostics = { method: "cielab-hue-preserving-chroma-compression", kneeFraction: PERCEPTUAL_GAMUT_KNEE_FRACTION,
+          adjustedPixelCount: encoded.adjustedPixelCount, lightnessClippedPixelCount: encoded.lightnessClippedPixelCount };
+        assume("output.gamutMapping", "model", { method: "cielab-hue-preserving-chroma-compression", kneeFraction: PERCEPTUAL_GAMUT_KNEE_FRACTION, colorSpace: colorEncoding },
+          "prepareRgbGamutMapping: CIELAB L* and hue held, chroma above 90 % of the boundary chroma C_max(L*, h) compressed with a tanh knee so it never reaches C_max (Morovič 2008, §10). In-gamut colours below the knee are unchanged; saturated in-gamut colours above it are desaturated slightly. L* ≥ 100 (above the RAW white) maps to white. CIELAB hue is not perceptually constant for saturated blues, so they can shift toward purple.");
+      }
+      assume("output.colorEncoding.conversion", "model", { from: "linear-srgb-d65 (unclipped)", via: "CIE XYZ", to: colorEncoding, gamutHandling: perceptual ? "cielab-hue-preserving-chroma-compression" : "clip-components",
+        transfer: colorEncoding === "rec2020" ? "bt2020-oetf (= BT.709 OETF)" : "srgb (IEC 61966-2-1)" },
         "Developed with the native development operator (demosaic, per-site white-level clip, WB, highlight mode, diagonal camera→XYZ, XYZ→linear sRGB) but before any sRGB clipping, so colours outside sRGB are kept; converted to " +
-        colorEncoding + " through XYZ (matrices from primaries and D65, SMPTE RP 177), components clipped to [0, 1] in the target gamut, then encoded and rounded to nearest. RAW white maps to display white, as in the sRGB path.");
+        colorEncoding + " through XYZ (matrices from primaries and D65, SMPTE RP 177), " + (perceptual ? "gamut-mapped perceptually (output.gamutMapping)" : "components clipped to [0, 1] in the target gamut") +
+        ", then encoded and rounded to nearest. RAW white maps to display white, as in the sRGB path.");
     } else {
       const m = linearSrgbToTarget("rec2020"), data = new Float32Array(linear.rgb.length);
       for (let i = 0; i < data.length; i += 3) for (let k = 0; k < 3; k++) { const row = m[k]!; data[i + k] = row[0]! * linear.rgb[i]! + row[1]! * linear.rgb[i + 1]! + row[2]! * linear.rgb[i + 2]!; }
@@ -1086,7 +1128,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     scene: { sceneId: chart ? "chart:" + chart.preset : callerScene!.sceneId, preset: scenePreset, parameters: chart ? chart.parameters : {},
       illuminant: { id: illuminant.id, description: illuminant.description, illuminanceLux }, distanceM: subjectDistanceM,
       framedWidthM: 2 * metresPerFrameUnit, framedHeightM: 2 * metresPerFrameUnit * aspect, sourceSha256 },
-    diagnostics: { providerEvaluationCount, highlight: developed.highlight, rendering: developed.diagnostics,
+    diagnostics: { providerEvaluationCount, highlight: developed.highlight, rendering: developed.diagnostics, ...(gamutMappingDiagnostics ? { gamutMapping: gamutMappingDiagnostics } : {}),
       timingsMs: { raw: rawMs, whiteBalance: wbMs, development: devMs, jpeg: jpegMs, total: Date.now() - started } },
     provenance: { scientificStatus: "approximation" as const, cameraPresetId: preset.presetId, cameraPresetVersion: preset.presetVersion,
       evidence: [...FACADE_EVIDENCE, ...preset.evidence],
@@ -1095,7 +1137,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
         ...(rollingSchedule ? ["resolveElectronicRollingShutterExposureSchedule", "createRollingShutterCaptureExposureSchedule"] : []),
         "resolveGenericIsoSignalChain", "createNativeEnvironmentRawTask", ...(needsAuto ? ["estimateAutoWhiteBalance", "createNativeEnvironmentSensorStageTask"] : []),
         ...(builtInDemosaic ? ["createBuiltInBayerDemosaicProfiles"] : []),
-        ...(wideGamut ? ["native RAW development operator (linear, pre-clip)", "resolveRgbColorSpace", ...(colorEncoding === "rec2100-pq" || colorEncoding === "rec2100-hlg" ? ["createHdrImageEncodingTask"] : [])] : ["createNativeRawDevelopmentTask"]),
+        ...(linearPath ? ["native RAW development operator (linear, pre-clip)", "resolveRgbColorSpace", ...(perceptual ? ["prepareRgbGamutMapping"] : []), ...(colorEncoding === "rec2100-pq" || colorEncoding === "rec2100-hlg" ? ["createHdrImageEncodingTask"] : [])] : ["createNativeRawDevelopmentTask"]),
         ...(jpeg ? ["createPrintJpegTask"] : []), ...(png ? ["serializePngImage"] : []), ...(dng ? ["resolveSensorReadoutRegime", "serializeNativeRawDng"] : [])],
       limitations: ["Educational approximation: synthetic tier sensor values, idealized colorimetric sensor, planar Lambertian scene and point optics; not a calibrated camera emulation.",
         "Not offered by the facade: atmospheric haze and polarizers (the scene-radiance provider contract declares no volumetric transport or polarization), flash, video, HDR brackets and processing operators; compose those APIs directly."] },
