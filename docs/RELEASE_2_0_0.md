@@ -400,7 +400,7 @@ These committed records are dated evidence tied to outputs from before 2.0.0. Th
 
 Work that is known and deliberately left for later:
 
-- **#305 follow-ups:** lean coverage for sampled-PSF and lens-mapped sites; a provably identical fast path for provider-result validation; lean sensor-stage reuse.
+- **#305 follow-ups:** a provably identical fast path for provider-result validation; lean sensor-stage reuse.
 - **#307 follow-ups:** real-camera DNG interoperability is not claimed (LibRaw decodes the files; no editor review yet); sharing the colour-tag code with the paired export.
 - **#275:** planning once per CFA phase; worker parallelism; a different native RAW default tile width (a plan-shape change); per-tap request retention (about 8 MB per site with a large PSF).
 - **#276:** consistency between error classes; freezing result envelopes (a deep freeze costs every result on hot paths).

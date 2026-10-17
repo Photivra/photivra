@@ -225,9 +225,11 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
         const index=request.y*plan.exposure.geometry.nativeRaster.pixelWidth+request.x+j;
         let p=plans[j]!,photoSignal:PhotoSignal|undefined;
         if(isLeanEnvironmentPlan(p)){
-          photoSignal=lean.execute(p,evaluateCounted,apertureCounted);
-          // An unverified template: plan this site in full now (deterministic, no callbacks) and execute it in full.
-          if(photoSignal===undefined)p=planEnvironmentRawSite(sites[j]!,index,plan.frame,sceneBinding,plan.exposureWindow!,"engine-owned",memo,"photo-only");
+          // The full plan (deterministic, no callbacks) is built only when the lean path needs it.
+          const fullPlan=():ReturnType<typeof planEnvironmentRawSite>=>planEnvironmentRawSite(sites[j]!,index,plan.frame,sceneBinding,plan.exposureWindow!,"engine-owned",memo,"photo-only");
+          photoSignal=lean.execute(p,evaluateCounted,apertureCounted,fullPlan);
+          // An unverified template: plan this site in full now and execute it in full.
+          if(photoSignal===undefined)p=fullPlan();
         }
         if(photoSignal===undefined){
           const full=p as ReturnType<typeof planEnvironmentRawSite>,candidate=lean.isCandidate(index);

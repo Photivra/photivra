@@ -278,7 +278,7 @@ Unless marked otherwise, output is bit-identical to the code before the change, 
   - Same maths, same floating-point order, but without redundant per-site re-validation and result envelopes.
   - Every data-dependent check remains, and falls back to the full engine functions. RAW, callbacks and errors are byte-identical.
   - `simulateCapture()` 64×64: 6.0 → 0.87 s CPU; 128×128: 20.6 → 2.2 s. RAW stage 0.95 → 0.12 ms per site.
-  - Sampled-PSF and lens-mapped sites keep the full path.
+  - Sampled-PSF and lens-mapped sites are lean-eligible too (#275 follow-up). Their kernels, tap points and mapped queries come from the full chain's own functions; the PSF quadrature's checks still run after each instant's callbacks, and the full quadrature decides when one fails. Output is byte-identical (`test/native-environment-lean.test.ts`). `simulateCapture()` 48×48 (`scripts/benchmark-native-environment.mjs`): 3×3 sampled PSF 11.9 → 1.96 s (6.1×); radial distortion 2.63 → 0.59 s (4.4×).
 - **WebGPU:** no GPU speed-up is claimed for the WebGPU backend. On the software adapter it was slower than the CPU (#304).
 
 ### Tests and tooling

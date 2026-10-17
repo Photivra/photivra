@@ -132,12 +132,15 @@ It produces byte-identical results to the full path: RAW codes, black levels, sa
   Every check that does not depend on the site therefore passes exactly as it did for the template. The sensor stage has its own templates. Its dark-current, charge-completeness and readout inputs must be strictly equal, except for `site` fields equal to the site's own coordinates and completeness offsets equal to its local exposure window.
 - **Site-dependent work is recomputed** with the full chain's arithmetic, in the same floating-point order:
   - aperture centre and bounds, spatial quadrature points, the local exposure window, field throughput, aperture rays, and the focus-aware rotated query and its request;
+  - with a sampled PSF, each node's kernel (resolved by the same code as `resolveLensSampledPsf`, without its result envelope), its tap points (`sensorPsfSourcePoint`) and each node's kernel-weighted tap sum, in kernel order;
+  - with a `lensFieldMapping`, each tap's query, built by the full planner's own mapped-query function, and its distortion area factor, applied once after the tap's pupil sum;
   - then scene-to-sensor acceptance, spatio-spectral reduction, operating range, EQE electron rate (Kahan sums), temporal midpoint sums, dark and total charge, Poisson charge draws, read noise, fixed-pattern values and the ADC transfer.
 
   Every provider result is validated by the same parser.
 - **Every data-dependent check is kept.** When one fails (for example an out-of-range operating input, a non-finite irradiance or a provider identity mismatch), the lean path calls the full engine function with exactly the same inputs. It therefore throws the same error after the same callbacks. Planning falls back before any callback. Checks that the full path runs while composing or parsing a site are evaluated at that same point.
-- **Self-verification.** Each template's own site is planned and executed by both paths. Every lean value must match bit for bit (`Object.is`) before any other site uses the template. A mismatch disables the template, and its sites run the full path.
-- **Always full path (not lean-eligible):** sampled PSFs, `lensFieldMapping` sites, colour-site bindings that are not one-to-one, additional stored-charge components, and anything outside these rules. Examples: reordered keys, `-0` coordinates, or a site whose inputs differ from every template. There are at most 64 templates per event.
+  With a sampled PSF, the PSF quadrature's per-instant checks (finite, non-negative tap irradiances, finite weighted sums and reduction) run after that instant's callbacks, as in the full path. If one fails, the full quadrature runs on the site's full plan (built without callbacks) and throws its own error or returns its own values.
+- **Self-verification.** Each template's own site is planned and executed by both paths. Every lean value must match bit for bit (`Object.is`) before any other site uses the template, including each resolved PSF kernel and each node's PSF irradiance. A mismatch disables the template, and its sites run the full path.
+- **Always full path (not lean-eligible):** colour-site bindings that are not one-to-one, additional stored-charge components, and anything outside these rules. Examples: reordered keys, `-0` coordinates, a PSF kernel whose tap count differs from the template's, or a site whose inputs differ from every template. There are at most 64 templates per event. Sampled-PSF and lens-mapped sites have been lean-eligible since the #275 follow-up.
 
 Measured in Node 24 on one host (CPU time, so host-dependent):
 
@@ -147,6 +150,13 @@ Measured in Node 24 on one host (CPU time, so host-dependent):
 | 128×128 slanted-edge capture | 20.6 s (1.22 ms per native site) | 2.2 s (0.13 ms per site; 9.4×) |
 | RAW stage alone at 64×64, per site | about 950 µs | 120 µs (8×) |
 | Same, with four temporal samples, per site | about 2.6 ms | 0.21 ms |
+
+Sampled-PSF and lens-mapped coverage (#275 follow-up), `simulateCapture()` 48 × 48 (50 × 50 native sites) slanted edge, wall time, median of 3 runs after one warm-up, Node 24 on a shared 4-vCPU Linux host, measured with `scripts/benchmark-native-environment.mjs`; RAW and developed-image SHA-256 identical before and after:
+
+| Case | Before | After |
+| --- | --- | --- |
+| 3 × 3 sampled PSF (`lens.psf`) | 11.9 s | 1.96 s (6.1×) |
+| Radial distortion (`lens.distortion`) | 2.63 s | 0.59 s (4.4×) |
 
 The remaining time is mostly the private copy of each supplied tile, parsing provider results, comparing templates, and the provider callbacks themselves.
 
