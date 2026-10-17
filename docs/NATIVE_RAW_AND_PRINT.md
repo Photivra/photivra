@@ -309,6 +309,19 @@ These tests cover small-reference parity, odd-width absolute phase and seed boun
 
 **Megapixel test (optional).** Run `PHOTIVRA_VALIDATE_MEGAPIXEL_RAW=1 PHOTIVRA_RAW_REPORT=/tmp/native-raw-report.json npx vitest run test/native-raw-megapixel.test.ts`. It executes every one of a million native sites, develops that exact RAW, and downsamples it to a 500 × 500 JPEG with ICC profile. The constructed count inputs are not a validated megapixel scene-radiance capture.
 
+**Independent check of the megapixel output.** `scripts/verify-native-raw-megapixel.py` decodes the megapixel test's actual JPEG outside the engine. Run it on the report the test wrote:
+
+```sh
+python3 scripts/verify-native-raw-megapixel.py /tmp/native-raw-report.json /tmp/native-raw-validation.json
+```
+
+- **Inputs.** The first argument is the report JSON. The script also reads the two files the test writes beside it: `<report>.rgb.gz`, the gzipped 1000 × 1000 8-bit RGB SDR samples, and `<report>.jpg`, the encoded JPEG. The second argument is where the result JSON is written.
+- **What it checks.** The SHA-256 of the samples and of the JPEG must equal `sdrSamplesSha256` and `jpegSha256` in the report. It decodes the sRGB samples to linear light, averages each 2 × 2 block, re-encodes to sRGB and rounds to 8 bits. This is its own oracle for the 500 × 500 area filter. It then decodes the JPEG with Pillow and checks the size (500 × 500), the EXIF Orientation (1) and ColorSpace (1, sRGB) tags, and the embedded ICC profile description (`Photivra sRGB matrix/TRC v4`). Every decoded code must be within 4 of the oracle.
+- **Output.** On success it writes and prints `pass`, `maximumJpegCodeError`, the two input hashes and the script's own SHA-256. Any failed check stops it with an `AssertionError` and writes nothing.
+- **Requirements.** Python 3 with NumPy and Pillow built with LittleCMS (`PIL.ImageCms`). It needs no network and no Node build. The size and tolerance are fixed in the script, so it only accepts the 1000 × 1000 megapixel test output.
+- **Scope.** It checks the JPEG, EXIF, ICC and area filtering of the retained SDR samples only. RAW generation and reconstruction are qualified separately.
+- **Recorded run.** `docs/validation/native-raw-print-2026-10-04/` holds the inputs of the recorded run (`photivra-native-full-megapixel.json` and its `.rgb.gz` and `.jpg`) and the script's result (`photivra-native-full-megapixel-validation.json`, maximum error 3 codes). Running the script on that report reproduces the recorded result exactly, including its `validatorSha256`.
+
 **Print JPEG controls.** Generate the separate colour, checker, asymmetric fractional crop, grey ramp and one-megapixel JPEG controls with `node scripts/generate-native-print-jpeg.mjs /tmp/native-print`. Check the actual bytes with `python scripts/verify-native-print-jpeg.py /tmp/native-print /tmp/native-print/validation.json`, in an environment with NumPy and Pillow/LittleCMS.
 
 - The independent area oracle expects 188 when a half-black, half-white sRGB checker is reduced, rather than an average of encoded values.

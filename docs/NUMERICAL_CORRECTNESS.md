@@ -191,7 +191,7 @@ Rules from package 2.0.0:
 - They agree within a few ulps.
 - A quantized output (a RAW code, or an 8/16-bit sample) can differ only when a value lies within that rounding noise of a quantization boundary.
 - Hashes over such continuous results, including `simulatePocCamera()` response hashes, are engine-specific.
-- Tests that pin them compare discrete fields exactly and numbers within a stated ulp tolerance. The 64-case POC corpus uses 8 ulps (`test/poc-projection-reuse.test.ts`) and passes under Node and Bun.
+- Tests that pin them compare discrete fields exactly and numbers within a stated ulp tolerance. The 64-case POC corpus uses 8 ulps (`test/poc-projection-reuse.test.ts`) and passes under Node and Bun. The per-platform hash override it replaced is kept as history in [POC projection reference on macOS ARM64](POC_PROJECTION_PLATFORM_REFERENCE.md).
 
 ### Test hash locks and platforms
 

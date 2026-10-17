@@ -255,7 +255,7 @@
       "frame": {
         "frameId": "raw-frame",
         "capture": {
-          "engineApiVersion": "1.5.0",
+          "engineApiVersion": "2.0.0",
           "captureId": "00000000-0000-4000-8000-000000000001",
           "sceneStateId": "fixture-scene",
           "sceneTimeSeconds": 0,
