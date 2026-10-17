@@ -178,9 +178,10 @@ describe("webgpu-f32 host path (in-process float32 emulation of the WGSL kernels
       const whole = await (await fake()).accelerator.renderNativeCaptureSdr(sdr, tiles(packed, 300));
       expect(whole.integerSamples).toEqual(out.integerSamples);
     });
-  it("SDR fails closed for luminance tone curves, float32 overflow, reference errors and undecidable rejection", async () => {
+  it("SDR fails closed for Naka–Rushton below exponent 1, float32 overflow, reference errors and undecidable rejection", async () => {
     const { accelerator } = await fake();
-    const luminance = sdrInput(4, 2, 64, 1, { ...sdrProfile(8, "identity", "clip-components", 0), toneCurve: "extended-reinhard-luminance", toneCurveParameters: { whiteLuminance: 2 } });
+    const luminance = sdrInput(4, 2, 64, 1, { ...sdrProfile(8, "identity", "clip-components", 0), toneCurve: "naka-rushton-luminance",
+      toneCurveParameters: { exponent: 0.5, semiSaturation: 0.18, whiteLuminance: 2 } });
     expect(await reason(accelerator.renderNativeCaptureSdr(luminance, tiles(new Float64Array(24), 4)))).toBe("unsupported-on-backend");
     const plain = sdrInput(4, 2, 64, 1, sdrProfile(8, "identity", "clip-components", 0));
     expect(await reason(accelerator.renderNativeCaptureSdr(plain, tiles(new Float64Array(24).fill(1e300), 4)))).toBe("unsupported-float32-domain");
@@ -218,11 +219,11 @@ describe("webgpu-f32 host path (in-process float32 emulation of the WGSL kernels
     expect(progress.at(-1)).toBe(reference.height * Math.ceil(reference.width / 256));
     expect(controls.created).toBe(controls.destroyed);
   });
-  it("RAW development rejects luminance tones and bad providers before taking ownership", async () => {
+  it("RAW development rejects unsupported luminance tones and bad providers before taking ownership", async () => {
     const { accelerator } = await fake();
     const base = loadPhotographicExportInput();
     const lum = syntheticRawDevelopment({ width: 4, height: 2, orientation: "landscape", seed: 2 },
-      { ...base.rendering, toneCurve: "naka-rushton-luminance", toneCurveParameters: { exponent: 1, semiSaturation: .5, whiteLuminance: 2 } }, base.colorProfile, "clip");
+      { ...base.rendering, toneCurve: "naka-rushton-luminance", toneCurveParameters: { exponent: 0.5, semiSaturation: .5, whiteLuminance: 2 } }, base.colorProfile, "clip");
     expect(await reason(accelerator.developNativeRaw(lum, async () => {}))).toBe("unsupported-on-backend");
     expect(lum.raw.codes.length).toBe(8);
     await expect(accelerator.developNativeRaw(lum, {} as never)).rejects.toThrow(/yield/u);

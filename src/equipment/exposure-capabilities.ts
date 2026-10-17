@@ -21,7 +21,7 @@ import {
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -180,7 +180,8 @@ export interface ResolveGenericEquipmentExposureCapabilitiesInput {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -191,6 +192,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -232,7 +234,7 @@ function parseRange(
 ): NumericCapabilityRange {
   const record = requireRecord(
     value,
-    path
+    path, ["minimum", "maximum"]
   );
   const minimum =
     requirePositiveFinite(
@@ -264,7 +266,7 @@ function parseSourcedRange(
 > {
   const record = requireRecord(
     value,
-    path
+    path, ["value", "evidence"]
   );
   return {
     value: parseRange(
@@ -284,7 +286,7 @@ function parseSourcedPositiveNumber(
 ): EvidenceBackedFact<number> {
   const record = requireRecord(
     value,
-    path
+    path, ["value", "evidence"]
   );
   return {
     value: requirePositiveFinite(
@@ -322,7 +324,7 @@ function parseSourcedAvailability(
 > {
   const record = requireRecord(
     value,
-    path
+    path, ["value", "evidence"]
   );
   return {
     value: parseAvailability(
@@ -391,8 +393,9 @@ function parseSettingGrid(
 ): NumericSettingGrid {
   const record = requireRecord(
     value,
-    path
+    path, null
   );
+  rejectUnknownVariantFields(record, "kind", { "continuous-within-range": ["kind"], "discrete-values": ["kind", "values"] }, path);
 
   if (
     record.kind ===
@@ -411,7 +414,7 @@ function parseSettingGrid(
     const valuesFact =
       requireRecord(
         record.values,
-        path + ".values"
+        path + ".values", ["value", "evidence"]
       );
     return {
       kind: "discrete-values",
@@ -496,7 +499,7 @@ export function parseGenericBodyExposureCapabilityProfile(
 ): GenericBodyExposureCapabilityProfile {
   const record = requireRecord(
     value,
-    "genericBodyExposureCapabilityProfile"
+    "genericBodyExposureCapabilityProfile", ["schemaVersion", "scientificStatus", "profileId", "profileVersion", "evidence", "shutter", "iso"]
   );
   const header =
     requireApproximationProfileHeader(
@@ -506,7 +509,7 @@ export function parseGenericBodyExposureCapabilityProfile(
 
   const shutter = requireRecord(
     record.shutter,
-    "genericBodyExposureCapabilityProfile.shutter"
+    "genericBodyExposureCapabilityProfile.shutter", ["durationSecondsRange", "settingGrid"]
   );
   const shutterRange =
     parseSourcedRange(
@@ -516,7 +519,7 @@ export function parseGenericBodyExposureCapabilityProfile(
 
   const iso = requireRecord(
     record.iso,
-    "genericBodyExposureCapabilityProfile.iso"
+    "genericBodyExposureCapabilityProfile.iso", ["range", "settingGrid", "autoIso"]
   );
   const isoRange =
     parseSourcedRange(
@@ -584,7 +587,7 @@ function parseFocalSamples(
         "]";
       const record = requireRecord(
         entry,
-        samplePath
+        samplePath, ["focalLengthMm", "fNumber"]
       );
       const focalLengthMm =
         requirePositiveFinite(
@@ -641,8 +644,9 @@ function parseWidestFNumberCapability(
 ): WidestAvailableFNumberCapability {
   const record = requireRecord(
     value,
-    path
+    path, null
   );
+  rejectUnknownVariantFields(record, "kind", { constant: ["kind", "fNumber"], "piecewise-linear-by-focal-length": ["kind", "samples"] }, path);
 
   if (record.kind === "constant") {
     const fNumber =
@@ -672,7 +676,7 @@ function parseWidestFNumberCapability(
     const samplesFact =
       requireRecord(
         record.samples,
-        path + ".samples"
+        path + ".samples", ["value", "evidence"]
       );
     const samples =
       parseFocalSamples(
@@ -723,7 +727,7 @@ export function parseGenericLensExposureCapabilityProfile(
 ): GenericLensExposureCapabilityProfile {
   const record = requireRecord(
     value,
-    "genericLensExposureCapabilityProfile"
+    "genericLensExposureCapabilityProfile", ["schemaVersion", "scientificStatus", "profileId", "profileVersion", "evidence", "focalLengthMmRange", "aperture"]
   );
   const header =
     requireApproximationProfileHeader(
@@ -738,7 +742,7 @@ export function parseGenericLensExposureCapabilityProfile(
     );
   const aperture = requireRecord(
     record.aperture,
-    "genericLensExposureCapabilityProfile.aperture"
+    "genericLensExposureCapabilityProfile.aperture", ["narrowestAvailableFNumber", "widestAvailableFNumber", "settingGrid"]
   );
   const narrowest =
     parseSourcedPositiveNumber(

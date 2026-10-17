@@ -1728,8 +1728,11 @@ export type { NativeCaptureSdrInput, NativeCaptureSdrTileRequest, NativeCaptureS
 
 export { IRRADIANCE_CONVOLUTION_SCHEMA_VERSION, IRRADIANCE_CONVOLUTION_LIMITS, calculateIrradianceConvolutionPlan, calculateIrradianceConvolution } from "./optics/irradiance-convolution.js";
 export type { IrradianceConvolutionInput, IrradianceConvolutionPlan } from "./optics/irradiance-convolution.js";
+export { LENS_PSF_CONVOLUTION_KERNELS_SCHEMA_VERSION, LENS_PSF_CONVOLUTION_KERNELS_MAXIMUM_WAVELENGTHS, resolveLensPsfConvolutionKernels } from "./optics/lens-psf-kernels.js";
+export type { LensPsfConvolutionKernelsInput, LensPsfConvolutionKernels } from "./optics/lens-psf-kernels.js";
 export { PACKED_SENSOR_RAW_SCHEMA_VERSION, PACKED_SENSOR_RAW_LIMITS, calculatePackedSensorRawPlan, simulatePackedSensorRaw } from "./capture/packed-sensor-raw.js";
-export type { PackedSensorRawInput, PackedSensorRawPlan, PackedSensorRawDiagnostics, PackedSensorRawResult } from "./capture/packed-sensor-raw.js";
+export type { PackedSensorRawInput, PackedSensorRawPlan, PackedSensorRawDiagnostics, PackedSensorRawResult, PackedSensorFixedPatternNoise,
+  PackedSensorAdditionalChargeComponent } from "./capture/packed-sensor-raw.js";
 export { TEMPORAL_EXPOSURE_SUM_SCHEMA_VERSION, TEMPORAL_EXPOSURE_SUM_LIMITS, calculateTemporalExposureSumPlan, calculateTemporalExposureSum } from "./motion/temporal-exposure-sum.js";
 export type { TemporalExposureSumInput, TemporalExposureSumNode, TemporalExposureSumPlan } from "./motion/temporal-exposure-sum.js";
 export { ImageKernelExecutionError, WEBGPU_F32_UNIT_ROUNDOFF, WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND, composeRelativeErrorBounds } from "./gpu/image-kernel-execution.js";
@@ -1738,7 +1741,7 @@ export type { ImageKernelBackend, ImageKernelFallbackReason, ImageKernelFailureR
 export { createImageKernelAccelerator } from "./gpu/image-kernel-accelerator.js";
 export type { ImageKernelAccelerator, ImageKernelAcceleratorOptions, ImageKernelAcceleratorState, ImageKernelRunOptions,
   AcceleratedNativeCaptureSdrOutput, AcceleratedNativeRawDevelopmentOutput, IrradianceConvolutionResult, AcceleratedPackedSensorRawResult,
-  TemporalExposureSumResult } from "./gpu/image-kernel-accelerator.js";
+  TemporalExposureSumResult, ChartRadianceResult } from "./gpu/image-kernel-accelerator.js";
 export { BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION, createBuiltInBayerDemosaicProfiles, type BuiltInBayerDemosaicKernel, type BuiltInBayerDemosaicProfiles,
   type CreateBuiltInBayerDemosaicProfilesInput, type RawReconstructionBorderHandling } from "./sensor/raw-reconstruction.js";
 export { PROCESSING_MAX_PIXELS, PROCESSING_MAX_FRAMES, PROCESSING_DEFAULT_MAXIMUM_WORKING_BYTES, PROCESSING_MODEL_VERSION,
@@ -1770,6 +1773,8 @@ export { CHART_SCENE_PRESETS, CHART_SCENE_DEFAULTS, CHART_SPECTRAL_RANGE_NANOMET
 export { PHOTOPIC_MAXIMUM_LUMINOUS_EFFICACY_LM_PER_W, resolveCaptureIlluminant, createPlanarSceneRadianceProvider,
   type CaptureIlluminant, type ResolvedCaptureIlluminant, type CallerReflectanceScene, type CallerRadianceScene, type ScenePlanePoint,
   type PlanarSceneRadianceProvider } from "./facade/scene-radiance.js";
+export { CHART_RADIANCE_BATCH_SCHEMA_VERSION, CHART_RADIANCE_BATCH_LIMITS, calculateChartRadianceBatchPlan, calculateChartRadianceBatch,
+  mapEnvironmentDirectionsToChartPoints, type ChartRadianceBatchInput, type ChartRadianceBatchPlan } from "./facade/chart-radiance-batch.js";
 export { EXPORT_JPEG_ENCODER_ID } from "./capture/export-jpeg.js";
 export { DNG_IMPORT_SCHEMA_VERSION, DNG_IMPORT_LIMITS, parseDngRawImage } from "./capture/dng-import.js";
 export { NATIVE_RAW_DNG_SCHEMA_VERSION, serializeNativeRawDng, type SerializeNativeRawDngInput, type NativeRawDng, type NativeRawDngChannelNoise } from "./capture/native-raw-dng.js";

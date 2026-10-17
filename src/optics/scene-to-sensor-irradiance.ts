@@ -49,7 +49,7 @@ import {
   type SceneRadianceEvaluationRequest,
   type SceneRadianceEvaluationResult
 } from "../schema/scene-radiance.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -316,7 +316,8 @@ export interface SceneToSensorIrradianceResult {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -327,6 +328,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -398,7 +400,7 @@ function parseRange(
   path: string
 ): NumericRange {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["minimum", "maximum"]);
   const minimum =
     requirePositiveFinite(
       record.minimum,
@@ -441,7 +443,8 @@ function parseUncertainty(
   path: string
 ): OpticalBridgeUncertainty {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", UNCERTAINTY_VARIANT_FIELDS, path);
 
   if (record.kind === "relative") {
     return {
@@ -557,7 +560,7 @@ function parseSpectralSamples(
       const record =
         requireRecord(
           entry,
-          samplePath
+          samplePath, ["wavelengthNanometers", "linearTransmissionFactor"]
         );
       const wavelengthNanometers =
         requirePositiveFinite(
@@ -594,7 +597,13 @@ function parseTransmission(
   path: string
 ): OpticalTransmissionModel {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", {
+    // workingTStop and wavelengthRangeNanometers (spectral) and samples (working T-stop) are rejected below with their own messages.
+    "spectral-transmission": ["kind", "scientificStatus", "wavelengthBasis", "samples", "uncertainty", "workingTStop", "wavelengthRangeNanometers"],
+    "effective-working-t-stop-approximation": ["kind", "scientificStatus", "workingTStop", "wavelengthBasis", "wavelengthRangeNanometers",
+      "uncertainty", "limitation", "samples"]
+  }, path);
 
   if (
     record.kind ===
@@ -621,7 +630,7 @@ function parseTransmission(
     const samplesFact =
       requireRecord(
         record.samples,
-        path + ".samples"
+        path + ".samples", ["value", "evidence"]
       );
     const uncertainty =
       parseUncertainty(
@@ -694,7 +703,7 @@ function parseTransmission(
       requireRecord(
         record.workingTStop,
         path +
-          ".workingTStop"
+          ".workingTStop", ["value", "evidence"]
       );
     return {
       kind:
@@ -772,7 +781,8 @@ function parseFocusApplicability(
   path: string
 ): OpticalBridgeFocusApplicability {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", { any: ["kind"], "finite-distance-range": ["kind", "objectDistanceM"] }, path);
 
   if (record.kind === "any") {
     return {
@@ -821,7 +831,7 @@ export function parseSceneToSensorIrradianceProfile(
   const record =
     requireRecord(
       value,
-      "sceneToSensorIrradianceProfile"
+      "sceneToSensorIrradianceProfile", ["schemaVersion", "applicability", "scientificStatus", "transmission", "distortionAreaMappingOwnership", "psfRedistributionOwnership", "sensorOpticalStackIncluded", "strayLightIncluded", "polarizationModeled", "wavelengthChangingBehaviorModeled", "volumetricScatteringModeled", "profileId", "profileVersion", "lensProfileId", "evidence", "limitations"]
     );
   if (
     record.schemaVersion !==
@@ -837,7 +847,7 @@ export function parseSceneToSensorIrradianceProfile(
   const applicability =
     requireRecord(
       record.applicability,
-      "sceneToSensorIrradianceProfile.applicability"
+      "sceneToSensorIrradianceProfile.applicability", ["focalLengthMm", "nominalFNumber", "focus"]
     );
   const status =
     parseScientificStatus(

@@ -428,6 +428,16 @@
       "kind": "type"
     },
     {
+      "name": "calculateChartRadianceBatch",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateChartRadianceBatchPlan",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "calculateChromaticAdaptationMatrix",
       "source": "src/color/chromatic-adaptation.ts",
       "kind": "runtime"
@@ -1763,6 +1773,16 @@
       "kind": "type"
     },
     {
+      "name": "CHART_RADIANCE_BATCH_LIMITS",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "CHART_RADIANCE_BATCH_SCHEMA_VERSION",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "CHART_SCENE_DEFAULTS",
       "source": "src/facade/chart-scenes.ts",
       "kind": "runtime"
@@ -1776,6 +1796,21 @@
       "name": "CHART_SPECTRAL_RANGE_NANOMETERS",
       "source": "src/facade/chart-scenes.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "ChartRadianceBatchInput",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartRadianceBatchPlan",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ChartRadianceResult",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
     },
     {
       "name": "ChartReflectance",
@@ -3713,6 +3748,16 @@
       "kind": "runtime"
     },
     {
+      "name": "LENS_PSF_CONVOLUTION_KERNELS_MAXIMUM_WAVELENGTHS",
+      "source": "src/optics/lens-psf-kernels.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "LENS_PSF_CONVOLUTION_KERNELS_SCHEMA_VERSION",
+      "source": "src/optics/lens-psf-kernels.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "LENS_SAMPLED_PSF_PROFILE_SCHEMA_VERSION",
       "source": "src/optics/lens-psf-profile.ts",
       "kind": "runtime"
@@ -3800,6 +3845,16 @@
     {
       "name": "LensProjectionModel",
       "source": "src/camera/lens-projection.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensPsfConvolutionKernels",
+      "source": "src/optics/lens-psf-kernels.ts",
+      "kind": "type"
+    },
+    {
+      "name": "LensPsfConvolutionKernelsInput",
+      "source": "src/optics/lens-psf-kernels.ts",
       "kind": "type"
     },
     {
@@ -3931,6 +3986,11 @@
       "name": "ManualIsoControl",
       "source": "src/exposure/exposure-mode-resolver.ts",
       "kind": "type"
+    },
+    {
+      "name": "mapEnvironmentDirectionsToChartPoints",
+      "source": "src/facade/chart-radiance-batch.ts",
+      "kind": "runtime"
     },
     {
       "name": "mapImagePlanePointToOrientedPhysicalUv",
@@ -4401,6 +4461,16 @@
       "name": "PACKED_SENSOR_RAW_SCHEMA_VERSION",
       "source": "src/capture/packed-sensor-raw.ts",
       "kind": "runtime"
+    },
+    {
+      "name": "PackedSensorAdditionalChargeComponent",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PackedSensorFixedPatternNoise",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "type"
     },
     {
       "name": "PackedSensorRawDiagnostics",
@@ -6190,6 +6260,11 @@
     {
       "name": "resolveLensCorrectionPlan",
       "source": "src/output/lens-corrections.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "resolveLensPsfConvolutionKernels",
+      "source": "src/optics/lens-psf-kernels.ts",
       "kind": "runtime"
     },
     {

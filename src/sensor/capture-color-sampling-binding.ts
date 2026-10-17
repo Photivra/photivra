@@ -32,7 +32,7 @@ import {
   type SensorColorSamplingProfile
 } from "./color-sampling.js";
 import type { NativeImageRaster } from "./sensor-geometry.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -222,7 +222,8 @@ export interface ResolvedCaptureModeColorSamplingContributors {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -233,6 +234,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -272,7 +274,7 @@ function parseBoundNativeRaster(
 ): NativeImageRaster {
   const nativeRaster = requireRecord(
     value,
-    "colorSamplingBinding.nativeRaster"
+    "colorSamplingBinding.nativeRaster", ["pixelWidth", "pixelHeight"]
   );
   const pixelWidth =
     requirePositiveSafeInteger(
@@ -365,7 +367,7 @@ export function parseNativeEffectiveRasterColorSamplingBindingProfile(
 ): NativeEffectiveRasterColorSamplingBindingProfile {
   const profile = requireRecord(
     value,
-    "colorSamplingBinding"
+    "colorSamplingBinding", ["schemaVersion", "relationship", "bindingId", "colorSamplingProfileId", "nativeRaster", "evidence"]
   );
 
   if (profile.schemaVersion !== "0.1.0") {
@@ -376,7 +378,7 @@ export function parseNativeEffectiveRasterColorSamplingBindingProfile(
 
   const relationship = requireRecord(
     profile.relationship,
-    "colorSamplingBinding.relationship"
+    "colorSamplingBinding.relationship", ["kind", "anchor", "sitesPerNativeSampleX", "sitesPerNativeSampleY"]
   );
 
   if (

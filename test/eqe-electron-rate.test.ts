@@ -1092,7 +1092,9 @@ describe(
       const channel = buildPipeline().responseProfile.channels[0]!;
       const binding = createSensorSpectralResponseChannelBinding(channel);
       expect(createSensorSpectralResponseChannelBinding(reverseKeyOrder(channel))).toEqual(binding);
-      expect(createSensorSpectralResponseChannelBinding({ ...channel, unexpected: "caller-only" } as unknown as typeof channel)).toEqual(binding);
+      // 2.0.0: an unparsed field is rejected by name instead of being dropped from the binding.
+      expect(() => createSensorSpectralResponseChannelBinding({ ...channel, unexpected: "caller-only" } as unknown as typeof channel))
+        .toThrow('sensorSpectralResponseChannel has unknown field "unexpected".');
       expect(binding.canonicalJson).not.toContain("caller-only");
       expect(() => createSensorSpectralResponseChannelBinding({ ...channel, channelId: "" })).toThrow("channelId");
     });

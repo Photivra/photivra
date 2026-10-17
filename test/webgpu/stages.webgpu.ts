@@ -7,11 +7,12 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
-import { calculateTemporalExposureSum, simulatePackedSensorRaw, type ImageKernelExecution, type ImageKernelRelativeErrorBound,
+import { chartBatchInput, chartPoints, CHART_PRESET_SCENES } from "../helpers/chart-radiance-fixtures.js";
+import { calculateChartRadianceBatch, calculateTemporalExposureSum, simulatePackedSensorRaw, type ImageKernelExecution, type ImageKernelRelativeErrorBound,
   type PackedSensorRawDiagnostics, type PackedSensorRawInput } from "../../src/index.js";
-import { simulatePackedSensorSite } from "../../src/capture/packed-sensor-raw.js";
-import { readoutProfile, sensorCorpus, sensorStageInput, temporalCorpus } from "../helpers/sensor-stage-fixtures.js";
-import { findChromium, openBrowserPage, type BrowserPage } from "./chromium.js";
+import { calculatePackedSensorRawPlan, createPackedFixedPattern, simulatePackedSensorSite } from "../../src/capture/packed-sensor-raw.js";
+import { fixedPatternCorpus, readoutProfile, sensorCorpus, sensorStageInput, temporalCorpus } from "../helpers/sensor-stage-fixtures.js";
+import { adapterSkipReason, findChromium, isSoftwareAdapter, openBrowserPage, type BrowserPage, type WebGpuAdapterProbe } from "./chromium.js";
 import { decodeTransport, encodeTransport } from "./codec.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -33,9 +34,9 @@ beforeAll(async () => {
   const binary = findChromium();
   if (!binary) { skip = "no Chromium binary found (set PHOTIVRA_WEBGPU_BROWSER or PLAYWRIGHT_BROWSERS_PATH)"; return; }
   page = await openBrowserPage(binary, root);
-  const probe = await page.evaluate<{ available: boolean; adapter?: unknown }>("import('/test/webgpu/page-runner.js').then(m => m.probe())");
-  if (!probe.available) skip = "the browser exposes no WebGPU adapter (see docs/WEBGPU.md for flags)";
-  else report.push({ adapter: probe.adapter });
+  const probe = await page.evaluate<WebGpuAdapterProbe>("import('/test/webgpu/page-runner.js').then(m => m.probe())");
+  skip = adapterSkipReason(probe);
+  if (skip === null) report.push({ adapter: probe.adapter, softwareAdapter: isSoftwareAdapter(probe) });
 });
 afterAll(async () => {
   await page?.close();
@@ -51,11 +52,12 @@ function compareSensor(input: PackedSensorRawInput, gpu: SensorResult): { flagge
   for (let i = 0; i < reference.codes.length; i++) {
     if (gpu.codes[i] !== reference.codes[i]) { differing++; expect(flagged.has(i), `site ${i} differs but is not flagged`).toBe(true); }
   }
-  const repaired = gpu.codes.slice();
+  const repaired = gpu.codes.slice(), pattern = createPackedFixedPattern(calculatePackedSensorRawPlan(input));
   for (const i of gpu.flaggedSiteIndices) {
     const row = Math.floor(i / input.region.width), column = i % input.region.width;
     repaired[i] = simulatePackedSensorSite(reference.plan, input.photoElectrons[i]!, input.darkElectrons[i]!,
-      (input.region.y + row) * input.nativeWidth + input.region.x + column).code;
+      (input.region.y + row) * input.nativeWidth + input.region.x + column, pattern === null ? null : pattern(column, row),
+      (input.additionalChargeComponents ?? []).map(c => c.expectedElectrons[i]!)).code;
   }
   expect(repaired).toEqual(reference.codes);
   for (const key of Object.keys(reference.diagnostics) as (keyof PackedSensorRawDiagnostics)[]) {
@@ -80,6 +82,13 @@ describe("webgpu-f32 sensor stage vs float64 reference", () => {
     const gpu = await call<SensorResult>("simulateSensor", { input });
     const { flagged, differing } = compareSensor(input, gpu);
     report.push({ stage: "sensor", case: name, sites: input.region.width * input.region.height, flaggedSites: flagged, differingSites: differing });
+  });
+  it.each(cases.slice(0, 5))("%s, with fixed-pattern noise and three additional charge components: unflagged sites equal the reference", async (name, readout, capacity) => {
+    if (guard()) return;
+    const input = fixedPatternCorpus(256, 128, name.length + 100, readout, capacity);
+    const gpu = await call<SensorResult>("simulateSensor", { input });
+    const { flagged, differing } = compareSensor(input, gpu);
+    report.push({ stage: "sensor+fpn+charge", case: name, sites: input.region.width * input.region.height, flaggedSites: flagged, differingSites: differing });
   });
   it("an offset region and banding give the same codes; banding never changes results", async () => {
     if (guard()) return;
@@ -117,6 +126,25 @@ describe("webgpu-f32 sensor stage vs float64 reference", () => {
       rows.push({ level, gpuMean: g.mean, referenceMean: c.mean, expectedMean, gpuVariance: g.variance, referenceVariance: c.variance, expectedVariance });
     });
     report.push({ stage: "sensor-statistics", flaggedSites: gpu.flaggedSiteIndices.length, patches: rows });
+  });
+});
+
+describe("webgpu-f32 chart radiance vs float64 reference", () => {
+  it.each(CHART_PRESET_SCENES)("%s: unflagged values are the reference rounded once; flagged points recomputed", async (name, scene) => {
+    if (guard()) return;
+    for (const mode of ["radiance", "spectral-integral"] as const) {
+      const input = chartBatchInput(scene, chartPoints(scene, 2 / 3, 60_000, name.length), mode), reference = calculateChartRadianceBatch(input).values;
+      const gpu = await call<{ values: Float32Array; execution: ImageKernelExecution; hostRecomputedQueryIndices: Uint32Array }>("chartRadiance", { input });
+      expect(gpu.execution.errorBound).toMatchObject({ kind: "relative-to-reference", relative: 2 ** -24 });
+      let worst = 0;
+      for (let i = 0; i < reference.length; i++) {
+        expect(gpu.values[i], `value ${i}`).toBe(Math.fround(reference[i]!));
+        if (reference[i]! !== 0) worst = Math.max(worst, Math.abs(gpu.values[i]! - reference[i]!) / Math.abs(reference[i]!));
+      }
+      const random = Array.from(gpu.hostRecomputedQueryIndices).filter(i => i < 60_000).length;
+      report.push({ stage: "chart-radiance", preset: name, mode, queries: input.points.length / 2, recomputed: gpu.hostRecomputedQueryIndices.length,
+        recomputedRandomPoints: random, measuredMaximumRelative: worst });
+    }
   });
 });
 

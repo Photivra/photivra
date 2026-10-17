@@ -8,31 +8,67 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { createServer, type Server } from "node:http";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, normalize, resolve } from "node:path";
+import { join, normalize, resolve, sep } from "node:path";
 import ts from "typescript";
 
 /**
  * Chromium flags that expose a WebGPU adapter in headless mode without a hardware GPU (SwiftShader's
- * Vulkan CPU implementation). With a real GPU, set PHOTIVRA_WEBGPU_FLAGS to override them.
+ * Vulkan CPU implementation). With a real GPU, set PHOTIVRA_WEBGPU_ADAPTER=hardware or PHOTIVRA_WEBGPU_FLAGS.
  */
 export const SWIFTSHADER_WEBGPU_FLAGS = ["--enable-unsafe-webgpu", "--enable-features=Vulkan", "--use-angle=swiftshader",
   "--use-webgpu-adapter=swiftshader"];
+/**
+ * Starting flags for a hardware adapter (PHOTIVRA_WEBGPU_ADAPTER=hardware). WebGPU ships enabled in
+ * Chrome on macOS and Windows; Linux needs Vulkan. Not verified in the development container, which has
+ * no GPU: check the reported adapter, and override with PHOTIVRA_WEBGPU_FLAGS if needed.
+ */
+export function hardwareWebGpuFlags(platform: NodeJS.Platform = process.platform): string[] {
+  return platform === "linux" ? ["--enable-unsafe-webgpu", "--enable-features=Vulkan", "--use-angle=vulkan", "--ignore-gpu-blocklist"]
+    : ["--enable-unsafe-webgpu", "--ignore-gpu-blocklist"];
+}
+/** PHOTIVRA_WEBGPU_FLAGS, else the hardware or SwiftShader defaults chosen by PHOTIVRA_WEBGPU_ADAPTER. */
+export function webGpuFlags(env: NodeJS.ProcessEnv = process.env): string[] {
+  if (env.PHOTIVRA_WEBGPU_FLAGS) return env.PHOTIVRA_WEBGPU_FLAGS.split(/\s+/u).filter(Boolean);
+  return env.PHOTIVRA_WEBGPU_ADAPTER === "hardware" ? hardwareWebGpuFlags() : SWIFTSHADER_WEBGPU_FLAGS;
+}
 
-/** PHOTIVRA_WEBGPU_BROWSER, then Playwright's pre-installed Chromium, then common system names. */
+export interface WebGpuAdapterProbe { available: boolean; adapter?: { vendor: string; architecture: string; isFallbackAdapter: boolean } }
+/** True for a fallback (software) adapter such as SwiftShader, whose numbers are not GPU results. */
+export function isSoftwareAdapter(probe: WebGpuAdapterProbe): boolean {
+  return probe.adapter?.isFallbackAdapter === true || /swiftshader/iu.test(probe.adapter?.architecture ?? "") || /swiftshader/iu.test(probe.adapter?.vendor ?? "");
+}
+/**
+ * The suites' skip reason for an adapter probe, or null to run. With PHOTIVRA_WEBGPU_REQUIRE_HARDWARE=1 a
+ * software adapter is a failure reason too, so a hardware conformance run never passes on SwiftShader.
+ */
+export function adapterSkipReason(probe: WebGpuAdapterProbe, env: NodeJS.ProcessEnv = process.env): string | null {
+  if (!probe.available) return "the browser exposes no WebGPU adapter (see docs/WEBGPU.md for flags)";
+  if (env.PHOTIVRA_WEBGPU_REQUIRE_HARDWARE === "1" && isSoftwareAdapter(probe)) {
+    return `a hardware adapter was required but the browser reported a software adapter (${JSON.stringify(probe.adapter)})`;
+  }
+  return null;
+}
+
+/** PHOTIVRA_WEBGPU_BROWSER, then Playwright's pre-installed Chromium, then common system locations (Linux, macOS, Windows). */
 export function findChromium(): string | null {
   const explicit = process.env.PHOTIVRA_WEBGPU_BROWSER;
   if (explicit) return existsSync(explicit) ? explicit : null;
-  const roots = [process.env.PLAYWRIGHT_BROWSERS_PATH, "/opt/pw-browsers", join(process.env.HOME ?? "", ".cache/ms-playwright")].filter((v): v is string => !!v);
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
+  const roots = [process.env.PLAYWRIGHT_BROWSERS_PATH, "/opt/pw-browsers", join(home, ".cache/ms-playwright"), join(home, "Library/Caches/ms-playwright"),
+    process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, "ms-playwright") : undefined].filter((v): v is string => !!v);
   for (const root of roots) {
     if (!existsSync(root)) continue;
     for (const entry of readdirSync(root).sort().reverse()) {
       for (const candidate of [join(root, entry, "chrome-linux", "chrome"), join(root, entry, "chrome-linux64", "chrome"),
-        join(root, entry, "chrome-linux", "headless_shell")]) {
+        join(root, entry, "chrome-linux", "headless_shell"), join(root, entry, "chrome-mac", "Chromium.app", "Contents", "MacOS", "Chromium"),
+        join(root, entry, "chrome-win", "chrome.exe")]) {
         if (entry.startsWith("chromium") && existsSync(candidate)) return candidate;
       }
     }
   }
-  for (const candidate of ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"]) {
+  for (const candidate of ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"]) {
     if (existsSync(candidate)) return candidate;
   }
   return null;
@@ -52,7 +88,7 @@ function serve(root: string): Promise<{ server: Server; origin: string }> {
       return;
     }
     const path = normalize(join(root, decodeURIComponent(url.pathname)));
-    if (!path.startsWith(root + "/") || !/^\/(src|test)\//u.test(url.pathname)) { response.writeHead(404).end(); return; }
+    if (!path.startsWith(root + sep) || !/^\/(src|test)\//u.test(url.pathname)) { response.writeHead(404).end(); return; }
     try {
       if (existsSync(path)) { response.writeHead(200, { "content-type": contentType(path) }).end(readFileSync(path)); return; }
       const source = path.replace(/\.js$/u, ".ts");
@@ -85,8 +121,10 @@ export async function openBrowserPage(binary: string, repositoryRoot: string): P
   const root = resolve(repositoryRoot);
   const { server, origin } = await serve(root);
   const profile = mkdtempSync(join(tmpdir(), "photivra-webgpu-"));
-  const flags = process.env.PHOTIVRA_WEBGPU_FLAGS ? process.env.PHOTIVRA_WEBGPU_FLAGS.split(/\s+/u).filter(Boolean) : SWIFTSHADER_WEBGPU_FLAGS;
-  const child: ChildProcess = spawn(binary, ["--headless=new", "--no-sandbox", "--no-first-run", "--remote-debugging-port=0",
+  const flags = webGpuFlags();
+  // PHOTIVRA_WEBGPU_HEADLESS=0 opens a visible window, which exposes the hardware GPU on more platforms than headless mode.
+  const headless = process.env.PHOTIVRA_WEBGPU_HEADLESS === "0" ? [] : ["--headless=new"];
+  const child: ChildProcess = spawn(binary, [...headless, "--no-sandbox", "--no-first-run", "--remote-debugging-port=0",
     `--user-data-dir=${profile}`, ...flags, "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
   const cleanup = async (): Promise<void> => {
     child.kill("SIGKILL");

@@ -36,7 +36,7 @@ import type {
 import type {
   SensorSpatioSpectralIrradianceReduction
 } from "./spatio-spectral-reduction.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -241,7 +241,8 @@ export interface SensorResponseOperatingRangeAssessment {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -252,6 +253,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -309,7 +311,8 @@ function parseUncertainty(
   path: string
 ): SensorSpectralResponseUncertainty {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", UNCERTAINTY_VARIANT_FIELDS, path);
 
   if (record.kind === "relative") {
     const fraction =
@@ -349,7 +352,7 @@ function parseReferenceConditions(
   path: string
 ): SensorSpectralReferenceConditions {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["temperatureC", "incidenceAngleDegreesFromNormal", "polarization"]);
   const result:
     SensorSpectralReferenceConditions =
       {};
@@ -434,7 +437,8 @@ function parseReferenceConditionPolicy(
   path: string
 ): SensorResponseReferenceConditionPolicy {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", { "exact-match-required": ["kind"], "assume-compatible": ["kind", "limitation", "evidence"] }, path);
 
   if (
     record.kind ===
@@ -472,7 +476,7 @@ function parseInputRange(
   path: string
 ): SensorResponseOperatingInputRange {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["minimumInclusive", "maximumInclusive", "kind", "unit"]);
 
   const minimumInclusive =
     requireFiniteNonNegative(
@@ -543,7 +547,7 @@ function parseWavelengthApplicability(
   path: string
 ): SensorResponseOperatingWavelengthApplicability {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["wavelengthBasis", "minimumNanometers", "maximumNanometers", "containment"]);
 
   if (
     record.wavelengthBasis !== "air" &&
@@ -602,7 +606,7 @@ function parseLinearityCriterion(
   path: string
 ): SensorResponseLinearityCriterion {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["maximumAbsoluteRelativeDeviation"]);
   const maximumAbsoluteRelativeDeviation =
     requireFiniteNonNegative(
       record
@@ -637,8 +641,9 @@ function parseSpectralInputModel(
 
   const record = requireRecord(
     value,
-    "sensorResponseOperatingRange.spectralInputModel"
+    "sensorResponseOperatingRange.spectralInputModel", null
   );
+  rejectUnknownVariantFields(record, "kind", { "broadband-integrated-only": ["kind"], "per-spectral-bin": ["kind", "maximumBinWidthNanometers", "scientificStatus", "evidence", "limitation"] }, "sensorResponseOperatingRange.spectralInputModel");
 
   if (
     record.kind ===
@@ -720,8 +725,9 @@ function parseSpatialLinearityModel(
 
   const record = requireRecord(
     value,
-    "sensorResponseOperatingRange.spatialLinearityModel"
+    "sensorResponseOperatingRange.spatialLinearityModel", null
   );
+  rejectUnknownVariantFields(record, "kind", { "not-established": ["kind", "limitation"], "linear-superposition-over-geometric-aperture": ["kind", "scientificStatus", "evidence", "limitation"] }, "sensorResponseOperatingRange.spatialLinearityModel");
 
   if (
     record.kind === "not-established"
@@ -805,7 +811,7 @@ export function parseSensorResponseOperatingRangeProfile(
   const record =
     requireRecord(
       value,
-      "sensorResponseOperatingRange"
+      "sensorResponseOperatingRange", ["schemaVersion", "scientificStatus", "referenceConditions", "referenceConditionPolicy", "uncertainty", "profileId", "responseApplicationProfileId", "spectralResponseProfileId", "colorSamplingProfileId", "channelId", "evidence", "inputRange", "wavelengthApplicability", "linearityCriterion", "spatialLinearityModel", "spectralInputModel"]
     );
 
   if (

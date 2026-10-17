@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  createSimulatedCapture, parseSimulatedCapture, serializeSimulatedCapture, resolveSimulatedCapturePlane,
+  InvalidConfigurationError, createSimulatedCapture, parseSimulatedCapture, serializeSimulatedCapture, resolveSimulatedCapturePlane,
   createCaptureWhiteBalanceIntent, resolveManualWhiteBalance, type SimulatedCaptureInput, type CaptureLinearPlane
 } from "../src/index.js";
 import { loadBasicReferenceFixture } from "./helpers/basic-reference-fixture.js";
@@ -75,8 +75,10 @@ describe("authoritative simulated capture container", () => {
     expect(captured.planes[0]!.storage).toEqual(plane.storage);
     expect(captured.whiteBalanceIntent!.channelGains).toEqual(state.channelGains);
     expect(captured.adoptedWhiteXyz).not.toBe(captured.planes[0]!.encodingReferenceWhiteXyz);
-    const withPrivateExtras = { ...state, privatePath: "/private/secret", limitations: ["private narrative"] };
-    expect(JSON.stringify(createCaptureWhiteBalanceIntent({ state: withPrivateExtras }))).not.toContain("private");
+    // Narrative limitations are a known state field and are not copied; an unknown field is rejected by name (2.0.0).
+    expect(JSON.stringify(createCaptureWhiteBalanceIntent({ state: { ...state, limitations: ["private narrative"] } }))).not.toContain("private");
+    expect(() => createCaptureWhiteBalanceIntent({ state: { ...state, privatePath: "/private/secret" } as typeof state }))
+      .toThrow(new InvalidConfigurationError('resolvedWhiteBalanceState has unknown field "privatePath".'));
     expect(() => createCaptureWhiteBalanceIntent({ state: { ...state, stateId: "/private/id" } })).toThrow();
   });
   it("rejects state substitution and distinguishes applied RGB gains from untouched channels", () => {

@@ -4,7 +4,7 @@
  * the sensor-stage and temporal-sum WGSL kernels, for the in-process fake WebGPU device. They mirror the
  * WGSL line by line; real-device conformance lives in test/webgpu.
  */
-import { SENSOR_AUX, uniformThresholdInteger } from "../../src/gpu/wgsl-sensor-kernel.js";
+import { SENSOR_AUX, SENSOR_EXTRAS, SENSOR_REALIZED_CLAMP, uniformThresholdInteger } from "../../src/gpu/wgsl-sensor-kernel.js";
 
 const f = Math.fround;
 const U = 2 ** -24, INV32 = f(2 ** -32), TWO_PI_INV32 = f(2 * Math.PI / 2 ** 32), MARGIN = 2, CPU_REL = f(2 ** -47);
@@ -30,6 +30,9 @@ export function emulateSensor(u32: Uint32Array, i32: Int32Array, pf: Float32Arra
     Array.from(u32.subarray(0, 15)) as number[];
   const satQuantized = i32[15]!;
   const [capacityFrac, thresholdFrac, invGain, invResidual, digitalGain, digitalResidual, inlSlope, inlOffsetMax] = Array.from(pf.subarray(16, 24)) as number[];
+  const [siteWords, poissonCount, extras] = Array.from(u32.subarray(24, 27)) as number[];
+  const fpnESlackParam = pf[28]!, fpnCSlackParam = pf[29]!, meanInts = new Int32Array(means.buffer, means.byteOffset, means.length);
+  const CLAMP = SENSOR_REALIZED_CLAMP;
   let state = 0, radius = 0, ip = 0, fp = 0, uncertain!: boolean;
   const start = (s: number): void => { state = fmix((s ^ 0x9e3779b9) >>> 0); if (state === 0) state = 0x6d2b79f5; };
   const next = (): number => { state = (state ^ (state << 13)) >>> 0; state = (state ^ (state >>> 17)) >>> 0; state = (state ^ (state << 5)) >>> 0; return state; };
@@ -142,27 +145,43 @@ export function emulateSensor(u32: Uint32Array, i32: Int32Array, pf: Float32Arra
     const row = row0! + Math.floor(i / regionW!), index = ((regionY! + row) * nativeW! + regionX! + i % regionW!) >>> 0;
     uncertain = false;
     start(fmix((mixBlock(mixBlock(mixBlock(0, seed!), index), 0) ^ 12) >>> 0));
-    const photo = poisson(means[i * 4]!, meanFloats[i * 4 + 1]!), dark = poisson(means[i * 4 + 2]!, meanFloats[i * 4 + 3]!);
-    const realized = photo + dark;
+    const base = i * siteWords!;
+    const photo = poisson(means[base]!, meanFloats[base + 1]!), dark = poisson(means[base + 2]!, meanFloats[base + 3]!);
+    let realized = Math.min(photo + dark, CLAMP);
+    for (let k = 0; k < poissonCount!; k++) realized = Math.min(realized + poisson(means[base + 4 + 2 * k]!, meanFloats[base + 5 + 2 * k]!), CLAMP);
+    let cursor = base + 4 + 2 * poissonCount!;
+    const deterministic = (extras! & SENSOR_EXTRAS.deterministic) !== 0, pattern = (extras! & SENSOR_EXTRAS.fixedPattern) !== 0;
+    let rFrac = 0, detSlack = 0;
+    if (deterministic) { realized = Math.min(realized + means[cursor]!, CLAMP); rFrac = meanFloats[cursor + 1]!; detSlack = U; cursor += 2; }
+    let tFloor = thresholdFloor!, tFrac = thresholdFrac!, fpnESlack = 0;
+    if (pattern) { tFloor = meanInts[cursor]!; tFrac = meanFloats[cursor + 1]!; fpnESlack = fpnESlackParam; }
     start(fmix((mixBlock(mixBlock(mixBlock(0, seed!), index), 1) ^ 12) >>> 0));
     let noise = 0, noiseBound = 0;
     for (let c = 0; c < components!; c++) {
       const sigma = aux[SENSOR_AUX.sigma + c]!;
       if (sigma !== 0) { const z = stdNormal(); noise = f(noise + f(z * sigma)); noiseBound = noiseBound + sigma * radius * (28 + components!) * U; }
     }
-    let flags = 0, aInt = realized, aFrac = 0;
-    if (realized > capacityFloor!) { flags = 1; aInt = capacityFloor!; aFrac = capacityFrac!; }
-    const whole = f(aInt - thresholdFloor!), diff = f(f(whole + f(aFrac - thresholdFrac!)) + noise);
-    check(diff, MARGIN * (noiseBound + 3 * U + 2 * U * (Math.abs(whole) + Math.abs(noise) + 2) + CPU_REL * (aInt + Math.abs(noise))));
+    let flags = 0, aInt = realized, aFrac = rFrac;
+    if (!deterministic) {
+      if (realized > capacityFloor!) { flags = 1; aInt = capacityFloor!; aFrac = capacityFrac!; }
+    } else {
+      const w = f(realized - capacityFloor!), dcap = f(w + f(rFrac - capacityFrac!));
+      check(dcap, MARGIN * (5 * U + U * Math.abs(w) + U * Math.abs(dcap) + CPU_REL * (realized + 1)));
+      if (dcap > 0) { flags = 1; aInt = capacityFloor!; aFrac = capacityFrac!; }
+    }
+    const whole = f(aInt - tFloor), diff = f(f(whole + f(aFrac - tFrac)) + noise);
+    check(diff, MARGIN * (noiseBound + 3 * U + 2 * U * (Math.abs(whole) + Math.abs(noise) + 2) + CPU_REL * (aInt + Math.abs(noise)) + fpnESlack + detSlack));
     let q: number;
     if (diff > 0) { flags |= 2; q = satQuantized; } else {
       ip = black!; fp = 0;
+      let fpnCSlack = 0;
+      if (pattern) { ip += meanInts[cursor + 2]!; fp = meanFloats[cursor + 3]!; fpnCSlack = fpnCSlackParam; }
       scaled(aInt, SENSOR_AUX.inversePieces);
       const noiseCodes = f(noise * invGain!);
       fp = f(f(fp + f(aFrac * invGain!)) + noiseCodes);
       const aCodes = f(f(aInt) * invGain!);
       let margin = MARGIN * (10 * U * (10 + Math.abs(noiseCodes)) + 4 * U * aFrac * invGain! + 3 * U * Math.abs(noiseCodes) + noiseBound * invGain! +
-        aInt * invResidual! + 2 * U + CPU_REL * (aCodes + Math.abs(noiseCodes) + black!));
+        aInt * invResidual! + 2 * U + CPU_REL * (aCodes + Math.abs(noiseCodes) + black!) + fpnCSlack + detSlack * invGain!);
       normalize();
       if (knots! > 0) {
         const ideal = f(f(ip) + fp), offset = inlOffset(ideal);
@@ -212,5 +231,93 @@ export function emulateTemporalSum(p: Uint32Array, source: Float32Array, nodeDat
       sum = f(sum + f(weights[k * outRows! + ly]! * inner));
     }
     result[ly * width! + x] = sum;
+  }
+}
+
+/** Mirrors CHART_RADIANCE_WGSL (wgsl-chart-kernel.ts) in float32. */
+export function emulateChart(p: Uint32Array, pf: Float32Array, points: Float32Array, table: Float32Array, aux: Float32Array, selectors: Uint32Array,
+  values: Float32Array, flags: Uint32Array): void {
+  const [count, columns, preset, na, nb, nc, wavelengthMode] = Array.from(p.subarray(0, 7)) as number[];
+  const [f0, f1, f2, f3, f4] = Array.from(pf.subarray(8, 13)) as number[];
+  const SAFETY = 4, SLACK = 1e-14, PI = f(3.14159265358979);
+  let flagged!: boolean;
+  const check = (d: number, bound: number): void => { if (!(Math.abs(d) > SAFETY * bound)) flagged = true; };
+  const checkInteger = (t: number, bound: number, lo: number, hi: number): void => {
+    const n = Math.round(t);
+    if (SAFETY * bound >= 0.5) { flagged = true; return; }
+    if (n >= lo && n <= hi) check(f(t - n), bound);
+  };
+  const ssb = (a: number, b: number, s: number, scale: number, x: number, cr: number): number =>
+    U * ((Math.abs(a) + Math.abs(b) + Math.abs(s)) * Math.abs(scale) + (1 + cr) * Math.abs(x)) + SLACK * (Math.abs(x) + 1);
+  const cross = (u: number, v: number, k: number): number => f(f(v * aux[2 * k]!) - f(u * aux[2 * k + 1]!));
+  const crossBound = (u: number, v: number, k: number, d: number): number =>
+    U * (3 * Math.abs(f(v * aux[2 * k]!)) + 3 * Math.abs(f(u * aux[2 * k + 1]!)) + Math.abs(d)) + SLACK * (Math.abs(u) + Math.abs(v));
+  const material = (u: number, v: number): number => {
+    switch (preset) {
+      case 0: return 0;
+      case 1: {
+        const a = f(u * f0!), b = f(v * f1!), d = f(a - b);
+        check(d, U * (3 * Math.abs(a) + 3 * Math.abs(b) + Math.abs(d)) + SLACK * (Math.abs(u) + Math.abs(v)));
+        return d >= 0 ? 1 : 0;
+      }
+      case 2: {
+        const q = f(f(u * u) + f(v * v));
+        check(f(q - f0!), U * (4 * q + 2 * f0!) + SLACK * (q + f0!));
+        if (q > f0!) return 2;
+        const sectors = 2 * na!;
+        let k = Math.min(sectors - 1, Math.max(0, Math.floor(f(f(f(f(Math.atan2(v, u)) + PI) * na!) / PI))));
+        for (let step = 0; step < 4; step++) {
+          if (cross(u, v, k) < 0 && k > 0) { k--; continue; }
+          if (cross(u, v, k + 1) >= 0 && k + 1 < sectors) { k++; continue; }
+          break;
+        }
+        const lo = cross(u, v, k), hi = cross(u, v, k + 1);
+        if (lo < 0 || hi >= 0) flagged = true;
+        check(lo, crossBound(u, v, k, lo));
+        check(hi, crossBound(u, v, k + 1, hi));
+        return k % 2 === 0 ? 1 : 0;
+      }
+      case 3: case 4: {
+        const s = f(u + 1), t = f(s * f0!);
+        checkInteger(t, ssb(u, 1, s, f0!, t, 0), 1, na! - 1);
+        return Math.min(na! - 1, Math.max(0, Math.floor(t)));
+      }
+      case 5: {
+        const s = f(u + 1), x = f(s * f0!), w = f(f1! - v), y = f(w * f0!);
+        checkInteger(x, ssb(u, 1, s, f0!, x, 0), -3e38, 3e38);
+        checkInteger(y, ssb(f1!, v, w, f0!, y, 0), -3e38, 3e38);
+        return (Math.floor(x) + Math.floor(y)) % 2 === 0 ? 1 : 0;
+      }
+      case 6: {
+        const s = f(u + 1), x = f(s * f0!), w = f(f1! - v), y = f(w * f2!);
+        checkInteger(x, ssb(u, 1, s, f0!, x, 0), 1, na! - 1);
+        checkInteger(y, ssb(f1!, v, w, f2!, y, 1), 1, nb! - 1);
+        const i = Math.min(na! - 1, Math.max(0, Math.floor(x))), j = Math.min(nb! - 1, Math.max(0, Math.floor(y))), c = j * na! + i;
+        const dx = f(u - aux[2 * c]!), dy = f(v - aux[2 * c + 1]!);
+        const ex = U * (Math.abs(u) + Math.abs(aux[2 * c]!) + Math.abs(dx)), ey = U * (Math.abs(v) + Math.abs(aux[2 * c + 1]!) + Math.abs(dy));
+        const d2 = f(f(dx * dx) + f(dy * dy));
+        check(f(d2 - f3!), 2 * (Math.abs(dx) * ex + Math.abs(dy) * ey) + ex * ex + ey * ey + U * (2 * d2 + f3!) + SLACK * (d2 + f3!));
+        return d2 <= f3! ? 1 : 0;
+      }
+      default: {
+        const s = f(u + 1), fx = f(s * f0!), w = f(f1! - v), fy = f(w * f2!);
+        const bx = ssb(u, 1, s, f0!, fx, 0), by = ssb(f1!, v, w, f2!, fy, 1);
+        checkInteger(fx, bx, -3e38, 3e38);
+        checkInteger(fy, by, -3e38, 3e38);
+        const ifx = Math.floor(fx), ify = Math.floor(fy);
+        if (ifx < 0 || ify < 0 || ifx >= na! || ify >= nb!) return nc!;
+        const index = ify * na! + ifx, x = f(fx - ifx), y = f(fy - ify);
+        check(f(x - f3!), bx + U * f3!); check(f(x - f4!), bx + U * f4!); check(f(y - f3!), by + U * f3!); check(f(y - f4!), by + U * f4!);
+        if (index >= nc! || x < f3! || x > f4! || y < f3! || y > f4!) return nc!;
+        return index;
+      }
+    }
+  };
+  for (let i = 0; i < count!; i++) {
+    flagged = false;
+    const m = material(points[2 * i]!, points[2 * i + 1]!);
+    if (wavelengthMode !== 0) values[i] = table[m * columns! + selectors[i]!]!;
+    else for (let c = 0; c < columns!; c++) values[i * columns! + c] = table[m * columns! + c]!;
+    flags[i] = flagged ? 1 : 0;
   }
 }

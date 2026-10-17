@@ -35,7 +35,7 @@ import type {
 import type {
   ResolvedCaptureModeTiming
 } from "../sensor/capture-mode-timing.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -310,7 +310,8 @@ const CAPTURE_KINDS =
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -321,6 +322,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -439,7 +441,7 @@ function parseFractionFact(
   path: string
 ): EvidenceBackedFact<number> {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["value", "evidence"]);
   return {
     value:
       requireFraction(
@@ -459,7 +461,7 @@ function parseNonNegativeFact(
   path: string
 ): EvidenceBackedFact<number> {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["value", "evidence"]);
   return {
     value:
       requireNonNegativeFinite(
@@ -479,7 +481,7 @@ function parsePositiveFact(
   path: string
 ): EvidenceBackedFact<number> {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["value", "evidence"]);
   return {
     value:
       requirePositiveFinite(
@@ -518,7 +520,7 @@ function parseAxisResponse(
   path: string
 ): StabilizationAxisResponseProfile {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["axis", "correctionGain", "latencySeconds", "maximumCorrectionAngleRad"]);
   return {
     axis:
       parseAxis(
@@ -552,7 +554,8 @@ function parsePanningPolicy(
   path: string
 ): StabilizationPanningPolicy {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", { none: ["kind"], "declared-axis-bypass": ["kind", "axis", "evidence"] }, path);
   if (record.kind === "none") {
     return {
       kind: "none"
@@ -587,7 +590,7 @@ function parseCoordinatedAllocation(
   path: string
 ): StabilizationCoordinatedAllocation {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["totalCorrectionAppliedOnce", "bodyFraction", "lensFraction", "evidence"]);
   if (
     record
       .totalCorrectionAppliedOnce !==
@@ -653,7 +656,7 @@ export function parseStabilizationSystemProfile(
   const record =
     requireRecord(
       value,
-      "stabilizationSystemProfile"
+      "stabilizationSystemProfile", ["schemaVersion", "profileKind", "scientificStatus", "architecture", "captureKind", "axisResponses", "panningPolicy", "coordinatedAllocation", "profileId", "profileVersion", "evidence", "limitations", "controlTransientModeled", "spontaneousDriftModeled", "cameraTranslationCorrectionModeled", "digitalStabilizationIncluded", "supportPolicyIncluded", "stopRatingUsedAsDynamicResponse"]
     );
   if (
     record.schemaVersion !==
@@ -887,7 +890,7 @@ function parseAngularState(
   path: string
 ): StabilizationAngularStateRad {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["pitch", "yaw", "roll"]);
   return {
     pitch:
       requireFinite(
@@ -926,7 +929,7 @@ export function parseStabilizationDisturbanceTrajectory(
   const record =
     requireRecord(
       value,
-      "stabilizationDisturbanceTrajectory"
+      "stabilizationDisturbanceTrajectory", ["version", "timeReference", "initialAngularDisplacementIsZero", "cameraTranslationIncluded", "subjectMotionIncluded", "supportStateEncoded", "samples", "trajectoryId", "evidence", "limitations"]
     );
   if (
     record.version !==
@@ -969,7 +972,7 @@ export function parseStabilizationDisturbanceTrajectory(
         const sample =
           requireRecord(
             entry,
-            path
+            path, ["timeSecondsFromCaptureReference", "angularDisplacementRad"]
           );
         const time =
           requireNonNegativeFinite(

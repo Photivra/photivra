@@ -33,7 +33,7 @@ import type {
   LensPsfScientificStatus,
   LensPsfUncertainty
 } from "./lens-psf-profile.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -170,7 +170,8 @@ export interface LensComplexPupilPsf {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -181,6 +182,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -302,7 +304,8 @@ function parseUncertainty(
   path: string
 ): LensPsfUncertainty {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", UNCERTAINTY_VARIANT_FIELDS, path);
   if (record.kind === "relative") {
     const fraction =
       requireFinite(
@@ -382,7 +385,7 @@ function parseGrid(
   const record =
     requireRecord(
       value,
-      "lensComplexPupil.grid"
+      "lensComplexPupil.grid", ["widthSamples", "heightSamples", "centerSampleX", "centerSampleY", "relativeAmplitude", "opticalPathDifferenceMicrometers", "pupilSamplePitchMmX", "pupilSamplePitchMmY"]
     );
   const widthSamples =
     requirePositiveSafeInteger(
@@ -525,7 +528,7 @@ export function parseLensComplexPupilProfile(
   const record =
     requireRecord(
       value,
-      "lensComplexPupil"
+      "lensComplexPupil", ["schemaVersion", "opticalDomain", "representation", "pupilCoordinateSystem", "imageFieldAxes", "amplitudeMeaning", "wavefrontMeaning", "throughputOwnership", "kernelEnergyNormalization", "propagationModel", "sensorOpticalStackIncluded", "sensorSamplingIncluded", "reconstructionIncluded", "strayLightIncluded", "scientificStatus", "uncertainty", "context", "responseIncludes", "profileId", "profileVersion", "relativePupilThroughputFactor", "grid", "evidence", "limitations"]
     );
   if (
     record.schemaVersion !==
@@ -597,17 +600,17 @@ export function parseLensComplexPupilProfile(
   const context =
     requireRecord(
       record.context,
-      "lensComplexPupil.context"
+      "lensComplexPupil.context", ["fieldPointMm", "focalLengthMm", "focus", "apertureFNumber", "wavelengthNm", "signedDefocusImagePlaneMicrometers"]
     );
   const field =
     requireRecord(
       context.fieldPointMm,
-      "lensComplexPupil.context.fieldPointMm"
+      "lensComplexPupil.context.fieldPointMm", ["x", "y"]
     );
   const response =
     requireRecord(
       record.responseIncludes,
-      "lensComplexPupil.responseIncludes"
+      "lensComplexPupil.responseIncludes", ["diffraction", "aberration", "defocus", "pupilClippingShape"]
     );
   if (
     response.diffraction !==

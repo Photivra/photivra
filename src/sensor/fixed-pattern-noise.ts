@@ -183,6 +183,33 @@ export function calculateSensorFixedPatternSite(input: {
   return evaluateParsedFixedPatternSite(profile, input.site);
 }
 
+/** Internal: the PRNU gain, dark-current factor and hot-pixel state of one site (no readout offsets). */
+export function evaluateFixedPatternSiteFactors(profile: SensorFixedPatternNoiseProfile, x: number, y: number):
+  { photoResponseGainFactor: number; darkCurrentFactor: number; hotPixel: boolean } {
+  const seed = profile.sensorInstanceSeedUint32;
+  const prnuSd = profile.photoResponseNonUniformity.relativeStandardDeviation.value;
+  const dsnuSd = profile.darkSignalNonUniformity.relativeStandardDeviation.value;
+  const hotFraction = profile.hotPixels.siteFraction.value;
+  const photoResponseGainFactor = prnuSd === 0 ? 1 : Math.max(0, 1 + prnuSd * normal(seed, x, y, SENSOR_FIXED_PATTERN_PRNU_STREAM_ID));
+  const hotPixel = hotFraction > 0 &&
+    createDeterministicUniformStream(deriveSensorFixedPatternSeedUint32(seed, x, y, SENSOR_FIXED_PATTERN_HOT_PIXEL_STREAM_ID)).next() < hotFraction;
+  const darkCurrentFactor = hotPixel ? profile.hotPixels.darkCurrentMultiplier.value :
+    dsnuSd === 0 ? 1 : Math.max(0, 1 + dsnuSd * normal(seed, x, y, SENSOR_FIXED_PATTERN_DSNU_STREAM_ID));
+  return { photoResponseGainFactor, darkCurrentFactor, hotPixel };
+}
+
+/** Internal: the fixed readout offset of row `y`, in input-referred electrons. */
+export function evaluateFixedPatternRowOffset(profile: SensorFixedPatternNoiseProfile, y: number): number {
+  const rms = profile.rowOffset.rmsElectrons.value;
+  return rms === 0 ? 0 : rms * normal(profile.sensorInstanceSeedUint32, 0, y, SENSOR_FIXED_PATTERN_ROW_STREAM_ID);
+}
+
+/** Internal: the fixed readout offset of column `x`, in input-referred electrons. */
+export function evaluateFixedPatternColumnOffset(profile: SensorFixedPatternNoiseProfile, x: number): number {
+  const rms = profile.columnOffset.rmsElectrons.value;
+  return rms === 0 ? 0 : rms * normal(profile.sensorInstanceSeedUint32, x, 0, SENSOR_FIXED_PATTERN_COLUMN_STREAM_ID);
+}
+
 /** Internal: the same calculation for an already parsed profile. */
 export function evaluateParsedFixedPatternSite(profile: SensorFixedPatternNoiseProfile,
   site: { x: number; y: number }): SensorFixedPatternSiteValues {
@@ -190,19 +217,9 @@ export function evaluateParsedFixedPatternSite(profile: SensorFixedPatternNoiseP
   if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y) || x < 0 || y < 0 || x > 0xffff_ffff || y > 0xffff_ffff) {
     throw new InvalidScientificInputError("Fixed-pattern site coordinates must be nonnegative uint32 integers.");
   }
-  const seed = profile.sensorInstanceSeedUint32;
-  const prnuSd = profile.photoResponseNonUniformity.relativeStandardDeviation.value;
-  const dsnuSd = profile.darkSignalNonUniformity.relativeStandardDeviation.value;
-  const hotFraction = profile.hotPixels.siteFraction.value;
-  const rowRms = profile.rowOffset.rmsElectrons.value;
-  const columnRms = profile.columnOffset.rmsElectrons.value;
-  const photoResponseGainFactor = prnuSd === 0 ? 1 : Math.max(0, 1 + prnuSd * normal(seed, x, y, SENSOR_FIXED_PATTERN_PRNU_STREAM_ID));
-  const hotPixel = hotFraction > 0 &&
-    createDeterministicUniformStream(deriveSensorFixedPatternSeedUint32(seed, x, y, SENSOR_FIXED_PATTERN_HOT_PIXEL_STREAM_ID)).next() < hotFraction;
-  const darkCurrentFactor = hotPixel ? profile.hotPixels.darkCurrentMultiplier.value :
-    dsnuSd === 0 ? 1 : Math.max(0, 1 + dsnuSd * normal(seed, x, y, SENSOR_FIXED_PATTERN_DSNU_STREAM_ID));
-  const rowOffsetElectrons = rowRms === 0 ? 0 : rowRms * normal(seed, 0, y, SENSOR_FIXED_PATTERN_ROW_STREAM_ID);
-  const columnOffsetElectrons = columnRms === 0 ? 0 : columnRms * normal(seed, x, 0, SENSOR_FIXED_PATTERN_COLUMN_STREAM_ID);
+  const { photoResponseGainFactor, darkCurrentFactor, hotPixel } = evaluateFixedPatternSiteFactors(profile, x, y);
+  const rowOffsetElectrons = evaluateFixedPatternRowOffset(profile, y);
+  const columnOffsetElectrons = evaluateFixedPatternColumnOffset(profile, x);
   return {
     profileId: profile.profileId,
     modelId: SENSOR_FIXED_PATTERN_NOISE_MODEL.id,

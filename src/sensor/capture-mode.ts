@@ -26,7 +26,7 @@ import type {
   NativeImageRaster,
   RasterDimensions
 } from "./sensor-geometry.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -233,10 +233,15 @@ const DEPENDENCIES = new Set<CaptureModeDependency>([
   "inter-frame-registration"
 ]);
 
-function requireRecord(value: unknown, path: string): UnknownRecord {
+function requireRecord(
+  value: unknown,
+  path: string,
+  allowedKeys: readonly string[] | null
+): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new InvalidConfigurationError(path + " must be an object.");
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -269,7 +274,7 @@ function parseIntegerFact(
   value: unknown,
   path: string
 ): SourcedCaptureModeFact<number> {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["value", "evidence"]);
   return {
     value: requirePositiveSafeIntegerValue(
       record.value,
@@ -286,7 +291,7 @@ function parseRasterDimensions(
   value: unknown,
   path: string
 ): RasterDimensions {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["pixelWidth", "pixelHeight"]);
   const pixelWidth = requirePositiveSafeIntegerValue(
     record.pixelWidth,
     path + ".pixelWidth"
@@ -308,7 +313,7 @@ function parseRasterFact(
   value: unknown,
   path: string
 ): SourcedCaptureModeFact<RasterDimensions> {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["value", "evidence"]);
   return {
     value: parseRasterDimensions(
       record.value,
@@ -325,7 +330,7 @@ function parseCombinationDomainFact(
   value: unknown,
   path: string
 ): SourcedCaptureModeFact<CaptureModeSampleCombinationDomain> {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["value", "evidence"]);
   if (
     typeof record.value !== "string" ||
     !COMBINATION_DOMAINS.has(
@@ -349,7 +354,7 @@ function parseAcquisition(
   value: unknown,
   path: string
 ): CaptureModeAcquisition {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["kind", "frameCount", "minimumFrameCount", "maximumFrameCount", "evidence"]);
 
   if (record.kind === "single-frame") {
     if (
@@ -470,7 +475,7 @@ function parsePerFrameSampling(
   value: unknown,
   path: string
 ): CaptureModePerFrameSampling {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["kind", "groupWidthSamples", "groupHeightSamples", "combinationDomain", "raster"]);
 
   if (record.kind === "native-effective-raster") {
     if (
@@ -549,7 +554,7 @@ function parseOffsetsFact(
 ): SourcedCaptureModeFact<
   readonly CaptureModeSensorOffsetNativeSamples[]
 > {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["value", "evidence"]);
   if (
     !Array.isArray(record.value) ||
     record.value.length === 0
@@ -562,7 +567,7 @@ function parseOffsetsFact(
   const offsets = record.value.map((entry, index) => {
     const item = requireRecord(
       entry,
-      path + ".value[" + index + "]"
+      path + ".value[" + index + "]", ["x", "y"]
     );
     if (
       typeof item.x !== "number" ||
@@ -605,7 +610,7 @@ function parseReconstructionStages(
   const stages = value.map((entry, index) => {
     const record = requireRecord(
       entry,
-      path + "[" + index + "]"
+      path + "[" + index + "]", ["value", "evidence"]
     );
     if (
       typeof record.value !== "string" ||
@@ -671,7 +676,7 @@ function parseModeDefinition(
   value: unknown,
   path: string
 ): CaptureModeDefinition {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["modeId", "acquisition", "interFrameSensorOffsetsNativeSamples", "evidence", "perFrameSampling", "reconstructionStages", "processedImageRaster", "dependencies"]);
   const modeId = requireNonEmptyString(
     record.modeId,
     path + ".modeId"
@@ -756,7 +761,7 @@ function parseModeDefinition(
 export function parseCaptureModeProfile(
   value: unknown
 ): CaptureModeProfile {
-  const profile = requireRecord(value, "captureModes");
+  const profile = requireRecord(value, "captureModes", ["schemaVersion", "modes"]);
 
   if (profile.schemaVersion !== "0.1.0") {
     throw new InvalidConfigurationError(

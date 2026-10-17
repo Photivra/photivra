@@ -18,7 +18,7 @@ import {
   type SpectralWavelengthBasis,
   type SpectralWavelengthRangeNanometers
 } from "./spectral.js";
-import { requireInputKeys } from "./record-validation.js";
+import { requireInputKeys, rejectUnknownFields } from "./record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -131,7 +131,8 @@ export interface IntegratedDiscreteSpectralLineMeasure {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -142,6 +143,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -283,7 +285,7 @@ export function parseSpectralCoverageParticipant(
 ): SpectralCoverageParticipant {
   const record = requireRecord(
     value,
-    path
+    path, ["wavelengthRangeNanometers", "participantId", "role", "wavelengthBasis", "breakpointsNanometers"]
   );
   const range =
     parseSpectralWavelengthRangeNanometers(
@@ -458,7 +460,7 @@ export function parseNormalizedDiscreteSpectralLineDistribution(
 ): NormalizedDiscreteSpectralLineDistribution {
   const record = requireRecord(
     value,
-    path
+    path, ["lineModel", "normalization", "lines", "wavelengthBasis"]
   );
   if (
     record.lineModel !==
@@ -506,7 +508,7 @@ export function parseNormalizedDiscreteSpectralLineDistribution(
         "]";
       const line = requireRecord(
         entry,
-        linePath
+        linePath, ["lineId", "wavelengthNanometers", "normalizedIntegratedWeight"]
       );
       const lineId =
         requireNonEmptyString(
@@ -662,7 +664,7 @@ export function integrateDiscreteSpectralLineMeasure(
 ): IntegratedDiscreteSpectralLineMeasure {
   const record = requireRecord(
     measure,
-    "measure"
+    "measure", ["wavelengthBasis", "quantityUnit", "lineModel", "continuousSpectralDensityAssumed", "wavelengthMeasureMultiplicationRequired", "lines"]
   );
   const wavelengthBasis =
     parseResolvedBasis(
@@ -716,7 +718,7 @@ export function integrateDiscreteSpectralLineMeasure(
       "measure.lines[" + index + "]";
     const line = requireRecord(
       record.lines[index],
-      linePath
+      linePath, ["lineId", "wavelengthNanometers", "integratedQuantity"]
     );
     const lineId =
       requireNonEmptyString(

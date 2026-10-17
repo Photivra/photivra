@@ -29,7 +29,7 @@ import type {
 import type {
   SensorSpatioSpectralIrradianceReduction
 } from "./spatio-spectral-reduction.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -195,7 +195,8 @@ export interface SensorResponseApplicationCompatibilityAssessment {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -206,6 +207,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -246,7 +248,7 @@ function parseIncidentAreaBasis(
   path: string
 ): SensorResponseIncidentAreaBasis {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["areaSquareMicrometers", "kind"]);
   const areaSquareMicrometers =
     requirePositiveFinite(
       record.areaSquareMicrometers,
@@ -276,7 +278,8 @@ function parseSpatialResponseModel(
   path: string
 ): SensorResponseSpatialModel {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", { "not-established": ["kind", "limitation"], "uniform-over-geometric-sensitive-aperture": ["kind", "scientificStatus", "evidence", "limitation"] }, path);
 
   if (
     record.kind === "not-established"
@@ -350,7 +353,8 @@ function parseReferenceConditionPolicy(
   path: string
 ): SensorResponseReferenceConditionPolicy {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", { "exact-match-required": ["kind"], "assume-compatible": ["kind", "limitation", "evidence"] }, path);
 
   if (
     record.kind ===
@@ -398,7 +402,7 @@ export function parseSensorResponseApplicationProfile(
 ): SensorResponseApplicationProfile {
   const record = requireRecord(
     value,
-    "sensorResponseApplication"
+    "sensorResponseApplication", ["schemaVersion", "profileId", "spectralResponseProfileId", "colorSamplingProfileId", "channelId", "samplingApertureProfileId", "opticalStackProfileId", "evidence", "incidentAreaBasis", "spatialResponseModel", "referenceConditionPolicy"]
   );
 
   if (
@@ -467,7 +471,7 @@ function parseSourcePlane(
 ): SourcedSensorResponseSourcePlane {
   const record = requireRecord(
     value,
-    "sourcePlane"
+    "sourcePlane", ["value", "evidence"]
   );
   if (
     record.value !==

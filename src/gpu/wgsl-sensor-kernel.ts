@@ -13,6 +13,12 @@
  *   a-priori bound on how far the float32 value can be from the float64 reference value. A site where any
  *   decision falls inside its bound is flagged. An unflagged site therefore makes every decision exactly
  *   as the reference does, and its code and flags equal the reference.
+ * - Fixed-pattern noise and additional stored-charge components (2.0): the host evaluates the
+ *   fixed-pattern values in float64 with the model's own functions and packs, per site, the Poisson means
+ *   already multiplied by the PRNU and dark factors (exactly the reference's products), the pre-ADC limit
+ *   minus the readout offset and the offset in codes. Additional Poisson components are drawn from the
+ *   charge stream after photo and dark charge, in declaration order; deterministic components enter as an
+ *   exact integer part plus a float32 fraction, with their own bounds.
  *
  * The bounds use u = 2^-24 and the WGSL accuracy table (W3C WGSL, "Floating Point Accuracy"): correctly
  * rounded + − ×, division 2.5 ULP, sqrt inherited from 1/inverseSqrt (≤ 4.5 ULP), exp 3 + 2|x| ULP,
@@ -26,8 +32,16 @@ export const SENSOR_OUTPUT = Object.freeze({ codeMask: 0xffff, flagShift: 16, un
 /** Auxiliary table layout (float32 words). */
 export const SENSOR_AUX = Object.freeze({ stirlingRemainder: 0, sigma: 256, inversePieces: 272, digitalPieces: 276, knots: 280 });
 export const SENSOR_WORKGROUP_SIZE = 256;
-/** Per-site packed means: 4 words (photo word, photo fraction bits, dark word, dark fraction bits). */
+/**
+ * Per-site packed words: photo word, photo fraction bits, dark word, dark fraction bits; then 2 words per
+ * additional Poisson component; then, with deterministic components, their sum (integer part, fraction
+ * bits); then, with fixed-pattern noise, (threshold − offset) and offset/gain as (floor, fraction bits).
+ */
 export const SENSOR_SITE_WORDS = 4;
+/** Bits of `Params.extras`. */
+export const SENSOR_EXTRAS = Object.freeze({ deterministic: 1, fixedPattern: 2 });
+/** Partial charge sums saturate here: above every supported capacity (2^24), so no decision changes. */
+export const SENSOR_REALIZED_CLAMP = 2 ** 30;
 /** Mean categories in bits 30–31 of a mean word, mirroring `samplePoisson`'s branches. */
 export const SENSOR_MEAN_CATEGORY = Object.freeze({ zero: 0, multiplication: 1, transformedRejection: 2, normal: 3 });
 
@@ -56,9 +70,11 @@ struct Params {
   capacity_floor: u32, threshold_floor: u32, black: u32, sat_quantized: i32,
   capacity_frac: f32, threshold_frac: f32, inv_gain: f32, inv_residual: f32,
   digital_gain: f32, digital_residual: f32, inl_slope: f32, inl_offset: f32,
+  site_words: u32, poisson_count: u32, extras: u32, pad0: u32,
+  fpn_e_slack: f32, fpn_c_slack: f32, pad1: f32, pad2: f32,
 };
 @group(0) @binding(0) var<uniform> params: Params;
-@group(0) @binding(1) var<storage, read> means: array<vec4<u32>>;
+@group(0) @binding(1) var<storage, read> means: array<u32>;
 @group(0) @binding(2) var<storage, read> aux: array<f32>;
 @group(0) @binding(3) var<storage, read_write> out: array<u32>;
 
@@ -277,11 +293,34 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
   let row = params.row0 + i / params.region_w;
   let index = (params.region_y + row) * params.native_w + params.region_x + i % params.region_w;
   uncertain = false;
-  let site = means[i];
+  let base = i * params.site_words;
   start(site_seed(params.seed, index, 0u));
-  let photo = poisson(site.x, bitcast<f32>(site.y));
-  let dark = poisson(site.z, bitcast<f32>(site.w));
-  let realized = photo + dark;
+  let photo = poisson(means[base], bitcast<f32>(means[base + 1u]));
+  let dark = poisson(means[base + 2u], bitcast<f32>(means[base + 3u]));
+  // Saturating sums: any total above the clamp is above every supported capacity, as in the reference.
+  var realized = min(photo + dark, ${SENSOR_REALIZED_CLAMP}u);
+  for (var k = 0u; k < params.poisson_count; k = k + 1u) {
+    realized = min(realized + poisson(means[base + 4u + 2u * k], bitcast<f32>(means[base + 5u + 2u * k])), ${SENSOR_REALIZED_CLAMP}u);
+  }
+  var cursor = base + 4u + 2u * params.poisson_count;
+  let deterministic = (params.extras & ${SENSOR_EXTRAS.deterministic}u) != 0u;
+  let pattern = (params.extras & ${SENSOR_EXTRAS.fixedPattern}u) != 0u;
+  var r_frac = 0.0;
+  var det_slack = 0.0;
+  if (deterministic) {
+    realized = min(realized + means[cursor], ${SENSOR_REALIZED_CLAMP}u);
+    r_frac = bitcast<f32>(means[cursor + 1u]);
+    det_slack = U;
+    cursor = cursor + 2u;
+  }
+  var t_floor = i32(params.threshold_floor);
+  var t_frac = params.threshold_frac;
+  var fpn_e_slack = 0.0;
+  if (pattern) {
+    t_floor = bitcast<i32>(means[cursor]);
+    t_frac = bitcast<f32>(means[cursor + 1u]);
+    fpn_e_slack = params.fpn_e_slack;
+  }
   start(site_seed(params.seed, index, 1u));
   var noise = 0.0;
   var noise_bound = 0.0;
@@ -295,27 +334,42 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>, @builtin(num_workgroups) 
   }
   var flags = 0u;
   var a_int = realized;
-  var a_frac = 0.0;
-  if (realized > params.capacity_floor) { flags = 1u; a_int = params.capacity_floor; a_frac = params.capacity_frac; }
-  // Pre-ADC limit: afterPhysical + noise > threshold.
-  let whole = f32(i32(a_int) - i32(params.threshold_floor));
-  let diff = (whole + (a_frac - params.threshold_frac)) + noise;
-  check(diff, MARGIN * (noise_bound + 3.0 * U + 2.0 * U * (abs(whole) + abs(noise) + 2.0) + CPU_REL * (f32(a_int) + abs(noise))));
+  var a_frac = r_frac;
+  if (!deterministic) {
+    if (realized > params.capacity_floor) { flags = 1u; a_int = params.capacity_floor; a_frac = params.capacity_frac; }
+  } else {
+    // realized > capacity with a non-integer total: float32 difference with its bound.
+    let w = f32(i32(realized) - i32(params.capacity_floor));
+    let dcap = w + (r_frac - params.capacity_frac);
+    check(dcap, MARGIN * (5.0 * U + U * abs(w) + U * abs(dcap) + CPU_REL * (f32(realized) + 1.0)));
+    if (dcap > 0.0) { flags = 1u; a_int = params.capacity_floor; a_frac = params.capacity_frac; }
+  }
+  // Pre-ADC limit: afterPhysical + noise + offset > threshold, as afterPhysical − (threshold − offset) + noise > 0.
+  let whole = f32(i32(a_int) - t_floor);
+  let diff = (whole + (a_frac - t_frac)) + noise;
+  check(diff, MARGIN * (noise_bound + 3.0 * U + 2.0 * U * (abs(whole) + abs(noise) + 2.0) + CPU_REL * (f32(a_int) + abs(noise)) +
+    fpn_e_slack + det_slack));
   var q: i32;
   if (diff > 0.0) {
     flags = flags | 2u;
     q = params.sat_quantized;
   } else {
-    // ideal = (afterPhysical + noise)/gain + black, as an exact integer part plus a float32 fraction.
+    // ideal = (afterPhysical + noise + offset)/gain + black, as an exact integer part plus a float32 fraction.
     ip = i32(params.black);
     fp = 0.0;
+    var fpn_c_slack = 0.0;
+    if (pattern) {
+      ip = ip + bitcast<i32>(means[cursor + 2u]);
+      fp = bitcast<f32>(means[cursor + 3u]);
+      fpn_c_slack = params.fpn_c_slack;
+    }
     scaled(a_int, 272u);
     let noise_codes = noise * params.inv_gain;
     fp = fp + a_frac * params.inv_gain + noise_codes;
     let a_codes = f32(a_int) * params.inv_gain;
     var margin = MARGIN * (10.0 * U * (10.0 + abs(noise_codes)) + 4.0 * U * a_frac * params.inv_gain + 3.0 * U * abs(noise_codes) +
       noise_bound * params.inv_gain + f32(a_int) * params.inv_residual + 2.0 * U +
-      CPU_REL * (a_codes + abs(noise_codes) + f32(params.black)));
+      CPU_REL * (a_codes + abs(noise_codes) + f32(params.black)) + fpn_c_slack + det_slack * params.inv_gain);
     normalize();
     if (params.knots > 0u) {
       let ideal = f32(ip) + fp;

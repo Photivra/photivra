@@ -18,7 +18,7 @@ import {
   type CalculationResult
 } from "../core/calculation-result.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
-import { calculateEffectiveSaturationCode } from "../capture/raw-white-level.js";
+import { computeEffectiveSaturationCode } from "../capture/raw-white-level.js";
 import {
   parseEvidenceList,
   type EvidenceProvenance
@@ -39,7 +39,7 @@ import type {
 import type {
   SensorSpectralResponseScientificStatus
 } from "./spectral-response.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -203,7 +203,8 @@ export interface SensorRawReconstructedPixel {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -214,6 +215,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -331,7 +333,7 @@ function parseContribution(
   path: string
 ): SensorRawReconstructionKernelContribution {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["offsetX", "offsetY", "sourceChannelId", "weight"]);
   return {
     offsetX:
       requireSafeInteger(
@@ -361,7 +363,7 @@ function parseKernel(
   path: string
 ): SensorRawReconstructionChannelKernel {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["contributions", "outputChannelId"]);
   if (
     !Array.isArray(
       record.contributions
@@ -449,7 +451,7 @@ export function parseSensorRawReconstructionProfile(
   const record =
     requireRecord(
       value,
-      "sensorRawReconstructionProfile"
+      "sensorRawReconstructionProfile", ["schemaVersion", "method", "normalization", "negativeBlackSubtractedValuesAllowed", "kernels", "profileId", "profileVersion", "captureModeId", "colorSamplingProfileId", "scientificStatus", "evidence", "limitations"]
     );
   if (
     record.schemaVersion !==
@@ -686,7 +688,7 @@ export function createSensorRawCaptureSample(
       ) /
       denominator,
     effectiveSaturationCode:
-      calculateEffectiveSaturationCode(
+      computeEffectiveSaturationCode(
         input.adcIntegralNonLinearity ===
           undefined
           ? raw
@@ -1068,7 +1070,7 @@ export function createBuiltInBayerDemosaicProfiles(input: CreateBuiltInBayerDemo
   if (kernel !== "bilinear") throw new InvalidConfigurationError("Unknown built-in Bayer demosaic kernel.");
   const captureModeId = requireNonEmptyString(input.captureModeId, "captureModeId");
   const cfa = parseSensorColorSamplingProfile(input.colorSamplingProfile), layout = cfa.layout;
-  const roles = requireRecord(input.channelRoles, "channelRoles");
+  const roles = requireRecord(input.channelRoles, "channelRoles", ["red", "green", "blue"]);
   const ids: Record<BayerRole, string> = { R: requireNonEmptyString(roles.red, "channelRoles.red"),
     G: requireNonEmptyString(roles.green, "channelRoles.green"), B: requireNonEmptyString(roles.blue, "channelRoles.blue") };
   if (new Set(Object.values(ids)).size !== 3) throw new InvalidConfigurationError("channelRoles must name three distinct channels.");

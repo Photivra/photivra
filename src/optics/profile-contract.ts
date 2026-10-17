@@ -43,8 +43,9 @@ export function record(value: unknown, keys: readonly string[]): Record<string, 
     throw new InvalidConfigurationError("Expected a profile object.");
   }
   const result = value as Record<string, unknown>;
-  if (Object.keys(result).some((key) => !keys.includes(key))) {
-    throw new InvalidConfigurationError("Unknown profile field.");
+  const unknown = Object.keys(result).find((key) => !keys.includes(key));
+  if (unknown !== undefined) {
+    throw new InvalidConfigurationError(`Unknown profile field. Unknown field ${JSON.stringify(unknown)}.`);
   }
   return result;
 }

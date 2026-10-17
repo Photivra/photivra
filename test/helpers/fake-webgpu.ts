@@ -5,8 +5,8 @@
  * by pipeline label, so packing, banding, readback, counters and lifecycle are exercised without a GPU.
  * Real-GPU conformance lives in test/webgpu (npm run test:webgpu).
  */
-import { SDR_COUNTER } from "../../src/gpu/wgsl-kernels.js";
-import { emulateSensor, emulateTemporalSum } from "./fake-webgpu-stages.js";
+import { SDR_COUNTER, SDR_TONE_MODE } from "../../src/gpu/wgsl-kernels.js";
+import { emulateChart, emulateSensor, emulateTemporalSum } from "./fake-webgpu-stages.js";
 
 const f = Math.fround;
 
@@ -65,6 +65,58 @@ function renderSample(e: number, sourceNonzero: boolean, band0: number, band1: n
   return Math.min(maximum, Math.max(0, Math.floor(f(f(encode(linear) * maximum) + .5))));
 }
 
+const LU = 2 ** -24, ULP1 = 2 ** -23;
+const bits = (x: number): number => new Uint32Array(new Float32Array([x]).buffer)[0]!;
+/** Mirrors LUMINANCE_FUNCTIONS (wgsl-kernels.ts); `tone`, `lum` are the uniform vectors. */
+function toneH(l: number, mode: number, tone: Float32Array): [number, number, number] {
+  if (mode === SDR_TONE_MODE.extendedReinhard) return [f(f(1 + f(l * tone[0]!)) / f(1 + l)), 14 * LU, 0];
+  const lg = f(Math.log2(f(tone[0]! / l))), n = tone[1]!, z = f(n * lg);
+  const dz = n * (4.76837158203125e-7 + 3 * ULP1 * Math.abs(lg) + 9 * LU) + 2 * LU * Math.abs(z);
+  const rho = 0.7 * dz * (1 + dz) + (3 + 2 * Math.abs(z)) * ULP1 + 9.094947e-13 * (1 + Math.abs(z)), eta = 2 * rho + 16 * LU;
+  if (z >= 0) {
+    const p = f(2 ** -z), abs = p < 7.52316384526264e-37 ? tone[2]! * 3.009265538105056e-36 / l : 0;
+    return [f(f(tone[2]! * p) / f(l * f(1 + p))), eta, abs];
+  }
+  const p = f(2 ** z);
+  return [f(tone[2]! / f(l * f(1 + p))), eta, 0];
+}
+function luminanceTone(e: number[], eps: number[], mode: number, tone: Float32Array, lum: Float32Array): { m: number[]; delta: number[]; changed: boolean } {
+  const ae = e.map(Math.abs), ea = ae.map((v, j) => v + eps[j]!);
+  const s = f(f(f(lum[0]! * ae[0]!) + f(lum[1]! * ae[1]!)) + f(lum[2]! * ae[2]!));
+  const l = f(f(f(lum[0]! * e[0]!) + f(lum[1]! * e[1]!)) + f(lum[2]! * e[2]!));
+  const lambda = ((lum[0]! * eps[0]! + lum[1]! * eps[1]!) + lum[2]! * eps[2]! + 6 * LU * s) * 1.001;
+  if (l < -2 * lambda || (l === 0 && lambda === 0)) return { m: e, delta: eps, changed: false };
+  if (l > 2 * lambda) {
+    const [h, eta, abs] = toneH(l, mode, tone), q = lambda / l, T = lum[3]!;
+    const fq = T * (((1 + q) / (1 - q)) ** T / (1 - q) * 1.01) * q, hh = h * (1 + 2 * eta) + abs;
+    const m = e.map(v => f(v * h));
+    return { m, delta: m.map((v, j) => (eps[j]! * hh * (1 + fq) + ea[j]! * (hh * (eta + fq) + abs) + 2 * LU * Math.abs(v)) * 1.001),
+      changed: Math.abs(h - 1) <= 2 * (eta + fq) * Math.max(1, h) + abs + 4 * LU };
+  }
+  const hsup = mode === SDR_TONE_MODE.nakaRushton ? tone[2]! * (3 * lambda) ** (tone[1]! - 1) / tone[3]! * 1.01 : Math.max(1, tone[0]!);
+  const m = l > 0 ? e.map(v => f(v * toneH(l, mode, tone)[0])) : e;
+  return { m, delta: ea.map(v => 2 * v * (1 + hsup * 1.001) * 1.001), changed: true };
+}
+function renderToned(e: number, sourceNonzero: boolean, band0: number, band1: number, m: number, delta: number, changedUncertain: boolean, reject: boolean,
+  maximum: number, counters: Uint32Array): number {
+  let uncertain = (e === 0 && sourceNonzero) || Math.abs(f(e - 1)) <= band1 || (band0 > 0 && Math.abs(e) <= band0) || (changedUncertain && e !== 0);
+  const gamut = (m - delta < 0 && m + delta >= 0) || (m + delta > 1 && m - delta <= 1);
+  if (gamut) { uncertain = true; counters[SDR_COUNTER.gamutUncertain]!++; }
+  if (uncertain) counters[SDR_COUNTER.uncertain]!++;
+  if (e < 0) counters[SDR_COUNTER.negative]!++;
+  if (e > 1) counters[SDR_COUNTER.above]!++;
+  if (m !== e) counters[SDR_COUNTER.changed]!++;
+  if (!(Math.abs(m) + delta <= 1.2676506002282294e30)) counters[SDR_COUNTER.luminanceDomain]!++;
+  let linear = m, bound = Math.min(delta, 1);
+  if (m < 0 || m > 1) {
+    if (reject) counters[SDR_COUNTER.outOfGamut]!++;
+    else if (m < 0) { counters[SDR_COUNTER.low]!++; linear = 0; } else { counters[SDR_COUNTER.high]!++; linear = 1; }
+  }
+  if (!reject && (m - delta >= 1 || m + delta <= 0)) bound = 0;
+  counters[SDR_COUNTER.linearBoundBits] = Math.max(counters[SDR_COUNTER.linearBoundBits]!, bits(Math.max(bound, 0)));
+  return Math.min(maximum, Math.max(0, Math.floor(f(f(encode(linear) * maximum) + .5))));
+}
+
 function emulate(label: string, buffers: Map<number, FakeBuffer>): void {
   const u32 = (b: number): Uint32Array => new Uint32Array(buffers.get(b)!.data);
   const i32 = (b: number): Int32Array => new Int32Array(buffers.get(b)!.data);
@@ -74,6 +126,14 @@ function emulate(label: string, buffers: Map<number, FakeBuffer>): void {
     for (let i = 0; i < p[0]!; i++) {
       const s = source[i]!;
       codes[i] = renderSample(f(s * pf[4]!), s !== 0, 0, pf[6]!, p[1] !== 0, p[2] !== 0, pf[5]!, counters);
+    }
+  } else if (label === "photivra-sdr-luminance") {
+    const p = u32(0), pf = f32(0), source = f32(1), codes = u32(2), counters = u32(3), tone = pf.subarray(8, 12), lum = pf.subarray(12, 16);
+    for (let i = 0; i < p[0]!; i++) {
+      const s = [0, 1, 2].map(j => source[i * 3 + j]!), e = s.map(v => f(v * pf[4]!));
+      const eps = e.map((v, j) => 4 * LU * Math.abs(v) + (s[j] !== 0 && Math.abs(v) < 7.888609052210118e-31 ? 2.350988701644575e-38 * Math.max(1, pf[4]!) : 0));
+      const t = luminanceTone(e, eps, p[2]!, tone, lum);
+      for (let j = 0; j < 3; j++) codes[i * 3 + j] = renderToned(e[j]!, s[j] !== 0, 0, pf[6]!, t.m[j]!, t.delta[j]!, t.changed, p[1] !== 0, pf[5]!, counters);
     }
   } else if (label === "photivra-irradiance-convolution") {
     const p = u32(0), source = f32(1), kernels = f32(2), result = f32(3);
@@ -129,11 +189,18 @@ function emulate(label: string, buffers: Map<number, FakeBuffer>): void {
         } else b = uu;
       }
       const xyz = [row3(28, b), row3(32, b), row3(36, b)], rgb = [row3(40, xyz), row3(44, xyz), row3(48, xyz)];
-      for (let j = 0; j < 3; j++) codes[i * 3 + j] = renderSample(f(rgb[j]! * scale!), false, band0!, band1!, reinhard !== 0, reject !== 0, maximum!, counters);
+      if (p[52] === SDR_TONE_MODE.perChannel) {
+        for (let j = 0; j < 3; j++) codes[i * 3 + j] = renderSample(f(rgb[j]! * scale!), false, band0!, band1!, reinhard !== 0, reject !== 0, maximum!, counters);
+      } else {
+        const e = rgb.map(v => f(v * scale!)), t = luminanceTone(e, [band0!, band0!, band0!], p[52]!, pf.subarray(56, 60), pf.subarray(60, 64));
+        for (let j = 0; j < 3; j++) codes[i * 3 + j] = renderToned(e[j]!, false, band0!, band1!, t.m[j]!, t.delta[j]!, t.changed, reject !== 0, maximum!, counters);
+      }
     }
   } else if (label === "photivra-sensor-raw") {
     const means = buffers.get(1)!.data;
     emulateSensor(u32(0), i32(0), f32(0), new Uint32Array(means), new Float32Array(means), f32(2), u32(3));
+  } else if (label === "photivra-chart-radiance") {
+    emulateChart(u32(0), f32(0), f32(1), f32(2), f32(3), u32(4), f32(5), u32(6));
   } else if (label === "photivra-temporal-sum") {
     emulateTemporalSum(u32(0), f32(1), buffers.get(2)!.data, f32(3), f32(4));
   } else {

@@ -39,7 +39,7 @@ import type {
   ExposureMeteringSampleSet,
   ExposureMeteringZoneSample
 } from "./metering.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -126,7 +126,8 @@ export interface CreateSceneRadianceDerivedExposureMeteringSampleSetInput {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -137,6 +138,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -182,7 +184,7 @@ export function parseSceneRadianceMeteringDerivationProfile(
 ): SceneRadianceMeteringDerivationProfile {
   const record = requireRecord(
     value,
-    "sceneRadianceMeteringDerivationProfile"
+    "sceneRadianceMeteringDerivationProfile", ["schemaVersion", "scientificStatus", "method", "spectralWeighting", "derivationId", "evidence", "limitation"]
   );
 
   if (

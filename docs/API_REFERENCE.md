@@ -269,6 +269,8 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`calculatePackedSensorRawPlan`](api/capture-packed-sensor-raw.md#calculatepackedsensorrawplan) | Runtime |
 | [`PACKED_SENSOR_RAW_LIMITS`](api/capture-packed-sensor-raw.md#packed_sensor_raw_limits) | Runtime |
 | [`PACKED_SENSOR_RAW_SCHEMA_VERSION`](api/capture-packed-sensor-raw.md#packed_sensor_raw_schema_version) | Runtime |
+| [`PackedSensorAdditionalChargeComponent`](api/capture-packed-sensor-raw.md#packedsensoradditionalchargecomponent) | Type |
+| [`PackedSensorFixedPatternNoise`](api/capture-packed-sensor-raw.md#packedsensorfixedpatternnoise) | Type |
 | [`PackedSensorRawDiagnostics`](api/capture-packed-sensor-raw.md#packedsensorrawdiagnostics) | Type |
 | [`PackedSensorRawInput`](api/capture-packed-sensor-raw.md#packedsensorrawinput) | Type |
 | [`PackedSensorRawPlan`](api/capture-packed-sensor-raw.md#packedsensorrawplan) | Type |
@@ -1077,6 +1079,20 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`ExposureProgramLineProfile`](api/exposure-program-line.md#exposureprogramlineprofile) | Type |
 | [`parseExposureProgramLineProfile`](api/exposure-program-line.md#parseexposureprogramlineprofile) | Runtime |
 
+## facade/chart-radiance-batch.ts
+
+[Detailed contracts](api/facade-chart-radiance-batch.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/chart-radiance-batch.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateChartRadianceBatch`](api/facade-chart-radiance-batch.md#calculatechartradiancebatch) | Runtime |
+| [`calculateChartRadianceBatchPlan`](api/facade-chart-radiance-batch.md#calculatechartradiancebatchplan) | Runtime |
+| [`CHART_RADIANCE_BATCH_LIMITS`](api/facade-chart-radiance-batch.md#chart_radiance_batch_limits) | Runtime |
+| [`CHART_RADIANCE_BATCH_SCHEMA_VERSION`](api/facade-chart-radiance-batch.md#chart_radiance_batch_schema_version) | Runtime |
+| [`ChartRadianceBatchInput`](api/facade-chart-radiance-batch.md#chartradiancebatchinput) | Type |
+| [`ChartRadianceBatchPlan`](api/facade-chart-radiance-batch.md#chartradiancebatchplan) | Type |
+| [`mapEnvironmentDirectionsToChartPoints`](api/facade-chart-radiance-batch.md#mapenvironmentdirectionstochartpoints) | Runtime |
+
 ## facade/chart-scenes.ts
 
 [Detailed contracts](api/facade-chart-scenes.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/facade/chart-scenes.ts)
@@ -1149,6 +1165,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`AcceleratedNativeCaptureSdrOutput`](api/gpu-image-kernel-accelerator.md#acceleratednativecapturesdroutput) | Type |
 | [`AcceleratedNativeRawDevelopmentOutput`](api/gpu-image-kernel-accelerator.md#acceleratednativerawdevelopmentoutput) | Type |
 | [`AcceleratedPackedSensorRawResult`](api/gpu-image-kernel-accelerator.md#acceleratedpackedsensorrawresult) | Type |
+| [`ChartRadianceResult`](api/gpu-image-kernel-accelerator.md#chartradianceresult) | Type |
 | [`createImageKernelAccelerator`](api/gpu-image-kernel-accelerator.md#createimagekernelaccelerator) | Runtime |
 | [`ImageKernelAccelerator`](api/gpu-image-kernel-accelerator.md#imagekernelaccelerator) | Type |
 | [`ImageKernelAcceleratorOptions`](api/gpu-image-kernel-accelerator.md#imagekernelacceleratoroptions) | Type |
@@ -1485,6 +1502,18 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`LateralChromaticAberrationMapping`](api/optics-lateral-chromatic-aberration.md#lateralchromaticaberrationmapping) | Type |
 | [`LateralChromaticAberrationProfile`](api/optics-lateral-chromatic-aberration.md#lateralchromaticaberrationprofile) | Type |
 | [`LateralChromaticAberrationSeparation`](api/optics-lateral-chromatic-aberration.md#lateralchromaticaberrationseparation) | Type |
+
+## optics/lens-psf-kernels.ts
+
+[Detailed contracts](api/optics-lens-psf-kernels.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/optics/lens-psf-kernels.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`LENS_PSF_CONVOLUTION_KERNELS_MAXIMUM_WAVELENGTHS`](api/optics-lens-psf-kernels.md#lens_psf_convolution_kernels_maximum_wavelengths) | Runtime |
+| [`LENS_PSF_CONVOLUTION_KERNELS_SCHEMA_VERSION`](api/optics-lens-psf-kernels.md#lens_psf_convolution_kernels_schema_version) | Runtime |
+| [`LensPsfConvolutionKernels`](api/optics-lens-psf-kernels.md#lenspsfconvolutionkernels) | Type |
+| [`LensPsfConvolutionKernelsInput`](api/optics-lens-psf-kernels.md#lenspsfconvolutionkernelsinput) | Type |
+| [`resolveLensPsfConvolutionKernels`](api/optics-lens-psf-kernels.md#resolvelenspsfconvolutionkernels) | Runtime |
 
 ## optics/lens-psf-profile.ts
 

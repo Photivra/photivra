@@ -34,7 +34,7 @@ import {
   parseSensorColorSamplingProfile,
   type SensorColorSamplingProfile
 } from "./color-sampling.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields, rejectUnknownVariantFields, UNCERTAINTY_VARIANT_FIELDS } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -243,7 +243,8 @@ export interface ResolvedSensorSpectralResponse {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -254,6 +255,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -345,7 +347,8 @@ function parseUncertainty(
   value: unknown,
   path: string
 ): SensorSpectralResponseUncertainty {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, null);
+  rejectUnknownVariantFields(record, "kind", UNCERTAINTY_VARIANT_FIELDS, path);
 
   if (record.kind === "relative") {
     const fraction = requireFinite(
@@ -387,7 +390,7 @@ function parseReferenceConditions(
   value: unknown,
   path: string
 ): SensorSpectralReferenceConditions {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["temperatureC", "incidenceAngleDegreesFromNormal", "polarization"]);
   const temperatureC =
     record.temperatureC === undefined
       ? undefined
@@ -523,7 +526,7 @@ function parseFractionSamples(
   return value.map((entry, index) => {
     const record = requireRecord(
       entry,
-      path + "[" + index + "]"
+      path + "[" + index + "]", ["wavelengthNanometers", "value"]
     );
     const wavelengthNanometers =
       requirePositiveFinite(
@@ -579,7 +582,7 @@ function parseResponsivitySamples(
   return value.map((entry, index) => {
     const record = requireRecord(
       entry,
-      path + "[" + index + "]"
+      path + "[" + index + "]", ["wavelengthNanometers", "amperesPerWatt"]
     );
     const wavelengthNanometers =
       requirePositiveFinite(
@@ -632,7 +635,7 @@ function parseFractionCurve(
 ): SpectralFractionCurve {
   const record = requireRecord(
     value,
-    path
+    path, ["wavelengthUnit", "interpolation", "outsideRangeBehavior", "wavelengthBasis", "evidence", "samples"]
   );
   return {
     ...parseCurveBase(record, path),
@@ -649,7 +652,7 @@ function parseResponsivityCurve(
 ): SpectralResponsivityCurve {
   const record = requireRecord(
     value,
-    path
+    path, ["wavelengthUnit", "interpolation", "outsideRangeBehavior", "wavelengthBasis", "evidence", "samples"]
   );
   return {
     ...parseCurveBase(record, path),
@@ -739,7 +742,7 @@ function parseChannelResponse(
 ): SensorSpectralChannelResponse {
   const record = requireRecord(
     value,
-    path
+    path, ["channelId", "scientificStatus", "uncertainty", "evidence", "referenceConditions", "conditionDependence", "kind", "responseScope", "externalQuantumEfficiency", "spectralResponsivity", "combinationRule", "channelFilterTransmittance", "detectorExternalQuantumEfficiency"]
   );
   const channelId =
     requireNonEmptyString(
@@ -955,7 +958,7 @@ export function parseSensorSpectralResponseProfile(
 ): SensorSpectralResponseProfile {
   const profile = requireRecord(
     value,
-    "sensorSpectralResponse"
+    "sensorSpectralResponse", ["schemaVersion", "channels", "profileId", "colorSamplingProfileId", "evidence"]
   );
 
   if (

@@ -30,7 +30,7 @@ import {
   type ResolvedSensorReadoutRegime,
   type SensorReadoutConversionProfile
 } from "./raw-readout.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -153,7 +153,8 @@ export interface GenericIsoSignalChainPresetCatalog {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -164,6 +165,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -236,7 +238,7 @@ function parseStandardBand(
   path: string
 ): GenericIsoStandardRegimeBand {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["minimumExposureIndex", "maximumExposureIndex", "readoutRegimeId"]);
   const minimumExposureIndex =
     requirePositiveFinite(
       record.minimumExposureIndex,
@@ -275,7 +277,7 @@ function parseCaptureModeBinding(
   path: string
 ): GenericIsoCaptureModeSignalChainBinding {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["standardRegimeBands", "expandedRegimeBindings", "captureModeId", "evidence"]);
   if (
     !Array.isArray(
       record.standardRegimeBands
@@ -344,7 +346,7 @@ function parseCaptureModeBinding(
         const binding =
           requireRecord(
             entry,
-            entryPath
+            entryPath, ["expandedSettingId", "readoutRegimeId"]
           );
         return {
           expandedSettingId:
@@ -411,7 +413,7 @@ export function parseGenericIsoSignalChainProfile(
   const record =
     requireRecord(
       value,
-      "genericIsoSignalChainProfile"
+      "genericIsoSignalChainProfile", ["schemaVersion", "scientificStatus", "behaviorMeaning", "photonShotNoiseOwnedUpstream", "processedImageBehaviorIncluded", "fixedPatternNoiseModeled", "lowSignalColorDegradationModeled", "captureModeBindings", "profileId", "profileVersion", "isoCapabilityProfileId", "readoutProfileId", "evidence", "limitations"]
     );
   if (
     record.schemaVersion !==
@@ -759,7 +761,7 @@ export function parseGenericIsoSignalChainPresetCatalog(
   const record =
     requireRecord(
       value,
-      "genericIsoSignalChainPresetCatalog"
+      "genericIsoSignalChainPresetCatalog", ["schemaVersion", "performanceOrderingClaimed", "realCameraRankingClaimed", "entries", "catalogId", "catalogVersion"]
     );
   if (
     record.schemaVersion !==
@@ -802,7 +804,7 @@ export function parseGenericIsoSignalChainPresetCatalog(
         const parsed =
           requireRecord(
             entry,
-            path
+            path, ["preset", "signalChainProfileId", "evidence"]
           );
         if (
           typeof parsed.preset !==

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Synthetic packed sensor-stage and temporal-sum inputs (declared test values, not calibration). */
-import type { PackedSensorRawInput, SensorReadoutConversionProfile, TemporalExposureSumInput } from "../../src/index.js";
+import type { PackedSensorRawInput, SensorFixedPatternNoiseProfile, SensorReadoutConversionProfile, TemporalExposureSumInput } from "../../src/index.js";
 import { loadSensorRawProducerInput } from "./sensor-raw-producer-fixture.js";
 
 export interface ReadoutOptions {
@@ -54,6 +54,39 @@ export function sensorCorpus(width: number, height: number, seed: number, readou
   return sensorStageInput({ width, height, seed, capacity, readout,
     photo: () => { const level = levels[Math.floor(random() * levels.length)]!; return level === 0 ? 0 : level >= 1e9 ? level + 1e7 * random() : level * (0.9 + 0.2 * random()); },
     dark: () => (random() < 0.3 ? 5 * random() : 0) });
+}
+
+const fpnEvidence = [{ sourceOrigin: "photivra", sourceReference: "test:packed-fixed-pattern", reuseStatus: "photivra-owned" }] as const;
+const fpnFact = <T>(value: T): { value: T; evidence: typeof fpnEvidence } => ({ value, evidence: fpnEvidence });
+
+/** A synthetic fixed-pattern profile (declared test values, not a measured sensor). */
+export function fixedPatternProfile(o: { prnu?: number; dsnu?: number; hotFraction?: number; hotMultiplier?: number; row?: number; column?: number;
+  seed?: number } = {}): SensorFixedPatternNoiseProfile {
+  return { schemaVersion: "0.1.0", profileId: "fpn-test", colorSamplingProfileId: "color", scientificStatus: "approximation",
+    sensorInstanceSeedUint32: o.seed ?? 2024, photoResponseNonUniformity: { relativeStandardDeviation: fpnFact(o.prnu ?? 0.01) },
+    darkSignalNonUniformity: { relativeStandardDeviation: fpnFact(o.dsnu ?? 0.2) },
+    hotPixels: { siteFraction: fpnFact(o.hotFraction ?? 0.01), darkCurrentMultiplier: fpnFact(o.hotMultiplier ?? 40) },
+    rowOffset: { rmsElectrons: fpnFact(o.row ?? 1.5) }, columnOffset: { rmsElectrons: fpnFact(o.column ?? 0.75) },
+    patternDistribution: "normal-factors-truncated-at-zero", evidence: fpnEvidence, limitations: ["Synthetic test pattern."] };
+}
+
+/**
+ * The sensor corpus plus fixed-pattern noise and three additional stored-charge components: a Poisson
+ * leakage, a fractional deterministic charge and a second Poisson component.
+ */
+export function fixedPatternCorpus(width: number, height: number, seed: number, readout = readoutProfile(), capacity = 60_000,
+  fpn = fixedPatternProfile()): PackedSensorRawInput {
+  const base = sensorCorpus(width, height, seed, readout, capacity), random = corpusRandom(seed * 7 + 1), count = width * height;
+  const leak = new Float64Array(count), offset = new Float64Array(count), glow = new Float64Array(count);
+  for (let i = 0; i < count; i++) {
+    leak[i] = random() < 0.5 ? 0 : 40 * random();
+    offset[i] = random() < 0.2 ? 0 : 3.3 * random() + (random() < 0.1 ? 1000 * random() : 0);
+    glow[i] = random() < 0.8 ? 0 : 2_000 * random();
+  }
+  return { ...base, fixedPatternNoise: { profile: fpn, colorSamplingProfileId: "color", siteOrigin: { x: 3, y: 11 } },
+    additionalChargeComponents: [{ componentId: "leak", model: "poisson", expectedElectrons: leak },
+      { componentId: "offset", model: "deterministic-expected-electron-equivalent", expectedElectrons: offset },
+      { componentId: "glow", model: "poisson", expectedElectrons: glow }] };
 }
 
 /** Temporal-sum corpus: nine-decade samples, `nodes` displacements along a path, rolling row windows. */

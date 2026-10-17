@@ -29,11 +29,26 @@ import { ImageKernelExecutionError, cpuExecution, float32Gamma, integerCodeBound
 import { BUFFER_USAGE, GpuResourceScope, abortedError, acquireWebGpuRuntime, createComputePipeline, linearDispatch, runComputePass,
   type WebGpuRuntime } from "./webgpu-runtime.js";
 import { CONVOLUTION_WORKGROUP_EDGE, IRRADIANCE_CONVOLUTION_WGSL, LINEAR_WORKGROUP_SIZE, RAW_DEVELOPMENT_WGSL, SDR_COUNTER, SDR_COUNTER_SLOTS,
-  SDR_WGSL } from "./wgsl-kernels.js";
+  SDR_LUMINANCE_WGSL, SDR_TONE_MODE, SDR_WGSL } from "./wgsl-kernels.js";
 import type { PackedSensorRawInput, PackedSensorRawResult } from "../capture/packed-sensor-raw.js";
 import { simulateSensorRawOnCpu, simulateSensorRawOnGpu } from "./sensor-stage-gpu.js";
 import { calculateTemporalExposureSumPlan, type TemporalExposureSumInput, type TemporalExposureSumPlan } from "../motion/temporal-exposure-sum.js";
 import { sumTemporalExposureOnCpu, sumTemporalExposureOnGpu } from "./temporal-sum-gpu.js";
+import type { ChartRadianceBatchInput, ChartRadianceBatchPlan } from "../facade/chart-radiance-batch.js";
+import { evaluateChartRadianceOnCpu, evaluateChartRadianceOnGpu } from "./chart-radiance-gpu.js";
+
+export interface ChartRadianceResult {
+  plan: ChartRadianceBatchPlan;
+  /** Row-major (query, column): float64 for `cpu-reference`, float32 for `webgpu-f32`. */
+  values: Float64Array | Float32Array;
+  columns: number;
+  execution: ImageKernelExecution;
+  /**
+   * Queries whose float32 classification fell inside its bound, recomputed on the host with the
+   * reference (then rounded to float32). Empty for `cpu-reference`.
+   */
+  hostRecomputedQueryIndices: Uint32Array;
+}
 
 export interface AcceleratedPackedSensorRawResult extends PackedSensorRawResult {
   execution: ImageKernelExecution;
@@ -95,6 +110,8 @@ export interface ImageKernelAccelerator {
   simulateSensorRaw(input: PackedSensorRawInput, options?: ImageKernelRunOptions): Promise<AcceleratedPackedSensorRawResult>;
   /** Exposure and motion as a weighted sum of shifted frames (see `calculateTemporalExposureSum`). */
   sumTemporalExposure(input: TemporalExposureSumInput, options?: ImageKernelRunOptions): Promise<TemporalExposureSumResult>;
+  /** Chart scene radiance or its spectral integral at many frame points (see `calculateChartRadianceBatch`). */
+  evaluateChartRadiance(input: ChartRadianceBatchInput, options?: ImageKernelRunOptions): Promise<ChartRadianceResult>;
   dispose(): void;
 }
 
@@ -243,6 +260,13 @@ function createAccelerator(requested: ImageKernelBackend, fallbackReason: ImageK
           (label, code) => pipeline(runtime, label, code, abort.signal));
       });
     },
+    async evaluateChartRadiance(input, options): Promise<ChartRadianceResult> {
+      const run = runOptions(options);
+      return operate(run.signal, async (abort) => {
+        if (!runtime) return evaluateChartRadianceOnCpu(input, abort, run.yieldControl, cpuLabel());
+        return evaluateChartRadianceOnGpu(runtime, bandBytes, input, abort, run.yieldControl, (label, code) => pipeline(runtime, label, code, abort.signal));
+      });
+    },
     dispose(): void {
       if (disposed) return;
       disposed = true;
@@ -328,11 +352,51 @@ async function convolveOnGpu(runtime: WebGpuRuntime, bandBytes: number, plan: Ir
   return { plan, values, inputSum, outputSum: sumOf(values), execution };
 }
 
-/** The float32 kernels implement the per-channel tone curves only; luminance curves stay CPU-only. */
-function requirePerChannelTone(profile: SdrRenderingProfile): void {
-  if (profile.toneCurve !== "identity" && profile.toneCurve !== "positive-reinhard-per-channel") {
-    throw new ImageKernelExecutionError("unsupported-on-backend",
-      "webgpu-f32 implements the identity and per-channel Reinhard tone curves only; use cpu-reference for luminance tone curves.");
+/** Uniform values of a tone curve for the float32 kernels (see wgsl-kernels.ts, LUMINANCE_FUNCTIONS). */
+interface ToneUniform { mode: number; tone: [number, number, number, number]; lum: [number, number, number, number] }
+
+/**
+ * The tone curve's kernel constants. Luminance curves run on the GPU within this float32 domain:
+ * extended Reinhard with Lw ≥ 2^-20; Naka–Rushton with exponent n ≥ 1 (below 1 its ratio f(L)/L is
+ * unbounded as L → 0, so no useful bound exists near L = 0), 1/g(Lw) ≤ 2^60 and σⁿ ≥ 2^-60.
+ * @internal
+ */
+export function toneUniform(profile: Pick<SdrRenderingProfile, "toneCurve" | "toneCurveParameters">): ToneUniform {
+  const [kr, kg, kb] = resolveCaptureColorModel().cameraRgbToXyz[1]! as readonly number[];
+  const p = profile.toneCurveParameters;
+  if (profile.toneCurve === "identity" || profile.toneCurve === "positive-reinhard-per-channel") {
+    return { mode: SDR_TONE_MODE.perChannel, tone: [0, 0, 0, 0], lum: [0, 0, 0, 0] };
+  }
+  if (profile.toneCurve === "extended-reinhard-luminance" && p && !("exponent" in p)) {
+    if (!(p.whiteLuminance >= 2 ** -20)) throw new ImageKernelExecutionError("unsupported-float32-domain", "Extended Reinhard white luminance below 2^-20 is outside the float32 domain.");
+    return { mode: SDR_TONE_MODE.extendedReinhard, tone: [1 / (p.whiteLuminance * p.whiteLuminance), 0, 0, 0], lum: [kr!, kg!, kb!, 1] };
+  }
+  if (profile.toneCurve === "naka-rushton-luminance" && p && "exponent" in p) {
+    const q = p as Extract<NonNullable<SdrRenderingProfile["toneCurveParameters"]>, { exponent: number }>, n = q.exponent, sigma = q.semiSaturation;
+    if (!(n >= 1)) {
+      throw new ImageKernelExecutionError("unsupported-on-backend", "webgpu-f32 implements Naka–Rushton with exponent ≥ 1; use cpu-reference below 1.");
+    }
+    const white = 1 / (1 + (sigma / q.whiteLuminance) ** n), sigmaN = sigma ** n;
+    if (!(1 / white <= 2 ** 60 && sigmaN >= 2 ** -60)) {
+      throw new ImageKernelExecutionError("unsupported-float32-domain", "Naka–Rushton parameters are outside the float32 domain.");
+    }
+    return { mode: SDR_TONE_MODE.nakaRushton, tone: [sigma, n, 1 / white, sigmaN], lum: [kr!, kg!, kb!, Math.max(1, n - 1)] };
+  }
+  throw new InvalidConfigurationError("Unsupported SDR rendering profile.");
+}
+
+/** Adds one band's counters into the run's; the luminance bound slot keeps the largest float32 value. */
+function mergeCounters(counters: number[], band: Uint32Array): void {
+  band.forEach((value, i) => {
+    if (i === SDR_COUNTER.linearBoundBits) counters[i] = Math.max(counters[i]!, new Float32Array(new Uint32Array([value]).buffer)[0]!);
+    else counters[i]! += value;
+  });
+}
+
+/** Fails closed when a luminance-toned sample left the float32 domain. */
+function requireLuminanceDomain(counters: readonly number[]): void {
+  if (counters[SDR_COUNTER.luminanceDomain]! > 0) {
+    throw new ImageKernelExecutionError("unsupported-float32-domain", "A luminance-toned sample is outside the float32 execution domain.");
   }
 }
 
@@ -352,7 +416,7 @@ function requireGamutDecision(reject: boolean, counters: readonly number[]): voi
 }
 
 async function dispatchSdrBand(runtime: WebGpuRuntime, pipeline: GPUComputePipeline, staging: Float32Array<ArrayBuffer>, count: number,
-  params: ArrayBuffer, abort: AbortController): Promise<{ codes: Uint32Array; counters: Uint32Array }> {
+  params: ArrayBuffer, abort: AbortController, invocations: number): Promise<{ codes: Uint32Array; counters: Uint32Array }> {
   const scope = new GpuResourceScope(runtime);
   try {
     const source = scope.upload("photivra-sdr-source", staging.subarray(0, count), BUFFER_USAGE.STORAGE);
@@ -363,7 +427,7 @@ async function dispatchSdrBand(runtime: WebGpuRuntime, pipeline: GPUComputePipel
       { binding: 0, resource: { buffer: uniform } }, { binding: 1, resource: { buffer: source } },
       { binding: 2, resource: { buffer: codes } }, { binding: 3, resource: { buffer: counters } }] });
     const [codeData, counterData] = await runComputePass(runtime, scope, pipeline, bindGroup,
-      linearDispatch(count, LINEAR_WORKGROUP_SIZE, runtime.maximumWorkgroupsPerDimension),
+      linearDispatch(invocations, LINEAR_WORKGROUP_SIZE, runtime.maximumWorkgroupsPerDimension),
       [{ buffer: codes, bytes: count * 4 }, { buffer: counters, bytes: SDR_COUNTER_SLOTS * 4 }], abort.signal);
     return { codes: new Uint32Array(codeData!, 0, count), counters: new Uint32Array(counterData!, 0, SDR_COUNTER_SLOTS) };
   } finally {
@@ -379,7 +443,7 @@ async function renderSdrOnGpu(runtime: WebGpuRuntime, bandBytes: number, input: 
   }
   if (provider.onProgress !== undefined && typeof provider.onProgress !== "function") throw new InvalidConfigurationError("Native SDR onProgress must be a function.");
   const readTile = provider.readTile.bind(provider), yieldControl = provider.yieldControl.bind(provider), onProgress = provider.onProgress?.bind(provider);
-  requirePerChannelTone(plan.profile);
+  const tone = toneUniform(plan.profile), luminance = tone.mode !== SDR_TONE_MODE.perChannel;
   const plane = plan.capture.planes.find(p => p.id === plan.sourcePlaneId)!;
   if (plane.storage.kind === "inline-float64") throw new InvalidConfigurationError("External native source required.");
   const storage = plane.storage, profile = plan.profile, width = plane.pixelWidth, height = plane.pixelHeight;
@@ -392,9 +456,14 @@ async function renderSdrOnGpu(runtime: WebGpuRuntime, bandBytes: number, input: 
     throw new ImageKernelExecutionError("insufficient-limits", "One SDR tile row exceeds the device's storage binding limit.");
   }
   const reinhard = profile.toneCurve === "positive-reinhard-per-channel", reject = profile.gamutHandling === "reject-out-of-range";
-  const params = new ArrayBuffer(32), words = new Uint32Array(params), floats = new Float32Array(params);
-  words[1] = reinhard ? 1 : 0; words[2] = reject ? 1 : 0; floats[4] = scale32; floats[5] = maximum; floats[6] = 2 ** -20;
-  const pipeline = await pipelines("photivra-sdr", SDR_WGSL);
+  const params = new ArrayBuffer(luminance ? 64 : 32), words = new Uint32Array(params), floats = new Float32Array(params);
+  if (luminance) {
+    words[1] = reject ? 1 : 0; words[2] = tone.mode; floats[4] = scale32; floats[5] = maximum; floats[6] = 2 ** -20;
+    floats.set(tone.tone, 8); floats.set(tone.lum, 12);
+  } else {
+    words[1] = reinhard ? 1 : 0; words[2] = reject ? 1 : 0; floats[4] = scale32; floats[5] = maximum; floats[6] = 2 ** -20;
+  }
+  const pipeline = luminance ? await pipelines("photivra-sdr-luminance", SDR_LUMINANCE_WGSL) : await pipelines("photivra-sdr", SDR_WGSL);
   const codes = profile.bitDepth === 8 ? new Uint8Array(plan.outputBytes) : new Uint16Array(plan.outputBytes / 2);
   const staging = new Float32Array(Math.min(bandRows, height) * rowSamples);
   const counters = NO_COUNTERS();
@@ -429,9 +498,10 @@ async function renderSdrOnGpu(runtime: WebGpuRuntime, bandBytes: number, input: 
       const bandEnd = Math.min(height, y + tileHeight);
       if (bandEnd - bandStart >= bandRows || bandEnd === height) {
         const count = (bandEnd - bandStart) * rowSamples;
-        words[0] = count;
-        const result = await dispatchSdrBand(runtime, pipeline, staging, count, params, abort);
-        result.counters.forEach((v, i) => { counters[i]! += v; });
+        words[0] = luminance ? count / 3 : count;
+        const result = await dispatchSdrBand(runtime, pipeline, staging, count, params, abort, words[0]!);
+        mergeCounters(counters, result.counters);
+        requireLuminanceDomain(counters);
         requireGamutDecision(reject, counters);
         codes.set(result.codes, bandStart * rowSamples);
         bandStart = bandEnd;
@@ -444,8 +514,10 @@ async function renderSdrOnGpu(runtime: WebGpuRuntime, bandBytes: number, input: 
     throw error;
   }
   const uncertainty = counters[SDR_COUNTER.uncertain]! + hostUncertain;
-  // Linear bound: source/scale/product rounding, Reinhard add/divide, plus float64 reference slack (L ≤ 1).
-  const execution = webGpuExecution(integerCodeBound(maximum, float32Gamma(6)), uncertainty);
+  // Per-channel linear bound: source/scale/product rounding, Reinhard add/divide, plus float64 reference slack (L ≤ 1).
+  // Luminance curves: the largest per-sample bound the kernel evaluated from the a-priori formula (docs/WEBGPU.md).
+  const linearBound = luminance ? counters[SDR_COUNTER.linearBoundBits]! * (1 + 2 ** -20) : float32Gamma(6);
+  const execution = webGpuExecution(integerCodeBound(maximum, linearBound), uncertainty);
   return { plan, integerSamples: codes, diagnostics: sdrDiagnostics(counters, "not-consumed"), outputEncoding: sdrOutputEncoding(maximum),
     displayAdaptation: { kind: "external-platform", applied: false, displayCapabilities: "unknown" }, execution };
 }
@@ -506,7 +578,7 @@ async function developRawOnGpu(runtime: WebGpuRuntime, bandBytes: number, input:
   const yieldControl = hooks.yieldControl.bind(hooks), onProgress = hooks.onProgress?.bind(hooks);
   // Run the reference's own synchronous input-limit, halo and CFA checks, then the same RAW ownership transfer.
   const v = prepareNativeRawDevelopment(input);
-  requirePerChannelTone(v.profile);
+  const tone = toneUniform(v.profile), luminance = tone.mode !== SDR_TONE_MODE.perChannel;
   if (v.border !== "reject") {
     throw new ImageKernelExecutionError("unsupported-on-backend",
       "webgpu-f32 develops with rejected borders only; use cpu-reference for borderHandling \"mirror\".");
@@ -569,7 +641,8 @@ async function developRawOnGpu(runtime: WebGpuRuntime, bandBytes: number, input:
       throw new ImageKernelExecutionError("unsupported-float32-domain", "Development values are outside the float32 execution domain.");
     }
     const reinhard = profile.toneCurve === "positive-reinhard-per-channel", reject = profile.gamutHandling === "reject-out-of-range";
-    const params = new ArrayBuffer(208), ints = new Int32Array(params), words = new Uint32Array(params), floats = new Float32Array(params);
+    const params = new ArrayBuffer(256), ints = new Int32Array(params), words = new Uint32Array(params), floats = new Float32Array(params);
+    words[52] = tone.mode; floats.set(tone.tone, 56); floats.set(tone.lum, 60);
     words[0] = outWidth; words[3] = reinhard ? 1 : 0; words[4] = reject ? 1 : 0; words[5] = rw; words[6] = rh;
     ints[8] = affine.ox; ints[9] = affine.oy; ints[10] = affine.axx; ints[11] = affine.axy; ints[12] = affine.ayx; ints[13] = affine.ayy;
     floats[16] = scale; floats[17] = maximum; floats[18] = band; floats[19] = Math.max(band, 2 ** -20);
@@ -619,7 +692,8 @@ async function developRawOnGpu(runtime: WebGpuRuntime, bandBytes: number, input:
         const [codeData, counterData] = await runComputePass(runtime, bandScope, pipeline, bindGroup,
           linearDispatch(count, LINEAR_WORKGROUP_SIZE, runtime.maximumWorkgroupsPerDimension),
           [{ buffer: out, bytes: count * 12 }, { buffer: counterBuffer, bytes: SDR_COUNTER_SLOTS * 4 }], abort.signal);
-        new Uint32Array(counterData!, 0, SDR_COUNTER_SLOTS).forEach((value, i) => { counters[i]! += value; });
+        mergeCounters(counters, new Uint32Array(counterData!, 0, SDR_COUNTER_SLOTS));
+        requireLuminanceDomain(counters);
         requireGamutDecision(reject, counters);
         output.set(new Uint32Array(codeData!, 0, count * 3), r0 * outWidth * 3);
       } finally {
@@ -631,7 +705,8 @@ async function developRawOnGpu(runtime: WebGpuRuntime, bandBytes: number, input:
     }
     const highlight: RawHighlightDiagnostics = { mode: development.highlightMode, saturatedPixelCount: counters[SDR_COUNTER.saturatedPixels]!,
       whiteBalanceClippedSampleCount: counters[SDR_COUNTER.whiteBalanceClipped]!, reconstructedPixelCount: counters[SDR_COUNTER.reconstructedPixels]! };
-    const execution = webGpuExecution(integerCodeBound(maximum, bounds.exposed + float32Gamma(3)), counters[SDR_COUNTER.uncertain]!);
+    const linearBound = luminance ? counters[SDR_COUNTER.linearBoundBits]! * (1 + 2 ** -20) : bounds.exposed + float32Gamma(3);
+    const execution = webGpuExecution(integerCodeBound(maximum, linearBound), counters[SDR_COUNTER.uncertain]!);
     return { raw, phaseProfiles: v.phases, colorProfile: v.color, whiteBalance: v.whiteBalance, borderHandling: v.border, width: outWidth, height: outHeight, integerSamples: output,
       diagnostics: sdrDiagnostics(counters, "consumed-in-raw-development"), highlight, outputEncoding: sdrOutputEncoding(maximum), rendering: profile,
       displayAdaptation: { kind: "external-platform", applied: false, displayCapabilities: "unknown" },

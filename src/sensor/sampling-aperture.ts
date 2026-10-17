@@ -31,7 +31,7 @@ import type {
   NativeImageRaster,
   SensorImagingArea
 } from "./sensor-geometry.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -175,7 +175,8 @@ export interface ResolvedSensorSamplingAperture {
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -186,6 +187,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -240,7 +242,7 @@ function parseSiteCenterLattice(
   value: unknown,
   path: string
 ): SensorSiteCenterLatticeRegistration {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["kind", "coordinateSystem", "firstSiteCenterFromImagingAreaTopLeftMicrometers", "pitchXMicrometers", "pitchYMicrometers", "evidence"]);
 
   if (
     record.kind !==
@@ -263,7 +265,7 @@ function parseSiteCenterLattice(
   const firstCenter = requireRecord(
     record.firstSiteCenterFromImagingAreaTopLeftMicrometers,
     path +
-      ".firstSiteCenterFromImagingAreaTopLeftMicrometers"
+      ".firstSiteCenterFromImagingAreaTopLeftMicrometers", ["x", "y"]
   );
 
   const firstX = requireFinite(
@@ -316,7 +318,7 @@ function parseGeometricSensitiveAperture(
   path: string,
   lattice: SensorSiteCenterLatticeRegistration
 ): SensorGeometricSensitiveAperture {
-  const record = requireRecord(value, path);
+  const record = requireRecord(value, path, ["kind", "widthMicrometers", "heightMicrometers", "centerOffsetFromSiteCenterMicrometers", "evidence"]);
 
   if (record.kind === "unresolved") {
     if (
@@ -361,7 +363,7 @@ function parseGeometricSensitiveAperture(
   const offset = requireRecord(
     record.centerOffsetFromSiteCenterMicrometers,
     path +
-      ".centerOffsetFromSiteCenterMicrometers"
+      ".centerOffsetFromSiteCenterMicrometers", ["x", "y"]
   );
   const offsetX = requireFinite(
     offset.x,
@@ -424,7 +426,7 @@ export function parseSensorSamplingApertureProfile(
 ): SensorSamplingApertureProfile {
   const profile = requireRecord(
     value,
-    "sensorSamplingAperture"
+    "sensorSamplingAperture", ["schemaVersion", "siteCenterLattice", "profileId", "colorSamplingProfileId", "colorSamplingBindingId", "evidence", "geometricSensitiveAperture"]
   );
 
   if (profile.schemaVersion !== "0.1.0") {

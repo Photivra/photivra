@@ -43,7 +43,7 @@ import {
 import type {
   NativeImageRaster
 } from "./sensor-geometry.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -127,7 +127,8 @@ const SCAN_DIRECTIONS =
 
 function requireRecord(
   value: unknown,
-  path: string
+  path: string,
+  allowedKeys: readonly string[] | null
 ): UnknownRecord {
   if (
     typeof value !== "object" ||
@@ -138,6 +139,7 @@ function requireRecord(
       path + " must be an object."
     );
   }
+  if (allowedKeys !== null) rejectUnknownFields(value, allowedKeys, path);
   return value as UnknownRecord;
 }
 
@@ -206,7 +208,7 @@ function parseSecondsFact(
   path: string
 ): SourcedSensorTimingSeconds {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["unit", "value", "evidence"]);
   if (record.unit !== "s") {
     throw new InvalidConfigurationError(
       path + '.unit must be "s".'
@@ -232,7 +234,7 @@ function parseDirectionFact(
   path: string
 ): SourcedSensorReadoutFact<NativeSensorReadoutScanDirection> {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["value", "evidence"]);
   if (
     typeof record.value !== "string" ||
     !SCAN_DIRECTIONS.has(
@@ -259,7 +261,7 @@ function parseBoundarySchedule(
   path: string
 ): ExposureBoundarySchedule {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["kind", "directionNative", "traversalDurationSeconds"]);
 
   if (record.kind === "simultaneous") {
     if (
@@ -310,7 +312,7 @@ function parseReadout(
   path: string
 ): SensorReadoutTimingDeclaration {
   const record =
-    requireRecord(value, path);
+    requireRecord(value, path, ["captureReadoutDurationSeconds", "readoutMode", "scanDirectionNative", "spatialSamplingSkewSeconds"]);
   const duration =
     parseSecondsFact(
       record.captureReadoutDurationSeconds,
@@ -376,7 +378,7 @@ export function parseCaptureModeTimingProfile(
   const record =
     requireRecord(
       value,
-      "captureModeTimingProfile"
+      "captureModeTimingProfile", ["schemaVersion", "scientificStatus", "scheduleFamily", "shutterMechanism", "nonUniformScheduleModeled", "profileId", "profileVersion", "captureModeId", "opening", "closing", "readout", "evidence", "limitations"]
     );
 
   if (

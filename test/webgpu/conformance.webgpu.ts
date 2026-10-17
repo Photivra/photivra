@@ -10,9 +10,18 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { calculateIrradianceConvolution, createNativeCaptureSdrTask, createNativeRawDevelopmentTask, type ImageKernelExecution,
   type NativeCaptureSdrInput, type NativeRawDevelopmentInput, type SdrRenderingResult, type RawHighlightDiagnostics } from "../../src/index.js";
-import { convolutionCorpus, copyRawDevelopmentInput, nonSrgbColorProfile, sdrCorpus, sdrInput, sdrProfile, syntheticRawDevelopment } from "../helpers/webgpu-fixtures.js";
+import { convolutionCorpus, copyRawDevelopmentInput, luminanceCorpus, nonSrgbColorProfile, sdrCorpus, sdrInput, sdrProfile, syntheticRawDevelopment } from "../helpers/webgpu-fixtures.js";
+import type { SdrRenderingProfile } from "../../src/index.js";
+
+const LUMINANCE_CURVES: [string, Pick<SdrRenderingProfile, "toneCurve" | "toneCurveParameters">][] = [
+  ["reinhard-Lw2", { toneCurve: "extended-reinhard-luminance", toneCurveParameters: { whiteLuminance: 2 } }],
+  ["reinhard-Lw0.5", { toneCurve: "extended-reinhard-luminance", toneCurveParameters: { whiteLuminance: 0.5 } }],
+  ["naka-n1", { toneCurve: "naka-rushton-luminance", toneCurveParameters: { exponent: 1, semiSaturation: 0.18, whiteLuminance: 4 } }],
+  ["naka-n1.6", { toneCurve: "naka-rushton-luminance", toneCurveParameters: { exponent: 1.6, semiSaturation: 0.25, whiteLuminance: 2 } }],
+  ["naka-n4", { toneCurve: "naka-rushton-luminance", toneCurveParameters: { exponent: 4, semiSaturation: 1, whiteLuminance: 8 } }]
+];
 import { loadPhotographicExportInput } from "../helpers/photographic-export-fixture.js";
-import { findChromium, openBrowserPage, type BrowserPage } from "./chromium.js";
+import { adapterSkipReason, findChromium, isSoftwareAdapter, openBrowserPage, type BrowserPage, type WebGpuAdapterProbe } from "./chromium.js";
 import { decodeTransport, encodeTransport } from "./codec.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -35,9 +44,9 @@ beforeAll(async () => {
   const binary = findChromium();
   if (!binary) { skip = "no Chromium binary found (set PHOTIVRA_WEBGPU_BROWSER or PLAYWRIGHT_BROWSERS_PATH)"; return; }
   page = await openBrowserPage(binary, root);
-  const probe = await page.evaluate<{ available: boolean; adapter?: unknown }>("import('/test/webgpu/page-runner.js').then(m => m.probe())");
-  if (!probe.available) skip = "the browser exposes no WebGPU adapter (see docs/WEBGPU.md for flags)";
-  else report.push({ adapter: probe.adapter });
+  const probe = await page.evaluate<WebGpuAdapterProbe>("import('/test/webgpu/page-runner.js').then(m => m.probe())");
+  skip = adapterSkipReason(probe);
+  if (skip === null) report.push({ adapter: probe.adapter, softwareAdapter: isSoftwareAdapter(probe) });
 });
 afterAll(async () => {
   await page?.close();
@@ -117,6 +126,24 @@ describe("webgpu-f32 native capture SDR vs float64 reference", () => {
       samples: gpu.codes.length, bound: bound?.kind === "integer-code-difference" ? bound.maximumAbsoluteCodeDifference : null,
       diagnosticUncertainty: gpu.execution.diagnosticUncertaintySampleCount, worstDiagnosticDifference: worst });
   });
+  const luminanceCases = LUMINANCE_CURVES.flatMap(([name, curve]) => ([[8, 32, false], [16, 64, false], [8, 64, true]] as const)
+    .map(([bits, precision, mixed]) => [name, curve, bits, precision, mixed] as const));
+  it.each(luminanceCases)("luminance tone %s %i-bit float%i mixed signs %s", async (name, curve, bits, precision, mixed) => {
+    if (guard()) return;
+    const width = 300, height = 41, white = 1.5;
+    const sdr = sdrInput(width, height, precision, white, { ...sdrProfile(bits, "identity", "clip-components", .5), ...curve });
+    const packed = luminanceCorpus(width, height, precision, white, bits + precision + name.length + Number(mixed), mixed);
+    const reference = await runSdrReference(sdr, packed, width);
+    const gpu = await call<CodesResult>("renderSdr", { input: { sdr, packed, width } });
+    const bound = gpu.execution.errorBound;
+    const diff = maximumCodeDifference(gpu.codes, reference.integerSamples);
+    expect(bound?.kind === "integer-code-difference" && diff.maximum <= bound.maximumAbsoluteCodeDifference).toBe(true);
+    const worst = expectDiagnosticsWithin(gpu.diagnostics as unknown as Record<string, unknown>, reference.diagnostics as unknown as Record<string, unknown>,
+      gpu.execution.diagnosticUncertaintySampleCount);
+    report.push({ stage: "sdr-luminance", case: `${name}/${bits}/f${precision}${mixed ? "/mixed" : ""}`, maximumCodeDifference: diff.maximum,
+      differingSamples: diff.differing, samples: gpu.codes.length, bound: bound?.kind === "integer-code-difference" ? bound.maximumAbsoluteCodeDifference : null,
+      diagnosticUncertainty: gpu.execution.diagnosticUncertaintySampleCount, worstDiagnosticDifference: worst });
+  });
   it("banding does not change GPU codes; lifecycle failures are domain errors", async () => {
     if (guard()) return;
     const sdr = sdrInput(300, 70, 32, 1, sdrProfile(16, "identity", "clip-components", 0)), packed = sdrCorpus(300, 70, 32, sdr.profile, 1, 5);
@@ -177,6 +204,22 @@ describe("webgpu-f32 packed RAW development vs float64 reference", () => {
       differingSamples: diff.differing, samples: gpu.codes.length, bound: bound?.kind === "integer-code-difference" ? bound.maximumAbsoluteCodeDifference : null,
       diagnosticUncertainty: uncertainty, worstDiagnosticDifference: worst });
   });
+  it.each(LUMINANCE_CURVES.flatMap(([name, curve]) => ([8, 16] as const).map(bits => [name, curve, bits] as const)))(
+    "luminance tone %s %i-bit", async (name, curve, bits) => {
+      if (guard()) return;
+      const input = syntheticRawDevelopment({ width: 96, height: 64, orientation: "landscape-inverted", seed: bits + name.length, gains: [1.7, 1, 1.4] },
+        { ...sdrProfile(bits, "identity", "clip-components", 0), ...curve }, nonSrgbColorProfile(), bits === 8 ? "clip" : "reconstruct");
+      const reference = await runRawReference(input);
+      const gpu = await call<CodesResult>("developRaw", { input });
+      const bound = gpu.execution.errorBound;
+      const diff = maximumCodeDifference(gpu.codes, reference.integerSamples);
+      expect(bound?.kind === "integer-code-difference" && diff.maximum <= bound.maximumAbsoluteCodeDifference).toBe(true);
+      const uncertainty = gpu.execution.diagnosticUncertaintySampleCount;
+      const worst = expectDiagnosticsWithin(gpu.diagnostics as unknown as Record<string, unknown>, reference.diagnostics as unknown as Record<string, unknown>, uncertainty);
+      report.push({ stage: "raw-development-luminance", case: `${name}/${bits}`, maximumCodeDifference: diff.maximum, differingSamples: diff.differing,
+        samples: gpu.codes.length, bound: bound?.kind === "integer-code-difference" ? bound.maximumAbsoluteCodeDifference : null,
+        diagnosticUncertainty: uncertainty, worstDiagnosticDifference: worst });
+    });
   it("banding does not change GPU codes", async () => {
     if (guard()) return;
     const input = syntheticRawDevelopment({ width: 64, height: 48, orientation: "portrait-clockwise", seed: 3 },
