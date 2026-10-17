@@ -39,7 +39,7 @@ import type {
   ExposureMeteringSampleSet,
   ExposureMeteringZoneSample
 } from "./metering.js";
-import { requireInputKeys, rejectUnknownFields } from "../core/record-validation.js";
+import { requireInputKeys, requireInputObject, rejectUnknownFields } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -259,6 +259,11 @@ function validateProviderContext(
     illuminationTemporalProfile,
     materialResponseProfile
   } = input;
+  requireInputObject(providerProfile, "providerProfile");
+  requireInputObject(providerProfile.fidelity, "providerProfile.fidelity");
+  requireInputObject(illuminationProfile, "illuminationProfile");
+  requireInputObject(materialResponseProfile, "materialResponseProfile");
+  if (illuminationTemporalProfile !== undefined) requireInputObject(illuminationTemporalProfile, "illuminationTemporalProfile");
 
   if (
     providerProfile.sceneId !==
@@ -367,6 +372,11 @@ function validateProviderContext(
     );
   }
 
+  if (!Array.isArray(illuminationProfile.sources) || !Array.isArray(illuminationTemporalProfile.sourceBindings)) {
+    throw new InvalidConfigurationError("illuminationProfile.sources and illuminationTemporalProfile.sourceBindings must be arrays.");
+  }
+  illuminationProfile.sources.forEach((entry, index) => requireInputObject(entry, "illuminationProfile.sources[" + index + "]"));
+  illuminationTemporalProfile.sourceBindings.forEach((entry, index) => requireInputObject(entry, "illuminationTemporalProfile.sourceBindings[" + index + "]"));
   const knownSourceIds =
     new Set(
       illuminationProfile.sources.map(

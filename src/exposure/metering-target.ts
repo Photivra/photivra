@@ -406,6 +406,7 @@ function validateBaseTarget(
     target.targetId,
     "baseTarget.targetId"
   );
+  requireInputObject(target.sourceMeterSnapshot, "baseTarget.sourceMeterSnapshot");
   requireNonEmptyString(
     target
       .sourceMeterSnapshot

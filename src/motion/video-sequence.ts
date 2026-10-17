@@ -14,7 +14,7 @@
 
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
-import { requireInputObject, requirePublicOpaqueId, requireInputKeys } from "../core/record-validation.js";
+import { rejectUnknownFields, requireInputObject, requirePublicOpaqueId, requireInputKeys } from "../core/record-validation.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import type { ReleaseAutomationState, ResolvedReleaseFrame } from "../capture/release-sequence.js";
 import { parseFocusPlane, type FocusPlane } from "../optics/focus-state.js";
@@ -164,6 +164,11 @@ export interface VideoFrameSequence {
 export function resolveVideoFrameSequence(input: ResolveVideoFrameSequenceInput): VideoFrameSequence {
   requireInputKeys(input, "resolveVideoFrameSequence", ["sequenceId", "opticalState", "shutterAngleDegrees", "firstFrameIndex", "frameCount", "sequenceSeedUint32", "iso", "focus", "automation", "whiteBalanceStateId", "timingEvidence", "rollingShutter"]);
   requireInputObject(input.automation, "resolveVideoFrameSequence automation");
+  rejectUnknownFields(input.automation, ["ae", "af", "awb"], "resolveVideoFrameSequence automation");
+  if (input.rollingShutter !== undefined) {
+    requireInputObject(input.rollingShutter, "resolveVideoFrameSequence rollingShutter");
+    rejectUnknownFields(input.rollingShutter, ["readout", "linkageEvidence"], "resolveVideoFrameSequence rollingShutter");
+  }
   const sequenceId = requirePublicOpaqueId(input.sequenceId, "Invalid video sequence ID.");
   const optical = parseOpticalProfileState(input.opticalState);
   if (optical.captureMode !== "video") {

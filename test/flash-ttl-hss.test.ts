@@ -26,6 +26,7 @@ import {
   type ManualFlashProfile,
   type ResolvedCaptureModeTiming
 } from "../src/index.js";
+import { probeSubObjects } from "./helpers/sub-object-probe.js";
 
 const evidence = (ref: string): [{ sourceOrigin: "photivra"; sourceReference: string; reuseStatus: "photivra-owned" }] =>
   [{ sourceOrigin: "photivra", sourceReference: "test:" + ref, reuseStatus: "photivra-owned" }];
@@ -221,5 +222,33 @@ describe("high-speed sync", () => {
       powerFraction: 0 })).toThrow("(0, 1]");
     expect(() => resolveHighSpeedFlashSync({ flashEnabled: true, flashProfile: flash(),
       syncCapabilities: { ...capabilities(true), timingProfileId: "other" }, timing: fast, powerFraction: 1 })).toThrow("must exactly match");
+  });
+});
+
+describe("flash functions reject a missing, null or non-object sub-object with a domain error (2.0.0 pre-release review)", () => {
+  const release = { sequenceId: "s", frameIndex: 0, releaseFrameId: "s:0", exposureStartTimeSeconds: 1, exposureEndTimeSeconds: 1.02,
+    sceneTimeSecondsFromSequenceStart: .5, startIntervalFromPreviousSeconds: null, timingConstraints: ["exposure-duration"], stochasticSeedUint32: 1,
+    exposure: { aperture: 4, shutterSeconds: .02, iso: 100 }, focus: { kind: "infinity" }, automation: { ae: "manual", af: "manual", awb: "manual" } };
+
+  it("ordinary sync, HSS, both overlays and the flash profile parser", async () => {
+    const slow = timing(.02, .005), fast = timing(.001, .004);
+    const manual = { flashEnabled: true, flashProfile: flash(), syncCapabilities: capabilities(false), timing: slow, syncMode: "front-curtain", releaseFrame: release };
+    const hss = { flashEnabled: true, flashProfile: flash(), syncCapabilities: capabilities(true), timing: fast, powerFraction: .5 };
+    const sync = resolveManualFlashSync(manual as never), burst = resolveHighSpeedFlashSync(hss as never);
+    const cases: [string, (input: unknown) => unknown, object][] = [
+      ["resolveManualFlashSync", (input): unknown => resolveManualFlashSync(input as never), manual],
+      ["resolveHighSpeedFlashSync", (input): unknown => resolveHighSpeedFlashSync(input as never), hss],
+      ["createManualFlashIlluminationOverlay", (input): unknown => createManualFlashIlluminationOverlay(input as never),
+        { baseIlluminationProfile: base, flashProfile: flash(), resolvedSync: sync, illuminationProfileId: "with-flash", temporalProfileId: "flash-temporal" }],
+      ["createHighSpeedSyncIlluminationOverlay", (input): unknown => createHighSpeedSyncIlluminationOverlay(input as never),
+        { baseIlluminationProfile: base, flashProfile: flash(), resolvedSync: burst, illuminationProfileId: "with-hss", temporalProfileId: "hss-temporal" }],
+      ["parseManualFlashProfile", (input): unknown => parseManualFlashProfile(input), flash()]
+    ];
+    for (const [name, call, input] of cases) {
+      expect(() => call(input), name).not.toThrow();
+      const { probedPaths, escaped } = await probeSubObjects(call, input, { maximumDepth: 4 });
+      expect(probedPaths, name).toBeGreaterThan(0);
+      expect(escaped, name).toEqual([]);
+    }
   });
 });

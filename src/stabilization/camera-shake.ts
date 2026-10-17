@@ -25,7 +25,7 @@ import {
 } from "../core/validation.js";
 import { portableHypot } from "../core/portable-math.js";
 import { calculateThinLensImageDistance } from "../optics/thin-lens.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { rejectUnknownFields, requireInputKeys, requireInputObject } from "../core/record-validation.js";
 
 export interface EstimateCameraShakeBlurInput {
   focalLengthMm: number;
@@ -130,6 +130,8 @@ export function estimateCameraShakeBlur(
   requireInputKeys(input, "estimateCameraShakeBlur", ["focalLengthMm", "shutterSeconds", "angularVelocityRadPerSec", "stabilizationStopsEquivalent", "focusDistanceM", "pixelPitchMicrometers"]);
   requirePositiveFinite("focalLengthMm", input.focalLengthMm);
   requirePositiveFinite("shutterSeconds", input.shutterSeconds);
+  requireInputObject(input.angularVelocityRadPerSec, "angularVelocityRadPerSec");
+  rejectUnknownFields(input.angularVelocityRadPerSec, ["yaw", "pitch"], "angularVelocityRadPerSec");
   requireFinite(
     "angularVelocityRadPerSec.yaw",
     input.angularVelocityRadPerSec.yaw

@@ -10,6 +10,7 @@ import {
   setExposureCompensationOnMeterTarget,
   type ExposureMeteringResult
 } from "../src/index.js";
+import { probeSubObjects } from "./helpers/sub-object-probe.js";
 
 const evidence = (ref: string) => [{
   sourceOrigin: "photivra" as const,
@@ -206,5 +207,21 @@ describe("exposure meter target seam", () => {
       },
       exposureCompensationStops: 0
     })).toThrow("does not satisfy the exposure-meter target boundary");
+  });
+});
+
+describe("meter targets reject a missing, null or non-object sub-object with a domain error (2.0.0 pre-release review)", () => {
+  it("probes every nested object of valid target requests", async () => {
+    const base = createExposureMeterTargetFromMeteringResult({ targetId: "base", meterResult: meter(0.5) });
+    const cases: [string, (input: unknown) => unknown, object][] = [
+      ["createExposureMeterTargetFromMeteringResult", (input): unknown => createExposureMeterTargetFromMeteringResult(input as never), { targetId: "t", meterResult: meter(0.5) }],
+      ["setExposureCompensationOnMeterTarget", (input): unknown => setExposureCompensationOnMeterTarget(input as never), { targetId: "plus", baseTarget: base, exposureCompensationStops: 1 }]
+    ];
+    for (const [name, call, input] of cases) {
+      expect(() => call(input), name).not.toThrow();
+      const { probedPaths, escaped } = await probeSubObjects(call, input, { maximumDepth: 4 });
+      expect(probedPaths, name).toBeGreaterThan(0);
+      expect(escaped, name).toEqual([]);
+    }
   });
 });

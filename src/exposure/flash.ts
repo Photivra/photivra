@@ -482,6 +482,7 @@ function validateSourceTemplate(
   sourceTemplate:
     ManualFlashProfile["sourceTemplate"]
 ): ManualFlashProfile["sourceTemplate"] {
+  requireInputObject(sourceTemplate, "manualFlashProfile.sourceTemplate");
   const probe =
     parseSceneIlluminationProfile({
       schemaVersion: "0.1.0",
@@ -886,6 +887,29 @@ export function parseFlashSyncCapabilityProfile(
   };
 }
 
+/**
+ * Shape guard for the resolved capture-mode timing record read by the flash sync functions: every
+ * nested object read below must be an object, so a malformed record fails with
+ * InvalidConfigurationError instead of a raw TypeError. Values are checked where they are used.
+ */
+function requireTimingRecordShape(timing: unknown, path: string): void {
+  requireInputObject(timing, path);
+  const record = timing as Record<string, unknown>;
+  if (!Array.isArray(record.evidence)) throw new InvalidConfigurationError(path + ".evidence must be an array.");
+  requireInputObject(record.exposureWindows, path + ".exposureWindows");
+  const windows = record.exposureWindows as Record<string, unknown>;
+  requireInputObject(windows.nominalExposureDurationSeconds, path + ".exposureWindows.nominalExposureDurationSeconds");
+  requireInputObject(windows.localExposureDurationRangeSeconds, path + ".exposureWindows.localExposureDurationRangeSeconds");
+  for (const boundary of ["opening", "closing"] as const) {
+    requireInputObject(windows[boundary], path + ".exposureWindows." + boundary);
+    const schedule = (windows[boundary] as Record<string, unknown>).schedule;
+    requireInputObject(schedule, path + ".exposureWindows." + boundary + ".schedule");
+    if ((schedule as Record<string, unknown>).kind !== "simultaneous") {
+      requireInputObject((schedule as Record<string, unknown>).traversalDurationSeconds, path + ".exposureWindows." + boundary + ".schedule.traversalDurationSeconds");
+    }
+  }
+}
+
 function wholeFrameOpenInterval(
   timing:
     ResolvedCaptureModeTiming
@@ -929,6 +953,8 @@ function validateReleaseBinding(
   timing:
     ResolvedCaptureModeTiming
 ): void {
+  requireInputObject(release, "releaseFrame");
+  requireInputObject(release.exposure, "releaseFrame.exposure");
   const nominal =
     timing.exposureWindows
       .nominalExposureDurationSeconds
@@ -976,6 +1002,7 @@ export function resolveManualFlashSync(
     ResolveManualFlashSyncInput
 ): ResolvedManualFlashSync {
   requireInputKeys(input, "resolveManualFlashSync", ["flashEnabled", "flashProfile", "syncCapabilities", "timing", "syncMode", "releaseFrame"]);
+  requireTimingRecordShape(input.timing, "resolveManualFlashSync timing");
   const flash =
     parseManualFlashProfile(
       input.flashProfile
@@ -1249,6 +1276,8 @@ export function createManualFlashIlluminationOverlay(
     );
   const sync =
     input.resolvedSync;
+  requireInputObject(sync, "createManualFlashIlluminationOverlay resolvedSync");
+  if (!Array.isArray(sync.evidence)) throw new InvalidConfigurationError("createManualFlashIlluminationOverlay resolvedSync.evidence must be an array.");
 
   if (
     sync.flashProfileId !==
@@ -1536,7 +1565,7 @@ function integratePulse(samples: readonly SceneIlluminationTemporalWaveformSampl
  */
 export function resolveHighSpeedFlashSync(input: ResolveHighSpeedFlashSyncInput): ResolvedHighSpeedFlashSync {
   requireInputKeys(input, "resolveHighSpeedFlashSync", ["flashEnabled", "flashProfile", "syncCapabilities", "timing", "powerFraction", "releaseFrame"]);
-  requireInputObject(input.timing, "resolveHighSpeedFlashSync timing");
+  requireTimingRecordShape(input.timing, "resolveHighSpeedFlashSync timing");
   const flash = parseManualFlashProfile(input.flashProfile);
   const capabilities = parseFlashSyncCapabilityProfile(input.syncCapabilities);
   if (capabilities.captureModeId !== input.timing.captureModeId || capabilities.timingProfileId !== input.timing.timingProfileId) {

@@ -16,6 +16,7 @@ import {
   type SceneRadianceEvaluationResult,
   type SceneRadianceTemporalSamplingNode
 } from "../src/index.js";
+import { probeSubObjects } from "./helpers/sub-object-probe.js";
 
 const evidence = (
   ref: string
@@ -1076,5 +1077,18 @@ describe("readout/shutter closeout fail-closed boundaries", () => {
     ).toThrow(
       "sample time must match"
     );
+  });
+});
+
+describe("translation parallax rejects a missing, null or non-object sub-object with a domain error (2.0.0 pre-release review)", () => {
+  it("probes every nested object of a valid request", async () => {
+    const input = { timing: resolveTiming(rollingProfile(), [centerPoint]), imagingArea: { widthMm: 36, heightMm: 24 }, focalLengthMm: 50, focusDistanceM: 5, orientation: "landscape",
+      cameraTranslationVelocityMps: { x: 1, y: 0, z: 0 }, temporalSampleCount: 2,
+      sceneSamples: [{ sampleId: "near", destinationPointNative: centerPoint, positionCameraM: { x: 0, y: 0, z: 5 }, subjectVelocityMps: { x: 0, y: 0, z: 0 } }] };
+    const call = (value: unknown): unknown => calculateCaptureTranslationParallaxTemporalQuadrature(value as never);
+    expect(() => call(input)).not.toThrow();
+    const { probedPaths, escaped } = await probeSubObjects(call, input, { maximumDepth: 4 });
+    expect(probedPaths).toBeGreaterThan(5);
+    expect(escaped).toEqual([]);
   });
 });

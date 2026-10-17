@@ -9,6 +9,7 @@ import {
   resolveCaptureModeTiming,
   type ResolvedCaptureModeTiming
 } from "../src/index.js";
+import { probeSubObjects } from "./helpers/sub-object-probe.js";
 
 const evidence = (ref: string) => [{
   sourceOrigin: "photivra" as const,
@@ -883,5 +884,27 @@ describe("extended-object reference and relative-motion invariants", () => {
       result
         .timeVaryingDefocusMayBeRequired
     ).toBe(false);
+  });
+});
+
+describe("extended-object projection rejects a missing, null or non-object sub-object with a domain error (2.0.0 pre-release review)", () => {
+  it("probes every nested object of valid requests", async () => {
+    const points = [{ pointId: "upper", destinationPointNative: { x: 50, y: 20 }, positionCameraM: { x: -0.5, y: 0, z: 8 } },
+      { pointId: "lower", destinationPointNative: { x: 50, y: 80 }, positionCameraM: { x: 0.5, y: 0, z: 8 } }];
+    const plane = { kind: "fronto-parallel-planar-patch", referenceDepthM: 8 };
+    const cases: [string, (input: unknown) => unknown, object][] = [
+      ["calculateExtendedObjectProjectionTrajectory", (input): unknown => calculateExtendedObjectProjectionTrajectory(input as never), { objectId: "card", focalLengthMm: 50,
+        objectTranslationVelocityMps: { x: 0.2, y: 0, z: -0.2 }, cameraTranslationVelocityMps: { x: 0, y: 0, z: 0 }, sampleTimesSecondsFromReference: [0.5],
+        points: points.map(({ pointId, positionCameraM }) => ({ pointId, positionCameraM })), frontoparallelPlane: plane }],
+      ["calculateCaptureExtendedObjectTemporalProjection", (input): unknown => calculateCaptureExtendedObjectTemporalProjection(input as never), { objectId: "rolling-object",
+        timing: rollingTiming(), focalLengthMm: 50, objectTranslationVelocityMps: { x: 0.2, y: 0, z: -0.2 }, cameraTranslationVelocityMps: { x: 0, y: 0, z: 0 },
+        temporalSampleCount: 2, points, frontoparallelPlane: plane }]
+    ];
+    for (const [name, call, input] of cases) {
+      expect(() => call(input), name).not.toThrow();
+      const { probedPaths, escaped } = await probeSubObjects(call, input, { maximumDepth: 4 });
+      expect(probedPaths, name).toBeGreaterThan(3);
+      expect(escaped, name).toEqual([]);
+    }
   });
 });

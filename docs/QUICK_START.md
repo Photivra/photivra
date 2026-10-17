@@ -49,7 +49,7 @@ the example above is [simulate-capture.mjs](examples/simulate-capture.mjs).
 | `plan` | The native RAW plan the engine executed |
 | `request` | The complete underlying request: `environmentRaw` (the native environment RAW input), `siteInput(index)` (rebuilds the physical input of any sensor site), `development` (the RAW development input) and `whiteBalanceState` |
 | `exposure` | Mode, resolved settings, EV100, metered scene luminance and the exposure-mode resolver's full output |
-| `scene` | Chart parameters, illuminant, distance, framed size and the scene's SHA-256 digest |
+| `scene` | Chart parameters, illuminant, distance, framed size and the scene's SHA-256 digest (it covers caller illuminant and reflectance spectra; see `sourceSha256`) |
 | `diagnostics` | Radiance query count, highlight and rendering counters, and timings |
 | `provenance` | Status (`approximation`), camera preset identity, evidence, the composed contracts in order, and limitations |
 | `assumptions` | Every default, derived value and fixed modelling choice, each with an explanation |
@@ -62,7 +62,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 
 | Option | Default | Notes |
 | --- | --- | --- |
-| `camera` | `"professional"` | A generic tier id (`"consumer"`, `"prosumer"`, `"professional"`) or a full `GenericEquipmentTierPreset` record. Tier values are synthetic educational designs, not real cameras. |
+| `camera` | `"professional"` | A generic tier id (`"consumer"`, `"prosumer"`, `"professional"`) or a full `GenericEquipmentTierPreset` record. A record must have exactly the preset shape (unknown fields at the top level, in `body`, `lens` or `lens.matchedReference` are rejected) and each profile is re-checked by its own parser. Tier values are synthetic educational designs, not real cameras. |
 | `lens.focalLengthMm` | 50 | Must lie in the lens capability; the generic primes are 50 mm. |
 | `lens.fNumber` | 8 | Used in `manual` and `aperture-priority`; resolved automatically otherwise. Must lie in f/4–f/16. |
 | `lens.focusDistanceM` | the subject distance | |
@@ -91,7 +91,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `output.toneCurveParameters` | none | Required by the luminance curves (`extended-reinhard-luminance`, `naka-rushton-luminance`); the facade invents no curve parameters. |
 | `output.highlightMode` | `"clip"` | Or `"reconstruct"`. |
 | `output.whiteBalance` | `"scene-illuminant"` | Also `"auto"`, `"none"`, `{ kelvin, tint? }` and `{ channelGains }`. |
-| `output.jpegQuantizationStep` | 2 | Constant step 1–255, not a manufacturer quality scale. |
+| `output.jpegQuantizationStep` | 2 | JPEG only: constant step 1–255, not a manufacturer quality scale. |
 | `sensor.pixelPitchMicrometers` | 6 | The sensor is `width × pitch` wide (see [Geometry](#geometry)). |
 | `sensor.spectralStepNanometers` | 20 | Spectral quadrature over 380–780 nm. |
 | `sensor.temporalSampleCount` | 1, or 8 when the camera rotates | Midpoints across each site's exposure window. |
@@ -99,7 +99,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `motion.angularVelocityRadPerSec` | still | `{ pitch?, yaw?, roll? }` in rad/s (see [Motion](#motion)). |
 | `motion.shutter` | `"global"` | Or `"rolling"`. |
 | `motion.rollingShutterSkewSeconds` | the body's readout skew | Rolling only. |
-| `signal`, `onProgress` | none | An `AbortSignal` cancels the running task; `onProgress` reports `raw`, `white-balance`, `development` and `jpeg` tiles. |
+| `signal`, `onProgress` | none | An `AbortSignal` cancels the running task; `onProgress` reports `raw`, `white-balance`, `development` and `jpeg` tiles. The last event of each stage has `completedTileCount === totalTileCount`. |
 
 Unknown fields are rejected, so a typo never silently falls back to a default.
 
@@ -199,7 +199,7 @@ console.log(vignette.request.whiteBalanceState?.source);
 | Value | Meaning |
 | --- | --- |
 | `"scene-illuminant"` | A custom white balance measured from a perfect white diffuser under the scene illuminant, like a grey-card setting. |
-| `"auto"` | Grey-world auto white balance (AWB) with the body's `neutral-priority` policy, over 2 × 2 block means of the RAW before white balance. The sensor stage is then re-run with that setting; no new radiance queries are made. |
+| `"auto"` | Grey-world auto white balance (AWB) with the body's `neutral-priority` policy, over 2 × 2 block means of the RAW before white balance. The RAW is then rendered again with that setting, which repeats the radiance queries (`diagnostics.providerEvaluationCount` counts one pass). |
 | `"none"` | No white balance; development assumes a D65 adopted white. Scenes under other light keep their colour cast. |
 | `{ kelvin, tint? }` | A colour-temperature setting on the Planckian locus (tint as Duv). |
 | `{ channelGains }` | Manual channel gains. |

@@ -31,6 +31,8 @@ import { requireInputObject } from "../core/record-validation.js";
 import { ENGINE_API_VERSION } from "../core/version.js";
 import type { EvidenceProvenance } from "../core/evidence-provenance.js";
 import { GENERIC_TIER_ASSETS, type GenericEquipmentTier, type GenericEquipmentTierPreset } from "../equipment/generic-tier-assets.js";
+import { parseCallerCameraPreset } from "./camera-preset.js";
+import { createHostYield } from "./host-yield.js";
 import { resolveGenericEquipmentExposureCapabilities } from "../equipment/exposure-capabilities.js";
 import { resolveGenericIsoSignalChain } from "../sensor/iso-signal-chain.js";
 import { meterRelativeExposure } from "../exposure/metering.js";
@@ -39,15 +41,14 @@ import { resolveManualExposureMode, resolveAperturePriorityExposureMode, resolve
   resolveProgramAutoExposureMode } from "../exposure/exposure-mode-resolver.js";
 import { parseExposureProgramLineProfile, type ExposureProgramLineProfile } from "../exposure/program-line.js";
 import { resolveCaptureGeometry } from "../output/capture-geometry.js";
-import { estimateCie1931ColorMatchingFunctions } from "../color/color-matching-functions.js";
+import { estimateCie1931ColorMatchingFunctions, type PreparedColorimetricSpectrum } from "../color/color-matching-functions.js";
 import { createColorTemperatureWhiteBalanceIntent, resolveColorTemperatureWhiteBalance, resolveCustomWhiteBalance,
   resolveManualWhiteBalance, estimateAutoWhiteBalance, type ResolvedWhiteBalanceState } from "../color/white-balance.js";
 import { createCaptureWhiteBalanceIntent, type CaptureWhiteBalanceIntent } from "../capture/simulated-capture.js";
 import { SENSOR_RAW_PRODUCER_NOISE_MODEL } from "../capture/sensor-raw-producer.js";
 import { calculateNativeRawPlan, type NativeRawInput, type NativeRawOutput, type NativeRawPlan } from "../capture/native-raw.js";
-import { createNativeEnvironmentRawTask, createNativeEnvironmentSensorStageTask, type NativeEnvironmentRawInput,
+import { createNativeEnvironmentRawTask, type NativeEnvironmentRawInput,
   type NativeEnvironmentRawTask, type NativeEnvironmentRawTile } from "../capture/native-environment-raw.js";
-import type { NativeEnvironmentOpticalStage } from "../capture/native-environment-optical-stage.js";
 import { createNativeRawDevelopmentTask, type NativeRawDevelopmentInput, type RawHighlightDiagnostics } from "../capture/native-raw-development.js";
 import type { RawFrameReconstructionPhaseProfile } from "../capture/raw-frame-reconstruction.js";
 import type { ExportSensorColorProfile } from "../capture/photographic-export.js";
@@ -275,7 +276,12 @@ export interface SimulateCaptureResult {
     /** Physical size of the framed scene plane, metres. */
     framedWidthM: number;
     framedHeightM: number;
-    /** SHA-256 of the canonical scene description, recorded as the capture source digest. */
+    /**
+     * SHA-256 of the canonical scene description, recorded as the capture source digest. Caller spectra (a
+     * `spectrum` or `daylight` illuminant, chart reflectance spectra) are part of the description: tabulated
+     * data exactly, function spectra sampled at 1 nm over 380-780 nm, plus the daylight basis datasetId.
+     * The body of a caller scene's evaluate function is not hashed.
+     */
     sourceSha256: string;
   };
   diagnostics: {
@@ -372,6 +378,20 @@ async function sha256Hex(text: string): Promise<string> {
   if (!subtle) fail("simulateCapture needs crypto.subtle (a secure browser context or Node 22+) to digest the scene description.");
   const bytes = new Uint8Array(await subtle.digest("SHA-256", new TextEncoder().encode(text)));
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+/**
+ * The form in which a caller spectrum enters the scene digest. Tabulated data is hashed exactly as its
+ * (wavelength, value) pairs. A function spectrum has no data to hash, so it is sampled at the facade's
+ * 1 nm integer nodes over 380-780 nm (the grid the facade also uses to normalize illuminance).
+ */
+function spectrumDigestForm(raw: unknown, prepared: PreparedColorimetricSpectrum): unknown {
+  const record = raw as { kind?: unknown; samples?: readonly { wavelengthNanometers: number; value: number }[] };
+  if (record.kind === "tabulated" && Array.isArray(record.samples)) {
+    return { kind: "tabulated", samples: record.samples.map((sample) => [sample.wavelengthNanometers, sample.value]) };
+  }
+  const values: number[] = [];
+  for (let nm = FACADE_SPECTRAL_RANGE_NANOMETERS.minimum; nm <= FACADE_SPECTRAL_RANGE_NANOMETERS.maximum; nm++) values.push(prepared.evaluate(nm));
+  return { kind: "function-sampled-1nm", rangeNanometers: [FACADE_SPECTRAL_RANGE_NANOMETERS.minimum, FACADE_SPECTRAL_RANGE_NANOMETERS.maximum], values };
 }
 function luminanceOf(radiance: (nm: number) => number): number {
   let sum = 0;
@@ -526,7 +546,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     "Generic Photivra tier preset 2.0.0 (synthetic educational values, not a real camera).");
   let preset: GenericEquipmentTierPreset;
   if (typeof cameraOption === "string") preset = GENERIC_TIER_ASSETS.find((p) => p.tier === cameraOption) ?? fail("Unknown camera tier.");
-  else { requireInputObject(cameraOption, "camera"); preset = cameraOption; if (!preset.body || !preset.lens) fail("A camera profile needs body and lens assets."); }
+  else preset = parseCallerCameraPreset(cameraOption);
   const body = preset.body, lens = preset.lens;
 
   // Lens
@@ -626,6 +646,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     "White balance measured from a perfect white diffuser under the scene illuminant (a custom/grey-card white balance).");
   const jpegStep = format === "jpeg" ? integerIn(pick(outputOptions, "jpegQuantizationStep", "output.jpegQuantizationStep", DEFAULTS.jpegQuantizationStep,
     "Constant JPEG quantization step 2 (not a manufacturer quality scale)."), "output.jpegQuantizationStep", 1, 255) : undefined;
+  if (format !== "jpeg" && outputOptions.jpegQuantizationStep !== undefined) fail("output.jpegQuantizationStep applies only to output.format \"jpeg\".");
   const sensorOptions = allowKeys(top.sensor, "sensor", ["pixelPitchMicrometers", "spectralStepNanometers", "temporalSampleCount", "noiseSeed"]);
   const pitch = positive(pick(sensorOptions, "pixelPitchMicrometers", "sensor.pixelPitchMicrometers", DEFAULTS.pixelPitchMicrometers,
     "6 µm pixels (about a 24 MP full-frame sensor). The simulated sensor is width × pitch wide, so small images are a central crop of a large sensor, not a downscaled full frame."), "sensor.pixelPitchMicrometers");
@@ -701,8 +722,19 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     for (const key of chart.defaultedParameters) assume("scene." + key, "default", chart.parameters[key], "Chart default for " + chart.preset + ".");
   }
   const scenePreset = chart ? chart.preset : callerScene!.kind;
+  // Caller spectra enter the digest as data (see spectrumDigestForm). Without caller spectra the description is unchanged,
+  // so default captures keep their digests.
+  const illuminantRecord = typeof illuminantOption === "object" ? illuminantOption as { kind?: unknown; basis?: { datasetId?: unknown } } : undefined;
+  const illuminantSpectrum = illuminantRecord?.kind === "spectrum" ? { spectrum: spectrumDigestForm(illuminant.spectrum, illuminant.shape) } :
+    illuminantRecord?.kind === "daylight" ? { basisDatasetId: illuminantRecord.basis?.datasetId, spectrum: spectrumDigestForm(illuminant.spectrum, illuminant.shape) } : undefined;
+  const sceneSpectra = chart ? chart.materials.flatMap((m, index) => {
+    if (m.kind !== "spectrum") return [];
+    const raw = chart!.preset === "uniform" ? sceneRecord.reflectance : (sceneRecord.patches as readonly { reflectance: unknown }[])[index]!.reflectance;
+    return [{ material: index, spectrum: spectrumDigestForm(raw, m.spectrum) }];
+  }) : [];
   const sceneDescription = { facadeVersion: SIMULATE_CAPTURE_FACADE_VERSION, scene: chart ? { preset: chart.preset, parameters: chart.parameters } :
-    { kind: callerScene!.kind, sceneId: callerScene!.sceneId }, illuminant: illuminant.id, illuminanceLux, subjectDistanceM, framedWidthM: 2 * metresPerFrameUnit, aspect };
+    { kind: callerScene!.kind, sceneId: callerScene!.sceneId }, illuminant: illuminant.id, illuminanceLux, subjectDistanceM, framedWidthM: 2 * metresPerFrameUnit, aspect,
+    ...(illuminantSpectrum === undefined ? {} : { illuminantSpectrum }), ...(sceneSpectra.length === 0 ? {} : { sceneSpectra }) };
   if (callerScene) assume("scene.digest", "model", "caller-function-not-hashed", "The source digest covers the caller's sceneId and the framing, not the body of the caller's evaluate function.");
   const sourceSha256 = await sha256Hex(JSON.stringify(sceneDescription, (_key, value: unknown) => (typeof value === "object" && value !== null && "evaluate" in value ? "caller-spectrum" : value)));
   checkAbort();
@@ -837,6 +869,8 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       camera: { profileId: IDS.spectral, profileVersion: SIMULATE_CAPTURE_FACADE_VERSION, xyzToCameraRgb: XYZ_TO_CAMERA.map((r) => [...r]) as unknown as Parameters<typeof resolveColorTemperatureWhiteBalance>[0]["camera"]["xyzToCameraRgb"] } });
   } else if (typeof whiteBalanceOption === "object" && whiteBalanceOption !== null && "channelGains" in whiteBalanceOption) {
     allowKeys(whiteBalanceOption, "output.whiteBalance", ["channelGains"]);
+    requireInputObject(whiteBalanceOption.channelGains, "output.whiteBalance.channelGains");
+    allowKeys(whiteBalanceOption.channelGains, "output.whiteBalance.channelGains", ["red", "green", "blue"]);
     whiteBalanceState = resolveManualWhiteBalance({ stateId: "facade-wb-manual", channelGains: whiteBalanceOption.channelGains });
   } else fail("Unknown output.whiteBalance.");
   const intentOf = (state: ResolvedWhiteBalanceState | null): CaptureWhiteBalanceIntent | null => (state ? createCaptureWhiteBalanceIntent({ state }) : null);
@@ -983,7 +1017,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
   }
   const readTile = async (request: { captureId: string; frameId: string; x: number; y: number; width: number; height: number }): Promise<NativeEnvironmentRawTile> =>
     ({ ...request, sites: Array.from({ length: request.width }, (_, j) => siteInput(request.y * nativeWidth + request.x + j)) });
-  const yieldControl = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+  const yieldControl = createHostYield().yieldControl;
   const perSite = queriesPerSite;
   const evaluations = nativeWidth * nativeHeight * perSite;
   // The native task admits at most 100 000 radiance queries per tile.
@@ -1003,13 +1037,12 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     return (): void => { completed++; onProgress?.({ stage, completedTileCount: completed, totalTileCount: total }); };
   };
   const rawTick = progress("raw", plan.tileCount);
-  const rawTask: NativeEnvironmentRawTask = createNativeEnvironmentRawTask(needsAuto ? { ...environmentRaw, opticalStage: { maximumRetainedBytes: plan.pixelCount * (58 + 24 * temporalSampleCount) } } : environmentRaw, {
+  const rawTask: NativeEnvironmentRawTask = createNativeEnvironmentRawTask(environmentRaw, {
     readTile: async (request) => { const tile = await readTile(request); rawTick(); return tile; },
     evaluateRadiance: provider.evaluateRadiance, ...(pupil ? { evaluateApertureRadiance: provider.evaluateApertureRadiance } : {}), yieldControl });
   await runTask(rawTask);
   let rawOutput = rawTask.takeOutput();
   const providerEvaluationCount = rawOutput.providerEvaluationCount;
-  const opticalStage: NativeEnvironmentOpticalStage | undefined = rawOutput.opticalStage;
   const rawMs = Date.now() - rawStarted, wbStarted = Date.now();
   let finalRawInput = environmentRaw;
   if (needsAuto) {
@@ -1023,14 +1056,18 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     }
     const policy = body.whiteBalance.awbPolicies[0]!;
     assume("output.whiteBalance.auto", "model", { policyId: policy.policyId, samples: samples.length },
-      "Grey-world AWB of the body's " + policy.policyId + " policy over 2×2 CFA block means of the pre-WB RAW; the sensor stage is then re-run with that intent (no new radiance queries).");
+      "Grey-world AWB of the body's " + policy.policyId + " policy over 2×2 CFA block means of the pre-WB RAW; the RAW is then rendered again with that intent (the same radiance queries are repeated).");
     whiteBalanceState = estimateAutoWhiteBalance({ stateId: "facade-wb-auto", profile: body.whiteBalance, policyId: policy.policyId,
       sampleSet: { imageStateId: "facade-pre-wb-raw", inputDomain: "relative-pre-wb-camera-linear-rgb", samples } });
     finalRawInput = { raw: buildRawInput(intentOf(whiteBalanceState)), sceneBinding, maximumProviderEvaluations: environmentRaw.maximumProviderEvaluations };
     const wbTick = progress("white-balance", plan.tileCount);
-    const stageTask = createNativeEnvironmentSensorStageTask({ raw: finalRawInput.raw, sceneBinding }, opticalStage!, {
-      readTile: async (request) => { const tile = await readTile(request); wbTick(); return tile; }, yieldControl });
-    try { await runTask(stageTask); rawOutput = stageTask.takeOutput(); } finally { opticalStage!.dispose(); }
+    // A second lean RAW pass with the measured intent. It gives the same RAW as re-running the sensor stage on a
+    // retained optical stage, and is faster: retaining the optical stage takes the first pass off the lean executor.
+    const wbTask = createNativeEnvironmentRawTask(finalRawInput, {
+      readTile: async (request) => { const tile = await readTile(request); wbTick(); return tile; },
+      evaluateRadiance: provider.evaluateRadiance, ...(pupil ? { evaluateApertureRadiance: provider.evaluateApertureRadiance } : {}), yieldControl });
+    await runTask(wbTask);
+    rawOutput = wbTask.takeOutput();
   }
   const wbMs = Date.now() - wbStarted, devStarted = Date.now();
   const colorProfile: ExportSensorColorProfile = { schemaVersion: "0.1.0", profileId: IDS.spectral, profileVersion: SIMULATE_CAPTURE_FACADE_VERSION, colorSamplingProfileId: IDS.cfa,
@@ -1096,10 +1133,10 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
     const samples = developed.integerSamples as Uint8Array;
     const jpegSha = await sha256Hex(Array.from(samples.subarray(0, Math.min(samples.length, 4096))).join(",") + ":" + samples.length + ":" + sourceSha256);
     const source = { captureId: IDS.capture, imageStateId: "facade-developed", artifactId: "facade-developed-srgb8", sha256: jpegSha, width, height, encoding: "encoded-srgb-8-rgb" as const };
-    // The encoder reads one source rectangle per 8 × 8 output block.
-    const blocks = Math.ceil(width / 8) * Math.ceil(height / 8), jpegTick = progress("jpeg", blocks);
+    // The encoder reads every pixel once, in source tiles of at most 256 × 32 aligned to the crop origin.
+    const reads = Math.ceil(height / 32) * Math.ceil(width / 256), jpegTick = progress("jpeg", reads);
     const jpegTask = createPrintJpegTask({ source, crop: { x: 0, y: 0, width, height }, outputWidth: width, outputHeight: height, quantizationStep: jpegStep!,
-      maximumEncodedBytes: Math.max(65536, width * height * 6), maximumProviderReads: blocks }, {
+      maximumEncodedBytes: Math.max(65536, width * height * 6), maximumProviderReads: reads }, {
       readTile: async (request) => {
         jpegTick();
         const out = new Uint8Array(request.width * request.height * 3);
@@ -1135,7 +1172,7 @@ export async function simulateCapture(options: SimulateCaptureOptions): Promise<
       composedContracts: ["resolveGenericEquipmentExposureCapabilities", "meterRelativeExposure", "createExposureMeterTargetFromMeteringResult",
         "resolve" + (mode === "manual" ? "Manual" : mode === "aperture-priority" ? "AperturePriority" : mode === "shutter-priority" ? "ShutterPriority" : "ProgramAuto") + "ExposureMode",
         ...(rollingSchedule ? ["resolveElectronicRollingShutterExposureSchedule", "createRollingShutterCaptureExposureSchedule"] : []),
-        "resolveGenericIsoSignalChain", "createNativeEnvironmentRawTask", ...(needsAuto ? ["estimateAutoWhiteBalance", "createNativeEnvironmentSensorStageTask"] : []),
+        "resolveGenericIsoSignalChain", "createNativeEnvironmentRawTask", ...(needsAuto ? ["estimateAutoWhiteBalance"] : []),
         ...(builtInDemosaic ? ["createBuiltInBayerDemosaicProfiles"] : []),
         ...(linearPath ? ["native RAW development operator (linear, pre-clip)", "resolveRgbColorSpace", ...(perceptual ? ["prepareRgbGamutMapping"] : [])] : ["createNativeRawDevelopmentTask"]),
         ...(jpeg ? ["createPrintJpegTask"] : []), ...(png ? ["serializePngImage"] : []), ...(dng ? ["resolveSensorReadoutRegime", "serializeNativeRawDng"] : [])],

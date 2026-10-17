@@ -10,6 +10,8 @@ import {
   parseGenericBodyExposureCapabilityProfile,
   parseGenericLensExposureCapabilityProfile,
   resolveAperturePriorityAutoIsoExposureMode,
+  resolveAperturePriorityExposureMode,
+  resolveManualExposureMode,
   resolveCaptureGeometry,
   resolveGenericEquipmentExposureCapabilities,
   resolveShutterPriorityExposureMode,
@@ -17,6 +19,7 @@ import {
   type ResolvedGenericEquipmentExposureCapabilities
 } from "../src/index.js";
 import { expectRejection, type Json, type MixedRejectionCase } from "./helpers/rejection-table.js";
+import { probeSubObjects } from "./helpers/sub-object-probe.js";
 
 const evidence = (ref: string) => [{
   sourceOrigin: "photivra" as const,
@@ -540,5 +543,29 @@ describe("exposure-mode resolver target and capability rejection branches",()=>{
       'isoControl.apertureQuantizationPolicy must be "nearest-log2-narrower-on-tie".', InvalidConfigurationError]
   ] as MixedRejectionCase[])("rejects %s",(_name,mutate,message,errorClass)=>{
     expectRejection(input,resolve,errorClass??InvalidScientificInputError,mutate,message);
+  });
+});
+
+describe("exposure-mode resolvers reject a missing, null or non-object sub-object with a domain error (2.0.0 pre-release review)",()=>{
+  it("manual, Aperture Priority, Aperture Priority + Auto ISO and Shutter Priority",async()=>{
+    const policy={kind:"minimum-iso-until-slowest-preferred-shutter",slowestPreferredShutterSeconds:1/60,shutterSelectionPolicy:"not-longer-than-target",
+      isoBaseline:"minimum-selectable",isoQuantizationPolicy:"nearest-log2-lower-on-tie",afterMaximumIso:"allow-slower-shutter"};
+    const cases:[string,(input:unknown)=>unknown,object][]=[
+      ["resolveManualExposureMode",(input):unknown=>resolveManualExposureMode(input as never),{target:targetForScale(2),capabilities:capabilities(),referenceExposure:ref,
+        manualAperture:4,manualShutterSeconds:1/125,isoControl:{kind:"manual",iso:100}}],
+      ["resolveAperturePriorityExposureMode",(input):unknown=>resolveAperturePriorityExposureMode(input as never),{target:targetForScale(2),capabilities:capabilities(),
+        referenceExposure:ref,manualAperture:4,manualIso:100,shutterQuantizationPolicy:"nearest-log2-shorter-on-tie"}],
+      ["resolveAperturePriorityAutoIsoExposureMode",(input):unknown=>resolveAperturePriorityAutoIsoExposureMode(input as never),{target:targetForScale(1),
+        capabilities:capabilities(),referenceExposure:ref,manualAperture:4,policy}],
+      ["resolveShutterPriorityExposureMode",(input):unknown=>resolveShutterPriorityExposureMode(input as never),{target:targetForScale(16),
+        capabilities:capabilities({isoGrid:"continuous"}),referenceExposure:ref,manualShutterSeconds:1/125,isoControl:{kind:"automatic",policy:{
+          kind:"minimum-iso-aperture-first",isoBaseline:"minimum-selectable",isoQuantizationPolicy:"nearest-log2-lower-on-tie",apertureSelectionPolicy:"not-wider-than-target"}}}]
+    ];
+    for(const [name,call,input] of cases){
+      expect(()=>call(input),name).not.toThrow();
+      const {probedPaths,escaped}=await probeSubObjects(call,input,{maximumDepth:4});
+      expect(probedPaths,name).toBeGreaterThan(5);
+      expect(escaped,name).toEqual([]);
+    }
   });
 });

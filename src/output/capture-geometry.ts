@@ -29,7 +29,7 @@ import {
   type RasterDimensions,
   type SensorImagingArea
 } from "../sensor/sensor-geometry.js";
-import { requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys, requireInputObject } from "../core/record-validation.js";
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export type CaptureOrientation =
@@ -298,6 +298,7 @@ function requireRasterDimensions(
   name: string,
   raster: RasterDimensions
 ): void {
+  requireInputObject(raster, name);
   requirePositiveInteger(`${name}.pixelWidth`, raster.pixelWidth);
   requirePositiveInteger(`${name}.pixelHeight`, raster.pixelHeight);
 }
@@ -315,6 +316,7 @@ function validateRasterRect(
   rect: RasterRect,
   bounds: RasterDimensions
 ): void {
+  requireInputObject(rect, name);
   requireNonNegativeInteger(`${name}.x`, rect.x);
   requireNonNegativeInteger(`${name}.y`, rect.y);
   requirePositiveInteger(`${name}.width`, rect.width);
@@ -335,6 +337,7 @@ function validateRasterPoint(
   point: RasterPoint,
   bounds: RasterDimensions
 ): void {
+  requireInputObject(point, name);
   if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
     throw new InvalidScientificInputError(
       `${name} coordinates must be finite.`
@@ -353,6 +356,7 @@ function validateRasterPoint(
 }
 
 function validateRasterVector(name: string, vector: RasterVector): void {
+  requireInputObject(vector, name);
   if (!Number.isFinite(vector.x) || !Number.isFinite(vector.y)) {
     throw new InvalidScientificInputError(
       `${name} coordinates must be finite.`
@@ -382,6 +386,7 @@ function validatePhysicalBounds(
   name: string,
   bounds: PhysicalBoundsFromOpticalAxisMm
 ): void {
+  requireInputObject(bounds, name);
   for (const key of ["left", "right", "top", "bottom"] as const) {
     if (!Number.isFinite(bounds[key])) {
       throw new InvalidScientificInputError(
@@ -417,6 +422,7 @@ function validatePhysicalBounds(
 }
 
 function validateNormalizedUv(name: string, uv: NormalizedRasterUv): void {
+  requireInputObject(uv, name);
   if (!Number.isFinite(uv.u) || !Number.isFinite(uv.v)) {
     throw new InvalidScientificInputError(
       `${name} coordinates must be finite.`
@@ -935,6 +941,7 @@ export function resolveCaptureGeometry(
 ): CalculationResult<ResolvedCaptureGeometry> {
   requireInputKeys(input, "resolveCaptureGeometry", ["imagingArea", "nativeRaster", "orientation", "activeCaptureRect", "outputCropRect", "outputRaster"]);
   requireCaptureOrientation(input.orientation);
+  requireInputObject(input.imagingArea, "imagingArea");
   requirePositiveFinite("imagingArea.widthMm", input.imagingArea.widthMm);
   requirePositiveFinite("imagingArea.heightMm", input.imagingArea.heightMm);
   requireRasterDimensions("nativeRaster", input.nativeRaster);
