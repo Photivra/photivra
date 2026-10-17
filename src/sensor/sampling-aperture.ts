@@ -488,6 +488,25 @@ function requireSiteIndex(
   return value;
 }
 
+/**
+ * Relative rounding allowance for the lattice and aperture fit tests against the imaging area.
+ *
+ * The imaging extent (`widthMm · 1000`) and the far aperture edge (first centre + (n − 1)·pitch +
+ * offset + width/2) reach the same real number through different chains of at most about eight
+ * IEEE-754 double operations, each with a relative rounding error of at most ε/2 of a magnitude no
+ * larger than the extent. A geometry that fits exactly can therefore miss by a few units in the last
+ * place: a 34-site row of 9.287925696594426 µm sites gives 315.78947368421046 µm of imaging width but
+ * a far aperture edge at 315.7894736842105 µm. The fit tests allow 8 ε of the extent (about 1.8e-15
+ * relative; 5e-11 µm on a 30 mm sensor), far below any physical aperture difference, and still reject
+ * every genuinely oversized lattice or aperture.
+ */
+export const APERTURE_FIT_RELATIVE_TOLERANCE = 8 * Number.EPSILON;
+
+/** The fit-test allowance in micrometres for an imaging extent in micrometres. */
+export function apertureFitAllowanceMicrometers(extentMicrometers: number): number {
+  return APERTURE_FIT_RELATIVE_TOLERANCE * extentMicrometers;
+}
+
 function requirePositiveImagingArea(
   imagingArea: SensorImagingArea
 ): void {
@@ -605,9 +624,16 @@ export function resolveSensorSamplingAperture(
     (gridHeight - 1) *
       lattice.pitchYMicrometers;
 
+  const allowanceX = apertureFitAllowanceMicrometers(
+    imagingWidthMicrometers
+  );
+  const allowanceY = apertureFitAllowanceMicrometers(
+    imagingHeightMicrometers
+  );
+
   if (
-    lastCenterX > imagingWidthMicrometers ||
-    lastCenterY > imagingHeightMicrometers
+    lastCenterX > imagingWidthMicrometers + allowanceX ||
+    lastCenterY > imagingHeightMicrometers + allowanceY
   ) {
     throw new InvalidScientificInputError(
       "Declared site-center lattice extends beyond the supplied physical imaging area."
@@ -643,10 +669,12 @@ export function resolveSensorSamplingAperture(
     apertureHalfHeight;
 
   if (
-    firstApertureLeft < 0 ||
-    firstApertureTop < 0 ||
-    lastApertureRight > imagingWidthMicrometers ||
-    lastApertureBottom > imagingHeightMicrometers
+    firstApertureLeft < -allowanceX ||
+    firstApertureTop < -allowanceY ||
+    lastApertureRight >
+      imagingWidthMicrometers + allowanceX ||
+    lastApertureBottom >
+      imagingHeightMicrometers + allowanceY
   ) {
     throw new InvalidScientificInputError(
       "Declared geometric sensitive aperture does not fit within the supplied physical imaging area across the complete site grid."
@@ -688,12 +716,12 @@ export function resolveSensorSamplingAperture(
     aperture.heightMicrometers / 2;
 
   if (
-    apertureLeftTopX < 0 ||
-    apertureLeftTopY < 0 ||
+    apertureLeftTopX < -allowanceX ||
+    apertureLeftTopY < -allowanceY ||
     apertureRightBottomX >
-      imagingWidthMicrometers ||
+      imagingWidthMicrometers + allowanceX ||
     apertureRightBottomY >
-      imagingHeightMicrometers
+      imagingHeightMicrometers + allowanceY
   ) {
     throw new InvalidScientificInputError(
       "Resolved geometric sensitive aperture extends beyond the supplied physical imaging area."

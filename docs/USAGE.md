@@ -1911,6 +1911,8 @@ console.log(metrics.value.sampling.pitchYMicrometers); // 6
 
 The returned X/Y sampling pitches are the geometric spacing of image samples. They are not photodiode active area, fill factor or a photon-collection model, and must not be used as those quantities.
 
+Passing such a pitch to `simulateCapture()` as `sensor.pixelPitchMicrometers` is a supported use, but the photon model then comes from the facade, not from this pitch: the facade declares its own sensor with sites at that spacing and a square sensitive aperture of the same side (fill factor 1, the `sensor.fillFactor` assumption), and scales its ISO readout with that aperture area (see [Quick start: ISO and pixel size](QUICK_START.md#iso-and-pixel-size)). A real sensor of the same pitch may have a smaller sensitive area, microlenses and a different full-well capacity.
+
 The existing `calculatePixelPitch()` API remains available for callers that only need horizontal pitch from sensor width and horizontal pixel count.
 
 ## Sensor architecture metadata
@@ -2428,7 +2430,7 @@ The site-center lattice is a distinct physical registration contract:
 - coordinates are `native-sensor-physical`: optical-axis origin, +X right, +Y down;
 - `pitchXMicrometers` and `pitchYMicrometers` are explicit evidence-backed site-center spacings;
 - the first site's center is explicitly registered relative to the physical imaging area's top-left edge;
-- the full declared lattice must fit inside the supplied physical imaging area.
+- the full declared lattice, and the sensitive aperture of every site, must fit inside the supplied physical imaging area. The test allows 8 ε (about 1.8 × 10⁻¹⁵) of the imaging extent for floating-point rounding: an imaging width given as `n · pitch / 1000` mm and a far aperture edge computed as `pitch/2 + (n − 1)·pitch + pitch/2` µm reach the same exact value by different rounded operations and can differ in the last bit. Any larger excess is rejected.
 
 Photivra does **not** derive this site pitch or origin from `NativeImageRaster`. The native effective raster and the colour-site lattice already have a structural binding, but physical placement is a separate fact.
 

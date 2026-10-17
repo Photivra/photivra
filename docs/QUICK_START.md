@@ -93,7 +93,7 @@ modelling choices (such as "no lens PSF") as `kind: "model"`.
 | `output.highlightMode` | `"clip"` | Or `"reconstruct"`. |
 | `output.whiteBalance` | `"scene-illuminant"` | Also `"auto"`, `"none"`, `{ kelvin, tint? }` and `{ channelGains }`. |
 | `output.jpegQuantizationStep` | 2 | JPEG only: constant step 1–255, not a manufacturer quality scale. |
-| `sensor.pixelPitchMicrometers` | 6 | The sensor is `width × pitch` wide (see [Geometry](#geometry)). |
+| `sensor.pixelPitchMicrometers` | 6 | 0.5–100. The sensor is `width × pitch` wide (see [Geometry](#geometry)); the ISO readout scales with the pixel area (see [ISO and pixel size](#iso-and-pixel-size)). |
 | `sensor.spectralStepNanometers` | 20 | Spectral quadrature over 380–780 nm. |
 | `sensor.temporalSampleCount` | 1, or 8 when the camera rotates | Midpoints across each site's exposure window. |
 | `sensor.noiseSeed` | 1 | Output is deterministic for a given seed. |
@@ -120,6 +120,39 @@ The simulated sensor has real pixels of `sensor.pixelPitchMicrometers`. A 64 × 
 pixels is therefore a 0.38 mm crop of a large sensor, not a downscaled full frame. This keeps the
 signal per pixel, and so the noise and the ISO behaviour, physically consistent with the tier's
 sensor values.
+
+### ISO and pixel size
+
+The tier's ISO signal chain (conversion gain, saturation signal and read noise per ISO setting) is
+declared for the default 6 µm pixel. At other pitches the facade keeps the ISO calibration
+independent of pixel size, so the same exposure gives the same image brightness at any pitch:
+
+- Standard output sensitivity S = 10/H (CIPA DC-004-2020 §3.2) is defined by the camera's output
+  for a focal-plane exposure H; it does not depend on pixel size.
+- The charge a pixel collects is proportional to its area: the photon count is μp = A·E·t/(hν)
+  (EMVA Standard 1288 Release 4.0 Linear, §2.1, Eq. 3, free).
+- So the facade multiplies the system conversion gain (e⁻ per code) and the pre-ADC saturation
+  signal of every ISO regime by the area ratio pitch²/36 µm². Codes, black level, ADC and digital gain
+  are unchanged. At 6 µm the ratio is exactly 1 and nothing is changed (byte-identical to 2.1.0).
+- Read noise (in e⁻) and the synthetic dark current (1 e⁻/s) stay per pixel.
+
+What you see: brightness stays the same, and per-pixel noise rises as pixels shrink, because a
+smaller pixel collects fewer electrons for the same exposure (shot-noise SNR = √N_e). At f/8, 1/125 s,
+ISO 100 on an 18 % grey card, the 8-bit sRGB mean is 101.2 at 30, 6 and 3 µm, and the green standard
+deviation is 0.18, 0.93 and 1.83 codes. Below about 1 µm the 8-bit sRGB mean falls slightly (about 1 code at 0.55 µm)
+although the linear RAW mean is unchanged (within 0.3 %): strong noise passed through the concave
+sRGB curve lowers the mean of the encoded values.
+
+The charge capacity follows the scaled base-ISO saturation signal (see `sensor.capacityElectrons`),
+so it is proportional to pixel area: 60 000 e⁻ at 6 µm, 15 000 e⁻ at 3 µm, 1 500 000 e⁻ at 30 µm.
+This is a consequence of holding the tier's ISO rating and its half stop of highlight headroom fixed,
+**not a measured full-well model**. Published sensor data show full-well capacity growing with pixel
+size but less than in proportion to area across process generations (for example about 16 000 e⁻ at
+2 µm and 37 500 e⁻ at 5.2 µm in Farrell, Xiao & Kavusi, *Proc. SPIE* 6069, 2006, Table 1; Chen et al.,
+*Proc. SPIE* 3965, 2000, model the photodiode capacitance as roughly linear in pixel side). A real
+large-pixel sensor may therefore saturate earlier, and a real small-pixel sensor would usually be
+given a higher base ISO. When the pitch is not 6 µm, the assumption `sensor.isoAreaNormalization`
+records the area ratio and this approximation.
 
 ## Exposure
 
@@ -223,7 +256,8 @@ These choices appear in `assumptions` as `kind: "model"` entries:
   you supply; diffraction of an ideal lens only with `lens.diffraction` (2.1).
 - **Sensor.** Square pixels with a fill factor of 1 and no anti-aliasing filter. A global
   electronic shutter unless `motion.shutter` is `"rolling"`. A synthetic uniform dark current of
-  1 e⁻/s at 20 °C (the tiers declare none). The charge capacity equals the body's base-ISO saturation signal.
+  1 e⁻/s at 20 °C (the tiers declare none). The charge capacity equals the body's base-ISO saturation signal,
+  scaled with pixel area away from 6 µm (see [ISO and pixel size](#iso-and-pixel-size)).
 - **Demosaic.** Bilinear RGGB interpolation through the existing linear-kernel contract, unless
   `output.demosaic` selects a built-in kernel or AHD. (Demosaicing fills in the two missing colours at each
   pixel of a colour-filter mosaic.) Sharp edges without lens blur therefore show the usual zipper and

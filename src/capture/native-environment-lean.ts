@@ -52,6 +52,7 @@ import { parseFocusPlane } from "../optics/focus-state.js";
 import { calculateIlluminationVignetting } from "../optics/illumination-vignetting.js";
 import { applyPhysicalCameraRotation, resolveProjectionDistanceMm } from "../motion/camera-rotation.js";
 import { prepareCaptureExposureWindowSampler } from "../sensor/exposure-window.js";
+import { apertureFitAllowanceMicrometers } from "../sensor/sampling-aperture.js";
 import { isPublicOpaqueId } from "../core/record-validation.js";
 import { freezeOwnedData } from "../core/owned-data.js";
 import { composeNativeEnvironmentSensorSite } from "./native-environment-optical-stage.js";
@@ -278,8 +279,10 @@ function geometry(t: Template, k: PlanConstants, frame: NativeEnvironmentLeanFra
     const siteCenterFromTopLeftX = g.firstX + x * g.pitchX, siteCenterFromTopLeftY = g.firstY + y * g.pitchY;
     const apertureCenterFromTopLeftX = siteCenterFromTopLeftX + g.offsetX, apertureCenterFromTopLeftY = siteCenterFromTopLeftY + g.offsetY;
     const imagingWidthMicrometers = g.imagingWidthMm * 1000, imagingHeightMicrometers = g.imagingHeightMm * 1000;
-    if (apertureCenterFromTopLeftX - g.widthUm / 2 < 0 || apertureCenterFromTopLeftY - g.heightUm / 2 < 0 ||
-      apertureCenterFromTopLeftX + g.widthUm / 2 > imagingWidthMicrometers || apertureCenterFromTopLeftY + g.heightUm / 2 > imagingHeightMicrometers) return undefined;
+    const allowanceX = apertureFitAllowanceMicrometers(imagingWidthMicrometers), allowanceY = apertureFitAllowanceMicrometers(imagingHeightMicrometers);
+    if (apertureCenterFromTopLeftX - g.widthUm / 2 < -allowanceX || apertureCenterFromTopLeftY - g.heightUm / 2 < -allowanceY ||
+      apertureCenterFromTopLeftX + g.widthUm / 2 > imagingWidthMicrometers + allowanceX ||
+      apertureCenterFromTopLeftY + g.heightUm / 2 > imagingHeightMicrometers + allowanceY) return undefined;
     const centerX = -g.imagingWidthMm / 2 + apertureCenterFromTopLeftX / 1000, centerY = -g.imagingHeightMm / 2 + apertureCenterFromTopLeftY / 1000;
     // calculateSensorSpatialSamplingQuadrature: midpoint grid nodes minus the anti-aliasing (AA) offset.
     const widthMm = g.widthUm / 1000, heightMm = g.heightUm / 1000;

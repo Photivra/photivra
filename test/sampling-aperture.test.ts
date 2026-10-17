@@ -424,6 +424,31 @@ describe("sensor sampling aperture foundation", () => {
     ).toThrow("complete site grid");
   });
 
+  it("accepts an exactly fitting lattice whose two extents differ by floating-point rounding only", () => {
+    // 34 sites of 9.287925696594426 µm: widthMm · 1000 = 315.78947368421046 µm, while the far aperture edge
+    // pitch/2 + 33·pitch + pitch/2 = 315.7894736842105 µm (one unit in the last place larger).
+    const pitch = 9.287925696594426, sites = 34;
+    const raster = { pixelWidth: sites, pixelHeight: sites };
+    const area = { widthMm: sites * pitch / 1000, heightMm: sites * pitch / 1000 };
+    expect(pitch / 2 + (sites - 1) * pitch + pitch / 2).toBeGreaterThan(area.widthMm * 1000);
+    const profile = apertureProfile({ pitchXMicrometers: pitch, pitchYMicrometers: pitch, firstXMicrometers: pitch / 2, firstYMicrometers: pitch / 2,
+      widthMicrometers: pitch, heightMicrometers: pitch });
+    const binding = { ...bindingProfile(), nativeRaster: raster };
+    const resolve = (site: { x: number; y: number }, samplingApertureProfile = profile, imagingArea = area): ReturnType<typeof resolveSensorSamplingAperture> => resolveSensorSamplingAperture({ imagingArea,
+      nativeRaster: raster, colorSamplingProfile: colorProfile(), colorSamplingBindingProfile: binding, samplingApertureProfile, site });
+    expect(resolve({ x: sites - 1, y: sites - 1 }).geometricSensitiveAperture.geometricSensitiveAreaFractionOfLatticeCell).toBe(1);
+    expect(resolve({ x: 0, y: 0 }).channelId).toBe("red");
+
+    // A genuinely oversized aperture or lattice is still rejected, however small the excess.
+    const excess = 1e-9;
+    expect(() => resolve({ x: 0, y: 0 }, apertureProfile({ pitchXMicrometers: pitch, pitchYMicrometers: pitch, firstXMicrometers: pitch / 2 + excess,
+      firstYMicrometers: pitch / 2, widthMicrometers: pitch, heightMicrometers: pitch }))).toThrow("complete site grid");
+    expect(() => resolve({ x: 0, y: 0 }, apertureProfile({ pitchXMicrometers: pitch, pitchYMicrometers: pitch, firstXMicrometers: pitch / 2 - excess,
+      firstYMicrometers: pitch / 2, widthMicrometers: pitch, heightMicrometers: pitch }))).toThrow("complete site grid");
+    expect(() => resolve({ x: 0, y: 0 }, profile, { widthMm: area.widthMm * (1 - 1e-12), heightMm: area.heightMm })).toThrow("complete site grid");
+    expect(() => resolve({ x: 0, y: 0 }, profile, { widthMm: area.widthMm, heightMm: (sites - 1) * pitch / 1000 })).toThrow("lattice extends beyond");
+  });
+
   it("fails closed when profile IDs do not match the color topology or binding", () => {
     expect(() =>
       resolveSensorSamplingAperture({
