@@ -402,7 +402,7 @@ Work that is known and deliberately left for later:
 
 - **#305 follow-ups:** a provably identical fast path for provider-result validation; lean sensor-stage reuse.
 - **#307 follow-ups:** real-camera DNG interoperability is not claimed (LibRaw decodes the files; no editor review yet); sharing the colour-tag code with the paired export.
-- **#275:** planning once per CFA phase; worker parallelism; a different native RAW default tile width (a plan-shape change); per-tap request retention (about 8 MB per site with a large PSF).
+- **#275:** a different native RAW default tile width (a plan-shape change); per-tap request retention (about 8 MB per site with a large PSF); parallel execution inside `simulateCapture()` (the engine-level row-band partitions are done).
 - **#276:** consistency between error classes; freezing result envelopes (a deep freeze costs every result on hot paths).
 - **#277 and follow-ups from #304:** hardware-GPU conformance runs and CI wiring, kernel sampling from `LensPsfProfile`, GPU luminance tone curves.
 - **Optics follow-ups from #303:** lens field mapping in the browser-native executor, mappings combined with ideal pupil rays, calibrated finite-focus fisheye scale.

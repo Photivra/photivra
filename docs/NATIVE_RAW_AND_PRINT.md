@@ -241,6 +241,42 @@ A capture-level difference is refused when the reuse task is created, before any
 
 `test/native-environment-optical-stage.test.ts` checks reuse against full recomputes. It covers a PSF with radial field, a flat emitter, pupil rays and eight temporal midpoints, across edits to seed, ISO with readout gain, white balance, rendering exposure and dark current. It also checks refusal for every optical input listed above, the memory limit and disposal.
 
+### Opt-in parallel execution (row-band partitions, 2.0)
+
+`createNativeEnvironmentRawTask` runs on one thread. A capture can instead be split into bands of whole native rows and run in parallel:
+
+1. `partitionNativeRawRows(plan, count)` returns at most `count` contiguous bands of nearly equal height, in row order. It depends only on the raster height and `count`.
+2. `createNativeEnvironmentRawPartitionTask(input, band, provider)` runs one band. It takes the same input as the single task, and its provider is built where it runs (functions cannot be posted between workers). Its `takeOutput()` returns a `NativeEnvironmentRawPartition`: plain data plus four typed arrays for the band's rows, which can be posted with their buffers transferred.
+3. `mergeNativeEnvironmentRawPartitions(input, partitions)` joins the partitions, in row order, into the `NativeEnvironmentRawOutput` the single task returns.
+
+The package bundles no worker code, so the root package stays browser-safe and the package surface is unchanged. The caller creates the workers (Web Workers, Node worker threads, or none: partitions can also run one after another).
+
+**Byte identity.** The merged RAW codes, black levels, saturation codes, flags and per-phase white levels are byte-identical to the single task's for the same input and a deterministic provider, and `providerEvaluationCount` is the sum. Noise seeds use absolute native indices, and each band reads the same tiles, plans the same sites and computes the same per-site values (lean or full) as the single task. `test/native-environment-partitions.test.ts` checks this for the four hash-locked workloads and a facade capture with 1, 2, 3 and one-row bands, with each partition passed through `structuredClone` as `postMessage` would.
+
+**Checks.** Each partition validates the same inputs and limits as the single task before its callbacks. Checks that span sites run inside each band and again across bands in the merge:
+
+- one shared source, optical and motion state (the merge compares each band's canonical state);
+- one readout identity and fixed-pattern identity (each band's first site);
+- one effective white level per CFA phase, and a white level for every phase.
+
+The merge also rejects a partition from a different input (compared by canonical JSON), a gap, overlap or wrong order, wrong array types or lengths, and a total evaluation count above `maximumProviderEvaluations`. It validates shape and consistency only: posted partitions are the caller's own data, and the merge cannot recompute them.
+
+**Limits.**
+
+- `maximumProviderEvaluations` bounds each partition's own work before it starts; the whole-capture total is checked only at the merge, after the work.
+- Callbacks are split across partitions and run concurrently. When several partitions fail, which error the caller sees first depends on its scheduling. Successful output does not depend on it.
+- Optical-stage retention (`opticalStage`) is not supported in a partition.
+- Each band builds its own lean templates (the first sites of each CFA phase in the band run the full path).
+
+**Measured** with `scripts/benchmark-native-environment-workers.mjs` (Node worker threads, Node 24, shared 4-vCPU Linux host, 48 × 48 output, 2,500 native sites, median of 3 after one warm-up; merged RAW SHA-256 equal to the single task's in every run). Worker start-up (about 0.1–0.2 s, sending the site inputs) is excluded from the run time.
+
+| Case | Single task | 2 workers | 4 workers |
+| --- | --- | --- | --- |
+| 3 × 3 sampled PSF | 1.53 s | 1.00 s (1.5×) | 0.66 s (2.3×) |
+| Default optics | 0.27 s | 0.17 s (1.6×) | 0.23 s (1.2×) |
+
+Speed-up depends on the work per site and the host. Cheap sites gain little: at 96 × 96 with default optics, 2 workers ran 0.86 → 0.72 s and 4 workers were not faster. These are single measurements on one shared host, not a performance claim.
+
 ## Native RAW DNG
 
 `serializeNativeRawDng({ raw, colorProfile, noise?, baselineExposureEv?, capturedAtUtc? })` writes a packed `NativeRawOutput` as a lossless, uncompressed 16-bit CFA DNG (DNG 1.4 tags, Adobe DNG Specification 1.7.1.0). It uses the TIFF/DNG tag writers of the paired photographic export.

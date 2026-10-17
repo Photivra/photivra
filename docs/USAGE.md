@@ -7250,6 +7250,40 @@ console.log(calculateGeometricFocusBreathing({
 }).value.deltaDegrees);
 ```
 
+## Parallel native environment RAW (row-band partitions, 2.0)
+
+`createNativeEnvironmentRawTask` runs on one thread. For several cores, split the capture into row bands with
+`partitionNativeRawRows`, run each band with `createNativeEnvironmentRawPartitionTask` (one per Web Worker or Node
+worker thread, each with its own provider), post the partitions back, and join them with
+`mergeNativeEnvironmentRawPartitions`. The merged output is byte-identical to the single task's for the same input
+and a deterministic provider. The package ships no worker code; the caller owns the workers. See
+[parallel execution](NATIVE_RAW_AND_PRINT.md#opt-in-parallel-execution-row-band-partitions-20) for the checks and limits.
+
+```ts
+import { createNativeEnvironmentRawPartitionTask, mergeNativeEnvironmentRawPartitions, partitionNativeRawRows, simulateCapture,
+  type NativeEnvironmentRawProvider } from "@photivra/engine";
+
+const capture = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 8, height: 8 } });
+const input = capture.request.environmentRaw, width = capture.plan.exposure.geometry.nativeRaster.pixelWidth;
+// Each worker builds its own provider (functions cannot be posted). Here: a constant radiance.
+const provider: NativeEnvironmentRawProvider = {
+  readTile: async (r) => ({ ...r, sites: Array.from({ length: r.width }, (_, j) => capture.request.siteInput(r.y * width + r.x + j)) }),
+  evaluateRadiance: (q) => ({ schemaVersion: "0.1.0", sampleId: q.sampleId, sceneId: q.sceneId, providerProfileId: q.providerProfileId,
+    wavelengthNanometers: q.wavelengthNanometers, wavelengthBasis: q.wavelengthBasis, quantity: "outgoing-spectral-radiance", unit: "W/m^2/sr/nm",
+    spectralRadianceWattsPerSquareMeterSteradianNanometer: 0.01, scientificStatus: "approximation",
+    uncertainty: { kind: "not-quantified", limitation: "Example field." },
+    evidence: [{ sourceOrigin: "photivra", sourceReference: "photivra:usage-example", reuseStatus: "photivra-owned" }], limitations: ["Example field."] }),
+  yieldControl: async () => {}
+};
+const partitions = await Promise.all(partitionNativeRawRows(capture.plan, 2).map(async (band) => {
+  const task = createNativeEnvironmentRawPartitionTask(input, band, provider); // inside a worker
+  await task.run();
+  return task.takeOutput(); // postMessage(partition, [partition.codes.buffer, ...])
+}));
+const merged = mergeNativeEnvironmentRawPartitions(input, partitions);
+console.log(merged.raw.codes.length, merged.providerEvaluationCount);
+```
+
 ## Optional WebGPU image kernels
 
 `createImageKernelAccelerator()` runs three heavy image operations: isoplanatic PSF convolution (one PSF for the whole image), native capture SDR, and packed RAW development.

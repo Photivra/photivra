@@ -5,7 +5,9 @@
  * efficiency) → packed RAW codes for the full native sensor, within fixed work limits.
  */
 import { calculateNativeRawPlan, createNativeRawTaskWithCadence, type NativeRawInput, type NativeRawOutput,
-  type NativeRawTask, type NativeRawTileRequest, type NativeRawTaskState } from "./native-raw.js";
+  type NativeRawPlan, type NativeRawTask, type NativeRawTileRequest, type NativeRawTaskState } from "./native-raw.js";
+import { createPhaseWhiteLevelAccumulator } from "./raw-white-level.js";
+import type { SensorRawProducerSiteInput } from "./sensor-raw-producer.js";
 import { createEnvironmentRawFrameCanonicalMemo, planEnvironmentRawSite, type SimulateEnvironmentSensorRawFrameInput } from "./environment-raw-producer.js";
 import { DEFAULT_HOST_YIELD_CADENCE, createHostYieldGate, type HostYieldCadence } from "./host-yield-cadence.js";
 import { executeEnvironmentSensorPhotoSignal } from "../sensor/environment-photo-signal.js";
@@ -141,19 +143,34 @@ export function createNativeEnvironmentRawTask(input:NativeEnvironmentRawInput,p
   return createNativeEnvironmentRawTaskWithCadence(input,provider,DEFAULT_HOST_YIELD_CADENCE);
 }
 /** Internal: the same task with an explicit host-yield timing. Timing never changes tiles, callbacks or output. Not exported from the package. */
-export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmentRawInput,provider:NativeEnvironmentRawProvider,
-  cadence:HostYieldCadence):NativeEnvironmentRawTask {
+/** Validates a native environment input exactly as task creation does, before any callback. */
+function admitNativeEnvironmentInput(input:NativeEnvironmentRawInput):{plan:ReturnType<typeof calculateNativeRawPlan>;
+  sceneBinding:NativeEnvironmentRawInput["sceneBinding"];retention:NativeEnvironmentOpticalStageRetention|undefined;maximum:number} {
   const r=requireAllowlistedRecord(input,["raw","sceneBinding","maximumProviderEvaluations","opticalStage"],"Invalid native environment input.");
   const plan=calculateNativeRawPlan(input.raw),sceneBinding=parseSceneBinding(r.sceneBinding);
   const retention=r.opticalStage===undefined?undefined:parseNativeEnvironmentOpticalStageRetention(r.opticalStage);
   if(sceneBinding.sceneStateId!==plan.exposure.sceneStateId||plan.exposure.sceneTimeSeconds!==0||!plan.exposureWindow||
     typeof r.maximumProviderEvaluations!=="number"||!Number.isSafeInteger(r.maximumProviderEvaluations)||r.maximumProviderEvaluations<plan.pixelCount||r.maximumProviderEvaluations>2_000_000_000)
     throw new InvalidConfigurationError("Native environment requires opening-reference scene binding, an explicit shutter event and bounded full-event query budget.");
+  return {plan,sceneBinding,retention,maximum:r.maximumProviderEvaluations};
+}
+/** Internal: a partition's row band, and the facts it records while running for the merge step. */
+interface NativeEnvironmentPartitionProbe {
+  readonly rows:NativeRawRowBand;
+  /** Canonical string of the band's shared source/optical/motion state (the first site's). */
+  shared?:string;
+  /** The band's first parsed RAW site (its readout identity). */
+  firstSite?:SensorRawProducerSiteInput;
+}
+export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmentRawInput,provider:NativeEnvironmentRawProvider,
+  cadence:HostYieldCadence,partition?:NativeEnvironmentPartitionProbe):NativeEnvironmentRawTask {
+  const {plan,sceneBinding,retention,maximum}=admitNativeEnvironmentInput(input);
+  if(partition&&retention)throw new InvalidConfigurationError("A native environment partition cannot retain the optical stage.");
   if(!provider||typeof provider.readTile!=="function"||typeof provider.evaluateRadiance!=="function"||typeof provider.yieldControl!=="function"||
     (provider.evaluateApertureRadiance!==undefined&&typeof provider.evaluateApertureRadiance!=="function")||
     (provider.observePhotoTile!==undefined&&typeof provider.observePhotoTile!=="function"))throw new InvalidConfigurationError("Native environment requires physical source callbacks and host yields.");
   const read=provider.readTile.bind(provider),evaluate=provider.evaluateRadiance.bind(provider),aperture=provider.evaluateApertureRadiance?.bind(provider),yieldControl=provider.yieldControl.bind(provider);
-  const maximum=r.maximumProviderEvaluations,observe=provider.observePhotoTile?.bind(provider);
+  const observe=provider.observePhotoTile?.bind(provider);
   let evaluations=0,shared:string|undefined,reference:SharedStateReference|undefined;
   const recorder=retention?createNativeEnvironmentOpticalStageRecorder(plan,sceneBinding,retention):undefined;
   const memo=createEnvironmentRawFrameCanonicalMemo(plan.frame,plan.exposureWindow!),gate=createHostYieldGate(cadence);
@@ -196,7 +213,7 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
         if(reference!==undefined&&adoptSharedState(e,reference,verified))state=reference.canonical;
         else{
           state=canonical({sceneBindings:e.sceneBindings,optics:e.optics,motion:e.motion,psf:e.psf,pupil:e.pupil,fieldThroughput:e.fieldThroughput});
-          shared??=state;if(state!==shared)throw new InvalidConfigurationError("Native event requires one shared source/optical/motion state.");
+          shared??=state;if(partition)partition.shared??=shared;if(state!==shared)throw new InvalidConfigurationError("Native event requires one shared source/optical/motion state.");
           reference??={canonical:state,values:SHARED_STATE_KEYS.map(key=>(e as unknown as Record<string,unknown>)[key]),cleanArrays:new WeakSet()};
         }
         // A site matching a verified template gets a lean plan (identical requests and limit checks; see
@@ -250,7 +267,7 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
         expectedIncidentPhotonCount:s.expectedIncidentPhotonCount,expectedGeneratedElectronCount:s.expectedGeneratedElectronCount}))}),signal);
       return {...request,sites:rawSites as ReturnType<typeof composeNativeEnvironmentSensorSite>[]};
     },yieldControl
-  },cadence,gate,sensorLean.hook);
+  },cadence,gate,sensorLean.hook,partition?{y:partition.rows.y,height:partition.rows.height,firstSite:(site):void=>{partition.firstSite=site;}}:undefined);
   // The frame reference is needed only while tiles are read; release it once the event settles.
   const settle=():void=>{reference=undefined;};
   return {plan:task.plan,get state():NativeRawTaskState{return task.state;},get completedTileCount():number{return task.completedTileCount;},get providerEvaluationCount():number{return evaluations;},
@@ -264,6 +281,137 @@ export function createNativeEnvironmentRawTaskWithCadence(input:NativeEnvironmen
       return opticalStage?{...base,opticalStage}:base;
     }
   };
+}
+/** A band of whole native rows, [y, y + height), in absolute full-sensor coordinates. */
+export interface NativeRawRowBand { y: number; height: number }
+/**
+ * Splits a plan's native rows into at most `count` contiguous bands of nearly equal height (the first
+ * `height % count` bands are one row taller), in row order. Deterministic: it depends only on the raster height and
+ * `count`. Use one band per worker with createNativeEnvironmentRawPartitionTask.
+ */
+export function partitionNativeRawRows(plan:Pick<NativeRawPlan,"exposure">,count:number):NativeRawRowBand[] {
+  const height=plan?.exposure?.geometry?.nativeRaster?.pixelHeight;
+  if(typeof height!=="number"||!Number.isSafeInteger(height)||height<1)throw new InvalidConfigurationError("Native RAW partitioning requires a native RAW plan.");
+  if(typeof count!=="number"||!Number.isSafeInteger(count)||count<1||count>1024)throw new InvalidConfigurationError("Native RAW partition count must be an integer from 1 to 1024.");
+  const bands=Math.min(count,height),base=Math.floor(height/bands),extra=height%bands,result:NativeRawRowBand[]=[];
+  for(let i=0,y=0;i<bands;i++){const h=base+(i<extra?1:0);result.push({y,height:h});y+=h;}
+  return result;
+}
+/**
+ * One partition's result: plain data and typed arrays only, so it can be posted from a worker (transfer the four
+ * arrays' buffers). Merge every partition of a capture with mergeNativeEnvironmentRawPartitions.
+ */
+export interface NativeEnvironmentRawPartition {
+  rows: NativeRawRowBand;
+  /** Canonical JSON of the capture input (raw, sceneBinding, maximumProviderEvaluations); the merge requires it to match. */
+  inputCanonical: string;
+  /** Canonical JSON of the band's shared source/optical/motion state; every partition must match. */
+  sharedStateCanonical: string;
+  /** Readout identity of the band's first site; every partition must match (one readout identity per frame). */
+  readoutIdentity: { readoutProfileId: string; regimeId: string; fixedPatternProfileId: string | null; fixedPatternSeedUint32: number | null };
+  /** The band's rows only, row-major, as in NativeRawOutput. */
+  codes: Uint16Array;
+  blackLevels: Uint16Array;
+  digitalSaturationCodes: Uint16Array;
+  saturationFlags: Uint8Array;
+  /** Effective white code per CFA phase; 0 for a phase the band does not contain. */
+  effectiveSaturationCodes: Uint16Array;
+  providerEvaluationCount: number;
+}
+export interface NativeEnvironmentRawPartitionTask extends Omit<NativeRawTask,"takeOutput"> {
+  readonly rows: NativeRawRowBand;
+  readonly providerEvaluationCount: number;
+  takeOutput(): NativeEnvironmentRawPartition;
+}
+function inputCanonical(input:NativeEnvironmentRawInput):string {
+  return canonical({raw:input.raw,sceneBinding:input.sceneBinding,maximumProviderEvaluations:input.maximumProviderEvaluations});
+}
+function parseRowBand(value:unknown,height:number):NativeRawRowBand {
+  const band=requireAllowlistedRecord(value,["y","height"],"Invalid native RAW row band.");
+  if(typeof band.y!=="number"||typeof band.height!=="number"||!Number.isSafeInteger(band.y)||!Number.isSafeInteger(band.height)||
+    band.y<0||band.height<1||band.y+band.height>height)throw new InvalidConfigurationError("Native RAW row band must lie inside the native raster.");
+  return {y:band.y,height:band.height};
+}
+/**
+ * Creates the task for one row band of a native environment capture (opt-in parallel execution, 2.0).
+ *
+ * Run one partition per worker (or one after another) with the same input, each worker using its own provider, then
+ * merge them with mergeNativeEnvironmentRawPartitions. The merged output is byte-identical to the single
+ * createNativeEnvironmentRawTask output for the same input and a deterministic provider: noise seeds use absolute
+ * native indices, and tiles, plans and per-site values are those of the whole-frame task.
+ *
+ * Each partition checks the same inputs and limits before its callbacks. maximumProviderEvaluations bounds each
+ * partition's own work; the merge also rejects a total above it. Frame-wide checks that span sites (one shared
+ * state, one readout identity, one white level per CFA phase) run inside each band and again across bands in the
+ * merge. Callbacks are split across partitions, and when several partitions fail, which error is seen first depends
+ * on the caller's scheduling. Optical-stage retention is not supported in a partition.
+ *
+ * The package bundles no worker code: the caller creates workers (Web Workers or Node worker threads), runs this
+ * task inside each and posts the partition back.
+ */
+export function createNativeEnvironmentRawPartitionTask(input:NativeEnvironmentRawInput,rows:NativeRawRowBand,
+  provider:NativeEnvironmentRawProvider):NativeEnvironmentRawPartitionTask {
+  const plan=calculateNativeRawPlan(input?.raw),band=parseRowBand(rows,plan.exposure.geometry.nativeRaster.pixelHeight);
+  const probe:NativeEnvironmentPartitionProbe={rows:band};
+  const task=createNativeEnvironmentRawTaskWithCadence(input,provider,DEFAULT_HOST_YIELD_CADENCE,probe),text=inputCanonical(input);
+  return {plan:task.plan,rows:band,get state():NativeRawTaskState{return task.state;},get completedTileCount():number{return task.completedTileCount;},
+    get providerEvaluationCount():number{return task.providerEvaluationCount;},run:():Promise<void>=>task.run(),cancel:():void=>task.cancel(),dispose:():void=>task.dispose(),
+    takeOutput():NativeEnvironmentRawPartition{
+      if(task.state!=="completed"||probe.shared===undefined||probe.firstSite===undefined)throw new InvalidConfigurationError("Native RAW output unavailable.");
+      const site=probe.firstSite,sharedStateCanonical=probe.shared,output=task.takeOutput(),raw=output.raw;
+      return {rows:{...band},inputCanonical:text,sharedStateCanonical,readoutIdentity:{readoutProfileId:site.readoutProfile.profileId,regimeId:site.regimeId,
+        fixedPatternProfileId:site.fixedPatternNoise?.profileId??null,fixedPatternSeedUint32:site.fixedPatternNoise?.sensorInstanceSeedUint32??null},
+      codes:raw.codes,blackLevels:raw.blackLevels,digitalSaturationCodes:raw.digitalSaturationCodes,saturationFlags:raw.saturationFlags,
+      effectiveSaturationCodes:raw.effectiveSaturationCodes,providerEvaluationCount:output.providerEvaluationCount};
+    }
+  };
+}
+/**
+ * Assembles the partitions of one capture into the output createNativeEnvironmentRawTask would have returned for
+ * the same input (byte-identical RAW arrays and white levels, the summed provider evaluation count).
+ *
+ * The partitions must be in row order and cover every native row exactly once, and each must come from
+ * createNativeEnvironmentRawPartitionTask with this same input. It rejects, with InvalidConfigurationError, a
+ * different input, a gap or overlap, wrong array types or lengths, a second shared state or readout identity, two
+ * white levels for one CFA phase, a missing phase, or a total evaluation count above the input's budget. It cannot
+ * verify how a partition was computed: posted partitions are the caller's own data.
+ */
+export function mergeNativeEnvironmentRawPartitions(input:NativeEnvironmentRawInput,partitions:readonly NativeEnvironmentRawPartition[]):NativeEnvironmentRawOutput {
+  const {plan,sceneBinding,retention,maximum}=admitNativeEnvironmentInput(input);
+  if(retention)throw new InvalidConfigurationError("A native environment partition cannot retain the optical stage.");
+  const native=plan.exposure.geometry.nativeRaster,width=native.pixelWidth,layout=plan.frame.colorSamplingProfile.layout;
+  if(layout.kind!=="periodic-mosaic")throw new InvalidConfigurationError("Native RAW requires periodic CFA.");
+  const phases=layout.repeatWidthSites*layout.repeatHeightSites,text=inputCanonical(input);
+  if(!Array.isArray(partitions)||partitions.length<1||partitions.length>native.pixelHeight||Array.from({length:partitions.length},(_,i)=>i in partitions).includes(false))
+    throw new InvalidConfigurationError("Native RAW merge requires a dense list of partitions.");
+  const codes=new Uint16Array(plan.pixelCount),blackLevels=new Uint16Array(plan.pixelCount),digitalSaturationCodes=new Uint16Array(plan.pixelCount),saturationFlags=new Uint8Array(plan.pixelCount);
+  const white=createPhaseWhiteLevelAccumulator(width,layout.repeatWidthSites,layout.repeatHeightSites);
+  let y=0,total=0,shared:string|undefined,identity:string|undefined;
+  for(const value of partitions){
+    const p=requireAllowlistedRecord(value,["rows","inputCanonical","sharedStateCanonical","readoutIdentity","codes","blackLevels","digitalSaturationCodes",
+      "saturationFlags","effectiveSaturationCodes","providerEvaluationCount"],"Invalid native RAW partition.");
+    const band=parseRowBand(p.rows,native.pixelHeight),length=band.height*width;
+    if(band.y!==y)throw new InvalidConfigurationError("Native RAW partitions must cover every row once, in row order.");
+    if(p.inputCanonical!==text)throw new InvalidConfigurationError("Native RAW partition was computed from a different input.");
+    if(!(p.codes instanceof Uint16Array)||!(p.blackLevels instanceof Uint16Array)||!(p.digitalSaturationCodes instanceof Uint16Array)||
+      !(p.saturationFlags instanceof Uint8Array)||!(p.effectiveSaturationCodes instanceof Uint16Array)||p.codes.length!==length||p.blackLevels.length!==length||
+      p.digitalSaturationCodes.length!==length||p.saturationFlags.length!==length||p.effectiveSaturationCodes.length!==phases||
+      typeof p.providerEvaluationCount!=="number"||!Number.isSafeInteger(p.providerEvaluationCount)||p.providerEvaluationCount<0||typeof p.sharedStateCanonical!=="string")
+      throw new InvalidConfigurationError("Invalid native RAW partition arrays.");
+    const id=requireAllowlistedRecord(p.readoutIdentity,["readoutProfileId","regimeId","fixedPatternProfileId","fixedPatternSeedUint32"],"Invalid native RAW partition identity.");
+    const idText=canonical(id);
+    shared??=p.sharedStateCanonical;identity??=idText;
+    if(p.sharedStateCanonical!==shared)throw new InvalidConfigurationError("Native event requires one shared source/optical/motion state.");
+    if(idText!==identity)throw new InvalidConfigurationError("Frame requires one readout identity/regime, one fixed-pattern identity and a positive uint16 RAW code span.");
+    const offset=band.y*width;
+    codes.set(p.codes,offset);blackLevels.set(p.blackLevels,offset);digitalSaturationCodes.set(p.digitalSaturationCodes,offset);saturationFlags.set(p.saturationFlags,offset);
+    for(let phase=0;phase<phases;phase++)white.recordPhase(phase,p.effectiveSaturationCodes[phase]!);
+    total+=p.providerEvaluationCount;y+=band.height;
+  }
+  if(y!==native.pixelHeight)throw new InvalidConfigurationError("Native RAW partitions must cover every row once, in row order.");
+  if(total>maximum)throw new InvalidConfigurationError("Native environment exceeds tile or full-event query budget.");
+  const raw:NativeRawOutput={plan,codes,blackLevels,digitalSaturationCodes,saturationFlags,effectiveSaturationCodes:white.finish()};
+  return {raw,sceneBinding,providerEvaluationCount:total,upstreamOrigin:"executed-environment-query-provider-optics-psf-eqe",providerTransportVerified:false,productionPlanActivated:false};
 }
 /**
  * Re-runs only the sensor stage from a retained optical stage. No radiance callback is called.

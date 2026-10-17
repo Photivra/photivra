@@ -2148,6 +2148,11 @@
       "kind": "runtime"
     },
     {
+      "name": "createNativeEnvironmentRawPartitionTask",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "createNativeEnvironmentRawTask",
       "source": "src/capture/native-environment-raw.ts",
       "kind": "runtime"
@@ -3978,6 +3983,11 @@
       "kind": "type"
     },
     {
+      "name": "mergeNativeEnvironmentRawPartitions",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "MeteringCapabilityCompatibilityAssessment",
       "source": "src/equipment/metering-capabilities.ts",
       "kind": "type"
@@ -4138,6 +4148,16 @@
       "kind": "type"
     },
     {
+      "name": "NativeEnvironmentRawPartition",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeEnvironmentRawPartitionTask",
+      "source": "src/capture/native-environment-raw.ts",
+      "kind": "type"
+    },
+    {
       "name": "NativeEnvironmentRawProvider",
       "source": "src/capture/native-environment-raw.ts",
       "kind": "type"
@@ -4225,6 +4245,11 @@
     {
       "name": "NativeRawProvider",
       "source": "src/capture/native-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "NativeRawRowBand",
+      "source": "src/capture/native-environment-raw.ts",
       "kind": "type"
     },
     {
@@ -4845,6 +4870,11 @@
     {
       "name": "parseWhiteBalanceProfile",
       "source": "src/color/white-balance.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "partitionNativeRawRows",
+      "source": "src/capture/native-environment-raw.ts",
       "kind": "runtime"
     },
     {

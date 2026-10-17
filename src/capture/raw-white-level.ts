@@ -96,6 +96,10 @@ export function nativeCfaPhaseIndex(index: number, nativeWidth: number, repeatWi
  */
 export function createPhaseWhiteLevelAccumulator(nativeWidth: number, repeatWidth: number, repeatHeight: number): {
   record(index: number, code: number): void; finish(): Uint16Array;
+  /** The codes recorded so far, 0 for a phase with no site yet (a partition); merge them with recordPhase. */
+  partial(): Uint16Array;
+  /** Records one phase's code from a partition (0 means none). The same rule as record applies. */
+  recordPhase(phase: number, code: number): void;
 } {
   const codes = new Uint16Array(repeatWidth*repeatHeight);
   return {
@@ -107,6 +111,15 @@ export function createPhaseWhiteLevelAccumulator(nativeWidth: number, repeatWidt
     finish(): Uint16Array {
       if (codes.includes(0)) throw new InvalidConfigurationError("Every CFA phase requires an effective white level.");
       return codes;
+    },
+    partial(): Uint16Array {
+      return codes.slice();
+    },
+    recordPhase(phase: number, code: number): void {
+      if (code === 0) return;
+      const current = codes[phase]!;
+      if (current === 0) codes[phase] = code;
+      else if (current !== code) throw new InvalidConfigurationError("Native RAW requires one effective white level per CFA phase.");
     }
   };
 }

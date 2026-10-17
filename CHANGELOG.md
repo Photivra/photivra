@@ -208,6 +208,7 @@ Each item ends with its *Migration* (what an existing user must do). Several ite
   - Results are labelled with a float32 error bound stated in advance, and are never claimed to be bit-identical. The CPU float64 reference stays the default.
   - Also `calculateIrradianceConvolution()` and its plan (schema 0.1.0), `ImageKernelExecutionError`, and the repository-only `npm run test:webgpu`.
 - **Optical-stage reuse (#288).** `NativeEnvironmentRawInput.opticalStage` returns an opaque optical stage. `createNativeEnvironmentSensorStageTask()` then re-runs only dark charge, capacity, noise and ADC after edits that come after the optics. Optical changes are refused.
+- **Opt-in parallel native environment RAW (#275).** `partitionNativeRawRows()` splits a capture into row bands, `createNativeEnvironmentRawPartitionTask()` runs one band (for example in a Web Worker or Node worker thread, with the caller's own provider), and `mergeNativeEnvironmentRawPartitions()` joins the posted partitions. The merged output is byte-identical to `createNativeEnvironmentRawTask()` for the same input (`test/native-environment-partitions.test.ts`). No worker code is bundled. Measured with `scripts/benchmark-native-environment-workers.mjs` on a shared 4-vCPU host, 48×48 sampled PSF: 1.53 s on one thread, 0.66 s with 4 workers (2.3×); cheap default-optics sites gain much less.
 - **Smaller additions.**
   - `PrintJpegInput.pixelsPerInch` (1–65535; #278).
   - The `LensComplexPupilPsf.sampling` field (#284).
