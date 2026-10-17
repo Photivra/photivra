@@ -22,7 +22,8 @@ PACKED_SENSOR_RAW_LIMITS = Object.freeze({
   maximumNativeSites: 0xffffffff,
   maximumDimension: 65_535,
   maximumAdcBitDepth: 16,
-  maximumReadNoiseComponents: 16
+  maximumReadNoiseComponents: 16,
+  maximumAdditionalChargeComponents: 8
 })
 ```
 
@@ -32,6 +33,35 @@ The exact contract is declared below; use the domain guide for assumptions and s
 
 ```ts
 PACKED_SENSOR_RAW_SCHEMA_VERSION = "0.1.0" as const
+```
+
+## PackedSensorAdditionalChargeComponent
+
+One additional stored-charge component, realized after photo and dark charge in declaration order.
+
+```ts
+export interface PackedSensorAdditionalChargeComponent {
+  componentId: string;
+  /** `poisson` draws from the charge stream; `deterministic-expected-electron-equivalent` adds the expectation. */
+  model: SensorAdditionalChargeSamplingModel;
+  /** Expected electrons per region site, row-major. Finite, ≥ 0. */
+  expectedElectrons: Float32Array | Float64Array;
+}
+```
+
+## PackedSensorFixedPatternNoise
+
+Optional fixed-pattern noise for a packed region. The colour-sampling site of native site (X, Y) is
+(X + siteOrigin.x, Y + siteOrigin.y); the pattern is seeded from those coordinates, as in
+`calculateSensorFixedPatternSite`.
+
+```ts
+export interface PackedSensorFixedPatternNoise {
+  profile: SensorFixedPatternNoiseProfile;
+  /** Must equal `profile.colorSamplingProfileId`. */
+  colorSamplingProfileId: string;
+  siteOrigin: { x: number; y: number };
+}
 ```
 
 ## PackedSensorRawDiagnostics
@@ -69,6 +99,10 @@ export interface PackedSensorRawInput {
   physicalChargeCapacityElectrons: number;
   readoutProfile: SensorReadoutConversionProfile;
   regimeId: string;
+  /** Optional (2.0). */
+  fixedPatternNoise?: PackedSensorFixedPatternNoise;
+  /** Optional (2.0), at most 8. */
+  additionalChargeComponents?: readonly PackedSensorAdditionalChargeComponent[];
 }
 ```
 
@@ -87,9 +121,13 @@ export interface PackedSensorRawPlan {
   readout: ResolvedSensorReadoutRegime;
   noiseModel: typeof SENSOR_RAW_PRODUCER_NOISE_MODEL;
   seedSchedule: "murmur3-capture-seed-native-index-stream-v2";
-  /** Largest expected photo and dark electron counts in the region. */
+  /** Largest expected photo and dark electron counts in the region (before fixed-pattern factors). */
   maximumPhotoElectrons: number;
   maximumDarkElectrons: number;
+  /** Parsed fixed-pattern profile and colour-site origin, or null. */
+  fixedPatternNoise: Readonly<{ profile: SensorFixedPatternNoiseProfile; siteOrigin: Readonly<{ x: number; y: number }> }> | null;
+  /** Additional components (identity, model and largest expectation); their arrays stay on the input. */
+  additionalChargeComponents: readonly Readonly<{ componentId: string; model: SensorAdditionalChargeSamplingModel; maximumExpectedElectrons: number }>[];
 }
 ```
 

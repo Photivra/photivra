@@ -62,6 +62,27 @@ export function sdrCorpus(width: number, height: number, precision: 32 | 64, pro
   return packed;
 }
 
+/**
+ * Linear RGB pixels for the luminance tone curves: colours whose luminance spans eight decades
+ * (1e-6 to 100 after exposure), greys, exact zeros and both clip directions. With `mixed`, a third of
+ * the pixels also have negative components, some with luminance cancelling to near zero.
+ */
+export function luminanceCorpus(width: number, height: number, precision: 32 | 64, scale: number, seed: number, mixed: boolean): Float32Array | Float64Array {
+  const next = mulberry32(seed), packed = precision === 32 ? new Float32Array(width * height * 3) : new Float64Array(width * height * 3);
+  for (let p = 0; p < width * height; p++) {
+    const level = 10 ** (8 * next() - 6), kind = Math.floor(next() * 8);
+    let rgb: number[];
+    if (kind === 0) rgb = [0, 0, 0];
+    else if (kind === 1) rgb = [level, level, level];
+    else if (mixed && kind >= 5) {
+      const a = level * (0.2 + next()), b = level * (0.2 + next());
+      rgb = kind === 7 ? [a, -a * 0.2126 / 0.7152 * (1 + 1e-9 * next()), 0] : [a, -b * 0.3, b];
+    } else rgb = [level * next(), level * next(), level * next()];
+    for (let c = 0; c < 3; c++) packed[p * 3 + c] = rgb[c]! / scale;
+  }
+  return packed;
+}
+
 /** Owned test camera whose D65 neutral is [0.45, 1, 0.65] (not white-normalized), so WB gains and clipping are active. */
 export function nonSrgbColorProfile(): ExportSensorColorProfile {
   const base = loadPhotographicExportInput().colorProfile, cw = [.45, 1, .65];

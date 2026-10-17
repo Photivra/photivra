@@ -430,13 +430,9 @@ Work that is known and deliberately left for later:
 - **#275:** a different native RAW default tile width (a plan-shape change); per-tap request retention (about 8 MB per site with a large PSF); parallel execution inside `simulateCapture()` (the engine-level row-band partitions are done).
 - **#276 follow-up:** result values are frozen only at their top level (a deep freeze measured about 3× on hot scalar calls).
 - **#277 and follow-ups from #304:**
-  - scene radiance on the GPU (the CPU batched provider API now exists);
-  - the per-fixture rollout, with method-error comparisons against the per-site engine;
-  - hardware-GPU timings at 6–24 MP (the script `npm run bench:webgpu` exists; nothing has been measured);
-  - hardware-GPU conformance runs and CI wiring;
-  - kernel sampling from `LensPsfProfile`;
-  - fixed-pattern noise and additional charge components in the GPU sensor stage;
-  - GPU luminance tone curves.
+  - an adapter from `NativeEnvironmentRawProvider.evaluateRadianceBatch` (#319) to `evaluateChartRadiance` (the seam, `mapEnvironmentDirectionsToChartPoints`, is built), and GPU radiance for caller scene functions;
+  - hardware-GPU conformance runs and timings at 6–24 MP (`npm run test:webgpu:hardware` and `npm run bench:webgpu:hardware` are ready; nothing has been measured, because the development container has no GPU);
+  - running `npm run test:webgpu` in CI.
 - **Optics follow-ups from #303:** lens field mapping in the browser-native executor, mappings combined with ideal pupil rays, calibrated finite-focus fisheye scale.
 - **Motion follow-ups from #297:** derived rolling exposure schedules in tier presets; time-varying angular velocity (rolling-shutter wobble).
 

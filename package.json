@@ -85,6 +85,8 @@
     "coverage": "vitest run --coverage",
     "test:webgpu": "vitest run --config vitest.webgpu.config.ts",
     "bench:webgpu": "vitest run --config vitest.webgpu-timing.config.ts",
+    "test:webgpu:hardware": "node scripts/run-webgpu-hardware.mjs test",
+    "bench:webgpu:hardware": "node scripts/run-webgpu-hardware.mjs bench",
     "check:browser-surface": "node scripts/check-browser-surface.mjs",
     "check:licenses": "node scripts/check-license-policy.mjs",
     "check:license-headers": "node scripts/check-license-headers.mjs",

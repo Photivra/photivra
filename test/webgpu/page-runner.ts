@@ -5,7 +5,7 @@
  */
 import { createImageKernelAccelerator, ImageKernelExecutionError, type ImageKernelAccelerator, type IrradianceConvolutionInput,
   type NativeCaptureSdrInput, type NativeCaptureSdrProvider, type NativeCaptureSdrTile, type NativeCaptureSdrTileRequest,
-  type NativeRawDevelopmentInput, type PackedSensorRawInput, type TemporalExposureSumInput } from "../../src/index.js";
+  type NativeRawDevelopmentInput, type PackedSensorRawInput, type TemporalExposureSumInput, type ChartRadianceBatchInput } from "../../src/index.js";
 import { decodeTransport, encodeTransport } from "./codec.js";
 
 interface RunRequest<T> { input: T; maximumBandBytes?: number; timeCpu?: boolean; repeat?: number }
@@ -16,6 +16,12 @@ export async function simulateSensor(payload: string): Promise<string> {
   const cpu = request.timeCpu ? await timed("cpu-reference", undefined, 1, a => a.simulateSensorRaw(request.input)) : null;
   return encodeTransport({ codes: gpu.result.codes, diagnostics: gpu.result.diagnostics, execution: gpu.result.execution,
     flaggedSiteIndices: gpu.result.flaggedSiteIndices, gpuMilliseconds: gpu.milliseconds, cpuMilliseconds: cpu?.milliseconds ?? null });
+}
+
+export async function chartRadiance(payload: string): Promise<string> {
+  const request = decodeTransport<RunRequest<ChartRadianceBatchInput>>(payload);
+  const gpu = await timed("webgpu-f32", request.maximumBandBytes, request.repeat ?? 1, a => a.evaluateChartRadiance(request.input));
+  return encodeTransport({ values: gpu.result.values, execution: gpu.result.execution, hostRecomputedQueryIndices: gpu.result.hostRecomputedQueryIndices });
 }
 
 export async function sumTemporal(payload: string): Promise<string> {

@@ -90,7 +90,7 @@ describe("root exports reject malformed input with domain errors (API review #4)
   const STRICT_WITH_DOMAIN_MESSAGE = new Set([
     // Reject unknown fields through their own allowlist parser, with a domain message.
     "calculateCaptureColorTransform", "calculateCaptureCorrectedSdr", "calculateCaptureSdr", "calculateIdealPolygonDiffractionPsf",
-    "calculateIrradianceConvolution", "calculateIrradianceConvolutionPlan", "calculatePackedSensorRawPlan", "calculateTemporalExposureSum",
+    "calculateChartRadianceBatch", "calculateChartRadianceBatchPlan", "calculateIrradianceConvolution", "calculateIrradianceConvolutionPlan", "calculatePackedSensorRawPlan", "calculateTemporalExposureSum",
     "calculateTemporalExposureSumPlan", "calculateLinearCaptureEncoding", "calculateNativeCaptureSdrPlan",
     "calculateNativeRawPlan", "calculatePrintContrastReference", "calculatePrintPlan", "calculatePrintRegionDetail",
     "calculatePrintRegionDifference", "calculatePrintRegionNoise", "calculatePrintSizeLimit", "calculateProcessedSensorRaw",
@@ -100,7 +100,7 @@ describe("root exports reject malformed input with domain errors (API review #4)
     "createIsoGainReadoutRegimes", "createNativeCaptureSdrTask", "createNativeEnvironmentRawPartitionTask", "createNativeEnvironmentRawTask", "createNativeEnvironmentSensorStageTask",
     "createNativeRawDevelopmentTask", "createNativeRawTask", "composeNativeEnvironmentRawPartitions", "createNonLocalMeansTask", "createPanoramaTask", "createPhotographicExportPair",
     "createPrintJpegTask", "createReinhardGlobalToneMappingTask", "createSensorRawFrame", "createSimulatedCapture",
-    "createSyntheticFilmGrainTask", "createUnsharpMaskTask", "resolveCaptureIlluminant", "resolveGenericEquipmentTierCatalog",
+    "createSyntheticFilmGrainTask", "mapEnvironmentDirectionsToChartPoints", "createUnsharpMaskTask", "resolveCaptureIlluminant", "resolveLensPsfConvolutionKernels", "resolveGenericEquipmentTierCatalog",
     "resolveGenericEquipmentTierLensProfiles", "resolveRawFrameReconstruction", "serializeNativeRawDng", "serializePngImage",
     "simulateCapture", "simulatePackedSensorRaw", "simulateSensorRawFrame"
   ]);
