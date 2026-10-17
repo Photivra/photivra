@@ -1,262 +1,206 @@
 # Simulated Sensor RAW DNG / JPEG export
 
-Release context (dated historical note): written for the **package 1.2.0 candidate / root API 1.2.0** and not re-reviewed for later releases; see the [changelog](../CHANGELOG.md) for the current release. Subsystem/model versions and dated introduction or measurement records below are independent historical identities; they are not distribution versions. See [developer navigation](DEVELOPERS.md) and [release contract](RELEASE_1_2_0.md).
+> **Release context.** This page was written for package 1.2.0 (root API 1.2.0) and has not been re-reviewed for later releases. The [changelog](../CHANGELOG.md) describes the current release. Model and subsystem version numbers on this page, and any dated records, are separate from the package version. See also the [developer guide](DEVELOPERS.md) and the [1.2.0 release contract](RELEASE_1_2_0.md).
 
-Current producer-derived files and external closure gates are recorded in
-[Export acceptance](EXPORT_ACCEPTANCE.md). The new reproducible generator uses
-current typed fixtures; the earlier pinned serializer-only files remain historical.
+This page describes how Photivra writes a simulated sensor RAW as a matched pair of files: a DNG (the raw data) and a JPEG (a rendered view of the same data).
 
-See [Reference RAW frame compatibility](RAW_FRAME_ENVELOPE.md) for stage-specific
-limits, full-native counting and parser preflight behavior.
+Related pages:
 
-`createPhotographicExportPair()` is an optional browser-safe asynchronous export
-boundary. Both owned byte arrays come from one revalidated, privately copied RAW
-input. The JPEG never uses the capture's independent float planes. Web Crypto
-SHA-256 is required. No filesystem, clock, random generator, network or encoder
-dependency is added. Callers supply public identities and an explicit UTC event
-timestamp, and own saving the bytes.
+- [Export acceptance](EXPORT_ACCEPTANCE.md) records the current producer-derived files and the external acceptance checks. The reproducible generator uses current typed fixtures; the earlier pinned serializer-only files are kept as history.
+- [Reference RAW frame compatibility](RAW_FRAME_ENVELOPE.md) gives the limits for each stage, how full-native sites are counted, and how the parser checks input up front.
 
-This is a bounded reference implementation. The entire native frame must contain
-at most **4,096 sites**, with complete single-frame, one-site-per-native-sample,
-registered 2×2 RGB Bayer coverage. RAW codes remain in native row-major CFA
-coordinates. A fixed repeating black tile is required, and every sample carries
-its readout's effective white level, conversion gain and read noise, constant per
-CFA phase. Below-black codes and original saturation codes are preserved without
-stretching to the 16-bit container limit. This does not support typical camera
-resolutions or establish calibrated camera behavior.
+## Overview
+
+`createPhotographicExportPair()` is an optional, browser-safe, asynchronous export step.
+
+- Both returned byte arrays come from one RAW input that is revalidated and privately copied.
+- The JPEG never uses the capture's separate floating-point image planes.
+- Web Crypto SHA-256 is required.
+- It adds no dependency on a filesystem, clock, random generator, network or encoder.
+- Callers supply public identities and an explicit UTC event timestamp, and are responsible for saving the bytes.
+
+This is a bounded reference implementation, with these requirements:
+
+- The whole native frame contains at most **4,096 sites** (photosites).
+- Coverage is complete: one frame, one site per native sample, registered 2×2 RGB Bayer CFA (colour filter array).
+- RAW codes stay in native row-major CFA coordinates.
+- A fixed repeating black-level tile is required.
+- Every sample carries its readout's effective white level, conversion gain and read noise, which are constant per CFA phase.
+- Codes below black, and the original saturation codes, are kept as they are. They are not stretched to the 16-bit container limit.
+
+It does not support typical camera resolutions, and it does not establish calibrated camera behaviour.
 
 ## Explicit development
 
-`RawFrameReconstructionInput` supplies complete absolute CFA phase profiles and
-a native region covering the final crop. Existing reconstruction preserves
-signed black-subtracted values and exact weighted source contributions. Missing
-edge support fails; no automatic kernel, padding, sharpening or denoising runs.
+**Reconstruction input.** `RawFrameReconstructionInput` supplies complete profiles for each absolute CFA phase, and a native region that covers the final crop. Reconstruction keeps signed black-subtracted values and exact weighted source contributions. Missing support at the edges fails. No automatic kernel, padding, sharpening or denoising runs.
 
-`ExportSensorColorProfile` explicitly declares an invertible 3×3 normalized
-camera-channel-to-XYZ/D65 matrix, owned/reusable numeric evidence, profile
-identity and limitations. Only approximation status is accepted. RGB/CFA names
-do not establish primaries, spectral response or calibration. Output kernels
-must use the declared RGB order and exact CFA profile. The reference white must
-map to positive camera-neutral coordinates.
+**Colour profile.** `ExportSensorColorProfile` explicitly declares:
 
-WB is explicitly `not-required` with no captured intent, or
-`apply-resolved-sensor-gains` with intent. No second WB estimator runs. Existing
-SDR rendering handles rendering exposure, named tone mapping, clipping, transfer
-and 8-bit quantization. Rendering clipping is separate from RAW saturation.
+- an invertible, normalised 3×3 matrix from camera channels to XYZ/D65;
+- numeric evidence that is owned or reusable;
+- the profile identity and its limitations.
+
+Only `approximation` status is accepted. RGB or CFA names do not establish primaries, spectral response or calibration. Output kernels must use the declared RGB order and the exact CFA profile. The reference white must map to positive camera-neutral coordinates.
+
+**White balance (WB).** WB is either `not-required` (no captured intent) or `apply-resolved-sensor-gains` (with intent). No second WB estimator runs. The existing SDR rendering handles rendering exposure, named tone mapping, clipping, transfer function and 8-bit quantisation. Clipping during rendering is separate from RAW saturation.
 
 ### Development model (2.0: `sensor-color-development` 2.0.0, `processed-sensor-raw-sdr` 0.2.0)
 
-Development reads the attached RAW codes directly through the shared typed
-kernel (`src/capture/raw-development-kernel.ts`), the same kernel used by
-`createNativeRawDevelopmentTask`, so the bounded export and packed native
-development are byte-identical for the same RAW and policy.
+Development reads the attached RAW codes directly through the shared typed kernel (`src/capture/raw-development-kernel.ts`). `createNativeRawDevelopmentTask` uses the same kernel, so the bounded export and packed native development give byte-identical results for the same RAW and policy.
 
-1. **Effective white level.** Each site is normalized as
-   `(code − black)/(W − black)`, where `W` is the CFA phase's effective white
-   (full-saturation) code, `calculateEffectiveSaturationCode`:
-   `I = B + min(C, P)/G`, `A = min(Amax, round(I + INL(I)))`,
-   `W = min(D, round((A − B)·d + B))` (capacity C, pre-ADC saturation P,
-   conversion gain G, black B, optional INL and digital gain d, digital
-   saturation D). Previously development divided by the digital full scale D, so
-   a sensor clipping at code 20,512 of 65,535 developed white to 0.31. This
-   follows the DNG 1.7 `WhiteLevel` definition (the fully saturated encoding
-   level) and the EMVA 1288 saturation point.
-2. **Saturation consumed.** A site whose code reaches `W` or that carries any
-   saturation flag (physical, pre-ADC or digital) is set to exactly 1 before
-   reconstruction. Signed below-black values are preserved.
-3. **White balance once, for any matrix.** With normalized channels `c`,
-   `linear sRGB = X · M · diag(w) · highlight(diag(g) · c)`, where `M` is the
-   declared camera→XYZ matrix, `X` XYZ→linear sRGB, `w = M⁻¹·XYZ(D65)`
-   normalized to green (the camera neutral of D65, exactly [1,1,1] for
-   white-normalized profiles within 1e-12) and `g` the resolved gains. Gains map
-   the scene white to equal channels and `diag(w)` maps equal channels to D65,
-   so a grey card under the gains' illuminant develops neutral for every
-   invertible `M`. Without an intent, `g = 1/w` and development equals `X·M·c`.
-   Before 2.0 the gains were followed directly by `M`, applying WB twice when `M`
-   was not white-normalized (review r1: a D65 grey card with camera neutral
-   [0.45, 1, 0.65] developed to (0.40, 0.18, 0.277)).
-4. **Highlights** (`highlightMode`, default `clip`). `clip` limits every
-   WB-scaled channel to the smallest gain, the level at which the least-amplified
-   channel saturates, so clipped pixels stay neutral (the documented default of
-   dcraw `-H 0` and of common raw converters). `reconstruct` is an engine-defined
-   approximation: with `s` the largest normalized channel and
-   `t = clamp((s − 0.8)/0.2, 0, 1)`, the unclipped WB result `u` blends toward
-   neutral `n = max_k min(u_k, g_min)`: `(1 − t)·u + t·n`. Below 0.8 of white the
-   colour is unchanged and unclipped (no hue shift from channel clipping); at
-   white it is neutral. This follows the highlight-desaturation idea of Guo,
-   Cheng & Hu, "Correcting over-exposure in photographs" (CVPR 2010); it does not
-   recover clipped scene signal. `highlight` diagnostics report saturated pixels,
-   clipped WB samples and reconstructed pixels.
+1. **Effective white level.** Each site is normalised as `(code − black)/(W − black)`. `W` is the CFA phase's effective white (full-saturation) code, from `calculateEffectiveSaturationCode`:
+   - `I = B + min(C, P)/G`
+   - `A = min(Amax, round(I + INL(I)))`
+   - `W = min(D, round((A − B)·d + B))`
 
-`source.value.linearPlane` keeps its documented digital-span normalization for
-review; development no longer reads it.
+   Here C is capacity, P pre-ADC saturation, G conversion gain, B black, INL optional integral non-linearity, d optional digital gain, and D digital saturation.
 
-Only 1:1 output cropping is supported. The final oriented crop is translated
-through the active crop to exact native coordinates. JPEG pixels receive
-orientation once and EXIF Orientation=1. DNG keeps native pixels and records
-orientation, native ActiveArea and DefaultCrop. Resampling fails closed. JPEG
-coding replicates edges solely to fill partial 8×8 coding blocks; it does not
-supply missing reconstruction samples or change photograph dimensions.
+   Previously development divided by the digital full scale D. A sensor that clipped at code 20,512 of 65,535 therefore developed white to 0.31. The new rule follows the DNG 1.7 `WhiteLevel` definition (the fully saturated encoding level) and the EMVA 1288 saturation point.
+2. **Saturation handled.** A site whose code reaches `W`, or that carries any saturation flag (physical, pre-ADC or digital), is set to exactly 1 before reconstruction. Signed values below black are kept.
+3. **White balance once, for any matrix.** With normalised channels `c`:
+
+   `linear sRGB = X · M · diag(w) · highlight(diag(g) · c)`
+
+   - `M` is the declared camera→XYZ matrix.
+   - `X` is XYZ→linear sRGB.
+   - `w = M⁻¹·XYZ(D65)`, normalised to green. This is the camera neutral of D65, exactly [1,1,1] (within 1e-12) for white-normalised profiles.
+   - `g` is the resolved gains.
+
+   The gains map the scene white to equal channels, and `diag(w)` maps equal channels to D65. So a grey card under the gains' illuminant develops neutral for every invertible `M`. Without an intent, `g = 1/w` and development equals `X·M·c`.
+
+   Before 2.0, the gains were followed directly by `M`. That applied WB twice when `M` was not white-normalised. For example, a D65 grey card with camera neutral [0.45, 1, 0.65] developed to (0.40, 0.18, 0.277).
+4. **Highlights** (`highlightMode`, default `clip`).
+   - `clip` limits every WB-scaled channel to the smallest gain: the level at which the least-amplified channel saturates. Clipped pixels therefore stay neutral. This is the documented default of dcraw `-H 0` and of common raw converters.
+   - `reconstruct` is an approximation defined by this engine. Let `s` be the largest normalised channel and `t = clamp((s − 0.8)/0.2, 0, 1)`. The unclipped WB result `u` is blended toward neutral `n = max_k min(u_k, g_min)`: `(1 − t)·u + t·n`. Below 0.8 of white, the colour is unchanged and unclipped, so channel clipping causes no hue shift. At white, it is neutral. This follows the highlight-desaturation idea of Guo, Cheng & Hu, "Correcting over-exposure in photographs" (CVPR 2010). It does not recover clipped scene signal.
+
+   `highlight` diagnostics report saturated pixels, clipped WB samples and reconstructed pixels.
+
+`source.value.linearPlane` keeps its documented digital-span normalisation for review; development no longer reads it.
+
+**Geometry.**
+
+- Only 1:1 output cropping is supported. The final oriented crop is translated through the active crop to exact native coordinates.
+- JPEG pixels are oriented once, and EXIF Orientation is 1.
+- The DNG keeps native pixels and records the orientation, native ActiveArea and DefaultCrop.
+- Resampling fails closed (is rejected).
+- JPEG coding repeats edge pixels only to fill partial 8×8 coding blocks. It does not supply missing reconstruction samples or change the photograph's dimensions.
 
 ## Optional correction of the JPEG view
 
-The optional `correction` field reuses the choice contract documented in
-[CAPTURE_CORRECTED_SDR.md](CAPTURE_CORRECTED_SDR.md). Order is exact attached RAW
-reconstruction → resolved camera-channel WB → declared camera-to-XYZ/D65 →
-existing linear-sRGB transform → native-optical geometry/CA/gain correction →
-SDR → JPEG. The private intermediate plane contains only RAW-derived RGB; it
-replaces all independent float planes for this calculation and is never returned
-as a replacement capture. Parent `source` retains the exact RAW reconstruction,
-its provenance, site-level physical/digital saturation and source history.
-Intermediate RGB capture saturation is explicitly unmodeled; no scalar RGB white
-level is inferred from heterogeneous RAW site saturation flags.
+The optional `correction` field reuses the choice contract in [CAPTURE_CORRECTED_SDR.md](CAPTURE_CORRECTED_SDR.md). The order is exact:
 
-This branch requires reconstruction of the **full active native area**, square
-physical pixel pitch and 1:1 declared output crop sampling. The exporter supplies
-no prefilter, so `resampler.antialias` must be `none`; maps requiring compression
-filtering fail through the existing executor. It cannot claim a prefiltered input
-or silently create a filter. Correction state uses native output dimensions,
-exact committed optics and exposure-local time, independently of scene time.
-Profiles remain generic declarations for the post-color/WB linear-sRGB basis,
-not physical sensor-channel CA calibration. The pipeline does not redraw noise,
-blur or photons and does not activate reserved production stages.
+1. reconstruction from the attached RAW;
+2. resolved camera-channel WB;
+3. declared camera-to-XYZ/D65;
+4. existing linear-sRGB transform;
+5. native-optical geometry / chromatic aberration (CA) / gain correction;
+6. SDR;
+7. JPEG.
 
-`invalidSupport` either rejects unavailable samples or chooses the existing
-largest joint-valid rectangle. `processedOutputView.rect` records that rectangle
-in the full oriented output raster, with dimensions used by JPEG SOF and EXIF.
-It is relative to the declared output crop, not the active/native sensor origin.
-The DNG's native codes, ActiveArea and original DefaultCrop remain unchanged;
-a nonlinear corrected JPEG cannot be represented by moving an uncorrected RAW
-crop. These paired files share the exact capture and source codes, while their
-processed geometry can differ. Physical focal equivalence remains capture-owned.
+The private intermediate image contains only RGB derived from the RAW. It replaces all the separate float planes for this calculation, and is never returned as a replacement capture. The parent `source` keeps the exact RAW reconstruction, its provenance, site-level physical and digital saturation, and source history. Saturation of the intermediate RGB is explicitly not modelled; no single RGB white level is inferred from the mixed RAW site saturation flags.
 
-The result exposes the processed `correction` calculation and a separate
-`rawCorrectionIntent` plan with application `metadata-only`. Custom XMP in both
-files records CorrectionProfileID/version, CorrectionSelectionKind/selections,
-ProcessedOutputRect and ProcessedIlluminationClippingEvents. CorrectionDisposition
-is `informational-intent-only` in DNG and `processed-view` in JPEG. This is
-informational metadata, not standardized DNG opcodes or a promise that editors
-apply the profile. Gain clipping events precede joint cropping and remain
-separate from RAW saturation and SDR gamut clipping. Full profile and choices
-enter SimulationHash; RawDataUniqueID still depends only on the exact RAW codes.
-Omitting correction preserves the original rendering/hash inputs and emits no
-correction XMP. The additive contract retains export schema 0.1.0.
+**Requirements.**
+
+- Reconstruction of the **full active native area**.
+- Square physical pixel pitch.
+- 1:1 declared output crop sampling.
+- The exporter supplies no prefilter, so `resampler.antialias` must be `none`. Maps that need compression filtering fail through the existing executor. The exporter cannot claim a prefiltered input or quietly create a filter.
+
+Correction state uses the native output dimensions, the exact committed optics and the exposure-local time, independent of scene time. Profiles are generic declarations for the linear-sRGB basis after colour and WB. They are not physical CA calibration for sensor channels. The pipeline does not redraw noise, blur or photons, and does not turn on reserved production stages.
+
+**Invalid support.** `invalidSupport` either rejects unavailable samples, or chooses the existing largest jointly valid rectangle.
+
+- `processedOutputView.rect` records that rectangle in the full oriented output raster. Its dimensions are used by the JPEG SOF marker and EXIF. It is relative to the declared output crop, not to the active or native sensor origin.
+- The DNG's native codes, ActiveArea and original DefaultCrop do not change. A non-linearly corrected JPEG cannot be represented by moving an uncorrected RAW crop.
+- So the two files share the exact capture and source codes, but their processed geometry can differ. Physical focal equivalence still belongs to the capture.
+
+**Metadata.** The result exposes the processed `correction` calculation and a separate `rawCorrectionIntent` plan with application `metadata-only`.
+
+- Custom XMP in both files records CorrectionProfileID/version, CorrectionSelectionKind/selections, ProcessedOutputRect and ProcessedIlluminationClippingEvents.
+- CorrectionDisposition is `informational-intent-only` in the DNG and `processed-view` in the JPEG.
+- This metadata is informational. It is not standardised DNG opcodes, and it does not promise that editors will apply the profile.
+- Gain clipping events are counted before joint cropping, and stay separate from RAW saturation and SDR gamut clipping.
+- The full profile and choices go into SimulationHash. RawDataUniqueID still depends only on the exact RAW codes.
+- Omitting correction keeps the original rendering and hash inputs, and writes no correction XMP.
+
+This addition keeps export schema 0.1.0.
 
 ## Files and metadata
 
-DNG uses little-endian TIFF, DNGVersion 1.4.0.0 (backward version 1.1.0.0),
-one uncompressed 16-bit CFA strip, CFA/black/white tags, inverse XYZ-to-camera
-ColorMatrix1 and D65 CalibrationIlluminant1. Rational values use bounded decimal
-approximations (maximum denominator 10^9); unsupported range or nonzero values
-rounding to zero fail. Values written, all from engine-known quantities (DNG
-Specification 1.7.1.0):
+### DNG
 
-- **WhiteLevel**: the smallest per-phase effective white level (one value,
-  SamplesPerPixel = 1), so no channel reads as unsaturated above its saturation.
-- **BlackLevel / CFAPattern**: phased from the **ActiveArea** origin, because DNG
-  applies BlackLevelRepeatDim and the CFA pattern to the ActiveArea-cropped
-  image. Before 2.0 both used absolute native phase, which is wrong for odd
-  active offsets.
-- **AsShotNeutral**: the camera neutral of the assumed scene white,
-  `g_green/g` (the D65 camera neutral `w` without an intent). Before 2.0 it was
-  written as `w/g`, the camera white squared for non-normalized matrices.
-- **ForwardMatrix1**: `Bradford(D65→D50) · M · diag(M⁻¹·XYZ(D65))` (the engine's `chromaticAdaptationMatrix`), mapping
-  white-balanced camera [1,1,1] to the D50 white (Lam 1985 Bradford matrix, as in
-  the ICC profile-connection space).
-- **BaselineExposure**: the rendering profile's `renderingExposureEv`, so a raw
-  converter's default rendering matches the paired JPEG's exposure intent.
-- **AnalogBalance**: [1,1,1]; the readout model has no per-channel analog WB.
-- **NoiseProfile** (DOUBLE, one (S, O) pair per CFAPlaneColor plane): with
-  `x = (code − black)/(WhiteLevel − black)`, `var(x) = S·x + O`,
-  `S = 1/(G·span)`, `O = (σ²/G² + 1/12)/span²` from the per-channel conversion
-  gain G (e⁻/DN), read noise σ (e⁻) and uniform ADC quantization. Photo and dark
-  shot noise are Poisson (variance = mean electrons). PRNU, DSNU and fixed-pattern
-  noise are not modeled and not included. Written only when every phase of a
-  channel has the same gain, read noise and black; otherwise omitted.
+The DNG uses little-endian TIFF, DNGVersion 1.4.0.0 (backward version 1.1.0.0), one uncompressed 16-bit CFA strip, CFA/black/white tags, an inverse XYZ-to-camera ColorMatrix1, and D65 CalibrationIlluminant1. Rational values use bounded decimal approximations (maximum denominator 10^9). Values out of range, or nonzero values that would round to zero, fail.
 
-AsShotNeutral records development intent and does not alter RAW codes. No
-preview, compression, opcodes, calibration signature, RawImageDigest or
-NewRawImageDigest is claimed. XMP `RawPipelineVersion` and
-`ProcessedPipelineVersion` record `PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION` (0.2.0).
+Values written, all from quantities the engine knows (DNG Specification 1.7.1.0):
 
-JPEG is baseline sequential 8-bit YCbCr444 with an explicit constant quantization
-step 1..255, analytical DCT, custom canonical Huffman tables and byte stuffing.
-Each coefficient is the direct 64-term sum accumulated in a fixed order; row
-products are shared across vertical frequencies without reassociating the sum,
-because a factored row/column DCT changes rounded coefficients (and bytes) for a
-small fraction of blocks. The step is not a manufacturer's quality scale. JPEG remains lossy at step 1.
+- **WhiteLevel:** the smallest per-phase effective white level (one value, SamplesPerPixel = 1). So no channel reads as unsaturated above its saturation point.
+- **BlackLevel / CFAPattern:** phased from the **ActiveArea** origin, because DNG applies BlackLevelRepeatDim and the CFA pattern to the image after cropping to ActiveArea. Before 2.0, both used the absolute native phase, which is wrong for odd active-area offsets.
+- **AsShotNeutral:** the camera neutral of the assumed scene white, `g_green/g` (or the D65 camera neutral `w` when there is no intent). Before 2.0 it was written as `w/g`, which squared the camera white for non-normalised matrices.
+- **ForwardMatrix1:** `Bradford(D65→D50) · M · diag(M⁻¹·XYZ(D65))` (the engine's `chromaticAdaptationMatrix`). It maps white-balanced camera [1,1,1] to the D50 white (Lam 1985 Bradford matrix, as used in the ICC profile connection space).
+- **BaselineExposure:** the rendering profile's `renderingExposureEv`, so a raw converter's default rendering matches the paired JPEG's intended exposure.
+- **AnalogBalance:** [1,1,1]; the readout model has no per-channel analog WB.
+- **NoiseProfile** (DOUBLE, one (S, O) pair per CFAPlaneColor plane): with `x = (code − black)/(WhiteLevel − black)`, `var(x) = S·x + O`, where `S = 1/(G·span)` and `O = (σ²/G² + 1/12)/span²`. G is the per-channel conversion gain (e⁻/DN), σ the read noise (e⁻), and the 1/12 term is uniform ADC quantisation. Photo and dark shot noise are Poisson (variance = mean electrons). PRNU, DSNU and fixed-pattern noise are not modelled and not included. It is written only when every phase of a channel has the same gain, read noise and black level; otherwise it is omitted.
 
-Encoder version 2 (`EXPORT_JPEG_ENCODER_ID` = `photivra-baseline-jpeg-444-v2`, engine 2.0.0)
-makes the bytes independent of the JavaScript engine and fixes the rounding policy:
+AsShotNeutral records development intent; it does not change RAW codes. No preview, compression, opcodes, calibration signature, RawImageDigest or NewRawImageDigest is claimed. XMP `RawPipelineVersion` and `ProcessedPipelineVersion` record `PHOTOGRAPHIC_EXPORT_PIPELINE_VERSION` (0.2.0).
 
-- The 64 DCT cosines C(u,x) = cos((2x+1)uπ/16) come from a fixed table of correctly rounded
-  binary64 constants (`JPEG_DCT_COSINES`), computed offline with 130-digit decimal arithmetic
-  (Gauss–Legendre π and a Taylor series) and checked so that no neighbouring double is closer
-  to the exact value. Version 1 used runtime `Math.cos` of the rounded argument
-  `(2x+1)·u·Math.PI/16`, which differs from the exact cosine in 43 of 64 entries by an ulp or
-  two, and differs between V8 and JavaScriptCore in 2 entries. A coefficient whose exact value is a
-  half-integer can therefore round differently than in version 1 (for example −19.5 now gives −20,
-  where V8's table gave −19.499999999999996 and −19). The table keeps the exact symmetries
-  C(u,7−x) = (−1)^u C(u,x). JPEG bytes from a 1024 × 1024 corpus at steps 1, 2, 3, 4 and 8 are
-  identical under Node (V8) and Bun (JavaScriptCore).
-- Quantized coefficients round to nearest with ties **half away from zero** (−2.5 → −3), so
-  positive and negative coefficients round symmetrically. Version 1 used `Math.round`, which sends
-  −2.5 to −2.
-- The output buffer grows by doubling from 64 KiB up to the caller's byte budget instead of being
-  allocated and zero-filled at the full budget, so a 384-byte JPEG with a 256 MB budget no longer
-  commits 256 MB or blocks for about 130 ms in `finish()`. The budget limit itself is unchanged.
+### JPEG
 
-Version 1 and 2 bytes differ only where a pre-rounding coefficient lies within about an ulp of
-a half-integer or is exactly a negative half-integer; `test/export-jpeg-byte-identity.test.ts` proves the optimized encoder equals a
-straightforward version-2 reference on randomized corpora, and `test/export-jpeg-v2.test.ts`
-checks the table, the rounding and the buffer budget.
-JFIF and EXIF ColorSpace=1 declare rendered sRGB; DNG is unclassified and carries
-the explicit virtual-camera matrix.
+The JPEG is baseline sequential 8-bit YCbCr 4:4:4. It uses an explicit constant quantisation step from 1 to 255, an analytical DCT, custom canonical Huffman tables and byte stuffing.
 
-EXIF records exposure, aperture, focal length, rounded 35mm equivalent when
-representable, dimensions, UTC event time/subseconds/offset, and ImageUniqueID.
-Integer selected virtual ISO ≤65535 is recorded as RecommendedExposureIndex
-with SensitivityType=REI: a simulation setting, not measured ISO speed or
-standard-output-sensitivity calibration. Make/Model identify Photivra's virtual
-camera, not a commercial device.
+- Each coefficient is the direct 64-term sum, added up in a fixed order. Row products are shared across vertical frequencies without changing the order of the sum, because a factored row/column DCT changes rounded coefficients (and so bytes) for a small fraction of blocks.
+- The step is not a manufacturer's quality scale. JPEG is still lossy at step 1.
 
-Exif 2.32 (CIPA DC-008-2019, Tables 17–18) also makes these tags mandatory for a compressed
-primary image: IFD0 XResolution, YResolution, ResolutionUnit and YCbCrPositioning, and Exif
-FlashpixVersion and ComponentsConfiguration. Since 2.0.0 the paired-export JPEG writes them
-through `packExportJpegExif` (shared with the Print JPEG) using the standard's defaults: 72/1 dpi
-with ResolutionUnit 2 (the Exif value for an unknown resolution, not a print size; JFIF keeps
-units 0), YCbCrPositioning 1 (centered), FlashpixVersion `0100` and ComponentsConfiguration
-Y Cb Cr. Only the APP1 Exif segment changes; pixels, entropy data and SimulationHash do not.
+**Encoder version 2** (`EXPORT_JPEG_ENCODER_ID` = `photivra-baseline-jpeg-444-v2`, engine 2.0.0) makes the bytes independent of the JavaScript engine, and fixes the rounding policy:
 
-XMP contains distinct xmpMM DocumentID/InstanceID and IPTC DigitalImageGUID per
-file, the caller-selected non-generative IPTC workflow type and the namespace
-`https://photivra.com/ns/simulation/1.0/`. SceneID/version are caller-declared
-public profiles bound to the capture's sceneStateId. SensorProfileID identifies
-the export color interpretation. SceneTime is simulation seconds, not wall-clock
-time. Finite focus distance is recorded; infinity never becomes a fake number.
-Private paths/GPS/serials and unsupported rights/calibration/AI fields are rejected.
+- **Fixed cosine table.** The 64 DCT cosines C(u,x) = cos((2x+1)uπ/16) come from a fixed table of correctly rounded binary64 constants (`JPEG_DCT_COSINES`). They were computed offline with 130-digit decimal arithmetic (Gauss–Legendre π and a Taylor series), and checked so that no neighbouring double is closer to the exact value.
+  - Version 1 used runtime `Math.cos` of the rounded argument `(2x+1)·u·Math.PI/16`. That differs from the exact cosine in 43 of 64 entries by an ulp or two (units in the last place), and differs between V8 and JavaScriptCore in 2 entries.
+  - So a coefficient whose exact value is a half-integer can round differently than in version 1. For example −19.5 now gives −20, where V8's table gave −19.499999999999996 and so −19.
+  - The table keeps the exact symmetries C(u,7−x) = (−1)^u C(u,x).
+  - JPEG bytes from a 1024 × 1024 corpus at steps 1, 2, 3, 4 and 8 are identical under Node (V8) and Bun (JavaScriptCore).
+- **Symmetric rounding.** Quantised coefficients round to nearest, with ties **half away from zero** (−2.5 → −3), so positive and negative coefficients round the same way. Version 1 used `Math.round`, which sends −2.5 to −2.
+- **Growing buffer.** The output buffer starts at 64 KiB and doubles up to the caller's byte budget, instead of being allocated and zero-filled at the full budget. A 384-byte JPEG with a 256 MB budget no longer commits 256 MB or blocks for about 130 ms in `finish()`. The budget limit itself is unchanged.
+
+Version 1 and 2 bytes differ only where a coefficient before rounding is within about an ulp of a half-integer, or is exactly a negative half-integer.
+
+- `test/export-jpeg-byte-identity.test.ts` proves the optimised encoder equals a straightforward version-2 reference on randomised corpora.
+- `test/export-jpeg-v2.test.ts` checks the table, the rounding and the buffer budget.
+
+JFIF and EXIF ColorSpace=1 declare rendered sRGB. The DNG is unclassified and carries the explicit virtual-camera matrix.
+
+### EXIF
+
+EXIF records exposure, aperture, focal length, the rounded 35mm equivalent when it can be represented, dimensions, UTC event time with subseconds and offset, and ImageUniqueID.
+
+- A selected integer virtual ISO ≤65535 is recorded as RecommendedExposureIndex, with SensitivityType=REI. This is a simulation setting, not a measured ISO speed or a standard-output-sensitivity calibration.
+- Make/Model identify Photivra's virtual camera, not a commercial device.
+
+Exif 2.32 (CIPA DC-008-2019, Tables 17–18) also makes these tags mandatory for a compressed primary image: IFD0 XResolution, YResolution, ResolutionUnit and YCbCrPositioning, and Exif FlashpixVersion and ComponentsConfiguration. Since 2.0.0, the paired-export JPEG writes them through `packExportJpegExif` (shared with the Print JPEG), using the standard's defaults:
+
+- 72/1 dpi with ResolutionUnit 2. This is the Exif value for an unknown resolution, not a print size; JFIF keeps units 0.
+- YCbCrPositioning 1 (centred).
+- FlashpixVersion `0100`.
+- ComponentsConfiguration Y Cb Cr.
+
+Only the APP1 Exif segment changes. Pixels, entropy-coded data and SimulationHash do not.
+
+### XMP
+
+- XMP contains a separate xmpMM DocumentID/InstanceID and IPTC DigitalImageGUID for each file, the caller's chosen non-generative IPTC workflow type, and the namespace `https://photivra.com/ns/simulation/1.0/`.
+- SceneID/version are public profiles declared by the caller, bound to the capture's sceneStateId.
+- SensorProfileID identifies the export colour interpretation.
+- SceneTime is simulation seconds, not wall-clock time.
+- A finite focus distance is recorded; infinity never becomes a fake number.
+- Private paths, GPS, serial numbers and unsupported rights, calibration or AI fields are rejected.
 
 ## Identity and lineage
 
-- SimulationHash is SHA-256 over sorted finite canonical JSON containing the
-  entire RAW frame, including capture identity/history/float planes, phase
-  profiles, region, color/scene profiles, WB policy, rendering, JPEG step,
-  highlight mode, pipeline version and the optional correction choice.
-  Save timestamp and artifact IDs are excluded. History changes may change the
-  hash without changing decoded pixels.
-- RawDataUniqueID is the first 128 bits of SHA-256 over versioned native
-  dimensions, CFA layout, 16-bit container declaration and exact codes. It is
-  not a standard RawImageDigest.
-- UniqueCameraModel includes public color profile identity/version and its full
-  hash; profile changes cannot silently keep the same family identity. File
-  SHA-256 fields hash exact returned bytes at creation.
-- Top-level pairing records JPEG generation from the exact attached RAW. Nested
-  metadata-only `imageDataPairing="not-verified"` retains its earlier projection
-  semantics. Upstream producer origin remains caller-declared/unverified. Hashes
-  are not signatures, C2PA or tamper-proof attestations.
+- **SimulationHash** is SHA-256 over sorted, finite, canonical JSON containing the whole RAW frame (including capture identity, history and float planes), phase profiles, region, colour and scene profiles, WB policy, rendering, JPEG step, highlight mode, pipeline version and the optional correction choice. The save timestamp and artifact IDs are excluded. Changes to history can change the hash without changing decoded pixels.
+- **RawDataUniqueID** is the first 128 bits of SHA-256 over versioned native dimensions, CFA layout, the 16-bit container declaration and the exact codes. It is not a standard RawImageDigest.
+- **UniqueCameraModel** includes the public colour profile identity and version, and its full hash. A profile change therefore cannot quietly keep the same family identity.
+- **File SHA-256** fields hash the exact returned bytes at creation.
+- **Pairing.** The top-level pairing records that the JPEG was generated from the exact attached RAW. The nested metadata-only `imageDataPairing="not-verified"` keeps its earlier meaning. Where the upstream producer came from is still declared by the caller and unverified. Hashes are not signatures, C2PA or tamper-proof attestations.
 
-Returned arrays are owned and mutable; hashes describe creation-time bytes.
-Reconstruction/rendering calculation envelopes remain available for review.
+Returned arrays are owned by the caller and can be modified; hashes describe the bytes at creation. The reconstruction and rendering calculation records stay available for review.
 
 ## Use and acceptance
 
@@ -269,53 +213,48 @@ async function exportCommittedRaw(input: PhotographicExportInput, signal?: Abort
 }
 ```
 
-`createPhotographicExportPair(input, { signal })` checks the optional
-`AbortSignal` before work and after every hash, and rejects with
-"Photographic export aborted." without returning a partial pair. Missing
-`crypto.subtle` fails before any work with a domain error: browsers expose Web
-Crypto only in secure contexts (HTTPS or localhost); Node.js 22+ provides it.
+`createPhotographicExportPair(input, { signal })` checks the optional `AbortSignal` before work and after every hash. On abort it rejects with "Photographic export aborted." and returns no partial pair. If `crypto.subtle` is missing, it fails before any work with a domain error. Browsers expose Web Crypto only in secure contexts (HTTPS or localhost); Node.js 22+ provides it.
 
-Callers supply actual committed input and explicit profile evidence. Test profiles
-are synthetic and are not suggested physical calibrations.
+Callers supply real committed input and explicit profile evidence. Test profiles are synthetic and are not suggested physical calibrations.
 
-Generate concrete acceptance files with `npm run build`, then
-`node scripts/generate-photographic-export-fixtures.mjs OUTPUT_DIRECTORY`.
-With an existing Pillow installation, run
-`python scripts/verify-photographic-export-fixtures.py OUTPUT_DIRECTORY`.
-This repository-only optional checker adds no engine dependency. It also uses
-existing lxml and LibRaw installations when available, and reports skipped
-checks explicitly. Both the 2×2 strip regression and 64×64 owned grayscale
-chart are generated with separate capture/artifact identities. The manifest
-records elapsed time and before/after heap usage for each bounded fixture;
-these are not peak-memory measurements or high-resolution evidence.
+### Generating and checking acceptance files
 
-Supplemental local checks use Pillow's independent TIFF-directory reader plus
-direct strip unpacking for exact RAW codes; Pillow decodes JPEG/EXIF and extracts
-XMP, and Python DOM parses both packets. Diverse 1×1, 7×8, 9×13 and 64×64 patterns
-decode at steps 1, 7 and 255; measured step-1 maximum channel error is ≤2 codes.
-Pillow cannot render the CFA photometric profile. LibRaw 0.21.2 independently
-opens, unpacks and processes the 64×64 DNG, retaining the native 64×64 size and
-WhiteLevel=1023. It rejects the 2×2 file as unsupported; that tiny file remains
-a strip/tag regression fixture, not an editor acceptance file. XMP attributes
-in both pair members are independently decoded and compared through DOM/Expat
-and lxml/libxml2. These checks do not establish Adobe acceptance, exact
-agreement between different demosaic/rendering algorithms or a complete
-schema-aware XMP implementation conformance claim.
+1. Run `npm run build`.
+2. Run `node scripts/generate-photographic-export-fixtures.mjs OUTPUT_DIRECTORY`.
+3. With Pillow installed, run `python scripts/verify-photographic-export-fixtures.py OUTPUT_DIRECTORY`.
 
-Concrete 64×64 files are checked into `test/fixtures/paired-export-acceptance/`
-for external review. Their owned synthetic ramp codes exercise the serializer,
-not the physical sensor producer. See its README for hashes and the exact
-remaining acceptance steps. No commercial-camera calibration is used.
+This optional checker lives only in the repository and adds no engine dependency. It also uses lxml and LibRaw when they are installed, and reports any skipped checks explicitly. A 2×2 strip regression file and a 64×64 owned greyscale chart are generated, each with its own capture and artifact identity. The manifest records elapsed time and heap usage before and after each bounded fixture. These are not peak-memory measurements, and not evidence for high resolutions.
 
-#16 is closed through reviewed/signed PR #201. [Export acceptance](EXPORT_ACCEPTANCE.md) records producer-derived pairs, independent LibRaw/TIFF/JPEG/XML checks, owner Lightroom orientation/as-shot/exposure/WB screenshots and landscape JPEG Photoshop/Chrome review, with unverified user-Mac hashes/builds explicitly preserved. The per-call API retains `independent-decode-required-editor-validation-pending`: it cannot attest that arbitrary newly generated bytes were checked in an external editor. That conservative result field is not the current issue status.
+**What the checks cover.**
 
-Format references and DNG patent-license notice are recorded in `THIRD_PARTY.md`
-and `NOTICE`. No Adobe SDK or external encoder source is incorporated.
+- Pillow's independent TIFF-directory reader, plus direct strip unpacking, recovers the exact RAW codes.
+- Pillow decodes the JPEG and EXIF and extracts XMP; Python DOM parses both XMP packets.
+- Varied 1×1, 7×8, 9×13 and 64×64 patterns decode at steps 1, 7 and 255. The measured maximum channel error at step 1 is ≤2 codes.
+- Pillow cannot render the CFA photometric profile.
+- LibRaw 0.21.2 independently opens, unpacks and processes the 64×64 DNG, keeping the native 64×64 size and WhiteLevel=1023. It rejects the 2×2 file as unsupported; that tiny file is a strip/tag regression fixture, not an editor acceptance file.
+- XMP attributes in both files are decoded and compared independently through DOM/Expat and lxml/libxml2.
 
-Internal ownership: `src/color/sensor-color-development.ts` owns the declared
-sensor-channel gain → camera-to-XYZ → linear-sRGB calculation and conditioned
-inversion. Export retains profile/evidence validation, CFA binding, one-time WB
-authorization, geometry and DNG/JPEG container mapping. The adapter consumes
-validated data and does not infer sensor calibration or reuse the distinct ideal
-virtual-camera input contract. Version 2.0.0 of that model changes WB, white
-level and highlight handling as documented above.
+These checks do not establish Adobe acceptance, exact agreement between different demosaic or rendering algorithms, or full schema-aware XMP conformance.
+
+Concrete 64×64 files are checked in to `test/fixtures/paired-export-acceptance/` for external review. Their owned synthetic ramp codes exercise the serialiser, not the physical sensor producer. See that folder's README for hashes and the exact remaining acceptance steps. No commercial-camera calibration is used.
+
+### External editor acceptance
+
+Export (issue #16) was closed through PR #201. [Export acceptance](EXPORT_ACCEPTANCE.md) records:
+
+- producer-derived file pairs;
+- independent LibRaw, TIFF, JPEG and XML checks;
+- the owner's Lightroom screenshots of orientation, as-shot settings, exposure and WB;
+- review of a landscape JPEG in Photoshop and Chrome, with the unverified hashes and builds from the user's Mac explicitly kept.
+
+The per-call API still returns `independent-decode-required-editor-validation-pending`. It cannot vouch that arbitrary newly generated bytes were checked in an external editor. That conservative result field does not describe the current issue status.
+
+Format references and the DNG patent-licence notice are in `THIRD_PARTY.md` and `NOTICE`. No Adobe SDK or external encoder source is included.
+
+## Internal ownership
+
+- `src/color/sensor-color-development.ts` owns the declared sensor-channel gain → camera-to-XYZ → linear-sRGB calculation and its well-conditioned inversion.
+- Export keeps profile and evidence validation, CFA binding, the one-time WB authorisation, geometry, and the DNG/JPEG container mapping.
+- The adapter uses validated data. It does not infer sensor calibration, and does not reuse the separate ideal virtual-camera input contract.
+
+Version 2.0.0 of that model changes WB, white level and highlight handling, as documented above.
