@@ -502,4 +502,6 @@ GitHub can generate citation text from [CITATION.cff](https://github.com/Photivr
 
 Source code in this repository is licensed under Apache-2.0 unless a file clearly states otherwise. See [LICENSE](https://github.com/Photivra/photivra/blob/main/LICENSE), [NOTICE](https://github.com/Photivra/photivra/blob/main/NOTICE), and [THIRD_PARTY.md](https://github.com/Photivra/photivra/blob/main/THIRD_PARTY.md).
 
+This product includes DNG technology under license by Adobe.
+
 The Apache license does not grant trademark rights to the Photivra name, logos or branding, except as allowed by applicable law and the license itself.
