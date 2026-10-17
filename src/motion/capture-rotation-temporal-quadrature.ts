@@ -36,7 +36,8 @@ import {
   calculateCaptureRotationInverseMappings,
   type CalculateCaptureRotationInverseMappingsInput
 } from "./capture-rotation-inverse-mapping.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export interface CalculateCaptureRotationTemporalQuadratureInput
   extends Omit<
@@ -136,7 +137,7 @@ function midpointPhase(index: number, sampleCount: number): number {
 export function calculateCaptureRotationTemporalQuadrature(
   input: CalculateCaptureRotationTemporalQuadratureInput
 ): CalculationResult<CaptureRotationTemporalQuadrature> {
-  requireInputObject(input, "calculateCaptureRotationTemporalQuadrature input");
+  requireInputKeys(input, "calculateCaptureRotationTemporalQuadrature", ["temporalSampleCount", "imagingArea", "focalLengthMm", "focusDistanceM", "angularVelocityRadPerSec", "orientation", "samplePointsNative", "nativeRaster", "activeCaptureRect", "shutterMechanism", "nominalExposureDurationSeconds", "opening", "closing"]);
   requirePositiveInteger(
     "temporalSampleCount",
     input.temporalSampleCount
@@ -146,7 +147,7 @@ export function calculateCaptureRotationTemporalQuadrature(
     !Array.isArray(input.samplePointsNative) ||
     input.samplePointsNative.length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "samplePointsNative must be a non-empty array."
     );
   }

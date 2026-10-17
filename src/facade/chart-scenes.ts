@@ -20,7 +20,7 @@
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { prepareColorimetricSpectrum, type ColorimetricSpectrum, type PreparedColorimetricSpectrum } from "../color/color-matching-functions.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 /** A neutral (spectrally flat) reflectance in [0, 1], or a caller reflectance spectrum (values in [0, 1]). */
 export type ChartReflectance = number | ColorimetricSpectrum;
@@ -279,7 +279,7 @@ export function resolveChartScene(input: { scene: ChartScene; aspect: number }):
  */
 export function calculateStepWedgeReflectances(input: { steps: number; minimumReflectance: number; maximumReflectance: number;
   spacing: "equal-density" | "linear" }): number[] {
-  requireInputObject(input, "calculateStepWedgeReflectances input");
+  requireInputKeys(input, "calculateStepWedgeReflectances", ["steps", "minimumReflectance", "maximumReflectance", "spacing"]);
   const steps = integerIn(input.steps, "steps", 2, 64), lo = reflectance(input.minimumReflectance, "minimumReflectance"), hi = reflectance(input.maximumReflectance, "maximumReflectance");
   if (input.spacing !== "equal-density" && input.spacing !== "linear") throw new InvalidConfigurationError("spacing must be equal-density or linear.");
   if (!(hi > lo) || (input.spacing === "equal-density" && lo <= 0)) throw new InvalidConfigurationError("Step wedge needs 0 < minimum < maximum reflectance.");
@@ -292,7 +292,7 @@ export function calculateStepWedgeReflectances(input: { steps: number; minimumRe
 
 /** Centres (frame units) of a point grid: one disk centred in each of columns × rows equal cells, row-major from the top-left. */
 export function calculatePointGridCenters(input: { columns: number; rows: number; aspect: number }): { u: number; v: number }[] {
-  requireInputObject(input, "calculatePointGridCenters input");
+  requireInputKeys(input, "calculatePointGridCenters", ["columns", "rows", "aspect"]);
   const columns = integerIn(input.columns, "columns", 1, 256), rows = integerIn(input.rows, "rows", 1, 256);
   if (typeof input.aspect !== "number" || !Number.isFinite(input.aspect) || input.aspect <= 0) throw new InvalidConfigurationError("aspect must be positive.");
   const out: { u: number; v: number }[] = [];

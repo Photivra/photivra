@@ -39,7 +39,7 @@ import {
 import type {
   ResolvedCaptureModeTiming
 } from "../sensor/capture-mode-timing.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -973,7 +973,7 @@ export function resolveManualFlashSync(
   input:
     ResolveManualFlashSyncInput
 ): ResolvedManualFlashSync {
-  requireInputObject(input, "resolveManualFlashSync input");
+  requireInputKeys(input, "resolveManualFlashSync", ["flashEnabled", "flashProfile", "syncCapabilities", "timing", "syncMode", "releaseFrame"]);
   const flash =
     parseManualFlashProfile(
       input.flashProfile
@@ -1213,7 +1213,7 @@ export function createManualFlashIlluminationOverlay(
   input:
     CreateManualFlashIlluminationOverlayInput
 ): ManualFlashIlluminationOverlay {
-  requireInputObject(input, "createManualFlashIlluminationOverlay input");
+  requireInputKeys(input, "createManualFlashIlluminationOverlay", ["baseIlluminationProfile", "baseTemporalProfile", "flashProfile", "resolvedSync", "illuminationProfileId", "temporalProfileId"]);
   const base =
     parseSceneIlluminationProfile(
       input
@@ -1533,7 +1533,7 @@ function integratePulse(samples: readonly SceneIlluminationTemporalWaveformSampl
  * @see docs/SCENE_SENSOR_TEMPORAL_EXPOSURE.md#high-speed-sync
  */
 export function resolveHighSpeedFlashSync(input: ResolveHighSpeedFlashSyncInput): ResolvedHighSpeedFlashSync {
-  requireInputObject(input, "resolveHighSpeedFlashSync input");
+  requireInputKeys(input, "resolveHighSpeedFlashSync", ["flashEnabled", "flashProfile", "syncCapabilities", "timing", "powerFraction", "releaseFrame"]);
   requireInputObject(input.timing, "resolveHighSpeedFlashSync timing");
   const flash = parseManualFlashProfile(input.flashProfile);
   const capabilities = parseFlashSyncCapabilityProfile(input.syncCapabilities);
@@ -1627,7 +1627,7 @@ export function resolveHighSpeedFlashSync(input: ResolveHighSpeedFlashSyncInput)
 export function createHighSpeedSyncIlluminationOverlay(
   input: Omit<CreateManualFlashIlluminationOverlayInput, "resolvedSync"> & { resolvedSync: ResolvedHighSpeedFlashSync }
 ): ManualFlashIlluminationOverlay {
-  requireInputObject(input, "createHighSpeedSyncIlluminationOverlay input");
+  requireInputKeys(input, "createHighSpeedSyncIlluminationOverlay", ["baseIlluminationProfile", "baseTemporalProfile", "flashProfile", "illuminationProfileId", "temporalProfileId", "resolvedSync"]);
   requireInputObject(input.resolvedSync, "createHighSpeedSyncIlluminationOverlay resolvedSync");
   return createManualFlashIlluminationOverlay({ ...input,
     flashProfile: input.resolvedSync.burstFlashProfile ?? input.flashProfile });

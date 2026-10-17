@@ -17,7 +17,7 @@ import {
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 import {
   calculateChromaticityFromCorrelatedColorTemperature,
   type PlanckianLocusModel,
@@ -160,7 +160,7 @@ export interface ResolvedColorTemperatureWhiteBalance {
   tint: number;
   whiteLocus: WhiteLocus;
   tintInterpretation: "duv-cie-1960-uv";
-  planckianLocusModel: "kim-2002-cubic-spline" | "planck-integration";
+  planckianLocusModel: "planck-analytic-cmf" | "planck-integration";
   /** CIE 1931 xy of the declared white (CCT + Duv). */
   adoptedWhiteChromaticity: CieXyChromaticity;
   /** Pre-WB camera response to that white (XYZ with Y = 1 through xyzToCameraRgb). */
@@ -182,7 +182,7 @@ export interface ResolveColorTemperatureWhiteBalanceInput {
   whiteLocus: WhiteLocus;
   /** Tint is read as Duv in the CIE 1960 UCS (positive = above the Planckian locus, greenish). */
   tintInterpretation: "duv-cie-1960-uv";
-  /** Defaults to the Kim et al. (2002) cubic-spline locus. */
+  /** Defaults to Planck's law integrated against the engine's analytic CIE 1931 CMFs (`planck-analytic-cmf`). */
   planckianLocus?: PlanckianLocusModel;
   camera: ColorTemperatureWhiteBalanceCameraModel;
 }
@@ -484,7 +484,7 @@ function requireScientificNonEmptyString(
   path: string
 ): string {
   if (typeof value !== "string" || value.trim().length === 0) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path + " must be a non-empty string."
     );
   }
@@ -613,7 +613,7 @@ function stateBase(
 export function resolvePresetWhiteBalance(
   input: ResolvePresetWhiteBalanceInput
 ): ResolvedWhiteBalanceState {
-  requireInputObject(input, "resolvePresetWhiteBalance input");
+  requireInputKeys(input, "resolvePresetWhiteBalance", ["stateId", "profile", "presetId"]);
   const profile = parseWhiteBalanceProfile(input.profile);
   const presetId = requireScientificNonEmptyString(
     input.presetId,
@@ -648,7 +648,7 @@ export function resolvePresetWhiteBalance(
 export function resolveManualWhiteBalance(
   input: ResolveManualWhiteBalanceInput
 ): ResolvedWhiteBalanceState {
-  requireInputObject(input, "resolveManualWhiteBalance input");
+  requireInputKeys(input, "resolveManualWhiteBalance", ["stateId", "channelGains"]);
   return immutableState(
     stateBase(
       input.stateId,
@@ -671,7 +671,7 @@ export function resolveManualWhiteBalance(
 export function createColorTemperatureWhiteBalanceIntent(
   input: CreateColorTemperatureWhiteBalanceIntentInput
 ): ColorTemperatureWhiteBalanceIntent {
-  requireInputObject(input, "createColorTemperatureWhiteBalanceIntent input");
+  requireInputKeys(input, "createColorTemperatureWhiteBalanceIntent", ["intentId", "colorTemperatureKelvin", "tint"]);
   return Object.freeze({
     version: COLOR_TEMPERATURE_WHITE_BALANCE_INTENT_VERSION,
     intentId: requireScientificNonEmptyString(input.intentId, "intentId"),
@@ -700,14 +700,14 @@ export function createColorTemperatureWhiteBalanceIntent(
 export function resolveColorTemperatureWhiteBalance(
   input: ResolveColorTemperatureWhiteBalanceInput
 ): ResolvedWhiteBalanceState {
-  requireInputObject(input, "resolveColorTemperatureWhiteBalance input");
+  requireInputKeys(input, "resolveColorTemperatureWhiteBalance", ["stateId", "intent", "whiteLocus", "tintInterpretation", "planckianLocus", "camera"]);
   const intent = input.intent;
   if (
     typeof intent !== "object" ||
     intent === null ||
     intent.version !== COLOR_TEMPERATURE_WHITE_BALANCE_INTENT_VERSION
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "intent must be a color-temperature WB intent of version " +
         COLOR_TEMPERATURE_WHITE_BALANCE_INTENT_VERSION +
         "."
@@ -717,16 +717,16 @@ export function resolveColorTemperatureWhiteBalance(
   const kelvin = requireScientificPositiveFinite(intent.colorTemperatureKelvin, "intent.colorTemperatureKelvin");
   const tint = requireScientificFinite(intent.tint, "intent.tint");
   if (input.tintInterpretation !== "duv-cie-1960-uv") {
-    throw new InvalidScientificInputError('tintInterpretation must be "duv-cie-1960-uv".');
+    throw new InvalidConfigurationError('tintInterpretation must be "duv-cie-1960-uv".');
   }
   const camera = input.camera;
   if (typeof camera !== "object" || camera === null) {
-    throw new InvalidScientificInputError("camera must be an object.");
+    throw new InvalidConfigurationError("camera must be an object.");
   }
   const profileId = requireScientificNonEmptyString(camera.profileId, "camera.profileId");
   const profileVersion = requireScientificNonEmptyString(camera.profileVersion, "camera.profileVersion");
   const matrix = parseMatrix3x3(camera.xyzToCameraRgb, "camera.xyzToCameraRgb");
-  const locus: PlanckianLocusModel = input.planckianLocus ?? { kind: "kim-2002-cubic-spline" };
+  const locus: PlanckianLocusModel = input.planckianLocus ?? { kind: "planck-analytic-cmf" };
   const white = calculateChromaticityFromCorrelatedColorTemperature({
     correlatedColorTemperatureKelvin: kelvin,
     duv: tint,
@@ -779,7 +779,7 @@ function reduceSampleSet(
 } {
   requireInputObject(sampleSet, "sampleSet input");
   if (sampleSet.inputDomain !== "relative-pre-wb-camera-linear-rgb") {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       'sampleSet.inputDomain must be "relative-pre-wb-camera-linear-rgb".'
     );
   }
@@ -788,7 +788,7 @@ function reduceSampleSet(
     "sampleSet.imageStateId"
   );
   if (!Array.isArray(sampleSet.samples) || sampleSet.samples.length === 0) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "sampleSet.samples must be a non-empty array."
     );
   }
@@ -897,7 +897,7 @@ function neutralizingGains(
 export function resolveCustomWhiteBalance(
   input: ResolveCustomWhiteBalanceInput
 ): ResolvedWhiteBalanceState {
-  requireInputObject(input, "resolveCustomWhiteBalance input");
+  requireInputKeys(input, "resolveCustomWhiteBalance", ["stateId", "sampleSet"]);
   const reduced = reduceSampleSet(input.sampleSet, "reject-any");
 
   return immutableState({
@@ -930,7 +930,7 @@ export function resolveCustomWhiteBalance(
 export function estimateAutoWhiteBalance(
   input: EstimateAutoWhiteBalanceInput
 ): ResolvedWhiteBalanceState {
-  requireInputObject(input, "estimateAutoWhiteBalance input");
+  requireInputKeys(input, "estimateAutoWhiteBalance", ["stateId", "profile", "policyId", "sampleSet"]);
   const profile = parseWhiteBalanceProfile(input.profile);
   const policyId = requireScientificNonEmptyString(
     input.policyId,
@@ -993,7 +993,7 @@ export function estimateAutoWhiteBalance(
 export function createLockedWhiteBalanceState(
   input: CreateLockedWhiteBalanceStateInput
 ): ResolvedWhiteBalanceState {
-  requireInputObject(input, "createLockedWhiteBalanceState input");
+  requireInputKeys(input, "createLockedWhiteBalanceState", ["stateId", "sourceState"]);
   const stateId = requireScientificNonEmptyString(input.stateId, "stateId");
   const source = input.sourceState;
 
@@ -1116,7 +1116,7 @@ function parseResolvedColorTemperature(
     throw new InvalidConfigurationError(path + ".tintInterpretation is invalid.");
   }
   if (
-    record.planckianLocusModel !== "kim-2002-cubic-spline" &&
+    record.planckianLocusModel !== "planck-analytic-cmf" &&
     record.planckianLocusModel !== "planck-integration"
   ) {
     throw new InvalidConfigurationError(path + ".planckianLocusModel is invalid.");

@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Wide-gamut and HDR output primitives (standalone; output wiring belongs to the
- * SDR/export stages):
+ * Wide-gamut output primitives (standalone; output wiring belongs to the SDR/export stages):
  * - RGB ↔ XYZ matrices derived numerically from primary and white chromaticities: RGB (1, 1, 1)
  *   is the white (W3C CSS Color 4 §2, free), never copied matrices. They equal the CSS Color 4
  *   sample-code matrices to about 1e-15 (test/colorimetry-output-and-camera.test.ts).
  *   sRGB / BT.709: ITU-R BT.709-6 and W3C CSS Color 4 `srgb` (also IEC 61966-2-1:1999); Display P3:
  *   P3 primaries with D65 white as specified for `display-p3` in W3C CSS Color 4 (also SMPTE EG 432-1:2010);
- *   BT.2020 / BT.2100: ITU-R BT.2020-2, BT.2100-3. All use D65 (0.3127, 0.3290).
+ *   BT.2020: ITU-R BT.2020-2. All use D65 (0.3127, 0.3290).
  * - Transfer functions: sRGB (W3C CSS Color 4; also IEC 61966-2-1; also Display P3), BT.709 OETF, BT.1886 EOTF
- *   (ITU-R BT.1886), ITU-R BT.2100 PQ (also SMPTE ST 2084) EOTF and inverse, BT.2100 HLG OETF,
- *   inverse OETF and reference EOTF/OOTF with system gamma (BT.2100-3 Table 5, Note 5f).
+ *   (ITU-R BT.1886). The BT.2100 PQ and HLG transfer functions are not part of 2.0 (owner decision,
+ *   2026-10-17: their patent holders offer only licence-on-request declarations; see THIRD_PARTY.md).
  * Constants are the published values of those standards.
  * @see docs/COLORIMETRY.md for equations, coordinate/unit conventions and limits.
  */
@@ -33,10 +32,10 @@ import {
   xyzOfChromaticity,
   type CieXyChromaticity,
   type CieXyzTristimulus,
-  type ColorMatrix3x3,
-  type ColorVector3
+  type ColorMatrix3x3
 } from "./colorimetry-math.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** RGB primaries as CIE 1931 xy chromaticities. */
 export interface RgbPrimaryChromaticities {
@@ -74,7 +73,7 @@ export function rgbToXyzMatrices(primaries: RgbPrimaryChromaticities, white: Cie
  * RP 177). The derivation is written out in docs/COLORIMETRY.md.
  */
 export function calculateRgbToXyzMatrices(input: { primaries: RgbPrimaryChromaticities; whiteChromaticity: CieXyChromaticity }): CalculationResult<RgbToXyzMatrices> {
-  requireInputObject(input, "calculateRgbToXyzMatrices input");
+  requireInputKeys(input, "calculateRgbToXyzMatrices", ["primaries", "whiteChromaticity"]);
   const value = rgbToXyzMatrices(input.primaries, input.whiteChromaticity);
   requireFiniteResult([...value.rgbToXyz.flat(), ...value.xyzToRgb.flat()], "RGB matrix derivation");
   return calculatedResult(value, "rgb-xyz-matrix-smpte-rp177", COLORIMETRY_MODEL_VERSION);
@@ -87,7 +86,7 @@ export interface RgbColorSpaceDefinition extends RgbToXyzMatrices {
   id: RgbColorSpaceId;
   primaries: RgbPrimaryChromaticities;
   whiteChromaticity: CieXyChromaticity;
-  /** Conventional non-linear encoding of this space when not used with PQ/HLG. */
+  /** Conventional non-linear (SDR) encoding of this space. */
   transferFunction: RgbTransferFunctionId;
   sources: readonly string[];
 }
@@ -103,14 +102,14 @@ const SPACES: Readonly<Record<RgbColorSpaceId, { primaries: RgbPrimaryChromatici
   },
   rec2020: {
     primaries: { red: { x: 0.708, y: 0.292 }, green: { x: 0.170, y: 0.797 }, blue: { x: 0.131, y: 0.046 } },
-    transferFunction: "bt2020-oetf", sources: ["ITU-R BT.2020-2", "ITU-R BT.2100-3 (same primaries for PQ/HLG)"]
+    transferFunction: "bt2020-oetf", sources: ["ITU-R BT.2020-2"]
   }
 };
 
 /** Resolves a named RGB colour space with numerically derived matrices (all D65). */
 export function resolveRgbColorSpace(id: RgbColorSpaceId): CalculationResult<RgbColorSpaceDefinition> {
   const space = typeof id === "string" && Object.hasOwn(SPACES, id) ? SPACES[id] : undefined;
-  if (space === undefined) throw new InvalidScientificInputError("Unknown RGB colour space.");
+  if (space === undefined) throw new InvalidConfigurationError("Unknown RGB colour space.");
   const matrices = rgbToXyzMatrices(space.primaries, D65_CHROMATICITY);
   const value: RgbColorSpaceDefinition = {
     id, primaries: JSON.parse(JSON.stringify(space.primaries)) as RgbPrimaryChromaticities, whiteChromaticity: { ...D65_CHROMATICITY },
@@ -172,108 +171,5 @@ export function prepareBt1886Eotf(input: { whiteLuminanceCdPerSquareMeter: numbe
     whiteLuminanceCdPerSquareMeter: lw, blackLuminanceCdPerSquareMeter: lb, a, b,
     decode: (signal: number) => a * Math.max(requireFiniteNumber(signal, "signal") + b, 0) ** g,
     encode: (luminance: number) => (requireNonNegativeNumber(luminance, "luminanceCdPerSquareMeter") / a) ** (1 / g) - b
-  });
-}
-
-/** ITU-R BT.2100 PQ constants (also SMPTE ST 2084). */
-export const PQ_CONSTANTS = Object.freeze({
-  m1: 2610 / 16384,
-  m2: (2523 / 4096) * 128,
-  c1: 3424 / 4096,
-  c2: (2413 / 4096) * 32,
-  c3: (2392 / 4096) * 32,
-  peakLuminanceCdPerSquareMeter: 10000
-});
-
-/** PQ reference EOTF: non-linear signal E′ ∈ [0, 1] → displayed luminance F_D in cd/m² (0–10000). */
-export function evaluatePqEotf(signal: number): number {
-  const e = requireFiniteNumber(signal, "signal");
-  if (e < 0 || e > 1) throw new InvalidScientificInputError("PQ signal must lie in [0, 1].");
-  const { m1, m2, c1, c2, c3 } = PQ_CONSTANTS;
-  const p = e ** (1 / m2);
-  return 10000 * (Math.max(p - c1, 0) / (c2 - c3 * p)) ** (1 / m1);
-}
-
-/** PQ inverse EOTF: luminance F_D in cd/m² (0–10000) → non-linear signal E′. */
-export function evaluatePqInverseEotf(luminanceCdPerSquareMeter: number): number {
-  const fd = requireNonNegativeNumber(luminanceCdPerSquareMeter, "luminanceCdPerSquareMeter");
-  if (fd > 10000) throw new InvalidScientificInputError("PQ luminance must not exceed 10000 cd/m².");
-  const { m1, m2, c1, c2, c3 } = PQ_CONSTANTS;
-  const y = (fd / 10000) ** m1;
-  return ((c1 + c2 * y) / (1 + c3 * y)) ** m2;
-}
-
-/** BT.2100 HLG OETF constants (b, c computed from a as specified). */
-export const HLG_CONSTANTS = Object.freeze({
-  a: 0.17883277,
-  b: 1 - 4 * 0.17883277,
-  c: 0.5 - 0.17883277 * Math.log(4 * 0.17883277)
-});
-
-/** HLG reference OETF: scene-linear E ∈ [0, 1] → E′. */
-export function evaluateHlgOetf(sceneLinear: number): number {
-  const e = requireFiniteNumber(sceneLinear, "sceneLinear");
-  if (e < 0 || e > 1) throw new InvalidScientificInputError("HLG scene-linear value must lie in [0, 1].");
-  const { a, b, c } = HLG_CONSTANTS;
-  return e <= 1 / 12 ? Math.sqrt(3 * e) : a * Math.log(12 * e - b) + c;
-}
-
-/** HLG inverse OETF: E′ ∈ [0, 1] → scene-linear E. */
-export function evaluateHlgInverseOetf(signal: number): number {
-  const x = requireFiniteNumber(signal, "signal");
-  if (x < 0 || x > 1) throw new InvalidScientificInputError("HLG signal must lie in [0, 1].");
-  const { a, b, c } = HLG_CONSTANTS;
-  return x <= 0.5 ? (x * x) / 3 : (Math.exp((x - c) / a) + b) / 12;
-}
-
-/**
- * HLG system gamma for nominal peak luminance L_W (BT.2100-3 Note 5f):
- * γ = 1.2 + 0.42 log10(L_W/1000) for 400–2000 cd/m², otherwise the extended form
- * γ = 1.2 · 1.111^(log2(L_W/1000)).
- */
-export function calculateHlgSystemGamma(input: { nominalPeakLuminanceCdPerSquareMeter: number }): CalculationResult<{ systemGamma: number }> {
-  requireInputKeys(input, "calculateHlgSystemGamma", ["nominalPeakLuminanceCdPerSquareMeter"]);
-  const lw = requirePositiveNumber(input.nominalPeakLuminanceCdPerSquareMeter, "nominalPeakLuminanceCdPerSquareMeter");
-  const gamma = lw >= 400 && lw <= 2000 ? 1.2 + 0.42 * Math.log10(lw / 1000) : 1.2 * 1.111 ** Math.log2(lw / 1000);
-  return calculatedResult({ systemGamma: gamma }, "bt2100-hlg-system-gamma", COLORIMETRY_MODEL_VERSION);
-}
-
-export interface HlgReferenceDisplay {
-  nominalPeakLuminanceCdPerSquareMeter: number;
-  blackLuminanceCdPerSquareMeter: number;
-  systemGamma: number;
-  /** β = √(3 (L_B/L_W)^(1/γ)) */
-  blackLevelLift: number;
-  /** OOTF: scene-linear BT.2100 RGB ∈ [0, 1] → display RGB in cd/m² (F_D = α Y_S^(γ−1) E, α = L_W). */
-  ootf(sceneLinearRgb: ColorVector3): ColorVector3;
-  /** EOTF: HLG signal RGB → display RGB in cd/m² = OOTF(OETF⁻¹(max(0, (1 − β)E′ + β))). */
-  eotf(signalRgb: ColorVector3): ColorVector3;
-}
-
-/** Prepares the BT.2100 HLG reference OOTF/EOTF for a display (BT.2100-3 Table 5). */
-export function prepareHlgReferenceDisplay(input: { nominalPeakLuminanceCdPerSquareMeter: number; blackLuminanceCdPerSquareMeter: number; systemGamma?: number }): HlgReferenceDisplay {
-  requireInputKeys(input, "prepareHlgReferenceDisplay", ["nominalPeakLuminanceCdPerSquareMeter", "blackLuminanceCdPerSquareMeter", "systemGamma"]);
-  const lw = requirePositiveNumber(input.nominalPeakLuminanceCdPerSquareMeter, "nominalPeakLuminanceCdPerSquareMeter");
-  const lb = requireNonNegativeNumber(input.blackLuminanceCdPerSquareMeter, "blackLuminanceCdPerSquareMeter");
-  if (!(lb < lw)) throw new InvalidScientificInputError("blackLuminanceCdPerSquareMeter must be below the peak luminance.");
-  const gamma = input.systemGamma === undefined
-    ? calculateHlgSystemGamma({ nominalPeakLuminanceCdPerSquareMeter: lw }).value.systemGamma
-    : requirePositiveNumber(input.systemGamma, "systemGamma");
-  const beta = Math.sqrt(3 * (lb / lw) ** (1 / gamma));
-  const ootf = (rgb: ColorVector3): ColorVector3 => {
-    const e = rgb.map((v, i) => requireFiniteNumber(v, "sceneLinearRgb[" + i + "]")) as unknown as ColorVector3;
-    if (e.some((v) => v < 0 || v > 1)) throw new InvalidScientificInputError("HLG scene-linear RGB must lie in [0, 1].");
-    const ys = 0.2627 * e[0] + 0.6780 * e[1] + 0.0593 * e[2];
-    const scale = ys > 0 ? lw * ys ** (gamma - 1) : 0;
-    return [scale * e[0], scale * e[1], scale * e[2]];
-  };
-  return Object.freeze({
-    nominalPeakLuminanceCdPerSquareMeter: lw, blackLuminanceCdPerSquareMeter: lb, systemGamma: gamma, blackLevelLift: beta, ootf,
-    eotf: (signal: ColorVector3): ColorVector3 => ootf(signal.map((v, i) => {
-      const s = requireFiniteNumber(v, "signalRgb[" + i + "]");
-      if (s < 0 || s > 1) throw new InvalidScientificInputError("HLG signal must lie in [0, 1].");
-      // The published 8-digit a, b, c make OETF⁻¹(1) exceed 1 by ~1e-8; bound it to the nominal range.
-      return Math.min(1, evaluateHlgInverseOetf(Math.max(0, (1 - beta) * s + beta)));
-    }) as unknown as ColorVector3)
   });
 }

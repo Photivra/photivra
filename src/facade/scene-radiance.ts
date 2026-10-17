@@ -14,7 +14,7 @@
  * Radiometry: a Lambertian reflector of reflectance ρ(λ) under irradiance E(λ) has radiance
  * L(λ) = ρ(λ)·E(λ)/π (W·m⁻²·sr⁻¹·nm⁻¹). The illuminant spectral shape S(λ) is scaled so that the
  * plane illuminance is E_v = K_m ∫ E(λ) V(λ) dλ with K_m = 683 lm/W (CIE photometric definition) and
- * V(λ) = ȳ(λ) from the engine's analytic CIE 1931 fit (Wyman, Sloan & Shirley 2013). The light is uniform
+ * V(λ) = ȳ(λ) from the engine's analytic CIE 1931 fit. The light is uniform
  * over the plane, with no shadows. Inter-reflection, gloss and fluorescence are not modelled.
  * @see docs/QUICK_START.md
  */

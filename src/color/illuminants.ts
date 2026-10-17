@@ -16,13 +16,16 @@
  *   paid; no free text of the formulas found). With three-decimal rounding they reproduce the free
  *   CIE D55 and D65 tables. The S₀/S₁/S₂ basis is a CIE dataset (CC BY-SA 4.0, not bundled);
  *   callers supply it.
- * - Planckian locus: Kim et al. cubic spline (Kang et al., J. Korean Phys. Soc. 41(6)
- *   865–871, 2002; US 7,024,034), an APPROXIMATION valid 1667–25000 K, or exact
- *   Planck integration against caller-selected CMFs.
+ * - Planckian locus: the chromaticity of a Planckian radiator at T, computed by integrating Planck's
+ *   law against colour-matching functions. The default uses the engine's analytic CIE 1931 fit with
+ *   1 nm nodes from 360 to 830 nm (so it inherits that fit's approximation); callers may select
+ *   tabulated CMFs and their own nodes. Valid 1000–100000 K.
  * - CCT from chromaticity: McCamy (1992) cubic (approximation), or a nearest-point
  *   search on the Planckian locus in the CIE 1960 UCS (CCT and signed Duv as defined in Smet et al.,
- *   LEUKOS 2023, free archival copy from the US DOE; also CIE 15:2018). Duv sign: the engine's own
- *   documented convention, positive above the locus (toward green), negative below (toward magenta).
+ *   LEUKOS 2023, free archival copy from the US DOE; also CIE 15:2018). Duv sign: positive above the
+ *   locus (toward green), negative below (toward magenta), following Ohno, "Calculation of CCT and Duv
+ *   and Practical Conversion Formulae", CORM 2011 slides (free), slide 5; the engine documents and
+ *   tests it.
  * @see docs/COLORIMETRY.md for equations, coordinate/unit conventions and limits.
  */
 
@@ -51,7 +54,8 @@ import {
   type Cie1960UvChromaticity,
   type CieXyChromaticity
 } from "./colorimetry-math.js";
-import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** Exact SI defining constants (BIPM SI Brochure, 9th edition, 2019). */
 export const PLANCK_CONSTANT_JOULE_SECONDS = 6.62607015e-34;
@@ -61,8 +65,8 @@ export const BOLTZMANN_CONSTANT_JOULES_PER_KELVIN = 1.380649e-23;
 export const SECOND_RADIATION_CONSTANT_METER_KELVIN = (PLANCK_CONSTANT_JOULE_SECONDS * SPEED_OF_LIGHT_METERS_PER_SECOND) / BOLTZMANN_CONSTANT_JOULES_PER_KELVIN;
 const FIRST_RADIATION_CONSTANT_RADIANCE = 2 * PLANCK_CONSTANT_JOULE_SECONDS * SPEED_OF_LIGHT_METERS_PER_SECOND ** 2;
 
-/** Kim et al. (2002) spline validity, K. */
-export const KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN = Object.freeze({ minimum: 1667, maximum: 25000 });
+/** Temperature range of the Planckian-locus models, K. */
+export const PLANCKIAN_LOCUS_RANGE_KELVIN = Object.freeze({ minimum: 1000, maximum: 100000 });
 /** CIE daylight-locus validity, K. */
 export const CIE_DAYLIGHT_LOCUS_RANGE_KELVIN = Object.freeze({ minimum: 4000, maximum: 25000 });
 /**
@@ -88,7 +92,7 @@ export function calculatePlanckianSpectralRadiance(input: { temperatureKelvin: n
 
 /** Planckian spectral radiance (W·m⁻²·sr⁻¹·nm⁻¹) as a function spectrum over the given range. */
 export function createPlanckianSpectrum(input: { temperatureKelvin: number; wavelengthRangeNanometers: SpectralWavelengthRangeNanometers }): ColorimetricSpectrum {
-  requireInputObject(input, "createPlanckianSpectrum input");
+  requireInputKeys(input, "createPlanckianSpectrum", ["temperatureKelvin", "wavelengthRangeNanometers"]);
   const temperatureKelvin = requirePositiveNumber(input.temperatureKelvin, "temperatureKelvin");
   const range = requireRecordValue(input.wavelengthRangeNanometers, "wavelengthRangeNanometers");
   const spectrum: ColorimetricSpectrum = {
@@ -156,10 +160,10 @@ export function calculateCieDaylightComponentWeights(input: {
   correlatedColorTemperatureKelvin: number;
   coefficientRounding: "none" | "cie-three-decimals";
 }): CalculationResult<CieDaylightComponentWeights> {
-  requireInputObject(input, "calculateCieDaylightComponentWeights input");
+  requireInputKeys(input, "calculateCieDaylightComponentWeights", ["correlatedColorTemperatureKelvin", "coefficientRounding"]);
   const t = requireTemperatureIn(input.correlatedColorTemperatureKelvin, CIE_DAYLIGHT_LOCUS_RANGE_KELVIN, "correlatedColorTemperatureKelvin");
   if (input.coefficientRounding !== "none" && input.coefficientRounding !== "cie-three-decimals") {
-    throw new InvalidScientificInputError("coefficientRounding must be \"none\" or \"cie-three-decimals\".");
+    throw new InvalidConfigurationError("coefficientRounding must be \"none\" or \"cie-three-decimals\".");
   }
   const xy = daylightChromaticity(t);
   const m = 0.0241 + 0.2562 * xy.x - 0.7341 * xy.y;
@@ -191,11 +195,14 @@ export function createCieDaylightSpectrum(input: {
   coefficientRounding: "none" | "cie-three-decimals";
   basis: CieDaylightBasis;
 }): ColorimetricSpectrum {
-  requireInputObject(input, "createCieDaylightSpectrum input");
-  const weights = calculateCieDaylightComponentWeights(input).value;
+  requireInputKeys(input, "createCieDaylightSpectrum", ["correlatedColorTemperatureKelvin", "coefficientRounding", "basis"]);
+  const weights = calculateCieDaylightComponentWeights({
+    correlatedColorTemperatureKelvin: input.correlatedColorTemperatureKelvin,
+    coefficientRounding: input.coefficientRounding
+  }).value;
   const basis = requireRecordValue(input.basis, "basis");
   if (typeof basis.datasetId !== "string" || basis.datasetId.trim().length === 0) {
-    throw new InvalidScientificInputError("basis.datasetId must be a non-empty string.");
+    throw new InvalidConfigurationError("basis.datasetId must be a non-empty string.");
   }
   const s0 = prepareColorimetricSpectrum({ kind: "tabulated", samples: input.basis.s0 }, "basis.s0");
   const s1 = prepareColorimetricSpectrum({ kind: "tabulated", samples: input.basis.s1 }, "basis.s1");
@@ -207,72 +214,104 @@ export function createCieDaylightSpectrum(input: {
   return { kind: "tabulated", samples };
 }
 
-function kimLocus(t: number): CieXyChromaticity {
-  const x = t <= 4000
-    ? -0.2661239e9 / t ** 3 - 0.2343589e6 / t ** 2 + 0.8776956e3 / t + 0.179910
-    : -3.0258469e9 / t ** 3 + 2.1070379e6 / t ** 2 + 0.2226347e3 / t + 0.240390;
-  const y = t <= 2222
-    ? -1.1063814 * x ** 3 - 1.34811020 * x ** 2 + 2.18555832 * x - 0.20219683
-    : t <= 4000
-      ? -0.9549476 * x ** 3 - 1.37418593 * x ** 2 + 2.09137015 * x - 0.16748867
-      : 3.0817580 * x ** 3 - 5.87338670 * x ** 2 + 3.75112997 * x - 0.37001483;
-  return { x, y };
-}
-
-/**
- * Planckian-locus chromaticity from the Kim et al. (2002) cubic spline, 1667–25000 K.
- * It approximates the exact Planck/CMF integral. The test suite measures its deviation from
- * exact integration; no accuracy figure is claimed here.
- */
-export function estimatePlanckianLocusChromaticity(input: { temperatureKelvin: number }): CalculationResult<CieXyChromaticity> {
-  requireInputKeys(input, "estimatePlanckianLocusChromaticity", ["temperatureKelvin"]);
-  const t = requireTemperatureIn(input.temperatureKelvin, KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN, "temperatureKelvin");
-  return approximationResult(kimLocus(t), "planckian-locus-kim-2002-cubic-spline", COLORIMETRY_MODEL_VERSION,
-    ["Kim et al. (2002) cubic-spline approximation of the CIE 1931 Planckian locus; valid 1667–25000 K"]);
-}
-
 /** Selects how the Planckian locus is evaluated. */
 export type PlanckianLocusModel =
-  | { kind: "kim-2002-cubic-spline" }
+  | {
+      /** Planck's law integrated against the engine's analytic CIE 1931 CMFs, 1 nm nodes 360–830 nm (the default). */
+      kind: "planck-analytic-cmf";
+    }
   | {
       kind: "planck-integration";
       colorMatchingFunctions: ColorMatchingFunctionsSource;
       quadratureNodes: readonly ColorimetricQuadratureNode[];
     };
 
+/** Number of intervals of the coarse reciprocal-temperature scan that brackets the CCT search. */
+const CCT_SCAN_STEPS = 200;
+
 interface PreparedLocus {
   range: { minimum: number; maximum: number };
   approximation: boolean;
   model: string;
   chromaticity(t: number): CieXyChromaticity;
+  /** CIE 1960 uv at the coarse scan temperatures; computed once per prepared locus. */
+  scan(): readonly Cie1960UvChromaticity[];
+}
+
+/**
+ * Prepares a Planck-integration locus: the CMF values and 1/λ⁵ factors are sampled once, so each
+ * temperature costs one exponential per node. Planck's constant factor 2hc² cancels in chromaticity.
+ */
+function preparePlanckIntegrationLocus(cmfSource: ColorMatchingFunctionsSource, quadratureNodes: readonly ColorimetricQuadratureNode[], model: string): PreparedLocus {
+  const cmf = prepareColorMatchingFunctions(cmfSource);
+  const unit = prepareColorimetricSpectrum({ kind: "function", wavelengthRangeNanometers: cmf.wavelengthRangeNanometers, evaluate: () => 1 });
+  const basis = sampleColorimetricBasis(quadratureNodes, unit, cmf);
+  const n = basis.nodes.length;
+  const exponentPerKelvin = new Float64Array(n), inverseFifth = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const lambda = basis.nodes[i]!.wavelengthNanometers * 1e-9;
+    exponentPerKelvin[i] = SECOND_RADIATION_CONSTANT_METER_KELVIN / lambda;
+    inverseFifth[i] = 1 / lambda ** 5;
+  }
+  const factor = new Float64Array(n);
+  const range = PLANCKIAN_LOCUS_RANGE_KELVIN;
+  let scanCache: readonly Cie1960UvChromaticity[] | undefined;
+  const locus: PreparedLocus = {
+    range,
+    approximation: cmf.scientificStatus === "approximation",
+    model,
+    chromaticity(t: number): CieXyChromaticity {
+      // expm1 keeps precision at long wavelengths; overflow at short ones gives 0, as in Planck's law.
+      for (let i = 0; i < n; i++) factor[i] = inverseFifth[i]! / Math.expm1(exponentPerKelvin[i]! / t);
+      return chromaticityOfXyz(integrateSampledXyz(basis, factor));
+    },
+    scan(): readonly Cie1960UvChromaticity[] {
+      if (scanCache === undefined) {
+        const lo = 1e6 / range.maximum, hi = 1e6 / range.minimum;
+        scanCache = Array.from({ length: CCT_SCAN_STEPS + 1 }, (_, i) => uvOfChromaticity(locus.chromaticity(1e6 / (lo + ((hi - lo) * i) / CCT_SCAN_STEPS))));
+      }
+      return scanCache;
+    }
+  };
+  return locus;
+}
+
+/** 1 nm nodes at 360, 361, …, 830 nm with Δλ = 1 nm (the CIE 15 summation convention). */
+const DEFAULT_LOCUS_NODES: readonly ColorimetricQuadratureNode[] = Object.freeze(
+  Array.from({ length: 471 }, (_, i) => Object.freeze({ wavelengthNanometers: 360 + i, wavelengthMeasureNanometers: 1 }))
+);
+let defaultLocus: PreparedLocus | undefined;
+
+/** The default locus, prepared on first use and shared (its scan cache is computed once). */
+function analyticCmfLocus(): PreparedLocus {
+  defaultLocus ??= preparePlanckIntegrationLocus({ kind: "analytic-cie-1931-multi-lobe-fit" }, DEFAULT_LOCUS_NODES, "planck-analytic-cmf");
+  return defaultLocus;
+}
+
+/**
+ * Planckian-locus chromaticity at T (1000–100000 K): Planck's law integrated against the engine's
+ * analytic CIE 1931 CMFs with 1 nm nodes from 360 to 830 nm. An approximation, because the CMFs are
+ * an analytic fit; with tabulated CMFs use {@link calculatePlanckianChromaticity}.
+ */
+export function estimatePlanckianLocusChromaticity(input: { temperatureKelvin: number }): CalculationResult<CieXyChromaticity> {
+  requireInputKeys(input, "estimatePlanckianLocusChromaticity", ["temperatureKelvin"]);
+  const t = requireTemperatureIn(input.temperatureKelvin, PLANCKIAN_LOCUS_RANGE_KELVIN, "temperatureKelvin");
+  return approximationResult(analyticCmfLocus().chromaticity(t), "planckian-locus-planck-analytic-cmf", COLORIMETRY_MODEL_VERSION,
+    ["Planck's law integrated against the engine's analytic CIE 1931 CMF fit, 1 nm nodes 360–830 nm; valid 1000–100000 K"]);
 }
 
 function prepareLocus(model: PlanckianLocusModel): PreparedLocus {
   const record = requireRecordValue(model, "locus");
-  if (record.kind === "kim-2002-cubic-spline") {
-    return { range: KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN, approximation: true, model: "kim-2002-cubic-spline", chromaticity: kimLocus };
-  }
-  if (record.kind !== "planck-integration") throw new InvalidScientificInputError("locus.kind is not supported.");
+  if (record.kind === "planck-analytic-cmf") return analyticCmfLocus();
+  if (record.kind !== "planck-integration") throw new InvalidConfigurationError("locus.kind is not supported.");
   const m = model as Extract<PlanckianLocusModel, { kind: "planck-integration" }>;
   const cmf = prepareColorMatchingFunctions(m.colorMatchingFunctions);
-  const unit = prepareColorimetricSpectrum({ kind: "function", wavelengthRangeNanometers: cmf.wavelengthRangeNanometers, evaluate: () => 1 });
-  const basis = sampleColorimetricBasis(m.quadratureNodes, unit, cmf);
-  const lambdas = basis.nodes.map((n) => n.wavelengthNanometers);
-  const factor = new Float64Array(lambdas.length);
-  return {
-    range: { minimum: 1000, maximum: 100000 },
-    approximation: cmf.scientificStatus === "approximation",
-    model: "planck-integration-" + cmf.sourceKind,
-    chromaticity(t: number): CieXyChromaticity {
-      for (let i = 0; i < lambdas.length; i++) factor[i] = calculatePlanckianSpectralRadiance({ temperatureKelvin: t, wavelengthNanometers: lambdas[i]! });
-      return chromaticityOfXyz(integrateSampledXyz(basis, factor));
-    }
-  };
+  return preparePlanckIntegrationLocus(m.colorMatchingFunctions, m.quadratureNodes, "planck-integration-" + cmf.sourceKind);
 }
 
 /** Planckian chromaticity at T using either locus model. */
 export function calculatePlanckianChromaticity(input: { temperatureKelvin: number; locus: PlanckianLocusModel }): CalculationResult<CieXyChromaticity> {
-  requireInputObject(input, "calculatePlanckianChromaticity input");
+  requireInputKeys(input, "calculatePlanckianChromaticity", ["temperatureKelvin", "locus"]);
   const locus = prepareLocus(input.locus);
   const t = requireTemperatureIn(input.temperatureKelvin, locus.range, "temperatureKelvin");
   const value = locus.chromaticity(t);
@@ -285,11 +324,13 @@ export function calculatePlanckianChromaticity(input: { temperatureKelvin: numbe
 /**
  * McCamy (1992) cubic estimate of CCT from CIE 1931 xy:
  * n = (x − 0.3320)/(0.1858 − y), CCT = 449 n³ + 3525 n² + 6823.3 n + 5520.33.
- * McCamy reports agreement within about 2 K over 2856–6504 K near the locus; it is an
- * approximation and carries no Duv.
+ * An approximation that carries no Duv. Measured for this engine (October 17, 2026) on points of a
+ * Planckian locus integrated from the CIE 1931 2° 1 nm table (360–830 nm, exact c₂): it deviates by up
+ * to 10 K over 2856–6504 K (largest near 3500 K), 19 K at 2000 K, 17 K at 8000 K, 118 K at 10000 K
+ * and 442 K at 12500 K. See docs/COLORIMETRY.md.
  */
 export function estimateCorrelatedColorTemperatureMcCamy(input: { chromaticity: CieXyChromaticity }): CalculationResult<{ correlatedColorTemperatureKelvin: number }> {
-  requireInputObject(input, "estimateCorrelatedColorTemperatureMcCamy input");
+  requireInputKeys(input, "estimateCorrelatedColorTemperatureMcCamy", ["chromaticity"]);
   const xy = parseChromaticity(input.chromaticity, "chromaticity");
   const n = (xy.x - 0.3320) / (0.1858 - xy.y);
   const cct = 449 * n ** 3 + 3525 * n ** 2 + 6823.3 * n + 5520.33;
@@ -327,7 +368,7 @@ export interface CorrelatedColorTemperatureResult {
  * locus (toward green) and negative below it, the engine's documented sign convention.
  */
 export function calculateCorrelatedColorTemperature(input: { chromaticity: CieXyChromaticity; locus: PlanckianLocusModel }): CalculationResult<CorrelatedColorTemperatureResult> {
-  requireInputObject(input, "calculateCorrelatedColorTemperature input");
+  requireInputKeys(input, "calculateCorrelatedColorTemperature", ["chromaticity", "locus"]);
   const xy = parseChromaticity(input.chromaticity, "chromaticity");
   const locus = prepareLocus(input.locus);
   const target = uvOfChromaticity(xy);
@@ -335,12 +376,14 @@ export function calculateCorrelatedColorTemperature(input: { chromaticity: CieXy
     const p = locusUv(locus, 1e6 / mired);
     return (p.u - target.u) ** 2 + (p.v - target.v) ** 2;
   };
-  // Coarse scan to bracket the global minimum, then golden-section refinement.
+  // Coarse scan (cached per locus) to bracket the global minimum, then golden-section refinement.
   let lo = 1e6 / locus.range.maximum, hi = 1e6 / locus.range.minimum;
-  const steps = 200;
+  const steps = CCT_SCAN_STEPS;
+  const scan = locus.scan();
   let best = 0, bestValue = Infinity;
   for (let i = 0; i <= steps; i++) {
-    const v = distance2(lo + ((hi - lo) * i) / steps);
+    const p = scan[i]!;
+    const v = (p.u - target.u) ** 2 + (p.v - target.v) ** 2;
     if (v < bestValue) { bestValue = v; best = i; }
   }
   const step = (hi - lo) / steps;
@@ -383,11 +426,11 @@ export function calculateChromaticityFromCorrelatedColorTemperature(input: {
   whiteLocus: WhiteLocus;
   locus: PlanckianLocusModel;
 }): CalculationResult<CieXyChromaticity> {
-  requireInputObject(input, "calculateChromaticityFromCorrelatedColorTemperature input");
+  requireInputKeys(input, "calculateChromaticityFromCorrelatedColorTemperature", ["correlatedColorTemperatureKelvin", "duv", "whiteLocus", "locus"]);
   const locus = prepareLocus(input.locus);
   const duv = requireFiniteNumber(input.duv, "duv");
   if (Math.abs(duv) > MAX_CORRELATED_COLOR_TEMPERATURE_DUV) throw new InvalidScientificInputError("|duv| must not exceed 0.05.");
-  if (input.whiteLocus !== "planckian" && input.whiteLocus !== "cie-daylight") throw new InvalidScientificInputError("whiteLocus is not supported.");
+  if (input.whiteLocus !== "planckian" && input.whiteLocus !== "cie-daylight") throw new InvalidConfigurationError("whiteLocus is not supported.");
   const range = input.whiteLocus === "cie-daylight"
     ? { minimum: Math.max(locus.range.minimum, CIE_DAYLIGHT_LOCUS_RANGE_KELVIN.minimum), maximum: Math.min(locus.range.maximum, CIE_DAYLIGHT_LOCUS_RANGE_KELVIN.maximum) }
     : locus.range;

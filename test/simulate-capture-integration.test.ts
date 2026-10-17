@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { InvalidConfigurationError, estimateCie1931ColorMatchingFunctions, evaluateBt709InverseOetf, parseDngRawImage, evaluateHlgInverseOetf, evaluatePqEotf, evaluateSrgbDecoding, resolveRgbColorSpace,
+import { InvalidConfigurationError, estimateCie1931ColorMatchingFunctions, evaluateBt709InverseOetf, parseDngRawImage, evaluateSrgbDecoding, resolveRgbColorSpace,
   simulateCapture, type LensSampledPsfProfile, type SimulateCaptureOptions, type SimulateCaptureResult } from "../src/index.js";
 
 function sha(data: ArrayBufferView | string): string {
@@ -33,69 +33,73 @@ const BASELINE_CASES: Record<string, SimulateCaptureOptions> = {
   pupil: { scene: { preset: "siemens-star" }, lens: { pupilSampling: { radialSamples: 1, angularSamples: 4 }, focusDistanceM: 3 }, output: { width: 4, height: 4 },
     illuminanceLux: FACADE_1_0_DEFAULT_ILLUMINANCE_LUX }
 };
-/** Digests of the `uniform` case at the CIPA DC-004 default illuminance, π·80 000/11.7 ≈ 21 480.98 lux. */
+/** Digests of the `uniform` case at the CIPA DC-004 default illuminance, π·80 000/11.7 ≈ 21 480.98 lux (re-pinned for the 2.0.0 CMF fit). */
 const DC004_DEFAULT_UNIFORM: Record<string, string> = {
   samples: "7023e9aa363f3dd8b99e1ddf7b503fe95d040290ba3cc4e097b166e8d721f51a",
-  codes: "356a9bfd984ff4bc0c65cff15562cdb3dde266c79782ebec7bee04e96b9266c6",
+  codes: "3ce7bb31576b1b7a77b86157bbc99cc152919691d5a7d89597462d39aebdc06b",
   blackLevels: "85d8c8cdf03881458c326e5ea9b9d1993a0a13a1eab0eafb4f3bf9aa60d25f6b",
   flags: "6db65fd59fd356f6729140571b5bcd6bb3b83492a16e1bf0a3884442fc3c8a0e",
   jpeg: "none",
-  environmentRaw: "491c849c8d2925b045538bf58bbb9a8c4b0c3ed6176253050e4e7d3603c04e9c",
+  environmentRaw: "7d5305401f89fa9cd417a3a18f7e4e47230fabaab0a15f4354c276de67909504",
   development: "5eb9d20168ba577baf2523450c593d4f18edcd6b60f4cde1f68a07f88470b108",
-  sites: "1f058459ebe13125bf9f0574ccb8437c2e8988762b650124d854550132411493",
+  sites: "ad06886481bb191d4dd5496d6d6ed5ce9ce7b3af79640b75e227f1eb58453a2c",
   sourceSha256: "02ea939bf5f2d449f69412d899629de5ed061b0e6ce8f5a2107ba778c3dfbdfb"
 };
 
-/** Digests recorded from the 1.0 facade (origin/main 09e4262) before any 2.0 option existed. */
+/**
+ * Digests recorded from the 1.0 facade (origin/main 09e4262) before any 2.0 option existed, re-pinned in
+ * 2.0.0 for the engine's own CIE 1931 CMF fit (it replaced the Wyman et al. 2013 coefficients): samples,
+ * codes, environmentRaw and sites changed; blackLevels, flags, development and sourceSha256 did not.
+ */
 const BASELINE: Record<string, Record<string, string>> = {
   uniform: {
-    samples: "45d0d0970877f3a23c6ddfd0ea40c5795ea1a9812e9f9d7ba1c6c3b5ee6fe568",
-    codes: "7f545104f9d61669ac558ffa6d08f6732f8fdf5ec931617a2b6fbc78df35b528",
+    samples: "01f5ba9c3947726453f0408341e41da2234379419b23dbf7ad59d46b7f23d131",
+    codes: "3f2be7bed79ed3261fd587372ca77a31e3e55568349b721102cba128a859f768",
     blackLevels: "85d8c8cdf03881458c326e5ea9b9d1993a0a13a1eab0eafb4f3bf9aa60d25f6b",
     flags: "6db65fd59fd356f6729140571b5bcd6bb3b83492a16e1bf0a3884442fc3c8a0e",
     jpeg: "none",
-    environmentRaw: "07d1553828386e668a8df433b854b8ebe14a2c808ab7dbd42082319968603765",
+    environmentRaw: "963c0242b3ac30a7ee396fe7f2202e5c9fa529ffe2988d6d1693c2c114e09ff4",
     development: "5eb9d20168ba577baf2523450c593d4f18edcd6b60f4cde1f68a07f88470b108",
-    sites: "73703c445f870896e049f91fe6a52895322d7c21687905b8c975ed3e66433456",
+    sites: "b61fcc328742567601e7752f507cbc4eef9e8bf0c4f24adc5247a0da0e8821a7",
     sourceSha256: "6a9f7f6da9604c767ea52a17dade98a8e2887ccafb4e6c09a82c0f429fe572e9"
   },
   edge16: {
-    samples: "376cdbcdf9a36f1a4ed23fec04c289084f78a38461a0e35bddcac39d560b1aae",
-    codes: "f7c2e91308c49e83bf389ac994e908f35b4518525e886b4dac6de0d30f6250a2",
+    samples: "125a52506ab91c51a29997183d17924613917e8ffef72137b58cbc232109641e",
+    codes: "123b6ee0d241bce856e76615958a642ef8c4a423c94289aa127d67f6e3c3b323",
     blackLevels: "e609dcf9cc04614ef47867ee972ed167a4b405fd41ec28585b86d2907f179f1c",
     flags: "17b0761f87b081d5cf10757ccc89f12be355c70e2e29df288b65b30710dcbcd1",
     jpeg: "none",
-    environmentRaw: "661e30ab35e6b9ce61cfd3b15cc0ba52eff599c4f6312bf3ef4759f9ca1ca868",
+    environmentRaw: "5d8f6a9e2add505f477c1b2fcd38f899f4eda2eeb87b2ba52c358e8d71ebed3b",
     development: "ea3c54f5a8ac75edc8e69e5fc77e16769b77060b307454d27f582773c7c78e0d",
-    sites: "749285334a9b5b7b34ff012f1eb48c04b826c1a1134e53dffdf9a2455fd6fd81",
+    sites: "c46e7ea6a1bebf956071e2285659e89ca8330d7bc12db216bd174a1b55f5b45f",
     sourceSha256: "3b43a89f6c71e66ded934d2485ab8e49723b2540f8ff8fe54c1608a9f7a51166"
   },
   jpegAuto: {
     samples: "7e7dd20e11236e2ba6fd57d5902e6e5b679f026021acb21a028fdd13f7d5fa8a",
-    codes: "1c8484cbcc47084b8c555c2a6c71152ec9c35c3b92b90568b180a0ad55351863",
+    codes: "e4d3fe3b8f1b8fc3dc76787ca20b7f60e4fe3b6648068beedac610f53801bd2b",
     blackLevels: "f235651a4bd57afc227c07e0fdb0b4ebe6aa8463eaf8307fec533194c8624a1f",
     flags: "cd00e292c5970d3c5e2f0ffa5171e555bc46bfc4faddfb4a418b6840b86e79a3",
     jpeg: "b4ba0b638197e309fbaadf60c895fa40fc97000e907dd3389c95b9c5d9163a9e",
-    environmentRaw: "00f98430ed75f7baf32c2d90429119a9c111c363e05fa16ca2298c382bbe6e16",
+    environmentRaw: "40d8f10bff288597db11c01cf072c6e17d0c8c323f26f1ba1383590f236ae5ca",
     development: "d919bdef431a2156a47488818ffe86288634d1a02f6af0ccd6d7476f18c571e7",
-    sites: "f44a9c663218470c97d8bfb45dfecb7a54ec2d9a91e95244f906ae0ae0c5b6f6",
+    sites: "93406f59335a9b026f25bc56b692d6fb8eab796a7d260d3d59dbfa532ec22740",
     sourceSha256: "d09e9c4233d2ccc43f00be71dc1b04845c11caad831eeb32b90e1fa278779f80"
   },
   pupil: {
-    samples: "f683e121ba489baaa6a1133003a5afa738d1d3054a45de52223ef0883a5f52c0",
-    codes: "1e0a3b89351242ed81835e549a44d282c52ae7528648b372bbe72a58a24773ec",
+    samples: "274c555bfd3ab135020f9a946c841ee554c83af7bf378371a6816d05a7e1c0c2",
+    codes: "6e20371269d9b611ec785bd971c30ebb72dc292754c62bd928fbe2a24479c0a1",
     blackLevels: "85d8c8cdf03881458c326e5ea9b9d1993a0a13a1eab0eafb4f3bf9aa60d25f6b",
     flags: "6db65fd59fd356f6729140571b5bcd6bb3b83492a16e1bf0a3884442fc3c8a0e",
     jpeg: "none",
-    environmentRaw: "f2fca265739254dd97a244f53f78f721ec123f04bc9afcd6f0ad7679abfa61d7",
+    environmentRaw: "e78b5cf661ab7a83b6442e13b6dc7a76f536e4700b7e0d835bb98d005ea085c9",
     development: "5eb9d20168ba577baf2523450c593d4f18edcd6b60f4cde1f68a07f88470b108",
-    sites: "7a864986cef30ac6b826699ff9b9f1c373ce7ceffd4f99229bbe0f9531ce8063",
+    sites: "b9b05184c9c980cc69aa067271ce7ae7cbd6a676c136e5c13b2a748e01824f4d",
     sourceSha256: "a01c6c54d4193eea40a88e8ae802e6887aeb2058b0d43bd73b670a650f4835f0"
   }
 };
 
 describe("simulateCapture 2.0 integration", { timeout: 120_000 }, () => {
-  it("keeps every 1.0 output byte-identical when no 2.0 option is given (at the 1.0 default illuminance)", async () => {
+  it("keeps every pinned facade output when no 2.0 option is given (at the 1.0 default illuminance)", async () => {
     for (const [name, options] of Object.entries(BASELINE_CASES)) expect(digest(await simulateCapture(options)), name).toEqual(BASELINE[name]);
   });
   it("changes only the scene light with the CIPA DC-004 default illuminance", async () => {
@@ -205,19 +209,18 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
     expect(distance(xy(a), xy(truth))).toBeLessThan(0.004); // 5 nm spectral quadrature
     expect(distance(xy(s.map((row) => row[0]! * sRgb[0]! + row[1]! * sRgb[1]! + row[2]! * sRgb[2]!)), xy(truth))).toBeGreaterThan(0.015);
     // A neutral grey card is neutral in every encoding and agrees with sRGB in luminance.
-    const grey = (colorEncoding: "display-p3" | "rec2100-pq" | "rec2100-hlg"): Promise<SimulateCaptureResult> => simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "png", colorEncoding, bitDepth: 16 } });
+    const grey = (colorEncoding: "display-p3" | "rec2020"): Promise<SimulateCaptureResult> => simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "png", colorEncoding, bitDepth: 16 } });
     const sGrey = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "srgb-16" } });
     const linearGrey = evaluateSrgbDecoding(meanOf(sGrey.image.samples, 1) / 65535);
     const p3Grey = await grey("display-p3");
     expect(evaluateSrgbDecoding(meanOf(p3Grey.image.samples, 1) / 65535) / linearGrey).toBeCloseTo(1, 2);
-    const pq = await grey("rec2100-pq"), hlg = await grey("rec2100-hlg");
-    expect(Array.from(pngChunks(pq.image.png!).get("cICP")!)).toEqual([9, 16, 0, 1]);
-    expect(Array.from(pngChunks(hlg.image.png!).get("cICP")!)).toEqual([9, 18, 0, 1]);
-    // PQ: relative 1.0 = 203 cd/m² (BT.2408); HLG: relative 1.0 at signal 0.75.
-    expect(evaluatePqEotf(meanOf(pq.image.samples, 1) / 65535) / 203 / linearGrey).toBeCloseTo(1, 2);
-    expect(evaluateHlgInverseOetf(meanOf(hlg.image.samples, 1) / 65535) / evaluateHlgInverseOetf(0.75) / linearGrey).toBeCloseTo(1, 2);
-    for (const r of [p3Grey, pq, hlg]) expect(Math.abs(meanOf(r.image.samples, 0) - meanOf(r.image.samples, 1)) / meanOf(r.image.samples, 1)).toBeLessThan(0.01);
-    expect(pq.assumptions.find((x) => x.id === "output.colorEncoding.conversion")!.explanation).toMatch(/no highlight headroom/);
+    const rec2020Grey = await grey("rec2020");
+    expect(Array.from(pngChunks(rec2020Grey.image.png!).get("cICP")!)).toEqual([9, 1, 0, 1]);
+    expect(evaluateBt709InverseOetf(meanOf(rec2020Grey.image.samples, 1) / 65535) / linearGrey).toBeCloseTo(1, 2);
+    for (const r of [p3Grey, rec2020Grey]) expect(Math.abs(meanOf(r.image.samples, 0) - meanOf(r.image.samples, 1)) / meanOf(r.image.samples, 1)).toBeLessThan(0.01);
+    // PQ and HLG are not part of 2.0 (licence-on-request patent declarations; THIRD_PARTY.md).
+    for (const colorEncoding of ["rec2100-pq", "rec2100-hlg"]) await expect(simulateCapture({ scene: { preset: "uniform" },
+      output: { width: 4, height: 4, format: "png", colorEncoding: colorEncoding as "rec2020", bitDepth: 16 } })).rejects.toThrow(InvalidConfigurationError);
   });
 
   it("writes the packed native RAW as a DNG that round-trips through parseDngRawImage", async () => {
@@ -239,10 +242,11 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
     const bilinear = await simulateCapture({ ...base, output: { width: 8, height: 6, demosaic: "bilinear" } });
     // The built-in bilinear kernels reproduce the 1.0 facade's bilinear kernels pixel for pixel.
     expect(Array.from(bilinear.image.samples)).toEqual(Array.from(legacy.image.samples));
-    const mhc = await simulateCapture({ ...base, output: { width: 8, height: 6, demosaic: "malvar-he-cutler" } });
-    expect(mhc.plan.exposure.geometry.nativeRaster).toEqual({ pixelWidth: 12, pixelHeight: 10 });
-    expect(mhc.assumptions.find((a) => a.id === "output.demosaic")!.value).toMatchObject({ kernel: "malvar-he-cutler-2004", kernelReachSites: 2 });
-    const mirror = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 6, height: 4, demosaic: "malvar-he-cutler", borderHandling: "mirror" } });
+    expect(bilinear.plan.exposure.geometry.nativeRaster).toEqual({ pixelWidth: 10, pixelHeight: 8 });
+    expect(bilinear.assumptions.find((a) => a.id === "output.demosaic")!.value).toMatchObject({ kernel: "bilinear", kernelReachSites: 1 });
+    // The Malvar–He–Cutler option was removed from 2.0 (patent US 7,502,505 still in force).
+    await expect(simulateCapture({ ...base, output: { width: 8, height: 6, demosaic: "malvar-he-cutler" as "bilinear" } })).rejects.toThrow(InvalidConfigurationError);
+    const mirror = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 6, height: 4, demosaic: "bilinear", borderHandling: "mirror" } });
     expect(mirror.plan.exposure.geometry.nativeRaster).toEqual({ pixelWidth: 6, pixelHeight: 4 });
     expect(mirror.request.development.borderHandling).toBe("mirror");
     // Uniform field: the mirrored edge pixels develop like the interior (no lost or darkened border).
@@ -312,7 +316,7 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
     const scene = { kind: "radiance-function" as const, sceneId: "never", evaluate: (): number => { calls++; return 0.01; } };
     const bad: SimulateCaptureOptions[] = [
       { scene, output: { colorEncoding: "display-p3" } },
-      { scene, output: { format: "png", colorEncoding: "rec2100-pq", bitDepth: 8 } },
+      { scene, output: { format: "png", colorEncoding: "rec2100-pq" as never } },
       { scene, output: { format: "png", colorEncoding: "rec2020", toneCurve: "positive-reinhard-per-channel" } },
       { scene, output: { format: "png", dng: {} } },
       { scene, output: { format: "png", bitDepth: 12 as never } },
@@ -335,7 +339,7 @@ describe("simulateCapture 2.0 options", { timeout: 300_000 }, () => {
 describe("simulateCapture perceptual gamut mapping", { timeout: 300_000 }, () => {
   /** CIELAB hue angle (degrees) of an XYZ colour relative to D65. */
   function hue(xyz: number[]): number {
-    const white = [0.95047, 1, 1.08883], f = (t: number): number => (t > (6 / 29) ** 3 ? Math.cbrt(t) : t / (3 * (6 / 29) ** 2) + 4 / 29);
+    const w = resolveRgbColorSpace("srgb").value.whiteXyz, white = [w.x, w.y, w.z], f = (t: number): number => (t > (6 / 29) ** 3 ? Math.cbrt(t) : t / (3 * (6 / 29) ** 2) + 4 / 29);
     const [fx, fy, fz] = xyz.map((v, i) => f(v / white[i]!)) as [number, number, number];
     return Math.atan2(200 * (fy - fz), 500 * (fx - fy)) * 180 / Math.PI;
   }
@@ -364,7 +368,7 @@ describe("simulateCapture perceptual gamut mapping", { timeout: 300_000 }, () =>
     expect(grey.diagnostics.gamutMapping!.adjustedPixelCount).toBe(0);
     const greyClip = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 4, height: 4, format: "png" } });
     for (let i = 0; i < greyClip.image.samples.length; i++) expect(Math.abs(grey.image.samples[i]! - greyClip.image.samples[i]!)).toBeLessThanOrEqual(1);
-    for (const bad of [{ format: "png", colorEncoding: "rec2100-pq", gamutMapping: "perceptual" }, { format: "srgb-8", gamutMapping: "perceptual" },
+    for (const bad of [{ format: "srgb-8", gamutMapping: "perceptual" },
       { format: "png", gamutMapping: "perceptual", toneCurve: "positive-reinhard-per-channel" }, { format: "png", gamutMapping: "hue" }])
       await expect(simulateCapture({ scene: { preset: "uniform" }, output: bad as never })).rejects.toThrow(InvalidConfigurationError);
   });

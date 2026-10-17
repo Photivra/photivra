@@ -30,14 +30,14 @@ export const TTL_FLASH_MODEL = Object.freeze({ id: "preflash-linear-ttl", versio
 
 function requirePositive(value: unknown, name: string): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    throw new InvalidConfigurationError(name + " must be a finite number greater than zero.");
+    throw new InvalidScientificInputError(name + " must be a finite number greater than zero.");
   }
   return value;
 }
 
 function requireFraction(value: unknown, name: string): number {
   const parsed = requirePositive(value, name);
-  if (parsed > 1) throw new InvalidConfigurationError(name + " must lie in (0, 1].");
+  if (parsed > 1) throw new InvalidScientificInputError(name + " must lie in (0, 1].");
   return parsed;
 }
 
@@ -187,7 +187,7 @@ function sameZones(a: ExposureMeteringSampleSet, b: ExposureMeteringSampleSet): 
  * linear in p.
  */
 export function resolveTtlFlashExposure(input: ResolveTtlFlashExposureInput): CalculationResult<TtlFlashExposure> {
-  requireInputObject(input, "resolveTtlFlashExposure input");
+  requireInputKeys(input, "resolveTtlFlashExposure", ["meteringProfile", "ambientSampleSet", "preFlashSampleSet", "preFlashPowerFraction", "ambientScaleToMainExposure", "flashExposureCompensationStops", "minimumPowerFraction", "syncEnergyFactor", "guideNumber"]);
   requireInputObject(input.ambientSampleSet, "resolveTtlFlashExposure ambientSampleSet");
   requireInputObject(input.preFlashSampleSet, "resolveTtlFlashExposure preFlashSampleSet");
   if (!Array.isArray(input.ambientSampleSet.samples) || !Array.isArray(input.preFlashSampleSet.samples)) {
@@ -204,11 +204,11 @@ export function resolveTtlFlashExposure(input: ResolveTtlFlashExposureInput): Ca
   const minimum = requireFraction(input.minimumPowerFraction, "minimumPowerFraction");
   const k = input.ambientScaleToMainExposure;
   if (typeof k !== "number" || !Number.isFinite(k) || k < 0) {
-    throw new InvalidConfigurationError("ambientScaleToMainExposure must be a finite number greater than or equal to zero.");
+    throw new InvalidScientificInputError("ambientScaleToMainExposure must be a finite number greater than or equal to zero.");
   }
   const fec = input.flashExposureCompensationStops;
   if (typeof fec !== "number" || !Number.isFinite(fec)) {
-    throw new InvalidConfigurationError("flashExposureCompensationStops must be finite.");
+    throw new InvalidScientificInputError("flashExposureCompensationStops must be finite.");
   }
   const syncFactor = input.syncEnergyFactor === undefined ? 1 : requireFraction(input.syncEnergyFactor, "syncEnergyFactor");
   const flashOnly: ExposureMeteringSampleSet = { ...input.preFlashSampleSet,

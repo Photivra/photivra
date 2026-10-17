@@ -215,7 +215,7 @@ export interface ResolveColorTemperatureWhiteBalanceInput {
   whiteLocus: WhiteLocus;
   /** Tint is read as Duv in the CIE 1960 UCS (positive = above the Planckian locus, greenish). */
   tintInterpretation: "duv-cie-1960-uv";
-  /** Defaults to the Kim et al. (2002) cubic-spline locus. */
+  /** Defaults to Planck's law integrated against the engine's analytic CIE 1931 CMFs (`planck-analytic-cmf`). */
   planckianLocus?: PlanckianLocusModel;
   camera: ColorTemperatureWhiteBalanceCameraModel;
 }
@@ -258,7 +258,7 @@ export interface ResolvedColorTemperatureWhiteBalance {
   tint: number;
   whiteLocus: WhiteLocus;
   tintInterpretation: "duv-cie-1960-uv";
-  planckianLocusModel: "kim-2002-cubic-spline" | "planck-integration";
+  planckianLocusModel: "planck-analytic-cmf" | "planck-integration";
   /** CIE 1931 xy of the declared white (CCT + Duv). */
   adoptedWhiteChromaticity: CieXyChromaticity;
   /** Pre-WB camera response to that white (XYZ with Y = 1 through xyzToCameraRgb). */

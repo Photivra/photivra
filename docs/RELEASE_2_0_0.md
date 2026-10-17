@@ -12,13 +12,13 @@
 
 ## Candidate details
 
-**Candidate base:** `origin/main` at `09e4262` (#304), merged into the release branch.
+**Candidate base:** `origin/main` at `28f8b61` (#314), the last code change. This record update changes `CHANGELOG.md`, this file, `THIRD_PARTY.md`, `README.md` (the Adobe DNG notice) and one source comment (the same notice in `src/capture/dng-import.ts`); the comment-stripped build is unchanged.
 
 - `npm run release:prepare -- 2.0.0` had already aligned `package.json`, both lockfile root versions, `ENGINE_API_VERSION`, `CITATION.cff`, the current-release lines in `README.md` and `docs/DEVELOPERS.md`, and the generated `docs/api`.
 - After the merge, the API reference was regenerated.
 - No citation release date is stated before publication.
 
-**All streams merged:** the lean per-site executor (#305), the `simulateCapture()` integration of the 2.0 features (#306) and the native RAW DNG writer (#307) are merged and listed in the [changelog](https://github.com/Photivra/photivra/blob/main/CHANGELOG.md).
+**All streams merged:** the lean per-site executor (#305), the `simulateCapture()` integration of the 2.0 features (#306) and the native RAW DNG writer (#307) are merged, as are the AGENTS.md reset (#308), the plain-language pass (#309–#312), the agent docs (#313) and the free-source citations (#314). All are listed in the [changelog](https://github.com/Photivra/photivra/blob/main/CHANGELOG.md).
 
 ## Scope
 
@@ -35,7 +35,7 @@ Changes since `v1.5.0`, all merged to `main`. In the "Kind" column, *Breaking* m
 | [#284](https://github.com/Photivra/photivra/pull/284) | #276 | Camera rotation sign; complex-pupil PSF padding and sampling guard | Breaking (values, geometry) |
 | [#285](https://github.com/Photivra/photivra/pull/285)–[#288](https://github.com/Photivra/photivra/pull/288) | #275, #276 | Native path, SDR, JPEG and stabilization speedups; optical-stage reuse | Performance (bit-identical), additive API |
 | [#290](https://github.com/Photivra/photivra/pull/290) | 2.0 review | ISO-to-gain mapping, fixed-pattern noise, generic presets 2.0.0, noise model 0.4.0 | Breaking (values, schemas) |
-| [#291](https://github.com/Photivra/photivra/pull/291) | 2.0 review | Colorimetry, chromatic adaptation, Kelvin white balance, wide-gamut and HDR transfers | Additive, union widening |
+| [#291](https://github.com/Photivra/photivra/pull/291) | 2.0 review | Colorimetry, chromatic adaptation, Kelvin white balance, wide-gamut transfers (PQ/HLG later removed) | Additive, union widening |
 | [#292](https://github.com/Photivra/photivra/pull/292) | #275 | Faster native environment RAW, yields between sites | Performance (bit-identical) |
 | [#293](https://github.com/Photivra/photivra/pull/293) | 2.0 review | Cross-engine determinism, review fixes, POC API 1.0.0, leaner package, input validation | Breaking (values, strictness, package) |
 | [#294](https://github.com/Photivra/photivra/pull/294) | #275 | Native environment site-plan retention | Performance (bit-identical) |
@@ -45,12 +45,16 @@ Changes since `v1.5.0`, all merged to `main`. In the "Kind" column, *Breaking* m
 | [#298](https://github.com/Photivra/photivra/pull/298) | 2.0 review | Exif 2.32 tags, JPEG encoder v2, Print JPEG 0.2.0, DNG import, PNG | Breaking (bytes, schema), additive |
 | [#299](https://github.com/Photivra/photivra/pull/299) | 2.0 review | Coverage, independent oracles, rejection tables | Tests only |
 | [#300](https://github.com/Photivra/photivra/pull/300) | 2.0 review | `simulateCapture()` facade and chart scenes | Additive |
-| [#302](https://github.com/Photivra/photivra/pull/302) | 2.0 review | Demosaic, HDR, tone mapping, fusion, stacking, panorama, denoise | Additive |
+| [#302](https://github.com/Photivra/photivra/pull/302) | 2.0 review | Demosaic, HDR merge, tone mapping, fusion, stacking, panorama, denoise (Malvar–He–Cutler and PQ/HLG later removed) | Additive |
 | [#303](https://github.com/Photivra/photivra/pull/303) | 2.0 review | Brown–Conrady and projections wired into mapping and environment capture | Additive, type widening |
 | [#304](https://github.com/Photivra/photivra/pull/304) | #277 | Opt-in WebGPU float32 backend | Additive |
 | [#305](https://github.com/Photivra/photivra/pull/305) | #275 | Lean per-site executor for native environment RAW | Performance (identical output) |
 | [#306](https://github.com/Photivra/photivra/pull/306) | — | `simulateCapture()` uses the 2.0 features | Additive |
 | [#307](https://github.com/Photivra/photivra/pull/307) | — | Native RAW DNG writer, perceptual gamut mapping, PSF throughput rounding fix | Additive, fix |
+| [#308](https://github.com/Photivra/photivra/pull/308) | — | `AGENTS.md` reset to a short standard file; retired agent rule files | Repository only |
+| [#309](https://github.com/Photivra/photivra/pull/309)–[#312](https://github.com/Photivra/photivra/pull/312) | — | Plain-language source comments and docs | Docs only (comment-stripped build identical) |
+| [#313](https://github.com/Photivra/photivra/pull/313) | — | `llms.txt`, agent guide and task index for AI agents | Docs, package contents |
+| [#314](https://github.com/Photivra/photivra/pull/314) | — | Free-source citations, runtime source strings, DC-004 facade exposure anchor, inventory fixes | Breaking (facade default illuminance), text |
 
 Commits #243–#267, between `v1.5.0` and the first review, are guidance, CI, documentation, hooks, `release:prepare` and repository-internal browser-native reference work. They change no public root contract. The full release notes, with a migration for each breaking change, are in the [changelog](../CHANGELOG.md).
 
@@ -114,22 +118,22 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
 
 ### Colorimetry (#291)
 
-- **Model and version:** `COLORIMETRY_MODEL_VERSION` 1.0.0.
+- **Model and version:** `COLORIMETRY_MODEL_VERSION` 2.0.0.
 - **Accepted science and sources:**
-  - Analytic colour-matching functions (CMFs): Wyman, Sloan & Shirley, JCGT 2(2) 2013 (free; labelled approximation).
+  - Analytic colour-matching functions (CMFs): the engine's own fit to the CIE 1931 2° data (labelled approximation); see "Licence cleanup" below.
   - Planck's law (BIPM *Mise en pratique* for the kelvin, Absolute Primary Radiometry, Eq. 1, free) with exact SI constants (BIPM SI Brochure, 9th ed., free).
-  - Illuminant A: Planck's law with the CIE's constants c₂ = 1.435e-2 m·K and T = 2848 K; it reproduces the free CIE 1 nm table to its rounding. Daylight locus and M₁/M₂: CIE 15:2018 (paid; no free text found; values checked against the free CIE D55 and D65 datasets).
+  - Illuminant A: Planck's law with the CIE's constants c₂ = 1.435e-2 m·K and T = 2848 K; it reproduces the free CIE 1 nm table to its rounding. Daylight locus and M₁/M₂: accepted by the owner (2026-10-17) on the evidence of the free CIE D55 and D65 datasets, which the engine's values reproduce to their rounding.
   - Tristimulus integral: Wyman, Sloan & Shirley 2013, Eq. 1 (free).
-  - CIE94: Wikipedia, "Color difference" (secondary source; the primary CIE 116-1995 is not free), checked against the colour-science worked values.
+  - CIE94: Wikipedia, "Color difference" (secondary source; the primary CIE 116-1995 is not free), checked by closed-form cases computed in the test.
   - RGB↔XYZ matrices: derived from the ITU-R BT.709-6 / BT.2020-2 and CSS Color 4 primaries and D65; equal to the W3C CSS Color 4 matrices within 1e-12.
-  - Planckian locus: Kang et al., *J. Korean Phys. Soc.* 41(6) (2002). McCamy, *Color Res. Appl.* 17(2) (1992).
-  - CCT/Duv (correlated colour temperature and distance from the Planckian locus): Smet et al., LEUKOS 2023 (free DOE copy). Duv sign: the engine's documented convention (positive above the locus).
-  - Chromatic adaptation: Lam (1985), ICC.1 Annex E (free), Moroney et al. CIC10 2002, Li et al. *Color Res. Appl.* 42(6) (2017).
-  - CIELAB: W3C CSS Color 4. CIEDE2000: Sharma, Wu & Dalal 2005 (free notes and test data).
+  - Planckian locus: Planck's law integrated against the engine's CMFs. McCamy, *Color Res. Appl.* 17(2) (1992), with its measured deviation documented.
+  - CCT/Duv (correlated colour temperature and distance from the Planckian locus): Smet et al., LEUKOS 2023 (free DOE copy). Duv sign (positive above the locus): Ohno, CORM 2011 slides (free), slide 5; the engine documents and tests it.
+  - Chromatic adaptation: Lam (1985), ICC.1:2010 Annex E (free, permissive ICC licence; the Bradford test follows it), Moroney et al. CIC10 2002, Li et al. *Color Res. Appl.* 42(6) (2017).
+  - CIELAB: W3C CSS Color 4. CIEDE2000: Sharma, Wu & Dalal 2005 (free implementation notes; their test pairs are not used).
   - Camera matrix fit: Finlayson & Drew, CIC5 1997.
   - Gamut mapping: CSS Color 4 §14 (free); also see Morovič 2008.
-  - Transfers: ITU-R BT.709-6, BT.1886, BT.2020-2, BT.2100-3, BT.2408 (free) and CSS Color 4 sRGB.
-- **Evidence in the repository:** `test/colorimetry.test.ts`, `test/colorimetry-output-and-camera.test.ts` (Sharma CIEDE2000 test pairs, published chromaticities, ITU-R luminance rows).
+  - Transfers: ITU-R BT.709-6, BT.1886, BT.2020-2 (free) and CSS Color 4 sRGB. PQ and HLG were removed (see Rights and licensing).
+- **Evidence in the repository:** `test/colorimetry.test.ts`, `test/colorimetry-output-and-camera.test.ts` (CIEDE2000 closed-form cases, ICC Annex E Bradford construction, ITU-R luminance rows; no CIE table values).
 
 ### RAW development (#295)
 
@@ -182,8 +186,8 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
 ### Processing (#302)
 
 - **Model and version:** opt-in tasks; no change to the default path.
-- **Accepted science and sources:** Malvar, He & Cutler, ICASSP 2004; Hirakawa & Parks, IEEE TIP 14(3) (2005); Gunturk et al. (2005); Granados et al. and Hasinoff et al., CVPR 2010; Reinhard et al. and Durand & Dorsey, SIGGRAPH 2002; Mertens et al., PG 2007; Burt & Adelson (1983); Nayar & Nakagawa (1994); Brown & Lowe, IJCV 2007; Tomasi & Manduchi, ICCV 1998; Buades et al., CVPR 2005 and IPOL 2011 (free). Film grain is explicitly synthetic.
-- **Evidence in the repository:** `test/processing-*.test.ts` (seven files).
+- **Accepted science and sources:** Hirakawa & Parks, IEEE TIP 14(3) (2005); Gunturk et al. (2005); Granados et al. and Hasinoff et al., CVPR 2010; Reinhard et al. and Durand & Dorsey, SIGGRAPH 2002; Mertens et al., PG 2007; Burt & Adelson (1983); Nayar & Nakagawa (1994); Brown & Lowe, IJCV 2007; Tomasi & Manduchi, ICCV 1998; Buades et al., CVPR 2005 and IPOL 2011 (free). Film grain is explicitly synthetic.
+- **Evidence in the repository:** `test/processing-*.test.ts` (seven files). The Malvar–He–Cutler demosaic and the PQ/HLG encodings were removed before release (see Rights and licensing); `createHdrImageEncodingTask` outputs float32 linear BT.2020 only.
 
 ### `simulateCapture()` (#300)
 
@@ -204,6 +208,15 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
   - Float32 forward-error bounds γ_k (Rump & Jeannerod, SIAM J. Matrix Anal. Appl. 35(2), 2014, free author copy; also see Higham, *Accuracy and Stability of Numerical Algorithms*, 2nd ed., §2–3); IEEE 754 binary32; W3C WGSL accuracy rules (free).
   - Never claimed bit-identical.
 - **Evidence in the repository:** `test/image-kernel-accelerator.test.ts` (fake device), `test/webgpu/conformance.webgpu.ts` (real device, repository-only).
+
+### WebGPU sensor stage and temporal exposure sum (#277)
+
+- **Model and version:** packed sensor RAW schema 0.1.0 (noise model `photivra-native-raw-noise` 0.4.0, unchanged); temporal exposure sum schema 0.1.0; new execution label `exact-except-flagged-sites`.
+- **Accepted science and sources:**
+  - Sensor stage: no new science. It is the per-site producer's model on typed arrays, bit-identical to `calculateNativeRawSite` (tested).
+  - Exposure as the time integral of the rate over each site's window (EMVA 1288 Release 4.0 Linear §2; CIPA DC-004 §5.5; both free). Motion blur as a superposition of displaced images (Szeliski 2022, free from the author). Rolling shutter as row-dependent windows (Meingast, Geyer & Sastry, arXiv:cs/0503076, free).
+  - Bilinear sub-site shifts, rigid translation and caller-owned quadrature weights are labelled approximations.
+- **Evidence in the repository:** `test/packed-sensor-raw.test.ts`, `test/temporal-exposure-sum.test.ts` (fake device), `test/webgpu/stages.webgpu.ts` (real device, repository-only; SwiftShader: no unflagged site differed, and temporal error stayed within its bound). No hardware-GPU timings were measured.
 
 ### Native RAW DNG (#307)
 
@@ -229,13 +242,20 @@ The aim: the same inputs give bit-identical stored results in every JavaScript e
 - **What they are:** speed-ups with bit-identical output.
 - **Evidence in the repository:** `test/native-environment-bit-identity.test.ts`, `test/native-environment-shared-state.test.ts`, `test/environment-photo-plan-retention.test.ts`, `test/native-capture-sdr-kernel-parity.test.ts`, `test/export-jpeg-byte-identity.test.ts`, `test/stabilization-evaluation-identity.test.ts`, `test/native-yield-cadence.test.ts`, `test/native-environment-optical-stage.test.ts`.
 
+### Licence cleanup: own CMF fit and Planck-law locus (owner decision 2026-10-17)
+
+- **Model and version:** `COLORIMETRY_MODEL_VERSION` 2.0.0. This replaces the CMF and Planckian-locus sources listed under Colorimetry (#291).
+- **CMFs:** the engine's own least-squares fit of a sum of split Gaussians (the model form of Wyman, Sloan & Shirley 2013, free; none of its coefficients) to the CIE 1931 2° table, DOI 10.25039/CIE.DS.xvudnb9b, used at fit time only (`scripts/fit-cie-1931-cmf.mjs`). Measured maximum / RMS error against the table: x̄ 0.0122 / 0.00426, ȳ 0.00733 / 0.00265, z̄ 0.0221 / 0.00397, each at or below the Wyman coefficients' 0.0140 / 0.00559, 0.00800 / 0.00267 and 0.0222 / 0.00399. Labelled approximation.
+- **Planckian locus:** chromaticity of Planck's law (BIPM *Mise en pratique* for the kelvin, free; exact c₂ = hc/k, CODATA) integrated against those CMFs on 1 nm nodes, 1000–100000 K. Against a locus integrated with the CIE table it is within 2.83e-4 in uv from 2856 to 25000 K (1.05e-3 at 1667 K). The CCT/Duv search uses it by default.
+- **Evidence in the repository:** `test/colorimetry.test.ts` (non-negative, equal-area CMFs with a unit ȳ peak near 555 nm; monotonic locus equal to the explicit Planck integral; illuminant A as a Planckian radiator; McCamy within 20 K over 2856–6504 K; CCT/Duv round trips; Duv sign; CIEDE2000 closed forms), `test/colorimetry-output-and-camera.test.ts`, re-pinned digests in `test/simulate-capture-integration.test.ts`. Numbers and method in `docs/COLORIMETRY.md`. The tests contain no CIE table values.
+
 ## Citation audit (free sources)
 
 The owner's rule is that releases rely only on free-to-use sources. Every paid or paywalled standard cited by 2.0 work is listed below, with the free source used instead.
 
 Free standards bodies and documents already in use need no change: CIPA (DC-003, DC-004, DC-008), ITU-R and ITU-T recommendations, EMVA 1288, the Adobe DNG and TIFF 6.0 specifications, ICC specifications, W3C recommendations, IETF RFCs, the BIPM SI Brochure, and the CIE free datasets.
 
-In the Status column: **Replaced** means a free source now backs the fact. **Removed** means the engine no longer depends on the paid source: the fact is derived in the documentation or stated as the engine's own convention. **Flagged** means no free equivalent was found, and the owner must decide what to do (see [pending owner decisions](#pending-owner-decisions)).
+In the Status column: **Replaced** means a free source now backs the fact. **Removed** means the engine no longer depends on the paid source: the fact is derived in the documentation or stated as the engine's own convention. **Accepted** means no free text of the formula exists, and the owner accepted it on free evidence (see [pending owner decisions](#pending-owner-decisions)).
 
 | Paid source | Fact used | Free replacement | Status |
 | --- | --- | --- | --- |
@@ -251,14 +271,14 @@ In the Status column: **Replaced** means a free source now backs the fact. **Rem
 | CIE 15:2018 / ISO/CIE 11664-4 | CIELAB with exact ε, κ | W3C CSS Color 4 §9 (Lab) | Replaced |
 | CIE 15:2018 / ISO/CIE 11664-1 | Tristimulus integration X = k Σ S R x̄ Δλ | Wyman, Sloan & Shirley 2013, JCGT 2(2), Eq. 1 (X = ∫ L(λ) x̄(λ) dλ; open access, CC BY-ND 3.0) — <https://jcgt.org/published/0002/02/01/paper.pdf>. The quadrature and the normalization k are explicit engine choices. | Replaced (owner decision 4) |
 | CIE 15:2018 / ISO/CIE 11664-2 | Illuminant A formula | Planck's law: BIPM *Mise en pratique* for the kelvin, Absolute Primary Radiometry (2018), Eq. 1 — <https://www.bipm.org/utils/en/pdf/si-mep/MeP-K-2018_Absolute_Primary_Radiometry.pdf>. The engine uses the CIE's constants c₂ = 1.435e-2 m·K and T = 2848 K (the exact c₂ = hc/k = 1.438 776 877…e-2 m·K, NIST CODATA 2022, is used only for the Planckian radiator). These two constants have no free source text, but the formula reproduces all 531 values of the free CIE 1 nm table (DOI 10.25039/CIE.DS.8jsxjrsn) within 4.8e-6 relative, the table's rounding. | Replaced (owner decision 4); constants verified for free |
-| CIE 15:2018 | Daylight-locus polynomial and M₁/M₂ | No free copy found. The source paper, Judd, MacAdam & Wyszecki, *JOSA* 54(8):1031 (1964), doi:10.1364/JOSA.54.001031, is subscription-only on the publisher's site; the only other copy found was an unauthorized upload. Per the owner's decision no alternative was chosen. The coefficients were checked against the free CIE datasets: with three-decimal rounding they reproduce D55 within 5.0e-4 and D65 within 8.5e-4 at every 5 nm node (the tables' rounding). | **Flagged** (formula text only); values verified for free |
+| CIE 15:2018 | Daylight-locus polynomial and M₁/M₂ | No free copy found. The source paper, Judd, MacAdam & Wyszecki, *JOSA* 54(8):1031 (1964), doi:10.1364/JOSA.54.001031, is subscription-only on the publisher's site; the only other copy found was an unauthorized upload. The coefficients were checked against the free CIE datasets: with three-decimal rounding they reproduce D55 within 5.0e-4 and D65 within 8.5e-4 at every 5 nm node (the tables' rounding). **Owner decision (2026-10-17):** accepted on that evidence. The datasets are free to download under CC BY-SA 4.0; they are cited and compared against, never bundled, so the licence does not bind the package (see [Rights and licensing](#rights-and-licensing)). The polynomial coefficients are scientific facts, not licensed material. | Accepted (owner decision); values verified for free |
 | CIE 15:2018 | CCT as the nearest Planckian point in (u, v); signed Duv | Smet et al., LEUKOS 2023, doi:10.1080/15502724.2023.2248397; free DOE copy — <https://www.energy.gov/sites/default/files/2023-09/ssl-smet-etal-2023_method-cct-duv-light-source.pdf> | Replaced |
-| ANSI C78.377 | Duv sign (positive above the locus) | Ohno, LEUKOS 10(1), 2014 could not be used: NIST's record of it (<https://www.nist.gov/publications/practical-use-and-calculation-cct-and-duv>) links only to the paywalled publisher copy, and no free NIST copy was found. Per the owner's decision, the sign is now stated as the engine's own documented convention (docs, runtime assumption text), and a test checks that a greenish light gives a positive Duv. Ohno's free CORM 2011 slides state the same sign but are not cited. | Removed (owner decision 5) |
+| ANSI C78.377 | Duv sign (positive above the locus) | Y. Ohno, "Calculation of CCT and Duv and Practical Conversion Formulae", slides, CORM 2011 Conference, Gaithersburg, MD, May 3–5, 2011, slide 5: Duv is the closest distance from the Planckian locus "with + sign for above and - sign for below the Planckian locus" (free) — <https://cormusa.org/wp-content/uploads/2018/04/CORM_2011_Calculation_of_CCT_and_Duv_and_Practical_Conversion_Formulae.pdf>. The sign follows these slides; the engine documents it (docs, runtime assumption text) and a test checks that a greenish light gives a positive Duv. Ohno, LEUKOS 10(1), 2014 is not cited: NIST's record of it (<https://www.nist.gov/publications/practical-use-and-calculation-cct-and-duv>) links only to the paywalled publisher copy. | Replaced (owner decision 5) |
 | CIE 018:2019 | K_m = 683 lm/W | BIPM SI Brochure, 9th ed., definition of the candela (K_cd = 683 lm/W) — <https://www.bipm.org/en/publications/si-brochure> | Replaced |
-| CIE 116-1995 | CIE94 ΔE weights | Secondary source (the primary CIE 116-1995 is not free): Wikipedia, "Color difference", §CIE94 — <https://en.wikipedia.org/wiki/Color_difference#CIE94> (equations, S_C = 1 + K₁C*₁, S_H = 1 + K₂C*₁, and the graphic-arts and textiles weights). The engine also reproduces the worked values in the colour-science `delta_E_CIE1994` documentation (1.6711191 and 0.8404677). Lindbloom's page could not be reached from the host. | Replaced (secondary source; owner decision 6) |
-| CIE 142-2001 / ISO/CIE 11664-6 | CIEDE2000 | Sharma, Wu & Dalal (2005) implementation notes and test data — <https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/>; CSS Color 4 `deltaE2000` | Replaced |
+| CIE 116-1995 | CIE94 ΔE weights | Secondary source (the primary CIE 116-1995 is not free): Wikipedia, "Color difference", §CIE94 — <https://en.wikipedia.org/wiki/Color_difference#CIE94> (equations, S_C = 1 + K₁C*₁, S_H = 1 + K₂C*₁, and the graphic-arts and textiles weights). The tests check closed-form cases computed from those equations; third-party worked values are no longer used. | Replaced (secondary source; owner decision 6) |
+| CIE 142-2001 / ISO/CIE 11664-6 | CIEDE2000 | Sharma, Wu & Dalal (2005) implementation notes — <https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/>; CSS Color 4 `deltaE2000`. Their test data file has no licence, so it is not used; the tests check closed forms instead. | Replaced |
 | CIE 159:2004 | CAT02 and HPE matrices; degree of adaptation D | Moroney et al., "The CIECAM02 color appearance model", CIC10 2002, in the RIT open repository — <https://repository.rit.edu/other/143>. Automated download was refused (HTTP 403), so free availability is listed but was not confirmed from this host. | Replaced (needs human confirmation) |
-| SMPTE ST 2084 | PQ EOTF and constants | ITU-R BT.2100-3 — <https://www.itu.int/rec/R-REC-BT.2100> | Replaced |
+| SMPTE ST 2084 | PQ EOTF and constants | Not applicable: PQ and HLG were removed from 2.0 (patent declarations are licence-on-request only) | Removed (owner decision) |
 | SMPTE ST 2086 | Mastering display colour volume fields | W3C PNG Third Edition `mDCV` — <https://www.w3.org/TR/png-3/>; ITU-T H.265 Annex D SEI — <https://www.itu.int/rec/T-REC-H.265> | Replaced |
 | CTA-861.3 | MaxCLL/MaxFALL | W3C PNG Third Edition `cLLI`; ITU-T H.265 Annex D content light level SEI | Replaced |
 | SMPTE EG 432-1 | Display P3 primaries with D65 | W3C CSS Color 4 `display-p3`; ITU-T H.273 ColourPrimaries 12 — <https://www.itu.int/rec/T-REC-H.273> | Replaced |
@@ -269,7 +289,7 @@ In the Status column: **Replaced** means a free source now backs the fact. **Rem
 
 **Runtime strings (owner decision).** Provenance `sources` arrays, `assumptions` text and error messages that named paid standards now name the free sources above. This is a text-only output change; no number changed. Limitation and error strings that used internal ticket numbers as model names (#12, #14, #85, #110) now use the model names. See `CHANGELOG.md`. Test comments are not shipped and were left as they were. The result model id `rgb-xyz-matrix-smpte-rp177` of `calculateRgbToXyzMatrices` is an identifier, not a citation, and was not renamed.
 
-**Open:** one flagged item remains: the formula text of the CIE daylight locus and M₁/M₂. Its values are verified against free data.
+**Resolved:** no flagged items remain. The CIE daylight locus and M₁/M₂ were accepted by the owner on the evidence of the free CIE datasets.
 
 ## Free sources for textbook citations
 
@@ -314,14 +334,13 @@ The owner's free-sources rule also covers paid textbooks. For each fact a paid b
 
 ## Rights and licensing
 
-- **No CIE tables bundled.** The CIE 1931 colour-matching-function and daylight-component datasets are licensed CC BY-SA 4.0 (dataset metadata, e.g. DOI 10.25039/CIE.DS.xvudnb9b). ShareAlike is incompatible with Apache-2.0-only distribution. The engine therefore uses analytic forms (Wyman et al. 2013) and tables supplied by the caller. CIE datasets are used only as external checks of computed values in tests, quoting individual facts. No ColorChecker or other reflectance data is included.
-- **Wyman, Sloan & Shirley (2013)** is CC BY-ND 3.0. Only its published model parameters are used, as factual inputs to an independently written equation.
-- **Kim et al. Planckian locus, US 7,024,034** ("Color temperature conversion system and method using the same", Samsung Electronics; filed October 15, 2002, Korean priority October 15, 2001; granted April 4, 2006).
-  - The USPTO record, as shown by Google Patents on October 17, 2026, lists **"Expired – Fee Related"**.
-  - A maintenance-fee reminder was mailed November 13, 2017. The patent lapsed for failure to pay the 12th-year fee, effective **April 4, 2018** ("PATENT EXPIRED DUE TO NONPAYMENT OF MAINTENANCE FEES UNDER 37 CFR 1.362").
-  - Its adjusted expiration would have been June 23, 2024 anyway. Either way, the patent is no longer in force.
-  - The engine uses only the locus approximation published in Kang et al. (2002).
-  - This is a public-record check, not a legal opinion. `THIRD_PARTY.md` records the finding.
+- **No CIE tables bundled.** The CIE 1931 colour-matching-function and daylight-component datasets are licensed CC BY-SA 4.0 (dataset metadata, e.g. DOI 10.25039/CIE.DS.xvudnb9b). ShareAlike is incompatible with Apache-2.0-only distribution. The engine therefore uses its own analytic CMF fit and tables supplied by the caller. The fit script downloads the CIE 1931 table into a temporary directory at fit time only; no CIE value is in the repository, the package or the tests (owner decision, 2026-10-17). The docs cite CIE datasets as external evidence with comparison numbers we computed. No ColorChecker or other reflectance data is included.
+- **Removed by owner decision (2026-10-17):** the Wyman, Sloan & Shirley (2013) CMF coefficients (paper CC BY-ND 3.0), replaced by the engine's own fit; and the Kim/Kang et al. (2002) Planckian-locus cubic-spline coefficients (also claimed in US 7,024,034, which the USPTO record lists as lapsed on April 4, 2018), replaced by Planck's law integrated against the engine's CMFs. No coefficient of either set and no patent text remains in `src/`.
+- **Patent review of 2.0 algorithms (2026-10-17):** see the new section of the same name in `THIRD_PARTY.md`. The Malvar–He–Cutler demosaic was removed because US 7,502,505 is still in force. PQ and HLG were removed because Dolby, the BBC and Thomson filed only licence-on-request declarations (free of charge or RAND), not licences or non-asserts; NHK filed no HLG declaration.
+- **Unclear-licence test inputs replaced (2026-10-17):** the Bradford test no longer uses a matrix and D65/D50 whites from a secondary website. It follows ICC.1:2010 Annex E (free, permissive ICC licence), with D65 from its ITU-R BT.709-6 chromaticity and D50 the ICC PCS illuminant.
+- **CIEDE2000 test pairs removed:** the Sharma, Wu & Dalal (2005) data file has no licence, and the page's only terms limit the authors' program and spreadsheet to personal or research use. The tests now check closed-form special cases computed from the formula.
+- **Adobe DNG patent licence (verified 2026-10-17; owner decision).** Adobe's licence (Digital Negative page, <https://helpx.adobe.com/camera-raw/desktop/dng-and-file-formats/digital-negative.html>) is royalty-free, covers reading and writing DNG, and requires the notice "This product includes DNG technology under license by Adobe." in source code and documentation. It is now in `NOTICE`, `README.md` and all three DNG source files (the reader `dng-import.ts` was added). Its only condition beyond the notice is revocation for a licensee that sues Adobe over DNG patents. No conflict with Apache-2.0 was found. This is a document check, not legal advice. See `THIRD_PARTY.md`. A retrieval record (URL, date, page SHA-256, exact notice, summary) is kept at `docs/licenses/adobe-dng-patent-license-record.txt`. The full licence text is not copied, because Adobe's General Terms of Use (sections 3.2 and 6.2) do not clearly allow copying text from its websites.
+- **Owner decisions (2026-10-17) on free, licence-compatible inputs:** ship DNG under Adobe's royalty-free licence. An earlier decision that day kept the Wyman et al. parameters and the Kang et al. coefficients; the owner then decided to remove every third-party number with any licence question, so both were removed (above).
 - **DNG ActiveArea phase rule (confirmed).**
   - The Adobe DNG Specification 1.7.1.0 (September 2023) was downloaded from Adobe's Digital Negative page.
   - Under PhotometricInterpretation (PDF page 22) it states: "The origin of the repeating CFA pattern is the top-left corner of the ActiveArea rectangle". Under BlackLevel (PDF page 28): "The origin of this pattern is the top-left corner of the ActiveArea rectangle".
@@ -377,7 +396,7 @@ This is a breaking major release. The [changelog](../CHANGELOG.md#breaking-chang
 | Flash sync capability schema | 0.1.0 | 0.1.0, or **0.2.0** for HSS |
 | Environment photo-signal model | 0.3.x | **0.4.0** only when `lensFieldMapping` is present |
 | `relative-pre-exposure-metering` | 1.0.0 | **1.1.0** (no value change) |
-| New identities | — | `SIMULATE_CAPTURE_FACADE_VERSION` 1.0.0, `COLORIMETRY_MODEL_VERSION` 1.0.0, `DNG_IMPORT_SCHEMA_VERSION` 1.0.0, `PNG_ENCODER_ID` `photivra-png-rgb-v1`, `IRRADIANCE_CONVOLUTION_SCHEMA_VERSION` 0.1.0, `SENSOR_FIXED_PATTERN_NOISE_MODEL` 1.0.0, `ELECTRONIC_ROLLING_SHUTTER_MODEL` 1.0.0, `HIGH_SPEED_SYNC_MODEL` 1.0.0 |
+| New identities | — | `SIMULATE_CAPTURE_FACADE_VERSION` 1.0.0, `COLORIMETRY_MODEL_VERSION` 2.0.0, `DNG_IMPORT_SCHEMA_VERSION` 1.0.0, `PNG_ENCODER_ID` `photivra-png-rgb-v1`, `IRRADIANCE_CONVOLUTION_SCHEMA_VERSION` 0.1.0, `SENSOR_FIXED_PATTERN_NOISE_MODEL` 1.0.0, `ELECTRONIC_ROLLING_SHUTTER_MODEL` 1.0.0, `HIGH_SPEED_SYNC_MODEL` 1.0.0 |
 
 Other contract changes:
 
@@ -387,7 +406,7 @@ Other contract changes:
 - widened unions (white-balance source, metering policy, readout synchronization, filter polarization, geometric transforms, blocker codes);
 - a smaller package, without `prepare`, declaration maps or internal guides.
 
-Root exports grow from 1,227 to 1,627 symbols. Comparing the generated `docs/api/exports.json` against `v1.5.0` shows none removed. New captures and plans record creator identity 2.0.0. Existing archives keep their identities, and fail closed where a bound identity changed.
+Root exports grow from 1,227 to 1,647 symbols. Comparing the generated `docs/api/exports.json` against `v1.5.0` shows none removed. New captures and plans record creator identity 2.0.0. Existing archives keep their identities, and fail closed where a bound identity changed.
 
 ## Known historical evidence not regenerated
 
@@ -403,47 +422,51 @@ Work that is known and deliberately left for later:
 - **#305 follow-ups:** a provably identical fast path for provider-result validation; lean sensor-stage reuse.
 - **#307 follow-ups:** real-camera DNG interoperability is not claimed (LibRaw decodes the files; no editor review yet); sharing the colour-tag code with the paired export.
 - **#275:** a different native RAW default tile width (a plan-shape change); per-tap request retention (about 8 MB per site with a large PSF); parallel execution inside `simulateCapture()` (the engine-level row-band partitions are done).
-- **#276:** consistency between error classes; freezing result envelopes (a deep freeze costs every result on hot paths).
-- **#277 and follow-ups from #304:** hardware-GPU conformance runs and CI wiring, kernel sampling from `LensPsfProfile`, GPU luminance tone curves.
+- **#276 follow-up:** the `parse*()` versioned-record parsers and 13 record-taking functions still drop unknown top-level fields instead of rejecting them (each schema needs its own review, and this changes which stored records parse). Result values are frozen only at their top level (a deep freeze measured about 3× on hot scalar calls).
+- **#277 and follow-ups from #304:**
+  - scene radiance on the GPU (the CPU batched provider API now exists);
+  - the per-fixture rollout, with method-error comparisons against the per-site engine;
+  - hardware-GPU timings at 6–24 MP (the script `npm run bench:webgpu` exists; nothing has been measured);
+  - hardware-GPU conformance runs and CI wiring;
+  - kernel sampling from `LensPsfProfile`;
+  - fixed-pattern noise and additional charge components in the GPU sensor stage;
+  - GPU luminance tone curves.
 - **Optics follow-ups from #303:** lens field mapping in the browser-native executor, mappings combined with ideal pupil rays, calibrated finite-focus fisheye scale.
 - **Motion follow-ups from #297:** derived rolling exposure schedules in tier presets; time-varying angular velocity (rolling-shutter wobble).
 
 ## Pending owner decisions
 
-1. **Flagged citations.** The owner decided the seven flagged items; six are now replaced or removed (see the [citation audit](#citation-audit-free-sources)). One remains open: no free copy of Judd, MacAdam & Wyszecki (1964) or other free text of the daylight-locus formula was found. The owner decides whether to accept it as a CIE fact verified against the free CIE datasets, or to name another source. Runtime strings now name free sources (decided).
+1. **Flagged citations: decided.** Six of the seven items are replaced or removed (see the [citation audit](#citation-audit-free-sources)). On 2026-10-17 the owner accepted the seventh, the CIE daylight locus, on the evidence of the free CIE datasets, provided it is completely free and licence-compatible: the datasets are only cited and compared against, never bundled, and the coefficients are facts. Runtime strings now name free sources.
 2. **Agent instructions reset.** At the owner's request (2026-10-16), `AGENTS.md` was replaced with a short standard file. It keeps three rules:
    - changes and recommendations must be evidence-based;
    - only free-to-use sources, data, code and methods may be used;
    - the owner approves anything that goes to production.
 
    `docs/AGENT_DOMAIN_RULES.md`, `docs/AUTOMATION_COORDINATION.md` and the `.github` agent files were retired. Their scientific content already lives in the domain guides, and `.github/node-lts-policy.mjs` still enforces the CI Node policy.
-3. **Human review** of the colorimetry constants recorded in `THIRD_PARTY.md` (CC BY-ND parameters, the patent record finding) and of the AI-assisted changes.
+3. **Human review** of the AI-assisted changes and of this record. The third-party inputs were decided on 2026-10-17: the Wyman et al. CMF coefficients were replaced by the engine's own fit; the Kang et al. locus by Planck's law; CIE table values were removed from the tests; the Malvar–He–Cutler demosaic, PQ and HLG were removed; DNG is kept under Adobe's royalty-free licence, with a licence record file (`docs/licenses/adobe-dng-patent-license-record.txt`).
 
 ## Release gates
 
-The authoritative result is the **exact-head GitHub CI run on the release PR** (CI run on the exact final commit). It is to be recorded here once the in-flight streams merge and this record is final:
+The authoritative result is GitHub CI on the exact commit that is tagged. The last code change is `28f8b61` (#314); its push CI on `main` is recorded below. This record update changes no code (documentation and one source comment), and gets its own CI run on its PR and again on `main` after merge. Tag the `main` commit whose CI is green.
 
-| Gate | Exact-head result |
+| Gate | Result on `28f8b61` |
 | --- | --- |
-| Exact head SHA | *to be filled* |
-| GitHub CI (all jobs, all Node versions) | *to be filled with the run URL and result* |
-| `npm run check` (full vitest suite) | *to be filled from CI* |
-| `npm run coverage` (thresholds) | *to be filled from CI* |
-| `npm run build`, `pack:check`, `docs:check`, `release:consumer-check` | *to be filled from CI* |
-| Informational macOS hash-lock job | *to be filled from CI* |
+| Exact head SHA | `28f8b614af9d0aef59fd121f6ad02b0a77643d2a` |
+| GitHub CI (all jobs, all Node versions) | Passed: [CI run 793](https://github.com/Photivra/photivra/actions/runs/38996058927) and [Native performance run 66](https://github.com/Photivra/photivra/actions/runs/38996058972) |
+| `npm run check` (full vitest suite) | Passed on Node 22.13.0, lts/-1 and current (`verify` jobs) |
+| `npm run coverage` (thresholds) | Passed (`verify (lts/*)` coverage gate) |
+| `npm run build`, `pack:check`, `docs:check`, `release:consumer-check` | Passed (`verify` jobs: build, generated documentation, packed consumer acceptance, package dry run) |
+| Informational macOS hash-lock job | Passed |
 
-**Local results on this candidate** (merge of `09e4262`, Node 24.21.0, linux/x64). The host was memory-limited, so the full vitest suite and coverage were not run locally; CI must provide them.
+**Local results on this candidate** (`28f8b61` plus this record update, Node 24.21.0, linux/x64). The host was memory-limited, so the full vitest suite and coverage were not run locally; CI provides them.
 
 | Command | Result |
 | --- | --- |
-| `npm run check:static` | Passed: eslint, tsc, dependency licences (Apache-2.0 15, BlueOak-1.0.0 1, BSD-2-Clause 6, BSD-3-Clause 2, ISC 7, MIT 125, MPL-2.0 12), SPDX headers, identity, browser surface across 193 reachable modules. |
+| `npm run check:static` | Passed: eslint, tsc, dependency licences (Apache-2.0 15, BlueOak-1.0.0 1, BSD-2-Clause 6, BSD-3-Clause 2, ISC 7, MIT 125, MPL-2.0 12), SPDX headers, identity, browser surface across 195 reachable modules. |
 | `npm run build` | Passed (`tsc -p tsconfig.build.json`, from a clean `dist/`). |
-| `npm run pack:check` | Passed: 767 files, 2,403,767 bytes packed, 11,429,321 unpacked; root export plus `./package.json`; inline-source maps; no lifecycle scripts; local POC API excluded. |
-| `npm run docs:check` | Passed: API reference current (1,627 root symbols across 175 modules); 282 Markdown files, 3,080 repository and local links, 92 importing examples, 26 explicit fragments. |
-| `npm run release:consumer-check` | Passed: packed `@photivra/engine@2.0.0`; `require(esm)` and `lib: es2022`/DOM declaration consumers, 92 typed and running doc snippets, and the quick-start, simulate-capture and production/paired-export consumers. |
-| Focused vitest (`--maxWorkers=1`) | Passed: colorimetry, PNG encoder, ISO brightness and chart-scene tests (4 files, 42 tests), covering the modules whose comments changed in the citation audit. |
-
-A first `pack:check` run failed for two reasons: stale declaration maps left in a reused `dist/`, and a relative link from the packed `CHANGELOG.md` to the unpacked release record. The link now uses the repository URL, and the rebuild from a clean `dist/` passed.
+| `npm run pack:check` | Passed: 776 files, 2,557,468 bytes packed, 11,809,315 unpacked; root export plus `./package.json`; 193 reachable modules; inline-source maps; no lifecycle scripts; local POC API excluded. |
+| `npm run docs:check` | Passed: API reference current (1,637 root symbols across 176 modules); 280 Markdown files, 3,216 repository and local links, 103 importing examples, 26 explicit fragments. |
+| `npm run release:consumer-check` | Passed: packed `@photivra/engine@2.0.0`; `require(esm)` and `lib: es2022`/DOM declaration consumers, 103 typed and running doc snippets, and the quick-start, simulate-capture and production/paired-export consumers. |
 
 ## Remaining release checklist
 
@@ -451,8 +474,8 @@ A first `pack:check` run failed for two reasons: stale declaration maps left in 
 - [x] 2.0.0 changelog with breaking changes and migrations, additions, fixes, performance, tests and tooling.
 - [x] Generated API reference regenerated after the merge.
 - [x] Citation audit, with doc comments and docs updated to free sources.
-- [x] All streams merged (#305, #306, #307) and changelog entries written.
-- [ ] Owner decisions above.
+- [x] All streams merged (#305–#314) and changelog entries written.
+- [x] Owner decisions on citations (decision 1).
 - [ ] Owner's substantive human review of the AI-assisted changes and of this record.
 - [ ] Green exact-head CI on the release PR, recorded above; then green CI on `main` after merge.
 - [ ] **The owner's explicit approval to tag `v2.0.0`.** The tag triggers npm publishing. First confirm that 2.0.0 is not already on npm, and never move or overwrite `v1.5.0`.

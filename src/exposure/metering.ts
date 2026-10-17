@@ -28,7 +28,7 @@ import type {
   NormalizedRasterUv,
   ResolvedCaptureGeometry
 } from "../output/capture-geometry.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -481,7 +481,7 @@ export function calculateHighlightPriorityPlacementSignal(
     !Number.isFinite(headroomStops) ||
     headroomStops < 0
   ) {
-    throw new InvalidConfigurationError(
+    throw new InvalidScientificInputError(
       "Highlight placement requires a positive saturation signal and non-negative headroom."
     );
   }
@@ -664,7 +664,7 @@ function requireInputString(
     typeof value !== "string" ||
     value.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path + " must be a non-empty string."
     );
   }
@@ -921,7 +921,7 @@ export function meterRelativeExposure(
   input:
     MeterRelativeExposureInput
 ): CalculationResult<ExposureMeteringResult> {
-  requireInputObject(input, "meterRelativeExposure input");
+  requireInputKeys(input, "meterRelativeExposure", ["profile", "sampleSet"]);
   const profile =
     parseExposureMeteringProfile(
       input.profile
@@ -967,7 +967,7 @@ export function meterRelativeExposure(
     ) ||
     sampleSet.samples.length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "sampleSet.samples must be a non-empty array."
     );
   }

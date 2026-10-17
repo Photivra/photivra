@@ -32,6 +32,8 @@ import {
   InvalidScientificInputError,
   requirePositiveFinite
 } from "../core/validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export interface AtmosphericExtinctionModel {
   /** Wavelength at which the reference coefficients apply, nm. */
@@ -105,16 +107,14 @@ function requireFinite(name: string, value: unknown): number {
 export function calculateAtmosphericHaze(
   input: CalculateAtmosphericHazeInput
 ): CalculationResult<AtmosphericHaze> {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
+  requireInputKeys(input, "calculateAtmosphericHaze", ["pathLengthM", "wavelengthNm", "sceneRadiance", "airlightRadiance", "extinction"]);
   const d = requireNonNegativeFinite("pathLengthM", input.pathLengthM);
   requirePositiveFinite("wavelengthNm", input.wavelengthNm);
   const l0 = requireNonNegativeFinite("sceneRadiance", input.sceneRadiance);
   const lAir = requireNonNegativeFinite("airlightRadiance", input.airlightRadiance);
   const model = input.extinction;
   if (typeof model !== "object" || model === null) {
-    throw new InvalidScientificInputError("extinction must be an object.");
+    throw new InvalidConfigurationError("extinction must be an object.");
   }
   requirePositiveFinite("extinction.referenceWavelengthNm", model.referenceWavelengthNm);
   const betaR = requireNonNegativeFinite(
@@ -177,9 +177,7 @@ export function calculateAtmosphericHaze(
 export function calculateExtinctionFromVisibility(
   input: CalculateExtinctionFromVisibilityInput
 ): CalculationResult<{ extinctionPerMeter: number; contrastThreshold: number }> {
-  if (typeof input !== "object" || input === null) {
-    throw new InvalidScientificInputError("input must be an object.");
-  }
+  requireInputKeys(input, "calculateExtinctionFromVisibility", ["visibilityM", "contrastThreshold"]);
   requirePositiveFinite("visibilityM", input.visibilityM);
   const epsilon = input.contrastThreshold ?? 0.02;
   if (typeof epsilon !== "number" || !(epsilon > 0) || !(epsilon < 1)) {

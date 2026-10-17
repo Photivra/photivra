@@ -260,6 +260,21 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`NativeRawTile`](api/capture-native-raw.md#nativerawtile) | Type |
 | [`NativeRawTileRequest`](api/capture-native-raw.md#nativerawtilerequest) | Type |
 
+## capture/packed-sensor-raw.ts
+
+[Detailed contracts](api/capture-packed-sensor-raw.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/packed-sensor-raw.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculatePackedSensorRawPlan`](api/capture-packed-sensor-raw.md#calculatepackedsensorrawplan) | Runtime |
+| [`PACKED_SENSOR_RAW_LIMITS`](api/capture-packed-sensor-raw.md#packed_sensor_raw_limits) | Runtime |
+| [`PACKED_SENSOR_RAW_SCHEMA_VERSION`](api/capture-packed-sensor-raw.md#packed_sensor_raw_schema_version) | Runtime |
+| [`PackedSensorRawDiagnostics`](api/capture-packed-sensor-raw.md#packedsensorrawdiagnostics) | Type |
+| [`PackedSensorRawInput`](api/capture-packed-sensor-raw.md#packedsensorrawinput) | Type |
+| [`PackedSensorRawPlan`](api/capture-packed-sensor-raw.md#packedsensorrawplan) | Type |
+| [`PackedSensorRawResult`](api/capture-packed-sensor-raw.md#packedsensorrawresult) | Type |
+| [`simulatePackedSensorRaw`](api/capture-packed-sensor-raw.md#simulatepackedsensorraw) | Runtime |
+
 ## capture/photographic-export.ts
 
 [Detailed contracts](api/capture-photographic-export.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/capture/photographic-export.ts)
@@ -444,6 +459,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS`](api/color-color-matching-functions.md#analytic_cie_1931_cmf_domain_nanometers) | Runtime |
 | [`ColorimetricObserver`](api/color-color-matching-functions.md#colorimetricobserver) | Type |
 | [`ColorimetricQuadratureNode`](api/color-color-matching-functions.md#colorimetricquadraturenode) | Type |
 | [`ColorimetricSpectralSample`](api/color-color-matching-functions.md#colorimetricspectralsample) | Type |
@@ -465,7 +481,6 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`PreparedColorMatchingFunctions`](api/color-color-matching-functions.md#preparedcolormatchingfunctions) | Type |
 | [`TabulatedColorMatchingSample`](api/color-color-matching-functions.md#tabulatedcolormatchingsample) | Type |
 | [`TristimulusNormalization`](api/color-color-matching-functions.md#tristimulusnormalization) | Type |
-| [`WYMAN_2013_CMF_DOMAIN_NANOMETERS`](api/color-color-matching-functions.md#wyman_2013_cmf_domain_nanometers) | Runtime |
 
 ## color/colorimetry-math.ts
 
@@ -515,9 +530,9 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`createPlanckianSpectrum`](api/color-illuminants.md#createplanckianspectrum) | Runtime |
 | [`estimateCorrelatedColorTemperatureMcCamy`](api/color-illuminants.md#estimatecorrelatedcolortemperaturemccamy) | Runtime |
 | [`estimatePlanckianLocusChromaticity`](api/color-illuminants.md#estimateplanckianlocuschromaticity) | Runtime |
-| [`KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN`](api/color-illuminants.md#kim_2002_planckian_locus_range_kelvin) | Runtime |
 | [`MAX_CORRELATED_COLOR_TEMPERATURE_DUV`](api/color-illuminants.md#max_correlated_color_temperature_duv) | Runtime |
 | [`PLANCK_CONSTANT_JOULE_SECONDS`](api/color-illuminants.md#planck_constant_joule_seconds) | Runtime |
+| [`PLANCKIAN_LOCUS_RANGE_KELVIN`](api/color-illuminants.md#planckian_locus_range_kelvin) | Runtime |
 | [`PlanckianLocusModel`](api/color-illuminants.md#planckianlocusmodel) | Type |
 | [`SECOND_RADIATION_CONSTANT_METER_KELVIN`](api/color-illuminants.md#second_radiation_constant_meter_kelvin) | Runtime |
 | [`SPEED_OF_LIGHT_METERS_PER_SECOND`](api/color-illuminants.md#speed_of_light_meters_per_second) | Runtime |
@@ -530,21 +545,12 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | Export | Kind |
 | --- | --- |
 | [`Bt1886Eotf`](api/color-rgb-color-spaces.md#bt1886eotf) | Type |
-| [`calculateHlgSystemGamma`](api/color-rgb-color-spaces.md#calculatehlgsystemgamma) | Runtime |
 | [`calculateRgbToXyzMatrices`](api/color-rgb-color-spaces.md#calculatergbtoxyzmatrices) | Runtime |
 | [`evaluateBt709InverseOetf`](api/color-rgb-color-spaces.md#evaluatebt709inverseoetf) | Runtime |
 | [`evaluateBt709Oetf`](api/color-rgb-color-spaces.md#evaluatebt709oetf) | Runtime |
-| [`evaluateHlgInverseOetf`](api/color-rgb-color-spaces.md#evaluatehlginverseoetf) | Runtime |
-| [`evaluateHlgOetf`](api/color-rgb-color-spaces.md#evaluatehlgoetf) | Runtime |
-| [`evaluatePqEotf`](api/color-rgb-color-spaces.md#evaluatepqeotf) | Runtime |
-| [`evaluatePqInverseEotf`](api/color-rgb-color-spaces.md#evaluatepqinverseeotf) | Runtime |
 | [`evaluateSrgbDecoding`](api/color-rgb-color-spaces.md#evaluatesrgbdecoding) | Runtime |
 | [`evaluateSrgbEncoding`](api/color-rgb-color-spaces.md#evaluatesrgbencoding) | Runtime |
-| [`HLG_CONSTANTS`](api/color-rgb-color-spaces.md#hlg_constants) | Runtime |
-| [`HlgReferenceDisplay`](api/color-rgb-color-spaces.md#hlgreferencedisplay) | Type |
-| [`PQ_CONSTANTS`](api/color-rgb-color-spaces.md#pq_constants) | Runtime |
 | [`prepareBt1886Eotf`](api/color-rgb-color-spaces.md#preparebt1886eotf) | Runtime |
-| [`prepareHlgReferenceDisplay`](api/color-rgb-color-spaces.md#preparehlgreferencedisplay) | Runtime |
 | [`resolveRgbColorSpace`](api/color-rgb-color-spaces.md#resolvergbcolorspace) | Runtime |
 | [`RgbColorSpaceDefinition`](api/color-rgb-color-spaces.md#rgbcolorspacedefinition) | Type |
 | [`RgbColorSpaceId`](api/color-rgb-color-spaces.md#rgbcolorspaceid) | Type |
@@ -1141,12 +1147,14 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | --- | --- |
 | [`AcceleratedNativeCaptureSdrOutput`](api/gpu-image-kernel-accelerator.md#acceleratednativecapturesdroutput) | Type |
 | [`AcceleratedNativeRawDevelopmentOutput`](api/gpu-image-kernel-accelerator.md#acceleratednativerawdevelopmentoutput) | Type |
+| [`AcceleratedPackedSensorRawResult`](api/gpu-image-kernel-accelerator.md#acceleratedpackedsensorrawresult) | Type |
 | [`createImageKernelAccelerator`](api/gpu-image-kernel-accelerator.md#createimagekernelaccelerator) | Runtime |
 | [`ImageKernelAccelerator`](api/gpu-image-kernel-accelerator.md#imagekernelaccelerator) | Type |
 | [`ImageKernelAcceleratorOptions`](api/gpu-image-kernel-accelerator.md#imagekernelacceleratoroptions) | Type |
 | [`ImageKernelAcceleratorState`](api/gpu-image-kernel-accelerator.md#imagekernelacceleratorstate) | Type |
 | [`ImageKernelRunOptions`](api/gpu-image-kernel-accelerator.md#imagekernelrunoptions) | Type |
 | [`IrradianceConvolutionResult`](api/gpu-image-kernel-accelerator.md#irradianceconvolutionresult) | Type |
+| [`TemporalExposureSumResult`](api/gpu-image-kernel-accelerator.md#temporalexposuresumresult) | Type |
 
 ## gpu/image-kernel-execution.ts
 
@@ -1154,6 +1162,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 
 | Export | Kind |
 | --- | --- |
+| [`composeRelativeErrorBounds`](api/gpu-image-kernel-execution.md#composerelativeerrorbounds) | Runtime |
 | [`ImageKernelBackend`](api/gpu-image-kernel-execution.md#imagekernelbackend) | Type |
 | [`ImageKernelCodeErrorBound`](api/gpu-image-kernel-execution.md#imagekernelcodeerrorbound) | Type |
 | [`ImageKernelExecution`](api/gpu-image-kernel-execution.md#imagekernelexecution) | Type |
@@ -1161,6 +1170,7 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`ImageKernelFailureReason`](api/gpu-image-kernel-execution.md#imagekernelfailurereason) | Type |
 | [`ImageKernelFallbackReason`](api/gpu-image-kernel-execution.md#imagekernelfallbackreason) | Type |
 | [`ImageKernelRelativeErrorBound`](api/gpu-image-kernel-execution.md#imagekernelrelativeerrorbound) | Type |
+| [`ImageKernelSeededRealizationBound`](api/gpu-image-kernel-execution.md#imagekernelseededrealizationbound) | Type |
 | [`WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND`](api/gpu-image-kernel-execution.md#webgpu_f32_transfer_absolute_bound) | Runtime |
 | [`WEBGPU_F32_UNIT_ROUNDOFF`](api/gpu-image-kernel-execution.md#webgpu_f32_unit_roundoff) | Runtime |
 
@@ -1258,6 +1268,20 @@ Start here to find a function by task. [Using Photivra from an agent](AGENT_GUID
 | [`calculateProjectedMotionBlur`](api/motion-projected-motion.md#calculateprojectedmotionblur) | Runtime |
 | [`CalculateProjectedMotionBlurInput`](api/motion-projected-motion.md#calculateprojectedmotionblurinput) | Type |
 | [`ProjectedMotionBlur`](api/motion-projected-motion.md#projectedmotionblur) | Type |
+
+## motion/temporal-exposure-sum.ts
+
+[Detailed contracts](api/motion-temporal-exposure-sum.md) · [Source](https://github.com/Photivra/photivra/blob/main/src/motion/temporal-exposure-sum.ts)
+
+| Export | Kind |
+| --- | --- |
+| [`calculateTemporalExposureSum`](api/motion-temporal-exposure-sum.md#calculatetemporalexposuresum) | Runtime |
+| [`calculateTemporalExposureSumPlan`](api/motion-temporal-exposure-sum.md#calculatetemporalexposuresumplan) | Runtime |
+| [`TEMPORAL_EXPOSURE_SUM_LIMITS`](api/motion-temporal-exposure-sum.md#temporal_exposure_sum_limits) | Runtime |
+| [`TEMPORAL_EXPOSURE_SUM_SCHEMA_VERSION`](api/motion-temporal-exposure-sum.md#temporal_exposure_sum_schema_version) | Runtime |
+| [`TemporalExposureSumInput`](api/motion-temporal-exposure-sum.md#temporalexposuresuminput) | Type |
+| [`TemporalExposureSumNode`](api/motion-temporal-exposure-sum.md#temporalexposuresumnode) | Type |
+| [`TemporalExposureSumPlan`](api/motion-temporal-exposure-sum.md#temporalexposuresumplan) | Type |
 
 ## motion/video-sequence.ts
 

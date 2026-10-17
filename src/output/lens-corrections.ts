@@ -24,7 +24,8 @@ import {
   prepareGeometricMapping, parseGeometricRaster, calculateValidSourceCrop, type DigitalGeometricTransform, type GeometricImageDomain,
   type GeometricRaster, type GeometricResampler, type GeometricSamplingPlan
 } from "./geometric-transforms.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export type LensCorrectionChannel = "red" | "green" | "blue";
 interface CorrectionComponentIdentity {
@@ -88,7 +89,7 @@ export function parseGenericLensCorrectionProfile(value: unknown): GenericLensCo
   const components = list(r.components, 16).map((value): LensCorrectionComponent => {
     const c = record(value, ["id", "version", "domain", "availability", "defaultEnabled", "dependencies",
       "requiredByStabilizationModes", "residualNote", "kind", "transform", "transforms", "profile", "strength"]);
-    if (typeof c.defaultEnabled !== "boolean") throw new InvalidScientificInputError("defaultEnabled must be boolean.");
+    if (typeof c.defaultEnabled !== "boolean") throw new InvalidConfigurationError("defaultEnabled must be boolean.");
     const identity = { id: textValue(c.id), version: textValue(c.version),
       domain: choice(c.domain, ["raw-channel", "reconstructed-linear", "processed-output"]),
       availability: choice(c.availability, ["toggle", "automatic", "mandatory"]), defaultEnabled: c.defaultEnabled,
@@ -140,7 +141,7 @@ export function resolveLensCorrectionPlan(input: {
   selections: Readonly<Record<string, "on" | "off" | "auto">>;
   outputKind: "raw-like" | "processed"; selectionKind: "camera-selectable" | "reference-bypass";
 }): CalculationResult<ResolvedLensCorrectionPlan> {
-  requireInputObject(input, "resolveLensCorrectionPlan input");
+  requireInputKeys(input, "resolveLensCorrectionPlan", ["profile", "state", "selections", "outputKind", "selectionKind"]);
   const profile = parseGenericLensCorrectionProfile(input.profile);
   requireSameState(profile.state, input.state);
   const outputKind = choice(input.outputKind, ["raw-like", "processed"]);
@@ -174,7 +175,7 @@ export function calculatePeripheralIlluminationCorrection(input: {
   component: IlluminationLensCorrection; imagePointMm: LensFieldPointMm;
   signal: number; noiseVariance: number; clippingLevel: number;
 }): CalculationResult<{ gain: number; signalBeforeClipping: number; signal: number; noiseVarianceBeforeClipping: number; clipped: boolean }> {
-  requireInputObject(input, "calculatePeripheralIlluminationCorrection input");
+  requireInputKeys(input, "calculatePeripheralIlluminationCorrection", ["component", "imagePointMm", "signal", "noiseVariance", "clippingLevel"]);
   const component = input.component;
   requireInputObject(component, "component input");
   if (component.kind !== "peripheral-illumination" || component.strength < 0 || component.strength > 1 || !Number.isFinite(component.strength)) throw new InvalidScientificInputError("Invalid illumination component.");
@@ -216,7 +217,7 @@ export function calculateLensCorrectedCapture(input: {
   /** Clipping events in gain stages, before the shared valid-area crop. Each stage is counted separately. */
   illuminationClippingEventCount: number;
 }> {
-  requireInputObject(input, "calculateLensCorrectedCapture input");
+  requireInputKeys(input, "calculateLensCorrectedCapture", ["plan", "capture", "destinationRaster", "resampler", "physicalProjectionDistanceMm", "clippingLevel"]);
   // Re-resolve the plan, which may be untrusted or changed, so callers cannot fake enabled or mandatory states.
   requireInputObject(input.plan, "plan");
   const plan = resolveLensCorrectionPlan({ profile: input.plan.profile, state: input.plan.profile.state,

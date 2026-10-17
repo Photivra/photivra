@@ -35,7 +35,7 @@ import {
   type SpectralWavelengthBasis
 } from "../core/spectral.js";
 import { InvalidScientificInputError } from "../core/validation.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1007,7 +1007,7 @@ function parsePolarizationState(
     return { ...UNPOLARIZED };
   }
   if (typeof value !== "object" || value === null) {
-    throw new InvalidScientificInputError(path + " must be an object.");
+    throw new InvalidConfigurationError(path + " must be an object.");
   }
   const degree = value.degreeOfLinearPolarization;
   const angle = value.angleDegrees;
@@ -1266,7 +1266,7 @@ export function resolveFrontOfLensFilterTransmission(
   input:
     ResolveFrontOfLensFilterTransmissionInput
 ): ResolvedFrontOfLensFilterTransmission {
-  requireInputObject(input, "resolveFrontOfLensFilterTransmission input");
+  requireInputKeys(input, "resolveFrontOfLensFilterTransmission", ["profile", "wavelengthNanometers", "wavelengthBasis", "incidentPolarization"]);
   return resolveComponent(
     input,
     stokesFromState(
@@ -1287,14 +1287,14 @@ export function composeFrontOfLensFilterTransmission(
   input:
     ComposeFrontOfLensFilterTransmissionInput
 ): ComposedFrontOfLensFilterTransmission {
-  requireInputObject(input, "composeFrontOfLensFilterTransmission input");
+  requireInputKeys(input, "composeFrontOfLensFilterTransmission", ["filters", "wavelengthNanometers", "wavelengthBasis", "incidentPolarization"]);
   if (
     !Array.isArray(
       input.filters
     ) ||
     input.filters.length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "filters must be a non-empty array."
     );
   }

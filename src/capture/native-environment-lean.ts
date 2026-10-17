@@ -35,6 +35,7 @@
 import type { SimulateEnvironmentSensorRawFrameInput } from "./environment-raw-producer.js";
 import type { planEnvironmentSensorPhotoSignal, executeEnvironmentSensorPhotoSignal, EnvironmentRadianceEvaluator,
   EnvironmentApertureRadianceEvaluator } from "../sensor/environment-photo-signal.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 import { apertureRadianceQuery } from "../sensor/environment-photo-signal.js";
 import type { SensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
 import { createSensorEqeTemporalPhotoSignal } from "../sensor/temporal-photo-signal.js";
@@ -602,7 +603,7 @@ function psfChecksPass(k: PlanConstants, c: ExecutionConstants, taps: readonly F
 function fullPsfInstant(plan: FullPlan, ti: number, taps: readonly Float64Array[]): Float64Array {
   nativeEnvironmentLeanStatistics.psfFallbacks++;
   const instant = plan.instants[ti]!, owned = plan.owned;
-  if (owned.psf.kind !== "sampled-local") throw new Error("not a sampled-PSF plan");
+  if (owned.psf.kind !== "sampled-local") throw new InvalidConfigurationError("Lean PSF fallback requires a sampled-PSF plan.");
   const psf = calculateSensorPsfIrradianceQuadrature({ ...owned.psf.configuration, spatialQuadrature: plan.spatialQuadrature,
     spectralQuadrature: plan.spectralQuadrature, timeSecondsFromOpeningReference: instant.time,
     inputMeaning: "pre-psf-pre-sensor-stack-pre-aa-spectral-irradiance", samples: instant.groups.map((group, gi) => ({ node: group.node,

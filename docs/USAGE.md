@@ -31,6 +31,8 @@ console.log(result.quality);
 
 `quality` is optional. It is left out when the engine has no defensible, quantified uncertainty or accuracy to report.
 
+From 2.0.0 results are read-only: the envelope, `provenance` and `quality` are frozen, and so is the top level of `value`. Copy a value (`{ ...result.value }`) before changing it. Every calculator that takes an input object rejects unknown fields with `InvalidConfigurationError`. A wrong shape throws `InvalidConfigurationError` and a bad number throws `InvalidScientificInputError`; see [Error classes](https://github.com/Photivra/photivra/blob/main/docs/API_STYLE.md#error-classes) and [Read-only results](https://github.com/Photivra/photivra/blob/main/docs/API_STYLE.md#read-only-results).
+
 ## Standalone digital optics
 
 See [Digital optics foundations](https://github.com/Photivra/photivra/blob/main/docs/DIGITAL_OPTICS_FOUNDATION.md) for stray-light and correction profiles tied to an exact lens state, and for their scientific limits. You can prepare a compatible geometric map separately from its sampling filter:
@@ -1807,7 +1809,7 @@ const quadratureNodes = createColorimetricMidpointQuadrature({
   wavelengthRangeNanometers: { minimum: 360, maximum: 830 },
   maximumSubintervalWidthNanometers: 1
 });
-const colorMatchingFunctions = { kind: "wyman-2013-cie-1931-multi-lobe-fit" } as const;
+const colorMatchingFunctions = { kind: "analytic-cie-1931-multi-lobe-fit" } as const;
 
 const illuminantA = integrateSpectrumToXyz({
   quadratureNodes,
@@ -1848,24 +1850,24 @@ const tungsten = resolveColorTemperatureWhiteBalance({
 console.log(tungsten.channelGains); // red < 1 < blue for a warm declared white
 ```
 
-### Chromatic adaptation, HDR transfer and gamut mapping
+### Chromatic adaptation, transfer functions and gamut mapping
 
 ```ts
 import {
   calculateChromaticAdaptationMatrix,
   calculateGamutMappedColor,
-  evaluatePqInverseEotf,
+  evaluateSrgbEncoding,
   resolveRgbColorSpace
 } from "@photivra/engine";
 
 const bradford = calculateChromaticAdaptationMatrix({
   transform: "bradford",
   sourceWhiteXyz: { x: 1.0985, y: 1, z: 0.3558 },
-  destinationWhiteXyz: { x: 0.95047, y: 1, z: 1.08883 }
+  destinationWhiteXyz: resolveRgbColorSpace("srgb").value.whiteXyz // D65 from its chromaticity
 }).value.matrix;
 
 const rec2020 = resolveRgbColorSpace("rec2020").value.rgbToXyz;
-const pqCodeFor100Nits = evaluatePqInverseEotf(100); // ≈ 0.5081
+const srgbCodeForMidGrey = evaluateSrgbEncoding(0.18); // ≈ 0.4614
 
 const mapped = calculateGamutMappedColor({
   colorSpace: "srgb",
@@ -1873,7 +1875,7 @@ const mapped = calculateGamutMappedColor({
   kneeFraction: 0.9,
   xyz: { x: rec2020[0][1], y: rec2020[1][1], z: rec2020[2][1] } // Rec.2020 green primary
 });
-console.log(bradford, pqCodeFor100Nits, mapped.value.linearRgb);
+console.log(bradford, srgbCodeForMidGrey, mapped.value.linearRgb);
 ```
 
 Scene adaptation inside `calculateCaptureColorTransform()` can opt in to a cone-space transform with `whiteBalance: { kind: "adopted-white-xyz-scaling", transform: "bradford" }`. Leaving out `transform` keeps the original diagonal scaling in XYZ.
@@ -6861,7 +6863,7 @@ See [Local POC Simulation API](https://github.com/Photivra/photivra/blob/main/do
 ## DNG import and PNG output
 
 - `parseDngRawImage` reads a DNG or TIFF-EP CFA/LinearRaw file (uncompressed or lossless JPEG, 8–16 bits). It returns the stored raw codes plus the CFA, black/white levels, active area, default crop, colour matrices, as-shot neutral and orientation. Nothing is applied to the codes.
-- `serializePngImage` writes an 8- or 16-bit RGB PNG with an sRGB, ICC or cICP (Display P3, BT.2020, PQ, HLG) colour description, and optional mDCV/cLLI HDR metadata.
+- `serializePngImage` writes an 8- or 16-bit RGB PNG with an sRGB, ICC or cICP (Display P3, BT.2020; sRGB, BT.709 or linear transfer) colour description, and optional mDCV/cLLI display metadata. PQ and HLG are not part of 2.0 (see the patent review in `THIRD_PARTY.md`).
 
 See [DNG import and PNG output](https://github.com/Photivra/photivra/blob/main/docs/IMPORT_AND_PNG.md) for supported subsets, limits and sources.
 
@@ -7291,7 +7293,7 @@ console.log(merged.raw.codes.length, merged.providerEvaluationCount);
 
 ## Optional WebGPU image kernels
 
-`createImageKernelAccelerator()` runs three heavy image operations: isoplanatic PSF convolution (one PSF for the whole image), native capture SDR, and packed RAW development.
+`createImageKernelAccelerator()` runs five heavy image operations: isoplanatic PSF convolution (one PSF per image patch), the temporal exposure sum, the sensor stage, native capture SDR, and packed RAW development.
 
 - By default they run on the float64 CPU reference.
 - If you opt in, they run on the `webgpu-f32` backend (WebGPU, 32-bit floats).
@@ -7314,6 +7316,40 @@ console.log(result.execution.backend, result.execution.fallbackReason, result.ex
 // Bit-exact identities and fixtures must come from the CPU reference.
 const reference = calculateIrradianceConvolution(input).values;
 console.log(result.execution.backend === "cpu-reference" ? result.values.every((v, i) => v === reference[i]) : result.execution.errorBound);
+accelerator.dispose();
+```
+
+Two image-formation stages use the same accelerator:
+
+- `sumTemporalExposure()` is exposure and motion as a weighted sum of shifted frames, with per-row weights for rolling or global readout.
+- `simulateSensorRaw()` is the sensor stage: seeded Poisson charge, read noise and ADC to RAW codes. It uses the same noise model and per-site seeds as the per-site producer.
+
+On `webgpu-f32`, every sensor site not listed in `flaggedSiteIndices` equals the reference exactly. Recompute the listed sites with the reference if you need bit identity.
+
+```ts
+import { createImageKernelAccelerator, simulatePackedSensorRaw, type PackedSensorRawInput, type TemporalExposureSumInput } from "@photivra/engine";
+
+const evidence = [{ sourceOrigin: "photivra" as const, sourceReference: "example", reuseStatus: "photivra-owned" as const }];
+const width = 8, height = 4;
+// Static scene, global shutter: three temporal nodes of 1/3000 s each, the image moving 0.5 site to the right per node.
+const motion: TemporalExposureSumInput = { schemaVersion: "0.1.0", width, height, boundary: "zero-outside-grid",
+  samples: new Float64Array(width * height).fill(9e6), // electrons per second
+  displacements: Float64Array.from([0, 0, 0.5, 0, 1, 0]), rowWeights: new Float64Array(3 * height).fill(1 / 3000) };
+const sensor = (photoElectrons: Float64Array): PackedSensorRawInput => ({ schemaVersion: "0.1.0", nativeWidth: width, nativeHeight: height,
+  region: { x: 0, y: 0, width, height }, captureSeedUint32: 42, photoElectrons, darkElectrons: new Float64Array(width * height),
+  physicalChargeCapacityElectrons: 30_000, regimeId: "base", readoutProfile: { schemaVersion: "0.1.0", profileId: "readout", colorSamplingProfileId: "cfa",
+    channelId: "green", regimeSelectionOwnedBy: "explicit-upstream-camera-state-not-inferred-from-iso", evidence, regimes: [{ regimeId: "base",
+      scientificStatus: "approximation", systemConversionGainElectronsPerCode: { value: 2, evidence },
+      preAdcSaturationElectronEquivalent: { value: 32_000, evidence }, readNoiseComponents: [{ componentId: "read", rmsElectrons: { value: 2.5, evidence }, evidence }],
+      adc: { bitDepth: 14, blackLevelCode: 512, digitalSaturationCode: 16_383, transfer: "uniform-round-half-up" }, evidence, limitations: ["Example regime."] }] } });
+
+const accelerator = await createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "cpu-reference" });
+const exposure = await accelerator.sumTemporalExposure(motion);
+const raw = await accelerator.simulateSensorRaw(sensor(Float64Array.from(exposure.values)));
+console.log(exposure.execution.errorBound, raw.execution.errorBound, raw.flaggedSiteIndices.length);
+// The CPU reference gives the same codes at every unflagged site.
+const reference = simulatePackedSensorRaw(sensor(Float64Array.from(exposure.values))).codes;
+console.log(raw.execution.backend === "cpu-reference" ? raw.codes.every((c, i) => c === reference[i]) : raw.diagnostics);
 accelerator.dispose();
 ```
 ## Image processing operators
@@ -7342,10 +7378,10 @@ const plane = { width: 64, height: 48, captureModeId: "native", colorSamplingPro
   samples: new Float32Array(64 * 48).fill(0.25) };
 const channelRoles = { red: "red", green: "green", blue: "blue" };
 
-// Malvar–He–Cutler linear kernels with mirror borders (also accepted by createNativeRawDevelopmentTask).
-const mhc = createBuiltInBayerDemosaicProfiles({ kernel: "malvar-he-cutler-2004", captureModeId: "native",
+// Bilinear linear kernels with mirror borders (also accepted by createNativeRawDevelopmentTask).
+const bilinear = createBuiltInBayerDemosaicProfiles({ kernel: "bilinear", captureModeId: "native",
   colorSamplingProfile: cfa, channelRoles }).value;
-const linearTask = createCfaPlaneReconstructionTask({ plane, phaseProfiles: mhc.phaseProfiles, borderHandling: "mirror" }, provider);
+const linearTask = createCfaPlaneReconstructionTask({ plane, phaseProfiles: bilinear.phaseProfiles, borderHandling: "mirror" }, provider);
 await linearTask.run();
 console.log(linearTask.takeOutput().channelIds);
 
@@ -7355,7 +7391,7 @@ await ahd.run();
 console.log(ahd.takeOutput().direction.length);
 ```
 
-Merge linear RAW brackets with noise-optimal weights, tone map and encode HDR:
+Merge linear RAW brackets with noise-optimal weights, convert to linear BT.2020 and tone map:
 
 ```ts
 import {
@@ -7373,9 +7409,9 @@ await merge.run();
 const merged = merge.takeOutput();
 const radiance = { width: 32, height: 32, data: merged.radianceElectronsPerSecond.map((v) => v / 3000) };
 
-const pq = createHdrImageEncodingTask({ image: radiance, inputColorSpace: "linear-srgb-d65", transfer: "pq", bitDepth: 10 }, provider);
-await pq.run();
-console.log(pq.takeOutput().codes?.slice(0, 3));
+const rec2020 = createHdrImageEncodingTask({ image: radiance, inputColorSpace: "linear-srgb-d65", transfer: "linear-float32" }, provider);
+await rec2020.run();
+console.log(rec2020.takeOutput().linear.slice(0, 3));
 
 const sdr = createReinhardGlobalToneMappingTask({ image: radiance, inputColorSpace: "linear-srgb-d65", key: 0.18 }, provider);
 await sdr.run();
@@ -7469,8 +7505,8 @@ Each 2.0 option is opt-in and uses an existing public contract. Without them, th
 byte-identical to 1.0.
 
 - `output.format: "png"` writes `serializePngImage` output. That is either the developed sRGB samples, or,
-  with `colorEncoding`, the unclipped linear development converted through CIE XYZ to Display P3, Rec. 2020
-  or Rec. 2100 PQ/HLG (`createHdrImageEncodingTask`), signalled with cICP.
+  with `colorEncoding`, the unclipped linear development converted through CIE XYZ to Display P3 or Rec. 2020,
+  signalled with cICP.
 - `output.gamutMapping: "perceptual"` replaces the component clip with `prepareRgbGamutMapping`.
 - `format: "dng"` writes the packed native RAW with `serializeNativeRawDng`.
 
@@ -7489,7 +7525,7 @@ console.log(p3.image.png?.length, p3.image.colorEncoding, p3.provenance.composed
 ```ts
 import { simulateCapture } from "@photivra/engine";
 
-const mirrored = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 6, height: 4, demosaic: "malvar-he-cutler", borderHandling: "mirror" } });
+const mirrored = await simulateCapture({ scene: { preset: "uniform" }, output: { width: 6, height: 4, demosaic: "bilinear", borderHandling: "mirror" } });
 console.log(mirrored.plan.exposure.geometry.nativeRaster, mirrored.assumptions.find((a) => a.id === "output.demosaic")?.value);
 ```
 

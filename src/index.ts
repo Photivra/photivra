@@ -352,7 +352,7 @@ export {
   COLORIMETRY_MODEL_VERSION,
   MAX_COLORIMETRIC_QUADRATURE_NODES,
   MAX_COLORIMETRIC_TABLE_SAMPLES,
-  WYMAN_2013_CMF_DOMAIN_NANOMETERS,
+  ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS,
   createColorimetricMidpointQuadrature,
   estimateCie1931ColorMatchingFunctions,
   integrateSpectrumToXyz,
@@ -377,7 +377,7 @@ export {
   BOLTZMANN_CONSTANT_JOULES_PER_KELVIN,
   CIE_DAYLIGHT_LOCUS_RANGE_KELVIN,
   CIE_ILLUMINANT_A_RANGE_NANOMETERS,
-  KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN,
+  PLANCKIAN_LOCUS_RANGE_KELVIN,
   MAX_CORRELATED_COLOR_TEMPERATURE_DUV,
   PLANCK_CONSTANT_JOULE_SECONDS,
   SECOND_RADIATION_CONSTANT_METER_KELVIN,
@@ -437,23 +437,14 @@ export {
 } from "./color/camera-color-matrix.js";
 
 export {
-  HLG_CONSTANTS,
-  PQ_CONSTANTS,
-  calculateHlgSystemGamma,
   calculateRgbToXyzMatrices,
   evaluateBt709InverseOetf,
-  evaluateHlgInverseOetf,
-  evaluatePqEotf,
   evaluateSrgbDecoding,
   evaluateBt709Oetf,
-  evaluateHlgOetf,
-  evaluatePqInverseEotf,
   evaluateSrgbEncoding,
   prepareBt1886Eotf,
-  prepareHlgReferenceDisplay,
   resolveRgbColorSpace,
   type Bt1886Eotf,
-  type HlgReferenceDisplay,
   type RgbColorSpaceDefinition,
   type RgbColorSpaceId,
   type RgbPrimaryChromaticities,
@@ -1736,12 +1727,17 @@ export type { NativeCaptureSdrInput, NativeCaptureSdrTileRequest, NativeCaptureS
 
 export { IRRADIANCE_CONVOLUTION_SCHEMA_VERSION, IRRADIANCE_CONVOLUTION_LIMITS, calculateIrradianceConvolutionPlan, calculateIrradianceConvolution } from "./optics/irradiance-convolution.js";
 export type { IrradianceConvolutionInput, IrradianceConvolutionPlan } from "./optics/irradiance-convolution.js";
-export { ImageKernelExecutionError, WEBGPU_F32_UNIT_ROUNDOFF, WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND } from "./gpu/image-kernel-execution.js";
+export { PACKED_SENSOR_RAW_SCHEMA_VERSION, PACKED_SENSOR_RAW_LIMITS, calculatePackedSensorRawPlan, simulatePackedSensorRaw } from "./capture/packed-sensor-raw.js";
+export type { PackedSensorRawInput, PackedSensorRawPlan, PackedSensorRawDiagnostics, PackedSensorRawResult } from "./capture/packed-sensor-raw.js";
+export { TEMPORAL_EXPOSURE_SUM_SCHEMA_VERSION, TEMPORAL_EXPOSURE_SUM_LIMITS, calculateTemporalExposureSumPlan, calculateTemporalExposureSum } from "./motion/temporal-exposure-sum.js";
+export type { TemporalExposureSumInput, TemporalExposureSumNode, TemporalExposureSumPlan } from "./motion/temporal-exposure-sum.js";
+export { ImageKernelExecutionError, WEBGPU_F32_UNIT_ROUNDOFF, WEBGPU_F32_TRANSFER_ABSOLUTE_BOUND, composeRelativeErrorBounds } from "./gpu/image-kernel-execution.js";
 export type { ImageKernelBackend, ImageKernelFallbackReason, ImageKernelFailureReason, ImageKernelExecution, ImageKernelCodeErrorBound,
-  ImageKernelRelativeErrorBound } from "./gpu/image-kernel-execution.js";
+  ImageKernelRelativeErrorBound, ImageKernelSeededRealizationBound } from "./gpu/image-kernel-execution.js";
 export { createImageKernelAccelerator } from "./gpu/image-kernel-accelerator.js";
 export type { ImageKernelAccelerator, ImageKernelAcceleratorOptions, ImageKernelAcceleratorState, ImageKernelRunOptions,
-  AcceleratedNativeCaptureSdrOutput, AcceleratedNativeRawDevelopmentOutput, IrradianceConvolutionResult } from "./gpu/image-kernel-accelerator.js";
+  AcceleratedNativeCaptureSdrOutput, AcceleratedNativeRawDevelopmentOutput, IrradianceConvolutionResult, AcceleratedPackedSensorRawResult,
+  TemporalExposureSumResult } from "./gpu/image-kernel-accelerator.js";
 export { BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION, createBuiltInBayerDemosaicProfiles, type BuiltInBayerDemosaicKernel, type BuiltInBayerDemosaicProfiles,
   type CreateBuiltInBayerDemosaicProfilesInput, type RawReconstructionBorderHandling } from "./sensor/raw-reconstruction.js";
 export { PROCESSING_MAX_PIXELS, PROCESSING_MAX_FRAMES, PROCESSING_DEFAULT_MAXIMUM_WORKING_BYTES, PROCESSING_MODEL_VERSION,

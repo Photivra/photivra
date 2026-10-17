@@ -5,7 +5,6 @@ import {
   calculateCaptureColorTransform,
   calculateCielabFromXyz,
   calculateGamutMappedColor,
-  calculateHlgSystemGamma,
   calculateRgbToXyzMatrices,
   createCaptureWhiteBalanceIntent,
   createColorTemperatureWhiteBalanceIntent,
@@ -13,12 +12,8 @@ import {
   createPlanckianSpectrum,
   createSimulatedCapture,
   evaluateBt709InverseOetf,
-  evaluateHlgInverseOetf,
-  evaluatePqEotf,
   evaluateSrgbDecoding,
   evaluateBt709Oetf,
-  evaluateHlgOetf,
-  evaluatePqInverseEotf,
   evaluateSrgbEncoding,
   estimateCie1931ColorMatchingFunctions,
   estimateCameraColorMatrix,
@@ -26,7 +21,6 @@ import {
   parseCaptureColorTransformInput,
   parseResolvedWhiteBalanceState,
   prepareBt1886Eotf,
-  prepareHlgReferenceDisplay,
   prepareRgbGamutMapping,
   resolveCaptureColorModel,
   resolveColorTemperatureWhiteBalance,
@@ -39,9 +33,10 @@ import {
   type ColorimetricSpectrum,
   type ColorMatrix3x3
 } from "../src/index.js";
+import * as engine from "../src/index.js";
 import { loadLinearCaptureInput as captureInput } from "./helpers/linear-capture-fixture.js";
 
-const WYMAN: ColorMatchingFunctionsSource = { kind: "wyman-2013-cie-1931-multi-lobe-fit" };
+const ANALYTIC: ColorMatchingFunctionsSource = { kind: "analytic-cie-1931-multi-lobe-fit" };
 const NODES: ColorimetricQuadratureNode[] = Array.from({ length: 94 }, (_, i) => ({ wavelengthNanometers: 362.5 + 5 * i, wavelengthMeasureNanometers: 5 }));
 const RANGE = { minimum: 360, maximum: 830 };
 const fn = (evaluate: (nm: number) => number): ColorimetricSpectrum => ({ kind: "function", wavelengthRangeNanometers: RANGE, evaluate });
@@ -116,30 +111,10 @@ describe("RGB colour spaces and transfer functions", () => {
     expect(() => evaluateSrgbEncoding(Number.NaN)).toThrow();
   });
 
-  it("implements the BT.2100 PQ and HLG reference functions", () => {
-    expect(evaluatePqEotf(1)).toBeCloseTo(10000, 8);
-    expect(evaluatePqEotf(0)).toBe(0);
-    expect(evaluatePqInverseEotf(100)).toBeCloseTo(0.5081, 4); // commonly tabulated PQ code for 100 cd/m²
-    expect(evaluatePqInverseEotf(1000)).toBeCloseTo(0.7518, 4);
-    for (const l of [0.005, 1, 100, 203, 4000]) expect(evaluatePqEotf(evaluatePqInverseEotf(l)) / l).toBeCloseTo(1, 10);
-    expect(() => evaluatePqEotf(1.01)).toThrow();
-    expect(() => evaluatePqInverseEotf(10001)).toThrow();
-    expect(evaluateHlgOetf(1 / 12)).toBeCloseTo(0.5, 15);
-    expect(evaluateHlgOetf(1)).toBeCloseTo(1, 7);
-    expect(evaluateHlgOetf(1 / 12 + 1e-12)).toBeCloseTo(0.5, 9); // continuity at the knee
-    for (const v of [0, 0.01, 1 / 12, 0.3, 1]) expect(evaluateHlgInverseOetf(evaluateHlgOetf(v))).toBeCloseTo(v, 12);
-    expect(calculateHlgSystemGamma({ nominalPeakLuminanceCdPerSquareMeter: 1000 }).value.systemGamma).toBeCloseTo(1.2, 15);
-    expect(calculateHlgSystemGamma({ nominalPeakLuminanceCdPerSquareMeter: 2000 }).value.systemGamma).toBeCloseTo(1.2 + 0.42 * Math.log10(2), 15);
-    expect(calculateHlgSystemGamma({ nominalPeakLuminanceCdPerSquareMeter: 4000 }).value.systemGamma).toBeCloseTo(1.2 * 1.111 ** 2, 15);
-    const hlg = prepareHlgReferenceDisplay({ nominalPeakLuminanceCdPerSquareMeter: 1000, blackLuminanceCdPerSquareMeter: 0 });
-    expect(hlg.eotf([1, 1, 1])[1]).toBeCloseTo(1000, 6);
-    expect(hlg.eotf([0.75, 0.75, 0.75])[0]).toBeCloseTo(203, 0); // 75% HLG ≈ 203 cd/m² reference white (ITU-R BT.2408)
-    expect(hlg.ootf([0, 0, 0])).toEqual([0, 0, 0]);
-    const lifted = prepareHlgReferenceDisplay({ nominalPeakLuminanceCdPerSquareMeter: 1000, blackLuminanceCdPerSquareMeter: 0.005 });
-    expect(lifted.blackLevelLift).toBeCloseTo(Math.sqrt(3 * (0.005 / 1000) ** (1 / 1.2)), 14);
-    expect(lifted.eotf([0, 0, 0])[0]).toBeCloseTo(0.005, 10);
-    expect(() => hlg.eotf([1.2, 0, 0])).toThrow();
-    expect(() => hlg.ootf([-0.1, 0, 0])).toThrow();
+  it("does not export the BT.2100 PQ or HLG transfer functions (not part of 2.0)", () => {
+    // Removed by owner decision (2026-10-17): licence-on-request patent declarations only (THIRD_PARTY.md).
+    for (const name of ["evaluatePqEotf", "evaluatePqInverseEotf", "PQ_CONSTANTS", "evaluateHlgOetf", "evaluateHlgInverseOetf", "HLG_CONSTANTS",
+      "calculateHlgSystemGamma", "prepareHlgReferenceDisplay"]) expect(Object.hasOwn(engine, name), name).toBe(false);
   });
 });
 
@@ -194,7 +169,7 @@ describe("camera colour-matrix fitting", () => {
     const channel = (row: readonly number[]): ColorimetricSpectrum => fn((nm) => { const c = estimateCie1931ColorMatchingFunctions(nm); return row[0]! * c.x + row[1]! * c.y + row[2]! * c.z; });
     for (const constraint of ["least-squares", "white-point-preserving-least-squares"] as const) {
       const fit = estimateCameraColorMatrix({ quadratureNodes: NODES, illuminant, cameraSpectralSensitivities: { red: channel(mix[0]), green: channel(mix[1]), blue: channel(mix[2]) },
-        patches: PATCHES, colorMatchingFunctions: WYMAN, constraint }).value;
+        patches: PATCHES, colorMatchingFunctions: ANALYTIC, constraint }).value;
       expect(fit.maximumDeltaE2000).toBeLessThan(1e-8);
       expect(fit.rmsXyzResidual).toBeLessThan(1e-12);
       // Fitted camera→XYZ equals the inverse mixing matrix up to the camera green normalization.
@@ -207,7 +182,7 @@ describe("camera colour-matrix fitting", () => {
   });
   it("preserves the white exactly when constrained and never beats unconstrained least squares on residual", () => {
     const cam = { red: fn(gauss(600, 35)), green: fn(gauss(535, 40)), blue: fn(gauss(455, 30)) };
-    const base = { quadratureNodes: NODES, illuminant, cameraSpectralSensitivities: cam, patches: PATCHES, colorMatchingFunctions: WYMAN };
+    const base = { quadratureNodes: NODES, illuminant, cameraSpectralSensitivities: cam, patches: PATCHES, colorMatchingFunctions: ANALYTIC };
     const free = estimateCameraColorMatrix({ ...base, constraint: "least-squares" });
     const wp = estimateCameraColorMatrix({ ...base, constraint: "white-point-preserving-least-squares" });
     expect(free.provenance.kind).toBe("estimated");
@@ -230,31 +205,33 @@ describe("Kelvin + tint white balance", () => {
   const xyzToCamera = resolveCaptureColorModel().xyzToCameraRgb;
   const camera = { profileId: "ideal-colorimetric", profileVersion: "0.1.0", xyzToCameraRgb: xyzToCamera };
   const greyCardCameraRgb = (spd: ColorimetricSpectrum, nodes: ColorimetricQuadratureNode[]): number[] => {
-    const r = integrateSpectrumToXyz({ quadratureNodes: nodes, spectralDistribution: spd, spectralFactor: fn(() => 0.18), colorMatchingFunctions: WYMAN, normalization: { kind: "white-luminance-one" } }).value.xyz;
+    const r = integrateSpectrumToXyz({ quadratureNodes: nodes, spectralDistribution: spd, spectralFactor: fn(() => 0.18), colorMatchingFunctions: ANALYTIC, normalization: { kind: "white-luminance-one" } }).value.xyz;
     return xyzToCamera.map((row) => row[0] * r.x + row[1] * r.y + row[2] * r.z);
   };
   it("neutralizes a grey card under the matching Planckian illuminant", () => {
     for (const kelvin of [2856, 3200, 5500, 9000]) {
       const intent = createColorTemperatureWhiteBalanceIntent({ intentId: "k" + kelvin, colorTemperatureKelvin: kelvin, tint: 0 });
       const exactState = resolveColorTemperatureWhiteBalance({ stateId: "wb-" + kelvin, intent, whiteLocus: "planckian", tintInterpretation: "duv-cie-1960-uv", camera,
-        planckianLocus: { kind: "planck-integration", colorMatchingFunctions: WYMAN, quadratureNodes: NODES } });
+        planckianLocus: { kind: "planck-integration", colorMatchingFunctions: ANALYTIC, quadratureNodes: NODES } });
       const rgb = greyCardCameraRgb(createPlanckianSpectrum({ temperatureKelvin: kelvin, wavelengthRangeNanometers: RANGE }), NODES);
       const g = exactState.channelGains;
       const balanced = [rgb[0]! * g.red, rgb[1]! * g.green, rgb[2]! * g.blue];
       expect(balanced[0]! / balanced[1]!).toBeCloseTo(1, 10);
       expect(balanced[2]! / balanced[1]!).toBeCloseTo(1, 10);
       expect(exactState.source).toBe("color-temperature");
-      // The Kim et al. spline approximates the locus; residual cast stays small.
-      const kimState = resolveColorTemperatureWhiteBalance({ stateId: "wb-kim", intent, whiteLocus: "planckian", tintInterpretation: "duv-cie-1960-uv", camera });
-      const k = kimState.channelGains;
-      expect(Math.abs((rgb[0]! * k.red) / (rgb[1]! * k.green) - 1)).toBeLessThan(0.03);
-      expect(Math.abs((rgb[2]! * k.blue) / (rgb[1]! * k.green) - 1)).toBeLessThan(0.06);
+      // The default locus integrates the same CMFs on 1 nm nodes instead of these 5 nm nodes; the
+      // residual cast is only the quadrature difference.
+      const defaultState = resolveColorTemperatureWhiteBalance({ stateId: "wb-default", intent, whiteLocus: "planckian", tintInterpretation: "duv-cie-1960-uv", camera });
+      expect(defaultState.colorTemperature!.planckianLocusModel).toBe("planck-analytic-cmf");
+      const k = defaultState.channelGains;
+      expect(Math.abs((rgb[0]! * k.red) / (rgb[1]! * k.green) - 1)).toBeLessThan(1e-3);
+      expect(Math.abs((rgb[2]! * k.blue) / (rgb[1]! * k.green) - 1)).toBeLessThan(1e-3);
     }
   });
   it("neutralizes a daylight-locus white and makes positive tint cast-correct toward magenta", () => {
-    const kim = { kind: "kim-2002-cubic-spline" as const };
+    const locus = { kind: "planck-analytic-cmf" as const };
     const intent = createColorTemperatureWhiteBalanceIntent({ intentId: "d", colorTemperatureKelvin: 6504, tint: 0 });
-    const state = resolveColorTemperatureWhiteBalance({ stateId: "wb-d", intent, whiteLocus: "cie-daylight", tintInterpretation: "duv-cie-1960-uv", camera, planckianLocus: kim });
+    const state = resolveColorTemperatureWhiteBalance({ stateId: "wb-d", intent, whiteLocus: "cie-daylight", tintInterpretation: "duv-cie-1960-uv", camera, planckianLocus: locus });
     const white = state.colorTemperature!.adoptedWhiteChromaticity;
     const xyz = [white.x / white.y, 1, (1 - white.x - white.y) / white.y];
     const rgb = xyzToCamera.map((row) => row[0] * xyz[0]! + row[1] * xyz[1]! + row[2] * xyz[2]!);
@@ -279,6 +256,8 @@ describe("Kelvin + tint white balance", () => {
     expect(() => parseResolvedWhiteBalanceState({ ...json, colorTemperature: { ...(json.colorTemperature as object), whiteLocus: "moon" } })).toThrow();
     expect(() => parseResolvedWhiteBalanceState({ ...json, colorTemperature: { ...(json.colorTemperature as object), tintInterpretation: "adobe" } })).toThrow();
     expect(() => parseResolvedWhiteBalanceState({ ...json, colorTemperature: { ...(json.colorTemperature as object), planckianLocusModel: "x" } })).toThrow();
+    // States saved with the removed cubic-spline locus are rejected (2.0.0 migration: re-resolve them).
+    expect(() => parseResolvedWhiteBalanceState({ ...json, colorTemperature: { ...(json.colorTemperature as object), planckianLocusModel: "kim-2002-cubic-spline" } })).toThrow();
     expect(() => resolveColorTemperatureWhiteBalance({ stateId: "x", intent, whiteLocus: "planckian", tintInterpretation: "adobe" as "duv-cie-1960-uv", camera })).toThrow();
     expect(() => resolveColorTemperatureWhiteBalance({ stateId: "x", intent: { ...intent, version: "9" as "0.1.0" }, whiteLocus: "planckian", tintInterpretation: "duv-cie-1960-uv", camera })).toThrow();
     expect(() => resolveColorTemperatureWhiteBalance({ stateId: "x", intent, whiteLocus: "planckian", tintInterpretation: "duv-cie-1960-uv", camera: { ...camera, xyzToCameraRgb: [[-1, 0, 0], [0, 1, 0], [0, 0, 1]] } })).toThrow();

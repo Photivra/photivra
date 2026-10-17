@@ -22,27 +22,33 @@ describe("scientific assurance composition rejection branches", () => {
     expect(notApplicable.uncertainty).toMatchObject({ kind: "not-applicable", componentIds: ["a"] });
   });
 
-  const cases: RejectionCase[] = [
+  // From 2.0.0 shape problems (wrong type, unknown kind) are configuration errors; bad values stay scientific-input errors.
+  const shapeCases: RejectionCase[] = [
     ["an empty component list", (i): void => { i.components = []; }, "components must be a non-empty array."],
     ["a blank role", (i): void => { i.components[0].role = " "; }, "components[0].role must be a non-empty string."],
-    ["a negative absolute uncertainty", (i): void => { i.components[0].uncertainty = { kind: "absolute", plusMinus: -1, unit: "mm" }; },
-      ".plusMinus must be finite and greater than or equal to zero."],
     ["an unknown source kind", (i): void => { i.components[0].sourceIdentity.kind = "rumour"; }, ".sourceIdentity.kind is invalid."],
-    ["calculation quality without uncertainty", (i): void => { i.components[0].uncertainty = { kind: "calculation-quality", quality: { notes: ["n"] } }; },
-      ".quality must include quantified uncertainty components"],
     ["an unknown uncertainty kind", (i): void => { i.components[0].uncertainty = { kind: "interval" }; }, ".uncertainty.kind is invalid."],
     ["non-array limitations", (i): void => { i.components[0].limitations = "none"; }, ".limitations must be an array."],
-    ["duplicate limitations", (i): void => { i.components[0].limitations = ["x", "x"]; }, ".limitations must not contain duplicates."],
     ["a non-boolean required flag", (i): void => { i.components[0].required = "yes"; }, ".required must be boolean."],
     ["an unknown basis kind", (i): void => { i.components[0].basisKind = "intuition"; }, ".basisKind is invalid."],
     ["an unknown scientific status", (i): void => { i.components[0].scientificStatus = "verified"; }, ".scientificStatus is invalid."],
-    ["an evidence-backed fact without required evidence", (i): void => { i.components[0].evidenceRequirement = "not-required"; },
-      'requires evidenceRequirement "required".'],
     ["an unknown evidence requirement", (i): void => { i.components[0].basisKind = "photivra-model-assumption"; i.components[0].evidenceRequirement = "maybe"; },
       ".evidenceRequirement is invalid."],
     ["non-array evidence", (i): void => { i.components[0].evidence = {}; }, ".evidence must be an array."]
   ];
-  it.each(cases)("rejects %s", (_name, mutate, message) => {
+  const valueCases: RejectionCase[] = [
+    ["a negative absolute uncertainty", (i): void => { i.components[0].uncertainty = { kind: "absolute", plusMinus: -1, unit: "mm" }; },
+      ".plusMinus must be finite and greater than or equal to zero."],
+    ["calculation quality without uncertainty", (i): void => { i.components[0].uncertainty = { kind: "calculation-quality", quality: { notes: ["n"] } }; },
+      ".quality must include quantified uncertainty components"],
+    ["duplicate limitations", (i): void => { i.components[0].limitations = ["x", "x"]; }, ".limitations must not contain duplicates."],
+    ["an evidence-backed fact without required evidence", (i): void => { i.components[0].evidenceRequirement = "not-required"; },
+      'requires evidenceRequirement "required".']
+  ];
+  it.each(shapeCases)("rejects %s", (_name, mutate, message) => {
+    expectRejection(base, compose, InvalidConfigurationError, mutate, message);
+  });
+  it.each(valueCases)("rejects %s", (_name, mutate, message) => {
     expectRejection(base, compose, InvalidScientificInputError, mutate, message);
   });
 });
@@ -82,7 +88,7 @@ describe("sensor color-sampling profile rejection branches", () => {
     expectRejection(base, parseSensorColorSamplingProfile, InvalidConfigurationError, mutate, message);
   });
   it("rejects a non-object site and per-site resolution of a layered layout", () => {
-    expectRejection(() => ({ profile: base(), site: null }), (i: Json) => resolveColorSamplingSite(i), InvalidScientificInputError, () => undefined,
+    expectRejection(() => ({ profile: base(), site: null }), (i: Json) => resolveColorSamplingSite(i), InvalidConfigurationError, () => undefined,
       "site must be an object.");
     const layer = base(); layered(layer);
     expect(() => resolveColorSamplingSite({ profile: layer, site: { x: 0, y: 0 } })).toThrow(InvalidScientificInputError);

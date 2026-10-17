@@ -21,7 +21,8 @@ import type {
   SensorSpatialSamplingQuadrature,
   SensorSpatialSamplingQuadratureNode
 } from "./spatial-sampling-quadrature.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 const SQUARE_MICROMETERS_TO_SQUARE_METERS = 1e-12;
 const WEIGHT_TOLERANCE = 1e-10;
@@ -203,7 +204,7 @@ function parseValueDomain(
     value === null ||
     Array.isArray(value)
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "valueDomain must be an object."
     );
   }
@@ -247,7 +248,7 @@ function parseValueDomain(
     };
   }
 
-  throw new InvalidScientificInputError(
+  throw new InvalidConfigurationError(
     "valueDomain.kind is invalid."
   );
 }
@@ -351,7 +352,7 @@ export function validateSensorSpatialSamplingQuadrature(
     quadrature === null ||
     !Array.isArray(quadrature.nodes)
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "quadrature must contain a nodes array."
     );
   }
@@ -379,7 +380,7 @@ export function validateSensorSpatialSamplingQuadrature(
       quadrature.colorSamplingProfileId.trim().length === 0
     )
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "quadrature.colorSamplingProfileId must be a non-empty string when supplied."
     );
   }
@@ -388,7 +389,7 @@ export function validateSensorSpatialSamplingQuadrature(
     typeof quadrature.channelId !== "string" ||
     quadrature.channelId.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "quadrature.channelId must be a non-empty string."
     );
   }
@@ -504,7 +505,7 @@ function parseNodeValues(
   >
 ): Map<string, number> {
   if (!Array.isArray(nodeValues)) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "nodeValues must be an array."
     );
   }
@@ -608,7 +609,7 @@ function parseNodeValues(
 export function reduceSensorSpatialSamplingQuadrature(
   input: ReduceSensorSpatialSamplingQuadratureInput
 ): CalculationResult<SensorSpatialSampleReduction> {
-  requireInputObject(input, "reduceSensorSpatialSamplingQuadrature input");
+  requireInputKeys(input, "reduceSensorSpatialSamplingQuadrature", ["quadrature", "valueDomain", "nodeValues"]);
   const domain = parseValueDomain(
     input.valueDomain
   );

@@ -32,7 +32,7 @@ import {
   parseFocusPlane,
   type FocusPlane
 } from "./focus-state.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1879,7 +1879,7 @@ function resolveLensSampledPsfCore(
   input:
     ResolveLensSampledPsfInput
 ): ResolvedLensSampledPsfCore {
-  requireInputObject(input, "resolveLensSampledPsf input");
+  requireInputKeys(input, "resolveLensSampledPsf", ["profile", "focalLengthMm", "focus", "apertureFNumber", "fieldPointMm", "wavelengthNm", "signedDefocusImagePlaneMicrometers"]);
   const profile =
     parseOwnedOrUntrustedProfile(
       input.profile

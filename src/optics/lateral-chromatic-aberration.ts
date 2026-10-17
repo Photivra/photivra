@@ -29,7 +29,8 @@ import {
   type RadialDistortionCoefficients,
   type RadialDistortionProfile
 } from "./radial-distortion.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export type LateralChromaticAberrationChannel = "red" | "green" | "blue";
 
@@ -279,7 +280,7 @@ function assumptions(): readonly string[] {
 export function calculateLateralChromaticAberrationMapping(
   input: CalculateLateralChromaticAberrationMappingInput
 ): CalculationResult<LateralChromaticAberrationMapping> {
-  requireInputObject(input, "calculateLateralChromaticAberrationMapping input");
+  requireInputKeys(input, "calculateLateralChromaticAberrationMapping", ["imagePointMm", "profile"]);
   const profiles = resolveProfiles(input.profile);
 
   const red = withChannelContext("red", () =>
@@ -345,7 +346,7 @@ export function calculateLateralChromaticAberrationMapping(
 export function calculateInverseLateralChromaticAberrationMapping(
   input: CalculateInverseLateralChromaticAberrationMappingInput
 ): CalculationResult<InverseLateralChromaticAberrationMapping> {
-  requireInputObject(input, "calculateInverseLateralChromaticAberrationMapping input");
+  requireInputKeys(input, "calculateInverseLateralChromaticAberrationMapping", ["distortedImagePointMm", "profile"]);
   const profiles = resolveProfiles(input.profile);
 
   const red = withChannelContext("red", () =>
@@ -412,7 +413,7 @@ export function calculateInverseLateralChromaticAberrationMapping(
 export function calculateInverseLateralChromaticAberrationMappings(
   input: CalculateInverseLateralChromaticAberrationMappingsInput
 ): CalculationResult<InverseLateralChromaticAberrationMappings> {
-  requireInputObject(input, "calculateInverseLateralChromaticAberrationMappings input");
+  requireInputKeys(input, "calculateInverseLateralChromaticAberrationMappings", ["distortedImagePointsMm", "profile"]);
   const profiles = resolveProfiles(input.profile);
   const validatedProfiles = {
     red: withChannelContext("red", () =>
@@ -426,7 +427,7 @@ export function calculateInverseLateralChromaticAberrationMappings(
     )
   };
   if (!Array.isArray(input.distortedImagePointsMm)) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "distortedImagePointsMm must be an array of image-plane points."
     );
   }

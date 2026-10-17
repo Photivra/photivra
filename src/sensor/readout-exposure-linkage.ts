@@ -40,7 +40,8 @@ import {
   type SourcedSensorTimingSeconds
 } from "./readout-timing.js";
 import type { NativeImageRaster } from "./sensor-geometry.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export type ReadoutExposureBoundaryId = "opening" | "closing";
 
@@ -161,7 +162,7 @@ const PHASE_ORIENTATIONS =
 
 function requireRecord(value: unknown, path: string): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new InvalidScientificInputError(path + " must be an object.");
+    throw new InvalidConfigurationError(path + " must be an object.");
   }
   return value as UnknownRecord;
 }
@@ -176,7 +177,7 @@ function parseSpatialLink(
     typeof record.boundary !== "string" ||
     !BOUNDARIES.has(record.boundary as ReadoutExposureBoundaryId)
   ) {
-    throw new InvalidScientificInputError(path + ".boundary is invalid.");
+    throw new InvalidConfigurationError(path + ".boundary is invalid.");
   }
 
   if (
@@ -185,7 +186,7 @@ function parseSpatialLink(
       record.phaseOrientation as ReadoutExposureSpatialPhaseOrientation
     )
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path + ".phaseOrientation is invalid."
     );
   }
@@ -213,11 +214,11 @@ function parseLinkageDeclaration(
   }
 
   if (record.kind !== "spatial-phase-linked") {
-    throw new InvalidScientificInputError("linkage.kind is invalid.");
+    throw new InvalidConfigurationError("linkage.kind is invalid.");
   }
 
   if (!Array.isArray(record.links) || record.links.length === 0) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "linkage.links must be a non-empty array for spatial-phase-linked linkage."
     );
   }
@@ -281,7 +282,7 @@ function expectedBoundaryDirection(
 export function assessReadoutExposureTimingLinkage(
   input: AssessReadoutExposureTimingLinkageInput
 ): CalculationResult<ReadoutExposureTimingLinkageAssessment> {
-  requireInputObject(input, "assessReadoutExposureTimingLinkage input");
+  requireInputKeys(input, "assessReadoutExposureTimingLinkage", ["nativeRaster", "activeCaptureRect", "shutterMechanism", "readout", "nominalExposureDurationSeconds", "opening", "closing", "linkage", "samplePointsNative"]);
   const linkage = parseLinkageDeclaration(input.linkage);
 
   const sensorReadout = calculateSensorReadoutTiming({
@@ -524,6 +525,7 @@ export function createRollingShutterCaptureExposureSchedule(
 export function resolveElectronicRollingShutterExposureSchedule(
   input: ResolveElectronicRollingShutterExposureScheduleInput
 ): ElectronicRollingShutterExposureSchedule {
+  requireInputKeys(input, "resolveElectronicRollingShutterExposureSchedule", ["readout", "nominalExposureDurationSeconds", "linkageEvidence"]);
   const record = requireRecord(input, "rollingShutter");
   const readout = requireRecord(record.readout, "rollingShutter.readout");
   if (readout.readoutMode !== "rolling") {

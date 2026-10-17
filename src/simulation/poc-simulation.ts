@@ -53,7 +53,8 @@ import {
 } from "../sensor/sensor-geometry.js";
 import type { Vector3 } from "../schema/scene.js";
 import { estimateCameraShakeBlur } from "../stabilization/camera-shake.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export const POC_SIMULATION_API_VERSION = "1.0.0" as const;
 
@@ -602,7 +603,7 @@ function resolveCaptureVector(
 export function simulatePocCamera(
   request: PocSimulationRequest
 ): PocSimulationResponse {
-  requireInputObject(request, "simulatePocCamera input");
+  requireInputKeys(request, "simulatePocCamera", ["sensor", "lens", "exposure", "focus", "crop", "capture", "diffraction", "motion", "subject", "defocusSamples", "samplingSamples", "motionSamples", "subjectCrop", "cameraShake", "apertureShape", "diagnostics"]);
   requireInputObject(request.sensor, "request.sensor");
   requirePositiveFinite("sensor.widthMm", request.sensor.widthMm);
   requirePositiveFinite("sensor.heightMm", request.sensor.heightMm);
@@ -1024,7 +1025,7 @@ export function simulatePocCamera(
     request.diagnostics?.subjectMotionSampleId !== undefined &&
     diagnosticSubjectMotion === undefined
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       `Unknown diagnostics subjectMotionSampleId: ${request.diagnostics.subjectMotionSampleId}`
     );
   }

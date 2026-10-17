@@ -9,7 +9,7 @@ import { InvalidScientificInputError, requirePositiveFinite } from "../core/vali
 import { calculateFocusPlaneImageDistance, parseFocusPlane, type FocusPlane } from "./focus-state.js";
 import { applyPhysicalCameraRotation, calculateInverseCameraRotationImageMapping,
   type CameraAngularVelocityRadPerSec } from "../motion/camera-rotation.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 export interface IdealCircularPupil {
   kind: "ideal-uniform-circular-pupil";
   radialSampleCount: number;
@@ -49,7 +49,7 @@ export interface SensorApertureRays {
  * apply the f-number a second time.
  */
 export function calculateSensorApertureRays(input: CalculateSensorApertureRaysInput): CalculationResult<SensorApertureRays> {
-  requireInputObject(input, "calculateSensorApertureRays input");
+  requireInputKeys(input, "calculateSensorApertureRays", ["sourcePointNativeSensorMm", "focalLengthMm", "nominalFNumber", "focus", "pupil", "angularVelocityRadPerSec", "timeSecondsFromOpeningReference"]);
   const owned = structuredClone(input), pupil = owned.pupil;
   requirePositiveFinite("nominalFNumber", owned.nominalFNumber);
   if (!pupil || pupil.kind !== "ideal-uniform-circular-pupil" ||

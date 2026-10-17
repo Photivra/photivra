@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { evaluateSceneIlluminationTemporalMultiplier, InvalidConfigurationError, InvalidScientificInputError,
   parseSceneIlluminationProfile, parseSceneIlluminationTemporalProfile } from "../src/index.js";
-import { expectRejection, type Json, type RejectionCase } from "./helpers/rejection-table.js";
+import { expectRejection, type Json, type MixedRejectionCase, type RejectionCase } from "./helpers/rejection-table.js";
 
 const evidence = [{ sourceOrigin: "photivra", sourceReference: "test:temporal-rejections", reuseStatus: "photivra-owned" }];
 
@@ -78,7 +78,7 @@ describe("temporal illumination profile rejection branches", () => {
       .relativeMagnitudeMultiplier).toBe(0);
   });
   it.each([
-    ["a blank source id", (i: Json): void => { i.sourceId = " "; }, "sourceId must be a non-empty string."],
+    ["a blank source id", (i: Json): void => { i.sourceId = " "; }, "sourceId must be a non-empty string.", InvalidConfigurationError],
     ["a mismatched illumination profile id", (i: Json): void => {
       i.temporalProfile = parseSceneIlluminationTemporalProfile({ ...base(), illuminationProfileId: "other" });
     }, "illuminationProfileId must match the supplied illumination profile."],
@@ -89,7 +89,7 @@ describe("temporal illumination profile rejection branches", () => {
       const p = base(); p.sourceBindings[0].waveformId = "strobe"; i.temporalProfile = { ...parseSceneIlluminationTemporalProfile(base()),
         sourceBindings: p.sourceBindings };
     }, "waveformId is not declared by the temporal profile."]
-  ] as RejectionCase[])("evaluation rejects %s", (_name, mutate, message) => {
-    expectRejection(evaluationBase, evaluate, InvalidScientificInputError, mutate, message);
+  ] as MixedRejectionCase[])("evaluation rejects %s", (_name, mutate, message, errorClass) => {
+    expectRejection(evaluationBase, evaluate, errorClass ?? InvalidScientificInputError, mutate, message);
   });
 });

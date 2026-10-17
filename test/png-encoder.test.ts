@@ -51,31 +51,34 @@ describe("PNG encoder", () => {
       const width = 1 + Math.floor(next() * 40), height = 1 + Math.floor(next() * 30), max = bitDepth === 8 ? 255 : 65535;
       const values = Array.from({ length: width * height * 3 }, (_, i) => next() < .3 ? Math.floor(next() * (max + 1)) : Math.floor(((i % (width * 3)) / (width * 3)) * max));
       const samples = bitDepth === 8 ? Uint8Array.from(values) : Uint16Array.from(values);
-      const bytes = serializePngImage({ width, height, bitDepth, samples, colourEncoding: { kind: "cicp", primaries: "bt2020", transfer: "pq", fullRange: true }, compression, filter });
+      const bytes = serializePngImage({ width, height, bitDepth, samples, colourEncoding: { kind: "cicp", primaries: "bt2020", transfer: "linear", fullRange: true }, compression, filter });
       const decoded = decode(bytes);
       expect(decoded).toMatchObject({ width, height, bitDepth }); expect(decoded.samples).toEqual(values);
       // Deterministic: identical input gives identical bytes.
-      expect(serializePngImage({ width, height, bitDepth, samples, colourEncoding: { kind: "cicp", primaries: "bt2020", transfer: "pq", fullRange: true }, compression, filter })).toEqual(bytes);
+      expect(serializePngImage({ width, height, bitDepth, samples, colourEncoding: { kind: "cicp", primaries: "bt2020", transfer: "linear", fullRange: true }, compression, filter })).toEqual(bytes);
     }
   }, 60_000);
 
   it("writes cICP, mDCV and cLLI with the PNG Third Edition layouts and example values", () => {
     const samples = new Uint16Array(4 * 4 * 3).fill(32768);
-    const bytes = serializePngImage({ width: 4, height: 4, bitDepth: 16, samples, colourEncoding: { kind: "cicp", primaries: "bt2020", transfer: "pq", fullRange: true },
+    const bytes = serializePngImage({ width: 4, height: 4, bitDepth: 16, samples, colourEncoding: { kind: "cicp", primaries: "bt2020", transfer: "linear", fullRange: true },
       masteringDisplay: { redXy: [.708, .292], greenXy: [.17, .797], blueXy: [.131, .046], whiteXy: [.3127, .329], maximumLuminanceCdPerSquareMeter: 4000, minimumLuminanceCdPerSquareMeter: .0005 },
       contentLightLevel: { maximumContentLightLevelCdPerSquareMeter: 1000, maximumFrameAverageLightLevelCdPerSquareMeter: 400 } });
     const { chunks } = decode(bytes), byType = new Map(chunks.map((c) => [c.type, c.data]));
     expect(chunks.map((c) => c.type)).toEqual(["IHDR", "cICP", "mDCV", "cLLI", "IDAT", "IEND"]);
-    // PNG Third Edition Example 1: BT.2100 PQ full range = 09 10 00 01.
-    expect(Array.from(byType.get("cICP")!)).toEqual([9, 16, 0, 1]);
+    // BT.2020 primaries (9), linear transfer (8), RGB (0), full range (1). The PNG specification allows mDCV with SDR encodings too.
+    expect(Array.from(byType.get("cICP")!)).toEqual([9, 8, 0, 1]);
     // Examples 5-8: BT.2020 primaries, D65 white, 4000 and 0.0005 cd/m².
     const m = new DataView(byType.get("mDCV")!.buffer);
     expect(Array.from({ length: 8 }, (_, i) => m.getUint16(i * 2))).toEqual([35400, 14600, 8500, 39850, 6550, 2300, 15635, 16450]);
     expect([m.getUint32(16), m.getUint32(20)]).toEqual([40000000, 5]);
     const l = new DataView(byType.get("cLLI")!.buffer); expect([l.getUint32(0), l.getUint32(4)]).toEqual([10000000, 4000000]);
-    const code = (primaries: "bt709" | "display-p3" | "bt2020", transfer: "bt709" | "linear" | "srgb" | "pq" | "hlg", fullRange: boolean): number[] =>
+    const code = (primaries: "bt709" | "display-p3" | "bt2020", transfer: "bt709" | "linear" | "srgb", fullRange: boolean): number[] =>
       Array.from(decode(serializePngImage({ width: 1, height: 1, bitDepth: 8, samples: new Uint8Array(3), colourEncoding: { kind: "cicp", primaries, transfer, fullRange } })).chunks[1]!.data);
-    expect(code("bt2020", "hlg", true)).toEqual([9, 18, 0, 1]); // Example 2
+    expect(code("bt2020", "bt709", true)).toEqual([9, 1, 0, 1]);
+    // PQ (16) and HLG (18) are not offered in 2.0 (licence-on-request patent declarations; THIRD_PARTY.md).
+    for (const transfer of ["pq", "hlg"]) expect(() => serializePngImage({ width: 1, height: 1, bitDepth: 8, samples: new Uint8Array(3),
+      colourEncoding: { kind: "cicp", primaries: "bt2020", transfer: transfer as "linear", fullRange: true } })).toThrow(InvalidConfigurationError);
     expect(code("bt709", "bt709", false)).toEqual([1, 1, 0, 0]); // Example 3
     expect(code("display-p3", "srgb", true)).toEqual([12, 13, 0, 1]); // Example 4
     expect(code("bt709", "linear", true)).toEqual([1, 8, 0, 1]);
@@ -109,14 +112,14 @@ describe("PNG encoder", () => {
     const bad: unknown[] = [
       { ...base, width: 0 }, { ...base, width: 70000 }, { ...base, bitDepth: 12 }, { ...base, samples: new Uint8Array(5) }, { ...base, samples: new Uint16Array(6) },
       { ...base, bitDepth: 16 }, { ...base, compression: "zip" }, { ...base, filter: "best" }, { ...base, extra: 1 },
-      { ...base, colourEncoding: { kind: "cicp", primaries: "p3", transfer: "pq", fullRange: true } },
+      { ...base, colourEncoding: { kind: "cicp", primaries: "p3", transfer: "srgb", fullRange: true } },
       { ...base, colourEncoding: { kind: "srgb", renderingIntent: "vivid" } },
       { ...base, colourEncoding: { kind: "icc", profileName: "", profile: createSrgbIccProfile() } },
       { ...base, colourEncoding: { kind: "icc", profileName: "x", profile: new Uint8Array(200) } },
       { ...base, contentLightLevel: { maximumContentLightLevelCdPerSquareMeter: 1000, maximumFrameAverageLightLevelCdPerSquareMeter: 400 } },
-      { ...base, colourEncoding: { kind: "cicp", primaries: "bt2020", transfer: "pq", fullRange: true }, contentLightLevel: { maximumContentLightLevelCdPerSquareMeter: 100, maximumFrameAverageLightLevelCdPerSquareMeter: 400 } },
-      { ...base, colourEncoding: { kind: "cicp", primaries: "bt2020", transfer: "pq", fullRange: true }, masteringDisplay: { redXy: [.7, .3], greenXy: [.2, .7], blueXy: [.1, .05], whiteXy: [.3127, .329], maximumLuminanceCdPerSquareMeter: 1, minimumLuminanceCdPerSquareMeter: 2 } },
-      { ...base, colourEncoding: { kind: "cicp", primaries: "bt2020", transfer: "pq", fullRange: true }, masteringDisplay: { redXy: [2, .3], greenXy: [.2, .7], blueXy: [.1, .05], whiteXy: [.3127, .329], maximumLuminanceCdPerSquareMeter: 1000, minimumLuminanceCdPerSquareMeter: .01 } }
+      { ...base, colourEncoding: { kind: "cicp", primaries: "bt2020", transfer: "linear", fullRange: true }, contentLightLevel: { maximumContentLightLevelCdPerSquareMeter: 100, maximumFrameAverageLightLevelCdPerSquareMeter: 400 } },
+      { ...base, colourEncoding: { kind: "cicp", primaries: "bt2020", transfer: "linear", fullRange: true }, masteringDisplay: { redXy: [.7, .3], greenXy: [.2, .7], blueXy: [.1, .05], whiteXy: [.3127, .329], maximumLuminanceCdPerSquareMeter: 1, minimumLuminanceCdPerSquareMeter: 2 } },
+      { ...base, colourEncoding: { kind: "cicp", primaries: "bt2020", transfer: "linear", fullRange: true }, masteringDisplay: { redXy: [2, .3], greenXy: [.2, .7], blueXy: [.1, .05], whiteXy: [.3127, .329], maximumLuminanceCdPerSquareMeter: 1000, minimumLuminanceCdPerSquareMeter: .01 } }
     ];
     for (const input of bad) expect(() => serializePngImage(input as PngEncodeInput)).toThrow(InvalidConfigurationError);
   }, 60_000);

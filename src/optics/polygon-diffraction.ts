@@ -22,6 +22,8 @@ import { approximationResult, type CalculationResult } from "../core/calculation
 import { InvalidScientificInputError, requirePositiveFinite } from "../core/validation.js";
 import { calculateIdealApertureGeometry, type CalculateIdealApertureInput } from "./aperture.js";
 import type { SpectralWavelengthBasis } from "../core/spectral.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** On-axis, in-focus scalar diffraction of one ideal regular polygon pupil. */
 export interface CalculateIdealPolygonDiffractionInput extends CalculateIdealApertureInput {
@@ -128,13 +130,13 @@ export function calculateIdealPolygonDiffractionPsf(
   ]);
   if (typeof input !== "object" || input === null || Array.isArray(input) ||
       Object.keys(input).some((key) => !allowed.has(key))) {
-    throw new InvalidScientificInputError("Polygon diffraction input contains unsupported fields or is not an object.");
+    throw new InvalidConfigurationError("Polygon diffraction input contains unsupported fields or is not an object.");
   }
   requirePositiveFinite("equivalentAreaPupilDiameterMm", input.equivalentAreaPupilDiameterMm);
   requirePositiveFinite("pupilToImageDistanceMm", input.pupilToImageDistanceMm);
   requirePositiveFinite("wavelengthNm", input.wavelengthNm);
   if (input.wavelengthBasis !== "air" && input.wavelengthBasis !== "vacuum") {
-    throw new InvalidScientificInputError("wavelengthBasis must be air or vacuum.");
+    throw new InvalidConfigurationError("wavelengthBasis must be air or vacuum.");
   }
   if (input.firstBladeEdgeAngleDegrees !== undefined && !Number.isFinite(input.firstBladeEdgeAngleDegrees)) {
     throw new InvalidScientificInputError("firstBladeEdgeAngleDegrees must be finite when supplied.");
@@ -259,13 +261,11 @@ function requirePlanarPoint(value: unknown, path: string): { x: number; y: numbe
 export function calculatePolygonPupilFraunhoferPsf(
   input: CalculatePolygonPupilFraunhoferPsfInput
 ): CalculationResult<PolygonPupilFraunhoferPsf> {
-  if (typeof input !== "object" || input === null || Array.isArray(input)) {
-    throw new InvalidScientificInputError("Polygon pupil diffraction input must be an object.");
-  }
+  requireInputKeys(input, "calculatePolygonPupilFraunhoferPsf", ["pupilVerticesMm", "pupilToImageDistanceMm", "wavelengthNm", "wavelengthBasis", "imagePointsMicrometers"]);
   requirePositiveFinite("pupilToImageDistanceMm", input.pupilToImageDistanceMm);
   requirePositiveFinite("wavelengthNm", input.wavelengthNm);
   if (input.wavelengthBasis !== "air" && input.wavelengthBasis !== "vacuum") {
-    throw new InvalidScientificInputError("wavelengthBasis must be air or vacuum.");
+    throw new InvalidConfigurationError("wavelengthBasis must be air or vacuum.");
   }
   if (!Array.isArray(input.pupilVerticesMm) || input.pupilVerticesMm.length < 3 ||
       input.pupilVerticesMm.length > 4096) {

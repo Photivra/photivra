@@ -35,7 +35,8 @@ import {
   type SensorSpectralResponseScientificStatus,
   type SensorSpectralResponseUncertainty
 } from "./spectral-response.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 const MAX_SPECTRAL_QUADRATURE_NODES = 100_000;
 
@@ -202,7 +203,7 @@ function channelResponse(
     typeof channelId !== "string" ||
     channelId.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "channelId must be a non-empty string."
     );
   }
@@ -282,7 +283,7 @@ function parseRequestedRange(
     typeof input !== "object" ||
     input === null
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "wavelengthRangeNanometers must be an object."
     );
   }
@@ -323,7 +324,7 @@ function additionalBreakpoints(
     return [];
   }
   if (!Array.isArray(value)) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "additionalBreakpointsNanometers must be an array when supplied."
     );
   }
@@ -545,7 +546,7 @@ export function validateSensorSpectralQuadrature(
     quadrature === null ||
     !Array.isArray(quadrature.nodes)
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "spectralQuadrature must contain a nodes array."
     );
   }
@@ -562,7 +563,7 @@ export function validateSensorSpectralQuadrature(
       typeof value !== "string" ||
       value.trim().length === 0
     ) {
-      throw new InvalidScientificInputError(
+      throw new InvalidConfigurationError(
         "spectralQuadrature." +
           field +
           " must be a non-empty string."
@@ -575,7 +576,7 @@ export function validateSensorSpectralQuadrature(
     quadrature.wavelengthBasis !== "vacuum" &&
     quadrature.wavelengthBasis !== "unspecified"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "spectralQuadrature.wavelengthBasis is invalid."
     );
   }
@@ -997,7 +998,7 @@ export function calculateSensorSpectralQuadrature(
   input:
     CalculateSensorSpectralQuadratureInput
 ): CalculationResult<SensorSpectralQuadrature> {
-  requireInputObject(input, "calculateSensorSpectralQuadrature input");
+  requireInputKeys(input, "calculateSensorSpectralQuadrature", ["colorSamplingProfile", "spectralResponseProfile", "channelId", "wavelengthBasis", "wavelengthRangeNanometers", "maximumSubintervalWidthNanometers", "additionalBreakpointsNanometers"]);
   const maximumSubintervalWidthNanometers =
     requirePositiveFinite(
       input.maximumSubintervalWidthNanometers,
@@ -1009,7 +1010,7 @@ export function calculateSensorSpectralQuadrature(
     input.wavelengthBasis !== "vacuum" &&
     input.wavelengthBasis !== "unspecified"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "wavelengthBasis is invalid."
     );
   }

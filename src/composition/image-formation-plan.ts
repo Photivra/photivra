@@ -103,7 +103,7 @@ import {
   type SceneRadianceEvaluationResult,
   type SceneRadianceUncertainty
 } from "../schema/scene-radiance.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -1527,7 +1527,7 @@ export function prepareImageFormationContext(
   input:
     PrepareImageFormationContextInput
 ): PreparedImageFormationContext {
-  requireInputObject(input, "prepareImageFormationContext input");
+  requireInputKeys(input, "prepareImageFormationContext", ["contextId", "sceneId", "sceneRadianceProviderProfileId", "outputGeometryProfileId", "equipmentCapabilities", "opticalBridgeProfile", "renderer", "fidelity", "version", "fingerprint"]);
   validateEquipmentCapabilities(
     input.equipmentCapabilities
   );
@@ -2284,7 +2284,7 @@ export function createProductionCaptureSnapshot(
   input:
     CreateProductionCaptureSnapshotInput
 ): ProductionCaptureSnapshot {
-  requireInputObject(input, "createProductionCaptureSnapshot input");
+  requireInputKeys(input, "createProductionCaptureSnapshot", ["captureId", "releaseFrameId", "sceneStateId", "sceneTimeSecondsFromExposureStart", "outputStateId", "exposure", "stochasticSeedUint32", "releaseFrameBinding", "whiteBalanceState", "physicalSceneSample", "temporalCapture", "version", "fingerprint"]);
   const sceneTime =
     requireFinite(
       input
@@ -2448,7 +2448,7 @@ export function createProductionCaptureSnapshotFromReleaseFrame(
   input:
     CreateProductionCaptureSnapshotFromReleaseFrameInput
 ): ProductionCaptureSnapshot {
-  requireInputObject(input, "createProductionCaptureSnapshotFromReleaseFrame input");
+  requireInputKeys(input, "createProductionCaptureSnapshotFromReleaseFrame", ["captureId", "sceneStateId", "sceneTimeSecondsFromExposureStart", "outputStateId", "releaseFrame", "whiteBalanceState", "physicalSceneSample", "temporalCapture"]);
   const frame =
     input.releaseFrame;
 
@@ -4752,7 +4752,7 @@ export function createProductionImageFormationPlan(
   input:
     CreateProductionImageFormationPlanInput
 ): ProductionImageFormationPlan {
-  requireInputObject(input, "createProductionImageFormationPlan input");
+  requireInputKeys(input, "createProductionImageFormationPlan", ["environmentCapture", "processedOutput", "preparedContext", "captureSnapshot"]);
   const prepared =
     parsePreparedImageFormationContext(
       input.preparedContext

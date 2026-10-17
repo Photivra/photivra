@@ -20,7 +20,7 @@ PNG_ENCODER_LIMITS = Object.freeze({ maximumDimension: 65535, maximumPixels: 100
 
 ## PngCicpPrimaries
 
-ITU-T H.273 ColourPrimaries: bt709 = 1 (also sRGB), display-p3 = 12 (P3 primaries with D65 white; W3C CSS Color 4, also SMPTE EG 432-1), bt2020 = 9 (BT.2020/BT.2100).
+ITU-T H.273 ColourPrimaries: bt709 = 1 (also sRGB), display-p3 = 12 (P3 primaries with D65 white; W3C CSS Color 4, also SMPTE EG 432-1), bt2020 = 9 (BT.2020).
 
 ```ts
 export type PngCicpPrimaries = "bt709" | "display-p3" | "bt2020";
@@ -28,10 +28,10 @@ export type PngCicpPrimaries = "bt709" | "display-p3" | "bt2020";
 
 ## PngCicpTransfer
 
-ITU-T H.273 TransferCharacteristics: bt709 = 1, linear = 8, srgb = 13 (sRGB), pq = 16 (ITU-R BT.2100 PQ), hlg = 18 (ARIB STD-B67).
+ITU-T H.273 TransferCharacteristics: bt709 = 1, linear = 8, srgb = 13 (sRGB). PQ (16) and HLG (18) are not offered in 2.0.
 
 ```ts
-export type PngCicpTransfer = "bt709" | "linear" | "srgb" | "pq" | "hlg";
+export type PngCicpTransfer = "bt709" | "linear" | "srgb";
 ```
 
 ## PngColourEncoding

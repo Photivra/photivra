@@ -16,7 +16,7 @@
 
 import { approximationResult, type CalculationResult } from "../core/calculation-result.js";
 import { freezeOwnedData } from "../core/owned-data.js";
-import { requirePublicOpaqueId, requireInputObject } from "../core/record-validation.js";
+import { requirePublicOpaqueId, requireInputKeys } from "../core/record-validation.js";
 import { parseEvidenceList, type EvidenceProvenance } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
 import { parseSceneIlluminationProfile } from "../schema/illumination.js";
@@ -39,6 +39,7 @@ import { calculateCaptureExposureWindows } from "./exposure-window.js";
 import { createSensorEqeTemporalPhotoSignal } from "./temporal-photo-signal.js";
 import type { CalculateSensorEqeTemporalExposureInput } from "./eqe-temporal-exposure.js";
 import type { CalculateSceneToSensorIrradianceQuadratureInput } from "../optics/scene-to-sensor-quadrature.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** Caller-supplied synchronous radiance function, run locally. Calling it does not prove its light transport is physical. */
 export type EnvironmentRadianceEvaluator = (request: Readonly<SceneRadianceEvaluationRequest>) => SceneRadianceEvaluationResult;
@@ -188,7 +189,7 @@ export function planEnvironmentSensorPhotoSignal(input: Omit<CalculateEnvironmen
   if (owned.psf.kind === "not-applied") {
     parseEvidenceList(owned.psf.evidence, "environmentPsfOmission.evidence");
     if (typeof owned.psf.limitation !== "string" || !owned.psf.limitation.trim()) throw new InvalidScientificInputError("PSF omission needs an explicit limitation.");
-  } else if (owned.psf.kind !== "sampled-local") throw new InvalidScientificInputError("Unknown environment PSF selection.");
+  } else if (owned.psf.kind !== "sampled-local") throw new InvalidConfigurationError("Unknown environment PSF selection.");
   if (owned.psf.kind === "sampled-local") {
     const p = owned.psf.configuration.psf;
     // The profile belongs only to this plan, so its parse can be cached across nodes and time instants.
@@ -379,7 +380,7 @@ export function executeEnvironmentSensorPhotoSignal(plan: ReturnType<typeof plan
 
 /** Plans, queries the provider and integrates the photo signal for one site, at the site's own midpoint sample positions. */
 export function calculateEnvironmentSensorPhotoSignal(input: CalculateEnvironmentSensorPhotoSignalInput): CalculationResult<EnvironmentSensorPhotoSignal> {
-  requireInputObject(input, "calculateEnvironmentSensorPhotoSignal input");
+  requireInputKeys(input, "calculateEnvironmentSensorPhotoSignal", ["temporalIntegrationId", "sensor", "sceneBindings", "optics", "motion", "temporalSampleCount", "pupil", "lensFieldMapping", "fieldThroughput", "psf", "evaluateRadiance", "evaluateApertureRadiance"]);
   const { evaluateRadiance, evaluateApertureRadiance, ...data } = input;
   return executeEnvironmentSensorPhotoSignal(planEnvironmentSensorPhotoSignal(data), evaluateRadiance, evaluateApertureRadiance);
 }

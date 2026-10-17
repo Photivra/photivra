@@ -24,7 +24,8 @@ import {
   parseFocusPlane,
   type FocusPlane
 } from "../optics/focus-state.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export const RELEASE_SEQUENCE_VERSION =
   "0.1.0" as const;
@@ -186,7 +187,7 @@ function requireNonEmptyString(
     typeof value !== "string" ||
     value.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path + " must be a non-empty string."
     );
   }
@@ -763,7 +764,7 @@ export function resolveReleaseSequence(
   input:
     ResolveReleaseSequenceInput
 ): ResolvedReleaseSequence {
-  requireInputObject(input, "resolveReleaseSequence input");
+  requireInputKeys(input, "resolveReleaseSequence", ["sequenceId", "releaseRequestTimeSeconds", "sequenceSeedUint32", "drive", "bracket", "requestedCadenceFps", "baseState", "releaseCapabilities", "exposureCapabilities"]);
   const sequenceId =
     requireNonEmptyString(
       input.sequenceId,
@@ -1047,7 +1048,7 @@ export function createCancelledReleaseSequence(
   input:
     CancelReleaseSequenceInput
 ): CancelledReleaseSequence {
-  requireInputObject(input, "createCancelledReleaseSequence input");
+  requireInputKeys(input, "createCancelledReleaseSequence", ["sequence", "completedFrameCount", "cancelledAtSeconds"]);
   const count =
     requireNonNegativeFinite(
       input.completedFrameCount,

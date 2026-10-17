@@ -112,14 +112,14 @@ function murmur3Bytes(bytes: Uint8Array, seed: number): number {
 
 describe("seeded native RAW noise independence (#270)", () => {
   it("derives stream seeds as MurmurHash3_x86_32 of (capture seed, absolute index, stream)", () => {
-    const text = (s: string): Uint8Array => new TextEncoder().encode(s);
-    // Published MurmurHash3_x86_32 vectors.
-    expect(murmur3Bytes(text(""), 0)).toBe(0);
-    expect(murmur3Bytes(text(""), 1)).toBe(0x514e28b7);
-    expect(murmur3Bytes(text(""), 0xffffffff)).toBe(0x81f16f39);
-    expect(murmur3Bytes(text("test"), 0)).toBe(0xba6bd213);
-    expect(murmur3Bytes(text("Hello, world!"), 0x9747b28c)).toBe(0x24884cba);
-    expect(murmur3Bytes(text("The quick brown fox jumps over the lazy dog"), 0x9747b28c)).toBe(0x2fa826cd);
+    // SMHasher verification procedure (Austin Appleby, SMHasher, public domain; KeysetTest.cpp VerificationTest):
+    // hash the keys {0}, {0, 1}, …, {0, …, 254} of length i = 0…255 with seed 256 − i, hash the concatenation of those
+    // 256 little-endian 32-bit hashes with seed 0, and compare with SMHasher's documented value for MurmurHash3_x86_32.
+    const key = Uint8Array.from({ length: 256 }, (_, i) => i), hashes = new DataView(new ArrayBuffer(256 * 4));
+    for (let i = 0; i < 256; i++) hashes.setUint32(i * 4, murmur3Bytes(key.subarray(0, i), 256 - i), true);
+    expect(murmur3Bytes(new Uint8Array(hashes.buffer), 0)).toBe(0xb0f57ee3);
+    // An empty key with seed 0 hashes to 0 by construction (h = 0 ^ 0, fmix32(0) = 0).
+    expect(murmur3Bytes(new Uint8Array(0), 0)).toBe(0);
     for (const [seed, index, stream] of [[0, 0, 0], [12345, 7, 1], [0xffffffff, 0xffffffff, 1], [1, 4095, 0]] as const) {
       const words = new DataView(new ArrayBuffer(12));
       words.setUint32(0, seed, true); words.setUint32(4, index, true); words.setUint32(8, stream, true);

@@ -7,8 +7,8 @@
  * It uses native RAW samples (after the ADC) that are explicitly bound to their sites, and declared
  * normalized kernels for each channel. The CFA phase is absolute; orientation and crop are applied
  * later. This is a fixed linear reconstruction. It does not infer the sensor's spectral primaries or
- * calibrated colour, and is not a general demosaic algorithm. Built-in bilinear and Malvar–He–Cutler
- * Bayer kernels are provided.
+ * calibrated colour, and is not a general demosaic algorithm. Built-in bilinear Bayer kernels are
+ * provided.
  * @see docs/MOTION_AND_SIGNAL.md for equations, coordinate/unit conventions, blockers and support
  * limits.
  */
@@ -39,7 +39,7 @@ import type {
 import type {
   SensorSpectralResponseScientificStatus
 } from "./spectral-response.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -581,7 +581,7 @@ export function createSensorRawCaptureSample(
   input:
     CreateSensorRawCaptureSampleInput
 ): SensorRawCaptureSample {
-  requireInputObject(input, "createSensorRawCaptureSample input");
+  requireInputKeys(input, "createSensorRawCaptureSample", ["rawCode", "contributors", "adcIntegralNonLinearity"]);
   const raw =
     input.rawCode;
   const contributors =
@@ -776,7 +776,7 @@ export function resolveSensorRawReconstruction(
   input:
     ResolveSensorRawReconstructionInput
 ): CalculationResult<SensorRawReconstructedPixel> {
-  requireInputObject(input, "resolveSensorRawReconstruction input");
+  requireInputKeys(input, "resolveSensorRawReconstruction", ["profile", "colorSamplingProfile", "centerSite", "samples"]);
   const profile =
     parseSensorRawReconstructionProfile(
       input.profile
@@ -987,7 +987,7 @@ export function rawReconstructionKernelReach(profiles: readonly { profile: Senso
   return reach;
 }
 
-export type BuiltInBayerDemosaicKernel = "bilinear" | "malvar-he-cutler-2004";
+export type BuiltInBayerDemosaicKernel = "bilinear";
 export const BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION = "1.0.0" as const;
 
 export interface CreateBuiltInBayerDemosaicProfilesInput {
@@ -1005,13 +1005,13 @@ export interface BuiltInBayerDemosaicProfiles {
   /** One profile per absolute CFA phase, row-major (`phaseY`, then `phaseX`). */
   phaseProfiles: { phaseX: number; phaseY: number; profile: SensorRawReconstructionProfile }[];
   outputChannelIds: [string, string, string];
-  /** Largest |offset| of any contribution: 1 for bilinear, 2 for Malvar–He–Cutler. */
+  /** Largest |offset| of any contribution: 1 for bilinear. */
   kernelReachSites: number;
 }
 
 type BayerRole = "R" | "G" | "B";
 type BayerTap = readonly [dx: number, dy: number, role: BayerRole, weight: number];
-const CROSS1 = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const, CROSS2 = [[2, 0], [-2, 0], [0, 2], [0, -2]] as const;
+const CROSS1 = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
 const DIAG1 = [[1, 1], [-1, 1], [1, -1], [-1, -1]] as const;
 function bayerTaps(points: readonly (readonly [number, number])[], role: BayerRole, weight: number): BayerTap[] {
   return points.map(([x, y]) => [x, y, role, weight] as const);
@@ -1021,19 +1021,14 @@ function bayerTaps(points: readonly (readonly [number, number])[], role: BayerRo
  * Kernels for one kind of site. `own` is the site's channel; `horizontal` is the colour channel on the
  * same row, for a green site.
  *
- * - Bilinear: the average of the nearest sites of the wanted channel.
- * - Malvar–He–Cutler (ICASSP 2004): the bilinear estimate plus a scaled discrete Laplacian of the
- *   site's own channel, with gains α = 1/2 (green at red/blue), β = 5/8 (red/blue at green) and
- *   γ = 3/4 (red at blue / blue at red).
- *
- * Every kernel sums to one and reproduces signals that vary linearly (affine) exactly.
+ * Bilinear: the average of the nearest sites of the wanted channel. Every kernel sums to one and
+ * reproduces signals that vary linearly (affine) exactly.
  */
-function bayerSiteKernels(kernel: BuiltInBayerDemosaicKernel, own: BayerRole, horizontal: BayerRole | null): Record<BayerRole, BayerTap[]> {
-  const mhc = kernel === "malvar-he-cutler-2004";
+function bayerSiteKernels(own: BayerRole, horizontal: BayerRole | null): Record<BayerRole, BayerTap[]> {
   if (own !== "G") {
     const other: BayerRole = own === "R" ? "B" : "R";
-    const green: BayerTap[] = mhc ? [[0, 0, own, 4 / 8], ...bayerTaps(CROSS1, "G", 2 / 8), ...bayerTaps(CROSS2, own, -1 / 8)] : bayerTaps(CROSS1, "G", 1 / 4);
-    const opposite: BayerTap[] = mhc ? [[0, 0, own, 6 / 8], ...bayerTaps(DIAG1, other, 2 / 8), ...bayerTaps(CROSS2, own, -3 / 16)] : bayerTaps(DIAG1, other, 1 / 4);
+    const green: BayerTap[] = bayerTaps(CROSS1, "G", 1 / 4);
+    const opposite: BayerTap[] = bayerTaps(DIAG1, other, 1 / 4);
     const result = { G: green } as Record<BayerRole, BayerTap[]>;
     result[own] = [[0, 0, own, 1]]; result[other] = opposite;
     return result;
@@ -1041,10 +1036,7 @@ function bayerSiteKernels(kernel: BuiltInBayerDemosaicKernel, own: BayerRole, ho
   const h = horizontal!, v: BayerRole = h === "R" ? "B" : "R";
   const along = (role: BayerRole, horizontalAxis: boolean): BayerTap[] => {
     const near = horizontalAxis ? [[1, 0], [-1, 0]] as const : [[0, 1], [0, -1]] as const;
-    const far = horizontalAxis ? [[2, 0], [-2, 0]] as const : [[0, 2], [0, -2]] as const;
-    const across = horizontalAxis ? [[0, 2], [0, -2]] as const : [[2, 0], [-2, 0]] as const;
-    return mhc ? [[0, 0, "G", 5 / 8], ...bayerTaps(near, role, 4 / 8), ...bayerTaps(DIAG1, "G", -1 / 8), ...bayerTaps(far, "G", -1 / 8),
-      ...bayerTaps(across, "G", 1 / 16)] : bayerTaps(near, role, 1 / 2);
+    return bayerTaps(near, role, 1 / 2);
   };
   const identity: BayerTap[] = [[0, 0, "G", 1]];
   const result = { G: identity } as Record<BayerRole, BayerTap[]>;
@@ -1055,15 +1047,11 @@ function bayerSiteKernels(kernel: BuiltInBayerDemosaicKernel, own: BayerRole, ho
 const BAYER_DEMOSAIC_EVIDENCE: Readonly<Record<BuiltInBayerDemosaicKernel, readonly EvidenceProvenance[]>> = {
   bilinear: [{ sourceOrigin: "third-party", reuseStatus: "factual-reference-only",
     sourceReference: "Gunturk, Glotzbach, Altunbasak, Schafer & Mersereau, Demosaicking: color filter array interpolation, IEEE Signal Processing Magazine 22(1), 2005",
-    note: "Bilinear interpolation of each Bayer channel from its nearest same-channel sites; weights derived in Photivra from that published definition." }],
-  "malvar-he-cutler-2004": [{ sourceOrigin: "third-party", reuseStatus: "factual-reference-only",
-    sourceReference: "Malvar, He & Cutler, High-quality linear interpolation for demosaicing of Bayer-patterned color images, Proc. IEEE ICASSP 2004, vol. 3, pp. 485-488",
-    note: "5x5 gradient-corrected linear filters rebuilt in Photivra from the published gains alpha=1/2, beta=5/8, gamma=3/4 and Laplacian correction structure." }]
+    note: "Bilinear interpolation of each Bayer channel from its nearest same-channel sites; weights derived in Photivra from that published definition." }]
 };
 
 /**
- * Builds the per-phase linear reconstruction profiles of a built-in Bayer demosaic kernel: bilinear,
- * or the Malvar–He–Cutler (2004) gradient-corrected 5×5 linear filters.
+ * Builds the per-phase linear reconstruction profiles of the built-in bilinear Bayer demosaic kernel.
  *
  * The result is the ordinary `explicit-linear-native-neighborhood` profile used by RAW frame
  * reconstruction, native RAW development and `createCfaPlaneReconstructionTask`; there is no special
@@ -1071,13 +1059,13 @@ const BAYER_DEMOSAIC_EVIDENCE: Readonly<Record<BuiltInBayerDemosaicKernel, reado
  * border handling.
  *
  * Approximation: fixed linear interpolation, not a calibrated or adaptive demosaic. Bilinear blurs
- * and shows "zipper" artefacts at edges; Malvar–He–Cutler reduces colour fringes but does not remove
- * them. Aliasing and moiré are not modelled.
+ * and shows "zipper" artefacts at edges. Aliasing and moiré are not modelled. The adaptive AHD method
+ * is `createAhdDemosaicTask`.
  */
 export function createBuiltInBayerDemosaicProfiles(input: CreateBuiltInBayerDemosaicProfilesInput): CalculationResult<BuiltInBayerDemosaicProfiles> {
-  requireInputObject(input, "createBuiltInBayerDemosaicProfiles input");
+  requireInputKeys(input, "createBuiltInBayerDemosaicProfiles", ["kernel", "captureModeId", "colorSamplingProfile", "channelRoles"]);
   const kernel = input.kernel;
-  if (kernel !== "bilinear" && kernel !== "malvar-he-cutler-2004") throw new InvalidConfigurationError("Unknown built-in Bayer demosaic kernel.");
+  if (kernel !== "bilinear") throw new InvalidConfigurationError("Unknown built-in Bayer demosaic kernel.");
   const captureModeId = requireNonEmptyString(input.captureModeId, "captureModeId");
   const cfa = parseSensorColorSamplingProfile(input.colorSamplingProfile), layout = cfa.layout;
   const roles = requireRecord(input.channelRoles, "channelRoles");
@@ -1098,7 +1086,7 @@ export function createBuiltInBayerDemosaicProfiles(input: CreateBuiltInBayerDemo
   }
   const phaseProfiles = [0, 1, 2, 3].map((i) => {
     const phaseX = i % 2, phaseY = (i - phaseX) / 2, own = tile[i]!;
-    const byRole = bayerSiteKernels(kernel, own, own === "G" ? tile[phaseY * 2 + (1 - phaseX)]! : null);
+    const byRole = bayerSiteKernels(own, own === "G" ? tile[phaseY * 2 + (1 - phaseX)]! : null);
     const profile = parseSensorRawReconstructionProfile({
       schemaVersion: SENSOR_RAW_RECONSTRUCTION_PROFILE_SCHEMA_VERSION, profileId: "photivra-builtin-" + kernel + "-phase-" + phaseX + "-" + phaseY,
       profileVersion: BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION, captureModeId, colorSamplingProfileId: cfa.profileId, scientificStatus: "approximation",
@@ -1110,10 +1098,9 @@ export function createBuiltInBayerDemosaicProfiles(input: CreateBuiltInBayerDemo
     });
     return { phaseX, phaseY, profile };
   });
-  return approximationResult({ kernel, phaseProfiles, outputChannelIds: [ids.R, ids.G, ids.B], kernelReachSites: kernel === "bilinear" ? 1 : 2 },
+  return approximationResult({ kernel, phaseProfiles, outputChannelIds: [ids.R, ids.G, ids.B], kernelReachSites: 1 },
     "built-in-bayer-demosaic-" + kernel, BUILT_IN_BAYER_DEMOSAIC_MODEL_VERSION, [
-      kernel === "bilinear" ? "Nearest same-channel bilinear interpolation." :
-        "Malvar–He–Cutler (2004) gradient-corrected linear interpolation: gains 1/2, 5/8, 3/4 on the own-channel Laplacian.",
+      "Nearest same-channel bilinear interpolation.",
       "Weights sum to one per output channel and reproduce affine channel signals exactly.",
       "Linear kernels only; adaptive (edge-directed) reconstruction is a separate non-linear path."
     ]);

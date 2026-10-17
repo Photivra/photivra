@@ -111,6 +111,8 @@ describe("temporal EQE photo signal through RAW and paired export", () => {
 
   it.each(["identity", "stationarity", "dark-window", "completeness", "schedule"])("rejects stale downstream bindings: %s", fault => {
     const { raw } = fixture(true), charge = raw.sites[0]!.charge;
+    // Result values are read-only from 2.0.0, so tamper with a copy.
+    charge.darkCharge = { ...charge.darkCharge };
     if (fault === "identity") charge.darkCharge.temporalIntegrationId = "different";
     if (fault === "stationarity") Object.assign(charge.darkCharge, { stationarityProfileId: "invented" });
     if (fault === "dark-window") charge.darkCharge.startOffsetSecondsFromOpeningReference += .001;

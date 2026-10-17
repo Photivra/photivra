@@ -19,7 +19,7 @@ import {
   type EvidenceProvenance
 } from "../core/evidence-provenance.js";
 import { InvalidScientificInputError } from "../core/validation.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -453,7 +453,7 @@ function requireNativeSiteIndex(
 export function resolveColorSamplingSite(
   input: ResolveColorSamplingSiteInput
 ): ResolvedColorSamplingSite {
-  requireInputObject(input, "resolveColorSamplingSite input");
+  requireInputKeys(input, "resolveColorSamplingSite", ["profile", "site"]);
   const profile =
     parseSensorColorSamplingProfile(input.profile);
 
@@ -461,7 +461,7 @@ export function resolveColorSamplingSite(
     typeof input.site !== "object" ||
     input.site === null
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "site must be an object."
     );
   }

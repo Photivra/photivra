@@ -18,6 +18,11 @@
       "kind": "type"
     },
     {
+      "name": "AcceleratedPackedSensorRawResult",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
       "name": "ActiveCaptureFieldOfView",
       "source": "src/output/capture-geometry.ts",
       "kind": "type"
@@ -51,6 +56,11 @@
       "name": "AiryDisk",
       "source": "src/optics/diffraction.ts",
       "kind": "type"
+    },
+    {
+      "name": "ANALYTIC_CIE_1931_CMF_DOMAIN_NANOMETERS",
+      "source": "src/color/color-matching-functions.ts",
+      "kind": "runtime"
     },
     {
       "name": "AntiAliasingPointSplitComponent",
@@ -693,11 +703,6 @@
       "kind": "runtime"
     },
     {
-      "name": "calculateHlgSystemGamma",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
       "name": "calculateIdealApertureGeometry",
       "source": "src/optics/aperture.ts",
       "kind": "runtime"
@@ -926,6 +931,11 @@
       "name": "CalculateOutputFieldOfViewInput",
       "source": "src/output/capture-geometry.ts",
       "kind": "type"
+    },
+    {
+      "name": "calculatePackedSensorRawPlan",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "runtime"
     },
     {
       "name": "calculatePeripheralIlluminationCorrection",
@@ -1301,6 +1311,16 @@
       "name": "CalculateSubjectFramingCropInput",
       "source": "src/output/subject-framing-crop.ts",
       "kind": "type"
+    },
+    {
+      "name": "calculateTemporalExposureSum",
+      "source": "src/motion/temporal-exposure-sum.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "calculateTemporalExposureSumPlan",
+      "source": "src/motion/temporal-exposure-sum.ts",
+      "kind": "runtime"
     },
     {
       "name": "calculateThinLensImageDistance",
@@ -1943,6 +1963,11 @@
       "kind": "type"
     },
     {
+      "name": "composeRelativeErrorBounds",
+      "source": "src/gpu/image-kernel-execution.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "composeScientificAssurance",
       "source": "src/core/scientific-assurance.ts",
       "kind": "runtime"
@@ -2564,26 +2589,6 @@
     },
     {
       "name": "evaluateBt709Oetf",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "evaluateHlgInverseOetf",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "evaluateHlgOetf",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "evaluatePqEotf",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "evaluatePqInverseEotf",
       "source": "src/color/rgb-color-spaces.ts",
       "kind": "runtime"
     },
@@ -3273,16 +3278,6 @@
       "kind": "type"
     },
     {
-      "name": "HLG_CONSTANTS",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "HlgReferenceDisplay",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "type"
-    },
-    {
       "name": "IdealApertureGeometry",
       "source": "src/optics/aperture.ts",
       "kind": "type"
@@ -3440,6 +3435,11 @@
     {
       "name": "ImageKernelRunOptions",
       "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
+      "name": "ImageKernelSeededRealizationBound",
+      "source": "src/gpu/image-kernel-execution.ts",
       "kind": "type"
     },
     {
@@ -3646,11 +3646,6 @@
       "name": "IsoStandardSettingGrid",
       "source": "src/equipment/iso-capabilities.ts",
       "kind": "type"
-    },
-    {
-      "name": "KIM_2002_PLANCKIAN_LOCUS_RANGE_KELVIN",
-      "source": "src/color/illuminants.ts",
-      "kind": "runtime"
     },
     {
       "name": "LateralCaLensCorrection",
@@ -4388,6 +4383,36 @@
       "kind": "type"
     },
     {
+      "name": "PACKED_SENSOR_RAW_LIMITS",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PACKED_SENSOR_RAW_SCHEMA_VERSION",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "PackedSensorRawDiagnostics",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PackedSensorRawInput",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PackedSensorRawPlan",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "type"
+    },
+    {
+      "name": "PackedSensorRawResult",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "type"
+    },
+    {
       "name": "PanoramaCanvas",
       "source": "src/processing/panorama.ts",
       "kind": "type"
@@ -4958,6 +4983,11 @@
       "kind": "runtime"
     },
     {
+      "name": "PLANCKIAN_LOCUS_RANGE_KELVIN",
+      "source": "src/color/illuminants.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "PlanckianLocusModel",
       "source": "src/color/illuminants.ts",
       "kind": "type"
@@ -5053,11 +5083,6 @@
       "kind": "type"
     },
     {
-      "name": "PQ_CONSTANTS",
-      "source": "src/color/rgb-color-spaces.ts",
-      "kind": "runtime"
-    },
-    {
       "name": "prepareBt1886Eotf",
       "source": "src/color/rgb-color-spaces.ts",
       "kind": "runtime"
@@ -5105,11 +5130,6 @@
     {
       "name": "prepareGeometricMapping",
       "source": "src/output/geometric-transforms.ts",
-      "kind": "runtime"
-    },
-    {
-      "name": "prepareHlgReferenceDisplay",
-      "source": "src/color/rgb-color-spaces.ts",
       "kind": "runtime"
     },
     {
@@ -7698,6 +7718,11 @@
       "kind": "type"
     },
     {
+      "name": "simulatePackedSensorRaw",
+      "source": "src/capture/packed-sensor-raw.ts",
+      "kind": "runtime"
+    },
+    {
       "name": "simulatePocCamera",
       "source": "src/simulation/poc-simulation.ts",
       "kind": "runtime"
@@ -7978,6 +8003,36 @@
       "kind": "type"
     },
     {
+      "name": "TEMPORAL_EXPOSURE_SUM_LIMITS",
+      "source": "src/motion/temporal-exposure-sum.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "TEMPORAL_EXPOSURE_SUM_SCHEMA_VERSION",
+      "source": "src/motion/temporal-exposure-sum.ts",
+      "kind": "runtime"
+    },
+    {
+      "name": "TemporalExposureSumInput",
+      "source": "src/motion/temporal-exposure-sum.ts",
+      "kind": "type"
+    },
+    {
+      "name": "TemporalExposureSumNode",
+      "source": "src/motion/temporal-exposure-sum.ts",
+      "kind": "type"
+    },
+    {
+      "name": "TemporalExposureSumPlan",
+      "source": "src/motion/temporal-exposure-sum.ts",
+      "kind": "type"
+    },
+    {
+      "name": "TemporalExposureSumResult",
+      "source": "src/gpu/image-kernel-accelerator.ts",
+      "kind": "type"
+    },
+    {
       "name": "ThinLensImageDistance",
       "source": "src/optics/thin-lens.ts",
       "kind": "type"
@@ -8196,11 +8251,6 @@
       "name": "WidestAvailableFNumberCapability",
       "source": "src/equipment/exposure-capabilities.ts",
       "kind": "type"
-    },
-    {
-      "name": "WYMAN_2013_CMF_DOMAIN_NANOMETERS",
-      "source": "src/color/color-matching-functions.ts",
-      "kind": "runtime"
     },
     {
       "name": "ZERNIKE_MAXIMUM_NOLL_INDEX",

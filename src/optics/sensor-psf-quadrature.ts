@@ -20,7 +20,7 @@ import { bindSensorSpatioSpectralSamples, reduceSensorSpatioSpectralIrradiance,
   type ReduceSensorSpatioSpectralIrradianceInput, type SensorSpatioSpectralNodeIdentity } from "../sensor/spatio-spectral-reduction.js";
 import { sensorSpatialQuadratureNodeIdentityKey } from "../sensor/spatial-sample-reduction.js";
 import { resolveLensSampledPsf, type ResolveLensSampledPsfInput } from "./lens-psf-profile.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
 
 /** One pre-PSF incident irradiance value per explicitly identified kernel tap. */
 export interface SensorPsfSourceSample {
@@ -80,7 +80,7 @@ export interface SensorPsfIrradianceQuadrature {
 export function calculateSensorPsfIrradianceQuadrature(
   input: CalculateSensorPsfIrradianceQuadratureInput
 ): CalculationResult<SensorPsfIrradianceQuadrature> {
-  requireInputObject(input, "calculateSensorPsfIrradianceQuadrature input");
+  requireInputKeys(input, "calculateSensorPsfIrradianceQuadrature", ["timeSecondsFromOpeningReference", "spatialQuadrature", "spectralQuadrature", "psf", "psfWavelengthBasis", "spatialModel", "inputMeaning", "samples"]);
   if (!Number.isFinite(input.timeSecondsFromOpeningReference) || input.timeSecondsFromOpeningReference < 0) {
     throw new InvalidScientificInputError("PSF source time must be finite and nonnegative.");
   }

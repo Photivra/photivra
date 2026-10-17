@@ -39,6 +39,8 @@ import {
   InvalidScientificInputError,
   requirePositiveFinite
 } from "../core/validation.js";
+import { requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 /** Ideal projection model discriminator. `rectilinear` is the engine default. */
 export type LensProjectionModel =
@@ -154,7 +156,7 @@ export function parseLensProjectionModel(
     typeof value !== "string" ||
     !(LENS_PROJECTION_MODELS as readonly string[]).includes(value)
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "projectionModel must be one of " +
         LENS_PROJECTION_MODELS.join(", ") +
         "."
@@ -165,7 +167,7 @@ export function parseLensProjectionModel(
 
 function requireRecord(name: string, value: unknown): void {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new InvalidScientificInputError(`${name} must be an object.`);
+    throw new InvalidConfigurationError(`${name} must be an object.`);
   }
 }
 
@@ -300,6 +302,7 @@ function validateCommon(
 export function calculateLensProjectionImagePoint(
   input: CalculateLensProjectionImagePointInput
 ): CalculationResult<LensProjectionImagePoint> {
+  requireInputKeys(input, "calculateLensProjectionImagePoint", ["projectionModel", "focalLengthMm", "direction"]);
   const model = validateCommon(input, "input");
   requireRecord("direction", input.direction);
   const x = requireFinite("direction.x", input.direction.x);
@@ -340,6 +343,7 @@ export function calculateLensProjectionImagePoint(
 export function calculateLensProjectionDirection(
   input: CalculateLensProjectionDirectionInput
 ): CalculationResult<LensProjectionDirection> {
+  requireInputKeys(input, "calculateLensProjectionDirection", ["projectionModel", "focalLengthMm", "imagePointMm"]);
   const model = validateCommon(input, "input");
   requireRecord("imagePointMm", input.imagePointMm);
   const px = requireFinite("imagePointMm.x", input.imagePointMm.x);
@@ -397,6 +401,7 @@ function signedAxisAngle(
 export function calculateLensProjectionFieldOfView(
   input: CalculateLensProjectionFieldOfViewInput
 ): CalculationResult<LensProjectionFieldOfView> {
+  requireInputKeys(input, "calculateLensProjectionFieldOfView", ["projectionModel", "focalLengthMm", "sensorDimensionMm"]);
   const model = validateCommon(input, "input");
   requirePositiveFinite("sensorDimensionMm", input.sensorDimensionMm);
   const radians =
@@ -430,6 +435,7 @@ export function calculateLensProjectionFieldOfView(
 export function calculateLensProjectionFieldOfViewBounds(
   input: CalculateLensProjectionFieldOfViewBoundsInput
 ): CalculationResult<LensProjectionFieldOfViewBounds> {
+  requireInputKeys(input, "calculateLensProjectionFieldOfViewBounds", ["projectionModel", "focalLengthMm", "minimumSensorCoordinateMm", "maximumSensorCoordinateMm"]);
   const model = validateCommon(input, "input");
   const minimum = requireFinite(
     "minimumSensorCoordinateMm",

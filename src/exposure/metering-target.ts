@@ -20,7 +20,8 @@ import type {
 import type {
   SceneRadianceTemporalExposureMeteringResult
 } from "./metering-temporal.js";
-import { requireInputObject } from "../core/record-validation.js";
+import { requireInputObject, requireInputKeys } from "../core/record-validation.js";
+import { InvalidConfigurationError } from "../core/configuration-error.js";
 
 export const EXPOSURE_METER_TARGET_SCHEMA_VERSION =
   "0.1.0" as const;
@@ -106,7 +107,7 @@ function requireNonEmptyString(
     typeof value !== "string" ||
     value.trim().length === 0
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       path + " must be a non-empty string."
     );
   }
@@ -215,7 +216,7 @@ function validateCommonMeterResult(
     result.scientificStatus !==
     "approximation"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       'meterResult.scientificStatus must be "approximation" for schema 0.1.0.'
     );
   }
@@ -223,7 +224,7 @@ function validateCommonMeterResult(
     result.inputDomain !==
     "relative-pre-exposure-linear-signal"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       'meterResult.inputDomain must be "relative-pre-exposure-linear-signal".'
     );
   }
@@ -315,7 +316,7 @@ export function createExposureMeterTargetFromMeteringResult(
   input:
     CreateExposureMeterTargetInput
 ): ExposureMeterTarget {
-  requireInputObject(input, "createExposureMeterTargetFromMeteringResult input");
+  requireInputKeys(input, "createExposureMeterTargetFromMeteringResult", ["targetId", "meterResult"]);
   const base =
     createBaseTargetFields(
       input.targetId,
@@ -395,7 +396,7 @@ function validateBaseTarget(
     target.schemaVersion !==
     EXPOSURE_METER_TARGET_SCHEMA_VERSION
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       'baseTarget.schemaVersion must be "' +
         EXPOSURE_METER_TARGET_SCHEMA_VERSION +
         '".'
@@ -433,7 +434,7 @@ function validateBaseTarget(
       .sourceKind !==
       "temporal-metering-result"
   ) {
-    throw new InvalidScientificInputError(
+    throw new InvalidConfigurationError(
       "baseTarget.sourceMeterSnapshot.sourceKind is invalid."
     );
   }
@@ -497,7 +498,7 @@ export function setExposureCompensationOnMeterTarget(
   input:
     SetExposureCompensationOnMeterTargetInput
 ): ExposureMeterTarget {
-  requireInputObject(input, "setExposureCompensationOnMeterTarget input");
+  requireInputKeys(input, "setExposureCompensationOnMeterTarget", ["targetId", "baseTarget", "exposureCompensationStops"]);
   validateBaseTarget(
     input.baseTarget
   );

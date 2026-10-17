@@ -179,9 +179,9 @@ A few abbreviations used below: FOV (field of view), PSF (point-spread function:
 
 - [White-balance control and Auto WB](https://github.com/Photivra/photivra/blob/main/docs/USAGE.md#white-balance-and-auto-wb). Generic presets owned by the profile, manual gains, independent CCT (correlated colour temperature) plus tint, custom measurement, deterministic AWB priorities and AWB lock. Scene illumination and the RAW-like capture are never changed.
 - [Image processing](https://github.com/Photivra/photivra/blob/main/docs/PROCESSING.md). All of these are cancellable approximations:
-  - built-in bilinear and Malvar–He–Cutler Bayer demosaic kernels with mirrored borders, and AHD demosaic;
+  - built-in bilinear Bayer demosaic kernels with mirrored borders, and AHD demosaic;
   - noise-optimal linear merge of a RAW HDR (high dynamic range) bracket;
-  - PQ/HLG HDR encoding;
+  - conversion of merged radiance to linear BT.2020 (PQ and HLG are not part of 2.0; see `THIRD_PARTY.md`);
   - Reinhard and Durand–Dorsey tone mapping;
   - Mertens exposure fusion;
   - focus stacking;
@@ -199,7 +199,7 @@ A few abbreviations used below: FOV (field of view), PSF (point-spread function:
   - CIELAB and ΔE76/94/2000;
   - camera-matrix fitting;
   - Display P3 and Rec.2020 matrices;
-  - PQ, HLG and BT.1886 transfer functions;
+  - sRGB, BT.709 and BT.1886 transfer functions;
   - hue-preserving gamut mapping.
 
   CIE and ColorChecker tables are not bundled.
@@ -501,5 +501,7 @@ GitHub can generate citation text from [CITATION.cff](https://github.com/Photivr
 ## Licensing
 
 Source code in this repository is licensed under Apache-2.0 unless a file clearly states otherwise. See [LICENSE](https://github.com/Photivra/photivra/blob/main/LICENSE), [NOTICE](https://github.com/Photivra/photivra/blob/main/NOTICE), and [THIRD_PARTY.md](https://github.com/Photivra/photivra/blob/main/THIRD_PARTY.md).
+
+This product includes DNG technology under license by Adobe.
 
 The Apache license does not grant trademark rights to the Photivra name, logos or branding, except as allowed by applicable law and the license itself.
