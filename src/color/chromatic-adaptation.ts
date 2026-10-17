@@ -13,8 +13,11 @@
  * - Bradford (linearized): Lam (1985) thesis, University of Bradford; Luo & Rhodes
  *   (1999); as used in ICC.1:2010 Annex E. The original blue-channel non-linearity is
  *   omitted, as in common practice.
- * - CAT16: Li, Li, Wang, Xu, Luo, Cui, Melgosa, Brill & Pointer (2017), "Comprehensive
- *   color solutions: CAM16, CAT16, and CAM16-UCS", Color Res. Appl. 42(6):703–718.
+ * - CAT16: Li, Li, Wang, Xu, Luo, Cui, Melgosa & Pointer (2016), "A Revision of CIECAM02
+ *   and its CAT and UCS", IS&T CIC24, pp. 208–212, Eq. (15) (M16),
+ *   doi:10.2352/ISSN.2169-2629.2017.32.208 (free from the IS&T library). Journal version:
+ *   Li et al. (2017), "Comprehensive color solutions: CAM16, CAT16, and CAM16-UCS",
+ *   Color Res. Appl. 42(6):703–718.
  * - von Kries with Hunt–Pointer–Estévez cones (equal-energy normalized), as used in
  *   CIECAM02 (Moroney et al. 2002; also CIE 159:2004).
  * - XYZ scaling: identity cone matrix (diagonal scaling in XYZ; the weakest model).

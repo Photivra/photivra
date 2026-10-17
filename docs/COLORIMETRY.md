@@ -107,13 +107,13 @@ This is the one-step two-illuminant form of Li et al. (2017), applied to every c
 | `transform` | Cone matrix C (published constants) |
 | --- | --- |
 | `bradford` | Linearized Bradford: Lam (1985), Univ. of Bradford thesis; Luo & Rhodes (1999); ICC.1:2010 Annex E |
-| `cat16` | Li, Li, Wang, Xu, Luo, Cui, Melgosa, Brill & Pointer (2017), Color Res. Appl. 42(6):703–718 (no free primary source; see below) |
+| `cat16` | Li, Li, Wang, Xu, Luo, Cui, Melgosa & Pointer (2016), *A Revision of CIECAM02 and its CAT and UCS*, IS&T CIC24, Eq. (15) (free; see below); journal version Li et al. (2017), Color Res. Appl. 42(6):703–718 |
 | `von-kries-hpe` | Hunt–Pointer–Estévez cones (equal-energy normalized) as used in CIECAM02 (Moroney et al. 2002; also CIE 159:2004) |
 | `xyz-scaling` | Identity: diagonal scaling in XYZ (the weakest model) |
 
 `calculateDegreeOfAdaptation()` implements the CIECAM02 formula D = F[1 − (1/3.6)·exp((−L_A − 42)/92)], with F = 1.0, 0.9 or 0.8 for average, dim or dark surround. The matrix is calculated exactly. How well a linear CAT predicts corresponding colours is a property of that model and is not claimed here. The test suite checks that the Bradford cone matrix equals ICC.1:2010 Annex E Eq. (E.1), and that the D65→D50 matrix equals the Annex E construction (Eq. E.2–E.4) evaluated independently in the test, to 1e-12. D65 comes from its ITU-R BT.709-6 chromaticity and D50 is the ICC PCS illuminant (0.9642, 1.0, 0.8249). ICC.1:2010 is free to download under a permissive ICC copyright licence.
 
-**Free sources for the cone matrices.** The CAT16 matrix has no free primary source: Li et al. (2017) and CIE 248:2022 are both paid. CAT02 is not part of 2.0: no free source prints its matrix (owner decision, October 17, 2026), so `transform: "cat02"` is rejected.
+**Free sources for the cone matrices.** The CAT16 matrix is printed as M16 in Eq. (15) of Li et al. (2016), *A Revision of CIECAM02 and its CAT and UCS*, IS&T 24th Color and Imaging Conference, pp. 208–212, doi:[10.2352/ISSN.2169-2629.2017.32.208](https://doi.org/10.2352/ISSN.2169-2629.2017.32.208). The paper is free to download from the IS&T library (<https://library.imaging.org/admin/apis/public/api/ist/website/downloadArticle/cic/24/1/art00035>). On October 17, 2026 we downloaded it and checked that all nine coefficients of Eq. (15) equal the engine's `cat16` matrix (row 0: 0.401288, 0.650173, −0.051461). CAT02 is not part of 2.0: the same paper names the CAT02 matrix M02 but does not print it, and no free source we could confirm prints it (owner decision, October 17, 2026), so `transform: "cat02"` is rejected. A public-record patent check found no patent claiming the CAT16 or CAT02 matrix (see the patent review in `THIRD_PARTY.md`).
 
 ### Scene adaptation in the capture colour transform
 
@@ -207,7 +207,7 @@ The ITU-R BT.2100 PQ (also SMPTE ST 2084) and HLG transfer functions are not par
 - Y. Ohno (2011), "Calculation of CCT and Duv and Practical Conversion Formulae", slides, CORM 2011 Conference, Gaithersburg, MD, May 3–5, 2011, slide 5 (Duv sign: "+ sign for above and - sign for below the Planckian locus"); free at <https://cormusa.org/wp-content/uploads/2018/04/CORM_2011_Calculation_of_CCT_and_Duv_and_Practical_Conversion_Formulae.pdf>.
 - K. M. Lam (1985), PhD thesis, University of Bradford; M. R. Luo, P. A. Rhodes (1999); ICC.1:2010 Annex E (ICC specifications are free at <https://www.color.org/>).
 - N. Moroney et al. (2002), IS&T/SID 10th Color Imaging Conference, listed in the RIT open repository <https://repository.rit.edu/other/143> (full text not confirmed; see Chromatic adaptation); also CIE 159:2004 (paid).
-- C. Li et al. (2017), Color Res. Appl. 42(6):703–718 (paid); also CIE 248:2022 (paid).
+- C. Li, Z. Li, Z. Wang, Y. Xu, M. R. Luo, G. Cui, M. Melgosa, M. Pointer (2016), "A Revision of CIECAM02 and its CAT and UCS", IS&T 24th Color and Imaging Conference, pp. 208–212, doi:10.2352/ISSN.2169-2629.2017.32.208 (free; Eq. (15) gives the CAT16 matrix). Journal version: C. Li et al. (2017), Color Res. Appl. 42(6):703–718 (paid); also CIE 248:2022 (paid).
 - G. Sharma, W. Wu, E. N. Dalal (2005), Color Res. Appl. 30(1):21–30; paper at <https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/>. Also CIE 142-2001.
 - CIE 116-1995, *Industrial colour-difference evaluation* (CIE94; paid, no free primary source).
 - G. D. Finlayson, M. S. Drew (1997), IS&T/SID 5th Color Imaging Conference.

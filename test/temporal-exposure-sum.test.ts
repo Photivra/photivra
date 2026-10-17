@@ -68,12 +68,28 @@ describe("accelerated temporal exposure sum", () => {
       const v = temporalCorpus(w, h, nodes, w + nodes, rolling, subSite), reference = calculateTemporalExposureSum(v).values;
       const a = await createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "fail", gpu: createFakeGpu().gpu });
       const out = await a.sumTemporalExposure(v);
-      expect(out.execution).toMatchObject({ backend: "webgpu-f32", errorBound: temporalExposureSumErrorBound(out.plan) });
+      expect(out.execution).toMatchObject({ backend: "webgpu-f32", errorBound: temporalExposureSumErrorBound(out.plan, v.rowWeights) });
       expectWithin(out.values, reference, out.execution.errorBound as ImageKernelRelativeErrorBound);
       const banded = await (await createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "fail", gpu: createFakeGpu().gpu, maximumBandBytes: 4096 }))
         .sumTemporalExposure(v);
       expect(banded.values).toEqual(out.values);
     });
+  it("bound covers row and bilinear weights below 2^-126 (host rounding to zero, subnormals, GPU flush)", async () => {
+    const a = await createImageKernelAccelerator({ backend: "webgpu-f32", fallback: "fail", gpu: createFakeGpu().gpu });
+    const big = new Float64Array(8).fill(2 ** 100), cases: [TemporalExposureSumInput, number][] = [
+      // Row weight 2^-160 rounds to 0 in float32: the whole term 2^-60 is lost.
+      [input(4, 2, [0, 0, 1, 0], k => (k === 0 ? 2 ** -160 : 0), big), 2 * 2 ** 100 * 2 ** -160],
+      [input(4, 2, [0, 0], () => 2 ** -130, big), 2 * 2 ** 100 * 2 ** -130],
+      // Displacement −2^-155 gives the bilinear weight 2^-155 (rounds to 0) to the right-hand neighbour, which is the only nonzero sample.
+      [input(4, 2, [-(2 ** -155), 0], () => 4, new Float64Array(8).map((_, i) => (i % 2 ? 2 ** 100 : 0))), 2 * 2 ** 100 * 4 * 2 ** -155],
+      [input(4, 2, [0.5, 0.25], () => 2 ** -126, big), 0]];
+    for (const [v, extra] of cases) {
+      const out = await a.sumTemporalExposure(v), bound = out.execution.errorBound as ImageKernelRelativeErrorBound;
+      expectWithin(out.values, calculateTemporalExposureSum(v).values, bound);
+      const plan = calculateTemporalExposureSumPlan(v);
+      expect(bound.absolute).toBe(plan.nodeCount * (8 * plan.maximumWeight + 2) * 2 ** -126 + extra);
+    }
+  });
 });
 
 describe("accuracy contract: composition of stage bounds", () => {

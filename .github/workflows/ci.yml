@@ -72,6 +72,50 @@ jobs:
       # Benchmark and native profiling evidence runs in native-performance.yml
       # when its source paths change, nightly, and on manual dispatch.
 
+  licence-scan:
+    # Scans every file in the repository with ScanCode Toolkit (Apache-2.0,
+    # free). The policy script fails on a non-Apache-2.0 licence finding or a
+    # foreign copyright holder, unless the file and finding are on its
+    # reviewed allowlist (scripts/check-scancode-policy.mjs). See
+    # docs/DEVELOPERS.md, "Licence and copyright scan".
+    name: licence scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Use Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install ScanCode Toolkit
+        # Complete hash-pinned set; --no-deps because the tested set pins
+        # pluggy 0.13.1 below scancode-toolkit-mini's declared range.
+        run: |
+          python -m venv "$RUNNER_TEMP/scancode"
+          "$RUNNER_TEMP/scancode/bin/python" -m pip install --disable-pip-version-check --no-deps --require-hashes -r .github/scancode-requirements.txt
+          "$RUNNER_TEMP/scancode/bin/scancode" --version
+      - name: Scan licences and copyrights
+        # No npm install runs in this job, so node_modules, dist and coverage
+        # do not exist; they are ignored anyway, as is .git.
+        run: >-
+          "$RUNNER_TEMP/scancode/bin/scancode"
+          --license --copyright -n 2 --strip-root --timeout 300
+          --ignore ".git" --ignore "node_modules" --ignore "dist" --ignore "coverage"
+          --json "$RUNNER_TEMP/scancode.json" .
+      - name: Use Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "lts/*"
+      - name: Verify Node.js support policy
+        run: |
+          node --test .github/test-node-lts-policy.mjs
+          node .github/node-lts-policy.mjs
+      - name: Check licence and copyright policy
+        run: node scripts/check-scancode-policy.mjs "$RUNNER_TEMP/scancode.json"
+
   hash-locks-macos:
     # Informational portability check for the bit-identity hash locks, which
     # were recorded on Linux x64 (docs/NUMERICAL_CORRECTNESS.md, "Test hash
