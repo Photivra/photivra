@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Owned synthetic catalog data defines separate body capabilities/readout and lens
- * optical/correction profiles. Tier selection changes explicit profile values, never adds a
- * universal quality multiplier. CFA/collection geometry and actual capture raster remain
- * caller-owned; numeric data is not measured calibration.
+ * Synthetic catalog data, owned by the project, for generic camera tiers. Bodies (capabilities and
+ * readout) and lenses (optical and correction profiles) are defined separately.
+ *
+ * Choosing a tier changes explicit profile values. It never applies a universal quality multiplier.
+ * The caller still supplies the CFA (colour filter array) and light-collection geometry and the
+ * actual capture raster. The numbers are not measured calibration.
  * @see docs/RELEASE_1_0.md and the corresponding domain guide.
  */
 
@@ -32,11 +34,11 @@ export interface GenericTierBodyAssets {
   iso: IsoCapabilityProfile;
   signalChain: GenericIsoSignalChainProfile;
   readout: readonly GenericVersionedAsset<SensorReadoutConversionProfile>[];
-  /** Global (no spatial skew) data readout; the default timing asset. */
+  /** Global data readout (no skew across the frame). The default timing asset. */
   readoutTiming: GenericVersionedAsset<SensorReadoutTimingDeclaration>;
-  /** Opt-in rolling readout variant with explicit top-to-bottom spatial skew. */
+  /** Optional rolling readout variant, with an explicit top-to-bottom skew across the frame. */
   rollingReadoutTiming: GenericVersionedAsset<SensorReadoutTimingDeclaration>;
-  /** Opt-in synthetic fixed-pattern noise for this body; never applied unless a caller attaches it. */
+  /** Optional synthetic fixed-pattern noise for this body. Never applied unless a caller attaches it. */
   fixedPatternNoise: GenericVersionedAsset<SensorFixedPatternNoiseProfile>;
   release: GenericReleaseCapabilityProfile;
   focus: FocusControlProfile;
@@ -88,16 +90,17 @@ const flat = Array<number>(25).fill(0);
 const far = near.map((v) => -v);
 
 /**
- * Synthetic educational sensor design values per tier: ADC, saturation signal Q0 at base ISO,
- * analog gain range, per-conversion-gain-mode read noise and fixed-pattern magnitudes. They are
- * plausible orders of magnitude for consumer interchangeable-lens sensors, not data of any camera.
+ * Synthetic, educational sensor design values for each tier: ADC (analogue-to-digital converter),
+ * saturation signal Q0 at base ISO, analogue gain range, read noise for each conversion-gain mode,
+ * and fixed-pattern noise sizes. They are plausible orders of magnitude for consumer
+ * interchangeable-lens sensors. They are not data from any real camera.
  */
 interface SyntheticSensorDesign {
   bitDepth: number; blackLevelCode: number; saturationElectrons: number; maximumAnalogGain: number;
   lowGainReadNoise: number; highGainReadNoise: number; highGainFromIso: number; highGainMaximumCharge: number;
   prnu: number; dsnu: number; hotFraction: number; hotMultiplier: number; rowRms: number; columnRms: number; instanceSeed: number;
 }
-/** Data construction only: tier labels never enter downstream scientific equations. */
+/** Used only to build data. Tier labels never enter any scientific equation. */
 function bodyAssets(id: string, isoMax: number, cadence: number, frames: number, sensor: SyntheticSensorDesign,
   dataReadoutSeconds: number, gain: number, maxAngle: number, continuousAf: boolean, advancedPolicies: boolean): GenericTierBodyAssets {
   const isoValues = [100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600].filter((v) => v <= isoMax);

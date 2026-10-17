@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Parses a generic Photivra body exposure-capability profile. This is capability metadata only. ISO
- * values do not imply noise/gain topology, and shutter-duration capability does not imply one shutter
- * mechanism or sensor-readout schedule.
- * Parses a generic Photivra lens exposure-capability profile. "Widest" is expressed as the smallest
- * available f-number, avoiding the ambiguous phrases minimum/maximum aperture.
- * @see docs/GENERIC_TIER_PRESETS.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * Exposure capabilities of generic Photivra camera bodies and lenses: which ISO, shutter and aperture
+ * settings they offer.
+ *
+ * This is capability metadata only. ISO values say nothing about how noise or gain is implemented.
+ * Shutter-duration capability does not imply a particular shutter mechanism or sensor-readout
+ * schedule.
+ *
+ * For lenses, "widest" means the smallest available f-number. This avoids the ambiguous phrases
+ * "minimum aperture" and "maximum aperture".
+ * @see docs/GENERIC_TIER_PRESETS.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -155,8 +159,8 @@ export interface ResolvedGenericEquipmentExposureCapabilities {
     autoIsoAvailability:
       GenericCapabilityAvailability;
     /**
-     * Optional Auto-ISO-only bounds. Manual ISO continues to use minimum /
-     * maximum and the complete standard setting grid.
+     * Optional bounds that apply only to Auto ISO. Manual ISO still uses the
+     * minimum, the maximum and the complete standard setting grid.
      */
     autoIsoMinimum?: number;
     autoIsoMaximum?: number;
@@ -483,9 +487,9 @@ function requireApproximationProfileHeader(
 /**
  * Parses a generic Photivra body exposure-capability profile.
  *
- * This is capability metadata only. ISO values do not imply noise/gain
- * topology, and shutter-duration capability does not imply one shutter
- * mechanism or sensor-readout schedule.
+ * This is capability metadata only. ISO values say nothing about how noise or
+ * gain is implemented. Shutter-duration capability does not imply a
+ * particular shutter mechanism or sensor-readout schedule.
  */
 export function parseGenericBodyExposureCapabilityProfile(
   value: unknown
@@ -711,8 +715,8 @@ function parseWidestFNumberCapability(
 /**
  * Parses a generic Photivra lens exposure-capability profile.
  *
- * "Widest" is expressed as the smallest available f-number, avoiding the
- * ambiguous phrases minimum/maximum aperture.
+ * "Widest" means the smallest available f-number. This avoids the ambiguous
+ * phrases "minimum aperture" and "maximum aperture".
  */
 export function parseGenericLensExposureCapabilityProfile(
   value: unknown
@@ -868,8 +872,9 @@ function resolveGrid(
  * Resolves the exposure-relevant capability subset for one generic body+lens
  * combination at one selected focal length.
  *
- * Source profiles are immutable inputs. This resolver does not choose exposure
- * settings; it only provides the capability envelope consumed by #99.
+ * The source profiles are not changed. This resolver does not choose exposure
+ * settings. It only provides the range of available settings (the capability
+ * envelope) that the exposure-mode resolvers use.
  */
 export function resolveGenericEquipmentExposureCapabilities(
   input:

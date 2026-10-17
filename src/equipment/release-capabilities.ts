@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Parses generic logical-release/drive capabilities. The first schema deliberately models
- * non-overlapping ordinary still exposures only. Buffer/media/thermal slowdown and pre-release capture
- * remain outside this profile.
- * @see docs/GENERIC_TIER_PRESETS.md for equations, coordinate/unit conventions, blockers and support
- * limits.
+ * Release and drive capabilities of a generic body: what happens when the shutter button is pressed
+ * (single shot, burst, self-timer, and exposure brackets).
+ *
+ * The first schema deliberately models only ordinary still exposures that do not overlap. Slowdown
+ * from the buffer, media or heat, and pre-release capture, are not part of this profile.
+ * @see docs/GENERIC_TIER_PRESETS.md for the equations, units, coordinate conventions, known blockers
+ * and support limits.
  */
 
 import { InvalidConfigurationError } from "../core/configuration-error.js";
@@ -285,9 +287,9 @@ function parseBracketAxes(
 /**
  * Parses generic logical-release/drive capabilities.
  *
- * The first schema deliberately models non-overlapping ordinary still
- * exposures only. Buffer/media/thermal slowdown and pre-release capture remain
- * outside this profile.
+ * The first schema deliberately models only ordinary still exposures that do
+ * not overlap. Slowdown from the buffer, media or heat, and pre-release
+ * capture, are not part of this profile.
  */
 export function parseGenericReleaseCapabilityProfile(
   value: unknown
