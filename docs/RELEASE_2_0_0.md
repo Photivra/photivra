@@ -12,7 +12,7 @@
 
 ## Candidate details
 
-**Candidate base:** `origin/main` at `28f8b61` (#314), the last code change. This record update changes only `CHANGELOG.md` and this file.
+**Candidate base:** `origin/main` at `28f8b61` (#314), the last code change. This record update changes `CHANGELOG.md`, this file, `THIRD_PARTY.md`, `README.md` (the Adobe DNG notice) and one source comment (the same notice in `src/capture/dng-import.ts`); the comment-stripped build is unchanged.
 
 - `npm run release:prepare -- 2.0.0` had already aligned `package.json`, both lockfile root versions, `ENGINE_API_VERSION`, `CITATION.cff`, the current-release lines in `README.md` and `docs/DEVELOPERS.md`, and the generated `docs/api`.
 - After the merge, the API reference was regenerated.
@@ -326,6 +326,8 @@ The owner's free-sources rule also covers paid textbooks. For each fact a paid b
   - Its adjusted expiration would have been June 23, 2024 anyway. Either way, the patent is no longer in force.
   - The engine uses only the locus approximation published in Kang et al. (2002).
   - This is a public-record check, not a legal opinion. `THIRD_PARTY.md` records the finding.
+- **Adobe DNG patent licence (verified 2026-10-17; owner decision).** Adobe's licence (Digital Negative page, <https://helpx.adobe.com/camera-raw/desktop/dng-and-file-formats/digital-negative.html>) is royalty-free, covers reading and writing DNG, and requires the notice "This product includes DNG technology under license by Adobe." in source code and documentation. It is now in `NOTICE`, `README.md` and all three DNG source files (the reader `dng-import.ts` was added). Its only condition beyond the notice is revocation for a licensee that sues Adobe over DNG patents. No conflict with Apache-2.0 was found. This is a document check, not legal advice. See `THIRD_PARTY.md`.
+- **Owner decisions (2026-10-17) on free, licence-compatible inputs:** keep the Wyman et al. parameters as facts; keep the Kang et al. locus coefficients (patent lapsed 2018); ship DNG under Adobe's royalty-free licence.
 - **DNG ActiveArea phase rule (confirmed).**
   - The Adobe DNG Specification 1.7.1.0 (September 2023) was downloaded from Adobe's Digital Negative page.
   - Under PhotometricInterpretation (PDF page 22) it states: "The origin of the repeating CFA pattern is the top-left corner of the ActiveArea rectangle". Under BlackLevel (PDF page 28): "The origin of this pattern is the top-left corner of the ActiveArea rectangle".
@@ -421,11 +423,11 @@ Work that is known and deliberately left for later:
    - the owner approves anything that goes to production.
 
    `docs/AGENT_DOMAIN_RULES.md`, `docs/AUTOMATION_COORDINATION.md` and the `.github` agent files were retired. Their scientific content already lives in the domain guides, and `.github/node-lts-policy.mjs` still enforces the CI Node policy.
-3. **Human review** of the colorimetry constants recorded in `THIRD_PARTY.md` (CC BY-ND parameters, the patent record finding) and of the AI-assisted changes.
+3. **Human review** of the AI-assisted changes and of this record. The third-party inputs were decided on 2026-10-17: the owner kept the Wyman et al. parameters as facts and the Kang et al. coefficients (patent lapsed), and accepted DNG under Adobe's verified royalty-free licence, each on the condition that it is free and compatible with Apache-2.0.
 
 ## Release gates
 
-The authoritative result is GitHub CI on the exact commit that is tagged. The last code change is `28f8b61` (#314); its push CI on `main` is recorded below. This record update changes only `CHANGELOG.md` and this file, and gets its own CI run on its PR and again on `main` after merge. Tag the `main` commit whose CI is green.
+The authoritative result is GitHub CI on the exact commit that is tagged. The last code change is `28f8b61` (#314); its push CI on `main` is recorded below. This record update changes no code (documentation and one source comment), and gets its own CI run on its PR and again on `main` after merge. Tag the `main` commit whose CI is green.
 
 | Gate | Result on `28f8b61` |
 | --- | --- |

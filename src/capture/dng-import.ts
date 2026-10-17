@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// This product includes DNG technology under license by Adobe.
 
 /**
  * Browser-safe reader for DNG and TIFF-EP raw files with a CFA (colour filter array) mosaic.
