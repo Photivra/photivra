@@ -176,7 +176,7 @@ describe("lean native environment executor (2.0 performance)", () => {
 
   it("rejects an out-of-range lean site with the operating-range error at the same callback", async () => {
     // Bisect (full path) a range bound that the first site satisfies but some later site does not, then compare both paths.
-    const bounded = (key: "minimumInclusive" | "maximumInclusive", bound: number): Options => ({ site: s => {
+    const bounded = (key: "minimumInclusive" | "maximumInclusive", bound: number): Options => ({ site: (s): void => {
       const p = s.environment.sensor.operatingRangeProfile as { inputRange: Record<string, unknown> };
       s.environment.sensor.operatingRangeProfile = { ...p, inputRange: { ...p.inputRange, [key]: bound } }; } });
     const firstSiteFails = async (key: "minimumInclusive" | "maximumInclusive", bound: number): Promise<boolean> => {

@@ -81,7 +81,7 @@ export interface NativeRawLeanSensorHook {
   compute(handle: object, index: number, seed: number, timing: ReturnType<typeof calculateCaptureExposureWindows>["value"]["samples"][number] | undefined): NativeRawLeanOutput;
   observe(index: number, parsed: SensorRawProducerSiteInput, result: ReturnType<typeof calculateNativeRawSite>, whiteCode: number, seed: number): void;
 }
-export type NativeRawTaskState ="ready" | "running" | "completed" | "cancelled" | "failed" | "disposed" | "transferred";
+export type NativeRawTaskState = "ready" | "running" | "completed" | "cancelled" | "failed" | "disposed" | "transferred";
 export interface NativeRawTask {
   readonly plan: NativeRawPlan;
   readonly state: NativeRawTaskState;
